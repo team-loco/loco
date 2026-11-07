@@ -6,22 +6,16 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 	"time"
 
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/registrycred"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -39,8 +33,7 @@ const (
 )
 
 var (
-	ErrInvalidBuild    = errors.New("invalid build")
-	errCacheNotSynced  = errors.New("build cache did not sync")
+	errInvalidBuild    = errors.New("invalid build")
 	errNotBuildMessage = errors.New("build handler received a sync message that is not a build operation")
 	errNoCredential    = errors.New("no registry credential in token mode")
 	errNoRegistryHost  = errors.New("image repository names no registry host")
@@ -65,73 +58,35 @@ type Watcher struct {
 	createBackoff wait.Backoff
 	now           func() time.Time
 
-	order    sync.Mutex
-	mu       sync.Mutex
-	statuses map[string]*agentv1.BuildStatus
-	sink     Sink
-	sinkID   uint64
-	watching context.Context
+	feed  *kube.Feed[*agentv1.BuildStatus]
+	cache *kube.Cache
 }
 
 func Start(ctx context.Context, restConfig *rest.Config, cfg Config) (*Watcher, error) {
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add core types to scheme: %w", err)
-	}
-	ctx, onWatchError := kube.StopOnDeadWatch(ctx)
-	c, err := cache.New(restConfig, cache.Options{
-		Scheme:                   scheme,
-		DefaultNamespaces:        map[string]cache.Config{cfg.Namespace: {}},
-		DefaultWatchErrorHandler: onWatchError,
-	})
+	scheme, err := kube.NewScheme()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Build cache: %w", err)
+		return nil, err
 	}
 	writer, err := client.New(restConfig, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Build client: %w", err)
 	}
-
-	w := New(writer, c, cfg)
-	informer, err := c.GetInformer(ctx, &locoControllerV1.Build{})
+	w := newWatcher(writer, nil, cfg)
+	c, err := kube.StartCache(ctx, restConfig, scheme, cfg.Namespace, &locoControllerV1.Build{}, w.observe, w.forget)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Build informer: %w", err)
+		return nil, err
 	}
-	_, err = informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
-		AddFunc:    w.Observe,
-		UpdateFunc: w.observeUpdate,
-		DeleteFunc: w.Forget,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to watch Builds: %w", err)
-	}
-
-	go func() {
-		if startErr := c.Start(ctx); startErr != nil {
-			slog.ErrorContext(ctx, "Build cache stopped", "error", startErr)
-		}
-	}()
-	if !c.WaitForCacheSync(ctx) {
-		return nil, fmt.Errorf("%w: %w", errCacheNotSynced, context.Cause(ctx))
-	}
-	w.watching = ctx
+	// observe and forget never read reader, so it can be set after the cache starts.
+	w.reader, w.cache = c, c
 	return w, nil
 }
 
 // Wait blocks until ctx ends or the Build watch stops for good, and returns why.
 func (w *Watcher) Wait(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-w.watching.Done():
-		return context.Cause(w.watching)
-	}
+	return w.cache.Wait(ctx)
 }
 
-func New(writer client.Client, reader client.Reader, cfg Config) *Watcher {
+func newWatcher(writer client.Client, reader client.Reader, cfg Config) *Watcher {
 	createBackoff := wait.Backoff{
 		Duration: cfg.CreateRetryDelay,
 		Factor:   createRetryFactor,
@@ -146,30 +101,30 @@ func New(writer client.Client, reader client.Reader, cfg Config) *Watcher {
 		tokenMode:     cfg.TokenMode,
 		createBackoff: createBackoff,
 		now:           time.Now,
-		statuses:      make(map[string]*agentv1.BuildStatus),
+		feed:          kube.NewFeed[*agentv1.BuildStatus](),
 	}
 }
 
-func Name(buildID string) string {
+func buildName(buildID string) string {
 	return namePrefix + buildID
 }
 
-func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
+func (w *Watcher) create(ctx context.Context, start *agentv1.StartBuild) error {
 	buildID := start.GetBuildId()
 	if buildID == "" {
-		return fmt.Errorf("%w: no build id", ErrInvalidBuild)
+		return fmt.Errorf("%w: no build id", errInvalidBuild)
 	}
 	if w.tokenMode {
 		if err := w.writeRegistrySecret(ctx, start); err != nil {
 			return err
 		}
 	}
-	name := Name(buildID)
+	name := buildName(buildID)
 	build := &locoControllerV1.Build{
 		Name:      name,
 		Namespace: w.namespace,
 		Labels: map[string]string{
-			locolabels.LabelManagedBy: identity.FieldOwner,
+			locolabels.LabelManagedBy: kube.ManagedBy,
 			locolabels.LabelBuildID:   buildID,
 		},
 		Spec: locoControllerV1.BuildSpec{
@@ -184,12 +139,12 @@ func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
 			CacheRef:        start.GetCacheRef(),
 		},
 	}
-	err := w.client.Create(ctx, build, client.FieldOwner(identity.FieldOwner))
+	err := w.client.Create(ctx, build, client.FieldOwner(kube.ManagedBy))
 	if apierrors.IsAlreadyExists(err) {
 		return nil
 	}
 	if apierrors.IsInvalid(err) {
-		return fmt.Errorf("%w: %w", ErrInvalidBuild, err)
+		return fmt.Errorf("%w: %w", errInvalidBuild, err)
 	}
 	if err != nil {
 		return fmt.Errorf("create Build %s: %w", name, err)
@@ -200,11 +155,11 @@ func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
 func (w *Watcher) writeRegistrySecret(ctx context.Context, start *agentv1.StartBuild) error {
 	credential := start.GetRegistryCredential()
 	if credential == "" {
-		return fmt.Errorf("%w: %w", ErrInvalidBuild, errNoCredential)
+		return fmt.Errorf("%w: %w", errInvalidBuild, errNoCredential)
 	}
 	host, _, ok := strings.Cut(start.GetImageRepository(), repositorySep)
 	if !ok || host == "" {
-		return fmt.Errorf("%w: %w: %q", ErrInvalidBuild, errNoRegistryHost, start.GetImageRepository())
+		return fmt.Errorf("%w: %w: %q", errInvalidBuild, errNoRegistryHost, start.GetImageRepository())
 	}
 	config, err := registrycred.DockerConfig(host, locoControllerV1.RegistryBuildUsername, credential)
 	if err != nil {
@@ -220,7 +175,7 @@ func (w *Watcher) writeRegistrySecret(ctx context.Context, start *agentv1.StartB
 	secret.Name = name
 	secret.Namespace = w.namespace
 	secret.Labels = map[string]string{
-		locolabels.LabelManagedBy: identity.FieldOwner,
+		locolabels.LabelManagedBy: kube.ManagedBy,
 		locolabels.LabelBuildID:   start.GetBuildId(),
 	}
 	secret.Type = corev1.SecretTypeDockerConfigJson
@@ -247,13 +202,13 @@ func (w *Watcher) deleteRegistrySecret(ctx context.Context, buildID string) erro
 	return nil
 }
 
-func (w *Watcher) Delete(ctx context.Context, buildID string) error {
+func (w *Watcher) remove(ctx context.Context, buildID string) error {
 	if w.tokenMode {
 		if err := w.deleteRegistrySecret(ctx, buildID); err != nil {
 			return err
 		}
 	}
-	name := Name(buildID)
+	name := buildName(buildID)
 	build := &locoControllerV1.Build{
 		Name: name, Namespace: w.namespace,
 	}
@@ -276,7 +231,7 @@ func (w *Watcher) list(ctx context.Context) ([]locoControllerV1.Build, error) {
 	return builds.Items, nil
 }
 
-func (w *Watcher) Inventory(ctx context.Context) ([]*agentv1.InventoryBuild, error) {
+func (w *Watcher) inventory(ctx context.Context) ([]*agentv1.InventoryBuild, error) {
 	builds, err := w.list(ctx)
 	if err != nil {
 		return nil, err
@@ -284,10 +239,10 @@ func (w *Watcher) Inventory(ctx context.Context) ([]*agentv1.InventoryBuild, err
 	entries := make([]*agentv1.InventoryBuild, 0, len(builds))
 	for i := range builds {
 		build := &builds[i]
-		if build.Spec.BuildID == "" || build.Name != Name(build.Spec.BuildID) {
+		if build.Spec.BuildID == "" || build.Name != buildName(build.Spec.BuildID) {
 			continue
 		}
-		phase := Phase(build.Status.Phase)
+		phase := apiPhase(build.Status.Phase)
 		if phase == agentv1.BuildPhase_BUILD_PHASE_UNSPECIFIED {
 			phase = agentv1.BuildPhase_BUILD_PHASE_PENDING
 		}
@@ -299,44 +254,24 @@ func (w *Watcher) Inventory(ctx context.Context) ([]*agentv1.InventoryBuild, err
 	return entries, nil
 }
 
+// WithInventory calls fn with the inventory while no status is forwarded, so the API never
+// receives an inventory older than a status it already has.
 func (w *Watcher) WithInventory(ctx context.Context, fn func([]*agentv1.InventoryBuild) error) error {
-	w.order.Lock()
-	defer w.order.Unlock()
-	entries, err := w.Inventory(ctx)
-	if err != nil {
-		return err
-	}
-	return fn(entries)
-}
-
-func (w *Watcher) Attach(sink Sink) func() {
-	w.order.Lock()
-	defer w.order.Unlock()
-
-	w.mu.Lock()
-	w.sinkID++
-	id := w.sinkID
-	w.sink = sink
-	snapshot := make([]*agentv1.BuildStatus, 0, len(w.statuses))
-	for _, status := range w.statuses {
-		snapshot = append(snapshot, status)
-	}
-	w.mu.Unlock()
-
-	for _, status := range snapshot {
-		sink(status)
-	}
-
-	return func() {
-		w.mu.Lock()
-		defer w.mu.Unlock()
-		if w.sinkID == id {
-			w.sink = nil
+	return w.feed.Freeze(func() error {
+		entries, err := w.inventory(ctx)
+		if err != nil {
+			return err
 		}
-	}
+		return fn(entries)
+	})
 }
 
-func Phase(phase string) agentv1.BuildPhase {
+// Attach replays every known build status to sink and forwards later changes to it.
+func (w *Watcher) Attach(sink Sink) func() {
+	return w.feed.Attach(sink)
+}
+
+func apiPhase(phase string) agentv1.BuildPhase {
 	switch phase {
 	case locoControllerV1.BuildPhasePending:
 		return agentv1.BuildPhase_BUILD_PHASE_PENDING
@@ -353,7 +288,7 @@ func Phase(phase string) agentv1.BuildPhase {
 	}
 }
 
-func Truncate(message string) string {
+func truncate(message string) string {
 	runes := []rune(message)
 	if len(runes) <= maxMessageLength {
 		return message
@@ -363,15 +298,15 @@ func Truncate(message string) string {
 	return truncatedPrefix + string(tail)
 }
 
-func StatusOf(build *locoControllerV1.Build) (*agentv1.BuildStatus, bool) {
-	if build.Spec.BuildID == "" || build.Name != Name(build.Spec.BuildID) {
+func statusOf(build *locoControllerV1.Build) (*agentv1.BuildStatus, bool) {
+	if build.Spec.BuildID == "" || build.Name != buildName(build.Spec.BuildID) {
 		return nil, false
 	}
-	phase := Phase(build.Status.Phase)
+	phase := apiPhase(build.Status.Phase)
 	if phase == agentv1.BuildPhase_BUILD_PHASE_UNSPECIFIED {
 		return nil, false
 	}
-	message := Truncate(build.Status.Message)
+	message := truncate(build.Status.Message)
 	status := &agentv1.BuildStatus{
 		BuildId: build.Spec.BuildID,
 		Phase:   phase,
@@ -384,52 +319,19 @@ func StatusOf(build *locoControllerV1.Build) (*agentv1.BuildStatus, bool) {
 	return status, true
 }
 
-func (w *Watcher) observeUpdate(_, obj any) {
-	w.Observe(obj)
-}
-
-func (w *Watcher) Observe(obj any) {
-	build, ok := obj.(*locoControllerV1.Build)
+func (w *Watcher) observe(build *locoControllerV1.Build) {
+	status, ok := statusOf(build)
 	if !ok {
 		return
 	}
-	status, ok := StatusOf(build)
-	if !ok {
-		return
-	}
-
-	w.order.Lock()
-	defer w.order.Unlock()
-
-	w.mu.Lock()
-	previous := w.statuses[status.GetBuildId()]
-	if proto.Equal(previous, status) {
-		w.mu.Unlock()
-		return
-	}
-	w.statuses[status.GetBuildId()] = status
-	sink := w.sink
-	w.mu.Unlock()
-
-	if sink != nil {
-		sink(status)
-	}
+	w.feed.Publish(status.GetBuildId(), status)
 }
 
-func (w *Watcher) Forget(obj any) {
-	if tombstone, ok := obj.(toolscache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
-	build, ok := obj.(*locoControllerV1.Build)
-	if !ok {
-		return
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	delete(w.statuses, build.Spec.BuildID)
+func (w *Watcher) forget(build *locoControllerV1.Build) {
+	w.feed.Forget(build.Spec.BuildID)
 }
 
-func (w *Watcher) Collect(ctx context.Context) error {
+func (w *Watcher) collect(ctx context.Context) error {
 	builds, err := w.list(ctx)
 	if err != nil {
 		return err
@@ -438,7 +340,7 @@ func (w *Watcher) Collect(ctx context.Context) error {
 	var errs []error
 	for i := range builds {
 		build := &builds[i]
-		if build.Spec.BuildID == "" || build.Name != Name(build.Spec.BuildID) {
+		if build.Spec.BuildID == "" || build.Name != buildName(build.Spec.BuildID) {
 			continue
 		}
 		if !build.Finished() || build.Status.FinishedAt == nil {
@@ -447,7 +349,7 @@ func (w *Watcher) Collect(ctx context.Context) error {
 		if build.Status.FinishedAt.After(cutoff) {
 			continue
 		}
-		if deleteErr := w.Delete(ctx, build.Spec.BuildID); deleteErr != nil {
+		if deleteErr := w.remove(ctx, build.Spec.BuildID); deleteErr != nil {
 			errs = append(errs, deleteErr)
 			continue
 		}
@@ -464,7 +366,7 @@ func (w *Watcher) RunCollector(ctx context.Context, interval time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := w.Collect(ctx); err != nil {
+			if err := w.collect(ctx); err != nil {
 				slog.WarnContext(ctx, "failed to remove finished builds", "error", err)
 			}
 		}
@@ -472,7 +374,7 @@ func (w *Watcher) RunCollector(ctx context.Context, interval time.Duration) {
 }
 
 func retriable(err error) bool {
-	return !errors.Is(err, ErrInvalidBuild) && !apierrors.IsForbidden(err)
+	return !errors.Is(err, errInvalidBuild) && !apierrors.IsForbidden(err)
 }
 
 func (w *Watcher) Handle(ctx context.Context, msg *agentv1.SyncResponse, report Sink) {
@@ -482,7 +384,7 @@ func (w *Watcher) Handle(ctx context.Context, msg *agentv1.SyncResponse, report 
 	case *agentv1.SyncResponse_CancelBuild:
 		buildID := m.CancelBuild.GetBuildId()
 		slog.InfoContext(ctx, "received build cancel", "build_id", buildID)
-		if err := w.Delete(ctx, buildID); err != nil {
+		if err := w.remove(ctx, buildID); err != nil {
 			slog.WarnContext(ctx, "failed to cancel build", "build_id", buildID, "error", err)
 		}
 	default:
@@ -498,7 +400,7 @@ func (w *Watcher) handleStart(ctx context.Context, start *agentv1.StartBuild, re
 		"cache_ref", start.GetCacheRef(),
 	)
 	err := retry.OnError(w.createBackoff, retriable, func() error {
-		return w.Create(ctx, start)
+		return w.create(ctx, start)
 	})
 	if err == nil {
 		return
@@ -508,7 +410,7 @@ func (w *Watcher) handleStart(ctx context.Context, start *agentv1.StartBuild, re
 		return
 	}
 	message := "the agent could not create the build: " + err.Error()
-	truncated := Truncate(message)
+	truncated := truncate(message)
 	report(&agentv1.BuildStatus{
 		BuildId: buildID,
 		Phase:   agentv1.BuildPhase_BUILD_PHASE_FAILED,

@@ -45,7 +45,7 @@ func NewRenewer(
 	return &Renewer{client: client, kube: kube, secret: secret, backoff: backoff}
 }
 
-func RenewalDelay(now, expiresAt time.Time) time.Duration {
+func renewalDelay(now, expiresAt time.Time) time.Duration {
 	return expiresAt.Sub(now) / renewalDivisor
 }
 
@@ -66,7 +66,7 @@ func (r *Renewer) Run(ctx context.Context) error {
 			slog.WarnContext(ctx, "telemetry token renewal failed", "error", err, "retry_in", delay)
 		} else {
 			backoff = r.backoff()
-			delay = RenewalDelay(time.Now(), expiresAt)
+			delay = renewalDelay(time.Now(), expiresAt)
 			slog.InfoContext(ctx, "telemetry token renewed", "expires_at", expiresAt, "next_renewal_in", delay)
 		}
 		timer := time.NewTimer(delay)

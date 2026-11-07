@@ -1,8 +1,8 @@
 package kube
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 )
 
 const (
@@ -46,35 +45,25 @@ func TestADeadWatchStopsTheCache(t *testing.T) {
 			server := httptest.NewServer(fakeAPIServer(t, tc.list, tc.watch, synced))
 			defer server.Close()
 
-			ctx, onWatchError := StopOnDeadWatch(t.Context())
 			scheme := runtime.NewScheme()
 			if err := corev1.AddToScheme(scheme); err != nil {
 				t.Fatal(err)
 			}
-			c, err := cache.New(&rest.Config{Host: server.URL}, cache.Options{
-				Scheme:                   scheme,
-				DefaultNamespaces:        map[string]cache.Config{testNamespace: {}},
-				DefaultWatchErrorHandler: onWatchError,
-			})
+			ignore := func(*corev1.Pod) {}
+			c, err := StartCache(t.Context(), &rest.Config{Host: server.URL}, scheme, testNamespace,
+				&corev1.Pod{}, ignore, ignore)
+			if !tc.synced {
+				if !errors.Is(err, errCacheNotSynced) || !tc.dead(err) {
+					t.Fatalf("start = %v, want an unsynced cache", err)
+				}
+				return
+			}
 			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err := c.GetInformer(ctx, &corev1.Pod{}); err != nil {
-				t.Fatal(err)
-			}
-			started := make(chan error, 1)
-			go func() { started <- c.Start(ctx) }()
-
-			if ok := c.WaitForCacheSync(ctx); ok != tc.synced {
-				t.Fatalf("synced = %t, want %t", ok, tc.synced)
+				t.Fatalf("start: %v", err)
 			}
 			close(synced)
-			<-ctx.Done()
-			if cause := context.Cause(ctx); !tc.dead(cause) {
-				t.Fatalf("cause = %v", cause)
-			}
-			if err := <-started; err != nil {
-				t.Fatalf("cache start: %v", err)
+			if err := c.Wait(t.Context()); !tc.dead(err) {
+				t.Fatalf("Wait = %v", err)
 			}
 		})
 	}

@@ -9,7 +9,7 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
-const DisabledMessage = "builds are disabled on this cluster"
+const disabledMessage = "builds are disabled on this cluster"
 
 type Disabled struct{}
 
@@ -36,7 +36,7 @@ func (Disabled) Handle(ctx context.Context, msg *agentv1.SyncResponse, report Si
 		report(&agentv1.BuildStatus{
 			BuildId: buildID,
 			Phase:   agentv1.BuildPhase_BUILD_PHASE_FAILED,
-			Message: DisabledMessage,
+			Message: disabledMessage,
 		})
 	case *agentv1.SyncResponse_CancelBuild:
 		slog.InfoContext(ctx, "ignoring a build cancel on a cluster without builds",

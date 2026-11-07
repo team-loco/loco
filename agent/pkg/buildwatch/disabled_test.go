@@ -29,8 +29,8 @@ func TestDisabledFailsEveryStartBuild(t *testing.T) {
 	if status.GetPhase() != agentv1.BuildPhase_BUILD_PHASE_FAILED {
 		t.Errorf("phase = %v, want failed", status.GetPhase())
 	}
-	if status.GetMessage() != DisabledMessage {
-		t.Errorf("message = %q, want %q", status.GetMessage(), DisabledMessage)
+	if status.GetMessage() != disabledMessage {
+		t.Errorf("message = %q, want %q", status.GetMessage(), disabledMessage)
 	}
 }
 

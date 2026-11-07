@@ -13,12 +13,11 @@ import (
 	"connectrpc.com/connect/v2"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/team-loco/loco/agent/pkg/identity"
+	"github.com/team-loco/loco/agent/pkg/kube"
 	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
 	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
@@ -76,12 +75,9 @@ func New(
 	interval time.Duration,
 	backoff func() wait.Backoff,
 ) (*Manager, error) {
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add core types to scheme: %w", err)
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		return nil, err
 	}
 	c, err := client.New(restConfig, client.Options{Scheme: scheme})
 	if err != nil {
@@ -309,7 +305,7 @@ func (m *Manager) issue(ctx context.Context, workspaceID string, secret *corev1.
 		return err
 	}
 	secret.Labels = map[string]string{
-		locolabels.LabelManagedBy:          identity.FieldOwner,
+		locolabels.LabelManagedBy:          kube.ManagedBy,
 		locoControllerV1.LabelRegistryPull: workspaceID,
 	}
 	secret.Annotations = map[string]string{

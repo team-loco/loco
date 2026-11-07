@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	FieldOwner      = "loco-agent"
 	privateKeyField = "private-key"
 	clusterIDField  = "cluster-id"
 )

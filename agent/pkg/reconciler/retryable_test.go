@@ -62,9 +62,9 @@ func TestIsRetryable(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := IsRetryable(tc.err)
+			got := isRetryable(tc.err)
 			if got != tc.want {
-				t.Errorf("IsRetryable(%v) = %v, want %v", tc.err, got, tc.want)
+				t.Errorf("isRetryable(%v) = %v, want %v", tc.err, got, tc.want)
 			}
 		})
 	}
