@@ -150,8 +150,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
 	if env.WorkspaceID != resource.WorkspaceID {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
@@ -159,23 +158,13 @@ func (s *DeploymentServer) CreateDeployment(
 
 	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to get active cluster for region",
-			"region",
-			region,
-			"tier",
-			env.EnvironmentType,
-			"error",
-			err,
-		)
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, err)
+		return nil, mapError("get active cluster", err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()
 	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
 	if err != nil {
-		return nil, handlerError(ctx, "failed to pin the build source", err)
+		return nil, mapError("pin the build source", err)
 	}
 	originalSpec := req.GetSpec()
 	requestSpec := proto.CloneOf(originalSpec)
@@ -183,8 +172,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get workspace organization: %w", err)
 	}
 
 	var deploymentID uuid.UUID
@@ -327,13 +315,12 @@ func (s *DeploymentServer) GetDeployment(
 
 	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	deployment, err := deploymentToProto(deploymentData, resource.Type)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return nil, err
 	}
 
 	return &deploymentv1.GetDeploymentResponse{
@@ -383,15 +370,14 @@ func (s *DeploymentServer) ListDeployments(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list deployments: %w", err)
 	}
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
 		deployment, err := deploymentToProto(d, resource.Type)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+			return nil, err
 		}
 		deployments = append(deployments, deployment)
 	}
@@ -427,8 +413,7 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -445,8 +430,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		return bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID)
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete deployment", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("delete deployment: %w", err)
 	}
 
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
@@ -524,8 +508,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 ) (genDb.DeploymentStatus, error) {
 	deployment, err := s.queries.GetDeploymentStatus(ctx, deploymentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get deployment status", "error", err)
-		return lastStatus, rpcerr.New(connect.CodeInternal, ErrDB)
+		return lastStatus, fmt.Errorf("get deployment status: %w", err)
 	}
 
 	if deployment.Status == lastStatus {

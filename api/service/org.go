@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
+	"fmt"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -77,8 +77,7 @@ func (s *OrgServer) CreateOrg(
 	}
 	user, err := s.queries.GetUserByID(ctx, p.Entity.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get user", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get user: %w", err)
 	}
 
 	orgName := req.GetName()
@@ -86,20 +85,14 @@ func (s *OrgServer) CreateOrg(
 		orgName = defaultOrgName(user)
 	}
 
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	defer tx.Rollback(ctx)
-
-	org, err := createOrgInTx(ctx, genDb.New(tx), p.Entity.ID, orgName)
+	var org genDb.Organization
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var createErr error
+		org, createErr = createOrgInTx(ctx, qtx, p.Entity.ID, orgName)
+		return createErr
+	})
 	if err != nil {
 		return nil, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit organization creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	return &orgv1.CreateOrgResponse{
@@ -113,8 +106,7 @@ func createOrgInTx(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID, na
 		CreatedBy: userID,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create organization", "error", err)
-		return genDb.Organization{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.Organization{}, fmt.Errorf("create organization: %w", err)
 	}
 
 	err = authz.ApplyRoles(ctx, qtx, userID, []genDb.EntityScope{
@@ -123,17 +115,7 @@ func createOrgInTx(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID, na
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to update user roles for new organization",
-			"error",
-			err,
-			"orgId",
-			org.ID.String(),
-			"userId",
-			userID.String(),
-		)
-		return genDb.Organization{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.Organization{}, fmt.Errorf("grant roles on organization %s: %w", org.ID, err)
 	}
 
 	if err := events.Record(ctx, qtx, events.Event{
@@ -143,8 +125,7 @@ func createOrgInTx(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID, na
 		SubjectID:   new(org.ID),
 		Data:        map[string]any{events.FieldName: org.Name},
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to record org creation", "error", err)
-		return genDb.Organization{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.Organization{}, err
 	}
 	return org, nil
 }
@@ -167,8 +148,7 @@ func (s *OrgServer) GetOrg(
 		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to query org", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get organization: %w", err)
 	}
 
 	// Return NotFound (not PermissionDenied) to prevent org-existence probing. An organization
@@ -217,8 +197,7 @@ func (s *OrgServer) ListUserOrgs(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list orgs", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list organizations: %w", err)
 	}
 
 	var orgResponses []*orgv1.Organization
@@ -273,7 +252,7 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, user
 		return err
 	})
 	if err != nil {
-		return txError(ctx, "failed to create first organization", err)
+		return mapError("create first organization", err)
 	}
 	return nil
 }
@@ -312,7 +291,7 @@ func (s *OrgServer) UpdateOrg(
 				Name: req.GetName(),
 			})
 			if errors.Is(updateErr, pgx.ErrNoRows) {
-				return rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+				return ErrOrgNotFound
 			}
 			if updateErr != nil {
 				return updateErr
@@ -320,7 +299,7 @@ func (s *OrgServer) UpdateOrg(
 		}
 		if !rename {
 			if _, loadErr := qtx.GetOrgByID(ctx, orgID); errors.Is(loadErr, pgx.ErrNoRows) {
-				return rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+				return ErrOrgNotFound
 			} else if loadErr != nil {
 				return loadErr
 			}
@@ -333,7 +312,7 @@ func (s *OrgServer) UpdateOrg(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to update org", err)
+		return nil, mapError("update organization", err)
 	}
 
 	return &orgv1.UpdateOrgResponse{
@@ -366,7 +345,7 @@ func (s *OrgServer) DeleteOrg(
 			return queryErr
 		}
 		if hasResources {
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
+			return ErrOrgHasWorkspacesWithResources
 		}
 		if deleteErr := qtx.DeleteOrg(ctx, orgID); deleteErr != nil {
 			return deleteErr
@@ -379,7 +358,7 @@ func (s *OrgServer) DeleteOrg(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to delete org", err)
+		return nil, mapError("delete organization", err)
 	}
 
 	return &orgv1.DeleteOrgResponse{}, nil
@@ -411,8 +390,7 @@ func (s *OrgServer) ListOrgMembers(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list org members", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list organization members: %w", err)
 	}
 
 	members := make([]*orgv1.OrgMember, len(rows))
@@ -459,7 +437,7 @@ func (s *OrgServer) RemoveOrgMember(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		_, lockErr := qtx.LockUserForMembership(ctx, userID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+			return ErrUserNotFound
 		}
 		if lockErr != nil {
 			return lockErr
@@ -478,7 +456,7 @@ func (s *OrgServer) RemoveOrgMember(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to remove org member", err)
+		return nil, mapError("remove organization member", err)
 	}
 
 	return &orgv1.RemoveOrgMemberResponse{}, nil

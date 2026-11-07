@@ -103,3 +103,15 @@ func TestHandlerErrorLogsAttributesOnServerFailures(t *testing.T) {
 		t.Fatalf("logs = %q, want the build ID and the error", logs.String())
 	}
 }
+
+// wantServerFailure checks that a handler returned a server failure: a plain error, which the
+// error interceptor logs and returns as Internal.
+func wantServerFailure(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("err = nil, want a server failure")
+	}
+	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
+		t.Fatalf("err = %v (%v), want a server failure", connectErr, connectErr.Code())
+	}
+}

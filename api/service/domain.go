@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"time"
 
@@ -72,8 +71,7 @@ func (s *DomainServer) ListPlatformDomains(
 	}
 	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	clusters := regionClusters(eligible)
 	served := configplan.ServedDomains(clusters)
@@ -101,8 +99,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 
 	results, err := s.queries.ListAllLocoOwnedDomains(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list loco owned domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to list loco owned domains")
+		return nil, fmt.Errorf("list loco owned domains: %w", err)
 	}
 
 	domains := make([]*domainv1.LocoOwnedDomain, len(results))
@@ -136,16 +133,7 @@ func (s *DomainServer) CreateResourceDomain(
 	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
 	platformDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
 	if err != nil {
-		return nil, handlerError(ctx, "failed to check the resource domain", err)
-	}
-
-	// check domain availability
-	available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
-	if err != nil {
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	if !available {
-		return nil, rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+		return nil, mapError("check the resource domain", err)
 	}
 
 	var resourceDomain uuid.UUID
@@ -173,6 +161,9 @@ func (s *DomainServer) CreateResourceDomain(
 			PlatformDomain: &platformDomain,
 			IsPrimary:      !hasPrimary,
 		})
+		if isPgConstraintViolation(createErr) {
+			return ErrDomainAlreadyExists
+		}
 		if createErr != nil {
 			return createErr
 		}
@@ -191,17 +182,8 @@ func (s *DomainServer) CreateResourceDomain(
 			Data:        map[string]any{events.FieldDomain: fullDomain, events.FieldResourceID: resourceID.String()},
 		})
 	})
-	if errors.Is(err, ErrResourceNotFound) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
-	}
-	if errors.Is(err, errNoProductionEnvironment) {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, errNoProductionEnvironment)
-	}
-	if isPgConstraintViolation(err) {
-		return nil, rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
-	}
 	if err != nil {
-		return nil, txError(ctx, "failed to create resource domain", err)
+		return nil, mapError("create resource domain", err)
 	}
 
 	return &domainv1.CreateResourceDomainResponse{
@@ -230,30 +212,21 @@ func (s *DomainServer) UpdateResourceDomain(
 		return nil, authErr
 	}
 
-	// check if new domain is available (unless it's the same domain)
 	changed := req.GetDomain() != "" && req.GetDomain() != domainRow.Domain
 	var subdomainLabel *string
 	var platformDomain *string
 	if changed {
-		available, err := s.queries.CheckDomainAvailability(ctx, req.GetDomain())
-		if err != nil {
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-		}
-		if !available {
-			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
-		}
-
 		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
 			platform, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
 			if checkErr != nil {
-				return nil, handlerError(ctx, "failed to check the resource domain", checkErr)
+				return nil, mapError("check the resource domain", checkErr)
 			}
 			subdomainLabel = &label
 			platformDomain = &platform
 		}
 	}
 
-	txErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockResourceEnvironments(ctx, qtx, domainRow.ResourceID); lockErr != nil {
 			return lockErr
 		}
@@ -265,7 +238,7 @@ func (s *DomainServer) UpdateResourceDomain(
 				PlatformDomain: platformDomain,
 			})
 			if isPgConstraintViolation(updateErr) {
-				return rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+				return ErrDomainAlreadyExists
 			}
 			if updateErr != nil {
 				return updateErr
@@ -290,8 +263,8 @@ func (s *DomainServer) UpdateResourceDomain(
 			Data:        map[string]any{events.FieldDomain: req.GetDomain()},
 		})
 	})
-	if txErr != nil {
-		return nil, txError(ctx, "failed to update resource domain", txErr)
+	if err != nil {
+		return nil, mapError("update resource domain", err)
 	}
 
 	return &domainv1.UpdateResourceDomainResponse{
@@ -313,76 +286,51 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	}
 	domainID := uuid.MustParse(req.GetDomainId())
 
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := genDb.New(tx)
-
-	lockErr := lockResourceDomains(ctx, qtx, resourceID)
-	if errors.Is(lockErr, ErrResourceNotFound) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
-	}
-	if lockErr != nil {
-		slog.ErrorContext(ctx, "failed to lock resource", "resourceId", resourceID, "error", lockErr)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	domainRow, err := qtx.GetResourceDomainByID(ctx, domainID)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && domainRow.ResourceID != resourceID) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDomainNotFound)
-	}
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get domain", "domainId", domainID, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	clearParams := genDb.UpdateResourceDomainPrimaryParams{
-		ResourceID:    resourceID,
-		EnvironmentID: domainRow.EnvironmentID,
-	}
-	if clearErr := qtx.UpdateResourceDomainPrimary(ctx, clearParams); clearErr != nil {
-		slog.ErrorContext(ctx, "failed to clear primary domain", "resourceId", resourceID, "error", clearErr)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	_, err = qtx.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
-		ID:            domainID,
-		ResourceID:    resourceID,
-		EnvironmentID: domainRow.EnvironmentID,
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockResourceDomains(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
+		domainRow, getErr := qtx.GetResourceDomainByID(ctx, domainID)
+		if errors.Is(getErr, pgx.ErrNoRows) || (getErr == nil && domainRow.ResourceID != resourceID) {
+			return ErrDomainNotFound
+		}
+		if getErr != nil {
+			return fmt.Errorf("get domain: %w", getErr)
+		}
+		clearParams := genDb.UpdateResourceDomainPrimaryParams{
+			ResourceID:    resourceID,
+			EnvironmentID: domainRow.EnvironmentID,
+		}
+		if clearErr := qtx.UpdateResourceDomainPrimary(ctx, clearParams); clearErr != nil {
+			return fmt.Errorf("clear primary domain: %w", clearErr)
+		}
+		_, setErr := qtx.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
+			ID:            domainID,
+			ResourceID:    resourceID,
+			EnvironmentID: domainRow.EnvironmentID,
+		})
+		if errors.Is(setErr, pgx.ErrNoRows) {
+			return ErrDomainNotFound
+		}
+		if setErr != nil {
+			return fmt.Errorf("set primary domain: %w", setErr)
+		}
+		if routeErr := s.refreshDomainRouting(ctx, qtx, resourceID, domainRow.EnvironmentID); routeErr != nil {
+			return routeErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.DomainUpdated,
+			ResourceID:  new(resourceID),
+			SubjectType: events.SubjectDomain,
+			SubjectID:   new(domainID),
+			Data:        map[string]any{events.FieldPrimary: true},
+		})
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDomainNotFound)
-	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to set primary domain", "domainId", domainID, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if err := s.refreshDomainRouting(ctx, qtx, resourceID, domainRow.EnvironmentID); err != nil {
-		return nil, txError(ctx, "failed to update domain routing", err)
-	}
-	if err := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); err != nil {
-		slog.ErrorContext(ctx, "failed to bump environment revisions", "resourceId", resourceID, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if err := events.Record(ctx, qtx, events.Event{
-		Type:        events.DomainUpdated,
-		ResourceID:  new(resourceID),
-		SubjectType: events.SubjectDomain,
-		SubjectID:   new(domainID),
-		Data:        map[string]any{events.FieldPrimary: true},
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to record primary domain change", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit primary domain change", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, mapError("set primary domain", err)
 	}
 
 	return &domainv1.SetPrimaryResourceDomainResponse{
@@ -413,7 +361,11 @@ func (s *DomainServer) DeleteResourceDomain(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID); lockErr != nil {
+		lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID)
+		if errors.Is(lockErr, ErrResourceNotFound) {
+			return ErrDomainNotFound
+		}
+		if lockErr != nil {
 			return lockErr
 		}
 		current, getErr := qtx.GetResourceDomainByID(ctx, domainID)
@@ -452,14 +404,8 @@ func (s *DomainServer) DeleteResourceDomain(
 			Data:        map[string]any{events.FieldDomain: current.Domain},
 		})
 	})
-	if errors.Is(err, ErrDomainNotFound) || errors.Is(err, ErrResourceNotFound) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDomainNotFound)
-	}
-	if errors.Is(err, ErrCannotRemovePrimary) {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrCannotRemovePrimary)
-	}
 	if err != nil {
-		return nil, txError(ctx, "failed to delete resource domain", err)
+		return nil, mapError("delete resource domain", err)
 	}
 
 	return &domainv1.DeleteResourceDomainResponse{}, nil
@@ -472,10 +418,8 @@ func (s *DomainServer) CheckDomainAvailability(
 ) (*domainv1.CheckDomainAvailabilityResponse, error) {
 	result, err := s.queries.CheckDomainAvailability(ctx, req.GetDomain())
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check domain availability", "domain", req.GetDomain(), "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to check domain availability")
+		return nil, fmt.Errorf("check domain availability: %w", err)
 	}
-	slog.InfoContext(ctx, "domain availability check", "domain", req.GetDomain(), "available", result)
 	return &domainv1.CheckDomainAvailabilityResponse{
 		IsAvailable: result,
 	}, nil

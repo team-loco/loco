@@ -143,9 +143,7 @@ FOR EACH ROW EXECUTE FUNCTION reject_workspace_delete();`); err != nil {
 		t.Fatalf("create rejection trigger: %v", err)
 	}
 	err := deleteFixtureWorkspace(t, f, true)
-	if connect.CodeOf(err) != connect.CodeInternal {
-		t.Fatalf("delete error = %v, want Internal", err)
-	}
+	wantServerFailure(t, err)
 	if got := f.placement(t, f.clusterID); got.DesiredDeleted || got.DesiredRevision != 1 {
 		t.Fatalf("placement changed despite rollback: %+v", got)
 	}

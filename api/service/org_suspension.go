@@ -83,7 +83,7 @@ func (s *OrgServer) SuspendOrg(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to suspend org", err)
+		return nil, mapError("suspend org", err)
 	}
 	return &orgv1.SuspendOrgResponse{Organization: orgToProto(org)}, nil
 }
@@ -134,7 +134,7 @@ func (s *OrgServer) ResumeOrg(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to resume org", err)
+		return nil, mapError("resume org", err)
 	}
 	return &orgv1.ResumeOrgResponse{Organization: orgToProto(org)}, nil
 }

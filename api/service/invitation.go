@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	netmail "net/mail"
 	"net/url"
@@ -79,7 +80,7 @@ func (s *OrgServer) InviteOrgMember(
 			return memberErr
 		}
 		if isMember {
-			return rpcerr.New(connect.CodeAlreadyExists, ErrAlreadyOrgMember)
+			return ErrAlreadyOrgMember
 		}
 		if revokeErr := revokeExpiredInvitations(ctx, qtx, orgID, email); revokeErr != nil {
 			return revokeErr
@@ -90,6 +91,9 @@ func (s *OrgServer) InviteOrgMember(
 			InvitedBy: p.Entity.ID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
+		if isPgConstraintViolation(createErr) {
+			return ErrInvitationExists
+		}
 		if createErr != nil {
 			return createErr
 		}
@@ -102,11 +106,8 @@ func (s *OrgServer) InviteOrgMember(
 			Data:        map[string]any{events.FieldEmail: email},
 		})
 	})
-	if isPgConstraintViolation(err) {
-		return nil, rpcerr.New(connect.CodeAlreadyExists, ErrInvitationExists)
-	}
 	if err != nil {
-		return nil, txError(ctx, "failed to create invitation", err)
+		return nil, mapError("create invitation", err)
 	}
 
 	result, err := s.deliverInvitation(ctx, invitation)
@@ -158,8 +159,7 @@ func (s *OrgServer) ListInvitations(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list invitations", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list invitations: %w", err)
 	}
 	inviters := map[uuid.UUID]genDb.User{}
 	invitations := make([]*orgv1.Invitation, len(rows))
@@ -168,8 +168,7 @@ func (s *OrgServer) ListInvitations(
 		if !known {
 			inviter, err = s.queries.GetUserByID(ctx, row.InvitedBy)
 			if err != nil {
-				slog.ErrorContext(ctx, "failed to load inviter", "error", err)
-				return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+				return nil, fmt.Errorf("get inviter: %w", err)
 			}
 			inviters[row.InvitedBy] = inviter
 		}
@@ -193,7 +192,7 @@ func (s *OrgServer) RevokeInvitation(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		revoked, revokeErr := qtx.RevokeInvitation(ctx, invitation.ID)
 		if errors.Is(revokeErr, pgx.ErrNoRows) {
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrInvitationNotOpen)
+			return ErrInvitationNotOpen
 		}
 		if revokeErr != nil {
 			return revokeErr
@@ -207,7 +206,7 @@ func (s *OrgServer) RevokeInvitation(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to revoke invitation", err)
+		return nil, mapError("revoke invitation", err)
 	}
 	return &orgv1.RevokeInvitationResponse{}, nil
 }
@@ -228,8 +227,7 @@ func (s *OrgServer) ResendInvitation(
 		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrInvitationNotOpen)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to extend invitation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("extend invitation: %w", err)
 	}
 	result, err := s.deliverInvitation(ctx, extended)
 	if err != nil {
@@ -248,8 +246,7 @@ func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, 
 		return genDb.Invitation{}, rpcerr.New(connect.CodeNotFound, ErrInvitationNotFound)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load invitation", "error", err)
-		return genDb.Invitation{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.Invitation{}, fmt.Errorf("get invitation: %w", err)
 	}
 	required := actions.New(action, invitation.OrgID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrInvitationNotFound); authErr != nil {
@@ -261,13 +258,11 @@ func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, 
 func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invitation) (*orgv1.Invitation, error) {
 	org, err := s.queries.GetOrgByID(ctx, invitation.OrgID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load invitation org", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get invitation organization: %w", err)
 	}
 	inviter, err := s.queries.GetUserByID(ctx, invitation.InvitedBy)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load inviter", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get inviter: %w", err)
 	}
 	message := mail.NewInvitationMessage(mail.InvitationEvent{
 		Invitation: mail.InvitationInfo{
@@ -293,13 +288,11 @@ func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invi
 		err = s.queries.SetInvitationDelivered(recordCtx, invitation.ID)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to record invitation delivery", "invitationId", invitation.ID, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("record delivery of invitation %s: %w", invitation.ID, err)
 	}
 	stored, err := s.queries.GetInvitation(recordCtx, invitation.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload invitation", "invitationId", invitation.ID, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("reload invitation %s: %w", invitation.ID, err)
 	}
 	return s.invitationProto(stored, inviter), nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"connectrpc.com/connect/v2"
@@ -79,7 +78,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 			CreatedBy:       p.Entity.ID,
 		})
 		if isPgConstraintViolation(createErr) {
-			return rpcerr.New(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
+			return ErrEnvironmentNameNotUnique
 		}
 		if createErr != nil {
 			return createErr
@@ -94,7 +93,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to create environment", err)
+		return nil, mapError("create environment", err)
 	}
 
 	return &environmentv1.CreateEnvironmentResponse{
@@ -134,8 +133,7 @@ func (s *EnvironmentServer) ListEnvironments(
 
 	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list environments", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list environments: %w", err)
 	}
 
 	var protoEnvs []*environmentv1.Environment
@@ -200,7 +198,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 			EnvironmentType: envType,
 		})
 		if isPgConstraintViolation(updateErr) {
-			return rpcerr.New(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
+			return ErrEnvironmentNameNotUnique
 		}
 		if updateErr != nil {
 			return updateErr
@@ -218,7 +216,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to update environment", err)
+		return nil, mapError("update environment", err)
 	}
 
 	return &environmentv1.UpdateEnvironmentResponse{
@@ -247,7 +245,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 			return fmt.Errorf("count deployments: %w", countErr)
 		}
 		if count > 0 {
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
+			return ErrEnvironmentInUse
 		}
 		if deleteErr := qtx.DeleteEnvironment(ctx, envID); deleteErr != nil {
 			return deleteErr
@@ -260,7 +258,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to delete environment", err)
+		return nil, mapError("delete environment", err)
 	}
 
 	return &environmentv1.DeleteEnvironmentResponse{}, nil
