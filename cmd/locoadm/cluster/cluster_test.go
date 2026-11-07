@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -17,7 +18,6 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
-	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -147,15 +147,18 @@ func clusterTestCommand(t *testing.T, fake *fakeClusterAdmin) (*cobra.Command, *
 	endpoint := httptest.NewServer(mux)
 	t.Cleanup(endpoint.Close)
 	t.Setenv("LOCO_HOST", endpoint.URL)
-	deps := dependencies{
-		token: func(*cobra.Command) (*keychain.UserToken, error) {
-			return &keychain.UserToken{Host: endpoint.URL, Token: "ordinary-credential"}, nil
-		},
-		client: func(host, token string) clusterv1connect.ClusterAdminServiceClient {
-			return rpc.NewHTTPClients(endpoint.Client(), host, token).ClusterAdmin
-		},
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(keychain.StoreEnvVar, "file")
+	store, err := keychain.ForCurrentUser()
+	if err != nil {
+		t.Fatal(err)
 	}
-	cmd := newClusterCmd(deps)
+	if err := store.Set(keychain.UserToken{
+		Host: endpoint.URL, Token: "ordinary-credential", ExpiresAt: time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cmd := BuildClusterCmd()
 	output := new(bytes.Buffer)
 	cmd.SetOut(output)
 	cmd.SetErr(output)
