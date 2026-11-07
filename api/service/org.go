@@ -22,14 +22,23 @@ import (
 )
 
 var (
-	ErrOrgNotFound                   = errors.New("organization not found")
-	ErrOrgNameRequired               = errors.New("organization name is required")
-	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with resources")
-	ErrNotOrgMember                  = errors.New(
+	ErrOrgNotFound                   = rpcerr.NewCoded(connect.CodeNotFound, "organization not found")
+	ErrOrgNameRequired               = rpcerr.NewCoded(connect.CodeInvalidArgument, "organization name is required")
+	ErrOrgHasWorkspacesWithResources = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"organization has workspaces with resources",
+	)
+	ErrNotOrgMember = rpcerr.NewCoded(connect.CodeFailedPrecondition,
 		"user is not a member of the workspace's organization; add them to the organization first",
 	)
-	ErrRemoveSelfFromOrg           = errors.New("you cannot remove yourself from the organization")
-	errCreateIfMissingForOtherUser = errors.New("create_if_missing requires user_id to be the caller")
+	ErrRemoveSelfFromOrg = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"you cannot remove yourself from the organization",
+	)
+	errCreateIfMissingForOtherUser = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"create_if_missing requires user_id to be the caller",
+	)
 )
 
 const firstWorkspaceName = "default"
@@ -145,7 +154,7 @@ func (s *OrgServer) GetOrg(
 	}
 	org, err := s.queries.GetOrgByID(ctx, orgID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+		return nil, ErrOrgNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get organization: %w", err)
@@ -154,7 +163,7 @@ func (s *OrgServer) GetOrg(
 	// Return NotFound (not PermissionDenied) to prevent org-existence probing. An organization
 	// check never reads the database, so every error here is a denial.
 	if err := s.authz.Check(ctx, p.Scopes, actions.New(actions.GetOrg, org.ID)); err != nil {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+		return nil, ErrOrgNotFound
 	}
 
 	return &orgv1.GetOrgResponse{Organization: orgToProto(org)}, nil
@@ -219,16 +228,15 @@ func (s *OrgServer) ListUserOrgs(
 
 func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, userID uuid.UUID) error {
 	if p.Entity.Type != genDb.EntityTypeUser || p.Entity.ID != userID {
-		return rpcerr.New(connect.CodeInvalidArgument, errCreateIfMissingForOtherUser)
+		return errCreateIfMissingForOtherUser
 	}
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		qtx := genDb.New(tx)
+	return withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, err := qtx.LockUserForMembership(ctx, userID); err != nil {
-			return err
+			return fmt.Errorf("lock user: %w", err)
 		}
 		existing, err := qtx.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{UserID: userID, Limit: 1})
 		if err != nil {
-			return err
+			return fmt.Errorf("list organizations: %w", err)
 		}
 		if len(existing) > 0 {
 			return nil
@@ -238,7 +246,7 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, user
 		}
 		user, err := qtx.GetUserByID(ctx, userID)
 		if err != nil {
-			return err
+			return fmt.Errorf("get user: %w", err)
 		}
 		org, err := createOrgInTx(ctx, qtx, userID, defaultOrgName(user))
 		if err != nil {
@@ -251,10 +259,6 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, user
 		})
 		return err
 	})
-	if err != nil {
-		return mapError("create first organization", err)
-	}
-	return nil
 }
 
 func defaultOrgName(user genDb.User) string {
@@ -281,7 +285,7 @@ func (s *OrgServer) UpdateOrg(
 	message := req.ProtoReflect()
 	rename := message.Has(message.Descriptor().Fields().ByName(updateNameField))
 	if rename && req.GetName() == "" {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrOrgNameRequired)
+		return nil, ErrOrgNameRequired
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -294,14 +298,14 @@ func (s *OrgServer) UpdateOrg(
 				return ErrOrgNotFound
 			}
 			if updateErr != nil {
-				return updateErr
+				return fmt.Errorf("rename organization: %w", updateErr)
 			}
 		}
 		if !rename {
 			if _, loadErr := qtx.GetOrgByID(ctx, orgID); errors.Is(loadErr, pgx.ErrNoRows) {
 				return ErrOrgNotFound
 			} else if loadErr != nil {
-				return loadErr
+				return fmt.Errorf("get organization: %w", loadErr)
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -312,7 +316,7 @@ func (s *OrgServer) UpdateOrg(
 		})
 	})
 	if err != nil {
-		return nil, mapError("update organization", err)
+		return nil, err
 	}
 
 	return &orgv1.UpdateOrgResponse{
@@ -335,20 +339,20 @@ func (s *OrgServer) DeleteOrg(
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := qtx.LockOrgForDeletion(ctx, orgID); lockErr != nil {
-			return lockErr
+			return fmt.Errorf("lock organization: %w", lockErr)
 		}
 		if lockErr := qtx.LockOrgWorkspacesForDeletion(ctx, orgID); lockErr != nil {
-			return lockErr
+			return fmt.Errorf("lock organization workspaces: %w", lockErr)
 		}
 		hasResources, queryErr := qtx.OrgHasWorkspacesWithResources(ctx, orgID)
 		if queryErr != nil {
-			return queryErr
+			return fmt.Errorf("check organization resources: %w", queryErr)
 		}
 		if hasResources {
 			return ErrOrgHasWorkspacesWithResources
 		}
 		if deleteErr := qtx.DeleteOrg(ctx, orgID); deleteErr != nil {
-			return deleteErr
+			return fmt.Errorf("delete organization: %w", deleteErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.OrgDeleted,
@@ -358,7 +362,7 @@ func (s *OrgServer) DeleteOrg(
 		})
 	})
 	if err != nil {
-		return nil, mapError("delete organization", err)
+		return nil, err
 	}
 
 	return &orgv1.DeleteOrgResponse{}, nil
@@ -431,7 +435,7 @@ func (s *OrgServer) RemoveOrgMember(
 
 	userID := uuid.MustParse(req.GetUserId())
 	if userID == p.Entity.ID {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrRemoveSelfFromOrg)
+		return nil, ErrRemoveSelfFromOrg
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -440,13 +444,13 @@ func (s *OrgServer) RemoveOrgMember(
 			return ErrUserNotFound
 		}
 		if lockErr != nil {
-			return lockErr
+			return fmt.Errorf("lock user: %w", lockErr)
 		}
 		if removeErr := qtx.RemoveOrgMember(ctx, genDb.RemoveOrgMemberParams{
 			UserID: userID,
 			OrgID:  orgID,
 		}); removeErr != nil {
-			return removeErr
+			return fmt.Errorf("remove organization member: %w", removeErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.OrgMemberRemoved,
@@ -456,7 +460,7 @@ func (s *OrgServer) RemoveOrgMember(
 		})
 	})
 	if err != nil {
-		return nil, mapError("remove organization member", err)
+		return nil, err
 	}
 
 	return &orgv1.RemoveOrgMemberResponse{}, nil

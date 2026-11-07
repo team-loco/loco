@@ -45,11 +45,11 @@ func (f fakeBuildLookup) GetBuildByID(_ context.Context, id uuid.UUID) (genDb.Bu
 
 func connectCode(t *testing.T, err error) connect.Code {
 	t.Helper()
-	var connectErr *connect.Error
-	if !errors.As(err, &connectErr) {
-		t.Fatalf("err = %v, want a connect error", err)
+	public := publicError(err)
+	if public == nil {
+		t.Fatalf("err = %v, want a connect or coded error", err)
 	}
-	return connectErr.Code()
+	return public.Code()
 }
 
 func TestPinDockerfileBuild(t *testing.T) {

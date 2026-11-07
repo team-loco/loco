@@ -7,6 +7,8 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect/v2"
+
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -22,8 +24,13 @@ func NewErrorInterceptor() connect.ServerInterceptor {
 			if err == nil {
 				return nil
 			}
-			if connectErr, ok := errors.AsType[*connect.Error](err); ok {
+			// Only an error the handler built itself is public. One found deeper in the chain, such
+			// as an outbound RPC's, carries another server's message.
+			if connectErr, ok := err.(*connect.Error); ok { //nolint:errorlint // see above
 				return connectErr
+			}
+			if public, ok := rpcerr.Public(err); ok {
+				return public
 			}
 			if errors.Is(err, io.EOF) {
 				return err

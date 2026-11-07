@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -119,8 +118,7 @@ func wantSameNotFound(t *testing.T, existingErr, missingErr error) {
 	t.Helper()
 	wantCode(t, existingErr, connect.CodeNotFound)
 	wantCode(t, missingErr, connect.CodeNotFound)
-	existing, _ := errors.AsType[*connect.Error](existingErr)
-	missing, _ := errors.AsType[*connect.Error](missingErr)
+	existing, missing := publicError(existingErr), publicError(missingErr)
 	if existing.Message() != missing.Message() {
 		t.Fatalf("existing ID answered %q, missing ID answered %q", existing.Message(), missing.Message())
 	}

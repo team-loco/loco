@@ -25,10 +25,13 @@ var (
 	errConfirmationRequired   = errors.New("the plan has operations that need a confirmation")
 	errBuildServiceUnknown    = errors.New("the file does not run the service in this environment")
 	errBuildServiceHasImage   = errors.New("the service runs a public image and takes no build")
-	errBuildServiceNotCreated = errors.New("the service has no resource yet; apply the file before building it")
-	errImagesMoved            = errors.New("an image reference resolves to another digest than the plan showed")
-	errProvisionWithBuilds    = errors.New("an apply provisions services or deploys builds, not both")
-	errProvisionNotPlanned    = errors.New("the plan does not create the service")
+	errBuildServiceNotCreated = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"the service has no resource yet; apply the file before building it",
+	)
+	errImagesMoved         = errors.New("an image reference resolves to another digest than the plan showed")
+	errProvisionWithBuilds = errors.New("an apply provisions services or deploys builds, not both")
+	errProvisionNotPlanned = errors.New("the plan does not create the service")
 )
 
 // Apply re-plans the file against the environment and performs the plan's operations in one
@@ -224,7 +227,7 @@ func (s *PlanServer) resolveBuilds(
 		}
 		res, created := planned.live.resources[service]
 		if !created {
-			return nil, fmt.Errorf("%w: %s", errBuildServiceNotCreated, service)
+			return nil, errBuildServiceNotCreated.Detail("%s", service)
 		}
 		buildID := requested[service]
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
@@ -261,7 +264,7 @@ func applyRefused(reason error, refusal *planv1.ApplyRefusal) error {
 }
 
 func applyTxError(ctx context.Context, err error) error {
-	if isPgConstraintViolation(err) {
+	if isDomainTaken(err) {
 		slog.WarnContext(ctx, "apply rejected by a constraint", "error", err)
 		return rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)
 	}

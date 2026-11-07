@@ -36,7 +36,7 @@ func TestDeleteWorkspaceRequiresConfirmationForResources(t *testing.T) {
 		t.Fatalf("deploy: %v", err)
 	}
 	err := deleteFixtureWorkspace(t, f, false)
-	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+	if codeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("delete error = %v, want FailedPrecondition", err)
 	}
 	if got := f.placement(t, f.clusterID); got.DesiredDeleted {

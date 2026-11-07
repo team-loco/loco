@@ -30,13 +30,22 @@ const (
 )
 
 var (
-	ErrInvalidInviteEmail = errors.New("email must be a plain address like name@example.com")
-	ErrAlreadyOrgMember   = errors.New("that email already belongs to a member of the organization")
-	ErrInvitationExists   = errors.New("that email already has an open invitation to the organization")
-	ErrInvitationNotFound = errors.New("invitation not found")
-	ErrInvitationClaimed  = errors.New("invitation was already claimed")
-	ErrInvitationNotOpen  = errors.New("invitation is no longer open")
-	ErrInviterMustBeUser  = errors.New("only users can send invitations")
+	ErrInvalidInviteEmail = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"email must be a plain address like name@example.com",
+	)
+	ErrAlreadyOrgMember = rpcerr.NewCoded(
+		connect.CodeAlreadyExists,
+		"that email already belongs to a member of the organization",
+	)
+	ErrInvitationExists = rpcerr.NewCoded(
+		connect.CodeAlreadyExists,
+		"that email already has an open invitation to the organization",
+	)
+	ErrInvitationNotFound = rpcerr.NewCoded(connect.CodeNotFound, "invitation not found")
+	ErrInvitationClaimed  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "invitation was already claimed")
+	ErrInvitationNotOpen  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "invitation is no longer open")
+	ErrInviterMustBeUser  = rpcerr.NewCoded(connect.CodePermissionDenied, "only users can send invitations")
 )
 
 type InvitationConfig struct {
@@ -65,11 +74,11 @@ func (s *OrgServer) InviteOrgMember(
 		return nil, err
 	}
 	if p.Entity.Type != genDb.EntityTypeUser {
-		return nil, rpcerr.New(connect.CodePermissionDenied, ErrInviterMustBeUser)
+		return nil, ErrInviterMustBeUser
 	}
 	address, err := netmail.ParseAddress(req.GetEmail())
 	if err != nil || address.Name != "" || address.Address != strings.TrimSpace(req.GetEmail()) {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidInviteEmail)
+		return nil, ErrInvalidInviteEmail
 	}
 	email := strings.ToLower(address.Address)
 
@@ -77,7 +86,7 @@ func (s *OrgServer) InviteOrgMember(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		isMember, memberErr := qtx.IsOrgMemberEmail(ctx, genDb.IsOrgMemberEmailParams{OrgID: orgID, Email: email})
 		if memberErr != nil {
-			return memberErr
+			return fmt.Errorf("check organization membership: %w", memberErr)
 		}
 		if isMember {
 			return ErrAlreadyOrgMember
@@ -91,11 +100,11 @@ func (s *OrgServer) InviteOrgMember(
 			InvitedBy: p.Entity.ID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
-		if isPgConstraintViolation(createErr) {
+		if isUniqueViolation(createErr, pgOpenInvitationUnique) {
 			return ErrInvitationExists
 		}
 		if createErr != nil {
-			return createErr
+			return fmt.Errorf("insert invitation: %w", createErr)
 		}
 		invitation = created
 		return events.Record(ctx, qtx, events.Event{
@@ -107,7 +116,7 @@ func (s *OrgServer) InviteOrgMember(
 		})
 	})
 	if err != nil {
-		return nil, mapError("create invitation", err)
+		return nil, err
 	}
 
 	result, err := s.deliverInvitation(ctx, invitation)
@@ -120,7 +129,7 @@ func (s *OrgServer) InviteOrgMember(
 func revokeExpiredInvitations(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID, email string) error {
 	expired, err := qtx.RevokeExpiredInvitations(ctx, genDb.RevokeExpiredInvitationsParams{OrgID: orgID, Email: email})
 	if err != nil {
-		return err
+		return fmt.Errorf("revoke expired invitations: %w", err)
 	}
 	for _, invitation := range expired {
 		if eventErr := events.Record(ctx, qtx, events.Event{
@@ -187,7 +196,7 @@ func (s *OrgServer) RevokeInvitation(
 		return nil, err
 	}
 	if invitation.ClaimedAt != nil {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrInvitationClaimed)
+		return nil, ErrInvitationClaimed
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		revoked, revokeErr := qtx.RevokeInvitation(ctx, invitation.ID)
@@ -195,7 +204,7 @@ func (s *OrgServer) RevokeInvitation(
 			return ErrInvitationNotOpen
 		}
 		if revokeErr != nil {
-			return revokeErr
+			return fmt.Errorf("revoke invitation: %w", revokeErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.InvitationRevoked,
@@ -206,7 +215,7 @@ func (s *OrgServer) RevokeInvitation(
 		})
 	})
 	if err != nil {
-		return nil, mapError("revoke invitation", err)
+		return nil, err
 	}
 	return &orgv1.RevokeInvitationResponse{}, nil
 }
@@ -224,7 +233,7 @@ func (s *OrgServer) ResendInvitation(
 		ExpiresAt: time.Now().Add(s.invitations.TTL),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrInvitationNotOpen)
+		return nil, ErrInvitationNotOpen
 	}
 	if err != nil {
 		return nil, fmt.Errorf("extend invitation: %w", err)
@@ -243,7 +252,7 @@ func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, 
 	}
 	invitation, err := s.queries.GetInvitation(ctx, invitationID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.Invitation{}, rpcerr.New(connect.CodeNotFound, ErrInvitationNotFound)
+		return genDb.Invitation{}, ErrInvitationNotFound
 	}
 	if err != nil {
 		return genDb.Invitation{}, fmt.Errorf("get invitation: %w", err)

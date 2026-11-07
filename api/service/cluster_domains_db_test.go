@@ -207,7 +207,7 @@ INSERT INTO resource_domains
     (resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary)
 VALUES ($1, $2, 'api-copy.example.com', 'platform_provided', 'api', 'example.com', false)`
 	_, err := f.pool.Exec(context.Background(), duplicate, f.resourceID, f.envID)
-	if !isPgConstraintViolation(err) {
+	if !isUniqueViolation(err, pgPlatformSubdomainUnique) {
 		t.Fatalf("insert a second api label under example.com: err = %v, want a unique violation", err)
 	}
 }

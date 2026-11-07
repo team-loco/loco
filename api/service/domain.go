@@ -27,10 +27,16 @@ import (
 )
 
 var (
-	ErrDomainAlreadyExists     = errors.New("domain already exists")
-	ErrCannotRemovePrimary     = errors.New("make another domain primary before removing the primary domain")
-	errNoProductionEnvironment = errors.New("the workspace has no production environment to hold the domain")
-	errPlacementNotService     = errors.New("domain placement has no service spec")
+	ErrDomainAlreadyExists = rpcerr.NewCoded(connect.CodeAlreadyExists, "domain already exists")
+	ErrCannotRemovePrimary = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"make another domain primary before removing the primary domain",
+	)
+	errNoProductionEnvironment = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"the workspace has no production environment to hold the domain",
+	)
+	errPlacementNotService = errors.New("domain placement has no service spec")
 )
 
 type DomainServer struct {
@@ -133,7 +139,7 @@ func (s *DomainServer) CreateResourceDomain(
 	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
 	platformDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
 	if err != nil {
-		return nil, mapError("check the resource domain", err)
+		return nil, fmt.Errorf("check the resource domain: %w", err)
 	}
 
 	var resourceDomain uuid.UUID
@@ -161,11 +167,11 @@ func (s *DomainServer) CreateResourceDomain(
 			PlatformDomain: &platformDomain,
 			IsPrimary:      !hasPrimary,
 		})
-		if isPgConstraintViolation(createErr) {
+		if isDomainTaken(createErr) {
 			return ErrDomainAlreadyExists
 		}
 		if createErr != nil {
-			return createErr
+			return fmt.Errorf("insert resource domain: %w", createErr)
 		}
 		resourceDomain = created
 		if routeErr := s.refreshDomainRouting(ctx, qtx, resourceID, environmentID); routeErr != nil {
@@ -183,7 +189,7 @@ func (s *DomainServer) CreateResourceDomain(
 		})
 	})
 	if err != nil {
-		return nil, mapError("create resource domain", err)
+		return nil, err
 	}
 
 	return &domainv1.CreateResourceDomainResponse{
@@ -201,7 +207,7 @@ func (s *DomainServer) UpdateResourceDomain(
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDomainNotFound)
+		return nil, ErrDomainNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource domain: %w", err)
@@ -219,7 +225,7 @@ func (s *DomainServer) UpdateResourceDomain(
 		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
 			platform, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
 			if checkErr != nil {
-				return nil, mapError("check the resource domain", checkErr)
+				return nil, fmt.Errorf("check the resource domain: %w", checkErr)
 			}
 			subdomainLabel = &label
 			platformDomain = &platform
@@ -237,11 +243,11 @@ func (s *DomainServer) UpdateResourceDomain(
 				SubdomainLabel: subdomainLabel,
 				PlatformDomain: platformDomain,
 			})
-			if isPgConstraintViolation(updateErr) {
+			if isDomainTaken(updateErr) {
 				return ErrDomainAlreadyExists
 			}
 			if updateErr != nil {
-				return updateErr
+				return fmt.Errorf("update resource domain: %w", updateErr)
 			}
 			if routeErr := s.refreshDomainRouting(
 				ctx,
@@ -264,7 +270,7 @@ func (s *DomainServer) UpdateResourceDomain(
 		})
 	})
 	if err != nil {
-		return nil, mapError("update resource domain", err)
+		return nil, err
 	}
 
 	return &domainv1.UpdateResourceDomainResponse{
@@ -330,7 +336,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		})
 	})
 	if err != nil {
-		return nil, mapError("set primary domain", err)
+		return nil, err
 	}
 
 	return &domainv1.SetPrimaryResourceDomainResponse{
@@ -349,7 +355,7 @@ func (s *DomainServer) DeleteResourceDomain(
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDomainNotFound)
+		return nil, ErrDomainNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource domain: %w", err)
@@ -388,7 +394,7 @@ func (s *DomainServer) DeleteResourceDomain(
 			}
 		}
 		if deleteErr := qtx.DeleteResourceDomain(ctx, domainID); deleteErr != nil {
-			return deleteErr
+			return fmt.Errorf("delete resource domain: %w", deleteErr)
 		}
 		if routeErr := s.refreshDomainRouting(ctx, qtx, current.ResourceID, current.EnvironmentID); routeErr != nil {
 			return routeErr
@@ -405,7 +411,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		})
 	})
 	if err != nil {
-		return nil, mapError("delete resource domain", err)
+		return nil, err
 	}
 
 	return &domainv1.DeleteResourceDomainResponse{}, nil
@@ -520,11 +526,11 @@ func (s *DomainServer) refreshDomainRouting(
 	}
 	resource, err := qtx.GetResourceByID(ctx, resourceID)
 	if err != nil {
-		return err
+		return fmt.Errorf("get domain resource: %w", err)
 	}
 	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 	if err != nil {
-		return err
+		return fmt.Errorf("decode domain resource spec: %w", err)
 	}
 	for _, placement := range placements {
 		payload, err := decodePlacement(placement)
@@ -549,7 +555,7 @@ func (s *DomainServer) refreshDomainRouting(
 		default:
 			deployment, err := qtx.GetDeploymentByID(ctx, *placement.DeploymentID)
 			if err != nil {
-				return err
+				return fmt.Errorf("get domain deployment: %w", err)
 			}
 			deploymentService := &deploymentv1.ServiceDeploymentSpec{}
 			if err := protojson.Unmarshal(deployment.Spec, deploymentService); err != nil {

@@ -23,9 +23,12 @@ import (
 )
 
 var (
-	ErrWorkspaceNotFound     = errors.New("workspace not found")
-	ErrWorkspaceNameRequired = errors.New("workspace name must not be empty")
-	ErrWorkspaceHasResources = errors.New("workspace has resources, delete them first")
+	ErrWorkspaceNotFound     = rpcerr.NewCoded(connect.CodeNotFound, "workspace not found")
+	ErrWorkspaceNameRequired = rpcerr.NewCoded(connect.CodeInvalidArgument, "workspace name must not be empty")
+	ErrWorkspaceHasResources = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"workspace has resources, delete them first",
+	)
 )
 
 // WorkspaceServer implements the WorkspaceService gRPC server
@@ -72,7 +75,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return createErr
 	})
 	if err != nil {
-		return nil, mapError("create workspace", err)
+		return nil, err
 	}
 
 	return &workspacev1.CreateWorkspaceResponse{
@@ -138,7 +141,7 @@ func (s *WorkspaceServer) GetWorkspace(
 	}
 	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, workspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+		return nil, ErrWorkspaceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get workspace: %w", err)
@@ -300,7 +303,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	rename := message.Has(fields.ByName(updateNameField))
 	if rename {
 		if req.GetName() == "" {
-			return nil, rpcerr.New(connect.CodeInvalidArgument, ErrWorkspaceNameRequired)
+			return nil, ErrWorkspaceNameRequired
 		}
 		params.Name = new(req.GetName())
 	}
@@ -314,7 +317,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			return ErrWorkspaceNotFound
 		}
 		if updateErr != nil {
-			return updateErr
+			return fmt.Errorf("update workspace: %w", updateErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.WorkspaceUpdated,
@@ -324,7 +327,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		})
 	})
 	if err != nil {
-		return nil, mapError("update workspace", err)
+		return nil, err
 	}
 
 	return &workspacev1.UpdateWorkspaceResponse{
@@ -351,7 +354,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 			return ErrWorkspaceNotFound
 		}
 		if orgErr != nil {
-			return orgErr
+			return fmt.Errorf("lock workspace: %w", orgErr)
 		}
 		resources, listErr := qtx.ListWorkspaceResourcesForDeletion(ctx, wsID)
 		if listErr != nil {
@@ -380,7 +383,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 			}
 		}
 		if removeErr := qtx.RemoveWorkspace(ctx, wsID); removeErr != nil {
-			return removeErr
+			return fmt.Errorf("delete workspace: %w", removeErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.WorkspaceDeleted,
@@ -391,7 +394,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		})
 	})
 	if err != nil {
-		return nil, mapError("delete workspace", err)
+		return nil, err
 	}
 
 	return &workspacev1.DeleteWorkspaceResponse{}, nil
@@ -445,18 +448,18 @@ func (s *WorkspaceServer) CreateMember(
 			return ErrUserNotFound
 		}
 		if lockErr != nil {
-			return lockErr
+			return fmt.Errorf("lock user: %w", lockErr)
 		}
 		orgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(ctx, wsID)
 		if errors.Is(orgErr, pgx.ErrNoRows) {
 			return ErrWorkspaceNotFound
 		}
 		if orgErr != nil {
-			return orgErr
+			return fmt.Errorf("get workspace organization: %w", orgErr)
 		}
 		isMember, memberErr := qtx.IsOrgMember(ctx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
 		if memberErr != nil {
-			return memberErr
+			return fmt.Errorf("check organization membership: %w", memberErr)
 		}
 		if !isMember {
 			return ErrNotOrgMember
@@ -477,7 +480,7 @@ func (s *WorkspaceServer) CreateMember(
 		})
 	})
 	if err != nil {
-		return nil, mapError("add workspace member", err)
+		return nil, err
 	}
 
 	return &workspacev1.CreateMemberResponse{
@@ -524,7 +527,7 @@ func (s *WorkspaceServer) DeleteMember(
 		})
 	})
 	if err != nil {
-		return nil, fmt.Errorf("remove workspace member: %w", err)
+		return nil, err
 	}
 
 	return &workspacev1.DeleteMemberResponse{}, nil

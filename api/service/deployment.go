@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	ErrDeploymentNotFound = errors.New("deployment not found")
+	ErrDeploymentNotFound = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
 )
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
@@ -126,7 +126,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
@@ -147,24 +147,24 @@ func (s *DeploymentServer) CreateDeployment(
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get environment: %w", err)
 	}
 	if env.WorkspaceID != resource.WorkspaceID {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 
 	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
 	if err != nil {
-		return nil, mapError("get active cluster", err)
+		return nil, fmt.Errorf("get active cluster: %w", err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()
 	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
 	if err != nil {
-		return nil, mapError("pin the build source", err)
+		return nil, fmt.Errorf("pin the build source: %w", err)
 	}
 	originalSpec := req.GetSpec()
 	requestSpec := proto.CloneOf(originalSpec)
@@ -302,7 +302,7 @@ func (s *DeploymentServer) GetDeployment(
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+		return nil, ErrDeploymentNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get deployment: %w", err)
@@ -343,7 +343,7 @@ func (s *DeploymentServer) ListDeployments(
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
@@ -400,7 +400,7 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+		return nil, ErrDeploymentNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get deployment: %w", err)
@@ -451,7 +451,7 @@ func (s *DeploymentServer) WatchDeployment(
 
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+		return ErrDeploymentNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("get deployment resource ID: %w", err)

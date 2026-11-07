@@ -32,11 +32,11 @@ const (
 )
 
 var (
-	ErrBuildNotFound    = errors.New("build not found")
+	ErrBuildNotFound    = rpcerr.NewCoded(connect.CodeNotFound, "build not found")
 	ErrBuildsNotEnabled = errors.New(
 		"builds are not enabled on this server: the source bucket and registry are not configured",
 	)
-	errBuildNotQueueable  = errors.New("build is no longer awaiting upload")
+	errBuildNotQueueable  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "build is no longer awaiting upload")
 	errBuildNotCancelable = errors.New("build has already finished")
 	errSourceNotUploaded  = errors.New("the source has not been uploaded")
 	errSourceCheckFailed  = errors.New("failed to check the uploaded source")

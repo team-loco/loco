@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -26,7 +28,7 @@ var (
 		"cluster has workloads; move or stop them before removal, or use --force for a lost cluster",
 	)
 	ErrInvalidClusterOperation = errors.New("cluster operation must be pause, resume, remove or restore")
-	ErrClusterNotAssignable    = errors.New("cluster is paused or removed")
+	ErrClusterNotAssignable    = rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster is paused or removed")
 	ErrClusterNotEnrollable    = errors.New(
 		"cluster does not exist or is removed; restore it before issuing a join token",
 	)

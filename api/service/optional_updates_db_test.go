@@ -68,7 +68,7 @@ func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
 		},
 	} {
 		_, updateErr := server.UpdateEnvironment(ctx, request)
-		if connect.CodeOf(updateErr) != connect.CodeInvalidArgument {
+		if codeOf(updateErr) != connect.CodeInvalidArgument {
 			t.Fatalf("invalid request error=%v", updateErr)
 		}
 	}
@@ -113,7 +113,7 @@ func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 			Description: new("rejected"),
 		},
 	)
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if codeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty resource name error=%v", err)
 	}
 	row, err := f.queries.GetResourceByID(ctx, f.resourceID)
@@ -155,7 +155,7 @@ func TestOptionalWorkspaceDescriptionClears(t *testing.T) {
 		ctx,
 		&workspacev1.UpdateWorkspaceRequest{WorkspaceId: id.String(), Name: new(""), Description: new("rejected")},
 	)
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if codeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty workspace name error=%v", err)
 	}
 	row, err = f.queries.GetWorkspaceByIDQuery(ctx, id)
@@ -220,7 +220,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 	}
 	server := NewOrgServer(f.pool, f.queries, nil, InvitationConfig{})
 	_, err = server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: id.String(), Name: new("")})
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if codeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty organization name error=%v", err)
 	}
 }
@@ -231,7 +231,7 @@ func TestOptionalOrganizationOmittedFieldsRequireExistingRow(t *testing.T) {
 	server := NewOrgServer(f.pool, f.queries, nil, InvitationConfig{})
 	auditBefore := optionalAuditCount(t, f)
 	_, err := server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: uuid.NewString()})
-	if connect.CodeOf(err) != connect.CodeNotFound {
+	if codeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing organization error=%v", err)
 	}
 	if got := optionalAuditCount(t, f); got != auditBefore {

@@ -246,7 +246,7 @@ func (a *applier) deploy(
 		}
 		cluster, found := clusterForRegion(clusters, region)
 		if !found {
-			return fmt.Errorf("%w: %s (%s)", errNoActiveCluster, region, a.env.EnvironmentType)
+			return errNoActiveCluster.Detail("%s (%s)", region, a.env.EnvironmentType)
 		}
 		service := deploymentSpecFor(state, region, build)
 		if quantityErr := validateQuantities(service); quantityErr != nil {

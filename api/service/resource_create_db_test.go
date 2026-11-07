@@ -84,7 +84,7 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 	req.Name = "other"
 	_, err = server.CreateResource(scoped, req)
 	wantCode(t, err, connect.CodeAlreadyExists)
-	if _, err = getResourceByName(t, f, scopes, workspaceID, "other"); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err = getResourceByName(t, f, scopes, workspaceID, "other"); codeOf(err) != connect.CodeNotFound {
 		t.Fatalf("resource with a taken domain: err = %v, want NotFound", err)
 	}
 }

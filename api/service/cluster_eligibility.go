@@ -2,16 +2,21 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
+	"connectrpc.com/connect/v2"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const missedHeartbeats = 3
 
-var errNoActiveCluster = errors.New("no healthy cluster for the region and environment type")
+var errNoActiveCluster = rpcerr.NewCoded(
+	connect.CodeFailedPrecondition,
+	"no healthy cluster for the region and environment type",
+)
 
 func ClusterSilentAfter(heartbeatInterval time.Duration) time.Duration {
 	return missedHeartbeats * heartbeatInterval
@@ -61,7 +66,7 @@ func eligibleCluster(
 	}
 	cluster, found := clusterForRegion(clusters, region)
 	if !found {
-		return genDb.ListEligibleClustersRow{}, fmt.Errorf("%w: %s (%s)", errNoActiveCluster, region, tier)
+		return genDb.ListEligibleClustersRow{}, errNoActiveCluster.Detail("%s (%s)", region, tier)
 	}
 	return cluster, nil
 }

@@ -90,7 +90,7 @@ func TestConcurrentDomainAddAndRemoveKeepOnePrimary(t *testing.T) {
 		if addErr != nil {
 			t.Fatalf("round %d: add %s: %v", round, added, addErr)
 		}
-		if removeErr != nil && connect.CodeOf(removeErr) != connect.CodeFailedPrecondition {
+		if removeErr != nil && codeOf(removeErr) != connect.CodeFailedPrecondition {
 			t.Fatalf("round %d: remove %s: %v", round, removed, removeErr)
 		}
 		total := f.count(t, `SELECT count(*) FROM resource_domains WHERE resource_id = $1`)
