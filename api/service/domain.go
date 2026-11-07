@@ -22,7 +22,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -97,20 +96,8 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	ctx context.Context,
 	_ *domainv1.ListLocoOwnedDomainsRequest,
 ) (*domainv1.ListLocoOwnedDomainsResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.NewSystem(actions.ListLocoOwnedDomains),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list loco owned domains")
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err := authorize(ctx, s.authz, actions.ListLocoOwnedDomains, uuid.Nil); err != nil {
+		return nil, err
 	}
 
 	results, err := s.queries.ListAllLocoOwnedDomains(ctx)
@@ -140,21 +127,13 @@ func (s *DomainServer) CreateResourceDomain(
 	ctx context.Context,
 	req *domainv1.CreateResourceDomainRequest,
 ) (*domainv1.CreateResourceDomainResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.AddDomain, req.GetResourceId()),
-	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.AddDomain, resourceID); err != nil {
+		return nil, err
 	}
-	resourceID := uuid.MustParse(req.GetResourceId())
 	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
 	platformDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
 	if err != nil {
@@ -326,22 +305,13 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	ctx context.Context,
 	req *domainv1.SetPrimaryResourceDomainRequest,
 ) (*domainv1.SetPrimaryResourceDomainResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.SetPrimaryDomain, req.GetResourceId()),
-	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.SetPrimaryDomain, resourceID); err != nil {
+		return nil, err
 	}
-
-	resourceID := uuid.MustParse(req.GetResourceId())
 	domainID := uuid.MustParse(req.GetDomainId())
 
 	tx, err := s.db.Begin(ctx)

@@ -88,20 +88,12 @@ func (s *ResourceServer) CreateResource(
 	ctx context.Context,
 	req *resourcev1.CreateResourceRequest,
 ) (*resourcev1.CreateResourceResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.CreateResource, req.GetWorkspaceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create resource", "workspaceId", req.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.CreateResource, workspaceID); err != nil {
+		return nil, err
 	}
 
 	slug := resourceSlug(req.GetName())
@@ -118,7 +110,6 @@ func (s *ResourceServer) CreateResource(
 	var fullDomain string
 	var subdomainLabel *string
 	var platformDomain *string
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 
 	if hasDomain {
 		fullDomain = req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
@@ -129,14 +120,13 @@ func (s *ResourceServer) CreateResource(
 		subdomainLabel = &label
 		platformDomain = &platform
 
-		available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", err)
+		available, availableErr := s.queries.CheckDomainAvailability(ctx, fullDomain)
+		if availableErr != nil {
+			slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", availableErr)
 			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 		}
 
 		if !available {
-			slog.WarnContext(ctx, "domain already in use", "domain", fullDomain)
 			return nil, rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)
 		}
 	}
@@ -301,41 +291,26 @@ func (s *ResourceServer) GetResource(
 	ctx context.Context,
 	req *resourcev1.GetResourceRequest,
 ) (*resourcev1.GetResourceResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	var resourceIDStr string
+	var resourceID uuid.UUID
 	switch key := req.GetKey().(type) {
 	case *resourcev1.GetResourceRequest_ResourceId:
-		resourceIDStr = key.ResourceId
+		resourceID, err = parseID("resource_id", key.ResourceId)
 	case *resourcev1.GetResourceRequest_NameKey:
-		nameKey := key.NameKey
-		named, lookupErr := s.resourceIDByName(ctx, scopes, nameKey)
-		if lookupErr != nil {
-			return nil, lookupErr
-		}
-		resourceIDStr = named.String()
+		resourceID, err = s.resourceIDByName(ctx, p, key.NameKey)
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, "resource_id or name_key is required")
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.GetResource, resourceIDStr),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", resourceIDStr)
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err != nil {
+		return nil, err
 	}
 
-	resourceID, err := uuid.Parse(resourceIDStr)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id format", "resourceId", resourceIDStr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(err)
+	if err = check(ctx, s.authz, p, actions.New(actions.GetResource, resourceID.String())); err != nil {
+		return nil, err
 	}
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
@@ -367,14 +342,12 @@ func (s *ResourceServer) GetResource(
 
 func (s *ResourceServer) resourceIDByName(
 	ctx context.Context,
-	scopes []genDb.EntityScope,
+	p reqctx.Principal,
 	nameKey *resourcev1.GetResourceNameKey,
 ) (uuid.UUID, error) {
-	rawWorkspaceID := nameKey.GetWorkspaceId()
-	workspaceID, err := uuid.Parse(rawWorkspaceID)
+	workspaceID, err := parseID("workspace_id", nameKey.GetWorkspaceId())
 	if err != nil {
-		invalid := fmt.Errorf("invalid workspace id: %w", err)
-		return uuid.UUID{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(invalid)
+		return uuid.UUID{}, err
 	}
 	name := nameKey.GetName()
 	res, err := s.queries.GetResourceByNameAndWorkspace(ctx, genDb.GetResourceByNameAndWorkspaceParams{
@@ -382,15 +355,9 @@ func (s *ResourceServer) resourceIDByName(
 		Name:        name,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		workspaceRead := genDb.EntityScope{
-			EntityType: genDb.EntityTypeWorkspace,
-			EntityID:   workspaceID,
-			Scope:      genDb.ScopeRead,
-		}
-		if verifyErr := s.authz.Check(ctx, scopes, workspaceRead); verifyErr != nil {
-			slog.WarnContext(ctx, "unauthorized to look up a resource by name", "workspaceId", workspaceID)
-			return uuid.UUID{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).
-				WithCause(verifyErr)
+		workspaceRead := actions.New(actions.ListResources, workspaceID.String())
+		if verifyErr := check(ctx, s.authz, p, workspaceRead); verifyErr != nil {
+			return uuid.UUID{}, verifyErr
 		}
 		return uuid.UUID{}, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}
@@ -408,25 +375,16 @@ func (s *ResourceServer) ListWorkspaceResources(
 ) (*resourcev1.ListWorkspaceResourcesResponse, error) {
 	slog.InfoContext(ctx, "received req to list resources", "workspaceId", req.GetWorkspaceId())
 
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	wsID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.ListResources, req.GetWorkspaceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list resources", "workspaceId", req.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.ListResources, wsID); err != nil {
+		return nil, err
 	}
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	wsID := uuid.MustParse(req.GetWorkspaceId())
 	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
 	if cursorErr != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
@@ -493,23 +451,13 @@ func (s *ResourceServer) UpdateResource(
 	ctx context.Context,
 	req *resourcev1.UpdateResourceRequest,
 ) (*resourcev1.UpdateResourceResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.UpdateResource, req.GetResourceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to update resource", "resourceId", req.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.UpdateResource, resourceID); err != nil {
+		return nil, err
 	}
-
-	resourceID := uuid.MustParse(req.GetResourceId())
 
 	message := req.ProtoReflect()
 	fields := message.Descriptor().Fields()
@@ -527,7 +475,7 @@ func (s *ResourceServer) UpdateResource(
 		updateParams.Description = new(req.GetDescription())
 	}
 
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
@@ -581,23 +529,13 @@ func (s *ResourceServer) DeleteResource(
 	ctx context.Context,
 	req *resourcev1.DeleteResourceRequest,
 ) (*resourcev1.DeleteResourceResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.DeleteResource, req.GetResourceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to delete resource", "resourceId", req.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.DeleteResource, resourceID); err != nil {
+		return nil, err
 	}
-
-	resourceID := uuid.MustParse(req.GetResourceId())
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
@@ -671,26 +609,17 @@ func (s *ResourceServer) ScaleResource(
 	ctx context.Context,
 	req *resourcev1.ScaleResourceRequest,
 ) (*resourcev1.ScaleResourceResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.ScaleResource, req.GetResourceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to scale resource", "resourceId", req.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-
-	if err := validateScaleRequest(ctx, req); err != nil {
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
 		return nil, err
 	}
-	resourceID := uuid.MustParse(req.GetResourceId())
+	if err = authorize(ctx, s.authz, actions.ScaleResource, resourceID); err != nil {
+		return nil, err
+	}
+
+	if err = validateScaleRequest(req); err != nil {
+		return nil, err
+	}
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -987,21 +916,19 @@ func (s *ResourceServer) redeployRegions(
 	return events.Record(ctx, qtx, ev)
 }
 
-func validateScaleRequest(ctx context.Context, r *resourcev1.ScaleResourceRequest) error {
+func validateScaleRequest(r *resourcev1.ScaleResourceRequest) error {
 	if r.GetReplicas() == 0 && r.GetCpu() == "" && r.GetMemory() == "" {
 		return rpcerr.New(connect.CodeInvalidArgument, errScaleNothingRequested)
 	}
 
 	if cpu := r.GetCpu(); cpu != "" {
 		if _, err := servicedefaults.ParseCPU(cpu); err != nil {
-			slog.WarnContext(ctx, "invalid cpu format", "cpu", cpu, "error", err)
 			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 		}
 	}
 
 	if memory := r.GetMemory(); memory != "" {
 		if _, err := servicedefaults.ParseMemory(memory); err != nil {
-			slog.WarnContext(ctx, "invalid memory format", "memory", memory, "error", err)
 			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 		}
 	}
@@ -1109,17 +1036,14 @@ func (s *ResourceServer) GetResourceEnv(
 	ctx context.Context,
 	req *resourcev1.GetResourceEnvRequest,
 ) (*resourcev1.GetResourceEnvResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
 	}
-	if err := s.authz.Check(ctx, scopes, actions.New(actions.GetResourceEnv, req.GetResourceId())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get resource env", "resourceId", req.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.GetResourceEnv, resourceID); err != nil {
+		return nil, err
 	}
-	res, err := s.queries.GetResourceByID(ctx, uuid.MustParse(req.GetResourceId()))
+	res, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}

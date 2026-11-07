@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -13,7 +12,6 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -26,13 +24,11 @@ func authorizeVisible(
 	required genDb.EntityScope,
 	notFound error,
 ) error {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return err
 	}
-	err := authorizer.Check(ctx, scopes, required)
+	err = authorizer.Check(ctx, p.Scopes, required)
 	if err == nil {
 		return nil
 	}
@@ -42,16 +38,14 @@ func authorizeVisible(
 	for _, scope := range visibleScopes {
 		visible := required
 		visible.Scope = scope
-		visibleErr := authorizer.Check(ctx, scopes, visible)
+		visibleErr := authorizer.Check(ctx, p.Scopes, visible)
 		if visibleErr == nil {
-			slog.WarnContext(ctx, "caller lacks the scope", "entityId", required.EntityID, "scope", required.Scope)
 			return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		if !accessDenied(visibleErr) {
 			return fmt.Errorf("check %s access: %w", scope, visibleErr)
 		}
 	}
-	slog.WarnContext(ctx, "caller cannot see the entity", "entityId", required.EntityID)
 	return rpcerr.New(connect.CodeNotFound, notFound)
 }
 
