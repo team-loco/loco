@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	toolscache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -53,11 +52,11 @@ func testConfig() Config {
 	}
 }
 
-func newWatcher(t *testing.T, objs ...client.Object) (*Watcher, client.Client) {
+func testWatcher(t *testing.T, objs ...client.Object) (*Watcher, client.Client) {
 	t.Helper()
 	scheme := newScheme(t)
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
-	return New(c, c, testConfig()), c
+	return newWatcher(c, c, testConfig()), c
 }
 
 func startMessage(buildID string) *agentv1.StartBuild {
@@ -85,20 +84,20 @@ func build(name, buildID, phase string) *locoControllerV1.Build {
 func getBuild(t *testing.T, c client.Client, buildID string) (*locoControllerV1.Build, error) {
 	t.Helper()
 	var got locoControllerV1.Build
-	key := client.ObjectKey{Namespace: testNamespace, Name: Name(buildID)}
+	key := client.ObjectKey{Namespace: testNamespace, Name: buildName(buildID)}
 	err := c.Get(context.Background(), key, &got)
 	return &got, err
 }
 
 func TestCreateMakesOneBuildPerID(t *testing.T) {
-	w, c := newWatcher(t)
+	w, c := testWatcher(t)
 	ctx := context.Background()
 	start := startMessage(testBuildID)
 
-	if err := w.Create(ctx, start); err != nil {
+	if err := w.create(ctx, start); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := w.Create(ctx, start); err != nil {
+	if err := w.create(ctx, start); err != nil {
 		t.Fatalf("second create: %v", err)
 	}
 
@@ -134,7 +133,7 @@ func TestCreateMakesOneBuildPerID(t *testing.T) {
 }
 
 func TestCancelDeletesTheBuildAndToleratesAMissingOne(t *testing.T) {
-	w, c := newWatcher(t, build(Name(testBuildID), testBuildID, locoControllerV1.BuildPhaseRunning))
+	w, c := testWatcher(t, build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhaseRunning))
 	ctx := context.Background()
 
 	var reported []*agentv1.BuildStatus
@@ -160,10 +159,10 @@ func TestStartThatTheAPIServerRejectsReportsAFailure(t *testing.T) {
 			creates++
 			gk := schema.GroupKind{Group: "infra.loco.io", Kind: "Build"}
 			invalid := field.Invalid(field.NewPath("spec", "sourceURL"), "ftp://x", "must be http")
-			return apierrors.NewInvalid(gk, Name(testBuildID), field.ErrorList{invalid})
+			return apierrors.NewInvalid(gk, buildName(testBuildID), field.ErrorList{invalid})
 		},
 	}).Build()
-	w := New(c, c, testConfig())
+	w := newWatcher(c, c, testConfig())
 
 	var reported []*agentv1.BuildStatus
 	start := &agentv1.SyncResponse{Message: &agentv1.SyncResponse_StartBuild{StartBuild: startMessage(testBuildID)}}
@@ -193,7 +192,7 @@ func TestCreateRetriesUpToTheConfiguredAttempts(t *testing.T) {
 			return apierrors.NewServiceUnavailable("down")
 		},
 	}).Build()
-	w := New(c, c, testConfig())
+	w := newWatcher(c, c, testConfig())
 
 	var reported []*agentv1.BuildStatus
 	start := &agentv1.SyncResponse{Message: &agentv1.SyncResponse_StartBuild{StartBuild: startMessage(testBuildID)}}
@@ -209,7 +208,7 @@ func TestCreateRetriesUpToTheConfiguredAttempts(t *testing.T) {
 
 func TestRetriable(t *testing.T) {
 	gr := schema.GroupResource{Group: "infra.loco.io", Resource: "builds"}
-	invalid := errors.Join(ErrInvalidBuild, errors.New("bad"))
+	invalid := errors.Join(errInvalidBuild, errors.New("bad"))
 	forbidden := apierrors.NewForbidden(gr, "build-x", errors.New("rbac"))
 	unavailable := apierrors.NewServiceUnavailable("down")
 	if retriable(invalid) || retriable(forbidden) {
@@ -221,9 +220,9 @@ func TestRetriable(t *testing.T) {
 }
 
 func TestInventoryListsAgentBuildsWithTheirPhase(t *testing.T) {
-	w, _ := newWatcher(t,
-		build(Name(testBuildID), testBuildID, ""),
-		build(Name(testOtherID), testOtherID, locoControllerV1.BuildPhaseSucceeded),
+	w, _ := testWatcher(t,
+		build(buildName(testBuildID), testBuildID, ""),
+		build(buildName(testOtherID), testOtherID, locoControllerV1.BuildPhaseSucceeded),
 		build("e2e-app-1", "e2e-app-1", locoControllerV1.BuildPhaseRunning),
 	)
 
@@ -254,9 +253,9 @@ func TestInventoryListsAgentBuildsWithTheirPhase(t *testing.T) {
 }
 
 func TestStatusIsForwardedWhenItChanges(t *testing.T) {
-	w, _ := newWatcher(t)
-	w.Observe(build(Name(testBuildID), testBuildID, ""))
-	w.Observe(build(Name(testBuildID), testBuildID, locoControllerV1.BuildPhasePending))
+	w, _ := testWatcher(t)
+	w.observe(build(buildName(testBuildID), testBuildID, ""))
+	w.observe(build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhasePending))
 
 	var got []*agentv1.BuildStatus
 	detach := w.Attach(func(s *agentv1.BuildStatus) { got = append(got, s) })
@@ -264,10 +263,10 @@ func TestStatusIsForwardedWhenItChanges(t *testing.T) {
 		t.Fatalf("attach replay = %v", got)
 	}
 
-	w.Observe(build(Name(testBuildID), testBuildID, locoControllerV1.BuildPhasePending))
-	running := build(Name(testBuildID), testBuildID, locoControllerV1.BuildPhaseRunning)
+	w.observe(build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhasePending))
+	running := build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhaseRunning)
 	running.Status.ImageDigest = testDigest
-	w.Observe(running)
+	w.observe(running)
 	if len(got) != 2 || got[1].GetPhase() != agentv1.BuildPhase_BUILD_PHASE_RUNNING {
 		t.Fatalf("statuses = %v, want one more, running", got)
 	}
@@ -275,26 +274,26 @@ func TestStatusIsForwardedWhenItChanges(t *testing.T) {
 		t.Fatal("a digest was forwarded before the build succeeded")
 	}
 
-	succeeded := build(Name(testBuildID), testBuildID, locoControllerV1.BuildPhaseSucceeded)
+	succeeded := build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhaseSucceeded)
 	succeeded.Status.ImageDigest = testDigest
 	succeeded.Status.CacheDigest = testCache
-	w.Observe(succeeded)
+	w.observe(succeeded)
 	if len(got) != 3 || got[2].GetImageDigest() != testDigest || got[2].GetCacheDigest() != testCache {
 		t.Fatalf("statuses = %v, want a success with both digests", got)
 	}
 
-	w.Observe(build("e2e-app-1", "e2e-app-1", locoControllerV1.BuildPhaseRunning))
+	w.observe(build("e2e-app-1", "e2e-app-1", locoControllerV1.BuildPhaseRunning))
 	if len(got) != 3 {
 		t.Fatal("status forwarded for a Build the agent did not create")
 	}
 
 	detach()
-	w.Observe(build(Name(testBuildID), testBuildID, locoControllerV1.BuildPhaseFailed))
+	w.observe(build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhaseFailed))
 	if len(got) != 3 {
 		t.Fatal("status forwarded after detach")
 	}
 
-	w.Forget(toolscache.DeletedFinalStateUnknown{Obj: build(Name(testBuildID), testBuildID, "")})
+	w.forget(build(buildName(testBuildID), testBuildID, ""))
 	var replay []*agentv1.BuildStatus
 	w.Attach(func(s *agentv1.BuildStatus) { replay = append(replay, s) })
 	if len(replay) != 0 {
@@ -307,18 +306,18 @@ func TestCollectRemovesOnlyOldFinishedBuilds(t *testing.T) {
 	old := metav1.NewTime(now.Add(-2 * time.Hour))
 	recent := metav1.NewTime(now.Add(-10 * time.Minute))
 
-	oldDone := build(Name(testBuildID), testBuildID, locoControllerV1.BuildPhaseSucceeded)
+	oldDone := build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhaseSucceeded)
 	oldDone.Status.FinishedAt = &old
-	recentDone := build(Name(testOtherID), testOtherID, locoControllerV1.BuildPhaseFailed)
+	recentDone := build(buildName(testOtherID), testOtherID, locoControllerV1.BuildPhaseFailed)
 	recentDone.Status.FinishedAt = &recent
 	runningID := "01a55555-5555-7555-8555-555555555555"
-	running := build(Name(runningID), runningID, locoControllerV1.BuildPhaseRunning)
+	running := build(buildName(runningID), runningID, locoControllerV1.BuildPhaseRunning)
 	foreign := build("e2e-app-1", "e2e-app-1", locoControllerV1.BuildPhaseSucceeded)
 	foreign.Status.FinishedAt = &old
 
-	w, c := newWatcher(t, oldDone, recentDone, running, foreign)
+	w, c := testWatcher(t, oldDone, recentDone, running, foreign)
 	w.now = func() time.Time { return now }
-	if err := w.Collect(context.Background()); err != nil {
+	if err := w.collect(context.Background()); err != nil {
 		t.Fatalf("collect: %v", err)
 	}
 
@@ -339,24 +338,13 @@ func TestCollectRemovesOnlyOldFinishedBuilds(t *testing.T) {
 
 func TestTruncateKeepsTheEnd(t *testing.T) {
 	short := "exit 1"
-	if got := Truncate(short); got != short {
-		t.Fatalf("Truncate(%q) = %q", short, got)
+	if got := truncate(short); got != short {
+		t.Fatalf("truncate(%q) = %q", short, got)
 	}
 	long := strings.Repeat("a", maxMessageLength) + "tail"
-	got := Truncate(long)
+	got := truncate(long)
 	if len([]rune(got)) != maxMessageLength || !strings.HasSuffix(got, "tail") ||
 		!strings.HasPrefix(got, truncatedPrefix) {
-		t.Fatalf("Truncate kept %d runes, prefix %q", len([]rune(got)), got[:5])
-	}
-}
-
-var errTestWatchDead = errors.New("watch cannot recover")
-
-func TestWaitReturnsWhyTheWatchStopped(t *testing.T) {
-	watching, stop := context.WithCancelCause(t.Context())
-	w := &Watcher{watching: watching}
-	stop(errTestWatchDead)
-	if err := w.Wait(t.Context()); !errors.Is(err, errTestWatchDead) {
-		t.Fatalf("Wait = %v, want %v", err, errTestWatchDead)
+		t.Fatalf("truncate kept %d runes, prefix %q", len([]rune(got)), got[:5])
 	}
 }

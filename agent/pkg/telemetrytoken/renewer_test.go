@@ -198,8 +198,8 @@ func waitForStoredToken(t *testing.T, kube *fake.Clientset, token string) {
 
 func TestRenewalDelayIsHalfTheRemainingLifetime(t *testing.T) {
 	now := time.Now()
-	if got := RenewalDelay(now, now.Add(time.Hour)); got != 30*time.Minute {
-		t.Fatalf("RenewalDelay = %s, want 30m", got)
+	if got := renewalDelay(now, now.Add(time.Hour)); got != 30*time.Minute {
+		t.Fatalf("renewalDelay = %s, want 30m", got)
 	}
 }
 

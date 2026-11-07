@@ -18,7 +18,8 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/team-loco/loco/agent/pkg/identity"
+	"github.com/team-loco/loco/agent/pkg/kube"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -48,12 +49,9 @@ type Applier struct {
 
 // New creates a new Applier for the given cluster config.
 func New(cfg *rest.Config, namespace string, pullSecrets PullSecrets) (*Applier, error) {
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add core types to scheme: %w", err)
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		return nil, err
 	}
 
 	c, err := client.New(cfg, client.Options{Scheme: scheme})
@@ -244,7 +242,7 @@ func (a *Applier) applyApplication(
 	if applyErr := a.client.Apply(
 		ctx,
 		applyConfig,
-		client.FieldOwner(identity.FieldOwner),
+		client.FieldOwner(locolabels.ManagedByAgent),
 		client.ForceOwnership,
 	); applyErr != nil {
 		return fmt.Errorf("failed to apply Application: %w", applyErr)

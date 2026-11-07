@@ -9,7 +9,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	toolscache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -45,30 +44,30 @@ func app(name, placementID, revision, phase string) *locoControllerV1.Applicatio
 }
 
 func TestStatusReportsTheRevisionTheControllerObserved(t *testing.T) {
-	w := New(nil, nil, testNamespace)
+	w := newWatcher(nil, nil, testNamespace)
 	lagging := app("resource-a", "p1", "5", "Ready")
 	lagging.Status.ObservedPlacementRevision = 4
 
 	var got []*agentv1.PlacementStatus
 	w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
-	w.Observe(lagging)
+	w.observe(lagging)
 	if len(got) != 1 || got[0].GetObservedRevision() != 4 {
 		t.Fatalf("statuses = %v, want observed revision 4", got)
 	}
 }
 
 func TestStatusForwardsReplicaChangesWithoutAPhaseChange(t *testing.T) {
-	w := New(nil, nil, testNamespace)
+	w := newWatcher(nil, nil, testNamespace)
 	application := app("resource-a", "p1", "5", "Deploying")
 	application.Status.ReadyReplicas = 1
 	var got []*agentv1.PlacementStatus
 	w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
-	w.Observe(application)
+	w.observe(application)
 	application.Status.ReadyReplicas = 2
-	w.Observe(application)
-	w.Observe(application)
+	w.observe(application)
+	w.observe(application)
 	application.Status.ReadyReplicas = 0
-	w.Observe(application)
+	w.observe(application)
 	if len(got) != 3 {
 		t.Fatalf("statuses = %v, want three replica changes", got)
 	}
@@ -82,13 +81,13 @@ func TestStatusForwardsReplicaChangesWithoutAPhaseChange(t *testing.T) {
 func TestFailedStatusCarriesTheControllerMessage(t *testing.T) {
 	const message = "The image runs as root. " +
 		"Loco runs containers as a non-root user; use an image that sets a non-root USER."
-	w := New(nil, nil, testNamespace)
+	w := newWatcher(nil, nil, testNamespace)
 	var got []*agentv1.PlacementStatus
 	w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
 
 	failed := app("resource-a", "p1", "3", "Failed")
 	failed.Status.Message = message
-	w.Observe(failed)
+	w.observe(failed)
 
 	if len(got) != 1 {
 		t.Fatalf("statuses = %v, want one", got)
@@ -112,7 +111,7 @@ func TestInventorySkipsApplicationsWithoutPlacement(t *testing.T) {
 		app("resource-b", "", "", ""),
 	).Build()
 
-	inventory, err := New(c, c, testNamespace).Inventory(context.Background())
+	inventory, err := newWatcher(c, c, testNamespace).inventory(context.Background())
 	if err != nil {
 		t.Fatalf("inventory: %v", err)
 	}
@@ -123,8 +122,8 @@ func TestInventorySkipsApplicationsWithoutPlacement(t *testing.T) {
 }
 
 func TestStatusIsForwardedOnlyWhenItChanges(t *testing.T) {
-	w := New(nil, nil, testNamespace)
-	w.Observe(app("resource-a", "p1", "2", "Deploying"))
+	w := newWatcher(nil, nil, testNamespace)
+	w.observe(app("resource-a", "p1", "2", "Deploying"))
 
 	var got []*agentv1.PlacementStatus
 	detach := w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
@@ -132,20 +131,20 @@ func TestStatusIsForwardedOnlyWhenItChanges(t *testing.T) {
 		t.Fatalf("attach replay = %v", got)
 	}
 
-	w.Observe(app("resource-a", "p1", "2", "Deploying"))
-	w.Observe(app("resource-a", "p1", "2", "Ready"))
+	w.observe(app("resource-a", "p1", "2", "Deploying"))
+	w.observe(app("resource-a", "p1", "2", "Ready"))
 	if len(got) != 2 || !got[1].GetReady() {
 		t.Fatalf("statuses = %v, want one more, ready", got)
 	}
 
 	detach()
-	w.Observe(app("resource-a", "p1", "3", "Deploying"))
+	w.observe(app("resource-a", "p1", "3", "Deploying"))
 	if len(got) != 2 {
 		t.Fatal("status forwarded after detach")
 	}
 
 	deleted := app("resource-a", "p1", "3", "Deploying")
-	w.Forget(toolscache.DeletedFinalStateUnknown{Obj: deleted})
+	w.forget(deleted)
 	var replay []*agentv1.PlacementStatus
 	w.Attach(func(s *agentv1.PlacementStatus) { replay = append(replay, s) })
 	if len(replay) != 0 {
@@ -205,12 +204,12 @@ func newCrashingCluster(t *testing.T) (*applier.Applier, *Watcher) {
 	}
 	crash := &crashBeforeSecretWrite{}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(crash.funcs()).Build()
-	return applier.NewWithClient(c, testNamespace, nil), New(c, c, testNamespace)
+	return applier.NewWithClient(c, testNamespace, nil), newWatcher(c, c, testNamespace)
 }
 
 func singleEntry(t *testing.T, watcher *Watcher) *agentv1.InventoryEntry {
 	t.Helper()
-	inventory, err := watcher.Inventory(context.Background())
+	inventory, err := watcher.inventory(context.Background())
 	if err != nil {
 		t.Fatalf("inventory: %v", err)
 	}
@@ -290,18 +289,8 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(referencing, staged).Build()
 
-	if entry := singleEntry(t, New(c, c, testNamespace)); entry.GetRevision() != 3 || !entry.GetEnvSecretPending() {
+	entry := singleEntry(t, newWatcher(c, c, testNamespace))
+	if entry.GetRevision() != 3 || !entry.GetEnvSecretPending() {
 		t.Fatalf("entry = %v, want revision 3 with the env Secret pending", entry)
-	}
-}
-
-var errTestWatchDead = errors.New("watch cannot recover")
-
-func TestWaitReturnsWhyTheWatchStopped(t *testing.T) {
-	watching, stop := context.WithCancelCause(t.Context())
-	w := &Watcher{watching: watching}
-	stop(errTestWatchDead)
-	if err := w.Wait(t.Context()); !errors.Is(err, errTestWatchDead) {
-		t.Fatalf("Wait = %v, want %v", err, errTestWatchDead)
 	}
 }

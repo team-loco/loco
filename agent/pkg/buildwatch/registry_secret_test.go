@@ -79,7 +79,7 @@ func newRecordingWatcher(t *testing.T, cfg Config) (*Watcher, client.Client, *re
 	t.Helper()
 	rec := &recorder{}
 	c := fake.NewClientBuilder().WithScheme(newScheme(t)).WithInterceptorFuncs(rec.funcs()).Build()
-	return New(c, c, cfg), c, rec
+	return newWatcher(c, c, cfg), c, rec
 }
 
 func registrySecretAuth(t *testing.T, c client.Client, buildID string) (registryAuth, error) {
@@ -108,7 +108,7 @@ func registrySecretAuth(t *testing.T, c client.Client, buildID string) (registry
 func TestTokenModeWritesTheRegistrySecretBeforeTheBuild(t *testing.T) {
 	w, c, rec := newRecordingWatcher(t, tokenConfig())
 
-	if err := w.Create(context.Background(), tokenStart(testBuildID, testCredential)); err != nil {
+	if err := w.create(context.Background(), tokenStart(testBuildID, testCredential)); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	if len(rec.created) != 2 || rec.created[0] != createdSecret || rec.created[1] != createdBuild {
@@ -128,10 +128,10 @@ func TestAReplayedStartReplacesTheRegistryCredential(t *testing.T) {
 	w, c, _ := newRecordingWatcher(t, tokenConfig())
 	ctx := context.Background()
 
-	if err := w.Create(ctx, tokenStart(testBuildID, testCredential)); err != nil {
+	if err := w.create(ctx, tokenStart(testBuildID, testCredential)); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := w.Create(ctx, tokenStart(testBuildID, testNextCredential)); err != nil {
+	if err := w.create(ctx, tokenStart(testBuildID, testNextCredential)); err != nil {
 		t.Fatalf("replayed create: %v", err)
 	}
 	auth, err := registrySecretAuth(t, c, testBuildID)
@@ -149,12 +149,12 @@ func TestTheRegistrySecretIsDeletedWithTheBuild(t *testing.T) {
 	w.now = func() time.Time { return now }
 	ctx := context.Background()
 	for _, id := range []string{testBuildID, testOtherID} {
-		if err := w.Create(ctx, tokenStart(id, testCredential)); err != nil {
+		if err := w.create(ctx, tokenStart(id, testCredential)); err != nil {
 			t.Fatalf("create %s: %v", id, err)
 		}
 	}
 
-	if err := w.Delete(ctx, testBuildID); err != nil {
+	if err := w.remove(ctx, testBuildID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 	if _, err := registrySecretAuth(t, c, testBuildID); !apierrors.IsNotFound(err) {
@@ -171,7 +171,7 @@ func TestTheRegistrySecretIsDeletedWithTheBuild(t *testing.T) {
 	if updateErr := c.Update(ctx, finished); updateErr != nil {
 		t.Fatalf("finish build: %v", updateErr)
 	}
-	if collectErr := w.Collect(ctx); collectErr != nil {
+	if collectErr := w.collect(ctx); collectErr != nil {
 		t.Fatalf("collect: %v", collectErr)
 	}
 	if _, err := registrySecretAuth(t, c, testOtherID); !apierrors.IsNotFound(err) {
@@ -182,9 +182,9 @@ func TestTheRegistrySecretIsDeletedWithTheBuild(t *testing.T) {
 func TestTokenModeRefusesAStartWithoutACredential(t *testing.T) {
 	w, c, rec := newRecordingWatcher(t, tokenConfig())
 
-	err := w.Create(context.Background(), tokenStart(testBuildID, ""))
-	if !errors.Is(err, ErrInvalidBuild) {
-		t.Fatalf("create without a credential = %v, want ErrInvalidBuild", err)
+	err := w.create(context.Background(), tokenStart(testBuildID, ""))
+	if !errors.Is(err, errInvalidBuild) {
+		t.Fatalf("create without a credential = %v, want errInvalidBuild", err)
 	}
 	if _, getErr := getBuild(t, c, testBuildID); !apierrors.IsNotFound(getErr) {
 		t.Fatalf("Build after a refused start: err = %v, want not found", getErr)
@@ -198,10 +198,10 @@ func TestStaticModeWritesNoRegistrySecret(t *testing.T) {
 	w, c, rec := newRecordingWatcher(t, testConfig())
 	ctx := context.Background()
 
-	if err := w.Create(ctx, tokenStart(testBuildID, testCredential)); err != nil {
+	if err := w.create(ctx, tokenStart(testBuildID, testCredential)); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := w.Delete(ctx, testBuildID); err != nil {
+	if err := w.remove(ctx, testBuildID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 	if rec.secretWrites != 0 {
