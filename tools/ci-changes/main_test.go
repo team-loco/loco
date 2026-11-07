@@ -94,25 +94,54 @@ func TestLoadRejectsUnknownEvents(t *testing.T) {
 	assert.ErrorContains(t, err, `unknown event "pull-request"`)
 }
 
-func TestInstallationInputsSelectE2E(t *testing.T) {
+func TestInstallationInputsSelectOnlyInstallationE2E(t *testing.T) {
 	filters, err := loadFilters("../../.github/ci-paths.yml")
 	require.NoError(t, err)
 	for _, path := range []string{
-		"tools/e2e-auth/main.go",
 		"tools/installation-e2e/workflow.go",
-		"tools/platform-release/release.py",
 		"charts/cert-manager.yaml",
 		"dev/compose.cloud-provider-kind.yaml",
 		"dev/dex.yaml",
-		"web/Dockerfile",
-		"docs/content/reference/installation.md",
-		"schemas/installation.v1.json",
 		"examples/installation/installation.yaml",
+		"web/src/App.tsx",
+		"web/Dockerfile",
+		"gen/ts/package.json",
+		"bun.lock",
+		"docs/content/reference/installation.md",
+		"docs/zensical.toml",
+		"schemas/loco.v1.json",
 	} {
 		t.Run(path, func(t *testing.T) {
-			assert.True(t, selectWorkflows(filters, "pull_request", []string{path})["e2e"])
+			selected := selectWorkflows(filters, "pull_request", []string{path})
+			assert.True(t, selected["e2e-installation"])
+			assert.False(t, selected["e2e"])
 		})
 	}
+}
+
+func TestSuiteInputsSelectBothE2EWorkflows(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for _, path := range []string{
+		"api/service/deployment.go",
+		"cmd/locoadm/main.go",
+		"charts/loco-worker/values.yaml",
+		"tools/e2e-auth/main.go",
+		"tests/e2e/fixtures/installation/kind.yaml",
+	} {
+		t.Run(path, func(t *testing.T) {
+			selected := selectWorkflows(filters, "pull_request", []string{path})
+			assert.True(t, selected["e2e-installation"])
+			assert.True(t, selected["e2e"])
+		})
+	}
+}
+
+func TestInstallationSchemaSelectsPlatformRelease(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	selected := selectWorkflows(filters, "pull_request", []string{"schemas/installation.v1.json"})
+	assert.True(t, selected["platform-release"])
 }
 
 func TestChangedFiles(t *testing.T) {

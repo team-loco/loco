@@ -39,6 +39,7 @@ jobs:
       docs-drift: ${{ steps.select.outputs.docs-drift }}
       docs: ${{ steps.select.outputs.docs }}
       e2e: ${{ steps.select.outputs.e2e }}
+      e2e-installation: ${{ steps.select.outputs.e2e-installation }}
       govulncheck: ${{ steps.select.outputs.govulncheck }}
       lint: ${{ steps.select.outputs.lint }}
       local-stack: ${{ steps.select.outputs.local-stack }}
@@ -134,6 +135,14 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/e2e.yml
+
+  e2e-installation:
+    name: Installation E2E
+    needs: [changes]
+    if: needs.changes.outputs.e2e-installation == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/e2e-installation.yml
 
   govulncheck:
     name: Go Vulnerabilities
@@ -231,6 +240,7 @@ jobs:
       - docs-drift
       - docs
       - e2e
+      - e2e-installation
       - govulncheck
       - lint
       - local-stack
