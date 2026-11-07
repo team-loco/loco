@@ -22,9 +22,9 @@ import (
 const (
 	versionCheckTimeout  = time.Second
 	latestReleaseTimeout = 3 * time.Second
-	installCommand       = "curl -fsSL https://loco.build/install.sh | sh"
 	releasesURL          = "https://github.com/team-loco/loco/releases"
 	versionFlagName      = "version"
+	skipVersionCheckKey  = "skip-version-check"
 )
 
 type versionCheck struct {
@@ -34,7 +34,7 @@ type versionCheck struct {
 }
 
 func (c *versionCheck) start(cmd *cobra.Command) {
-	if c == nil || c.done != nil || cmd.Annotations[skipVersionCheckKey] != "" {
+	if c.done != nil || cmd.Annotations[skipVersionCheckKey] != "" {
 		return
 	}
 	current := cmd.Root().Version
@@ -65,7 +65,7 @@ func (c *versionCheck) start(cmd *cobra.Command) {
 }
 
 func (c *versionCheck) report(w io.Writer) {
-	if c == nil || c.done == nil {
+	if c.done == nil {
 		return
 	}
 	<-c.done

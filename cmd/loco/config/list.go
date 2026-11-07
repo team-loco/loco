@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
+
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -20,17 +20,13 @@ func buildListCmd() *cobra.Command {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
 
-			locoHost := cfg.LocoHost
-			if locoHost == "" {
-				locoHost = cmdutil.DefaultLocoHost + " (default)"
+			for _, k := range configKeys {
+				v := *k.field(cfg)
+				if v == "" {
+					v = k.def + " (default)"
+				}
+				fmt.Printf("%-8s = %s\n", k.name, v)
 			}
-			webHost := cfg.WebHost
-			if webHost == "" {
-				webHost = cmdutil.DefaultWebHost + " (default)"
-			}
-
-			fmt.Printf("locoHost = %s\n", locoHost)
-			fmt.Printf("webHost  = %s\n", webHost)
 
 			return nil
 		},

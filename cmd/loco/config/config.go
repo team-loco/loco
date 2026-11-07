@@ -1,16 +1,40 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
+
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/internal/session"
 )
 
-// validKeys lists all configurable keys in ~/.loco/config.yaml.
-const (
-	keyLocoHost = "locoHost"
-	keyWebHost  = "webHost"
-)
+// configKey describes one key of ~/.loco/config.yaml: where it lives in the
+// session config and the value used while it is unset.
+type configKey struct {
+	name  string
+	field func(*session.SessionConfig) *string
+	def   string
+}
 
-var validKeys = []string{keyLocoHost, keyWebHost}
+// configKeys is in the order `config list` prints.
+var configKeys = []configKey{
+	{"locoHost", func(c *session.SessionConfig) *string { return &c.LocoHost }, cmdutil.DefaultLocoHost},
+	{"webHost", func(c *session.SessionConfig) *string { return &c.WebHost }, cmdutil.DefaultWebHost},
+}
+
+func lookupKey(name string) (configKey, error) {
+	for _, k := range configKeys {
+		if k.name == name {
+			return k, nil
+		}
+	}
+	names := make([]string, len(configKeys))
+	for i, k := range configKeys {
+		names[i] = k.name
+	}
+	return configKey{}, fmt.Errorf("unknown key %q — valid keys: %v", name, names)
+}
 
 func BuildConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{

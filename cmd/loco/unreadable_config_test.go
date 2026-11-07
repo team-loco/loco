@@ -32,7 +32,7 @@ func TestCommandsReportUnreadableConfig(t *testing.T) {
 			}
 
 			var out bytes.Buffer
-			root := NewRootCmd(Env{})
+			root := NewRootCmd(Env{versionCheck: &versionCheck{}})
 			root.SetOut(&out)
 			root.SetErr(&out)
 			root.SetArgs(tt.args)

@@ -51,6 +51,7 @@ func TestLogoutKeychainDeleteFails(t *testing.T) {
 	}
 	var stdout bytes.Buffer
 	env := Env{
+		versionCheck: &versionCheck{},
 		Tokens: func() (keychain.TokenStore, error) {
 			return store, nil
 		},
