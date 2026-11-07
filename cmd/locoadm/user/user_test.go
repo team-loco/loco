@@ -6,15 +6,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
-	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/internal/bearer"
-	"github.com/team-loco/loco/internal/rpc"
 )
 
 const targetEmail = "dev@acme.test"
@@ -49,14 +48,18 @@ func runUserCmd(t *testing.T, fake *fakeUsers, args ...string) string {
 	endpoint := httptest.NewServer(mux)
 	t.Cleanup(endpoint.Close)
 	t.Setenv("LOCO_HOST", endpoint.URL)
-	cmd := newUserCmd(dependencies{
-		token: func(*cobra.Command) (*keychain.UserToken, error) {
-			return &keychain.UserToken{Host: endpoint.URL, Token: fake.session}, nil
-		},
-		client: func(host, token string) userv1connect.UserServiceClient {
-			return rpc.NewHTTPClients(endpoint.Client(), host, token).User
-		},
-	})
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(keychain.StoreEnvVar, "file")
+	store, err := keychain.ForCurrentUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Set(keychain.UserToken{
+		Host: endpoint.URL, Token: fake.session, ExpiresAt: time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cmd := BuildUserCmd()
 	output := new(bytes.Buffer)
 	cmd.SetOut(output)
 	cmd.SetErr(output)

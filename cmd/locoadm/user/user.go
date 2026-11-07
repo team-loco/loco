@@ -4,11 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
@@ -16,52 +13,49 @@ const (
 	userReinstate = "reinstate"
 )
 
-type dependencies struct {
-	token  func(*cobra.Command) (*keychain.UserToken, error)
-	client func(string, string) userv1connect.UserServiceClient
+// operation is one user subcommand: the status it sets and the words it prints.
+type operation struct {
+	name   string
+	short  string
+	status userv1.UserStatus
+	result string
+}
+
+var operations = []operation{
+	{
+		name:   userSuspend,
+		short:  "Block a user from signing in and using the API",
+		status: userv1.UserStatus_USER_STATUS_SUSPENDED,
+		result: "suspended",
+	},
+	{
+		name:   userReinstate,
+		short:  "Let a suspended user sign in again",
+		status: userv1.UserStatus_USER_STATUS_ACTIVE,
+		result: "active",
+	},
 }
 
 func BuildUserCmd() *cobra.Command {
-	return newUserCmd(dependencies{
-		token: cmdutil.GetCurrentLocoToken,
-		client: func(host, token string) userv1connect.UserServiceClient {
-			return rpc.ForHost(host, token).User
-		},
-	})
-}
-
-func newUserCmd(deps dependencies) *cobra.Command {
 	user := &cobra.Command{Use: "user", Short: "Manage users (requires system admin)"}
-	statuses := map[string]userv1.UserStatus{
-		userSuspend:   userv1.UserStatus_USER_STATUS_SUSPENDED,
-		userReinstate: userv1.UserStatus_USER_STATUS_ACTIVE,
-	}
-	shorts := map[string]string{
-		userSuspend:   "Block a user from signing in and using the API",
-		userReinstate: "Let a suspended user sign in again",
-	}
-	for _, operation := range []string{userSuspend, userReinstate} {
+	for _, op := range operations {
 		command := &cobra.Command{
-			Use:   operation + " <email>",
-			Short: shorts[operation],
+			Use:   op.name + " <email>",
+			Short: op.short,
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				host, err := cmdutil.GetHost(cmd)
-				if err != nil {
-					return err
-				}
-				session, err := deps.token(cmd)
+				login, err := cmdutil.ResolveLogin(cmd)
 				if err != nil {
 					return err
 				}
 				request := &userv1.SetUserStatusRequest{
 					Key:    &userv1.SetUserStatusRequest_Email{Email: args[0]},
-					Status: statuses[operation],
+					Status: op.status,
 				}
-				if _, err = deps.client(host, session.Token).SetUserStatus(cmd.Context(), request); err != nil {
-					return fmt.Errorf("unable to %s %s: %w", operation, args[0], err)
+				if _, err = login.Clients.User.SetUserStatus(cmd.Context(), request); err != nil {
+					return fmt.Errorf("unable to %s %s: %w", op.name, args[0], err)
 				}
-				_, err = fmt.Fprintf(cmd.OutOrStdout(), "User %s: %s\n", args[0], statusWord(statuses[operation]))
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "User %s: %s\n", args[0], op.result)
 				return err
 			},
 		}
@@ -69,11 +63,4 @@ func newUserCmd(deps dependencies) *cobra.Command {
 		user.AddCommand(command)
 	}
 	return user
-}
-
-func statusWord(status userv1.UserStatus) string {
-	if status == userv1.UserStatus_USER_STATUS_SUSPENDED {
-		return "suspended"
-	}
-	return "active"
 }
