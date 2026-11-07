@@ -25,23 +25,23 @@ const (
 
 var errRegistryPullSecretPending = errors.New("the agent has not written the workspace's registry pull secret")
 
-func (r *LocoResourceReconciler) copiesPullSecret() bool {
+func (r *ApplicationReconciler) copiesPullSecret() bool {
 	return r.RegistryTokenMode || r.PullSecretName != ""
 }
 
-func (r *LocoResourceReconciler) pullSecretSource(locoRes *locov1alpha1.Application) client.ObjectKey {
+func (r *ApplicationReconciler) pullSecretSource(app *locov1alpha1.Application) client.ObjectKey {
 	if r.RegistryTokenMode {
-		name := locov1alpha1.RegistryPullSecretName(locoRes.Spec.WorkspaceID)
+		name := locov1alpha1.RegistryPullSecretName(app.Spec.WorkspaceID)
 		return client.ObjectKey{Namespace: r.LocoNamespace, Name: name}
 	}
 	return client.ObjectKey{Namespace: r.LocoNamespace, Name: r.PullSecretName}
 }
 
-func (r *LocoResourceReconciler) ensureWorkspacePullSecret(
+func (r *ApplicationReconciler) ensureWorkspacePullSecret(
 	ctx context.Context,
-	locoRes *locov1alpha1.Application,
+	app *locov1alpha1.Application,
 ) error {
-	namespace := r.workspaceNamespace(locoRes)
+	namespace := r.workspaceNamespace(app)
 	key := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
 
 	if !r.copiesPullSecret() {
@@ -50,8 +50,8 @@ func (r *LocoResourceReconciler) ensureWorkspacePullSecret(
 
 	slog.DebugContext(ctx, "ensuring workspace pull secret", "namespace", namespace, "name", workspacePullSecretName)
 
-	source := r.pullSecretSource(locoRes)
-	labels := workspaceObjectLabels(locoRes)
+	source := r.pullSecretSource(app)
+	labels := workspaceObjectLabels(app)
 	err := managed.CopyDockerConfig(ctx, r.Client, r.Client, source, key, labels)
 	if r.RegistryTokenMode && apierrors.IsNotFound(err) {
 		return fmt.Errorf("%w: %s", errRegistryPullSecretPending, source)
@@ -59,7 +59,7 @@ func (r *LocoResourceReconciler) ensureWorkspacePullSecret(
 	return err
 }
 
-func (r *LocoResourceReconciler) deleteWorkspacePullSecret(ctx context.Context, key client.ObjectKey) error {
+func (r *ApplicationReconciler) deleteWorkspacePullSecret(ctx context.Context, key client.ObjectKey) error {
 	existing := &corev1.Secret{}
 	err := r.Get(ctx, key, existing)
 	if apierrors.IsNotFound(err) {
@@ -74,7 +74,7 @@ func (r *LocoResourceReconciler) deleteWorkspacePullSecret(ctx context.Context, 
 	return nil
 }
 
-func (r *LocoResourceReconciler) isPullSecret(obj client.Object) bool {
+func (r *ApplicationReconciler) isPullSecret(obj client.Object) bool {
 	if obj.GetNamespace() != r.LocoNamespace {
 		return false
 	}
@@ -85,11 +85,11 @@ func (r *LocoResourceReconciler) isPullSecret(obj client.Object) bool {
 	return obj.GetName() == r.PullSecretName
 }
 
-func (r *LocoResourceReconciler) pullSecretChanged() predicate.Predicate {
+func (r *ApplicationReconciler) pullSecretChanged() predicate.Predicate {
 	return predicate.NewPredicateFuncs(r.isPullSecret)
 }
 
-func (r *LocoResourceReconciler) applicationsForPullSecret(
+func (r *ApplicationReconciler) applicationsForPullSecret(
 	ctx context.Context,
 	obj client.Object,
 ) []reconcile.Request {

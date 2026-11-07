@@ -290,7 +290,7 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 	routeName := getRouteName(app)
 	existing := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Client:                   kubeClient,
 		APIReader:                kubeClient,
 		Gateway:                  testGateway,
@@ -320,7 +320,7 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = testRouting()
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Client:                   kubeClient,
 		APIReader:                kubeClient,
 		LocoNamespace:            testLocoNamespace,

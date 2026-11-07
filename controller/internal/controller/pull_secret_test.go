@@ -18,8 +18,8 @@ const (
 	testPullSecretName = "registry-pull"
 )
 
-func pullSecretReconciler(kubeClient client.Client) *LocoResourceReconciler {
-	return &LocoResourceReconciler{
+func pullSecretReconciler(kubeClient client.Client) *ApplicationReconciler {
+	return &ApplicationReconciler{
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		Client:                   kubeClient,
@@ -81,7 +81,7 @@ func TestPullSecretChangedMatchesOnlyTheConfiguredSecret(t *testing.T) {
 }
 
 func TestPullSecretChangedMatchesTheAgentsSecretsInTokenMode(t *testing.T) {
-	r := &LocoResourceReconciler{LocoNamespace: testLocoNamespace, RegistryTokenMode: true}
+	r := &ApplicationReconciler{LocoNamespace: testLocoNamespace, RegistryTokenMode: true}
 	const workspace = "ws-1"
 	agentLabels := map[string]string{locov1alpha1.LabelRegistryPull: workspace}
 	sourceName := locov1alpha1.RegistryPullSecretName(workspace)

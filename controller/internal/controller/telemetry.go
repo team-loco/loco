@@ -83,19 +83,19 @@ func collectorEnvVars(telemetry TelemetryConfig) []corev1.EnvVar {
 }
 
 func openTelemetryEnvVars(
-	locoRes *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
+	app *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
 ) []corev1.EnvVar {
 	endpoint := telemetry.otlpHTTPEndpoint()
-	serviceName := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
+	serviceName := locov1alpha1.ApplicationName(app.Spec.ResourceID)
 	settings := [][]corev1.EnvVar{
 		{
 			{Name: envOTLPEndpoint, Value: endpoint},
 			{Name: envOTLPProtocol, Value: otlpProtocolHTTP},
 		},
 		{{Name: envOTelServiceName, Value: serviceName}},
-		resourceAttributeVars(locoRes),
+		resourceAttributeVars(app),
 	}
-	userEnv := locoRes.Spec.ServiceSpec.Deployment.Env
+	userEnv := app.Spec.ServiceSpec.Deployment.Env
 	var vars []corev1.EnvVar
 	for _, setting := range settings {
 		if userSetsAny(userEnv, secretNames, setting) {
@@ -116,10 +116,10 @@ func userSetsAny(userEnv map[string]string, secretNames []string, setting []core
 	return false
 }
 
-func resourceAttributeVars(locoRes *locov1alpha1.Application) []corev1.EnvVar {
+func resourceAttributeVars(app *locov1alpha1.Application) []corev1.EnvVar {
 	attributes := []struct{ key, value string }{
-		{key: attributeEnvironmentName, value: locoRes.Spec.EnvironmentName},
-		{key: attributeDeploymentID, value: locoRes.Spec.DeploymentID},
+		{key: attributeEnvironmentName, value: app.Spec.EnvironmentName},
+		{key: attributeDeploymentID, value: app.Spec.DeploymentID},
 	}
 	pairs := make([]string, 0, len(attributes))
 	for _, attribute := range attributes {

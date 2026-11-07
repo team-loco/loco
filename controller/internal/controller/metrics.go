@@ -23,7 +23,7 @@ func addMetricsScrape(obs *locov1alpha1.ObsSpec, podLabels, podAnnotations map[s
 	podAnnotations[locolabels.AnnotationMetricsPath] = obs.Metrics.Path
 }
 
-func (r *LocoResourceReconciler) metricsIngressPolicy(
+func (r *ApplicationReconciler) metricsIngressPolicy(
 	app *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
 	selector := metav1ac.LabelSelector().
@@ -43,7 +43,7 @@ func (r *LocoResourceReconciler) metricsIngressPolicy(
 		WithSpec(spec)
 }
 
-func (r *LocoResourceReconciler) ensureMetricsIngressPolicy(ctx context.Context, app *locov1alpha1.Application) error {
+func (r *ApplicationReconciler) ensureMetricsIngressPolicy(ctx context.Context, app *locov1alpha1.Application) error {
 	return isolation.ApplyPolicies(
 		ctx,
 		r.Client,

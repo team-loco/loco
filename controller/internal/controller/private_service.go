@@ -38,7 +38,7 @@ func ownsPrivateService(app *locov1alpha1.Application, svc *corev1.Service) bool
 		svc.Annotations[locolabels.AnnotationApplicationName] == app.Name
 }
 
-func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *locov1alpha1.Application) error {
+func (r *ApplicationReconciler) ensurePrivateService(ctx context.Context, app *locov1alpha1.Application) error {
 	name := locov1alpha1.PrivateServiceName(app.Spec.Slug)
 	if name == "" {
 		return fmt.Errorf("%w: %q", errInvalidPrivateServiceName, app.Spec.Slug)
@@ -105,7 +105,7 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 	return r.prunePrivateServices(ctx, app, name)
 }
 
-func (r *LocoResourceReconciler) prunePrivateServices(
+func (r *ApplicationReconciler) prunePrivateServices(
 	ctx context.Context,
 	app *locov1alpha1.Application,
 	keep string,

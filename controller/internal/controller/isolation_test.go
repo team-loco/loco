@@ -63,11 +63,11 @@ func getPolicy(namespace, name string) *networkingv1.NetworkPolicy {
 }
 
 var _ = Describe("Workspace isolation", func() {
-	var reconciler *LocoResourceReconciler
+	var reconciler *ApplicationReconciler
 
 	BeforeEach(func() {
 		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
-		reconciler = &LocoResourceReconciler{
+		reconciler = &ApplicationReconciler{
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,

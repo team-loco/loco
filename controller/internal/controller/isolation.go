@@ -41,19 +41,19 @@ func podSecurityLabels() map[string]string {
 	}
 }
 
-func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]string {
+func workspaceNamespaceLabels(app *locov1alpha1.Application) map[string]string {
 	labels := podSecurityLabels()
 	labels[locolabels.LabelLocoApp] = "true"
 	labels[locolabels.LabelManagedBy] = managed.ManagedByValue
-	labels[locolabels.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
-	labels[locolabels.LabelEnvironmentID] = locoRes.Spec.EnvironmentID
+	labels[locolabels.LabelWorkspaceID] = app.Spec.WorkspaceID
+	labels[locolabels.LabelEnvironmentID] = app.Spec.EnvironmentID
 	return labels
 }
 
-func workspaceObjectLabels(locoRes *locov1alpha1.Application) map[string]string {
+func workspaceObjectLabels(app *locov1alpha1.Application) map[string]string {
 	return map[string]string{
 		locolabels.LabelManagedBy:   managed.ManagedByValue,
-		locolabels.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
+		locolabels.LabelWorkspaceID: app.Spec.WorkspaceID,
 	}
 }
 
@@ -95,12 +95,12 @@ func sameNamespacePeer() *networkingv1ac.NetworkPolicyPeerApplyConfiguration {
 	return networkingv1ac.NetworkPolicyPeer().WithPodSelector(allPods)
 }
 
-func (r *LocoResourceReconciler) workspaceNetworkPolicies(
-	locoRes *locov1alpha1.Application,
+func (r *ApplicationReconciler) workspaceNetworkPolicies(
+	app *locov1alpha1.Application,
 	exclusions isolation.EgressExclusions,
 ) []*networkingv1ac.NetworkPolicyApplyConfiguration {
-	namespace := r.workspaceNamespace(locoRes)
-	labels := workspaceObjectLabels(locoRes)
+	namespace := r.workspaceNamespace(app)
+	labels := workspaceObjectLabels(app)
 	ingress := networkingv1.PolicyTypeIngress
 	egress := networkingv1.PolicyTypeEgress
 
@@ -137,26 +137,26 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	}
 }
 
-func (r *LocoResourceReconciler) ensureWorkspaceNetworkPolicies(
+func (r *ApplicationReconciler) ensureWorkspaceNetworkPolicies(
 	ctx context.Context,
-	locoRes *locov1alpha1.Application,
+	app *locov1alpha1.Application,
 ) error {
 	exclusions, err := isolation.DiscoverEgressExclusions(ctx, r.Client)
 	if err != nil {
 		return err
 	}
-	policies := r.workspaceNetworkPolicies(locoRes, exclusions)
+	policies := r.workspaceNetworkPolicies(app, exclusions)
 	return isolation.ApplyPolicies(ctx, r.Client, policies)
 }
 
-func (r *LocoResourceReconciler) gatewayIngressPolicy(
-	locoRes *locov1alpha1.Application,
+func (r *ApplicationReconciler) gatewayIngressPolicy(
+	app *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
-	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
-	namespace := r.workspaceNamespace(locoRes)
-	policyName := getGatewayPolicyName(locoRes)
-	labels := managedLabels(locoRes)
-	annotations := ownerAnnotations(locoRes)
+	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
+	namespace := r.workspaceNamespace(app)
+	policyName := getGatewayPolicyName(app)
+	labels := managedLabels(app)
+	annotations := ownerAnnotations(app)
 
 	appLabels := map[string]string{labelApp: name}
 	appSelector := metav1ac.LabelSelector().WithMatchLabels(appLabels)
@@ -165,7 +165,7 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 		labelGatewayNamespace: r.LocoNamespace,
 	}
 	gatewayPeer := namespacedPodPeer(r.LocoNamespace, gatewayLabels)
-	containerPort := locoRes.Spec.ServiceSpec.Deployment.Port
+	containerPort := app.Spec.ServiceSpec.Deployment.Port
 	port := tcpPort(containerPort)
 	rule := networkingv1ac.NetworkPolicyIngressRule().WithFrom(gatewayPeer).WithPorts(port)
 	spec := networkingv1ac.NetworkPolicySpec().
@@ -179,14 +179,14 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 		WithSpec(spec)
 }
 
-func (r *LocoResourceReconciler) ensureGatewayIngressPolicy(
+func (r *ApplicationReconciler) ensureGatewayIngressPolicy(
 	ctx context.Context,
-	locoRes *locov1alpha1.Application,
+	app *locov1alpha1.Application,
 ) error {
-	namespace := r.workspaceNamespace(locoRes)
-	policyName := getGatewayPolicyName(locoRes)
+	namespace := r.workspaceNamespace(app)
+	policyName := getGatewayPolicyName(app)
 
-	if locoRes.Spec.ServiceSpec.Routing == nil {
+	if app.Spec.ServiceSpec.Routing == nil {
 		existing := &networkingv1.NetworkPolicy{Name: policyName, Namespace: namespace}
 		if err := r.Delete(ctx, existing); err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("delete network policy %s/%s: %w", namespace, policyName, err)
@@ -195,7 +195,7 @@ func (r *LocoResourceReconciler) ensureGatewayIngressPolicy(
 	}
 
 	slog.DebugContext(ctx, "ensuring gateway ingress policy", "namespace", namespace, "name", policyName)
-	policy := r.gatewayIngressPolicy(locoRes)
+	policy := r.gatewayIngressPolicy(app)
 	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, policy, opts...); err != nil {
 		return fmt.Errorf("apply network policy %s/%s: %w", namespace, policyName, err)

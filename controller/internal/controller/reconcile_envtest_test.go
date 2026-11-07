@@ -55,7 +55,7 @@ var _ = Describe("Application reconcile", func() {
 		podNamespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
 		Expect(k8sClient.Create(ctx, podNamespace)).To(Succeed())
 
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
@@ -233,7 +233,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Create(ctx, first)).To(Succeed())
 		Expect(k8sClient.Create(ctx, second)).To(Succeed())
 
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
@@ -329,7 +329,7 @@ var _ = Describe("Application reconcile", func() {
 			Expect(k8sClient.Create(ctx, created)).To(Succeed())
 		}
 
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
@@ -413,7 +413,7 @@ var _ = Describe("Application reconcile", func() {
 		delete(previous.Spec.Template.Labels, labelAppKubernetesName)
 		Expect(k8sClient.Apply(ctx, previous, managed.ApplyOptions()...)).To(Succeed())
 
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
@@ -452,7 +452,7 @@ var _ = Describe("Application reconcile", func() {
 		app.Spec.ServiceSpec.Deployment.Env = map[string]string{envRegion: "user-value", "A": "1"}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
@@ -495,7 +495,7 @@ var _ = Describe("Application reconcile", func() {
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
@@ -536,7 +536,7 @@ var _ = Describe("Application reconcile", func() {
 			nsKey := client.ObjectKey{Name: testWorkspaceNamespace(app)}
 			Expect(k8sClient.Create(ctx, &corev1.Namespace{Name: nsKey.Name, Labels: labels})).To(Succeed())
 
-			r := &LocoResourceReconciler{
+			r := &ApplicationReconciler{
 				Client:                   k8sClient,
 				APIReader:                k8sClient,
 				Scheme:                   k8sClient.Scheme(),
