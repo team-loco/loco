@@ -85,10 +85,14 @@ func (s *UserServer) GetUser(
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
+	targetID, err := parseID("user_id", targetUserID)
+	if err != nil {
+		return nil, err
+	}
 	if verifyErr := s.authz.Check(
 		ctx,
 		entityScopes,
-		actions.New(actions.GetUser, targetUserID),
+		actions.New(actions.GetUser, targetID),
 	); verifyErr != nil {
 		// Return NotFound (not PermissionDenied) to prevent user-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get user", "userId", targetUserID)
@@ -117,7 +121,7 @@ func (s *UserServer) WhoAmI(
 
 	entityScopes := principal.Scopes
 
-	err := s.authz.Check(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID.String()))
+	err := s.authz.Check(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to verify token", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
@@ -157,10 +161,14 @@ func (s *UserServer) UpdateUser(
 
 	entityScopes := principal.Scopes
 
-	if err := s.authz.Check(
+	userID, err := parseID("user_id", req.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	if err = s.authz.Check(
 		ctx,
 		entityScopes,
-		actions.New(actions.UpdateUser, req.GetUserId()),
+		actions.New(actions.UpdateUser, userID),
 	); err != nil {
 		slog.WarnContext(
 			ctx,
@@ -175,7 +183,6 @@ func (s *UserServer) UpdateUser(
 
 	message := req.ProtoReflect()
 	fields := message.Descriptor().Fields()
-	userID := uuid.MustParse(req.GetUserId())
 	params := genDb.UpdateUserProfileParams{ID: userID}
 	if message.Has(fields.ByName(updateNameField)) {
 		params.Name = new(req.GetName())
@@ -183,7 +190,7 @@ func (s *UserServer) UpdateUser(
 	if message.Has(fields.ByName(updateAvatarField)) {
 		params.AvatarUrl = new(req.GetAvatarUrl())
 	}
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, updateErr := qtx.UpdateUserProfile(ctx, params); updateErr != nil {
 			return updateErr
 		}
@@ -259,19 +266,21 @@ func (s *UserServer) DeleteUser(
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.authz.Check(
+	userID, err := parseID("user_id", req.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	if err = s.authz.Check(
 		ctx,
 		entityScopes,
-		actions.New(actions.DeleteUser, req.GetUserId()),
+		actions.New(actions.DeleteUser, userID),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete user", "userId", req.GetUserId())
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	userID := uuid.MustParse(req.GetUserId())
-
 	var identities []genDb.Identity
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		_, lockErr := qtx.LockUserForMembership(ctx, userID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)

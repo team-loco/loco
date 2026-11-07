@@ -201,7 +201,7 @@ func (s *PlanServer) checkDeletes(ctx context.Context, planned *plannedFile, ope
 		if op.Kind != configplan.KindDelete {
 			continue
 		}
-		resourceID := planned.live.resources[op.Service].ID.String()
+		resourceID := planned.live.resources[op.Service].ID
 		deleteAction := actions.New(actions.DeleteResource, resourceID)
 		if err := s.authz.Check(ctx, scopes, deleteAction); err != nil {
 			slog.WarnContext(ctx, "unauthorized to delete resource through apply", "resourceId", resourceID)

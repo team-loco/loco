@@ -101,10 +101,8 @@ func (s *BuildServer) authorize(ctx context.Context, action actions.Action, reso
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return rpcerr.New(connect.CodeInternal, errEntityScopesMissing)
 	}
-	resourceIDStr := resourceID.String()
-	scope := actions.New(action, resourceIDStr)
-	if err := s.authz.Check(ctx, scopes, scope); err != nil {
-		slog.WarnContext(ctx, "unauthorized build request", "resourceId", resourceIDStr)
+	if err := s.authz.Check(ctx, scopes, actions.New(action, resourceID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized build request", "resourceId", resourceID)
 		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	return nil

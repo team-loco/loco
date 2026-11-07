@@ -20,7 +20,7 @@ func authorize(ctx context.Context, authorizer *authz.Authorizer, action actions
 	if err != nil {
 		return err
 	}
-	return check(ctx, authorizer, p, actions.New(action, id.String()))
+	return check(ctx, authorizer, p, actions.New(action, id))
 }
 
 // principalFrom returns the caller the auth interceptor attached to ctx.

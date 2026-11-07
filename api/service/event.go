@@ -140,18 +140,24 @@ func (s *EventServer) ListEvents(
 }
 
 func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.ListEventsRequest) (*uuid.UUID, error) {
-	orgID := uuid.MustParse(req.GetOrgId())
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
+	}
 	if req.GetResourceId() != "" {
-		readErr := s.verify(ctx, actions.New(actions.ListResourceAuditEvents, req.GetResourceId()))
+		resourceID, err := parseID("resource_id", req.GetResourceId())
+		if err != nil {
+			return nil, err
+		}
+		readErr := s.verify(ctx, actions.New(actions.ListResourceAuditEvents, resourceID))
 		if readErr != nil {
 			if adminErr := s.verify(
 				ctx,
-				actions.New(actions.ListResourceAuditAdminEvents, req.GetResourceId()),
+				actions.New(actions.ListResourceAuditAdminEvents, resourceID),
 			); adminErr != nil {
 				return nil, readErr
 			}
 		}
-		resourceID := uuid.MustParse(req.GetResourceId())
 		parents, err := s.queries.GetWorkspaceOrganizationIDByResourceID(ctx, resourceID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
@@ -166,10 +172,13 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 		return new(parents.WorkspaceID), nil
 	}
 	if req.GetWorkspaceId() != "" {
-		if err := s.verify(ctx, actions.New(actions.ListWorkspaceAuditEvents, req.GetWorkspaceId())); err != nil {
+		workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+		if err != nil {
 			return nil, err
 		}
-		workspaceID := uuid.MustParse(req.GetWorkspaceId())
+		if err = s.verify(ctx, actions.New(actions.ListWorkspaceAuditEvents, workspaceID)); err != nil {
+			return nil, err
+		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
@@ -182,7 +191,7 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 		}
 		return &workspaceID, nil
 	}
-	if err := s.verify(ctx, actions.New(actions.ListOrgAuditEvents, req.GetOrgId())); err != nil {
+	if err := s.verify(ctx, actions.New(actions.ListOrgAuditEvents, orgID)); err != nil {
 		return nil, err
 	}
 	return nil, nil

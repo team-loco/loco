@@ -69,7 +69,7 @@ func visibleEnvironment(
 	if err != nil {
 		return genDb.Environment{}, fmt.Errorf("get environment %s: %w", environmentID, err)
 	}
-	required := actions.New(action, env.WorkspaceID.String())
+	required := actions.New(action, env.WorkspaceID)
 	if authErr := authorizeVisible(ctx, authorizer, required, ErrEnvironmentNotFound); authErr != nil {
 		return genDb.Environment{}, authErr
 	}

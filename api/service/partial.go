@@ -7,7 +7,6 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect/v2"
-	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
@@ -24,6 +23,10 @@ func (s *ResourceServer) TransferPartial(
 	ctx context.Context,
 	req *resourcev1.TransferPartialRequest,
 ) (*resourcev1.TransferPartialResponse, error) {
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
+	}
 	principal, ok := reqctx.PrincipalFrom(ctx)
 	scopes := principal.Scopes
 	if !ok {
@@ -31,19 +34,18 @@ func (s *ResourceServer) TransferPartial(
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.authz.Check(
+	if err = s.authz.Check(
 		ctx,
 		scopes,
-		actions.New(actions.TransferPartial, req.GetResourceId()),
+		actions.New(actions.TransferPartial, resourceID),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to transfer partial", "resourceId", req.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	resourceID := uuid.MustParse(req.GetResourceId())
 	partial := req.GetPartial()
 
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}

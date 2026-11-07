@@ -62,7 +62,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 	if err != nil {
 		return nil, err
 	}
-	if err = check(ctx, s.authz, p, actions.New(actions.CreateEnvironment, workspaceID.String())); err != nil {
+	if err = check(ctx, s.authz, p, actions.New(actions.CreateEnvironment, workspaceID)); err != nil {
 		return nil, err
 	}
 

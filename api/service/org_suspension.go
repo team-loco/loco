@@ -6,17 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const suspendedBuildMessage = "canceled: the organization was suspended"
@@ -27,12 +24,15 @@ func (s *OrgServer) SuspendOrg(
 	ctx context.Context,
 	req *orgv1.SuspendOrgRequest,
 ) (*orgv1.SuspendOrgResponse, error) {
-	if err := s.authorizeSystem(ctx, actions.SuspendOrg); err != nil {
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
 		return nil, err
 	}
-	orgID := uuid.MustParse(req.GetOrgId())
+	if err = authorize(ctx, s.authz, actions.SuspendOrg, uuid.Nil); err != nil {
+		return nil, err
+	}
 	var org genDb.Organization
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		current, lockErr := lockOrgForSuspension(ctx, qtx, orgID)
 		if lockErr != nil {
 			return lockErr
@@ -92,12 +92,15 @@ func (s *OrgServer) ResumeOrg(
 	ctx context.Context,
 	req *orgv1.ResumeOrgRequest,
 ) (*orgv1.ResumeOrgResponse, error) {
-	if err := s.authorizeSystem(ctx, actions.ResumeOrg); err != nil {
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
 		return nil, err
 	}
-	orgID := uuid.MustParse(req.GetOrgId())
+	if err = authorize(ctx, s.authz, actions.ResumeOrg, uuid.Nil); err != nil {
+		return nil, err
+	}
 	var org genDb.Organization
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		current, lockErr := lockOrgForSuspension(ctx, qtx, orgID)
 		if lockErr != nil {
 			return lockErr
@@ -134,21 +137,6 @@ func (s *OrgServer) ResumeOrg(
 		return nil, txError(ctx, "failed to resume org", err)
 	}
 	return &orgv1.ResumeOrgResponse{Organization: orgToProto(org)}, nil
-}
-
-func (s *OrgServer) authorizeSystem(ctx context.Context, action actions.Action) error {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-	required := actions.NewSystem(action)
-	if err := s.authz.Check(ctx, scopes, required); err != nil {
-		slog.WarnContext(ctx, "unauthorized to change organization suspension")
-		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	return nil
 }
 
 func lockOrgForSuspension(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID) (genDb.Organization, error) {

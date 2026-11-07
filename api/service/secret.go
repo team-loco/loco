@@ -107,12 +107,16 @@ func (s *SecretServer) authorizeTarget(
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return secretTarget{}, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
-	required := actions.New(action, resourceID)
-	if err := s.authz.Check(ctx, scopes, required); err != nil {
+	parsedResourceID, err := parseID("resource_id", resourceID)
+	if err != nil {
+		return secretTarget{}, err
+	}
+	required := actions.New(action, parsedResourceID)
+	if err = s.authz.Check(ctx, scopes, required); err != nil {
 		slog.WarnContext(ctx, "unauthorized secret access", "resourceId", resourceID)
 		return secretTarget{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
-	resource, err := s.queries.GetResourceByID(ctx, uuid.MustParse(resourceID))
+	resource, err := s.queries.GetResourceByID(ctx, parsedResourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return secretTarget{}, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}

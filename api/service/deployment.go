@@ -119,7 +119,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, err
 	}
 
-	required := actions.New(actions.CreateDeployment, resourceID.String())
+	required := actions.New(actions.CreateDeployment, resourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrResourceNotFound); authErr != nil {
 		return nil, authErr
 	}
@@ -320,7 +320,7 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
-	required := actions.New(actions.GetDeployment, deploymentData.ResourceID.String())
+	required := actions.New(actions.GetDeployment, deploymentData.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return nil, authErr
 	}
@@ -420,7 +420,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
-	required := actions.New(actions.DeleteDeployment, deployment.ResourceID.String())
+	required := actions.New(actions.DeleteDeployment, deployment.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return nil, authErr
 	}
@@ -473,7 +473,7 @@ func (s *DeploymentServer) WatchDeployment(
 		return fmt.Errorf("get deployment resource ID: %w", err)
 	}
 
-	required := actions.New(actions.StreamDeployment, resourceID.String())
+	required := actions.New(actions.StreamDeployment, resourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return authErr
 	}

@@ -54,7 +54,11 @@ func (s *WebhookServer) requireWorkspaceAdmin(ctx context.Context, workspaceID s
 		return genDb.Entity{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	scopes := principal.Scopes
-	if err := s.authz.Check(ctx, scopes, actions.New(actions.ManageWorkspaceWebhooks, workspaceID)); err != nil {
+	id, err := parseID("workspace_id", workspaceID)
+	if err != nil {
+		return genDb.Entity{}, err
+	}
+	if err := s.authz.Check(ctx, scopes, actions.New(actions.ManageWorkspaceWebhooks, id)); err != nil {
 		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	return entity, nil

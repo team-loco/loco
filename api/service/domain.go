@@ -226,7 +226,7 @@ func (s *DomainServer) UpdateResourceDomain(
 		return nil, fmt.Errorf("get resource domain: %w", err)
 	}
 
-	required := actions.New(actions.UpdateDomain, domainRow.ResourceID.String())
+	required := actions.New(actions.UpdateDomain, domainRow.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDomainNotFound); authErr != nil {
 		return nil, authErr
 	}
@@ -408,7 +408,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, fmt.Errorf("get resource domain: %w", err)
 	}
 
-	required := actions.New(actions.RemoveDomain, domainRow.ResourceID.String())
+	required := actions.New(actions.RemoveDomain, domainRow.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDomainNotFound); authErr != nil {
 		return nil, authErr
 	}

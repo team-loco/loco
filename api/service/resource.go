@@ -309,7 +309,7 @@ func (s *ResourceServer) GetResource(
 		return nil, err
 	}
 
-	if err = check(ctx, s.authz, p, actions.New(actions.GetResource, resourceID.String())); err != nil {
+	if err = check(ctx, s.authz, p, actions.New(actions.GetResource, resourceID)); err != nil {
 		return nil, err
 	}
 
@@ -355,7 +355,7 @@ func (s *ResourceServer) resourceIDByName(
 		Name:        name,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		workspaceRead := actions.New(actions.ListResources, workspaceID.String())
+		workspaceRead := actions.New(actions.ListResources, workspaceID)
 		if verifyErr := check(ctx, s.authz, p, workspaceRead); verifyErr != nil {
 			return uuid.UUID{}, verifyErr
 		}
