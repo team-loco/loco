@@ -25,7 +25,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { isPending, error } = useQuery(whoAmI, {}, { enabled: !signedOut });
 
 	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? "" }, { enabled: !!user });
-	const orgs = orgsRes?.orgs ?? [];
+	const orgs = orgsRes?.orgs;
 	const scopes = useMyScopes({ enabled: !!user });
 
 	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
@@ -54,7 +54,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		<ContextProvider
 			availableOrgs={orgs}
 			availableWorkspaces={workspaces}
-			workspacesSettled={!scopes.isLoading && !workspacesLoading}
+			workspacesSettled={orgs !== undefined && !scopes.isLoading && !workspacesLoading}
 		>
 			<AppShell>{children}</AppShell>
 			<ClaimedOrgsBanner />

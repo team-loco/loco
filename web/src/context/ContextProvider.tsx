@@ -32,14 +32,14 @@ const NO_CONTEXT: OrgWorkspaceContextType = {
 const OrgWorkspaceContext = createContext<OrgWorkspaceContextType>(NO_CONTEXT);
 
 export function pickActive(
-	items: readonly { id: string }[],
+	items: readonly { id: string }[] | undefined,
 	fromUrl: string | undefined,
 	storageKey: string,
 ): string | null {
-	const known = (id: string) => items.length === 0 || items.some((item) => item.id === id);
 	if (fromUrl !== undefined) return fromUrl;
+	if (items === undefined) return null;
 	const stored = readStorage(storageKey);
-	if (stored !== null && known(stored)) return stored;
+	if (stored !== null && items.some((item) => item.id === stored)) return stored;
 	return items[0]?.id ?? null;
 }
 
@@ -48,12 +48,12 @@ const NO_WORKSPACES: Workspace[] = [];
 
 export function ContextProvider({
 	children,
-	availableOrgs = NO_ORGS,
+	availableOrgs,
 	availableWorkspaces = NO_WORKSPACES,
 	workspacesSettled = false,
 }: {
 	children: ReactNode;
-	availableOrgs?: Organization[];
+	availableOrgs?: Organization[] | undefined;
 	availableWorkspaces?: Workspace[];
 	workspacesSettled?: boolean;
 }) {
@@ -61,12 +61,18 @@ export function ContextProvider({
 	const navigate = useNavigate();
 
 	const activeOrgId = pickActive(availableOrgs, orgParam, ORG_STORAGE_KEY);
-	const activeWorkspaceId = pickActive(availableWorkspaces, workspaceParam, WORKSPACE_STORAGE_KEY);
+	const activeWorkspaceId = pickActive(
+		workspacesSettled ? availableWorkspaces : undefined,
+		workspaceParam,
+		WORKSPACE_STORAGE_KEY,
+	);
 
 	useEffect(() => {
 		if (activeOrgId !== null) writeStorage(ORG_STORAGE_KEY, activeOrgId);
+		else if (workspacesSettled) removeStorage(ORG_STORAGE_KEY);
 		if (activeWorkspaceId !== null) writeStorage(WORKSPACE_STORAGE_KEY, activeWorkspaceId);
-	}, [activeOrgId, activeWorkspaceId]);
+		else if (workspacesSettled) removeStorage(WORKSPACE_STORAGE_KEY);
+	}, [activeOrgId, activeWorkspaceId, workspacesSettled]);
 
 	const setActiveOrg = (orgId: string) => {
 		writeStorage(ORG_STORAGE_KEY, orgId);
@@ -85,7 +91,7 @@ export function ContextProvider({
 			value={{
 				activeOrgId,
 				activeWorkspaceId,
-				orgs: availableOrgs,
+				orgs: availableOrgs ?? NO_ORGS,
 				workspaces: availableWorkspaces,
 				workspacesSettled,
 				setActiveOrg,

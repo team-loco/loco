@@ -17,5 +17,9 @@ export function DashboardRedirect() {
 		return <Navigate to={`/org/${activeOrgId}/team`} replace />;
 	}
 
+	if (!isPending && workspacesSettled && activeOrgId === null) {
+		return <Navigate to="/organizations" replace />;
+	}
+
 	return <AppLoading />;
 }
