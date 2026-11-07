@@ -54,8 +54,9 @@ export function Organizations() {
 	};
 
 	const handleCreateOrgSuccess = (orgId: string) => {
-		void refetchOrgs();
-		setActiveOrg(orgId);
+		void refetchOrgs().then(() => {
+			setActiveOrg(orgId);
+		});
 	};
 
 	const renderBody = () => {
