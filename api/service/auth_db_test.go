@@ -16,10 +16,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 )
@@ -94,8 +94,9 @@ func newAuthFixture(t *testing.T) *authFixture {
 	authv1connect.RegisterAuthServiceHandler(rpcServer, f.server)
 	transport := connectinprocess.New(rpcServer)
 	f.client = authv1connect.NewAuthServiceClient(connect.NewClient(transport))
-	ctx := context.WithValue(t.Context(), contextkeys.EntityKey, genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID})
-	f.webCtx = context.WithValue(ctx, contextkeys.IdentityKey, identity)
+	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID}
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity})
+	f.webCtx = auth.WithLogin(ctx, auth.Login{Identity: identity})
 	return f
 }
 
@@ -117,9 +118,9 @@ func (f *authFixture) assertWorks(t *testing.T, tokens *authv1.CLITokens) {
 	if err != nil {
 		t.Fatalf("issued access token rejected: %v", err)
 	}
-	want, ok := f.webCtx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok || entity.ID != want.ID {
-		t.Fatalf("token belongs to %s, want %s", entity.ID, want.ID)
+	want, ok := reqctx.PrincipalFrom(f.webCtx)
+	if !ok || entity.ID != want.Entity.ID {
+		t.Fatalf("token belongs to %s, want %s", entity.ID, want.Entity.ID)
 	}
 }
 
@@ -169,11 +170,11 @@ func TestCLILoopbackLogin(t *testing.T) {
 
 func TestCLIApprovalNeedsWebSession(t *testing.T) {
 	f := newAuthFixture(t)
-	entity, ok := f.webCtx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(f.webCtx)
 	if !ok {
-		t.Fatal("no entity")
+		t.Fatal("no principal")
 	}
-	cliCtx := context.WithValue(t.Context(), contextkeys.EntityKey, entity)
+	cliCtx := reqctx.WithPrincipal(t.Context(), principal)
 
 	_, err := f.server.ApproveCLILogin(cliCtx, &authv1.ApproveCLILoginRequest{
 		State: testState, CodeChallenge: challengeFor("v"),

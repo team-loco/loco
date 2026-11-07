@@ -13,9 +13,9 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -55,7 +55,8 @@ func (s *EnvironmentServer) CreateEnvironment(
 	ctx context.Context,
 	req *environmentv1.CreateEnvironmentRequest,
 ) (*environmentv1.CreateEnvironmentResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -70,10 +71,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	entity := principal.Entity
 
 	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 
@@ -135,7 +133,8 @@ func (s *EnvironmentServer) ListEnvironments(
 	ctx context.Context,
 	req *environmentv1.ListEnvironmentsRequest,
 ) (*environmentv1.ListEnvironmentsResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

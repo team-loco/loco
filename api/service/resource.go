@@ -17,12 +17,12 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -88,7 +88,8 @@ func (s *ResourceServer) CreateResource(
 	ctx context.Context,
 	req *resourcev1.CreateResourceRequest,
 ) (*resourcev1.CreateResourceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -300,7 +301,8 @@ func (s *ResourceServer) GetResource(
 	ctx context.Context,
 	req *resourcev1.GetResourceRequest,
 ) (*resourcev1.GetResourceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -406,7 +408,8 @@ func (s *ResourceServer) ListWorkspaceResources(
 ) (*resourcev1.ListWorkspaceResourcesResponse, error) {
 	slog.InfoContext(ctx, "received req to list resources", "workspaceId", req.GetWorkspaceId())
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -490,7 +493,8 @@ func (s *ResourceServer) UpdateResource(
 	ctx context.Context,
 	req *resourcev1.UpdateResourceRequest,
 ) (*resourcev1.UpdateResourceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -577,7 +581,8 @@ func (s *ResourceServer) DeleteResource(
 	ctx context.Context,
 	req *resourcev1.DeleteResourceRequest,
 ) (*resourcev1.DeleteResourceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -666,7 +671,8 @@ func (s *ResourceServer) ScaleResource(
 	ctx context.Context,
 	req *resourcev1.ScaleResourceRequest,
 ) (*resourcev1.ScaleResourceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -1103,7 +1109,8 @@ func (s *ResourceServer) GetResourceEnv(
 	ctx context.Context,
 	req *resourcev1.GetResourceEnvRequest,
 ) (*resourcev1.GetResourceEnvResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

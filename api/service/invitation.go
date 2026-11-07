@@ -15,10 +15,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/mail"
+	"github.com/team-loco/loco/api/reqctx"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -53,7 +53,8 @@ func (s *OrgServer) InviteOrgMember(
 	ctx context.Context,
 	req *orgv1.InviteOrgMemberRequest,
 ) (*orgv1.InviteOrgMemberResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
@@ -249,7 +250,8 @@ func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, 
 }
 
 func (s *OrgServer) checkOrg(ctx context.Context, action actions.Action, orgID string) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

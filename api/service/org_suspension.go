@@ -11,9 +11,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -137,7 +137,8 @@ func (s *OrgServer) ResumeOrg(
 }
 
 func (s *OrgServer) authorizeSystem(ctx context.Context, action actions.Action) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

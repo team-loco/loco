@@ -12,9 +12,9 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 )
@@ -38,7 +38,7 @@ func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	scoped := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	scoped := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	server := NewDomainServer(f.pool, f.queries, machine, testServiceDefaults(), testClusterSilentAfter)
 	f.serveDomains(t, testDomainPlatform)
 	return &domainClient{server: server, ctx: scoped, f: f}

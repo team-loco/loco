@@ -1,15 +1,14 @@
 package service
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -67,7 +66,7 @@ func TestImperativeChildAuditEventsRetainResource(t *testing.T) {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	if _, err := server.DeleteDeployment(
 		ctx,
 		&deploymentv1.DeleteDeploymentRequest{DeploymentId: created.GetDeploymentId()},

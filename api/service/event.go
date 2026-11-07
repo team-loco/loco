@@ -17,8 +17,8 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
@@ -103,7 +103,8 @@ func eventToProto(e genDb.Event) *eventv1.Event {
 }
 
 func (s *EventServer) verify(ctx context.Context, scope genDb.EntityScope) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		return rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}

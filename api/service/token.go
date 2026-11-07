@@ -14,9 +14,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -73,17 +73,14 @@ func (s *TokenServer) CreateToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidScopes)
 	}
 
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	entityScopes := principal.Scopes
 
 	entityID, err := uuid.Parse(req.GetEntityId())
 	if err != nil {
@@ -194,7 +191,8 @@ func (s *TokenServer) ListTokens(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -266,7 +264,8 @@ func (s *TokenServer) GetToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -339,17 +338,14 @@ func (s *TokenServer) RevokeToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	entityScopes := principal.Scopes
 
 	entityID, err := uuid.Parse(req.GetEntityId())
 	if err != nil {
@@ -420,17 +416,14 @@ func (*TokenServer) GetScopes(
 	ctx context.Context,
 	_ *tokenv1.GetScopesRequest,
 ) (*tokenv1.GetScopesResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	entityScopes := principal.Scopes
 
 	protoScopes := make([]*tokenv1.EntityScope, len(entityScopes))
 	for i, es := range entityScopes {
@@ -458,7 +451,8 @@ func (s *TokenServer) CheckPermission(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}

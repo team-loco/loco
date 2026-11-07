@@ -17,12 +17,12 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -97,7 +97,8 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	ctx context.Context,
 	_ *domainv1.ListLocoOwnedDomainsRequest,
 ) (*domainv1.ListLocoOwnedDomainsResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -139,7 +140,8 @@ func (s *DomainServer) CreateResourceDomain(
 	ctx context.Context,
 	req *domainv1.CreateResourceDomainRequest,
 ) (*domainv1.CreateResourceDomainResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -324,7 +326,8 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	ctx context.Context,
 	req *domainv1.SetPrimaryResourceDomainRequest,
 ) (*domainv1.SetPrimaryResourceDomainResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

@@ -10,8 +10,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 )
 
@@ -66,7 +66,7 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 		testSecretConfig(),
 		testClusterSilentAfter,
 	)
-	readCtx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
+	readCtx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	planned, err := server.Plan(readCtx, &planv1.PlanRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),
@@ -80,7 +80,7 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 	}
 
 	resolver.digest = movedDigest
-	writeCtx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.applyScopes(t))
+	writeCtx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.applyScopes(t)})
 	_, err = server.Apply(writeCtx, &planv1.ApplyRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),

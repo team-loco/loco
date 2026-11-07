@@ -1,18 +1,17 @@
 package events_test
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/auth/authtest"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/tracingtest"
+	"github.com/team-loco/loco/api/reqctx"
 )
 
 func TestRecordFillsActorScopeAndRequest(t *testing.T) {
@@ -35,8 +34,9 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 		t.Fatalf("workspace: %v", scanErr)
 	}
 
-	reqCtx := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{Type: genDb.EntityTypeUser, ID: owner.ID})
-	reqCtx = context.WithValue(reqCtx, contextkeys.RequestIDKey, "req-1")
+	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: owner.ID}
+	reqCtx := reqctx.WithPrincipal(ctx, reqctx.Principal{Entity: entity})
+	reqCtx = reqctx.WithRequest(reqCtx, reqctx.Request{ID: "req-1"})
 	if recordErr := events.Record(reqCtx, q, events.Event{
 		Type:        events.EnvironmentCreated,
 		WorkspaceID: new(wsID),

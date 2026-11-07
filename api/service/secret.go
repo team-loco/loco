@@ -20,10 +20,10 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -101,7 +101,8 @@ func (s *SecretServer) authorizeTarget(
 	environmentID string,
 	action actions.Action,
 ) (secretTarget, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return secretTarget{}, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -147,7 +148,8 @@ func (s *SecretServer) SetSecrets(
 	if err != nil {
 		return nil, err
 	}
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
@@ -487,7 +489,8 @@ func (s *SecretServer) RewrapEnvironmentKeys(
 	ctx context.Context,
 	req *secretv1.RewrapEnvironmentKeysRequest,
 ) (*secretv1.RewrapEnvironmentKeysResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

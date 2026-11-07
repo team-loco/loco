@@ -9,8 +9,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -84,7 +84,7 @@ func deployServiceIn(
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	scoped := context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+	scoped := reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
 	spec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}}
 	req := &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    f.resourceID.String(),

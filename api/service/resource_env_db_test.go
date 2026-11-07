@@ -8,7 +8,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -24,7 +24,7 @@ func getResourceEnv(
 ) (*resourcev1.GetResourceEnvResponse, error) {
 	t.Helper()
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	resp, err := server.GetResourceEnv(ctx, &resourcev1.GetResourceEnvRequest{
 		ResourceId: resourceID.String(), EnvironmentId: environmentID.String(),
 	})

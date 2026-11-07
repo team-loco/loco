@@ -7,8 +7,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
@@ -33,7 +33,7 @@ func TestCreateMemberRejectsScopesTheCallerDoesNotHold(t *testing.T) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, callerScopes)
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: callerScopes})
 
 	wsIDString := wsID.String()
 	userID := uuid.Must(uuid.NewV7())

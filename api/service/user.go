@@ -15,9 +15,9 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -78,7 +78,8 @@ func (s *UserServer) GetUser(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -107,17 +108,14 @@ func (s *UserServer) WhoAmI(
 	ctx context.Context,
 	_ *userv1.WhoAmIRequest,
 ) (*userv1.WhoAmIResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	entityScopes := principal.Scopes
 
 	err := s.authz.Check(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID.String()))
 	if err != nil {
@@ -131,12 +129,10 @@ func (s *UserServer) WhoAmI(
 	}
 	slog.InfoContext(ctx, "returning user")
 
-	var claimed []auth.ClaimedOrg
-	if fromInterceptor, ok := ctx.Value(contextkeys.ClaimedOrgsKey).([]auth.ClaimedOrg); ok {
-		claimed = fromInterceptor
-	}
-	claimedOrgs := make([]*userv1.ClaimedOrg, 0, len(claimed))
-	for _, org := range claimed {
+	// API tokens carry no provider login and claim no invitations.
+	login, _ := auth.LoginFrom(ctx)
+	claimedOrgs := make([]*userv1.ClaimedOrg, 0, len(login.ClaimedOrgs))
+	for _, org := range login.ClaimedOrgs {
 		claimedOrgs = append(claimedOrgs, &userv1.ClaimedOrg{
 			OrgId:       org.OrgID.String(),
 			OrgName:     org.OrgName,
@@ -152,17 +148,14 @@ func (s *UserServer) UpdateUser(
 	ctx context.Context,
 	req *userv1.UpdateUserRequest,
 ) (*userv1.UpdateUserResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	entityScopes := principal.Scopes
 
 	if err := s.authz.Check(
 		ctx,
@@ -213,7 +206,8 @@ func (s *UserServer) ListUsers(
 	ctx context.Context,
 	req *userv1.ListUsersRequest,
 ) (*userv1.ListUsersResponse, error) {
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -258,7 +252,8 @@ func (s *UserServer) DeleteUser(
 	ctx context.Context,
 	req *userv1.DeleteUserRequest,
 ) (*userv1.DeleteUserResponse, error) {
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -337,7 +332,8 @@ func (s *UserServer) SetUserStatus(
 	ctx context.Context,
 	req *userv1.SetUserStatusRequest,
 ) (*userv1.SetUserStatusResponse, error) {
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -392,7 +388,8 @@ func (s *UserServer) Logout(
 ) (*userv1.LogoutResponse, error) {
 	res := &userv1.LogoutResponse{}
 
-	token, ok := ctx.Value(contextkeys.TokenKey).(string)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	token := principal.Token
 	if !ok {
 		slog.WarnContext(ctx, "token not found in context")
 		return res, nil

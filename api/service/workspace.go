@@ -15,9 +15,9 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -48,7 +48,8 @@ func (s *WorkspaceServer) CreateWorkspace(
 	ctx context.Context,
 	req *workspacev1.CreateWorkspaceRequest,
 ) (*workspacev1.CreateWorkspaceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -65,10 +66,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 
 	orgID := uuid.MustParse(req.GetOrgId())
 
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	entity := principal.Entity
 	// make sure that requester is a user and has permission to create orgs (user:write on oneself)
 	if entity.Type != genDb.EntityTypeUser {
 		slog.WarnContext(ctx, "only users can create organizations", "entityId", entity.ID, "entityType", entity.Type)
@@ -171,7 +169,8 @@ func (s *WorkspaceServer) GetWorkspace(
 	ctx context.Context,
 	req *workspacev1.GetWorkspaceRequest,
 ) (*workspacev1.GetWorkspaceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -212,7 +211,8 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	ctx context.Context,
 	req *workspacev1.ListUserWorkspacesRequest,
 ) (*workspacev1.ListUserWorkspacesResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -222,11 +222,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrImproperUsage)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
+	scopes := principal.Scopes
 
 	if err := s.authz.Check(
 		ctx,
@@ -288,7 +284,8 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 ) (*workspacev1.ListOrgWorkspacesResponse, error) {
 	slog.InfoContext(ctx, "list workspaces req for org", "orgId", req.GetOrgId())
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -359,7 +356,8 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	ctx context.Context,
 	req *workspacev1.UpdateWorkspaceRequest,
 ) (*workspacev1.UpdateWorkspaceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -419,7 +417,8 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	ctx context.Context,
 	req *workspacev1.DeleteWorkspaceRequest,
 ) (*workspacev1.DeleteWorkspaceResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -493,7 +492,8 @@ func (s *WorkspaceServer) CreateMember(
 	ctx context.Context,
 	req *workspacev1.CreateMemberRequest,
 ) (*workspacev1.CreateMemberResponse, error) {
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -590,7 +590,8 @@ func (s *WorkspaceServer) DeleteMember(
 	ctx context.Context,
 	req *workspacev1.DeleteMemberRequest,
 ) (*workspacev1.DeleteMemberResponse, error) {
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entityScopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -659,7 +660,8 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 	ctx context.Context,
 	req *workspacev1.ListWorkspaceMembersRequest,
 ) (*workspacev1.ListWorkspaceMembersResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

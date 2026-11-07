@@ -13,9 +13,9 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -64,7 +64,8 @@ func (s *OrgServer) CreateOrg(
 	ctx context.Context,
 	req *orgv1.CreateOrgRequest,
 ) (*orgv1.CreateOrgResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
@@ -74,11 +75,7 @@ func (s *OrgServer) CreateOrg(
 		return nil, rpcerr.New(connect.CodePermissionDenied, ErrImproperUsage)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
+	scopes := principal.Scopes
 
 	if err := s.authz.Check(
 		ctx,
@@ -93,7 +90,7 @@ func (s *OrgServer) CreateOrg(
 			"entityType",
 			entity.Type,
 			"entityScopes",
-			ctx.Value(contextkeys.EntityScopesKey),
+			scopes,
 		)
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
@@ -185,7 +182,8 @@ func (s *OrgServer) GetOrg(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -209,7 +207,8 @@ func (s *OrgServer) ListUserOrgs(
 	ctx context.Context,
 	req *orgv1.ListUserOrgsRequest,
 ) (*orgv1.ListUserOrgsResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -267,7 +266,8 @@ func (s *OrgServer) ListUserOrgs(
 }
 
 func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntityScope, userID uuid.UUID) error {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		return rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
@@ -323,7 +323,8 @@ func (s *OrgServer) UpdateOrg(
 	ctx context.Context,
 	req *orgv1.UpdateOrgRequest,
 ) (*orgv1.UpdateOrgResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -386,7 +387,8 @@ func (s *OrgServer) DeleteOrg(
 	ctx context.Context,
 	req *orgv1.DeleteOrgRequest,
 ) (*orgv1.DeleteOrgResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -438,7 +440,8 @@ func (s *OrgServer) ListOrgMembers(
 	ctx context.Context,
 	req *orgv1.ListOrgMembersRequest,
 ) (*orgv1.ListOrgMembersResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
@@ -495,15 +498,12 @@ func (s *OrgServer) RemoveOrgMember(
 	ctx context.Context,
 	req *orgv1.RemoveOrgMemberRequest,
 ) (*orgv1.RemoveOrgMemberResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
+	scopes := principal.Scopes
 
 	if err := s.authz.Check(
 		ctx,

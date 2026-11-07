@@ -13,9 +13,9 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/webhooks"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -48,14 +48,12 @@ func NewWebhookServer(db *pgxpool.Pool, queries genDb.Querier, allowPrivate bool
 }
 
 func (s *WebhookServer) requireWorkspaceAdmin(ctx context.Context, workspaceID string) (genDb.Entity, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		return genDb.Entity{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		return genDb.Entity{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
+	scopes := principal.Scopes
 	if err := s.authz.Check(ctx, scopes, actions.New(actions.ManageWorkspaceWebhooks, workspaceID)); err != nil {
 		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}

@@ -16,10 +16,10 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
+	"github.com/team-loco/loco/api/reqctx"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -95,7 +95,8 @@ func buildsUnavailable(reason error) *connect.Error {
 }
 
 func (s *BuildServer) authorize(ctx context.Context, action actions.Action, resourceID uuid.UUID) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return rpcerr.New(connect.CodeInternal, errEntityScopesMissing)
@@ -151,7 +152,8 @@ func (s *BuildServer) CreateBuild(
 		return nil, clusterErr
 	}
 
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}

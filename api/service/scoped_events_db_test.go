@@ -7,9 +7,9 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 )
 
@@ -25,7 +25,8 @@ type scopedAuditFixture struct {
 func newScopedAuditFixture(t *testing.T) *scopedAuditFixture {
 	t.Helper()
 	f := newEventFixture(t)
-	owner, ok := f.owner.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(f.owner)
+	owner := principal.Entity
 	if !ok {
 		t.Fatal("owner identity missing")
 	}
@@ -111,11 +112,8 @@ func newScopedAuditFixture(t *testing.T) *scopedAuditFixture {
 
 func auditScope(t *testing.T, entityType genDb.EntityType, entityID uuid.UUID, scope genDb.Scope) context.Context {
 	t.Helper()
-	return context.WithValue(
-		t.Context(),
-		contextkeys.EntityScopesKey,
-		[]genDb.EntityScope{{EntityType: entityType, EntityID: entityID, Scope: scope}},
-	)
+	scopes := []genDb.EntityScope{{EntityType: entityType, EntityID: entityID, Scope: scope}}
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 }
 
 func TestListEventsUsesNarrowestScopeAndParents(t *testing.T) {

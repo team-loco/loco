@@ -6,8 +6,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -35,8 +35,7 @@ func (q environmentLookupQuerier) GetWorkspaceOrganizationIDByResourceID(
 func secretAuthzContext(t *testing.T, scopes ...genDb.EntityScope) context.Context {
 	t.Helper()
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: uuid.Must(uuid.NewV7())}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityKey, entity)
-	return context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
 }
 
 func TestSecretServiceAuthorization(t *testing.T) {

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -9,9 +8,9 @@ import (
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
@@ -128,9 +127,8 @@ func TestWhoAmIReturnsClaimedOrgs(t *testing.T) {
 	server := NewUserServer(o.api.pool, o.api.queries, o.api.machine, auth.Admins{})
 	call := func(claimed []auth.ClaimedOrg) *userv1.WhoAmIResponse {
 		entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: member.id}
-		ctx := context.WithValue(t.Context(), contextkeys.EntityKey, entity)
-		ctx = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
-		ctx = context.WithValue(ctx, contextkeys.ClaimedOrgsKey, claimed)
+		ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
+		ctx = auth.WithLogin(ctx, auth.Login{ClaimedOrgs: claimed})
 		resp, whoErr := server.WhoAmI(ctx, &userv1.WhoAmIRequest{})
 		if whoErr != nil {
 			t.Fatalf("whoami: %v", whoErr)

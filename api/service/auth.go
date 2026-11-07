@@ -22,10 +22,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/internal/bearer"
@@ -162,11 +162,13 @@ func clientAddress(info *connect.CallInfo) netip.Addr {
 }
 
 func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok || entity.Type != genDb.EntityTypeUser {
 		return cliGrant{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	identity, ok := ctx.Value(contextkeys.IdentityKey).(auth.Identity)
+	login, ok := auth.LoginFrom(ctx)
+	identity := login.Identity
 	if !ok {
 		return cliGrant{}, rpcerr.New(connect.CodePermissionDenied, ErrApproveFromWeb)
 	}

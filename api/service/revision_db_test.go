@@ -7,8 +7,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
@@ -31,7 +31,7 @@ func getEnvironment(t *testing.T, f *deployFixture) *environmentv1.Environment {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeRead},
 	}
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	req := &environmentv1.GetEnvironmentRequest{EnvironmentId: f.envID.String()}
 	resp, err := server.GetEnvironment(ctx, req)
 	if err != nil {
@@ -96,7 +96,7 @@ func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.Update
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},
 	}
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	req.EnvironmentId = f.envID.String()
 	if _, err := server.UpdateEnvironment(ctx, req); err != nil {
 		t.Fatalf("update environment: %v", err)

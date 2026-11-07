@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
@@ -40,7 +40,7 @@ func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
 	}
-	deleteCtx := context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+	deleteCtx := reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
 	deleted := make(chan error, 1)
 	go func() {
 		_, deleteErr := server.DeleteUser(deleteCtx, &userv1.DeleteUserRequest{UserId: userID.String()})

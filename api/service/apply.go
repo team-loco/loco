@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
+	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -191,7 +191,8 @@ func selectOperations(
 }
 
 func (s *PlanServer) checkDeletes(ctx context.Context, planned *plannedFile, operations []configplan.Operation) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	scopes := principal.Scopes
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)

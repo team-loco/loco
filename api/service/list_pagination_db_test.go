@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -113,7 +113,7 @@ func TestUserPagingSurvivesDeletingTheCursorRow(t *testing.T) {
 	}
 	server := NewUserServer(f.pool, f.queries, nil, nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
-	scoped := context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+	scoped := reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
 	list := func(t *testing.T, token string) ([]string, string) {
 		t.Helper()
 		resp, err := server.ListUsers(scoped, &userv1.ListUsersRequest{PageSize: 1, PageToken: token})
