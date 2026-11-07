@@ -305,7 +305,7 @@ func (m *Manager) issue(ctx context.Context, workspaceID string, secret *corev1.
 		return err
 	}
 	secret.Labels = map[string]string{
-		locolabels.LabelManagedBy:          locolabels.ManagedByAgent,
+		locolabels.LabelManagedBy:          kube.ManagedBy,
 		locoControllerV1.LabelRegistryPull: workspaceID,
 	}
 	secret.Annotations = map[string]string{

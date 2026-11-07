@@ -2,10 +2,8 @@ package labels
 
 const (
 	// keep in sync with labelBuildID in cmd/internal/logstream/logstream.go
-	LabelBuildID   = "loco.io/build-id"
-	LabelManagedBy = "app.kubernetes.io/managed-by"
-	// ManagedByAgent is the agent's managed-by label value and its server-side apply field owner.
-	ManagedByAgent      = "loco-agent"
+	LabelBuildID        = "loco.io/build-id"
+	LabelManagedBy      = "app.kubernetes.io/managed-by"
 	LabelOrganizationID = "loco.io/organization-id"
 	LabelWorkspaceID    = "loco.io/workspace-id"
 	LabelResourceID     = "loco.io/resource-id"

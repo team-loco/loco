@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/team-loco/loco/agent/pkg/kube"
-	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -242,7 +241,7 @@ func (a *Applier) applyApplication(
 	if applyErr := a.client.Apply(
 		ctx,
 		applyConfig,
-		client.FieldOwner(locolabels.ManagedByAgent),
+		client.FieldOwner(kube.ManagedBy),
 		client.ForceOwnership,
 	); applyErr != nil {
 		return fmt.Errorf("failed to apply Application: %w", applyErr)

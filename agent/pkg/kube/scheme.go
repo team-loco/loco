@@ -20,3 +20,7 @@ func NewScheme() (*runtime.Scheme, error) {
 	}
 	return scheme, nil
 }
+
+// ManagedBy is the agent's app.kubernetes.io/managed-by label value and its server-side apply
+// field owner.
+const ManagedBy = "loco-agent"

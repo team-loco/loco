@@ -124,7 +124,7 @@ func (w *Watcher) create(ctx context.Context, start *agentv1.StartBuild) error {
 		Name:      name,
 		Namespace: w.namespace,
 		Labels: map[string]string{
-			locolabels.LabelManagedBy: locolabels.ManagedByAgent,
+			locolabels.LabelManagedBy: kube.ManagedBy,
 			locolabels.LabelBuildID:   buildID,
 		},
 		Spec: locoControllerV1.BuildSpec{
@@ -139,7 +139,7 @@ func (w *Watcher) create(ctx context.Context, start *agentv1.StartBuild) error {
 			CacheRef:        start.GetCacheRef(),
 		},
 	}
-	err := w.client.Create(ctx, build, client.FieldOwner(locolabels.ManagedByAgent))
+	err := w.client.Create(ctx, build, client.FieldOwner(kube.ManagedBy))
 	if apierrors.IsAlreadyExists(err) {
 		return nil
 	}
@@ -175,7 +175,7 @@ func (w *Watcher) writeRegistrySecret(ctx context.Context, start *agentv1.StartB
 	secret.Name = name
 	secret.Namespace = w.namespace
 	secret.Labels = map[string]string{
-		locolabels.LabelManagedBy: locolabels.ManagedByAgent,
+		locolabels.LabelManagedBy: kube.ManagedBy,
 		locolabels.LabelBuildID:   start.GetBuildId(),
 	}
 	secret.Type = corev1.SecretTypeDockerConfigJson
