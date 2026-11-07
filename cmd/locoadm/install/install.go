@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/cmd/internal/keychain"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 )
 
 const operationTimeout = 30 * time.Minute
@@ -64,7 +65,7 @@ func Commands() []*cobra.Command {
 					if storeErr != nil {
 						return storeErr
 					}
-					session, sessionErr := cmdutil.FreshToken(ctx, config.ControlPlane.APIURL, store)
+					session, sessionErr := auth.FreshToken(ctx, config.ControlPlane.APIURL, store)
 					if sessionErr != nil {
 						return sessionErr
 					}
@@ -96,7 +97,7 @@ func Commands() []*cobra.Command {
 			if err != nil {
 				return err
 			}
-			session, err := cmdutil.FreshToken(ctx, config.ControlPlane.APIURL, store)
+			session, err := auth.FreshToken(ctx, config.ControlPlane.APIURL, store)
 			if err != nil {
 				return err
 			}

@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
@@ -15,7 +17,6 @@ import (
 	"golang.org/x/mod/semver"
 
 	"github.com/team-loco/loco/cmd/internal/ui"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 )
 
@@ -41,7 +42,7 @@ func (c *versionCheck) start(cmd *cobra.Command) {
 	if !semver.IsValid(current) {
 		return
 	}
-	host, err := cmdutil.GetHost(cmd)
+	apiHost, err := host.GetHost(cmd)
 	if err != nil {
 		slog.Debug("skipping cli version check", "error", err)
 		return
@@ -52,7 +53,7 @@ func (c *versionCheck) start(cmd *cobra.Command) {
 		defer close(c.done)
 		ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
 		defer cancel()
-		configClients := rpc.ForHost(host, "")
+		configClients := rpc.ForHost(apiHost, "")
 		configClient := configClients.Config
 		req := &configv1.GetConfigRequest{}
 		resp, err := configClient.GetConfig(ctx, req)

@@ -7,8 +7,6 @@ import (
 
 	"charm.land/fang/v2"
 	"github.com/team-loco/loco/cmd/internal/ui"
-	"github.com/team-loco/loco/cmd/loco/climain"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/buildinfo"
 )
 
@@ -20,9 +18,9 @@ func main() {
 		NewRootCmd(),
 		fang.WithNotifySignal(os.Interrupt, syscall.SIGTERM),
 		fang.WithVersion(buildinfo.Version(version)),
-		fang.WithColorSchemeFunc(climain.ColorScheme()),
-		fang.WithErrorHandler(climain.HandleError))
+		fang.WithColorSchemeFunc(ui.ColorScheme()),
+		fang.WithErrorHandler(ui.HandleError))
 	if err != nil {
-		os.Exit(cmdutil.ExitCode(err))
+		os.Exit(ui.ExitCode(err))
 	}
 }

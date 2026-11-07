@@ -8,6 +8,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
@@ -143,7 +145,7 @@ func initCmdFunc(cmd *cobra.Command) error {
 }
 
 func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
-	host, err := cmdutil.GetHost(cmd)
+	apiHost, err := host.GetHost(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +153,7 @@ func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), initConfigTimeout)
 	defer cancel()
 
-	configClients := rpc.ForHost(host, "")
+	configClients := rpc.ForHost(apiHost, "")
 	configClient := configClients.Config
 	resp, err := configClient.GetConfig(ctx, &configv1.GetConfigRequest{})
 	if err != nil {

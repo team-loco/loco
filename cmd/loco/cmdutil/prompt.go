@@ -11,7 +11,7 @@ import (
 var (
 	ErrNotInteractive = errors.New("stdin and stdout must be a terminal to prompt")
 
-	isInteractive = IsInteractive
+	isInteractive = ui.IsInteractive
 )
 
 // Confirm asks question unless the command's --yes flag is set. It reports false after printing

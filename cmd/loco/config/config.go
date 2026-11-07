@@ -3,10 +3,11 @@ package config
 import (
 	"fmt"
 
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"github.com/spf13/cobra"
 
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/cmd/internal/session"
 )
 
 // configKey describes one key of ~/.loco/config.yaml: where it lives in the
@@ -19,8 +20,8 @@ type configKey struct {
 
 // configKeys is in the order `config list` prints.
 var configKeys = []configKey{
-	{"locoHost", func(c *session.SessionConfig) *string { return &c.LocoHost }, cmdutil.DefaultLocoHost},
-	{"webHost", func(c *session.SessionConfig) *string { return &c.WebHost }, cmdutil.DefaultWebHost},
+	{"locoHost", func(c *session.SessionConfig) *string { return &c.LocoHost }, host.DefaultLocoHost},
+	{"webHost", func(c *session.SessionConfig) *string { return &c.WebHost }, host.DefaultWebHost},
 }
 
 func lookupKey(name string) (configKey, error) {

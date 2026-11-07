@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/ui"
+
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -81,7 +83,7 @@ func runPlan(cmd *cobra.Command, path string) error {
 			return writeErr
 		}
 		if len(plan.GetErrors()) > 0 {
-			return &cmdutil.ExitError{Code: cmdutil.ExitFailure}
+			return &ui.ExitError{Code: ui.ExitFailure}
 		}
 	} else {
 		if len(plan.GetErrors()) > 0 {
@@ -93,7 +95,7 @@ func runPlan(cmd *cobra.Command, path string) error {
 	}
 
 	if detailedExitCode && len(plan.GetOperations()) > 0 {
-		return &cmdutil.ExitError{Code: cmdutil.ExitChanges}
+		return &ui.ExitError{Code: ui.ExitChanges}
 	}
 	return nil
 }

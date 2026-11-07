@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/internal/ui"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/internal/rpc"
-	"github.com/team-loco/loco/internal/session"
 )
 
 func newWhoAmICmd(env Env) *cobra.Command {
@@ -20,7 +22,7 @@ func newWhoAmICmd(env Env) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			host, err := cmdutil.GetHost(cmd)
+			host, err := host.GetHost(cmd)
 			if err != nil {
 				return err
 			}
@@ -35,7 +37,7 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				return err
 			}
 
-			t, err := cmdutil.FreshToken(ctx, host, store)
+			t, err := auth.FreshToken(ctx, host, store)
 			if err != nil {
 				return err
 			}
