@@ -21,7 +21,7 @@ var (
 	errUnknownCommand    = errors.New("unknown command")
 	errNoSourceURL       = errors.New(envSourceURL + " is required")
 	errNoDownloadTimeout = errors.New(envDownloadTimeout + " must be a positive duration")
-	errNoImageRef        = errors.New("--image-ref is required")
+	errMissingFlag       = errors.New("required flag not set")
 )
 
 type fetchConfig struct {
@@ -72,17 +72,24 @@ func newConfig(args []string, getenv func(string) string) (config, error) {
 func newFetchConfig(args []string, getenv func(string) string) (fetchConfig, error) {
 	cfg := fetchConfig{}
 	flags := flag.NewFlagSet(commandFetch, flag.ContinueOnError)
-	flags.StringVar(&cfg.Workspace, "workspace", "/workspace", "directory to extract the build context into")
-	flags.StringVar(&cfg.Dockerfile, "dockerfile", "Dockerfile", "Dockerfile path relative to the build context")
+	flags.StringVar(&cfg.Workspace, "workspace", "", "directory to extract the build context into")
+	flags.StringVar(&cfg.Dockerfile, "dockerfile", "", "Dockerfile path relative to the build context")
 	flags.Int64Var(&cfg.Source.MaxBytes, "max-source-bytes", 0, "largest source archive to download")
 	flags.Int64Var(&cfg.Limits.MaxBytes, "max-context-bytes", 0, "largest extracted build context")
 	flags.IntVar(&cfg.Limits.MaxEntries, "max-entries", 0, "most entries in the source archive")
-	flags.StringVar(&cfg.CacheDir, "cache-dir", "/cache", "directory to restore the build cache into")
+	flags.StringVar(&cfg.CacheDir, "cache-dir", "", "directory to restore the build cache into")
 	flags.StringVar(&cfg.CacheRef, "cache-ref", "", "digest reference of the build cache to restore")
 	flags.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", 0, "largest build cache to restore")
 	flags.BoolVar(&cfg.Insecure, "insecure", false, "allow plain HTTP registries")
 	if err := flags.Parse(args); err != nil {
 		return fetchConfig{}, fmt.Errorf("parse fetch flags: %w", err)
+	}
+	required := []string{"workspace", "dockerfile"}
+	if cfg.CacheRef != "" {
+		required = append(required, "cache-dir")
+	}
+	if err := requireFlags(flags, required...); err != nil {
+		return fetchConfig{}, err
 	}
 
 	cfg.Source.URL = getenv(envSourceURL)
@@ -101,19 +108,36 @@ func newFetchConfig(args []string, getenv func(string) string) (fetchConfig, err
 func newPushConfig(args []string) (pushConfig, error) {
 	cfg := pushConfig{}
 	flags := flag.NewFlagSet(commandPush, flag.ContinueOnError)
-	flags.StringVar(&cfg.ImageDir, "image-dir", "/out/image", "OCI layout of the built image")
-	flags.StringVar(&cfg.CacheDir, "cache-dir", "/out/cache", "OCI layout of the exported build cache")
+	flags.StringVar(&cfg.ImageDir, "image-dir", "", "OCI layout of the built image")
+	flags.StringVar(&cfg.CacheDir, "cache-dir", "", "OCI layout of the exported build cache")
 	flags.StringVar(&cfg.ImageRef, "image-ref", "", "tag to push the image to")
 	flags.StringVar(&cfg.CacheRef, "cache-ref", "", "tag to push the build cache to")
 	flags.Int64Var(&cfg.MaxImageBytes, "max-image-bytes", 0, "largest image to push")
 	flags.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", 0, "largest build cache to push")
 	flags.BoolVar(&cfg.Insecure, "insecure", false, "allow plain HTTP registries")
-	flags.StringVar(&cfg.TerminationLog, "termination-log", "/dev/termination-log", "file to write the result to")
+	flags.StringVar(&cfg.TerminationLog, "termination-log", "", "file to write the result to")
 	if err := flags.Parse(args); err != nil {
 		return pushConfig{}, fmt.Errorf("parse push flags: %w", err)
 	}
-	if cfg.ImageRef == "" {
-		return pushConfig{}, errNoImageRef
+	required := []string{"image-dir", "image-ref", "termination-log"}
+	if cfg.CacheRef != "" {
+		required = append(required, "cache-dir")
+	}
+	if err := requireFlags(flags, required...); err != nil {
+		return pushConfig{}, err
 	}
 	return cfg, nil
+}
+
+// requireFlags makes the controller own every path: a flag it forgets fails
+// the step instead of silently using a default that may not match the mounts.
+func requireFlags(flags *flag.FlagSet, names ...string) error {
+	set := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	for _, name := range names {
+		if !set[name] {
+			return fmt.Errorf("%w: --%s", errMissingFlag, name)
+		}
+	}
+	return nil
 }
