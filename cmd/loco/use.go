@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/rpc"
-	"github.com/team-loco/loco/internal/session"
 )
 
 var (
@@ -42,17 +45,17 @@ Examples:
 func useCmdFunc(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	host, err := cmdutil.GetHost(cmd)
+	apiHost, err := host.GetHost(cmd)
 	if err != nil {
 		return err
 	}
 
-	t, err := cmdutil.GetCurrentLocoToken(cmd)
+	t, err := auth.GetCurrentLocoToken(cmd)
 	if err != nil {
 		return err
 	}
 
-	workspaces, err := cmdutil.ListUserWorkspaces(ctx, rpc.ForHost(host, t.Token).Workspace)
+	workspaces, err := cmdutil.ListUserWorkspaces(ctx, rpc.ForHost(apiHost, t.Token).Workspace)
 	if err != nil {
 		return fmt.Errorf("failed to get workspaces: %w", err)
 	}

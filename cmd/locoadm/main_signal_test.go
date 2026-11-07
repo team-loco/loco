@@ -17,8 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/ui"
+
 	"github.com/team-loco/loco/cmd/internal/installation"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 )
 
 const (
@@ -85,7 +86,7 @@ users:
 			}
 			err := child.Wait()
 			exit, ok := errors.AsType[*exec.ExitError](err)
-			if !ok || exit.ExitCode() != cmdutil.ExitFailure {
+			if !ok || exit.ExitCode() != ui.ExitFailure {
 				t.Fatalf("signal terminated the process instead of canceling the command: %v", err)
 			}
 		})

@@ -6,8 +6,6 @@ import (
 
 	"charm.land/fang/v2"
 	"github.com/team-loco/loco/cmd/internal/ui"
-	"github.com/team-loco/loco/cmd/loco/climain"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/buildinfo"
 )
 
@@ -26,14 +24,14 @@ func Cli(version string) {
 	err := fang.Execute(ctx,
 		root,
 		fang.WithVersion(version),
-		fang.WithColorSchemeFunc(climain.ColorScheme()),
-		fang.WithErrorHandler(climain.HandleError))
+		fang.WithColorSchemeFunc(ui.ColorScheme()),
+		fang.WithErrorHandler(ui.HandleError))
 	env.versionCheck.report(os.Stderr)
 	if err == nil && versionFlagSet(root) {
 		releases := newUpdater(releasesURL, latestReleaseTimeout)
 		reportNewerRelease(ctx, os.Stderr, releases, root.Version)
 	}
 	if err != nil {
-		os.Exit(cmdutil.ExitCode(err))
+		os.Exit(ui.ExitCode(err))
 	}
 }

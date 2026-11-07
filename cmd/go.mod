@@ -18,6 +18,7 @@ require (
 	github.com/moby/patternmatcher v0.6.1
 	github.com/rogpeppe/go-internal v1.16.0
 	github.com/spf13/cobra v1.10.2
+	github.com/stretchr/testify v1.12.1
 	github.com/team-loco/loco v0.0.0
 	github.com/zalando/go-keyring v0.2.8
 	go.yaml.in/yaml/v2 v2.4.5

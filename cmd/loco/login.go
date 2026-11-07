@@ -8,12 +8,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"github.com/team-loco/loco/internal/rpc"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
@@ -22,7 +26,6 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/httputil"
-	"github.com/team-loco/loco/internal/session"
 )
 
 const spinnerFrameDelay = 100 * time.Millisecond
@@ -32,7 +35,7 @@ func newLoginCmd(env Env) *cobra.Command {
 		Use:   "login",
 		Short: "Log in to Loco",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			host, err := cmdutil.GetHost(cmd)
+			apiHost, err := host.GetHost(cmd)
 			if err != nil {
 				return err
 			}
@@ -46,10 +49,10 @@ func newLoginCmd(env Env) *cobra.Command {
 				slog.Error("failed keychain token grab", "error", err)
 			}
 
-			if err == nil && t.Host != host {
-				slog.Debug("stored token belongs to another host", "token_host", t.Host, "host", host)
+			if err == nil && t.Host != apiHost {
+				slog.Debug("stored token belongs to another host", "token_host", t.Host, "host", apiHost)
 			}
-			if err == nil && t.Host == host {
+			if err == nil && t.Host == apiHost {
 				if !t.ExpiresAt.Before(time.Now().Add(1 * time.Hour)) {
 					checkmark := lipgloss.NewStyle().Foreground(ui.Ok).Render("✔")
 					message := lipgloss.NewStyle().Bold(true).Foreground(ui.Accent).Render("Already logged in!")
@@ -65,16 +68,16 @@ func newLoginCmd(env Env) *cobra.Command {
 				slog.Debug("no token found in keychain", "error", err)
 			}
 			httpClient := httputil.NewHTTPClient()
-			configClients := rpc.NewHTTPClients(httpClient, host, "")
+			configClients := rpc.NewHTTPClients(httpClient, apiHost, "")
 			configClient := configClients.Config
 			config, err := configClient.GetConfig(cmd.Context(), &configv1.GetConfigRequest{})
 			if err != nil {
-				return fmt.Errorf("login to %s failed: %w", host, err)
+				return fmt.Errorf("login to %s failed: %w", apiHost, err)
 			}
 			if config.GetAuth() == nil {
-				return fmt.Errorf("login to %s failed: %w", host, errNoIdentityProvider)
+				return fmt.Errorf("login to %s failed: %w", apiHost, errNoIdentityProvider)
 			}
-			return providerLogin(cmd, httpClient, host, store)
+			return providerLogin(cmd, httpClient, apiHost, store)
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
@@ -83,33 +86,33 @@ func newLoginCmd(env Env) *cobra.Command {
 	return cmd
 }
 
-func providerLogin(cmd *cobra.Command, httpClient *http.Client, host string, store keychain.TokenStore) error {
+func providerLogin(cmd *cobra.Command, httpClient *http.Client, apiHost string, store keychain.TokenStore) error {
 	ctx := cmd.Context()
 	device, err := cmd.Flags().GetBool("device")
 	if err != nil {
 		return err
 	}
-	interactive := cmdutil.IsInteractive()
+	interactive := ui.IsInteractive()
 	if !device && !interactive {
-		return fmt.Errorf("login to %s failed: %w", host, errBrowserLoginNeedsTerminal)
+		return fmt.Errorf("login to %s failed: %w", apiHost, errBrowserLoginNeedsTerminal)
 	}
-	authClients := rpc.NewHTTPClients(httpClient, host, "")
+	authClients := rpc.NewHTTPClients(httpClient, apiHost, "")
 	authClient := authClients.Auth
 	var tokens *authv1.CLITokens
 	if device {
 		tokens, err = deviceLogin(ctx, authClient, interactive)
 	} else {
-		webHost, webErr := cmdutil.GetWebHost(cmd)
+		webHost, webErr := host.GetWebHost(cmd)
 		if webErr != nil {
 			return webErr
 		}
 		tokens, err = browserLogin(ctx, authClient, webHost, openBrowser)
 	}
 	if err != nil {
-		return fmt.Errorf("login to %s failed: %w", host, err)
+		return fmt.Errorf("login to %s failed: %w", apiHost, err)
 	}
-	if err := setupLoginScope(ctx, httpClient, host, store, *cmdutil.TokenFromCLITokens(host, tokens)); err != nil {
-		return fmt.Errorf("login to %s failed: %w", host, err)
+	if err := setupLoginScope(ctx, httpClient, apiHost, store, *auth.TokenFromCLITokens(apiHost, tokens)); err != nil {
+		return fmt.Errorf("login to %s failed: %w", apiHost, err)
 	}
 	return nil
 }
@@ -117,7 +120,7 @@ func providerLogin(cmd *cobra.Command, httpClient *http.Client, host string, sto
 func setupLoginScope(
 	ctx context.Context,
 	httpClient *http.Client,
-	host string,
+	apiHost string,
 	store keychain.TokenStore,
 	newToken keychain.UserToken,
 ) error {
@@ -126,7 +129,7 @@ func setupLoginScope(
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if cfg.LocoHost == host {
+	if cfg.LocoHost == apiHost {
 		scope, scopeErr := cfg.GetScope()
 		if scopeErr == nil {
 			if storeErr := store.Set(newToken); storeErr != nil {
@@ -136,12 +139,12 @@ func setupLoginScope(
 		}
 	}
 
-	org, workspace, err := resolveLoginScope(ctx, httpClient, host, newToken.Token)
+	org, workspace, err := resolveLoginScope(ctx, httpClient, apiHost, newToken.Token)
 	if err != nil {
 		return err
 	}
 
-	cfg.LocoHost = host
+	cfg.LocoHost = apiHost
 	cfg.Scopes = make(map[string]*session.Scope)
 	if err := cfg.SetDefaultScope(org, workspace); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
@@ -159,10 +162,10 @@ const loginPageSize = 100
 func resolveLoginScope(
 	ctx context.Context,
 	httpClient *http.Client,
-	host string,
+	apiHost string,
 	locoToken string,
 ) (session.SimpleOrg, session.SimpleWorkspace, error) {
-	clients := rpc.NewHTTPClients(httpClient, host, locoToken)
+	clients := rpc.NewHTTPClients(httpClient, apiHost, locoToken)
 	orgClient := clients.Org
 	wsClient := clients.Workspace
 	userClient := clients.User

@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/cmd/internal/session"
 )
 
 const (
@@ -86,7 +87,7 @@ func newWebCmd() *cobra.Command {
 }
 
 func webCmdFunc(cmd *cobra.Command, args []string) error {
-	host, err := cmdutil.GetWebHost(cmd)
+	webHost, err := host.GetWebHost(cmd)
 	if err != nil {
 		return err
 	}
@@ -114,7 +115,7 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid page: %s. Valid options are: %s", page, strings.Join(webPageNames(), ", "))
 	}
 
-	url := host + webPage.path(orgID, workspaceID)
+	url := webHost + webPage.path(orgID, workspaceID)
 
 	slog.Debug("opening url in browser", "url", url, "page", page)
 

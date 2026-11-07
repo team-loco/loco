@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+
 	"github.com/team-loco/loco/cmd/internal/keychain"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/cmd/internal/session"
 )
 
 func TestShowKeychainErrors(t *testing.T) {
@@ -43,7 +44,7 @@ func TestShowKeychainErrors(t *testing.T) {
 			cmd.SilenceUsage = true
 			cmd.SetArgs(nil)
 			err := cmd.Execute()
-			if got := errors.Is(err, cmdutil.ErrLoginRequired); got != tt.wantLogin {
+			if got := errors.Is(err, auth.ErrLoginRequired); got != tt.wantLogin {
 				t.Fatalf("errors.Is(err, ErrLoginRequired) = %v, want %v (err: %v)", got, tt.wantLogin, err)
 			}
 			if !tt.wantLogin && (err == nil || !strings.Contains(err.Error(), "failed to decode")) {

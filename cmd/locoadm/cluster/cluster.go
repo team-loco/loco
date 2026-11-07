@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -134,7 +135,7 @@ func (op operation) command() *cobra.Command {
 				return fmt.Errorf("invalid cluster ID: %w", err)
 			}
 		}
-		login, err := cmdutil.ResolveLogin(cmd)
+		login, err := auth.ResolveLogin(cmd)
 		if err != nil {
 			return err
 		}

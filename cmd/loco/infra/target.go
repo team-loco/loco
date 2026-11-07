@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/team-loco/loco/cmd/internal/ui"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/locofile"
@@ -26,7 +28,7 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command) (cmdutil.Target, err
 	if err != nil {
 		return cmdutil.Target{}, err
 	}
-	interactive := cmdutil.StdoutIsTerminal()
+	interactive := ui.StdoutIsTerminal()
 	return t.WithEnvironment(ctx, cmd, interactive)
 }
 

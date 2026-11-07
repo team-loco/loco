@@ -5,34 +5,26 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/internal/session"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/internal/rpc"
-	"github.com/team-loco/loco/internal/session"
 )
 
-// Target is the API host a command talks to, the logged-in token and the clients
-// built from them, plus the workspace and environment once resolved.
+// Target is the logged-in API connection plus the workspace and environment once resolved.
 type Target struct {
-	Host        string
-	Token       string
-	Clients     *rpc.Clients
+	auth.Login
 	WorkspaceID string
 	Environment *environmentv1.Environment
 }
 
 // ResolveLogin resolves the host and the logged-in token, without a workspace.
 func ResolveLogin(cmd *cobra.Command) (Target, error) {
-	host, err := GetHost(cmd)
+	login, err := auth.ResolveLogin(cmd)
 	if err != nil {
 		return Target{}, err
 	}
-	locoToken, err := GetCurrentLocoToken(cmd)
-	if err != nil {
-		return Target{}, err
-	}
-	clients := rpc.ForHost(host, locoToken.Token)
-	return Target{Host: host, Token: locoToken.Token, Clients: clients}, nil
+	return Target{Login: login}, nil
 }
 
 // ResolveTarget resolves the host, the logged-in token and the workspace named by

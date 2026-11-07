@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/team-loco/loco/cmd/internal/keychain"
-	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/cmd/internal/session"
 )
 
 func TestSetupLoginScopeKeepsUnreadableConfig(t *testing.T) {

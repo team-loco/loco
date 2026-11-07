@@ -1,4 +1,4 @@
-package cmdutil
+package auth
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/host"
 	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
@@ -26,7 +27,7 @@ const refreshWindow = 5 * time.Minute
 // If the access token is near expiry and a refresh token is stored, it
 // attempts a silent refresh before returning.
 func GetCurrentLocoToken(cmd *cobra.Command) (*keychain.UserToken, error) {
-	host, err := GetHost(cmd)
+	apiHost, err := host.GetHost(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -35,10 +36,30 @@ func GetCurrentLocoToken(cmd *cobra.Command) (*keychain.UserToken, error) {
 		return nil, err
 	}
 	ctx := cmd.Context()
-	return FreshToken(ctx, host, store)
+	return FreshToken(ctx, apiHost, store)
 }
 
-func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*keychain.UserToken, error) {
+// Login is the API host a command talks to, the logged-in token and the clients built from them.
+type Login struct {
+	Host    string
+	Token   string
+	Clients *rpc.Clients
+}
+
+// ResolveLogin resolves the host and the logged-in token.
+func ResolveLogin(cmd *cobra.Command) (Login, error) {
+	apiHost, err := host.GetHost(cmd)
+	if err != nil {
+		return Login{}, err
+	}
+	locoToken, err := GetCurrentLocoToken(cmd)
+	if err != nil {
+		return Login{}, err
+	}
+	return Login{Host: apiHost, Token: locoToken.Token, Clients: rpc.ForHost(apiHost, locoToken.Token)}, nil
+}
+
+func FreshToken(ctx context.Context, apiHost string, store keychain.TokenStore) (*keychain.UserToken, error) {
 	locoToken, err := store.Get()
 	if errors.Is(err, keychain.ErrNotFound) {
 		return nil, ErrLoginRequired
@@ -49,12 +70,12 @@ func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*k
 	if locoToken.Host == "" {
 		return nil, ErrLoginRequired
 	}
-	if locoToken.Host != host {
+	if locoToken.Host != apiHost {
 		return nil, fmt.Errorf(
 			"logged in to %s, not %s - run 'loco login --host %s' to switch",
 			locoToken.Host,
-			host,
-			host,
+			apiHost,
+			apiHost,
 		)
 	}
 
@@ -68,7 +89,7 @@ func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*k
 		return nil, errTokenExpired
 	}
 	slog.Debug("attempting silent token refresh")
-	refreshed, err := refreshLocoToken(ctx, host, locoToken.RefreshToken, store)
+	refreshed, err := refreshLocoToken(ctx, apiHost, locoToken.RefreshToken, store)
 	if err != nil {
 		return nil, fmt.Errorf("token expired and refresh failed. Please re-login via `loco login`: %w", err)
 	}
@@ -79,14 +100,14 @@ func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*k
 // stores the new token pair in the keychain, and returns the updated UserToken.
 func refreshLocoToken(
 	ctx context.Context,
-	host, refreshToken string,
+	apiHost, refreshToken string,
 	store keychain.TokenStore,
 ) (*keychain.UserToken, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	httpClient := httputil.NewHTTPClient()
-	authClients := rpc.NewHTTPClients(httpClient, host, "")
+	authClients := rpc.NewHTTPClients(httpClient, apiHost, "")
 	authClient := authClients.Auth
 	req := &authv1.RefreshCLITokenRequest{
 		RefreshToken: refreshToken,
@@ -96,7 +117,7 @@ func refreshLocoToken(
 		return nil, err
 	}
 
-	newToken := TokenFromCLITokens(host, resp.GetTokens())
+	newToken := TokenFromCLITokens(apiHost, resp.GetTokens())
 	if err = store.Set(*newToken); err != nil {
 		return nil, err
 	}
@@ -104,10 +125,10 @@ func refreshLocoToken(
 	return newToken, nil
 }
 
-func TokenFromCLITokens(host string, tokens *authv1.CLITokens) *keychain.UserToken {
+func TokenFromCLITokens(apiHost string, tokens *authv1.CLITokens) *keychain.UserToken {
 	lifetime := time.Duration(tokens.GetExpiresIn())*time.Second - 10*time.Minute
 	return &keychain.UserToken{
-		Host:         host,
+		Host:         apiHost,
 		Token:        tokens.GetAccessToken(),
 		RefreshToken: tokens.GetRefreshToken(),
 		ExpiresAt:    time.Now().Add(lifetime),

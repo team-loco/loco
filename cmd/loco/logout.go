@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/internal/ui"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 )
 
 func newLogoutCmd(env Env) *cobra.Command {
@@ -21,7 +23,7 @@ func newLogoutCmd(env Env) *cobra.Command {
 			ctx := cmd.Context()
 			out := cmd.OutOrStdout()
 
-			host, err := cmdutil.GetHost(cmd)
+			host, err := host.GetHost(cmd)
 			if err != nil {
 				return err
 			}
@@ -44,7 +46,7 @@ func newLogoutCmd(env Env) *cobra.Command {
 			if t.Host != "" {
 				host = t.Host
 			}
-			if err = cmdutil.RevokeToken(ctx, host, t.Token); err != nil {
+			if err = auth.RevokeToken(ctx, host, t.Token); err != nil {
 				if connect.CodeOf(err) != connect.CodeUnauthenticated {
 					warning := lipgloss.NewStyle().
 						Foreground(ui.Warn).

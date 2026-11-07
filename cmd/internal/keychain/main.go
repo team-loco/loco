@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/zalando/go-keyring"
 )
 

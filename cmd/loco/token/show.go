@@ -6,9 +6,10 @@ import (
 	"os/user"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 )
 
 func buildShowCmd() *cobra.Command {
@@ -35,7 +36,7 @@ func buildShowCmd() *cobra.Command {
 
 			token, err := store.Get()
 			if errors.Is(err, keychain.ErrNotFound) {
-				return cmdutil.ErrLoginRequired
+				return auth.ErrLoginRequired
 			}
 			if err != nil {
 				return fmt.Errorf("failed to read token from keychain: %w", err)

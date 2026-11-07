@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
@@ -28,7 +31,7 @@ func buildRevokeCmd() *cobra.Command {
 			ctx := cmd.Context()
 			out := cmd.OutOrStdout()
 
-			host, err := cmdutil.GetHost(cmd)
+			host, err := host.GetHost(cmd)
 			if err != nil {
 				return err
 			}
@@ -56,7 +59,7 @@ func buildRevokeCmd() *cobra.Command {
 			if t.Host != "" {
 				host = t.Host
 			}
-			err = cmdutil.RevokeToken(ctx, host, t.Token)
+			err = auth.RevokeToken(ctx, host, t.Token)
 			if err != nil && connect.CodeOf(err) != connect.CodeUnauthenticated {
 				return fmt.Errorf("failed to revoke token on the server: %w", err)
 			}

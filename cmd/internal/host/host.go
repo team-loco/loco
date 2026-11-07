@@ -1,4 +1,4 @@
-package cmdutil
+package host
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/cmd/internal/session"
 )
 
 const (

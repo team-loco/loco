@@ -45,7 +45,11 @@ func newServiceTarget(t *testing.T) Target {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	clients := rpc.NewHTTPClients(srv.Client(), srv.URL, "")
-	return Target{Host: srv.URL, Clients: clients, WorkspaceID: testTargetWorkspaceID}
+	var target Target
+	target.Host = srv.URL
+	target.Clients = clients
+	target.WorkspaceID = testTargetWorkspaceID
+	return target
 }
 
 func TestTargetServiceLooksUpTheNameInTheWorkspace(t *testing.T) {

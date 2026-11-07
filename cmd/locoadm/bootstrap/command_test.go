@@ -9,13 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/internal/host"
+
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/cmd/internal/keychain"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/cmd/internal/session"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
-	"github.com/team-loco/loco/internal/session"
 )
 
 func TestBootstrapTimeoutBoundsKubernetesRead(t *testing.T) {
@@ -122,21 +124,21 @@ func TestBootstrapPersistsOperatorTarget(t *testing.T) {
 			}
 			command := &cobra.Command{}
 			command.Flags().String("web-host", "", "")
-			host, err := cmdutil.GetHost(command)
+			api, err := host.GetHost(command)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if host != apiURL {
-				t.Fatalf("next command API = %q, want %q", host, apiURL)
+			if api != apiURL {
+				t.Fatalf("next command API = %q, want %q", api, apiURL)
 			}
-			web, err := cmdutil.GetWebHost(command)
+			web, err := host.GetWebHost(command)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if web != webURL {
 				t.Fatalf("next command web = %q, want %q", web, webURL)
 			}
-			authenticated, err := cmdutil.GetCurrentLocoToken(command)
+			authenticated, err := auth.GetCurrentLocoToken(command)
 			if err != nil {
 				t.Fatalf("next command cannot use bootstrap session: %v", err)
 			}

@@ -9,18 +9,19 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/cmd/internal/keychain"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/cmd/internal/session"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpc"
-	"github.com/team-loco/loco/internal/session"
 )
 
 const bootstrapTimeout = 15 * time.Minute
@@ -141,7 +142,7 @@ func saveInstallationSession(controlPlane installation.ControlPlane, tokens *aut
 	if err != nil {
 		return err
 	}
-	if err = store.Set(*cmdutil.TokenFromCLITokens(controlPlane.APIURL, tokens)); err != nil {
+	if err = store.Set(*auth.TokenFromCLITokens(controlPlane.APIURL, tokens)); err != nil {
 		return err
 	}
 	config, err := session.Load()

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/team-loco/loco/cmd/internal/ui"
+
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -150,7 +152,7 @@ func quickServiceName(cmd *cobra.Command, names []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if name == "" && cmdutil.IsInteractive() && !yes {
+	if name == "" && ui.IsInteractive() && !yes {
 		name, err = cmdutil.AskString(cmd, "Service name (press Enter to use the directory name): ")
 		if err != nil {
 			return "", fmt.Errorf("read service name: %w", err)

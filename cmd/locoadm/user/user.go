@@ -3,8 +3,9 @@ package user
 import (
 	"fmt"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
+
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
@@ -44,7 +45,7 @@ func BuildUserCmd() *cobra.Command {
 			Short: op.short,
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				login, err := cmdutil.ResolveLogin(cmd)
+				login, err := auth.ResolveLogin(cmd)
 				if err != nil {
 					return err
 				}

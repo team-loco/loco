@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/cmd/internal/session"
 )
 
 func TestCommandsReportUnreadableConfig(t *testing.T) {
