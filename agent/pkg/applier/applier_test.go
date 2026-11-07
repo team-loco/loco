@@ -52,7 +52,7 @@ func serviceApplication(t *testing.T) []byte {
 
 func marshalPayload(t *testing.T, spec *locoControllerV1.ApplicationSpec) []byte {
 	t.Helper()
-	payload, err := json.Marshal(DeployPayload{ResourceID: spec.ResourceID, AppSpec: spec})
+	payload, err := json.Marshal(locoControllerV1.PlacementPayload{ResourceID: spec.ResourceID, AppSpec: spec})
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
@@ -227,7 +227,7 @@ func TestDeletePlacementRejectsStaleRevision(t *testing.T) {
 }
 
 func TestInvalidPlacementsAreMarked(t *testing.T) {
-	noSpec, err := json.Marshal(DeployPayload{ResourceID: testResourceID})
+	noSpec, err := json.Marshal(locoControllerV1.PlacementPayload{ResourceID: testResourceID})
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}

@@ -162,7 +162,7 @@ func envSecretPlacement(t *testing.T, revision int64) applier.Placement {
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: "ghcr.io/team-loco/app:v1", Port: testPort},
 		},
 	}
-	payload, err := json.Marshal(applier.DeployPayload{ResourceID: testResourceID, AppSpec: spec})
+	payload, err := json.Marshal(locoControllerV1.PlacementPayload{ResourceID: testResourceID, AppSpec: spec})
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}

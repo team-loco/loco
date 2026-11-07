@@ -9,6 +9,17 @@ const (
 	envSecretNamePrefix = "env-"
 )
 
+// PlacementPayload is the desired application the API stores on a placement and the agent applies.
+// +kubebuilder:object:generate=false
+type PlacementPayload struct {
+	DeploymentID string           `json:"deployment_id"`
+	ResourceID   string           `json:"resource_id"`
+	WorkspaceID  string           `json:"workspace_id"`
+	ResourceType string           `json:"resource_type"`
+	Region       string           `json:"region"`
+	AppSpec      *ApplicationSpec `json:"app_spec"`
+}
+
 // EnvSecretName is the name of the Secret in the agent's namespace that holds a placement's secret values.
 func EnvSecretName(placementID string) string {
 	return envSecretNamePrefix + placementID

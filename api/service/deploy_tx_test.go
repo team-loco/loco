@@ -164,7 +164,7 @@ func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentPar
 }
 
 func staticSpec(_ uuid.UUID) ([]byte, error) {
-	return []byte(`{"resource_id":"r"}`), nil
+	return []byte(`{"resource_id":"r","app_spec":{}}`), nil
 }
 
 func (f *deployFixture) deploy(ctx context.Context, buildSpec desiredSpecFunc) (uuid.UUID, error) {

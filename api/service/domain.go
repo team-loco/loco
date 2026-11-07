@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -611,11 +610,11 @@ func (s *DomainServer) refreshDomainRouting(
 		return err
 	}
 	for _, placement := range placements {
-		var payload ApplicationPayload
-		if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
-			return fmt.Errorf("decode domain placement: %w", err)
+		payload, err := decodePlacement(placement)
+		if err != nil {
+			return err
 		}
-		if payload.AppSpec == nil || payload.AppSpec.ServiceSpec == nil || placement.DeploymentID == nil {
+		if payload.AppSpec.ServiceSpec == nil || placement.DeploymentID == nil {
 			return errPlacementNotService
 		}
 		service := payload.AppSpec.ServiceSpec
@@ -642,20 +641,7 @@ func (s *DomainServer) refreshDomainRouting(
 			routing := deploymentRouting(resourceSpec.GetService(), deploymentService)
 			service.Routing = converter.ProtoToRoutingSpec(routing, hostname, s.defaults)
 		}
-		desiredSpec, err := json.Marshal(payload)
-		if err != nil {
-			return fmt.Errorf("encode domain placement: %w", err)
-		}
-		params := genDb.UpsertPlacementParams{
-			ResourceID:    placement.ResourceID,
-			ClusterID:     placement.ClusterID,
-			Region:        placement.Region,
-			DeploymentID:  placement.DeploymentID,
-			DesiredSpec:   desiredSpec,
-			EnvironmentID: placement.EnvironmentID,
-			SecretNames:   placement.SecretNames,
-		}
-		if err := placeApplication(ctx, qtx, params); err != nil {
+		if err := rewritePlacement(ctx, qtx, placement, payload); err != nil {
 			return err
 		}
 	}

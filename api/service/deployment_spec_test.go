@@ -199,13 +199,13 @@ func TestDeployRejectsInvalidSpecWithoutWritingADeployment(t *testing.T) {
 	}
 }
 
-func applicationPayload(t *testing.T, buildSpec desiredSpecFunc) ApplicationPayload {
+func applicationPayload(t *testing.T, buildSpec desiredSpecFunc) locoControllerV1.PlacementPayload {
 	t.Helper()
 	raw, err := buildSpec(uuid.New())
 	if err != nil {
 		t.Fatalf("build spec: %v", err)
 	}
-	var payload ApplicationPayload
+	var payload locoControllerV1.PlacementPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		t.Fatalf("decode payload: %v", err)
 	}
