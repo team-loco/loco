@@ -1,5 +1,5 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
@@ -9,8 +9,9 @@ import {
 	type RegionInfo,
 	type Resource,
 } from "@gen/loco/resource/v1/resource_pb";
-import { listRegions, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
+import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { environmentStatus } from "@/lib/resource-status";
 import { tsMs } from "@/lib/time";
 
@@ -52,17 +53,14 @@ function rollingOut(resource: Resource): boolean {
 
 export function useDashboardData(workspaceId: string | null, env: Environment | undefined) {
 	const transport = useTransport();
-	const resourcesQuery = useQuery(
-		listWorkspaceResources,
-		{ workspaceId: workspaceId ?? "", pageSize: 200 },
-		{
-			enabled: workspaceId !== null,
-			refetchInterval: (q) => {
-				const list = q.state.data?.resources ?? [];
-				return list.some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
-			},
+	const resourcesQuery = useTanstackQuery({
+		...workspaceResourcesOptions(transport, workspaceId ?? ""),
+		enabled: workspaceId !== null,
+		refetchInterval: (q) => {
+			const list = q.state.data?.resources ?? [];
+			return list.some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
 		},
-	);
+	});
 	const regionsQuery = useQuery(listRegions, { environmentId: env?.id ?? "" }, { enabled: env !== undefined });
 	const resources = resourcesQuery.data?.resources ?? [];
 

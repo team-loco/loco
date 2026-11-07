@@ -1,3 +1,4 @@
+import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useAuth } from "@/auth/AuthProvider";
 import { ClaimedOrgsBanner } from "@/components/ClaimedOrgsBanner";
@@ -7,9 +8,9 @@ import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
-import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useQuery } from "@connectrpc/connect-query";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { Navigate, useParams } from "react-router";
 
@@ -19,6 +20,7 @@ interface ProtectedLayoutProps {
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { orgId: orgParam } = useParams();
+	const transport = useTransport();
 	const { user, signedOut } = useAuth();
 	const { isPending, error } = useQuery(whoAmI, {}, { enabled: !signedOut });
 
@@ -28,13 +30,10 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
 
-	const { data: workspacesRes, isLoading: workspacesLoading } = useQuery(
-		listOrgWorkspaces,
-		activeOrgId ? { orgId: activeOrgId } : undefined,
-		{
-			enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId),
-		},
-	);
+	const { data: workspacesRes, isLoading: workspacesLoading } = useTanstackQuery({
+		...orgWorkspacesOptions(transport, activeOrgId ?? ""),
+		enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId),
+	});
 	const workspaces = workspacesRes?.workspaces ?? [];
 
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;

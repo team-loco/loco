@@ -1,4 +1,4 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -7,7 +7,7 @@ import { matchPath, useLocation, useNavigate } from "react-router";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import {
@@ -28,6 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspacePath } from "@/lib/routes";
@@ -140,7 +141,7 @@ function ScopeSwitcher({
 	const { orgLevel } = useMyScopes();
 	const [open, setOpen] = useState(false);
 	const results = useQueries({
-		queries: orgs.map((o) => createQueryOptions(listOrgWorkspaces, { orgId: o.id }, { transport })),
+		queries: orgs.map((o) => orgWorkspacesOptions(transport, o.id)),
 	});
 
 	const go = (to: string) => {

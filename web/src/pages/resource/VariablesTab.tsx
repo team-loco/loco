@@ -1,12 +1,11 @@
-import { createConnectQueryKey, useMutation, useQuery } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { createConnectQueryKey, useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQueryClient, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ClipboardPasteIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { deleteSecrets, listSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
-import { listWorkspaceMembers } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 
 import {
 	AlertDialog,
@@ -27,6 +26,7 @@ import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Textarea } from "@/components/design/Textarea";
+import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { parseDotEnv } from "@/lib/dotenv";
 import { toastConnectError } from "@/lib/error-handler";
@@ -35,7 +35,6 @@ import { tsMs } from "@/lib/time";
 import { formatStarted } from "./format";
 
 const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
-const MEMBERS_PAGE_SIZE = 200;
 const USER_ENTITY = "user";
 
 function nameProblem(name: string): string | undefined {
@@ -157,9 +156,10 @@ export function VariablesTab({
 	const { active, isLoading: envsLoading } = useEnvironments();
 	const environmentId = active?.id ?? "";
 	const queryClient = useQueryClient();
+	const transport = useTransport();
 	const secretsQuery = useQuery(listSecrets, { resourceId, environmentId }, { enabled: environmentId !== "" });
 	const plainQuery = useQuery(getResourceEnv, { resourceId, environmentId }, { enabled: environmentId !== "" });
-	const { data: membersRes } = useQuery(listWorkspaceMembers, { workspaceId, pageSize: MEMBERS_PAGE_SIZE });
+	const { data: membersRes } = useTanstackQuery(workspaceMembersOptions(transport, workspaceId));
 	const set = useMutation(setSecrets);
 	const remove = useMutation(deleteSecrets);
 
