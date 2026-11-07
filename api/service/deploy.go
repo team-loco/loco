@@ -234,14 +234,7 @@ func desiredApplicationSpec(
 			return nil, fmt.Errorf("failed to build application spec: %w", err)
 		}
 
-		payload, err := json.Marshal(locoControllerV1.PlacementPayload{
-			DeploymentID: deploymentID.String(),
-			ResourceID:   res.ID.String(),
-			WorkspaceID:  res.WorkspaceID.String(),
-			ResourceType: string(res.Type),
-			Region:       region,
-			AppSpec:      appSpec,
-		})
+		payload, err := json.Marshal(locoControllerV1.PlacementPayload{AppSpec: appSpec})
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal application payload: %w", err)
 		}
