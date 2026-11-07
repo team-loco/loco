@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"connectrpc.com/connect/v2"
 
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -27,20 +25,8 @@ func (s *ResourceServer) TransferPartial(
 	if err != nil {
 		return nil, err
 	}
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err = s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.TransferPartial, resourceID),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to transfer partial", "resourceId", req.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.TransferPartial, resourceID); err != nil {
+		return nil, err
 	}
 
 	partial := req.GetPartial()

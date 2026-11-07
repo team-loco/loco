@@ -23,6 +23,15 @@ func authorize(ctx context.Context, authorizer *authz.Authorizer, action actions
 	return check(ctx, authorizer, p, actions.New(action, id))
 }
 
+// authorizeSystem is authorize for an action on the installation rather than one entity.
+func authorizeSystem(ctx context.Context, authorizer *authz.Authorizer, action actions.Action) error {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return err
+	}
+	return check(ctx, authorizer, p, actions.NewSystem(action))
+}
+
 // principalFrom returns the caller the auth interceptor attached to ctx.
 func principalFrom(ctx context.Context) (reqctx.Principal, error) {
 	p, ok := reqctx.PrincipalFrom(ctx)

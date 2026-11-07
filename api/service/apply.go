@@ -14,7 +14,6 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
-	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -191,21 +190,17 @@ func selectOperations(
 }
 
 func (s *PlanServer) checkDeletes(ctx context.Context, planned *plannedFile, operations []configplan.Operation) error {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return err
 	}
 	for _, op := range operations {
 		if op.Kind != configplan.KindDelete {
 			continue
 		}
 		resourceID := planned.live.resources[op.Service].ID
-		deleteAction := actions.New(actions.DeleteResource, resourceID)
-		if err := s.authz.Check(ctx, scopes, deleteAction); err != nil {
-			slog.WarnContext(ctx, "unauthorized to delete resource through apply", "resourceId", resourceID)
-			return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+		if err = check(ctx, s.authz, p, actions.New(actions.DeleteResource, resourceID)); err != nil {
+			return err
 		}
 	}
 	return nil

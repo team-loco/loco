@@ -25,7 +25,6 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
-	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/internal/bearer"
@@ -162,10 +161,13 @@ func clientAddress(info *connect.CallInfo) netip.Addr {
 }
 
 func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	entity := principal.Entity
-	if !ok || entity.Type != genDb.EntityTypeUser {
-		return cliGrant{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return cliGrant{}, err
+	}
+	entity := p.Entity
+	if entity.Type != genDb.EntityTypeUser {
+		return cliGrant{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
 	login, ok := auth.LoginFrom(ctx)
 	identity := login.Identity
@@ -178,7 +180,7 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 		return cliGrant{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	if row.UserID != entity.ID {
-		return cliGrant{}, rpcerr.New(connect.CodePermissionDenied, ErrUnauthorized)
+		return cliGrant{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
 	return cliGrant{UserID: entity.ID, IdentityID: row.ID}, nil
 }

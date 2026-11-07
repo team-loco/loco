@@ -23,7 +23,6 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
-	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -101,20 +100,16 @@ func (s *SecretServer) authorizeTarget(
 	environmentID string,
 	action actions.Action,
 ) (secretTarget, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return secretTarget{}, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
 	parsedResourceID, err := parseID("resource_id", resourceID)
 	if err != nil {
 		return secretTarget{}, err
 	}
-	required := actions.New(action, parsedResourceID)
-	if err = s.authz.Check(ctx, scopes, required); err != nil {
-		slog.WarnContext(ctx, "unauthorized secret access", "resourceId", resourceID)
-		return secretTarget{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	parsedEnvironmentID, err := parseID("environment_id", environmentID)
+	if err != nil {
+		return secretTarget{}, err
+	}
+	if err = authorize(ctx, s.authz, action, parsedResourceID); err != nil {
+		return secretTarget{}, err
 	}
 	resource, err := s.queries.GetResourceByID(ctx, parsedResourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -124,7 +119,7 @@ func (s *SecretServer) authorizeTarget(
 		slog.ErrorContext(ctx, "failed to load resource", "error", err)
 		return secretTarget{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(environmentID))
+	env, err := s.queries.GetEnvironmentByID(ctx, parsedEnvironmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return secretTarget{}, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
@@ -152,10 +147,9 @@ func (s *SecretServer) SetSecrets(
 	if err != nil {
 		return nil, err
 	}
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	entity := principal.Entity
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
 	}
 	values := req.GetValues()
 	names := slices.Sorted(maps.Keys(values))
@@ -167,7 +161,7 @@ func (s *SecretServer) SetSecrets(
 	}
 
 	for range setSecretsAttempts {
-		response, setErr := s.setSecretsOnce(ctx, target, entity, names, values)
+		response, setErr := s.setSecretsOnce(ctx, target, p.Entity, names, values)
 		if errors.Is(setErr, errKeyChanged) {
 			continue
 		}
@@ -493,15 +487,8 @@ func (s *SecretServer) RewrapEnvironmentKeys(
 	ctx context.Context,
 	req *secretv1.RewrapEnvironmentKeysRequest,
 ) (*secretv1.RewrapEnvironmentKeysResponse, error) {
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	scopes := principal.Scopes
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-	if err := s.authz.Check(ctx, scopes, actions.NewSystem(actions.RewrapEnvironmentKeys)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to rewrap environment keys")
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err := authorizeSystem(ctx, s.authz, actions.RewrapEnvironmentKeys); err != nil {
+		return nil, err
 	}
 	if req.GetNewDek() && req.GetEnvironmentId() == "" {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrNewDEKNeedsEnvironment)
