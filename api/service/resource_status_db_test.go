@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -63,7 +63,7 @@ SELECT c.id FROM c`, statusSecondRegion)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeRead},
 	}
-	f.ctx = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+	f.ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
 	return f
 }
 
@@ -456,9 +456,9 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get active deployment: %v", err)
 	}
-	deleteCtx := context.WithValue(f.ctx, contextkeys.EntityScopesKey, []genDb.EntityScope{
+	deleteCtx := reqctx.WithPrincipal(f.ctx, reqctx.Principal{Scopes: []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeWrite},
-	})
+	}})
 	deployments := NewDeploymentServer(f.pool, f.queries, nil, "", testServiceDefaults(), testClusterSilentAfter)
 	_, err = deployments.DeleteDeployment(deleteCtx, &deploymentv1.DeleteDeploymentRequest{
 		DeploymentId: deployment.ID.String(),

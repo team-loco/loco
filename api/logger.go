@@ -4,9 +4,8 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/reqctx"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/team-loco/loco/api/contextkeys"
 )
 
 type CustomHandler struct {
@@ -21,22 +20,20 @@ func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		)
 	}
 
-	requestID, ok := ctx.Value(contextkeys.RequestIDKey).(string)
+	request, ok := reqctx.RequestFrom(ctx)
 	if !ok {
 		return l.Handler.Handle(ctx, r)
 	}
-	path, okPath := ctx.Value(contextkeys.PathKey).(string)
-	if !okPath {
-		path = ""
+	// Public procedures run without a principal; their entity logs as null.
+	var entity any
+	if principal, ok := reqctx.PrincipalFrom(ctx); ok {
+		entity = principal.Entity
 	}
-
-	// can be null on routes where oAuth Middleware is skipped.
-	entity := ctx.Value(contextkeys.EntityKey)
 
 	requestGroup := slog.Group(
 		"request",
-		slog.String("requestId", requestID),
-		slog.String("path", path),
+		slog.String("requestId", request.ID),
+		slog.String("path", request.Procedure),
 		slog.Any("entity", entity),
 	)
 

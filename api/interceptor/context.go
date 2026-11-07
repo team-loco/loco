@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -37,8 +37,7 @@ func (*contextInterceptor) Interceptor() connect.ServerInterceptor {
 				slog.String("user-agent", info.RequestHeader().Get("User-Agent")),
 				slog.String("content-type", info.RequestHeader().Get("Content-Type")))
 			rid := resolveRequestID(info.RequestHeader().Get(rpc.RequestIDHeader))
-			ctx = context.WithValue(ctx, contextkeys.RequestIDKey, rid)
-			ctx = context.WithValue(ctx, contextkeys.PathKey, spec.Procedure)
+			ctx = reqctx.WithRequest(ctx, reqctx.Request{ID: rid, Procedure: spec.Procedure})
 			info.ResponseHeader().Set(rpc.RequestIDHeader, rid)
 			start := time.Now()
 			err := next(ctx, spec, stream)

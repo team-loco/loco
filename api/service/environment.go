@@ -13,7 +13,6 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
@@ -55,39 +54,29 @@ func (s *EnvironmentServer) CreateEnvironment(
 	ctx context.Context,
 	req *environmentv1.CreateEnvironmentRequest,
 ) (*environmentv1.CreateEnvironmentResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.CreateEnvironment, req.GetWorkspaceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create environment", "workspaceId", req.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
 	}
-
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err = check(ctx, s.authz, p, actions.New(actions.CreateEnvironment, workspaceID)); err != nil {
+		return nil, err
 	}
-
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 
 	envType := protoEnvTypeToString(req.GetType())
 
 	desc := req.GetDescription()
 	var env genDb.Environment
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		created, createErr := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 			WorkspaceID:     workspaceID,
 			Name:            req.GetName(),
 			Description:     &desc,
 			EnvironmentType: envType,
-			CreatedBy:       entity.ID,
+			CreatedBy:       p.Entity.ID,
 		})
 		if isPgConstraintViolation(createErr) {
 			return rpcerr.New(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
@@ -135,22 +124,13 @@ func (s *EnvironmentServer) ListEnvironments(
 	ctx context.Context,
 	req *environmentv1.ListEnvironmentsRequest,
 ) (*environmentv1.ListEnvironmentsResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.ListEnvironments, req.GetWorkspaceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list environments", "workspaceId", req.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.ListEnvironments, workspaceID); err != nil {
+		return nil, err
 	}
-
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 
 	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
 	if err != nil {

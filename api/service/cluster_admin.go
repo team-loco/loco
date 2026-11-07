@@ -18,7 +18,6 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
@@ -71,7 +70,7 @@ func (s *ClusterAdminServer) CreateCluster(
 	ctx context.Context,
 	req *clusterv1.CreateClusterRequest,
 ) (*clusterv1.CreateClusterResponse, error) {
-	if err := s.authorize(ctx); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
 		return nil, err
 	}
 	if err := protovalidate.Validate(req); err != nil {
@@ -125,7 +124,7 @@ func (s *ClusterAdminServer) IssueJoinToken(
 	ctx context.Context,
 	req *clusterv1.IssueJoinTokenRequest,
 ) (*clusterv1.IssueJoinTokenResponse, error) {
-	if err := s.authorize(ctx); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
 		return nil, err
 	}
 	id, err := uuid.Parse(req.GetClusterId())
@@ -149,22 +148,11 @@ func (s *ClusterAdminServer) IssueJoinToken(
 	return &clusterv1.IssueJoinTokenResponse{ClusterId: id.String(), JoinToken: token.proto()}, nil
 }
 
-func (s *ClusterAdminServer) authorize(ctx context.Context) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, publicPermissionDenied)
-	}
-	if err := s.authz.Check(ctx, scopes, actions.NewSystem(actions.ManageClusters)); err != nil {
-		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	return nil
-}
-
 func (s *ClusterAdminServer) ListClusters(
 	ctx context.Context,
 	_ *clusterv1.ListClustersRequest,
 ) (*clusterv1.ListClustersResponse, error) {
-	if err := s.authorize(ctx); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
 		return nil, err
 	}
 	rows, err := s.queries.ListAdminClusters(ctx)
@@ -206,7 +194,7 @@ func (s *ClusterAdminServer) manage(
 	operation, id string,
 	force bool,
 ) (ClusterOperationResult, error) {
-	if err := s.authorize(ctx); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
 		return ClusterOperationResult{}, err
 	}
 	parsed, err := uuid.Parse(id)

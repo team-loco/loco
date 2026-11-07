@@ -7,9 +7,8 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/team-loco/loco/api/reqctx"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/team-loco/loco/api/contextkeys"
 )
 
 const testRequestID = "req-1"
@@ -56,7 +55,7 @@ func TestLoggerAddsTraceAndSpanIDs(t *testing.T) {
 }
 
 func TestLoggerOmitsTraceIDsWithoutASpan(t *testing.T) {
-	ctx := context.WithValue(t.Context(), contextkeys.RequestIDKey, testRequestID)
+	ctx := reqctx.WithRequest(t.Context(), reqctx.Request{ID: testRequestID})
 	line := logLine(t, ctx)
 	if _, ok := line["trace_id"]; ok {
 		t.Errorf("trace_id present without a span: %v", line)

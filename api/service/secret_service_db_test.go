@@ -14,9 +14,9 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/reqctx"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -807,8 +807,7 @@ func (f *secretFixture) tokenContext(t *testing.T, entity genDb.Entity, scopes [
 	if err != nil {
 		t.Fatalf("resolve %s token: %v", entity.Type, err)
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityKey, resolved)
-	return context.WithValue(ctx, contextkeys.EntityScopesKey, tokenScopes)
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: resolved, Scopes: tokenScopes})
 }
 
 func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {

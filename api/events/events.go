@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/tracing"
+	"github.com/team-loco/loco/api/reqctx"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -167,8 +167,8 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		subjectType := ev.SubjectType
 		params.SubjectType = &subjectType
 	}
-	if rid, ok := ctx.Value(contextkeys.RequestIDKey).(string); ok && rid != "" {
-		params.RequestID = &rid
+	if request, ok := reqctx.RequestFrom(ctx); ok && request.ID != "" {
+		params.RequestID = &request.ID
 	}
 	if traceparent := tracing.Traceparent(ctx); traceparent != "" {
 		params.Traceparent = &traceparent
@@ -183,12 +183,11 @@ func actor(ctx context.Context, ev Event) (string, *uuid.UUID) {
 	if ev.ActorType != "" {
 		return ev.ActorType, ev.ActorID
 	}
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
 	if !ok {
 		return ActorAnonymous, nil
 	}
-	id := entity.ID
-	return string(entity.Type), &id
+	return string(principal.Entity.Type), &principal.Entity.ID
 }
 
 func RunRetention(ctx context.Context, q genDb.Querier, keep time.Duration, every time.Duration) {

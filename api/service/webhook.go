@@ -13,7 +13,6 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/webhooks"
@@ -47,21 +46,6 @@ func NewWebhookServer(db *pgxpool.Pool, queries genDb.Querier, allowPrivate bool
 	return &WebhookServer{db: db, queries: queries, authz: authz.New(db, queries), allowPrivate: allowPrivate}
 }
 
-func (s *WebhookServer) requireWorkspaceAdmin(ctx context.Context, workspaceID string) (genDb.Entity, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return genDb.Entity{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		return genDb.Entity{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-	if err := s.authz.Check(ctx, scopes, actions.New(actions.ManageWorkspaceWebhooks, workspaceID)); err != nil {
-		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	return entity, nil
-}
-
 func (s *WebhookServer) validURL(raw string) bool {
 	u, err := url.Parse(raw)
 	if err != nil || u.Hostname() == "" || u.User != nil {
@@ -83,21 +67,27 @@ func (s *WebhookServer) CreateWebhook(
 	ctx context.Context,
 	req *webhookv1.CreateWebhookRequest,
 ) (*webhookv1.CreateWebhookResponse, error) {
-	entity, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId())
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
 	if err != nil {
+		return nil, err
+	}
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = check(ctx, s.authz, p, actions.New(actions.ManageWorkspaceWebhooks, workspaceID)); err != nil {
 		return nil, err
 	}
 	if !s.validURL(req.GetUrl()) {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrWebhookURL)
 	}
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 	secret, err := webhooks.NewSecret()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 	var createdBy *uuid.UUID
-	if entity.Type == genDb.EntityTypeUser {
-		createdBy = new(entity.ID)
+	if p.Entity.Type == genDb.EntityTypeUser {
+		createdBy = new(p.Entity.ID)
 	}
 	types := req.GetEventTypes()
 	if types == nil {
@@ -149,10 +139,13 @@ func (s *WebhookServer) ListWebhooks(
 	ctx context.Context,
 	req *webhookv1.ListWebhooksRequest,
 ) (*webhookv1.ListWebhooksResponse, error) {
-	if _, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId()); err != nil {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
 		return nil, err
 	}
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
+	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
+		return nil, err
+	}
 	rows, err := s.queries.ListWorkspaceWebhooks(ctx, workspaceID)
 	if err != nil {
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
@@ -186,10 +179,13 @@ func (s *WebhookServer) DeleteWebhook(
 	ctx context.Context,
 	req *webhookv1.DeleteWebhookRequest,
 ) (*webhookv1.DeleteWebhookResponse, error) {
-	if _, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId()); err != nil {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
 		return nil, err
 	}
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
+	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
+		return nil, err
+	}
 	row, err := s.loadWebhook(ctx, workspaceID, req.GetWebhookId())
 	if err != nil {
 		return nil, err
@@ -223,10 +219,13 @@ func (s *WebhookServer) ListWebhookDeliveries(
 	ctx context.Context,
 	req *webhookv1.ListWebhookDeliveriesRequest,
 ) (*webhookv1.ListWebhookDeliveriesResponse, error) {
-	if _, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId()); err != nil {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
 		return nil, err
 	}
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
+	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
+		return nil, err
+	}
 	row, err := s.loadWebhook(ctx, workspaceID, req.GetWebhookId())
 	if err != nil {
 		return nil, err

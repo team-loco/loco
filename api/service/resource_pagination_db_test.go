@@ -2,22 +2,21 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"slices"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	position := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)
 	ids := make([]uuid.UUID, 3)
 	for i := range ids {

@@ -13,9 +13,9 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -64,40 +64,18 @@ func (s *OrgServer) CreateOrg(
 	ctx context.Context,
 	req *orgv1.CreateOrgRequest,
 ) (*orgv1.CreateOrgResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
 	}
-	// make sure that requester is a user and has permission to create orgs (user:write on oneself)
-	if entity.Type != genDb.EntityTypeUser {
-		slog.WarnContext(ctx, "only users can create organizations", "entityId", entity.ID, "entityType", entity.Type)
+	// Only a user can create an organization, and only with user:write on itself.
+	if p.Entity.Type != genDb.EntityTypeUser {
 		return nil, rpcerr.New(connect.CodePermissionDenied, ErrImproperUsage)
 	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	if err = check(ctx, s.authz, p, actions.New(actions.CreateOrg, p.Entity.ID)); err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.CreateOrg, entity.ID.String()),
-	); err != nil {
-		slog.WarnContext(
-			ctx,
-			"unauthorized to create org",
-			"entityId",
-			entity.ID.String(),
-			"entityType",
-			entity.Type,
-			"entityScopes",
-			ctx.Value(contextkeys.EntityScopesKey),
-		)
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	user, err := s.queries.GetUserByID(ctx, entity.ID)
+	user, err := s.queries.GetUserByID(ctx, p.Entity.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get user", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
@@ -115,7 +93,7 @@ func (s *OrgServer) CreateOrg(
 	}
 	defer tx.Rollback(ctx)
 
-	org, err := createOrgInTx(ctx, genDb.New(tx), entity.ID, orgName)
+	org, err := createOrgInTx(ctx, genDb.New(tx), p.Entity.ID, orgName)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +154,15 @@ func (s *OrgServer) GetOrg(
 	ctx context.Context,
 	req *orgv1.GetOrgRequest,
 ) (*orgv1.GetOrgResponse, error) {
-	org, err := s.queries.GetOrgByID(ctx, uuid.MustParse(req.GetOrgId()))
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
+	}
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	org, err := s.queries.GetOrgByID(ctx, orgID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
 	}
@@ -185,19 +171,9 @@ func (s *OrgServer) GetOrg(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.GetOrg, org.ID.String()),
-	); err != nil {
-		// Return NotFound (not PermissionDenied) to prevent org-existence probing.
-		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID.String())
+	// Return NotFound (not PermissionDenied) to prevent org-existence probing. An organization
+	// check never reads the database, so every error here is a denial.
+	if err := s.authz.Check(ctx, p.Scopes, actions.New(actions.GetOrg, org.ID)); err != nil {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
 	}
 
@@ -209,19 +185,16 @@ func (s *OrgServer) ListUserOrgs(
 	ctx context.Context,
 	req *orgv1.ListUserOrgsRequest,
 ) (*orgv1.ListUserOrgsResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	userID, err := parseID("user_id", req.GetUserId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.ListUserOrgs, req.GetUserId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list user orgs", "userId", req.GetUserId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = check(ctx, s.authz, p, actions.New(actions.ListUserOrgs, userID)); err != nil {
+		return nil, err
 	}
 
 	pageSize := normalizePageSize(req.GetPageSize())
@@ -231,9 +204,8 @@ func (s *OrgServer) ListUserOrgs(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
-	userID := uuid.MustParse(req.GetUserId())
 	if req.GetCreateIfMissing() {
-		if err := s.createFirstOrg(ctx, scopes, userID); err != nil {
+		if err = s.createFirstOrg(ctx, p, userID); err != nil {
 			return nil, err
 		}
 	}
@@ -266,12 +238,8 @@ func (s *OrgServer) ListUserOrgs(
 	}, nil
 }
 
-func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntityScope, userID uuid.UUID) error {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-	if entity.Type != genDb.EntityTypeUser || entity.ID != userID {
+func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, userID uuid.UUID) error {
+	if p.Entity.Type != genDb.EntityTypeUser || p.Entity.ID != userID {
 		return rpcerr.New(connect.CodeInvalidArgument, errCreateIfMissingForOtherUser)
 	}
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
@@ -286,8 +254,8 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntitySco
 		if len(existing) > 0 {
 			return nil
 		}
-		if authzErr := s.authz.Check(ctx, scopes, actions.New(actions.CreateOrg, userID.String())); authzErr != nil {
-			return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authzErr)
+		if authzErr := check(ctx, s.authz, p, actions.New(actions.CreateOrg, userID)); authzErr != nil {
+			return authzErr
 		}
 		user, err := qtx.GetUserByID(ctx, userID)
 		if err != nil {
@@ -323,19 +291,12 @@ func (s *OrgServer) UpdateOrg(
 	ctx context.Context,
 	req *orgv1.UpdateOrgRequest,
 ) (*orgv1.UpdateOrgResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.UpdateOrg, req.GetOrgId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to update org", "orgId", req.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.UpdateOrg, orgID); err != nil {
+		return nil, err
 	}
 
 	message := req.ProtoReflect()
@@ -343,9 +304,8 @@ func (s *OrgServer) UpdateOrg(
 	if rename && req.GetName() == "" {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrOrgNameRequired)
 	}
-	orgID := uuid.MustParse(req.GetOrgId())
 
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if rename {
 			_, updateErr := qtx.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
 				ID:   orgID,
@@ -386,24 +346,15 @@ func (s *OrgServer) DeleteOrg(
 	ctx context.Context,
 	req *orgv1.DeleteOrgRequest,
 ) (*orgv1.DeleteOrgResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
+	}
+	if err = authorize(ctx, s.authz, actions.DeleteOrg, orgID); err != nil {
+		return nil, err
 	}
 
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.DeleteOrg, req.GetOrgId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to delete org", "orgId", req.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-
-	orgID := uuid.MustParse(req.GetOrgId())
-
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := qtx.LockOrgForDeletion(ctx, orgID); lockErr != nil {
 			return lockErr
 		}
@@ -438,19 +389,12 @@ func (s *OrgServer) ListOrgMembers(
 	ctx context.Context,
 	req *orgv1.ListOrgMembersRequest,
 ) (*orgv1.ListOrgMembersResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.ListOrgMembers, req.GetOrgId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list org members", "orgId", req.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.ListOrgMembers, orgID); err != nil {
+		return nil, err
 	}
 
 	pageSize := normalizePageSize(req.GetPageSize())
@@ -461,7 +405,7 @@ func (s *OrgServer) ListOrgMembers(
 	}
 
 	rows, err := s.queries.ListOrgMembersWithDetails(ctx, genDb.ListOrgMembersWithDetailsParams{
-		EntityID:      uuid.MustParse(req.GetOrgId()),
+		EntityID:      orgID,
 		Limit:         pageSize,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
@@ -495,32 +439,24 @@ func (s *OrgServer) RemoveOrgMember(
 	ctx context.Context,
 	req *orgv1.RemoveOrgMemberRequest,
 ) (*orgv1.RemoveOrgMemberResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
 	}
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.RemoveOrgMember, req.GetOrgId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to remove org member", "orgId", req.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = check(ctx, s.authz, p, actions.New(actions.RemoveOrgMember, orgID)); err != nil {
+		return nil, err
 	}
 
-	orgID := uuid.MustParse(req.GetOrgId())
 	userID := uuid.MustParse(req.GetUserId())
-	if userID == entity.ID {
+	if userID == p.Entity.ID {
 		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrRemoveSelfFromOrg)
 	}
 
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		_, lockErr := qtx.LockUserForMembership(ctx, userID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)

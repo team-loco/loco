@@ -12,8 +12,8 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
@@ -78,24 +78,25 @@ func TestAuthenticateProviderTokenProvisionsUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("authenticate: %v", err)
 	}
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	entity := principal.Entity
 	if !ok || entity.Type != genDb.EntityTypeUser {
 		t.Fatalf("entity = %+v", entity)
 	}
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok || len(scopes) != 3 {
+	if scopes := principal.Scopes; len(scopes) != 3 {
 		t.Fatalf("scopes = %+v", scopes)
 	}
-	identity, ok := ctx.Value(contextkeys.IdentityKey).(auth.Identity)
-	if !ok || identity.Subject != "sub-1" {
-		t.Fatalf("identity = %+v", identity)
+	login, ok := auth.LoginFrom(ctx)
+	if !ok || login.Identity.Subject != "sub-1" {
+		t.Fatalf("login = %+v", login)
 	}
 
 	again, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(token))
 	if err != nil {
 		t.Fatalf("second authenticate: %v", err)
 	}
-	againEntity, ok := again.Value(contextkeys.EntityKey).(genDb.Entity)
+	againPrincipal, ok := reqctx.PrincipalFrom(again)
+	againEntity := againPrincipal.Entity
 	if !ok || againEntity.ID != entity.ID {
 		t.Fatalf("second request resolved to %+v, want %s", againEntity, entity.ID)
 	}
@@ -143,7 +144,8 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("authenticate: %v", err)
 	}
-	user, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	user := principal.Entity
 	if !ok {
 		t.Fatal("no entity in context")
 	}
@@ -188,17 +190,14 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("org api token after its creator was suspended: %v", err)
 	}
-	if entity, ok := orgCtx.Value(contextkeys.EntityKey).(genDb.Entity); !ok || entity.ID != org.ID {
-		t.Fatalf("api token entity = %+v, want org %s", entity, org.ID)
+	if principal, ok := reqctx.PrincipalFrom(orgCtx); !ok || principal.Entity.ID != org.ID {
+		t.Fatalf("api token principal = %+v, want org %s", principal, org.ID)
 	}
 }
 
 func claimedOrgs(ctx context.Context) []auth.ClaimedOrg {
-	claimed, ok := ctx.Value(contextkeys.ClaimedOrgsKey).([]auth.ClaimedOrg)
-	if !ok {
-		return nil
-	}
-	return claimed
+	login, _ := auth.LoginFrom(ctx)
+	return login.ClaimedOrgs
 }
 
 func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
@@ -212,7 +211,8 @@ func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first authenticate: %v", err)
 	}
-	user, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	user := principal.Entity
 	if !ok {
 		t.Fatal("no entity in context")
 	}

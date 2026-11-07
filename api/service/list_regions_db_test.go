@@ -8,8 +8,8 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -44,7 +44,7 @@ func listRegions(
 	environmentID string,
 ) []*resourcev1.RegionInfo {
 	t.Helper()
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	resp, err := server.ListRegions(ctx, &resourcev1.ListRegionsRequest{EnvironmentId: environmentID})
 	if err != nil {
 		t.Fatalf("ListRegions %s: %v", environmentID, err)
@@ -82,7 +82,7 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 	resourceScopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeAdmin},
 	}
-	denied := context.WithValue(context.Background(), contextkeys.EntityScopesKey, resourceScopes)
+	denied := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: resourceScopes})
 	_, err := server.ListRegions(denied, &resourcev1.ListRegionsRequest{EnvironmentId: f.envID.String()})
 	wantCode(t, err, connect.CodeNotFound)
 }

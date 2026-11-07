@@ -15,7 +15,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/mail"
@@ -53,14 +52,18 @@ func (s *OrgServer) InviteOrgMember(
 	ctx context.Context,
 	req *orgv1.InviteOrgMemberRequest,
 ) (*orgv1.InviteOrgMemberResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-	if err := s.checkOrg(ctx, actions.InviteOrgMember, req.GetOrgId()); err != nil {
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
 		return nil, err
 	}
-	if entity.Type != genDb.EntityTypeUser {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = check(ctx, s.authz, p, actions.New(actions.InviteOrgMember, orgID)); err != nil {
+		return nil, err
+	}
+	if p.Entity.Type != genDb.EntityTypeUser {
 		return nil, rpcerr.New(connect.CodePermissionDenied, ErrInviterMustBeUser)
 	}
 	address, err := netmail.ParseAddress(req.GetEmail())
@@ -68,7 +71,6 @@ func (s *OrgServer) InviteOrgMember(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidInviteEmail)
 	}
 	email := strings.ToLower(address.Address)
-	orgID := uuid.MustParse(req.GetOrgId())
 
 	var invitation genDb.Invitation
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -85,7 +87,7 @@ func (s *OrgServer) InviteOrgMember(
 		created, createErr := qtx.CreateInvitation(ctx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
-			InvitedBy: entity.ID,
+			InvitedBy: p.Entity.ID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
 		if createErr != nil {
@@ -137,7 +139,11 @@ func (s *OrgServer) ListInvitations(
 	ctx context.Context,
 	req *orgv1.ListInvitationsRequest,
 ) (*orgv1.ListInvitationsResponse, error) {
-	if err := s.checkOrg(ctx, actions.ListInvitations, req.GetOrgId()); err != nil {
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
+	}
+	if err = authorize(ctx, s.authz, actions.ListInvitations, orgID); err != nil {
 		return nil, err
 	}
 	pageSize := normalizePageSize(req.GetPageSize())
@@ -146,7 +152,7 @@ func (s *OrgServer) ListInvitations(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 	rows, err := s.queries.ListOrgInvitations(ctx, genDb.ListOrgInvitationsParams{
-		OrgID:         uuid.MustParse(req.GetOrgId()),
+		OrgID:         orgID,
 		Limit:         pageSize,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
@@ -233,7 +239,11 @@ func (s *OrgServer) ResendInvitation(
 }
 
 func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, id string) (genDb.Invitation, error) {
-	invitation, err := s.queries.GetInvitation(ctx, uuid.MustParse(id))
+	invitationID, err := parseID("invitation_id", id)
+	if err != nil {
+		return genDb.Invitation{}, err
+	}
+	invitation, err := s.queries.GetInvitation(ctx, invitationID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return genDb.Invitation{}, rpcerr.New(connect.CodeNotFound, ErrInvitationNotFound)
 	}
@@ -241,24 +251,11 @@ func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, 
 		slog.ErrorContext(ctx, "failed to load invitation", "error", err)
 		return genDb.Invitation{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	required := actions.New(action, invitation.OrgID.String())
+	required := actions.New(action, invitation.OrgID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrInvitationNotFound); authErr != nil {
 		return genDb.Invitation{}, authErr
 	}
 	return invitation, nil
-}
-
-func (s *OrgServer) checkOrg(ctx context.Context, action actions.Action, orgID string) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-	if err := s.authz.Check(ctx, scopes, actions.New(action, orgID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to manage invitations", "orgId", orgID)
-		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	return nil
 }
 
 func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invitation) (*orgv1.Invitation, error) {

@@ -16,7 +16,6 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -115,9 +114,12 @@ func (s *DeploymentServer) CreateDeployment(
 	ctx context.Context,
 	req *deploymentv1.CreateDeploymentRequest,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
-	resourceID := uuid.MustParse(req.GetResourceId())
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
+	}
 
-	required := actions.New(actions.CreateDeployment, req.GetResourceId())
+	required := actions.New(actions.CreateDeployment, resourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrResourceNotFound); authErr != nil {
 		return nil, authErr
 	}
@@ -145,7 +147,6 @@ func (s *DeploymentServer) CreateDeployment(
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		slog.WarnContext(ctx, "environment not found", "environmentId", environmentID)
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 	if err != nil {
@@ -153,14 +154,6 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	if env.WorkspaceID != resource.WorkspaceID {
-		slog.WarnContext(
-			ctx,
-			"environment does not belong to the resource's workspace",
-			"environmentId",
-			environmentID,
-			"resourceId",
-			resourceID,
-		)
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 
@@ -327,7 +320,7 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
-	required := actions.New(actions.GetDeployment, deploymentData.ResourceID.String())
+	required := actions.New(actions.GetDeployment, deploymentData.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return nil, authErr
 	}
@@ -353,22 +346,13 @@ func (s *DeploymentServer) ListDeployments(
 	ctx context.Context,
 	req *deploymentv1.ListDeploymentsRequest,
 ) (*deploymentv1.ListDeploymentsResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
+	if err != nil {
+		return nil, err
 	}
-
-	// check if requester has permission to list deployments (resource:read)
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.ListDeployments, req.GetResourceId()),
-	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	if err = authorize(ctx, s.authz, actions.ListDeployments, resourceID); err != nil {
+		return nil, err
 	}
-
-	resourceID := uuid.MustParse(req.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -436,7 +420,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
-	required := actions.New(actions.DeleteDeployment, deployment.ResourceID.String())
+	required := actions.New(actions.DeleteDeployment, deployment.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return nil, authErr
 	}
@@ -489,7 +473,7 @@ func (s *DeploymentServer) WatchDeployment(
 		return fmt.Errorf("get deployment resource ID: %w", err)
 	}
 
-	required := actions.New(actions.StreamDeployment, resourceID.String())
+	required := actions.New(actions.StreamDeployment, resourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return authErr
 	}

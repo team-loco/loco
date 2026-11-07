@@ -6,8 +6,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -22,11 +22,11 @@ const (
 
 func optionalSettingsContext(t *testing.T) context.Context {
 	t.Helper()
-	return context.WithValue(t.Context(), contextkeys.EntityScopesKey, []genDb.EntityScope{
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin},
 		{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeRead},
-	})
+	}})
 }
 
 func optionalAuditCount(t *testing.T, f *deployFixture) int {
@@ -184,7 +184,9 @@ func TestOptionalProfileNameAndAvatarPreserveOmittedValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx = context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{ID: user.ID})
+	principal, _ := reqctx.PrincipalFrom(ctx)
+	principal.Entity = genDb.Entity{ID: user.ID}
+	ctx = reqctx.WithPrincipal(ctx, principal)
 	server := NewUserServer(f.pool, f.queries, nil, nil)
 	for _, tc := range []struct {
 		request      *userv1.UpdateUserRequest

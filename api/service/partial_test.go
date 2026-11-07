@@ -6,8 +6,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -47,7 +47,7 @@ func TestTransferPartialRequiresAdmin(t *testing.T) {
 	}
 	for name, scopes := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
+			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 			req := &resourcev1.TransferPartialRequest{
 				ResourceId: resourceID.String(),
 				Partial:    "web",

@@ -8,8 +8,8 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -105,7 +105,7 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 		}},
 	}
 
-	outsider := context.WithValue(t.Context(), contextkeys.EntityScopesKey, []genDb.EntityScope{})
+	outsider := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{}})
 	for _, lookup := range lookups {
 		t.Run(lookup.name, func(t *testing.T) {
 			existingErr := lookup.call(outsider, lookup.existing)

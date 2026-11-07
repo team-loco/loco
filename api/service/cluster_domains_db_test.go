@@ -10,8 +10,8 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -221,7 +221,7 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 	staging := f.addStagingEnvironment(t)
 
 	scopes := f.workspaceReadScopes(t)
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	resp, err := client.server.ListPlatformDomains(ctx, &domainv1.ListPlatformDomainsRequest{
 		EnvironmentId: f.envID.String(),
 	})
@@ -255,7 +255,7 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 	resourceScopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeAdmin},
 	}
-	denied := context.WithValue(context.Background(), contextkeys.EntityScopesKey, resourceScopes)
+	denied := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: resourceScopes})
 	_, err = client.server.ListPlatformDomains(denied, &domainv1.ListPlatformDomainsRequest{
 		EnvironmentId: f.envID.String(),
 	})

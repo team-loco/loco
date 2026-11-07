@@ -16,7 +16,6 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
@@ -37,13 +36,12 @@ var (
 	ErrBuildsNotEnabled = errors.New(
 		"builds are not enabled on this server: the source bucket and registry are not configured",
 	)
-	errBuildNotQueueable   = errors.New("build is no longer awaiting upload")
-	errBuildNotCancelable  = errors.New("build has already finished")
-	errEntityScopesMissing = errors.New("entity scopes not found in context")
-	errSourceNotUploaded   = errors.New("the source has not been uploaded")
-	errSourceCheckFailed   = errors.New("failed to check the uploaded source")
-	errUploadURLFailed     = errors.New("failed to create the source upload url")
-	errNoBuildCluster      = errors.New("no cluster in this install accepts builds")
+	errBuildNotQueueable  = errors.New("build is no longer awaiting upload")
+	errBuildNotCancelable = errors.New("build has already finished")
+	errSourceNotUploaded  = errors.New("the source has not been uploaded")
+	errSourceCheckFailed  = errors.New("failed to check the uploaded source")
+	errUploadURLFailed    = errors.New("failed to create the source upload url")
+	errNoBuildCluster     = errors.New("no cluster in this install accepts builds")
 )
 
 type SourceBucket interface {
@@ -94,21 +92,6 @@ func buildsUnavailable(reason error) *connect.Error {
 	return withDetail(connectErr, &buildv1.BuildsUnavailable{})
 }
 
-func (s *BuildServer) authorize(ctx context.Context, action actions.Action, resourceID uuid.UUID) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return rpcerr.New(connect.CodeInternal, errEntityScopesMissing)
-	}
-	resourceIDStr := resourceID.String()
-	scope := actions.New(action, resourceIDStr)
-	if err := s.authz.Check(ctx, scopes, scope); err != nil {
-		slog.WarnContext(ctx, "unauthorized build request", "resourceId", resourceIDStr)
-		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	return nil
-}
-
 func imageRepository(registryHost, registryPrefix string, workspaceID, resourceID uuid.UUID) string {
 	host := strings.TrimSuffix(registryHost, "/")
 	workspacePath := workspaceRepositoryPrefix(registryPrefix, workspaceID)
@@ -136,24 +119,20 @@ func (s *BuildServer) CreateBuild(
 		return nil, buildsUnavailable(ErrBuildsNotEnabled)
 	}
 
-	rawResourceID := req.GetResourceId()
-	resourceID, err := uuid.Parse(rawResourceID)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
 	if err != nil {
-		invalid := fmt.Errorf("invalid resource_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(invalid)
+		return nil, err
 	}
-
-	if authErr := s.authorize(ctx, actions.CreateBuild, resourceID); authErr != nil {
-		return nil, authErr
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = check(ctx, s.authz, p, actions.New(actions.CreateBuild, resourceID)); err != nil {
+		return nil, err
 	}
 
 	if _, clusterErr := s.buildCluster(ctx); clusterErr != nil {
 		return nil, clusterErr
-	}
-
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	sourceSize := req.GetSourceSize()
@@ -201,7 +180,7 @@ func (s *BuildServer) CreateBuild(
 			DockerfilePath:  dockerfilePath,
 			Context:         buildContext,
 			ImageRepository: repository,
-			CreatedBy:       entity.ID,
+			CreatedBy:       p.Entity.ID,
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)
 		}
@@ -243,7 +222,7 @@ func (s *BuildServer) StartBuild(
 		return nil, err
 	}
 
-	if authErr := s.authorize(ctx, actions.CreateBuild, build.ResourceID); authErr != nil {
+	if authErr := authorize(ctx, s.authz, actions.CreateBuild, build.ResourceID); authErr != nil {
 		return nil, authErr
 	}
 
@@ -403,7 +382,7 @@ func (s *BuildServer) GetBuild(
 		return nil, err
 	}
 
-	if authErr := s.authorize(ctx, actions.GetBuild, build.ResourceID); authErr != nil {
+	if authErr := authorize(ctx, s.authz, actions.GetBuild, build.ResourceID); authErr != nil {
 		return nil, authErr
 	}
 
@@ -415,14 +394,12 @@ func (s *BuildServer) ListBuilds(
 	ctx context.Context,
 	req *buildv1.ListBuildsRequest,
 ) (*buildv1.ListBuildsResponse, error) {
-	rawResourceID := req.GetResourceId()
-	resourceID, err := uuid.Parse(rawResourceID)
+	resourceID, err := parseID("resource_id", req.GetResourceId())
 	if err != nil {
-		invalid := fmt.Errorf("invalid resource_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(invalid)
+		return nil, err
 	}
 
-	if authErr := s.authorize(ctx, actions.ListBuilds, resourceID); authErr != nil {
+	if authErr := authorize(ctx, s.authz, actions.ListBuilds, resourceID); authErr != nil {
 		return nil, authErr
 	}
 
@@ -468,7 +445,7 @@ func (s *BuildServer) CancelBuild(
 		return nil, err
 	}
 
-	if authErr := s.authorize(ctx, actions.CancelBuild, build.ResourceID); authErr != nil {
+	if authErr := authorize(ctx, s.authz, actions.CancelBuild, build.ResourceID); authErr != nil {
 		return nil, authErr
 	}
 

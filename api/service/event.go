@@ -17,7 +17,6 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
@@ -102,17 +101,6 @@ func eventToProto(e genDb.Event) *eventv1.Event {
 	return out
 }
 
-func (s *EventServer) verify(ctx context.Context, scope genDb.EntityScope) error {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		return rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-	if err := s.authz.Check(ctx, scopes, scope); err != nil {
-		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	return nil
-}
-
 func (s *EventServer) ListEvents(
 	ctx context.Context,
 	req *eventv1.ListEventsRequest,
@@ -139,18 +127,21 @@ func (s *EventServer) ListEvents(
 }
 
 func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.ListEventsRequest) (*uuid.UUID, error) {
-	orgID := uuid.MustParse(req.GetOrgId())
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
+	}
 	if req.GetResourceId() != "" {
-		readErr := s.verify(ctx, actions.New(actions.ListResourceAuditEvents, req.GetResourceId()))
+		resourceID, err := parseID("resource_id", req.GetResourceId())
+		if err != nil {
+			return nil, err
+		}
+		readErr := authorize(ctx, s.authz, actions.ListResourceAuditEvents, resourceID)
 		if readErr != nil {
-			if adminErr := s.verify(
-				ctx,
-				actions.New(actions.ListResourceAuditAdminEvents, req.GetResourceId()),
-			); adminErr != nil {
+			if adminErr := authorize(ctx, s.authz, actions.ListResourceAuditAdminEvents, resourceID); adminErr != nil {
 				return nil, readErr
 			}
 		}
-		resourceID := uuid.MustParse(req.GetResourceId())
 		parents, err := s.queries.GetWorkspaceOrganizationIDByResourceID(ctx, resourceID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
@@ -165,10 +156,13 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 		return new(parents.WorkspaceID), nil
 	}
 	if req.GetWorkspaceId() != "" {
-		if err := s.verify(ctx, actions.New(actions.ListWorkspaceAuditEvents, req.GetWorkspaceId())); err != nil {
+		workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+		if err != nil {
 			return nil, err
 		}
-		workspaceID := uuid.MustParse(req.GetWorkspaceId())
+		if err = authorize(ctx, s.authz, actions.ListWorkspaceAuditEvents, workspaceID); err != nil {
+			return nil, err
+		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
@@ -181,7 +175,7 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 		}
 		return &workspaceID, nil
 	}
-	if err := s.verify(ctx, actions.New(actions.ListOrgAuditEvents, req.GetOrgId())); err != nil {
+	if err := authorize(ctx, s.authz, actions.ListOrgAuditEvents, orgID); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -257,7 +251,7 @@ func (s *EventServer) StreamEvents(
 	req *eventv1.StreamEventsRequest,
 	stream eventv1connect.EventServiceStreamEventsServerStream,
 ) error {
-	if err := s.verify(ctx, actions.NewSystem(actions.StreamEvents)); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.StreamEvents); err != nil {
 		return err
 	}
 	position, err := decodeStreamCursor(req.GetCursor())

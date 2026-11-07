@@ -11,8 +11,8 @@ import (
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/internal/httputil"
@@ -92,12 +92,11 @@ func (i *authInterceptor) authenticate(
 		return nil, fmt.Errorf("get token: %w", err)
 	}
 
-	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
-		Type: entity.Type,
-		ID:   entity.ID,
+	c := reqctx.WithPrincipal(ctx, reqctx.Principal{
+		Entity: genDb.Entity{Type: entity.Type, ID: entity.ID},
+		Scopes: scopes,
+		Token:  token,
 	})
-	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
-	c = context.WithValue(c, contextkeys.TokenKey, token)
 
 	slog.DebugContext(
 		c,
@@ -141,15 +140,12 @@ func (i *authInterceptor) authenticateProviderToken(
 		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve.Error()).WithCause(err)
 	}
 
-	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
-		Type: genDb.EntityTypeUser,
-		ID:   user.ID,
+	c := reqctx.WithPrincipal(ctx, reqctx.Principal{
+		Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID},
+		Scopes: scopes,
+		Token:  token,
 	})
-	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
-	c = context.WithValue(c, contextkeys.TokenKey, token)
-	c = context.WithValue(c, contextkeys.IdentityKey, identity)
-	c = context.WithValue(c, contextkeys.ClaimedOrgsKey, claimed)
-	return c, nil
+	return auth.WithLogin(c, auth.Login{Identity: identity, ClaimedOrgs: claimed}), nil
 }
 
 func (i *authInterceptor) Interceptor() connect.ServerInterceptor {

@@ -7,8 +7,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
@@ -26,8 +26,8 @@ func (f *deployFixture) rolloutContext(t *testing.T) context.Context {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
-	return context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{Type: genDb.EntityTypeUser, ID: userID})
+	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
 }
 
 func (f *deployFixture) reportRollout(t *testing.T, phase string, ready bool) {

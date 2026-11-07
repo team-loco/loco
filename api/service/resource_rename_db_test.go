@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -19,7 +19,7 @@ func renameResource(t *testing.T, f *deployFixture, name string) error {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	_, err := server.UpdateResource(
 		ctx,
 		&resourcev1.UpdateResourceRequest{ResourceId: f.resourceID.String(), Name: new(name)},

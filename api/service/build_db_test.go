@@ -11,9 +11,9 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -192,8 +192,7 @@ func newBuildFixture(t *testing.T) *buildFixture {
 	}
 	entityID := uuid.New()
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: entityID}
-	ctx = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
-	ctx = context.WithValue(ctx, contextkeys.EntityKey, entity)
+	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Entity: entity, Scopes: scopes})
 
 	return &buildFixture{deployFixture: f, server: server, bucket: bucket, ctx: ctx}
 }
@@ -453,7 +452,7 @@ func TestBuildRequiresResourceScope(t *testing.T) {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: otherResource, Scope: genDb.ScopeAdmin},
 	}
-	ctx := context.WithValue(f.ctx, contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(f.ctx, reqctx.Principal{Scopes: scopes})
 
 	getReq := &buildv1.GetBuildRequest{BuildId: buildID}
 	_, getErr := f.server.GetBuild(ctx, getReq)

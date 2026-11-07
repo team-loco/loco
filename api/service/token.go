@@ -14,7 +14,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
@@ -73,42 +72,24 @@ func (s *TokenServer) CreateToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidScopes)
 	}
 
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	entityID, err := uuid.Parse(req.GetEntityId())
+	p, err := principalFrom(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId(), "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
+		return nil, err
+	}
+	entityID, err := parseID("entity_id", req.GetEntityId())
+	if err != nil {
+		return nil, err
 	}
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
-
-	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
+	if err = check(ctx, s.authz, p, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeWrite,
-	}); verifyErr != nil {
-		slog.WarnContext(
-			ctx,
-			"unauthorized to create token for entity",
-			"entityType",
-			targetEntity.Type,
-			"entityId",
-			targetEntity.ID,
-		)
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
+	}); err != nil {
+		return nil, err
 	}
 
 	dbScopes := make([]genDb.EntityScope, len(req.GetScopes()))
@@ -133,7 +114,7 @@ func (s *TokenServer) CreateToken(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var issueErr error
 		token, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, req.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
+			Issue(ctx, req.GetName(), p.Entity.ID.String(), targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
@@ -141,7 +122,7 @@ func (s *TokenServer) CreateToken(
 	})
 	if err != nil {
 		if errors.Is(err, authz.ErrInsufficientPermissions) {
-			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())
+			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", p.Entity.ID.String())
 			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		if errors.Is(err, tvm.ErrTokenNameTaken) {
@@ -194,37 +175,24 @@ func (s *TokenServer) ListTokens(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	entityID, err := uuid.Parse(req.GetEntityId())
+	p, err := principalFrom(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
+		return nil, err
 	}
-
+	entityID, err := parseID("entity_id", req.GetEntityId())
+	if err != nil {
+		return nil, err
+	}
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
-
-	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
+	if err = check(ctx, s.authz, p, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
-	}); verifyErr != nil {
-		slog.WarnContext(
-			ctx,
-			"unauthorized to list tokens for entity",
-			"entityType",
-			targetEntity.Type,
-			"entityId",
-			targetEntity.ID.String(),
-		)
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
+	}); err != nil {
+		return nil, err
 	}
 
 	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
@@ -266,37 +234,24 @@ func (s *TokenServer) GetToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	entityID, err := uuid.Parse(req.GetEntityId())
+	p, err := principalFrom(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
+		return nil, err
 	}
-
+	entityID, err := parseID("entity_id", req.GetEntityId())
+	if err != nil {
+		return nil, err
+	}
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
-
-	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
+	if err = check(ctx, s.authz, p, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
-	}); verifyErr != nil {
-		slog.WarnContext(
-			ctx,
-			"unauthorized to get token for entity",
-			"entityType",
-			targetEntity.Type,
-			"entityId",
-			targetEntity.ID.String(),
-		)
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
+	}); err != nil {
+		return nil, err
 	}
 
 	token, err := s.queries.GetAPITokenByNameAndEntity(ctx, genDb.GetAPITokenByNameAndEntityParams{
@@ -339,52 +294,27 @@ func (s *TokenServer) RevokeToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	entityID, err := uuid.Parse(req.GetEntityId())
+	p, err := principalFrom(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
+		return nil, err
 	}
-
+	entityID, err := parseID("entity_id", req.GetEntityId())
+	if err != nil {
+		return nil, err
+	}
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
-
-	hasWritePermission := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
-		EntityType: targetEntity.Type,
-		EntityID:   targetEntity.ID,
-		Scope:      genDb.ScopeWrite,
-	}) == nil
-
-	isOwnToken := targetEntity.Type == genDb.EntityTypeUser && targetEntity.ID == entity.ID
-
-	if !hasWritePermission && !isOwnToken {
-		slog.WarnContext(
-			ctx,
-			"unauthorized to revoke token",
-			"entityType",
-			targetEntity.Type,
-			"entityId",
-			targetEntity.ID.String(),
-			"user_id",
-			entity.ID.String(),
-		)
-		return nil, connect.NewError(
-			connect.CodePermissionDenied,
-			"insufficient permissions to revoke token",
-		)
+	isOwnToken := targetEntity.Type == genDb.EntityTypeUser && targetEntity.ID == p.Entity.ID
+	if !isOwnToken {
+		if err = check(ctx, s.authz, p, genDb.EntityScope{
+			EntityType: targetEntity.Type,
+			EntityID:   targetEntity.ID,
+			Scope:      genDb.ScopeWrite,
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -420,20 +350,13 @@ func (*TokenServer) GetScopes(
 	ctx context.Context,
 	_ *tokenv1.GetScopesRequest,
 ) (*tokenv1.GetScopesResponse, error) {
-	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	protoScopes := make([]*tokenv1.EntityScope, len(entityScopes))
-	for i, es := range entityScopes {
+	protoScopes := make([]*tokenv1.EntityScope, len(p.Scopes))
+	for i, es := range p.Scopes {
 		protoScopes[i] = &tokenv1.EntityScope{
 			Scope:      dbScopeToProto(es.Scope),
 			EntityType: dbEntityTypeToProto(es.EntityType),
@@ -442,8 +365,8 @@ func (*TokenServer) GetScopes(
 	}
 
 	return &tokenv1.GetScopesResponse{
-		EntityType: dbEntityTypeToProto(entity.Type),
-		EntityId:   entity.ID.String(),
+		EntityType: dbEntityTypeToProto(p.Entity.Type),
+		EntityId:   p.Entity.ID.String(),
 		Scopes:     protoScopes,
 	}, nil
 }
@@ -453,22 +376,21 @@ func (s *TokenServer) CheckPermission(
 	ctx context.Context,
 	req *tokenv1.CheckPermissionRequest,
 ) (*tokenv1.CheckPermissionResponse, error) {
-	entityID, err := uuid.Parse(req.GetEntityId())
+	entityID, err := parseID("entity_id", req.GetEntityId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
+		return nil, err
+	}
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	err = s.authz.Check(ctx, scopes, genDb.EntityScope{
+	err = s.authz.Check(ctx, p.Scopes, genDb.EntityScope{
 		EntityType: protoEntityTypeToDb(req.GetEntityType()),
 		EntityID:   entityID,
 		Scope:      protoScopeToDb(req.GetScope()),
 	})
-	if errors.Is(err, authz.ErrInsufficientPermissions) || errors.Is(err, authz.ErrEntityNotFound) {
+	if accessDenied(err) {
 		return &tokenv1.CheckPermissionResponse{Allowed: false}, nil
 	}
 	if err != nil {

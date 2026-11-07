@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -36,7 +36,7 @@ func (f *deployFixture) listDeployments(
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
 	}
-	scoped := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	scoped := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	resp, err := server.ListDeployments(scoped, req)
 	if err != nil {
 		t.Fatalf("list deployments: %v", err)

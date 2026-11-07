@@ -1,14 +1,13 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -21,7 +20,7 @@ func deleteFixtureWorkspace(t *testing.T, f *deployFixture, confirm bool) error 
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: resource.WorkspaceID, Scope: genDb.ScopeAdmin},
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	server := NewWorkspaceServer(f.pool, f.queries, nil)
 	workspaceID := resource.WorkspaceID.String()
 	request := &workspacev1.DeleteWorkspaceRequest{

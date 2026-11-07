@@ -1,14 +1,13 @@
 package service
 
 import (
-	"context"
 	"sync"
 	"testing"
 
 	"connectrpc.com/connect/v2"
 
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -31,7 +30,7 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	release := sync.OnceFunc(f.holdResourceLock(t))
 	t.Cleanup(release)
 	type createResult struct {

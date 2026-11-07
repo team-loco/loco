@@ -6,8 +6,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -20,7 +20,7 @@ func getResourceByName(
 ) (*resourcev1.Resource, error) {
 	t.Helper()
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID.String(), Name: name}
 	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},

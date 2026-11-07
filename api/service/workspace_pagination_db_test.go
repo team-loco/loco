@@ -2,14 +2,13 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -37,8 +36,8 @@ func TestWorkspacePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 			); err != nil {
 				t.Fatal(err)
 			}
-			ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
-			ctx = context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{ID: userID, Type: genDb.EntityTypeUser})
+			entity := genDb.Entity{ID: userID, Type: genDb.EntityTypeUser}
+			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
 			position := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)
 			ids := make([]uuid.UUID, 3)
 			for i := range ids {

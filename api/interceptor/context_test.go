@@ -9,7 +9,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
-	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/reqctx"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/internal/rpc"
@@ -29,7 +29,8 @@ func (*contextTestServer) GetConfig(
 	_ *configv1.GetConfigRequest,
 ) (*configv1.GetConfigResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	if info.ResponseHeader().Get(rpc.RequestIDHeader) != ctx.Value(contextkeys.RequestIDKey) {
+	request, _ := reqctx.RequestFrom(ctx)
+	if info.ResponseHeader().Get(rpc.RequestIDHeader) != request.ID {
 		return nil, connect.NewError(connect.CodeInternal, "request ID was not set before the handler")
 	}
 	return &configv1.GetConfigResponse{}, nil

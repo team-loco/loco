@@ -18,10 +18,8 @@ import (
 var (
 	ErrImproperUsage = errors.New("improper usage of the api")
 	ErrDB            = errors.New(http.StatusText(http.StatusInternalServerError))
-	ErrUnauthorized  = errors.New("unauthorized")
 
-	errEntityScopesNotFound = errors.New("entity scopes not found in context")
-	errUnknownOperation     = errors.New("configplan produced an operation kind outside KindCreate..KindImport")
+	errUnknownOperation = errors.New("configplan produced an operation kind outside KindCreate..KindImport")
 )
 
 // domainErrorCodes are the codes of the domain errors helpers return. The client sees the

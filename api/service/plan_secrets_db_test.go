@@ -9,10 +9,10 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/reqctx"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
@@ -162,7 +162,7 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 	limits.MaxPlacementBytes = testMaxValue
 	server := NewPlanServer(f.pool, f.queries, &fakeResolver{digest: testDigest}, testRegistryHost,
 		testServiceDefaults(), limits, testClusterSilentAfter)
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	resp, err := server.Plan(ctx, &planv1.PlanRequest{
 		File: []byte(file), EnvironmentId: f.envID.String(),
 	})
@@ -244,8 +244,7 @@ func (f *deployFixture) secretWriterContext(t *testing.T) context.Context {
 		t.Fatalf("user: %v", err)
 	}
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
-	withEntity := context.WithValue(ctx, contextkeys.EntityKey, entity)
-	return context.WithValue(withEntity, contextkeys.EntityScopesKey, f.applyScopes(t))
+	return reqctx.WithPrincipal(ctx, reqctx.Principal{Entity: entity, Scopes: f.applyScopes(t)})
 }
 
 func racingSecretWrites() []racingSecretWrite {

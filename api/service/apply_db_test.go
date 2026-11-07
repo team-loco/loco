@@ -13,9 +13,9 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/reqctx"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -67,7 +67,7 @@ func applyFile(
 		}
 	}
 	server := newPlanServer(f)
-	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	req := &planv1.ApplyRequest{
 		File:               []byte(file),
 		EnvironmentId:      environmentID.String(),

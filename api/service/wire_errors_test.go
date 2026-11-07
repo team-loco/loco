@@ -9,8 +9,8 @@ import (
 	"connectrpc.com/connect/v2/connectinprocess"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/authz"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
@@ -61,12 +61,10 @@ func (*wireOwnership) GetWorkspaceOrganizationIDByResourceID(
 }
 func TestServicesExposePublicWireErrors(t *testing.T) {
 	authorizer := authz.New(nil, &wireOwnership{})
-	ctx := context.WithValue(
-		t.Context(),
-		contextkeys.EntityKey,
-		genDb.Entity{Type: genDb.EntityTypeUser, ID: uuid.MustParse(wireEntityID)},
-	)
-	ctx = context.WithValue(ctx, contextkeys.EntityScopesKey, []genDb.EntityScope{})
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
+		Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: uuid.MustParse(wireEntityID)},
+		Scopes: []genDb.EntityScope{},
+	})
 	cases := []struct {
 		name     string
 		register func(*connect.Server)

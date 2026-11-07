@@ -17,9 +17,9 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
-	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
@@ -43,8 +43,8 @@ func scoped(t *testing.T, q genDb.Querier, userID uuid.UUID) context.Context {
 	if err != nil {
 		t.Fatalf("scopes: %v", err)
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityKey, genDb.Entity{Type: genDb.EntityTypeUser, ID: userID})
-	return context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
 }
 
 func newEventFixture(t *testing.T) *eventFixture {
@@ -391,6 +391,6 @@ type scopeInjector func() []genDb.EntityScope
 
 func (s scopeInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
 	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
-		return next(context.WithValue(ctx, contextkeys.EntityScopesKey, s()), spec, stream)
+		return next(reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: s()}), spec, stream)
 	}
 }
