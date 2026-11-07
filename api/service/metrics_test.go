@@ -8,6 +8,7 @@ import (
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const testMetricsPath = "/metrics"
@@ -100,7 +101,7 @@ func TestRemovingMetricsOmitsEmptyObservability(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var payload ApplicationPayload
+	var payload locoControllerV1.PlacementPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
 		t.Fatal(err)
 	}

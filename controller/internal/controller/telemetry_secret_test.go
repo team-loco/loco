@@ -24,7 +24,7 @@ const (
 
 func telemetrySecretFixture(
 	t *testing.T, app *locov1alpha1.Application, name string,
-) (*LocoResourceReconciler, *corev1.Secret, *int) {
+) (*ApplicationReconciler, *corev1.Secret, *int) {
 	t.Helper()
 	applied := 0
 	stage := &corev1.Secret{
@@ -48,7 +48,7 @@ func telemetrySecretFixture(
 		},
 	}
 	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(stage).WithInterceptorFuncs(funcs).Build()
-	return &LocoResourceReconciler{
+	return &ApplicationReconciler{
 		Client:                   kube,
 		APIReader:                kube,
 		Gateway:                  testGateway,
@@ -57,7 +57,7 @@ func telemetrySecretFixture(
 }
 
 func mountTelemetryDeployment(
-	t *testing.T, r *LocoResourceReconciler, app *locov1alpha1.Application,
+	t *testing.T, r *ApplicationReconciler, app *locov1alpha1.Application,
 ) *appsv1ac.DeploymentApplyConfiguration {
 	t.Helper()
 	mount, err := r.ensureEnvSecret(t.Context(), app)

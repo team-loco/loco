@@ -25,7 +25,7 @@ var _ = Describe("Private service discovery", func() {
 		app.Spec.ServiceSpec.Deployment.Port = 7070
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		reconciler := &LocoResourceReconciler{
+		reconciler := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,
@@ -68,7 +68,7 @@ var _ = Describe("Private service discovery", func() {
 		app.Spec.ServiceSpec.Deployment.Port = 50051
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,
@@ -106,7 +106,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(k8sClient.Create(ctx, old)).To(Succeed())
 		Expect(k8sClient.Create(ctx, replacement)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, old)).To(Succeed())
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,
@@ -141,7 +141,7 @@ var _ = Describe("Private service discovery", func() {
 		}
 		Expect(k8sClient.Create(ctx, existing)).To(Succeed())
 		version := existing.ResourceVersion
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,
@@ -155,7 +155,7 @@ var _ = Describe("Private service discovery", func() {
 	})
 
 	It("scopes identical logical names to separate workspaces", func() {
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,
@@ -179,7 +179,7 @@ var _ = Describe("Private service discovery", func() {
 		app.Spec.Slug = "123cart"
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,
@@ -194,7 +194,7 @@ var _ = Describe("Private service discovery", func() {
 			app.Spec.Slug = name
 			app.UID = "invalid-uid"
 			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-			r := &LocoResourceReconciler{
+			r := &ApplicationReconciler{
 				Client:                   k8sClient,
 				APIReader:                k8sClient,
 				Gateway:                  testGateway,
@@ -212,7 +212,7 @@ var _ = Describe("Private service discovery", func() {
 		app.Spec.ServiceSpec.Deployment.Port = servicePort
 		app.UID = "default-port-owner"
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   k8sClient,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,

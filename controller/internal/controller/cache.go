@@ -84,7 +84,7 @@ func applicationForObject(_ context.Context, obj client.Object) []reconcile.Requ
 	return []reconcile.Request{{NamespacedName: key}}
 }
 
-func (r *LocoResourceReconciler) applicationPerWorkspace(ctx context.Context, _ client.Object) []reconcile.Request {
+func (r *ApplicationReconciler) applicationPerWorkspace(ctx context.Context, _ client.Object) []reconcile.Request {
 	var apps locov1alpha1.ApplicationList
 	if err := r.List(ctx, &apps); err != nil {
 		slog.WarnContext(ctx, "failed to list applications for a workspace-wide change", "error", err)

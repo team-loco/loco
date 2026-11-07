@@ -56,9 +56,6 @@ func (i *Inspector) Capacity(ctx context.Context) (*agentv1.AgentCapacity, error
 
 	for idx := range pods.Items {
 		pod := &pods.Items[idx]
-		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
-			continue
-		}
 		if pod.Status.Phase == corev1.PodRunning {
 			capacity.PodsRunning++
 		}

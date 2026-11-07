@@ -20,12 +20,12 @@ func testAppName(app *locov1alpha1.Application) string {
 }
 
 func testWorkspaceNamespace(app *locov1alpha1.Application) string {
-	r := &LocoResourceReconciler{WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
+	r := &ApplicationReconciler{WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
 	return r.workspaceNamespace(app)
 }
 
 func ensureTestNamespace(ctx context.Context, kubeClient client.Client, app *locov1alpha1.Application) error {
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Client:                   kubeClient,
 		APIReader:                kubeClient,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
@@ -35,7 +35,7 @@ func ensureTestNamespace(ctx context.Context, kubeClient client.Client, app *loc
 
 func TestWorkspaceNamespaceUsesTheConfiguredPrefix(t *testing.T) {
 	app := testApplication()
-	r := &LocoResourceReconciler{WorkspaceNamespacePrefix: "tenant-"}
+	r := &ApplicationReconciler{WorkspaceNamespacePrefix: "tenant-"}
 	want := "tenant-" + app.Spec.WorkspaceID
 	if got := r.workspaceNamespace(app); got != want {
 		t.Errorf("workspace namespace = %q, want %q", got, want)

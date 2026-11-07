@@ -13,7 +13,6 @@ import (
 
 var (
 	ErrAutoscalingUnsupported = errors.New("autoscaling is not supported yet")
-	errNilApplicationSpec     = errors.New("applicationSpec cannot be nil")
 	errResourceIDMissing      = errors.New("resourceId must be set")
 	errWorkspaceIDMissing     = errors.New("workspaceId must be set")
 	errTypeMissing            = errors.New("type must be set")
@@ -22,10 +21,8 @@ var (
 	errCacheValidationTODO    = errors.New("cache resource type validation: TODO")
 	errQueueValidationTODO    = errors.New("queue resource type validation: TODO")
 	errBlobValidationTODO     = errors.New("blob resource type validation: TODO")
-	errNilServiceSpec         = errors.New("serviceSpec cannot be nil")
 	errDeploymentMissing      = errors.New("serviceSpec.deployment must be set")
 	ErrRuntimeID              = errors.New("runtime user and group IDs must be between 1 and 2147483647")
-	errNilDeployment          = errors.New("deployment cannot be nil")
 	errImageMissing           = errors.New("image must be set")
 	errHealthPathMissing      = errors.New("healthCheck.path must be set")
 	errHealthPathNoSlash      = errors.New("healthCheck.path must start with '/'")
@@ -42,6 +39,11 @@ var (
 )
 
 const (
+	minCPUMillis           = 100
+	maxCPUMillis           = 2000
+	minMemory              = 32 * 1024 * 1024
+	maxMemory              = 4 * 1024 * 1024 * 1024
+	maxReplicas            = 10
 	minServicePort         = 1024
 	maxServicePort         = 65535
 	maxEnvVars             = 100
@@ -62,10 +64,6 @@ var (
 
 // ValidateApplicationSpec validates the entire ApplicationSpec
 func (spec *ApplicationSpec) Validate() error {
-	if spec == nil {
-		return errNilApplicationSpec
-	}
-
 	if spec.ResourceID == "" {
 		return errResourceIDMissing
 	}
@@ -99,10 +97,6 @@ func (spec *ApplicationSpec) Validate() error {
 
 // validateServiceSpec validates the ServiceSpec
 func validateServiceSpec(spec *ServiceSpec) error {
-	if spec == nil {
-		return errNilServiceSpec
-	}
-
 	if spec.Deployment == nil {
 		return errDeploymentMissing
 	}
@@ -119,7 +113,7 @@ func validateServiceSpec(spec *ServiceSpec) error {
 	}
 
 	if spec.Obs != nil {
-		if err := validateObsSpec(spec.Obs); err != nil {
+		if err := spec.Obs.Metrics.Validate(); err != nil {
 			return fmt.Errorf("invalid observability: %w", err)
 		}
 	}
@@ -135,10 +129,6 @@ func validateServiceSpec(spec *ServiceSpec) error {
 
 // validateServiceDeploymentSpec validates the ServiceDeploymentSpec
 func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
-	if spec == nil {
-		return errNilDeployment
-	}
-
 	// Image validation (required)
 	if spec.Image == "" {
 		return errImageMissing
@@ -215,43 +205,41 @@ func validateEnvSecretRef(ref *EnvSecretRef) error {
 	return nil
 }
 
-// validateCPUQuantity validates CPU format (100m - 2000m)
+// validateCPUQuantity validates the CPU format and bounds.
 func validateCPUQuantity(cpu string) error {
 	qty, err := resource.ParseQuantity(cpu)
 	if err != nil {
 		return fmt.Errorf("invalid CPU format: %s", cpu)
 	}
 
-	// Check bounds: 100m - 2000m
-	minCPU := resource.NewMilliQuantity(100, resource.DecimalSI)
-	maxCPU := resource.NewMilliQuantity(2000, resource.DecimalSI)
+	minCPU := resource.NewMilliQuantity(minCPUMillis, resource.DecimalSI)
+	maxCPU := resource.NewMilliQuantity(maxCPUMillis, resource.DecimalSI)
 
 	if qty.Cmp(*minCPU) < 0 {
-		return fmt.Errorf("CPU %s is below minimum (100m)", cpu)
+		return fmt.Errorf("CPU %s is below minimum (%dm)", cpu, minCPUMillis)
 	}
 	if qty.Cmp(*maxCPU) > 0 {
-		return fmt.Errorf("CPU %s exceeds maximum (2000m)", cpu)
+		return fmt.Errorf("CPU %s exceeds maximum (%dm)", cpu, maxCPUMillis)
 	}
 
 	return nil
 }
 
-// validateMemoryQuantity validates Memory format (32Mi - 4Gi)
+// validateMemoryQuantity validates the memory format and bounds.
 func validateMemoryQuantity(memory string) error {
 	qty, err := resource.ParseQuantity(memory)
 	if err != nil {
 		return fmt.Errorf("invalid memory format: %s", memory)
 	}
 
-	// Check bounds: 32Mi - 4Gi
-	minMem := resource.NewQuantity(32*1024*1024, resource.BinarySI)
-	maxMem := resource.NewQuantity(4*1024*1024*1024, resource.BinarySI)
+	minMem := resource.NewQuantity(minMemory, resource.BinarySI)
+	maxMem := resource.NewQuantity(maxMemory, resource.BinarySI)
 
 	if qty.Cmp(*minMem) < 0 {
-		return fmt.Errorf("memory %s is below minimum (32Mi)", memory)
+		return fmt.Errorf("memory %s is below minimum (%s)", memory, minMem)
 	}
 	if qty.Cmp(*maxMem) > 0 {
-		return fmt.Errorf("memory %s exceeds maximum (4Gi)", memory)
+		return fmt.Errorf("memory %s exceeds maximum (%s)", memory, maxMem)
 	}
 
 	return nil
@@ -259,10 +247,6 @@ func validateMemoryQuantity(memory string) error {
 
 // Validate checks a health check's path and timings.
 func (spec *HealthCheckSpec) Validate() error {
-	if spec == nil {
-		return nil
-	}
-
 	if spec.Path == "" {
 		return errHealthPathMissing
 	}
@@ -308,10 +292,6 @@ func (spec *HealthCheckSpec) Validate() error {
 
 // Validate validates the ResourcesSpec
 func (spec *ResourcesSpec) Validate() error {
-	if spec == nil {
-		return nil
-	}
-
 	if spec.CPU == "" {
 		return errCPUMissing
 	}
@@ -330,8 +310,8 @@ func (spec *ResourcesSpec) Validate() error {
 	if spec.Replicas.Min < 1 {
 		return fmt.Errorf("replicas.min must be at least 1, got %d", spec.Replicas.Min)
 	}
-	if spec.Replicas.Max > 10 {
-		return fmt.Errorf("replicas.max cannot exceed 10, got %d", spec.Replicas.Max)
+	if spec.Replicas.Max > maxReplicas {
+		return fmt.Errorf("replicas.max cannot exceed %d, got %d", maxReplicas, spec.Replicas.Max)
 	}
 	if spec.Replicas.Max < spec.Replicas.Min {
 		return fmt.Errorf("replicas.max (%d) must be >= replicas.min (%d)", spec.Replicas.Max, spec.Replicas.Min)
@@ -343,21 +323,8 @@ func (spec *ResourcesSpec) Validate() error {
 	return nil
 }
 
-// validateObsSpec validates the ObsSpec
-func validateObsSpec(spec *ObsSpec) error {
-	if spec == nil {
-		return nil
-	}
-
-	return spec.Metrics.Validate()
-}
-
 // validateRoutingSpec validates the RoutingSpec
 func validateRoutingSpec(spec *RoutingSpec) error {
-	if spec == nil {
-		return nil
-	}
-
 	if spec.HostName == "" {
 		return errHostnameMissing
 	}
@@ -395,7 +362,7 @@ func (spec *MetricsSpec) Validate() error {
 	}
 
 	if spec.Port < minServicePort || spec.Port > maxServicePort {
-		return fmt.Errorf("metrics.port must be between 1024 and 65535, got %d", spec.Port)
+		return fmt.Errorf("metrics.port must be between %d and %d, got %d", minServicePort, maxServicePort, spec.Port)
 	}
 	return nil
 }

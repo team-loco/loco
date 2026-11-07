@@ -44,7 +44,7 @@ func TestPrivateServiceLifecycleReadsBypassTheCache(t *testing.T) {
 		Annotations: ownerAnnotations(app),
 	}
 	base := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(old).Build()
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Client:                   stalePrivateServiceCache{base},
 		APIReader:                base,
 		Gateway:                  testGateway,
@@ -91,7 +91,7 @@ func TestDeletingAppChecksLiveWorkspaceApplications(t *testing.T) {
 		WithScheme(workspaceTestScheme(t)).
 		WithObjects(deleted, remaining, namespace).
 		Build()
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Client:                   staleApplicationInventory{base},
 		APIReader:                base,
 		Gateway:                  testGateway,

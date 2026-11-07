@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -103,7 +104,7 @@ func TestRenameResourceMovesTheSlug(t *testing.T) {
 	if resource.Name != testDisplayName || resource.Slug != testDisplaySlug {
 		t.Fatalf("name, slug = %q, %q", resource.Name, resource.Slug)
 	}
-	var payload ApplicationPayload
+	var payload locoControllerV1.PlacementPayload
 	if err := json.Unmarshal(f.placement(t, f.clusterID).DesiredSpec, &payload); err != nil {
 		t.Fatal(err)
 	}

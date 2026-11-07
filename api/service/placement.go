@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 var errPlacementApplicationMissing = errors.New("placement application spec is missing")
@@ -135,11 +136,11 @@ func desiredEnv(
 		return nil, nil
 	}
 
-	var payload ApplicationPayload
-	if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
-		return nil, fmt.Errorf("decode desired spec: %w", err)
+	payload, err := decodePlacement(placement)
+	if err != nil {
+		return nil, err
 	}
-	if payload.AppSpec == nil || payload.AppSpec.ServiceSpec == nil || payload.AppSpec.ServiceSpec.Deployment == nil {
+	if payload.AppSpec.ServiceSpec == nil || payload.AppSpec.ServiceSpec.Deployment == nil {
 		return nil, nil
 	}
 	return payload.AppSpec.ServiceSpec.Deployment.Env, nil
@@ -157,34 +158,51 @@ func renamePlacements(ctx context.Context, qtx *genDb.Queries, resource genDb.Re
 			return fmt.Errorf("list rename placements: %w", err)
 		}
 		for _, placement := range placements {
-			var payload ApplicationPayload
-			if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
-				return fmt.Errorf("decode rename placement: %w", err)
-			}
-			if payload.AppSpec == nil {
-				return errPlacementApplicationMissing
+			payload, err := decodePlacement(placement)
+			if err != nil {
+				return err
 			}
 			if payload.AppSpec.Slug == resource.Slug {
 				continue
 			}
 			payload.AppSpec.Slug = resource.Slug
-			desired, err := json.Marshal(payload)
-			if err != nil {
-				return fmt.Errorf("encode rename placement: %w", err)
-			}
-			params := genDb.UpsertPlacementParams{
-				ResourceID:    placement.ResourceID,
-				ClusterID:     placement.ClusterID,
-				Region:        placement.Region,
-				DeploymentID:  placement.DeploymentID,
-				DesiredSpec:   desired,
-				EnvironmentID: placement.EnvironmentID,
-				SecretNames:   placement.SecretNames,
-			}
-			if err := placeApplication(ctx, qtx, params); err != nil {
+			if err := rewritePlacement(ctx, qtx, placement, payload); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func decodePlacement(placement genDb.Placement) (locoControllerV1.PlacementPayload, error) {
+	var payload locoControllerV1.PlacementPayload
+	if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
+		return payload, fmt.Errorf("decode placement %s: %w", placement.ID, err)
+	}
+	if payload.AppSpec == nil {
+		return payload, fmt.Errorf("placement %s: %w", placement.ID, errPlacementApplicationMissing)
+	}
+	return payload, nil
+}
+
+// rewritePlacement stores a changed payload as the placement's next desired revision.
+func rewritePlacement(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	placement genDb.Placement,
+	payload locoControllerV1.PlacementPayload,
+) error {
+	desired, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("encode placement %s: %w", placement.ID, err)
+	}
+	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
+		ResourceID:    placement.ResourceID,
+		ClusterID:     placement.ClusterID,
+		Region:        placement.Region,
+		DeploymentID:  placement.DeploymentID,
+		DesiredSpec:   desired,
+		EnvironmentID: placement.EnvironmentID,
+		SecretNames:   placement.SecretNames,
+	})
 }

@@ -52,7 +52,7 @@ var _ = Describe("Staged environment secret reads", func() {
 			client.Options{Scheme: k8sClient.Scheme(), Cache: &client.CacheOptions{Reader: filtered}},
 		)
 		Expect(err).NotTo(HaveOccurred())
-		r := &LocoResourceReconciler{
+		r := &ApplicationReconciler{
 			Client:                   cached,
 			APIReader:                k8sClient,
 			Gateway:                  testGateway,

@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -202,9 +203,9 @@ func imageService() *deploymentv1.ServiceDeploymentSpec {
 	return &deploymentv1.ServiceDeploymentSpec{Build: build, Port: 8080}
 }
 
-func desiredPayload(t *testing.T, f *deployFixture) ApplicationPayload {
+func desiredPayload(t *testing.T, f *deployFixture) locoControllerV1.PlacementPayload {
 	t.Helper()
-	var payload ApplicationPayload
+	var payload locoControllerV1.PlacementPayload
 	desired := f.placement(t, f.clusterID).DesiredSpec
 	if err := json.Unmarshal(desired, &payload); err != nil {
 		t.Fatalf("decode desired spec: %v", err)

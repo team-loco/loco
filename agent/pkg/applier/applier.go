@@ -83,7 +83,7 @@ type Placement struct {
 }
 
 func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error {
-	var payload DeployPayload
+	var payload locoControllerV1.PlacementPayload
 	if err := json.Unmarshal(placement.Application, &payload); err != nil {
 		return fmt.Errorf("%w: unmarshal application: %w", ErrInvalidPayload, err)
 	}
@@ -435,13 +435,4 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 		)
 		return nil
 	})
-}
-
-type DeployPayload struct {
-	DeploymentID string                            `json:"deployment_id"`
-	ResourceID   string                            `json:"resource_id"`
-	WorkspaceID  string                            `json:"workspace_id"`
-	ResourceType string                            `json:"resource_type"`
-	Region       string                            `json:"region"`
-	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }

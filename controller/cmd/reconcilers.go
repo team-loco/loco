@@ -73,7 +73,7 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 		operator.RegistryTokenMode,
 	)
 	register := func(mgr ctrl.Manager) error {
-		reconciler := &controller.LocoResourceReconciler{
+		reconciler := &controller.ApplicationReconciler{
 			Client:                   mgr.GetClient(),
 			Scheme:                   mgr.GetScheme(),
 			APIReader:                mgr.GetAPIReader(),

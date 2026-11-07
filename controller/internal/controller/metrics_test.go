@@ -11,7 +11,7 @@ const testMetricsPath = "/metrics"
 
 func TestMetricsDiscoveryAndIngressAreOptIn(t *testing.T) {
 	app := telemetryTestApplication()
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		Telemetry:                TelemetryConfig{ScrapeNamespace: "metrics-node", ScrapeCollector: "node-collector"},

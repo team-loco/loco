@@ -77,19 +77,19 @@ func configErrorMessage(detail string) string {
 	return messageConfigError
 }
 
-func (r *LocoResourceReconciler) findStuckReplica(
+func (r *ApplicationReconciler) findStuckReplica(
 	ctx context.Context,
-	locoRes *locov1alpha1.Application,
+	app *locov1alpha1.Application,
 	envSecretRevision string,
 ) (stuckReplica, bool, error) {
-	namespace := r.workspaceNamespace(locoRes)
-	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
+	namespace := r.workspaceNamespace(app)
+	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
 	var pods corev1.PodList
 	selector := client.MatchingLabels{labelApp: name}
 	if err := r.List(ctx, &pods, client.InNamespace(namespace), selector); err != nil {
 		return stuckReplica{}, false, fmt.Errorf("list pods %s/%s: %w", namespace, name, err)
 	}
-	image := locoRes.Spec.ServiceSpec.Deployment.Image
+	image := app.Spec.ServiceSpec.Deployment.Image
 	for i := range pods.Items {
 		pod := &pods.Items[i]
 		if !runsCurrentTemplate(pod, image, envSecretRevision) {
@@ -143,19 +143,19 @@ func stuckContainer(pod *corev1.Pod) (stuckReplica, bool) {
 	return stuckReplica{}, false
 }
 
-func setDegraded(locoRes *locov1alpha1.Application, stuck stuckReplica) {
+func setDegraded(app *locov1alpha1.Application, stuck stuckReplica) {
 	condition := metav1.Condition{
 		Type:               conditionDegraded,
 		Status:             metav1.ConditionTrue,
 		Reason:             stuck.reason,
 		Message:            stuck.detail,
-		ObservedGeneration: locoRes.Generation,
+		ObservedGeneration: app.Generation,
 	}
-	meta.SetStatusCondition(&locoRes.Status.Conditions, condition)
+	meta.SetStatusCondition(&app.Status.Conditions, condition)
 }
 
-func clearDegraded(locoRes *locov1alpha1.Application) {
-	meta.RemoveStatusCondition(&locoRes.Status.Conditions, conditionDegraded)
+func clearDegraded(app *locov1alpha1.Application) {
+	meta.RemoveStatusCondition(&app.Status.Conditions, conditionDegraded)
 }
 
 func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (stuckReplica, bool) {

@@ -7,7 +7,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 func node(name, cpu, memory, pods string) *corev1.Node {
@@ -55,6 +58,18 @@ func TestCapacity(t *testing.T) {
 	pending := pod("pending", corev1.PodPending, "250m", "512Mi")
 	succeeded := pod("done", corev1.PodSucceeded, "1", "1Gi")
 	client := fake.NewClientset(nodeA, nodeB, running, pending, succeeded)
+	// The fake clientset ignores field selectors, so apply the one Capacity sends the way the API server does.
+	client.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		list, ok := action.(k8stesting.ListAction)
+		if !ok {
+			t.Fatalf("pod list action is %T", action)
+		}
+		restrictions := list.GetListRestrictions()
+		if want := fields.ParseSelectorOrDie(activePodsSelector); restrictions.Fields.String() != want.String() {
+			t.Errorf("pod field selector = %q, want %q", restrictions.Fields, want)
+		}
+		return true, &corev1.PodList{Items: []corev1.Pod{*running, *pending}}, nil
+	})
 	inspector := NewInspector(client, "loco-system", "loco-controller")
 
 	capacity, err := inspector.Capacity(context.Background())

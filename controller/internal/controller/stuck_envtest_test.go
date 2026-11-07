@@ -23,7 +23,7 @@ const (
 	kubeletCrashMessage = "back-off 5m0s restarting failed container"
 )
 
-func reconcileStuckApp(r *LocoResourceReconciler, app *locov1alpha1.Application) {
+func reconcileStuckApp(r *ApplicationReconciler, app *locov1alpha1.Application) {
 	key := client.ObjectKeyFromObject(app)
 	req := reconcile.Request{NamespacedName: key}
 	_, err := r.Reconcile(ctx, req)
@@ -69,11 +69,11 @@ func setWaiting(pod *corev1.Pod, reason, message string) {
 }
 
 var _ = Describe("Application with replicas that cannot start", func() {
-	var r *LocoResourceReconciler
+	var r *ApplicationReconciler
 
 	BeforeEach(func() {
 		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
-		r = &LocoResourceReconciler{
+		r = &ApplicationReconciler{
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,

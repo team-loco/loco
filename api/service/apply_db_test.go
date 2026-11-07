@@ -17,6 +17,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -206,7 +207,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}
-	var payload ApplicationPayload
+	var payload locoControllerV1.PlacementPayload
 	if decodeErr := json.Unmarshal(placement.DesiredSpec, &payload); decodeErr != nil {
 		t.Fatalf("decode desired spec: %v", decodeErr)
 	}

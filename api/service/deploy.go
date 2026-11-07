@@ -234,14 +234,7 @@ func desiredApplicationSpec(
 			return nil, fmt.Errorf("failed to build application spec: %w", err)
 		}
 
-		payload, err := json.Marshal(ApplicationPayload{
-			DeploymentID: deploymentID.String(),
-			ResourceID:   res.ID.String(),
-			WorkspaceID:  res.WorkspaceID.String(),
-			ResourceType: string(res.Type),
-			Region:       region,
-			AppSpec:      appSpec,
-		})
+		payload, err := json.Marshal(locoControllerV1.PlacementPayload{AppSpec: appSpec})
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal application payload: %w", err)
 		}
@@ -343,15 +336,6 @@ func buildApplicationSpec(
 	}
 
 	return appSpec, nil
-}
-
-type ApplicationPayload struct {
-	DeploymentID string                            `json:"deployment_id"`
-	ResourceID   string                            `json:"resource_id"`
-	WorkspaceID  string                            `json:"workspace_id"`
-	ResourceType string                            `json:"resource_type"`
-	Region       string                            `json:"region"`
-	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }
 
 type invalidSpecError struct {

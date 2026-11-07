@@ -87,7 +87,7 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, pullSecret, deleted, remaining)
 	builder = builder.WithObjects(deletedObjects...).WithObjects(remainingObjects...)
 	kubeClient := builder.Build()
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Client:                   kubeClient,
 		APIReader:                kubeClient,
 		Gateway:                  testGateway,
@@ -129,7 +129,7 @@ func TestDeletingTheLastAppRemovesTheWorkspaceNamespace(t *testing.T) {
 	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app), Labels: managed.Labels()}
 
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, app, other).Build()
-	r := &LocoResourceReconciler{
+	r := &ApplicationReconciler{
 		Client:                   kubeClient,
 		APIReader:                kubeClient,
 		Gateway:                  testGateway,
