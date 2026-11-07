@@ -7,6 +7,8 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
+const testMetricsPath = "/metrics"
+
 func TestMetricsDiscoveryAndIngressAreOptIn(t *testing.T) {
 	app := telemetryTestApplication()
 	r := &LocoResourceReconciler{
@@ -16,13 +18,13 @@ func TestMetricsDiscoveryAndIngressAreOptIn(t *testing.T) {
 	}
 	for _, enabled := range []bool{true, false} {
 		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
-			Metrics: locov1alpha1.MetricsSpec{Enabled: enabled, Port: 9090},
+			Metrics: locov1alpha1.MetricsSpec{Enabled: enabled, Port: 9090, Path: testMetricsPath},
 		}
 		deployment := buildDeployment(t, app)
 		template := deployment.Spec.Template
 		if enabled {
 			if template.Labels[locolabels.LabelMetricsPort] != "9090" ||
-				template.Annotations[locolabels.AnnotationMetricsPath] != defaultMetricsPath {
+				template.Annotations[locolabels.AnnotationMetricsPath] != testMetricsPath {
 				t.Fatalf("metadata = %+v", template)
 			}
 		} else if _, present := template.Labels[locolabels.LabelMetricsPort]; present {

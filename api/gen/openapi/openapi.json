@@ -11948,13 +11948,10 @@
                 "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
               }
             ],
-            "not": {
-              "enum": [
-                "RESOURCE_TYPE_UNSPECIFIED"
-              ]
-            },
             "title": "type",
-            "description": "enum.defined_only = true\n"
+            "enum": [
+              "RESOURCE_TYPE_SERVICE"
+            ]
           },
           "domain": {
             "oneOf": [

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -247,9 +246,6 @@ func (s *PlanServer) resolveImages(
 		}
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: service.Image}
 		pinned, err := pinPublicImage(ctx, s.resolver, s.registryHost, src)
-		if connectErr, isConnect := errors.AsType[*connect.Error](err); isConnect {
-			err = connectErr.Unwrap()
-		}
 		if err != nil {
 			images[service.Image] = configplan.ImageResult{Err: err}
 			continue
@@ -389,14 +385,12 @@ func (s *PlanServer) liveState(
 	if metrics := spec.GetObservability().GetMetrics(); metrics.GetEnabled() {
 		state.Metrics = &locofile.Metrics{Port: metrics.GetPort(), Path: metrics.GetPath()}
 		if state.Metrics.Path == "" {
-			state.Metrics.Path = "/metrics"
+			state.Metrics.Path = s.defaults.MetricsPath
 		}
 	}
-	if spec.GetRouting().GetPathPrefix() != "" || spec.GetRouting().GetIdleTimeout() != 0 {
-		state.Routing = &configplan.Routing{
-			PathPrefix:  converter.FirstSet(spec.GetRouting().GetPathPrefix(), s.defaults.PathPrefix),
-			IdleTimeout: converter.FirstSet(spec.GetRouting().GetIdleTimeout(), s.defaults.IdleTimeout),
-		}
+	if routing := spec.GetRouting(); routing.GetPathPrefix() != "" || routing.GetIdleTimeout() != 0 {
+		pathPrefix, idleTimeout := s.defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
+		state.Routing = &configplan.Routing{PathPrefix: pathPrefix, IdleTimeout: idleTimeout}
 	}
 	slices.SortStableFunc(domains, func(a, b genDb.ResourceDomain) int {
 		return boolCompare(b.IsPrimary, a.IsPrimary)
@@ -425,20 +419,23 @@ func (s *PlanServer) liveState(
 			continue
 		}
 		seenRegions[deployment.Region] = true
-		deploymentSpec, specErr := converter.DeserializeDeploymentSpec(deployment.Spec, string(res.Type))
+		deploymentSpec, specErr := converter.DeserializeDeploymentSpec(deployment.Spec, res.Type)
 		if specErr != nil {
 			return configplan.State{}, fmt.Errorf("deployment %s spec: %w", deployment.ID, specErr)
 		}
 		service := deploymentSpec.GetService()
-		region := state.Regions[deployment.Region]
-		region.CPU = converter.FirstSet(service.GetCpu(), region.CPU)
-		region.Memory = converter.FirstSet(service.GetMemory(), region.Memory)
-		region.MinReplicas = converter.FirstSet(service.GetMinReplicas(), region.MinReplicas)
-		region.MaxReplicas = converter.FirstSet(service.GetMaxReplicas(), region.MaxReplicas)
-		if service.GetScalers() != nil {
-			region.Autoscaling = liveAutoscaling(service.GetScalers())
+		target := spec.GetRegions()[deployment.Region]
+		if !target.GetEnabled() {
+			target = nil
 		}
-		state.Regions[deployment.Region] = region
+		resources := s.defaults.Fill(target, service)
+		state.Regions[deployment.Region] = configplan.Region{
+			CPU:         resources.CPU,
+			Memory:      resources.Memory,
+			MinReplicas: resources.MinReplicas,
+			MaxReplicas: resources.MaxReplicas,
+			Autoscaling: liveAutoscaling(resources.Scalers),
+		}
 		if index > 0 {
 			continue
 		}
@@ -450,7 +447,7 @@ func (s *PlanServer) liveState(
 		}
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup
-		state.Port = converter.FirstSet(service.GetPort(), state.Port)
+		state.Port = servicedefaults.FirstSet(service.GetPort(), state.Port)
 		if service.GetRouting() != nil {
 			state.Routing = liveRouting(service.GetRouting())
 		}

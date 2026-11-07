@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -34,5 +35,71 @@ func TestApplyRefusedLogsADetailThatCannotBeEncoded(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), "level=ERROR") || !strings.Contains(logs.String(), "invalid UTF-8") {
 		t.Fatalf("logs = %q, want an ERROR line with the encoding failure", logs.String())
+	}
+}
+
+func TestHandlerErrorMapsDomainErrorsToCodes(t *testing.T) {
+	cases := map[string]struct {
+		err         error
+		wantCode    connect.Code
+		wantMessage string
+	}{
+		"not found": {
+			err:         ErrBuildNotFound,
+			wantCode:    connect.CodeNotFound,
+			wantMessage: ErrBuildNotFound.Error(),
+		},
+		"wrapped precondition keeps its detail": {
+			err:         fmt.Errorf("%w: %s", ErrOrgSuspended, "unpaid invoice"),
+			wantCode:    connect.CodeFailedPrecondition,
+			wantMessage: ErrOrgSuspended.Error() + ": unpaid invoice",
+		},
+		"invalid argument": {
+			err:         fmt.Errorf("%w '%s'", errNoDeploymentInRegion, "eu-west-1"),
+			wantCode:    connect.CodeInvalidArgument,
+			wantMessage: "resource has no active deployment in region 'eu-west-1'",
+		},
+		"invalid input hides its cause": {
+			err:         &invalidInputError{public: publicInvalidRequest, err: errImageRequired},
+			wantCode:    connect.CodeInvalidArgument,
+			wantMessage: publicInvalidRequest,
+		},
+		"anything else is a server failure": {
+			err:         errors.New("connection reset"),
+			wantCode:    connect.CodeInternal,
+			wantMessage: ErrDB.Error(),
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			for _, attrs := range [][]any{nil, {"buildId", "build-1"}} {
+				mapped := handlerError(t.Context(), "test", tc.err, attrs...)
+				connectErr, ok := errors.AsType[*connect.Error](mapped)
+				if !ok {
+					t.Fatalf("err = %v, want a connect error", mapped)
+				}
+				if connectErr.Code() != tc.wantCode {
+					t.Fatalf("attrs %v: code = %v, want %v", attrs, connectErr.Code(), tc.wantCode)
+				}
+				if connectErr.Message() != tc.wantMessage {
+					t.Fatalf("attrs %v: message = %q, want %q", attrs, connectErr.Message(), tc.wantMessage)
+				}
+			}
+		})
+	}
+}
+
+func TestHandlerErrorLogsAttributesOnServerFailures(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	mapped := handlerError(t.Context(), "failed to queue build", errors.New("connection reset"), "buildId", "build-1")
+	if code := connect.CodeOf(mapped); code != connect.CodeInternal {
+		t.Fatalf("code = %v, want internal", code)
+	}
+	if !strings.Contains(logs.String(), "buildId=build-1") || !strings.Contains(logs.String(), "connection reset") {
+		t.Fatalf("logs = %q, want the build ID and the error", logs.String())
 	}
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,13 +14,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/timeutil"
@@ -58,26 +57,6 @@ var (
 	errScaleUnchanged        = errors.New("scaling values must be different from current deployment")
 	errNoActiveDeployment    = errors.New("resource has no active deployment in the environment")
 )
-
-// protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
-func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, error) {
-	switch rt {
-	case resourcev1.ResourceType_RESOURCE_TYPE_SERVICE:
-		return genDb.ResourceTypeService, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_DATABASE:
-		return genDb.ResourceTypeDatabase, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_CACHE:
-		return genDb.ResourceTypeCache, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_QUEUE:
-		return genDb.ResourceTypeQueue, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_BLOB:
-		return genDb.ResourceTypeBlob, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION:
-		return genDb.ResourceTypeService, nil
-	default:
-		return "", ErrInvalidResourceType
-	}
-}
 
 type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
@@ -144,7 +123,7 @@ func (s *ResourceServer) CreateResource(
 		fullDomain = req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
 		platform, label, checkErr := s.checkNewResourceDomain(ctx, workspaceID, req.GetSpec(), fullDomain)
 		if checkErr != nil {
-			return nil, checkErr
+			return nil, handlerError(ctx, "failed to check the resource domain", checkErr)
 		}
 		subdomainLabel = &label
 		platformDomain = &platform
@@ -166,18 +145,18 @@ func (s *ResourceServer) CreateResource(
 		return nil, err
 	}
 
-	resourceType, err := protoResourceTypeToDb(req.GetType())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	if req.GetType() != resourcev1.ResourceType_RESOURCE_TYPE_SERVICE {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).
+			WithCause(ErrInvalidResourceType)
 	}
 
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceID,
 		Name:        req.GetName(),
 		Slug:        slug,
-		Type:        resourceType,
+		Type:        genDb.ResourceTypeService,
 		Spec:        specJSON,
-		SpecVersion: int32(1),
+		SpecVersion: specVersion,
 		Description: req.GetDescription(),
 	}
 	tx, err := s.db.Begin(ctx)
@@ -277,19 +256,17 @@ func (s *ResourceServer) checkNewResourceDomain(
 ) (string, string, error) {
 	env, err := s.queries.GetWorkspaceProductionEnvironment(ctx, workspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", rpcerr.New(connect.CodeFailedPrecondition, errNoProductionEnvironment)
+		return "", "", errNoProductionEnvironment
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get the production environment", "error", err)
-		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+		return "", "", fmt.Errorf("get production environment: %w", err)
 	}
 	regions := enabledRegions(spec.GetService().GetRegions())
 	check, err := resourceDomainCheck(ctx, s.queries, env.EnvironmentType, regions, nil, s.clusterSilentAfter)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list domain clusters", "error", err)
-		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}
-	return check.check(hostname)
+	return configplan.CheckDomain(hostname, check.clusters, check.targets)
 }
 
 func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]byte, error) {
@@ -379,9 +356,11 @@ func (s *ResourceServer) GetResource(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	return &resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains),
-	}, nil
+	resource, err := dbResourceToProto(res, statuses[res.ID], resourceDomains)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+	}
+	return &resourcev1.GetResourceResponse{Resource: resource}, nil
 }
 
 func (s *ResourceServer) resourceIDByName(
@@ -487,7 +466,10 @@ func (s *ResourceServer) ListWorkspaceResources(
 	for _, dbResource := range dbResources {
 		resourceDomains := domainsByResource[dbResource.ID]
 		resourceStatuses := statuses[dbResource.ID]
-		resource := dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
+		resource, err := dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		}
 		resources = append(resources, resource)
 	}
 
@@ -794,7 +776,7 @@ func (s *ResourceServer) scaleCurrentDeployments(
 	}
 
 	if len(plans) == 0 {
-		return rpcerr.New(connect.CodeInvalidArgument, errScaleUnchanged)
+		return errScaleUnchanged
 	}
 
 	scaled := map[string]any{events.FieldEnvironmentID: environmentID.String()}
@@ -826,6 +808,11 @@ type regionRedeploy struct {
 	environmentName string
 }
 
+var (
+	errNoDeploymentInRegion     = errors.New("resource has no active deployment in region")
+	errPreviousDeploymentNoSpec = errors.New("previous deployment has no spec")
+)
+
 func activeDeploymentsForRegions(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -835,8 +822,7 @@ func activeDeploymentsForRegions(
 ) ([]genDb.Deployment, error) {
 	deploymentList, err := qtx.ListActiveDeploymentsForResource(ctx, resourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list active deployments: %w", err)
 	}
 
 	activeByRegion := make(map[string]genDb.Deployment, len(deploymentList))
@@ -852,16 +838,13 @@ func activeDeploymentsForRegions(
 	if requestedRegion != "" {
 		d, found := activeByRegion[requestedRegion]
 		if !found {
-			return nil, connect.Errorf(
-				connect.CodeInvalidArgument,
-				"resource has no active deployment in region '%s'", requestedRegion,
-			)
+			return nil, fmt.Errorf("%w '%s'", errNoDeploymentInRegion, requestedRegion)
 		}
 		return []genDb.Deployment{d}, nil
 	}
 
 	if len(activeByRegion) == 0 {
-		return nil, rpcerr.New(connect.CodeNotFound, errNoActiveDeployment)
+		return nil, errNoActiveDeployment
 	}
 
 	current := make([]genDb.Deployment, 0, len(activeByRegion))
@@ -877,18 +860,18 @@ func currentServiceSpec(
 	resourceType genDb.ResourceType,
 ) (*deploymentv1.ServiceDeploymentSpec, error) {
 	if len(current.Spec) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, "previous deployment has no spec")
+		return nil, errPreviousDeploymentNoSpec
 	}
 
-	deploymentSpec, err := converter.DeserializeDeploymentSpec(current.Spec, string(resourceType))
+	deploymentSpec, err := converter.DeserializeDeploymentSpec(current.Spec, resourceType)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(err)
+		return nil, &invalidInputError{public: publicInvalidSpec, err: err}
 	}
 
 	serviceDeploymentSpec := deploymentSpec.GetService()
 	if serviceDeploymentSpec == nil {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errOnlyServiceResources)
+		return nil, errOnlyServiceResources
 	}
 
 	return serviceDeploymentSpec, nil
@@ -902,28 +885,20 @@ func (s *ResourceServer) planRegionRedeploy(
 	replicas int32,
 	message string,
 ) (regionRedeploy, error) {
-	specForDB := proto.CloneOf(serviceDeploymentSpec)
-	specForDB.Env = nil
-
-	specJSON, err := protojson.Marshal(specForDB)
+	specJSON, err := deploymentSpecJSON(serviceDeploymentSpec)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
-		return regionRedeploy{}, connect.NewError(
-			connect.CodeInvalidArgument,
-			publicInvalidSpec,
-		).WithCause(err)
+		return regionRedeploy{}, &invalidInputError{public: publicInvalidSpec, err: err}
 	}
 
 	deploymentEnv, err := qtx.GetEnvironmentByID(ctx, current.EnvironmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
-		return regionRedeploy{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return regionRedeploy{}, fmt.Errorf("get deployment environment: %w", err)
 	}
 
 	cluster, err := eligibleCluster(ctx, qtx, current.Region, deploymentEnv.EnvironmentType, s.clusterSilentAfter)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", current.Region, "error", err)
-		return regionRedeploy{}, rpcerr.New(connect.CodeFailedPrecondition, err)
+		return regionRedeploy{}, err
 	}
 
 	return regionRedeploy{
@@ -936,7 +911,7 @@ func (s *ResourceServer) planRegionRedeploy(
 			IsActive:      true,
 			Message:       message,
 			Spec:          specJSON,
-			SpecVersion:   int32(1),
+			SpecVersion:   specVersion,
 			EnvironmentID: current.EnvironmentID,
 			SecretNames:   current.SecretNames,
 		},
@@ -964,29 +939,19 @@ func (s *ResourceServer) redeployRegions(
 		}
 		hostname, hostnameErr := primaryHostname(ctx, qtx, res.ID, environmentID)
 		if hostnameErr != nil {
-			slog.ErrorContext(
-				ctx,
-				"failed to get the resource's primary domain",
-				"resourceId",
-				res.ID,
-				"error",
-				hostnameErr,
-			)
-			return rpcerr.New(connect.CodeInternal, ErrDB)
+			return fmt.Errorf("get primary hostname: %w", hostnameErr)
 		}
 		hostnames[environmentID] = hostname
 	}
 
 	organizationID, err := qtx.GetOrganizationIDByWorkspaceID(ctx, res.WorkspaceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get workspace organization", "resourceId", res.ID, "error", err)
-		return rpcerr.New(connect.CodeInternal, ErrDB)
+		return fmt.Errorf("get workspace organization: %w", err)
 	}
 
-	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
+	resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err)
-		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, err)
 	}
 
 	bumped := make(map[uuid.UUID]bool, len(plans))
@@ -1014,26 +979,6 @@ func (s *ResourceServer) redeployRegions(
 		}
 	}
 	return events.Record(ctx, qtx, ev)
-}
-
-// deploymentStatusToProto converts database deployment status to proto enum
-func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
-	switch status {
-	case genDb.DeploymentStatusPending:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
-	case genDb.DeploymentStatusDeploying:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING
-	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
-	case genDb.DeploymentStatusSucceeded:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
-	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
-	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
-	default:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
-	}
 }
 
 func validateScaleRequest(ctx context.Context, r *resourcev1.ScaleResourceRequest) error {
@@ -1129,38 +1074,18 @@ func dbResourceToProto(
 	res genDb.Resource,
 	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
-) *resourcev1.Resource {
-	// convert db.ResourceType (string) to proto ResourceType (int32)
-	var resourceType resourcev1.ResourceType
-	switch res.Type {
-	case genDb.ResourceTypeService:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
-	case genDb.ResourceTypeDatabase:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_DATABASE
-	case "function":
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION
-	case genDb.ResourceTypeCache:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_CACHE
-	case genDb.ResourceTypeQueue:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_QUEUE
-	case genDb.ResourceTypeBlob:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_BLOB
-	default:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
+) (*resourcev1.Resource, error) {
+	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	if err != nil {
+		return nil, fmt.Errorf("decode spec of resource %s: %w", res.ID, err)
 	}
 
-	// reconstruct oneof spec from stored spec bytes
-	var spec *resourcev1.ResourceSpec
-	if len(res.Spec) > 0 {
-		spec = reconstructResourceSpec(res.Type, res.Spec)
-	}
-
-	result := &resourcev1.Resource{
+	return &resourcev1.Resource{
 		Id:                  res.ID.String(),
 		WorkspaceId:         res.WorkspaceID.String(),
 		Name:                res.Name,
 		Slug:                res.Slug,
-		Type:                resourceType,
+		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),
 		CreatedAt:           timeutil.ParsePostgresTimestamp(res.CreatedAt),
@@ -1168,302 +1093,7 @@ func dbResourceToProto(
 		Description:         &res.Description,
 		Partial:             res.Partial,
 		EnvironmentStatuses: statuses,
-	}
-
-	return result
-}
-
-// reconstructResourceSpec deserializes spec bytes and wraps in the appropriate oneof based on resource type
-func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) *resourcev1.ResourceSpec {
-	if len(specBytes) == 0 {
-		return nil
-	}
-
-	switch resourceType {
-	case "service":
-		serviceSpec := &resourcev1.ServiceSpec{}
-		if err := protojson.Unmarshal(specBytes, serviceSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal service spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Service{Service: serviceSpec},
-		}
-	case "database":
-		databaseSpec := &resourcev1.DatabaseSpec{}
-		if err := protojson.Unmarshal(specBytes, databaseSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal database spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Database{Database: databaseSpec},
-		}
-	case "cache":
-		cacheSpec := &resourcev1.CacheSpec{}
-		if err := protojson.Unmarshal(specBytes, cacheSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal cache spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Cache{Cache: cacheSpec},
-		}
-	case "queue":
-		queueSpec := &resourcev1.QueueSpec{}
-		if err := protojson.Unmarshal(specBytes, queueSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal queue spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Queue{Queue: queueSpec},
-		}
-	case "blob":
-		blobSpec := &resourcev1.BlobSpec{}
-		if err := protojson.Unmarshal(specBytes, blobSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal blob spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Blob{Blob: blobSpec},
-		}
-	default:
-		slog.WarnContext(context.Background(), "unknown resource type", "type", resourceType)
-		return nil
-	}
-}
-
-var errDesiredSpec = errors.New("build desired spec")
-
-type desiredSpecFunc func(deploymentID uuid.UUID) ([]byte, error)
-
-func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
-	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		qtx := genDb.New(tx)
-		return fn(qtx)
-	})
-}
-
-func primaryHostname(
-	ctx context.Context,
-	queries genDb.Querier,
-	resourceID uuid.UUID,
-	environmentID uuid.UUID,
-) (string, error) {
-	params := genDb.GetPrimaryResourceDomainParams{ResourceID: resourceID, EnvironmentID: environmentID}
-	hostname, err := queries.GetPrimaryResourceDomain(ctx, params)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("get primary domain: %w", err)
-	}
-	return hostname, nil
-}
-
-func desiredApplicationSpec(
-	res genDb.Resource,
-	organizationID uuid.UUID,
-	resourceSpec *resourcev1.ResourceSpec,
-	hostname string,
-	deploymentSpec *deploymentv1.DeploymentSpec,
-	region string,
-	environmentID uuid.UUID,
-	environmentName string,
-	defaults servicedefaults.Defaults,
-) desiredSpecFunc {
-	return func(deploymentID uuid.UUID) ([]byte, error) {
-		appSpec, err := buildApplicationSpec(
-			res,
-			organizationID,
-			resourceSpec,
-			hostname,
-			deploymentSpec,
-			region,
-			environmentID,
-			environmentName,
-			deploymentID,
-			defaults,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build application spec: %w", err)
-		}
-
-		payload, err := json.Marshal(ApplicationPayload{
-			DeploymentID: deploymentID.String(),
-			ResourceID:   res.ID.String(),
-			WorkspaceID:  res.WorkspaceID.String(),
-			ResourceType: string(res.Type),
-			Region:       region,
-			AppSpec:      appSpec,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal application payload: %w", err)
-		}
-		return payload, nil
-	}
-}
-
-func deploymentTxError(ctx context.Context, err error) error {
-	if errors.Is(err, ErrClusterNotAssignable) {
-		return rpcerr.New(connect.CodeFailedPrecondition, err)
-	}
-	if errors.Is(err, errClusterHeldByEnvironment) {
-		slog.WarnContext(ctx, "refused a deployment to another environment's cluster", "error", err)
-		return rpcerr.New(connect.CodeFailedPrecondition, err)
-	}
-	if invalidSpec, ok := errors.AsType[*invalidSpecError](err); ok {
-		slog.WarnContext(ctx, "rejected an invalid deployment spec", "error", err)
-		return rpcerr.New(connect.CodeInvalidArgument, invalidSpec)
-	}
-	if errors.Is(err, errBuildImageDeleted) {
-		slog.WarnContext(ctx, "rejected a deployment of a build whose image was deleted", "error", err)
-		return rpcerr.New(connect.CodeFailedPrecondition, errBuildImageDeleted)
-	}
-	if errors.Is(err, errDesiredSpec) {
-		slog.ErrorContext(ctx, "failed to build desired application spec", "error", err)
-		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
-	}
-	if isPgConstraintViolation(err) {
-		slog.WarnContext(ctx, "concurrent deployment rejected", "error", err)
-		return connect.NewError(
-			connect.CodeAborted,
-			"another deployment for this resource and region is in progress",
-		)
-	}
-	return txError(ctx, "failed to create deployment", err)
-}
-
-func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentStatus {
-	switch status {
-	case genDb.DeploymentStatusPending:
-		return genDb.DeploymentStatusCanceled
-	case genDb.DeploymentStatusDeploying:
-		return genDb.DeploymentStatusCanceled
-	case genDb.DeploymentStatusRunning:
-		return genDb.DeploymentStatusSucceeded
-	default:
-		return status
-	}
-}
-
-// checkClusterEnvironment refuses a deployment to a cluster whose placement of the resource
-// belongs to another environment. Loco runs one dedicated cluster per environment, and the
-// cluster names the service's Application after the resource alone, so a second environment
-// on the same cluster would overwrite the first one's workload.
-func checkClusterEnvironment(ctx context.Context, qtx *genDb.Queries, params genDb.CreateDeploymentParams) error {
-	placement, err := qtx.GetPlacementForResourceCluster(ctx, genDb.GetPlacementForResourceClusterParams{
-		ResourceID: params.ResourceID,
-		ClusterID:  params.ClusterID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("get placement: %w", err)
-	}
-	if placement.DesiredDeleted || placement.EnvironmentID == params.EnvironmentID {
-		return nil
-	}
-	cluster, err := qtx.GetClusterByID(ctx, params.ClusterID)
-	if err != nil {
-		return fmt.Errorf("get cluster: %w", err)
-	}
-	other, err := qtx.GetEnvironmentByID(ctx, placement.EnvironmentID)
-	if err != nil {
-		return fmt.Errorf("get environment: %w", err)
-	}
-	return fmt.Errorf(
-		"%w: cluster %s already runs it for environment %s",
-		errClusterHeldByEnvironment,
-		cluster.Name,
-		other.Name,
-	)
-}
-
-func createDeploymentWithCleanup(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	params genDb.CreateDeploymentParams,
-	buildSpec desiredSpecFunc,
-) (uuid.UUID, error) {
-	if err := ensureOrganizationActive(ctx, qtx, params.ResourceID); err != nil {
-		return uuid.UUID{}, err
-	}
-	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
-		return uuid.UUID{}, err
-	}
-	if assignErr := lockAssignableCluster(ctx, qtx, params.ClusterID); assignErr != nil {
-		return uuid.UUID{}, assignErr
-	}
-	if heldErr := checkClusterEnvironment(ctx, qtx, params); heldErr != nil {
-		return uuid.UUID{}, heldErr
-	}
-
-	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
-		ctx,
-		genDb.GetActiveDeploymentForResourceAndRegionParams{
-			ResourceID:    params.ResourceID,
-			EnvironmentID: params.EnvironmentID,
-			Region:        params.Region,
-		},
-	)
-	hadPreviousDeployment := err == nil
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return uuid.UUID{}, fmt.Errorf("failed to get active deployment: %w", err)
-	}
-
-	if hadPreviousDeployment {
-		newStatus := finalizedDeploymentStatus(activeDeployment.Status)
-		slog.InfoContext(ctx, "finalizing previous deployment",
-			"deploymentId", activeDeployment.ID,
-			"oldStatus", activeDeployment.Status,
-			"newStatus", newStatus)
-
-		if updateErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
-			ID:       activeDeployment.ID,
-			Status:   newStatus,
-			IsActive: false,
-		}); updateErr != nil {
-			return uuid.UUID{}, fmt.Errorf("failed to finalize deployment %v: %w", activeDeployment.ID, updateErr)
-		}
-	}
-
-	deploymentID, err := qtx.CreateDeployment(ctx, params)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)
-	}
-
-	spec, err := buildSpec(deploymentID)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, err)
-	}
-
-	if hadPreviousDeployment && activeDeployment.ClusterID != params.ClusterID {
-		if removeErr := removePlacement(ctx, qtx, params.ResourceID, activeDeployment.ClusterID); removeErr != nil {
-			return uuid.UUID{}, removeErr
-		}
-	}
-
-	err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID:    params.ResourceID,
-		ClusterID:     params.ClusterID,
-		Region:        params.Region,
-		DeploymentID:  &deploymentID,
-		DesiredSpec:   spec,
-		EnvironmentID: params.EnvironmentID,
-		SecretNames:   params.SecretNames,
-	})
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-
-	slog.InfoContext(ctx, "deployment created",
-		"deployment_id", deploymentID,
-		"cluster_id", params.ClusterID,
-		"resourceId", params.ResourceID,
-		"region", params.Region,
-		"hadPreviousDeployment", hadPreviousDeployment)
-
-	return deploymentID, nil
+	}, nil
 }
 
 // GetResourceEnv returns the plain env variables of the service's active deployment in the

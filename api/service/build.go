@@ -272,14 +272,7 @@ func (s *BuildServer) StartBuild(
 
 	superseded, txErr := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID)
 	if txErr != nil {
-		if errors.Is(txErr, errBuildNotQueueable) || errors.Is(txErr, ErrClusterNotAssignable) {
-			return nil, rpcerr.New(connect.CodeFailedPrecondition, txErr)
-		}
-		if connectErr, isConnect := errors.AsType[*connect.Error](txErr); isConnect {
-			return nil, connectErr
-		}
-		slog.ErrorContext(ctx, "failed to queue build", "error", txErr, "buildId", build.ID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, handlerError(ctx, "failed to queue build", txErr, "buildId", build.ID)
 	}
 	deleteBuildSources(ctx, s.queries, s.bucket, superseded...)
 

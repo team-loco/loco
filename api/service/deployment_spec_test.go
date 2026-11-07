@@ -50,6 +50,7 @@ func testServiceDefaults() servicedefaults.Defaults {
 		HealthStartupGracePeriod: 0,
 		DeployAttempts:           testDeployAttempts,
 		DeployRetryDelay:         testDeployRetryDelay,
+		MetricsPath:              testMetricsPath,
 	}
 }
 
@@ -332,5 +333,35 @@ func TestDesiredSpecCarriesTheSlug(t *testing.T) {
 	}
 	if fields["slug"] != planSvc {
 		t.Fatalf("Application slug = %v, want svc", fields["slug"])
+	}
+}
+
+const customMetricsPath = "/custom"
+
+func TestDesiredSpecFillsTheMetricsPathFromTheConfiguredDefault(t *testing.T) {
+	fromResource := testResourceSpec()
+	fromResource.GetService().Observability = &resourcev1.ObservabilityConfig{
+		Metrics: &resourcev1.MetricsConfig{Enabled: true, Port: 9090},
+	}
+	fromRequest := testDeploymentSpec(8080)
+	fromRequest.GetService().Metrics = &deploymentv1.MetricsEndpoint{Enabled: true, Port: 9091}
+	explicit := testDeploymentSpec(8080)
+	explicit.GetService().Metrics = &deploymentv1.MetricsEndpoint{Enabled: true, Port: 9091, Path: customMetricsPath}
+
+	for name, test := range map[string]struct {
+		resource *resourcev1.ResourceSpec
+		request  *deploymentv1.DeploymentSpec
+		want     string
+	}{
+		"resource metrics": {fromResource, testDeploymentSpec(8080), testMetricsPath},
+		"request metrics":  {testResourceSpec(), fromRequest, testMetricsPath},
+		"explicit path":    {testResourceSpec(), explicit, customMetricsPath},
+	} {
+		t.Run(name, func(t *testing.T) {
+			payload := applicationPayload(t, testDesiredSpecFrom(t, test.resource, test.request))
+			if got := payload.AppSpec.ServiceSpec.Obs.Metrics.Path; got != test.want {
+				t.Errorf("metrics path = %q, want %q", got, test.want)
+			}
+		})
 	}
 }

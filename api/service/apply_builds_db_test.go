@@ -59,7 +59,7 @@ func (f *deployFixture) deployedBuild(t *testing.T, started *planv1.StartedDeplo
 	if err != nil {
 		t.Fatalf("get deployment: %v", err)
 	}
-	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, string(genDb.ResourceTypeService))
+	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, genDb.ResourceTypeService)
 	if err != nil {
 		t.Fatalf("deployment spec: %v", err)
 	}

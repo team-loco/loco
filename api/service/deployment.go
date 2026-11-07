@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -27,26 +26,11 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 var (
-	errResourceSpecNotService = errors.New("resource spec missing service configuration")
-	errDatabaseNotImplemented = errors.New("database resource type not yet implemented")
-	errCacheNotImplemented    = errors.New("cache resource type not yet implemented")
-	errQueueNotImplemented    = errors.New("queue resource type not yet implemented")
-	errBlobNotImplemented     = errors.New("blob resource type not yet implemented")
-	ErrDeploymentNotFound     = errors.New("deployment not found")
+	ErrDeploymentNotFound = errors.New("deployment not found")
 )
-
-type ApplicationPayload struct {
-	DeploymentID string                            `json:"deployment_id"`
-	ResourceID   string                            `json:"resource_id"`
-	WorkspaceID  string                            `json:"workspace_id"`
-	ResourceType string                            `json:"resource_type"`
-	Region       string                            `json:"region"`
-	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
-}
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
@@ -67,7 +51,7 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
-func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.Deployment {
+func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*deploymentv1.Deployment, error) {
 	deployment := &deploymentv1.Deployment{
 		Id:            d.ID.String(),
 		ResourceId:    d.ResourceID.String(),
@@ -83,84 +67,16 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		Message:       d.Message,
 	}
 
-	if len(d.Spec) > 0 {
-		spec := &deploymentv1.DeploymentSpec{}
-
-		switch resourceType {
-		case string(genDb.ResourceTypeService):
-			serviceSpec := &deploymentv1.ServiceDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, serviceSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal service deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Service{Service: serviceSpec}
-			}
-		case string(genDb.ResourceTypeDatabase):
-			databaseSpec := &deploymentv1.DatabaseDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, databaseSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal database deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Database{Database: databaseSpec}
-			}
-		case string(genDb.ResourceTypeCache):
-			cacheSpec := &deploymentv1.CacheDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, cacheSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal cache deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Cache{Cache: cacheSpec}
-			}
-		case string(genDb.ResourceTypeQueue):
-			queueSpec := &deploymentv1.QueueDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, queueSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal queue deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Queue{Queue: queueSpec}
-			}
-		default:
-			slog.WarnContext(
-				context.Background(),
-				"unknown resource type",
-				"resource_type",
-				resourceType,
-				"deployment_id",
-				d.ID,
-			)
-		}
-
-		deployment.Spec = spec
+	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
+	if err != nil {
+		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
 	}
+	deployment.Spec = spec
 
 	deployment.StartedAt = timeutil.ParsePostgresTimestamp(d.StartedAt)
 	deployment.CompletedAt = timeutil.ParsePostgresTimestampPtr(d.CompletedAt)
 
-	return deployment
+	return deployment, nil
 }
 
 // DeploymentServer implements the DeploymentService gRPC server
@@ -266,7 +182,7 @@ func (s *DeploymentServer) CreateDeployment(
 	requestedBuild := serviceSpec.GetBuild()
 	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
 	if err != nil {
-		return nil, err
+		return nil, handlerError(ctx, "failed to pin the build source", err)
 	}
 	originalSpec := req.GetSpec()
 	requestSpec := proto.CloneOf(originalSpec)
@@ -301,48 +217,32 @@ func (s *DeploymentServer) CreateDeployment(
 		}
 		hostname, hostnameErr := primaryHostname(ctx, qtx, resourceID, environmentID)
 		if hostnameErr != nil {
-			slog.ErrorContext(
-				ctx,
-				"failed to get the resource's primary domain",
-				"resourceId",
-				resourceID,
-				"error",
-				hostnameErr,
-			)
-			return rpcerr.New(connect.CodeInternal, ErrDB)
+			return hostnameErr
 		}
 
-		// deserialize resource spec and merge with request spec
 		resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 		if deserializeErr != nil {
-			slog.ErrorContext(ctx, deserializeErr.Error())
-			return connect.NewError(
-				connect.CodeInternal,
-				publicRequestFailed,
-			).WithCause(deserializeErr)
+			return fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, deserializeErr)
 		}
 
 		mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region, s.defaults)
 		if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
-			slog.WarnContext(ctx, "deployment targets a region the resource does not run in", "error", mergeErr)
-			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(mergeErr)
+			return &invalidInputError{public: publicInvalidRequest, err: mergeErr}
 		}
 		if mergeErr != nil {
-			slog.ErrorContext(ctx, mergeErr.Error())
-			return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(mergeErr)
+			return fmt.Errorf("%w: merge deployment spec: %w", errDesiredSpec, mergeErr)
 		}
 
 		mergedServiceSpec := mergedSpec.GetService()
 		if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
-			slog.WarnContext(ctx, "invalid resource quantity", "error", quantityErr)
-			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(quantityErr)
+			return &invalidInputError{public: publicInvalidRequest, err: quantityErr}
 		}
 		replicas := mergedServiceSpec.GetMinReplicas()
 
 		specJSON, marshalErr := deploymentSpecJSON(mergedServiceSpec)
 		if marshalErr != nil {
 			slog.ErrorContext(ctx, "failed to marshal spec", "error", marshalErr)
-			return connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(marshalErr)
+			return &invalidInputError{public: publicInvalidSpec, err: marshalErr}
 		}
 
 		requestedEnv := mergedServiceSpec.GetEnv()
@@ -438,8 +338,13 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
+	deployment, err := deploymentToProto(deploymentData, resource.Type)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+	}
+
 	return &deploymentv1.GetDeploymentResponse{
-		Deployment: deploymentToProto(deploymentData, string(resource.Type)),
+		Deployment: deployment,
 	}, nil
 }
 
@@ -500,7 +405,11 @@ func (s *DeploymentServer) ListDeployments(
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
-		deployments = append(deployments, deploymentToProto(d, string(resource.Type)))
+		deployment, err := deploymentToProto(d, resource.Type)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		}
+		deployments = append(deployments, deployment)
 	}
 
 	token := nextPageToken(deploymentList, pageSize, func(d genDb.Deployment) (uuid.UUID, time.Time) {
@@ -557,34 +466,6 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
-}
-
-// retireDeployment takes a deployment out of service: it drops the deployment's placement,
-// finalizes its status and records the deletion.
-func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, deployment genDb.Deployment) error {
-	// an inactive deployment was superseded, and its cluster's placement now belongs to the
-	// replacement.
-	if deployment.IsActive {
-		if err := removePlacement(ctx, qtx, res.ID, deployment.ClusterID); err != nil {
-			return err
-		}
-	}
-	err := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
-		ID:       deployment.ID,
-		Status:   finalizedDeploymentStatus(deployment.Status),
-		IsActive: false,
-	})
-	if err != nil {
-		return fmt.Errorf("finalize deployment %s: %w", deployment.ID, err)
-	}
-	return events.Record(ctx, qtx, events.Event{
-		Type:        events.DeploymentDeleted,
-		WorkspaceID: new(res.WorkspaceID),
-		ResourceID:  new(res.ID),
-		SubjectType: events.SubjectDeployment,
-		SubjectID:   new(deployment.ID),
-		Data:        map[string]any{events.FieldResourceID: res.ID.String()},
-	})
 }
 
 const (
@@ -683,101 +564,6 @@ func (s *DeploymentServer) sendDeploymentEvent(
 
 	slog.InfoContext(ctx, "sent deployment event", "deployment_id", deploymentIDStr, "status", deployment.Status)
 	return deployment.Status, nil
-}
-
-type invalidSpecError struct {
-	err error
-}
-
-func (e *invalidSpecError) Error() string {
-	return "invalid deployment spec: " + e.err.Error()
-}
-
-func (e *invalidSpecError) Unwrap() error {
-	return e.err
-}
-
-// buildApplicationSpec builds the ApplicationSpec for the loco controller.
-// This is used both for direct k8s calls and for agent command payloads.
-func buildApplicationSpec(
-	resource genDb.Resource,
-	organizationID uuid.UUID,
-	resourceSpec *resourcev1.ResourceSpec,
-	hostname string,
-	deploymentSpec *deploymentv1.DeploymentSpec,
-	region string,
-	environmentID uuid.UUID,
-	environmentName string,
-	deploymentID uuid.UUID,
-	defaults servicedefaults.Defaults,
-) (*locoControllerV1.ApplicationSpec, error) {
-	// convert proto to controller CRD types
-	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
-
-	appSpec := &locoControllerV1.ApplicationSpec{
-		ResourceID:      resource.ID.String(),
-		Slug:            resource.Slug,
-		OrganizationID:  organizationID.String(),
-		WorkspaceID:     resource.WorkspaceID.String(),
-		Region:          region,
-		EnvironmentID:   environmentID.String(),
-		EnvironmentName: environmentName,
-		DeploymentID:    deploymentID.String(),
-	}
-
-	switch resource.Type {
-	case genDb.ResourceTypeService:
-		if resourceSpec.GetService() == nil {
-			return nil, errResourceSpecNotService
-		}
-		appSpec.Type = "SERVICE"
-		resourceService := resourceSpec.GetService()
-		if _, ok := resourceService.GetRegions()[region]; !ok {
-			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in service spec", region)}
-		}
-		deploymentService := deploymentSpec.GetService()
-		obs := converter.ProtoToObsSpec(resourceService.GetObservability())
-		if metrics := deploymentService.GetMetrics(); metrics != nil {
-			if obs == nil && metrics.GetEnabled() {
-				obs = &locoControllerV1.ObsSpec{}
-			}
-			if obs != nil {
-				obs.Metrics = locoControllerV1.MetricsSpec{
-					Enabled: metrics.GetEnabled(),
-					Port:    metrics.GetPort(),
-					Path:    metrics.GetPath(),
-				}
-			}
-		}
-		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
-			Deployment: crdServiceDeploymentSpec,
-			Resources:  converter.ProtoToResourcesSpec(deploymentService),
-			Obs:        obs,
-			Routing: converter.ProtoToRoutingSpec(
-				deploymentRouting(resourceService, deploymentService),
-				hostname,
-				defaults,
-			),
-		}
-
-	case genDb.ResourceTypeDatabase:
-		return nil, errDatabaseNotImplemented
-	case genDb.ResourceTypeCache:
-		return nil, errCacheNotImplemented
-	case genDb.ResourceTypeQueue:
-		return nil, errQueueNotImplemented
-	case genDb.ResourceTypeBlob:
-		return nil, errBlobNotImplemented
-	default:
-		return nil, fmt.Errorf("unknown resource type: %s", resource.Type)
-	}
-
-	// validate the ApplicationSpec before returning
-	if err := appSpec.Validate(); err != nil {
-		return nil, &invalidSpecError{err: err}
-	}
-
-	return appSpec, nil
 }
 
 // deploymentRouting is the routing an Application uses: the deployment's own when it carries

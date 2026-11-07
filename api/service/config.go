@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -45,6 +45,7 @@ func (s *ConfigServer) GetConfig(
 	_ context.Context,
 	_ *configv1.GetConfigRequest,
 ) (*configv1.GetConfigResponse, error) {
+	health := configplan.Health(s.defaults.Health())
 	return &configv1.GetConfigResponse{
 		MinCliVersion: s.minCLIVersion,
 		SchemaUrl:     s.schemaURL,
@@ -56,13 +57,7 @@ func (s *ConfigServer) GetConfig(
 				PathPrefix:  s.defaults.PathPrefix,
 				IdleTimeout: s.defaults.IdleTimeout,
 			},
-			HealthCheck: &deploymentv1.HealthCheckConfig{
-				Path:                s.defaults.HealthPath,
-				IntervalSeconds:     s.defaults.HealthInterval,
-				TimeoutSeconds:      s.defaults.HealthTimeout,
-				FailureThreshold:    s.defaults.HealthFailThreshold,
-				InitialDelaySeconds: s.defaults.HealthStartupGracePeriod,
-			},
+			HealthCheck:             healthCheckFor(&health),
 			Cpu:                     s.defaults.CPU,
 			Memory:                  s.defaults.Memory,
 			MinReplicas:             s.defaults.MinReplicas,
@@ -72,13 +67,13 @@ func (s *ConfigServer) GetConfig(
 			Observability: &resourcev1.ObservabilityConfig{
 				Logging: &resourcev1.LoggingConfig{
 					Enabled:         true,
-					RetentionPeriod: "7d",
+					RetentionPeriod: s.defaults.LogRetention,
 					Structured:      false,
 				},
 				Metrics: &resourcev1.MetricsConfig{
 					Enabled: false,
-					Path:    "/metrics",
-					Port:    9090,
+					Path:    s.defaults.MetricsPath,
+					Port:    s.defaults.MetricsPort,
 				},
 			},
 		},

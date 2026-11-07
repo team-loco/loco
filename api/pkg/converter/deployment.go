@@ -20,7 +20,8 @@ var (
 	errEmptySpecBytes           = errors.New("spec bytes cannot be empty")
 )
 
-// DeserializeResourceSpec deserializes a ResourceSpec from JSON bytes (as stored in DB).
+// DeserializeResourceSpec deserializes a ResourceSpec from the JSON bytes stored in the database.
+// Only services have a spec; any other type is an error.
 func DeserializeResourceSpec(specBytes []byte, resourceType genDb.ResourceType) (*resourcev1.ResourceSpec, error) {
 	if len(specBytes) == 0 {
 		return nil, errEmptySpecBytes
@@ -30,25 +31,28 @@ func DeserializeResourceSpec(specBytes []byte, resourceType genDb.ResourceType) 
 	case genDb.ResourceTypeService:
 		var serviceSpec resourcev1.ServiceSpec
 		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal service deployment spec: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal service spec: %w", err)
 		}
 		return &resourcev1.ResourceSpec{
 			Spec: &resourcev1.ResourceSpec_Service{Service: &serviceSpec},
 		}, nil
 	default:
-		return nil, fmt.Errorf("unknown resource type for deployment: %s", resourceType)
+		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 }
 
 // DeserializeDeploymentSpec deserializes a DeploymentSpec from JSON bytes based on the resource type.
 // The specBytes should contain only the inner deployment spec (ServiceDeploymentSpec, etc.), not the wrapper.
-func DeserializeDeploymentSpec(specBytes []byte, resourceType string) (*deploymentv1.DeploymentSpec, error) {
+func DeserializeDeploymentSpec(
+	specBytes []byte,
+	resourceType genDb.ResourceType,
+) (*deploymentv1.DeploymentSpec, error) {
 	if len(specBytes) == 0 {
 		return nil, errEmptySpecBytes
 	}
 
 	switch resourceType {
-	case "service":
+	case genDb.ResourceTypeService:
 		var serviceSpec deploymentv1.ServiceDeploymentSpec
 		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal service deployment spec: %w", err)
@@ -57,85 +61,28 @@ func DeserializeDeploymentSpec(specBytes []byte, resourceType string) (*deployme
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: &serviceSpec},
 		}, nil
 	default:
-		return nil, fmt.Errorf("unknown resource type for deployment: %s", resourceType)
-	}
-}
-
-// DeserializeResourceSpecByType deserializes a ResourceSpec from JSON bytes based on the resource type.
-// The specBytes should contain only the inner spec (ServiceSpec, DatabaseSpec, etc.), not the wrapper.
-func DeserializeResourceSpecByType(specBytes []byte, resourceType string) (*resourcev1.ResourceSpec, error) {
-	if len(specBytes) == 0 {
-		return nil, errEmptySpecBytes
-	}
-
-	switch resourceType {
-	case "service":
-		var serviceSpec resourcev1.ServiceSpec
-		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal service spec: %w", err)
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Service{Service: &serviceSpec},
-		}, nil
-	case "database":
-		var databaseSpec resourcev1.DatabaseSpec
-		if err := protojson.Unmarshal(specBytes, &databaseSpec); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal database spec: %w", err)
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Database{Database: &databaseSpec},
-		}, nil
-	case "cache":
-		var cacheSpec resourcev1.CacheSpec
-		if err := protojson.Unmarshal(specBytes, &cacheSpec); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal cache spec: %w", err)
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Cache{Cache: &cacheSpec},
-		}, nil
-	case "queue":
-		var queueSpec resourcev1.QueueSpec
-		if err := protojson.Unmarshal(specBytes, &queueSpec); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal queue spec: %w", err)
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Queue{Queue: &queueSpec},
-		}, nil
-	case "blob":
-		var blobSpec resourcev1.BlobSpec
-		if err := protojson.Unmarshal(specBytes, &blobSpec); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal blob spec: %w", err)
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Blob{Blob: &blobSpec},
-		}, nil
-	default:
-		return nil, fmt.Errorf("unknown resource type: %s", resourceType)
+		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 }
 
 // MergeDeploymentSpec merges a request DeploymentSpec with the resource's region target and the
 // API's configured defaults. The request takes precedence, then the region target, then the defaults.
-// This is the API's single source of truth for deployment defaults.
 func MergeDeploymentSpec(
 	resourceSpec *resourcev1.ResourceSpec,
 	requestSpec *deploymentv1.DeploymentSpec,
 	region string,
 	defaults servicedefaults.Defaults,
 ) (*deploymentv1.DeploymentSpec, error) {
-	// extract ServiceSpec from resourceSpec oneof
 	resourceServiceSpec := resourceSpec.GetService()
 	if resourceServiceSpec == nil {
 		return nil, errResourceSpecNotService
 	}
 
-	// extract ServiceDeploymentSpec from requestSpec oneof
 	requestServiceSpec := requestSpec.GetService()
 	if requestServiceSpec == nil {
 		return nil, errDeploymentSpecNotService
 	}
 
-	// find requested region in resource spec
 	regionTarget, ok := resourceServiceSpec.GetRegions()[region]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrRegionNotFound, region)
@@ -144,60 +91,29 @@ func MergeDeploymentSpec(
 		return nil, fmt.Errorf("%w: %s", ErrRegionDisabled, region)
 	}
 
-	// merge build (from request, always required)
+	resources := defaults.Fill(regionTarget, requestServiceSpec)
+	healthCheck := requestServiceSpec.GetHealthCheck()
+	if healthCheck == nil {
+		healthCheck = resourceServiceSpec.GetHealthCheck()
+	}
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Metrics:    requestServiceSpec.GetMetrics(),
-		RunAsUser:  requestServiceSpec.RunAsUser,
-		RunAsGroup: requestServiceSpec.RunAsGroup,
-		Build:      requestServiceSpec.GetBuild(),
-		Port:       requestServiceSpec.GetPort(),
-		Env:        requestServiceSpec.GetEnv(),
+		Metrics:     requestServiceSpec.GetMetrics(),
+		RunAsUser:   requestServiceSpec.RunAsUser,
+		RunAsGroup:  requestServiceSpec.RunAsGroup,
+		Build:       requestServiceSpec.GetBuild(),
+		Port:        requestServiceSpec.GetPort(),
+		Env:         requestServiceSpec.GetEnv(),
+		Cpu:         &resources.CPU,
+		Memory:      &resources.Memory,
+		MinReplicas: &resources.MinReplicas,
+		MaxReplicas: &resources.MaxReplicas,
+		Scalers:     resources.Scalers,
+		HealthCheck: healthCheck,
 	}
 
-	cpu := FirstSet(requestServiceSpec.GetCpu(), regionTarget.GetCpu(), defaults.CPU)
-	memory := FirstSet(requestServiceSpec.GetMemory(), regionTarget.GetMemory(), defaults.Memory)
-	minReplicas := FirstSet(requestServiceSpec.GetMinReplicas(), regionTarget.GetMinReplicas(), defaults.MinReplicas)
-	maxReplicas := FirstSet(requestServiceSpec.GetMaxReplicas(), regionTarget.GetMaxReplicas())
-	if maxReplicas == 0 {
-		maxReplicas = max(defaults.MaxReplicas, minReplicas)
-	}
-	mergedServiceSpec.Cpu = &cpu
-	mergedServiceSpec.Memory = &memory
-	mergedServiceSpec.MinReplicas = &minReplicas
-	mergedServiceSpec.MaxReplicas = &maxReplicas
-
-	// merge Scalers (request > resource default)
-	if requestServiceSpec.GetScalers() != nil {
-		mergedServiceSpec.Scalers = requestServiceSpec.GetScalers()
-	} else if regionTarget.GetScalers() != nil {
-		mergedServiceSpec.Scalers = regionTarget.GetScalers()
-	}
-
-	// merge HealthCheck (request > resource default)
-	if requestServiceSpec.GetHealthCheck() != nil {
-		mergedServiceSpec.HealthCheck = requestServiceSpec.GetHealthCheck()
-	} else if resourceServiceSpec.GetHealthCheck() != nil {
-		mergedServiceSpec.HealthCheck = resourceServiceSpec.GetHealthCheck()
-	}
-
-	// wrap merged ServiceDeploymentSpec in DeploymentSpec oneof
-	mergedSpec := &deploymentv1.DeploymentSpec{
-		Spec: &deploymentv1.DeploymentSpec_Service{
-			Service: mergedServiceSpec,
-		},
-	}
-
-	return mergedSpec, nil
-}
-
-func FirstSet[T comparable](values ...T) T {
-	var zero T
-	for _, value := range values {
-		if value != zero {
-			return value
-		}
-	}
-	return zero
+	return &deploymentv1.DeploymentSpec{
+		Spec: &deploymentv1.DeploymentSpec_Service{Service: mergedServiceSpec},
+	}, nil
 }
 
 // ProtoToServiceDeploymentSpec converts a proto DeploymentSpec to a controller ServiceDeploymentSpec
@@ -265,10 +181,11 @@ func ProtoToRoutingSpec(
 		return nil
 	}
 
+	pathPrefix, idleTimeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
 	return &locoControllerV1.RoutingSpec{
 		HostName:    hostname,
-		PathPrefix:  FirstSet(routing.GetPathPrefix(), defaults.PathPrefix),
-		IdleTimeout: FirstSet(routing.GetIdleTimeout(), defaults.IdleTimeout),
+		PathPrefix:  pathPrefix,
+		IdleTimeout: idleTimeout,
 	}
 }
 

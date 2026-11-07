@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -23,12 +24,76 @@ var (
 	errUnknownOperation     = errors.New("configplan produced an operation kind outside KindCreate..KindImport")
 )
 
+// domainErrorCodes are the codes of the domain errors helpers return. The client sees the
+// error's own message.
+var domainErrorCodes = []struct {
+	err  error
+	code connect.Code
+}{
+	{ErrBuildNotFound, connect.CodeNotFound},
+	{ErrOrgNotFound, connect.CodeNotFound},
+	{ErrResourceNotFound, connect.CodeNotFound},
+	{errNoActiveDeployment, connect.CodeNotFound},
+	{errBuildSourceRequired, connect.CodeInvalidArgument},
+	{errDockerfileNoBuildID, connect.CodeInvalidArgument},
+	{errBuildImageMismatch, connect.CodeInvalidArgument},
+	{errImageBuildIDSet, connect.CodeInvalidArgument},
+	{errImageRequired, connect.CodeInvalidArgument},
+	{errImageFromLocoRegistry, connect.CodeInvalidArgument},
+	{errNoDeploymentInRegion, connect.CodeInvalidArgument},
+	{errPreviousDeploymentNoSpec, connect.CodeInvalidArgument},
+	{errOnlyServiceResources, connect.CodeInvalidArgument},
+	{errScaleUnchanged, connect.CodeInvalidArgument},
+	{configplan.ErrCustomDomain, connect.CodeInvalidArgument},
+	{configplan.ErrNotSingleLabel, connect.CodeInvalidArgument},
+	{errBuildNotSucceeded, connect.CodeFailedPrecondition},
+	{errBuildImageDeleted, connect.CodeFailedPrecondition},
+	{errBuildNotQueueable, connect.CodeFailedPrecondition},
+	{errBuildServiceNotCreated, connect.CodeFailedPrecondition},
+	{errRolloutInProgress, connect.CodeFailedPrecondition},
+	{ErrOrgSuspended, connect.CodeFailedPrecondition},
+	{errNoProductionEnvironment, connect.CodeFailedPrecondition},
+	{errNoActiveCluster, connect.CodeFailedPrecondition},
+	{ErrClusterNotAssignable, connect.CodeFailedPrecondition},
+	{configplan.ErrDomainNotServed, connect.CodeFailedPrecondition},
+}
+
+// invalidInputError rejects a request with a fixed public message. err stays the private cause.
+type invalidInputError struct {
+	public string
+	err    error
+}
+
+func (e *invalidInputError) Error() string {
+	return e.err.Error()
+}
+
+func (e *invalidInputError) Unwrap() error {
+	return e.err
+}
+
+// handlerError maps a domain error to the connect error a handler returns. Any other error is
+// a server failure: it is logged with msg and attrs and hidden behind ErrDB.
+func handlerError(ctx context.Context, msg string, err error, attrs ...any) error {
+	if invalid, ok := errors.AsType[*invalidInputError](err); ok {
+		return connect.NewError(connect.CodeInvalidArgument, invalid.public).WithCause(invalid.err)
+	}
+	for _, domain := range domainErrorCodes {
+		if errors.Is(err, domain.err) {
+			return rpcerr.New(domain.code, err)
+		}
+	}
+	attrs = append(attrs, "error", err)
+	slog.ErrorContext(ctx, msg, attrs...)
+	return rpcerr.New(connect.CodeInternal, ErrDB)
+}
+
+// txError maps the error of a transaction whose closure may still return connect errors.
 func txError(ctx context.Context, msg string, err error) error {
 	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
 		return connectErr
 	}
-	slog.ErrorContext(ctx, msg, "error", err)
-	return rpcerr.New(connect.CodeInternal, ErrDB)
+	return handlerError(ctx, msg, err)
 }
 
 func withDetail(err *connect.Error, msg proto.Message) *connect.Error {

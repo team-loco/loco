@@ -8,7 +8,6 @@ import (
 	"slices"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -190,7 +189,7 @@ func (a *applier) createDomain(
 ) (uuid.UUID, error) {
 	platformDomain, label, err := configplan.MatchPlatformDomain(domain, a.platformDomains)
 	if err != nil {
-		return uuid.UUID{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+		return uuid.UUID{}, &invalidInputError{public: publicInvalidRequest, err: err}
 	}
 	domainID, err := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
 		ResourceID:     resourceID,
@@ -323,7 +322,7 @@ func (a *applier) currentBuild(
 		return requested, nil
 	}
 	if deployments := a.live.deployments[res.ID]; len(deployments) > 0 {
-		deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, string(res.Type))
+		deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, res.Type)
 		if err != nil {
 			return nil, fmt.Errorf("deployment %s spec: %w", deployments[0].ID, err)
 		}

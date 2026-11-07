@@ -387,13 +387,11 @@ func (spec *MetricsSpec) Validate() error {
 	if !spec.Enabled {
 		return nil
 	}
-	if spec.Path != "" {
-		parsed, err := url.ParseRequestURI(spec.Path)
-		if err != nil || !strings.HasPrefix(spec.Path, "/") || strings.HasPrefix(spec.Path, "//") ||
-			parsed.RawQuery != "" ||
-			strings.ContainsAny(spec.Path, "#\r\n") {
-			return errMetricsPath
-		}
+	parsed, err := url.ParseRequestURI(spec.Path)
+	if err != nil || !strings.HasPrefix(spec.Path, "/") || strings.HasPrefix(spec.Path, "//") ||
+		parsed.RawQuery != "" ||
+		strings.ContainsAny(spec.Path, "#\r\n") {
+		return errMetricsPath
 	}
 
 	if spec.Port < minServicePort || spec.Port > maxServicePort {

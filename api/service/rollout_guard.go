@@ -5,10 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var errRolloutInProgress = errors.New("a deployment is rolling out; wait for it to finish before changing this service")
@@ -28,7 +26,7 @@ func ensureNoRollout(
 			continue
 		}
 		if deployment.Status == genDb.DeploymentStatusPending || deployment.Status == genDb.DeploymentStatusDeploying {
-			return rpcerr.New(connect.CodeFailedPrecondition, errRolloutInProgress)
+			return errRolloutInProgress
 		}
 	}
 	return nil

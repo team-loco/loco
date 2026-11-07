@@ -302,7 +302,7 @@ func TestApplyImportsAnUnownedServiceOnConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get deployment: %v", err)
 	}
-	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, string(res.Type))
+	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, res.Type)
 	if err != nil {
 		t.Fatalf("deployment spec: %v", err)
 	}

@@ -13,8 +13,6 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-const defaultMetricsPath = "/metrics"
-
 // addMetricsScrape marks the pod for the metrics collector, which discovers targets by the
 // port label and reads the scrape path from the annotation.
 func addMetricsScrape(obs *locov1alpha1.ObsSpec, podLabels, podAnnotations map[string]string) {
@@ -22,11 +20,7 @@ func addMetricsScrape(obs *locov1alpha1.ObsSpec, podLabels, podAnnotations map[s
 		return
 	}
 	podLabels[locolabels.LabelMetricsPort] = strconv.FormatInt(int64(obs.Metrics.Port), 10)
-	path := obs.Metrics.Path
-	if path == "" {
-		path = defaultMetricsPath
-	}
-	podAnnotations[locolabels.AnnotationMetricsPath] = path
+	podAnnotations[locolabels.AnnotationMetricsPath] = obs.Metrics.Path
 }
 
 func (r *LocoResourceReconciler) metricsIngressPolicy(
