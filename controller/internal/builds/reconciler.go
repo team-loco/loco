@@ -67,6 +67,8 @@ type Reconciler struct {
 	RegistryTokenMode bool
 }
 
+// buildResult is the termination message the builder writes; keep it in sync with
+// result in builder/main.go.
 type buildResult struct {
 	ImageDigest string `json:"imageDigest"`
 	CacheDigest string `json:"cacheDigest"`

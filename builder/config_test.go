@@ -11,6 +11,11 @@ const (
 	testImageRef     = "registry.example.com/loco/ws-1/res-1:build-b-1"
 	testCacheRef     = "registry.example.com/loco/ws-1/res-1@sha256:abc"
 	testFetchTimeout = 7 * time.Minute
+
+	flagWorkspace  = "--workspace=/w"
+	flagDockerfile = "--dockerfile=Dockerfile"
+	flagImageDir   = "--image-dir=/i"
+	flagTermLog    = "--termination-log=/t"
 )
 
 func testEnv(values map[string]string) func(string) string {
@@ -27,6 +32,7 @@ func TestNewConfigFetch(t *testing.T) {
 	args := []string{
 		commandFetch,
 		"--workspace=/work",
+		"--cache-dir=/cache",
 		"--dockerfile=deploy/Dockerfile",
 		"--max-source-bytes=100",
 		"--max-context-bytes=200",
@@ -55,7 +61,8 @@ func TestNewConfigFetch(t *testing.T) {
 }
 
 func TestNewConfigPush(t *testing.T) {
-	args := []string{commandPush, "--image-ref=" + testImageRef, "--max-image-bytes=500"}
+	args := []string{commandPush, "--image-dir=/out/image", "--termination-log=/dev/termination-log",
+		"--image-ref=" + testImageRef, "--max-image-bytes=500"}
 	cfg, err := newConfig(args, testEnv(nil))
 	if err != nil {
 		t.Fatalf("newConfig: %v", err)
@@ -79,6 +86,7 @@ func TestNewConfigRejectsInvalid(t *testing.T) {
 	zeroTimeout := fetchEnv()
 	zeroTimeout[envDownloadTimeout] = "0s"
 
+	fetchArgs := []string{commandFetch, flagWorkspace, flagDockerfile}
 	cases := map[string]struct {
 		args []string
 		env  map[string]string
@@ -86,11 +94,33 @@ func TestNewConfigRejectsInvalid(t *testing.T) {
 	}{
 		"no command":       {args: nil, env: fetchEnv(), want: errUsage},
 		"unknown command":  {args: []string{"build"}, env: fetchEnv(), want: errUnknownCommand},
-		"no source url":    {args: []string{commandFetch}, env: noURL, want: errNoSourceURL},
-		"no timeout":       {args: []string{commandFetch}, env: noTimeout, want: errNoDownloadTimeout},
-		"unparsed timeout": {args: []string{commandFetch}, env: badTimeout, want: errNoDownloadTimeout},
-		"zero timeout":     {args: []string{commandFetch}, env: zeroTimeout, want: errNoDownloadTimeout},
-		"no image ref":     {args: []string{commandPush}, env: nil, want: errNoImageRef},
+		"no source url":    {args: fetchArgs, env: noURL, want: errNoSourceURL},
+		"no timeout":       {args: fetchArgs, env: noTimeout, want: errNoDownloadTimeout},
+		"unparsed timeout": {args: fetchArgs, env: badTimeout, want: errNoDownloadTimeout},
+		"zero timeout":     {args: fetchArgs, env: zeroTimeout, want: errNoDownloadTimeout},
+		"fetch no workspace": {
+			args: []string{commandFetch, flagDockerfile}, env: fetchEnv(), want: errMissingFlag,
+		},
+		"fetch no dockerfile": {
+			args: []string{commandFetch, flagWorkspace}, env: fetchEnv(), want: errMissingFlag,
+		},
+		"fetch cache ref without dir": {
+			args: []string{commandFetch, flagWorkspace, flagDockerfile, "--cache-ref=" + testCacheRef},
+			env:  fetchEnv(), want: errMissingFlag,
+		},
+		"push no image ref": {
+			args: []string{commandPush, flagImageDir, flagTermLog}, want: errMissingFlag,
+		},
+		"push no image dir": {
+			args: []string{commandPush, "--image-ref=" + testImageRef, flagTermLog}, want: errMissingFlag,
+		},
+		"push no termination log": {
+			args: []string{commandPush, flagImageDir, "--image-ref=" + testImageRef}, want: errMissingFlag,
+		},
+		"push cache ref without dir": {
+			args: []string{commandPush, flagImageDir, "--image-ref=" + testImageRef, flagTermLog,
+				"--cache-ref=" + testCacheRef}, want: errMissingFlag,
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -103,7 +133,7 @@ func TestNewConfigRejectsInvalid(t *testing.T) {
 }
 
 func TestNewConfigRejectsUnparsableFlag(t *testing.T) {
-	args := []string{commandFetch, "--max-entries=many"}
+	args := []string{commandFetch, flagWorkspace, flagDockerfile, "--max-entries=many"}
 	if _, err := newConfig(args, testEnv(fetchEnv())); err == nil {
 		t.Error("newConfig accepted an unparsable flag")
 	}

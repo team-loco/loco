@@ -16,6 +16,8 @@ import (
 
 const terminationLogPerm = 0o600
 
+// result is the termination message the controller parses; keep it in sync with
+// buildResult in controller/internal/builds/reconciler.go.
 type result struct {
 	ImageDigest string `json:"imageDigest"`
 	CacheDigest string `json:"cacheDigest,omitempty"`

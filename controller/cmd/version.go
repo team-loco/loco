@@ -6,6 +6,7 @@ const unknownVersion = "(devel)"
 
 var version string
 
+// buildVersion is duplicated in builder/version.go, which is a separate module; keep both in sync.
 func buildVersion() string {
 	if version != "" {
 		return version
