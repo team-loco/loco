@@ -12,3 +12,15 @@ stdout '^webHost += http://localhost:5173$'
 exec loco config unset webHost
 exec loco config get webHost
 stdout 'default: https://loco\.build'
+
+exec loco config set locoHost https://api.example.test
+stdout '^locoHost = https://api\.example\.test$'
+exec loco config get locoHost
+stdout '^https://api\.example\.test$'
+exec loco config unset locoHost
+stdout '^locoHost unset$'
+exec loco config get locoHost
+stdout 'default: https://api\.loco\.build'
+
+! exec loco config set bogus x
+stderr '[Uu]nknown key "bogus".*locoHost.*webHost'

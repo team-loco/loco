@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	updateTimeout       = 5 * time.Minute
-	skipVersionCheckKey = "skip-version-check"
+	updateTimeout  = 5 * time.Minute
+	installCommand = "curl -fsSL https://loco.build/install.sh | sh"
 )
 
 type updater struct {

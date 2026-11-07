@@ -1,16 +1,14 @@
 package token
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
-	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
 
 func buildListCmd() *cobra.Command {
@@ -96,36 +94,6 @@ func buildListCmd() *cobra.Command {
 	cmd.Flags().String("entity-id", "", "Entity ID (defaults to current user for user type)")
 
 	return cmd
-}
-
-func resolveEntityID(
-	ctx context.Context,
-	userClient userv1connect.UserServiceClient,
-	entityType tokenv1.EntityType,
-	entityTypeStr string,
-	entityID string,
-) (string, error) {
-	switch {
-	case entityID != "":
-		return entityID, nil
-	case entityType == tokenv1.EntityType_ENTITY_TYPE_USER:
-		return getCurrentUserID(ctx, userClient)
-	default:
-		return "", fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
-	}
-}
-
-func getCurrentUserID(
-	ctx context.Context,
-	userClient userv1connect.UserServiceClient,
-) (string, error) {
-	whoAmIReq := &userv1.WhoAmIRequest{}
-
-	whoAmIResp, err := userClient.WhoAmI(ctx, whoAmIReq)
-	if err != nil {
-		return "", fmt.Errorf("failed to get current user: %w", err)
-	}
-	return whoAmIResp.GetUser().GetId(), nil
 }
 
 func formatScopes(scopes []*tokenv1.EntityScope) string {

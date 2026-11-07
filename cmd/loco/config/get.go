@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
+
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -22,21 +22,14 @@ func buildGetCmd() *cobra.Command {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
 
-			switch key {
-			case keyLocoHost:
-				if cfg.LocoHost != "" {
-					fmt.Println(cfg.LocoHost)
-				} else {
-					fmt.Println("(not set, default: " + cmdutil.DefaultLocoHost + ")")
-				}
-			case keyWebHost:
-				if cfg.WebHost != "" {
-					fmt.Println(cfg.WebHost)
-				} else {
-					fmt.Println("(not set, default: " + cmdutil.DefaultWebHost + ")")
-				}
-			default:
-				return fmt.Errorf("unknown key %q — valid keys: %v", key, validKeys)
+			k, err := lookupKey(key)
+			if err != nil {
+				return err
+			}
+			if v := *k.field(cfg); v != "" {
+				fmt.Println(v)
+			} else {
+				fmt.Println("(not set, default: " + k.def + ")")
 			}
 
 			return nil

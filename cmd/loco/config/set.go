@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -21,14 +22,11 @@ func buildSetCmd() *cobra.Command {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
 
-			switch key {
-			case keyLocoHost:
-				cfg.LocoHost = value
-			case keyWebHost:
-				cfg.WebHost = value
-			default:
-				return fmt.Errorf("unknown key %q — valid keys: %v", key, validKeys)
+			k, err := lookupKey(key)
+			if err != nil {
+				return err
 			}
+			*k.field(cfg) = value
 
 			if err := cfg.Save(); err != nil {
 				return fmt.Errorf("failed to save config: %w", err)

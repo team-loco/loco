@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 )
@@ -125,28 +126,6 @@ Tokens can be scoped to different entity types:
 	cmd.Flags().String("entity-id", "", "Entity ID (required for non-user entity types)")
 
 	return cmd
-}
-
-func parseEntityType(s string) (tokenv1.EntityType, error) {
-	switch strings.ToLower(s) {
-	case "user":
-		return tokenv1.EntityType_ENTITY_TYPE_USER, nil
-	case "org":
-		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, nil
-	case "organization":
-		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, nil
-	case "workspace":
-		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, nil
-	case "ws":
-		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, nil
-	case "resource":
-		return tokenv1.EntityType_ENTITY_TYPE_RESOURCE, nil
-	default:
-		return tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED, fmt.Errorf(
-			"invalid entity type %q: must be user, org, workspace, or resource",
-			s,
-		)
-	}
 }
 
 func parseScope(s string) (tokenv1.Scope, error) {
