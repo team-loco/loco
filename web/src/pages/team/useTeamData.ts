@@ -1,11 +1,11 @@
-import { createConnectQueryKey, createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { createConnectQueryKey, useQuery, useTransport } from "@connectrpc/connect-query";
 import { getOrg, listInvitations } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { User } from "@gen/loco/org/v1/org_pb";
-import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { EntityType, type EntityScope } from "@gen/loco/token/v1/token_pb";
-import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueries, useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
 import { invitationsOptions, orgMembersOptions, workspaceMembersOptions } from "@/hooks/completeMembers";
+import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
+import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 
 import { parseScopeName, sortScopes, toScopeName, type ScopeName } from "./scopes";
 
@@ -48,7 +48,7 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 	const orgQuery = useQuery(getOrg, { orgId }, { enabled });
 	const membersQuery = useTanstackQuery(orgMembersOptions(transport, orgId));
 	const invitationsQuery = useTanstackQuery(invitationsOptions(transport, orgId));
-	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled });
+	const wsQuery = useTanstackQuery(orgWorkspacesOptions(transport, orgId));
 	const org = orgQuery.data?.organization;
 	const workspaces = wsQuery.data?.workspaces ?? [];
 	const wsName = new Map(workspaces.map((w) => [w.id, w.name]));
@@ -59,9 +59,7 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 
 	const needResources = myScopes.some((s) => s.entityType === EntityType.RESOURCE);
 	const resourceQueries = useQueries({
-		queries: (needResources ? workspaces : []).map((w) =>
-			createQueryOptions(listWorkspaceResources, { workspaceId: w.id, pageSize: 200 }, { transport }),
-		),
+		queries: (needResources ? workspaces : []).map((w) => workspaceResourcesOptions(transport, w.id)),
 	});
 	const resources = new Map<string, { name: string; workspace: string }>();
 	for (const q of resourceQueries) {

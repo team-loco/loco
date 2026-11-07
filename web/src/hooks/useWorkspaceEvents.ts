@@ -1,11 +1,9 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQueries } from "@tanstack/react-query";
-import {
-	listResourceEvents,
-	listWorkspaceResources,
-} from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Event, Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { isUnimplemented } from "@/lib/error-handler";
 import { tsMs } from "@/lib/time";
 
@@ -19,11 +17,10 @@ const EVENTS_PER_RESOURCE = 500;
 
 export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[]) {
 	const transport = useTransport();
-	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
-		listWorkspaceResources,
-		workspaceId ? { workspaceId, pageSize: 200 } : undefined,
-		{ enabled: !!workspaceId && resourceFilter === undefined },
-	);
+	const { data: resourcesData, isLoading: resourcesLoading } = useQuery({
+		...workspaceResourcesOptions(transport, workspaceId),
+		enabled: !!workspaceId && resourceFilter === undefined,
+	});
 
 	const resources = resourceFilter ?? resourcesData?.resources ?? [];
 

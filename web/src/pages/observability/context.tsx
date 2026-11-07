@@ -1,9 +1,10 @@
 import { createContext, use, useState, type ReactNode } from "react";
-import { useQuery } from "@connectrpc/connect-query";
+import { useTransport } from "@connectrpc/connect-query";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
-import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import type { TimeRange } from "@/lib/obs";
 import type { ObservabilityView } from "@/lib/routes";
 
@@ -86,11 +87,10 @@ export function ObsProvider({
 	view: ObservabilityView;
 	children: ReactNode;
 }) {
+	const transport = useTransport();
 	const [params, setParams] = useSearchParams();
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
-		listWorkspaceResources,
-		{ workspaceId, pageSize: 200 },
-		{ enabled: workspaceId !== "" },
+		workspaceResourcesOptions(transport, workspaceId),
 	);
 
 	const initialNames = (params.get("r") ?? "").split(",").filter(Boolean);

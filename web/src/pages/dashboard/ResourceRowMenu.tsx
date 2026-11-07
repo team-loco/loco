@@ -1,11 +1,11 @@
-import { createConnectQueryKey, useMutation } from "@connectrpc/connect-query";
+import { useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisIcon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
-import { deleteResource, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import {
 	AlertDialog,
@@ -25,6 +25,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 
@@ -41,6 +42,7 @@ export function ResourceRowMenu({
 }) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const transport = useTransport();
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const deleteMutation = useMutation(deleteResource);
 
@@ -52,12 +54,7 @@ export function ResourceRowMenu({
 	const confirmDelete = async () => {
 		try {
 			await deleteMutation.mutateAsync({ resourceId: resource.id });
-			const key = createConnectQueryKey({
-				schema: listWorkspaceResources,
-				input: { workspaceId, pageSize: 200 },
-				cardinality: "finite",
-			});
-			await queryClient.invalidateQueries({ queryKey: key });
+			await queryClient.invalidateQueries({ queryKey: workspaceResourcesOptions(transport, workspaceId).queryKey });
 			toast.success(`${resource.name} deleted`);
 			setConfirmOpen(false);
 		} catch (err) {

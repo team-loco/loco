@@ -1,6 +1,6 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { getOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, ScrollTextIcon } from "lucide-react";
 import { useParams, useSearchParams } from "react-router";
@@ -8,6 +8,7 @@ import { useParams, useSearchParams } from "react-router";
 import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { orgMembersOptions } from "@/hooks/completeMembers";
+import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
 
@@ -40,7 +41,10 @@ export function Settings() {
 		},
 	);
 	const orgQuery = useQuery(getOrg, { orgId }, { enabled: orgId !== "" && canReadOrg });
-	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled: orgId !== "" && canReadOrg });
+	const wsQuery = useTanstackQuery({
+		...orgWorkspacesOptions(transport, orgId),
+		enabled: orgId !== "" && canReadOrg,
+	});
 	const membersQuery = useTanstackQuery({
 		...orgMembersOptions(transport, orgId),
 		enabled: orgId !== "" && canReadOrg,
