@@ -66,3 +66,38 @@ func TestNewPreservesClientVisibleError(t *testing.T) {
 		t.Fatal("server cause reached the client")
 	}
 }
+
+var errExpected = rpcerr.NewCoded(connect.CodeNotFound, "thing not found")
+
+func TestPublicReturnsOnlyTheCodedMessage(t *testing.T) {
+	cases := map[string]struct {
+		err         error
+		wantMessage string
+	}{
+		"wrapped": {
+			err:         fmt.Errorf("load thing 0190: %w", errExpected),
+			wantMessage: "thing not found",
+		},
+		"detail": {
+			err:         fmt.Errorf("load: %w", errExpected.Detail("%s", "web")),
+			wantMessage: "thing not found: web",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			public, ok := rpcerr.Public(tc.err)
+			if !ok {
+				t.Fatal("no coded error found")
+			}
+			if public.Code() != connect.CodeNotFound || public.Message() != tc.wantMessage {
+				t.Fatalf("public = %s %q, want not_found %q", public.Code(), public.Message(), tc.wantMessage)
+			}
+			if !errors.Is(public, errExpected) {
+				t.Fatal("the cause no longer matches the sentinel")
+			}
+		})
+	}
+	if public, ok := rpcerr.Public(errors.New("disk full")); ok {
+		t.Fatalf("an uncoded error was treated as public: %v", public)
+	}
+}

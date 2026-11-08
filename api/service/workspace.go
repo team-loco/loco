@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"time"
 
@@ -24,9 +23,12 @@ import (
 )
 
 var (
-	ErrWorkspaceNotFound     = errors.New("workspace not found")
-	ErrWorkspaceNameRequired = errors.New("workspace name must not be empty")
-	ErrWorkspaceHasResources = errors.New("workspace has resources, delete them first")
+	ErrWorkspaceNotFound     = rpcerr.NewCoded(connect.CodeNotFound, "workspace not found")
+	ErrWorkspaceNameRequired = rpcerr.NewCoded(connect.CodeInvalidArgument, "workspace name must not be empty")
+	ErrWorkspaceHasResources = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"workspace has resources, delete them first",
+	)
 )
 
 // WorkspaceServer implements the WorkspaceService gRPC server
@@ -61,27 +63,19 @@ func (s *WorkspaceServer) CreateWorkspace(
 	if p.Entity.Type != genDb.EntityTypeUser {
 		return nil, rpcerr.New(connect.CodePermissionDenied, ErrImproperUsage)
 	}
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := genDb.New(tx)
-
-	wsID, err := createWorkspaceInTx(ctx, qtx, genDb.CreateWorkspaceParams{
-		OrgID:       orgID,
-		Name:        req.GetName(),
-		Description: req.Description,
-		CreatedBy:   p.Entity.ID,
+	var wsID uuid.UUID
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var createErr error
+		wsID, createErr = createWorkspaceInTx(ctx, qtx, genDb.CreateWorkspaceParams{
+			OrgID:       orgID,
+			Name:        req.GetName(),
+			Description: req.Description,
+			CreatedBy:   p.Entity.ID,
+		})
+		return createErr
 	})
 	if err != nil {
 		return nil, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	return &workspacev1.CreateWorkspaceResponse{
@@ -95,12 +89,11 @@ func createWorkspaceInTx(
 	params genDb.CreateWorkspaceParams,
 ) (uuid.UUID, error) {
 	wsID, err := qtx.CreateWorkspace(ctx, params)
+	if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
+		return uuid.Nil, ErrOrgNotFound
+	}
 	if err != nil {
-		if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
-			return uuid.Nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
-		}
-		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
-		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.Nil, fmt.Errorf("insert workspace: %w", err)
 	}
 
 	err = authz.ApplyRoles(ctx, qtx, params.CreatedBy, []genDb.EntityScope{
@@ -109,17 +102,7 @@ func createWorkspaceInTx(
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to update user roles for new workspace",
-			"error",
-			err,
-			"workspaceId",
-			wsID,
-			"userId",
-			params.CreatedBy,
-		)
-		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.Nil, fmt.Errorf("grant roles on workspace %s: %w", wsID, err)
 	}
 
 	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
@@ -128,15 +111,7 @@ func createWorkspaceInTx(
 		EnvironmentType: environmentTypeProduction,
 		CreatedBy:       params.CreatedBy,
 	}); err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to create production environment for new workspace",
-			"error",
-			err,
-			"workspaceId",
-			wsID.String(),
-		)
-		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.Nil, fmt.Errorf("create production environment of workspace %s: %w", wsID, err)
 	}
 
 	if err := events.Record(ctx, qtx, events.Event{
@@ -147,8 +122,7 @@ func createWorkspaceInTx(
 		SubjectID:   new(wsID),
 		Data:        map[string]any{events.FieldName: params.Name},
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to record workspace creation", "error", err)
-		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.Nil, err
 	}
 	return wsID, nil
 }
@@ -167,7 +141,7 @@ func (s *WorkspaceServer) GetWorkspace(
 	}
 	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, workspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+		return nil, ErrWorkspaceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get workspace: %w", err)
@@ -217,8 +191,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list workspaces for user", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list user workspaces: %w", err)
 	}
 
 	var workspaces []*workspacev1.Workspace
@@ -252,8 +225,6 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	ctx context.Context,
 	req *workspacev1.ListOrgWorkspacesRequest,
 ) (*workspacev1.ListOrgWorkspacesResponse, error) {
-	slog.InfoContext(ctx, "list workspaces req for org", "orgId", req.GetOrgId())
-
 	orgID, err := parseID("org_id", req.GetOrgId())
 	if err != nil {
 		return nil, err
@@ -284,8 +255,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list organization workspaces: %w", err)
 	}
 
 	var workspaces []*workspacev1.Workspace
@@ -333,7 +303,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	rename := message.Has(fields.ByName(updateNameField))
 	if rename {
 		if req.GetName() == "" {
-			return nil, rpcerr.New(connect.CodeInvalidArgument, ErrWorkspaceNameRequired)
+			return nil, ErrWorkspaceNameRequired
 		}
 		params.Name = new(req.GetName())
 	}
@@ -344,10 +314,10 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		_, updateErr := qtx.UpdateWorkspace(ctx, params)
 		if errors.Is(updateErr, pgx.ErrNoRows) {
-			return rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+			return ErrWorkspaceNotFound
 		}
 		if updateErr != nil {
-			return updateErr
+			return fmt.Errorf("update workspace: %w", updateErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.WorkspaceUpdated,
@@ -357,7 +327,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to update workspace", err)
+		return nil, err
 	}
 
 	return &workspacev1.UpdateWorkspaceResponse{
@@ -381,17 +351,17 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		deletedOrgID, orgErr := qtx.LockWorkspaceForDeletion(ctx, wsID)
 		if errors.Is(orgErr, pgx.ErrNoRows) {
-			return rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+			return ErrWorkspaceNotFound
 		}
 		if orgErr != nil {
-			return orgErr
+			return fmt.Errorf("lock workspace: %w", orgErr)
 		}
 		resources, listErr := qtx.ListWorkspaceResourcesForDeletion(ctx, wsID)
 		if listErr != nil {
 			return fmt.Errorf("list workspace resources: %w", listErr)
 		}
 		if len(resources) > 0 && !req.GetConfirmDeleteApps() {
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrWorkspaceHasResources)
+			return ErrWorkspaceHasResources
 		}
 		for _, resource := range resources {
 			if removeErr := removeResourcePlacements(ctx, qtx, resource.ID); removeErr != nil {
@@ -413,7 +383,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 			}
 		}
 		if removeErr := qtx.RemoveWorkspace(ctx, wsID); removeErr != nil {
-			return removeErr
+			return fmt.Errorf("delete workspace: %w", removeErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.WorkspaceDeleted,
@@ -424,7 +394,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to delete workspace", err)
+		return nil, err
 	}
 
 	return &workspacev1.DeleteWorkspaceResponse{}, nil
@@ -475,23 +445,30 @@ func (s *WorkspaceServer) CreateMember(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		_, lockErr := qtx.LockUserForMembership(ctx, userID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+			return ErrUserNotFound
 		}
 		if lockErr != nil {
-			return lockErr
+			return fmt.Errorf("lock user: %w", lockErr)
 		}
 		orgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(ctx, wsID)
+		if errors.Is(orgErr, pgx.ErrNoRows) {
+			return ErrWorkspaceNotFound
+		}
 		if orgErr != nil {
-			return orgErr
+			return fmt.Errorf("get workspace organization: %w", orgErr)
 		}
 		isMember, memberErr := qtx.IsOrgMember(ctx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
 		if memberErr != nil {
-			return memberErr
+			return fmt.Errorf("check organization membership: %w", memberErr)
 		}
 		if !isMember {
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrNotOrgMember)
+			return ErrNotOrgMember
 		}
-		if applyErr := authz.ApplyRoles(ctx, qtx, userID, addScopes, nil); applyErr != nil {
+		applyErr := authz.ApplyRoles(ctx, qtx, userID, addScopes, nil)
+		if pgForeignKeyConstraint(applyErr) == pgWorkspaceScopeReference {
+			return ErrWorkspaceNotFound
+		}
+		if applyErr != nil {
 			return applyErr
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -502,11 +479,8 @@ func (s *WorkspaceServer) CreateMember(
 			Data:        map[string]any{"scopes": grantedScopes},
 		})
 	})
-	if errors.Is(err, pgx.ErrNoRows) || pgForeignKeyConstraint(err) == pgWorkspaceScopeReference {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
-	}
 	if err != nil {
-		return nil, txError(ctx, "failed to add workspace member scopes", err)
+		return nil, err
 	}
 
 	return &workspacev1.CreateMemberResponse{
@@ -533,44 +507,27 @@ func (s *WorkspaceServer) DeleteMember(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidUserID).WithCause(err)
 	}
 
-	tx, err := s.db.Begin(ctx)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if removeErr := qtx.RemoveAllScopesForUserOnEntity(ctx, genDb.RemoveAllScopesForUserOnEntityParams{
+			UserID:     userID,
+			EntityType: genDb.EntityTypeWorkspace,
+			EntityID:   wsID,
+		}); removeErr != nil {
+			return fmt.Errorf("remove workspace scopes: %w", removeErr)
+		}
+		resourceScopes := genDb.RemoveResourceScopesForUserInWorkspaceParams{UserID: userID, WorkspaceID: wsID}
+		if removeErr := qtx.RemoveResourceScopesForUserInWorkspace(ctx, resourceScopes); removeErr != nil {
+			return fmt.Errorf("remove resource scopes: %w", removeErr)
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.MemberRemoved,
+			WorkspaceID: new(wsID),
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(userID),
+		})
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := genDb.New(tx)
-
-	if err := qtx.RemoveAllScopesForUserOnEntity(ctx, genDb.RemoveAllScopesForUserOnEntityParams{
-		UserID:     userID,
-		EntityType: genDb.EntityTypeWorkspace,
-		EntityID:   wsID,
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to remove workspace member scopes", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if err := qtx.RemoveResourceScopesForUserInWorkspace(ctx, genDb.RemoveResourceScopesForUserInWorkspaceParams{
-		UserID:      userID,
-		WorkspaceID: wsID,
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to remove member resource scopes", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if err := events.Record(ctx, qtx, events.Event{
-		Type:        events.MemberRemoved,
-		WorkspaceID: new(wsID),
-		SubjectType: events.SubjectUser,
-		SubjectID:   new(userID),
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to record member removal", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit member removal", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, err
 	}
 
 	return &workspacev1.DeleteMemberResponse{}, nil
@@ -606,8 +563,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		},
 	)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list members", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list workspace members: %w", err)
 	}
 
 	var members []*workspacev1.WorkspaceMemberWithUser

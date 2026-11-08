@@ -32,7 +32,7 @@ func TestGetResourceFailsOnCorruptSpec(t *testing.T) {
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: f.resourceID.String()},
 	}
 	_, err := server.GetResource(ctx, req)
-	wantCode(t, err, connect.CodeInternal)
+	wantServerFailure(t, err)
 }
 
 func TestCreateResourceRejectsNonServiceType(t *testing.T) {

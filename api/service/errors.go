@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -21,40 +20,6 @@ var (
 
 	errUnknownOperation = errors.New("configplan produced an operation kind outside KindCreate..KindImport")
 )
-
-// domainErrorCodes are the codes of the domain errors helpers return. The client sees the
-// error's own message.
-var domainErrorCodes = []struct {
-	err  error
-	code connect.Code
-}{
-	{ErrBuildNotFound, connect.CodeNotFound},
-	{ErrOrgNotFound, connect.CodeNotFound},
-	{ErrResourceNotFound, connect.CodeNotFound},
-	{errNoActiveDeployment, connect.CodeNotFound},
-	{errBuildSourceRequired, connect.CodeInvalidArgument},
-	{errDockerfileNoBuildID, connect.CodeInvalidArgument},
-	{errBuildImageMismatch, connect.CodeInvalidArgument},
-	{errImageBuildIDSet, connect.CodeInvalidArgument},
-	{errImageRequired, connect.CodeInvalidArgument},
-	{errImageFromLocoRegistry, connect.CodeInvalidArgument},
-	{errNoDeploymentInRegion, connect.CodeInvalidArgument},
-	{errPreviousDeploymentNoSpec, connect.CodeInvalidArgument},
-	{errOnlyServiceResources, connect.CodeInvalidArgument},
-	{errScaleUnchanged, connect.CodeInvalidArgument},
-	{configplan.ErrCustomDomain, connect.CodeInvalidArgument},
-	{configplan.ErrNotSingleLabel, connect.CodeInvalidArgument},
-	{errBuildNotSucceeded, connect.CodeFailedPrecondition},
-	{errBuildImageDeleted, connect.CodeFailedPrecondition},
-	{errBuildNotQueueable, connect.CodeFailedPrecondition},
-	{errBuildServiceNotCreated, connect.CodeFailedPrecondition},
-	{errRolloutInProgress, connect.CodeFailedPrecondition},
-	{ErrOrgSuspended, connect.CodeFailedPrecondition},
-	{errNoProductionEnvironment, connect.CodeFailedPrecondition},
-	{errNoActiveCluster, connect.CodeFailedPrecondition},
-	{ErrClusterNotAssignable, connect.CodeFailedPrecondition},
-	{configplan.ErrDomainNotServed, connect.CodeFailedPrecondition},
-}
 
 // invalidInputError rejects a request with a fixed public message. err stays the private cause.
 type invalidInputError struct {
@@ -66,20 +31,17 @@ func (e *invalidInputError) Error() string {
 	return e.err.Error()
 }
 
-func (e *invalidInputError) Unwrap() error {
-	return e.err
+// Unwrap puts the public message first, so rpcerr.Public reports it rather than a coded error
+// inside the private cause.
+func (e *invalidInputError) Unwrap() []error {
+	return []error{rpcerr.NewCoded(connect.CodeInvalidArgument, e.public), e.err}
 }
 
-// handlerError maps a domain error to the connect error a handler returns. Any other error is
-// a server failure: it is logged with msg and attrs and hidden behind ErrDB.
+// handlerError returns the public error of a coded failure. It logs any other error with msg
+// and attrs and hides it behind ErrDB.
 func handlerError(ctx context.Context, msg string, err error, attrs ...any) error {
-	if invalid, ok := errors.AsType[*invalidInputError](err); ok {
-		return connect.NewError(connect.CodeInvalidArgument, invalid.public).WithCause(invalid.err)
-	}
-	for _, domain := range domainErrorCodes {
-		if errors.Is(err, domain.err) {
-			return rpcerr.New(domain.code, err)
-		}
+	if public, ok := rpcerr.Public(err); ok {
+		return public
 	}
 	attrs = append(attrs, "error", err)
 	slog.ErrorContext(ctx, msg, attrs...)
@@ -103,10 +65,27 @@ func withDetail(err *connect.Error, msg proto.Message) *connect.Error {
 	return err.WithDetail(detail)
 }
 
-// isPgConstraintViolation checks if an error is a PostgreSQL unique constraint violation
-func isPgConstraintViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505" // unique_violation
+// Unique constraints whose violation is a client error. Postgres names an inline UNIQUE
+// <table>_<columns>_key; the rest are the index names in api/migrations.
+const (
+	pgEnvironmentNameUnique   = "environments_workspace_id_name_key"
+	pgResourceNameUnique      = "resources_workspace_id_name_key"
+	pgResourceSlugUnique      = "resources_workspace_id_slug_key"
+	pgDomainUnique            = "resource_domains_domain_key"
+	pgPlatformSubdomainUnique = "uniq_platform_subdomain"
+	pgOpenInvitationUnique    = "invitations_open_idx"
+	pgActiveDeploymentUnique  = "uniq_deployments_resource_region_active"
+	pgClusterKeyUnique        = "clusters_cluster_key_key"
+)
+
+func isUniqueViolation(err error, constraint string) bool {
+	pgErr, ok := errors.AsType[*pgconn.PgError](err)
+	return ok && pgErr.Code == "23505" && pgErr.ConstraintName == constraint
+}
+
+// isDomainTaken reports whether a resource_domains write hit another resource's hostname.
+func isDomainTaken(err error) bool {
+	return isUniqueViolation(err, pgDomainUnique) || isUniqueViolation(err, pgPlatformSubdomainUnique)
 }
 
 const (

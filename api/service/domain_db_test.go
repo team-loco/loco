@@ -90,7 +90,7 @@ func TestConcurrentDomainAddAndRemoveKeepOnePrimary(t *testing.T) {
 		if addErr != nil {
 			t.Fatalf("round %d: add %s: %v", round, added, addErr)
 		}
-		if removeErr != nil && connect.CodeOf(removeErr) != connect.CodeFailedPrecondition {
+		if removeErr != nil && codeOf(removeErr) != connect.CodeFailedPrecondition {
 			t.Fatalf("round %d: remove %s: %v", round, removed, removeErr)
 		}
 		total := f.count(t, `SELECT count(*) FROM resource_domains WHERE resource_id = $1`)
@@ -331,6 +331,23 @@ func TestAddingTheFirstDomainUpdatesAPrivatePlacement(t *testing.T) {
 	}
 }
 
+func TestUpdateResourceDomainRejectsATakenDomain(t *testing.T) {
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+	for _, domain := range []string{testPrimaryDomain, testSecondDomain} {
+		if err := client.add(domain); err != nil {
+			t.Fatalf("add %s: %v", domain, err)
+		}
+	}
+	domainID := client.domainID(t, testPrimaryDomain)
+	request := &domainv1.UpdateResourceDomainRequest{DomainId: domainID, Domain: new(testSecondDomain)}
+	_, err := client.server.UpdateResourceDomain(client.ctx, request)
+	wantCode(t, err, connect.CodeAlreadyExists)
+	if got := client.domainID(t, testPrimaryDomain); got != domainID {
+		t.Fatal("rejected update changed the domain")
+	}
+}
+
 func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
@@ -350,7 +367,7 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 	domainID := client.domainID(t, testPrimaryDomain)
 	request := &domainv1.UpdateResourceDomainRequest{DomainId: domainID, Domain: new(testSecondDomain)}
 	_, err := client.server.UpdateResourceDomain(client.ctx, request)
-	wantCode(t, err, connect.CodeInternal)
+	wantServerFailure(t, err)
 	if got := client.domainID(t, testPrimaryDomain); got != domainID {
 		t.Fatal("failed placement update changed the domain")
 	}

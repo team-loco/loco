@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
@@ -71,11 +72,19 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 		t.Fatalf("resource = %s, want %s", resource.GetId(), created.GetResourceId())
 	}
 	domains := resource.GetDomains()
-	if platform {
-		if len(domains) != 1 || domains[0].GetDomain() != "private.example.com" {
-			t.Fatalf("domains = %v, want private.example.com", domains)
+	if !platform {
+		if len(domains) != 0 {
+			t.Fatalf("domains = %v, want none", domains)
 		}
-	} else if len(domains) != 0 {
-		t.Fatalf("domains = %v, want none", domains)
+		return
+	}
+	if len(domains) != 1 || domains[0].GetDomain() != "private.example.com" {
+		t.Fatalf("domains = %v, want private.example.com", domains)
+	}
+	req.Name = "other"
+	_, err = server.CreateResource(scoped, req)
+	wantCode(t, err, connect.CodeAlreadyExists)
+	if _, err = getResourceByName(t, f, scopes, workspaceID, "other"); codeOf(err) != connect.CodeNotFound {
+		t.Fatalf("resource with a taken domain: err = %v, want NotFound", err)
 	}
 }

@@ -106,6 +106,9 @@ func challengeFor(verifier string) string {
 }
 
 func codeOf(err error) connect.Code {
+	if public := publicError(err); public != nil {
+		return public.Code()
+	}
 	return connect.CodeOf(err)
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
@@ -14,11 +15,15 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const suspendedBuildMessage = "canceled: the organization was suspended"
 
-var ErrOrgSuspended = errors.New("the organization is suspended and cannot start workloads")
+var ErrOrgSuspended = rpcerr.NewCoded(
+	connect.CodeFailedPrecondition,
+	"the organization is suspended and cannot start workloads",
+)
 
 func (s *OrgServer) SuspendOrg(
 	ctx context.Context,
@@ -83,7 +88,7 @@ func (s *OrgServer) SuspendOrg(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to suspend org", err)
+		return nil, err
 	}
 	return &orgv1.SuspendOrgResponse{Organization: orgToProto(org)}, nil
 }
@@ -134,7 +139,7 @@ func (s *OrgServer) ResumeOrg(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to resume org", err)
+		return nil, err
 	}
 	return &orgv1.ResumeOrgResponse{Organization: orgToProto(org)}, nil
 }
@@ -180,7 +185,7 @@ func ensureOrganizationActive(ctx context.Context, qtx *genDb.Queries, resourceI
 		return fmt.Errorf("lock organization: %w", err)
 	}
 	if reason != nil {
-		return fmt.Errorf("%w: %s", ErrOrgSuspended, *reason)
+		return ErrOrgSuspended.Detail("%s", *reason)
 	}
 	return nil
 }

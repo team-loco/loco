@@ -196,7 +196,7 @@ func enroll(
 	if errors.Is(err, pgx.ErrNoRows) {
 		return registeredCluster{}, rpcerr.New(connect.CodeUnauthenticated, errEnrollmentRejected)
 	}
-	if isPgConstraintViolation(err) {
+	if isUniqueViolation(err, pgClusterKeyUnique) {
 		return registeredCluster{}, rpcerr.New(connect.CodeFailedPrecondition, errClusterKeyEnrolled)
 	}
 	if err != nil {

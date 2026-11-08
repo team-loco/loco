@@ -34,13 +34,19 @@ import (
 )
 
 var (
-	ErrResourceNotFound      = errors.New("resource not found")
-	ErrDomainNotFound        = errors.New("domain not found")
-	ErrResourceNameNotUnique = errors.New("resource name already exists in this workspace")
-	errPrivateServiceName    = errors.New(
+	ErrResourceNotFound      = rpcerr.NewCoded(connect.CodeNotFound, "resource not found")
+	ErrDomainNotFound        = rpcerr.NewCoded(connect.CodeNotFound, "domain not found")
+	ErrResourceNameNotUnique = rpcerr.NewCoded(
+		connect.CodeAlreadyExists,
+		"resource name already exists in this workspace",
+	)
+	errPrivateServiceName = rpcerr.NewCoded(connect.CodeInvalidArgument,
 		"resource name needs a letter or digit, and its slug cannot be localhost or resource-<UUID>",
 	)
-	errSlugInUse             = errors.New("another resource in this workspace has the same slug")
+	errSlugInUse = rpcerr.NewCoded(
+		connect.CodeAlreadyExists,
+		"another resource in this workspace has the same slug",
+	)
 	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
 	ErrClusterNotFound       = errors.New("cluster not found")
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
@@ -50,12 +56,24 @@ var (
 		"each environment needs its own cluster, and this cluster already runs the service for another environment",
 	)
 
-	errDomainInUse           = errors.New("domain already in use")
-	errUnknownResourceSpec   = errors.New("unknown resource spec type")
-	errOnlyServiceResources  = errors.New("only service resources are currently supported")
-	errScaleNothingRequested = errors.New("at least one of replicas, cpu, or memory must be provided")
-	errScaleUnchanged        = errors.New("scaling values must be different from current deployment")
-	errNoActiveDeployment    = errors.New("resource has no active deployment in the environment")
+	errDomainInUse          = rpcerr.NewCoded(connect.CodeAlreadyExists, "domain already in use")
+	errUnknownResourceSpec  = rpcerr.NewCoded(connect.CodeInvalidArgument, "unknown resource spec type")
+	errOnlyServiceResources = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"only service resources are currently supported",
+	)
+	errScaleNothingRequested = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"at least one of replicas, cpu, or memory must be provided",
+	)
+	errScaleUnchanged = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"scaling values must be different from current deployment",
+	)
+	errNoActiveDeployment = rpcerr.NewCoded(
+		connect.CodeNotFound,
+		"resource has no active deployment in the environment",
+	)
 )
 
 type ResourceServer struct {
@@ -98,12 +116,12 @@ func (s *ResourceServer) CreateResource(
 
 	slug := resourceSlug(req.GetName())
 	if slug == "" {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
+		return nil, errPrivateServiceName
 	}
 
 	// validate that spec contains a service spec (for now, only services are supported)
 	if req.GetSpec().GetService() == nil {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errOnlyServiceResources)
+		return nil, errOnlyServiceResources
 	}
 
 	hasDomain := req.GetDomain() != nil
@@ -115,20 +133,10 @@ func (s *ResourceServer) CreateResource(
 		fullDomain = req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
 		platform, label, checkErr := s.checkNewResourceDomain(ctx, workspaceID, req.GetSpec(), fullDomain)
 		if checkErr != nil {
-			return nil, handlerError(ctx, "failed to check the resource domain", checkErr)
+			return nil, fmt.Errorf("check the resource domain: %w", checkErr)
 		}
 		subdomainLabel = &label
 		platformDomain = &platform
-
-		available, availableErr := s.queries.CheckDomainAvailability(ctx, fullDomain)
-		if availableErr != nil {
-			slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", availableErr)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-		}
-
-		if !available {
-			return nil, rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)
-		}
 	}
 
 	specJSON, err := marshalResourceSpec(ctx, req.GetSpec())
@@ -150,90 +158,62 @@ func (s *ResourceServer) CreateResource(
 		SpecVersion: specVersion,
 		Description: req.GetDescription(),
 	}
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := genDb.New(tx)
-
-	if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
-		slog.ErrorContext(ctx, "failed to lock environments", "error", lockErr)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	slugErr := checkSlugFree(ctx, qtx, workspaceID, slug, nil)
-	if errors.Is(slugErr, errSlugInUse) {
-		return nil, rpcerr.New(connect.CodeAlreadyExists, slugErr)
-	}
-	if slugErr != nil {
-		slog.ErrorContext(ctx, "failed to check the resource slug", "error", slugErr)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	resourceID, err := qtx.CreateResource(ctx, params)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create resource", "error", err)
-		if pgForeignKeyConstraint(err) == pgResourceWorkspaceReference {
-			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+	var resourceID uuid.UUID
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
+			return lockErr
 		}
-		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(
-				connect.CodeAlreadyExists,
-				"a resource with this name already exists in this workspace",
-			)
+		if slugErr := checkSlugFree(ctx, qtx, workspaceID, slug, nil); slugErr != nil {
+			return slugErr
 		}
-		return nil, connect.NewError(connect.CodeInternal, "failed to create resource")
-	}
-
-	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
-		slog.ErrorContext(ctx, "failed to bump environment revisions", "error", bumpErr)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if hasDomain {
-		environmentID, envErr := workspaceProductionEnvironment(ctx, qtx, workspaceID)
-		if errors.Is(envErr, errNoProductionEnvironment) {
-			return nil, rpcerr.New(connect.CodeFailedPrecondition, errNoProductionEnvironment)
+		var createErr error
+		resourceID, createErr = qtx.CreateResource(ctx, params)
+		if pgForeignKeyConstraint(createErr) == pgResourceWorkspaceReference {
+			return ErrWorkspaceNotFound
 		}
-		if envErr != nil {
-			slog.ErrorContext(ctx, "failed to get the production environment", "error", envErr)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		if isUniqueViolation(createErr, pgResourceNameUnique) {
+			return ErrResourceNameNotUnique
 		}
-		domainParams := genDb.CreateResourceDomainParams{
-			ResourceID:     resourceID,
-			EnvironmentID:  environmentID,
-			Domain:         fullDomain,
-			DomainSource:   genDb.DomainSourcePlatformProvided,
-			SubdomainLabel: subdomainLabel,
-			PlatformDomain: platformDomain,
-			IsPrimary:      true,
+		if isUniqueViolation(createErr, pgResourceSlugUnique) {
+			return errSlugInUse
 		}
-
-		_, err = qtx.CreateResourceDomain(ctx, domainParams)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
-			if isPgConstraintViolation(err) {
-				return nil, rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)
+		if createErr != nil {
+			return fmt.Errorf("insert resource: %w", createErr)
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
+		}
+		if hasDomain {
+			environmentID, envErr := workspaceProductionEnvironment(ctx, qtx, workspaceID)
+			if envErr != nil {
+				return envErr
 			}
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+			_, domainErr := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+				ResourceID:     resourceID,
+				EnvironmentID:  environmentID,
+				Domain:         fullDomain,
+				DomainSource:   genDb.DomainSourcePlatformProvided,
+				SubdomainLabel: subdomainLabel,
+				PlatformDomain: platformDomain,
+				IsPrimary:      true,
+			})
+			if isDomainTaken(domainErr) {
+				return errDomainInUse
+			}
+			if domainErr != nil {
+				return fmt.Errorf("insert resource domain: %w", domainErr)
+			}
 		}
-	}
-
-	if err := events.Record(ctx, qtx, events.Event{
-		Type:        events.ResourceCreated,
-		WorkspaceID: new(workspaceID),
-		SubjectType: events.SubjectResource,
-		SubjectID:   new(resourceID),
-		Data:        map[string]any{events.FieldName: req.GetName()},
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to record resource creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit resource creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.ResourceCreated,
+			WorkspaceID: new(workspaceID),
+			SubjectType: events.SubjectResource,
+			SubjectID:   new(resourceID),
+			Data:        map[string]any{events.FieldName: req.GetName()},
+		})
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}, nil
@@ -277,7 +257,7 @@ func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]
 	case *resourcev1.ResourceSpec_Blob:
 		specJSON, err = protojson.Marshal(specType.Blob)
 	default:
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errUnknownResourceSpec)
+		return nil, errUnknownResourceSpec
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
@@ -315,7 +295,7 @@ func (s *ResourceServer) GetResource(
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
@@ -323,19 +303,17 @@ func (s *ResourceServer) GetResource(
 
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, res.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list resource domains: %w", err)
 	}
 
 	statuses, err := s.environmentStatuses(ctx, []uuid.UUID{res.ID})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("derive resource status: %w", err)
 	}
 
 	resource, err := dbResourceToProto(res, statuses[res.ID], resourceDomains)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return nil, err
 	}
 	return &resourcev1.GetResourceResponse{Resource: resource}, nil
 }
@@ -359,11 +337,10 @@ func (s *ResourceServer) resourceIDByName(
 		if verifyErr := check(ctx, s.authz, p, workspaceRead); verifyErr != nil {
 			return uuid.UUID{}, verifyErr
 		}
-		return uuid.UUID{}, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return uuid.UUID{}, ErrResourceNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to look up resource by name", "error", err, "workspaceId", workspaceID)
-		return uuid.UUID{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.UUID{}, fmt.Errorf("get resource by name: %w", err)
 	}
 	return res.ID, nil
 }
@@ -373,8 +350,6 @@ func (s *ResourceServer) ListWorkspaceResources(
 	ctx context.Context,
 	req *resourcev1.ListWorkspaceResourcesRequest,
 ) (*resourcev1.ListWorkspaceResourcesResponse, error) {
-	slog.InfoContext(ctx, "received req to list resources", "workspaceId", req.GetWorkspaceId())
-
 	wsID, err := parseID("workspace_id", req.GetWorkspaceId())
 	if err != nil {
 		return nil, err
@@ -397,8 +372,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resources", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list resources: %w", err)
 	}
 
 	resourceIDs := make([]uuid.UUID, len(dbResources))
@@ -408,14 +382,12 @@ func (s *ResourceServer) ListWorkspaceResources(
 
 	allDomains, err := s.queries.ListResourceDomainsForResources(ctx, resourceIDs)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list resource domains: %w", err)
 	}
 
 	statuses, err := s.environmentStatuses(ctx, resourceIDs)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to derive resource statuses", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("derive resource statuses: %w", err)
 	}
 
 	domainsByResource := make(map[uuid.UUID][]genDb.ResourceDomain, len(dbResources))
@@ -429,7 +401,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		resourceStatuses := statuses[dbResource.ID]
 		resource, err := dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+			return nil, err
 		}
 		resources = append(resources, resource)
 	}
@@ -466,7 +438,7 @@ func (s *ResourceServer) UpdateResource(
 	if rename {
 		slug := resourceSlug(req.GetName())
 		if slug == "" {
-			return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
+			return nil, errPrivateServiceName
 		}
 		updateParams.Name = new(req.GetName())
 		updateParams.Slug = &slug
@@ -481,7 +453,7 @@ func (s *ResourceServer) UpdateResource(
 		}
 		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
 		if getErr != nil {
-			return getErr
+			return fmt.Errorf("get resource: %w", getErr)
 		}
 		if rename {
 			slugErr := checkSlugFree(ctx, qtx, resource.WorkspaceID, *updateParams.Slug, &resourceID)
@@ -490,8 +462,14 @@ func (s *ResourceServer) UpdateResource(
 			}
 		}
 		_, updateErr := qtx.UpdateResource(ctx, updateParams)
+		if isUniqueViolation(updateErr, pgResourceNameUnique) {
+			return ErrResourceNameNotUnique
+		}
+		if isUniqueViolation(updateErr, pgResourceSlugUnique) {
+			return errSlugInUse
+		}
 		if updateErr != nil {
-			return updateErr
+			return fmt.Errorf("update resource: %w", updateErr)
 		}
 		if rename {
 			resource.Name = req.GetName()
@@ -510,15 +488,8 @@ func (s *ResourceServer) UpdateResource(
 			SubjectID:   new(resourceID),
 		})
 	})
-	if errors.Is(err, errSlugInUse) {
-		return nil, rpcerr.New(connect.CodeAlreadyExists, err)
-	}
 	if err != nil {
-		if isPgConstraintViolation(err) {
-			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrResourceNameNotUnique)
-		}
-		slog.ErrorContext(ctx, "failed to update resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, err
 	}
 
 	return &resourcev1.UpdateResourceResponse{ResourceId: req.GetResourceId()}, nil
@@ -539,8 +510,7 @@ func (s *ResourceServer) DeleteResource(
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -566,8 +536,7 @@ func (s *ResourceServer) DeleteResource(
 		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("delete resource: %w", err)
 	}
 
 	return &resourcev1.DeleteResourceResponse{}, nil
@@ -585,8 +554,7 @@ func (s *ResourceServer) ListRegions(
 	}
 	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.clusterSilentAfter)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	regions := make([]*resourcev1.RegionInfo, 0, len(eligible))
 	for _, cluster := range eligible {
@@ -623,7 +591,7 @@ func (s *ResourceServer) ScaleResource(
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
@@ -631,14 +599,13 @@ func (s *ResourceServer) ScaleResource(
 
 	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(req.GetEnvironmentId()))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load environment", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
 	if env.WorkspaceID != res.WorkspaceID {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -744,8 +711,11 @@ type regionRedeploy struct {
 }
 
 var (
-	errNoDeploymentInRegion     = errors.New("resource has no active deployment in region")
-	errPreviousDeploymentNoSpec = errors.New("previous deployment has no spec")
+	errNoDeploymentInRegion = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"resource has no active deployment in region",
+	)
+	errPreviousDeploymentNoSpec = rpcerr.NewCoded(connect.CodeInvalidArgument, "previous deployment has no spec")
 )
 
 func activeDeploymentsForRegions(
@@ -773,7 +743,7 @@ func activeDeploymentsForRegions(
 	if requestedRegion != "" {
 		d, found := activeByRegion[requestedRegion]
 		if !found {
-			return nil, fmt.Errorf("%w '%s'", errNoDeploymentInRegion, requestedRegion)
+			return nil, errNoDeploymentInRegion.Detail("%s", requestedRegion)
 		}
 		return []genDb.Deployment{d}, nil
 	}
@@ -918,7 +888,7 @@ func (s *ResourceServer) redeployRegions(
 
 func validateScaleRequest(r *resourcev1.ScaleResourceRequest) error {
 	if r.GetReplicas() == 0 && r.GetCpu() == "" && r.GetMemory() == "" {
-		return rpcerr.New(connect.CodeInvalidArgument, errScaleNothingRequested)
+		return errScaleNothingRequested
 	}
 
 	if cpu := r.GetCpu(); cpu != "" {
@@ -1045,27 +1015,24 @@ func (s *ResourceServer) GetResourceEnv(
 	}
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(req.GetEnvironmentId()))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load environment", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
 	if env.WorkspaceID != res.WorkspaceID {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 	deployments, err := s.queries.ListActiveDeploymentsForResource(ctx, res.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list active deployments: %w", err)
 	}
 	plain := map[string]string{}
 	var secretNames []string
@@ -1075,8 +1042,7 @@ func (s *ResourceServer) GetResourceEnv(
 		}
 		vars, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.ClusterID)
 		if envErr != nil {
-			slog.ErrorContext(ctx, "failed to read the desired env", "error", envErr)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+			return nil, fmt.Errorf("read the desired env: %w", envErr)
 		}
 		maps.Copy(plain, vars)
 		secretNames = slices.Clone(deployment.SecretNames)
@@ -1113,5 +1079,5 @@ func checkSlugFree(
 }
 
 func slugTakenError(slug, holder string) error {
-	return fmt.Errorf("%w: %s is used by %q", errSlugInUse, slug, holder)
+	return errSlugInUse.Detail("%s is used by %q", slug, holder)
 }

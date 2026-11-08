@@ -196,7 +196,7 @@ func deploymentTxError(ctx context.Context, err error) error {
 		slog.ErrorContext(ctx, "failed to build desired application spec", "error", err)
 		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
-	if isPgConstraintViolation(err) {
+	if isUniqueViolation(err, pgActiveDeploymentUnique) {
 		slog.WarnContext(ctx, "concurrent deployment rejected", "error", err)
 		return connect.NewError(
 			connect.CodeAborted,

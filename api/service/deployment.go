@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	ErrDeploymentNotFound = errors.New("deployment not found")
+	ErrDeploymentNotFound = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
 )
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
@@ -126,7 +126,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
@@ -147,35 +147,24 @@ func (s *DeploymentServer) CreateDeployment(
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
 	if env.WorkspaceID != resource.WorkspaceID {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return nil, ErrEnvironmentNotFound
 	}
 
 	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to get active cluster for region",
-			"region",
-			region,
-			"tier",
-			env.EnvironmentType,
-			"error",
-			err,
-		)
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, err)
+		return nil, fmt.Errorf("get active cluster: %w", err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()
 	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
 	if err != nil {
-		return nil, handlerError(ctx, "failed to pin the build source", err)
+		return nil, fmt.Errorf("pin the build source: %w", err)
 	}
 	originalSpec := req.GetSpec()
 	requestSpec := proto.CloneOf(originalSpec)
@@ -183,8 +172,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get workspace organization: %w", err)
 	}
 
 	var deploymentID uuid.UUID
@@ -314,7 +302,7 @@ func (s *DeploymentServer) GetDeployment(
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+		return nil, ErrDeploymentNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get deployment: %w", err)
@@ -327,13 +315,12 @@ func (s *DeploymentServer) GetDeployment(
 
 	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	deployment, err := deploymentToProto(deploymentData, resource.Type)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return nil, err
 	}
 
 	return &deploymentv1.GetDeploymentResponse{
@@ -356,7 +343,7 @@ func (s *DeploymentServer) ListDeployments(
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
@@ -383,15 +370,14 @@ func (s *DeploymentServer) ListDeployments(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list deployments: %w", err)
 	}
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
 		deployment, err := deploymentToProto(d, resource.Type)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+			return nil, err
 		}
 		deployments = append(deployments, deployment)
 	}
@@ -414,7 +400,7 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+		return nil, ErrDeploymentNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get deployment: %w", err)
@@ -427,8 +413,7 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -445,8 +430,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		return bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID)
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete deployment", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("delete deployment: %w", err)
 	}
 
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
@@ -467,7 +451,7 @@ func (s *DeploymentServer) WatchDeployment(
 
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+		return ErrDeploymentNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("get deployment resource ID: %w", err)
@@ -524,8 +508,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 ) (genDb.DeploymentStatus, error) {
 	deployment, err := s.queries.GetDeploymentStatus(ctx, deploymentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get deployment status", "error", err)
-		return lastStatus, rpcerr.New(connect.CodeInternal, ErrDB)
+		return lastStatus, fmt.Errorf("get deployment status: %w", err)
 	}
 
 	if deployment.Status == lastStatus {

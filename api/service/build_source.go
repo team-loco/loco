@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"strings"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -21,13 +23,22 @@ const (
 )
 
 var (
-	errBuildSourceRequired   = errors.New("spec.service.build is required")
-	errBuildImageMismatch    = errors.New("image does not match the referenced build")
-	errDockerfileNoBuildID   = errors.New("build_id is required for dockerfile deployments")
-	errBuildNotSucceeded     = errors.New("build has not succeeded")
-	errImageBuildIDSet       = errors.New("build_id must not be set for image deployments")
-	errImageRequired         = errors.New("image is required for image deployments")
-	errImageFromLocoRegistry = errors.New("images from the loco registry can only be deployed through a build")
+	errBuildSourceRequired = rpcerr.NewCoded(connect.CodeInvalidArgument, "spec.service.build is required")
+	errBuildImageMismatch  = rpcerr.NewCoded(connect.CodeInvalidArgument, "image does not match the referenced build")
+	errDockerfileNoBuildID = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"build_id is required for dockerfile deployments",
+	)
+	errBuildNotSucceeded = rpcerr.NewCoded(connect.CodeFailedPrecondition, "build has not succeeded")
+	errImageBuildIDSet   = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"build_id must not be set for image deployments",
+	)
+	errImageRequired         = rpcerr.NewCoded(connect.CodeInvalidArgument, "image is required for image deployments")
+	errImageFromLocoRegistry = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"images from the loco registry can only be deployed through a build",
+	)
 )
 
 type ImageResolver interface {

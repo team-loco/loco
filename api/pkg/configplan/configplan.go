@@ -337,11 +337,11 @@ func MatchPlatformDomain(domain string, platformDomains []string) (string, strin
 		}
 	}
 	if matched == "" {
-		return "", "", fmt.Errorf("%w: %s", ErrCustomDomain, domain)
+		return "", "", ErrCustomDomain.Detail("%s", domain)
 	}
 	label := strings.TrimSuffix(domain, "."+matched)
 	if label == "" || strings.Contains(label, ".") {
-		return "", "", fmt.Errorf("%w: %s under %s", ErrNotSingleLabel, domain, matched)
+		return "", "", ErrNotSingleLabel.Detail("%s under %s", domain, matched)
 	}
 	return matched, label, nil
 }

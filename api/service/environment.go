@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"connectrpc.com/connect/v2"
@@ -29,11 +27,17 @@ const (
 )
 
 var (
-	ErrEnvironmentNotFound      = errors.New("environment not found")
-	ErrEnvironmentNameRequired  = errors.New("environment name must not be blank")
-	ErrEnvironmentTypeRequired  = errors.New("environment type is required")
-	ErrEnvironmentNameNotUnique = errors.New("environment name already exists in this workspace")
-	ErrEnvironmentInUse         = errors.New("environment has deployments - cannot delete")
+	ErrEnvironmentNotFound      = rpcerr.NewCoded(connect.CodeNotFound, "environment not found")
+	ErrEnvironmentNameRequired  = rpcerr.NewCoded(connect.CodeInvalidArgument, "environment name must not be blank")
+	ErrEnvironmentTypeRequired  = rpcerr.NewCoded(connect.CodeInvalidArgument, "environment type is required")
+	ErrEnvironmentNameNotUnique = rpcerr.NewCoded(
+		connect.CodeAlreadyExists,
+		"environment name already exists in this workspace",
+	)
+	ErrEnvironmentInUse = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"environment has deployments - cannot delete",
+	)
 )
 
 // EnvironmentServer implements the EnvironmentService gRPC server.
@@ -78,11 +82,11 @@ func (s *EnvironmentServer) CreateEnvironment(
 			EnvironmentType: envType,
 			CreatedBy:       p.Entity.ID,
 		})
-		if isPgConstraintViolation(createErr) {
-			return rpcerr.New(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
+		if isUniqueViolation(createErr, pgEnvironmentNameUnique) {
+			return ErrEnvironmentNameNotUnique
 		}
 		if createErr != nil {
-			return createErr
+			return fmt.Errorf("insert environment: %w", createErr)
 		}
 		env = created
 		return events.Record(ctx, qtx, events.Event{
@@ -94,7 +98,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to create environment", err)
+		return nil, err
 	}
 
 	return &environmentv1.CreateEnvironmentResponse{
@@ -134,8 +138,7 @@ func (s *EnvironmentServer) ListEnvironments(
 
 	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list environments", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list environments: %w", err)
 	}
 
 	var protoEnvs []*environmentv1.Environment
@@ -166,11 +169,11 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	updateDescription := message.Has(fields.ByName(updateDescriptionField))
 	updateType := message.Has(fields.ByName(updateTypeField))
 	if updateName && strings.TrimSpace(req.GetName()) == "" {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrEnvironmentNameRequired)
+		return nil, ErrEnvironmentNameRequired
 	}
 	if updateType &&
 		req.GetType() == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrEnvironmentTypeRequired)
+		return nil, ErrEnvironmentTypeRequired
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -179,7 +182,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		}
 		current, loadErr := qtx.GetEnvironmentByID(ctx, envID)
 		if loadErr != nil {
-			return loadErr
+			return fmt.Errorf("get environment: %w", loadErr)
 		}
 		name := current.Name
 		if updateName {
@@ -199,11 +202,11 @@ func (s *EnvironmentServer) UpdateEnvironment(
 			Description:     description,
 			EnvironmentType: envType,
 		})
-		if isPgConstraintViolation(updateErr) {
-			return rpcerr.New(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
+		if isUniqueViolation(updateErr, pgEnvironmentNameUnique) {
+			return ErrEnvironmentNameNotUnique
 		}
 		if updateErr != nil {
-			return updateErr
+			return fmt.Errorf("update environment: %w", updateErr)
 		}
 		if updated.Name != current.Name || updated.EnvironmentType != current.EnvironmentType {
 			if bumpErr := bumpEnvironmentRevision(ctx, qtx, envID); bumpErr != nil {
@@ -218,7 +221,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to update environment", err)
+		return nil, err
 	}
 
 	return &environmentv1.UpdateEnvironmentResponse{
@@ -247,10 +250,10 @@ func (s *EnvironmentServer) DeleteEnvironment(
 			return fmt.Errorf("count deployments: %w", countErr)
 		}
 		if count > 0 {
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
+			return ErrEnvironmentInUse
 		}
 		if deleteErr := qtx.DeleteEnvironment(ctx, envID); deleteErr != nil {
-			return deleteErr
+			return fmt.Errorf("delete environment: %w", deleteErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.EnvironmentDeleted,
@@ -260,7 +263,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to delete environment", err)
+		return nil, err
 	}
 
 	return &environmentv1.DeleteEnvironmentResponse{}, nil

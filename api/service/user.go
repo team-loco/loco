@@ -26,7 +26,7 @@ import (
 const updateAvatarField = "avatar_url"
 
 var (
-	ErrUserNotFound           = errors.New("user not found")
+	ErrUserNotFound           = rpcerr.NewCoded(connect.CodeNotFound, "user not found")
 	ErrUserAlreadyExists      = errors.New("user already exists")
 	ErrEmailAlreadyRegistered = errors.New("email already registered with different provider")
 	ErrInvalidRequest         = errors.New("invalid request")

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/advisorylock"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/tracing"
+	"github.com/team-loco/loco/internal/rpcerr"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -33,7 +35,7 @@ const (
 
 var (
 	errForeignRepository = errors.New("image repository is not on the configured registry host")
-	errBuildImageDeleted = errors.New(
+	errBuildImageDeleted = rpcerr.NewCoded(connect.CodeFailedPrecondition,
 		"the build's image was deleted from the registry by image retention; build the source again",
 	)
 )
