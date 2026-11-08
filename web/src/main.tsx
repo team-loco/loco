@@ -1,5 +1,3 @@
-import "@fontsource-variable/geist/index.css";
-import "@fontsource-variable/geist-mono/index.css";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
