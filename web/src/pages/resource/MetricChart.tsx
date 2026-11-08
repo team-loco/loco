@@ -14,7 +14,7 @@ const tooltipTime = (_label: unknown, payload: readonly { payload?: { time?: num
 	return time === undefined ? "" : formatFullTime(time);
 };
 
-const CHART_CONFIG = { pct: { label: "Utilization", color: "var(--primary)" } };
+const CHART_CONFIG = { pct: { label: "Utilization", color: "var(--brand)" } };
 
 export function MetricChart({
 	label,
@@ -85,8 +85,8 @@ export function MetricChart({
 						<Area
 							dataKey="pct"
 							type="linear"
-							stroke="var(--primary)"
-							fill="var(--primary)"
+							stroke="var(--brand)"
+							fill="var(--brand)"
 							fillOpacity={0.08}
 							strokeWidth={1.75}
 							dot={points.length === 1}

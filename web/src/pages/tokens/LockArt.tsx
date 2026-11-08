@@ -55,7 +55,7 @@ export function LockArt() {
 			/>
 			<circle cx={218} cy={82} r={4} stroke="var(--fg3)" {...LINE} style={LOCK_STYLE} />
 			<path d="M218,86 V94" stroke="var(--fg3)" {...LINE} style={LOCK_STYLE} />
-			<circle cx={248} cy={62} r={3} fill="var(--accent)" style={DOT_STYLE} />
+			<circle cx={248} cy={62} r={3} fill="var(--brand)" style={DOT_STYLE} />
 		</svg>
 	);
 }

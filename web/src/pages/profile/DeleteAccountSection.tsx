@@ -36,7 +36,7 @@ export function DeleteAccountSection({ userId }: { userId: string }) {
 	};
 
 	return (
-		<section className="overflow-hidden rounded-lg border border-[color-mix(in_oklab,var(--red)_35%,var(--line))] bg-background">
+		<section className="overflow-hidden rounded-lg border border-[color-mix(in_oklab,var(--err)_35%,var(--line))] bg-background">
 			<div className="flex flex-wrap items-center gap-5 px-5 py-[18px]">
 				<div className="flex min-w-0 flex-1 flex-col gap-1">
 					<span className="font-semibold">Delete account</span>

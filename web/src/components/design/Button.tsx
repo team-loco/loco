@@ -18,7 +18,7 @@ const buttonVariants = cva(
 				ghost: "font-normal hover:bg-bg3 aria-expanded:bg-bg3 dark:hover:bg-bg3",
 				destructive: "border-red bg-red text-white hover:bg-red hover:opacity-90 dark:bg-red dark:hover:bg-red",
 				"destructive-outline":
-					"border-[color-mix(in_oklab,var(--red)_45%,transparent)] bg-background text-red hover:bg-bad-bg dark:bg-background",
+					"border-[color-mix(in_oklab,var(--err)_45%,transparent)] bg-background text-red hover:bg-bad-bg dark:bg-background",
 				inverted: "border-foreground bg-foreground text-background hover:bg-foreground hover:opacity-90",
 				link: "h-auto p-0 font-normal text-fg3 underline hover:text-foreground",
 			},

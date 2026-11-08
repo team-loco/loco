@@ -113,7 +113,7 @@ function TokenRow({
 			className={cn(
 				"grid w-full cursor-pointer items-center gap-4 border-b border-l-[3px] border-line py-3 pr-4 pl-[13px] text-left hover:bg-bg2",
 				cols,
-				active ? "border-l-primary bg-info-bg hover:bg-info-bg" : "border-l-transparent",
+				active ? "border-l-brand bg-info-bg hover:bg-info-bg" : "border-l-transparent",
 				status === "expired" && "opacity-65",
 			)}
 		>

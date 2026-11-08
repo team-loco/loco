@@ -20,7 +20,7 @@
 	gap: 8px;
 	padding: 0 10px;
 	border-bottom: 1px solid var(--line);
-	background: var(--bg2);
+	background: var(--panel);
 	font-size: 11px;
 }
 .trace-ruler,
@@ -88,11 +88,11 @@
 	height: 25px;
 }
 .trace-span-row:hover {
-	background: var(--bg2);
+	background: var(--panel);
 }
 .trace-span-row[data-selected="true"] {
-	background: var(--b-bg);
-	box-shadow: inset 2px 0 var(--accent);
+	background: color-mix(in oklch, var(--info) 12%, transparent);
+	box-shadow: inset 2px 0 var(--brand);
 }
 .trace-span-name {
 	display: flex;
@@ -114,7 +114,7 @@
 }
 .trace-span-label:focus-visible,
 .trace-span-time:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--brand);
 	outline-offset: -2px;
 }
 .trace-service-label {
@@ -194,7 +194,7 @@
 	background: var(--bg);
 }
 .trace-inspector:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--brand);
 	outline-offset: -2px;
 }
 .trace-inspector-head {
@@ -246,7 +246,7 @@
 	font-size: 11px;
 }
 .trace-attribute-tab[aria-selected="true"] {
-	border-color: var(--accent);
+	border-color: var(--brand);
 	color: var(--fg);
 	font-weight: 550;
 }
@@ -293,7 +293,7 @@
 	position: relative;
 	height: 30px;
 	border-bottom: 1px solid var(--line);
-	background: var(--bg2);
+	background: var(--panel);
 	padding: 0 10px;
 	color: var(--fg3);
 	font-size: 10px;
@@ -308,7 +308,7 @@
 	border-bottom: 0;
 }
 .trace-results tbody tr:hover {
-	background: var(--bg2);
+	background: var(--panel);
 }
 .trace-results-service {
 	max-width: 40%;

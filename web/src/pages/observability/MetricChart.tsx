@@ -231,9 +231,9 @@ export function MetricChart({
 					{limit !== null && (
 						<ReferenceLine
 							y={limit.v}
-							stroke="var(--r-fg)"
+							stroke="var(--err)"
 							strokeDasharray="5 4"
-							label={{ value: limit.label, position: "insideTopRight", fill: "var(--r-fg)", fontSize: 10.5 }}
+							label={{ value: limit.label, position: "insideTopRight", fill: "var(--err)", fontSize: 10.5 }}
 						/>
 					)}
 					{markers.map((m) => (

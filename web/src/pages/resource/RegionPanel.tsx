@@ -44,7 +44,7 @@ function slotClass(dep: Deployment, i: number): string {
 	if (i >= dep.replicas) return "border-dashed border-line2 bg-transparent";
 	switch (dep.status) {
 		case DeploymentPhase.RUNNING:
-			return "border-primary bg-primary";
+			return "border-brand bg-brand";
 		case DeploymentPhase.FAILED:
 			return "border-bad-fg bg-bad-fg";
 		case DeploymentPhase.DEPLOYING:

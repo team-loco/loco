@@ -16,7 +16,7 @@ export const LEVEL_BADGE: Record<Level, string> = {
 	3: "bg-warn-bg text-warn-fg",
 };
 export const LEVEL_TEXT: Record<Level, string> = { 1: "text-fg2", 2: "text-info-fg", 3: "text-warn-fg" };
-export const LEVEL_BAR: Record<Level, string> = { 1: "bg-fg3", 2: "bg-primary", 3: "bg-warn" };
+export const LEVEL_BAR: Record<Level, string> = { 1: "bg-fg3", 2: "bg-brand", 3: "bg-warn" };
 
 export const ALLOWS: Record<NodeKind, string[]> = {
 	org: [

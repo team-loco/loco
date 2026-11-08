@@ -81,7 +81,7 @@ export function LogFacets({ rows }: { rows: LogRow[] }) {
 							>
 								<span
 									className={cn(
-										"flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border text-white",
+										"flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border text-primary-foreground",
 										on ? "border-primary bg-primary" : "border-line2 bg-background",
 									)}
 								>

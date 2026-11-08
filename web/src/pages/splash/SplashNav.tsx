@@ -21,7 +21,7 @@ export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; red
 				</a>
 				<nav className="hidden gap-[26px] text-md md:flex">
 					{NAV_LINKS.map((link) => (
-						<a key={link.label} href={link.href} className="text-fg2 transition-colors hover:text-primary">
+						<a key={link.label} href={link.href} className="text-fg2 transition-colors hover:text-brand">
 							{link.label}
 						</a>
 					))}
@@ -30,7 +30,7 @@ export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; red
 						target="_blank"
 						rel="noopener"
 						title="Opens buf.build in a new tab"
-						className="flex items-center gap-[3px] text-fg2 transition-colors hover:text-primary"
+						className="flex items-center gap-[3px] text-fg2 transition-colors hover:text-brand"
 					>
 						Docs
 						<ArrowUpRight className="size-[13px] text-fg4" />
@@ -42,7 +42,7 @@ export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; red
 						href={GITHUB_URL}
 						target="_blank"
 						rel="noopener"
-						className="hidden items-center gap-1.5 text-md text-fg2 transition-colors hover:text-primary sm:flex"
+						className="hidden items-center gap-1.5 text-md text-fg2 transition-colors hover:text-brand sm:flex"
 					>
 						<GitHubIcon className="size-4" />
 						GitHub

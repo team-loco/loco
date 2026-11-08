@@ -169,7 +169,7 @@ export function ResourceHeader({
 					<button
 						type="button"
 						onClick={onViewSpec}
-						className="flex items-center gap-1.5 border-0 bg-transparent p-0 text-link hover:underline"
+						className="flex items-center gap-1.5 border-0 bg-transparent p-0 text-brand hover:underline"
 					>
 						<FileCodeIcon className="size-3.5" />
 						View spec
