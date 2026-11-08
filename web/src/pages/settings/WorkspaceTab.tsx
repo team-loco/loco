@@ -12,7 +12,9 @@ import { useId, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
+import { DangerZone } from "@/components/design/DangerZone";
 import { Input } from "@/components/design/Input";
+import { SaveBar } from "@/components/design/SaveBar";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
 import type { AccessLevel } from "@/hooks/useMyScopes";
@@ -24,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { ActivityPanel } from "./ActivityPanel";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { WebhooksCard } from "./WebhooksCard";
-import { DangerCard, formatDay, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
+import { formatDay, SettingsCard, SettingsRow } from "./parts";
 import type { ResourceCount } from "./useResourceCounts";
 
 interface Draft {
@@ -61,7 +63,6 @@ export function WorkspaceTab({
 	const remove = useMutation(deleteWorkspace);
 
 	const [draft, setDraft] = useState<Draft | null>(null);
-	const [saved, setSaved] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const ws = data?.workspace;
@@ -98,7 +99,7 @@ export function WorkspaceTab({
 			{
 				onSuccess: () => {
 					setDraft(null);
-					setSaved(true);
+					toast.success("Saved");
 					void queryClient.invalidateQueries();
 				},
 				onError: (err) => {
@@ -145,7 +146,6 @@ export function WorkspaceTab({
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
 							setDraft({ ...current, name: e.target.value.toLowerCase() });
-							setSaved(false);
 						}}
 					/>
 					{shownErr !== null && (
@@ -166,7 +166,6 @@ export function WorkspaceTab({
 						className="text-[13.5px]"
 						onChange={(e) => {
 							setDraft({ ...current, desc: e.target.value });
-							setSaved(false);
 						}}
 					/>
 					<span
@@ -179,17 +178,6 @@ export function WorkspaceTab({
 				<SettingsRow label="Created" last>
 					<span className="text-fg2">{created}</span>
 				</SettingsRow>
-				{dirty && canWrite && (
-					<SaveBar
-						onDiscard={() => {
-							setDraft(null);
-						}}
-						onSave={save}
-						disabled={nameErr !== null}
-						pending={update.isPending}
-					/>
-				)}
-				{saved && !dirty && <SavedBar />}
 			</SettingsCard>
 
 			{canAdmin && <WebhooksCard workspaceId={ws.id} />}
@@ -204,16 +192,27 @@ export function WorkspaceTab({
 				/>
 			)}
 
-			<DangerCard
+			<DangerZone
 				title="Delete workspace"
-				subtitle={subtitle}
-				subtitleWarn={hasRes}
-				label={`Delete ${ws.name}`}
+				description={subtitle}
+				warn={hasRes}
+				actionLabel={`Delete ${ws.name}`}
 				blockedReason={blockedReason}
-				onClick={() => {
+				onAction={() => {
 					setDeleteOpen(true);
 				}}
 			/>
+
+			{dirty && canWrite && (
+				<SaveBar
+					onDiscard={() => {
+						setDraft(null);
+					}}
+					onSave={save}
+					saving={update.isPending}
+					disabledReason={nameErr}
+				/>
+			)}
 
 			<ConfirmDeleteDialog
 				open={deleteOpen}

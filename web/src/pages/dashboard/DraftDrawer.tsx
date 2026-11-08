@@ -367,7 +367,7 @@ function DraftDrawerBody({
 				</span>
 				<div className="flex min-w-0 flex-1 flex-col gap-[3px]">
 					<div className="flex items-center gap-2">
-						<SheetTitle className="text-xl">{draft.name}</SheetTitle>
+						<SheetTitle>{draft.name}</SheetTitle>
 						<Badge size="sm" tone={statusBadge.tone} className="h-5 px-[7px]">
 							{statusBadge.label}
 						</Badge>
@@ -379,7 +379,7 @@ function DraftDrawerBody({
 			</SheetHeader>
 			{showForm ? (
 				<>
-					<SheetBody>
+					<SheetBody className="gap-0 p-0">
 						<DraftForm
 							draft={draft}
 							region={region}
@@ -393,7 +393,7 @@ function DraftDrawerBody({
 							update={update}
 						/>
 					</SheetBody>
-					<SheetFooter>
+					<SheetFooter className="flex-col gap-2.5 pt-5 pb-6">
 						{formError !== null && (
 							<span className="flex items-center gap-1.5 text-sm text-bad-fg">
 								<CircleAlertIcon className="size-[13px]" />

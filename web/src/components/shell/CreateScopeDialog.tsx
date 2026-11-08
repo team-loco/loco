@@ -2,7 +2,6 @@ import { useMutation } from "@connectrpc/connect-query";
 import { createOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2Icon, LayersIcon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -82,10 +81,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 	};
 
 	return (
-		<DialogContent
-			title={isOrg ? "New organization" : "New workspace"}
-			icon={isOrg ? <Building2Icon /> : <LayersIcon />}
-		>
+		<DialogContent title={isOrg ? "New organization" : "New workspace"}>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();

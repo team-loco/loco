@@ -11,12 +11,14 @@ import {
 import { cn } from "@/lib/utils";
 
 import { Button, type ButtonVariant } from "./Button";
+import { modalSurface, modalTitle } from "./Dialog";
 
 function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof AlertDialogContentBase>) {
 	return (
 		<AlertDialogContentBase
 			className={cn(
-				"top-[14vh] w-[440px] max-w-[calc(100%-32px)] translate-y-0 gap-0 rounded-xl border border-line bg-background p-0 text-base shadow-popover ring-0 data-[size=default]:max-w-[calc(100%-32px)] data-[size=default]:sm:max-w-[calc(100%-32px)] data-[size=sm]:max-w-[calc(100%-32px)]",
+				modalSurface,
+				"w-[460px] data-[size=default]:max-w-[calc(100%-32px)] data-[size=default]:sm:max-w-[calc(100%-32px)] data-[size=sm]:max-w-[calc(100%-32px)]",
 				className,
 			)}
 			{...props}
@@ -27,25 +29,25 @@ function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof
 function AlertDialogHeader({ className, ...props }: React.ComponentProps<typeof AlertDialogHeaderBase>) {
 	return (
 		<AlertDialogHeaderBase
-			className={cn("flex flex-col items-start gap-2 p-4 text-left sm:text-left", className)}
+			className={cn("flex flex-col items-start gap-2.5 px-5 py-[18px] text-left sm:text-left", className)}
 			{...props}
 		/>
 	);
 }
 
 function AlertDialogTitle({ className, ...props }: React.ComponentProps<typeof AlertDialogTitleBase>) {
-	return <AlertDialogTitleBase className={cn("text-lg font-semibold", className)} {...props} />;
+	return <AlertDialogTitleBase className={cn(modalTitle, className)} {...props} />;
 }
 
 function AlertDialogDescription({ className, ...props }: React.ComponentProps<typeof AlertDialogDescriptionBase>) {
-	return <AlertDialogDescriptionBase className={cn("text-base text-fg2", className)} {...props} />;
+	return <AlertDialogDescriptionBase className={cn("text-[13.5px] text-fg2", className)} {...props} />;
 }
 
 function AlertDialogFooter({ className, ...props }: React.ComponentProps<typeof AlertDialogFooterBase>) {
 	return (
 		<AlertDialogFooterBase
 			className={cn(
-				"m-0 flex-row justify-end gap-2 rounded-none border-t border-line bg-transparent px-4 py-3 sm:flex-row",
+				"m-0 flex-row justify-end gap-2 rounded-none border-t border-line bg-transparent px-5 py-3.5 sm:flex-row",
 				className,
 			)}
 			{...props}
@@ -58,7 +60,7 @@ function AlertDialogCancel({
 	...props
 }: Omit<React.ComponentProps<typeof AlertDialogCancelBase>, "variant" | "size" | "render">) {
 	return (
-		<AlertDialogCancelBase render={<Button variant="outline" size="lg" />} {...props}>
+		<AlertDialogCancelBase render={<Button variant="outline" />} {...props}>
 			{children}
 		</AlertDialogCancelBase>
 	);
@@ -68,7 +70,7 @@ function AlertDialogAction({
 	variant = "destructive",
 	...props
 }: Omit<React.ComponentProps<typeof Button>, "variant"> & { variant?: ButtonVariant | undefined }) {
-	return <Button data-slot="alert-dialog-action" variant={variant} size="lg" {...props} />;
+	return <Button data-slot="alert-dialog-action" variant={variant} {...props} />;
 }
 
 export {

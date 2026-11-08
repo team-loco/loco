@@ -23,10 +23,7 @@ function TitleWithSub({ title, sub }: { title: string; sub: string }) {
 export function SpecDialogContent({ dep, specVersion }: { dep: Deployment; specVersion: number }) {
 	const sub = `${shortId(dep.id)} · ${dep.region} · spec v${(dep.specVersion || specVersion).toString()}`;
 	return (
-		<DialogContent
-			className="top-[5vh] max-h-[90vh] w-[min(960px,calc(100%-32px))]"
-			title={<TitleWithSub title="Deployment spec" sub={sub} />}
-		>
+		<DialogContent className="w-[960px]" title={<TitleWithSub title="Deployment spec" sub={sub} />}>
 			<DialogBody className="overflow-hidden">
 				<CodeBlock
 					language="json"

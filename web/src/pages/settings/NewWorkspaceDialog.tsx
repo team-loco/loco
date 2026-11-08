@@ -1,7 +1,6 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayersIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -64,7 +63,7 @@ function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void
 	};
 
 	return (
-		<DialogContent title="New workspace" icon={<LayersIcon />} className="w-[480px]">
+		<DialogContent title="New workspace" className="w-[480px]">
 			<form
 				className="contents"
 				onSubmit={(e) => {

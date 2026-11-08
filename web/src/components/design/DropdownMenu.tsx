@@ -17,9 +17,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const popup = "rounded-lg border border-line bg-background p-1 text-foreground shadow-popover ring-0";
+const popup =
+	"rounded-[10px] border border-line bg-popover p-[5px] text-foreground shadow-popover ring-0 dark:border-line2";
 const item =
-	"h-8 cursor-pointer gap-2 rounded-sm px-2.5 py-0 text-base data-disabled:pointer-events-auto data-disabled:cursor-not-allowed focus:bg-bg3 focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground data-popup-open:bg-bg3 data-open:bg-bg3 [&_svg:not([class*='size-'])]:size-3.5";
+	"min-h-[34px] gap-2.5 rounded-lg px-2.5 py-1.5 text-[13.5px] focus:bg-panel focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground data-disabled:pointer-events-auto data-popup-open:bg-panel data-open:bg-panel dark:focus:bg-panel2 dark:data-popup-open:bg-panel2 dark:data-open:bg-panel2 [&_svg:not([class*='size-'])]:size-3.5";
 
 function DropdownMenuContent({ className, ...props }: React.ComponentProps<typeof DropdownMenuContentBase>) {
 	return <DropdownMenuContentBase className={cn(popup, "min-w-[180px]", className)} {...props} />;
@@ -34,7 +35,7 @@ function DropdownMenuItem({ className, ...props }: React.ComponentProps<typeof D
 		<DropdownMenuItemBase
 			className={cn(
 				item,
-				"data-[variant=destructive]:text-red data-[variant=destructive]:focus:bg-bg3 data-[variant=destructive]:focus:text-red dark:data-[variant=destructive]:focus:bg-bg3 data-[variant=destructive]:*:[svg]:text-red",
+				"data-[variant=destructive]:text-err data-[variant=destructive]:focus:bg-panel data-[variant=destructive]:focus:text-err dark:data-[variant=destructive]:focus:bg-panel2 data-[variant=destructive]:*:[svg]:text-err",
 				className,
 			)}
 			{...props}
@@ -56,10 +57,7 @@ function DropdownMenuRadioItem({ className, ...props }: React.ComponentProps<typ
 
 function DropdownMenuLabel({ className, ...props }: React.ComponentProps<typeof DropdownMenuLabelBase>) {
 	return (
-		<DropdownMenuLabelBase
-			className={cn("px-2.5 pt-2 pb-1 text-xs font-normal tracking-[0.04em] text-fg3 uppercase", className)}
-			{...props}
-		/>
+		<DropdownMenuLabelBase className={cn("px-2 pt-2.5 pb-1 text-[12px] font-normal text-fg3", className)} {...props} />
 	);
 }
 
