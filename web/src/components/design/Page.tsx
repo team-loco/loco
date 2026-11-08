@@ -4,7 +4,12 @@ import { cn } from "@/lib/utils";
 
 export function Page({ className, children }: { className?: string; children: ReactNode }) {
 	return (
-		<div className={cn("flex w-full max-w-[1440px] min-w-0 flex-col gap-6 px-4 pt-3 pb-16 md:px-8", className)}>
+		<div
+			className={cn(
+				"mx-auto flex w-full max-w-[1240px] min-w-0 flex-col gap-7 px-[clamp(16px,4vw,48px)] pt-7 pb-24",
+				className,
+			)}
+		>
 			{children}
 		</div>
 	);
@@ -20,8 +25,8 @@ export function PageHeader({
 	actions?: ReactNode;
 }) {
 	return (
-		<div className="flex flex-wrap items-center gap-3">
-			<h1 className="m-0 text-2xl font-semibold tracking-[-0.01em]">{title}</h1>
+		<div className="flex flex-wrap items-end gap-4">
+			<h1 className="m-0 flex items-center gap-3 text-[28px] leading-[1.15] font-normal tracking-[-0.03em]">{title}</h1>
 			{children}
 			<div className="flex-1" />
 			{actions}
@@ -45,17 +50,16 @@ export function Section({
 	children?: ReactNode;
 }) {
 	return (
-		<section className={cn("min-w-0 rounded-lg border border-line bg-background", className)}>
+		<section className={cn("min-w-0 rounded-[10px] bg-panel", className)}>
 			{(title !== undefined || actions !== undefined || toolbar !== undefined) && (
-				<div className="flex flex-wrap items-center gap-2.5 border-b border-line px-4 py-3">
-					{title !== undefined && <span className="mr-1.5 text-lg font-semibold">{title}</span>}
-					{toolbar}
-					{actions !== undefined && (
-						<>
-							<div className="flex-1" />
-							{actions}
-						</>
+				<div className="flex flex-wrap items-center gap-3.5 px-5 pt-4 pb-3.5">
+					{title !== undefined && (
+						<h2 className="m-0 mr-auto flex items-baseline gap-3 text-[22px] leading-[1.15] font-normal tracking-[-0.03em]">
+							{title}
+						</h2>
 					)}
+					{toolbar}
+					{actions}
 				</div>
 			)}
 			<div className={bodyClassName}>{children}</div>
@@ -65,6 +69,13 @@ export function Section({
 
 export function SectionFooter({ className, children }: { className?: string; children: ReactNode }) {
 	return (
-		<div className={cn("flex items-center justify-between px-4 py-2.5 text-sm text-fg3", className)}>{children}</div>
+		<div
+			className={cn(
+				"flex items-center justify-between border-t border-line2 px-5 pt-3 pb-3.5 text-[12.5px] text-fg3",
+				className,
+			)}
+		>
+			{children}
+		</div>
 	);
 }

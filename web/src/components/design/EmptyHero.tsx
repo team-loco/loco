@@ -17,16 +17,11 @@ export function EmptyHero({
 }) {
 	return (
 		<section
-			className={cn(
-				"flex flex-col items-center gap-4 rounded-lg border border-line bg-background bg-[radial-gradient(var(--pe-dot)_1px,transparent_1px)] bg-size-[16px_16px] px-6 pt-14 pb-16 text-center",
-				className,
-			)}
+			className={cn("flex flex-col items-center gap-3 rounded-[12px] bg-panel px-6 pt-14 pb-16 text-center", className)}
 		>
 			{art}
-			<div className="mt-2 flex flex-col items-center gap-1.5">
-				<span className="text-[18px] font-semibold tracking-[-0.01em]">{title}</span>
-				{subtitle !== undefined && <span className="text-fg2">{subtitle}</span>}
-			</div>
+			<h2 className="m-0 mt-2 text-2xl font-normal tracking-[-0.03em]">{title}</h2>
+			{subtitle !== undefined && <p className="m-0 max-w-[34em] text-md leading-[1.55] text-fg3">{subtitle}</p>}
 			{children}
 		</section>
 	);

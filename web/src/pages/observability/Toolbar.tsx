@@ -9,6 +9,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { SoonTag } from "@/components/design/SoonTag";
+import { StatusDot } from "@/components/design/StatusGlyph";
 import type { TimeRange } from "@/lib/obs";
 import { cn } from "@/lib/utils";
 
@@ -158,14 +159,7 @@ export function LiveTailButton({
 			)}
 		>
 			<span className="relative flex size-3.5 items-center justify-center">
-				{on ? (
-					<>
-						<span className="absolute size-3.5 animate-pulse rounded-full bg-ok-fg opacity-25" />
-						<span className="size-[7px] rounded-full bg-ok-fg" />
-					</>
-				) : (
-					<PlayIcon className="size-[13px] fill-current text-fg2" />
-				)}
+				{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon className="size-[13px] fill-current text-fg2" />}
 			</span>
 			<span className="flex-1 text-left whitespace-nowrap">{pending ? "Starting…" : on ? "Live" : "Live tail"}</span>
 			{on && (

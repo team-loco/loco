@@ -484,8 +484,14 @@ function TraceSession({
 						)}
 						{traces.length > ROWS_PER_PAGE && (
 							<Pager
-								className="border-t border-line"
 								label={`Page ${String(currentPage + 1)} of ${String(pageCount)} loaded results`}
+								onFirst={
+									currentPage === 0
+										? null
+										: () => {
+												setPage(0);
+											}
+								}
 								onPrev={
 									currentPage === 0
 										? null
@@ -498,6 +504,13 @@ function TraceSession({
 										? null
 										: () => {
 												setPage(currentPage + 1);
+											}
+								}
+								onLast={
+									currentPage === pageCount - 1
+										? null
+										: () => {
+												setPage(pageCount - 1);
 											}
 								}
 							/>

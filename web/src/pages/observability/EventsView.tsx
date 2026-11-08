@@ -307,6 +307,13 @@ export function EventsView() {
 								setSize(n);
 								setPage(0);
 							}}
+							onFirst={
+								curPage > 0
+									? () => {
+											setPage(0);
+										}
+									: null
+							}
 							onPrev={
 								curPage > 0
 									? () => {
@@ -318,6 +325,13 @@ export function EventsView() {
 								curPage < pages - 1
 									? () => {
 											setPage(curPage + 1);
+										}
+									: null
+							}
+							onLast={
+								curPage < pages - 1
+									? () => {
+											setPage(pages - 1);
 										}
 									: null
 							}

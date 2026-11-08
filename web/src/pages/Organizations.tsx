@@ -7,6 +7,7 @@ import type { Organization } from "@gen/loco/org/v1/org_pb";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
@@ -93,7 +94,7 @@ export function Organizations() {
 		));
 	};
 
-	const countLabel = isLoading ? null : <span className="font-normal text-fg3">{orgs.length}</span>;
+	const countLabel = isLoading ? null : <Badge tone="count">{orgs.length}</Badge>;
 	const body = renderBody();
 
 	return (

@@ -131,11 +131,7 @@ function DomainRow({
 				</span>
 			)}
 			<div className="flex items-center justify-end gap-1.5">
-				{domain.isPrimary && (
-					<Badge tone="outline" size="sm" className="text-fg3">
-						primary
-					</Badge>
-				)}
+				{domain.isPrimary && <Badge tone="pill">primary</Badge>}
 				<DropdownMenu>
 					<DropdownMenuTrigger
 						disabled={managed}

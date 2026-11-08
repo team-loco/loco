@@ -36,11 +36,7 @@ export function OrgRow({
 					<Building2 className="size-4" />
 				</span>
 				<span className="truncate font-semibold">{org.name}</span>
-				{active && (
-					<Badge tone="muted" size="sm">
-						Current
-					</Badge>
-				)}
+				{active && <Badge tone="pill">current</Badge>}
 			</span>
 			<span className="hidden text-[12.5px] text-fg3 md:block">Created {created}</span>
 			<span className="flex items-center gap-1.5">

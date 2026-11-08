@@ -108,7 +108,7 @@ export function EventsSection({
 			title={
 				<span id="events" className="flex items-baseline gap-2.5">
 					Events
-					<span className="text-sm font-normal text-fg3">{events.length} total</span>
+					<Badge tone="count">{events.length}</Badge>
 				</span>
 			}
 		>
@@ -242,6 +242,13 @@ export function EventsSection({
 					setSize(n);
 					setPage(0);
 				}}
+				onFirst={
+					slice.page > 0
+						? () => {
+								setPage(0);
+							}
+						: null
+				}
 				onPrev={
 					slice.page > 0
 						? () => {
@@ -253,6 +260,13 @@ export function EventsSection({
 					slice.page < slice.pages - 1
 						? () => {
 								setPage(slice.page + 1);
+							}
+						: null
+				}
+				onLast={
+					slice.page < slice.pages - 1
+						? () => {
+								setPage(slice.pages - 1);
 							}
 						: null
 				}
