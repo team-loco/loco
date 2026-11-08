@@ -148,7 +148,7 @@ function CreateTokenForm({
 			>
 				<DialogBody className="gap-[18px] p-[18px]">
 					<div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
-						<Field label="Name" strong error={nameErr}>
+						<Field label="Name" error={nameErr}>
 							<Input
 								autoFocus
 								autoComplete="off"

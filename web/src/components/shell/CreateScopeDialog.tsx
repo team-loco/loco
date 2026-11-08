@@ -113,7 +113,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 							</ToggleGroup>
 						</div>
 					)}
-					<Field label="Name" strong error={error}>
+					<Field label="Name" error={error}>
 						<Input
 							autoFocus
 							autoComplete="off"
@@ -127,7 +127,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 						/>
 					</Field>
 					{!isOrg && (
-						<Field label="Description" strong>
+						<Field label="Description">
 							<Textarea
 								rows={2}
 								maxLength={256}

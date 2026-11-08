@@ -179,17 +179,11 @@ export function Tokens() {
 						>
 							{OWNER_KEYS.map((k) => {
 								const o = data.owners[k];
-								const count = o.owner.canList && !o.isLoading ? o.tokens.length.toString() : "";
+								const count = o.owner.canList && !o.isLoading ? o.tokens.length : undefined;
 								return (
-									<ToggleGroupItem
-										key={k}
-										value={k}
-										title={o.owner.kind}
-										className="h-7! gap-1.5 px-3 text-[12.5px] [&_svg]:size-[13px]"
-									>
+									<ToggleGroupItem key={k} value={k} title={o.owner.kind} count={count} className="[&_svg]:size-[13px]">
 										{ownerIcon(k)}
 										{o.owner.label}
-										{count !== "" && <span className="text-xs font-normal text-fg3">{count}</span>}
 									</ToggleGroupItem>
 								);
 							})}

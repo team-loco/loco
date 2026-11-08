@@ -63,7 +63,7 @@ export function CreateOrgDialog({
 				<form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
 					<DialogBody>
 						<DialogDescription>Organizations are used to manage workspaces, resources, and billing.</DialogDescription>
-						<Field label="Name" strong>
+						<Field label="Name">
 							<Input
 								value={orgName}
 								onChange={(e) => {

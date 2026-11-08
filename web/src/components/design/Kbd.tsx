@@ -1,11 +1,11 @@
-import { Kbd as KbdBase, KbdGroup } from "@/components/ui/kbd";
+import { Kbd as KbdBase } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
 function Kbd({ className, ...props }: React.ComponentProps<typeof KbdBase>) {
 	return (
 		<KbdBase
 			className={cn(
-				"h-auto min-w-0 rounded-xs border border-line bg-transparent px-1.5 font-normal text-fg3",
+				"h-auto min-w-0 rounded-sm bg-panel px-[5px] py-px font-mono text-[10.5px] font-normal text-fg2 inset-ring inset-ring-line2",
 				className,
 			)}
 			{...props}
@@ -13,4 +13,4 @@ function Kbd({ className, ...props }: React.ComponentProps<typeof KbdBase>) {
 	);
 }
 
-export { Kbd, KbdGroup };
+export { Kbd };

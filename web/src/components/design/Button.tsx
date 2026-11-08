@@ -3,36 +3,43 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Button as ButtonBase } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type BaseVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
+type BaseVariant = "default" | "outline" | "ghost" | "destructive" | "link";
 type BaseSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
 
+const solid = "border-0 font-medium hover:opacity-86 dark:hover:opacity-100 dark:hover:brightness-108";
+
 const buttonVariants = cva(
-	"gap-1.5 rounded-sm text-sm active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-55 [&_svg:not([class*='size-'])]:size-3.5",
+	"gap-1.5 rounded-lg active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-45 [&_svg:not([class*='size-'])]:size-3.5",
 	{
 		variants: {
 			variant: {
-				default: "border-primary bg-primary text-primary-foreground hover:border-primary-hover hover:bg-primary-hover",
+				default: cn(solid, "bg-primary text-primary-foreground hover:bg-primary"),
 				outline:
-					"border-line bg-background font-normal hover:border-fg4 hover:bg-background aria-expanded:border-foreground aria-expanded:bg-background dark:border-line dark:bg-background dark:hover:bg-background",
-				secondary: "border-line bg-background font-normal text-fg2 hover:bg-bg3",
-				ghost: "font-normal hover:bg-bg3 aria-expanded:bg-bg3 dark:hover:bg-bg3",
-				destructive: "border-red bg-red text-white hover:bg-red hover:opacity-90 dark:bg-red dark:hover:bg-red",
+					"border-line2 bg-raise font-normal text-foreground hover:border-fg4 hover:bg-raise aria-expanded:border-fg4 aria-expanded:bg-raise dark:border-line2 dark:bg-raise dark:hover:border-line2 dark:hover:bg-panel2 dark:aria-expanded:bg-panel2",
+				ghost:
+					"bg-transparent font-normal text-fg2 hover:bg-panel2 hover:text-foreground aria-expanded:bg-panel2 aria-expanded:text-foreground dark:hover:bg-panel2",
+				destructive: cn(solid, "bg-err text-background hover:bg-err dark:bg-err dark:hover:bg-err"),
 				"destructive-outline":
-					"border-[color-mix(in_oklab,var(--err)_45%,transparent)] bg-background text-red hover:bg-bad-bg dark:bg-background",
-				inverted: "border-foreground bg-foreground text-background hover:bg-foreground hover:opacity-90",
-				link: "h-auto p-0 font-normal text-fg3 underline hover:text-foreground",
+					"border-line2 bg-raise font-normal text-bad-fg hover:border-bad-fg hover:bg-bad-bg dark:bg-raise",
+				inverted: cn(solid, "bg-primary text-primary-foreground hover:bg-primary"),
+				link: "font-normal text-fg2 underline decoration-line2 underline-offset-3 hover:text-foreground hover:decoration-foreground",
 			},
 			size: {
-				default: "h-7 px-2.5",
-				xs: "h-6.5 px-2.5 text-sm",
-				sm: "h-7 px-2.5 text-sm",
-				lg: "h-[34px] rounded-lg px-4",
-				xl: "h-[42px] rounded-lg px-4 text-md font-semibold",
-				icon: "size-7",
+				default: "h-8 px-[13px] text-[13px]",
+				xs: "h-6.5 px-2 text-xs",
+				sm: "h-[30px] px-2.5 text-[12.5px]",
+				lg: "h-[34px] px-4 text-[13px]",
+				xl: "h-[42px] px-4 text-md font-semibold",
+				icon: "size-[30px]",
 				"icon-sm": "size-7",
 				"icon-xs": "size-6",
 			},
 		},
+		compoundVariants: [
+			{ variant: "outline", size: ["icon", "icon-sm", "icon-xs"], class: "text-fg2 hover:text-foreground" },
+			{ variant: "ghost", size: ["icon", "icon-sm", "icon-xs"], class: "text-fg3" },
+			{ variant: "link", class: "h-auto p-0 text-[12.5px]" },
+		],
 		defaultVariants: {
 			variant: "default",
 			size: "default",
@@ -49,8 +56,6 @@ function baseVariant(variant: ButtonVariant): BaseVariant {
 			return "default";
 		case "outline":
 			return "outline";
-		case "secondary":
-			return "secondary";
 		case "ghost":
 			return "ghost";
 		case "destructive":
@@ -104,4 +109,4 @@ function Button({
 	);
 }
 
-export { Button, buttonVariants, type ButtonVariant, type ButtonSize };
+export { Button, type ButtonVariant };

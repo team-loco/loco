@@ -3,25 +3,18 @@ import { SearchIcon } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/design/InputGroup";
 import { cn } from "@/lib/utils";
 
-function SearchInput({
-	className,
-	size = "default",
-	...props
-}: Omit<React.ComponentProps<typeof InputGroupInput>, "size"> & {
-	size?: "default" | "sm" | undefined;
-}) {
-	const sm = size === "sm";
+function SearchInput({ className, ...props }: React.ComponentProps<typeof InputGroupInput>) {
 	return (
 		<InputGroup
 			className={cn(
-				sm ? "h-[30px] has-[>[data-align=inline-start]]:[&>input]:pl-1.5" : "h-[34px] rounded-lg",
+				"h-[30px] has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[>[data-align=inline-start]]:[&>input]:pl-2",
 				className,
 			)}
 		>
-			<InputGroupAddon className={cn(sm && "data-[align=inline-start]:pl-2")}>
+			<InputGroupAddon>
 				<SearchIcon />
 			</InputGroupAddon>
-			<InputGroupInput className={cn(sm && "pr-2 text-[12.5px] md:text-[12.5px]")} {...props} />
+			<InputGroupInput className="pr-2 text-[13px] md:text-[13px]" {...props} />
 		</InputGroup>
 	);
 }

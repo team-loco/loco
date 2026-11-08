@@ -5,7 +5,7 @@ function Textarea({ className, ...props }: React.ComponentProps<typeof TextareaB
 	return (
 		<TextareaBase
 			className={cn(
-				"field-sizing-fixed min-h-0 resize-y rounded-sm border-line bg-background px-2.5 py-2 text-base placeholder:text-fg4 focus-visible:border-fg4 focus-visible:ring-0 aria-invalid:border-bad-fg aria-invalid:ring-0 md:text-base dark:bg-background",
+				"field-sizing-fixed min-h-0 resize-y rounded-lg px-2.5 py-2 leading-normal disabled:opacity-45 border-line2 bg-raise text-[13.5px] text-foreground placeholder:text-fg4 focus-visible:border-fg3 focus-visible:ring-3 focus-visible:ring-foreground/8 aria-invalid:border-err aria-invalid:ring-0 md:text-[13.5px] [&.font-mono]:text-[12.5px] dark:bg-raise dark:aria-invalid:border-err dark:aria-invalid:ring-0",
 				className,
 			)}
 			{...props}
