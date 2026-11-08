@@ -83,7 +83,7 @@ export function AppSidebar() {
 	const [params] = useSearchParams();
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
-	const { resolved, toggle } = useTheme();
+	const { theme, toggle } = useTheme();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const peek = useSidebarPeek();
@@ -320,14 +320,14 @@ export function AppSidebar() {
 								</ExternalMenuLink>
 								<DropdownMenuSeparator />
 								<MenuLink
-									icon={<ThemeIcon mode={resolved === "dark" ? "sun" : "moon"} />}
+									icon={<ThemeIcon mode={theme === "dark" ? "sun" : "moon"} />}
 									onClick={() => {
 										toggle();
-										void playThemeSound(resolved !== "dark");
+										void playThemeSound(theme !== "dark");
 									}}
 									closeOnClick={false}
 								>
-									{resolved === "dark" ? "Light mode" : "Dark mode"}
+									{theme === "dark" ? "Light mode" : "Dark mode"}
 								</MenuLink>
 								<DropdownMenuSeparator />
 								<MenuLink

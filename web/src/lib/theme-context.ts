@@ -3,7 +3,7 @@ import { createContext } from "react";
 import type { ResolvedTheme } from "./theme";
 
 export interface ThemeContextType {
-	resolved: ResolvedTheme;
+	theme: ResolvedTheme;
 	toggle: () => void;
 }
 

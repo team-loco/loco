@@ -27,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		storeMode(next);
 	};
 
-	const contextValue = { resolved, toggle };
+	const contextValue = { theme: resolved, toggle };
 
 	return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 }
