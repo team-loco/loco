@@ -58,7 +58,7 @@ function SecretBody({ revealed, onClose }: { revealed: RevealedSecret; onClose: 
 				</div>
 			</DialogBody>
 			<DialogFooter>
-				<Button variant="inverted" size="lg" onClick={onClose}>
+				<Button size="lg" onClick={onClose}>
 					Done
 				</Button>
 			</DialogFooter>

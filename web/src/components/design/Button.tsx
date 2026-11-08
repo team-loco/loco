@@ -21,7 +21,6 @@ const buttonVariants = cva(
 				destructive: cn(solid, "bg-err text-background hover:bg-err dark:bg-err dark:hover:bg-err"),
 				"destructive-outline":
 					"border-line2 bg-raise font-normal text-bad-fg hover:border-bad-fg hover:bg-bad-bg dark:bg-raise",
-				inverted: cn(solid, "bg-primary text-primary-foreground hover:bg-primary"),
 				link: "font-normal text-fg2 underline decoration-line2 underline-offset-3 hover:text-foreground hover:decoration-foreground",
 			},
 			size: {
@@ -62,8 +61,6 @@ function baseVariant(variant: ButtonVariant): BaseVariant {
 			return "destructive";
 		case "destructive-outline":
 			return "outline";
-		case "inverted":
-			return "default";
 		case "link":
 			return "link";
 	}
