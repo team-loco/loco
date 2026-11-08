@@ -11,6 +11,7 @@ const unknownVersion = "(devel)";
 const linkedVersion = process.env["VERSION"] ?? "";
 const version = linkedVersion === "" ? unknownVersion : linkedVersion;
 const plugins = [tailwind, envPlugin];
+const themeScript = "theme.js";
 
 const injectedModules = ["react/jsx-runtime", "react/compiler-runtime"];
 
@@ -39,6 +40,14 @@ const result = await Bun.build({
 
 await rm(outdir, { recursive: true, force: true });
 await cp("public", outdir, { recursive: true });
+await Bun.build({
+	entrypoints: ["./src/theme-boot.ts"],
+	outdir,
+	naming: themeScript,
+	format: "iife",
+	minify: true,
+	throw: true,
+});
 for (const output of result.outputs) {
 	if (vendorOutputs.has(basename(output.path))) {
 		continue;
@@ -47,7 +56,9 @@ for (const output of result.outputs) {
 	if (output.path.endsWith(".html")) {
 		const tagged = new HTMLRewriter().on("head", {
 			element(head) {
-				head.prepend('<script src="/runtime-config.js"></script>', { html: true });
+				head.prepend(`<script src="/runtime-config.js"></script><script src="/${themeScript}"></script>`, {
+					html: true,
+				});
 				head.append(`<meta name="loco-version" content="${Bun.escapeHTML(version)}">`, { html: true });
 			},
 		});

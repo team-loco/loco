@@ -3,11 +3,11 @@ import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon
 import { useTheme } from "@/lib/use-theme";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-	const { theme } = useTheme();
+	const { resolved } = useTheme();
 
 	return (
 		<Sonner
-			theme={theme}
+			theme={resolved}
 			className="toaster group"
 			icons={{
 				success: <CircleCheckIcon className="size-4" />,
