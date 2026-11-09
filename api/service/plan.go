@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"maps"
 	"slices"
 	"time"
@@ -22,7 +21,6 @@ import (
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/internal/locofile"
-	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
@@ -126,23 +124,19 @@ func (s *PlanServer) loadPlan(
 
 	environments, err := s.queries.ListWorkspaceEnvironments(ctx, env.WorkspaceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list environments", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list environments: %w", err)
 	}
 	clusters, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	live, err := s.liveEnvironment(ctx, env)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load the environment's services", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("load the environment's services: %w", err)
 	}
 	secrets, err := s.serviceSecrets(ctx, env.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list secret names", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list secret names: %w", err)
 	}
 
 	environmentNames := make([]string, 0, len(environments))
@@ -167,8 +161,7 @@ func (s *PlanServer) loadPlan(
 		Images:           images,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to compute plan", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return nil, fmt.Errorf("compute plan: %w", err)
 	}
 	plan.Errors = append(plan.Errors, slugErrors(plan.Operations, live.resources)...)
 	if len(plan.Errors) > 0 {

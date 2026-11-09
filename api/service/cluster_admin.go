@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -27,8 +28,10 @@ import (
 const joinTokenPrefix = "loco_j_"
 
 var (
-	errClusterAdmin         = errors.New("cluster administration failed")
-	errRegistrationChanged  = errors.New("cluster registration is removed or its requested fields differ")
+	errRegistrationChanged = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"cluster registration is removed or its requested fields differ",
+	)
 	errInvalidClusterFields = errors.New(
 		"cluster name and region are required and tier must be staging or production",
 	)
@@ -87,11 +90,11 @@ func (s *ClusterAdminServer) CreateCluster(
 		if createErr := queries.CreateCluster(ctx, genDb.CreateClusterParams{
 			Name: req.GetName(), Region: req.GetRegion(), Tier: tier, ID: requestID,
 		}); createErr != nil {
-			return createErr
+			return fmt.Errorf("insert cluster: %w", createErr)
 		}
 		row, lookupErr := queries.LockClusterRegistration(ctx, requestID)
 		if lookupErr != nil {
-			return lookupErr
+			return fmt.Errorf("lock cluster registration: %w", lookupErr)
 		}
 		if row.RemovedAt != nil || row.Name != req.GetName() || row.Region != req.GetRegion() || row.Tier != tier {
 			return errRegistrationChanged
@@ -104,17 +107,13 @@ func (s *ClusterAdminServer) CreateCluster(
 		if _, issueErr := queries.SetClusterJoinToken(ctx, genDb.SetClusterJoinTokenParams{
 			ID: row.ID, JoinTokenHash: &token.hash, JoinTokenExpiresAt: &token.expiresAt,
 		}); issueErr != nil {
-			return issueErr
+			return fmt.Errorf("set join token: %w", issueErr)
 		}
 		response.JoinToken = token.proto()
 		return nil
 	})
-	if errors.Is(err, errRegistrationChanged) {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, errRegistrationChanged)
-	}
 	if err != nil {
-		slog.ErrorContext(ctx, "create cluster failed", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, errClusterAdmin)
+		return nil, err
 	}
 	slog.InfoContext(ctx, "cluster registration ready", "cluster_id", response.GetClusterId())
 	return response, nil
@@ -141,8 +140,7 @@ func (s *ClusterAdminServer) IssueJoinToken(
 		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrClusterNotEnrollable)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "issue join token failed", "cluster_id", id, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, errClusterAdmin)
+		return nil, fmt.Errorf("set cluster %s join token: %w", id, err)
 	}
 	slog.InfoContext(ctx, "cluster join token issued", "cluster_id", id)
 	return &clusterv1.IssueJoinTokenResponse{ClusterId: id.String(), JoinToken: token.proto()}, nil
@@ -157,8 +155,7 @@ func (s *ClusterAdminServer) ListClusters(
 	}
 	rows, err := s.queries.ListAdminClusters(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "list clusters failed", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, errClusterAdmin)
+		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	result := &clusterv1.ListClustersResponse{}
 	for _, row := range rows {
@@ -218,8 +215,7 @@ func (s *ClusterAdminServer) manage(
 		}
 		return result, refused
 	}
-	slog.ErrorContext(ctx, "manage cluster failed", "cluster_id", id, "operation", operation, "error", err)
-	return result, rpcerr.New(connect.CodeInternal, errClusterAdmin)
+	return result, fmt.Errorf("%s cluster %s: %w", operation, id, err)
 }
 
 func (s *ClusterAdminServer) PauseCluster(

@@ -53,22 +53,18 @@ func (s *TokenServer) CreateToken(
 	req *tokenv1.CreateTokenRequest,
 ) (*tokenv1.CreateTokenResponse, error) {
 	if req.GetName() == "" {
-		slog.ErrorContext(ctx, "invalid request: name is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
 	}
 
 	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
-		slog.ErrorContext(ctx, "invalid request: entity_type is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	if req.GetExpiresInSec() <= 0 || req.GetExpiresInSec() > int64(s.tvm.Cfg.MaxAPITokenDuration.Seconds()) {
-		slog.ErrorContext(ctx, "invalid token duration", "expires_in_sec", req.GetExpiresInSec())
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidTokenDuration)
 	}
 
 	if len(req.GetScopes()) == 0 {
-		slog.ErrorContext(ctx, "invalid request: at least one scope is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidScopes)
 	}
 
@@ -96,7 +92,6 @@ func (s *TokenServer) CreateToken(
 	for i, scope := range req.GetScopes() {
 		scopeEntityID, scopeErr := uuid.Parse(scope.GetEntityId())
 		if scopeErr != nil {
-			slog.ErrorContext(ctx, "invalid scope entity id format", "entityId", scope.GetEntityId(), "error", scopeErr)
 			return nil, connect.NewError(
 				connect.CodeInvalidArgument,
 				publicInvalidScopeEntityID,
@@ -122,22 +117,19 @@ func (s *TokenServer) CreateToken(
 	})
 	if err != nil {
 		if errors.Is(err, authz.ErrInsufficientPermissions) {
-			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", p.Entity.ID.String())
 			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		if errors.Is(err, tvm.ErrTokenNameTaken) {
 			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrTokenAlreadyExists)
 		}
-		slog.ErrorContext(ctx, "failed to issue token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to issue token")
+		return nil, fmt.Errorf("issue token: %w", err)
 	}
 
 	// fetch metadata using the token we just issued
 	tokenHash := hashToken(token)
 	tokenData, err := s.queries.GetAPIToken(ctx, tokenHash)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to fetch created token metadata", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to fetch token metadata")
+		return nil, fmt.Errorf("get created token metadata: %w", err)
 	}
 
 	slog.InfoContext(
@@ -172,7 +164,6 @@ func (s *TokenServer) ListTokens(
 	req *tokenv1.ListTokensRequest,
 ) (*tokenv1.ListTokensResponse, error) {
 	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
-		slog.ErrorContext(ctx, "invalid request: entity_type is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
@@ -198,8 +189,7 @@ func (s *TokenServer) ListTokens(
 
 	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list tokens", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to list tokens")
+		return nil, fmt.Errorf("list tokens: %w", err)
 	}
 
 	protoTokens := make([]*tokenv1.Token, len(tokens))
@@ -227,12 +217,10 @@ func (s *TokenServer) GetToken(
 	req *tokenv1.GetTokenRequest,
 ) (*tokenv1.GetTokenResponse, error) {
 	if req.GetName() == "" {
-		slog.ErrorContext(ctx, "invalid request: name is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
 	}
 
 	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
-		slog.ErrorContext(ctx, "invalid request: entity_type is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
@@ -288,12 +276,10 @@ func (s *TokenServer) RevokeToken(
 	req *tokenv1.RevokeTokenRequest,
 ) (*tokenv1.RevokeTokenResponse, error) {
 	if req.GetName() == "" {
-		slog.ErrorContext(ctx, "invalid request: name is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
 	}
 
 	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
-		slog.ErrorContext(ctx, "invalid request: entity_type is required")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
@@ -326,12 +312,11 @@ func (s *TokenServer) RevokeToken(
 			EntityType: targetEntity.Type,
 			EntityID:   targetEntity.ID,
 		}); deleteErr != nil {
-			return deleteErr
+			return fmt.Errorf("delete token: %w", deleteErr)
 		}
 		return events.Record(ctx, qtx, tokenEvent(events.TokenRevoked, targetEntity, req.GetName()))
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to revoke token")
+		return nil, err
 	}
 
 	slog.InfoContext(

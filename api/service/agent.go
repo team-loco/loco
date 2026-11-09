@@ -145,7 +145,7 @@ func (s *AgentServer) Register(
 			BuildsEnabled:         req.GetBuildsEnabled(),
 			Domains:               reportedDomains(req.GetDomains()),
 		}); updateErr != nil {
-			return updateErr
+			return fmt.Errorf("update cluster %s agent info: %w", cluster.id, updateErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.ClusterRegistered,
@@ -157,11 +157,7 @@ func (s *AgentServer) Register(
 		})
 	})
 	if err != nil {
-		if connectErr, ok := errors.AsType[*connect.Error](err); ok {
-			return nil, connectErr
-		}
-		slog.ErrorContext(ctx, "failed to register agent", "error", err, "cluster_id", cluster.id)
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "agent registered",

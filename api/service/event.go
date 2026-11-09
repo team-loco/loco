@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"log/slog"
+	"fmt"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -115,8 +115,7 @@ func (s *EventServer) ListEvents(
 	}
 	rows, err := s.listAuditEvents(ctx, req, workspaceID, pageSize+1)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list audit events", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list audit events: %w", err)
 	}
 	response := &eventv1.ListEventsResponse{Events: rows}
 	if len(rows) > int(pageSize) {
@@ -147,7 +146,7 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 			return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 		}
 		if err != nil {
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+			return nil, fmt.Errorf("get the parents of resource %s: %w", resourceID, err)
 		}
 		if parents.OrgID != orgID ||
 			(req.GetWorkspaceId() != "" && parents.WorkspaceID.String() != req.GetWorkspaceId()) {
@@ -168,7 +167,7 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
 		}
 		if err != nil {
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+			return nil, fmt.Errorf("get the organization of workspace %s: %w", workspaceID, err)
 		}
 		if parent != orgID {
 			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
@@ -270,8 +269,7 @@ func (s *EventServer) StreamEvents(
 			if ctx.Err() != nil {
 				return nil
 			}
-			slog.ErrorContext(ctx, "failed to read events for stream", "error", err)
-			return rpcerr.New(connect.CodeInternal, ErrDB)
+			return fmt.Errorf("read events for stream: %w", err)
 		}
 		if len(rows) > 0 {
 			batch := make([]*eventv1.Event, len(rows))
