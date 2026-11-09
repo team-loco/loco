@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { Event } from "@gen/loco/resource/v1/resource_pb";
+import type { Event } from "@gen/loco/observability/v1/observability_pb";
 
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
@@ -74,7 +74,7 @@ function EventList({
 						<span className="flex min-w-0 flex-col gap-0.5">
 							<span className="text-[13.5px]">{e.reason}</span>
 							<span className="text-[12.5px] break-words text-fg2">{e.message}</span>
-							{e.podName !== "" && <span className="truncate font-mono text-[11.5px] text-fg3">{e.podName}</span>}
+							{e.objectName !== "" && <span className="truncate font-mono text-[11.5px] text-fg3">{e.objectName}</span>}
 						</span>
 						<span
 							className="font-mono text-[11.5px] whitespace-nowrap text-fg3"

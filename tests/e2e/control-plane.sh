@@ -355,8 +355,9 @@ read -r INGEST_CLUSTER INGEST_WORKSPACE < <(psql -F ' ' -c "
     c AS (INSERT INTO clusters (name, region, provider, is_active, is_default, agent_public_key)
           VALUES ('ingest-e2e', 'us-east-1', 'kind', true, false,
                   decode('$("$RUN_DIR/ingesttoken" -agent-key "$RUN_DIR/agent-key" -public-key)', 'hex')) RETURNING id),
-    p AS (INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, placed_at)
-          SELECT uuidv7(), c.id, w.id, NOW() - INTERVAL '1 hour' FROM c, w)
+    e AS (INSERT INTO environments (workspace_id, name, created_by) SELECT w.id, 'production', u.id FROM w, u RETURNING id),
+    p AS (INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, environment_id, placed_at)
+          SELECT uuidv7(), c.id, w.id, e.id, NOW() - INTERVAL '1 hour' FROM c, w, e)
     SELECT c.id, w.id FROM c, w")
 INGEST_ASSERTION=$("$RUN_DIR/ingesttoken" -agent-key "$RUN_DIR/agent-key" -cluster "$INGEST_CLUSTER")
 INGEST_TOKEN=$(curl --fail-with-body --silent -H "Host: $API_HOST" -H 'Content-Type: application/json' \

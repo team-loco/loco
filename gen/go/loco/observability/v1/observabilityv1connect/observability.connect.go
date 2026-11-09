@@ -31,6 +31,12 @@ const (
 	// ObservabilityProxyServiceTailLogsProcedure is the procedure name of the
 	// ObservabilityProxyService's TailLogs RPC.
 	ObservabilityProxyServiceTailLogsProcedure = "/loco.observability.v1.ObservabilityProxyService/TailLogs"
+	// ObservabilityProxyServiceQueryEventsProcedure is the procedure name of the
+	// ObservabilityProxyService's QueryEvents RPC.
+	ObservabilityProxyServiceQueryEventsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryEvents"
+	// ObservabilityProxyServiceTailEventsProcedure is the procedure name of the
+	// ObservabilityProxyService's TailEvents RPC.
+	ObservabilityProxyServiceTailEventsProcedure = "/loco.observability.v1.ObservabilityProxyService/TailEvents"
 	// ObservabilityProxyServiceQueryMetricsProcedure is the procedure name of the
 	// ObservabilityProxyService's QueryMetrics RPC.
 	ObservabilityProxyServiceQueryMetricsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
@@ -52,6 +58,20 @@ var (
 			StreamType: connect.StreamTypeServer,
 			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("TailLogs"),
 			Procedure:  ObservabilityProxyServiceTailLogsProcedure,
+		}
+	})
+	observabilityProxyServiceQueryEventsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("QueryEvents"),
+			Procedure:  ObservabilityProxyServiceQueryEventsProcedure,
+		}
+	})
+	observabilityProxyServiceTailEventsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeServer,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("TailEvents"),
+			Procedure:  ObservabilityProxyServiceTailEventsProcedure,
 		}
 	})
 	observabilityProxyServiceQueryMetricsSpec = sync.OnceValue(func() connect.Spec {
@@ -77,6 +97,10 @@ type ObservabilityProxyServiceClient interface {
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error)
+	// QueryEvents returns the Kubernetes events about one resource's objects, newest first.
+	QueryEvents(context.Context, *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error)
+	// TailEvents streams a resource's Kubernetes events as they arrive (server-push, polling-based).
+	TailEvents(context.Context, *v1.TailEventsRequest) (ObservabilityProxyServiceTailEventsClientStream, error)
 	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
@@ -110,6 +134,27 @@ func (s ObservabilityProxyServiceTailLogsClientStream) Close() error {
 	return s.stream.Close()
 }
 
+// ObservabilityProxyServiceTailEventsClientStream is the client stream for the
+// ObservabilityProxyService's TailEvents RPC.
+type ObservabilityProxyServiceTailEventsClientStream struct {
+	stream connect.ClientStream
+}
+
+// Receive returns the next response message from the server.
+func (s ObservabilityProxyServiceTailEventsClientStream) Receive() (*v1.TailEventsResponse, error) {
+	var res v1.TailEventsResponse
+	if err := s.stream.Receive(&res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// Close releases the stream's resources. It is idempotent and is typically deferred to clean up a
+// stream abandoned before io.EOF.
+func (s ObservabilityProxyServiceTailEventsClientStream) Close() error {
+	return s.stream.Close()
+}
+
 // ObservabilityProxyServiceHandler is an implementation of the
 // loco.observability.v1.ObservabilityProxyService service.
 type ObservabilityProxyServiceHandler interface {
@@ -117,6 +162,10 @@ type ObservabilityProxyServiceHandler interface {
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error
+	// QueryEvents returns the Kubernetes events about one resource's objects, newest first.
+	QueryEvents(context.Context, *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error)
+	// TailEvents streams a resource's Kubernetes events as they arrive (server-push, polling-based).
+	TailEvents(context.Context, *v1.TailEventsRequest, ObservabilityProxyServiceTailEventsServerStream) error
 	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
@@ -129,6 +178,8 @@ func RegisterObservabilityProxyServiceHandler(server *connect.Server, svc Observ
 	server.Register(
 		connect.Method{Spec: observabilityProxyServiceQueryLogsSpec(), Handler: adapter.queryLogs},
 		connect.Method{Spec: observabilityProxyServiceTailLogsSpec(), Handler: adapter.tailLogs},
+		connect.Method{Spec: observabilityProxyServiceQueryEventsSpec(), Handler: adapter.queryEvents},
+		connect.Method{Spec: observabilityProxyServiceTailEventsSpec(), Handler: adapter.tailEvents},
 		connect.Method{Spec: observabilityProxyServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
 		connect.Method{Spec: observabilityProxyServiceQueryTracesSpec(), Handler: adapter.queryTraces},
 	)
@@ -150,6 +201,22 @@ func (s ObservabilityProxyServiceTailLogsServerStream) Send(res *v1.TailLogsResp
 	return s.stream.Send(res)
 }
 
+// ObservabilityProxyServiceTailEventsServerStream is the server stream for the
+// ObservabilityProxyService's TailEvents RPC.
+type ObservabilityProxyServiceTailEventsServerStream struct {
+	stream connect.ServerStream
+}
+
+// SendHeaders flushes the response headers without a message. The first Send does this implicitly.
+func (s ObservabilityProxyServiceTailEventsServerStream) SendHeaders() error {
+	return s.stream.SendHeaders()
+}
+
+// Send sends a response message to the client.
+func (s ObservabilityProxyServiceTailEventsServerStream) Send(res *v1.TailEventsResponse) error {
+	return s.stream.Send(res)
+}
+
 // UnimplementedObservabilityProxyServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedObservabilityProxyServiceHandler struct{}
 
@@ -159,6 +226,14 @@ func (UnimplementedObservabilityProxyServiceHandler) QueryLogs(context.Context, 
 
 func (UnimplementedObservabilityProxyServiceHandler) TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error {
 	return connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.TailLogs is not implemented")
+}
+
+func (UnimplementedObservabilityProxyServiceHandler) QueryEvents(context.Context, *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryEvents is not implemented")
+}
+
+func (UnimplementedObservabilityProxyServiceHandler) TailEvents(context.Context, *v1.TailEventsRequest, ObservabilityProxyServiceTailEventsServerStream) error {
+	return connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.TailEvents is not implemented")
 }
 
 func (UnimplementedObservabilityProxyServiceHandler) QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
@@ -187,6 +262,22 @@ func (c *observabilityProxyServiceClient) TailLogs(ctx context.Context, req *v1.
 		return ObservabilityProxyServiceTailLogsClientStream{}, err
 	}
 	return ObservabilityProxyServiceTailLogsClientStream{stream: stream}, nil
+}
+
+func (c *observabilityProxyServiceClient) QueryEvents(ctx context.Context, req *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error) {
+	var res v1.QueryEventsResponse
+	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryEventsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityProxyServiceClient) TailEvents(ctx context.Context, req *v1.TailEventsRequest) (ObservabilityProxyServiceTailEventsClientStream, error) {
+	stream, err := c.client.CallServerStream(ctx, observabilityProxyServiceTailEventsSpec(), req)
+	if err != nil {
+		return ObservabilityProxyServiceTailEventsClientStream{}, err
+	}
+	return ObservabilityProxyServiceTailEventsClientStream{stream: stream}, nil
 }
 
 func (c *observabilityProxyServiceClient) QueryMetrics(ctx context.Context, req *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
@@ -227,6 +318,26 @@ func (h observabilityProxyServiceHandler) tailLogs(ctx context.Context, _ connec
 		return err
 	}
 	return h.svc.TailLogs(ctx, &req, ObservabilityProxyServiceTailLogsServerStream{stream: stream})
+}
+
+func (h observabilityProxyServiceHandler) queryEvents(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryEventsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryEvents(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityProxyServiceHandler) tailEvents(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.TailEventsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	return h.svc.TailEvents(ctx, &req, ObservabilityProxyServiceTailEventsServerStream{stream: stream})
 }
 
 func (h observabilityProxyServiceHandler) queryMetrics(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {

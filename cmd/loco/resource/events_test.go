@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestWriteEventsJSONPrintsRFC3339Timestamps(t *testing.T) {
 	at := time.Date(2026, time.October, 9, 12, 30, 45, 0, time.UTC)
-	events := []*resourcev1.Event{
+	events := []*observabilityv1.Event{
 		{Reason: "Scheduled", Message: "assigned to node", Timestamp: timestamppb.New(at)},
 		{Reason: "Pulled", Message: "image pulled", Timestamp: timestamppb.New(at.Add(time.Second))},
 	}
@@ -47,7 +47,7 @@ func TestWriteEventsJSONPrintsRFC3339Timestamps(t *testing.T) {
 
 func TestEventsTableShowsEveryEvent(t *testing.T) {
 	at := time.Date(2026, time.October, 9, 12, 30, 45, 0, time.UTC)
-	events := []*resourcev1.Event{
+	events := []*observabilityv1.Event{
 		{Reason: "Scheduled", Message: "assigned to node kind-worker", Timestamp: timestamppb.New(at)},
 		{Reason: "Pulled", Message: "image pulled in 1.2s", Timestamp: timestamppb.New(at.Add(time.Second))},
 		{Reason: "Started", Message: "started container app", Timestamp: timestamppb.New(at.Add(2 * time.Second))},

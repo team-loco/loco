@@ -1,4 +1,4 @@
-import type { Event } from "@gen/loco/resource/v1/resource_pb";
+import type { Event } from "@gen/loco/observability/v1/observability_pb";
 
 import { maybeTsMs, tsMs } from "@/lib/time";
 
@@ -6,6 +6,7 @@ const WARNING_WINDOW_MS = 3_600_000;
 
 const WARNING = "Warning";
 const BACK_OFF = "BackOff";
+const POD = "Pod";
 
 export function isWarning(event: Event): boolean {
 	return event.type === WARNING;
@@ -23,5 +24,5 @@ export function recentWarningCount(events: Event[], nowMs: number): number {
 }
 
 export function latestBackOff(events: Event[]): Event | undefined {
-	return newestFirst(events).find((e) => e.reason === BACK_OFF && e.podName !== "");
+	return newestFirst(events).find((e) => e.reason === BACK_OFF && e.objectKind === POD);
 }

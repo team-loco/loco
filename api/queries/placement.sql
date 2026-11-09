@@ -222,8 +222,8 @@ WHERE placements.resource_id = r.id
   AND NOT placements.desired_deleted
 RETURNING placements.id, placements.cluster_id, placements.desired_revision;
 -- name: OpenPlacementWindow :exec
-INSERT INTO placement_windows (resource_id, cluster_id, workspace_id)
-SELECT r.id, sqlc.arg(cluster_id), r.workspace_id FROM resources r WHERE r.id = sqlc.arg(resource_id)
+INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, environment_id)
+SELECT r.id, sqlc.arg(cluster_id), r.workspace_id, sqlc.arg(environment_id) FROM resources r WHERE r.id = sqlc.arg(resource_id)
 ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO NOTHING;
 
 -- name: ClosePlacementWindow :exec
@@ -232,6 +232,6 @@ SET removed_at = NOW()
 WHERE resource_id = $1 AND cluster_id = $2 AND removed_at IS NULL;
 
 -- name: ListClusterPlacementWindows :many
-SELECT workspace_id, placed_at, removed_at FROM placement_windows
+SELECT workspace_id, resource_id, environment_id, placed_at, removed_at FROM placement_windows
 WHERE cluster_id = $1
 ORDER BY placed_at, id;

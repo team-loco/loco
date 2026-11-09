@@ -1,0 +1,23 @@
+# loco resource events reads the service's Kubernetes events through the regional observability proxy.
+fakeapi seed app
+
+exec loco resource events app
+stdout 'BackOff'
+stdout 'Back-off restarting failed container'
+fakeapi called QueryEvents 'Bearer test-token'
+
+exec loco resource events app --output json
+stdout '"reason": *"BackOff"'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"

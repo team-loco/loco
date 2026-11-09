@@ -1,9 +1,11 @@
-import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
+import { useTransport } from "@connectrpc/connect-query";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
-import type { Event, Resource } from "@gen/loco/resource/v1/resource_pb";
+import type { Event } from "@gen/loco/observability/v1/observability_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { resourceEventsOptions } from "@/hooks/resourceEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import type { TimeWindow } from "@/lib/obs-time";
 import { isUnimplemented } from "@/lib/error-handler";
 import { tsMs } from "@/lib/time";
 
@@ -15,7 +17,12 @@ export interface WorkspaceEventWithResource extends Event {
 
 const EVENTS_PER_RESOURCE = 500;
 
-export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[], pollMs?: number) {
+export function useWorkspaceEvents(
+	workspaceId: string,
+	window: TimeWindow,
+	resourceFilter?: Resource[],
+	pollMs?: number,
+) {
 	const transport = useTransport();
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery({
 		...workspaceResourcesOptions(transport, workspaceId),
@@ -26,7 +33,12 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 
 	const queries = useQueries({
 		queries: resources.map((resource) => ({
-			...createQueryOptions(listResourceEvents, { resourceId: resource.id, limit: EVENTS_PER_RESOURCE }, { transport }),
+			...resourceEventsOptions(transport, {
+				workspaceId,
+				resourceId: resource.id,
+				window,
+				limit: EVENTS_PER_RESOURCE,
+			}),
 			refetchInterval: pollMs ?? false,
 		})),
 	});

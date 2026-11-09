@@ -326,3 +326,49 @@ func TestIngestKeysUnavailableWhileTheSignerIs(t *testing.T) {
 		t.Fatalf("JWKS while the signer is unavailable = %d", recorder.Code)
 	}
 }
+
+func TestPlacementWindowsNameTheResourceAndEnvironment(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	key := newIngestKey(t, testCurrentIngestKey)
+	client := ingestClient(newIngestServer(f, signingWith(key)))
+	token := signedIngestToken(t, key, f.clusterID, time.Now())
+
+	if _, err := f.deploy(ctx, staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	if err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
+		return removePlacement(ctx, qtx, f.resourceID, f.clusterID)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	firstEnvironment := f.envID
+	row := f.pool.QueryRow(ctx, `INSERT INTO environments (workspace_id, name, created_by)
+		SELECT workspace_id, 'preview', created_by FROM environments WHERE id = $1 RETURNING id`, firstEnvironment)
+	if err := row.Scan(&f.envID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.deploy(ctx, staticSpec); err != nil {
+		t.Fatal(err)
+	}
+
+	windows, err := placementWindows(t, client, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != 2 {
+		t.Fatalf("windows = %v, want one per environment", windows)
+	}
+	for i, want := range []struct {
+		environment uuid.UUID
+		open        bool
+	}{{firstEnvironment, false}, {f.envID, true}} {
+		window := windows[i]
+		if window.GetResourceId() != f.resourceID.String() || window.GetEnvironmentId() != want.environment.String() {
+			t.Fatalf("window %d = %v, want resource %s in environment %s", i, window, f.resourceID, want.environment)
+		}
+		if open := window.GetRemovedAt() == nil; open != want.open {
+			t.Fatalf("window %d open = %t, want %t", i, open, want.open)
+		}
+	}
+}

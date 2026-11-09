@@ -2964,6 +2964,68 @@
         }
       }
     },
+    "/loco.observability.v1.ObservabilityProxyService/QueryEvents": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityProxyService"
+        ],
+        "summary": "QueryEvents",
+        "description": "QueryEvents returns the Kubernetes events about one resource's objects, newest first.",
+        "operationId": "loco.observability.v1.ObservabilityProxyService.QueryEvents",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.QueryEventsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.QueryEventsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.observability.v1.ObservabilityProxyService/QueryLogs": {
       "post": {
         "tags": [
@@ -3142,6 +3204,173 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.observability.v1.QueryTracesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.observability.v1.ObservabilityProxyService/TailEvents": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityProxyService"
+        ],
+        "summary": "TailEvents",
+        "description": "TailEvents streams a resource's Kubernetes events as they arrive (server-push, polling-based).",
+        "operationId": "loco.observability.v1.ObservabilityProxyService.TailEvents",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.TailEventsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.TailEventsResponse"
                 }
               }
             }
@@ -4605,68 +4834,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.resource.v1.ListRegionsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/loco.resource.v1.ResourceService/ListResourceEvents": {
-      "post": {
-        "tags": [
-          "loco.resource.v1.ResourceService"
-        ],
-        "summary": "ListResourceEvents",
-        "description": "Events\n ListResourceEvents retrieves events for a resource.",
-        "operationId": "loco.resource.v1.ResourceService.ListResourceEvents",
-        "parameters": [
-          {
-            "name": "Connect-Protocol-Version",
-            "in": "header",
-            "description": "Define the version of the Connect protocol",
-            "schema": {
-              "$ref": "#/components/schemas/connect-protocol-version"
-            },
-            "example": 1
-          },
-          {
-            "name": "Connect-Timeout-Ms",
-            "in": "header",
-            "description": "Define the timeout, in ms",
-            "schema": {
-              "$ref": "#/components/schemas/connect-timeout-header"
-            },
-            "example": 1000
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/loco.resource.v1.ListResourceEventsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/connect.error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/loco.resource.v1.ListResourceEventsResponse"
                 }
               }
             }
@@ -10331,11 +10498,59 @@
               }
             ],
             "title": "removed_at"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
           }
         },
         "title": "PlacementWindow",
         "additionalProperties": false,
-        "description": "PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;\n removed_at is unset while the placement exists."
+        "description": "PlacementWindow is the interval [placed_at, removed_at) during which a resource of a workspace had a placement in\n an environment on the cluster; removed_at is unset while the placement exists."
+      },
+      "loco.observability.v1.Event": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "timestamp",
+            "description": "When the collector observed the event."
+          },
+          "reason": {
+            "type": "string",
+            "title": "reason"
+          },
+          "message": {
+            "type": "string",
+            "title": "message"
+          },
+          "type": {
+            "type": "string",
+            "title": "type",
+            "description": "Normal or Warning."
+          },
+          "objectKind": {
+            "type": "string",
+            "title": "object_kind",
+            "description": "Kind of the object the event is about (e.g., Pod, Deployment, ReplicaSet)."
+          },
+          "objectName": {
+            "type": "string",
+            "title": "object_name",
+            "description": "Name of the object the event is about."
+          }
+        },
+        "title": "Event",
+        "additionalProperties": false,
+        "description": "Event is a Kubernetes event about one of a resource's objects (e.g., pod scheduled, back-off, scaled)."
       },
       "loco.observability.v1.Heartbeat": {
         "type": "object",
@@ -10476,6 +10691,75 @@
         "title": "MetricSeries",
         "additionalProperties": false,
         "description": "MetricSeries represents samples for one resource, metric type and sum temporality."
+      },
+      "loco.observability.v1.QueryEventsRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid",
+            "description": "Environment the events came from. Empty means every environment."
+          },
+          "startTime": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "start_time",
+            "description": "Start of time range (inclusive)."
+          },
+          "endTime": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "end_time",
+            "description": "End of time range (inclusive)."
+          },
+          "limit": {
+            "type": "integer",
+            "title": "limit",
+            "maximum": 10000,
+            "minimum": 0,
+            "format": "int32",
+            "description": "Max events to return (clamped by guardrails)."
+          }
+        },
+        "title": "QueryEventsRequest",
+        "required": [
+          "startTime",
+          "endTime"
+        ],
+        "additionalProperties": false,
+        "description": "QueryEventsRequest selects the Kubernetes events about one resource's objects.\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+      },
+      "loco.observability.v1.QueryEventsResponse": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.Event"
+            },
+            "title": "events"
+          }
+        },
+        "title": "QueryEventsResponse",
+        "additionalProperties": false,
+        "description": "QueryEventsResponse contains the matching events, newest first."
       },
       "loco.observability.v1.QueryLogsRequest": {
         "type": "object",
@@ -10787,6 +11071,110 @@
         },
         "title": "QueryTracesResponse",
         "additionalProperties": false
+      },
+      "loco.observability.v1.TailEventsRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid",
+            "description": "Environment the events came from. Empty means every environment."
+          },
+          "since": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "since",
+            "description": "Earliest event to stream; defaults to the moment the stream starts."
+          }
+        },
+        "title": "TailEventsRequest",
+        "additionalProperties": false,
+        "description": "TailEventsRequest selects the live Kubernetes events about one resource's objects."
+      },
+      "loco.observability.v1.TailEventsResponse": {
+        "type": "object",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "event": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/loco.observability.v1.Event"
+                  }
+                ],
+                "title": "event"
+              }
+            },
+            "title": "event"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "heartbeat": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/loco.observability.v1.Heartbeat"
+                  }
+                ],
+                "title": "heartbeat",
+                "description": "Heartbeat to indicate stream is still active."
+              }
+            },
+            "title": "heartbeat"
+          }
+        ],
+        "unevaluatedProperties": false,
+        "not": {
+          "allOf": [
+            {
+              "anyOf": [
+                {
+                  "required": [
+                    "event"
+                  ]
+                },
+                {
+                  "required": [
+                    "heartbeat"
+                  ]
+                }
+              ]
+            },
+            {
+              "not": {
+                "oneOf": [
+                  {
+                    "required": [
+                      "event"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "heartbeat"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "title": "TailEventsResponse",
+        "description": "TailEventsResponse is a server-streamed event or heartbeat."
       },
       "loco.observability.v1.TailLogsRequest": {
         "type": "object",
@@ -12127,38 +12515,6 @@
         "additionalProperties": false,
         "description": "EnvironmentStatus is a resource's status in one environment it has an active deployment in."
       },
-      "loco.resource.v1.Event": {
-        "type": "object",
-        "properties": {
-          "timestamp": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "timestamp"
-          },
-          "reason": {
-            "type": "string",
-            "title": "reason"
-          },
-          "message": {
-            "type": "string",
-            "title": "message"
-          },
-          "type": {
-            "type": "string",
-            "title": "type"
-          },
-          "podName": {
-            "type": "string",
-            "title": "pod_name"
-          }
-        },
-        "title": "Event",
-        "additionalProperties": false,
-        "description": "Event represents a Kubernetes event related to a resource (e.g., pod created, failed, crash loop)."
-      },
       "loco.resource.v1.GetResourceEnvRequest": {
         "type": "object",
         "properties": {
@@ -12327,45 +12683,6 @@
         "title": "ListRegionsResponse",
         "additionalProperties": false,
         "description": "ListRegionsResponse contains the regions the environment's clusters serve."
-      },
-      "loco.resource.v1.ListResourceEventsRequest": {
-        "type": "object",
-        "properties": {
-          "resourceId": {
-            "type": "string",
-            "title": "resource_id",
-            "format": "uuid"
-          },
-          "limit": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "title": "limit",
-            "maximum": 1000,
-            "minimum": 1,
-            "format": "int32",
-            "description": "max number of events to return"
-          }
-        },
-        "title": "ListResourceEventsRequest",
-        "additionalProperties": false,
-        "description": "ListResourceEventsRequest is the request to retrieve resource events."
-      },
-      "loco.resource.v1.ListResourceEventsResponse": {
-        "type": "object",
-        "properties": {
-          "events": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/loco.resource.v1.Event"
-            },
-            "title": "events"
-          }
-        },
-        "title": "ListResourceEventsResponse",
-        "additionalProperties": false,
-        "description": "ListResourceEventsResponse is the response containing resource events."
       },
       "loco.resource.v1.ListWorkspaceResourcesRequest": {
         "type": "object",

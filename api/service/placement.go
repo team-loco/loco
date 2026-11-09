@@ -24,7 +24,11 @@ func placeApplication(
 	if err != nil {
 		return fmt.Errorf("upsert placement: %w", err)
 	}
-	window := genDb.OpenPlacementWindowParams{ResourceID: params.ResourceID, ClusterID: params.ClusterID}
+	window := genDb.OpenPlacementWindowParams{
+		ResourceID:    params.ResourceID,
+		ClusterID:     params.ClusterID,
+		EnvironmentID: params.EnvironmentID,
+	}
 	if err := qtx.OpenPlacementWindow(ctx, window); err != nil {
 		return fmt.Errorf("open placement window: %w", err)
 	}

@@ -109,7 +109,7 @@ func registryFixtureFor(t *testing.T, f *deployFixture, config RegistryConfig) *
 
 func (f *registryFixture) openWindow(t *testing.T, clusterID uuid.UUID) {
 	t.Helper()
-	params := genDb.OpenPlacementWindowParams{ClusterID: clusterID, ResourceID: f.resourceID}
+	params := genDb.OpenPlacementWindowParams{ClusterID: clusterID, ResourceID: f.resourceID, EnvironmentID: f.envID}
 	if err := f.queries.OpenPlacementWindow(t.Context(), params); err != nil {
 		t.Fatal(err)
 	}

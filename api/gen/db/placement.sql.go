@@ -249,15 +249,17 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 }
 
 const listClusterPlacementWindows = `-- name: ListClusterPlacementWindows :many
-SELECT workspace_id, placed_at, removed_at FROM placement_windows
+SELECT workspace_id, resource_id, environment_id, placed_at, removed_at FROM placement_windows
 WHERE cluster_id = $1
 ORDER BY placed_at, id
 `
 
 type ListClusterPlacementWindowsRow struct {
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	PlacedAt    time.Time  `json:"placedAt"`
-	RemovedAt   *time.Time `json:"removedAt"`
+	WorkspaceID   uuid.UUID  `json:"workspaceId"`
+	ResourceID    uuid.UUID  `json:"resourceId"`
+	EnvironmentID uuid.UUID  `json:"environmentId"`
+	PlacedAt      time.Time  `json:"placedAt"`
+	RemovedAt     *time.Time `json:"removedAt"`
 }
 
 func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementWindowsRow, error) {
@@ -269,7 +271,13 @@ func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uui
 	var items []ListClusterPlacementWindowsRow
 	for rows.Next() {
 		var i ListClusterPlacementWindowsRow
-		if err := rows.Scan(&i.WorkspaceID, &i.PlacedAt, &i.RemovedAt); err != nil {
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.ResourceID,
+			&i.EnvironmentID,
+			&i.PlacedAt,
+			&i.RemovedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -579,18 +587,19 @@ func (q *Queries) NotifyClusterPlacements(ctx context.Context, clusterID string)
 }
 
 const openPlacementWindow = `-- name: OpenPlacementWindow :exec
-INSERT INTO placement_windows (resource_id, cluster_id, workspace_id)
-SELECT r.id, $1, r.workspace_id FROM resources r WHERE r.id = $2
+INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, environment_id)
+SELECT r.id, $1, r.workspace_id, $2 FROM resources r WHERE r.id = $3
 ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO NOTHING
 `
 
 type OpenPlacementWindowParams struct {
-	ClusterID  uuid.UUID `json:"clusterId"`
-	ResourceID uuid.UUID `json:"resourceId"`
+	ClusterID     uuid.UUID `json:"clusterId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	ResourceID    uuid.UUID `json:"resourceId"`
 }
 
 func (q *Queries) OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error {
-	_, err := q.db.Exec(ctx, openPlacementWindow, arg.ClusterID, arg.ResourceID)
+	_, err := q.db.Exec(ctx, openPlacementWindow, arg.ClusterID, arg.EnvironmentID, arg.ResourceID)
 	return err
 }
 

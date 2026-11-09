@@ -142,11 +142,111 @@ func (s *ObservabilityService) TailLogs(
 
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.MaxTailDuration)
 	defer cancel()
-	since := started.Add(-defaultTailLookback)
-	if req.GetSince() != nil {
-		since = req.GetSince().AsTime()
+	since := tailSince(req.GetSince(), started)
+	entry := func(entry *observabilityv1.LogEntry) error {
+		return stream.Send(
+			&observabilityv1.TailLogsResponse{Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry}},
+		)
 	}
-	return s.tailLoop(ctx, tailLogQuery(req, since), stream.Send)
+	heartbeat := func(heartbeat *observabilityv1.Heartbeat) error {
+		return stream.Send(&observabilityv1.TailLogsResponse{
+			Event: &observabilityv1.TailLogsResponse_Heartbeat{Heartbeat: heartbeat},
+		})
+	}
+	return s.tailLoop(ctx, tailLogQuery(req, since), entry, heartbeat)
+}
+
+// QueryEvents returns the Kubernetes events about one resource's objects, newest first.
+func (s *ObservabilityService) QueryEvents(
+	ctx context.Context,
+	req *observabilityv1.QueryEventsRequest,
+) (*observabilityv1.QueryEventsResponse, error) {
+	if err := guardrails.ValidateEventsRequest(req, s.cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
+		return nil, err
+	}
+
+	logs, err := s.clickhouse.QueryLogs(ctx, chClient.LogQuery{
+		WorkspaceID:      req.GetWorkspaceId(),
+		EnvironmentID:    req.GetEnvironmentId(),
+		ResourceIDs:      []string{req.GetResourceId()},
+		Start:            req.GetStartTime().AsTime(),
+		End:              req.GetEndTime().AsTime(),
+		Limit:            guardrails.ClampLimit(req.GetLimit(), s.cfg),
+		KubernetesEvents: true,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "QueryEvents failed", "error", err)
+		return nil, rpcerr.New(connect.CodeInternal, errQueryFailed)
+	}
+	events := make([]*observabilityv1.Event, 0, len(logs.GetEntries()))
+	for _, entry := range logs.GetEntries() {
+		event, err := chClient.KubernetesEvent(entry)
+		if err != nil {
+			slog.ErrorContext(ctx, "QueryEvents failed", "error", err)
+			return nil, rpcerr.New(connect.CodeInternal, errQueryFailed)
+		}
+		events = append(events, event)
+	}
+	return &observabilityv1.QueryEventsResponse{Events: events}, nil
+}
+
+// TailEvents streams the Kubernetes events about one resource's objects as they arrive.
+func (s *ObservabilityService) TailEvents(
+	ctx context.Context,
+	req *observabilityv1.TailEventsRequest,
+	stream observabilityv1connect.ObservabilityProxyServiceTailEventsServerStream,
+) error {
+	started := time.Now()
+	if err := guardrails.ValidateTailEventsRequest(req, s.cfg, started); err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, s.cfg.MaxTailDuration)
+	defer cancel()
+	since := tailSince(req.GetSince(), started)
+	entry := func(entry *observabilityv1.LogEntry) error {
+		event, err := chClient.KubernetesEvent(entry)
+		if err != nil {
+			slog.ErrorContext(ctx, "TailEvents failed", "error", err)
+			return rpcerr.New(connect.CodeInternal, errQueryFailed)
+		}
+		return stream.Send(
+			&observabilityv1.TailEventsResponse{Item: &observabilityv1.TailEventsResponse_Event{Event: event}},
+		)
+	}
+	heartbeat := func(heartbeat *observabilityv1.Heartbeat) error {
+		return stream.Send(&observabilityv1.TailEventsResponse{
+			Item: &observabilityv1.TailEventsResponse_Heartbeat{Heartbeat: heartbeat},
+		})
+	}
+	return s.tailLoop(ctx, tailEventQuery(req, since), entry, heartbeat)
+}
+
+// tailSince is where a tail starts: the requested time, or just before the stream opened.
+func tailSince(since *timestamppb.Timestamp, started time.Time) time.Time {
+	if since == nil {
+		return started.Add(-defaultTailLookback)
+	}
+	return since.AsTime()
+}
+
+func tailEventQuery(req *observabilityv1.TailEventsRequest, since time.Time) chClient.LogQuery {
+	return chClient.LogQuery{
+		WorkspaceID:      req.GetWorkspaceId(),
+		EnvironmentID:    req.GetEnvironmentId(),
+		ResourceIDs:      []string{req.GetResourceId()},
+		Start:            since,
+		Limit:            tailPageSize,
+		KubernetesEvents: true,
+	}
 }
 
 func tailLogQuery(req *observabilityv1.TailLogsRequest, since time.Time) chClient.LogQuery {
@@ -164,10 +264,12 @@ func tailLogQuery(req *observabilityv1.TailLogsRequest, since time.Time) chClien
 	}
 }
 
+// tailLoop polls for new entries and sends each one, and a heartbeat after a quiet interval.
 func (s *ObservabilityService) tailLoop(
 	ctx context.Context,
 	query chClient.LogQuery,
-	send func(*observabilityv1.TailLogsResponse) error,
+	send func(*observabilityv1.LogEntry) error,
+	heartbeat func(*observabilityv1.Heartbeat) error,
 ) error {
 	ticker := time.NewTicker(tailPollInterval)
 	defer ticker.Stop()
@@ -177,9 +279,7 @@ func (s *ObservabilityService) tailLoop(
 	for {
 		var sendErr error
 		sent, err := s.pollTailLogs(ctx, query, cursor, func(entry *observabilityv1.LogEntry) error {
-			sendErr = send(&observabilityv1.TailLogsResponse{
-				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
-			})
+			sendErr = send(entry)
 			return sendErr
 		})
 		if sendErr != nil {
@@ -194,13 +294,7 @@ func (s *ObservabilityService) tailLoop(
 		}
 
 		if sent == 0 && time.Since(lastHeartbeat) >= tailHeartbeatInterval {
-			if err := send(&observabilityv1.TailLogsResponse{
-				Event: &observabilityv1.TailLogsResponse_Heartbeat{
-					Heartbeat: &observabilityv1.Heartbeat{
-						Timestamp: timestamppb.Now(),
-					},
-				},
-			}); err != nil {
+			if err := heartbeat(&observabilityv1.Heartbeat{Timestamp: timestamppb.Now()}); err != nil {
 				return err
 			}
 			lastHeartbeat = time.Now()

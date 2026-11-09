@@ -641,6 +641,30 @@ func (s *fakeProxyService) QueryLogs(
 	return &observabilityv1.QueryLogsResponse{Entries: entries}, nil
 }
 
+func (s *fakeProxyService) QueryEvents(
+	ctx context.Context,
+	req *observabilityv1.QueryEventsRequest,
+) (*observabilityv1.QueryEventsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: observabilityv1connect.ObservabilityProxyServiceQueryEventsProcedure},
+		info.RequestHeader(),
+	); err != nil {
+		return nil, err
+	}
+	if req.GetWorkspaceId() == "" || req.GetResourceId() == "" ||
+		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "workspace, resource and time range are required")
+	}
+	at := time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
+	event := &observabilityv1.Event{
+		Timestamp: timestamppb.New(at),
+		Reason:    "BackOff",
+		Message:   "Back-off restarting failed container",
+	}
+	return &observabilityv1.QueryEventsResponse{Events: []*observabilityv1.Event{event}}, nil
+}
+
 func (s *fakeProxyService) TailLogs(
 	ctx context.Context,
 	_ *observabilityv1.TailLogsRequest,

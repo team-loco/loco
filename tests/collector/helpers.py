@@ -1,6 +1,11 @@
 import json
+import os
 import subprocess
 import tempfile
+import time
+import urllib.error
+import urllib.request
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,6 +22,8 @@ WORKER_BASE_VALUES = {
     "builds": {"builderImage": TEST_IMAGE},
 }
 QUANTITY_SUFFIXES = {"m": 0.001, "Mi": 2**20, "Gi": 2**30}
+COLLECTOR_TIMEOUT_SECONDS = 30
+COLLECTOR_POLL_SECONDS = 0.1
 
 
 def chart_values(chart):
@@ -88,3 +95,56 @@ def collector_relays(documents):
             )
             configs[document["metadata"]["name"]] = json.loads(relay)
     return configs
+
+
+def run_collector(directory, config, count, payload=None):
+    """Runs the chart-pinned collector on config, posts payload as OTLP/HTTP logs, and returns the
+    first count log records its file exporter writes to /data/output.json."""
+    image = chart_values("loco-worker")["otel-col-daemon"]["image"]
+    name = f"loco-collector-test-{uuid.uuid4().hex}"
+    (directory / "config.json").write_text(json.dumps(config))
+    subprocess.run([
+        "docker", "run", "--detach", "--name", name,
+        "--user", str(os.getuid()), "--publish", "127.0.0.1::4318",
+        "--volume", f"{directory}:/data", f'{image["repository"]}:{image["tag"]}',
+        "--config=/data/config.json",
+    ], check=True, capture_output=True, text=True)
+    try:
+        deadline = time.monotonic() + COLLECTOR_TIMEOUT_SECONDS
+
+        def wait():
+            logs = subprocess.check_output(["docker", "logs", name], stderr=subprocess.STDOUT, text=True)
+            assert time.monotonic() < deadline, logs
+            time.sleep(COLLECTOR_POLL_SECONDS)
+
+        port = subprocess.check_output(["docker", "port", name, "4318/tcp"], text=True).strip().rsplit(":", 1)[1]
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/v1/logs", json.dumps(payload).encode(), {"Content-Type": "application/json"}
+        )
+        while payload is not None:
+            try:
+                with urllib.request.urlopen(request, timeout=1) as response:
+                    assert response.status == 200
+                break
+            except (urllib.error.URLError, ConnectionError):
+                wait()
+        output = directory / "output.json"
+        received = []
+        while len(received) < count:
+            if output.exists():
+                try:
+                    documents = [json.loads(line) for line in output.read_text().splitlines()]
+                    received = [
+                        (resource.get("resource", {}), record)
+                        for document in documents
+                        for resource in document["resourceLogs"]
+                        for scope in resource["scopeLogs"]
+                        for record in scope["logRecords"]
+                    ]
+                except json.JSONDecodeError:
+                    pass
+            if len(received) < count:
+                wait()
+        return received
+    finally:
+        subprocess.run(["docker", "rm", "--force", name], check=True, capture_output=True)

@@ -1,7 +1,7 @@
 import { ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { Event } from "@gen/loco/resource/v1/resource_pb";
+import type { Event } from "@gen/loco/observability/v1/observability_pb";
 
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -204,7 +204,7 @@ export function IncidentCard({
 						workspaceId={workspaceId}
 						environmentId={environmentId}
 						resourceId={resourceId}
-						pod={backOff.podName}
+						pod={backOff.objectName}
 					/>
 				) : eventsUnavailable ? (
 					<span className="flex items-center gap-2 text-[12.5px] text-fg3">

@@ -16,6 +16,8 @@ import (
 
 const (
 	workspaceAttribute     = "loco.workspace.id"
+	resourceAttribute      = "loco.resource.id"
+	environmentAttribute   = "loco.environment.id"
 	clusterAttribute       = "loco.cluster.id"
 	rejectionMessagePrefix = "rejected records outside a placement on this cluster: "
 	rejectionSeparator     = ", "
@@ -100,17 +102,49 @@ func (f *tenancyFilter) logs(logs plog.Logs) {
 		resource := resourceLogs.Resource()
 		resourceLogs.ScopeLogs().RemoveIf(func(scopeLogs plog.ScopeLogs) bool {
 			scopeLogs.LogRecords().RemoveIf(func(record plog.LogRecord) bool {
-				timestamp := record.Timestamp()
-				if timestamp == 0 {
-					timestamp = record.ObservedTimestamp()
-				}
-				return f.reject(resource, timestamp)
+				return f.reject(resource, logTimestamp(record))
 			})
 			return scopeLogs.LogRecords().Len() == 0
 		})
+		if resourceLogs.ScopeLogs().Len() > 0 {
+			first := resourceLogs.ScopeLogs().At(0).LogRecords().At(0)
+			f.stampEnvironment(resource, logTimestamp(first))
+		}
 		f.stamp(resource)
 		return resourceLogs.ScopeLogs().Len() == 0
 	})
+}
+
+func logTimestamp(record plog.LogRecord) pcommon.Timestamp {
+	if record.Timestamp() == 0 {
+		return record.ObservedTimestamp()
+	}
+	return record.Timestamp()
+}
+
+// stampEnvironment names the environment of a resource's logs that carry no environment, such as
+// Kubernetes events, whose objects have no pod labels. Each environment runs on its own clusters,
+// so the resource's placement on the sending cluster names it.
+func (f *tenancyFilter) stampEnvironment(resource pcommon.Resource, timestamp pcommon.Timestamp) {
+	if f.err != nil {
+		return
+	}
+	attributes := resource.Attributes()
+	if _, ok := attributes.Get(environmentAttribute); ok {
+		return
+	}
+	resourceID, ok := attributes.Get(resourceAttribute)
+	if !ok {
+		return
+	}
+	environmentID, err := f.admission.environment(f.ctx, resourceID.Str(), timestamp.AsTime())
+	if err != nil {
+		f.err = err
+		return
+	}
+	if environmentID != "" {
+		attributes.PutStr(environmentAttribute, environmentID)
+	}
 }
 
 func (f *tenancyFilter) traces(traces ptrace.Traces) {

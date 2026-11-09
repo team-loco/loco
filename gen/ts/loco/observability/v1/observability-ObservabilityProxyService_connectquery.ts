@@ -12,6 +12,13 @@ import { ObservabilityProxyService } from "./observability_pb";
 export const queryLogs = ObservabilityProxyService.method.queryLogs;
 
 /**
+ * QueryEvents returns the Kubernetes events about one resource's objects, newest first.
+ *
+ * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryEvents
+ */
+export const queryEvents = ObservabilityProxyService.method.queryEvents;
+
+/**
  * QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
  *
  * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryMetrics

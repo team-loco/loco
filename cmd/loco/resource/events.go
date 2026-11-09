@@ -13,8 +13,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const noEventsMessage = "No events found."
@@ -29,7 +30,7 @@ func newEventsCmd() *cobra.Command {
 
 Examples:
   loco resource events myapp
-  loco resource events myapp --limit 20
+  loco resource events myapp --limit 20 --since 6h
   loco resource events myapp --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,6 +47,11 @@ Examples:
 				return fmt.Errorf("error reading limit flag: %w", err)
 			}
 
+			since, err := cmd.Flags().GetDuration("since")
+			if err != nil {
+				return fmt.Errorf("error reading since flag: %w", err)
+			}
+
 			t, err := cmdutil.ResolveTarget(ctx, cmd)
 			if err != nil {
 				return err
@@ -56,17 +62,16 @@ Examples:
 			}
 			slog.Debug("fetching events", "resource_id", resource.GetId(), "name", name)
 
-			var limitPtr *int32
-			if limit > 0 {
-				limitPtr = &limit
+			end := time.Now()
+			eventsReq := &observabilityv1.QueryEventsRequest{
+				WorkspaceId: t.WorkspaceID,
+				ResourceId:  resource.GetId(),
+				StartTime:   timestamppb.New(end.Add(-since)),
+				EndTime:     timestamppb.New(end),
+				Limit:       limit,
 			}
 
-			eventsReq := &resourcev1.ListResourceEventsRequest{
-				ResourceId: resource.GetId(),
-				Limit:      limitPtr,
-			}
-
-			resp, err := t.Clients.Resource.ListResourceEvents(ctx, eventsReq)
+			resp, err := t.Clients.ObservabilityProxy.QueryEvents(ctx, eventsReq)
 			if err != nil {
 				return fmt.Errorf("failed to fetch events: %w", err)
 			}
@@ -82,13 +87,14 @@ Examples:
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
 	cmd.Flags().String("output", "table", "Output format (table, json)")
-	cmd.Flags().Int32("limit", 0, "Maximum number of events to display (0 = all)")
+	cmd.Flags().Int32("limit", 0, "Maximum number of events to display (0 = the proxy's default)")
+	cmd.Flags().Duration("since", defaultLogWindow, "How far back to look, up to 24h")
 	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
 }
 
-func writeEventsJSON(stdout io.Writer, events []*resourcev1.Event) error {
+func writeEventsJSON(stdout io.Writer, events []*observabilityv1.Event) error {
 	items := make([]json.RawMessage, 0, len(events))
 	for _, event := range events {
 		item, err := protojson.Marshal(event)
@@ -105,7 +111,7 @@ func writeEventsJSON(stdout io.Writer, events []*resourcev1.Event) error {
 	return err
 }
 
-func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) error {
+func renderEventsTable(stdout io.Writer, events []*observabilityv1.Event) error {
 	if len(events) == 0 {
 		_, err := fmt.Fprintln(stdout, noEventsMessage)
 		return err

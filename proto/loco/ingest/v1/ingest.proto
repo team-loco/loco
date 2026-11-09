@@ -28,10 +28,12 @@ message ListPlacementWindowsResponse {
   repeated PlacementWindow windows = 1;
 }
 
-// PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;
-// removed_at is unset while the placement exists.
+// PlacementWindow is the interval [placed_at, removed_at) during which a resource of a workspace had a placement in
+// an environment on the cluster; removed_at is unset while the placement exists.
 message PlacementWindow {
   string workspace_id = 1;
   google.protobuf.Timestamp placed_at = 2;
   google.protobuf.Timestamp removed_at = 3;
+  string resource_id = 4;
+  string environment_id = 5;
 }

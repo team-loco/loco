@@ -190,13 +190,15 @@ func (x *ListPlacementWindowsResponse) GetWindows() []*PlacementWindow {
 	return nil
 }
 
-// PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;
-// removed_at is unset while the placement exists.
+// PlacementWindow is the interval [placed_at, removed_at) during which a resource of a workspace had a placement in
+// an environment on the cluster; removed_at is unset while the placement exists.
 type PlacementWindow struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	PlacedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
 	RemovedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -252,6 +254,20 @@ func (x *PlacementWindow) GetRemovedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *PlacementWindow) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *PlacementWindow) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
 var File_loco_ingest_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_loco_ingest_v1_ingest_proto_rawDesc = "" +
@@ -264,12 +280,15 @@ const file_loco_ingest_v1_ingest_proto_rawDesc = "" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x1d\n" +
 	"\x1bListPlacementWindowsRequest\"Y\n" +
 	"\x1cListPlacementWindowsResponse\x129\n" +
-	"\awindows\x18\x01 \x03(\v2\x1f.loco.ingest.v1.PlacementWindowR\awindows\"\xa8\x01\n" +
+	"\awindows\x18\x01 \x03(\v2\x1f.loco.ingest.v1.PlacementWindowR\awindows\"\xf0\x01\n" +
 	"\x0fPlacementWindow\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x127\n" +
 	"\tplaced_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bplacedAt\x129\n" +
 	"\n" +
-	"removed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt2\xd7\x01\n" +
+	"removed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12\x1f\n" +
+	"\vresource_id\x18\x04 \x01(\tR\n" +
+	"resourceId\x12%\n" +
+	"\x0eenvironment_id\x18\x05 \x01(\tR\renvironmentId2\xd7\x01\n" +
 	"\rIngestService\x12S\n" +
 	"\n" +
 	"IssueToken\x12!.loco.ingest.v1.IssueTokenRequest\x1a\".loco.ingest.v1.IssueTokenResponse\x12q\n" +

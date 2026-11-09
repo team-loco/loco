@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -24,7 +25,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
@@ -592,5 +595,142 @@ func TestRevocationSeenOnRefetchFailsTheRequest(t *testing.T) {
 	}
 	if len(recorder.received) != 1 {
 		t.Fatalf("consumer received %d requests, want 1", len(recorder.received))
+	}
+}
+
+func TestIngestNamesTheEnvironmentOfPlacedResourcesThatCarryNone(t *testing.T) {
+	const (
+		earlierEnvironment = "77777777-8888-9999-aaaa-bbbbbbbbbbbb"
+		podEnvironment     = "88888888-9999-aaaa-bbbb-cccccccccccc"
+		unplacedResource   = "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+		removedResource    = "cccccccc-dddd-eeee-ffff-000000000000"
+	)
+	now := time.Now()
+	moved := now.Add(-testPlacedFor / 2)
+	cp := newControlPlane(t)
+	cp.Update(func(s *ingesttest.State) {
+		s.Windows = append(s.Windows,
+			&ingestv1.PlacementWindow{
+				WorkspaceId: testWorkspaceID, ResourceId: testResourceID, EnvironmentId: earlierEnvironment,
+				PlacedAt: timestamppb.New(now.Add(-testPlacedFor)), RemovedAt: timestamppb.New(moved),
+			},
+			&ingestv1.PlacementWindow{
+				WorkspaceId: testWorkspaceID, ResourceId: testResourceID, EnvironmentId: testEnvironmentID,
+				PlacedAt: timestamppb.New(moved),
+			},
+			&ingestv1.PlacementWindow{
+				WorkspaceId: testWorkspaceID, ResourceId: removedResource, EnvironmentId: earlierEnvironment,
+				PlacedAt: timestamppb.New(now.Add(-testPlacedFor)), RemovedAt: timestamppb.New(moved),
+			},
+		)
+	})
+	cases := []struct {
+		name        string
+		resourceID  string
+		environment string
+		at          time.Time
+		want        string
+	}{
+		{
+			name:       "before the move",
+			resourceID: testResourceID,
+			at:         moved.Add(-2 * testClockSkew),
+			want:       earlierEnvironment,
+		},
+		{name: "after the move", resourceID: testResourceID, at: now, want: testEnvironmentID},
+		{
+			name:        "labeled by its pod",
+			resourceID:  testResourceID,
+			environment: podEnvironment,
+			at:          now,
+			want:        podEnvironment,
+		},
+		{name: "after its removal", resourceID: removedResource, at: now, want: earlierEnvironment},
+		{name: "not placed here", resourceID: unplacedResource, at: now},
+		{name: "no resource", at: now},
+	}
+	logs := plog.NewLogs()
+	for _, c := range cases {
+		resourceLogs := logs.ResourceLogs().AppendEmpty()
+		attributes := resourceLogs.Resource().Attributes()
+		attributes.PutStr(workspaceAttribute, testWorkspaceID)
+		if c.resourceID != "" {
+			attributes.PutStr(resourceAttribute, c.resourceID)
+		}
+		if c.environment != "" {
+			attributes.PutStr(environmentAttribute, c.environment)
+		}
+		record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
+		record.SetObservedTimestamp(pcommon.NewTimestampFromTime(c.at))
+		record.Body().SetStr(c.name)
+	}
+	captured := &capturingConsumers{}
+	service := newGatedService(captured.consumers(t), cp)
+	admission, err := service.gate.Admit(t.Context(), cp.bearer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := plogotlp.NewExportRequestFromLogs(logs)
+	if _, err := export(t.Context(), service, service.logsSignal(), admission, request); err != nil {
+		t.Fatal(err)
+	}
+	if len(captured.logs) != 1 || captured.logs[0].ResourceLogs().Len() != len(cases) {
+		t.Fatalf("stored %v, want every case", captured.logs)
+	}
+	for i, c := range cases {
+		resource := captured.logs[0].ResourceLogs().At(i).Resource()
+		value, _ := resource.Attributes().Get(environmentAttribute)
+		if value.Str() != c.want {
+			t.Errorf("%s: %s = %q, want %q", c.name, environmentAttribute, value.Str(), c.want)
+		}
+	}
+}
+
+func TestIngestRefetchesWindowsOlderThanARecordWithoutAnEnvironment(t *testing.T) {
+	cp := newPlacedControlPlane(t)
+	gate := NewGate(GateConfig{
+		ControlPlaneURL:     cp.URL(),
+		RequestTimeout:      testAuthTimeout,
+		JWKSRefreshInterval: testJWKSRefresh,
+		PlacementTTL:        testPlacementTTL,
+		RefetchInterval:     testPlacementTTL,
+		ClockSkew:           testClockSkew,
+	})
+	captured := &capturingConsumers{}
+	cfg := ServiceConfig{MaxRequestBytes: testMaxRequestBytes, RetryAfter: testRetryAfter}
+	service := NewService(captured.consumers(t), gate, cfg, prometheus.NewRegistry())
+	if _, err := gate.Admit(t.Context(), cp.bearer()); err != nil {
+		t.Fatal(err)
+	}
+	placed := time.Now()
+	cp.Update(func(s *ingesttest.State) {
+		s.Windows = append(s.Windows, &ingestv1.PlacementWindow{
+			WorkspaceId: testWorkspaceID, ResourceId: testResourceID, EnvironmentId: testEnvironmentID,
+			PlacedAt: timestamppb.New(placed),
+		})
+	})
+	logs := plog.NewLogs()
+	resourceLogs := logs.ResourceLogs().AppendEmpty()
+	resourceLogs.Resource().Attributes().PutStr(workspaceAttribute, testWorkspaceID)
+	resourceLogs.Resource().Attributes().PutStr(resourceAttribute, testResourceID)
+	record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
+	record.SetObservedTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+
+	admission, err := gate.Admit(t.Context(), cp.bearer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := plogotlp.NewExportRequestFromLogs(logs)
+	if _, err := export(t.Context(), service, service.logsSignal(), admission, request); err != nil {
+		t.Fatal(err)
+	}
+	value, _ := captured.logs[0].ResourceLogs().At(0).Resource().Attributes().Get(environmentAttribute)
+	if value.Str() != testEnvironmentID {
+		t.Fatalf(
+			"%s = %q, want %q from the window placed after the cache filled",
+			environmentAttribute,
+			value.Str(),
+			testEnvironmentID,
+		)
 	}
 }

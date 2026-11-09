@@ -64,10 +64,32 @@ func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Confi
 	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
 		return err
 	}
-	if req.GetSince() == nil {
+	return validateSince(req.GetSince(), cfg, now)
+}
+
+// ValidateEventsRequest validates the query parameters for a Kubernetes events request.
+func ValidateEventsRequest(req *observabilityv1.QueryEventsRequest, cfg *config.Config) error {
+	ids := []string{req.GetResourceId()}
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), ids); err != nil {
+		return err
+	}
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
+}
+
+// ValidateTailEventsRequest validates a tail Kubernetes events request.
+func ValidateTailEventsRequest(req *observabilityv1.TailEventsRequest, cfg *config.Config, now time.Time) error {
+	ids := []string{req.GetResourceId()}
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), ids); err != nil {
+		return err
+	}
+	return validateSince(req.GetSince(), cfg, now)
+}
+
+func validateSince(timestamp *timestamppb.Timestamp, cfg *config.Config, now time.Time) error {
+	if timestamp == nil {
 		return nil
 	}
-	since := req.GetSince().AsTime()
+	since := timestamp.AsTime()
 	if since.After(now) {
 		return errSinceInFuture
 	}

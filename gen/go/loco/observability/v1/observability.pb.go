@@ -647,6 +647,384 @@ func (x *Heartbeat) GetTimestamp() *timestamppb.Timestamp {
 	return nil
 }
 
+// QueryEventsRequest selects the Kubernetes events about one resource's objects.
+type QueryEventsRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId  string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// Environment the events came from. Empty means every environment.
+	EnvironmentId string `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// Start of time range (inclusive).
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// End of time range (inclusive).
+	EndTime *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// Max events to return (clamped by guardrails).
+	Limit         int32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryEventsRequest) Reset() {
+	*x = QueryEventsRequest{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryEventsRequest) ProtoMessage() {}
+
+func (x *QueryEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryEventsRequest.ProtoReflect.Descriptor instead.
+func (*QueryEventsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *QueryEventsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *QueryEventsRequest) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *QueryEventsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *QueryEventsRequest) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *QueryEventsRequest) GetEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndTime
+	}
+	return nil
+}
+
+func (x *QueryEventsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// QueryEventsResponse contains the matching events, newest first.
+type QueryEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryEventsResponse) Reset() {
+	*x = QueryEventsResponse{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryEventsResponse) ProtoMessage() {}
+
+func (x *QueryEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryEventsResponse.ProtoReflect.Descriptor instead.
+func (*QueryEventsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *QueryEventsResponse) GetEvents() []*Event {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+// Event is a Kubernetes event about one of a resource's objects (e.g., pod scheduled, back-off, scaled).
+type Event struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the collector observed the event.
+	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Reason    string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	Message   string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Normal or Warning.
+	Type string `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
+	// Kind of the object the event is about (e.g., Pod, Deployment, ReplicaSet).
+	ObjectKind string `protobuf:"bytes,5,opt,name=object_kind,json=objectKind,proto3" json:"object_kind,omitempty"`
+	// Name of the object the event is about.
+	ObjectName    string `protobuf:"bytes,6,opt,name=object_name,json=objectName,proto3" json:"object_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Event) Reset() {
+	*x = Event{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Event) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event) ProtoMessage() {}
+
+func (x *Event) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event.ProtoReflect.Descriptor instead.
+func (*Event) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *Event) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
+	}
+	return nil
+}
+
+func (x *Event) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *Event) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *Event) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *Event) GetObjectKind() string {
+	if x != nil {
+		return x.ObjectKind
+	}
+	return ""
+}
+
+func (x *Event) GetObjectName() string {
+	if x != nil {
+		return x.ObjectName
+	}
+	return ""
+}
+
+// TailEventsRequest selects the live Kubernetes events about one resource's objects.
+type TailEventsRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId  string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// Environment the events came from. Empty means every environment.
+	EnvironmentId string `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// Earliest event to stream; defaults to the moment the stream starts.
+	Since         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=since,proto3" json:"since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailEventsRequest) Reset() {
+	*x = TailEventsRequest{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailEventsRequest) ProtoMessage() {}
+
+func (x *TailEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailEventsRequest.ProtoReflect.Descriptor instead.
+func (*TailEventsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TailEventsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *TailEventsRequest) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *TailEventsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *TailEventsRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+// TailEventsResponse is a server-streamed event or heartbeat.
+type TailEventsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Item:
+	//
+	//	*TailEventsResponse_Event
+	//	*TailEventsResponse_Heartbeat
+	Item          isTailEventsResponse_Item `protobuf_oneof:"item"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailEventsResponse) Reset() {
+	*x = TailEventsResponse{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailEventsResponse) ProtoMessage() {}
+
+func (x *TailEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailEventsResponse.ProtoReflect.Descriptor instead.
+func (*TailEventsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *TailEventsResponse) GetItem() isTailEventsResponse_Item {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *TailEventsResponse) GetEvent() *Event {
+	if x != nil {
+		if x, ok := x.Item.(*TailEventsResponse_Event); ok {
+			return x.Event
+		}
+	}
+	return nil
+}
+
+func (x *TailEventsResponse) GetHeartbeat() *Heartbeat {
+	if x != nil {
+		if x, ok := x.Item.(*TailEventsResponse_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+type isTailEventsResponse_Item interface {
+	isTailEventsResponse_Item()
+}
+
+type TailEventsResponse_Event struct {
+	Event *Event `protobuf:"bytes,1,opt,name=event,proto3,oneof"`
+}
+
+type TailEventsResponse_Heartbeat struct {
+	// Heartbeat to indicate stream is still active.
+	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
+}
+
+func (*TailEventsResponse_Event) isTailEventsResponse_Item() {}
+
+func (*TailEventsResponse_Heartbeat) isTailEventsResponse_Item() {}
+
 // QueryMetricsRequest specifies a metrics query with aggregation parameters.
 type QueryMetricsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -676,7 +1054,7 @@ type QueryMetricsRequest struct {
 
 func (x *QueryMetricsRequest) Reset() {
 	*x = QueryMetricsRequest{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[6]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -688,7 +1066,7 @@ func (x *QueryMetricsRequest) String() string {
 func (*QueryMetricsRequest) ProtoMessage() {}
 
 func (x *QueryMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[6]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +1079,7 @@ func (x *QueryMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryMetricsRequest.ProtoReflect.Descriptor instead.
 func (*QueryMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{6}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *QueryMetricsRequest) GetWorkspaceId() string {
@@ -778,7 +1156,7 @@ type QueryMetricsResponse struct {
 
 func (x *QueryMetricsResponse) Reset() {
 	*x = QueryMetricsResponse{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[7]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -790,7 +1168,7 @@ func (x *QueryMetricsResponse) String() string {
 func (*QueryMetricsResponse) ProtoMessage() {}
 
 func (x *QueryMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[7]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -803,7 +1181,7 @@ func (x *QueryMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryMetricsResponse.ProtoReflect.Descriptor instead.
 func (*QueryMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{7}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *QueryMetricsResponse) GetSeries() []*MetricSeries {
@@ -829,7 +1207,7 @@ type MetricSeries struct {
 
 func (x *MetricSeries) Reset() {
 	*x = MetricSeries{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[8]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -841,7 +1219,7 @@ func (x *MetricSeries) String() string {
 func (*MetricSeries) ProtoMessage() {}
 
 func (x *MetricSeries) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[8]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -854,7 +1232,7 @@ func (x *MetricSeries) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricSeries.ProtoReflect.Descriptor instead.
 func (*MetricSeries) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{8}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MetricSeries) GetResourceId() string {
@@ -891,7 +1269,7 @@ type MetricPoint struct {
 
 func (x *MetricPoint) Reset() {
 	*x = MetricPoint{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[9]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -903,7 +1281,7 @@ func (x *MetricPoint) String() string {
 func (*MetricPoint) ProtoMessage() {}
 
 func (x *MetricPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[9]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -916,7 +1294,7 @@ func (x *MetricPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricPoint.ProtoReflect.Descriptor instead.
 func (*MetricPoint) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{9}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *MetricPoint) GetTimestamp() *timestamppb.Timestamp {
@@ -949,7 +1327,7 @@ type QueryTracesRequest struct {
 
 func (x *QueryTracesRequest) Reset() {
 	*x = QueryTracesRequest{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[10]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -961,7 +1339,7 @@ func (x *QueryTracesRequest) String() string {
 func (*QueryTracesRequest) ProtoMessage() {}
 
 func (x *QueryTracesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[10]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1352,7 @@ func (x *QueryTracesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryTracesRequest.ProtoReflect.Descriptor instead.
 func (*QueryTracesRequest) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{10}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *QueryTracesRequest) GetWorkspaceId() string {
@@ -1043,7 +1421,7 @@ type QueryTracesResponse struct {
 
 func (x *QueryTracesResponse) Reset() {
 	*x = QueryTracesResponse{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[11]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1055,7 +1433,7 @@ func (x *QueryTracesResponse) String() string {
 func (*QueryTracesResponse) ProtoMessage() {}
 
 func (x *QueryTracesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[11]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1068,7 +1446,7 @@ func (x *QueryTracesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryTracesResponse.ProtoReflect.Descriptor instead.
 func (*QueryTracesResponse) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{11}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *QueryTracesResponse) GetSpans() []*TraceSpan {
@@ -1113,7 +1491,7 @@ type TraceSpan struct {
 
 func (x *TraceSpan) Reset() {
 	*x = TraceSpan{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[12]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1125,7 +1503,7 @@ func (x *TraceSpan) String() string {
 func (*TraceSpan) ProtoMessage() {}
 
 func (x *TraceSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[12]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1138,7 +1516,7 @@ func (x *TraceSpan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceSpan.ProtoReflect.Descriptor instead.
 func (*TraceSpan) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{12}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TraceSpan) GetTraceId() string {
@@ -1278,7 +1656,7 @@ type TraceSpanEvent struct {
 
 func (x *TraceSpanEvent) Reset() {
 	*x = TraceSpanEvent{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[13]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1290,7 +1668,7 @@ func (x *TraceSpanEvent) String() string {
 func (*TraceSpanEvent) ProtoMessage() {}
 
 func (x *TraceSpanEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[13]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1303,7 +1681,7 @@ func (x *TraceSpanEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceSpanEvent.ProtoReflect.Descriptor instead.
 func (*TraceSpanEvent) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{13}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TraceSpanEvent) GetName() string {
@@ -1394,7 +1772,39 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\theartbeat\x18\x02 \x01(\v2 .loco.observability.v1.HeartbeatH\x00R\theartbeatB\a\n" +
 	"\x05event\"E\n" +
 	"\tHeartbeat\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xd5\x05\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xb7\x03\n" +
+	"\x12QueryEventsRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12)\n" +
+	"\vresource_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x122\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12A\n" +
+	"\n" +
+	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
+	"\bend_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12 \n" +
+	"\x05limit\x18\x06 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N(\x00R\x05limit:q\xbaHn\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"K\n" +
+	"\x13QueryEventsResponse\x124\n" +
+	"\x06events\x18\x01 \x03(\v2\x1c.loco.observability.v1.EventR\x06events\"\xc9\x01\n" +
+	"\x05Event\x128\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x12\n" +
+	"\x04type\x18\x04 \x01(\tR\x04type\x12\x1f\n" +
+	"\vobject_kind\x18\x05 \x01(\tR\n" +
+	"objectKind\x12\x1f\n" +
+	"\vobject_name\x18\x06 \x01(\tR\n" +
+	"objectName\"\xd1\x01\n" +
+	"\x11TailEventsRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12)\n" +
+	"\vresource_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x122\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x120\n" +
+	"\x05since\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"\x94\x01\n" +
+	"\x12TailEventsResponse\x124\n" +
+	"\x05event\x18\x01 \x01(\v2\x1c.loco.observability.v1.EventH\x00R\x05event\x12@\n" +
+	"\theartbeat\x18\x02 \x01(\v2 .loco.observability.v1.HeartbeatH\x00R\theartbeatB\x06\n" +
+	"\x04item\"\xd5\x05\n" +
 	"\x13QueryMetricsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
@@ -1482,10 +1892,13 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\bLogOrder\x12\x19\n" +
 	"\x15LOG_ORDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16LOG_ORDER_NEWEST_FIRST\x10\x01\x12\x1a\n" +
-	"\x16LOG_ORDER_OLDEST_FIRST\x10\x022\xa9\x03\n" +
+	"\x16LOG_ORDER_OLDEST_FIRST\x10\x022\xf4\x04\n" +
 	"\x19ObservabilityProxyService\x12^\n" +
 	"\tQueryLogs\x12'.loco.observability.v1.QueryLogsRequest\x1a(.loco.observability.v1.QueryLogsResponse\x12]\n" +
-	"\bTailLogs\x12&.loco.observability.v1.TailLogsRequest\x1a'.loco.observability.v1.TailLogsResponse0\x01\x12g\n" +
+	"\bTailLogs\x12&.loco.observability.v1.TailLogsRequest\x1a'.loco.observability.v1.TailLogsResponse0\x01\x12d\n" +
+	"\vQueryEvents\x12).loco.observability.v1.QueryEventsRequest\x1a*.loco.observability.v1.QueryEventsResponse\x12c\n" +
+	"\n" +
+	"TailEvents\x12(.loco.observability.v1.TailEventsRequest\x1a).loco.observability.v1.TailEventsResponse0\x01\x12g\n" +
 	"\fQueryMetrics\x12*.loco.observability.v1.QueryMetricsRequest\x1a+.loco.observability.v1.QueryMetricsResponse\x12d\n" +
 	"\vQueryTraces\x12).loco.observability.v1.QueryTracesRequest\x1a*.loco.observability.v1.QueryTracesResponseBHZFgithub.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1b\x06proto3"
 
@@ -1502,7 +1915,7 @@ func file_loco_observability_v1_observability_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_observability_v1_observability_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_observability_v1_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_loco_observability_v1_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_loco_observability_v1_observability_proto_goTypes = []any{
 	(LogOrder)(0),                 // 0: loco.observability.v1.LogOrder
 	(*QueryLogsRequest)(nil),      // 1: loco.observability.v1.QueryLogsRequest
@@ -1511,66 +1924,82 @@ var file_loco_observability_v1_observability_proto_goTypes = []any{
 	(*TailLogsRequest)(nil),       // 4: loco.observability.v1.TailLogsRequest
 	(*TailLogsResponse)(nil),      // 5: loco.observability.v1.TailLogsResponse
 	(*Heartbeat)(nil),             // 6: loco.observability.v1.Heartbeat
-	(*QueryMetricsRequest)(nil),   // 7: loco.observability.v1.QueryMetricsRequest
-	(*QueryMetricsResponse)(nil),  // 8: loco.observability.v1.QueryMetricsResponse
-	(*MetricSeries)(nil),          // 9: loco.observability.v1.MetricSeries
-	(*MetricPoint)(nil),           // 10: loco.observability.v1.MetricPoint
-	(*QueryTracesRequest)(nil),    // 11: loco.observability.v1.QueryTracesRequest
-	(*QueryTracesResponse)(nil),   // 12: loco.observability.v1.QueryTracesResponse
-	(*TraceSpan)(nil),             // 13: loco.observability.v1.TraceSpan
-	(*TraceSpanEvent)(nil),        // 14: loco.observability.v1.TraceSpanEvent
-	nil,                           // 15: loco.observability.v1.QueryLogsRequest.LabelsEntry
-	nil,                           // 16: loco.observability.v1.LogEntry.ResourceAttributesEntry
-	nil,                           // 17: loco.observability.v1.LogEntry.LogAttributesEntry
-	nil,                           // 18: loco.observability.v1.TailLogsRequest.LabelsEntry
-	nil,                           // 19: loco.observability.v1.MetricSeries.LabelsEntry
-	nil,                           // 20: loco.observability.v1.TraceSpan.ResourceAttributesEntry
-	nil,                           // 21: loco.observability.v1.TraceSpan.SpanAttributesEntry
-	nil,                           // 22: loco.observability.v1.TraceSpanEvent.AttributesEntry
-	(*timestamppb.Timestamp)(nil), // 23: google.protobuf.Timestamp
+	(*QueryEventsRequest)(nil),    // 7: loco.observability.v1.QueryEventsRequest
+	(*QueryEventsResponse)(nil),   // 8: loco.observability.v1.QueryEventsResponse
+	(*Event)(nil),                 // 9: loco.observability.v1.Event
+	(*TailEventsRequest)(nil),     // 10: loco.observability.v1.TailEventsRequest
+	(*TailEventsResponse)(nil),    // 11: loco.observability.v1.TailEventsResponse
+	(*QueryMetricsRequest)(nil),   // 12: loco.observability.v1.QueryMetricsRequest
+	(*QueryMetricsResponse)(nil),  // 13: loco.observability.v1.QueryMetricsResponse
+	(*MetricSeries)(nil),          // 14: loco.observability.v1.MetricSeries
+	(*MetricPoint)(nil),           // 15: loco.observability.v1.MetricPoint
+	(*QueryTracesRequest)(nil),    // 16: loco.observability.v1.QueryTracesRequest
+	(*QueryTracesResponse)(nil),   // 17: loco.observability.v1.QueryTracesResponse
+	(*TraceSpan)(nil),             // 18: loco.observability.v1.TraceSpan
+	(*TraceSpanEvent)(nil),        // 19: loco.observability.v1.TraceSpanEvent
+	nil,                           // 20: loco.observability.v1.QueryLogsRequest.LabelsEntry
+	nil,                           // 21: loco.observability.v1.LogEntry.ResourceAttributesEntry
+	nil,                           // 22: loco.observability.v1.LogEntry.LogAttributesEntry
+	nil,                           // 23: loco.observability.v1.TailLogsRequest.LabelsEntry
+	nil,                           // 24: loco.observability.v1.MetricSeries.LabelsEntry
+	nil,                           // 25: loco.observability.v1.TraceSpan.ResourceAttributesEntry
+	nil,                           // 26: loco.observability.v1.TraceSpan.SpanAttributesEntry
+	nil,                           // 27: loco.observability.v1.TraceSpanEvent.AttributesEntry
+	(*timestamppb.Timestamp)(nil), // 28: google.protobuf.Timestamp
 }
 var file_loco_observability_v1_observability_proto_depIdxs = []int32{
-	23, // 0: loco.observability.v1.QueryLogsRequest.start_time:type_name -> google.protobuf.Timestamp
-	23, // 1: loco.observability.v1.QueryLogsRequest.end_time:type_name -> google.protobuf.Timestamp
-	15, // 2: loco.observability.v1.QueryLogsRequest.labels:type_name -> loco.observability.v1.QueryLogsRequest.LabelsEntry
+	28, // 0: loco.observability.v1.QueryLogsRequest.start_time:type_name -> google.protobuf.Timestamp
+	28, // 1: loco.observability.v1.QueryLogsRequest.end_time:type_name -> google.protobuf.Timestamp
+	20, // 2: loco.observability.v1.QueryLogsRequest.labels:type_name -> loco.observability.v1.QueryLogsRequest.LabelsEntry
 	0,  // 3: loco.observability.v1.QueryLogsRequest.order:type_name -> loco.observability.v1.LogOrder
 	3,  // 4: loco.observability.v1.QueryLogsResponse.entries:type_name -> loco.observability.v1.LogEntry
-	23, // 5: loco.observability.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	16, // 6: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
-	17, // 7: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
-	18, // 8: loco.observability.v1.TailLogsRequest.labels:type_name -> loco.observability.v1.TailLogsRequest.LabelsEntry
-	23, // 9: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
+	28, // 5: loco.observability.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	21, // 6: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
+	22, // 7: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
+	23, // 8: loco.observability.v1.TailLogsRequest.labels:type_name -> loco.observability.v1.TailLogsRequest.LabelsEntry
+	28, // 9: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
 	3,  // 10: loco.observability.v1.TailLogsResponse.entry:type_name -> loco.observability.v1.LogEntry
 	6,  // 11: loco.observability.v1.TailLogsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
-	23, // 12: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
-	23, // 13: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
-	23, // 14: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
-	9,  // 15: loco.observability.v1.QueryMetricsResponse.series:type_name -> loco.observability.v1.MetricSeries
-	19, // 16: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
-	10, // 17: loco.observability.v1.MetricSeries.points:type_name -> loco.observability.v1.MetricPoint
-	23, // 18: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
-	23, // 19: loco.observability.v1.QueryTracesRequest.start_time:type_name -> google.protobuf.Timestamp
-	23, // 20: loco.observability.v1.QueryTracesRequest.end_time:type_name -> google.protobuf.Timestamp
-	13, // 21: loco.observability.v1.QueryTracesResponse.spans:type_name -> loco.observability.v1.TraceSpan
-	23, // 22: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
-	20, // 23: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
-	21, // 24: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
-	14, // 25: loco.observability.v1.TraceSpan.events:type_name -> loco.observability.v1.TraceSpanEvent
-	23, // 26: loco.observability.v1.TraceSpanEvent.timestamp:type_name -> google.protobuf.Timestamp
-	22, // 27: loco.observability.v1.TraceSpanEvent.attributes:type_name -> loco.observability.v1.TraceSpanEvent.AttributesEntry
-	1,  // 28: loco.observability.v1.ObservabilityProxyService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
-	4,  // 29: loco.observability.v1.ObservabilityProxyService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
-	7,  // 30: loco.observability.v1.ObservabilityProxyService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
-	11, // 31: loco.observability.v1.ObservabilityProxyService.QueryTraces:input_type -> loco.observability.v1.QueryTracesRequest
-	2,  // 32: loco.observability.v1.ObservabilityProxyService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
-	5,  // 33: loco.observability.v1.ObservabilityProxyService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
-	8,  // 34: loco.observability.v1.ObservabilityProxyService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
-	12, // 35: loco.observability.v1.ObservabilityProxyService.QueryTraces:output_type -> loco.observability.v1.QueryTracesResponse
-	32, // [32:36] is the sub-list for method output_type
-	28, // [28:32] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	28, // 12: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
+	28, // 13: loco.observability.v1.QueryEventsRequest.start_time:type_name -> google.protobuf.Timestamp
+	28, // 14: loco.observability.v1.QueryEventsRequest.end_time:type_name -> google.protobuf.Timestamp
+	9,  // 15: loco.observability.v1.QueryEventsResponse.events:type_name -> loco.observability.v1.Event
+	28, // 16: loco.observability.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	28, // 17: loco.observability.v1.TailEventsRequest.since:type_name -> google.protobuf.Timestamp
+	9,  // 18: loco.observability.v1.TailEventsResponse.event:type_name -> loco.observability.v1.Event
+	6,  // 19: loco.observability.v1.TailEventsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
+	28, // 20: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
+	28, // 21: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
+	14, // 22: loco.observability.v1.QueryMetricsResponse.series:type_name -> loco.observability.v1.MetricSeries
+	24, // 23: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
+	15, // 24: loco.observability.v1.MetricSeries.points:type_name -> loco.observability.v1.MetricPoint
+	28, // 25: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
+	28, // 26: loco.observability.v1.QueryTracesRequest.start_time:type_name -> google.protobuf.Timestamp
+	28, // 27: loco.observability.v1.QueryTracesRequest.end_time:type_name -> google.protobuf.Timestamp
+	18, // 28: loco.observability.v1.QueryTracesResponse.spans:type_name -> loco.observability.v1.TraceSpan
+	28, // 29: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
+	25, // 30: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
+	26, // 31: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
+	19, // 32: loco.observability.v1.TraceSpan.events:type_name -> loco.observability.v1.TraceSpanEvent
+	28, // 33: loco.observability.v1.TraceSpanEvent.timestamp:type_name -> google.protobuf.Timestamp
+	27, // 34: loco.observability.v1.TraceSpanEvent.attributes:type_name -> loco.observability.v1.TraceSpanEvent.AttributesEntry
+	1,  // 35: loco.observability.v1.ObservabilityProxyService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
+	4,  // 36: loco.observability.v1.ObservabilityProxyService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
+	7,  // 37: loco.observability.v1.ObservabilityProxyService.QueryEvents:input_type -> loco.observability.v1.QueryEventsRequest
+	10, // 38: loco.observability.v1.ObservabilityProxyService.TailEvents:input_type -> loco.observability.v1.TailEventsRequest
+	12, // 39: loco.observability.v1.ObservabilityProxyService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
+	16, // 40: loco.observability.v1.ObservabilityProxyService.QueryTraces:input_type -> loco.observability.v1.QueryTracesRequest
+	2,  // 41: loco.observability.v1.ObservabilityProxyService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
+	5,  // 42: loco.observability.v1.ObservabilityProxyService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
+	8,  // 43: loco.observability.v1.ObservabilityProxyService.QueryEvents:output_type -> loco.observability.v1.QueryEventsResponse
+	11, // 44: loco.observability.v1.ObservabilityProxyService.TailEvents:output_type -> loco.observability.v1.TailEventsResponse
+	13, // 45: loco.observability.v1.ObservabilityProxyService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
+	17, // 46: loco.observability.v1.ObservabilityProxyService.QueryTraces:output_type -> loco.observability.v1.QueryTracesResponse
+	41, // [41:47] is the sub-list for method output_type
+	35, // [35:41] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_loco_observability_v1_observability_proto_init() }
@@ -1582,13 +2011,17 @@ func file_loco_observability_v1_observability_proto_init() {
 		(*TailLogsResponse_Entry)(nil),
 		(*TailLogsResponse_Heartbeat)(nil),
 	}
+	file_loco_observability_v1_observability_proto_msgTypes[10].OneofWrappers = []any{
+		(*TailEventsResponse_Event)(nil),
+		(*TailEventsResponse_Heartbeat)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_observability_v1_observability_proto_rawDesc), len(file_loco_observability_v1_observability_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   22,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

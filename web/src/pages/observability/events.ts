@@ -114,7 +114,7 @@ export interface EventGroup {
 export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] {
 	const m = new Map<string, EventGroup>();
 	for (const e of events) {
-		const object = e.podName !== "" ? e.podName : e.resourceName;
+		const object = e.objectName !== "" ? e.objectName : e.resourceName;
 		const key = `${e.resourceId}|${e.reason}|${object}|${e.message}`;
 		const ts = tsMs(e.timestamp);
 		const g = m.get(key);

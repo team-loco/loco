@@ -166,7 +166,7 @@ with sync_playwright() as playwright:
                         panel = page.get_by_role('region', name=title, exact=True)
                     else:
                         assert not any(request['method'] == 'ListEnvironments' for request in recorded)
-                    assert not [request for request in recorded if request['status'] >= 400 and request['method'] != 'ListResourceEvents' and not request.get('controlledFailure')], recorded
+                    assert not [request for request in recorded if request['status'] >= 400 and request['method'] != 'QueryEvents' and not request.get('controlledFailure')], recorded
                 page.screenshot(path=out / 'full' / f'{scene}-{phase}-{suffix}.png', full_page=True, animations='disabled')
                 panel.evaluate('(element) => element.scrollIntoView({block: "start", behavior: "instant"})')
                 page.screenshot(path=out / f'{scene}-{phase}-{suffix}.png', clip={'x': 0, 'y': 0, 'width': 390 if narrow else 1440, 'height': 844 if narrow else 700}, animations='disabled')
@@ -207,7 +207,7 @@ with sync_playwright() as playwright:
                     page.get_by_role('menuitem', name='sibling', exact=False).click()
                     page.keyboard.press('Escape')
                     page.wait_for_url('**/wks/' + activity['siblingId'] + '**')
-                    assert not [request for request in recorded if request['status'] >= 400 and request['method'] != 'ListResourceEvents'], recorded
+                    assert not [request for request in recorded if request['status'] >= 400 and request['method'] != 'QueryEvents'], recorded
                 assert not errors, errors
                 results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
                 context.close()

@@ -16,7 +16,9 @@ const (
 	tailLoopReturnLimit = 500 * time.Millisecond
 )
 
-func noopTailSend(*observabilityv1.TailLogsResponse) error { return nil }
+func noopTailSend(*observabilityv1.LogEntry) error { return nil }
+
+func noopHeartbeat(*observabilityv1.Heartbeat) error { return nil }
 
 func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
 	service := NewObservabilityService(newTestClickHouse(t), &config.Config{}, nil)
@@ -24,7 +26,12 @@ func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
 	time.AfterFunc(tailLoopCancelDelay, cancel)
 
 	start := time.Now()
-	err := service.tailLoop(ctx, tailLogQuery(&observabilityv1.TailLogsRequest{}, time.Now()), noopTailSend)
+	err := service.tailLoop(
+		ctx,
+		tailLogQuery(&observabilityv1.TailLogsRequest{}, time.Now()),
+		noopTailSend,
+		noopHeartbeat,
+	)
 	elapsed := time.Since(start)
 
 	if err != nil {
@@ -39,7 +46,12 @@ func TestTailLoopEndsTheStreamWhenAPollFails(t *testing.T) {
 	service := NewObservabilityService(unavailableClickHouse(t), &config.Config{}, nil)
 
 	start := time.Now()
-	err := service.tailLoop(t.Context(), tailLogQuery(&observabilityv1.TailLogsRequest{}, time.Now()), noopTailSend)
+	err := service.tailLoop(
+		t.Context(),
+		tailLogQuery(&observabilityv1.TailLogsRequest{}, time.Now()),
+		noopTailSend,
+		noopHeartbeat,
+	)
 	elapsed := time.Since(start)
 
 	if connect.CodeOf(err) != connect.CodeInternal {

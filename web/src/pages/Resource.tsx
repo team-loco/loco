@@ -6,13 +6,14 @@ import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { deleteResource, listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, Section } from "@/components/design/Page";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { resourceEventsOptions } from "@/hooks/resourceEvents";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
@@ -54,6 +55,7 @@ const READ_LEVEL = 1;
 const WRITE_LEVEL = 2;
 const EVENT_LIMIT = 500;
 const EVENTS_REFRESH_MS = 30_000;
+const EVENTS_WINDOW = { kind: "relative", spanMs: 3_600_000 } as const;
 const CLOCK_TICK_MS = 60_000;
 
 type View = "overview" | SettingsFocus;
@@ -93,11 +95,16 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { resourceLevel, workspaceLevel } = useMyScopes();
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const configQuery = useQuery(getConfig, {});
-	const eventsQuery = useQuery(
-		listResourceEvents,
-		{ resourceId, limit: EVENT_LIMIT },
-		{ enabled: resourceId !== "", refetchInterval: EVENTS_REFRESH_MS },
-	);
+	const eventsQuery = useTanstackQuery({
+		...resourceEventsOptions(transport, {
+			workspaceId: resource?.workspaceId ?? "",
+			resourceId,
+			environmentId: environmentId ?? "",
+			window: EVENTS_WINDOW,
+			limit: EVENT_LIMIT,
+		}),
+		refetchInterval: EVENTS_REFRESH_MS,
+	});
 	const canListResources =
 		activeOrgId !== null && activeWorkspaceId !== null && workspaceLevel(activeOrgId, activeWorkspaceId) >= READ_LEVEL;
 	const resourcesQuery = useTanstackQuery({

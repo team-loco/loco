@@ -65,6 +65,13 @@ obs_proxy_url="$E2E_API_URL"
 obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
 obs_query_metrics="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
 obs_query_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryTraces"
+obs_query_events="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryEvents"
+obs_events_app="e2e-failing-app"
+obs_events_dir="$obs_dir/$obs_events_app"
+obs_events_resource_id=""
+obs_other_environment_id="00000000-0000-4000-8000-000000000000"
+# the failing app keeps adding pod events; read enough to reach its Deployment and ReplicaSet events
+obs_events_limit=1000
 obs_metric_tables="otel_metrics_sum otel_metrics_gauge otel_metrics_histogram"
 obs_all_tables="otel_traces otel_logs otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
 
@@ -718,6 +725,54 @@ check_trace_proxy_isolation() {
 test_o10_proxy_isolation() {
     obs_check proxy_isolation check_proxy_isolation
     obs_check trace_proxy_isolation check_trace_proxy_isolation
+}
+
+obs_events_call() {
+    local token=$1 environment_id=$2 start end
+    start=$(utc_timestamp "$(($(obs_now) - obs_query_window_seconds))")
+    end=$(utc_timestamp "$(obs_now)")
+    curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_events" \
+        -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" \
+        -d "$(printf '{"workspaceId":"%s","resourceId":"%s","environmentId":"%s","startTime":"%s","endTime":"%s","limit":%d}' \
+            "$obs_workspace_id" "$obs_events_resource_id" "$environment_id" "$start" "$end" "$obs_events_limit")"
+}
+
+check_failing_app_events() {
+    local output status response warnings owners other cross logs leaked
+    output=$(obs_events_call "$obs_workspace_token" "$obs_environment_id")
+    status=$(tail -n 1 <<<"$output")
+    response=$(sed '$d' <<<"$output")
+    ev_command "QueryEvents for ${obs_events_app} in environment ${obs_environment_id}" \
+        "curl -X POST ${obs_query_events} -H 'Authorization: Bearer <workspace token>'" "HTTP ${status}"
+    ev "$(yq -p json -r '.events // [] | .[] | "| " + .timestamp + " | " + (.type // "") + " | " + (.reason // "") + " | " + (.objectKind // "") + "/" + (.objectName // "") + " |"' <<<"$response" | head -n "$obs_output_rows")" ""
+    test "$status" = "$obs_http_ok" || return 1
+    warnings=$(PREFIX="resource-${obs_events_resource_id}-" yq -p json -r \
+        '[.events // [] | .[] | select(.type == "Warning" and .objectKind == "Pod" and (.objectName | test("^" + strenv(PREFIX))))] | length' <<<"$response")
+    owners=$(yq -p json -r '[.events // [] | .[] | select(.objectKind == "Deployment" or .objectKind == "ReplicaSet")] | length' <<<"$response")
+    output=$(obs_events_call "$obs_workspace_token" "$obs_other_environment_id")
+    other=$(yq -p json -r '(.events // []) | length' <<<"$(sed '$d' <<<"$output")")
+    cross=$(tail -n 1 <<<"$(obs_events_call "$obs_second_token" "$obs_environment_id")")
+    logs=$(obs_proxy_call "$obs_workspace_token" "$(printf '{"workspaceId":"%s","resourceIds":["%s"],"startTime":"%s","endTime":"%s","limit":%d}' \
+        "$obs_workspace_id" "$obs_events_resource_id" "$(utc_timestamp "$(($(obs_now) - obs_query_window_seconds))")" \
+        "$(utc_timestamp "$(obs_now)")" "$obs_proxy_limit")")
+    leaked=$(yq -p json -r '[.entries // [] | .[] | select(.body | contains("\"regarding\""))] | length' <<<"$(sed '$d' <<<"$logs")")
+    ev "Pod warnings: \`${warnings}\`; Deployment or ReplicaSet events: \`${owners}\`; events in another environment: \`${other}\`; second workspace token: HTTP \`${cross}\`; events among QueryLogs entries: \`${leaked}\`." ""
+    test "$warnings" -gt 0 && test "$owners" -gt 0 && test "$other" -eq 0 &&
+        test "$cross" = "$obs_http_forbidden" && test "$leaked" -eq 0
+}
+
+test_o10_failing_app_events() {
+    local rc=0
+    mkdir -p "$obs_events_dir"
+    cli_write_image_config "$obs_events_dir" "$obs_events_app" "$E2E_PUBLIC_IMAGE" 8080 "[]"
+    obs_events_app="$obs_events_app" yq -i '.services[strenv(obs_events_app)].health.path = "/missing"' "$obs_events_dir/loco.yaml"
+    (cd "$obs_events_dir" && loco_cli infra apply --yes) >"$obs_dir/events-apply.out" 2>"$obs_dir/events-apply.err" || rc=$?
+    if ! assert "loco infra apply placed ${obs_events_app}, whose health check never passes (exit ${rc})" test "$rc" -eq 0; then
+        sed 's/^/    /' "$obs_dir/events-apply.out" "$obs_dir/events-apply.err"
+        return 1
+    fi
+    obs_events_resource_id=$(e2e_psql "SELECT id FROM resources WHERE name = '${obs_events_app}'")
+    obs_check failing_app_events check_failing_app_events
 }
 
 test_o11_writes_the_summary() {

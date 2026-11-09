@@ -26,6 +26,8 @@ GATEWAY_LABELS = {
     "gateway.envoyproxy.io/owning-gateway-namespace": "gateway.envoyproxy.io/owning-gateway-namespace",
 }
 CLIENT_POD_IDENTITY = ("k8s.pod.ip", "k8s.pod.uid")
+# marks the Kubernetes events the cluster collector attributes; a client must not mark its own logs
+EVENT_SCOPE = ("loco.telemetry.scope",)
 ENVOY_CLUSTER_ATTRIBUTES = {
     "trace_statements": "upstream_cluster",
     "log_statements": "upstream_cluster",
@@ -250,6 +252,7 @@ def test_client_tenancy_is_removed_before_kubernetes_attributes(worker_relays):
         | set(BUILD_LABELS.values())
         | set(GATEWAY_LABELS.values())
         | set(CLIENT_POD_IDENTITY)
+        | set(EVENT_SCOPE)
     )
     for collector, config, name, pipeline in _push_pipelines(worker_relays):
         processors = pipeline["processors"]

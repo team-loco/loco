@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/ingest/v1/ingest.proto.
  */
 export const file_loco_ingest_v1_ingest: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QiUAocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93IoYBCg9QbGFjZW1lbnRXaW5kb3cSFAoMd29ya3NwYWNlX2lkGAEgASgJEi0KCXBsYWNlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmVtb3ZlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAy1wEKDUluZ2VzdFNlcnZpY2USUwoKSXNzdWVUb2tlbhIhLmxvY28uaW5nZXN0LnYxLklzc3VlVG9rZW5SZXF1ZXN0GiIubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlc3BvbnNlEnEKFExpc3RQbGFjZW1lbnRXaW5kb3dzEisubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXF1ZXN0GiwubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2luZ2VzdC92MTtpbmdlc3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QiUAocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93IrMBCg9QbGFjZW1lbnRXaW5kb3cSFAoMd29ya3NwYWNlX2lkGAEgASgJEi0KCXBsYWNlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmVtb3ZlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLcmVzb3VyY2VfaWQYBCABKAkSFgoOZW52aXJvbm1lbnRfaWQYBSABKAky1wEKDUluZ2VzdFNlcnZpY2USUwoKSXNzdWVUb2tlbhIhLmxvY28uaW5nZXN0LnYxLklzc3VlVG9rZW5SZXF1ZXN0GiIubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlc3BvbnNlEnEKFExpc3RQbGFjZW1lbnRXaW5kb3dzEisubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXF1ZXN0GiwubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2luZ2VzdC92MTtpbmdlc3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.ingest.v1.IssueTokenRequest
@@ -117,8 +117,8 @@ export const ListPlacementWindowsResponseSchema: GenMessage<ListPlacementWindows
   messageDesc(file_loco_ingest_v1_ingest, 3);
 
 /**
- * PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;
- * removed_at is unset while the placement exists.
+ * PlacementWindow is the interval [placed_at, removed_at) during which a resource of a workspace had a placement in
+ * an environment on the cluster; removed_at is unset while the placement exists.
  *
  * @generated from message loco.ingest.v1.PlacementWindow
  */
@@ -137,11 +137,21 @@ export type PlacementWindow = Message<"loco.ingest.v1.PlacementWindow"> & {
    * @generated from field: google.protobuf.Timestamp removed_at = 3;
    */
   removedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string resource_id = 4;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: string environment_id = 5;
+   */
+  environmentId: string;
 };
 
 /**
- * PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;
- * removed_at is unset while the placement exists.
+ * PlacementWindow is the interval [placed_at, removed_at) during which a resource of a workspace had a placement in
+ * an environment on the cluster; removed_at is unset while the placement exists.
  *
  * @generated from message loco.ingest.v1.PlacementWindow
  */
@@ -160,6 +170,16 @@ export type PlacementWindowJson = {
    * @generated from field: google.protobuf.Timestamp removed_at = 3;
    */
   removedAt?: TimestampJson;
+
+  /**
+   * @generated from field: string resource_id = 4;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: string environment_id = 5;
+   */
+  environmentId?: string;
 };
 
 /**

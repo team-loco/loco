@@ -115,8 +115,10 @@ func (s *IngestServer) ListPlacementWindows(
 	windows := make([]*ingestv1.PlacementWindow, 0, len(rows))
 	for _, row := range rows {
 		window := &ingestv1.PlacementWindow{
-			WorkspaceId: row.WorkspaceID.String(),
-			PlacedAt:    timestamppb.New(row.PlacedAt),
+			WorkspaceId:   row.WorkspaceID.String(),
+			ResourceId:    row.ResourceID.String(),
+			EnvironmentId: row.EnvironmentID.String(),
+			PlacedAt:      timestamppb.New(row.PlacedAt),
 		}
 		if row.RemovedAt != nil {
 			window.RemovedAt = timestamppb.New(*row.RemovedAt)

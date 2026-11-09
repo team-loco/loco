@@ -15,6 +15,12 @@ service ObservabilityProxyService {
   // TailLogs streams live log entries as they arrive (server-push, polling-based).
   rpc TailLogs(TailLogsRequest) returns (stream TailLogsResponse);
 
+  // QueryEvents returns the Kubernetes events about one resource's objects, newest first.
+  rpc QueryEvents(QueryEventsRequest) returns (QueryEventsResponse);
+
+  // TailEvents streams a resource's Kubernetes events as they arrive (server-push, polling-based).
+  rpc TailEvents(TailEventsRequest) returns (stream TailEventsResponse);
+
   // QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
   rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
 
@@ -180,6 +186,75 @@ message TailLogsResponse {
 message Heartbeat {
   // Timestamp of the heartbeat.
   google.protobuf.Timestamp timestamp = 1;
+}
+
+// ---------- Kubernetes Events ----------
+
+// QueryEventsRequest selects the Kubernetes events about one resource's objects.
+message QueryEventsRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string resource_id = 2 [(buf.validate.field).string.uuid = true];
+  // Environment the events came from. Empty means every environment.
+  string environment_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Start of time range (inclusive).
+  google.protobuf.Timestamp start_time = 4 [(buf.validate.field).required = true];
+  // End of time range (inclusive).
+  google.protobuf.Timestamp end_time = 5 [(buf.validate.field).required = true];
+  // Max events to return (clamped by guardrails).
+  int32 limit = 6 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10000
+  }];
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "this.start_time <= this.end_time"
+  };
+}
+
+// QueryEventsResponse contains the matching events, newest first.
+message QueryEventsResponse {
+  repeated Event events = 1;
+}
+
+// Event is a Kubernetes event about one of a resource's objects (e.g., pod scheduled, back-off, scaled).
+message Event {
+  // When the collector observed the event.
+  google.protobuf.Timestamp timestamp = 1;
+  string reason = 2;
+  string message = 3;
+  // Normal or Warning.
+  string type = 4;
+  // Kind of the object the event is about (e.g., Pod, Deployment, ReplicaSet).
+  string object_kind = 5;
+  // Name of the object the event is about.
+  string object_name = 6;
+}
+
+// TailEventsRequest selects the live Kubernetes events about one resource's objects.
+message TailEventsRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string resource_id = 2 [(buf.validate.field).string.uuid = true];
+  // Environment the events came from. Empty means every environment.
+  string environment_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Earliest event to stream; defaults to the moment the stream starts.
+  google.protobuf.Timestamp since = 4;
+}
+
+// TailEventsResponse is a server-streamed event or heartbeat.
+message TailEventsResponse {
+  oneof item {
+    Event event = 1;
+    // Heartbeat to indicate stream is still active.
+    Heartbeat heartbeat = 2;
+  }
 }
 
 // ---------- Metrics Query ----------

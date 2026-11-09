@@ -36,6 +36,8 @@ type LogQuery struct {
 	Limit           int32
 	Cursor          string
 	Order           observabilityv1.LogOrder
+	// KubernetesEvents selects the resource's Kubernetes events instead of its logs.
+	KubernetesEvents bool
 }
 
 type logPage struct {
@@ -199,6 +201,13 @@ func logFilters(q LogQuery, b logBinder) []string {
 	}
 
 	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
+
+	scope := "ResourceAttributes[" + b.str(telemetryScopeAttribute) + "]"
+	if q.KubernetesEvents {
+		whereParts = append(whereParts, scope+" = "+b.str(kubernetesEventScope))
+	} else {
+		whereParts = append(whereParts, scope+" != "+b.str(kubernetesEventScope))
+	}
 
 	if len(q.Levels) > 0 {
 		whereParts = append(whereParts, logIn("SeverityText", q.Levels, b))

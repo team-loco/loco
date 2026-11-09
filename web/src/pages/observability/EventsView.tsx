@@ -70,6 +70,7 @@ export function EventsView() {
 
 	const { events, isLoading, error, unavailable } = useWorkspaceEvents(
 		workspaceId,
+		range,
 		resources.map((r) => r.raw),
 		live ? POLL_MS : undefined,
 	);
@@ -78,7 +79,7 @@ export function EventsView() {
 	const inRange = events.filter((e) => {
 		const ts = tsMs(e.timestamp);
 		if (ts < from || ts > to || !visible.has(e.resourceId)) return false;
-		const hay = `${eventTitle(e.reason)} ${e.reason} ${e.message} ${e.podName} ${e.resourceName}`.toLowerCase();
+		const hay = `${eventTitle(e.reason)} ${e.reason} ${e.message} ${e.objectName} ${e.resourceName}`.toLowerCase();
 		return words.every((w) => hay.includes(w));
 	});
 	const typeTokens = liveTokens("events", tokens, "type");

@@ -574,6 +574,8 @@ otel-col-daemon:
             action: delete
           - key: k8s.pod.uid
             action: delete
+          - key: loco.telemetry.scope
+            action: delete
           - key: gateway.envoyproxy.io/owning-gateway-name
             action: delete
           - key: gateway.envoyproxy.io/owning-gateway-namespace
@@ -906,12 +908,27 @@ otel-col-cluster:
         passthrough: false
         pod_association: *podUIDAssociation
         extract: *tenancyExtract
+      # Attributes an event to the resource its object belongs to: the controller names every
+      # workload object of a resource after k8sapi/v1alpha1.ApplicationName, "resource-" and the
+      # resource ID, which tests/collector checks. Ingest adds the environment from the placement.
+      transform/kubernetes_events:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            conditions:
+              - IsMap(body) and IsMap(body["object"]) and IsMap(body["object"]["regarding"])
+            statements:
+              - merge_maps(cache, ExtractPatterns(body["object"]["regarding"]["namespace"], "^{{ regexQuoteMeta .Values.global.workspaceNamespacePrefix }}(?P<workspace>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$$"), "upsert") where IsString(body["object"]["regarding"]["namespace"])
+              - merge_maps(cache, ExtractPatterns(body["object"]["regarding"]["name"], "^resource-(?P<resource>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(-|$$)"), "upsert") where IsString(body["object"]["regarding"]["name"])
+              - set(resource.attributes["loco.workspace.id"], cache["workspace"]) where cache["workspace"] != nil and cache["resource"] != nil
+              - set(resource.attributes["loco.resource.id"], cache["resource"]) where cache["workspace"] != nil and cache["resource"] != nil
+              - set(resource.attributes["loco.telemetry.scope"], "kubernetes-event") where cache["workspace"] != nil and cache["resource"] != nil
     service:
       extensions: [health_check]
       pipelines:
         logs:
           receivers: [k8sobjects]
-          processors: [memory_limiter, resource/region, batch]
+          processors: [memory_limiter, transform/kubernetes_events, resource/region, batch]
         metrics:
           receivers: [k8s_cluster]
           processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]

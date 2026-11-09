@@ -53,9 +53,11 @@ type Gate struct {
 }
 
 type window struct {
-	workspaceID string
-	placedAt    time.Time
-	removedAt   time.Time
+	workspaceID   string
+	resourceID    string
+	environmentID string
+	placedAt      time.Time
+	removedAt     time.Time
 }
 
 type clusterPlacements struct {
@@ -194,7 +196,12 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	}
 	windows := make([]window, 0, len(resp.GetWindows()))
 	for _, w := range resp.GetWindows() {
-		entry := window{workspaceID: w.GetWorkspaceId(), placedAt: w.GetPlacedAt().AsTime()}
+		entry := window{
+			workspaceID:   w.GetWorkspaceId(),
+			resourceID:    w.GetResourceId(),
+			environmentID: w.GetEnvironmentId(),
+			placedAt:      w.GetPlacedAt().AsTime(),
+		}
 		if w.GetRemovedAt() != nil {
 			entry.removedAt = w.GetRemovedAt().AsTime()
 		}
@@ -241,6 +248,21 @@ func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time)
 	return a.match(workspaceID, at), nil
 }
 
+// environment returns the environment of the resource's placement on this cluster at the given
+// time, or "" when the cluster had none. A placement's window opens before its workload exists,
+// so windows fetched after the record's time are complete; older ones are refetched once.
+func (a *Admission) environment(ctx context.Context, resourceID string, at time.Time) (string, error) {
+	if environmentID := a.placedEnvironment(resourceID, at); environmentID != "" {
+		return environmentID, nil
+	}
+	windows, err := a.cluster.load(ctx, a.gate, a.token, time.Since(at))
+	if err != nil {
+		return "", err
+	}
+	a.windows = windows
+	return a.placedEnvironment(resourceID, at), nil
+}
+
 func (a *Admission) match(workspaceID string, at time.Time) verdict {
 	skew := a.gate.cfg.ClockSkew
 	result := rejectNotPlaced
@@ -258,4 +280,20 @@ func (a *Admission) match(workspaceID string, at time.Time) verdict {
 		return accepted
 	}
 	return result
+}
+
+// placedEnvironment names the environment of the resource's latest window opened by the given
+// time. A resource has one placement per cluster at a time, and its events can outlive the
+// placement's removal, so the window's end does not bound it.
+func (a *Admission) placedEnvironment(resourceID string, at time.Time) string {
+	var latest window
+	for _, w := range a.windows {
+		if w.resourceID != resourceID || at.Before(w.placedAt.Add(-a.gate.cfg.ClockSkew)) {
+			continue
+		}
+		if w.placedAt.After(latest.placedAt) {
+			latest = w
+		}
+	}
+	return latest.environmentID
 }

@@ -514,12 +514,13 @@ type Placement struct {
 }
 
 type PlacementWindow struct {
-	ID          uuid.UUID  `json:"id"`
-	ResourceID  uuid.UUID  `json:"resourceId"`
-	ClusterID   uuid.UUID  `json:"clusterId"`
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	PlacedAt    time.Time  `json:"placedAt"`
-	RemovedAt   *time.Time `json:"removedAt"`
+	ID            uuid.UUID  `json:"id"`
+	ResourceID    uuid.UUID  `json:"resourceId"`
+	ClusterID     uuid.UUID  `json:"clusterId"`
+	WorkspaceID   uuid.UUID  `json:"workspaceId"`
+	EnvironmentID uuid.UUID  `json:"environmentId"`
+	PlacedAt      time.Time  `json:"placedAt"`
+	RemovedAt     *time.Time `json:"removedAt"`
 }
 
 type RegistryCredential struct {

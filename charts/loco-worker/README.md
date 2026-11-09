@@ -87,6 +87,8 @@ The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTT
 | `otel-col-daemon` (DaemonSet) | Container logs, kubelet and host metrics, pulled application metrics |
 | `otel-col-cluster` (StatefulSet) | Kubernetes cluster metrics and events |
 
+`otel-col-cluster` attributes a Kubernetes event to a resource when the event's object lives in a workspace namespace (`global.workspaceNamespacePrefix` and the workspace ID) and its name starts with `resource-<resource ID>`, as the controller names a resource's Deployment, ReplicaSets, pods, Service and Secrets. Such an event carries `loco.workspace.id`, `loco.resource.id` and `loco.telemetry.scope=kubernetes-event`; the observability proxy ingest adds `loco.environment.id` from the resource's placement on the sending cluster. Attributed events are served by `QueryEvents` and `TailEvents` and left out of `QueryLogs` and `TailLogs`.
+
 ```yaml
 global:
   region: us-east-1
