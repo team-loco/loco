@@ -50,6 +50,7 @@ import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView"
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 import { isInFlight } from "@/pages/dashboard/format";
 
+const READ_LEVEL = 1;
 const WRITE_LEVEL = 2;
 const EVENT_LIMIT = 500;
 const EVENTS_REFRESH_MS = 30_000;
@@ -89,7 +90,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		error,
 		refresh,
 	} = useResourceData(resourceId);
-	const { resourceLevel } = useMyScopes();
+	const { resourceLevel, workspaceLevel } = useMyScopes();
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const configQuery = useQuery(getConfig, {});
 	const eventsQuery = useQuery(
@@ -97,7 +98,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		{ resourceId, limit: EVENT_LIMIT },
 		{ enabled: resourceId !== "", refetchInterval: EVENTS_REFRESH_MS },
 	);
-	const resourcesQuery = useTanstackQuery(workspaceResourcesOptions(transport, activeWorkspaceId ?? ""));
+	const canListResources =
+		activeOrgId !== null && activeWorkspaceId !== null && workspaceLevel(activeOrgId, activeWorkspaceId) >= READ_LEVEL;
+	const resourcesQuery = useTanstackQuery({
+		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
+		enabled: canListResources,
+	});
 
 	const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 	const [range, setRange] = useState<MetricRange>("1h");
