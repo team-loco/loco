@@ -19,7 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
-import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { usePagedRows } from "@/lib/paging";
 
 import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
@@ -30,8 +30,7 @@ import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
 import { WorkspaceAccessDialog } from "./team/WorkspaceAccessDialog";
 
-const DEFAULT_PAGE_SIZE = 25;
-const PAGE_SIZES = [DEFAULT_PAGE_SIZE, 50, 100];
+const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
 const ACCESS_DOCS = `${DOCS_URL}/operations/access/`;
 const SCOPE_OF: Record<ScopeName, Scope> = { read: Scope.READ, write: Scope.WRITE, admin: Scope.ADMIN };
@@ -47,7 +46,6 @@ export function Team() {
 	const resend = useMutation(resendInvitation);
 	const [view, setView] = useState<View>("all");
 	const [q, setQ] = useState("");
-	const [paging, setPaging] = useState({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [inviting, setInviting] = useState(false);
 	const [accessId, setAccessId] = useState<string | null>(null);
 	const [revoking, setRevoking] = useState<Invitation | null>(null);
@@ -56,7 +54,7 @@ export function Team() {
 	const orgName = data.org?.name ?? "";
 	const inviteOpen = inviting || (canInvite && params.get("invite") === "1");
 	const rows = buildRows(data.members, data.invitations, view, q, meId);
-	const slice = pageSlice(rows, paging.page, paging.size);
+	const paged = usePagedRows(rows, PAGE_SIZES);
 	const counts: Record<View, number> = {
 		all: data.members.length + data.invitations.length,
 		members: data.members.length,
@@ -104,10 +102,6 @@ export function Team() {
 		</Button>
 	);
 
-	const resetPage = () => {
-		setPaging((prev) => ({ ...prev, page: 0 }));
-	};
-
 	const empty =
 		q.trim() !== "" ? (
 			<EmptyState
@@ -119,7 +113,7 @@ export function Team() {
 						variant="outline"
 						onClick={() => {
 							setQ("");
-							resetPage();
+							paged.reset();
 						}}
 					>
 						<XIcon />
@@ -156,7 +150,7 @@ export function Team() {
 		return (
 			<>
 				<TeamTable
-					rows={slice.rows}
+					rows={paged.rows}
 					now={now}
 					isLoading={data.isLoading}
 					accessLoading={data.accessLoading}
@@ -179,28 +173,7 @@ export function Team() {
 						onRevoke: setRevoking,
 					}}
 				/>
-				<Pager
-					label={rows.length > 0 ? pageRangeLabel(slice.page, paging.size, rows.length) : "0 of 0"}
-					pageSizes={PAGE_SIZES}
-					pageSize={paging.size}
-					onPageSize={(size) => {
-						setPaging({ page: 0, size });
-					}}
-					onPrev={
-						slice.page > 0
-							? () => {
-									setPaging({ page: slice.page - 1, size: paging.size });
-								}
-							: null
-					}
-					onNext={
-						slice.page < slice.pages - 1
-							? () => {
-									setPaging({ page: slice.page + 1, size: paging.size });
-								}
-							: null
-					}
-				/>
+				<Pager {...paged.pager} />
 			</>
 		);
 	})();
@@ -228,7 +201,7 @@ export function Team() {
 								const next = VIEWS.find((x) => x.key === v[0]);
 								if (next === undefined) return;
 								setView(next.key);
-								resetPage();
+								paged.reset();
 							}}
 						>
 							{VIEWS.map((v) => (
@@ -241,7 +214,7 @@ export function Team() {
 							value={q}
 							onChange={(e) => {
 								setQ(e.target.value);
-								resetPage();
+								paged.reset();
 							}}
 							placeholder="Search by name or email"
 							aria-label="Search people"
