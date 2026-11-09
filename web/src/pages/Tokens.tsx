@@ -17,7 +17,7 @@ import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
-import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { usePagedRows } from "@/lib/paging";
 import { tsMs } from "@/lib/time";
 
 import { CreateTokenDrawer } from "./tokens/CreateTokenDrawer";
@@ -31,8 +31,7 @@ import { TokenTable } from "./tokens/TokenTable";
 import { useTokenData } from "./tokens/useTokenData";
 import type { Owner } from "./tokens/useTokenData";
 
-const DEFAULT_PAGE_SIZE = 25;
-const PAGE_SIZES = [DEFAULT_PAGE_SIZE, 50, 100];
+const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
 
 function parseOwner(value: string | null): OwnerKey {
@@ -65,7 +64,6 @@ export function Tokens() {
 	const queryClient = useQueryClient();
 	const now = useNow(NOW_TICK_MS).getTime();
 	const [q, setQ] = useState("");
-	const [paging, setPaging] = useState({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [draft, setDraft] = useState<CreateDraft | null>(null);
 	const [revoking, setRevoking] = useState<Token | null>(null);
 
@@ -80,7 +78,7 @@ export function Tokens() {
 			if (ea !== eb) return ea - eb;
 			return tsMs(a.expiresAt) - tsMs(b.expiresAt);
 		});
-	const slice = pageSlice(owner.canList ? rows : [], paging.page, paging.size);
+	const paged = usePagedRows(owner.canList ? rows : [], PAGE_SIZES);
 	const openDraft = draft ?? (params.get("new") === "1" ? { owner: ownerKey, name: "", items: [] } : null);
 	const liveCount = (k: OwnerKey) => data.owners[k].tokens.filter((t) => tokenStatus(t, now) !== "expired").length;
 	const total = OWNER_KEYS.reduce((sum, k) => sum + liveCount(k), 0);
@@ -101,7 +99,7 @@ export function Tokens() {
 			if (next === "workspace") p.delete("owner");
 			else p.set("owner", next);
 		});
-		setPaging((prev) => ({ ...prev, page: 0 }));
+		paged.reset();
 	};
 
 	const invalidate = async () => {
@@ -209,7 +207,7 @@ export function Tokens() {
 							value={q}
 							onChange={(e) => {
 								setQ(e.target.value);
-								setPaging((prev) => ({ ...prev, page: 0 }));
+								paged.reset();
 							}}
 							placeholder="Search by name or access"
 							aria-label="Search tokens"
@@ -230,7 +228,7 @@ export function Tokens() {
 				) : (
 					<>
 						<TokenTable
-							tokens={slice.rows}
+							tokens={paged.rows}
 							tree={data.tree}
 							now={now}
 							isLoading={current.isLoading}
@@ -240,28 +238,7 @@ export function Tokens() {
 							onDuplicate={duplicate}
 							onRevoke={setRevoking}
 						/>
-						<Pager
-							label={rows.length > 0 ? pageRangeLabel(slice.page, paging.size, rows.length) : "0 of 0"}
-							pageSizes={PAGE_SIZES}
-							pageSize={paging.size}
-							onPageSize={(size) => {
-								setPaging({ page: 0, size });
-							}}
-							onPrev={
-								slice.page > 0
-									? () => {
-											setPaging({ page: slice.page - 1, size: paging.size });
-										}
-									: null
-							}
-							onNext={
-								slice.page < slice.pages - 1
-									? () => {
-											setPaging({ page: slice.page + 1, size: paging.size });
-										}
-									: null
-							}
-						/>
+						<Pager {...paged.pager} />
 					</>
 				)}
 			</Section>
