@@ -13,6 +13,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -187,7 +188,7 @@ func (a *applier) createDomain(
 	resourceID uuid.UUID,
 	domain string,
 ) (uuid.UUID, error) {
-	platformDomain, label, err := configplan.MatchPlatformDomain(domain, a.platformDomains)
+	platformDomain, label, err := platformdomain.Match(domain, a.platformDomains)
 	if err != nil {
 		return uuid.UUID{}, &invalidInputError{public: publicInvalidRequest, err: err}
 	}

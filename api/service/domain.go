@@ -17,8 +17,8 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -80,7 +80,7 @@ func (s *DomainServer) ListPlatformDomains(
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	clusters := regionClusters(eligible)
-	served := configplan.ServedDomains(clusters)
+	served := platformdomain.Served(clusters)
 	domains := make([]*domainv1.PlatformDomain, 0, len(served))
 	for _, domain := range served {
 		platformDomain := &domainv1.PlatformDomain{Domain: domain}
@@ -470,7 +470,7 @@ func (s *DomainServer) checkResourceDomain(
 	if err != nil {
 		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}
-	return configplan.CheckDomain(hostname, check.clusters, check.targets)
+	return platformdomain.Check(hostname, check.clusters, check.targets)
 }
 
 // imperativeDomainEnvironment resolves the production environment for domain RPCs

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/internal/locofile"
 )
@@ -63,48 +64,13 @@ type Input struct {
 	Disabled         []string
 	FileEnvironments []string
 	Environments     []string
-	Clusters         []Cluster
+	Clusters         []platformdomain.Cluster
 	Secrets          map[string]map[string]int64
 	MaxSecretBytes   int64
 	Provision        []string
 	Live             []Service
 	Defaults         servicedefaults.Defaults
 	Images           map[string]ImageResult
-}
-
-type Cluster struct {
-	Name    string
-	Region  string
-	Domains []string
-}
-
-func ServedDomains(clusters []Cluster) []string {
-	var domains []string
-	for _, cluster := range clusters {
-		domains = append(domains, cluster.Domains...)
-	}
-	slices.Sort(domains)
-	return slices.Compact(domains)
-}
-
-func CheckDomain(domain string, clusters, targets []Cluster) (string, string, error) {
-	platform, label, err := MatchPlatformDomain(domain, ServedDomains(clusters))
-	if err != nil {
-		return "", "", err
-	}
-	var missing []string
-	for _, cluster := range targets {
-		if !slices.Contains(cluster.Domains, platform) {
-			missing = append(missing, cluster.Name+" ("+cluster.Region+")")
-		}
-	}
-	if len(missing) > 0 {
-		return "", "", fmt.Errorf(
-			"%w: %s is under %s, which %s does not serve",
-			ErrDomainNotServed, domain, platform, strings.Join(missing, ", "),
-		)
-	}
-	return platform, label, nil
 }
 
 // Change is one field an apply would set.
@@ -270,9 +236,11 @@ func unknownEnvironments(in Input) []Error {
 
 func checkService(name string, service locofile.Service, in Input) []Error {
 	var errs []Error
-	var targets []Cluster
+	var targets []platformdomain.Cluster
 	for _, region := range slices.Sorted(maps.Keys(service.Regions)) {
-		index := slices.IndexFunc(in.Clusters, func(cluster Cluster) bool { return cluster.Region == region })
+		index := slices.IndexFunc(in.Clusters, func(cluster platformdomain.Cluster) bool {
+			return cluster.Region == region
+		})
 		if index >= 0 {
 			targets = append(targets, in.Clusters[index])
 			continue
@@ -281,7 +249,7 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 		errs = append(errs, Error{Service: name, Path: pathRegions + "." + region, Err: unknown})
 	}
 	for _, domain := range service.Domains {
-		if _, _, err := CheckDomain(domain, in.Clusters, targets); err != nil {
+		if _, _, err := platformdomain.Check(domain, in.Clusters, targets); err != nil {
 			errs = append(errs, Error{Service: name, Path: pathDomains, Err: err})
 		}
 	}
@@ -330,27 +298,6 @@ func withEnabled(current Service, changes []Change) []Change {
 		return strings.Compare(a.Path, b.Path)
 	})
 	return changes
-}
-
-// MatchPlatformDomain returns the platform domain a service domain belongs to and the label in
-// front of it. When platform domains nest, the longest suffix wins, so with loco.test and
-// stage.loco.test served, api.stage.loco.test is the label api under stage.loco.test. The
-// domain must be exactly one label under that platform domain. Plan and Apply both use it.
-func MatchPlatformDomain(domain string, platformDomains []string) (string, string, error) {
-	matched := ""
-	for _, platform := range platformDomains {
-		if strings.HasSuffix(domain, "."+platform) && len(platform) > len(matched) {
-			matched = platform
-		}
-	}
-	if matched == "" {
-		return "", "", ErrCustomDomain.Detail("%s", domain)
-	}
-	label := strings.TrimSuffix(domain, "."+matched)
-	if label == "" || strings.Contains(label, ".") {
-		return "", "", ErrNotSingleLabel.Detail("%s under %s", domain, matched)
-	}
-	return matched, label, nil
 }
 
 // stopsRunningRegion reports whether the desired regions leave out a region where the service
