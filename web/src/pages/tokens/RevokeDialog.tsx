@@ -3,16 +3,7 @@ import { useState } from "react";
 import { revokeToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/design/AlertDialog";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { toastConnectError } from "@/lib/error-handler";
 import { maybeTsMs } from "@/lib/time";
 
@@ -45,34 +36,21 @@ export function RevokeDialog({
 	};
 
 	return (
-		<AlertDialog
+		<ConfirmDialog
 			open={token !== null}
-			onOpenChange={(open) => {
-				if (!open) onClose();
+			title={`Revoke ${shown?.name ?? ""}?`}
+			description={`Requests using ${shown?.name ?? ""} will fail immediately. This can't be undone.`}
+			confirmLabel="Revoke"
+			pendingLabel="Revoking…"
+			pending={mutation.isPending}
+			onConfirm={() => {
+				void confirm();
 			}}
+			onClose={onClose}
 		>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Revoke {shown?.name ?? ""}?</AlertDialogTitle>
-					<AlertDialogDescription>
-						Requests using {shown?.name ?? ""} will fail immediately. This can&apos;t be undone.
-					</AlertDialogDescription>
-					<span className="text-[12.5px] text-fg3">
-						{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}
-					</span>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
-					<AlertDialogAction
-						disabled={mutation.isPending}
-						onClick={() => {
-							void confirm();
-						}}
-					>
-						{mutation.isPending ? "Revoking…" : "Revoke"}
-					</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
+			<span className="text-[12.5px] text-fg3">
+				{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}
+			</span>
+		</ConfirmDialog>
 	);
 }
