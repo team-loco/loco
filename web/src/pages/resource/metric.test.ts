@@ -4,56 +4,12 @@ import { MetricPointSchema, MetricSeriesSchema } from "@gen/loco/observability/v
 
 import { msToTimestamp } from "@/lib/time";
 
-import { bandKey, bandRequest, latestBand, mergeBand, percentPoints, type BandTarget } from "./metric";
+import { latestBand, mergeBand, percentPoints } from "./metric";
 
-const WORKSPACE_ID = "0199d1c2-0000-7000-8000-000000000010";
 const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
-const PRODUCTION_ID = "0199d1c2-0000-7000-8000-000000000002";
 const STAGING_ID = "0199d1c2-0000-7000-8000-000000000003";
-const REGION = "us-east-1";
-const METRIC_NAME = "k8s.pod.cpu_request_utilization";
 const NOW_MS = Date.UTC(2026, 9, 11, 12, 0, 0);
 const HOUR_MS = 3_600_000;
-const MINUTE_S = 60;
-
-function target(overrides: Partial<BandTarget> = {}): BandTarget {
-	return {
-		workspaceId: WORKSPACE_ID,
-		environmentId: PRODUCTION_ID,
-		resourceId: RESOURCE_ID,
-		region: REGION,
-		range: "1h",
-		metricName: METRIC_NAME,
-		...overrides,
-	};
-}
-
-describe("bandRequest", () => {
-	test("asks for one aggregation of the resource in its environment and region", () => {
-		expect(bandRequest(target(), "p50", NOW_MS)).toEqual({
-			workspaceId: WORKSPACE_ID,
-			environmentId: PRODUCTION_ID,
-			region: REGION,
-			resourceIds: [RESOURCE_ID],
-			startTime: msToTimestamp(NOW_MS - HOUR_MS),
-			endTime: msToTimestamp(NOW_MS),
-			metricName: METRIC_NAME,
-			intervalSeconds: MINUTE_S,
-			aggregation: "p50",
-		});
-	});
-
-	test("leaves the region empty to cover every region", () => {
-		expect(bandRequest(target({ region: "" }), "max", NOW_MS).region).toBe("");
-	});
-});
-
-describe("bandKey", () => {
-	test("caches environments and regions separately", () => {
-		expect(bandKey(target())).not.toEqual(bandKey(target({ environmentId: STAGING_ID })));
-		expect(bandKey(target())).not.toEqual(bandKey(target({ region: "" })));
-	});
-});
 
 describe("percentPoints", () => {
 	test("keeps the resource's points as percentages in time order", () => {

@@ -1,7 +1,6 @@
-import type { MessageInitShape } from "@bufbuild/protobuf";
-import type { MetricSeries, QueryMetricsRequestSchema } from "@gen/loco/observability/v1/observability_pb";
+import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
-import { maybeTsMs, msToTimestamp } from "@/lib/time";
+import { maybeTsMs } from "@/lib/time";
 
 export type MetricRange = "1h" | "6h" | "24h";
 
@@ -13,13 +12,7 @@ export const RANGE_MS: Record<MetricRange, number> = {
 	"24h": 86_400_000,
 };
 
-const RANGE_INTERVAL: Record<MetricRange, number> = {
-	"1h": 60,
-	"6h": 300,
-	"24h": 900,
-};
-
-const BAND_AGGREGATIONS = ["min", "p50", "max"] as const;
+export const BAND_AGGREGATIONS = ["min", "p50", "max"] as const;
 
 export type BandAggregation = (typeof BAND_AGGREGATIONS)[number];
 
@@ -28,39 +21,6 @@ const PERCENT = 100;
 interface MetricPointPct {
 	time: number;
 	pct: number;
-}
-
-export interface BandTarget {
-	workspaceId: string;
-	environmentId: string;
-	resourceId: string;
-	region: string;
-	range: MetricRange;
-	metricName: string;
-}
-
-export function bandKey(target: BandTarget) {
-	const { workspaceId, environmentId, resourceId, region, range, metricName } = target;
-	return ["resource-metric-band", workspaceId, environmentId, resourceId, region, range, metricName];
-}
-
-export function bandRequest(
-	target: BandTarget,
-	aggregation: BandAggregation,
-	nowMs: number,
-): MessageInitShape<typeof QueryMetricsRequestSchema> {
-	const { workspaceId, environmentId, resourceId, region, range, metricName } = target;
-	return {
-		workspaceId,
-		environmentId,
-		region,
-		resourceIds: [resourceId],
-		startTime: msToTimestamp(nowMs - RANGE_MS[range]),
-		endTime: msToTimestamp(nowMs),
-		metricName,
-		intervalSeconds: RANGE_INTERVAL[range],
-		aggregation,
-	};
 }
 
 export function percentPoints(series: MetricSeries[], resourceId: string): MetricPointPct[] {
