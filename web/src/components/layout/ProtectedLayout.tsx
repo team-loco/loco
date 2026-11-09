@@ -54,7 +54,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		<ContextProvider
 			availableOrgs={orgs}
 			availableWorkspaces={workspaces}
-			workspacesSettled={orgs !== undefined && !scopes.isLoading && !workspacesLoading}
+			workspacesSettled={(orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading}
 		>
 			<AppShell>{children}</AppShell>
 			<ClaimedOrgsBanner />

@@ -61,9 +61,12 @@ with sync_playwright() as playwright:
                         )
                         beta_id = org_ids["beta"]
                         beta_workspace = state["workspaces"]["beta/beta-workspace"]
+                        org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
+                        page.route(org_list_rpc, lambda route: route.abort())
                         page.goto(f"{state['ui_url']}/org/{beta_id}/settings")
                         page.wait_for_url(f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?tab=org")
                         assert page.get_by_role("textbox", name="Name", exact=True).input_value() == "beta"
+                        page.unroute(org_list_rpc)
                         page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
                         page.wait_for_url(f"{state['ui_url']}/organizations")
                     for tab in ("ws", "org"):
