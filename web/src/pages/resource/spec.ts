@@ -1,6 +1,9 @@
 import { toJson, type JsonObject, type JsonValue } from "@bufbuild/protobuf";
 import { DeploymentSpecSchema, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
+import { getServiceSpec } from "@/lib/deployment-utils";
+import { shortImageRef } from "@/lib/image";
+
 function isObject(v: JsonValue | undefined): v is JsonObject {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -35,7 +38,7 @@ export function specText(dep: Deployment): string {
 	return JSON.stringify(specObject(dep), null, 2);
 }
 
-export interface DiffLine {
+interface DiffLine {
 	sign: " " | "+" | "−";
 	text: string;
 }
@@ -87,4 +90,85 @@ export function diffLines(from: string, to: string): { lines: DiffLine[]; add: n
 		add++;
 	}
 	return { lines, add, del };
+}
+
+interface SideBySideRow {
+	left: { n: number; text: string; changed: boolean } | null;
+	right: { n: number; text: string; changed: boolean } | null;
+}
+
+export function sideBySide(lines: DiffLine[]): SideBySideRow[] {
+	const rows: SideBySideRow[] = [];
+	let leftN = 0;
+	let rightN = 0;
+	let i = 0;
+	while (i < lines.length) {
+		const line = lines[i];
+		if (line === undefined) break;
+		if (line.sign === " ") {
+			leftN++;
+			rightN++;
+			rows.push({
+				left: { n: leftN, text: line.text, changed: false },
+				right: { n: rightN, text: line.text, changed: false },
+			});
+			i++;
+			continue;
+		}
+		const removed: string[] = [];
+		const added: string[] = [];
+		while (i < lines.length && lines[i]?.sign !== " ") {
+			const next = lines[i];
+			if (next?.sign === "−") removed.push(next.text);
+			if (next?.sign === "+") added.push(next.text);
+			i++;
+		}
+		for (let k = 0; k < Math.max(removed.length, added.length); k++) {
+			const l = removed[k];
+			const r = added[k];
+			rows.push({
+				left: l === undefined ? null : { n: ++leftN, text: l, changed: true },
+				right: r === undefined ? null : { n: ++rightN, text: r, changed: true },
+			});
+		}
+	}
+	return rows;
+}
+
+interface SpecChange {
+	label: string;
+	from: string;
+	to: string;
+}
+
+const NONE = "—";
+
+function healthLine(dep: Deployment): string {
+	const hc = getServiceSpec(dep)?.healthCheck;
+	if (hc === undefined) return NONE;
+	return `${hc.path} every ${hc.intervalSeconds.toString()}s`;
+}
+
+export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
+	const f = getServiceSpec(from);
+	const t = getServiceSpec(to);
+	const out: SpecChange[] = [];
+	const push = (label: string, a: string, b: string) => {
+		if (a !== b) out.push({ label, from: a, to: b });
+	};
+	const fromImage = f?.build?.image ?? "";
+	const toImage = t?.build?.image ?? "";
+	if (fromImage !== toImage) {
+		out.push({ label: "image", from: shortImageRef(fromImage) || NONE, to: shortImageRef(toImage) || NONE });
+	}
+	push("replicas", from.replicas.toString(), to.replicas.toString());
+	push("cpu", f?.cpu ?? NONE, t?.cpu ?? NONE);
+	push("memory", f?.memory ?? NONE, t?.memory ?? NONE);
+	push("port", f?.port.toString() ?? NONE, t?.port.toString() ?? NONE);
+	push("health", healthLine(from), healthLine(to));
+	const fEnv = f?.env ?? {};
+	const tEnv = t?.env ?? {};
+	const keys = [...new Set([...Object.keys(fEnv), ...Object.keys(tEnv)])].toSorted();
+	for (const k of keys) push(`env.${k}`, fEnv[k] ?? NONE, tEnv[k] ?? NONE);
+	return out;
 }

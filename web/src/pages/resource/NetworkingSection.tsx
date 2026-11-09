@@ -18,12 +18,16 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { Section } from "@/components/design/Page";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { SoonTag } from "@/components/design/SoonTag";
+import { Switch } from "@/components/design/Switch";
 import { toastConnectError } from "@/lib/error-handler";
+import { slug } from "@/lib/slug";
 
 import { MANAGED_NOTICE_ID } from "./ManagedNotice";
+import { SettingsBlock, type SectionProps } from "./SettingsSections";
 
 const HOST = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
@@ -203,35 +207,100 @@ function DomainRow({
 	);
 }
 
-export function DomainsSection({
+export function NetworkingSection({
+	draft,
+	base,
+	errors,
+	locked,
+	describedBy,
+	onChange,
 	domains,
-	managed,
-	onChanged,
-}: {
-	domains: ResourceDomain[];
-	managed: boolean;
-	onChanged: () => void;
-}) {
+	served,
+	onDomainsChanged,
+}: SectionProps & { domains: ResourceDomain[]; served: string[]; onDomainsChanged: () => void }) {
 	const sorted = domains.toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+	const isPublic = draft.isPublic ?? base.isPublic;
+	const adding = isPublic && !base.isPublic;
+	const platformDomain = draft.platformDomain ?? served[0] ?? "";
 
 	return (
-		<Section title="Domains">
-			{sorted.length === 0 && (
-				<div className="border-b border-line px-4 py-4 text-fg3">
-					No domains, so the resource receives no internet traffic. Adding or removing a domain takes effect on the next
-					deployment.
+		<SettingsBlock id="set-net" title="Networking">
+			<div className="flex items-center justify-between gap-4">
+				<span className="flex flex-col gap-0.5">
+					<span className="text-[13.5px] font-medium">Public</span>
+					<span className="text-[12.5px] text-fg3">
+						{base.isPublic && !isPublic
+							? "Saving removes every domain and redeploys, so the resource only answers inside the workspace."
+							: "Serve this resource on the internet over HTTPS."}
+					</span>
+				</span>
+				<Switch
+					checked={isPublic}
+					disabled={locked}
+					aria-label="Public"
+					aria-describedby={describedBy}
+					onCheckedChange={(checked: boolean) => {
+						onChange({ isPublic: checked, platformDomain, subdomain: draft.subdomain ?? slug(base.name) });
+					}}
+				/>
+			</div>
+			<Field label="Port" error={errors.port} hint="The port the container listens on.">
+				<Input
+					className="w-40 font-mono"
+					inputMode="numeric"
+					value={draft.port ?? base.port}
+					disabled={locked}
+					aria-describedby={describedBy}
+					aria-invalid={errors.port !== undefined}
+					onChange={(e) => {
+						onChange({ port: e.target.value });
+					}}
+				/>
+			</Field>
+			{adding && (
+				<Field label="Domain" error={errors.subdomain ?? errors.platformDomain}>
+					<InputGroup>
+						<InputGroupInput
+							className="font-mono"
+							aria-label="Subdomain"
+							value={draft.subdomain ?? ""}
+							aria-invalid={errors.subdomain !== undefined}
+							onChange={(e) => {
+								onChange({ subdomain: e.target.value.toLowerCase() });
+							}}
+						/>
+						<InputGroupAddon align="inline-end">
+							<InputGroupText>.{platformDomain === "" ? "no platform domain" : platformDomain}</InputGroupText>
+						</InputGroupAddon>
+					</InputGroup>
+				</Field>
+			)}
+			{isPublic && base.isPublic && (
+				<div className="flex flex-col gap-1.5">
+					<span className="text-[13px] font-medium">Domains</span>
+					<div className="overflow-hidden rounded-[10px] border border-line bg-background">
+						{sorted.map((d) => (
+							<DomainRow
+								key={d.id}
+								domain={d}
+								onlyDomain={sorted.length === 1}
+								managed={locked}
+								onChanged={onDomainsChanged}
+							/>
+						))}
+						<div className="flex gap-2 px-4 py-2.5">
+							<Input disabled placeholder="shop.example.com" aria-label="Custom domain" className="flex-1" />
+							<Button variant="outline" disabled>
+								Add custom domain
+								<SoonTag />
+							</Button>
+						</div>
+					</div>
+					<span className="text-[12.5px] text-fg3">
+						Changes to a domain row apply right away and take effect on the next deployment.
+					</span>
 				</div>
 			)}
-			{sorted.map((d) => (
-				<DomainRow key={d.id} domain={d} onlyDomain={sorted.length === 1} managed={managed} onChanged={onChanged} />
-			))}
-			<div className="flex gap-2 px-4 py-3">
-				<Input disabled placeholder="app.example.com" aria-label="Custom domain" className="flex-1" />
-				<Button variant="outline" disabled>
-					Add custom domain
-					<SoonTag />
-				</Button>
-			</div>
-		</Section>
+		</SettingsBlock>
 	);
 }

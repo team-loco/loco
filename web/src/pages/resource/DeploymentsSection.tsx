@@ -1,21 +1,30 @@
-import { GitCompareIcon, Undo2Icon } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { ChevronRightIcon, FileCodeIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
+import { Fragment, useState } from "react";
+import { Link } from "react-router";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { SoonTag } from "@/components/design/SoonTag";
+import { DeploymentPhaseBadge, StatusLabel } from "@/components/design/StatusBadge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { pageRangeLabel, pageSlice } from "@/lib/paging";
-import { tsMs } from "@/lib/time";
+import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { deploymentState } from "@/pages/dashboard/deploymentRows";
 
-import { formatStarted } from "./format";
-import { depTag, PAGE_SIZES, startedMs, type RegionView } from "./model";
+import { formatDuration, formatFullTime, shortId } from "./format";
+import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
+import { specChanges } from "./spec";
 
-const GRID = "lg:grid-cols-[130px_104px_100px_100px_70px_minmax(0,1fr)_110px]";
+const CLOCK_TICK_MS = 60_000;
+const BASE_COLUMNS = 7;
+const DEFAULT_PAGE_SIZE = 10;
 
 interface Row {
 	dep: Deployment;
@@ -24,24 +33,90 @@ interface Row {
 	isCurrent: boolean;
 }
 
-function IconAction({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+function DeploymentStatus({ dep }: { dep: Deployment }) {
+	if (deploymentState(dep) === "superseded") return <StatusLabel glyph="off" label="Superseded" />;
+	return <DeploymentPhaseBadge phase={dep.status} />;
+}
+
+function timeFact(ms: number | undefined): string {
+	return ms === undefined ? "—" : formatFullTime(ms);
+}
+
+function Detail({
+	row,
+	logsHref,
+	onRollback,
+	onViewSpec,
+}: {
+	row: Row;
+	logsHref: string | undefined;
+	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+	onViewSpec: (dep: Deployment) => void;
+}) {
+	const { dep, region, prev } = row;
+	const took = tookMs(dep);
+	const changes = prev === undefined ? [] : specChanges(prev, dep);
 	return (
-		<Tooltip>
-			<TooltipTrigger
-				render={
+		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-8">
+			<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
+				<dt className="text-fg3">Created</dt>
+				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt))}</dd>
+				<dt className="text-fg3">Started</dt>
+				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.startedAt))}</dd>
+				<dt className="text-fg3">Completed</dt>
+				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt))}</dd>
+				<dt className="text-fg3">Took</dt>
+				<dd className="m-0 font-mono">{took === undefined ? "—" : formatDuration(took)}</dd>
+			</dl>
+			<div className="flex min-w-0 flex-col gap-1.5">
+				<span className="text-[12px] text-fg3">Changes from previous</span>
+				{prev === undefined && <span className="text-[12.5px] text-fg3">First deployment in {region.name}</span>}
+				{prev !== undefined && changes.length === 0 && (
+					<span className="text-[12.5px] text-fg3">Same spec as {shortId(prev.id)}</span>
+				)}
+				{changes.map((c) => (
+					<div key={c.label} className="flex min-w-0 flex-wrap gap-x-2 font-mono text-[12px]">
+						<span className="text-fg3">{c.label}</span>
+						<span className="break-all text-bad-fg">{c.from}</span>
+						<span className="text-fg3">→</span>
+						<span className="break-all text-ok-fg">{c.to}</span>
+					</div>
+				))}
+			</div>
+			<div className="flex flex-wrap items-start gap-2 md:flex-col md:items-stretch">
+				{canRollBackTo(dep, region) && (
 					<Button
 						variant="outline"
-						size="icon-sm"
-						className="text-fg2 hover:text-foreground"
-						aria-label={label}
-						onClick={onClick}
-					/>
-				}
-			>
-				{children}
-			</TooltipTrigger>
-			<TooltipContent>{label}</TooltipContent>
-		</Tooltip>
+						size="sm"
+						onClick={() => {
+							onRollback(dep, region.current);
+						}}
+					>
+						<Undo2Icon />
+						Roll back to this
+					</Button>
+				)}
+				{logsHref !== undefined && (
+					<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
+						<ScrollTextIcon />
+						Logs
+					</Button>
+				)}
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={() => {
+						onViewSpec(dep);
+					}}
+				>
+					<FileCodeIcon />
+					View spec
+				</Button>
+				<CopyId value={dep.id} className="h-[30px] px-2.5 text-[12.5px] text-fg2">
+					Copy ID
+				</CopyId>
+			</div>
+		</div>
 	);
 }
 
@@ -51,113 +126,142 @@ export function DeploymentsSection({
 	isLoadingMore,
 	historyError,
 	onLoadMore,
-	onDiff,
+	logsHref,
 	onRollback,
+	onViewSpec,
 }: {
 	regions: RegionView[];
 	hasMore: boolean;
 	isLoadingMore: boolean;
 	historyError: unknown;
 	onLoadMore: () => Promise<boolean>;
-	onDiff: (region: string, fromId: string, toId: string) => void;
+	logsHref: string | undefined;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+	onViewSpec: (dep: Deployment) => void;
 }) {
-	const [pagination, setPagination] = useState({ page: 0, size: 10 });
+	const nowMs = useNow(CLOCK_TICK_MS).getTime();
+	const [pagination, setPagination] = useState({ page: 0, size: DEFAULT_PAGE_SIZE });
+	const [open, setOpen] = useState<string | null>(null);
 	const { page, size } = pagination;
 
-	const all: Row[] = regions.flatMap((region) =>
-		region.history.map((dep, i) => ({
-			dep,
-			region,
-			prev: region.history[i + 1],
-			isCurrent: region.current?.id === dep.id,
-		})),
-	);
-	all.sort((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));
+	const all: Row[] = regions
+		.flatMap((region) =>
+			region.history.map((dep) => ({
+				dep,
+				region,
+				prev: previousDeployment(region, dep),
+				isCurrent: region.current?.id === dep.id,
+			})),
+		)
+		.toSorted((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));
 	const slice = pageSlice(all, page, size);
+	const multiRegion = regions.length > 1;
+	const columns = BASE_COLUMNS + (multiRegion ? 1 : 0);
 
 	return (
 		<Section
 			title={
-				<span className="flex items-baseline gap-2.5">
+				<>
 					Deployments
-					<span role="status" className="text-sm font-normal text-fg3">
-						{all.length} {hasMore ? "loaded" : "total"}
-						{isLoadingMore ? " · Loading…" : ""}
-					</span>
-				</span>
+					<Badge tone="count">
+						{all.length}
+						{hasMore ? "+" : ""}
+					</Badge>
+				</>
 			}
 		>
-			<div className="overflow-x-auto" aria-busy={isLoadingMore}>
-				<div className="lg:min-w-[860px]">
-					<div
-						className={cn(
-							GRID,
-							"hidden h-9 items-center gap-3 border-b border-line px-4 text-sm font-semibold text-fg2 lg:grid",
+			<div aria-busy={isLoadingMore}>
+				<Table className="min-w-[860px]">
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-6" />
+							<TableHead className="w-[130px]">Status</TableHead>
+							<TableHead className="w-[170px]">Version</TableHead>
+							{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
+							<TableHead className="w-[130px]">
+								<span className="flex items-center gap-2">
+									Deployed by
+									<SoonTag />
+								</span>
+							</TableHead>
+							<TableHead>Message</TableHead>
+							<TableHead className="w-[72px] text-right">Took</TableHead>
+							<TableHead className="w-[100px] text-right">When</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{slice.rows.length === 0 && (
+							<TableRow>
+								<TableCell colSpan={columns} className="text-fg3">
+									No deployments yet.
+								</TableCell>
+							</TableRow>
 						)}
-					>
-						<span>Started</span>
-						<span>Status</span>
-						<span>Region</span>
-						<span>Image</span>
-						<span>Replicas</span>
-						<span>Message</span>
-						<span />
-					</div>
-					{slice.rows.length === 0 && <div className="px-4 py-5 text-fg3">No deployments yet.</div>}
-					{slice.rows.map(({ dep, region, prev, isCurrent }) => {
-						const canRollback = !isCurrent && dep.status !== DeploymentPhase.FAILED && dep.spec !== undefined;
-						return (
-							<div
-								key={dep.id}
-								className={cn(
-									GRID,
-									"group grid min-h-[42px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2 hover:bg-bg2",
-									isCurrent && "bg-bg2",
-								)}
-							>
-								<span className="text-fg2 tabular-nums">{formatStarted(startedMs(dep))}</span>
-								<DeploymentPhaseBadge phase={dep.status} />
-								<div className="col-span-3 flex min-w-0 gap-3 lg:contents">
-									<span className="truncate text-fg2">{region.name}</span>
-									<span className="truncate" title={depTag(dep)}>
-										{depTag(dep)}
-									</span>
-									<span className="shrink-0 text-fg2 tabular-nums">
-										{dep.replicas}
-										<span className="lg:hidden">{dep.replicas === 1 ? " replica" : " replicas"}</span>
-									</span>
-								</div>
-								<span className="col-span-3 wrap-break-word text-fg2 empty:hidden lg:col-span-1">{dep.message}</span>
-								<div className="col-start-3 row-start-1 flex items-center justify-end gap-1 lg:col-start-auto lg:row-start-auto">
-									{isCurrent && <span className="mr-1 text-sm text-fg3">current</span>}
-									<div className="flex gap-1 opacity-0 transition-opacity duration-120 group-hover:opacity-100 focus-within:opacity-100">
-										{prev !== undefined && (
-											<IconAction
-												label="Compare with previous deployment"
-												onClick={() => {
-													onDiff(region.name, prev.id, dep.id);
+						{slice.rows.map((row) => {
+							const { dep, isCurrent } = row;
+							const expanded = open === dep.id;
+							const took = tookMs(dep);
+							const created = maybeTsMs(dep.createdAt);
+							const toggle = () => {
+								setOpen(expanded ? null : dep.id);
+							};
+							return (
+								<Fragment key={dep.id}>
+									<TableRow className={cn("cursor-pointer hover:bg-panel2", expanded && "border-b-0")} onClick={toggle}>
+										<TableCell>
+											<Button
+												variant="ghost"
+												size="icon-xs"
+												aria-expanded={expanded}
+												aria-label={`${expanded ? "Hide" : "Show"} details for ${shortId(dep.id)}`}
+												onClick={(e) => {
+													e.stopPropagation();
+													toggle();
 												}}
 											>
-												<GitCompareIcon />
-											</IconAction>
+												<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
+											</Button>
+										</TableCell>
+										<TableCell>
+											<DeploymentStatus dep={dep} />
+										</TableCell>
+										<TableCell>
+											<span className="flex items-center gap-2">
+												<span className="truncate font-mono text-[12.5px]" title={depTag(dep)}>
+													{depTag(dep)}
+												</span>
+												{isCurrent && <Badge tone="pill">current</Badge>}
+											</span>
+										</TableCell>
+										{multiRegion && (
+											<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
 										)}
-										{canRollback && (
-											<IconAction
-												label="Roll back to this deployment"
-												onClick={() => {
-													onRollback(dep, region.current);
-												}}
-											>
-												<Undo2Icon />
-											</IconAction>
-										)}
-									</div>
-								</div>
-							</div>
-						);
-					})}
-				</div>
+										<TableCell className="text-fg4">—</TableCell>
+										<TableCell className="max-w-0 truncate text-fg2" title={dep.message}>
+											{dep.message}
+										</TableCell>
+										<TableCell className="text-right font-mono text-[12px] text-fg2">
+											{took === undefined ? "—" : formatDuration(took)}
+										</TableCell>
+										<TableCell
+											className="text-right font-mono text-[12px] text-fg2"
+											title={created === undefined ? undefined : formatFullTime(created)}
+										>
+											{created === undefined ? "—" : agoLabel(created, nowMs)}
+										</TableCell>
+									</TableRow>
+									{expanded && (
+										<TableRow>
+											<TableCell colSpan={columns} className="h-auto p-0 whitespace-normal">
+												<Detail row={row} logsHref={logsHref} onRollback={onRollback} onViewSpec={onViewSpec} />
+											</TableCell>
+										</TableRow>
+									)}
+								</Fragment>
+							);
+						})}
+					</TableBody>
+				</Table>
 			</div>
 			<Pager
 				label={all.length > 0 ? `${pageRangeLabel(slice.page, size, all.length)}${hasMore ? "+" : ""}` : "0 of 0"}
@@ -191,7 +295,7 @@ export function DeploymentsSection({
 				}
 			/>
 			{historyError !== null && (
-				<div role="alert" className="px-4 pb-3 text-bad-fg">
+				<div role="alert" className="px-5 pb-3 text-bad-fg">
 					{getErrorMessage(historyError, "Could not load older deployments. Try Next again.")}
 				</div>
 			)}

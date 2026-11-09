@@ -2,7 +2,7 @@ import { ResourceStatus, type EnvironmentStatus, type RegionStatus } from "@gen/
 
 import { agoLabel, maybeTsMs } from "@/lib/time";
 
-export function unreportedRegions(environment: EnvironmentStatus | undefined): RegionStatus[] {
+function unreportedRegions(environment: EnvironmentStatus | undefined): RegionStatus[] {
 	return (environment?.regions ?? []).filter((r) => r.status === ResourceStatus.UNKNOWN);
 }
 

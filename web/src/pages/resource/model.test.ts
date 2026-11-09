@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { DeploymentSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentPhase, DeploymentSchema, DeploymentSpecSchema } from "@gen/loco/deployment/v1/deployment_pb";
 import { skipToken } from "@connectrpc/connect-query";
 import { describe, expect, test } from "bun:test";
 import {
@@ -9,7 +9,16 @@ import {
 	type EnvironmentStatus,
 } from "@gen/loco/resource/v1/resource_pb";
 
-import { activeDeploymentPlaces, buildRegions, deploymentsRequest } from "./model";
+import { msToTimestamp } from "@/lib/time";
+
+import {
+	activeDeploymentPlaces,
+	buildRegions,
+	deploymentsRequest,
+	lastGoodDeployment,
+	tookMs,
+	type RegionView,
+} from "./model";
 
 const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
 const PRODUCTION_ID = "0199d1c2-0000-7000-8000-000000000002";
@@ -82,5 +91,38 @@ describe("activeDeploymentPlaces", () => {
 			environmentStatuses: [environmentStatus("production", "us-east-1"), environmentStatus("staging", "us-east-1")],
 		});
 		expect(activeDeploymentPlaces(resource)).toEqual(["us-east-1 (production)", "us-east-1 (staging)"]);
+	});
+});
+
+describe("lastGoodDeployment", () => {
+	const spec = create(DeploymentSpecSchema);
+	const failed = create(DeploymentSchema, { id: "failed", status: DeploymentPhase.FAILED, spec });
+	const superseded = create(DeploymentSchema, { id: "superseded", status: DeploymentPhase.SUCCEEDED, spec });
+	const older = create(DeploymentSchema, { id: "older", status: DeploymentPhase.SUCCEEDED, spec });
+
+	test("skips the current and failed deployments", () => {
+		const region: RegionView = {
+			name: "us-east-1",
+			status: undefined,
+			history: [failed, superseded, older],
+			current: failed,
+		};
+		expect(lastGoodDeployment(region)?.id).toBe("superseded");
+	});
+
+	test("finds nothing when the region has one deployment", () => {
+		const region: RegionView = { name: "us-east-1", status: undefined, history: [failed], current: failed };
+		expect(lastGoodDeployment(region)).toBeUndefined();
+	});
+});
+
+describe("tookMs", () => {
+	test("measures from start to completion", () => {
+		const dep = create(DeploymentSchema, { startedAt: msToTimestamp(1_000), completedAt: msToTimestamp(91_000) });
+		expect(tookMs(dep)).toBe(90_000);
+	});
+
+	test("is unknown until the deployment completes", () => {
+		expect(tookMs(create(DeploymentSchema, { startedAt: msToTimestamp(1_000) }))).toBeUndefined();
 	});
 });

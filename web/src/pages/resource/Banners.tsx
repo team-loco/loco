@@ -1,5 +1,4 @@
 import { InfoIcon, OctagonAlertIcon, TriangleAlertIcon, XIcon } from "lucide-react";
-import { Link } from "react-router";
 
 import { cn } from "@/lib/utils";
 
@@ -47,49 +46,10 @@ export function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss:
 				type="button"
 				aria-label="Dismiss"
 				onClick={onDismiss}
-				className="flex size-[26px] items-center justify-center rounded-sm border-0 bg-transparent text-inherit hover:bg-black/5"
+				className="flex size-[26px] items-center justify-center rounded-sm border-0 bg-transparent text-inherit hover:bg-foreground/5"
 			>
 				<XIcon className="size-4" />
 			</button>
-		</div>
-	);
-}
-
-export function ErrorBanner({
-	title,
-	message,
-	logsHref,
-	onEvents,
-}: {
-	title: string;
-	message: string;
-	logsHref: string | undefined;
-	onEvents: () => void;
-}) {
-	return (
-		<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-lg border border-bad-fg bg-bad-bg px-4 py-3 text-bad-fg">
-			<OctagonAlertIcon className="size-[18px]" />
-			<div className="flex min-w-0 flex-col gap-0.5">
-				<span className="font-semibold">{title}</span>
-				<span className="wrap-break-word">{message}</span>
-			</div>
-			<div className="flex gap-2">
-				{logsHref !== undefined && (
-					<Link
-						to={logsHref}
-						className="flex h-7 items-center rounded-sm border border-bad-fg px-2.5 text-bad-fg hover:bg-black/5 hover:no-underline"
-					>
-						Logs
-					</Link>
-				)}
-				<button
-					type="button"
-					onClick={onEvents}
-					className="h-7 rounded-sm border border-bad-fg bg-transparent px-2.5 text-bad-fg hover:bg-black/5"
-				>
-					Events
-				</button>
-			</div>
 		</div>
 	);
 }

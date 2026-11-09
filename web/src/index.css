@@ -148,9 +148,6 @@
 
 	--color-code-bg: var(--code-bg);
 
-	--color-diff-add: var(--diff-add);
-	--color-diff-del: var(--diff-del);
-
 	--color-pe-dot: var(--pe-dot);
 	--color-pe-panel: var(--pe-panel);
 	--color-pe-head: var(--pe-head);
@@ -201,8 +198,6 @@
 	--series-5: oklch(0.58 0.16 350);
 	--series-6: oklch(0.66 0.13 95);
 	--series-7: oklch(0.55 0.02 260);
-	--diff-add: color-mix(in oklch, var(--ok) 12%, var(--bg));
-	--diff-del: color-mix(in oklch, var(--err) 12%, var(--bg));
 	--pe-dot: var(--line);
 	--pe-panel: var(--bg);
 	--pe-head: var(--panel);
