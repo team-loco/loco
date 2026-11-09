@@ -7,6 +7,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription } from "@/componen
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
+import { userLabel } from "@/lib/user";
 
 import { LEVELS, levelBlocked, levelOf, levelPlan, type Level, type Member, type ScopeName } from "./model";
 
@@ -26,7 +27,7 @@ export function WorkspaceAccessDialog({
 	const [shown, setShown] = useState<Member | null>(member);
 	if (member !== null && member !== shown) setShown(member);
 	const user = shown?.member.user;
-	const name = user === undefined ? "" : user.name || user.email;
+	const name = user === undefined ? "" : userLabel(user);
 	return (
 		<Dialog
 			open={member !== null}

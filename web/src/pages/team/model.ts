@@ -5,6 +5,7 @@ import type { BadgeTone } from "@/components/design/Badge";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DAY_MS, tsMs } from "@/lib/time";
+import { userLabel } from "@/lib/user";
 
 export type ScopeName = "read" | "write" | "admin";
 export type Level = AccessLevel;
@@ -157,7 +158,7 @@ export function untilLabel(ms: number, now: number): string {
 
 function displayName(m: Member): string {
 	const user = m.member.user;
-	return user === undefined ? "" : user.name || user.email;
+	return user === undefined ? "" : userLabel(user);
 }
 
 function matches(row: TeamRow, q: string): boolean {

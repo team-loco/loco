@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { agoLabel, tsMs } from "@/lib/time";
+import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 
 import { MemberAvatar } from "./MemberAvatar";
@@ -45,7 +46,7 @@ function MemberRow({
 }) {
 	const user = member.member.user;
 	const isMe = user?.id === actions.meId;
-	const name = user === undefined ? "" : user.name || user.email;
+	const name = user === undefined ? "" : userLabel(user);
 	const role = roleOf(member.member.scopes);
 	return (
 		<TableRow>
@@ -144,7 +145,7 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 					<span className="flex min-w-0 flex-col gap-px">
 						<span className="truncate text-[13.5px] font-medium">{invitation.email}</span>
 						<span className="truncate text-[11.5px] text-fg3">
-							{inviter === undefined ? `Invited ${sent}` : `Invited by ${inviter.name || inviter.email} · ${sent}`}
+							{inviter === undefined ? `Invited ${sent}` : `Invited by ${userLabel(inviter)} · ${sent}`}
 						</span>
 					</span>
 				</span>
