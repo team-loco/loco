@@ -9,7 +9,7 @@ import (
 
 func newTestMemory(t *testing.T) *MemoryCache {
 	t.Helper()
-	c, err := NewMemory(time.Hour)
+	c, err := NewMemory()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,9 +44,6 @@ func TestMemoryCacheHonoursPerEntryTTL(t *testing.T) {
 	if err := c.Set(ctx, "short", []byte("1"), 20*time.Millisecond); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.Set(ctx, "default", []byte("2"), 0); err != nil {
-		t.Fatal(err)
-	}
 
 	got, err := c.Get(ctx, "short")
 	if err != nil || string(got) != "1" {
@@ -58,25 +55,6 @@ func TestMemoryCacheHonoursPerEntryTTL(t *testing.T) {
 	if _, getErr := c.Get(ctx, "short"); !errors.Is(getErr, ErrNotFound) {
 		t.Fatalf("Get(short) after ttl err = %v, want ErrNotFound", getErr)
 	}
-	got, err = c.Get(ctx, "default")
-	if err != nil || string(got) != "2" {
-		t.Fatalf("Get(default) = %q, %v", got, err)
-	}
-}
-
-func TestMemoryCacheDelete(t *testing.T) {
-	ctx := context.Background()
-	c := newTestMemory(t)
-
-	if err := c.Set(ctx, "k", []byte("v"), 0); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.Delete(ctx, "k"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := c.Get(ctx, "k"); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("Get after Delete err = %v", err)
-	}
 }
 
 func TestMemoryCacheRejectsOversizedEntry(t *testing.T) {
@@ -84,7 +62,7 @@ func TestMemoryCacheRejectsOversizedEntry(t *testing.T) {
 	c := newTestMemory(t)
 
 	big := make([]byte, memoryMaxCost+1)
-	if err := c.Set(ctx, "big", big, 0); !errors.Is(err, ErrNotStored) {
+	if err := c.Set(ctx, "big", big, time.Minute); !errors.Is(err, ErrNotStored) {
 		t.Fatalf("Set(big) err = %v, want ErrNotStored", err)
 	}
 }

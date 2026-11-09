@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/db"
 	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
@@ -17,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
+	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -24,6 +26,8 @@ import (
 )
 
 var (
+	errDatabaseURLMissing = errors.New("DATABASE_URL is required")
+	errDatabasePoolSize   = errors.New("DATABASE_MIN_CONNS must not exceed DATABASE_MAX_CONNS")
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
@@ -97,8 +101,25 @@ const (
 	defaultSourceOrphanPageSize  = 1000
 	defaultSourceOrphanMaxPages  = 5
 
-	day                        = 24 * time.Hour
-	defaultEventsRetentionDays = 90
+	defaultEventsRetention = 90 * 24 * time.Hour
+
+	defaultDatabaseMaxConns         = 25
+	defaultDatabaseMinConns         = 5
+	defaultDatabaseStatementTimeout = 15 * time.Second
+
+	defaultAPITokenMaxLifetime        = 365 * 24 * time.Hour
+	defaultSessionAccessTokenLifetime = time.Hour
+	defaultSessionRefreshLifetime     = 7 * 24 * time.Hour
+	defaultTokenLastUsedInterval      = 5 * time.Minute
+	defaultTokenCleanupInterval       = time.Minute
+
+	defaultRPCTimeout            = 30 * time.Second
+	defaultShutdownDrainTimeout  = 30 * time.Second
+	defaultPlacementPollInterval = 5 * time.Second
+
+	defaultWebhookTimeout      = 10 * time.Second
+	defaultWebhookBatch        = 50
+	defaultWebhookPollInterval = 2 * time.Second
 
 	defaultSecretMaxValueBytes     = 64 * 1024
 	defaultSecretMaxPerService     = 256
@@ -127,6 +148,15 @@ const (
 	defaultRegistryCredentialSweep        = 10 * time.Minute
 )
 
+var defaultWebhookRetryDelays = []time.Duration{
+	30 * time.Second,
+	2 * time.Minute,
+	10 * time.Minute,
+	time.Hour,
+	6 * time.Hour,
+	24 * time.Hour,
+}
+
 type RegistryAuthConfig struct {
 	Mode                   string
 	TransitKey             secretkeys.PinnedKey
@@ -146,8 +176,13 @@ type APIConfig struct {
 	Ingest                service.IngestConfig
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
-	DatabaseURL           string // PostgreSQL connection string
+	Database              db.Config
 	DatabaseListenConfig  *pgx.ConnConfig
+	PlacementPollInterval time.Duration
+	Tokens                tvm.Config
+	TokenCleanupInterval  time.Duration
+	RPCTimeout            time.Duration
+	ShutdownDrainTimeout  time.Duration
 	LogLevel              slog.Level
 	Port                  string
 	CacheType             string   // Cache backend type: "in-memory" or "valkey"
@@ -171,6 +206,7 @@ type APIConfig struct {
 	SchemaURL             string
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
+	Webhooks              webhooks.Config
 	InstallWebhooks       []webhooks.InstallWebhook
 	OrgLinks              []service.OrgLink
 	Secrets               secretkeys.TransitConfig
@@ -181,11 +217,11 @@ type APIConfig struct {
 }
 
 func newAPIConfig() *APIConfig {
-	databaseURL := stringEnv("DATABASE_URL", "")
+	database := newDatabaseConfig()
 	observabilityRaw := stringEnv("OBSERVABILITY_PROXY_URL", "")
 	observabilityURL := parseObservabilityProxyURL(observabilityRaw)
 	ingestConfig := newIngestConfig()
-	databaseListenConfig := newDatabaseListenConfig(databaseURL)
+	databaseListenConfig := newDatabaseListenConfig(database.URL)
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
 	registryPrefix := stringEnv("LOCO_REGISTRY_PREFIX", "")
@@ -207,8 +243,7 @@ func newAPIConfig() *APIConfig {
 	authIssuers := newAuthIssuers()
 	signupPolicy := newSignupPolicy()
 	minCLIVersion := newMinCLIVersion()
-	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
-	eventsRetention := time.Duration(eventsRetentionDays) * day
+	eventsRetention := positiveDurationEnv("EVENTS_RETENTION", defaultEventsRetention)
 	secrets := newSecretsConfig()
 	registryAuth := newRegistryAuthConfig(registry, registryHost, secrets.Key, ingestConfig.TransitKey)
 	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
@@ -229,8 +264,13 @@ func newAPIConfig() *APIConfig {
 		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
-		DatabaseURL:           databaseURL,
+		Database:              database,
 		DatabaseListenConfig:  databaseListenConfig,
+		PlacementPollInterval: positiveDurationEnv("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
+		Tokens:                newTokenConfig(),
+		TokenCleanupInterval:  positiveDurationEnv("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
+		RPCTimeout:            positiveDurationEnv("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
+		ShutdownDrainTimeout:  positiveDurationEnv("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
 		Port:                  stringEnv("APP_PORT", ""),
 		ObservabilityProxyURL: observabilityURL,
 		LogLevel:              logLevel,
@@ -255,6 +295,7 @@ func newAPIConfig() *APIConfig {
 		SchemaURL:             stringEnv("LOCO_SCHEMA_URL", defaultSchemaURL),
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
+		Webhooks:              newWebhookConfig(),
 		InstallWebhooks:       installWebhooks,
 		OrgLinks:              orgLinks,
 		Secrets:               secrets,
@@ -262,6 +303,46 @@ func newAPIConfig() *APIConfig {
 		HeartbeatInterval:     heartbeatInterval,
 		BootstrapTokenHash:    bootstrapTokenHash,
 		TracingEnabled:        tracingEnabled,
+	}
+}
+
+func newDatabaseConfig() db.Config {
+	cfg := db.Config{
+		URL:              stringEnv("DATABASE_URL", ""),
+		MaxConns:         positiveInt32Env("DATABASE_MAX_CONNS", defaultDatabaseMaxConns),
+		MinConns:         nonNegativeInt32Env("DATABASE_MIN_CONNS", defaultDatabaseMinConns),
+		StatementTimeout: positiveDurationEnv("DATABASE_STATEMENT_TIMEOUT", defaultDatabaseStatementTimeout),
+	}
+	if cfg.URL == "" {
+		panic(errDatabaseURLMissing)
+	}
+	if cfg.MinConns > cfg.MaxConns {
+		panic(fmt.Errorf("%w: %d > %d", errDatabasePoolSize, cfg.MinConns, cfg.MaxConns))
+	}
+	return cfg
+}
+
+func newTokenConfig() tvm.Config {
+	return tvm.Config{
+		MaxAPITokenDuration: positiveDurationEnv("LOCO_API_TOKEN_MAX_LIFETIME", defaultAPITokenMaxLifetime),
+		SessionAccessTokenDuration: positiveDurationEnv(
+			"LOCO_SESSION_ACCESS_TOKEN_LIFETIME",
+			defaultSessionAccessTokenLifetime,
+		),
+		SessionRefreshTokenDuration: positiveDurationEnv(
+			"LOCO_SESSION_REFRESH_TOKEN_LIFETIME",
+			defaultSessionRefreshLifetime,
+		),
+		LastUsedUpdateInterval: positiveDurationEnv("LOCO_TOKEN_LAST_USED_INTERVAL", defaultTokenLastUsedInterval),
+	}
+}
+
+func newWebhookConfig() webhooks.Config {
+	return webhooks.Config{
+		RequestTimeout: positiveDurationEnv("WEBHOOK_TIMEOUT", defaultWebhookTimeout),
+		ClaimBatch:     positiveInt32Env("WEBHOOK_BATCH", defaultWebhookBatch),
+		RetryDelays:    positiveDurationListEnv("WEBHOOK_RETRY_DELAYS", defaultWebhookRetryDelays),
+		PollInterval:   positiveDurationEnv("WEBHOOK_POLL_INTERVAL", defaultWebhookPollInterval),
 	}
 }
 
@@ -567,15 +648,11 @@ func newImageRegistry(cfg registryclient.Config, retention int32) (sweepers.Imag
 	return client, nil
 }
 
-func newCache(cacheType, cacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
-	switch cacheType {
-	case cacheTypeValkey:
-		return cache.NewValkey(cacheAddr, defaultTTL)
-	case cacheTypeMemory:
-		return cache.NewMemory(defaultTTL)
-	default:
-		return nil, fmt.Errorf("%w: %q", errUnknownCacheType, cacheType)
+func newCache(cacheType, cacheAddr string) (cache.Cache, error) {
+	if cacheType == cacheTypeValkey {
+		return cache.NewValkey(cacheAddr)
 	}
+	return cache.NewMemory()
 }
 
 func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {

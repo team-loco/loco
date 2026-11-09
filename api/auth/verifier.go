@@ -60,7 +60,7 @@ func NewVerifier(httpClient *http.Client, issuers []IssuerConfig) *Verifier {
 }
 
 func (v *Verifier) Enabled() bool {
-	return v != nil && len(v.issuers) > 0
+	return len(v.issuers) > 0
 }
 
 func LooksLikeJWT(token string) bool {

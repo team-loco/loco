@@ -151,9 +151,6 @@ func (ic *IssuerConfig) checkEmailVerification() error {
 
 func WebIssuer(issuers []IssuerConfig) (IssuerConfig, bool) {
 	for _, ic := range issuers {
-		if ic.Admin != nil && ic.Admin.URL == "" {
-			ic.Admin.URL = ic.Issuer
-		}
 		if ic.Web != nil {
 			return ic, true
 		}

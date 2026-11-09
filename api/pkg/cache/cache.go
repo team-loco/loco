@@ -20,7 +20,7 @@ type Cache interface {
 	// Get retrieves a value by key. Returns ErrNotFound if key doesn't exist.
 	Get(ctx context.Context, key string) ([]byte, error)
 
-	// Set stores a value with the given TTL. TTL of 0 means use default.
+	// Set stores a value with the given TTL.
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
 
 	// SetIfAbsent stores a value only if the key does not exist, reporting whether it was stored.
@@ -28,9 +28,6 @@ type Cache interface {
 
 	// Take removes a key, reporting whether it existed.
 	Take(ctx context.Context, key string) (bool, error)
-
-	// Delete removes a key. No error if key doesn't exist.
-	Delete(ctx context.Context, key string) error
 
 	// Close releases any resources held by the cache.
 	Close() error
@@ -45,12 +42,11 @@ const (
 )
 
 type MemoryCache struct {
-	mu         sync.Mutex
-	cache      *ristretto.Cache[string, []byte]
-	defaultTTL time.Duration
+	mu    sync.Mutex
+	cache *ristretto.Cache[string, []byte]
 }
 
-func NewMemory(defaultTTL time.Duration) (*MemoryCache, error) {
+func NewMemory() (*MemoryCache, error) {
 	c, err := ristretto.NewCache(&ristretto.Config[string, []byte]{
 		NumCounters: memoryNumCounters,
 		MaxCost:     memoryMaxCost,
@@ -59,7 +55,7 @@ func NewMemory(defaultTTL time.Duration) (*MemoryCache, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create in-memory cache: %w", err)
 	}
-	return &MemoryCache{cache: c, defaultTTL: defaultTTL}, nil
+	return &MemoryCache{cache: c}, nil
 }
 
 func (m *MemoryCache) Get(_ context.Context, key string) ([]byte, error) {
@@ -73,9 +69,6 @@ func (m *MemoryCache) Get(_ context.Context, key string) ([]byte, error) {
 }
 
 func (m *MemoryCache) Set(_ context.Context, key string, value []byte, ttl time.Duration) error {
-	if ttl == 0 {
-		ttl = m.defaultTTL
-	}
 	stored := make([]byte, len(value))
 	copy(stored, value)
 	cost := int64(len(key) + len(stored))
@@ -111,11 +104,6 @@ func (m *MemoryCache) Take(_ context.Context, key string) (bool, error) {
 	return true, nil
 }
 
-func (m *MemoryCache) Delete(_ context.Context, key string) error {
-	m.cache.Del(key)
-	return nil
-}
-
 func (m *MemoryCache) Close() error {
 	m.cache.Close()
 	return nil
@@ -123,11 +111,10 @@ func (m *MemoryCache) Close() error {
 
 // ValkeyAdapter wraps valkey-go client
 type ValkeyAdapter struct {
-	client     valkey.Client
-	defaultTTL time.Duration
+	client valkey.Client
 }
 
-func NewValkey(cacheAddr string, defaultTTL time.Duration) (*ValkeyAdapter, error) {
+func NewValkey(cacheAddr string) (*ValkeyAdapter, error) {
 	clientOpts, parseErr := valkey.ParseURL(cacheAddr)
 	if parseErr != nil {
 		return nil, fmt.Errorf("failed to valkey URL: %w", parseErr)
@@ -145,7 +132,7 @@ func NewValkey(cacheAddr string, defaultTTL time.Duration) (*ValkeyAdapter, erro
 		return nil, fmt.Errorf("failed to ping valkey: %w", err)
 	}
 
-	return &ValkeyAdapter{client: client, defaultTTL: defaultTTL}, nil
+	return &ValkeyAdapter{client: client}, nil
 }
 
 func (v *ValkeyAdapter) Get(ctx context.Context, key string) ([]byte, error) {
@@ -160,16 +147,10 @@ func (v *ValkeyAdapter) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 func (v *ValkeyAdapter) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	if ttl == 0 {
-		ttl = v.defaultTTL
-	}
 	return v.client.Do(ctx, v.client.B().Set().Key(key).Value(string(value)).Ex(ttl).Build()).Error()
 }
 
 func (v *ValkeyAdapter) SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
-	if ttl == 0 {
-		ttl = v.defaultTTL
-	}
 	cmd := v.client.B().Set().Key(key).Value(string(value)).Nx().Ex(ttl).Build()
 	err := v.client.Do(ctx, cmd).Error()
 	if valkey.IsValkeyNil(err) {
@@ -191,10 +172,6 @@ func (v *ValkeyAdapter) Take(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-func (v *ValkeyAdapter) Delete(ctx context.Context, key string) error {
-	return v.client.Do(ctx, v.client.B().Del().Key(key).Build()).Error()
 }
 
 func (v *ValkeyAdapter) Close() error {

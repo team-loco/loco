@@ -16,7 +16,7 @@ func testCaches(t *testing.T) map[string]Cache {
 	if addr == "" {
 		return caches
 	}
-	v, err := NewValkey(addr, time.Hour)
+	v, err := NewValkey(addr)
 	if err != nil {
 		t.Fatal(err)
 	}

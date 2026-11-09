@@ -213,7 +213,7 @@ func TestInstallWebhooksBypassPrivateNetworkGuard(t *testing.T) {
 	f.setURL(t, workspace.ID, r.srv.URL)
 	f.record(t, f.workspaceID, events.ResourceUpdated)
 
-	d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(false), webhooks.NewClient(true))
+	d := newDispatcher(f.queries, false)
 	if sent, err := d.DispatchDue(t.Context()); err != nil || sent != 2 {
 		t.Fatalf("dispatch = %d, %v", sent, err)
 	}

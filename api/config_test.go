@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
+	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/bearer"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -33,8 +34,12 @@ const (
 	testRegistryHost    = "registry.loco.test"
 	testRegistryUser    = "api"
 	testRegistryPass    = "secret"
-	retentionDaysEnv    = "EVENTS_RETENTION_DAYS"
+	retentionEnv        = "EVENTS_RETENTION"
 	installHooksEnv     = "INSTALL_WEBHOOKS"
+	webhookTimeoutEnv   = "WEBHOOK_TIMEOUT"
+	webhookBatchEnv     = "WEBHOOK_BATCH"
+	webhookRetryEnv     = "WEBHOOK_RETRY_DELAYS"
+	webhookPollEnv      = "WEBHOOK_POLL_INTERVAL"
 	orgLinksEnv         = "ORG_LINKS"
 	authIssuersEnv      = "AUTH_ISSUERS"
 	testAdminEnv        = "LOCO_TEST_ADMIN_TOKEN"
@@ -129,8 +134,23 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", "")
 	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", "")
 	t.Setenv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", "")
-	t.Setenv(retentionDaysEnv, "")
-	t.Setenv("DATABASE_URL", "")
+	t.Setenv(retentionEnv, "")
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("DATABASE_MAX_CONNS", "")
+	t.Setenv("DATABASE_MIN_CONNS", "")
+	t.Setenv("DATABASE_STATEMENT_TIMEOUT", "")
+	t.Setenv("LOCO_API_TOKEN_MAX_LIFETIME", "")
+	t.Setenv("LOCO_SESSION_ACCESS_TOKEN_LIFETIME", "")
+	t.Setenv("LOCO_SESSION_REFRESH_TOKEN_LIFETIME", "")
+	t.Setenv("LOCO_TOKEN_LAST_USED_INTERVAL", "")
+	t.Setenv("LOCO_TOKEN_CLEANUP_INTERVAL", "")
+	t.Setenv("LOCO_RPC_TIMEOUT", "")
+	t.Setenv("LOCO_SHUTDOWN_DRAIN_TIMEOUT", "")
+	t.Setenv("LOCO_PLACEMENT_POLL_INTERVAL", "")
+	t.Setenv(webhookTimeoutEnv, "")
+	t.Setenv(webhookBatchEnv, "")
+	t.Setenv(webhookRetryEnv, "")
+	t.Setenv(webhookPollEnv, "")
 	t.Setenv(installHooksEnv, "")
 	t.Setenv(orgLinksEnv, "")
 	t.Setenv(authIssuersEnv, "")
@@ -247,8 +267,8 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	if ac.Registry.Username != "" {
 		t.Errorf("registry username = %q, want none so image cleanup is off", ac.Registry.Username)
 	}
-	if ac.EventsRetention != defaultEventsRetentionDays*day {
-		t.Errorf("events retention = %v, want %d days", ac.EventsRetention, defaultEventsRetentionDays)
+	if ac.EventsRetention != defaultEventsRetention {
+		t.Errorf("events retention = %v, want %v", ac.EventsRetention, defaultEventsRetention)
 	}
 	if len(ac.InstallWebhooks) != 0 || len(ac.AuthIssuers) != 0 {
 		t.Errorf("install webhooks = %v, issuers = %v, want none", ac.InstallWebhooks, ac.AuthIssuers)
@@ -300,10 +320,36 @@ func TestNewAPIConfigReadsSecretLimits(t *testing.T) {
 
 func TestNewAPIConfigReadsEventsRetention(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(retentionDaysEnv, "7")
+	t.Setenv(retentionEnv, "168h")
 	ac := newAPIConfig()
-	if ac.EventsRetention != 7*day {
-		t.Errorf("events retention = %v, want 7 days", ac.EventsRetention)
+	if ac.EventsRetention != 168*time.Hour {
+		t.Errorf("events retention = %v, want 168h", ac.EventsRetention)
+	}
+}
+
+func TestNewAPIConfigPanicsWithoutDatabaseURL(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("DATABASE_URL", "")
+	if err := panicValue(t, func() { newAPIConfig() }); !errors.Is(err, errDatabaseURLMissing) {
+		t.Fatalf("panic = %v, want %v", err, errDatabaseURLMissing)
+	}
+}
+
+func TestNewAPIConfigReadsWebhookDelivery(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(webhookTimeoutEnv, "3s")
+	t.Setenv(webhookBatchEnv, "7")
+	t.Setenv(webhookRetryEnv, "1s, 1m")
+	t.Setenv(webhookPollEnv, "500ms")
+	got := newAPIConfig().Webhooks
+	want := webhooks.Config{
+		RequestTimeout: 3 * time.Second,
+		ClaimBatch:     7,
+		RetryDelays:    []time.Duration{time.Second, time.Minute},
+		PollInterval:   500 * time.Millisecond,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("webhooks = %+v, want %+v", got, want)
 	}
 }
 
@@ -573,8 +619,15 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{"zero orphan page size", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE": "0"}, errNotPositive},
 		{"non-numeric orphan max pages", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES": "x"}, errInvalidInt32},
 		{"zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
-		{"zero events retention", map[string]string{retentionDaysEnv: "0"}, errNotPositive},
-		{"non-numeric events retention", map[string]string{retentionDaysEnv: "forever"}, errInvalidInt32},
+		{"zero events retention", map[string]string{retentionEnv: "0s"}, errNotPositive},
+		{"non-duration events retention", map[string]string{retentionEnv: "90"}, errInvalidDuration},
+		{"zero webhook retry delay", map[string]string{webhookRetryEnv: "30s,0s"}, errNotPositive},
+		{"non-duration webhook retry delay", map[string]string{webhookRetryEnv: "30s,soon"}, errInvalidDuration},
+		{
+			"database min conns above max",
+			map[string]string{"DATABASE_MIN_CONNS": "10", "DATABASE_MAX_CONNS": "5"},
+			errDatabasePoolSize,
+		},
 		{"malformed install webhooks", map[string]string{installHooksEnv: "{"}, errInvalidInstallWebhooks},
 		{
 			"install webhook without a secret",

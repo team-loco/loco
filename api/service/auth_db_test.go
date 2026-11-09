@@ -62,7 +62,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 		SessionRefreshTokenDuration: 24 * time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
 	})
-	store, err := cache.NewMemory(time.Hour)
+	store, err := cache.NewMemory()
 	if err != nil {
 		t.Fatalf("cache: %v", err)
 	}

@@ -31,18 +31,14 @@ import (
 )
 
 const (
-	secretPrefix      = "whsec_"
-	secretBytes       = 32
-	requestTimeout    = 10 * time.Second
-	leaseMargin       = 30 * time.Second
-	claimBatch        = 50
-	lease             = claimBatch*requestTimeout + leaseMargin
-	maxErrorLength    = 500
-	maxResponseBytes  = 64 << 10
-	StatusPending     = "pending"
-	StatusSucceeded   = "succeeded"
-	StatusFailed      = "failed"
-	DefaultPollPeriod = 2 * time.Second
+	secretPrefix     = "whsec_"
+	secretBytes      = 32
+	leaseMargin      = 30 * time.Second
+	maxErrorLength   = 500
+	maxResponseBytes = 64 << 10
+	statusPending    = "pending"
+	statusSucceeded  = "succeeded"
+	statusFailed     = "failed"
 
 	deliverySpan          = "webhook.deliver"
 	deliveryIDAttr        = "loco.webhook.delivery_id"
@@ -57,17 +53,22 @@ var (
 	ErrInvalidSecret  = errors.New("webhook secret is malformed")
 	ErrUnknownKind    = errors.New("unknown webhook kind")
 
-	retryDelays = []time.Duration{
-		30 * time.Second,
-		2 * time.Minute,
-		10 * time.Minute,
-		time.Hour,
-		6 * time.Hour,
-		24 * time.Hour,
-	}
-
 	sharedAddressSpace = netip.MustParsePrefix("100.64.0.0/10")
 )
+
+// Config sets how the dispatcher claims, sends and retries deliveries.
+type Config struct {
+	RequestTimeout time.Duration
+	ClaimBatch     int32
+	// RetryDelays[n] is the wait after failed attempt n+1; the delivery fails after len(RetryDelays)+1 attempts.
+	RetryDelays  []time.Duration
+	PollInterval time.Duration
+}
+
+// lease outlasts sending a whole claimed batch, so no other dispatcher reclaims a delivery still in flight.
+func (c Config) lease() time.Duration {
+	return time.Duration(c.ClaimBatch)*c.RequestTimeout + leaseMargin
+}
 
 func NewSecret() (string, error) {
 	b := make([]byte, secretBytes)
@@ -107,8 +108,8 @@ func blocked(addr netip.Addr) bool {
 		sharedAddressSpace.Contains(addr)
 }
 
-func NewClient(allowPrivate bool) *http.Client {
-	dialer := &net.Dialer{Timeout: requestTimeout}
+func NewClient(cfg Config, allowPrivate bool) *http.Client {
+	dialer := &net.Dialer{Timeout: cfg.RequestTimeout}
 	if !allowPrivate {
 		dialer.Control = func(_, address string, _ syscall.RawConn) error {
 			ap, err := netip.ParseAddrPort(address)
@@ -123,13 +124,13 @@ func NewClient(allowPrivate bool) *http.Client {
 	}
 	transport := &http.Transport{
 		DialContext:           dialer.DialContext,
-		TLSHandshakeTimeout:   requestTimeout,
-		ResponseHeaderTimeout: requestTimeout,
-		MaxIdleConns:          claimBatch,
+		TLSHandshakeTimeout:   cfg.RequestTimeout,
+		ResponseHeaderTimeout: cfg.RequestTimeout,
+		MaxIdleConns:          int(cfg.ClaimBatch),
 	}
 	return &http.Client{
 		Transport: transport,
-		Timeout:   requestTimeout,
+		Timeout:   cfg.RequestTimeout,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -182,13 +183,20 @@ func payloadFrom(row genDb.GetWebhookDeliveryPayloadRow) Payload {
 
 type Dispatcher struct {
 	queries         genDb.Querier
+	cfg             Config
 	workspaceClient *http.Client
 	installClient   *http.Client
 	now             func() time.Time
 }
 
-func NewDispatcher(queries genDb.Querier, workspaceClient, installClient *http.Client) *Dispatcher {
-	return &Dispatcher{queries: queries, workspaceClient: workspaceClient, installClient: installClient, now: time.Now}
+func NewDispatcher(queries genDb.Querier, cfg Config, workspaceClient, installClient *http.Client) *Dispatcher {
+	return &Dispatcher{
+		queries:         queries,
+		cfg:             cfg,
+		workspaceClient: workspaceClient,
+		installClient:   installClient,
+		now:             time.Now,
+	}
 }
 
 func (d *Dispatcher) clientFor(kind genDb.WebhookKind) (*http.Client, error) {
@@ -202,8 +210,8 @@ func (d *Dispatcher) clientFor(kind genDb.WebhookKind) (*http.Client, error) {
 	}
 }
 
-func (d *Dispatcher) Run(ctx context.Context, period time.Duration) {
-	ticker := time.NewTicker(period)
+func (d *Dispatcher) Run(ctx context.Context) {
+	ticker := time.NewTicker(d.cfg.PollInterval)
 	defer ticker.Stop()
 	for {
 		if _, err := d.DispatchDue(ctx); err != nil {
@@ -219,8 +227,8 @@ func (d *Dispatcher) Run(ctx context.Context, period time.Duration) {
 
 func (d *Dispatcher) DispatchDue(ctx context.Context) (int, error) {
 	claimed, err := d.queries.ClaimWebhookDeliveries(ctx, genDb.ClaimWebhookDeliveriesParams{
-		LeaseSeconds: int32(lease / time.Second),
-		MaxRows:      claimBatch,
+		LeaseSeconds: int32(d.cfg.lease() / time.Second),
+		MaxRows:      d.cfg.ClaimBatch,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("claim webhook deliveries: %w", err)
@@ -264,14 +272,14 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 	}
 	switch {
 	case sendErr == nil:
-		params.Status = StatusSucceeded
+		params.Status = statusSucceeded
 		delivered := d.now()
 		params.DeliveredAt = &delivered
-	case attempt > len(retryDelays):
-		params.Status = StatusFailed
+	case attempt > len(d.cfg.RetryDelays):
+		params.Status = statusFailed
 	default:
-		params.Status = StatusPending
-		params.NextAttemptAt = d.now().Add(retryDelays[attempt-1])
+		params.Status = statusPending
+		params.NextAttemptAt = d.now().Add(d.cfg.RetryDelays[attempt-1])
 	}
 	if sendErr != nil {
 		message := clip.Bytes(sendErr.Error(), maxErrorLength)
