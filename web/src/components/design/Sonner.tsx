@@ -1,5 +1,3 @@
-import type { ToasterProps } from "sonner";
-
 import { Toaster as ToasterBase } from "@/components/ui/sonner";
 
 const inverse = {
@@ -9,7 +7,7 @@ const inverse = {
 	"--border-radius": "8px",
 } as React.CSSProperties;
 
-function Toaster(props: ToasterProps) {
+function Toaster() {
 	return (
 		<ToasterBase
 			position="bottom-center"
@@ -21,7 +19,6 @@ function Toaster(props: ToasterProps) {
 					description: "text-primary-foreground/70!",
 				},
 			}}
-			{...props}
 		/>
 	);
 }

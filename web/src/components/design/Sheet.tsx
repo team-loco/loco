@@ -1,10 +1,8 @@
 import {
 	Sheet,
-	SheetClose,
 	SheetContent as SheetContentBase,
 	SheetDescription as SheetDescriptionBase,
 	SheetTitle as SheetTitleBase,
-	SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -91,15 +89,4 @@ function SheetDescription({ className, ...props }: React.ComponentProps<typeof S
 	return <SheetDescriptionBase className={cn("text-sm text-fg3", className)} {...props} />;
 }
 
-export {
-	Sheet,
-	SheetBody,
-	SheetClose,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetSection,
-	SheetTitle,
-	SheetTrigger,
-};
+export { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetSection, SheetTitle };

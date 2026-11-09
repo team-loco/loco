@@ -6,7 +6,6 @@ import {
 	AlertDialogFooter as AlertDialogFooterBase,
 	AlertDialogHeader as AlertDialogHeaderBase,
 	AlertDialogTitle as AlertDialogTitleBase,
-	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
@@ -82,5 +81,4 @@ export {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-	AlertDialogTrigger,
 };

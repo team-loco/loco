@@ -6,7 +6,6 @@ import {
 	DialogContent as DialogContentBase,
 	DialogDescription as DialogDescriptionBase,
 	DialogTitle as DialogTitleBase,
-	DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +90,6 @@ export {
 	DialogDescription,
 	DialogFooter,
 	DialogTitle,
-	DialogTrigger,
 	modalSurface,
 	modalTitle,
 };
