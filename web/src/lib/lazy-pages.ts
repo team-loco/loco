@@ -1,6 +1,7 @@
 export const pageImporters = {
 	Dashboard: async () => await import("@/pages/Dashboard"),
 	Resource: async () => await import("@/pages/Resource"),
+	NewResource: async () => await import("@/pages/NewResource"),
 	Observability: async () => await import("@/pages/Observability"),
 	Settings: async () => await import("@/pages/Settings"),
 	Team: async () => await import("@/pages/Team"),

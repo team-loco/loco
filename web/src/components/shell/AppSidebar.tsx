@@ -42,7 +42,7 @@ import { pageImporters } from "@/lib/lazy-pages";
 import { expandOrgLink } from "@/lib/org-links";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
-import { newServicePath, workspacePath } from "@/lib/routes";
+import { newResourcePath, workspacePath } from "@/lib/routes";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 import { useNavSections } from "./nav";
@@ -118,9 +118,9 @@ export function AppSidebar() {
 
 			{hasWs && (
 				<Link
-					to={newServicePath(activeOrgId, activeWorkspaceId, envParams)}
+					to={newResourcePath(activeOrgId, activeWorkspaceId, envParams)}
 					onMouseEnter={() => {
-						preloadPage(pageImporters.Dashboard);
+						preloadPage(pageImporters.NewResource);
 					}}
 					className="mx-3 mt-1 flex h-[34px] shrink-0 items-center gap-2 rounded-[7px] border border-line2 bg-raise px-2.5 text-[13.5px] font-medium text-foreground outline-none transition-colors duration-150 hover:border-fg4 focus-visible:ring-2 focus-visible:ring-sidebar-ring dark:hover:border-line2 dark:hover:bg-panel2"
 				>

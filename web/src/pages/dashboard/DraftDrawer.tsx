@@ -1,12 +1,10 @@
-import { createClient } from "@connectrpc/connect";
-import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { BoxIcon, CircleAlertIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { DeploymentPhase, DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { checkDomainAvailability, listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
@@ -17,14 +15,15 @@ import { createResource } from "@gen/loco/resource/v1/resource-ResourceService_c
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
+import { deployOutcome, progressSteps } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
 import { resourcePath } from "@/lib/routes";
-import { maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { DraftForm } from "./DraftForm";
-import { DraftProgress, progressSteps } from "./DraftProgress";
+import { DraftProgress } from "./DraftProgress";
 import { isPrivate, SUBDOMAIN_RE, servedDomain, type Draft } from "./drafts";
 import { firstError, validateDraft } from "./draftValidation";
 
@@ -39,61 +38,6 @@ function useDebounced<T>(value: T, ms: number): T {
 		};
 	}, [value, ms]);
 	return debounced;
-}
-
-function useDeploymentWatch(deploymentId: string | undefined) {
-	const transport = useTransport();
-	const queryClient = useQueryClient();
-	const [state, setState] = useState<{
-		id: string;
-		phase: DeploymentPhase;
-		message: string;
-		at: number;
-	} | null>(null);
-	useEffect(() => {
-		if (deploymentId === undefined) return;
-		const controller = new AbortController();
-		const client = createClient(DeploymentService, transport);
-		const run = async () => {
-			try {
-				for await (const ev of client.watchDeployment({ deploymentId }, { signal: controller.signal })) {
-					const at = maybeTsMs(ev.timestamp) ?? Date.now();
-					setState({ id: deploymentId, phase: ev.status, message: ev.message, at });
-					void queryClient.invalidateQueries();
-					if (ev.status === DeploymentPhase.RUNNING) break;
-				}
-			} catch {
-				return;
-			}
-		};
-		void run();
-		return () => {
-			controller.abort();
-		};
-	}, [deploymentId, transport, queryClient]);
-	if (state === null || state.id !== deploymentId) return { phase: undefined, message: "", at: 0 };
-	return state;
-}
-
-function terminal(phase: DeploymentPhase | undefined): "live" | "failed" | null {
-	switch (phase) {
-		case DeploymentPhase.RUNNING:
-			return "live";
-		case DeploymentPhase.SUCCEEDED:
-			return "live";
-		case DeploymentPhase.FAILED:
-			return "failed";
-		case DeploymentPhase.CANCELED:
-			return "failed";
-		case DeploymentPhase.PENDING:
-			return null;
-		case DeploymentPhase.DEPLOYING:
-			return null;
-		case DeploymentPhase.UNSPECIFIED:
-			return null;
-		case undefined:
-			return null;
-	}
 }
 
 function formatElapsed(ms: number): string {
@@ -215,8 +159,8 @@ function DraftDrawerBody({
 	const createResourceMutation = useMutation(createResource);
 	const createDeploymentMutation = useMutation(createDeployment);
 
-	const watch = useDeploymentWatch(draft.deploymentId);
-	const done = terminal(watch.phase);
+	const watch = useDeploymentWatch(draft.deploymentId === undefined ? [] : [draft.deploymentId])(draft.deploymentId);
+	const done = deployOutcome(watch.phase);
 	const inProgress = submitting || draft.resourceId !== undefined;
 	const now = useNow(inProgress && done === null ? 1000 : undefined);
 
@@ -338,7 +282,7 @@ function DraftDrawerBody({
 				: { label: "Deploying", tone: "info" as const };
 
 	const steps = progressSteps({
-		draft,
+		target: draft,
 		region,
 		envName: env.name,
 		phase: watch.phase,

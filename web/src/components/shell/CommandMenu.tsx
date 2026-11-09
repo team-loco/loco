@@ -18,7 +18,7 @@ import { CommandPalette, type PaletteItem } from "@/components/design/CommandPal
 import { Kbd } from "@/components/design/Kbd";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { newServicePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
+import { newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
 import { useTheme } from "@/lib/use-theme";
 
 import { useNavSections } from "./nav";
@@ -56,7 +56,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			label: "New resource",
 			keywords: "create deploy service",
 			icon: <PlusIcon />,
-			run: go(newServicePath(orgId, workspaceId, envParams)),
+			run: go(newResourcePath(orgId, workspaceId, envParams)),
 		});
 		for (const r of resources.data?.resources ?? []) {
 			items.push({
