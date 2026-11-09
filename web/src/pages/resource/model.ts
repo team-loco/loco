@@ -11,6 +11,7 @@ import {
 } from "@gen/loco/resource/v1/resource_pb";
 
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { needsAttention } from "@/lib/alerts";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { environmentStatus } from "@/lib/resource-status";
@@ -94,7 +95,7 @@ export interface RegionProblem {
 
 export function regionProblem(region: RegionView): RegionProblem | undefined {
 	const status = region.status;
-	if (status === undefined) return undefined;
+	if (status === undefined || !needsAttention(status)) return undefined;
 	const message = status.message ?? "";
 	switch (status.status) {
 		case ResourceStatus.UNAVAILABLE:
@@ -110,11 +111,7 @@ export function regionProblem(region: RegionView): RegionProblem | undefined {
 		case ResourceStatus.UNSPECIFIED:
 			break;
 	}
-	if (status.deploymentStatus === DeploymentPhase.FAILED) {
-		const title = `Deployment ${shortId(status.deploymentId)} failed in ${region.name}`;
-		return { region: region.name, title, message };
-	}
-	return undefined;
+	return { region: region.name, title: `Deployment ${shortId(status.deploymentId)} failed in ${region.name}`, message };
 }
 
 export function isDeployed(region: RegionView): boolean {
