@@ -7,7 +7,7 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1
 	charm.land/fang/v2 v2.0.1
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	connectrpc.com/connect/v2 v2.0.2
 	filippo.io/age v1.3.2
 	github.com/charmbracelet/x/term v0.2.2
