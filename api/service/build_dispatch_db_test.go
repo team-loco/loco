@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/buildsource"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
@@ -78,7 +79,7 @@ func canceledBuilds(msgs []*agentv1.SyncResponse) []string {
 
 func sourceKeyFor(id string) string {
 	parsed := uuid.MustParse(id)
-	return buildSourceKey(parsed)
+	return buildsource.Key(parsed)
 }
 
 func TestQueuedBuildIsSentOnceWithAFreshSourceURLAndTheLastCache(t *testing.T) {
@@ -353,7 +354,7 @@ func (f *buildFixture) insertBuild(t *testing.T, status genDb.BuildStatus) strin
 	t.Helper()
 	resourceID := f.otherResource(t)
 	id := uuid.Must(uuid.NewV7())
-	key := buildSourceKey(id)
+	key := buildsource.Key(id)
 	var digest *string
 	if status == genDb.BuildStatusSucceeded {
 		value := testImageDigest

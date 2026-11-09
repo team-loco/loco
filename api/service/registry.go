@@ -21,6 +21,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
 	"github.com/team-loco/loco/internal/bearer"
@@ -286,13 +287,13 @@ func (s *RegistryServer) allowedActions(
 ) []string {
 	switch grant.Kind {
 	case registryCredentialPull:
-		prefix := workspaceRepositoryPrefix(s.config.RegistryPrefix, grant.WorkspaceID)
+		prefix := imagepath.WorkspacePrefix(s.config.RegistryPrefix, grant.WorkspaceID)
 		if strings.HasPrefix(repository, prefix) {
 			return []string{registrytoken.ActionPull}
 		}
 		return nil
 	case registryCredentialBuild:
-		buildRepository, err := registryPath(s.config.RegistryHost, *grant.ImageRepository)
+		buildRepository, err := imagepath.Path(s.config.RegistryHost, *grant.ImageRepository)
 		if err != nil {
 			slog.ErrorContext(ctx, "build repository is not on the registry", "buildId", grant.BuildID, "error", err)
 			return nil

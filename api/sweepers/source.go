@@ -1,4 +1,4 @@
-package service
+package sweepers
 
 import (
 	"context"
@@ -6,23 +6,30 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/advisorylock"
+	"github.com/team-loco/loco/api/pkg/buildsource"
+	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/pkg/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
-	sourceSweepSpan       = "source.sweep"
-	sweepRanAttr          = "loco.sweep.ran"
-	sourceExpiredAttr     = "loco.sweep.expired"
-	sourcesDeletedAttr    = "loco.sweep.sources_deleted"
-	orphansDeletedAttr    = "loco.sweep.orphans_deleted"
-	sourceUploadExpired   = "source upload expired"
-	advisoryUnlockTimeout = 5 * time.Second
+	sourceSweepSpan     = "source.sweep"
+	sourceExpiredAttr   = "loco.sweep.expired"
+	sourcesDeletedAttr  = "loco.sweep.sources_deleted"
+	orphansDeletedAttr  = "loco.sweep.orphans_deleted"
+	sourceUploadExpired = "source upload expired"
 )
+
+// SourceBucket is the part of the source bucket the sweeper uses.
+type SourceBucket interface {
+	Delete(ctx context.Context, key string) error
+	List(ctx context.Context, prefix, startAfter string, limit int32) ([]sourcebucket.Object, bool, error)
+}
 
 type SourceSweepConfig struct {
 	Interval       time.Duration
@@ -64,9 +71,7 @@ func NewSourceSweeper(
 }
 
 func (s *SourceSweeper) Run(ctx context.Context) {
-	ticker := time.NewTicker(s.config.Interval)
-	defer ticker.Stop()
-	for {
+	runEvery(ctx, s.config.Interval, func(ctx context.Context) {
 		result, err := s.tracedSweep(ctx)
 		if err != nil && ctx.Err() == nil {
 			slog.ErrorContext(ctx, "source sweep failed", "error", err)
@@ -78,12 +83,7 @@ func (s *SourceSweeper) Run(ctx context.Context) {
 				"orphansDeleted", result.OrphansDeleted,
 			)
 		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
+	})
 }
 
 func (s *SourceSweeper) tracedSweep(ctx context.Context) (SourceSweepResult, error) {
@@ -101,64 +101,33 @@ func (s *SourceSweeper) tracedSweep(ctx context.Context) (SourceSweepResult, err
 
 func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 	var result SourceSweepResult
-	conn, err := s.db.Acquire(ctx)
-	if err != nil {
-		return result, fmt.Errorf("acquire connection: %w", err)
-	}
-	lockQueries := genDb.New(conn)
-	locked, err := lockQueries.TryAdvisoryLock(ctx, advisorylock.SourceSweep)
-	if err != nil {
-		conn.Release()
-		return result, fmt.Errorf("lock source sweep: %w", err)
-	}
-	if !locked {
-		conn.Release()
-		return result, nil
-	}
-	defer unlockAdvisory(ctx, conn, lockQueries, advisorylock.SourceSweep)
-	result.Ran = true
-
-	expired, err := s.expireUploads(ctx)
-	result.Expired = expired
-	if err != nil {
-		return result, err
-	}
-
-	deleted, err := s.deleteFinishedSources(ctx)
-	result.SourcesDeleted = deleted
-	if err != nil {
-		return result, err
-	}
-
-	orphans, err := s.deleteOrphans(ctx)
-	result.OrphansDeleted = orphans
+	ran, err := runLocked(ctx, s.db, advisorylock.SourceSweep, func() error {
+		return s.sweepAll(ctx, &result)
+	})
+	result.Ran = ran
 	return result, err
 }
 
-func unlockAdvisory(ctx context.Context, conn *pgxpool.Conn, lockQueries *genDb.Queries, lockKey int64) {
-	detached := context.WithoutCancel(ctx)
-	unlockCtx, cancel := context.WithTimeout(detached, advisoryUnlockTimeout)
-	defer cancel()
-	unlocked, err := lockQueries.AdvisoryUnlock(unlockCtx, lockKey)
-	if err == nil && unlocked {
-		conn.Release()
-		return
+func (s *SourceSweeper) sweepAll(ctx context.Context, result *SourceSweepResult) error {
+	var err error
+	result.Expired, err = s.expireUploads(ctx)
+	if err != nil {
+		return err
 	}
-	slog.WarnContext(ctx, "failed to release an advisory lock, closing its connection",
-		"lockKey", lockKey,
-		"error", err,
-	)
-	raw := conn.Hijack()
-	if closeErr := raw.Close(unlockCtx); closeErr != nil {
-		slog.WarnContext(ctx, "failed to close the advisory lock connection", "lockKey", lockKey, "error", closeErr)
+	result.SourcesDeleted, err = s.deleteFinishedSources(ctx)
+	if err != nil {
+		return err
 	}
+	result.OrphansDeleted, err = s.deleteOrphans(ctx)
+	return err
 }
 
 func (s *SourceSweeper) expireUploads(ctx context.Context) (int, error) {
 	now := s.now()
-	cutoff := now.Add(-(buildUploadURLTTL + s.config.UploadGrace))
+	cutoff := now.Add(-(buildsource.UploadURLTTL + s.config.UploadGrace))
 	var expired int
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		qtx := genDb.New(tx)
 		rows, err := qtx.ExpireAwaitingUploadBuilds(ctx, genDb.ExpireAwaitingUploadBuildsParams{
 			Message:       sourceUploadExpired,
 			CreatedBefore: cutoff,
@@ -168,7 +137,7 @@ func (s *SourceSweeper) expireUploads(ctx context.Context) (int, error) {
 			return err
 		}
 		for _, row := range rows {
-			if err := recordBuildFailure(ctx, qtx, row.ID, row.ResourceID, sourceUploadExpired); err != nil {
+			if err := events.RecordBuildFailure(ctx, qtx, row.ID, row.ResourceID, sourceUploadExpired); err != nil {
 				return err
 			}
 		}
@@ -188,7 +157,7 @@ func (s *SourceSweeper) deleteFinishedSources(ctx context.Context) (int, error) 
 	}
 	deleted := 0
 	for _, row := range rows {
-		if deleteErr := deleteBuildSource(ctx, s.queries, s.bucket, row.ID, row.SourceKey); deleteErr != nil {
+		if deleteErr := buildsource.Delete(ctx, s.queries, s.bucket, row.ID, row.SourceKey); deleteErr != nil {
 			slog.WarnContext(ctx, "failed to delete build source", "buildId", row.ID, "error", deleteErr)
 			continue
 		}
@@ -203,7 +172,7 @@ func (s *SourceSweeper) deleteOrphans(ctx context.Context) (int, error) {
 	deleted := 0
 	after := ""
 	for range s.config.OrphanMaxPages {
-		objects, more, err := s.bucket.List(ctx, buildSourcePrefix, after, s.config.OrphanPageSize)
+		objects, more, err := s.bucket.List(ctx, buildsource.KeyPrefix, after, s.config.OrphanPageSize)
 		if err != nil {
 			return deleted, fmt.Errorf("list sources: %w", err)
 		}
@@ -250,20 +219,4 @@ func (s *SourceSweeper) deleteInactiveKeys(ctx context.Context, keys []string) (
 		deleted++
 	}
 	return deleted, nil
-}
-
-func deleteBuildSource(
-	ctx context.Context,
-	queries genDb.Querier,
-	bucket SourceBucket,
-	buildID uuid.UUID,
-	key string,
-) error {
-	if err := bucket.Delete(ctx, key); err != nil {
-		return fmt.Errorf("delete source: %w", err)
-	}
-	if err := queries.MarkBuildSourceDeleted(ctx, buildID); err != nil {
-		return fmt.Errorf("mark source deleted: %w", err)
-	}
-	return nil
 }

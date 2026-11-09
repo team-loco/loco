@@ -220,3 +220,26 @@ func deleteExpired(ctx context.Context, q genDb.Querier, keep time.Duration) {
 		slog.InfoContext(ctx, "deleted expired events", "count", deleted)
 	}
 }
+
+func RecordBuildFailure(ctx context.Context, q genDb.Querier, buildID, resourceID uuid.UUID, message string) error {
+	return RecordBuildOutcome(ctx, q, buildID, resourceID, BuildFailed, map[string]any{FieldMessage: message})
+}
+
+func RecordBuildOutcome(
+	ctx context.Context,
+	q genDb.Querier,
+	buildID, resourceID uuid.UUID,
+	kind string,
+	data map[string]any,
+) error {
+	data[FieldBuildID] = buildID.String()
+	data[FieldResourceID] = resourceID.String()
+	return Record(ctx, q, Event{
+		Type:        kind,
+		ActorType:   ActorSystem,
+		ResourceID:  new(resourceID),
+		SubjectType: SubjectBuild,
+		SubjectID:   new(buildID),
+		Data:        data,
+	})
+}

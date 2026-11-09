@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -65,7 +66,7 @@ func onlyStart(t *testing.T, starts []*agentv1.StartBuild, id string) *agentv1.S
 func buildRepositoryPath(t *testing.T, start *agentv1.StartBuild) string {
 	t.Helper()
 	repository := start.GetImageRepository()
-	path, err := registryPath(testRegistryHost, repository)
+	path, err := imagepath.Path(testRegistryHost, repository)
 	if err != nil {
 		t.Fatal(err)
 	}

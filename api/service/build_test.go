@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
 
@@ -47,24 +49,12 @@ func TestBuildServiceDisabledWithoutConfig(t *testing.T) {
 	}
 }
 
-func TestImageRepository(t *testing.T) {
-	workspaceID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	resourceID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	suffix := "/ws-" + workspaceID.String() + "/" + resourceID.String()
-
-	tests := []struct {
-		host   string
-		prefix string
-		want   string
-	}{
-		{host: testRegistryHost, prefix: "builds", want: testRegistryHost + "/builds" + suffix},
-		{host: testRegistryHost + "/", prefix: "/team/builds/", want: testRegistryHost + "/team/builds" + suffix},
-		{host: testRegistryHost, want: testRegistryHost + suffix},
+func TestBuildToProtoReportsADeletedImage(t *testing.T) {
+	deletedAt := time.Now()
+	if buildToProto(genDb.Build{ImageDeletedAt: &deletedAt}).GetImageDeletedAt() == nil {
+		t.Fatal("a build with a deleted image reports none")
 	}
-
-	for _, tt := range tests {
-		if got := imageRepository(tt.host, tt.prefix, workspaceID, resourceID); got != tt.want {
-			t.Errorf("imageRepository(%q, %q) = %q, want %q", tt.host, tt.prefix, got, tt.want)
-		}
+	if buildToProto(genDb.Build{}).GetImageDeletedAt() != nil {
+		t.Fatal("a build with its image reports it deleted")
 	}
 }

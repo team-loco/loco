@@ -303,7 +303,7 @@ func (s *AgentServer) failClusterBuilds(ctx context.Context, params genDb.FailCl
 			return err
 		}
 		for _, row := range rows {
-			if err := recordBuildFailure(ctx, qtx, row.ID, row.ResourceID, params.Message); err != nil {
+			if err := events.RecordBuildFailure(ctx, qtx, row.ID, row.ResourceID, params.Message); err != nil {
 				return err
 			}
 		}
@@ -474,9 +474,9 @@ func (s *AgentServer) recordFinishedBuild(
 		switch params.Status {
 		case genDb.BuildStatusSucceeded:
 			data := map[string]any{events.FieldImageDigest: *params.ImageDigest}
-			return recordBuildOutcome(ctx, qtx, row.ID, row.ResourceID, events.BuildSucceeded, data)
+			return events.RecordBuildOutcome(ctx, qtx, row.ID, row.ResourceID, events.BuildSucceeded, data)
 		case genDb.BuildStatusFailed:
-			return recordBuildFailure(ctx, qtx, row.ID, row.ResourceID, publicFailure)
+			return events.RecordBuildFailure(ctx, qtx, row.ID, row.ResourceID, publicFailure)
 		default:
 			return nil
 		}
@@ -495,34 +495,4 @@ func (s *AgentServer) recordFinishedBuild(
 	)
 	deleteBuildSources(ctx, s.queries, s.sources, *finished)
 	return nil
-}
-
-func recordBuildFailure(ctx context.Context, qtx *genDb.Queries, buildID, resourceID uuid.UUID, message string) error {
-	return recordBuildOutcome(
-		ctx,
-		qtx,
-		buildID,
-		resourceID,
-		events.BuildFailed,
-		map[string]any{events.FieldMessage: message},
-	)
-}
-
-func recordBuildOutcome(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	buildID, resourceID uuid.UUID,
-	kind string,
-	data map[string]any,
-) error {
-	data[events.FieldBuildID] = buildID.String()
-	data[events.FieldResourceID] = resourceID.String()
-	return events.Record(ctx, qtx, events.Event{
-		Type:        kind,
-		ActorType:   events.ActorSystem,
-		ResourceID:  new(resourceID),
-		SubjectType: events.SubjectBuild,
-		SubjectID:   new(buildID),
-		Data:        data,
-	})
 }

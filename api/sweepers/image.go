@@ -1,4 +1,4 @@
-package service
+package sweepers
 
 import (
 	"context"
@@ -8,22 +8,19 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/advisorylock"
+	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/tracing"
-	"github.com/team-loco/loco/internal/rpcerr"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
-	workspacePathPrefix    = "ws-"
-	repositoryPathParts    = 2
 	uuidVersionTimeOrdered = 7
 
 	imageSweepSpan         = "image.sweep"
@@ -31,13 +28,6 @@ const (
 	orphanRepositoriesAttr = "loco.sweep.orphan_repositories"
 	orphanManifestsAttr    = "loco.sweep.orphan_manifests"
 	staleTagsAttr          = "loco.sweep.stale_tags"
-)
-
-var (
-	errForeignRepository = errors.New("image repository is not on the configured registry host")
-	errBuildImageDeleted = rpcerr.NewCoded(connect.CodeFailedPrecondition,
-		"the build's image was deleted from the registry by image retention; build the source again",
-	)
 )
 
 type ImageRegistry interface {
@@ -91,9 +81,7 @@ func NewImageSweeper(
 }
 
 func (s *ImageSweeper) Run(ctx context.Context) {
-	ticker := time.NewTicker(s.config.Interval)
-	defer ticker.Stop()
-	for {
+	runEvery(ctx, s.config.Interval, func(ctx context.Context) {
 		result, err := s.tracedSweep(ctx)
 		if err != nil && ctx.Err() == nil {
 			slog.ErrorContext(ctx, "image sweep failed", "error", err)
@@ -106,12 +94,7 @@ func (s *ImageSweeper) Run(ctx context.Context) {
 				"staleTags", result.StaleTags,
 			)
 		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
+	})
 }
 
 func (s *ImageSweeper) tracedSweep(ctx context.Context) (ImageSweepResult, error) {
@@ -130,30 +113,15 @@ func (s *ImageSweeper) tracedSweep(ctx context.Context) (ImageSweepResult, error
 
 func (s *ImageSweeper) Sweep(ctx context.Context) (ImageSweepResult, error) {
 	var result ImageSweepResult
-	conn, err := s.db.Acquire(ctx)
-	if err != nil {
-		return result, fmt.Errorf("acquire connection: %w", err)
-	}
-	lockQueries := genDb.New(conn)
-	locked, err := lockQueries.TryAdvisoryLock(ctx, advisorylock.ImageSweep)
-	if err != nil {
-		conn.Release()
-		return result, fmt.Errorf("lock image sweep: %w", err)
-	}
-	if !locked {
-		conn.Release()
-		return result, nil
-	}
-	defer unlockAdvisory(ctx, conn, lockQueries, advisorylock.ImageSweep)
-	result.Ran = true
-
-	deleted, err := s.deleteExpiredImages(ctx)
-	result.ImagesDeleted = deleted
-	if err != nil {
-		return result, err
-	}
-
-	err = s.sweepRepositories(ctx, &result)
+	ran, err := runLocked(ctx, s.db, advisorylock.ImageSweep, func() error {
+		deleted, deleteErr := s.deleteExpiredImages(ctx)
+		result.ImagesDeleted = deleted
+		if deleteErr != nil {
+			return deleteErr
+		}
+		return s.sweepRepositories(ctx, &result)
+	})
+	result.Ran = ran
 	return result, err
 }
 
@@ -181,7 +149,8 @@ func (s *ImageSweeper) deleteExpiredImages(ctx context.Context) (int, error) {
 
 func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) (bool, error) {
 	removed := false
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		qtx := genDb.New(tx)
 		removed = false
 		deletedAt, lockErr := qtx.LockBuildImageForDelete(ctx, buildID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
@@ -205,7 +174,7 @@ func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) 
 			return nil
 		}
 		row := rows[0]
-		path, pathErr := registryPath(s.config.RegistryHost, row.ImageRepository)
+		path, pathErr := imagepath.Path(s.config.RegistryHost, row.ImageRepository)
 		if pathErr != nil {
 			return pathErr
 		}
@@ -239,7 +208,7 @@ func (s *ImageSweeper) sweepRepositories(ctx context.Context, result *ImageSweep
 	byResource := map[uuid.UUID][]string{}
 	var ids []uuid.UUID
 	for _, repo := range repos {
-		resourceID, ok := parseRepositoryPath(s.config.RegistryPrefix, repo)
+		resourceID, ok := imagepath.ParseResource(s.config.RegistryPrefix, repo)
 		if !ok {
 			continue
 		}
@@ -468,41 +437,4 @@ func (s *ImageSweeper) deleteTag(ctx context.Context, tag buildTag, protected ma
 		return false, deleteErr
 	}
 	return true, nil
-}
-
-func registryPath(registryHost, imageRepository string) (string, error) {
-	host := strings.TrimSuffix(registryHost, "/")
-	path, ok := strings.CutPrefix(imageRepository, host+"/")
-	if !ok || path == "" {
-		return "", fmt.Errorf("%w: %q", errForeignRepository, imageRepository)
-	}
-	return path, nil
-}
-
-func parseRepositoryPath(registryPrefix, path string) (uuid.UUID, bool) {
-	rest := path
-	prefix := strings.Trim(registryPrefix, "/")
-	if prefix != "" {
-		var ok bool
-		rest, ok = strings.CutPrefix(path, prefix+"/")
-		if !ok {
-			return uuid.UUID{}, false
-		}
-	}
-	parts := strings.Split(rest, "/")
-	if len(parts) != repositoryPathParts {
-		return uuid.UUID{}, false
-	}
-	rawWorkspaceID, ok := strings.CutPrefix(parts[0], workspacePathPrefix)
-	if !ok {
-		return uuid.UUID{}, false
-	}
-	if _, err := uuid.Parse(rawWorkspaceID); err != nil {
-		return uuid.UUID{}, false
-	}
-	resourceID, err := uuid.Parse(parts[1])
-	if err != nil {
-		return uuid.UUID{}, false
-	}
-	return resourceID, true
 }

@@ -1,45 +1,140 @@
-package service
+package sweepers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/team-loco/loco/api/events"
-	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/buildsource"
+	"github.com/team-loco/loco/api/pkg/sourcebucket"
 )
 
 const (
-	testSourceSize     = 10
 	testOrphanCount    = 1200
 	testOrphanAge      = 48 * time.Hour
 	testRecentAge      = time.Hour
 	testSweepSkew      = time.Minute
 	testSweepDeadline  = 10 * time.Second
-	testDeleteFailures = 2
+	testDeleteFailures = 1
 )
 
-var testSourceSweep = SourceSweepConfig{
-	Interval:       10 * time.Minute,
-	UploadGrace:    time.Hour,
-	OrphanMinAge:   24 * time.Hour,
-	BuildBatch:     100,
-	OrphanPageSize: 1000,
-	OrphanMaxPages: 5,
+var (
+	errFakeDelete = errors.New("fake delete failure")
+
+	testSourceSweep = SourceSweepConfig{
+		Interval:       10 * time.Minute,
+		UploadGrace:    time.Hour,
+		OrphanMinAge:   24 * time.Hour,
+		BuildBatch:     100,
+		OrphanPageSize: 1000,
+		OrphanMaxPages: 5,
+	}
+)
+
+type fakeBucket struct {
+	mu          sync.Mutex
+	modified    map[string]time.Time
+	deleted     []string
+	deleteFails map[string]int
+	onDelete    func(key string)
+}
+
+func newFakeBucket() *fakeBucket {
+	return &fakeBucket{
+		modified:    map[string]time.Time{},
+		deleteFails: map[string]int{},
+	}
+}
+
+func (b *fakeBucket) Delete(_ context.Context, key string) error {
+	b.mu.Lock()
+	hook := b.onDelete
+	b.mu.Unlock()
+	if hook != nil {
+		hook(key)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.deleteFails[key] > 0 {
+		b.deleteFails[key]--
+		return errFakeDelete
+	}
+	b.deleted = append(b.deleted, key)
+	delete(b.modified, key)
+	return nil
+}
+
+func (b *fakeBucket) List(
+	_ context.Context,
+	prefix, startAfter string,
+	limit int32,
+) ([]sourcebucket.Object, bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	keys := make([]string, 0, len(b.modified))
+	for key := range b.modified {
+		if strings.HasPrefix(key, prefix) && key > startAfter {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	more := len(keys) > int(limit)
+	if more {
+		keys = keys[:limit]
+	}
+	objects := make([]sourcebucket.Object, 0, len(keys))
+	for _, key := range keys {
+		objects = append(objects, sourcebucket.Object{Key: key, LastModified: b.modified[key]})
+	}
+	return objects, more, nil
+}
+
+func (b *fakeBucket) uploadAt(key string, at time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.modified[key] = at
+}
+
+func (b *fakeBucket) has(key string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, ok := b.modified[key]
+	return ok
+}
+
+func (b *fakeBucket) deleteCount(key string) int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	n := 0
+	for _, deleted := range b.deleted {
+		if deleted == key {
+			n++
+		}
+	}
+	return n
 }
 
 type sweepFixture struct {
-	*buildFixture
+	*fixture
+	bucket  *fakeBucket
 	sweeper *SourceSweeper
 }
 
 func newSweepFixture(t *testing.T) *sweepFixture {
 	t.Helper()
-	f := newBuildFixture(t)
-	sweeper := NewSourceSweeper(f.pool, f.queries, f.bucket, testSourceSweep)
-	return &sweepFixture{buildFixture: f, sweeper: sweeper}
+	f := newFixture(t)
+	bucket := newFakeBucket()
+	sweeper := NewSourceSweeper(f.pool, f.queries, bucket, testSourceSweep)
+	return &sweepFixture{fixture: f, bucket: bucket, sweeper: sweeper}
 }
 
 func (f *sweepFixture) sweep(t *testing.T) SourceSweepResult {
@@ -54,48 +149,64 @@ func (f *sweepFixture) sweep(t *testing.T) SourceSweepResult {
 	return result
 }
 
-func (f *sweepFixture) canceledWithFailingDeletes(t *testing.T, failures int) string {
+// upload puts the build's source in the bucket.
+func (f *sweepFixture) upload(id uuid.UUID) {
+	f.bucket.uploadAt(buildsource.Key(id), time.Now())
+}
+
+// queued is a started build whose source is uploaded.
+func (f *sweepFixture) queued(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := f.create(t, testSourceSize).GetBuildId()
-	f.uploadFor(t, id, testSourceSize)
-	key := sourceKeyFor(id)
-	f.bucket.mu.Lock()
-	f.bucket.deleteFails[key] = failures
-	f.bucket.mu.Unlock()
-	if _, err := f.cancel(id); err != nil {
-		t.Fatalf("cancel build: %v", err)
-	}
-	if f.sourceDeleted(t, id) {
-		t.Fatal("a failed delete on cancel marked the source deleted")
-	}
+	id := f.insertBuild(t, genDb.BuildStatusQueued)
+	f.upload(id)
 	return id
 }
 
-func (f *buildFixture) sourceDeleted(t *testing.T, buildID string) bool {
+// canceledWithFailingDeletes is a canceled build whose source delete fails the given number of times.
+func (f *sweepFixture) canceledWithFailingDeletes(t *testing.T, failures int) uuid.UUID {
 	t.Helper()
-	var deleted bool
-	row := f.pool.QueryRow(f.ctx, `SELECT source_deleted_at IS NOT NULL FROM builds WHERE id = $1`, buildID)
-	if err := row.Scan(&deleted); err != nil {
-		t.Fatalf("read source_deleted_at: %v", err)
+	id := f.insertBuild(t, genDb.BuildStatusCanceled)
+	f.upload(id)
+	f.bucket.mu.Lock()
+	f.bucket.deleteFails[buildsource.Key(id)] = failures
+	f.bucket.mu.Unlock()
+	return id
+}
+
+func (f *sweepFixture) sourceDeleted(t *testing.T, id uuid.UUID) bool {
+	t.Helper()
+	return f.build(t, id).SourceDeletedAt != nil
+}
+
+func (f *sweepFixture) wantFailureEvent(t *testing.T, id uuid.UUID, message string) {
+	t.Helper()
+	var count int
+	err := f.pool.QueryRow(f.ctx, `
+SELECT count(*) FROM events WHERE subject_id = $1 AND type = $2 AND data->>$3 = $4`,
+		id, events.BuildFailed, events.FieldMessage, message).Scan(&count)
+	if err != nil {
+		t.Fatalf("count build events: %v", err)
 	}
-	return deleted
+	if count != 1 {
+		t.Fatalf("build %s has %d %s events with message %q, want 1", id, count, events.BuildFailed, message)
+	}
 }
 
 func TestSweepExpiresAbandonedUploads(t *testing.T) {
 	f := newSweepFixture(t)
 
 	queuedID := f.queued(t)
-	waitingID := f.create(t, testSourceSize).GetBuildId()
-	uploadedID := f.create(t, testSourceSize).GetBuildId()
-	f.uploadFor(t, uploadedID, testSourceSize)
+	waitingID := f.insertBuild(t, genDb.BuildStatusAwaitingUpload)
+	uploadedID := f.insertBuild(t, genDb.BuildStatusAwaitingUpload)
+	f.upload(uploadedID)
 
-	expiry := buildUploadURLTTL + testSourceSweep.UploadGrace
+	expiry := buildsource.UploadURLTTL + testSourceSweep.UploadGrace
 	start := time.Now()
 	f.sweeper.now = func() time.Time { return start.Add(expiry - testSweepSkew) }
 	if result := f.sweep(t); result.Expired != 0 {
 		t.Fatalf("expired %d builds inside the grace period, want 0", result.Expired)
 	}
-	wantStatus(t, f.get(t, waitingID), buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD)
+	wantStatus(t, f.build(t, waitingID), genDb.BuildStatusAwaitingUpload)
 
 	f.sweeper.now = func() time.Time { return start.Add(expiry + testSweepSkew) }
 	result := f.sweep(t)
@@ -105,27 +216,27 @@ func TestSweepExpiresAbandonedUploads(t *testing.T) {
 	if result := f.sweep(t); result.Expired != 0 {
 		t.Fatalf("expired %d builds on retry, want 0", result.Expired)
 	}
-	for _, id := range []string{waitingID, uploadedID} {
-		f.wantBuildOutcome(t, id, events.BuildFailed, events.FieldMessage, sourceUploadExpired)
-		build := f.get(t, id)
-		wantStatus(t, build, buildv1.BuildStatus_BUILD_STATUS_FAILED)
-		if msg := build.GetMessage(); msg != sourceUploadExpired {
-			t.Fatalf("build %s message = %q, want %q", id, msg, sourceUploadExpired)
+	for _, id := range []uuid.UUID{waitingID, uploadedID} {
+		f.wantFailureEvent(t, id, sourceUploadExpired)
+		build := f.build(t, id)
+		wantStatus(t, build, genDb.BuildStatusFailed)
+		if build.Message != sourceUploadExpired {
+			t.Fatalf("build %s message = %q, want %q", id, build.Message, sourceUploadExpired)
 		}
-		if build.GetFinishedAt() == nil {
+		if build.FinishedAt == nil {
 			t.Fatalf("build %s has no finished_at", id)
 		}
 		if !f.sourceDeleted(t, id) {
 			t.Fatalf("build %s source not marked deleted", id)
 		}
 	}
-	uploadedKey := sourceKeyFor(uploadedID)
+	uploadedKey := buildsource.Key(uploadedID)
 	if f.bucket.has(uploadedKey) {
 		t.Fatal("the expired build's uploaded source is still in the bucket")
 	}
 
-	wantStatus(t, f.get(t, queuedID), buildv1.BuildStatus_BUILD_STATUS_QUEUED)
-	queuedKey := sourceKeyFor(queuedID)
+	wantStatus(t, f.build(t, queuedID), genDb.BuildStatusQueued)
+	queuedKey := buildsource.Key(queuedID)
 	if !f.bucket.has(queuedKey) {
 		t.Fatal("the queued build's source was deleted")
 	}
@@ -138,7 +249,7 @@ func TestSweepRetriesFailedSourceDeletes(t *testing.T) {
 	f := newSweepFixture(t)
 
 	id := f.canceledWithFailingDeletes(t, testDeleteFailures)
-	key := sourceKeyFor(id)
+	key := buildsource.Key(id)
 
 	if result := f.sweep(t); result.SourcesDeleted != 0 {
 		t.Fatalf("deleted %d sources while the bucket failed, want 0", result.SourcesDeleted)
@@ -173,25 +284,25 @@ func TestSweepDeletesOrphanedSources(t *testing.T) {
 	recent := now.Add(-testRecentAge)
 
 	activeID := f.queued(t)
-	activeKey := sourceKeyFor(activeID)
-	f.bucket.uploadAt(activeKey, testSourceSize, old)
+	activeKey := buildsource.Key(activeID)
+	f.bucket.uploadAt(activeKey, old)
 
-	cascadedID := f.create(t, testSourceSize).GetBuildId()
-	cascadedKey := sourceKeyFor(cascadedID)
-	f.bucket.uploadAt(cascadedKey, testSourceSize, old)
+	cascadedID := f.insertBuild(t, genDb.BuildStatusAwaitingUpload)
+	cascadedKey := buildsource.Key(cascadedID)
+	f.bucket.uploadAt(cascadedKey, old)
 	if _, err := f.pool.Exec(f.ctx, `DELETE FROM builds WHERE id = $1`, cascadedID); err != nil {
 		t.Fatalf("delete build row: %v", err)
 	}
 
-	recentKey := buildSourcePrefix + "recent.tar.gz"
-	f.bucket.uploadAt(recentKey, testSourceSize, recent)
+	recentKey := buildsource.KeyPrefix + "recent.tar.gz"
+	f.bucket.uploadAt(recentKey, recent)
 	otherKey := "other/old.tar.gz"
-	f.bucket.uploadAt(otherKey, testSourceSize, old)
+	f.bucket.uploadAt(otherKey, old)
 
 	orphanKeys := make([]string, 0, testOrphanCount)
 	for i := range testOrphanCount {
-		key := fmt.Sprintf("%sorphan-%05d.tar.gz", buildSourcePrefix, i)
-		f.bucket.uploadAt(key, testSourceSize, old)
+		key := fmt.Sprintf("%sorphan-%05d.tar.gz", buildsource.KeyPrefix, i)
+		f.bucket.uploadAt(key, old)
 		orphanKeys = append(orphanKeys, key)
 	}
 
@@ -217,8 +328,8 @@ func TestSweepDeletesOrphanedSources(t *testing.T) {
 
 func TestConcurrentSweepsRunOnce(t *testing.T) {
 	f := newSweepFixture(t)
-	id := f.canceledWithFailingDeletes(t, 1)
-	key := sourceKeyFor(id)
+	id := f.canceledWithFailingDeletes(t, 0)
+	key := buildsource.Key(id)
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
@@ -280,5 +391,12 @@ func TestConcurrentSweepsRunOnce(t *testing.T) {
 	}
 	if !after.Ran {
 		t.Fatal("the lock was not released after the first sweep")
+	}
+}
+
+func wantStatus(t *testing.T, b genDb.Build, want genDb.BuildStatus) {
+	t.Helper()
+	if b.Status != want {
+		t.Fatalf("build %s status = %v, want %v", b.ID, b.Status, want)
 	}
 }
