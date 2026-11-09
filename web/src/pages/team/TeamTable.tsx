@@ -1,28 +1,13 @@
 import type { Invitation } from "@gen/loco/org/v1/org_pb";
 import { InvitationStatus } from "@gen/loco/org/v1/org_pb";
-import {
-	ChevronDownIcon,
-	CopyIcon,
-	EllipsisIcon,
-	LayersIcon,
-	RotateCwIcon,
-	Trash2Icon,
-	UserMinusIcon,
-} from "lucide-react";
+import { ChevronDownIcon, CopyIcon, LayersIcon, RotateCwIcon, Trash2Icon, UserMinusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
+import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { LevelChip } from "@/components/design/LevelChip";
+import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
@@ -223,22 +208,6 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 				</RowMenu>
 			</TableCell>
 		</TableRow>
-	);
-}
-
-function RowMenu({ label, title, children }: { label: string; title: string; children: ReactNode }) {
-	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={label} className="text-fg2" />}>
-				<EllipsisIcon className="size-4" />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-auto min-w-[220px]">
-				<DropdownMenuGroup>
-					<DropdownMenuLabel className="max-w-[260px] truncate">{title}</DropdownMenuLabel>
-				</DropdownMenuGroup>
-				{children}
-			</DropdownMenuContent>
-		</DropdownMenu>
 	);
 }
 
