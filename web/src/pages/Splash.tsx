@@ -8,7 +8,6 @@ import { Architecture } from "./splash/Architecture";
 import { Features } from "./splash/Features";
 import { GetStarted } from "./splash/GetStarted";
 import { Hero } from "./splash/Hero";
-import { ProductDemo } from "./splash/ProductDemo";
 import { SplashFooter } from "./splash/SplashFooter";
 import { SplashNav } from "./splash/SplashNav";
 
@@ -32,8 +31,7 @@ export function Splash() {
 	return (
 		<div className="flex min-h-screen flex-col overflow-x-clip bg-background text-lg leading-[1.55] text-foreground">
 			<SplashNav onSignIn={startSignIn} redirecting={redirecting} />
-			<Hero />
-			<ProductDemo />
+			<Hero onSignIn={startSignIn} redirecting={redirecting} />
 			<GetStarted />
 			<Features />
 			<Architecture />
