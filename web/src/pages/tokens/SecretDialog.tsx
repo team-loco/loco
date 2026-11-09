@@ -57,15 +57,7 @@ function SecretBody({ revealed, onClose }: { revealed: RevealedSecret; onClose: 
 					</Button>
 				</div>
 			</DialogBody>
-			<DialogFooter className="items-center justify-between">
-				<a
-					href="/docs/operations/access/#deploy-from-ci-with-an-api-token"
-					target="_blank"
-					rel="noopener"
-					className="text-sm text-fg2 underline-offset-4 hover:text-foreground hover:underline"
-				>
-					CI deployment docs
-				</a>
+			<DialogFooter>
 				<Button variant="inverted" size="lg" onClick={onClose}>
 					Done
 				</Button>
