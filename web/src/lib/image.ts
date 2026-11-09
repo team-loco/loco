@@ -5,6 +5,7 @@ const SHORT_SUFFIX_LENGTH = 6;
 const IMPLICIT_TAG = "latest";
 
 interface ImageParts {
+	path: string;
 	repository: string;
 	tag: string;
 	digest: string;
@@ -20,7 +21,11 @@ export function parseImage(image: string): ImageParts {
 	const path = hasTag ? name.slice(0, colon) : name;
 	const repository = path.slice(path.lastIndexOf("/") + 1);
 	const tag = hasTag ? name.slice(colon + 1) : "";
-	return { repository, tag, digest };
+	return { path, repository, tag, digest };
+}
+
+export function imageName(image: string): string {
+	return parseImage(image).path;
 }
 
 export function shortDigest(digest: string): string {

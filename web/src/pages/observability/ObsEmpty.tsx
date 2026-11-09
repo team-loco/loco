@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowUpRightIcon, HistoryIcon, SearchXIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { ART_SOFT, ART_STRONG, ClusterArt } from "@/components/design/ClusterArt";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
 import { formatSpan, windowSpan } from "@/lib/obs-time";
@@ -13,24 +14,21 @@ import { queryStr } from "./query";
 
 const DOCS_PATH = `${DOCS_URL}/operations/applications/`;
 
-const STRONG = "color-mix(in oklab, var(--fg) 42%, var(--bg))";
-const SOFT = "color-mix(in oklab, var(--fg) 22%, var(--bg))";
-
 const LOG_ROWS: { y: number; w: number; mark: string }[] = [
-	{ y: 28, w: 48, mark: SOFT },
-	{ y: 39.5, w: 36, mark: SOFT },
+	{ y: 28, w: 48, mark: ART_SOFT },
+	{ y: 39.5, w: 36, mark: ART_SOFT },
 	{ y: 51, w: 54, mark: "var(--warn)" },
-	{ y: 62.5, w: 30, mark: SOFT },
+	{ y: 62.5, w: 30, mark: ART_SOFT },
 	{ y: 74, w: 44, mark: "var(--err)" },
-	{ y: 85.5, w: 38, mark: SOFT },
+	{ y: 85.5, w: 38, mark: ART_SOFT },
 ];
 const SPANS: { x: number; y: number; w: number; fill: string }[] = [
 	{ x: 142, y: 30, w: 82, fill: "var(--info)" },
-	{ x: 148, y: 42, w: 48, fill: STRONG },
-	{ x: 154, y: 54, w: 24, fill: STRONG },
-	{ x: 180, y: 54, w: 14, fill: STRONG },
-	{ x: 198, y: 66, w: 22, fill: STRONG },
-	{ x: 204, y: 78, w: 12, fill: SOFT },
+	{ x: 148, y: 42, w: 48, fill: ART_STRONG },
+	{ x: 154, y: 54, w: 24, fill: ART_STRONG },
+	{ x: 180, y: 54, w: 14, fill: ART_STRONG },
+	{ x: 198, y: 66, w: 22, fill: ART_STRONG },
+	{ x: 204, y: 78, w: 12, fill: ART_SOFT },
 ];
 const EVENT_ROWS: { y: number; w: number; dot: string }[] = [
 	{ y: 32, w: 50, dot: "var(--ok)" },
@@ -39,21 +37,15 @@ const EVENT_ROWS: { y: number; w: number; dot: string }[] = [
 	{ y: 74, w: 34, dot: "var(--ok)" },
 	{ y: 88, w: 46, dot: "var(--err)" },
 ];
-const PODS: [number, number][] = [
-	[4, 4],
-	[11, 4],
-	[4, 11],
-	[11, 11],
-];
 
 function Panel({ view }: { view: ObservabilityView }) {
 	switch (view) {
 		case "logs":
 			return LOG_ROWS.map((r) => (
 				<g key={r.y}>
-					<rect x={142} y={r.y} width={14} height={3} rx={1.5} fill={SOFT} />
+					<rect x={142} y={r.y} width={14} height={3} rx={1.5} fill={ART_SOFT} />
 					<rect x={160} y={r.y} width={8} height={3} rx={1.5} fill={r.mark} />
-					<rect x={172} y={r.y} width={r.w} height={3} rx={1.5} fill={STRONG} />
+					<rect x={172} y={r.y} width={r.w} height={3} rx={1.5} fill={ART_STRONG} />
 				</g>
 			));
 		case "metrics":
@@ -85,9 +77,9 @@ function Panel({ view }: { view: ObservabilityView }) {
 			return EVENT_ROWS.map((r) => (
 				<g key={r.y}>
 					<circle cx={146} cy={r.y} r={3} fill={r.dot} />
-					<rect x={154} y={r.y - 2} width={r.w} height={3.5} rx={1.75} fill={STRONG} />
-					<rect x={154} y={r.y + 4} width={r.w * 0.6} height={2.5} rx={1.25} fill={SOFT} />
-					<rect x={214} y={r.y - 2} width={12} height={3} rx={1.5} fill={SOFT} />
+					<rect x={154} y={r.y - 2} width={r.w} height={3.5} rx={1.75} fill={ART_STRONG} />
+					<rect x={154} y={r.y + 4} width={r.w * 0.6} height={2.5} rx={1.25} fill={ART_SOFT} />
+					<rect x={214} y={r.y - 2} width={12} height={3} rx={1.5} fill={ART_SOFT} />
 				</g>
 			));
 	}
@@ -95,30 +87,9 @@ function Panel({ view }: { view: ObservabilityView }) {
 
 export function ObsArt({ view }: { view: ObservabilityView }) {
 	return (
-		<svg
-			viewBox="14 10 226 100"
-			width={300}
-			height={133}
-			aria-hidden="true"
-			className="block max-w-full overflow-visible"
-		>
-			<path d="M24 60 L58 77 L58 85 L24 68 Z" fill="var(--panel2)" stroke={STRONG} strokeLinejoin="round" />
-			<path
-				d="M58 77 L92 60 L92 68 L58 85 Z"
-				fill="color-mix(in oklab, var(--panel2) 70%, var(--line2))"
-				stroke={STRONG}
-				strokeLinejoin="round"
-			/>
-			<path d="M58 43 L92 60 L58 77 L24 60 Z" fill="var(--bg)" stroke={STRONG} strokeLinejoin="round" />
-			<g transform="matrix(1.7 0.85 -1.7 0.85 58 43)">
-				{PODS.map(([x, y]) => (
-					<rect key={`${String(x)}-${String(y)}`} x={x} y={y} width={5} height={5} rx={0.7} fill={STRONG} />
-				))}
-			</g>
-			<path d="M92 62 C112 62 112 60 134 60" fill="none" stroke={SOFT} strokeDasharray="2 2.5" />
-			<rect x={134} y={18} width={98} height={84} rx={7} fill="var(--bg)" stroke="var(--line2)" />
+		<ClusterArt>
 			<Panel view={view} />
-		</svg>
+		</ClusterArt>
 	);
 }
 

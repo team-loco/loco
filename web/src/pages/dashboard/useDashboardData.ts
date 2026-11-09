@@ -1,7 +1,5 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { useQuery } from "@connectrpc/connect-query";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import {
 	ResourceStatus,
@@ -11,12 +9,10 @@ import {
 } from "@gen/loco/resource/v1/resource_pb";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
+import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { tsMs } from "@/lib/time";
-
-import { isInFlight } from "./format";
-import { configuredRegions } from "@/lib/resource-regions";
 
 export interface RegionReplicas {
 	region: string;
@@ -35,9 +31,6 @@ export interface EnvResource {
 	neverDeployed: boolean;
 }
 
-const POLL_MS = 5000;
-const IDLE_POLL_MS = 15_000;
-
 function regionReplicas(resource: Resource, environment: EnvironmentStatus | undefined): RegionReplicas[] {
 	const names = new Set(configuredRegions(resource));
 	for (const r of environment?.regions ?? []) names.add(r.region);
@@ -47,41 +40,16 @@ function regionReplicas(resource: Resource, environment: EnvironmentStatus | und
 	});
 }
 
-function rollingOut(resource: Resource): boolean {
-	return resource.environmentStatuses.some((e) => e.regions.some((r) => isInFlight(r.deploymentStatus)));
-}
-
 export function useDashboardData(workspaceId: string | null, env: Environment | undefined) {
-	const transport = useTransport();
-	const resourcesQuery = useTanstackQuery({
-		...workspaceResourcesOptions(transport, workspaceId ?? ""),
-		enabled: workspaceId !== null,
-		refetchInterval: (q) => {
-			const list = q.state.data?.resources ?? [];
-			return list.some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
-		},
-	});
+	const { resources, deployments, isLoading, error } = useWorkspaceDeployments(workspaceId);
 	const regionsQuery = useQuery(listRegions, { environmentId: env?.id ?? "" }, { enabled: env !== undefined });
-	const resources = resourcesQuery.data?.resources ?? [];
-
-	const deploymentQueries = useQueries({
-		queries: resources.map((r) => ({
-			...createQueryOptions(listDeployments, { resourceId: r.id, pageSize: 50 }, { transport }),
-			refetchInterval: (q: { state: { data?: { deployments: Deployment[] } | undefined } }) => {
-				const list = q.state.data?.deployments ?? [];
-				return list.some((d) => d.isActive && isInFlight(d.status)) ? POLL_MS : false;
-			},
-		})),
-	});
-
-	const deploymentsLoading = deploymentQueries.some((q) => q.isLoading);
 
 	const envId = env?.id ?? "";
 	const envResources: EnvResource[] = [];
 	const envDeployments: { deployment: Deployment; resource: Resource }[] = [];
 
 	resources.forEach((resource, i) => {
-		const all = deploymentQueries[i]?.data?.deployments ?? [];
+		const all = deployments[i] ?? [];
 		const mine = all.filter((d) => d.environmentId === envId).toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
 		const neverDeployed = all.length === 0;
@@ -105,12 +73,10 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 	const regionInfos: RegionInfo[] = regionsQuery.data?.regions ?? [];
 
 	return {
-		resources,
 		envResources,
 		envDeployments,
 		regions: regionInfos,
-		isLoading: resourcesQuery.isLoading || deploymentsLoading,
-		error: resourcesQuery.error,
-		refetchResources: resourcesQuery.refetch,
+		isLoading,
+		error,
 	};
 }

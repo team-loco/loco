@@ -1,6 +1,6 @@
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { cn } from "@/lib/utils";
-import { isInFlight } from "@/pages/dashboard/format";
+import { isInFlight } from "@/lib/deployment-utils";
 
 import { shortId } from "./format";
 import { depTag, type RegionView } from "./model";

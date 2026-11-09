@@ -1,10 +1,12 @@
-import { SearchXIcon, XIcon } from "lucide-react";
+import { ActivityIcon, ChevronsUpDownIcon, ScrollTextIcon, SearchXIcon, VariableIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
-import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { ResourceStatus, type RegionInfo, type Resource, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
+import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
@@ -14,15 +16,16 @@ import { SoonTag } from "@/components/design/SoonTag";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { deploymentImage } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { usePagedRows } from "@/lib/paging";
+import { statusRank } from "@/lib/resource-status";
+import { observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
-import { deploymentImage, statusRank } from "./format";
 import { ALL, filterRows, STATUS_FILTERS, TYPE_FILTERS, type RowFilter } from "./resourceRows";
-import { ResourceRowMenu } from "./ResourceRowMenu";
 import type { EnvResource } from "./useDashboardData";
 
 type SortKey = "name" | "status" | "regions" | "replicas" | "deploy";
@@ -93,6 +96,44 @@ function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: num
 				/>
 			))}
 		</span>
+	);
+}
+
+function DashboardRowMenu({
+	resource,
+	orgId,
+	workspaceId,
+	envName,
+}: {
+	resource: Resource;
+	orgId: string;
+	workspaceId: string;
+	envName: string;
+}) {
+	const navigate = useNavigate();
+	const base = resourcePath(orgId, workspaceId, resource.id);
+	const envQuery = `env=${encodeURIComponent(envName)}`;
+	const obs = (view: "logs" | "events") =>
+		observabilityPath(orgId, workspaceId, view, { env: envName, r: resource.name });
+	return (
+		<ResourceRowMenu resource={resource} workspaceId={workspaceId}>
+			<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>
+				<ScrollTextIcon className="text-fg3" />
+				View logs
+			</DropdownMenuItem>
+			<DropdownMenuItem onClick={() => void navigate(obs("events"))}>
+				<ActivityIcon className="text-fg3" />
+				View events
+			</DropdownMenuItem>
+			<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>
+				<ChevronsUpDownIcon className="text-fg3" />
+				Scale
+			</DropdownMenuItem>
+			<DropdownMenuItem onClick={() => void navigate(`${base}?tab=variables&${envQuery}`)}>
+				<VariableIcon className="text-fg3" />
+				Environment variables
+			</DropdownMenuItem>
+		</ResourceRowMenu>
 	);
 }
 
@@ -170,7 +211,7 @@ function DataRow({
 				{last === undefined ? "—" : agoLabel(tsMs(last.createdAt), nowMs)}
 			</TableCell>
 			<TableCell className="text-right">
-				<ResourceRowMenu resource={item.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
+				<DashboardRowMenu resource={item.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
 			</TableCell>
 		</TableRow>
 	);

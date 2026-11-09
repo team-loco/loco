@@ -1,8 +1,7 @@
 import { useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { ActivityIcon, ChevronsUpDownIcon, ScrollTextIcon, Trash2Icon, VariableIcon } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Trash2Icon } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -12,29 +11,22 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/Dro
 import { RowMenu } from "@/components/design/RowMenu";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
-import { observabilityPath, resourcePath } from "@/lib/routes";
 
 export function ResourceRowMenu({
 	resource,
-	orgId,
 	workspaceId,
-	envName,
+	title,
+	children,
 }: {
 	resource: Resource;
-	orgId: string;
 	workspaceId: string;
-	envName: string;
+	title?: ReactNode;
+	children: ReactNode;
 }) {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const transport = useTransport();
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const deleteMutation = useMutation(deleteResource);
-
-	const base = resourcePath(orgId, workspaceId, resource.id);
-	const envQuery = `env=${encodeURIComponent(envName)}`;
-	const obs = (view: "logs" | "events") =>
-		observabilityPath(orgId, workspaceId, view, { env: envName, r: resource.name });
 
 	const confirmDelete = async () => {
 		try {
@@ -49,23 +41,8 @@ export function ResourceRowMenu({
 
 	return (
 		<>
-			<RowMenu label={`Actions for ${resource.name}`}>
-				<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>
-					<ScrollTextIcon className="text-fg3" />
-					View logs
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => void navigate(obs("events"))}>
-					<ActivityIcon className="text-fg3" />
-					View events
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>
-					<ChevronsUpDownIcon className="text-fg3" />
-					Scale
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => void navigate(`${base}?tab=variables&${envQuery}`)}>
-					<VariableIcon className="text-fg3" />
-					Environment variables
-				</DropdownMenuItem>
+			<RowMenu label={`Actions for ${resource.name}`} title={title}>
+				{children}
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					variant="destructive"

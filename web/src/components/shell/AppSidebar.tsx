@@ -12,7 +12,7 @@ import {
 	UserIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -44,13 +44,12 @@ import {
 	SidebarMenuItem,
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { pageImporters } from "@/lib/lazy-pages";
 import { expandOrgLink } from "@/lib/org-links";
 import { colorThemes, parseColorTheme } from "@/lib/theme";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
-import { accountSettingsPath, newResourcePath, workspacePath } from "@/lib/routes";
+import { accountSettingsPath, workspacePath } from "@/lib/routes";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 import { useNavSections } from "./nav";
@@ -81,7 +80,6 @@ function preloadPage(load: (() => Promise<unknown>) | undefined) {
 }
 
 export function AppSidebar() {
-	const [params] = useSearchParams();
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
 	const { theme, toggle, color, setColor } = useTheme();
@@ -91,8 +89,6 @@ export function AppSidebar() {
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const { data: config } = useQuery(getConfig, {});
 
-	const env = params.get("env");
-	const envParams: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
 
@@ -125,19 +121,6 @@ export function AppSidebar() {
 				</Link>
 				<SidebarToggle className="absolute top-3 right-2.5" />
 			</SidebarHeader>
-
-			{hasWs && (
-				<Link
-					to={newResourcePath(activeOrgId, activeWorkspaceId, envParams)}
-					onMouseEnter={() => {
-						preloadPage(pageImporters.NewResource);
-					}}
-					className="mx-3 mt-1 flex h-[34px] shrink-0 items-center gap-2 rounded-[7px] border border-line2 bg-raise px-2.5 text-[13.5px] font-medium text-foreground outline-none transition-colors duration-150 hover:border-fg4 focus-visible:ring-2 focus-visible:ring-sidebar-ring dark:hover:border-line2 dark:hover:bg-panel2"
-				>
-					<PlusIcon className="size-4 text-fg3" />
-					New resource
-				</Link>
-			)}
 
 			<SidebarContent className="gap-0 px-3 pt-4 pb-3">
 				{sections.map((section) => (
