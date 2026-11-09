@@ -50,7 +50,7 @@ func TestConcurrentWebhookDeletionRecordsOneEvent(t *testing.T) {
 			switch {
 			case deleteErr == nil:
 				succeeded++
-			case connect.CodeOf(deleteErr) == connect.CodeNotFound:
+			case wireCode(deleteErr) == connect.CodeNotFound:
 				missing++
 			default:
 				t.Fatalf("delete failed: %v", deleteErr)
@@ -62,7 +62,7 @@ func TestConcurrentWebhookDeletionRecordsOneEvent(t *testing.T) {
 	if succeeded != 1 || missing != 1 {
 		t.Fatalf("deleted=%d missing=%d, want 1 each", succeeded, missing)
 	}
-	if _, deleteErr := server.DeleteWebhook(f.owner, request); connect.CodeOf(deleteErr) != connect.CodeNotFound {
+	if _, deleteErr := server.DeleteWebhook(f.owner, request); wireCode(deleteErr) != connect.CodeNotFound {
 		t.Fatalf("repeated deletion = %v, want not_found", deleteErr)
 	}
 	var recorded int

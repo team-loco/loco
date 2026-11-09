@@ -532,7 +532,7 @@ func TestPinDockerfileBuildFromDatabase(t *testing.T) {
 
 	otherResource := uuid.New()
 	_, err = pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, otherResource, src)
-	wantCode(t, handlerError(f.ctx, "pin", err), connect.CodeNotFound)
+	wantCode(t, err, connect.CodeNotFound)
 }
 
 func TestSucceededBuildRequiresDigest(t *testing.T) {

@@ -27,11 +27,12 @@ const updateAvatarField = "avatar_url"
 
 var (
 	ErrUserNotFound           = rpcerr.NewCoded(connect.CodeNotFound, "user not found")
-	ErrUserAlreadyExists      = errors.New("user already exists")
-	ErrEmailAlreadyRegistered = errors.New("email already registered with different provider")
 	ErrInvalidRequest         = errors.New("invalid request")
-	ErrUserHasActiveResources = errors.New("user owns workspaces with active resources")
-	ErrUserHasOrganizations   = errors.New("user owns organizations")
+	ErrUserHasActiveResources = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"user owns workspaces with active resources",
+	)
+	ErrUserHasOrganizations = rpcerr.NewCoded(connect.CodeFailedPrecondition, "user owns organizations")
 )
 
 // UserServer implements the UserService gRPC server
@@ -73,7 +74,6 @@ func (s *UserServer) GetUser(
 		}
 		targetUserID = dbUser.ID.String()
 	default:
-		slog.ErrorContext(ctx, "invalid request: either id or email must be provided")
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
 
@@ -154,7 +154,7 @@ func (s *UserServer) UpdateUser(
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, updateErr := qtx.UpdateUserProfile(ctx, params); updateErr != nil {
-			return updateErr
+			return fmt.Errorf("update user profile: %w", updateErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.UserUpdated,
@@ -163,8 +163,7 @@ func (s *UserServer) UpdateUser(
 		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update user", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, err
 	}
 
 	return &userv1.UpdateUserResponse{UserId: req.GetUserId()}, nil
@@ -192,8 +191,7 @@ func (s *UserServer) ListUsers(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list users", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list users: %w", err)
 	}
 
 	var users []*userv1.User
@@ -225,7 +223,7 @@ func (s *UserServer) DeleteUser(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		_, lockErr := qtx.LockUserForMembership(ctx, userID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+			return ErrUserNotFound
 		}
 		if lockErr != nil {
 			return fmt.Errorf("lock user: %w", lockErr)
@@ -235,16 +233,14 @@ func (s *UserServer) DeleteUser(
 			return fmt.Errorf("check user workspaces: %w", checkErr)
 		}
 		if hasWorkspaces {
-			slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", req.GetUserId())
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
+			return ErrUserHasActiveResources
 		}
 		hasOrganizations, checkErr := qtx.CheckUserHasOrganizations(ctx, userID)
 		if checkErr != nil {
 			return fmt.Errorf("check user organizations: %w", checkErr)
 		}
 		if hasOrganizations {
-			slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", req.GetUserId())
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
+			return ErrUserHasOrganizations
 		}
 		var listErr error
 		identities, listErr = qtx.ListIdentitiesForUser(ctx, userID)
@@ -261,7 +257,7 @@ func (s *UserServer) DeleteUser(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to delete user", err)
+		return nil, err
 	}
 
 	for _, identity := range identities {
@@ -292,9 +288,9 @@ func deleteUserReferenceError(err error) error {
 	case "invitations_claimed_by_fkey":
 		message = "user claimed invitations"
 	default:
-		return err
+		return fmt.Errorf("delete user: %w", err)
 	}
-	return connect.NewError(connect.CodeFailedPrecondition, message).WithCause(err)
+	return fmt.Errorf("%w: %w", rpcerr.NewCoded(connect.CodeFailedPrecondition, message), err)
 }
 
 // SetUserStatus suspends or reinstates a user
@@ -325,8 +321,12 @@ func (s *UserServer) SetUserStatus(
 		status, eventType = genDb.UserStatusSuspended, events.UserSuspended
 	}
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, setErr := qtx.SetUserStatus(ctx, genDb.SetUserStatusParams{ID: userID, Status: status}); setErr != nil {
-			return setErr
+		_, setErr := qtx.SetUserStatus(ctx, genDb.SetUserStatusParams{ID: userID, Status: status})
+		if errors.Is(setErr, pgx.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		if setErr != nil {
+			return fmt.Errorf("set user status: %w", setErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        eventType,
@@ -334,12 +334,8 @@ func (s *UserServer) SetUserStatus(
 			SubjectID:   new(userID),
 		})
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
-	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to set user status", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, err
 	}
 	return &userv1.SetUserStatusResponse{}, nil
 }
@@ -360,8 +356,7 @@ func (s *UserServer) Logout(
 	}
 	err = s.tvm.Revoke(ctx, p.Token)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to revoke token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return nil, fmt.Errorf("revoke session token: %w", err)
 	}
 
 	slog.InfoContext(ctx, "user logged out")

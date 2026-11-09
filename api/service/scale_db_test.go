@@ -51,6 +51,21 @@ func TestScaleResourceRejectsReplicasTheControllerRejects(t *testing.T) {
 	}
 }
 
+// A deployment spec the API stored and cannot read back is a server fault, not the caller's.
+func TestScaleResourceWithAnUnreadableStoredSpecIsAServerFailure(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+	f.finishRollouts(t)
+	corrupt := `UPDATE deployments SET spec = '{"notAField": 1}' WHERE resource_id = $1`
+	if _, err := f.pool.Exec(t.Context(), corrupt, f.resourceID); err != nil {
+		t.Fatal(err)
+	}
+
+	wantServerFailure(t, scaleResource(t, f, 2))
+}
+
 func TestScaleResourceWritesTheReplicasIntoTheDesiredSpec(t *testing.T) {
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {

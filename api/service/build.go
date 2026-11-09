@@ -37,10 +37,8 @@ var (
 		"builds are not enabled on this server: the source bucket and registry are not configured",
 	)
 	errBuildNotQueueable  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "build is no longer awaiting upload")
-	errBuildNotCancelable = errors.New("build has already finished")
+	errBuildNotCancelable = rpcerr.NewCoded(connect.CodeFailedPrecondition, "build has already finished")
 	errSourceNotUploaded  = errors.New("the source has not been uploaded")
-	errSourceCheckFailed  = errors.New("failed to check the uploaded source")
-	errUploadURLFailed    = errors.New("failed to create the source upload url")
 	errNoBuildCluster     = errors.New("no cluster in this install accepts builds")
 )
 
@@ -143,25 +141,22 @@ func (s *BuildServer) CreateBuild(
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, ErrResourceNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err, "resourceId", resourceID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get resource %s: %w", resourceID, err)
 	}
 
 	buildID, err := uuid.NewV7()
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate build id", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("generate build id: %w", err)
 	}
 	sourceKey := buildSourceKey(buildID)
 
 	issuedAt := s.now()
 	uploadURL, err := s.bucket.PresignPut(ctx, sourceKey, sourceSize, buildUploadURLTTL)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to presign source upload", "error", err, "buildId", buildID)
-		return nil, rpcerr.New(connect.CodeInternal, errUploadURLFailed)
+		return nil, fmt.Errorf("presign source upload for build %s: %w", buildID, err)
 	}
 
 	repository := imageRepository(s.config.RegistryHost, s.config.RegistryPrefix, resource.WorkspaceID, resource.ID)
@@ -194,8 +189,7 @@ func (s *BuildServer) CreateBuild(
 		})
 	})
 	if createErr != nil {
-		slog.ErrorContext(ctx, "failed to create build", "error", createErr, "resourceId", resource.ID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, createErr
 	}
 
 	expiresAt := issuedAt.Add(buildUploadURLTTL)
@@ -236,8 +230,7 @@ func (s *BuildServer) StartBuild(
 		return nil, rpcerr.New(connect.CodeFailedPrecondition, errSourceNotUploaded)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check uploaded source", "error", err, "buildId", build.ID)
-		return nil, rpcerr.New(connect.CodeInternal, errSourceCheckFailed)
+		return nil, fmt.Errorf("check the uploaded source of build %s: %w", build.ID, err)
 	}
 	if size != build.SourceSize {
 		mismatch := fmt.Errorf("the uploaded source is %d bytes, expected %d", size, build.SourceSize)
@@ -249,9 +242,9 @@ func (s *BuildServer) StartBuild(
 		return nil, err
 	}
 
-	superseded, txErr := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID)
-	if txErr != nil {
-		return nil, handlerError(ctx, "failed to queue build", txErr, "buildId", build.ID)
+	superseded, err := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("queue build %s: %w", build.ID, err)
 	}
 	deleteBuildSources(ctx, s.queries, s.bucket, superseded...)
 
@@ -269,8 +262,7 @@ func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
 		return uuid.UUID{}, buildsUnavailable(errNoBuildCluster)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get build cluster", "error", err)
-		return uuid.UUID{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.UUID{}, fmt.Errorf("get build cluster: %w", err)
 	}
 	return clusterID, nil
 }
@@ -418,8 +410,7 @@ func (s *BuildServer) ListBuilds(
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list builds", "error", err, "resourceId", resourceID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list builds of resource %s: %w", resourceID, err)
 	}
 
 	builds := make([]*buildv1.Build, 0, len(rows))
@@ -450,11 +441,7 @@ func (s *BuildServer) CancelBuild(
 	}
 
 	if cancelErr := cancelBuild(ctx, s.db, s.queries, s.bucket, build.ID, build.ResourceID); cancelErr != nil {
-		if errors.Is(cancelErr, errBuildNotCancelable) {
-			return nil, rpcerr.New(connect.CodeFailedPrecondition, cancelErr)
-		}
-		slog.ErrorContext(ctx, "failed to cancel build", "error", cancelErr, "buildId", build.ID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("cancel build %s: %w", build.ID, cancelErr)
 	}
 
 	canceled, err := s.getBuild(ctx, rawBuildID)
@@ -513,11 +500,10 @@ func (s *BuildServer) getBuild(ctx context.Context, rawID string) (genDb.Build, 
 	}
 	build, err := s.queries.GetBuildByID(ctx, buildID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.Build{}, rpcerr.New(connect.CodeNotFound, ErrBuildNotFound)
+		return genDb.Build{}, ErrBuildNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get build", "error", err, "buildId", buildID)
-		return genDb.Build{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.Build{}, fmt.Errorf("get build %s: %w", buildID, err)
 	}
 	return build, nil
 }

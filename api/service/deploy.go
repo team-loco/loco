@@ -70,6 +70,9 @@ func createDeploymentWithCleanup(
 	}
 
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
+	if isUniqueViolation(err, pgActiveDeploymentUnique) {
+		return uuid.UUID{}, errDeploymentInProgress
+	}
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)
 	}
@@ -134,12 +137,7 @@ func checkClusterEnvironment(ctx context.Context, qtx *genDb.Queries, params gen
 	if err != nil {
 		return fmt.Errorf("get environment: %w", err)
 	}
-	return fmt.Errorf(
-		"%w: cluster %s already runs it for environment %s",
-		errClusterHeldByEnvironment,
-		cluster.Name,
-		other.Name,
-	)
+	return errClusterHeldByEnvironment.Detail("cluster %s already runs it for environment %s", cluster.Name, other.Name)
 }
 
 // retireDeployment takes a deployment out of service: it drops the deployment's placement,
@@ -181,29 +179,6 @@ func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentSt
 	default:
 		return status
 	}
-}
-
-func deploymentTxError(ctx context.Context, err error) error {
-	if errors.Is(err, errClusterHeldByEnvironment) {
-		slog.WarnContext(ctx, "refused a deployment to another environment's cluster", "error", err)
-		return rpcerr.New(connect.CodeFailedPrecondition, err)
-	}
-	if invalidSpec, ok := errors.AsType[*invalidSpecError](err); ok {
-		slog.WarnContext(ctx, "rejected an invalid deployment spec", "error", err)
-		return rpcerr.New(connect.CodeInvalidArgument, invalidSpec)
-	}
-	if errors.Is(err, errDesiredSpec) {
-		slog.ErrorContext(ctx, "failed to build desired application spec", "error", err)
-		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
-	}
-	if isUniqueViolation(err, pgActiveDeploymentUnique) {
-		slog.WarnContext(ctx, "concurrent deployment rejected", "error", err)
-		return connect.NewError(
-			connect.CodeAborted,
-			"another deployment for this resource and region is in progress",
-		)
-	}
-	return handlerError(ctx, "failed to create deployment", err)
 }
 
 func desiredApplicationSpec(
@@ -346,6 +321,8 @@ func (e *invalidSpecError) Error() string {
 	return "invalid deployment spec: " + e.err.Error()
 }
 
-func (e *invalidSpecError) Unwrap() error {
-	return e.err
+// Unwrap puts the public message first, so rpcerr.Public reports it rather than a coded error
+// inside the cause.
+func (e *invalidSpecError) Unwrap() []error {
+	return []error{rpcerr.NewCoded(connect.CodeInvalidArgument, e.Error()), e.err}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"maps"
 	"slices"
 	"time"
@@ -52,8 +51,13 @@ var (
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
 	ErrInvalidResourceType   = errors.New("invalid resource type")
 
-	errClusterHeldByEnvironment = errors.New(
+	errClusterHeldByEnvironment = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
 		"each environment needs its own cluster, and this cluster already runs the service for another environment",
+	)
+	errDeploymentInProgress = rpcerr.NewCoded(
+		connect.CodeAborted,
+		"another deployment for this resource and region is in progress",
 	)
 
 	errDomainInUse          = rpcerr.NewCoded(connect.CodeAlreadyExists, "domain already in use")
@@ -124,7 +128,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, errOnlyServiceResources
 	}
 
-	specJSON, err := marshalResourceSpec(ctx, req.GetSpec())
+	specJSON, err := marshalResourceSpec(req.GetSpec())
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +258,7 @@ func resourceDomainEnvironment(
 	return env, nil
 }
 
-func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]byte, error) {
+func marshalResourceSpec(spec *resourcev1.ResourceSpec) ([]byte, error) {
 	var (
 		specJSON []byte
 		err      error
@@ -274,8 +278,7 @@ func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]
 		return nil, errUnknownResourceSpec
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(err)
+		return nil, fmt.Errorf("marshal resource spec: %w", err)
 	}
 	return specJSON, nil
 }
@@ -640,7 +643,7 @@ func (s *ResourceServer) ScaleResource(
 		return s.scaleCurrentDeployments(ctx, qtx, currentResource, env.ID, req)
 	})
 	if err != nil {
-		return nil, deploymentTxError(ctx, err)
+		return nil, err
 	}
 	return &resourcev1.ScaleResourceResponse{}, nil
 }
@@ -660,7 +663,7 @@ func (s *ResourceServer) scaleCurrentDeployments(
 
 	plans := make([]regionRedeploy, 0, len(currentByRegion))
 	for _, current := range currentByRegion {
-		serviceDeploymentSpec, specErr := currentServiceSpec(ctx, current, res.Type)
+		serviceDeploymentSpec, specErr := currentServiceSpec(current, res.Type)
 		if specErr != nil {
 			return specErr
 		}
@@ -772,7 +775,6 @@ func activeDeploymentsForRegions(
 }
 
 func currentServiceSpec(
-	ctx context.Context,
 	current genDb.Deployment,
 	resourceType genDb.ResourceType,
 ) (*deploymentv1.ServiceDeploymentSpec, error) {
@@ -782,8 +784,7 @@ func currentServiceSpec(
 
 	deploymentSpec, err := converter.DeserializeDeploymentSpec(current.Spec, resourceType)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", err)
-		return nil, &invalidInputError{public: publicInvalidSpec, err: err}
+		return nil, fmt.Errorf("decode deployment %s spec: %w", current.ID, err)
 	}
 
 	serviceDeploymentSpec := deploymentSpec.GetService()
@@ -804,8 +805,7 @@ func (s *ResourceServer) planRegionRedeploy(
 ) (regionRedeploy, error) {
 	specJSON, err := deploymentSpecJSON(serviceDeploymentSpec)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
-		return regionRedeploy{}, &invalidInputError{public: publicInvalidSpec, err: err}
+		return regionRedeploy{}, err
 	}
 
 	deploymentEnv, err := qtx.GetEnvironmentByID(ctx, current.EnvironmentID)

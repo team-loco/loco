@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 
 	"connectrpc.com/connect/v2"
@@ -30,9 +31,9 @@ const (
 )
 
 var (
-	ErrWebhookURL      = errors.New("use an https URL with a host name")
-	ErrWebhookLimit    = errors.New("a workspace can have at most 10 webhooks")
-	ErrWebhookNotFound = errors.New("webhook not found in this workspace")
+	ErrWebhookURL      = rpcerr.NewCoded(connect.CodeInvalidArgument, "use an https URL with a host name")
+	ErrWebhookLimit    = rpcerr.NewCoded(connect.CodeFailedPrecondition, "a workspace can have at most 10 webhooks")
+	ErrWebhookNotFound = rpcerr.NewCoded(connect.CodeNotFound, "webhook not found in this workspace")
 )
 
 type WebhookServer struct {
@@ -79,11 +80,11 @@ func (s *WebhookServer) CreateWebhook(
 		return nil, err
 	}
 	if !s.validURL(req.GetUrl()) {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrWebhookURL)
+		return nil, ErrWebhookURL
 	}
 	secret, err := webhooks.NewSecret()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		return nil, fmt.Errorf("generate webhook secret: %w", err)
 	}
 	var createdBy *uuid.UUID
 	if p.Entity.Type == genDb.EntityTypeUser {
@@ -98,17 +99,17 @@ func (s *WebhookServer) CreateWebhook(
 		qtx := genDb.New(tx)
 		_, lockErr := qtx.LockWorkspaceForWebhookCreation(ctx, workspaceID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+			return ErrWorkspaceNotFound
 		}
 		if lockErr != nil {
-			return lockErr
+			return fmt.Errorf("lock workspace: %w", lockErr)
 		}
 		count, countErr := qtx.CountWorkspaceWebhooks(ctx, workspaceID)
 		if countErr != nil {
-			return countErr
+			return fmt.Errorf("count webhooks: %w", countErr)
 		}
 		if count >= maxWebhooksPerWorkspace {
-			return rpcerr.New(connect.CodeFailedPrecondition, ErrWebhookLimit)
+			return ErrWebhookLimit
 		}
 		created, createErr := qtx.CreateWorkspaceWebhook(ctx, genDb.CreateWorkspaceWebhookParams{
 			WorkspaceID: workspaceID,
@@ -118,7 +119,7 @@ func (s *WebhookServer) CreateWebhook(
 			CreatedBy:   createdBy,
 		})
 		if createErr != nil {
-			return createErr
+			return fmt.Errorf("insert webhook: %w", createErr)
 		}
 		row = created
 		return events.Record(ctx, qtx, events.Event{
@@ -130,7 +131,7 @@ func (s *WebhookServer) CreateWebhook(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to create webhook", err)
+		return nil, err
 	}
 	return &webhookv1.CreateWebhookResponse{Webhook: webhookToProto(row), Secret: secret}, nil
 }
@@ -148,7 +149,7 @@ func (s *WebhookServer) ListWebhooks(
 	}
 	rows, err := s.queries.ListWorkspaceWebhooks(ctx, workspaceID)
 	if err != nil {
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list webhooks: %w", err)
 	}
 	out := make([]*webhookv1.Webhook, len(rows))
 	for i, row := range rows {
@@ -167,10 +168,10 @@ func (s *WebhookServer) loadWebhook(
 		WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return row, rpcerr.New(connect.CodeNotFound, ErrWebhookNotFound)
+		return row, ErrWebhookNotFound
 	}
 	if err != nil {
-		return row, rpcerr.New(connect.CodeInternal, ErrDB)
+		return row, fmt.Errorf("get webhook: %w", err)
 	}
 	return row, nil
 }
@@ -196,10 +197,10 @@ func (s *WebhookServer) DeleteWebhook(
 			genDb.DeleteWorkspaceWebhookParams{ID: row.ID, WorkspaceID: workspaceID},
 		)
 		if deleteErr != nil {
-			return deleteErr
+			return fmt.Errorf("delete webhook: %w", deleteErr)
 		}
 		if deleted == 0 {
-			return rpcerr.New(connect.CodeNotFound, ErrWebhookNotFound)
+			return ErrWebhookNotFound
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.WebhookDeleted,
@@ -210,7 +211,7 @@ func (s *WebhookServer) DeleteWebhook(
 		})
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to delete webhook", err)
+		return nil, err
 	}
 	return &webhookv1.DeleteWebhookResponse{}, nil
 }
@@ -235,7 +236,7 @@ func (s *WebhookServer) ListWebhookDeliveries(
 		MaxRows:   recentDeliveries,
 	})
 	if err != nil {
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list webhook deliveries: %w", err)
 	}
 	out := make([]*webhookv1.WebhookDelivery, len(rows))
 	for i, d := range rows {

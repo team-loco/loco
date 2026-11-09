@@ -225,8 +225,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 		specJSON, marshalErr := deploymentSpecJSON(mergedServiceSpec)
 		if marshalErr != nil {
-			slog.ErrorContext(ctx, "failed to marshal spec", "error", marshalErr)
-			return &invalidInputError{public: publicInvalidSpec, err: marshalErr}
+			return marshalErr
 		}
 
 		plainEnv, secretNames, bindingsErr := s.deploymentBindings(
@@ -286,7 +285,7 @@ func (s *DeploymentServer) CreateDeployment(
 		})
 	})
 	if err != nil {
-		return nil, deploymentTxError(ctx, err)
+		return nil, err
 	}
 
 	return &deploymentv1.CreateDeploymentResponse{

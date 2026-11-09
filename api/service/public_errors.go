@@ -7,7 +7,6 @@ const (
 	publicInvalidPageToken     = "invalid page_token"
 	publicInvalidRequest       = "invalid request"
 	publicInvalidScopeEntityID = "invalid scope entity id"
-	publicInvalidSpec          = "invalid spec"
 	publicInvalidUserID        = "invalid user id"
 	publicInvalidWorkspaceID   = "invalid workspace_id"
 	publicPermissionDenied     = "permission denied"
