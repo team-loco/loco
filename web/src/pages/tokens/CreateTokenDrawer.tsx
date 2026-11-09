@@ -1,6 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useMutation } from "@connectrpc/connect-query";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { createToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { TokenService } from "@gen/loco/token/v1/token_pb";
@@ -8,12 +8,12 @@ import { TokenService } from "@gen/loco/token/v1/token_pb";
 import { BASE_URL } from "@/auth/client";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
+import { CopyButton } from "@/components/design/CopyButton";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useCopy } from "@/hooks/useCopy";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { DAY_MS, formatMonthDayYear } from "@/lib/time";
@@ -33,7 +33,6 @@ export interface CreateDraft {
 
 const NAME_MAX = 100;
 const DEFAULT_EXPIRY: ExpiryDays = 30;
-const COPIED_RESET_MS = 2000;
 const MS_PER_SECOND = 1000;
 
 function apiExample(): string {
@@ -272,7 +271,6 @@ function CreateForm({
 }
 
 function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone: () => void }) {
-	const [copied, copy] = useCopy(COPIED_RESET_MS);
 	return (
 		<>
 			<SheetBody>
@@ -284,16 +282,7 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 				</span>
 				<div className="flex items-center gap-2.5 rounded-lg bg-panel py-2.5 pr-2.5 pl-3 font-mono text-[12.5px] break-all">
 					<span className="flex-1 select-all">{secret}</span>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							copy("secret", secret);
-						}}
-					>
-						{copied === null ? <CopyIcon /> : <CheckIcon className="text-ok-fg" />}
-						{copied === null ? "Copy" : "Copied"}
-					</Button>
+					<CopyButton text={secret} />
 				</div>
 				<span className="text-[13px] text-fg2">Copy it now. You won&apos;t be able to see it again.</span>
 				<div className="flex flex-col gap-1.5">
