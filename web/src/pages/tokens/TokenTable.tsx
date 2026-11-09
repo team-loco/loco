@@ -13,7 +13,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -141,12 +140,7 @@ export function TokenTable({
 				<TableRow>
 					<TableHead className="w-[24%]">Token</TableHead>
 					<TableHead>Access</TableHead>
-					<TableHead className="w-[150px]">
-						<span className="flex items-center gap-1.5">
-							Created by
-							<SoonTag />
-						</span>
-					</TableHead>
+					<TableHead className="w-[150px]">Created</TableHead>
 					<TableHead className="w-[110px]">Last used</TableHead>
 					<TableHead className="w-[130px]">Expires</TableHead>
 					<TableHead className="w-10" />
