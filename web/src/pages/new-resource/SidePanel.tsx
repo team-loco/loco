@@ -100,6 +100,7 @@ export function SidePanel({
 				type: ResourceType.SERVICE,
 				...(form.isPublic
 					? {
+							environmentId: env.id,
 							domain: {
 								domainSource: DomainType.PLATFORM_PROVIDED,
 								subdomain: form.subdomain,
