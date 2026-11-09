@@ -1,18 +1,10 @@
-import { CopyIcon, EllipsisIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
-import { Button } from "@/components/design/Button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { LevelChip } from "@/components/design/LevelChip";
+import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
@@ -59,7 +51,7 @@ function AccessCell({ chips }: { chips: AccessChip[] }) {
 	);
 }
 
-function RowMenu({
+function TokenMenu({
 	token,
 	canDuplicate,
 	canRevoke,
@@ -73,27 +65,17 @@ function RowMenu({
 	onRevoke: () => void;
 }) {
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger
-				render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${token.name}`} className="text-fg2" />}
-			>
-				<EllipsisIcon className="size-4" />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-auto min-w-[200px]">
-				<DropdownMenuGroup>
-					<DropdownMenuLabel className="font-mono">{token.name}</DropdownMenuLabel>
-					<DropdownMenuItem disabled={!canDuplicate} onClick={onDuplicate}>
-						<CopyIcon />
-						Duplicate
-					</DropdownMenuItem>
-				</DropdownMenuGroup>
-				<DropdownMenuSeparator />
-				<DropdownMenuItem variant="destructive" disabled={!canRevoke} onClick={onRevoke}>
-					<Trash2Icon />
-					Revoke
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+		<RowMenu label={`Actions for ${token.name}`} title={<span className="font-mono">{token.name}</span>}>
+			<DropdownMenuItem disabled={!canDuplicate} onClick={onDuplicate}>
+				<CopyIcon />
+				Duplicate
+			</DropdownMenuItem>
+			<DropdownMenuSeparator />
+			<DropdownMenuItem variant="destructive" disabled={!canRevoke} onClick={onRevoke}>
+				<Trash2Icon />
+				Revoke
+			</DropdownMenuItem>
+		</RowMenu>
 	);
 }
 
@@ -194,7 +176,7 @@ export function TokenTable({
 									</span>
 								</TableCell>
 								<TableCell className="text-right">
-									<RowMenu
+									<TokenMenu
 										token={t}
 										canDuplicate={canDuplicate}
 										canRevoke={canRevoke}
