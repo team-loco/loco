@@ -4,15 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { DeploymentPhase, DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { maybeTsMs } from "@/lib/time";
-
 export interface DeploymentWatch {
 	phase: DeploymentPhase | undefined;
 	message: string;
-	at: number;
 }
 
-const IDLE: DeploymentWatch = { phase: undefined, message: "", at: 0 };
+const IDLE: DeploymentWatch = { phase: undefined, message: "" };
 const ID_SEPARATOR = ",";
 
 export function useDeploymentWatch(deploymentIds: readonly string[]): (id: string | undefined) => DeploymentWatch {
@@ -27,8 +24,7 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 		const watch = async (deploymentId: string) => {
 			try {
 				for await (const ev of client.watchDeployment({ deploymentId }, { signal: controller.signal })) {
-					const at = maybeTsMs(ev.timestamp) ?? Date.now();
-					setStates((prev) => ({ ...prev, [deploymentId]: { phase: ev.status, message: ev.message, at } }));
+					setStates((prev) => ({ ...prev, [deploymentId]: { phase: ev.status, message: ev.message } }));
 					void queryClient.invalidateQueries();
 					if (ev.status === DeploymentPhase.RUNNING) break;
 				}

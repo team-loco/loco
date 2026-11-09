@@ -14,7 +14,7 @@ import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { StepList } from "@/components/design/StepList";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
-import { deployOutcome, progressSteps } from "@/lib/deploy-progress";
+import { createdStep, isLive, regionDeploySteps } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
 import { errorCount, locoYaml, parseEnvText, type FormErrors, type NewResourceForm } from "@/lib/new-resource";
 import { resourcePath } from "@/lib/routes";
@@ -164,34 +164,25 @@ export function SidePanel({
 		void queryClient.invalidateQueries();
 	};
 
-	const target = {
-		name: shownForm.name,
-		image: shownForm.image.trim(),
-		min: shownForm.replicas,
-		cpu: shownForm.cpu,
-		memory: shownForm.memory,
-		hcPath: shownForm.healthPath,
-		hcInterval: String(defaults.healthCheck?.intervalSeconds ?? 0),
-		resourceId: run?.resourceId,
-	};
+	const created = run?.resourceId !== undefined;
 	const regionSteps = (run?.regions ?? []).map((r) => {
 		const watch = watchFor(r.deploymentId);
 		return {
 			region: r.region,
-			live: deployOutcome(watch.phase) === "live",
-			steps: progressSteps({
-				target: { ...target, deploymentId: r.deploymentId },
+			live: isLive(watch.phase),
+			steps: regionDeploySteps({
+				form: shownForm,
+				hcInterval: String(defaults.healthCheck?.intervalSeconds ?? 0),
+				created,
+				deploymentId: r.deploymentId,
 				region: r.region,
-				envName: env.name,
 				phase: watch.phase,
 				message: watch.message,
 				error: r.error,
-				submitting: run?.deploying ?? false,
 			}),
 		};
 	});
 	const allLive = regionSteps.length > 0 && regionSteps.every((r) => r.live);
-	const created = regionSteps[0]?.steps[0];
 	const summary: [string, string][] = [
 		["name", shownForm.name === "" ? "—" : shownForm.name],
 		["image", shownForm.image.trim() === "" ? "—" : shownForm.image.trim()],
@@ -251,11 +242,11 @@ export function SidePanel({
 					</>
 				) : (
 					<div className="flex flex-col gap-1 border-t border-line2 pt-2" aria-live="polite">
-						{created !== undefined && <StepList steps={[created]} />}
+						<StepList steps={[createdStep(shownForm.name, env.name, created, run.deploying)]} />
 						{regionSteps.map((r) => (
 							<div key={r.region} className="flex flex-col">
 								<span className="pt-2 font-mono text-[12px] text-fg3">{r.region}</span>
-								<StepList steps={r.steps.slice(1)} />
+								<StepList steps={r.steps} />
 							</div>
 						))}
 						{run.resourceId !== undefined && !run.deploying && (
