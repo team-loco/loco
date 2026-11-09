@@ -30,7 +30,6 @@ export interface DemoFrame {
 }
 
 const SURGE_PERCENT = 25;
-const PERCENT = 100;
 const REPLICAS = 4;
 const BUILD_ID = "019a6b2e-41c7-7d3a-9f02-5b8e1c4d7a90";
 
@@ -74,54 +73,38 @@ export const TERMINAL: readonly TerminalLine[] = [
 	{ at: 19, text: "$", tone: "command" },
 ];
 
-export function rolloutLimits(replicas: number): { maxSurge: number; maxUnavailable: number } {
-	const share = (replicas * SURGE_PERCENT) / PERCENT;
-	return { maxSurge: Math.ceil(share), maxUnavailable: Math.floor(share) };
+function pod(n: number, fresh: boolean, phase: PodPhase): Pod {
+	return { id: `p${n.toString()}`, fresh, phase };
 }
 
-function isLive(pod: Pod): boolean {
-	return pod.phase !== "terminating";
-}
-
-function settle(pods: readonly Pod[], replicas: number, nextId: () => string): Pod[] {
-	const { maxSurge, maxUnavailable } = rolloutLimits(replicas);
-	let current = [...pods];
-	for (;;) {
-		const live = current.filter(isLive);
-		const fresh = live.filter((p) => p.fresh);
-		const add = Math.min(replicas - fresh.length, replicas + maxSurge - live.length);
-		const freshUnavailable = fresh.filter((p) => p.phase !== "ready").length;
-		const stale = live.filter((p) => !p.fresh);
-		const remove = Math.min(stale.length, live.length - (replicas - maxUnavailable) - freshUnavailable);
-		if (add <= 0 && remove <= 0) return current;
-		const retiring = new Set(stale.slice(0, Math.max(remove, 0)).map((p) => p.id));
-		current = current.map((p) => (retiring.has(p.id) ? { ...p, phase: "terminating" } : p));
-		for (let i = 0; i < add; i += 1) current.push({ id: nextId(), fresh: true, phase: "starting" });
-	}
-}
-
-function advance(pods: readonly Pod[]): Pod[] {
-	return pods.filter(isLive).map((p) => (p.phase === "starting" ? { ...p, phase: "ready" } : p));
-}
-
-export function simulateRollout(replicas: number): Pod[][] {
-	let seq = 0;
-	const nextId = () => {
-		seq += 1;
-		return `p${seq}`;
-	};
-	const initial = Array.from({ length: replicas }, () => ({ id: nextId(), fresh: false, phase: "ready" as const }));
-	const stages: Pod[][] = [initial];
-	let pods = settle(initial, replicas, nextId);
-	while (pods.some((p) => !p.fresh || p.phase !== "ready")) {
-		stages.push(pods);
-		pods = settle(advance(pods), replicas, nextId);
-	}
-	stages.push(pods);
-	return stages;
-}
-
-const STAGES = simulateRollout(REPLICAS);
+const STAGES: readonly (readonly Pod[])[] = [
+	[pod(1, false, "ready"), pod(2, false, "ready"), pod(3, false, "ready"), pod(4, false, "ready")],
+	[
+		pod(1, false, "terminating"),
+		pod(2, false, "ready"),
+		pod(3, false, "ready"),
+		pod(4, false, "ready"),
+		pod(5, true, "starting"),
+		pod(6, true, "starting"),
+	],
+	[
+		pod(2, false, "terminating"),
+		pod(3, false, "terminating"),
+		pod(4, false, "ready"),
+		pod(5, true, "ready"),
+		pod(6, true, "ready"),
+		pod(7, true, "starting"),
+		pod(8, true, "starting"),
+	],
+	[
+		pod(4, false, "terminating"),
+		pod(5, true, "ready"),
+		pod(6, true, "ready"),
+		pod(7, true, "ready"),
+		pod(8, true, "ready"),
+	],
+	[pod(5, true, "ready"), pod(6, true, "ready"), pod(7, true, "ready"), pod(8, true, "ready")],
+];
 const LAST_STAGE = STAGES.length - 1;
 const LAST_START = Math.max(...REGION_STARTS.map((r) => r.start));
 
