@@ -79,6 +79,9 @@
 
 	--shadow-popover: var(--pop-shadow);
 	--shadow-drawer: -8px 0 32px rgba(0, 0, 0, 0.12);
+	--shadow-overlay: 0 24px 64px -16px rgba(20, 20, 20, 0.28);
+	--shadow-bar: 0 16px 40px -10px rgba(0, 0, 0, 0.35);
+	--shadow-toast: 0 12px 32px rgba(0, 0, 0, 0.2);
 
 	--color-background: var(--bg);
 	--color-foreground: var(--fg);

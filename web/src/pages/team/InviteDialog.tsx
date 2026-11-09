@@ -1,7 +1,7 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { inviteOrgMember } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Invitation } from "@gen/loco/org/v1/org_pb";
-import { CopyIcon, MailPlusIcon } from "lucide-react";
+import { CopyIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
@@ -65,7 +65,7 @@ function InviteForm({ orgId, onClose, onInvited }: { orgId: string; onClose: () 
 	const tone = invitation === undefined ? undefined : statusBadge(invitation.status).tone;
 
 	return (
-		<DialogContent title="Invite a member" icon={<MailPlusIcon />}>
+		<DialogContent title="Invite a member">
 			<form
 				className="contents"
 				onSubmit={(e) => {

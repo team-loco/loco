@@ -1,5 +1,4 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { createToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 
@@ -134,11 +133,7 @@ function CreateTokenForm({
 	};
 
 	return (
-		<DialogContent
-			title={`New ${owner.noun} token`}
-			icon={<KeyRoundIcon />}
-			className="top-[7vh] max-h-[86vh] w-[600px]"
-		>
+		<DialogContent title={`New ${owner.noun} token`} className="w-[600px]">
 			<form
 				className="contents"
 				onSubmit={(e) => {

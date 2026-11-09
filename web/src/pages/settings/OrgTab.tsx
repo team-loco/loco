@@ -9,7 +9,9 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
+import { DangerZone } from "@/components/design/DangerZone";
 import { Input } from "@/components/design/Input";
+import { SaveBar } from "@/components/design/SaveBar";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -19,7 +21,7 @@ import { workspacePath } from "@/lib/routes";
 
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
-import { DangerCard, formatDay, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
+import { formatDay, SettingsCard, SettingsRow } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
 export function OrgTab({
@@ -48,7 +50,6 @@ export function OrgTab({
 	const remove = useMutation(deleteOrg);
 
 	const [draft, setDraft] = useState<string | null>(null);
-	const [saved, setSaved] = useState(false);
 	const [newOpen, setNewOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -88,7 +89,7 @@ export function OrgTab({
 			{
 				onSuccess: () => {
 					setDraft(null);
-					setSaved(true);
+					toast.success("Saved");
 					void queryClient.invalidateQueries();
 				},
 				onError: (err) => {
@@ -148,7 +149,6 @@ export function OrgTab({
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
 							setDraft(e.target.value);
-							setSaved(false);
 						}}
 					/>
 					{shownErr !== null && (
@@ -160,17 +160,6 @@ export function OrgTab({
 				<SettingsRow label="Created" last>
 					<span className="text-fg2">{formatDay(org.createdAt)}</span>
 				</SettingsRow>
-				{dirty && canWrite && (
-					<SaveBar
-						onDiscard={() => {
-							setDraft(null);
-						}}
-						onSave={save}
-						disabled={nameErr !== null}
-						pending={update.isPending}
-					/>
-				)}
-				{saved && !dirty && <SavedBar />}
 			</SettingsCard>
 
 			<SettingsCard>
@@ -218,16 +207,27 @@ export function OrgTab({
 				})}
 			</SettingsCard>
 
-			<DangerCard
+			<DangerZone
 				title="Delete organization"
-				subtitle={subtitle}
-				subtitleWarn={withRes.length > 0}
-				label={`Delete ${org.name}`}
+				description={subtitle}
+				warn={withRes.length > 0}
+				actionLabel={`Delete ${org.name}`}
 				blockedReason={blockedReason}
-				onClick={() => {
+				onAction={() => {
 					setDeleteOpen(true);
 				}}
 			/>
+
+			{dirty && canWrite && (
+				<SaveBar
+					onDiscard={() => {
+						setDraft(null);
+					}}
+					onSave={save}
+					saving={update.isPending}
+					disabledReason={nameErr}
+				/>
+			)}
 
 			<NewWorkspaceDialog open={newOpen} onOpenChange={setNewOpen} orgId={org.id} />
 			<ConfirmDeleteDialog

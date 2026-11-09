@@ -1,5 +1,4 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { Building2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -59,7 +58,7 @@ export function CreateOrgDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent title="New organization" icon={<Building2 />}>
+			<DialogContent title="New organization">
 				<form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
 					<DialogBody>
 						<DialogDescription>Organizations are used to manage workspaces, resources, and billing.</DialogDescription>

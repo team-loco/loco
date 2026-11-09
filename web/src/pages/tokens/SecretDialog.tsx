@@ -1,4 +1,4 @@
-import { CheckIcon, CopyIcon, KeyRoundIcon, TriangleAlertIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
@@ -37,7 +37,7 @@ function SecretBody({ revealed, onClose }: { revealed: RevealedSecret; onClose: 
 	};
 
 	return (
-		<DialogContent title={revealed.name} icon={<KeyRoundIcon />} className="top-[7vh] w-[520px]">
+		<DialogContent title={revealed.name} className="w-[520px]">
 			<DialogBody className="gap-3.5 px-4 py-[18px]">
 				<div className="flex items-center gap-2 rounded-lg bg-warn-bg px-3 py-2.5 text-warn-fg">
 					<TriangleAlertIcon className="size-[15px] shrink-0" />

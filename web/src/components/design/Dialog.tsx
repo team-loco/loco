@@ -5,41 +5,44 @@ import {
 	DialogClose,
 	DialogContent as DialogContentBase,
 	DialogDescription as DialogDescriptionBase,
-	DialogHeader as DialogHeaderBase,
-	DialogPortal,
-	DialogTitle,
-	DialogTrigger,
+	DialogTitle as DialogTitleBase,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+
+const dialogWidths = {
+	default: "w-[460px]",
+	wide: "w-[680px]",
+} as const;
+
+const modalSurface =
+	"max-h-[calc(100dvh-32px)] max-w-[calc(100%-32px)] gap-0 rounded-[12px] border border-line bg-background p-0 text-base shadow-overlay ring-0 dark:border-line2";
+
+const modalTitle = "text-[17px] leading-normal font-medium tracking-[-0.01em]";
 
 function DialogContent({
 	className,
 	children,
-	icon,
 	title,
+	size = "default",
 	showCloseButton = true,
 	...props
 }: Omit<React.ComponentProps<typeof DialogContentBase>, "title"> & {
-	icon?: React.ReactNode;
 	title?: React.ReactNode;
+	size?: keyof typeof dialogWidths;
 }) {
 	return (
 		<DialogContentBase
 			showCloseButton={title === undefined && showCloseButton}
-			className={cn(
-				"top-[14vh] flex max-h-[80vh] w-[440px] max-w-[calc(100%-32px)] translate-y-0 flex-col gap-0 rounded-xl border border-line bg-background p-0 text-base shadow-popover ring-0 sm:max-w-[calc(100%-32px)]",
-				className,
-			)}
+			className={cn(modalSurface, "flex flex-col sm:max-w-[calc(100%-32px)]", dialogWidths[size], className)}
 			{...props}
 		>
 			{title !== undefined && (
-				<div className="flex items-center gap-2 border-b border-line px-4 py-3.5">
-					{icon !== undefined && <span className="flex text-fg3 [&_svg]:size-[15px]">{icon}</span>}
-					<DialogTitle className="flex-1 text-lg leading-normal font-semibold">{title}</DialogTitle>
+				<div className="flex items-start gap-2 px-5 pt-[18px]">
+					<DialogTitle className="flex-1">{title}</DialogTitle>
 					{showCloseButton && (
 						<DialogClose
 							aria-label="Close"
-							className="flex size-7 items-center justify-center rounded-sm text-fg3 hover:bg-bg3 hover:text-foreground"
+							className="-mt-0.5 -mr-1.5 flex size-7 items-center justify-center rounded-lg text-fg3 hover:bg-panel2 hover:text-foreground"
 						>
 							<XIcon className="size-4" />
 						</DialogClose>
@@ -55,7 +58,7 @@ function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
 			data-slot="dialog-body"
-			className={cn("flex min-h-0 flex-col gap-3.5 overflow-y-auto p-4", className)}
+			className={cn("flex min-h-0 flex-col gap-3 overflow-y-auto px-5 pt-2.5 pb-[18px]", className)}
 			{...props}
 		/>
 	);
@@ -65,18 +68,18 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
 			data-slot="dialog-footer"
-			className={cn("flex justify-end gap-2 border-t border-line px-4 py-3", className)}
+			className={cn("flex shrink-0 justify-end gap-2 border-t border-line px-5 py-3.5", className)}
 			{...props}
 		/>
 	);
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<typeof DialogHeaderBase>) {
-	return <DialogHeaderBase className={cn("gap-1 border-b border-line px-4 py-3.5", className)} {...props} />;
+function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogTitleBase>) {
+	return <DialogTitleBase className={cn(modalTitle, className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogDescriptionBase>) {
-	return <DialogDescriptionBase className={cn("text-base text-fg2", className)} {...props} />;
+	return <DialogDescriptionBase className={cn("text-[13.5px] text-fg2", className)} {...props} />;
 }
 
 export {
@@ -86,8 +89,7 @@ export {
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
-	DialogHeader,
-	DialogPortal,
 	DialogTitle,
-	DialogTrigger,
+	modalSurface,
+	modalTitle,
 };

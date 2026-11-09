@@ -1,4 +1,3 @@
-import { ServerIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
@@ -36,7 +35,7 @@ export function NewServiceDialog({
 				if (!next) setImage("");
 			}}
 		>
-			<DialogContent title="New service" icon={<ServerIcon />} className="w-[480px]">
+			<DialogContent title="New service" className="w-[480px]">
 				<DialogBody className="gap-2.5">
 					<Field label="Container image" error={error}>
 						<Input

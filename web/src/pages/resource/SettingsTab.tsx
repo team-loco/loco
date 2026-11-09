@@ -5,6 +5,7 @@ import { updateResource } from "@gen/loco/resource/v1/resource-ResourceService_c
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
+import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
@@ -138,21 +139,19 @@ export function SettingsTab({
 				onSaved={onSaved}
 			/>
 			<DomainsSection domains={resource.domains} managed={managed} onChanged={onSaved} />
-			<section className="rounded-lg border border-red bg-background">
-				<div className="flex items-center gap-4 px-4 py-3.5">
-					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-						<span className="font-semibold text-red">Delete resource</span>
-						{managed && (
-							<span className="text-sm text-fg3">
-								Deleting here causes drift with <code className="font-mono">loco.yaml</code>.
-							</span>
-						)}
-					</div>
-					<Button variant="destructive-outline" className="h-[30px] border-red" onClick={onDelete}>
-						Delete resource
-					</Button>
-				</div>
-			</section>
+			<DangerZone
+				title="Delete resource"
+				description={
+					managed ? (
+						<>
+							Deleting here causes drift with <code className="font-mono">loco.yaml</code>.
+						</>
+					) : undefined
+				}
+				actionLabel="Delete resource"
+				blockedReason={null}
+				onAction={onDelete}
+			/>
 		</div>
 	);
 }
