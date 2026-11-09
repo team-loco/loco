@@ -3,15 +3,7 @@ import { useState } from "react";
 import { revokeToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogTitle,
-} from "@/components/design/AlertDialog";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { toastConnectError } from "@/lib/error-handler";
 import { maybeTsMs } from "@/lib/time";
 
@@ -44,36 +36,21 @@ export function RevokeDialog({
 	};
 
 	return (
-		<AlertDialog
+		<ConfirmDialog
 			open={token !== null}
-			onOpenChange={(open) => {
-				if (!open) onClose();
+			title={`Revoke ${shown?.name ?? ""}?`}
+			description={`Requests using ${shown?.name ?? ""} will fail immediately. This can't be undone.`}
+			confirmLabel="Revoke"
+			pendingLabel="Revoking…"
+			pending={mutation.isPending}
+			onConfirm={() => {
+				void confirm();
 			}}
+			onClose={onClose}
 		>
-			<AlertDialogContent className="w-[520px]">
-				<div className="border-b border-line px-4 py-3.5">
-					<AlertDialogTitle>Revoke {shown?.name ?? ""}</AlertDialogTitle>
-				</div>
-				<AlertDialogDescription className="flex flex-col gap-2 px-4 py-[18px] text-foreground" render={<div />}>
-					<span>
-						Requests using <span className="font-semibold">{shown?.name ?? ""}</span> will fail immediately.
-					</span>
-					<span className="text-[12.5px] text-fg3">
-						{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}
-					</span>
-				</AlertDialogDescription>
-				<AlertDialogFooter>
-					<AlertDialogCancel className="px-3">Cancel</AlertDialogCancel>
-					<AlertDialogAction
-						disabled={mutation.isPending}
-						onClick={() => {
-							void confirm();
-						}}
-					>
-						{mutation.isPending ? "Revoking…" : "Revoke"}
-					</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
+			<span className="text-[12.5px] text-fg3">
+				{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}
+			</span>
+		</ConfirmDialog>
 	);
 }

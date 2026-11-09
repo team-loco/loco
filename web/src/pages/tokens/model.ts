@@ -8,15 +8,14 @@ export type OwnerKey = "org" | "workspace" | "personal";
 export type NodeKind = "org" | "ws" | "res" | "user" | "system";
 export type Level = 1 | 2 | 3;
 
-export const LEVELS: Level[] = [1, 2, 3];
-export const LEVEL_LABEL: Record<Level, string> = { 1: "Read", 2: "Write", 3: "Admin" };
-export const LEVEL_BADGE: Record<Level, string> = {
-	1: "bg-bg3 text-fg2",
-	2: "bg-info-bg text-info-fg",
-	3: "bg-warn-bg text-warn-fg",
+export const OWNER_KEYS: OwnerKey[] = ["org", "workspace", "personal"];
+export const OWNER_TITLE: Record<OwnerKey, string> = {
+	org: "Organization",
+	workspace: "Workspace",
+	personal: "Personal",
 };
-export const LEVEL_TEXT: Record<Level, string> = { 1: "text-fg2", 2: "text-info-fg", 3: "text-warn-fg" };
-export const LEVEL_BAR: Record<Level, string> = { 1: "bg-fg3", 2: "bg-brand", 3: "bg-warn" };
+
+export const LEVELS: Level[] = [1, 2, 3];
 
 export const ALLOWS: Record<NodeKind, string[]> = {
 	org: [
@@ -209,62 +208,38 @@ export function sortKeys(tree: EntityTree, keys: string[]): string[] {
 	});
 }
 
-function summarize(tree: EntityTree, keys: string[]): string {
-	const nodes = sortKeys(tree, keys).map((k) => resolveNode(tree, k));
-	const parts: string[] = [];
-	for (const n of nodes) {
-		switch (n.kind) {
-			case "system":
-				parts.push("platform (system)");
-				break;
-			case "user":
-				parts.push("your account");
-				break;
-			case "org":
-				parts.push(`${n.label} (org)`);
-				break;
-			case "ws":
-				parts.push(`${n.label} (workspace)`);
-				break;
-			case "res":
-				break;
-		}
-	}
-	const byWs = new Map<string, string[]>();
-	for (const n of nodes) {
-		if (n.kind !== "res") continue;
-		const parentKey = n.parent ?? "";
-		const list = byWs.get(parentKey) ?? [];
-		list.push(n.label);
-		byWs.set(parentKey, list);
-	}
-	for (const [ws, names] of byWs) {
-		const wsLabel = tree.nodes.get(ws)?.label;
-		if (names.length > 3) {
-			const head = names.slice(0, 2).join(", ");
-			const rest = (names.length - 2).toString();
-			parts.push(wsLabel === undefined ? `${head} +${rest}` : `${head} +${rest} in ${wsLabel}`);
-		} else {
-			parts.push(names.join(", "));
-		}
-	}
-	return parts.join(" · ");
-}
-
-export interface AccessLine {
+export interface AccessChip {
+	key: string;
 	level: Level;
-	names: string;
+	node: EntityNode;
 }
 
-export function accessLines(tree: EntityTree, grants: Grants): AccessLine[] {
-	const lines: AccessLine[] = [];
-	for (const level of [3, 2, 1] as const) {
-		const keys = [...grants.entries()].filter(([, v]) => v === level).map(([k]) => k);
-		if (keys.length === 0) continue;
-		lines.push({ level, names: summarize(tree, keys) });
-	}
-	return lines;
+export function accessChips(tree: EntityTree, token: Token): AccessChip[] {
+	const grants = tokenGrants(token);
+	return sortKeys(tree, [...grants.keys()])
+		.map((key) => ({ key, level: grants.get(key) ?? 1, node: resolveNode(tree, key) }))
+		.toSorted((a, b) => b.level - a.level);
 }
+
+const ALLOWS_SCOPE: Record<NodeKind, string> = {
+	org: "",
+	ws: " (selected workspaces)",
+	res: " (selected resources)",
+	user: "",
+	system: "",
+};
+
+export function allowsFor(kinds: { kind: NodeKind; level: Level }[]): string[] {
+	const max = new Map<NodeKind, Level>();
+	for (const k of kinds) {
+		if (k.level > (max.get(k.kind) ?? 0)) max.set(k.kind, k.level);
+	}
+	return [...max.entries()]
+		.toSorted(([a], [b]) => KIND_ORDER[a] - KIND_ORDER[b])
+		.flatMap(([kind, level]) => ALLOWS[kind].slice(0, level).map((line) => `${line}${ALLOWS_SCOPE[kind]}`));
+}
+
+export const EXPIRING_DAYS = 7;
 
 export type TokenStatus = "active" | "expiring" | "expired";
 
@@ -272,18 +247,14 @@ export function tokenStatus(token: Token, now: number): TokenStatus {
 	const exp = maybeTsMs(token.expiresAt);
 	if (exp === undefined) return "active";
 	if (exp < now) return "expired";
-	if (exp - now < 7 * DAY_MS) return "expiring";
+	if (exp - now <= EXPIRING_DAYS * DAY_MS) return "expiring";
 	return "active";
 }
 
-export function daysLeft(token: Token, now: number): number {
-	const exp = maybeTsMs(token.expiresAt) ?? now;
-	return Math.ceil((exp - now) / DAY_MS);
-}
-
 export function expiresLabel(token: Token, now: number): string {
-	if (tokenStatus(token, now) === "expired") return "Expired";
-	const left = daysLeft(token, now);
+	const exp = maybeTsMs(token.expiresAt) ?? now;
+	if (exp < now) return `expired ${relAgo(exp, now)}`;
+	const left = Math.ceil((exp - now) / DAY_MS);
 	return left === 1 ? "in 1 day" : `in ${left.toString()} days`;
 }
 
@@ -297,7 +268,7 @@ export function relAgo(ms: number, now: number): string {
 
 export function lastUsedLabel(token: Token, now: number): string {
 	const used = maybeTsMs(token.lastUsedAt);
-	return used === undefined ? "Never" : relAgo(used, now);
+	return used === undefined ? "never" : relAgo(used, now);
 }
 
 export function matchesQuery(tree: EntityTree, token: Token, q: string): boolean {

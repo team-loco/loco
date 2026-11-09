@@ -4,6 +4,14 @@ import { EntityType, Scope, type EntityScope } from "@gen/loco/token/v1/token_pb
 
 export type AccessLevel = 0 | 1 | 2 | 3;
 
+export const LEVEL_LABEL: Record<AccessLevel, string> = { 0: "None", 1: "Read", 2: "Write", 3: "Admin" };
+export const LEVEL_TEXT: Record<AccessLevel, string> = {
+	0: "text-fg3",
+	1: "text-fg2",
+	2: "text-info-fg",
+	3: "text-warn-fg",
+};
+
 export function scopeLevel(scope: Scope): AccessLevel {
 	switch (scope) {
 		case Scope.READ:
