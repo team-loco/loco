@@ -24,7 +24,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
-import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { usePagedRows } from "@/lib/paging";
 import { settingsPath } from "@/lib/routes";
 
 import { AuditLogTab } from "./AuditLogTab";
@@ -34,7 +34,7 @@ import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
 const MAX_NAME = 100;
-const PAGE_SIZES = [25, 50, 100];
+const PAGE_SIZES = [25, 50, 100] as const;
 
 export function OrgTab({
 	org,
@@ -69,8 +69,6 @@ export function OrgTab({
 	const remove = useMutation(deleteOrg);
 
 	const [query, setQuery] = useState("");
-	const [page, setPage] = useState(0);
-	const [size, setSize] = useState(PAGE_SIZES[0] ?? 0);
 	const [newOpen, setNewOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -103,7 +101,7 @@ export function OrgTab({
 	const matches = workspaces.filter(
 		(w) => w.name.toLowerCase().includes(needle) || w.description.toLowerCase().includes(needle),
 	);
-	const slice = pageSlice(matches, page, size);
+	const paged = usePagedRows(matches, PAGE_SIZES);
 	const userName = (id: string) => {
 		const u = users.find((x) => x.id === id);
 		return u ? u.name || u.email : "";
@@ -230,7 +228,7 @@ export function OrgTab({
 							value={query}
 							onChange={(e) => {
 								setQuery(e.target.value);
-								setPage(0);
+								paged.reset();
 							}}
 						/>
 					</div>
@@ -239,7 +237,7 @@ export function OrgTab({
 							<Skeleton className="h-9 w-full" />
 							<Skeleton className="h-9 w-full" />
 						</div>
-					) : slice.rows.length === 0 ? (
+					) : paged.rows.length === 0 ? (
 						<div className="px-5 py-7 text-fg3">
 							{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
 						</div>
@@ -257,7 +255,7 @@ export function OrgTab({
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{slice.rows.map((w) => {
+								{paged.rows.map((w) => {
 									const by = userName(w.createdBy);
 									const day = formatDay(w.createdAt);
 									return (
@@ -294,44 +292,7 @@ export function OrgTab({
 							</TableBody>
 						</Table>
 					)}
-					<Pager
-						className="border-t-0"
-						label={matches.length > 0 ? pageRangeLabel(slice.page, size, matches.length) : "0 of 0"}
-						pageSizes={PAGE_SIZES}
-						pageSize={size}
-						onPageSize={(n) => {
-							setSize(n);
-							setPage(0);
-						}}
-						onFirst={
-							slice.page > 0
-								? () => {
-										setPage(0);
-									}
-								: null
-						}
-						onPrev={
-							slice.page > 0
-								? () => {
-										setPage(slice.page - 1);
-									}
-								: null
-						}
-						onNext={
-							slice.page < slice.pages - 1
-								? () => {
-										setPage(slice.page + 1);
-									}
-								: null
-						}
-						onLast={
-							slice.page < slice.pages - 1
-								? () => {
-										setPage(slice.pages - 1);
-									}
-								: null
-						}
-					/>
+					<Pager className="border-t-0" {...paged.pager} {...paged.ends} />
 				</SettingsCard>
 			</SettingsSection>
 
