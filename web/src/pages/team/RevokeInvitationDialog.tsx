@@ -3,16 +3,7 @@ import { revokeInvitation } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Invitation } from "@gen/loco/org/v1/org_pb";
 import { useState } from "react";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/design/AlertDialog";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { toastConnectError } from "@/lib/error-handler";
 
 export function RevokeInvitationDialog({
@@ -40,31 +31,17 @@ export function RevokeInvitationDialog({
 	};
 
 	return (
-		<AlertDialog
+		<ConfirmDialog
 			open={invitation !== null}
-			onOpenChange={(open) => {
-				if (!open) onClose();
+			title={`Revoke the invitation to ${email}?`}
+			description={`Signing in with ${email} won't add them to the organization until you invite them again.`}
+			confirmLabel="Revoke"
+			pendingLabel="Revoking…"
+			pending={mutation.isPending}
+			onConfirm={() => {
+				void confirm();
 			}}
-		>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Revoke the invitation to {email}?</AlertDialogTitle>
-					<AlertDialogDescription>
-						Signing in with {email} won&apos;t add them to the organization until you invite them again.
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
-					<AlertDialogAction
-						disabled={mutation.isPending}
-						onClick={() => {
-							void confirm();
-						}}
-					>
-						{mutation.isPending ? "Revoking…" : "Revoke"}
-					</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
+			onClose={onClose}
+		/>
 	);
 }
