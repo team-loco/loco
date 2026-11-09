@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { columnLabel, columnValue, columnWidth, PICKABLE_COLUMNS, type ColumnKey } from "./columns";
 import { bodyParts, fmtTs, jsonPreview, levelStyle } from "./format";
 import type { LogRow } from "./rows";
-import { Dot } from "./shared";
 
 const TIME_WIDTH = 176;
 const COMPACT_TIME_WIDTH = 124;
@@ -150,12 +149,7 @@ function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 		case "level":
 			return <span className={cn("text-[12.5px]", levelStyle(row.level).text)}>{row.label}</span>;
 		case "resource":
-			return (
-				<span className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
-					<Dot color={row.color} />
-					<span className="truncate">{row.resourceName}</span>
-				</span>
-			);
+			return <span className="block truncate text-[12.5px]">{row.resourceName}</span>;
 		default: {
 			const value = columnValue(row, column);
 			return value === "" ? (

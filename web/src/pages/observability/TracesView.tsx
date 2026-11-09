@@ -22,7 +22,7 @@ import { liveTokens, passes, queryStr, sameToken, type FieldKey } from "./query"
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES, readPaging } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
-import { traceServiceColor, traceServiceLabel } from "./trace-service";
+import { traceServiceLabel } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
 import { TRACE_ID_PATTERN, durationLabel, spanError, summarizeTraces, uniqueSpans, type TraceSummary } from "./traces";
 
@@ -266,15 +266,7 @@ function TraceSession() {
 											<td className="px-3 font-mono whitespace-nowrap text-fg3">
 												{crossesDay ? fmtTs(startMs) : formatClock(startMs)}
 											</td>
-											<td className="px-3">
-												<span className="flex items-center gap-1.5">
-													<span
-														className="size-2 rounded-[2px]"
-														style={{ background: traceServiceColor(t.root.serviceName) }}
-													/>
-													{traceServiceLabel(t.root, resourceById.get(t.root.resourceId)?.name)}
-												</span>
-											</td>
+											<td className="px-3">{traceServiceLabel(t.root, resourceById.get(t.root.resourceId)?.name)}</td>
 											<td className="max-w-[360px] px-3">
 												<button
 													type="button"
