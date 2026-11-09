@@ -1,15 +1,22 @@
-import { Navigate } from "react-router";
+import { Navigate, useLocation, useSearchParams } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { AppLoading } from "@/context/AppLoader";
 
-import { Splash } from "./Splash";
+import { SignInCard } from "./auth/SignInCard";
+import { signInError } from "./auth/sign-in-error";
 
 export function Login() {
-	const { isAuthenticated } = useAuth();
+	const { isAuthenticated, isPending } = useAuth();
+	const [searchParams] = useSearchParams();
+	const location = useLocation();
 
 	if (isAuthenticated) {
 		return <Navigate to="/dashboard" />;
 	}
+	if (isPending) {
+		return <AppLoading />;
+	}
 
-	return <Splash />;
+	return <SignInCard next={null} loginHint={searchParams.get("login_hint")} error={signInError(location.state)} />;
 }

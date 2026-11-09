@@ -33,7 +33,7 @@ export function CliDevice() {
 	if (approve.isSuccess) {
 		return (
 			<CliCard title="Device signed in">
-				{() => <p className="m-0 text-center text-fg2">You can return to your terminal.</p>}
+				{() => <p className="m-0 text-center text-[13.5px] text-fg2">You can return to your terminal.</p>}
 			</CliCard>
 		);
 	}
@@ -42,9 +42,9 @@ export function CliDevice() {
 		<CliCard title="Sign in a device">
 			{(email) => (
 				<form className="flex flex-col gap-4" onSubmit={submit}>
-					<p className="m-0 text-center text-fg2">
-						Enter the code shown by <code>loco login --device</code> to sign that device in as{" "}
-						<span className="font-semibold text-foreground">{email}</span>.
+					<p className="m-0 text-center text-[13.5px] text-fg2">
+						Enter the code shown by <code className="font-mono text-[0.92em] text-foreground">loco login --device</code>{" "}
+						to sign that device in as <span className="font-medium text-foreground">{email}</span>.
 					</p>
 					<Field
 						label="Device code"
@@ -63,7 +63,7 @@ export function CliDevice() {
 							}}
 						/>
 					</Field>
-					<Button type="submit" size="lg" className="w-full" disabled={approve.isPending || userCode.trim() === ""}>
+					<Button type="submit" size="xl" className="w-full" disabled={approve.isPending || userCode.trim() === ""}>
 						{approve.isPending && <Loader2 className="size-4 animate-spin" />}
 						Approve
 					</Button>

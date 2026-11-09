@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Navigate } from "react-router";
+import { useState } from "react";
 
-import { AppLoading } from "@/context/AppLoader";
 import { toastConnectError } from "@/lib/error-handler";
 
 import { authClient, signInRedirectURL } from "./client";
@@ -30,21 +28,4 @@ export function useSignIn() {
 	};
 
 	return { signIn, redirecting };
-}
-
-export function SignInRedirect({ next }: { next: string }) {
-	const [failed, setFailed] = useState(false);
-	const startedRef = useRef(false);
-
-	useEffect(() => {
-		if (startedRef.current) return;
-		startedRef.current = true;
-		startSignIn(next, null).catch((err: unknown) => {
-			toastConnectError(err, SIGN_IN_FAILED);
-			setFailed(true);
-		});
-	}, [next]);
-
-	if (failed) return <Navigate to="/login" replace />;
-	return <AppLoading message="Redirecting to sign in…" />;
 }
