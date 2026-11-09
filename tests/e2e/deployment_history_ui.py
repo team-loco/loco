@@ -126,14 +126,11 @@ with sync_playwright() as playwright:
                 stage, user = "history", "owner"
                 try:
                     page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
-                    section = page.locator("section").filter(has=page.get_by_role("status").filter(has_text=re.compile(r"^\d+ (loaded|total)")))
-                    page.get_by_text("Pilot release 221", exact=True).first.wait_for()
-                    expect(section.get_by_role("status")).to_have_text("200 loaded")
+                    section = page.get_by_role("heading", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
+                    expect(section.get_by_text("1–10 of 200+", exact=True)).to_be_visible()
+                    expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
+                    expect(section.get_by_role("columnheader", name="Region", exact=True)).to_be_visible()
                     assert any(request["method"] == "GetDeployment" and request["body"]["deploymentId"] == data["releases"][-1] for request in requests)
-                    page.get_by_role("button", name="us-east-1", exact=True).or_(page.get_by_role("button", name="eu-west-1", exact=True)).click()
-                    page.get_by_role("menuitemradio", name="eu-west-1", exact=False).click()
-                    page.keyboard.press("Escape")
-                    page.get_by_text("Pilot release 221", exact=True).first.wait_for()
                     page.screenshot(path=out / f"initial-{case}.png", animations="disabled")
                     stage = "older-page-retry"
                     section.get_by_role("button", name="50", exact=True).click()
@@ -145,11 +142,11 @@ with sync_playwright() as playwright:
                     section.get_by_text("Pilot page failure", exact=False).wait_for()
                     expect(section.get_by_text("Pilot release 151", exact=True)).to_be_visible()
                     assert len(failed) == 1
-                    page.get_by_text("Pilot release 221", exact=True).first.wait_for()
+                    expect(section.get_by_text("151–200 of 200+", exact=True)).to_be_visible()
                     page.screenshot(path=out / f"page-error-{case}.png", animations="disabled")
                     next_button.focus()
                     page.keyboard.press("Enter")
-                    expect(section.get_by_role("status")).to_have_text("221 total")
+                    expect(section.get_by_text("201–221 of 221", exact=True)).to_be_visible()
                     expect(section.get_by_text("Pilot release 221", exact=True)).to_be_visible()
                     older_requests = [request["body"] for request in requests if request["method"] == "ListDeployments" and request["body"].get("pageToken")]
                     assert len(older_requests) == 2 and older_requests[0] == older_requests[1] == failed[0]
@@ -159,12 +156,7 @@ with sync_playwright() as playwright:
                     environment_switcher.click()
                     page.get_by_role("menuitem", name="staging staging", exact=True).click()
                     expect(page).to_have_url(re.compile(r"[?&]env=staging"))
-                    section = page.locator("section").filter(has=page.get_by_role("status").filter(has_text=re.compile(r"^\d+ (loaded|total)")))
-                    expect(section.get_by_role("status")).to_have_text("1 total")
-                    page.get_by_role("button", name="eu-west-1", exact=True).click()
-                    page.get_by_role("menuitemradio", name="us-east-1", exact=False).click()
-                    page.keyboard.press("Escape")
-                    expect(page.get_by_text("Staging current", exact=True)).to_have_count(2)
+                    expect(section.get_by_text("1–1 of 1", exact=True)).to_be_visible()
                     expect(section.get_by_text("Staging current", exact=True)).to_be_visible()
                     assert not section.get_by_text("Pilot release 221", exact=True).count()
                     assert any(request["method"] == "ListDeployments" and request["body"].get("environmentId") == data["staging"] and not request["body"].get("pageToken") for request in requests)
