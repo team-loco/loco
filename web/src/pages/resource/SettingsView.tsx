@@ -153,7 +153,9 @@ export function SettingsView({
 					/>
 					<NetworkingSection
 						{...props}
+						resourceId={resource.id}
 						domains={resource.domains}
+						platformDomains={domainsQuery.data?.platformDomains ?? []}
 						served={served}
 						onDomainsChanged={() => {
 							onSaved({ tone: "info", title: "Domain updated", message: "It takes effect on the next deployment." });

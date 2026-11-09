@@ -1,11 +1,9 @@
-import { createClient } from "@connectrpc/connect";
 import { useQuery as useRpcQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { CheckIcon, PlusIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { DomainService } from "@gen/loco/domain/v1/domain_pb";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
@@ -14,8 +12,8 @@ import { Badge } from "@/components/design/Badge";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { Page, PageHeader, Section } from "@/components/design/Page";
+import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Stepper } from "@/components/design/Stepper";
@@ -23,24 +21,16 @@ import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage } from "@/lib/error-handler";
-import {
-	parseEnvText,
-	servedDomains,
-	nameFromImage,
-	validateForm,
-	type Availability,
-	type NewResourceForm,
-} from "@/lib/new-resource";
+import { parseEnvText, servedDomains, nameFromImage, validateForm, type NewResourceForm } from "@/lib/new-resource";
 import { workspacePath } from "@/lib/routes";
 import { slug } from "@/lib/slug";
 import { SidePanel, type DeployRun } from "@/pages/new-resource/SidePanel";
 
-const AVAILABILITY_DEBOUNCE_MS = 350;
-const AVAILABILITY_STALE_MS = 10_000;
 const HEALTHY = "healthy";
 
 function FormSection({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -71,28 +61,6 @@ function SoonRow({ label, hint }: { label: string; hint: string }) {
 
 const grid2 = "grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-x-[18px] gap-y-3.5";
 
-function useAvailability(hostname: string | null): Availability {
-	const transport = useTransport();
-	const query = useQuery({
-		queryKey: ["new-resource", "domain-availability", hostname],
-		queryFn: async ({ signal }) => {
-			await new Promise((resolve) => setTimeout(resolve, AVAILABILITY_DEBOUNCE_MS));
-			signal.throwIfAborted();
-			const res = await createClient(DomainService, transport).checkDomainAvailability(
-				{ domain: hostname ?? "" },
-				{ signal },
-			);
-			return res.isAvailable;
-		},
-		enabled: hostname !== null,
-		staleTime: AVAILABILITY_STALE_MS,
-	});
-	if (hostname === null) return "unknown";
-	if (query.isFetching) return "checking";
-	if (query.data === undefined) return "unknown";
-	return query.data ? "available" : "taken";
-}
-
 export function NewResource() {
 	const transport = useTransport();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
@@ -118,7 +86,8 @@ export function NewResource() {
 	const name = edits.name ?? nameFromImage(image, new Set(taken.keys()));
 	const selected =
 		regionEdit?.envId === envId ? regionEdit.regions : regions.filter((r) => r.isDefault).map((r) => r.region);
-	const served = servedDomains(domainsQuery.data?.platformDomains ?? [], selected);
+	const platformDomains = domainsQuery.data?.platformDomains ?? [];
+	const served = servedDomains(platformDomains, selected);
 	const form: NewResourceForm = {
 		image,
 		name,
@@ -133,13 +102,11 @@ export function NewResource() {
 		envText: edits.envText ?? "",
 		healthPath: edits.healthPath ?? defaults?.healthCheck?.path ?? "",
 	};
-	const hostname =
-		form.isPublic && form.platformDomain !== "" && form.subdomain !== ""
-			? `${form.subdomain}.${form.platformDomain}`
-			: null;
-	const availability = useAvailability(hostname);
-	const errors = validateForm(form, taken, availability);
+	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.platformDomain, []);
+	const errors = validateForm(form, taken, check.state);
 	const shown = (e: string | null, field: keyof NewResourceForm) => (tried || field in edits ? e : null);
+	const subdomainError =
+		check.state !== "empty" ? null : form.subdomain === "" ? shown(errors.subdomain, "subdomain") : errors.subdomain;
 	const set = (patch: Partial<NewResourceForm>) => {
 		setEdits((prev) => ({ ...prev, ...patch }));
 	};
@@ -344,38 +311,23 @@ export function NewResource() {
 						</div>
 						<div className={grid2}>
 							{form.isPublic && (
-								<Field
-									label="Address"
-									className="col-span-full"
-									error={form.subdomain === "" ? shown(errors.subdomain, "subdomain") : errors.subdomain}
-									hint={
-										availability === "available"
-											? `${hostname ?? ""} is available`
-											: availability === "checking"
-												? `Checking ${hostname ?? ""}…`
-												: undefined
-									}
-								>
-									<InputGroup>
-										<InputGroupAddon>
-											<InputGroupText>https://</InputGroupText>
-										</InputGroupAddon>
-										<InputGroupInput
-											value={form.subdomain}
-											className="font-mono text-[12.5px] md:text-[12.5px]"
-											aria-label="Subdomain"
-											aria-invalid={form.subdomain !== "" && errors.subdomain !== null}
-											onChange={(e) => {
-												set({ subdomain: e.target.value.toLowerCase() });
-											}}
-										/>
-										{form.platformDomain !== "" && (
-											<InputGroupAddon align="inline-end">
-												<InputGroupText>.{form.platformDomain}</InputGroupText>
-											</InputGroupAddon>
-										)}
-									</InputGroup>
-								</Field>
+								<div className="col-span-full flex min-w-0 flex-col gap-1.5">
+									<span className="text-[13px] font-medium">Address</span>
+									<PlatformDomainInput
+										subdomain={form.subdomain}
+										platformDomain={form.platformDomain}
+										options={platformDomains.filter((d) => served.includes(d.domain))}
+										check={check}
+										placeholder={slug(name)}
+										onSubdomainChange={(subdomain) => {
+											set({ subdomain });
+										}}
+										onPlatformDomainChange={(platformDomain) => {
+											set({ platformDomain });
+										}}
+									/>
+									{subdomainError !== null && <span className="text-[12.5px] text-bad-fg">{subdomainError}</span>}
+								</div>
 							)}
 							<Field label="Port" error={shown(errors.port, "port")} className="max-w-[200px]">
 								<Input
@@ -389,23 +341,6 @@ export function NewResource() {
 								/>
 							</Field>
 						</div>
-						{form.isPublic && served.length > 1 && (
-							<ToggleGroup
-								variant="segmented"
-								aria-label="Platform domain"
-								className="w-fit flex-wrap"
-								value={[form.platformDomain]}
-								onValueChange={(v: string[]) => {
-									if (v[0] !== undefined) set({ platformDomain: v[0] });
-								}}
-							>
-								{served.map((d) => (
-									<ToggleGroupItem key={d} value={d} className="font-mono">
-										{d}
-									</ToggleGroupItem>
-								))}
-							</ToggleGroup>
-						)}
 					</FormSection>
 
 					<FormSection title="Environment variables" hint="Paste a .env file or one KEY=value per line.">

@@ -8,7 +8,8 @@ import {
 } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
-import { IMAGE_RE, SUBDOMAIN_RE } from "@/lib/new-resource";
+import { IMAGE_RE } from "@/lib/new-resource";
+import { SUBDOMAIN_RE } from "@/lib/platform-domain";
 
 import { isDeployed, type RegionView } from "./model";
 
