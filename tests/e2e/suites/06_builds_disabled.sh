@@ -103,7 +103,7 @@ test_n06_workspace_api_token_deploys_without_a_session() {
     local app=e2e-api-token token
     mkdir -p "$token_dir" "$token_home"
     cli_write_image_config "$token_dir" "$app" "$nobuild_public_image" 8080 '[]'
-    if ! token=$(mint_api_token e2e-cli-deploy ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_WRITE); then
+    if ! token=$(mint_api_token e2e-cli-deploy ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ SCOPE_WRITE); then
         assert "Mint a workspace write token for the CLI" false
         return 1
     fi

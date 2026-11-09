@@ -29,7 +29,7 @@ A member sees the workspaces they hold `read` on, plus every workspace of an org
 
 ## Deploy from CI with an API token
 
-Use a scoped API token to run `loco infra plan`, `loco infra apply` and `loco deploy` from a clean CI runner. Create a token on the dashboard's Tokens page and grant it read access to the target workspace for planning or write access for applying and deploying.
+Use a scoped API token to run `loco infra plan`, `loco infra apply` and `loco deploy` from a clean CI runner. Create a token on the dashboard's Tokens page and select **Read** on the target workspace for planning or **Write** for applying and deploying. The dashboard's **Write** level grants both scopes. If you create the token with `loco token create` or the API, specify both `read` and `write` for deployments so the CLI can resolve the workspace and plan before it applies.
 
 Set `LOCO_TOKEN` from your CI secret store. Set `LOCO_HOST` to the HTTPS API URL of the instance that issued the token. Supply the organization name or ID and the workspace ID explicitly:
 
