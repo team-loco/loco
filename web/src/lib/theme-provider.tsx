@@ -1,33 +1,42 @@
-import { useEffect, useState } from "react";
-import { readStorage, writeStorage } from "./storage";
-import { ThemeContext, type Theme } from "./theme-context";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
-const THEME_KEY = "loco:theme:v1";
+import {
+	applyTheme,
+	readMode,
+	resolveMode,
+	storeMode,
+	subscribeSystemTheme,
+	systemPrefersDark,
+	toggledMode,
+	type Mode,
+} from "./theme";
+import { ThemeContext } from "./theme-context";
+
+const THEME_SOUND_VOLUME = 0.9;
+
+function playThemeSound(toDark: boolean) {
+	const audio = new Audio(toDark ? "/darkMode.wav" : "/lightMode.wav");
+	audio.volume = THEME_SOUND_VOLUME;
+	void audio.play().catch(() => undefined);
+}
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-	const [theme, setTheme] = useState<Theme>(() => {
-		const stored = readStorage(THEME_KEY);
-		if (stored === "light" || stored === "dark") {
-			return stored;
-		}
-		return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-	});
+	const [mode, setMode] = useState<Mode>(readMode);
+	const systemDark = useSyncExternalStore(subscribeSystemTheme, systemPrefersDark);
+	const resolved = resolveMode(mode, systemDark);
 
 	useEffect(() => {
-		const root = document.documentElement;
-		if (theme === "dark") {
-			root.classList.add("dark");
-		} else {
-			root.classList.remove("dark");
-		}
-		writeStorage(THEME_KEY, theme);
-	}, [theme]);
+		applyTheme(resolved);
+	}, [resolved]);
 
-	const toggleTheme = () => {
-		setTheme((prev) => (prev === "light" ? "dark" : "light"));
+	const toggle = () => {
+		const next = toggledMode(mode, systemDark);
+		setMode(next);
+		storeMode(next);
+		playThemeSound(resolved !== "dark");
 	};
 
-	const contextValue = { theme, toggleTheme };
+	const contextValue = { theme: resolved, toggle };
 
 	return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 }

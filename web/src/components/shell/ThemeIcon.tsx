@@ -7,9 +7,3 @@ export function ThemeIcon({ mode }: { mode: "sun" | "moon" }) {
 		</span>
 	);
 }
-
-export async function playThemeSound(toDark: boolean) {
-	const audio = new Audio(toDark ? "/darkMode.wav" : "/lightMode.wav");
-	audio.volume = 0.9;
-	await audio.play().catch(() => undefined);
-}

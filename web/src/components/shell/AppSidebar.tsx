@@ -52,7 +52,7 @@ import { observabilityPath, workspacePath, type ObservabilityView } from "@/lib/
 
 import { useSidebarPeek } from "./AppShell";
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
-import { playThemeSound, ThemeIcon } from "./ThemeIcon";
+import { ThemeIcon } from "./ThemeIcon";
 
 interface NavItem {
 	name: string;
@@ -83,7 +83,7 @@ export function AppSidebar() {
 	const [params] = useSearchParams();
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
-	const { theme, toggleTheme } = useTheme();
+	const { theme, toggle } = useTheme();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const peek = useSidebarPeek();
@@ -321,11 +321,7 @@ export function AppSidebar() {
 								<DropdownMenuSeparator />
 								<MenuLink
 									icon={<ThemeIcon mode={theme === "dark" ? "sun" : "moon"} />}
-									onClick={() => {
-										const toDark = theme !== "dark";
-										toggleTheme();
-										void playThemeSound(toDark);
-									}}
+									onClick={toggle}
 									closeOnClick={false}
 								>
 									{theme === "dark" ? "Light mode" : "Dark mode"}
