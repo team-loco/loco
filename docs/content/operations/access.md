@@ -43,7 +43,7 @@ loco infra plan
 loco deploy --yes
 ```
 
-Use `--org` and `--workspace` to override the corresponding environment variables, and `--env` to choose an environment by name or ID. A `--host` flag must match `LOCO_HOST` so a token cannot follow a host override. Use the local session by unsetting `LOCO_TOKEN`. When the variable is nonempty, its value takes precedence over saved credentials. If the API rejects an expired or revoked token, replace the CI secret with a valid token and rerun the command.
+Use `--org` and `--workspace` to override the corresponding environment variables, and `--env` to choose an environment by name or ID. A `--host` flag must match `LOCO_HOST` so a token cannot follow a host override. A set `LOCO_TOKEN` takes precedence over saved credentials. An empty value fails. Unset the variable to use the local session. If the API rejects an expired or revoked token, replace the CI secret with a valid token and rerun the command.
 
 ## Suspend an organization
 

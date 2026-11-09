@@ -37,6 +37,12 @@ stderr 'fakeapi: unknown token'
 fakeapi called GetWorkspace 'Bearer rejected-token'
 ! fakeapi called RefreshCLIToken
 
+# A missing CI secret leaves a set but empty token and must fail without using the session.
+env LOCO_TOKEN=
+! exec loco infra plan
+stderr 'LOCO_TOKEN variable is empty'
+! fakeapi called RefreshCLIToken
+
 # A workspace ID must belong to the organization explicitly selected for this run.
 env LOCO_TOKEN=test-token
 ! exec loco infra plan --org wrong-org

@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	errEmptyAPIToken     = errors.New("the LOCO_TOKEN variable is empty. Set an API token or unset LOCO_TOKEN")
 	errTokenHostRequired = errors.New("set LOCO_HOST to the API URL when using LOCO_TOKEN")
 	errTokenHostInvalid  = errors.New("LOCO_HOST must be an HTTP or HTTPS API URL when using LOCO_TOKEN")
 	errTokenHostMismatch = errors.New("--host must match LOCO_HOST when using LOCO_TOKEN")
@@ -22,9 +23,12 @@ var (
 // ResolveLocoLogin prefers the environment credential for loco RPC commands.
 // Session management commands and locoadm keep their stored login.
 func ResolveLocoLogin(cmd *cobra.Command) (Login, error) {
-	token := os.Getenv("LOCO_TOKEN")
-	if token == "" {
+	token, configured := os.LookupEnv("LOCO_TOKEN")
+	if !configured {
 		return ResolveLogin(cmd)
+	}
+	if token == "" {
+		return Login{}, errEmptyAPIToken
 	}
 
 	tokenHost := strings.TrimRight(os.Getenv(host.LocoHostEnv), "/")
