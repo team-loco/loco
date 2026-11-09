@@ -185,6 +185,51 @@ func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id
 	return i, err
 }
 
+const listClusterRegions = `-- name: ListClusterRegions :many
+SELECT region, (is_default AND health_status = 'healthy')::boolean AS is_default, health_status
+FROM (
+    SELECT DISTINCT ON (region) region, is_default, health_status
+    FROM clusters
+    WHERE tier = $1
+      AND is_active = true
+      AND health_status IN ('healthy', 'degraded')
+      AND last_heartbeat >= $2::timestamptz
+    ORDER BY region, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
+) AS region_clusters
+ORDER BY (health_status = 'healthy') DESC, region
+`
+
+type ListClusterRegionsParams struct {
+	Tier       string    `json:"tier"`
+	HeardSince time.Time `json:"heardSince"`
+}
+
+type ListClusterRegionsRow struct {
+	Region       string  `json:"region"`
+	IsDefault    bool    `json:"isDefault"`
+	HealthStatus *string `json:"healthStatus"`
+}
+
+func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterRegions, arg.Tier, arg.HeardSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClusterRegionsRow
+	for rows.Next() {
+		var i ListClusterRegionsRow
+		if err := rows.Scan(&i.Region, &i.IsDefault, &i.HealthStatus); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEligibleClusters = `-- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,

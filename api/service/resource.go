@@ -556,7 +556,7 @@ func (s *ResourceServer) DeleteResource(
 	return &resourcev1.DeleteResourceResponse{}, nil
 }
 
-// ListRegions lists the regions of the clusters an environment deploys to.
+// ListRegions lists healthy and degraded regions for an environment.
 func (s *ResourceServer) ListRegions(
 	ctx context.Context,
 	req *resourcev1.ListRegionsRequest,
@@ -566,22 +566,20 @@ func (s *ResourceServer) ListRegions(
 	if err != nil {
 		return nil, err
 	}
-	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.clusterSilentAfter)
+	clusters, err := s.queries.ListClusterRegions(ctx, genDb.ListClusterRegionsParams{
+		Tier:       env.EnvironmentType,
+		HeardSince: time.Now().Add(-s.clusterSilentAfter),
+	})
 	if err != nil {
-		return nil, fmt.Errorf("list clusters: %w", err)
+		return nil, fmt.Errorf("list cluster regions: %w", err)
 	}
-	regions := make([]*resourcev1.RegionInfo, 0, len(eligible))
-	for _, cluster := range eligible {
-		first, _ := clusterForRegion(eligible, cluster.Region)
-		if first.ID != cluster.ID {
-			continue
-		}
-		info := &resourcev1.RegionInfo{
+	regions := make([]*resourcev1.RegionInfo, 0, len(clusters))
+	for _, cluster := range clusters {
+		regions = append(regions, &resourcev1.RegionInfo{
 			Region:       cluster.Region,
 			IsDefault:    cluster.IsDefault,
 			HealthStatus: derefString(cluster.HealthStatus),
-		}
-		regions = append(regions, info)
+		})
 	}
 	return &resourcev1.ListRegionsResponse{Regions: regions}, nil
 }

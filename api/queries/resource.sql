@@ -85,6 +85,19 @@ WHERE tier = sqlc.arg(tier)
   AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC;
 
+-- name: ListClusterRegions :many
+SELECT region, (is_default AND health_status = 'healthy')::boolean AS is_default, health_status
+FROM (
+    SELECT DISTINCT ON (region) region, is_default, health_status
+    FROM clusters
+    WHERE tier = sqlc.arg(tier)
+      AND is_active = true
+      AND health_status IN ('healthy', 'degraded')
+      AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
+    ORDER BY region, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
+) AS region_clusters
+ORDER BY (health_status = 'healthy') DESC, region;
+
 -- name: ListRegionStatusesForResources :many
 SELECT d.resource_id,
        d.environment_id,
