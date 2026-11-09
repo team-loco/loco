@@ -302,7 +302,7 @@ function TraceSession() {
 													</span>
 												</span>
 											</td>
-											<td className="px-3 text-right font-mono text-fg3">
+											<td className="relative px-3 text-right font-mono text-fg3">
 												{t.spans.length}
 												{t.spans.some(spanError) && <span className="sr-only">, with errors</span>}
 											</td>
