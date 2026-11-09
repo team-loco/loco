@@ -7,17 +7,8 @@ import { toast } from "sonner";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/design/AlertDialog";
 import { Button } from "@/components/design/Button";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -106,27 +97,20 @@ export function ResourceRowMenu({
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
-			<AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Delete {resource.name}?</AlertDialogTitle>
-						<AlertDialogDescription>
-							This removes the resource, its deployments in every environment, and its domains. It cannot be undone.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							disabled={deleteMutation.isPending}
-							onClick={() => {
-								void confirmDelete();
-							}}
-						>
-							{deleteMutation.isPending ? "Deleting…" : "Delete resource"}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+			<ConfirmDialog
+				open={confirmOpen}
+				title={`Delete ${resource.name}?`}
+				description="This removes the resource, its deployments in every environment, and its domains. It cannot be undone."
+				confirmLabel="Delete resource"
+				pendingLabel="Deleting…"
+				pending={deleteMutation.isPending}
+				onConfirm={() => {
+					void confirmDelete();
+				}}
+				onClose={() => {
+					setConfirmOpen(false);
+				}}
+			/>
 		</>
 	);
 }
