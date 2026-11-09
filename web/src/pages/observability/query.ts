@@ -180,12 +180,7 @@ function matches(value: string, pattern: string): boolean {
 }
 
 export function narrow<T extends string>(universe: T[], tokens: Token[]): T[] | null {
-	if (tokens.length === 0) return null;
-	const pos = tokens.filter((t) => !t.neg);
-	const neg = tokens.filter((t) => t.neg);
-	return universe.filter(
-		(u) => (pos.length === 0 || pos.some((t) => matches(u, t.value))) && !neg.some((t) => matches(u, t.value)),
-	);
+	return tokens.length === 0 ? null : universe.filter((u) => passes([u], tokens));
 }
 
 export function passes(values: string[], tokens: Token[]): boolean {
