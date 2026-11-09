@@ -96,7 +96,7 @@ const (
 
 func pgForeignKeyConstraint(err error) string {
 	pgErr, ok := errors.AsType[*pgconn.PgError](err)
-	if !ok || pgErr.Code != "23503" {
+	if !ok || (pgErr.Code != "23503" && pgErr.Code != "23001") {
 		return ""
 	}
 	return pgErr.ConstraintName
