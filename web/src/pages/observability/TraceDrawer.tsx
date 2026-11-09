@@ -239,6 +239,8 @@ export function TraceDrawer({
 	loading,
 	error,
 	incomplete,
+	loadingMore,
+	onLoadMore,
 	onRetry,
 	onClose,
 }: {
@@ -247,13 +249,17 @@ export function TraceDrawer({
 	loading: boolean;
 	error: Error | null;
 	incomplete: boolean;
+	loadingMore: boolean;
+	onLoadMore: () => void;
 	onRetry: () => void;
 	onClose: () => void;
 }) {
 	const { orgId, workspaceId, resourceById, params, setParam } = useObs();
 	const [copied, copy] = useCopy();
 	const spanId = params.get("span");
-	const selected = trace?.spans.find((s) => s.spanId === spanId) ?? trace?.root;
+	const linked = trace?.spans.find((s) => s.spanId === spanId);
+	const selected = linked ?? trace?.root;
+	const missing = spanId !== null && trace !== undefined && linked === undefined;
 	const label = (span: TraceSpan) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name);
 	const resource = trace === undefined ? undefined : resourceById.get(trace.root.resourceId);
 	const cause = trace !== undefined && selected !== undefined ? failingSpan(trace, selected) : undefined;
@@ -353,10 +359,20 @@ export function TraceDrawer({
 					{trace !== undefined && selected !== undefined && (
 						<>
 							<FlameGraph trace={trace} selected={selected} onSelect={select} label={label} />
-							{incomplete && (
-								<p className="m-0 text-[12px] text-fg3">
-									More spans exist than were loaded. Durations and shares reflect the loaded spans.
+							{missing && (
+								<p role="status" className="m-0 text-[12.5px] text-fg2">
+									{incomplete
+										? "The selected span has not loaded. Load more spans to find it."
+										: "The selected span is unavailable in this time range."}
 								</p>
+							)}
+							{incomplete && (
+								<div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-fg3">
+									<span>More spans exist than were loaded. Durations and shares reflect the loaded spans.</span>
+									<Button variant="outline" size="sm" disabled={loadingMore} onClick={onLoadMore}>
+										{loadingMore ? "Loading…" : "Load more spans"}
+									</Button>
+								</div>
 							)}
 							<section className="flex min-w-0 items-center gap-2.5" aria-label="Selected span">
 								<span

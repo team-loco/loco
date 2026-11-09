@@ -347,6 +347,10 @@ function TraceSession() {
 					loading={detail.isLoading}
 					error={detail.error}
 					incomplete={detail.hasNextPage}
+					loadingMore={detail.isFetchingNextPage}
+					onLoadMore={() => {
+						void detail.fetchNextPage();
+					}}
 					onRetry={() => {
 						void detail.refetch();
 					}}
