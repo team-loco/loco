@@ -64,7 +64,7 @@ with sync_playwright() as playwright:
                         org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
                         page.route(org_list_rpc, lambda route: route.abort())
                         page.goto(f"{state['ui_url']}/org/{beta_id}/settings")
-                        page.wait_for_url(f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?tab=org")
+                        page.wait_for_url(f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?scope=org")
                         assert page.get_by_role("textbox", name="Name", exact=True).input_value() == "beta"
                         page.unroute(org_list_rpc)
                         page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
@@ -75,14 +75,14 @@ with sync_playwright() as playwright:
                             page.get_by_placeholder("storefront" if tab == "ws" else "team-loco").wait_for()
                             name = page.get_by_role("textbox", name="Name", exact=True)
                             assert name.count() == 1
-                            assert page.get_by_text("Created", exact=True).evaluate("node => node.tagName") == "SPAN"
+                            assert page.get_by_text("Created", exact=True).first.evaluate("node => node.tagName") == "DT"
                             assert name.evaluate("node => node.labels.length") == 1
-                            assert descriptions(name) == ["Shown across Loco. Commands also accept the " + ("workspace" if tab == "ws" else "organization") + " ID."]
+                            assert descriptions(name) == []
                             if user == "member":
                                 assert name.is_disabled()
                             else:
                                 original = name.input_value()
-                                page.get_by_text("Name", exact=True).click()
+                                name.locator("xpath=ancestor::label[1]").get_by_text("Name", exact=True).click()
                                 assert name.evaluate("node => node === document.activeElement")
                                 name.fill("")
                                 page.get_by_text("Name required", exact=True).wait_for()
@@ -100,7 +100,7 @@ with sync_playwright() as playwright:
                                 if user == "member":
                                     assert description.is_disabled()
                                 else:
-                                    page.get_by_text("Description", exact=True).click()
+                                    description.locator("xpath=ancestor::label[1]").get_by_text("Description", exact=True).click()
                                     assert description.evaluate("node => node === document.activeElement")
                                     name.focus()
                                     page.keyboard.press("Tab")

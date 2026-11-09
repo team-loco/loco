@@ -1,7 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
@@ -10,12 +10,11 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
-import { NEW_SERVICE_PARAM, NEW_SERVICE_VALUE, resourcePath } from "@/lib/routes";
+import { NEW_SERVICE_PARAM, NEW_SERVICE_VALUE, resourcePath, settingsPath } from "@/lib/routes";
 import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
 import { DraftDrawer } from "@/pages/dashboard/DraftDrawer";
 import { FirstServiceEmpty } from "@/pages/dashboard/FirstServiceEmpty";
 import { draftSizing, isPrivate, nameFromImage, uniqueName, useDrafts } from "@/pages/dashboard/drafts";
-import { EnvironmentMenu } from "@/pages/dashboard/EnvironmentMenu";
 import { NewServiceDialog } from "@/pages/dashboard/NewServiceDialog";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
 import { ResourcesTable } from "@/pages/dashboard/ResourcesTable";
@@ -111,17 +110,7 @@ export function Dashboard() {
 		<PageHeader
 			title="Overview"
 			actions={loading ? undefined : <CreateResourceMenu disabled={!canCreate} onService={openNew} />}
-		>
-			{activeWorkspaceId !== null && (
-				<EnvironmentMenu
-					workspaceId={activeWorkspaceId}
-					environments={environments}
-					active={active}
-					onSelect={setActive}
-					usedEnvIds={data.usedEnvIds}
-				/>
-			)}
-		</PageHeader>
+		/>
 	);
 
 	const loadError = data.error ?? configQuery.error;
@@ -144,7 +133,11 @@ export function Dashboard() {
 				{header}
 				<Section>
 					<EmptyState title="No environments yet">
-						Create an environment from the menu next to the title to start deploying.
+						Create one in{" "}
+						<Link to={settingsPath(orgId, workspaceId, "workspace")} className="text-foreground underline">
+							workspace settings
+						</Link>{" "}
+						to start deploying.
 					</EmptyState>
 				</Section>
 			</Page>

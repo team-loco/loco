@@ -121,7 +121,7 @@ with sync_playwright() as playwright:
                 page.get_by_text(marker, exact=True).first.wait_for()
                 page.locator('[role=status][aria-busy]').wait_for(state='detached')
                 if mode['hold_initial']:
-                    panel = page.get_by_role('heading', name=title, exact=True).locator('xpath=ancestor::section[1]')
+                    panel = page.get_by_role('region', name=title, exact=True)
                     expect(panel.locator('[data-slot=skeleton]')).to_have_count(3)
                     expect(panel.get_by_role('listitem')).to_have_count(0)
                     page.screenshot(path=out / f'initial-loading-{phase}-{suffix}.png', full_page=True, animations='disabled')
@@ -144,7 +144,7 @@ with sync_playwright() as playwright:
                     results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
                     context.close()
                     continue
-                panel = page.get_by_role('heading', name=title, exact=True).locator('xpath=ancestor::section[1]')
+                panel = page.get_by_role('region', name=title, exact=True)
                 expect(panel.get_by_role('listitem')).to_have_count(50)
                 assert panel.get_by_text('Olivia Owner', exact=True).count() > 0
                 if user != 'owner':
@@ -154,12 +154,13 @@ with sync_playwright() as playwright:
                     assert 'other-company' not in breadcrumb
                     if user == 'workspace_admin':
                         assert 'shared' in breadcrumb
-                        assert page.get_by_role('button', name='shared', exact=True).count() == 1
-                        assert page.get_by_role('button', name='Audit log', exact=True).count() == 0
+                        scopes = page.get_by_role('group', name='Settings for', exact=True)
+                        expect(scopes.get_by_role('button', name='Workspace', exact=True)).to_have_attribute('aria-pressed', 'true')
+                        expect(scopes.get_by_role('button', name='Organization', exact=True)).to_have_count(0)
                         for tab in ('org', 'audit'):
                             page.goto(origin + base + '/settings?tab=' + tab)
                             expect(page.get_by_role('list', name='Activity')).to_be_visible()
-                        panel = page.get_by_role('heading', name=title, exact=True).locator('xpath=ancestor::section[1]')
+                        panel = page.get_by_role('region', name=title, exact=True)
                     else:
                         assert not any(request['method'] == 'ListEnvironments' for request in recorded)
                     assert not [request for request in recorded if request['status'] >= 400 and request['method'] != 'ListResourceEvents' and not request.get('controlledFailure')], recorded

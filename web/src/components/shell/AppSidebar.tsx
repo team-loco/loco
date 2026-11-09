@@ -40,6 +40,7 @@ import {
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { pageImporters } from "@/lib/lazy-pages";
 import { expandOrgLink } from "@/lib/org-links";
+import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 import { newResourcePath, workspacePath } from "@/lib/routes";
@@ -101,7 +102,7 @@ export function AppSidebar() {
 		items: section.label === "Manage" ? [...section.pages, ...orgLinks] : section.pages,
 	}));
 
-	const displayName = user?.name !== undefined && user.name !== "" ? user.name : (user?.email ?? "");
+	const displayName = user === null ? "" : userLabel(user);
 
 	return (
 		<Sidebar>

@@ -3,26 +3,39 @@ import { deleteOrg, updateOrg } from "@gen/loco/org/v1/org-OrgService_connectque
 import type { Organization, User } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayersIcon, PlusIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { ChevronRightIcon, PlusIcon } from "lucide-react";
+import { useState, type MouseEvent } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
+import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { Pager } from "@/components/design/Pager";
 import { SaveBar } from "@/components/design/SaveBar";
+import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
-import { workspacePath } from "@/lib/routes";
+import { formatCount, pluralize } from "@/lib/format";
+import { usePagedRows } from "@/lib/paging";
+import { settingsPath } from "@/lib/routes";
+import { userLabel } from "@/lib/user";
 
+import { AuditLogTab } from "./AuditLogTab";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
-import { formatDay, SettingsCard, SettingsRow } from "./parts";
+import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
+
+const MAX_NAME = 100;
+const PAGE_SIZES = [25, 50, 100] as const;
 
 export function OrgTab({
 	org,
@@ -32,6 +45,11 @@ export function OrgTab({
 	level,
 	counts,
 	countsLoading,
+	currentWorkspaceId,
+	draft,
+	onDraft,
+	onOpenWorkspace,
+	memberCount,
 }: {
 	org: Organization;
 	workspaces: Workspace[];
@@ -40,23 +58,26 @@ export function OrgTab({
 	level: AccessLevel;
 	counts: Map<string, ResourceCount>;
 	countsLoading: boolean;
+	currentWorkspaceId: string;
+	draft: string | null;
+	onDraft: (name: string | null) => void;
+	onOpenWorkspace: (event: MouseEvent, workspace: Workspace) => void;
+	memberCount: number | undefined;
 }) {
-	const nameId = useId();
-	const nameHintId = `${nameId}-hint`;
-	const nameErrorId = `${nameId}-error`;
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
 	const update = useMutation(updateOrg);
 	const remove = useMutation(deleteOrg);
 
-	const [draft, setDraft] = useState<string | null>(null);
+	const [query, setQuery] = useState("");
 	const [newOpen, setNewOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const name = draft ?? org.name;
 	const nameT = name.trim();
 	const dirty = name !== org.name;
-	const nameErr = nameT === "" ? "Name required" : nameT.length > 100 ? "Max 100 characters" : null;
+	const nameErr =
+		nameT === "" ? "Name required" : nameT.length > MAX_NAME ? `Max ${MAX_NAME.toString()} characters` : null;
 	const shownErr = dirty ? nameErr : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
@@ -77,9 +98,14 @@ export function OrgTab({
 			: withRes.length > 0
 				? "Workspaces still have resources"
 				: null;
+	const needle = query.trim().toLowerCase();
+	const matches = workspaces.filter(
+		(w) => w.name.toLowerCase().includes(needle) || w.description.toLowerCase().includes(needle),
+	);
+	const paged = usePagedRows(matches, PAGE_SIZES);
 	const userName = (id: string) => {
 		const u = users.find((x) => x.id === id);
-		return u ? u.name || u.email : "";
+		return u ? userLabel(u) : "";
 	};
 
 	const save = () => {
@@ -88,7 +114,7 @@ export function OrgTab({
 			{ orgId: org.id, name: nameT },
 			{
 				onSuccess: () => {
-					setDraft(null);
+					onDraft(null);
 					toast.success("Saved");
 					void queryClient.invalidateQueries();
 				},
@@ -119,7 +145,7 @@ export function OrgTab({
 	const newButton = (
 		<Button
 			variant="outline"
-			className="h-[30px] px-2.5 font-medium"
+			size="sm"
 			disabled={!canWrite}
 			onClick={() => {
 				setNewOpen(true);
@@ -129,99 +155,167 @@ export function OrgTab({
 			New workspace
 		</Button>
 	);
+	const creator = userName(org.createdBy);
+	const createdDay = formatDay(org.createdAt);
 
 	return (
-		<div className="flex flex-col gap-5">
-			<SettingsCard>
-				<SettingsRow
-					label="Name"
-					hint="Shown across Loco. Commands also accept the organization ID."
-					controlId={nameId}
-					hintId={nameHintId}
-				>
-					<Input
-						id={nameId}
-						value={name}
-						placeholder="team-loco"
-						disabled={!canWrite}
-						aria-invalid={shownErr !== null}
-						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
-						className="h-9 max-w-[320px] text-[13.5px]"
-						onChange={(e) => {
-							setDraft(e.target.value);
-						}}
+		<div className="flex flex-col gap-[22px]">
+			<SettingsSection title="General">
+				<SettingsCard className="flex flex-col gap-4 px-5 py-[18px]">
+					<Field label="Name" error={shownErr}>
+						<Input
+							value={name}
+							placeholder="team-loco"
+							disabled={!canWrite}
+							aria-invalid={shownErr !== null}
+							className="h-9 max-w-[420px] font-mono text-[13.5px]"
+							onChange={(e) => {
+								onDraft(e.target.value);
+							}}
+						/>
+					</Field>
+					<KeyValues
+						items={[
+							[
+								"ID",
+								<CopyId
+									key="id"
+									value={org.id}
+									className="h-6 max-w-full bg-panel2 px-2 font-mono text-[12px] font-normal"
+								>
+									<span className="truncate">{org.id}</span>
+								</CopyId>,
+							],
+							["Created", creator === "" ? createdDay : `${createdDay} by ${creator}`],
+							[
+								"Members",
+								memberCount === undefined ? (
+									"—"
+								) : (
+									<Link
+										key="members"
+										to={`/org/${org.id}/team`}
+										className="text-foreground underline underline-offset-3"
+									>
+										{memberCount === 1 ? "1 person" : `${formatCount(memberCount)} people`}
+									</Link>
+								),
+							],
+						]}
 					/>
-					{shownErr !== null && (
-						<span id={nameErrorId} className="text-sm text-bad-fg">
-							{shownErr}
-						</span>
-					)}
-				</SettingsRow>
-				<SettingsRow label="Created" last>
-					<span className="text-fg2">{formatDay(org.createdAt)}</span>
-				</SettingsRow>
-			</SettingsCard>
+				</SettingsCard>
+			</SettingsSection>
 
-			<SettingsCard>
-				<div className="flex items-center gap-2.5 border-b border-line px-5 py-3.5">
-					<span className="flex-1 font-semibold">
-						Workspaces <span className="font-normal text-fg3">{workspaces.length}</span>
-					</span>
-					{canWrite ? (
+			<SettingsSection
+				title="Workspaces"
+				meta={workspaces.length}
+				actions={
+					canWrite ? (
 						newButton
 					) : (
 						<Tooltip>
-							<TooltipTrigger render={<span className="inline-flex cursor-not-allowed" />}>{newButton}</TooltipTrigger>
+							<TooltipTrigger render={<span className="inline-flex" />}>{newButton}</TooltipTrigger>
 							<TooltipContent>Requires Write on {org.name}</TooltipContent>
 						</Tooltip>
-					)}
-				</div>
-				{workspacesLoading &&
-					[0, 1].map((i) => (
-						<div key={i} className="border-b border-line px-5 py-3 last:border-b-0">
+					)
+				}
+			>
+				<SettingsCard>
+					<div className="px-5 pt-3">
+						<SearchInput
+							aria-label="Search workspaces"
+							placeholder="Search workspaces"
+							className="max-w-[320px]"
+							value={query}
+							onChange={(e) => {
+								setQuery(e.target.value);
+								paged.reset();
+							}}
+						/>
+					</div>
+					{workspacesLoading ? (
+						<div className="flex flex-col gap-2 px-5 py-3">
+							<Skeleton className="h-9 w-full" />
 							<Skeleton className="h-9 w-full" />
 						</div>
-					))}
-				{!workspacesLoading && workspaces.length === 0 && <div className="px-5 py-7 text-fg3">No workspaces yet.</div>}
-				{workspaces.map((w) => {
-					const by = userName(w.createdBy);
-					const day = formatDay(w.createdAt);
-					const resLabel = formatResourceCount(counts.get(w.id));
-					return (
-						<Link
-							key={w.id}
-							to={workspacePath(org.id, w.id)}
-							className="grid grid-cols-[minmax(0,1fr)_100px] items-center gap-4 border-b border-line px-5 py-3 text-foreground no-underline last:border-b-0 hover:bg-bg2 md:grid-cols-[minmax(0,1fr)_130px_160px]"
-						>
-							<span className="flex min-w-0 items-center gap-2.5">
-								<LayersIcon className="size-[15px] shrink-0 text-fg3" />
-								<span className="flex min-w-0 flex-col">
-									<span className="font-semibold">{w.name}</span>
-									<span className="truncate text-sm text-fg3">{w.description || "—"}</span>
-								</span>
-							</span>
-							<span className="text-fg2">{resLabel}</span>
-							<span className="hidden text-[12.5px] text-fg3 md:inline">{by ? `${day} · ${by}` : day}</span>
-						</Link>
-					);
-				})}
-			</SettingsCard>
+					) : paged.rows.length === 0 ? (
+						<div className="px-5 py-7 text-fg3">
+							{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
+						</div>
+					) : (
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Name</TableHead>
+									<TableHead className="hidden md:table-cell">Description</TableHead>
+									<TableHead>Resources</TableHead>
+									<TableHead className="hidden md:table-cell">Created</TableHead>
+									<TableHead className="w-6">
+										<span className="sr-only">Open</span>
+									</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{paged.rows.map((w) => {
+									const by = userName(w.createdBy);
+									const day = formatDay(w.createdAt);
+									return (
+										<TableRow key={w.id} className="relative hover:bg-panel2">
+											<TableCell>
+												<Link
+													to={settingsPath(org.id, w.id, "workspace")}
+													className="font-mono text-[13px] text-foreground no-underline after:absolute after:inset-0"
+													onClick={(e) => {
+														onOpenWorkspace(e, w);
+													}}
+												>
+													{w.name}
+												</Link>
+												{w.id === currentWorkspaceId && (
+													<Badge tone="pill" className="ml-2">
+														current
+													</Badge>
+												)}
+											</TableCell>
+											<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
+												{w.description || "—"}
+											</TableCell>
+											<TableCell className="text-[12.5px] text-fg2">{formatResourceCount(counts.get(w.id))}</TableCell>
+											<TableCell className="hidden text-[12px] text-fg3 md:table-cell">
+												{by === "" ? day : `${day} · ${by}`}
+											</TableCell>
+											<TableCell className="text-fg3">
+												<ChevronRightIcon className="size-3.5" />
+											</TableCell>
+										</TableRow>
+									);
+								})}
+							</TableBody>
+						</Table>
+					)}
+					<Pager className="border-t-0" {...paged.pager} {...paged.ends} />
+				</SettingsCard>
+			</SettingsSection>
 
-			<DangerZone
-				title="Delete organization"
-				description={subtitle}
-				warn={withRes.length > 0}
-				actionLabel={`Delete ${org.name}`}
-				blockedReason={blockedReason}
-				onAction={() => {
-					setDeleteOpen(true);
-				}}
-			/>
+			{canAdmin && <AuditLogTab org={org} workspaces={workspaces} users={users} />}
+
+			<SettingsSection title="Danger zone">
+				<DangerZone
+					title={`Delete ${org.name}`}
+					description={subtitle}
+					warn={withRes.length > 0}
+					actionLabel="Delete organization"
+					blockedReason={blockedReason}
+					onAction={() => {
+						setDeleteOpen(true);
+					}}
+				/>
+			</SettingsSection>
 
 			{dirty && canWrite && (
 				<SaveBar
 					onDiscard={() => {
-						setDraft(null);
+						onDraft(null);
 					}}
 					onSave={save}
 					saving={update.isPending}
@@ -234,7 +328,7 @@ export function OrgTab({
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
 				title={`Delete ${org.name}`}
-				text={`This removes ${org.name}, its ${workspaces.length.toString()} empty ${workspaces.length === 1 ? "workspace" : "workspaces"} and all members.`}
+				text={`This removes ${org.name}, its ${pluralize(workspaces.length, "empty workspace")} and all members.`}
 				target={org.name}
 				confirmLabel="Delete organization"
 				pending={remove.isPending}

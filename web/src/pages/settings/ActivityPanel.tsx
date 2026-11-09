@@ -2,7 +2,7 @@ import { useInfiniteQuery } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import type { Event } from "@gen/loco/event/v1/event_pb";
 import { ScrollTextIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -83,6 +83,7 @@ export function ActivityPanel({
 	users?: ReadonlyMap<string, AuditUser>;
 	names?: ReadonlyMap<string, string>;
 }) {
+	const headingId = useId();
 	const [category, setCategory] = useState<AuditCategory | "all">("all");
 	const query = useInfiniteQuery(
 		listEvents,
@@ -95,10 +96,12 @@ export function ActivityPanel({
 	const events = distinctAuditEvents(query.data?.pages.flatMap((p) => p.events) ?? []);
 
 	return (
-		<SettingsCard>
+		<SettingsCard labelledBy={headingId}>
 			<div className="flex flex-wrap items-start gap-3 border-b border-line px-5 py-3.5">
 				<div className="flex min-w-0 flex-1 flex-col gap-1">
-					<h2 className="font-semibold">{title}</h2>
+					<h2 id={headingId} className="font-semibold">
+						{title}
+					</h2>
 					<span className="text-[12.5px] text-fg3">{description}</span>
 				</div>
 				<FilterMenu

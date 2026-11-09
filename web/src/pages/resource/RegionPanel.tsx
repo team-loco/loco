@@ -9,12 +9,12 @@ import {
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { CopyId } from "@/components/design/CopyId";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { cn } from "@/lib/utils";
 import { formatPercent } from "@/lib/compute-chart";
 
-import { CopyId } from "./CopyId";
 import { shortId } from "./format";
 import { MetricChart } from "./MetricChart";
 import { depService, regionDotClass, type RegionView } from "./model";
