@@ -134,6 +134,23 @@ type fakeWorkspaceService struct {
 	api *fakeAPI
 }
 
+func (s *fakeWorkspaceService) GetWorkspace(
+	ctx context.Context,
+	req *workspacev1.GetWorkspaceRequest,
+) (*workspacev1.GetWorkspaceResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: workspacev1connect.WorkspaceServiceGetWorkspaceProcedure},
+		info.RequestHeader(),
+	); err != nil {
+		return nil, err
+	}
+	ws := &workspacev1.Workspace{
+		Id: req.GetWorkspaceId(), OrgId: fakeOrgID, OrgName: fakeOrgName, Name: fakeWorkspaceName,
+	}
+	return &workspacev1.GetWorkspaceResponse{Workspace: ws}, nil
+}
+
 func (s *fakeWorkspaceService) ListOrgWorkspaces(
 	ctx context.Context,
 	_ *workspacev1.ListOrgWorkspacesRequest,

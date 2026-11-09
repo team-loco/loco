@@ -313,7 +313,7 @@ func buildServices(
 	targets []buildTarget,
 	out io.Writer,
 ) (map[string]string, error) {
-	builder := sourcebuild.New(t.Host, t.Token, out)
+	builder := sourcebuild.New(t.Clients, out)
 	builds := make(map[string]string, len(targets))
 	for _, target := range targets {
 		res, lookupErr := t.Service(ctx, target.name)

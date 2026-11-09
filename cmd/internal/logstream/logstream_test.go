@@ -2,8 +2,6 @@ package logstream
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -19,11 +17,6 @@ import (
 )
 
 var base = time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
-
-var (
-	proxyServers    sync.Map
-	errUnknownProxy = errors.New("unknown in-process proxy")
-)
 
 type fakeProxy struct {
 	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
@@ -93,39 +86,12 @@ func (p *fakeProxy) TailLogs(
 	return nil
 }
 
-func serve(t *testing.T, proxy *fakeProxy) string {
-	t.Helper()
-	return serveHandler(t, proxy)
-}
-
-func serveHandler(t *testing.T, proxy observabilityv1connect.ObservabilityProxyServiceHandler) string {
-	t.Helper()
+func newClient(proxy observabilityv1connect.ObservabilityProxyServiceHandler) *Client {
 	server := connect.NewServer()
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, proxy)
-	endpoint := fmt.Sprintf("inprocess://%p", server)
-	proxyServers.Store(endpoint, server)
-	t.Cleanup(func() { proxyServers.Delete(endpoint) })
-	return endpoint
-}
-
-func newClient(endpoint string) *Client {
-	return &Client{
-		URL:   endpoint,
-		Token: "token",
-		NewClient: func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient {
-			cached, exists := proxyServers.Load(url)
-			if !exists {
-				panic(errUnknownProxy)
-			}
-			server, ok := cached.(*connect.Server)
-			if !ok {
-				panic(errUnknownProxy)
-			}
-			transport := connectinprocess.New(server)
-			client := connect.NewClient(transport, rpc.BearerInterceptor(token))
-			return observabilityv1connect.NewObservabilityProxyServiceClient(client)
-		},
-	}
+	transport := connectinprocess.New(server)
+	client := connect.NewClient(transport, rpc.BearerInterceptor("token"))
+	return &Client{Proxy: observabilityv1connect.NewObservabilityProxyServiceClient(client)}
 }
 
 func collect(entries *[]string) Emit {
@@ -144,10 +110,10 @@ func TestBackfillQueriesOneRegionalBackendAndKeepsTheLastLines(t *testing.T) {
 			entry(3, "west 3"),
 		},
 	}
-	target := serve(t, proxy)
+	client := newClient(proxy)
 	filter := Filter{WorkspaceID: "ws", ResourceIDs: []string{"r"}}
 	var all []string
-	if err := newClient(target).Backfill(t.Context(), filter, base, base.Add(time.Hour), 0, collect(&all)); err != nil {
+	if err := client.Backfill(t.Context(), filter, base, base.Add(time.Hour), 0, collect(&all)); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(all, []string{"east 0", "west 1", "east 2", "west 3"}) {
@@ -157,9 +123,7 @@ func TestBackfillQueriesOneRegionalBackendAndKeepsTheLastLines(t *testing.T) {
 		t.Fatalf("queries = %d, want one regional request", len(proxy.queries))
 	}
 	var last []string
-	if err := newClient(
-		target,
-	).Backfill(t.Context(), filter, base, base.Add(time.Hour), 2, collect(&last)); err != nil {
+	if err := client.Backfill(t.Context(), filter, base, base.Add(time.Hour), 2, collect(&last)); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(last, []string{"east 2", "west 3"}) {
@@ -172,12 +136,12 @@ func TestBackfillFollowsCursorsAndClampsTheRange(t *testing.T) {
 		entries:  []*observabilityv1.LogEntry{entry(0, "a"), entry(1, "b"), entry(2, "c")},
 		pageSize: 2,
 	}
-	target := serve(t, proxy)
+	client := newClient(proxy)
 	filter := BuildFilter("ws", "build-1")
 	end := base.Add(48 * time.Hour)
 
 	var got []string
-	if err := newClient(target).Backfill(t.Context(), filter, base, end, 0, collect(&got)); err != nil {
+	if err := client.Backfill(t.Context(), filter, base, end, 0, collect(&got)); err != nil {
 		t.Fatalf("backfill: %v", err)
 	}
 	if want := []string{"a", "b", "c"}; !slices.Equal(got, want) {
@@ -200,7 +164,7 @@ func TestBackfillFollowsCursorsAndClampsTheRange(t *testing.T) {
 
 func TestTailSkipsBackfilledEntriesAndReconnects(t *testing.T) {
 	proxy := &fakeProxy{}
-	target := serve(t, proxy)
+	client := newClient(proxy)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -215,7 +179,7 @@ func TestTailSkipsBackfilledEntriesAndReconnects(t *testing.T) {
 		}
 		return nil
 	}
-	if err := newClient(target).Tail(ctx, Filter{WorkspaceID: "ws"}, base.Add(time.Second), emit); err != nil {
+	if err := client.Tail(ctx, Filter{WorkspaceID: "ws"}, base.Add(time.Second), emit); err != nil {
 		t.Fatalf("tail: %v", err)
 	}
 	if want := []string{"tailed", "after reconnect"}; !slices.Equal(got, want) {
@@ -267,7 +231,7 @@ func (p *windowProxy) TailLogs(
 
 func streamUntil(t *testing.T, proxy *windowProxy, window Window, want int) []*observabilityv1.LogEntry {
 	t.Helper()
-	target := serveHandler(t, proxy)
+	client := newClient(proxy)
 	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()
 	var mu sync.Mutex
@@ -281,7 +245,7 @@ func streamUntil(t *testing.T, proxy *windowProxy, window Window, want int) []*o
 		}
 		return nil
 	}
-	if err := newClient(target).Stream(ctx, Filter{WorkspaceID: "ws"}, window, emit); err != nil {
+	if err := client.Stream(ctx, Filter{WorkspaceID: "ws"}, window, emit); err != nil {
 		t.Fatalf("stream: %v", err)
 	}
 	return got

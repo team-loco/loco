@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	LocoHostEnv     = "LOCO_HOST"
 	DefaultLocoHost = "https://api.loco.build"
 	DefaultWebHost  = "https://loco.build"
 )
@@ -27,7 +28,7 @@ func GetHost(cmd *cobra.Command) (string, error) {
 		}
 	}
 
-	host := os.Getenv("LOCO_HOST")
+	host := os.Getenv(LocoHostEnv)
 	if host != "" {
 		slog.Debug("using host from environment variable")
 		return host, nil

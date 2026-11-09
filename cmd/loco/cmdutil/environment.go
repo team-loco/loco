@@ -17,7 +17,7 @@ const envVarEnvironment = "LOCO_ENV"
 
 var errNoEnvironments = errors.New("the workspace has no environments; create one in the web app first")
 
-// ResolveEnvironment picks the environment named by --env or LOCO_ENV, the workspace's
+// ResolveEnvironment picks the environment named or identified by --env or LOCO_ENV, the workspace's
 // only environment, or an interactive choice.
 func ResolveEnvironment(
 	ctx context.Context,
@@ -46,12 +46,19 @@ func ResolveEnvironment(
 	}
 
 	names := make([]string, 0, len(environments))
+	var byID *environmentv1.Environment
 	for _, env := range environments {
 		envName := env.GetName()
 		if name != "" && envName == name {
 			return env, nil
 		}
+		if name != "" && env.GetId() == name {
+			byID = env
+		}
 		names = append(names, envName)
+	}
+	if byID != nil {
+		return byID, nil
 	}
 	listed := strings.Join(names, ", ")
 	if name != "" {

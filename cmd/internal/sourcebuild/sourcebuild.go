@@ -39,11 +39,10 @@ type Builder struct {
 	storage  *http.Client
 }
 
-// New returns a builder that talks to the API at host as the token's user and
-// prints the build's progress and logs to out.
-func New(host, token string, out io.Writer) *Builder {
+// New returns a builder that prints the build's progress and logs to out.
+func New(clients *rpc.Clients, out io.Writer) *Builder {
 	return &Builder{
-		follower: NewFollower(rpc.ForHost(host, token), host, token, out),
+		follower: NewFollower(clients, out),
 		storage:  httputil.NewHTTPClient(),
 	}
 }

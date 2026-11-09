@@ -71,7 +71,7 @@ func TestFollowBoundsBlockedBackfillAfterBuildFinishes(t *testing.T) {
 			endpoint := httptest.NewServer(mux)
 			defer endpoint.Close()
 			clients := rpc.ForHost(endpoint.URL, "")
-			follower := NewFollower(clients, endpoint.URL, "", io.Discard)
+			follower := NewFollower(clients, io.Discard)
 			parent := t.Context()
 			ctx, cancel := context.WithTimeout(parent, buildLogDrain+followTestMargin)
 			defer cancel()

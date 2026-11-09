@@ -11,37 +11,40 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-// Target is the logged-in API connection plus the workspace and environment once resolved.
+// Target is the authenticated API connection plus the workspace and environment once resolved.
 type Target struct {
 	auth.Login
 	WorkspaceID string
 	Environment *environmentv1.Environment
 }
 
-// ResolveLogin resolves the host and the logged-in token, without a workspace.
+// ResolveLogin resolves the host and credentials, without a workspace.
 func ResolveLogin(cmd *cobra.Command) (Target, error) {
-	login, err := auth.ResolveLogin(cmd)
+	login, err := auth.ResolveLocoLogin(cmd)
 	if err != nil {
 		return Target{}, err
 	}
 	return Target{Login: login}, nil
 }
 
-// ResolveTarget resolves the host, the logged-in token and the workspace named by
-// --org and --workspace or their defaults.
+// ResolveTarget resolves the host, credentials and workspace.
 func ResolveTarget(ctx context.Context, cmd *cobra.Command) (Target, error) {
 	t, err := ResolveLogin(cmd)
 	if err != nil {
 		return Target{}, err
 	}
-	t.WorkspaceID, err = ResolveWorkspaceID(ctx, cmd, session.Load, t.Clients.Workspace)
+	if t.APIToken {
+		t.WorkspaceID, err = resolveTokenWorkspaceID(ctx, cmd, t.Clients.Workspace)
+	} else {
+		t.WorkspaceID, err = ResolveWorkspaceID(ctx, cmd, session.Load, t.Clients.Workspace)
+	}
 	if err != nil {
 		return Target{}, err
 	}
 	return t, nil
 }
 
-// WithEnvironment resolves the workspace environment named by --env or LOCO_ENV,
+// WithEnvironment resolves the workspace environment selected by --env or LOCO_ENV,
 // asking in a terminal when interactive is set and several exist.
 func (t Target) WithEnvironment(ctx context.Context, cmd *cobra.Command, interactive bool) (Target, error) {
 	env, err := ResolveEnvironment(ctx, cmd, t.Clients.Environment, interactive, t.WorkspaceID)
