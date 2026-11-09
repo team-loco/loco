@@ -18,8 +18,8 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/timeutil"
@@ -209,7 +209,7 @@ func (s *ResourceServer) createPlatformDomain(
 		return fmt.Errorf("list domain clusters: %w", err)
 	}
 	hostname := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
-	platform, label, err := configplan.CheckDomain(hostname, check.clusters, check.targets)
+	platform, label, err := platformdomain.Check(hostname, check.clusters, check.targets)
 	if err != nil {
 		return fmt.Errorf("check the resource domain: %w", err)
 	}

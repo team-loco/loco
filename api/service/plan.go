@@ -16,6 +16,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -172,7 +173,7 @@ func (s *PlanServer) loadPlan(
 		file:            file,
 		env:             env,
 		live:            live,
-		platformDomains: configplan.ServedDomains(targets),
+		platformDomains: platformdomain.Served(targets),
 		images:          pinnedImages(images),
 		plan:            plan,
 	}, nil

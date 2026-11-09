@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/internal/locofile"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -92,7 +93,7 @@ func input(services map[string]locofile.Service, live ...Service) Input {
 		Partial:        testPartial,
 		Services:       services,
 		Environments:   []string{"prod"},
-		Clusters:       []Cluster{testCluster(testRegion)},
+		Clusters:       []platformdomain.Cluster{testCluster(testRegion)},
 		MaxSecretBytes: testMaxSecretBytes,
 		Live:           live,
 		Defaults:       testDefaults(),
@@ -100,8 +101,8 @@ func input(services map[string]locofile.Service, live ...Service) Input {
 	}
 }
 
-func testCluster(region string) Cluster {
-	return Cluster{Name: "cluster-" + region, Region: region, Domains: []string{testPlatformDomain}}
+func testCluster(region string) platformdomain.Cluster {
+	return platformdomain.Cluster{Name: "cluster-" + region, Region: region, Domains: []string{testPlatformDomain}}
 }
 
 func compute(t *testing.T, in Input) Plan {
@@ -252,7 +253,7 @@ func TestRemovingARunningRegionIsDestructive(t *testing.T) {
 			State:          liveState(),
 		}
 		in := input(map[string]locofile.Service{webService: service}, live)
-		in.Clusters = []Cluster{testCluster(testRegion), testCluster(movedRegion)}
+		in.Clusters = []platformdomain.Cluster{testCluster(testRegion), testCluster(movedRegion)}
 		op := onlyOperation(t, compute(t, in))
 		if !op.Destructive {
 			t.Fatalf("%v operation = %+v, want destructive for the stopped region", op.Kind, op)
@@ -266,7 +267,7 @@ func TestRemovingARegionThatDoesNotRunIsNotDestructive(t *testing.T) {
 	service.Regions = map[string]locofile.Region{movedRegion: service.Regions[testRegion]}
 	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
 	in := input(map[string]locofile.Service{webService: service}, live)
-	in.Clusters = []Cluster{testCluster(testRegion), testCluster(movedRegion)}
+	in.Clusters = []platformdomain.Cluster{testCluster(testRegion), testCluster(movedRegion)}
 	if op := onlyOperation(t, compute(t, in)); op.Destructive {
 		t.Fatalf("operation = %+v, want no confirmation for a region nothing runs in", op)
 	}
@@ -472,7 +473,8 @@ func TestInvalidDesiredValuesAreFieldErrors(t *testing.T) {
 func TestCustomDomainIsAnError(t *testing.T) {
 	service := fileService()
 	service.Domains = []string{appDomain, "www.acme.dev"}
-	planErr := onlyError(t, compute(t, input(map[string]locofile.Service{webService: service})), ErrCustomDomain)
+	in := input(map[string]locofile.Service{webService: service})
+	planErr := onlyError(t, compute(t, in), platformdomain.ErrCustomDomain)
 	wantMessage := "domain is not under a platform domain any cluster serves: www.acme.dev"
 	if planErr.Path != "domains" || planErr.Err.Error() != wantMessage {
 		t.Fatalf("error = %+v, want the custom domain", planErr)
@@ -486,10 +488,10 @@ func TestDomainMustBeServedByEveryClusterTheServiceDeploysTo(t *testing.T) {
 		testRegion:  service.Regions[testRegion],
 		otherRegion: service.Regions[testRegion],
 	}
-	missing := Cluster{Name: "cluster-eu", Region: otherRegion, Domains: []string{"other.test"}}
+	missing := platformdomain.Cluster{Name: "cluster-eu", Region: otherRegion, Domains: []string{"other.test"}}
 	in := input(map[string]locofile.Service{webService: service})
-	in.Clusters = []Cluster{testCluster(testRegion), missing}
-	planErr := onlyError(t, compute(t, in), ErrDomainNotServed)
+	in.Clusters = []platformdomain.Cluster{testCluster(testRegion), missing}
+	planErr := onlyError(t, compute(t, in), platformdomain.ErrDomainNotServed)
 	wantMessage := "a cluster the service deploys to does not serve the domain: " +
 		appDomain + " is under " + testPlatformDomain + ", which cluster-eu (eu-west-1) does not serve"
 	if planErr.Path != pathDomains || planErr.Err.Error() != wantMessage {
@@ -498,7 +500,7 @@ func TestDomainMustBeServedByEveryClusterTheServiceDeploysTo(t *testing.T) {
 }
 
 func TestDomainServedOnlyInARegionTheServiceSkipsIsAllowed(t *testing.T) {
-	missing := Cluster{Name: "cluster-eu", Region: "eu-west-1"}
+	missing := platformdomain.Cluster{Name: "cluster-eu", Region: "eu-west-1"}
 	in := input(map[string]locofile.Service{webService: fileService()})
 	in.Clusters = append(in.Clusters, missing)
 	if plan := compute(t, in); len(plan.Errors) > 0 {
@@ -508,26 +510,15 @@ func TestDomainServedOnlyInARegionTheServiceSkipsIsAllowed(t *testing.T) {
 
 func TestDomainNoClusterServesIsACustomDomain(t *testing.T) {
 	in := input(map[string]locofile.Service{webService: fileService()})
-	in.Clusters = []Cluster{{Name: "cluster-bare", Region: testRegion}}
-	onlyError(t, compute(t, in), ErrCustomDomain)
-}
-
-func TestMatchPlatformDomainPicksTheLongestSuffix(t *testing.T) {
-	platformDomains := []string{"loco.test", "stage.loco.test"}
-	platform, label, err := MatchPlatformDomain("api.stage.loco.test", platformDomains)
-	if err != nil || platform != "stage.loco.test" || label != "api" {
-		t.Fatalf("match = %q %q %v, want api under stage.loco.test", platform, label, err)
-	}
-	platform, label, err = MatchPlatformDomain("api.loco.test", platformDomains)
-	if err != nil || platform != "loco.test" || label != "api" {
-		t.Fatalf("match = %q %q %v, want api under loco.test", platform, label, err)
-	}
+	in.Clusters = []platformdomain.Cluster{{Name: "cluster-bare", Region: testRegion}}
+	onlyError(t, compute(t, in), platformdomain.ErrCustomDomain)
 }
 
 func TestDomainMoreThanOneLabelUnderAPlatformDomainIsAnError(t *testing.T) {
 	service := fileService()
 	service.Domains = []string{"api.stage.example.com"}
-	planErr := onlyError(t, compute(t, input(map[string]locofile.Service{webService: service})), ErrNotSingleLabel)
+	in := input(map[string]locofile.Service{webService: service})
+	planErr := onlyError(t, compute(t, in), platformdomain.ErrNotSingleLabel)
 	if planErr.Path != pathDomains {
 		t.Fatalf("error = %+v, want it at domains", planErr)
 	}
