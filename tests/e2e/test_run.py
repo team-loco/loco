@@ -76,6 +76,33 @@ def test_port_check_accepts_the_runs_retained_identity_provider():
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize(("failed_downloads", "succeeds"), [(1, True), (2, False)])
+def test_postgres_setup_survives_one_failed_image_download(failed_downloads, succeeds):
+    # Both pull and up download a missing image; each failure drops one download.
+    result = run_harness_functions(
+        '''
+        failures=$FAILED_DOWNLOADS
+        pulled=false
+        sleep() { :; }
+        e2e_compose() {
+            case $1 in pull | up) ;; *) return 0 ;; esac
+            if [ "$pulled" = false ]; then
+                if [ "$failures" -gt 0 ]; then
+                    failures=$((failures - 1))
+                    return 1
+                fi
+                pulled=true
+            fi
+        }
+        compose_host_port() { echo 5432; }
+        wait_for() { :; }
+        setup_postgres
+        ''',
+        env=os.environ | {"FAILED_DOWNLOADS": str(failed_downloads)},
+    )
+    assert (result.returncode == 0) is succeeds, result.stdout + result.stderr
+
+
 def run_fixture_suites(tmp_path, files, *filters):
     for name, content in files.items():
         path = tmp_path / name
