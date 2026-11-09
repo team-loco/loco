@@ -11,8 +11,9 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
-// uniqueViolation is the PostgreSQL error code for a unique constraint violation.
-const uniqueViolation = "23505"
+// pgNameEntityUnique is the (name, entity_type, entity_id) unique constraint of api_tokens;
+// the token_hash constraint also raises unique violations and must not read as a taken name.
+const pgNameEntityUnique = "api_tokens_name_entity_type_entity_id_key"
 
 // Issue issues an API token for the given entity and scopes and returns it with the stored
 // token metadata. The user is the one requesting the token; that user must already hold all
@@ -54,8 +55,8 @@ func (tvm *VendingMachine) Issue(
 		ExpiresAt:  time.Now().Add(duration),
 	})
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok &&
+			pgErr.Code == "23505" && pgErr.ConstraintName == pgNameEntityUnique {
 			return "", queries.CreateAPITokenRow{}, ErrTokenNameTaken
 		}
 		return "", queries.CreateAPITokenRow{}, fmt.Errorf("%w: %w", ErrStoreToken, err)

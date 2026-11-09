@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -119,4 +120,27 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	}
 	assertBearerFormat(t, newAccess, "loco_s_")
 	assertBearerFormat(t, newRefresh, "loco_r_")
+}
+
+func TestIssueRejectsADuplicateTokenName(t *testing.T) {
+	pool := authtest.NewPool(t)
+	q := queries.New(pool)
+	machine := tvm.NewVendingMachine(pool, q, tvm.Config{MaxAPITokenDuration: time.Hour})
+	ctx := t.Context()
+
+	resolver := auth.NewResolver(pool, auth.SignupPolicy{Mode: auth.SignupOpen})
+	user, _, err := resolver.Resolve(ctx, auth.Identity{
+		Issuer: "https://issuer.test", Subject: "dupe", Email: "dupe@example.com", EmailVerified: true,
+	})
+	if err != nil {
+		t.Fatalf("resolve user: %v", err)
+	}
+	entity := queries.Entity{Type: queries.EntityTypeUser, ID: user.ID}
+	if _, _, err = machine.Issue(ctx, "dupe", user.ID, entity, []queries.EntityScope{}, time.Hour); err != nil {
+		t.Fatalf("first issue: %v", err)
+	}
+	_, _, err = machine.Issue(ctx, "dupe", user.ID, entity, []queries.EntityScope{}, time.Hour)
+	if !errors.Is(err, tvm.ErrTokenNameTaken) {
+		t.Fatalf("second issue: got %v, want ErrTokenNameTaken", err)
+	}
 }
