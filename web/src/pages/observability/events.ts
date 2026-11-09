@@ -1,3 +1,4 @@
+import type { Glyph } from "@/components/design/StatusGlyph";
 import type { WorkspaceEventWithResource } from "@/hooks/useWorkspaceEvents";
 import { tsMs } from "@/lib/time";
 
@@ -61,6 +62,7 @@ export function severityOf(type: string, reason: string): Severity {
 }
 
 export interface SeverityStyle {
+	glyph: Glyph;
 	dot: string;
 	fg: string;
 	badge: string;
@@ -71,6 +73,7 @@ export function severityStyle(s: Severity): SeverityStyle {
 	switch (s) {
 		case "error":
 			return {
+				glyph: "err",
 				dot: "bg-err",
 				fg: "text-bad-fg",
 				badge: "bg-bad-bg text-bad-fg",
@@ -78,6 +81,7 @@ export function severityStyle(s: Severity): SeverityStyle {
 			};
 		case "warning":
 			return {
+				glyph: "warn",
 				dot: "bg-warn",
 				fg: "text-warn-fg",
 				badge: "bg-warn-bg text-warn-fg",
@@ -85,6 +89,7 @@ export function severityStyle(s: Severity): SeverityStyle {
 			};
 		case "normal":
 			return {
+				glyph: "off",
 				dot: "bg-line2",
 				fg: "text-foreground",
 				badge: "bg-neutral-bg text-neutral-fg",

@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
-import { eventTitle, groupEvents, type Severity } from "./events";
+import { eventTitle, groupEvents, severityStyle, type Severity } from "./events";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
@@ -44,17 +44,6 @@ function typeValues(severity: Severity): string[] {
 			return ["warning"];
 		case "normal":
 			return ["normal"];
-	}
-}
-
-function glyphFor(severity: Severity) {
-	switch (severity) {
-		case "error":
-			return "err" as const;
-		case "warning":
-			return "warn" as const;
-		case "normal":
-			return "off" as const;
 	}
 }
 
@@ -247,7 +236,7 @@ export function EventsView() {
 												className={cn("h-[58px] border-b border-line2 last:border-b-0", on && "bg-background")}
 											>
 												<td className={cn(e.severity === "normal" && "opacity-60")}>
-													<StatusGlyph glyph={glyphFor(e.severity)} />
+													<StatusGlyph glyph={severityStyle(e.severity).glyph} />
 													<span className="sr-only">{e.severity}</span>
 												</td>
 												<td className="max-w-0 px-3">
