@@ -34,7 +34,6 @@ type domainClient struct {
 func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 	t.Helper()
 	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
-	t.Cleanup(machine.Close)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}

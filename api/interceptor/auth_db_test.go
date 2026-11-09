@@ -40,7 +40,6 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
 	})
-	t.Cleanup(machine.Close)
 	verifier := auth.NewVerifier(http.DefaultClient, []auth.IssuerConfig{{
 		Issuer:   issuer.URL(),
 		JWKSURL:  issuer.URL() + "/.well-known/jwks.json",
@@ -171,7 +170,7 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("issue session: %v", err)
 	}
-	apiToken, err := f.machine.Issue(t.Context(), "ci", user.ID.String(),
+	apiToken, _, err := f.machine.Issue(t.Context(), "ci", user.ID,
 		genDb.Entity{Type: genDb.EntityTypeOrganization, ID: org.ID}, []genDb.EntityScope{orgScope}, time.Hour)
 	if err != nil {
 		t.Fatalf("issue api token: %v", err)

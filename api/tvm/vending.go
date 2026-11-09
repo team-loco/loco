@@ -11,11 +11,9 @@ import (
 )
 
 type VendingMachine struct {
-	pool       *pgxpool.Pool
-	queries    queries.Querier
-	authz      *authz.Authorizer
-	Cfg        Config
-	cancelFunc context.CancelFunc
+	queries queries.Querier
+	authz   *authz.Authorizer
+	Cfg     Config
 }
 
 type Config struct {
@@ -31,36 +29,11 @@ type Config struct {
 }
 
 // NewVendingMachine creates a new VendingMachine with the given database pool, queries, and configuration.
-// Starts a background goroutine to periodically clean up expired tokens.
-// Call Close() to stop the background cleanup goroutine.
 func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *VendingMachine {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		ticker := time.NewTicker(time.Minute)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if err := q.DeleteExpiredSessionTokens(ctx); err != nil {
-					slog.ErrorContext(ctx, "failed to delete expired session tokens", "err", err)
-				}
-				if err := q.DeleteExpiredAPITokens(ctx); err != nil {
-					slog.ErrorContext(ctx, "failed to delete expired api tokens", "err", err)
-				}
-			}
-		}
-	}()
-
 	return &VendingMachine{
-		pool:       pool,
-		queries:    q,
-		authz:      authz.New(pool, q),
-		Cfg:        cfg,
-		cancelFunc: cancel,
+		queries: q,
+		authz:   authz.New(pool, q),
+		Cfg:     cfg,
 	}
 }
 
@@ -70,9 +43,22 @@ func (tvm *VendingMachine) WithQueries(q queries.Querier) *VendingMachine {
 	return &scoped
 }
 
-// Close stops the background cleanup goroutine.
-func (tvm *VendingMachine) Close() {
-	if tvm.cancelFunc != nil {
-		tvm.cancelFunc()
+// RunCleanup deletes expired session and API tokens every interval until ctx is canceled.
+func (tvm *VendingMachine) RunCleanup(ctx context.Context, every time.Duration) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := tvm.queries.DeleteExpiredSessionTokens(ctx); err != nil {
+				slog.ErrorContext(ctx, "failed to delete expired session tokens", "err", err)
+			}
+			if err := tvm.queries.DeleteExpiredAPITokens(ctx); err != nil {
+				slog.ErrorContext(ctx, "failed to delete expired api tokens", "err", err)
+			}
+		}
 	}
 }

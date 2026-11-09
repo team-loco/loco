@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/api/tvm"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
@@ -170,9 +169,6 @@ func newBuildFixture(t *testing.T) *buildFixture {
 	); err != nil {
 		t.Fatalf("enable builds on the other cluster: %v", err)
 	}
-
-	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
-	t.Cleanup(machine.Close)
 
 	bucket := newFakeBucket()
 	server := NewBuildServer(f.pool, f.queries, bucket, BuildConfig{

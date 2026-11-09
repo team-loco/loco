@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
@@ -61,7 +62,6 @@ func newAuthFixture(t *testing.T) *authFixture {
 		SessionRefreshTokenDuration: 24 * time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
 	})
-	t.Cleanup(machine.Close)
 	store, err := cache.NewMemory(time.Hour)
 	if err != nil {
 		t.Fatalf("cache: %v", err)
@@ -271,7 +271,7 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 		t.Fatalf("start: %v", err)
 	}
 	msg := started
-	deviceDigest := digest(msg.GetDeviceCode())
+	deviceDigest := bearer.Hash(msg.GetDeviceCode())
 	racing := &racingCache{Cache: f.server.cache, key: deviceKey(deviceDigest)}
 	f.server.cache = racing
 	racing.during = func() {

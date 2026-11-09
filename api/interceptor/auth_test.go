@@ -34,7 +34,6 @@ func TestAuthenticateRejectsMissingToken(t *testing.T) {
 func TestAuthenticateReportsDatabaseFailure(t *testing.T) {
 	pool := authtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(pool, genDb.New(pool), tvm.Config{})
-	t.Cleanup(machine.Close)
 	i := NewAuthInterceptor(machine, nil, nil, nil)
 	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer("loco_s_unknown"))
 	if err == nil || connect.CodeOf(err) == connect.CodeUnauthenticated {

@@ -76,10 +76,10 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 	grant(systemReader, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeRead)
 	systemWriter := a.signUp(t, "system-writer")
 	grant(systemWriter, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeWrite)
-	apiToken, tokenErr := a.machine.Issue(
+	apiToken, _, tokenErr := a.machine.Issue(
 		ctx,
 		"limited-token",
-		workspaceAdmin.id.String(),
+		workspaceAdmin.id,
 		genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: workspaceID},
 		[]genDb.EntityScope{{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead}},
 		time.Hour,
@@ -229,7 +229,6 @@ func TestClusterAdminHTTPRemovalReportsWorkloadsAndRestoresIdentity(t *testing.T
 			LastUsedUpdateInterval:      time.Hour,
 		},
 	)
-	t.Cleanup(machine.Close)
 	token, _, issueErr := machine.IssueSession(ctx, userID, nil, netip.Addr{}, "admin-test")
 	if issueErr != nil {
 		t.Fatal(issueErr)

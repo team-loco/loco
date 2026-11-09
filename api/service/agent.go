@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -22,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -73,11 +72,6 @@ func NewAgentServer(
 		clusters:          NewClusterAuthenticator(queries, config.AssertionMaxLifetime),
 		heartbeatInterval: heartbeatInterval,
 	}
-}
-
-func hashToken(token string) string {
-	h := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(h[:])
 }
 
 func agentAuthError(err error) error {
@@ -175,7 +169,7 @@ func enroll(
 	key uuid.UUID,
 	enrollment *agentv1.Enrollment,
 ) (registeredCluster, error) {
-	tokenHash := hashToken(enrollment.GetJoinToken())
+	tokenHash := bearer.Hash(enrollment.GetJoinToken())
 	row, err := qtx.EnrollCluster(ctx, genDb.EnrollClusterParams{
 		PublicKey:     enrollment.GetPublicKey(),
 		ClusterKey:    &key,

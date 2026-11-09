@@ -22,6 +22,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -61,7 +62,7 @@ type joinToken struct {
 
 func (s *ClusterAdminServer) newJoinToken() joinToken {
 	token := joinTokenPrefix + rand.Text()
-	return joinToken{token: token, hash: hashToken(token), expiresAt: time.Now().Add(s.joinTokenTTL)}
+	return joinToken{token: token, hash: bearer.Hash(token), expiresAt: time.Now().Add(s.joinTokenTTL)}
 }
 
 func (t joinToken) proto() *clusterv1.JoinToken {

@@ -26,7 +26,6 @@ func TestCreateMemberRejectsScopesTheCallerDoesNotHold(t *testing.T) {
 	wsID := uuid.Must(uuid.NewV7())
 	querier := orgLookupQuerier{orgID: uuid.Must(uuid.NewV7())}
 	machine := tvm.NewVendingMachine(nil, querier, tvm.Config{LastUsedUpdateInterval: time.Minute})
-	t.Cleanup(machine.Close)
 	server := NewWorkspaceServer(nil, querier, machine)
 
 	callerScopes := []genDb.EntityScope{

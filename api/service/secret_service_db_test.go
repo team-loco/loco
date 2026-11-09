@@ -799,7 +799,7 @@ func (f *secretFixture) workspaceTokenContext(t *testing.T) context.Context {
 
 func (f *secretFixture) tokenContext(t *testing.T, entity genDb.Entity, scopes []genDb.EntityScope) context.Context {
 	t.Helper()
-	token, err := f.machine.Issue(f.owner, "ci", f.ownerID.String(), entity, scopes, time.Hour)
+	token, _, err := f.machine.Issue(f.owner, "ci", f.ownerID, entity, scopes, time.Hour)
 	if err != nil {
 		t.Fatalf("issue %s token: %v", entity.Type, err)
 	}

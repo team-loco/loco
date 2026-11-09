@@ -34,10 +34,11 @@ func (q *Queries) AddUserScope(ctx context.Context, arg AddUserScopeParams) erro
 	return err
 }
 
-const createAPIToken = `-- name: CreateAPIToken :exec
+const createAPIToken = `-- name: CreateAPIToken :one
 
 INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
 `
 
 type CreateAPITokenParams struct {
@@ -51,11 +52,23 @@ type CreateAPITokenParams struct {
 	ExpiresAt  time.Time     `json:"expiresAt"`
 }
 
+type CreateAPITokenRow struct {
+	ID         uuid.UUID     `json:"id"`
+	Name       string        `json:"name"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   uuid.UUID     `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	CreatedBy  uuid.UUID     `json:"createdBy"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
+	LastUsedAt *time.Time    `json:"lastUsedAt"`
+}
+
 // -----------------------------------------------------------------------------
 // API token queries
 // -----------------------------------------------------------------------------
-func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error {
-	_, err := q.db.Exec(ctx, createAPIToken,
+func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) (CreateAPITokenRow, error) {
+	row := q.db.QueryRow(ctx, createAPIToken,
 		arg.ID,
 		arg.TokenHash,
 		arg.Name,
@@ -65,7 +78,19 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 		arg.CreatedBy,
 		arg.ExpiresAt,
 	)
-	return err
+	var i CreateAPITokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.EntityType,
+		&i.EntityID,
+		&i.Scopes,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+	)
+	return i, err
 }
 
 const createSessionToken = `-- name: CreateSessionToken :exec

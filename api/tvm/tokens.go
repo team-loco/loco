@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	queries "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 // GetToken validates a token (session or API) and returns the entity it represents
@@ -23,7 +24,7 @@ import (
 //
 // Refresh tokens (loco_r_...) are rejected — they are not valid access credentials.
 func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.Entity, []queries.EntityScope, error) {
-	hash := hashToken(token)
+	hash := bearer.Hash(token)
 
 	switch tokenPrefix(token) {
 	case prefixSession:
@@ -78,7 +79,7 @@ func IsLocoToken(token string) bool {
 
 // Revoke immediately invalidates the given token.
 func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
-	hash := hashToken(token)
+	hash := bearer.Hash(token)
 	switch tokenPrefix(token) {
 	case prefixSession:
 		return tvm.queries.DeleteSessionTokenByAccessHash(ctx, hash)
@@ -87,12 +88,6 @@ func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 	default:
 		return ErrInvalidExpiredToken
 	}
-}
-
-// RevokeSession revokes a session by its ID. Intended for session management UI
-// where the user sees a list of sessions and revokes one by ID.
-func (tvm *VendingMachine) RevokeSession(ctx context.Context, sessionID uuid.UUID) error {
-	return tvm.queries.DeleteSessionToken(ctx, sessionID)
 }
 
 // Refresh validates a refresh token and issues a new access + refresh token pair,
@@ -106,7 +101,7 @@ func (tvm *VendingMachine) Refresh(
 		return "", "", ErrInvalidExpiredToken
 	}
 
-	hash := hashToken(refreshToken)
+	hash := bearer.Hash(refreshToken)
 	session, err := tvm.queries.GetSessionByRefreshToken(ctx, hash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", "", ErrInvalidExpiredToken
@@ -140,18 +135,6 @@ func (tvm *VendingMachine) Refresh(
 	}
 
 	return newAccess, newRefresh, nil
-}
-
-// ListSessions returns all active sessions for the user associated with the given session token.
-func (tvm *VendingMachine) ListSessions(ctx context.Context, token string) ([]queries.ListSessionsForUserRow, error) {
-	entity, _, err := tvm.GetToken(ctx, token)
-	if err != nil {
-		return nil, err
-	}
-	if entity.Type != queries.EntityTypeUser {
-		return nil, ErrImproperUsage
-	}
-	return tvm.queries.ListSessionsForUser(ctx, entity.ID)
 }
 
 // ListAPITokensForEntity lists all API tokens associated with the given entity.
@@ -190,7 +173,7 @@ func (tvm *VendingMachine) SessionIdentity(
 	ctx context.Context,
 	refreshToken string,
 ) (queries.GetSessionIdentityByRefreshHashRow, error) {
-	return tvm.queries.GetSessionIdentityByRefreshHash(ctx, hashToken(refreshToken))
+	return tvm.queries.GetSessionIdentityByRefreshHash(ctx, bearer.Hash(refreshToken))
 }
 
 func (tvm *VendingMachine) RevokeIdentitySessions(ctx context.Context, identityID uuid.UUID) error {

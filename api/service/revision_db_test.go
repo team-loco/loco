@@ -26,7 +26,6 @@ func (f *deployFixture) workspaceID(t *testing.T) uuid.UUID {
 func getEnvironment(t *testing.T, f *deployFixture) *environmentv1.Environment {
 	t.Helper()
 	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
-	t.Cleanup(machine.Close)
 	server := NewEnvironmentServer(f.pool, f.queries, machine)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeRead},
@@ -91,7 +90,6 @@ func TestRejectedScaleLeavesTheRevisionAlone(t *testing.T) {
 func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.UpdateEnvironmentRequest) {
 	t.Helper()
 	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
-	t.Cleanup(machine.Close)
 	server := NewEnvironmentServer(f.pool, f.queries, machine)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},

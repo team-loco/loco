@@ -209,17 +209,13 @@ func (tq *TestingQueries) DeleteSessionTokenByAccessHash(ctx context.Context, ac
 
 func (*TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { return nil }
 
-func (*TestingQueries) ListSessionsForUser(
-	_ context.Context,
-	_ uuid.UUID,
-) ([]queries.ListSessionsForUserRow, error) {
-	return nil, nil
-}
-
 // --- API token mock implementations (no-op; not exercised by permission tests) ---
 
-func (*TestingQueries) CreateAPIToken(_ context.Context, _ queries.CreateAPITokenParams) error {
-	return nil
+func (*TestingQueries) CreateAPIToken(
+	_ context.Context,
+	_ queries.CreateAPITokenParams,
+) (queries.CreateAPITokenRow, error) {
+	return queries.CreateAPITokenRow{}, nil
 }
 
 func (*TestingQueries) GetAPIToken(_ context.Context, _ string) (queries.GetAPITokenRow, error) {
@@ -357,7 +353,6 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
 	pool := authtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(pool, queries.New(pool), tvm.Config{})
-	t.Cleanup(machine.Close)
 	for _, token := range []string{"loco_s_unknown", "loco_k_unknown"} {
 		if _, _, err := machine.GetToken(t.Context(), token); err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
 			t.Errorf("GetToken(%s) on a closed pool: got %v, want the database error", token, err)
@@ -366,5 +361,41 @@ func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
 	_, _, err := machine.Refresh(t.Context(), "loco_r_unknown")
 	if err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Errorf("Refresh on a closed pool: got %v, want the database error", err)
+	}
+}
+
+type cleanupQueries struct {
+	*TestingQueries
+	sweeps chan struct{}
+}
+
+func (c cleanupQueries) DeleteExpiredSessionTokens(context.Context) error {
+	select {
+	case c.sweeps <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
+func TestRunCleanupSweepsUntilContextIsCanceled(t *testing.T) {
+	q := cleanupQueries{newTestingQueries(), make(chan struct{}, 1)}
+	machine := tvm.NewVendingMachine(nil, q, testConfig())
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		machine.RunCleanup(ctx, time.Millisecond)
+		close(done)
+	}()
+
+	select {
+	case <-q.sweeps:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no sweep ran")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunCleanup did not return after its context was canceled")
 	}
 }

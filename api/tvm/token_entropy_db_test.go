@@ -46,7 +46,6 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 		MaxAPITokenDuration:         time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
 	})
-	t.Cleanup(machine.Close)
 	ctx := t.Context()
 
 	resolver := auth.NewResolver(pool, auth.SignupPolicy{Mode: auth.SignupOpen})
@@ -77,9 +76,12 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 		Scope:      queries.ScopeRead,
 	}
 	scopes := []queries.EntityScope{systemRead}
-	apiToken, err := machine.Issue(ctx, "entropy", user.ID.String(), entity, scopes, time.Hour)
+	apiToken, meta, err := machine.Issue(ctx, "entropy", user.ID, entity, scopes, time.Hour)
 	if err != nil {
 		t.Fatalf("issue api token: %v", err)
+	}
+	if meta.Name != "entropy" || meta.EntityID != user.ID || meta.CreatedBy != user.ID || meta.CreatedAt.IsZero() {
+		t.Fatalf("issued metadata = %+v", meta)
 	}
 	assertBearerFormat(t, apiToken, "loco_k_")
 

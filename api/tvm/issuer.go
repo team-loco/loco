@@ -3,7 +3,7 @@ package tvm
 import (
 	"context"
 	"errors"
-	"log/slog"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,93 +11,55 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
-// Issue issues an API token for the given entity and scopes. The userID is the ID of the
-// user requesting the token; that user must already hold all the requested scopes (explicitly
-// or implicitly), otherwise authz.ErrInsufficientPermissions is returned.
-// It is the caller's responsibility to verify that the request is coming from the user with
-// this userID before calling Issue.
+// uniqueViolation is the PostgreSQL error code for a unique constraint violation.
+const uniqueViolation = "23505"
+
+// Issue issues an API token for the given entity and scopes and returns it with the stored
+// token metadata. The user is the one requesting the token; that user must already hold all
+// the requested scopes (explicitly or implicitly), otherwise authz.ErrInsufficientPermissions
+// is returned. It is the caller's responsibility to verify that the request is coming from
+// this user before calling Issue.
 func (tvm *VendingMachine) Issue(
 	ctx context.Context,
 	name string,
-	userID string,
+	user uuid.UUID,
 	entity queries.Entity,
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
-) (string, error) {
+) (string, queries.CreateAPITokenRow, error) {
 	if duration > tvm.Cfg.MaxAPITokenDuration {
-		return "", ErrDurationExceedsMaxAllowed
+		return "", queries.CreateAPITokenRow{}, ErrDurationExceedsMaxAllowed
 	}
 
-	userUUID, err := uuid.Parse(userID)
+	userScopes, err := tvm.authz.UserScopes(ctx, user)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return "", err
-	}
-
-	userScopes, err := tvm.authz.UserScopes(ctx, userUUID)
-	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return "", err
+		return "", queries.CreateAPITokenRow{}, fmt.Errorf("load scopes of the issuing user: %w", err)
 	}
 
 	for _, es := range entityScopes {
-		if err := tvm.authz.Check(ctx, userScopes, es); err != nil {
-			slog.ErrorContext(ctx, err.Error())
-			return "", err
+		if err = tvm.authz.Check(ctx, userScopes, es); err != nil {
+			return "", queries.CreateAPITokenRow{}, err
 		}
 	}
 
-	return tvm.issueAPITokenNoCheck(ctx, name, userUUID, entity, entityScopes, duration)
-}
-
-// IssueWithSessionToken issues an API token using a session token for authentication.
-// The session token must belong to a user, and that user must hold all requested scopes.
-func (tvm *VendingMachine) IssueWithSessionToken(
-	ctx context.Context,
-	name string,
-	sessionToken string,
-	entity queries.Entity,
-	entityScopes []queries.EntityScope,
-	duration time.Duration,
-) (string, error) {
-	entity2, _, err := tvm.GetToken(ctx, sessionToken)
-	if err != nil {
-		return "", ErrInvalidExpiredToken
-	}
-	if entity2.Type != queries.EntityTypeUser {
-		return "", ErrImproperUsage
-	}
-	return tvm.Issue(ctx, name, entity2.ID.String(), entity, entityScopes, duration)
-}
-
-// issueAPITokenNoCheck issues an API token without checking permissions.
-func (tvm *VendingMachine) issueAPITokenNoCheck(
-	ctx context.Context,
-	name string,
-	createdBy uuid.UUID,
-	entity queries.Entity,
-	entityScopes []queries.EntityScope,
-	duration time.Duration,
-) (string, error) {
 	token, hash := generateToken(prefixAPIKey)
-
-	if err := tvm.queries.CreateAPIToken(ctx, queries.CreateAPITokenParams{
+	row, err := tvm.queries.CreateAPIToken(ctx, queries.CreateAPITokenParams{
 		ID:         uuid.Must(uuid.NewV7()),
 		TokenHash:  hash,
 		Name:       name,
 		EntityType: entity.Type,
 		EntityID:   entity.ID,
 		Scopes:     entityScopes,
-		CreatedBy:  createdBy,
+		CreatedBy:  user,
 		ExpiresAt:  time.Now().Add(duration),
-	}); err != nil {
+	})
+	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return "", ErrTokenNameTaken
+		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+			return "", queries.CreateAPITokenRow{}, ErrTokenNameTaken
 		}
-		slog.ErrorContext(ctx, err.Error())
-		return "", ErrStoreToken
+		return "", queries.CreateAPITokenRow{}, fmt.Errorf("%w: %w", ErrStoreToken, err)
 	}
 
-	return token, nil
+	return token, row, nil
 }

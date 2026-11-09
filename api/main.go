@@ -70,6 +70,7 @@ const (
 	envProduction           = "PRODUCTION"
 	imageResolveTimeout     = 15 * time.Second
 	eventsRetentionInterval = time.Hour
+	tokenCleanupInterval    = time.Minute
 )
 
 var version string
@@ -190,6 +191,7 @@ func main() {
 	defer beginShutdown()
 
 	var background sync.WaitGroup
+	background.Go(func() { machine.RunCleanup(shutdownCtx, tokenCleanupInterval) })
 
 	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
 	errorInterceptor := interceptor.NewErrorInterceptor()
@@ -441,8 +443,6 @@ func main() {
 
 		drainCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-
-		machine.Close()
 
 		if pprofServer != nil {
 			if err := pprofServer.Close(); err != nil {

@@ -52,7 +52,6 @@ func newSecretFixture(t *testing.T) *secretFixture {
 		LastUsedUpdateInterval:      time.Minute,
 		MaxAPITokenDuration:         time.Hour,
 	})
-	t.Cleanup(machine.Close)
 	policy, err := auth.ParseSignupPolicy("open", "")
 	if err != nil {
 		t.Fatalf("policy: %v", err)

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -99,11 +98,6 @@ func deviceKey(deviceDigest string) string {
 
 func devicePollKey(deviceDigest string) string {
 	return "cli:device-poll:" + deviceDigest
-}
-
-func digest(value string) string {
-	sum := sha256.Sum256([]byte(value))
-	return hex.EncodeToString(sum[:])
 }
 
 func randomUserCode() (string, error) {
@@ -244,7 +238,7 @@ func (s *AuthServer) ApproveCLILogin(
 		slog.ErrorContext(ctx, "failed to approve cli login", "error", err)
 		return nil, authStoreUnavailable(err)
 	}
-	if setErr := s.cache.Set(ctx, "cli:code:"+digest(code), payload, cliCodeTTL); setErr != nil {
+	if setErr := s.cache.Set(ctx, "cli:code:"+bearer.Hash(code), payload, cliCodeTTL); setErr != nil {
 		return nil, authStoreUnavailable(setErr)
 	}
 	slog.InfoContext(ctx, "approved cli login", "userId", grant.UserID)
@@ -272,7 +266,7 @@ func (s *AuthServer) ExchangeCLICode(
 ) (*authv1.ExchangeCLICodeResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	var grant cliGrant
-	found, err := s.take(ctx, "cli:code:"+digest(req.GetCode()), &grant)
+	found, err := s.take(ctx, "cli:code:"+bearer.Hash(req.GetCode()), &grant)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to read cli code", "error", err)
 		return nil, authStoreUnavailable(err)
@@ -301,7 +295,7 @@ func (s *AuthServer) StartDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
-	deviceDigest := digest(deviceCode)
+	deviceDigest := bearer.Hash(deviceCode)
 	stored, err := s.cache.SetIfAbsent(ctx, "cli:user-code:"+userCode, []byte(deviceDigest), deviceCodeTTL)
 	if err != nil || !stored {
 		slog.ErrorContext(ctx, "failed to store device user code", "error", err, "stored", stored)
@@ -388,7 +382,7 @@ func (s *AuthServer) PollDeviceLogin(
 	req *authv1.PollDeviceLoginRequest,
 ) (*authv1.PollDeviceLoginResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	deviceDigest := digest(req.GetDeviceCode())
+	deviceDigest := bearer.Hash(req.GetDeviceCode())
 	key := deviceKey(deviceDigest)
 	raw, err := s.cache.Get(ctx, key)
 	if errors.Is(err, cache.ErrNotFound) {
