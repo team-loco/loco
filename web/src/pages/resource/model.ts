@@ -140,10 +140,6 @@ export function tookMs(dep: Deployment): number | undefined {
 	return Math.max(0, completed - started);
 }
 
-export function isRollingOut(dep: Deployment | undefined): boolean {
-	return dep?.status === DeploymentPhase.PENDING || dep?.status === DeploymentPhase.DEPLOYING;
-}
-
 export function activeDeploymentPlaces(resource: Resource): string[] {
 	const environments = resource.environmentStatuses;
 	return environments.flatMap((e) =>

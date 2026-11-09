@@ -35,7 +35,6 @@ import {
 	depImage,
 	depTag,
 	isDeployed,
-	isRollingOut,
 	lastGoodDeployment,
 	regionProblem,
 	useResourceData,
@@ -49,6 +48,7 @@ import { RolloutProgress } from "@/pages/resource/RolloutProgress";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
+import { isInFlight } from "@/pages/dashboard/format";
 
 const WRITE_LEVEL = 2;
 const EVENT_LIMIT = 500;
@@ -163,7 +163,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			}))
 		: [];
 
-	const problemRegion = regions.find((r) => !isRollingOut(r.current) && regionProblem(r) !== undefined);
+	const problemRegion = regions.find(
+		(r) => (r.current === undefined || !isInFlight(r.current.status)) && regionProblem(r) !== undefined,
+	);
 	const problem = problemRegion === undefined ? undefined : regionProblem(problemRegion);
 	const focusRegion = problemRegion ?? deployed[0];
 	const rollbackTarget = focusRegion === undefined ? undefined : lastGoodDeployment(focusRegion);

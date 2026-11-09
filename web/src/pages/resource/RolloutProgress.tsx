@@ -1,8 +1,9 @@
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { cn } from "@/lib/utils";
+import { isInFlight } from "@/pages/dashboard/format";
 
 import { shortId } from "./format";
-import { depTag, isRollingOut, type RegionView } from "./model";
+import { depTag, type RegionView } from "./model";
 import { rolloutSteps, type RolloutStep } from "./rollout";
 
 function barClass(step: RolloutStep): string {
@@ -53,7 +54,7 @@ function RegionRollout({ region, phaseOf }: { region: RegionView; phaseOf: Retur
 }
 
 export function RolloutProgress({ regions }: { regions: RegionView[] }) {
-	const rolling = regions.filter((r) => isRollingOut(r.current));
+	const rolling = regions.filter((r) => r.current !== undefined && isInFlight(r.current.status));
 	const phaseOf = useDeploymentWatch(rolling.flatMap((r) => (r.current === undefined ? [] : [r.current.id])));
 	return (
 		<>
