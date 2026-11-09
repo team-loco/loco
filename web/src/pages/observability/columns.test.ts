@@ -16,12 +16,13 @@ test("attribute columns read log, resource and JSON body attributes", () => {
 	const entry = create(LogEntrySchema, {
 		body: '{"msg":"done","status":200}',
 		logAttributes: { "http.method": "GET" },
-		resourceAttributes: { "k8s.pod.name": "web-7c41e9-x2kd9" },
+		resourceAttributes: { "k8s.pod.name": "web-7c41e9-x2kd9", "loco.io/build-id": "b-123" },
 	});
 	const row = toRows([entry], new Map())[0];
 	if (row === undefined) throw new Error("no row");
 	expect(columnValue(row, "http.method")).toBe("GET");
 	expect(columnValue(row, "body.status")).toBe("200");
 	expect(columnValue(row, "replica")).toBe("x2kd9");
+	expect(columnValue(row, "build")).toBe("b-123");
 	expect(columnValue(row, "missing")).toBe("");
 });

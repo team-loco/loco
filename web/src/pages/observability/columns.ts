@@ -3,18 +3,19 @@ import type { LogRow } from "./rows";
 
 export type ColumnKey = string;
 
-export const PICKABLE_COLUMNS: ColumnKey[] = ["level", "resource", "replica", "region", "trace"];
+export const PICKABLE_COLUMNS: ColumnKey[] = ["level", "resource", "replica", "build", "region", "trace"];
 export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource"];
 
 const LABELS: Record<string, string> = {
 	level: "Level",
 	resource: "Resource",
 	replica: "Replica",
+	build: "Build",
 	region: "Region",
 	trace: "Trace",
 };
 
-const WIDTHS: Record<string, number> = { level: 76, resource: 140, replica: 110, region: 112, trace: 128 };
+const WIDTHS: Record<string, number> = { level: 76, resource: 140, replica: 110, build: 128, region: 112, trace: 128 };
 const ATTRIBUTE_WIDTH = 150;
 const TRACE_PREFIX = 12;
 
@@ -52,6 +53,8 @@ export function columnValue(row: LogRow, key: ColumnKey): string {
 			return row.resourceName;
 		case "replica":
 			return row.replica;
+		case "build":
+			return row.build;
 		case "region":
 			return row.region;
 		case "trace":

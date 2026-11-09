@@ -50,6 +50,27 @@ describe("regional control-plane queries", () => {
 		}
 	});
 
+	test("queries build logs across environments without waiting for one", async () => {
+		const received: QueryLogsRequest[] = [];
+		const transport = createRouterTransport((router) => {
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) {
+					received.push(request);
+					return {};
+				},
+			});
+		});
+		const client = new QueryClient();
+		try {
+			const options = { ...logOptions, environmentId: "", allEnvironments: true };
+			expect(logsQueryOptions(transport, options).enabled).toBe(true);
+			await client.query(logsQueryOptions(transport, { ...options, environmentId: workspaceId }));
+			expect(received.map((request) => request.environmentId)).toEqual([""]);
+		} finally {
+			client.clear();
+		}
+	});
+
 	test("waits for an environment before enabling dashboard metrics", () => {
 		const transport = createRouterTransport(() => {});
 		const input = {
