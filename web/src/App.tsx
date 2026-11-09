@@ -70,12 +70,13 @@ const transport = createTransport();
 
 function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const { orgId } = useParams();
-	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
+	const { activeOrgId, workspaces, workspacesSettled } = useOrgWorkspace();
 	const org = orgId ?? activeOrgId;
 	if (org === null) return <Navigate to="/organizations" replace />;
 	if (to === "team") return <Navigate to={`/org/${org}/team`} replace />;
-	const ws = workspaces.find((w) => w.orgId === org)?.id ?? activeWorkspaceId;
-	if (ws === null) return <Navigate to="/organizations" replace />;
+	if (!workspacesSettled) return <AppLoading />;
+	const ws = workspaces.find((w) => w.orgId === org)?.id;
+	if (ws === undefined) return <Navigate to="/organizations" replace />;
 	return <Navigate to={`${workspacePath(org, ws, "settings")}?tab=org`} replace />;
 }
 

@@ -4,7 +4,9 @@
     "member": {"email": "member@acme.test", "name": "Max Member"}
   },
   "orgs": [
-    {"name": "acme", "owner": "owner", "members": ["member"], "workspaces": ["shared", "sibling"]}
+    {"name": "acme", "owner": "owner", "members": ["member"], "workspaces": ["shared", "sibling"]},
+    {"name": "beta", "owner": "owner", "workspaces": ["beta-workspace"]},
+    {"name": "empty", "owner": "owner", "workspaces": []}
   ],
   "grants": [
     {"user": "member", "workspace": "acme/shared", "scopes": ["read"]}
