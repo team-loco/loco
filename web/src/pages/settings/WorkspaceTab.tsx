@@ -246,8 +246,8 @@ export function WorkspaceTab({
 export function SettingsSkeleton() {
 	return (
 		<div className="flex max-w-[960px] flex-col gap-[22px]">
-			<Skeleton className="h-[220px] w-full rounded-[10px]" />
-			<Skeleton className="h-[74px] w-full rounded-[10px]" />
+			<Skeleton className="h-[220px] w-full rounded-card" />
+			<Skeleton className="h-[74px] w-full rounded-card" />
 		</div>
 	);
 }

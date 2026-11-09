@@ -28,7 +28,7 @@ function RegionRollout({ region, phaseOf }: { region: RegionView; phaseOf: Retur
 	const steps = rolloutSteps(phase, message, region.status?.readyReplicas ?? 0, region.status?.desiredReplicas ?? 0);
 	const titleId = `rollout-${region.name}`;
 	return (
-		<section aria-labelledby={titleId} className="flex flex-col gap-3.5 rounded-[10px] bg-panel px-5 py-[18px]">
+		<section aria-labelledby={titleId} className="flex flex-col gap-3.5 rounded-card bg-panel px-5 py-[18px]">
 			<div className="flex flex-wrap items-baseline gap-2.5">
 				<h2 id={titleId} className="m-0 font-mono text-[15px] font-medium">
 					Rolling out {depTag(dep)} in {region.name}

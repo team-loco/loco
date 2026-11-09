@@ -52,6 +52,10 @@
 	--font-sans:
 		"Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
 	--font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+	--radius-control: 6px;
+	--radius-control-inner: calc(var(--radius-control) - 2px);
+	--radius-card: 10px;
+	--radius-overlay: 12px;
 }
 
 @theme inline {
@@ -166,7 +170,8 @@
 	--animate-ring: ring 1.8s ease-out infinite;
 }
 
-:root {
+:root,
+[data-theme="loco"] {
 	--shell: #f3f3f1;
 	--shell-hover: #eaeae7;
 	--shell-active: #e4e4e1;
@@ -291,6 +296,296 @@
 	--sh-keyword: #c8a5f4;
 	--sh-class: #74d4ad;
 	--sh-entity: #9cc3f5;
+}
+
+[data-theme="catppuccin"] {
+	--radius-control: 10px;
+	--radius-card: 16px;
+	--radius-overlay: 18px;
+	--shell: #e6e9ef;
+	--shell-hover: #dce0e8;
+	--shell-active: #ccd0da;
+	--bg: #eff1f5;
+	--panel: #e6e9ef;
+	--panel2: #dce0e8;
+	--raise: #f6f7fa;
+	--line: #dce0e8;
+	--line2: #bcc0cc;
+	--fg: #3b3d53;
+	--fg2: #4c4f69;
+	--fg3: #5c5f77;
+	--fg4: #9ca0b0;
+	--btn: #8839ef;
+	--btn-fg: #ffffff;
+	--brand: #1a5ee3;
+	--ok: #2f7a1f;
+	--ok-glyph: #40a02b;
+	--info: #1e66f5;
+	--warn: #a5650a;
+	--err: #d20f39;
+	--series-0: #1e66f5;
+	--series-1: #8839ef;
+	--series-2: #179299;
+	--series-3: #fe640b;
+}
+
+.dark[data-theme="catppuccin"] {
+	--shell: #11111b;
+	--shell-hover: #181825;
+	--shell-active: #313244;
+	--bg: #1e1e2e;
+	--panel: #24243a;
+	--panel2: #313244;
+	--raise: #28283d;
+	--line: #313244;
+	--line2: #45475a;
+	--fg: #cdd6f4;
+	--fg2: #bac2de;
+	--fg3: #a6adc8;
+	--fg4: #6c7086;
+	--btn: #cba6f7;
+	--btn-fg: #1e1e2e;
+	--brand: #89b4fa;
+	--ok: #a6e3a1;
+	--ok-glyph: #a6e3a1;
+	--info: #89b4fa;
+	--warn: #f9e2af;
+	--err: #f38ba8;
+	--series-0: #89b4fa;
+	--series-1: #cba6f7;
+	--series-2: #94e2d5;
+	--series-3: #fab387;
+}
+
+[data-theme="rose-pine"] {
+	--radius-control: 8px;
+	--radius-card: 14px;
+	--shell: #f2e9e1;
+	--shell-hover: #ebe2da;
+	--shell-active: #dfdad9;
+	--bg: #faf4ed;
+	--panel: #f4ede8;
+	--panel2: #ece4dd;
+	--raise: #fffaf3;
+	--line: #e9e1da;
+	--line2: #cecacd;
+	--fg: #464261;
+	--fg2: #575279;
+	--fg3: #625e82;
+	--fg4: #9893a5;
+	--btn: #286983;
+	--btn-fg: #faf4ed;
+	--brand: #286983;
+	--ok: #3b7480;
+	--ok-glyph: #56949f;
+	--info: #907aa9;
+	--warn: #a8681a;
+	--err: #b4637a;
+	--series-0: #286983;
+	--series-1: #907aa9;
+	--series-2: #d7827e;
+	--series-3: #ea9d34;
+}
+
+.dark[data-theme="rose-pine"] {
+	--shell: #14121f;
+	--shell-hover: #1f1d2e;
+	--shell-active: #26233a;
+	--bg: #191724;
+	--panel: #1f1d2e;
+	--panel2: #26233a;
+	--raise: #232136;
+	--line: #26233a;
+	--line2: #403d52;
+	--fg: #e0def4;
+	--fg2: #c8c5e0;
+	--fg3: #908caa;
+	--fg4: #6e6a86;
+	--btn: #c4a7e7;
+	--btn-fg: #191724;
+	--brand: #9ccfd8;
+	--ok: #9ccfd8;
+	--ok-glyph: #9ccfd8;
+	--info: #c4a7e7;
+	--warn: #f6c177;
+	--err: #eb6f92;
+	--series-0: #9ccfd8;
+	--series-1: #c4a7e7;
+	--series-2: #ebbcba;
+	--series-3: #f6c177;
+}
+
+[data-theme="gruvbox"] {
+	--radius-control: 2px;
+	--radius-card: 3px;
+	--radius-overlay: 3px;
+	--shell: #f2e5bc;
+	--shell-hover: #ebdbb2;
+	--shell-active: #e0d1a6;
+	--bg: #fbf1c7;
+	--panel: #f2e5bc;
+	--panel2: #ebdbb2;
+	--raise: #f9f5d7;
+	--line: #ebdbb2;
+	--line2: #d5c4a1;
+	--fg: #3c3836;
+	--fg2: #504945;
+	--fg3: #665c54;
+	--fg4: #928374;
+	--btn: #af3a03;
+	--btn-fg: #fbf1c7;
+	--brand: #076678;
+	--ok: #79740e;
+	--ok-glyph: #79740e;
+	--info: #076678;
+	--warn: #b57614;
+	--err: #9d0006;
+	--series-0: #076678;
+	--series-1: #8f3f71;
+	--series-2: #427b58;
+	--series-3: #af3a03;
+}
+
+.dark[data-theme="gruvbox"] {
+	--shell: #1d2021;
+	--shell-hover: #282828;
+	--shell-active: #32302f;
+	--bg: #282828;
+	--panel: #32302f;
+	--panel2: #3c3836;
+	--raise: #32302f;
+	--line: #3c3836;
+	--line2: #504945;
+	--fg: #ebdbb2;
+	--fg2: #d5c4a1;
+	--fg3: #bdae93;
+	--fg4: #7c6f64;
+	--btn: #fe8019;
+	--btn-fg: #282828;
+	--brand: #83a598;
+	--ok: #b8bb26;
+	--ok-glyph: #b8bb26;
+	--info: #83a598;
+	--warn: #fabd2f;
+	--err: #fb4934;
+	--series-0: #83a598;
+	--series-1: #d3869b;
+	--series-2: #8ec07c;
+	--series-3: #fe8019;
+}
+
+[data-theme="tokyo-night"] {
+	--radius-card: 8px;
+	--shell: #d5d6db;
+	--shell-hover: #cbccd3;
+	--shell-active: #c0c2cb;
+	--bg: #e9eaef;
+	--panel: #dfe0e7;
+	--panel2: #d4d6df;
+	--raise: #f3f4f7;
+	--line: #d4d6df;
+	--line2: #b9bcc9;
+	--fg: #343b58;
+	--fg2: #454c6d;
+	--fg3: #535978;
+	--fg4: #8b8fa8;
+	--btn: #34548a;
+	--btn-fg: #ffffff;
+	--brand: #34548a;
+	--ok: #33635c;
+	--ok-glyph: #33635c;
+	--info: #166775;
+	--warn: #8f5e15;
+	--err: #8c4351;
+	--series-0: #34548a;
+	--series-1: #5a4a78;
+	--series-2: #166775;
+	--series-3: #965027;
+}
+
+.dark[data-theme="tokyo-night"] {
+	--shell: #16161e;
+	--shell-hover: #1f2335;
+	--shell-active: #292e42;
+	--bg: #1a1b26;
+	--panel: #1f2335;
+	--panel2: #292e42;
+	--raise: #24283b;
+	--line: #292e42;
+	--line2: #3b4261;
+	--fg: #c0caf5;
+	--fg2: #a9b1d6;
+	--fg3: #8f97c4;
+	--fg4: #565f89;
+	--btn: #7aa2f7;
+	--btn-fg: #1a1b26;
+	--brand: #7aa2f7;
+	--ok: #9ece6a;
+	--ok-glyph: #9ece6a;
+	--info: #7dcfff;
+	--warn: #e0af68;
+	--err: #f7768e;
+	--series-0: #7aa2f7;
+	--series-1: #bb9af7;
+	--series-2: #7dcfff;
+	--series-3: #ff9e64;
+}
+
+[data-theme="paper"] {
+	--radius-card: 6px;
+	--shell: #f6f8fa;
+	--shell-hover: #eef1f4;
+	--shell-active: #e6eaef;
+	--bg: #ffffff;
+	--panel: #f6f8fa;
+	--panel2: #eff2f5;
+	--raise: #ffffff;
+	--line: #d8dee4;
+	--line2: #d0d7de;
+	--fg: #1f2328;
+	--fg2: #31373d;
+	--fg3: #59636e;
+	--fg4: #818b98;
+	--btn: #1f883d;
+	--btn-fg: #ffffff;
+	--brand: #0969da;
+	--ok: #1a7f37;
+	--ok-glyph: #1a7f37;
+	--info: #0969da;
+	--warn: #9a6700;
+	--err: #d1242f;
+	--series-0: #0969da;
+	--series-1: #8250df;
+	--series-2: #1b7c83;
+	--series-3: #bc4c00;
+}
+
+.dark[data-theme="paper"] {
+	--shell: #010409;
+	--shell-hover: #151b23;
+	--shell-active: #212830;
+	--bg: #0d1117;
+	--panel: #151b23;
+	--panel2: #212830;
+	--raise: #151b23;
+	--line: #21262d;
+	--line2: #30363d;
+	--fg: #e6edf3;
+	--fg2: #c9d1d9;
+	--fg3: #9198a1;
+	--fg4: #6e7681;
+	--btn: #238636;
+	--btn-fg: #ffffff;
+	--brand: #4493f8;
+	--ok: #3fb950;
+	--ok-glyph: #3fb950;
+	--info: #4493f8;
+	--warn: #d29922;
+	--err: #f85149;
+	--series-0: #4493f8;
+	--series-1: #ab7df8;
+	--series-2: #39c5cf;
+	--series-3: #db6d28;
 }
 
 @layer base {

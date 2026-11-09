@@ -2,12 +2,15 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
 	applyTheme,
+	readColorTheme,
 	readMode,
 	resolveMode,
+	storeColorTheme,
 	storeMode,
 	subscribeSystemTheme,
 	systemPrefersDark,
 	toggledMode,
+	type ColorTheme,
 	type Mode,
 } from "./theme";
 import { ThemeContext } from "./theme-context";
@@ -22,12 +25,13 @@ function playThemeSound(toDark: boolean) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
 	const [mode, setMode] = useState<Mode>(readMode);
+	const [color, setColor] = useState<ColorTheme>(readColorTheme);
 	const systemDark = useSyncExternalStore(subscribeSystemTheme, systemPrefersDark);
 	const resolved = resolveMode(mode, systemDark);
 
 	useEffect(() => {
-		applyTheme(resolved);
-	}, [resolved]);
+		applyTheme(resolved, color);
+	}, [resolved, color]);
 
 	const toggle = () => {
 		const next = toggledMode(mode, systemDark);
@@ -36,7 +40,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		playThemeSound(resolved !== "dark");
 	};
 
-	const contextValue = { theme: resolved, toggle };
+	const changeColor = (next: ColorTheme) => {
+		setColor(next);
+		storeColorTheme(next);
+	};
+
+	const contextValue = { theme: resolved, toggle, color, setColor: changeColor };
 
 	return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 }

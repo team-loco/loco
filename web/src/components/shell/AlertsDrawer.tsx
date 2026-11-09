@@ -32,7 +32,7 @@ function AlertCard({
 	onNavigate: () => void;
 }) {
 	return (
-		<li className="rounded-[10px] bg-panel p-4">
+		<li className="rounded-card bg-panel p-4">
 			<div className="flex items-center justify-between gap-3">
 				<ResourceStatusBadge status={alert.status} />
 				{alert.reportedMs !== undefined && (

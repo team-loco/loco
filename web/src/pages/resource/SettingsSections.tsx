@@ -286,7 +286,7 @@ export function RegionsSection({
 	const names = [...new Set([...available.map((r) => r.region), ...Object.keys(base.regions)])].toSorted();
 	return (
 		<SettingsBlock id="set-regions" title="Regions" hint="Turning a region off stops the resource there.">
-			<div className="overflow-hidden rounded-[10px] border border-line bg-background">
+			<div className="overflow-hidden rounded-card border border-line bg-background">
 				{names.map((name) => {
 					const deployed = base.regions[name] === true;
 					const allowed = deployed || inSpec.includes(name);

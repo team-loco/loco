@@ -18,12 +18,18 @@ import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery
 import { useAuth } from "@/auth/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { LocoLogo } from "@/components/design/LocoLogo";
+import { ThemeSwatch } from "@/components/design/ThemePreview";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import {
@@ -40,6 +46,7 @@ import {
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { pageImporters } from "@/lib/lazy-pages";
 import { expandOrgLink } from "@/lib/org-links";
+import { colorThemes, parseColorTheme } from "@/lib/theme";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
@@ -77,7 +84,9 @@ export function AppSidebar() {
 	const [params] = useSearchParams();
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
-	const { theme, toggle } = useTheme();
+	const { theme, toggle, color, setColor } = useTheme();
+	const dark = theme === "dark";
+	const colorName = colorThemes.find((t) => t.id === color)?.name ?? "";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const { data: config } = useQuery(getConfig, {});
@@ -247,6 +256,30 @@ export function AppSidebar() {
 							>
 								{theme === "dark" ? "Light mode" : "Dark mode"}
 							</MenuLink>
+							<DropdownMenuSub>
+								<DropdownMenuSubTrigger className={cn(menuItem, "gap-2 [&>svg:last-child]:ml-0")}>
+									<span className="flex-1">Colour theme</span>
+									<span className="flex items-center gap-2 text-[13px] text-fg3">
+										<ThemeSwatch color={color} dark={dark} />
+										{colorName}
+									</span>
+								</DropdownMenuSubTrigger>
+								<DropdownMenuSubContent className="w-[224px]">
+									<DropdownMenuRadioGroup
+										value={color}
+										onValueChange={(value: string) => {
+											setColor(parseColorTheme(value));
+										}}
+									>
+										{colorThemes.map((t) => (
+											<DropdownMenuRadioItem key={t.id} value={t.id}>
+												<ThemeSwatch color={t.id} dark={dark} />
+												{t.name}
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuSubContent>
+							</DropdownMenuSub>
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>

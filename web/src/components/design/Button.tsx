@@ -9,7 +9,7 @@ type BaseSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" 
 const solid = "border-0 font-medium hover:opacity-86 dark:hover:opacity-100 dark:hover:brightness-108";
 
 const buttonVariants = cva(
-	"gap-1.5 rounded-lg active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-45 [&_svg:not([class*='size-'])]:size-3.5",
+	"gap-1.5 rounded-control active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-45 [&_svg:not([class*='size-'])]:size-3.5",
 	{
 		variants: {
 			variant: {

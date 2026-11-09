@@ -122,7 +122,7 @@ export function IncidentCard({
 	return (
 		<section
 			aria-labelledby="incident-title"
-			className="flex flex-col gap-4 rounded-[10px] bg-warn-bg px-5 pt-[18px] pb-5 ring-1 ring-warn/30 ring-inset"
+			className="flex flex-col gap-4 rounded-card bg-warn-bg px-5 pt-[18px] pb-5 ring-1 ring-warn/30 ring-inset"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="flex flex-col gap-0.5">

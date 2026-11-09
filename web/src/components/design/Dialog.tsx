@@ -15,7 +15,7 @@ const dialogWidths = {
 } as const;
 
 const modalSurface =
-	"max-h-[calc(100dvh-32px)] max-w-[calc(100%-32px)] gap-0 rounded-[12px] border border-line bg-background p-0 text-base shadow-overlay ring-0 dark:border-line2";
+	"max-h-[calc(100dvh-32px)] max-w-[calc(100%-32px)] gap-0 rounded-overlay border border-line bg-background p-0 text-base shadow-overlay ring-0 dark:border-line2";
 
 const modalTitle = "text-[17px] leading-normal font-medium tracking-[-0.01em]";
 

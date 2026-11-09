@@ -33,7 +33,7 @@ function ToggleGroup({
 					<ToggleGroupBase
 						variant={segmented ? "default" : variant}
 						spacing={segmented ? 0.5 : spacing}
-						className={cn(segmented && "rounded-lg bg-panel2 p-0.5", className)}
+						className={cn(segmented && "rounded-control bg-panel2 p-0.5", className)}
 						value={values}
 						onValueChange={(next, details) => {
 							if (value === undefined) setLocalValue(next);
@@ -62,7 +62,7 @@ function ToggleGroupItem({
 			className={cn(
 				"cursor-pointer disabled:pointer-events-auto disabled:cursor-not-allowed data-disabled:pointer-events-auto data-disabled:cursor-not-allowed",
 				segmented &&
-					"relative isolate h-[26px] gap-[7px] rounded-sm! border border-transparent px-2.5 text-[12.5px] font-normal text-fg2 hover:bg-transparent hover:text-foreground aria-pressed:bg-transparent aria-pressed:text-foreground data-pressed:bg-transparent data-pressed:text-foreground",
+					"relative isolate h-[26px] gap-[7px] rounded-control-inner! border border-transparent px-2.5 text-[12.5px] font-normal text-fg2 hover:bg-transparent hover:text-foreground aria-pressed:bg-transparent aria-pressed:text-foreground data-pressed:bg-transparent data-pressed:text-foreground",
 				className,
 			)}
 			{...props}
@@ -74,7 +74,7 @@ function ToggleGroupItem({
 					layoutId={multiple ? props.value : "selection"}
 					initial={false}
 					transition={{ type: "tween", duration: 0.18, ease: "easeOut" }}
-					className="pointer-events-none absolute -inset-px -z-10 rounded-sm bg-raise shadow-xs ring-1 ring-line dark:shadow-none dark:ring-line2"
+					className="pointer-events-none absolute -inset-px -z-10 rounded-control-inner bg-raise shadow-xs ring-1 ring-line dark:shadow-none dark:ring-line2"
 				/>
 			)}
 			{children}
