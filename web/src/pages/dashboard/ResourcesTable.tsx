@@ -212,7 +212,7 @@ export function ResourcesTable({
 			: `Showing ${visible.length.toString()} of ${items.length.toString()} resources`;
 
 	return (
-		<Section title="Resources" toolbar={toolbar}>
+		<Section title="Resources" actions={toolbar}>
 			<Table className="min-w-[860px] table-fixed">
 				<TableHeader>
 					<TableRow>

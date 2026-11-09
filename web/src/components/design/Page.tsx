@@ -37,28 +37,25 @@ export function PageHeader({
 export function Section({
 	title,
 	actions,
-	toolbar,
 	className,
 	bodyClassName,
 	children,
 }: {
 	title?: ReactNode;
 	actions?: ReactNode;
-	toolbar?: ReactNode;
 	className?: string;
 	bodyClassName?: string;
 	children?: ReactNode;
 }) {
 	return (
 		<section className={cn("min-w-0 rounded-[10px] bg-panel", className)}>
-			{(title !== undefined || actions !== undefined || toolbar !== undefined) && (
+			{(title !== undefined || actions !== undefined) && (
 				<div className="flex flex-wrap items-center gap-3.5 px-5 pt-4 pb-3.5">
 					{title !== undefined && (
 						<h2 className="m-0 mr-auto flex items-baseline gap-3 text-[22px] leading-[1.15] font-normal tracking-[-0.03em]">
 							{title}
 						</h2>
 					)}
-					{toolbar}
 					{actions}
 				</div>
 			)}
