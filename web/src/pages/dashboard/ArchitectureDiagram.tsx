@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { GlobeIcon, ShieldCheckIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
@@ -12,14 +12,8 @@ import { servedDomains } from "@/lib/new-resource";
 import { primaryDomain } from "@/lib/resource-status";
 import { cn } from "@/lib/utils";
 
-import { mapLayout } from "./resourceRows";
+import { MAP_LABEL_H, MAP_MORE_H, MAP_NODE_H, MAP_NODE_W, mapLayout, type MapNode, type MapPoint } from "./mapLayout";
 import type { EnvResource } from "./useDashboardData";
-
-const GATEWAY_X = 196;
-const PUBLIC_X = 404;
-const EDGE_W = 160;
-const PUBLIC_W = 200;
-const CANVAS_W = PUBLIC_X + PUBLIC_W;
 
 const NODE =
 	"absolute flex flex-col justify-center gap-0.5 rounded-lg px-3 py-[9px] text-foreground no-underline hover:no-underline";
@@ -30,12 +24,12 @@ const RESOURCE_NODE = cn(
 const EDGE_NODE = cn(NODE, "bg-panel2");
 
 function curve(x1: number, y1: number, x2: number, y2: number): string {
-	const mx = (x1 + x2) / 2;
-	return `M${x1.toString()},${y1.toString()} C${mx.toString()},${y1.toString()} ${mx.toString()},${y2.toString()} ${x2.toString()},${y2.toString()}`;
+	const my = (y1 + y2) / 2;
+	return `M${x1.toString()},${y1.toString()} C${x1.toString()},${my.toString()} ${x2.toString()},${my.toString()} ${x2.toString()},${y2.toString()}`;
 }
 
-function rowGlyph(row: EnvResource) {
-	return <StatusGlyph glyph={resourceStatusStyle(row.status).glyph} />;
+function box(p: MapPoint) {
+	return { left: p.x, top: p.y, width: MAP_NODE_W, height: MAP_NODE_H };
 }
 
 function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; sub: string; meta: string }) {
@@ -49,6 +43,35 @@ function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; 
 			{meta !== "" && <span className="truncate text-[11.5px] text-fg3">{meta}</span>}
 		</>
 	);
+}
+
+function ResourceNode({ node, sub, href }: { node: MapNode; sub: string; href: string }) {
+	const { row } = node;
+	return (
+		<Link to={href} className={RESOURCE_NODE} style={box(node)}>
+			<NodeText
+				icon={<StatusGlyph glyph={resourceStatusStyle(row.status).glyph} />}
+				title={row.resource.name}
+				sub={sub}
+				meta={row.regions.map((g) => g.region).join(" · ")}
+			/>
+		</Link>
+	);
+}
+
+function useWidth(): [(el: HTMLDivElement | null) => (() => void) | undefined, number] {
+	const [width, setWidth] = useState(0);
+	const measure = useCallback((el: HTMLDivElement | null) => {
+		if (el === null) return undefined;
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry !== undefined) setWidth(entry.contentRect.width);
+		});
+		observer.observe(el);
+		return () => {
+			observer.disconnect();
+		};
+	}, []);
+	return [measure, width];
 }
 
 export function ArchitectureDiagram({
@@ -66,50 +89,45 @@ export function ArchitectureDiagram({
 }) {
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
 	const platformDomains = domainsRes?.platformDomains ?? [];
-	const layout = mapLayout(rows, regionOrder);
-	const h = layout.nodeHeight;
-	const mid = (y: number) => y + h / 2;
-	const hasPublic = layout.publicNodes.length > 0;
-	const moreButton = (n: number, what: string) => (
-		<Button variant="link" className="self-start" onClick={onShowTable}>
-			{`${n.toString()} more ${what} in the table`}
-		</Button>
+	const [measure, available] = useWidth();
+	const layout = mapLayout(rows, regionOrder, available);
+	const more = (n: number, what: string, y: number) => (
+		<div className="absolute inset-x-0 flex items-center justify-center" style={{ top: y, height: MAP_MORE_H }}>
+			<Button variant="link" onClick={onShowTable}>
+				{`${n.toString()} more ${what} in the table`}
+			</Button>
+		</div>
 	);
 
 	return (
-		<div className="overflow-x-auto px-5 pt-2 pb-5">
-			<div className="flex w-max items-start gap-6">
-				{hasPublic && (
-					<div className="relative shrink-0" style={{ width: CANVAS_W, height: layout.height }}>
+		<div className="overflow-x-auto px-5 pt-3 pb-5">
+			<div ref={measure} className="min-w-0">
+				{available > 0 && (
+					<div className="relative" style={{ width: layout.width, height: layout.height }}>
 						<svg
-							width={CANVAS_W}
+							width={layout.width}
 							height={layout.height}
 							aria-hidden="true"
 							className="pointer-events-none absolute inset-0 fill-none stroke-fg4 stroke-[1.5]"
 						>
-							{layout.gateways.map((g) => (
-								<path key={g.region} d={curve(EDGE_W, mid(layout.internetY), GATEWAY_X, mid(g.y))} />
-							))}
 							{layout.edges.map((e) => (
-								<path key={`${e.from}/${e.to}`} d={curve(GATEWAY_X + EDGE_W, mid(e.y1), PUBLIC_X, mid(e.y2))} />
+								<path key={e.key} d={curve(e.x1, e.y1, e.x2, e.y2)} />
 							))}
 						</svg>
-						<div className={EDGE_NODE} style={{ left: 0, top: layout.internetY, width: EDGE_W, height: h }}>
-							<NodeText
-								icon={<GlobeIcon className="size-[15px] shrink-0 text-fg3" />}
-								title="Internet"
-								sub="HTTPS · HTTP/3"
-								meta=""
-							/>
-						</div>
+						{layout.internet !== null && (
+							<div className={EDGE_NODE} style={box(layout.internet)}>
+								<NodeText
+									icon={<GlobeIcon className="size-[15px] shrink-0 text-fg3" />}
+									title="Internet"
+									sub="HTTPS · HTTP/3"
+									meta=""
+								/>
+							</div>
+						)}
 						{layout.gateways.map((g) => {
 							const domain = servedDomains(platformDomains, [g.region])[0] ?? "";
 							return (
-								<div
-									key={g.region}
-									className={EDGE_NODE}
-									style={{ left: GATEWAY_X, top: g.y, width: EDGE_W, height: h }}
-								>
+								<div key={g.region} className={EDGE_NODE} style={box(g)}>
 									<NodeText
 										icon={<ShieldCheckIcon className="size-[15px] shrink-0 text-fg3" />}
 										title={g.region}
@@ -119,48 +137,34 @@ export function ArchitectureDiagram({
 								</div>
 							);
 						})}
-						{layout.publicNodes.map(({ row, y }) => (
-							<Link
-								key={row.resource.id}
-								to={hrefFor(row.resource.id)}
-								className={RESOURCE_NODE}
-								style={{ left: PUBLIC_X, top: y, width: PUBLIC_W, height: h }}
-							>
-								<NodeText
-									icon={rowGlyph(row)}
-									title={row.resource.name}
-									sub={primaryDomain(row.resource) ?? ""}
-									meta={row.regions.map((g) => g.region).join(" · ")}
-								/>
-							</Link>
+						{layout.publicNodes.map((node) => (
+							<ResourceNode
+								key={node.row.resource.id}
+								node={node}
+								sub={primaryDomain(node.row.resource) ?? ""}
+								href={hrefFor(node.row.resource.id)}
+							/>
 						))}
-						{layout.hiddenPublic > 0 && (
-							<div className="absolute flex items-center" style={{ left: PUBLIC_X, top: layout.moreY, height: h }}>
-								{moreButton(layout.hiddenPublic, "public")}
+						{layout.hiddenPublic > 0 && more(layout.hiddenPublic, "public", layout.publicMoreY)}
+						{layout.internalNodes.length > 0 && (
+							<div
+								className="absolute inset-x-0 flex items-center gap-3 text-[12px] text-fg3"
+								style={{ top: layout.internalLabelY, height: MAP_LABEL_H }}
+							>
+								<span className="flex-1 border-t border-dashed border-line2" />
+								Internal only · no public route
+								<span className="flex-1 border-t border-dashed border-line2" />
 							</div>
 						)}
-					</div>
-				)}
-				{layout.internal.length > 0 && (
-					<div className="flex w-[220px] shrink-0 flex-col gap-1 rounded-lg bg-panel2 p-2">
-						<span className="px-2 pt-1 pb-1.5 text-[12.5px] text-fg3">Internal only · no public route</span>
-						{layout.internal.map((row) => (
-							<Link
-								key={row.resource.id}
-								to={hrefFor(row.resource.id)}
-								className="flex flex-col gap-0.5 rounded-md bg-raise px-2.5 py-2 text-foreground no-underline ring-1 ring-line2 hover:no-underline hover:ring-fg3"
-							>
-								<NodeText
-									icon={rowGlyph(row)}
-									title={row.resource.name}
-									sub={row.regions.map((g) => g.region).join(" · ")}
-									meta=""
-								/>
-							</Link>
+						{layout.internalNodes.map((node) => (
+							<ResourceNode
+								key={node.row.resource.id}
+								node={node}
+								sub="internal"
+								href={hrefFor(node.row.resource.id)}
+							/>
 						))}
-						{layout.hiddenInternal > 0 && (
-							<div className="px-2 py-1">{moreButton(layout.hiddenInternal, "internal")}</div>
-						)}
+						{layout.hiddenInternal > 0 && more(layout.hiddenInternal, "internal", layout.internalMoreY)}
 					</div>
 				)}
 			</div>

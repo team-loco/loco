@@ -315,16 +315,25 @@ export function readTableState(params: URLSearchParams, columns: Column[]): Tabl
 	};
 }
 
-export function writeTableState(params: URLSearchParams, state: TableState, columns: Column[]): URLSearchParams {
+function putParam(params: URLSearchParams, key: string, value: string, fallback: string) {
+	if (value === fallback) params.delete(key);
+	else params.set(key, value);
+}
+
+export function writeFilter(params: URLSearchParams, filter: Filter): URLSearchParams {
 	const next = new URLSearchParams(params);
+	putParam(next, PARAM.query, filter.query, "");
+	putParam(next, PARAM.status, filter.status, ALL);
+	putParam(next, PARAM.region, filter.region, ALL);
+	return next;
+}
+
+export function writeTableState(params: URLSearchParams, state: TableState, columns: Column[]): URLSearchParams {
+	const next = writeFilter(params, state.filter);
 	const put = (key: string, value: string, fallback: string) => {
-		if (value === fallback) next.delete(key);
-		else next.set(key, value);
+		putParam(next, key, value, fallback);
 	};
 	const sort = defaultSort(columns);
-	put(PARAM.query, state.filter.query, "");
-	put(PARAM.status, state.filter.status, ALL);
-	put(PARAM.region, state.filter.region, ALL);
 	put(PARAM.sort, `${state.sort.key}${SORT_SEPARATOR}${state.sort.dir}`, `${sort.key}${SORT_SEPARATOR}${sort.dir}`);
 	put(PARAM.page, String(state.page + 1), "1");
 	put(PARAM.size, String(state.size), String(PAGE_SIZES[0]));

@@ -1,4 +1,12 @@
-import { ActivityIcon, ChevronsUpDownIcon, ScrollTextIcon, SearchXIcon, VariableIcon, XIcon } from "lucide-react";
+import {
+	ActivityIcon,
+	ArrowRightIcon,
+	ChevronsUpDownIcon,
+	ScrollTextIcon,
+	SearchXIcon,
+	VariableIcon,
+	XIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ResourceStatus, type RegionInfo, type Resource, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
@@ -20,12 +28,12 @@ import { deploymentImage } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { usePagedRows } from "@/lib/paging";
 import { statusRank } from "@/lib/resource-status";
-import { observabilityPath, resourcePath } from "@/lib/routes";
+import { observabilityPath, resourcePath, resourcesPath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
-import { ALL, filterRows, STATUS_FILTERS, TYPE_FILTERS, type RowFilter } from "./resourceRows";
+import { ALL, filterRows, statusOptions, TYPE_FILTERS, type RowFilter, viewAllSearch } from "./resourceRows";
 import type { EnvResource } from "./useDashboardData";
 
 type SortKey = "name" | "status" | "regions" | "replicas" | "deploy";
@@ -295,27 +303,11 @@ export function ResourcesTable({
 				value={filter.query}
 				placeholder="Search resources"
 				aria-label="Search resources"
-				className="w-full sm:w-[220px]"
+				className="w-full sm:w-auto sm:min-w-[140px] sm:flex-[0_1_220px]"
 				onChange={(e) => {
 					update({ query: e.target.value });
 				}}
 			/>
-			<ToggleGroup
-				variant="segmented"
-				aria-label="View"
-				value={[isMap ? MAP_VIEW : TABLE_VIEW]}
-				onValueChange={(v: string[]) => {
-					if (v[0] !== undefined) setView(v[0]);
-				}}
-			>
-				<ToggleGroupItem value={TABLE_VIEW}>Table</ToggleGroupItem>
-				<ToggleGroupItem value={MAP_VIEW}>Map</ToggleGroupItem>
-			</ToggleGroup>
-		</>
-	);
-
-	const filters = (
-		<div className="flex flex-wrap items-center gap-2.5 px-5 pb-3">
 			<ToggleGroup
 				variant="segmented"
 				aria-label="Filter resources by status"
@@ -328,12 +320,37 @@ export function ResourcesTable({
 				<ToggleGroupItem value={ALL} count={items.length}>
 					All
 				</ToggleGroupItem>
-				{STATUS_FILTERS.map((o) => (
+				{statusOptions(statusCounts, filter.status).map((o) => (
 					<ToggleGroupItem key={o.value} value={o.value} count={statusCounts.get(o.status) ?? 0}>
 						{o.label}
 					</ToggleGroupItem>
 				))}
 			</ToggleGroup>
+			<ToggleGroup
+				variant="segmented"
+				aria-label="View"
+				value={[isMap ? MAP_VIEW : TABLE_VIEW]}
+				onValueChange={(v: string[]) => {
+					if (v[0] !== undefined) setView(v[0]);
+				}}
+			>
+				<ToggleGroupItem value={TABLE_VIEW}>Table</ToggleGroupItem>
+				<ToggleGroupItem value={MAP_VIEW}>Map</ToggleGroupItem>
+			</ToggleGroup>
+			<Button
+				variant="outline"
+				size="sm"
+				nativeButton={false}
+				render={<Link to={`${resourcesPath(orgId, workspaceId)}?${viewAllSearch(envName, filter)}`} />}
+			>
+				View all
+				<ArrowRightIcon />
+			</Button>
+		</>
+	);
+
+	const filters = (
+		<div className="flex flex-wrap items-center gap-2.5 px-5 pb-3">
 			<FilterMenu
 				label="Type"
 				value={filter.type}
