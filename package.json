@@ -6,7 +6,7 @@
 		"gen/ts"
 	],
 	"devDependencies": {
-		"@bufbuild/protoc-gen-es": "2.16.0",
+		"@bufbuild/protoc-gen-es": "2.17.0",
 		"@connectrpc/protoc-gen-connect-query": "2.3.1"
 	},
 	"overrides": {
