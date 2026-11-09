@@ -5,7 +5,9 @@ import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
 import { useState, type MouseEvent } from "react";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+
+import { useAuth } from "@/auth/AuthProvider";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Page, PageHeader } from "@/components/design/Page";
@@ -17,18 +19,18 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { settingsPath, type SettingsScope } from "@/lib/routes";
 
 import { OrgTab } from "./settings/OrgTab";
+import { PersonalTab } from "./settings/PersonalTab";
 import { SCOPES, scopeFromParams } from "./settings/scope";
 import { useResourceCounts } from "./settings/useResourceCounts";
 import { SettingsSkeleton, type WorkspaceDraft, WorkspaceTab } from "./settings/WorkspaceTab";
 
-const PROFILE_PATH = "/profile";
-
 interface Drafts {
 	workspace: (WorkspaceDraft & { id: string }) | null;
 	org: { id: string; name: string } | null;
+	account: string | null;
 }
 
-const NO_DRAFTS: Drafts = { workspace: null, org: null };
+const NO_DRAFTS: Drafts = { workspace: null, org: null, account: null };
 
 function DirtyDot() {
 	return (
@@ -43,6 +45,7 @@ export function Settings() {
 	const { orgId = "", workspaceId = "" } = useParams<{ orgId: string; workspaceId: string }>();
 	const [params, setParams] = useSearchParams();
 	const navigate = useNavigate();
+	const { user } = useAuth();
 	const requested = scopeFromParams(params);
 	const [drafts, setDrafts] = useState<Drafts>(NO_DRAFTS);
 	const [leaveTo, setLeaveTo] = useState<string | null>(null);
@@ -81,17 +84,10 @@ export function Settings() {
 		currentWs !== undefined &&
 		(wsDraft.name !== currentWs.name || wsDraft.desc !== currentWs.description);
 	const orgDirty = orgDraft !== null && org !== undefined && orgDraft.name !== org.name;
-
-	const leave = (path: string) => {
-		if (wsDirty || orgDirty) setLeaveTo(path);
-		else void navigate(path);
-	};
+	const accountDirty = drafts.account !== null && user !== null && drafts.account !== user.name;
+	const anyDirty = wsDirty || orgDirty || accountDirty;
 
 	const selectScope = (next: SettingsScope) => {
-		if (next === "account") {
-			leave(PROFILE_PATH);
-			return;
-		}
 		const p = new URLSearchParams(params);
 		p.delete("tab");
 		p.set("scope", next);
@@ -102,13 +98,11 @@ export function Settings() {
 		if (w.id === workspaceId) {
 			event.preventDefault();
 			selectScope("workspace");
-		} else if (wsDirty || orgDirty) {
+		} else if (anyDirty) {
 			event.preventDefault();
 			setLeaveTo(settingsPath(orgId, w.id, "workspace"));
 		}
 	};
-
-	if (requested === "account") return <Navigate to={PROFILE_PATH} replace />;
 
 	const orgError = orgQuery.error ? getErrorMessage(orgQuery.error, "Failed to load organization") : null;
 	const itemClass = "h-7! min-w-0 shrink gap-1.5 px-3 text-[12.5px]";
@@ -141,13 +135,16 @@ export function Settings() {
 				<ToggleGroupItem value="account" className={itemClass}>
 					<UserIcon className="size-[13px] shrink-0 text-fg3" />
 					Personal
+					{accountDirty && <DirtyDot />}
 				</ToggleGroupItem>
 			</ToggleGroup>
 
 			{scope === "org" && orgError !== null && (
 				<div className="rounded-[10px] bg-panel px-5 py-8 text-fg3">{orgError}</div>
 			)}
-			{(scopes.isLoading || (scope === "org" && orgError === null && !org)) && <SettingsSkeleton />}
+			{((scopes.isLoading && scope !== "account") || (scope === "org" && orgError === null && !org)) && (
+				<SettingsSkeleton />
+			)}
 			{!scopes.isLoading && scope === "workspace" && (
 				<WorkspaceTab
 					key={workspaceId}
@@ -160,6 +157,15 @@ export function Settings() {
 					draft={wsDraft}
 					onDraft={(d) => {
 						setDrafts({ ...drafts, workspace: d === null ? null : { ...d, id: workspaceId } });
+					}}
+				/>
+			)}
+			{scope === "account" && user !== null && (
+				<PersonalTab
+					user={user}
+					draft={drafts.account}
+					onDraft={(name) => {
+						setDrafts({ ...drafts, account: name });
 					}}
 				/>
 			)}
@@ -199,6 +205,17 @@ export function Settings() {
 					setLeaveTo(null);
 				}}
 			/>
+		</Page>
+	);
+}
+
+export function PersonalSettings() {
+	const { user } = useAuth();
+	const [draft, setDraft] = useState<string | null>(null);
+	return (
+		<Page className="gap-[22px]">
+			<PageHeader title="Settings" />
+			{user !== null && <PersonalTab user={user} draft={draft} onDraft={setDraft} />}
 		</Page>
 	);
 }

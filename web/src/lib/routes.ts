@@ -22,6 +22,12 @@ export function settingsPath(orgId: string, workspaceId: string, scope: Settings
 	return `${workspacePath(orgId, workspaceId, "settings")}?scope=${scope}`;
 }
 
+export const PROFILE_PATH = "/profile";
+
+export function accountSettingsPath(orgId: string | null, workspaceId: string | null): string {
+	return orgId !== null && workspaceId !== null ? settingsPath(orgId, workspaceId, "account") : PROFILE_PATH;
+}
+
 export function resourcePath(orgId: string, workspaceId: string, resourceId: string): string {
 	return workspacePath(orgId, workspaceId, `resource/${resourceId}`);
 }

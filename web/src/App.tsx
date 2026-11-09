@@ -18,7 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { settingsPath } from "@/lib/routes";
+import { accountSettingsPath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import { pageImporters } from "@/lib/lazy-pages";
@@ -31,7 +31,7 @@ const Settings = lazy(async () => ({ default: (await pageImporters.Settings()).S
 const Team = lazy(async () => ({ default: (await pageImporters.Team()).Team }));
 const Tokens = lazy(async () => ({ default: (await pageImporters.Tokens()).Tokens }));
 const Organizations = lazy(async () => ({ default: (await pageImporters.Organizations()).Organizations }));
-const Profile = lazy(async () => ({ default: (await pageImporters.Profile()).Profile }));
+const PersonalSettings = lazy(async () => ({ default: (await pageImporters.Settings()).PersonalSettings }));
 const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.DashboardRedirect()).DashboardRedirect }));
 
 import { createTransport } from "./auth/connect-transport";
@@ -81,6 +81,19 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	return <Navigate to={settingsPath(org, ws, "org")} replace />;
 }
 
+function ProfileRedirect() {
+	const { activeOrgId, activeWorkspaceId, workspacesSettled } = useOrgWorkspace();
+	if (!workspacesSettled) return <AppLoading />;
+	const to = accountSettingsPath(activeOrgId, activeWorkspaceId);
+	if (to !== PROFILE_PATH) return <Navigate to={to} replace />;
+	return (
+		<>
+			<PageTitle title="Settings" />
+			<PersonalSettings />
+		</>
+	);
+}
+
 function AppRoutes() {
 	return (
 		<Suspense fallback={<AppLoading />}>
@@ -128,15 +141,7 @@ function AppRoutes() {
 							</>
 						}
 					/>
-					<Route
-						path="/profile"
-						element={
-							<>
-								<PageTitle title="Profile" />
-								<Profile />
-							</>
-						}
-					/>
+					<Route path="/profile" element={<ProfileRedirect />} />
 					<Route
 						path="/tokens"
 						element={

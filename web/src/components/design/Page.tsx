@@ -63,16 +63,3 @@ export function Section({
 		</section>
 	);
 }
-
-export function SectionFooter({ className, children }: { className?: string; children: ReactNode }) {
-	return (
-		<div
-			className={cn(
-				"flex items-center justify-between border-t border-line2 px-5 pt-3 pb-3.5 text-[12.5px] text-fg3",
-				className,
-			)}
-		>
-			{children}
-		</div>
-	);
-}

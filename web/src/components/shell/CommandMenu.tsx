@@ -21,7 +21,7 @@ import { Kbd } from "@/components/design/Kbd";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
+import { accountSettingsPath, newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
 import { useTheme } from "@/lib/use-theme";
 
 import { useNavSections } from "./nav";
@@ -114,12 +114,12 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			run: go("/organizations"),
 		},
 		{
-			id: "page-profile",
+			id: "page-account",
 			group: "Pages",
-			label: "Profile",
-			keywords: "account",
+			label: "Account",
+			keywords: "profile personal settings",
 			icon: <UserIcon />,
-			run: go("/profile"),
+			run: go(accountSettingsPath(activeOrgId, activeWorkspaceId)),
 		},
 	);
 
