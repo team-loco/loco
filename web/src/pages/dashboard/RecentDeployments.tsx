@@ -9,7 +9,7 @@ import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
 import { SoonTag } from "@/components/design/SoonTag";
-import { DeploymentPhaseBadge, StatusLabel } from "@/components/design/StatusBadge";
+import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { imageVersion } from "@/lib/image";
@@ -27,11 +27,6 @@ import {
 import { deploymentImage, startedLabel } from "./format";
 
 const COLUMNS = 7;
-
-function DeploymentStatus({ deployment }: { deployment: Deployment }) {
-	if (deploymentState(deployment) === "superseded") return <StatusLabel glyph="off" label="Superseded" />;
-	return <DeploymentPhaseBadge phase={deployment.status} />;
-}
 
 export function RecentDeployments({
 	deployments,
@@ -134,7 +129,7 @@ export function RecentDeployments({
 							return (
 								<TableRow key={d.id} className="cursor-pointer hover:bg-panel2" onClick={() => void navigate(href)}>
 									<TableCell>
-										<DeploymentStatus deployment={d} />
+										<DeploymentPhaseBadge phase={d.status} superseded={deploymentState(d) === "superseded"} />
 									</TableCell>
 									<TableCell className="truncate">
 										<Link
