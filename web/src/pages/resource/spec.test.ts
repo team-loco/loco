@@ -41,8 +41,14 @@ describe("specChanges", () => {
 			{ label: "image", from: "shop:1.4.0", to: "shop:1.5.0" },
 			{ label: "replicas", from: "2", to: "3" },
 			{ label: "env.LOG_LEVEL", from: "info", to: "debug" },
-			{ label: "env.OLD", from: "1", to: "—" },
+			{ label: "env.OLD", from: "1", to: null },
 		]);
+	});
+
+	test("reports a setting only one side has as null", () => {
+		const from = deployment("ghcr.io/acme/shop:1.4.0", 2, {});
+		const to = deployment("ghcr.io/acme/shop:1.4.0", 2, { NEW: "1" });
+		expect(specChanges(from, to)).toEqual([{ label: "env.NEW", from: null, to: "1" }]);
 	});
 
 	test("is empty for the same spec", () => {

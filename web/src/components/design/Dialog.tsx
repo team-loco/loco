@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 const dialogWidths = {
 	default: "w-[460px]",
-	wide: "w-[680px]",
+	wide: "w-[820px]",
 } as const;
 
 const modalSurface =

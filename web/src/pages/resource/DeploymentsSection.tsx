@@ -19,7 +19,7 @@ import { deploymentState } from "@/pages/dashboard/deploymentRows";
 
 import { formatDuration, formatFullTime, shortId } from "./format";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
-import { specChanges } from "./spec";
+import { ABSENT, specChanges } from "./spec";
 
 const BASE_COLUMNS = 7;
 const DEFAULT_PAGE_SIZE = 10;
@@ -70,9 +70,9 @@ function Detail({
 				{changes.map((c) => (
 					<div key={c.label} className="flex min-w-0 flex-wrap gap-x-2 font-mono text-[12px]">
 						<span className="text-fg3">{c.label}</span>
-						<span className="break-all text-bad-fg">{c.from}</span>
+						<span className="break-all text-bad-fg">{c.from ?? ABSENT}</span>
 						<span className="text-fg3">→</span>
-						<span className="break-all text-ok-fg">{c.to}</span>
+						<span className="break-all text-ok-fg">{c.to ?? ABSENT}</span>
 					</div>
 				))}
 			</div>
