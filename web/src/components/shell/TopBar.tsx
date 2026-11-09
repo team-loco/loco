@@ -1,40 +1,28 @@
 import { SearchIcon } from "lucide-react";
 
 import { Kbd } from "@/components/design/Kbd";
-import { SidebarTrigger } from "@/components/design/Sidebar";
-import { cn } from "@/lib/utils";
 
-import { useSidebarPeek } from "./AppShell";
 import { ShellBreadcrumb } from "./ShellBreadcrumb";
+import { SidebarToggle } from "./SidebarToggle";
 
 export function TopBar() {
-	const { pinned } = useSidebarPeek();
-
 	return (
-		<div
+		<header
 			data-slot="top-bar"
-			className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-background px-5 text-md"
+			className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line pr-[clamp(16px,3vw,28px)] pl-3 md:rounded-t-[12px]"
 		>
-			<SidebarTrigger
-				aria-pressed={pinned}
-				className={cn(
-					"size-7 rounded-sm hover:bg-bg3",
-					pinned && "bg-info-bg text-brand hover:bg-info-bg hover:text-brand",
-				)}
-			/>
-			<span className="mx-1 h-4 w-px bg-line" />
+			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
-			<div className="flex-1" />
 			<div
 				aria-disabled
 				title="Search (soon)"
-				className="hidden h-8 w-[280px] cursor-not-allowed items-center gap-2 rounded-sm border border-line px-2.5 text-base text-fg4 md:flex"
+				className="hidden h-8 cursor-not-allowed items-center gap-2 rounded-md border border-line bg-raise pr-2 pl-2.5 text-[13px] text-fg4 md:flex"
 			>
 				<SearchIcon className="size-3.5" />
-				<span className="flex-1">Search</span>
+				<span>Search</span>
 				<span className="text-xs">soon</span>
-				<Kbd>⌘K</Kbd>
+				<Kbd className="ml-2">⌘K</Kbd>
 			</div>
-		</div>
+		</header>
 	);
 }

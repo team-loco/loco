@@ -6,7 +6,7 @@ import {
 	ChartLineIcon,
 	ChevronsUpDownIcon,
 	KeyRoundIcon,
-	LayoutDashboardIcon,
+	LayoutGridIcon,
 	LifeBuoyIcon,
 	LinkIcon,
 	LogOutIcon,
@@ -24,10 +24,10 @@ import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery
 
 import { useAuth } from "@/auth/AuthProvider";
 import { LocoLogo } from "@/components/design/LocoLogo";
-import { SoonTag } from "@/components/design/SoonTag";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
@@ -48,10 +48,10 @@ import { pageImporters } from "@/lib/lazy-pages";
 import { expandOrgLink } from "@/lib/org-links";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
-import { observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
+import { newServicePath, observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
 
-import { useSidebarPeek } from "./AppShell";
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
+import { SidebarToggle } from "./SidebarToggle";
 import { ThemeIcon } from "./ThemeIcon";
 
 interface NavItem {
@@ -60,7 +60,6 @@ interface NavItem {
 	to?: string | undefined;
 	href?: string;
 	active: boolean;
-	soon?: boolean;
 	preload?: (() => Promise<unknown>) | undefined;
 }
 
@@ -86,7 +85,6 @@ export function AppSidebar() {
 	const { theme, toggle } = useTheme();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
-	const peek = useSidebarPeek();
 	const { data: config } = useQuery(getConfig, {});
 
 	const env = params.get("env");
@@ -114,7 +112,7 @@ export function AppSidebar() {
 			items: [
 				{
 					name: "Dashboard",
-					icon: <LayoutDashboardIcon />,
+					icon: <LayoutGridIcon />,
 					to: wsBase !== null ? withEnv(wsBase) : undefined,
 					active: wsBase !== null && (pathname === wsBase || pathname.startsWith(`${wsBase}/resource`)),
 					preload: pageImporters.Dashboard,
@@ -186,37 +184,47 @@ export function AppSidebar() {
 	const displayName = user?.name !== undefined && user.name !== "" ? user.name : (user?.email ?? "");
 
 	return (
-		<Sidebar collapsible="icon" onMouseEnter={peek.onEnter} onMouseLeave={peek.onLeave}>
-			<SidebarHeader className="h-[52px] shrink-0 items-center justify-center border-b border-line px-5 py-0 transition-[padding] duration-150 group-data-[collapsible=icon]:px-0">
+		<Sidebar>
+			<SidebarHeader className="relative mt-[9px] h-14 shrink-0 flex-row items-center justify-center px-12 py-0">
 				<Link
 					to={wsBase ?? "/dashboard"}
 					aria-label="Loco dashboard"
-					className="flex w-fit items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+					className="flex h-8 items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
 				>
-					<LocoLogo className="w-[46px] transition-[width] duration-150 group-data-[collapsible=icon]:w-8" />
+					<LocoLogo className="w-[46px]" />
 				</Link>
+				<SidebarToggle className="absolute top-3 right-2.5" />
 			</SidebarHeader>
 
-			<SidebarContent className="gap-0 py-3">
+			{hasWs && (
+				<Link
+					to={newServicePath(activeOrgId, activeWorkspaceId, envParams)}
+					onMouseEnter={() => {
+						preloadPage(pageImporters.Dashboard);
+					}}
+					className="mx-3 mt-1 flex h-[34px] shrink-0 items-center gap-2 rounded-[7px] border border-line2 bg-raise px-2.5 text-[13.5px] font-medium text-foreground outline-none transition-colors duration-150 hover:border-fg4 focus-visible:ring-2 focus-visible:ring-sidebar-ring dark:hover:border-line2 dark:hover:bg-panel2"
+				>
+					<PlusIcon className="size-4 text-fg3" />
+					New resource
+				</Link>
+			)}
+
+			<SidebarContent className="gap-0 px-3 pt-4 pb-3">
 				{sections.map((section) => (
-					<SidebarGroup key={section.label ?? "root"} className="px-3 py-0">
+					<SidebarGroup key={section.label ?? "root"} className="p-0">
 						{section.label !== undefined && <SidebarGroupLabel>{section.label}</SidebarGroupLabel>}
 						<SidebarMenu className="gap-0.5">
 							{section.items.map((item) => (
 								<SidebarMenuItem key={item.href === undefined ? item.name : `${item.name} ${item.href}`}>
 									{item.href !== undefined ? (
-										<SidebarMenuButton
-											tooltip={item.name}
-											render={<a href={item.href} target="_blank" rel="noopener noreferrer" />}
-										>
+										<SidebarMenuButton render={<a href={item.href} target="_blank" rel="noopener noreferrer" />}>
 											{item.icon}
 											<span className="flex-1 truncate">{item.name}</span>
 											<ArrowUpRightIcon className="text-fg3" />
 										</SidebarMenuButton>
-									) : item.to !== undefined && item.soon !== true ? (
+									) : item.to !== undefined ? (
 										<SidebarMenuButton
 											isActive={item.active}
-											tooltip={item.name}
 											render={<Link to={item.to} />}
 											onMouseEnter={() => {
 												preloadPage(item.preload);
@@ -231,12 +239,10 @@ export function AppSidebar() {
 									) : (
 										<SidebarMenuButton
 											aria-disabled
-											tooltip={item.soon === true ? `${item.name} (soon)` : item.name}
 											className="text-fg4 aria-disabled:pointer-events-auto aria-disabled:cursor-not-allowed aria-disabled:opacity-100 hover:bg-transparent hover:text-fg4 [&_svg]:text-fg4"
 										>
 											{item.icon}
 											<span className="flex-1">{item.name}</span>
-											{item.soon === true && <SoonTag />}
 										</SidebarMenuButton>
 									)}
 								</SidebarMenuItem>
@@ -246,102 +252,97 @@ export function AppSidebar() {
 				))}
 			</SidebarContent>
 
-			<SidebarFooter className="border-t border-line p-2">
-				<SidebarMenu>
-					<SidebarMenuItem>
-						<DropdownMenu onOpenChange={peek.lock}>
-							<DropdownMenuTrigger
-								render={
-									<SidebarMenuButton
-										size="lg"
-										className="h-[44px] gap-2.5 text-foreground hover:bg-bg3 hover:text-foreground aria-expanded:bg-bg3"
-									/>
-								}
+			<SidebarFooter className="p-3">
+				<DropdownMenu>
+					<DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors duration-150 hover:bg-shell-hover focus-visible:ring-2 focus-visible:ring-sidebar-ring aria-expanded:bg-shell-hover">
+						<UserAvatar name={displayName} src={user?.avatarUrl} className="size-7 text-[10.5px]" />
+						<span className="flex min-w-0 flex-1 flex-col leading-tight">
+							<span className="truncate text-[13px] font-medium">{displayName}</span>
+							<span className="truncate text-[11.5px] text-fg3">{user?.email ?? ""}</span>
+						</span>
+						<ChevronsUpDownIcon className="size-4 shrink-0 text-fg3" />
+					</DropdownMenuTrigger>
+					<DropdownMenuContent className="w-[264px] overflow-hidden p-0" side="top" align="start">
+						<div className="flex items-center gap-3 px-4 py-3.5">
+							<UserAvatar name={displayName} src={user?.avatarUrl} className="size-10 text-[13px]" />
+							<span className="flex min-w-0 flex-col">
+								<span className="truncate text-[15px] font-semibold">{displayName}</span>
+								<span className="truncate text-[13px] text-fg3">{user?.email ?? ""}</span>
+							</span>
+						</div>
+						<MenuSeparator />
+						<MenuGroup>
+							<MenuLink
+								icon={<UserIcon />}
+								onClick={() => {
+									void navigate("/profile");
+								}}
 							>
-								<UserAvatar
-									name={displayName}
-									src={user?.avatarUrl}
-									className="size-[28px] rounded-full border border-line bg-bg3 text-xs text-fg2"
-								/>
-								<span className="flex min-w-0 flex-1 flex-col leading-tight">
-									<span className="truncate text-md font-semibold">{displayName}</span>
-									<span className="truncate text-sm text-fg3">{user?.email ?? ""}</span>
-								</span>
-								<ChevronsUpDownIcon className="text-fg3" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent className="w-[264px]" side="top" align="start">
-								<div className="flex items-center gap-2.5 px-2.5 py-2">
-									<UserAvatar name={displayName} src={user?.avatarUrl} />
-									<span className="flex min-w-0 flex-col leading-tight">
-										<span className="truncate text-md font-semibold">{displayName}</span>
-										<span className="truncate text-sm text-fg3">{user?.email ?? ""}</span>
-									</span>
-								</div>
-								<DropdownMenuSeparator />
-								<MenuLink
-									icon={<UserIcon />}
-									onClick={() => {
-										void navigate("/profile");
-									}}
-								>
-									Profile
-								</MenuLink>
-								<MenuLink
-									icon={<KeyRoundIcon />}
-									onClick={() => {
-										void navigate("/tokens?owner=personal");
-									}}
-								>
-									Personal access tokens
-								</MenuLink>
-								<DropdownMenuSeparator />
-								<MenuLink
-									icon={<Building2Icon />}
-									onClick={() => {
-										void navigate("/organizations");
-									}}
-								>
-									Organizations
-								</MenuLink>
-								<MenuLink
-									icon={<PlusIcon />}
-									onClick={() => {
-										setCreating("org");
-									}}
-								>
-									New organization
-								</MenuLink>
-								<DropdownMenuSeparator />
-								<ExternalMenuLink icon={<BookOpenIcon />} href="https://github.com/team-loco/loco">
-									Documentation
-								</ExternalMenuLink>
-								<ExternalMenuLink icon={<LifeBuoyIcon />} href="https://github.com/team-loco/loco/issues">
-									Support
-								</ExternalMenuLink>
-								<DropdownMenuSeparator />
-								<MenuLink
-									icon={<ThemeIcon mode={theme === "dark" ? "sun" : "moon"} />}
-									onClick={toggle}
-									closeOnClick={false}
-								>
-									{theme === "dark" ? "Light mode" : "Dark mode"}
-								</MenuLink>
-								<DropdownMenuSeparator />
-								<MenuLink
-									icon={<LogOutIcon />}
-									destructive
-									onClick={() => {
-										void logout().then(async () => {
-											await navigate("/login");
-										});
-									}}
-								>
-									Sign out
-								</MenuLink>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					</SidebarMenuItem>
-				</SidebarMenu>
+								Profile
+							</MenuLink>
+							<MenuLink
+								icon={<KeyRoundIcon />}
+								onClick={() => {
+									void navigate("/tokens?owner=personal");
+								}}
+							>
+								Personal access tokens
+							</MenuLink>
+						</MenuGroup>
+						<MenuSeparator />
+						<MenuGroup>
+							<MenuLink
+								icon={<Building2Icon />}
+								onClick={() => {
+									void navigate("/organizations");
+								}}
+							>
+								Organizations
+							</MenuLink>
+							<MenuLink
+								icon={<PlusIcon />}
+								onClick={() => {
+									setCreating("org");
+								}}
+							>
+								New organization
+							</MenuLink>
+						</MenuGroup>
+						<MenuSeparator />
+						<MenuGroup>
+							<ExternalMenuLink icon={<BookOpenIcon />} href="https://github.com/team-loco/loco">
+								Documentation
+							</ExternalMenuLink>
+							<ExternalMenuLink icon={<LifeBuoyIcon />} href="https://github.com/team-loco/loco/issues">
+								Support
+							</ExternalMenuLink>
+						</MenuGroup>
+						<MenuSeparator />
+						<MenuGroup>
+							<MenuLink
+								icon={<ThemeIcon mode={theme === "dark" ? "sun" : "moon"} />}
+								onClick={toggle}
+								closeOnClick={false}
+							>
+								{theme === "dark" ? "Light mode" : "Dark mode"}
+							</MenuLink>
+						</MenuGroup>
+						<MenuSeparator />
+						<MenuGroup>
+							<MenuLink
+								icon={<LogOutIcon />}
+								destructive
+								onClick={() => {
+									void logout().then(async () => {
+										await navigate("/login");
+									});
+								}}
+							>
+								Sign out
+							</MenuLink>
+						</MenuGroup>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</SidebarFooter>
 
 			<CreateScopeDialog
@@ -353,6 +354,16 @@ export function AppSidebar() {
 		</Sidebar>
 	);
 }
+
+function MenuGroup({ children }: { children: ReactNode }) {
+	return <DropdownMenuGroup className="py-1">{children}</DropdownMenuGroup>;
+}
+
+function MenuSeparator() {
+	return <DropdownMenuSeparator className="mx-0 my-0" />;
+}
+
+const menuItem = "h-10 justify-between rounded-none px-4 text-[14px]";
 
 function MenuLink({
 	icon,
@@ -372,7 +383,7 @@ function MenuLink({
 			onClick={onClick}
 			closeOnClick={closeOnClick}
 			variant={destructive === true ? "destructive" : "default"}
-			className="justify-between"
+			className={menuItem}
 		>
 			{children}
 			<span className="flex text-fg3 [&_svg]:size-[15px]">{icon}</span>
@@ -382,7 +393,7 @@ function MenuLink({
 
 function ExternalMenuLink({ icon, href, children }: { icon: ReactNode; href: string; children: ReactNode }) {
 	return (
-		<DropdownMenuItem render={<a href={href} target="_blank" rel="noopener noreferrer" />} className="justify-between">
+		<DropdownMenuItem render={<a href={href} target="_blank" rel="noopener noreferrer" />} className={menuItem}>
 			<span className="flex items-center gap-1">
 				{children}
 				<ArrowUpRightIcon className="size-3 text-fg3" />
@@ -396,7 +407,7 @@ function UserAvatar({ name, src, className }: { name: string; src?: string | und
 	return (
 		<span
 			className={cn(
-				"flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-line text-sm font-semibold text-foreground",
+				"flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-panel2 font-mono text-fg2",
 				className,
 			)}
 		>

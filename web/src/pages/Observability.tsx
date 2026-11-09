@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router";
 
+import { PageHeader } from "@/components/design/Page";
 import { PageTitle } from "@/components/PageTitle";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { ObservabilityView } from "@/lib/routes";
@@ -61,8 +62,13 @@ export function Observability() {
 	if (activeOrgId === null || activeWorkspaceId === null) return null;
 
 	return (
-		<div className="flex w-full max-w-[1440px] min-w-0 flex-col gap-4 px-4 pt-2 pb-16 md:px-8">
-			{view !== "traces" && <PageTitle title={viewTitle(view)} />}
+		<div className="flex w-full max-w-[1440px] min-w-0 flex-col gap-4 px-4 pt-7 pb-16 md:px-8">
+			{view !== "traces" && (
+				<>
+					<PageTitle title={viewTitle(view)} />
+					<PageHeader title={viewTitle(view)} />
+				</>
+			)}
 			<ObsProvider orgId={activeOrgId} workspaceId={activeWorkspaceId} view={view}>
 				<ViewBody view={view} />
 			</ObsProvider>
