@@ -364,27 +364,15 @@ func (s *AgentServer) recordBuildStatus(
 	status *agentv1.BuildStatus,
 ) error {
 	var err error
-	reported := status.GetMessage()
 	switch status.GetPhase() {
 	case agentv1.BuildPhase_BUILD_PHASE_PENDING:
 		err = s.recordBuildPending(ctx, clusterID, buildID, status)
 	case agentv1.BuildPhase_BUILD_PHASE_RUNNING:
 		err = s.recordBuildRunning(ctx, clusterID, buildID, status)
-	case agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED:
-		err = s.recordBuildSucceeded(ctx, clusterID, buildID, status)
-	case agentv1.BuildPhase_BUILD_PHASE_FAILED:
-		err = s.finishBuild(ctx, clusterID, buildID, buildResult{
-			status:         genDb.BuildStatusFailed,
-			message:        messageOr(reported, buildFailedMessage),
-			failureMessage: buildFailedMessage,
-		})
-	case agentv1.BuildPhase_BUILD_PHASE_CANCELED:
-		err = s.finishBuild(ctx, clusterID, buildID, buildResult{
-			status:  genDb.BuildStatusCanceled,
-			message: messageOr(reported, buildCanceledMessage),
-		})
-	case agentv1.BuildPhase_BUILD_PHASE_UNSPECIFIED:
-		return nil
+	case agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED,
+		agentv1.BuildPhase_BUILD_PHASE_FAILED,
+		agentv1.BuildPhase_BUILD_PHASE_CANCELED:
+		err = s.recordFinishedBuild(ctx, clusterID, buildID, status)
 	default:
 		return nil
 	}
@@ -441,54 +429,41 @@ func (s *AgentServer) recordBuildRunning(
 	return nil
 }
 
-func (s *AgentServer) recordBuildSucceeded(
+func (s *AgentServer) recordFinishedBuild(
 	ctx context.Context,
 	clusterID, buildID uuid.UUID,
 	status *agentv1.BuildStatus,
 ) error {
-	imageDigest := status.GetImageDigest()
-	if imageDigest == "" {
-		return s.finishBuild(ctx, clusterID, buildID, buildResult{
-			status:         genDb.BuildStatusFailed,
-			message:        buildMissingDigestMessage,
-			failureMessage: buildMissingDigestMessage,
-		})
+	params := genDb.FinishBuildParams{ID: buildID, ClusterID: &clusterID}
+	// The stored diagnostic can contain private information.
+	var publicFailure string
+	switch status.GetPhase() {
+	case agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED:
+		digest := status.GetImageDigest()
+		if digest == "" {
+			params.Status = genDb.BuildStatusFailed
+			params.Message = buildMissingDigestMessage
+			publicFailure = buildMissingDigestMessage
+		} else {
+			params.Status = genDb.BuildStatusSucceeded
+			params.Message = messageOr(status.GetMessage(), buildSucceededMessage)
+			params.ImageDigest = &digest
+			if cache := status.GetCacheDigest(); cache != "" {
+				params.CacheDigest = &cache
+			}
+		}
+	case agentv1.BuildPhase_BUILD_PHASE_FAILED:
+		params.Status = genDb.BuildStatusFailed
+		params.Message = messageOr(status.GetMessage(), buildFailedMessage)
+		publicFailure = buildFailedMessage
+	case agentv1.BuildPhase_BUILD_PHASE_CANCELED:
+		params.Status = genDb.BuildStatusCanceled
+		params.Message = messageOr(status.GetMessage(), buildCanceledMessage)
 	}
-	var cacheDigest *string
-	if digest := status.GetCacheDigest(); digest != "" {
-		cacheDigest = &digest
-	}
-	return s.finishBuild(ctx, clusterID, buildID, buildResult{
-		status:      genDb.BuildStatusSucceeded,
-		message:     messageOr(status.GetMessage(), buildSucceededMessage),
-		imageDigest: &imageDigest,
-		cacheDigest: cacheDigest,
-	})
-}
 
-type buildResult struct {
-	status         genDb.BuildStatus
-	message        string
-	failureMessage string // Agent diagnostics can contain private information.
-	imageDigest    *string
-	cacheDigest    *string
-}
-
-func (s *AgentServer) finishBuild(
-	ctx context.Context,
-	clusterID, buildID uuid.UUID,
-	result buildResult,
-) error {
 	var finished *buildSource
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		row, err := qtx.FinishBuild(ctx, genDb.FinishBuildParams{
-			Status:      result.status,
-			ImageDigest: result.imageDigest,
-			CacheDigest: result.cacheDigest,
-			Message:     result.message,
-			ID:          buildID,
-			ClusterID:   &clusterID,
-		})
+		row, err := qtx.FinishBuild(ctx, params)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -496,12 +471,12 @@ func (s *AgentServer) finishBuild(
 			return err
 		}
 		finished = &buildSource{id: row.ID, key: row.SourceKey}
-		switch result.status {
+		switch params.Status {
 		case genDb.BuildStatusSucceeded:
-			data := map[string]any{events.FieldImageDigest: *result.imageDigest}
+			data := map[string]any{events.FieldImageDigest: *params.ImageDigest}
 			return recordBuildOutcome(ctx, qtx, row.ID, row.ResourceID, events.BuildSucceeded, data)
 		case genDb.BuildStatusFailed:
-			return recordBuildFailure(ctx, qtx, row.ID, row.ResourceID, result.failureMessage)
+			return recordBuildFailure(ctx, qtx, row.ID, row.ResourceID, publicFailure)
 		default:
 			return nil
 		}
@@ -516,7 +491,7 @@ func (s *AgentServer) finishBuild(
 	slog.InfoContext(ctx, "build finished",
 		"cluster_id", clusterID,
 		"build_id", buildID,
-		"status", result.status,
+		"status", params.Status,
 	)
 	deleteBuildSources(ctx, s.queries, s.sources, *finished)
 	return nil
