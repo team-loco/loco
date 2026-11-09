@@ -124,21 +124,6 @@ func (s *ResourceServer) CreateResource(
 		return nil, errOnlyServiceResources
 	}
 
-	hasDomain := req.GetDomain() != nil
-	var fullDomain string
-	var subdomainLabel *string
-	var platformDomain *string
-
-	if hasDomain {
-		fullDomain = req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
-		platform, label, checkErr := s.checkNewResourceDomain(ctx, workspaceID, req.GetSpec(), fullDomain)
-		if checkErr != nil {
-			return nil, fmt.Errorf("check the resource domain: %w", checkErr)
-		}
-		subdomainLabel = &label
-		platformDomain = &platform
-	}
-
 	specJSON, err := marshalResourceSpec(ctx, req.GetSpec())
 	if err != nil {
 		return nil, err
@@ -183,25 +168,9 @@ func (s *ResourceServer) CreateResource(
 		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 			return bumpErr
 		}
-		if hasDomain {
-			environmentID, envErr := workspaceProductionEnvironment(ctx, qtx, workspaceID)
-			if envErr != nil {
-				return envErr
-			}
-			_, domainErr := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-				ResourceID:     resourceID,
-				EnvironmentID:  environmentID,
-				Domain:         fullDomain,
-				DomainSource:   genDb.DomainSourcePlatformProvided,
-				SubdomainLabel: subdomainLabel,
-				PlatformDomain: platformDomain,
-				IsPrimary:      true,
-			})
-			if isDomainTaken(domainErr) {
-				return errDomainInUse
-			}
-			if domainErr != nil {
-				return fmt.Errorf("insert resource domain: %w", domainErr)
+		if req.GetDomain() != nil {
+			if domainErr := s.createPlatformDomain(ctx, qtx, resourceID, workspaceID, req); domainErr != nil {
+				return domainErr
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -219,25 +188,70 @@ func (s *ResourceServer) CreateResource(
 	return &resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}, nil
 }
 
-func (s *ResourceServer) checkNewResourceDomain(
+func (s *ResourceServer) createPlatformDomain(
 	ctx context.Context,
+	qtx *genDb.Queries,
+	resourceID uuid.UUID,
 	workspaceID uuid.UUID,
-	spec *resourcev1.ResourceSpec,
-	hostname string,
-) (string, string, error) {
-	env, err := s.queries.GetWorkspaceProductionEnvironment(ctx, workspaceID)
+	req *resourcev1.CreateResourceRequest,
+) error {
+	env, err := resourceDomainEnvironment(ctx, qtx, workspaceID, req.EnvironmentId)
+	if err != nil {
+		return err
+	}
+	regions := enabledRegions(req.GetSpec().GetService().GetRegions())
+	check, err := resourceDomainCheck(ctx, qtx, env.EnvironmentType, regions, nil, s.clusterSilentAfter)
+	if err != nil {
+		return fmt.Errorf("list domain clusters: %w", err)
+	}
+	hostname := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
+	platform, label, err := configplan.CheckDomain(hostname, check.clusters, check.targets)
+	if err != nil {
+		return fmt.Errorf("check the resource domain: %w", err)
+	}
+
+	_, err = qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+		ResourceID:     resourceID,
+		EnvironmentID:  env.ID,
+		Domain:         hostname,
+		DomainSource:   genDb.DomainSourcePlatformProvided,
+		SubdomainLabel: &label,
+		PlatformDomain: &platform,
+		IsPrimary:      true,
+	})
+	if isDomainTaken(err) {
+		return errDomainInUse
+	}
+	if err != nil {
+		return fmt.Errorf("insert resource domain: %w", err)
+	}
+	return nil
+}
+
+func resourceDomainEnvironment(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	workspaceID uuid.UUID,
+	requestedID *string,
+) (genDb.Environment, error) {
+	if requestedID == nil {
+		return workspaceProductionEnvironment(ctx, qtx, workspaceID)
+	}
+	id, err := parseID("environment_id", *requestedID)
+	if err != nil {
+		return genDb.Environment{}, err
+	}
+	env, err := qtx.GetEnvironmentByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", errNoProductionEnvironment
+		return genDb.Environment{}, ErrEnvironmentNotFound
 	}
 	if err != nil {
-		return "", "", fmt.Errorf("get production environment: %w", err)
+		return genDb.Environment{}, fmt.Errorf("get environment: %w", err)
 	}
-	regions := enabledRegions(spec.GetService().GetRegions())
-	check, err := resourceDomainCheck(ctx, s.queries, env.EnvironmentType, regions, nil, s.clusterSilentAfter)
-	if err != nil {
-		return "", "", fmt.Errorf("list domain clusters: %w", err)
+	if env.WorkspaceID != workspaceID {
+		return genDb.Environment{}, ErrEnvironmentNotFound
 	}
-	return configplan.CheckDomain(hostname, check.clusters, check.targets)
+	return env, nil
 }
 
 func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]byte, error) {

@@ -11979,6 +11979,15 @@
             ],
             "title": "description",
             "maxLength": 256
+          },
+          "environmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "environment_id",
+            "format": "uuid",
+            "description": "The environment for domain. If omitted, the workspace's production environment is used."
           }
         },
         "title": "CreateResourceRequest",

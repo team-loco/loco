@@ -277,7 +277,7 @@ function DraftDrawerBody({
 					workspaceId,
 					name: draft.name,
 					type: ResourceType.SERVICE,
-					...(privateService ? {} : { domain: platformDomainInput }),
+					...(privateService ? {} : { domain: platformDomainInput, environmentId: env.id }),
 					spec: {
 						spec: {
 							case: "service",

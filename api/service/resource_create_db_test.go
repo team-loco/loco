@@ -13,14 +13,18 @@ import (
 )
 
 func TestCreateResourceWithoutADomain(t *testing.T) {
-	testCreateResourceDomain(t, false)
+	testCreateResourceDomain(t, false, false)
 }
 
 func TestCreateResourceWithAPlatformDomain(t *testing.T) {
-	testCreateResourceDomain(t, true)
+	testCreateResourceDomain(t, true, false)
 }
 
-func testCreateResourceDomain(t *testing.T, platform bool) {
+func TestCreateResourceWithAStagingPlatformDomain(t *testing.T) {
+	testCreateResourceDomain(t, true, true)
+}
+
+func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 	t.Helper()
 	f := newDeployFixture(t)
 	ctx := context.Background()
@@ -44,8 +48,19 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 	spec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: service}}
 	workspace := workspaceID.String()
 	var input *domainv1.DomainInput
+	var requestedEnvironment *string
+	wantEnvironment := f.envID
 	if platform {
 		f.serveDomains(t, testDomainPlatform)
+		if staging {
+			wantEnvironment = f.addStagingEnvironment(t)
+			requestedEnvironment = new(wantEnvironment.String())
+			f.setStagingTier(t, f.clusterID)
+			_, err := f.pool.Exec(ctx, `UPDATE clusters SET domains = '{}' WHERE id = $1`, f.otherCluster)
+			if err != nil {
+				t.Fatalf("clear production cluster domains: %v", err)
+			}
+		}
 		label := "private"
 		input = &domainv1.DomainInput{
 			DomainSource:   domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
@@ -53,11 +68,12 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 		}
 	}
 	req := &resourcev1.CreateResourceRequest{
-		WorkspaceId: workspace,
-		Name:        "private",
-		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-		Spec:        spec,
-		Domain:      input,
+		WorkspaceId:   workspace,
+		Name:          "private",
+		Type:          resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		Spec:          spec,
+		Domain:        input,
+		EnvironmentId: requestedEnvironment,
 	}
 	created, err := server.CreateResource(scoped, req)
 	if err != nil {
@@ -81,10 +97,33 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 	if len(domains) != 1 || domains[0].GetDomain() != "private.example.com" {
 		t.Fatalf("domains = %v, want private.example.com", domains)
 	}
+	var environmentID uuid.UUID
+	err = f.pool.QueryRow(ctx, `SELECT environment_id FROM resource_domains WHERE resource_id = $1`,
+		resource.GetId()).Scan(&environmentID)
+	if err != nil || environmentID != wantEnvironment {
+		t.Fatalf("domain environment = %s, err = %v, want %s", environmentID, err, wantEnvironment)
+	}
 	req.Name = "other"
 	_, err = server.CreateResource(scoped, req)
 	wantCode(t, err, connect.CodeAlreadyExists)
 	if _, err = getResourceByName(t, f, scopes, workspaceID, "other"); codeOf(err) != connect.CodeNotFound {
 		t.Fatalf("resource with a taken domain: err = %v, want NotFound", err)
+	}
+
+	if staging {
+		var otherEnvironment uuid.UUID
+		err = f.pool.QueryRow(ctx, `
+WITH w AS (
+    INSERT INTO workspaces (org_id, name, created_by)
+    SELECT org_id, 'other', created_by FROM workspaces WHERE id = $1 RETURNING id, created_by
+)
+INSERT INTO environments (workspace_id, name, created_by)
+SELECT id, 'prod', created_by FROM w RETURNING id`, workspaceID).Scan(&otherEnvironment)
+		if err != nil {
+			t.Fatalf("create another workspace's environment: %v", err)
+		}
+		req.EnvironmentId = new(otherEnvironment.String())
+		_, err = server.CreateResource(scoped, req)
+		wantCode(t, err, connect.CodeNotFound)
 	}
 }
