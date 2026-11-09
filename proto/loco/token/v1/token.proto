@@ -64,6 +64,7 @@ message Token {
   google.protobuf.Timestamp expires_at = 5;
   google.protobuf.Timestamp created_at = 6;
   optional google.protobuf.Timestamp last_used_at = 7;
+  string created_by = 8;
 }
 
 // CreateTokenRequest is the request to create a new token.

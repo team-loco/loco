@@ -233,7 +233,7 @@ func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPIToke
 }
 
 const getAPITokenByNameAndEntity = `-- name: GetAPITokenByNameAndEntity :one
-SELECT id, name, entity_type, entity_id, scopes, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
 FROM api_tokens
 WHERE name = $1 AND entity_type = $2 AND entity_id = $3
 `
@@ -250,6 +250,7 @@ type GetAPITokenByNameAndEntityRow struct {
 	EntityType EntityType    `json:"entityType"`
 	EntityID   uuid.UUID     `json:"entityId"`
 	Scopes     []EntityScope `json:"scopes"`
+	CreatedBy  uuid.UUID     `json:"createdBy"`
 	CreatedAt  time.Time     `json:"createdAt"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 	LastUsedAt *time.Time    `json:"lastUsedAt"`
@@ -264,6 +265,7 @@ func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPIToke
 		&i.EntityType,
 		&i.EntityID,
 		&i.Scopes,
+		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
@@ -596,7 +598,7 @@ func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWit
 }
 
 const listAPITokensForEntity = `-- name: ListAPITokensForEntity :many
-SELECT id, name, entity_type, entity_id, scopes, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
 FROM api_tokens
 WHERE entity_type = $1 AND entity_id = $2
 ORDER BY created_at DESC
@@ -613,6 +615,7 @@ type ListAPITokensForEntityRow struct {
 	EntityType EntityType    `json:"entityType"`
 	EntityID   uuid.UUID     `json:"entityId"`
 	Scopes     []EntityScope `json:"scopes"`
+	CreatedBy  uuid.UUID     `json:"createdBy"`
 	CreatedAt  time.Time     `json:"createdAt"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 	LastUsedAt *time.Time    `json:"lastUsedAt"`
@@ -633,6 +636,7 @@ func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensF
 			&i.EntityType,
 			&i.EntityID,
 			&i.Scopes,
+			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.ExpiresAt,
 			&i.LastUsedAt,

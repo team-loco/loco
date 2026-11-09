@@ -149,6 +149,8 @@ CREATE TABLE
         format_version SMALLINT NOT NULL DEFAULT 1,
         updated_by_type TEXT NOT NULL,
         updated_by_id UUID NOT NULL,
+        created_by_type TEXT NOT NULL,
+        created_by_id UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (resource_id, environment_id, name)
