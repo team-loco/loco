@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseColorTheme, parseMode, resolveMode, toggledMode } from "./theme";
+import { pageTheme, parseColorTheme, parseMode, resolveMode, toggledMode } from "./theme";
 
 describe("theme mode", () => {
 	test("reads a stored explicit mode", () => {
@@ -36,6 +36,21 @@ describe("theme mode", () => {
 	test("toggling an explicit theme that matches the system stores the opposite", () => {
 		expect(toggledMode("dark", true)).toBe("light");
 		expect(toggledMode("light", false)).toBe("dark");
+	});
+});
+
+describe("page theme", () => {
+	test("the splash is light with the Loco theme for a signed-out visitor", () => {
+		expect(pageTheme("/", false, "dark", "gruvbox")).toEqual({ mode: "light", color: "loco" });
+	});
+
+	test("a signed-in visitor on the splash keeps their theme while redirected into the app", () => {
+		expect(pageTheme("/", true, "dark", "gruvbox")).toEqual({ mode: "dark", color: "gruvbox" });
+	});
+
+	test("app pages use the stored mode and colour theme", () => {
+		expect(pageTheme("/dashboard", false, "dark", "gruvbox")).toEqual({ mode: "dark", color: "gruvbox" });
+		expect(pageTheme("/login", false, "dark", "rose-pine")).toEqual({ mode: "dark", color: "rose-pine" });
 	});
 });
 

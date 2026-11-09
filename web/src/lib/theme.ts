@@ -71,6 +71,20 @@ export function subscribeSystemTheme(onChange: () => void): () => void {
 	};
 }
 
+const splashPath = "/";
+
+export interface PageTheme {
+	mode: ResolvedTheme;
+	color: ColorTheme;
+}
+
+export function pageTheme(pathname: string, signedIn: boolean, mode: ResolvedTheme, color: ColorTheme): PageTheme {
+	if (pathname === splashPath && !signedIn) {
+		return { mode: "light", color: defaultColorTheme };
+	}
+	return { mode, color };
+}
+
 export function applyTheme(resolved: ResolvedTheme, color: ColorTheme): void {
 	const root = document.documentElement;
 	root.classList.toggle("dark", resolved === "dark");
