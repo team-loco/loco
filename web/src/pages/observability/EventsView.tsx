@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { SearchXIcon, XIcon } from "lucide-react";
 
-import { Button } from "@/components/design/Button";
-import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -21,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { filteredResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
 import { eventTitle, groupEvents, type Severity } from "./events";
-import { ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
@@ -308,27 +305,7 @@ export function EventsView() {
 								{getErrorMessage(error, "Failed to load events")}
 							</div>
 						)}
-						{!loading && error === null && items.length === 0 && (
-							<EmptyState
-								icon={<SearchXIcon />}
-								title="No events match these filters"
-								query={query}
-								action={
-									<>
-										<Button
-											variant="outline"
-											onClick={() => {
-												setQuery([], "");
-											}}
-										>
-											<XIcon />
-											Clear filters
-										</Button>
-										<WidenRangeButton />
-									</>
-								}
-							/>
-						)}
+						{!loading && error === null && items.length === 0 && <NoMatches title="No events match these filters" />}
 					</div>
 					<Pager
 						label={items.length > 0 ? pageRangeLabel(page, size, items.length) : "0"}

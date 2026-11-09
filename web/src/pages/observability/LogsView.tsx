@@ -1,9 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
-import { ArrowUpIcon, SearchXIcon, XIcon } from "lucide-react";
+import { ArrowUpIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
-import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -26,7 +25,7 @@ import { fmtTs } from "./format";
 import { LogDetail } from "./LogDetail";
 import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
-import { ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { buildBackendQuery, LEVELS, queryStr, sameToken, type FieldKey, type Level } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
@@ -464,25 +463,7 @@ export function LogsView() {
 									<div className="px-3 py-6 text-fg3">Waiting for new logs…</div>
 								)}
 								{!isLoading && error === null && rows.length === 0 && !tail && query !== "" && (
-									<EmptyState
-										icon={<SearchXIcon />}
-										title="No lines match these filters"
-										query={query}
-										action={
-											<>
-												<Button
-													variant="outline"
-													onClick={() => {
-														setQuery([], "");
-													}}
-												>
-													<XIcon />
-													Clear filters
-												</Button>
-												<WidenRangeButton />
-											</>
-										}
-									/>
+									<NoMatches title="No lines match these filters" />
 								)}
 							</div>
 							<Pager

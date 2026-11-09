@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { RefreshCwIcon, SearchXIcon, XIcon } from "lucide-react";
+import { RefreshCwIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
-import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -18,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
 import { fmtTs } from "./format";
-import { ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, sameToken, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
@@ -331,24 +330,8 @@ function TraceSession() {
 						</div>
 					)}
 					{!loading && browse.error === null && traces.length === 0 && (
-						<EmptyState
-							icon={<SearchXIcon />}
+						<NoMatches
 							title={filterReady ? "No traces match these filters" : "The filtered resources aren't in this workspace"}
-							query={query}
-							action={
-								<>
-									<Button
-										variant="outline"
-										onClick={() => {
-											setQuery([], "");
-										}}
-									>
-										<XIcon />
-										Clear filters
-									</Button>
-									<WidenRangeButton />
-								</>
-							}
 						/>
 					)}
 				</div>

@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
-import { ArrowUpRightIcon, HistoryIcon } from "lucide-react";
+import { ArrowUpRightIcon, HistoryIcon, SearchXIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { EmptyHero } from "@/components/design/EmptyHero";
+import { EmptyState } from "@/components/design/EmptyState";
 import { formatSpan, windowSpan } from "@/lib/obs-time";
 import type { ObservabilityView } from "@/lib/routes";
 import { DOCS_URL } from "@/pages/splash/links";
 
 import { useObs } from "./context";
+import { queryStr } from "./query";
 
 const DOCS_PATH = `${DOCS_URL}/operations/applications/`;
 
@@ -157,5 +159,30 @@ export function WidenRangeButton() {
 			<HistoryIcon />
 			{`Show the past ${formatSpan(maxMs)}`}
 		</Button>
+	);
+}
+
+export function NoMatches({ title }: { title: string }) {
+	const { tokens, text, setQuery } = useObs();
+	return (
+		<EmptyState
+			icon={<SearchXIcon />}
+			title={title}
+			query={queryStr(tokens, text)}
+			action={
+				<>
+					<Button
+						variant="outline"
+						onClick={() => {
+							setQuery([], "");
+						}}
+					>
+						<XIcon />
+						Clear filters
+					</Button>
+					<WidenRangeButton />
+				</>
+			}
+		/>
 	);
 }
