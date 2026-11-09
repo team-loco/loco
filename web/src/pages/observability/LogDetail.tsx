@@ -215,7 +215,6 @@ export function LogDetail({
 						</div>
 						<div className="flex flex-col gap-2">
 							<SearchInput
-								size="sm"
 								value={attrQ}
 								onChange={(ev) => {
 									setAttrQ(ev.target.value);

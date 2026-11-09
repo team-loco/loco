@@ -181,7 +181,7 @@ export function EnvVarsEditor({ vars, onChange }: { vars: DraftVar[]; onChange: 
 						}}
 					/>
 					<div className="flex justify-end">
-						<Button variant="inverted" size="sm" disabled={parsed.length === 0} onClick={applyPaste}>
+						<Button size="sm" disabled={parsed.length === 0} onClick={applyPaste}>
 							Add {parsed.length}
 						</Button>
 					</div>

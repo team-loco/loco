@@ -84,7 +84,6 @@ export function CliLogin() {
 					)}
 					<div className="flex flex-col gap-2">
 						<Button
-							variant="inverted"
 							size="lg"
 							className="w-full"
 							disabled={approve.isPending}

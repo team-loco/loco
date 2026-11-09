@@ -114,7 +114,6 @@ export function EventsSection({
 		>
 			<div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
 				<SearchInput
-					size="sm"
 					value={query}
 					onChange={(e) => {
 						setQuery(e.target.value);

@@ -73,7 +73,7 @@ function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void
 				}}
 			>
 				<DialogBody>
-					<Field label="Name" strong error={error}>
+					<Field label="Name" error={error}>
 						<Input
 							autoFocus
 							autoComplete="off"
@@ -86,7 +86,7 @@ function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void
 							}}
 						/>
 					</Field>
-					<Field label="Description" strong>
+					<Field label="Description">
 						<Textarea
 							rows={2}
 							maxLength={256}
