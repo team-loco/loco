@@ -7,16 +7,6 @@ export function deploymentImage(d: Deployment): string {
 	return getServiceSpec(d)?.build?.image ?? "";
 }
 
-export function shortAgo(ms: number, nowMs: number): string {
-	if (ms === 0) return "";
-	const mins = Math.floor((nowMs - ms) / 60_000);
-	if (mins < 1) return "now";
-	if (mins < 60) return `${mins.toString()} min`;
-	const hrs = Math.floor(mins / 60);
-	if (hrs < 24) return `${hrs.toString()} h`;
-	return `${Math.floor(hrs / 24).toString()} d`;
-}
-
 const startedFormat = new Intl.DateTimeFormat(undefined, {
 	month: "short",
 	day: "numeric",

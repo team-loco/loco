@@ -1,3 +1,4 @@
+import { AlertsDrawer } from "./AlertsDrawer";
 import { CommandMenu } from "./CommandMenu";
 import { ShellBreadcrumb } from "./ShellBreadcrumb";
 import { SidebarToggle } from "./SidebarToggle";
@@ -10,6 +11,7 @@ export function TopBar() {
 		>
 			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
+			<AlertsDrawer />
 			<CommandMenu />
 		</header>
 	);
