@@ -10,6 +10,13 @@ export interface Pod {
 
 export type LineTone = "command" | "output" | "ok" | "link";
 
+export const TONE_CLASS: Record<LineTone, string> = {
+	command: "text-foreground",
+	output: "text-fg3",
+	ok: "text-ok-fg",
+	link: "text-brand",
+};
+
 export interface TerminalLine {
 	at: number;
 	text: string;
