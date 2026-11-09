@@ -16,7 +16,6 @@ const badgeVariants = cva("gap-1 rounded-sm border-transparent font-medium [&>sv
 			bad: "bg-bad-bg text-bad-fg",
 			neutral: "bg-neutral-bg text-neutral-fg",
 			muted: "bg-bg3 text-fg3",
-			outline: "border-line bg-transparent text-fg2",
 			pill: "h-4 border-line2 bg-transparent px-[5px] font-mono text-[10.5px] leading-4 font-normal text-fg3",
 			count:
 				"h-auto self-center rounded-[5px] bg-panel2 px-1.5 py-px font-mono text-[11.5px] leading-[1.4] font-normal tracking-normal text-fg2 tabular-nums",
