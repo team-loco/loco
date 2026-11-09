@@ -157,15 +157,28 @@ func unlockAdvisory(ctx context.Context, conn *pgxpool.Conn, lockQueries *genDb.
 func (s *SourceSweeper) expireUploads(ctx context.Context) (int, error) {
 	now := s.now()
 	cutoff := now.Add(-(buildUploadURLTTL + s.config.UploadGrace))
-	ids, err := s.queries.ExpireAwaitingUploadBuilds(ctx, genDb.ExpireAwaitingUploadBuildsParams{
-		Message:       sourceUploadExpired,
-		CreatedBefore: cutoff,
-		MaxBuilds:     s.config.BuildBatch,
+	var expired int
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		rows, err := qtx.ExpireAwaitingUploadBuilds(ctx, genDb.ExpireAwaitingUploadBuildsParams{
+			Message:       sourceUploadExpired,
+			CreatedBefore: cutoff,
+			MaxBuilds:     s.config.BuildBatch,
+		})
+		if err != nil {
+			return err
+		}
+		for _, row := range rows {
+			if err := recordBuildFailure(ctx, qtx, row.ID, row.ResourceID, sourceUploadExpired); err != nil {
+				return err
+			}
+		}
+		expired = len(rows)
+		return nil
 	})
 	if err != nil {
 		return 0, fmt.Errorf("expire awaiting uploads: %w", err)
 	}
-	return len(ids), nil
+	return expired, nil
 }
 
 func (s *SourceSweeper) deleteFinishedSources(ctx context.Context) (int, error) {

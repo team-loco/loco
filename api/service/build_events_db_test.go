@@ -1,6 +1,7 @@
 package service
 
 import (
+	"maps"
 	"slices"
 	"testing"
 
@@ -18,13 +19,16 @@ type buildEventRow struct {
 	workspaceID *uuid.UUID
 	orgID       *uuid.UUID
 	resourceID  *uuid.UUID
+	data        map[string]any
 }
 
 func (f *buildFixture) buildEvents(t *testing.T) []buildEventRow {
 	t.Helper()
-	rows, err := f.pool.Query(t.Context(),
-		`SELECT type, subject_id, workspace_id, org_id, resource_id FROM events WHERE subject_type = $1 ORDER BY seq`,
-		events.SubjectBuild)
+	rows, err := f.pool.Query(
+		t.Context(),
+		`SELECT type, subject_id, workspace_id, org_id, resource_id, data FROM events WHERE subject_type = $1 ORDER BY seq`,
+		events.SubjectBuild,
+	)
 	if err != nil {
 		t.Fatalf("list build events: %v", err)
 	}
@@ -38,6 +42,7 @@ func (f *buildFixture) buildEvents(t *testing.T) []buildEventRow {
 			&row.workspaceID,
 			&row.orgID,
 			&row.resourceID,
+			&row.data,
 		); scanErr != nil {
 			t.Fatalf("scan build event: %v", scanErr)
 		}
@@ -47,6 +52,31 @@ func (f *buildFixture) buildEvents(t *testing.T) []buildEventRow {
 		t.Fatalf("read build events: %v", rowsErr)
 	}
 	return out
+}
+
+func (f *buildFixture) wantBuildOutcome(t *testing.T, id, kind, key, value string) {
+	t.Helper()
+	var outcomes []buildEventRow
+	for _, row := range f.buildEvents(t) {
+		if row.subjectID.String() == id &&
+			(row.eventType == events.BuildSucceeded || row.eventType == events.BuildFailed) {
+			outcomes = append(outcomes, row)
+		}
+	}
+	if len(outcomes) != 1 || outcomes[0].eventType != kind {
+		t.Fatalf("build %s outcomes = %v, want one %s event", id, outcomes, kind)
+	}
+	row := outcomes[0]
+	resourceID := f.row(t, id).ResourceID
+	if row.resourceID == nil || *row.resourceID != resourceID ||
+		row.workspaceID == nil || *row.workspaceID != f.workspaceID(t) ||
+		row.orgID == nil || row.orgID.String() != f.organizationID(t) {
+		t.Fatalf("build %s outcome scope = %+v", id, row)
+	}
+	want := map[string]any{events.FieldBuildID: id, events.FieldResourceID: resourceID.String(), key: value}
+	if !maps.Equal(row.data, want) {
+		t.Fatalf("build %s outcome data = %v, want %v", id, row.data, want)
+	}
 }
 
 func TestBuildMutationsRecordEvents(t *testing.T) {

@@ -119,26 +119,17 @@ SET status = sqlc.arg(status),
 WHERE id = sqlc.arg(id)
   AND cluster_id = sqlc.arg(cluster_id)
   AND status IN ('queued', 'running')
-RETURNING id, source_key;
+RETURNING id, source_key, resource_id;
 
--- name: FailMissingClusterBuilds :many
+-- name: FailClusterBuilds :many
 UPDATE builds
 SET status = 'failed',
     message = sqlc.arg(message),
     finished_at = NOW()
 WHERE cluster_id = sqlc.arg(cluster_id)
-  AND status = 'running'
+  AND status = sqlc.arg(previous_status)
   AND NOT (id = ANY(sqlc.arg(held)::uuid[]))
-RETURNING id, source_key;
-
--- name: FailQueuedClusterBuilds :many
-UPDATE builds
-SET status = 'failed',
-    message = sqlc.arg(message),
-    finished_at = NOW()
-WHERE cluster_id = sqlc.arg(cluster_id)
-  AND status = 'queued'
-RETURNING id, source_key;
+RETURNING id, source_key, resource_id;
 
 -- name: TryAdvisoryLock :one
 SELECT pg_try_advisory_lock(sqlc.arg(lock_key)::bigint);
@@ -159,7 +150,7 @@ WHERE id IN (
   LIMIT sqlc.arg(max_builds)
 )
   AND status = 'awaiting_upload'
-RETURNING id;
+RETURNING id, resource_id;
 
 -- name: ListUndeletedBuildSources :many
 SELECT id, source_key FROM builds
