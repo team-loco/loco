@@ -1,9 +1,10 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { getOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -22,7 +23,7 @@ import { orgMembersOptions } from "@/hooks/completeMembers";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
-import type { SettingsScope } from "@/lib/routes";
+import { settingsPath, type SettingsScope } from "@/lib/routes";
 
 import { OrgTab } from "./settings/OrgTab";
 import { SCOPES, scopeFromParams } from "./settings/scope";
@@ -106,6 +107,16 @@ export function Settings() {
 		setParams(p, { replace: true });
 	};
 
+	const openWorkspace = (event: MouseEvent, w: Workspace) => {
+		if (w.id === workspaceId) {
+			event.preventDefault();
+			selectScope("workspace");
+		} else if (wsDirty || orgDirty) {
+			event.preventDefault();
+			setLeaveTo(settingsPath(orgId, w.id, "workspace"));
+		}
+	};
+
 	if (requested === "account") return <Navigate to={PROFILE_PATH} replace />;
 
 	const orgError = orgQuery.error ? getErrorMessage(orgQuery.error, "Failed to load organization") : null;
@@ -171,10 +182,13 @@ export function Settings() {
 					level={scopes.orgLevel(org.id)}
 					counts={counts}
 					countsLoading={countsLoading}
+					currentWorkspaceId={workspaceId}
+					memberCount={membersQuery.data?.members.length}
 					draft={orgDraft?.name ?? null}
 					onDraft={(name) => {
 						setDrafts({ ...drafts, org: name === null ? null : { id: org.id, name } });
 					}}
+					onOpenWorkspace={openWorkspace}
 				/>
 			)}
 

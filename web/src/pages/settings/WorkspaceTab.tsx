@@ -170,8 +170,12 @@ export function WorkspaceTab({
 						items={[
 							[
 								"ID",
-								<CopyId key="id" value={ws.id} className="h-6 bg-panel2 px-2 font-mono text-[12px] font-normal">
-									{ws.id}
+								<CopyId
+									key="id"
+									value={ws.id}
+									className="h-6 max-w-full bg-panel2 px-2 font-mono text-[12px] font-normal"
+								>
+									<span className="truncate">{ws.id}</span>
 								</CopyId>,
 							],
 							[
