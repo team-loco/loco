@@ -1,6 +1,6 @@
-export const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces"] as const;
+const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces"] as const;
 
-export type PaletteGroup = (typeof PALETTE_GROUPS)[number];
+type PaletteGroup = (typeof PALETTE_GROUPS)[number];
 
 export interface PaletteEntry {
 	id: string;
