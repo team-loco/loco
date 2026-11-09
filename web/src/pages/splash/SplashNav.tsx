@@ -7,56 +7,38 @@ import { GitHubIcon } from "./GitHubIcon";
 import { DOCS_URL, GITHUB_URL } from "./links";
 
 const NAV_LINKS = [
-	{ label: "Product", href: "#product" },
-	{ label: "Get started", href: "#start" },
+	{ label: "How it works", href: "#start" },
+	{ label: "Features", href: "#features" },
 	{ label: "Architecture", href: "#stack" },
 ] as const;
+
+const LINK_CLASS = "inline-flex items-center text-fg3 transition-colors hover:text-foreground";
 
 export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; redirecting: boolean }) {
 	return (
 		<header className="sticky top-0 z-30 border-b border-line bg-background/80 backdrop-blur-md backdrop-saturate-150">
-			<div className="mx-auto flex h-[60px] max-w-[1200px] items-center gap-4 px-4 sm:gap-8 sm:px-7">
+			<div className="mx-auto flex h-[58px] max-w-[1160px] items-center gap-7 px-4 sm:px-7">
 				<a href="/" className="flex items-center" aria-label="Loco home">
 					<LocoLogo className="w-[72px]" />
 				</a>
-				<nav className="hidden gap-[26px] text-md md:flex">
+				<nav aria-label="Main" className="hidden gap-[22px] text-[13.5px] min-[760px]:flex">
 					{NAV_LINKS.map((link) => (
-						<a key={link.label} href={link.href} className="text-fg2 transition-colors hover:text-brand">
+						<a key={link.label} href={link.href} className={LINK_CLASS}>
 							{link.label}
 						</a>
 					))}
-					<a
-						href={DOCS_URL}
-						target="_blank"
-						rel="noopener"
-						title="Opens buf.build in a new tab"
-						className="flex items-center gap-[3px] text-fg2 transition-colors hover:text-brand"
-					>
+					<a href={DOCS_URL} target="_blank" rel="noopener" className={LINK_CLASS}>
 						Docs
-						<ArrowUpRight className="size-[13px] text-fg4" />
+						<ArrowUpRight aria-hidden="true" className="ml-0.5 size-3 text-fg4" />
 					</a>
 				</nav>
 				<div className="flex-1" />
-				<div className="flex items-center gap-1 sm:gap-5">
-					<a
-						href={GITHUB_URL}
-						target="_blank"
-						rel="noopener"
-						className="hidden items-center gap-1.5 text-md text-fg2 transition-colors hover:text-brand sm:flex"
-					>
-						<GitHubIcon className="size-4" />
-						GitHub
-						<ArrowUpRight className="-ml-0.5 size-[13px] text-fg4" />
-					</a>
-					<Button
-						variant="ghost"
-						onClick={onSignIn}
-						disabled={redirecting}
-						className="px-2 text-md text-fg2 hover:text-foreground"
-					>
-						Sign in
-					</Button>
-				</div>
+				<a href={GITHUB_URL} target="_blank" rel="noopener" aria-label="Loco source code" className={LINK_CLASS}>
+					<GitHubIcon className="size-[18px]" />
+				</a>
+				<Button variant="outline" onClick={onSignIn} disabled={redirecting} className="rounded-[7px] font-medium">
+					Sign in
+				</Button>
 			</div>
 		</header>
 	);

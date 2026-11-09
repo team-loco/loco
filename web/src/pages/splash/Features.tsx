@@ -36,7 +36,7 @@ const FEATURES: readonly { glyph: GlyphKind; title: string; body: string }[] = [
 
 export function Features() {
 	return (
-		<section className="border-t border-line bg-bg2">
+		<section id="features" className="scroll-mt-16 border-t border-line bg-bg2">
 			<Frame className="flex flex-col gap-12 py-28">
 				<CornerMarks />
 				<SectionHeading index="02" eyebrow="Included" title="The platform work, already done." />
