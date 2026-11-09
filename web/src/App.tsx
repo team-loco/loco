@@ -141,7 +141,7 @@ function AppRoutes() {
 							</>
 						}
 					/>
-					<Route path={PROFILE_PATH} element={<ProfileRedirect />} />
+					<Route path="/profile" element={<ProfileRedirect />} />
 					<Route
 						path="/tokens"
 						element={
