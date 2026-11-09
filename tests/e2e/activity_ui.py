@@ -154,8 +154,9 @@ with sync_playwright() as playwright:
                     assert 'other-company' not in breadcrumb
                     if user == 'workspace_admin':
                         assert 'shared' in breadcrumb
-                        assert page.get_by_role('button', name='shared', exact=True).count() == 1
-                        assert page.get_by_role('button', name='Audit log', exact=True).count() == 0
+                        scopes = page.get_by_role('group', name='Settings for', exact=True)
+                        expect(scopes.get_by_role('button', name='Workspace', exact=True)).to_have_attribute('aria-pressed', 'true')
+                        expect(scopes.get_by_role('button', name='Organization', exact=True)).to_have_count(0)
                         for tab in ('org', 'audit'):
                             page.goto(origin + base + '/settings?tab=' + tab)
                             expect(page.get_by_role('list', name='Activity')).to_be_visible()
