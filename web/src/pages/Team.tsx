@@ -46,13 +46,12 @@ export function Team() {
 	const resend = useMutation(resendInvitation);
 	const [view, setView] = useState<View>("all");
 	const [q, setQ] = useState("");
-	const [inviting, setInviting] = useState(false);
 	const [accessId, setAccessId] = useState<string | null>(null);
 	const [revoking, setRevoking] = useState<Invitation | null>(null);
 
 	const canInvite = scopes.holds(orgId, "", Scope.ADMIN);
 	const orgName = data.org?.name ?? "";
-	const inviteOpen = inviting || (canInvite && params.get("invite") === "1");
+	const inviteOpen = canInvite && params.get("invite") === "1";
 	const rows = buildRows(data.members, data.invitations, view, q, meId);
 	const paged = usePagedRows(rows, PAGE_SIZES);
 	const counts: Record<View, number> = {
@@ -63,13 +62,12 @@ export function Team() {
 	const accessMember = data.members.find((m) => m.member.user?.id === accessId) ?? null;
 	const justYou = !data.isLoading && data.members.length <= 1 && data.invitations.length === 0;
 
-	const closeInvite = () => {
-		setInviting(false);
-		if (!params.has("invite")) return;
+	const setInviteOpen = (open: boolean) => {
 		setParams(
 			(prev) => {
 				const p = new URLSearchParams(prev);
-				p.delete("invite");
+				if (open) p.set("invite", "1");
+				else p.delete("invite");
 				return p;
 			},
 			{ replace: true },
@@ -94,7 +92,7 @@ export function Team() {
 			disabled={!canInvite}
 			title={inviteTitle}
 			onClick={() => {
-				setInviting(true);
+				setInviteOpen(true);
 			}}
 		>
 			<PlusIcon />
@@ -229,7 +227,9 @@ export function Team() {
 				orgId={orgId}
 				orgName={orgName}
 				open={inviteOpen}
-				onClose={closeInvite}
+				onClose={() => {
+					setInviteOpen(false);
+				}}
 				onInvited={() => {
 					void data.invalidateInvitations();
 				}}
