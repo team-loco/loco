@@ -28,12 +28,15 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"resource.updated": { label: "Updated a resource", category: "deploys" },
 	"resource.deleted": { label: "Deleted a resource", category: "deploys" },
 	"resource.scaled": { label: "Scaled a resource", category: "deploys" },
+	"resource.partial_transferred": { label: "Moved a resource to another partial", category: "deploys" },
 	"secret.set": { label: "Set secrets", category: "deploys" },
 	"secret.deleted": { label: "Removed secrets", category: "deploys" },
 	"deployment.created": { label: "Deployed", category: "deploys" },
 	"deployment.deleted": { label: "Deleted a deployment", category: "deploys" },
 	"build.created": { label: "Created a build", category: "deploys" },
 	"build.started": { label: "Started a build", category: "deploys" },
+	"build.succeeded": { label: "Build succeeded", category: "deploys" },
+	"build.failed": { label: "Build failed", category: "deploys" },
 	"build.canceled": { label: "Canceled a build", category: "deploys" },
 	"domain.created": { label: "Added a custom domain", category: "deploys" },
 	"domain.updated": { label: "Updated a custom domain", category: "deploys" },
@@ -43,6 +46,8 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"webhook.created": { label: "Added a webhook", category: "workspaces" },
 	"webhook.deleted": { label: "Removed a webhook", category: "workspaces" },
 };
+
+export const AUDIT_EVENT_TYPES: readonly string[] = Object.keys(AUDIT_TYPES);
 
 export const AUDIT_CATEGORIES: { value: AuditCategory | "all"; label: string }[] = [
 	{ value: "all", label: "All" },

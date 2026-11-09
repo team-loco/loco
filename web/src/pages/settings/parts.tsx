@@ -1,8 +1,6 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { CheckIcon, CopyIcon } from "lucide-react";
 import { Fragment, useId, type ReactNode } from "react";
 
-import { Button } from "@/components/design/Button";
 import { formatMonthDay, formatMonthDayYear, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -65,29 +63,5 @@ export function KeyValues({ items }: { items: readonly (readonly [string, ReactN
 				</Fragment>
 			))}
 		</dl>
-	);
-}
-
-export function CopyField({
-	label,
-	value,
-	copied,
-	onCopy,
-}: {
-	label: string;
-	value: string;
-	copied: boolean;
-	onCopy: () => void;
-}) {
-	return (
-		<div className="flex min-w-0 flex-col gap-1">
-			<span className="text-[12px] text-fg3">{label}</span>
-			<div className="flex min-w-0 items-center gap-1.5 rounded-sm border border-line bg-panel py-1 pr-1 pl-2.5">
-				<code className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{value}</code>
-				<Button variant="ghost" size="icon-sm" aria-label={`Copy ${label}`} onClick={onCopy}>
-					{copied ? <CheckIcon /> : <CopyIcon />}
-				</Button>
-			</div>
-		</div>
 	);
 }
