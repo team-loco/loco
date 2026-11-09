@@ -29,7 +29,8 @@ if args.state is None:
         atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
 state = evidence.load_state(args.state)
 orgs = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]})
-org_id = orgs["orgs"][0]["id"]
+org_ids = {org["name"]: org["id"] for org in orgs["orgs"]}
+org_id = org_ids["acme"]
 workspace_id = state["workspaces"]["acme/shared"]
 base = f"/org/{org_id}/wks/{workspace_id}/settings"
 out = Path(args.out)
@@ -53,6 +54,21 @@ with sync_playwright() as playwright:
                     page = context.new_page()
                     errors = []
                     page.on("pageerror", lambda error: errors.append(str(error)))
+                    if user == "owner" and theme == "light" and not narrow:
+                        context.add_init_script(
+                            f"localStorage.setItem('loco:active-org:v1', {json.dumps(org_id)});"
+                            f"localStorage.setItem('loco:active-workspace:v1', {json.dumps(workspace_id)});"
+                        )
+                        beta_id = org_ids["beta"]
+                        beta_workspace = state["workspaces"]["beta/beta-workspace"]
+                        org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
+                        page.route(org_list_rpc, lambda route: route.abort())
+                        page.goto(f"{state['ui_url']}/org/{beta_id}/settings")
+                        page.wait_for_url(f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?tab=org")
+                        assert page.get_by_role("textbox", name="Name", exact=True).input_value() == "beta"
+                        page.unroute(org_list_rpc)
+                        page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
+                        page.wait_for_url(f"{state['ui_url']}/organizations")
                     for tab in ("ws", "org"):
                         try:
                             page.goto(state["ui_url"] + base + "?tab=" + tab)
