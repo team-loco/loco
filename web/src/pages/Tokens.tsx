@@ -35,9 +35,7 @@ const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
 
 function parseOwner(value: string | null): OwnerKey {
-	if (value === "org") return "org";
-	if (value === "personal") return "personal";
-	return "workspace";
+	return OWNER_KEYS.find((k) => k === value) ?? "workspace";
 }
 
 function firstRun(owner: Owner): { title: string; body: string } {
@@ -79,26 +77,20 @@ export function Tokens() {
 			return tsMs(a.expiresAt) - tsMs(b.expiresAt);
 		});
 	const paged = usePagedRows(owner.canList ? rows : [], PAGE_SIZES);
-	const openDraft = draft ?? (params.get("new") === "1" ? { owner: ownerKey, name: "", items: [] } : null);
 	const liveCount = (k: OwnerKey) => data.owners[k].tokens.filter((t) => tokenStatus(t, now) !== "expired").length;
 	const total = OWNER_KEYS.reduce((sum, k) => sum + liveCount(k), 0);
 	const anyLoading = data.scopesLoading || OWNER_KEYS.some((k) => data.owners[k].isLoading);
 
-	const updateParams = (edit: (p: URLSearchParams) => void) => {
+	const setOwner = (next: OwnerKey) => {
 		setParams(
 			(prev) => {
 				const p = new URLSearchParams(prev);
-				edit(p);
+				if (next === "workspace") p.delete("owner");
+				else p.set("owner", next);
 				return p;
 			},
 			{ replace: true },
 		);
-	};
-	const setOwner = (next: OwnerKey) => {
-		updateParams((p) => {
-			if (next === "workspace") p.delete("owner");
-			else p.set("owner", next);
-		});
 		paged.reset();
 	};
 
@@ -243,16 +235,11 @@ export function Tokens() {
 				)}
 			</Section>
 			<CreateTokenDrawer
-				draft={openDraft}
+				draft={draft}
 				data={data}
 				now={now}
 				onClose={() => {
 					setDraft(null);
-					if (params.has("new")) {
-						updateParams((p) => {
-							p.delete("new");
-						});
-					}
 				}}
 				onCreated={(created) => {
 					if (created !== ownerKey) setOwner(created);
