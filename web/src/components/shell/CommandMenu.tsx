@@ -1,22 +1,14 @@
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import {
-	BellIcon,
 	Building2Icon,
-	ChartLineIcon,
-	KeyRoundIcon,
 	LayersIcon,
-	LayoutGridIcon,
 	MoonIcon,
 	PackageIcon,
 	PlusIcon,
-	ScrollTextIcon,
 	SearchIcon,
-	Settings2Icon,
 	SunIcon,
 	UserIcon,
-	UsersIcon,
-	WaypointsIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
@@ -25,26 +17,14 @@ import { CommandPalette, type PaletteItem } from "@/components/design/CommandPal
 import { Kbd } from "@/components/design/Kbd";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import {
-	newServicePath,
-	observabilityPath,
-	resourcePath,
-	switchWorkspacePath,
-	workspacePath,
-	type ObservabilityView,
-} from "@/lib/routes";
+import { newServicePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
 import { useTheme } from "@/lib/use-theme";
+
+import { useNavSections } from "./nav";
 
 const SHORTCUT_KEY = "k";
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
 const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
-
-const OBSERVABILITY_PAGES: { view: ObservabilityView; label: string; icon: React.ReactNode }[] = [
-	{ view: "logs", label: "Logs", icon: <ScrollTextIcon /> },
-	{ view: "metrics", label: "Metrics", icon: <ChartLineIcon /> },
-	{ view: "traces", label: "Traces", icon: <WaypointsIcon /> },
-	{ view: "events", label: "Events", icon: <BellIcon /> },
-];
 
 function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
@@ -53,6 +33,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	const transport = useTransport();
 	const { theme, toggle } = useTheme();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
+	const navPages = useNavSections().flatMap((section) => section.pages);
 	const resources = useQuery({
 		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
 		enabled: open && activeWorkspaceId !== null,
@@ -60,7 +41,6 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 
 	const env = params.get("env");
 	const envParams: Record<string, string> = env !== null ? { env } : {};
-	const withEnv = (path: string) => (env !== null ? `${path}?env=${encodeURIComponent(env)}` : path);
 	const go = (to: string) => () => {
 		void navigate(to);
 	};
@@ -77,24 +57,6 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			icon: <PlusIcon />,
 			run: go(newServicePath(orgId, workspaceId, envParams)),
 		});
-		items.push({
-			id: "page-dashboard",
-			group: "Pages",
-			label: "Dashboard",
-			keywords: "home resources",
-			icon: <LayoutGridIcon />,
-			run: go(withEnv(workspacePath(orgId, workspaceId))),
-		});
-		for (const page of OBSERVABILITY_PAGES) {
-			items.push({
-				id: `page-${page.view}`,
-				group: "Pages",
-				label: page.label,
-				keywords: "observability",
-				icon: page.icon,
-				run: go(observabilityPath(orgId, workspaceId, page.view, envParams)),
-			});
-		}
 		for (const r of resources.data?.resources ?? []) {
 			items.push({
 				id: `resource-${r.id}`,
@@ -116,32 +78,15 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		icon: theme === "dark" ? <SunIcon /> : <MoonIcon />,
 		run: toggle,
 	});
-	items.push({
-		id: "page-tokens",
-		group: "Pages",
-		label: "Tokens",
-		keywords: "api keys access",
-		icon: <KeyRoundIcon />,
-		run: go("/tokens"),
-	});
-	if (activeOrgId !== null) {
+	for (const page of navPages) {
+		if (page.to === undefined) continue;
 		items.push({
-			id: "page-team",
+			id: `page-${page.name.toLowerCase()}`,
 			group: "Pages",
-			label: "Team",
-			keywords: "members people",
-			icon: <UsersIcon />,
-			run: go(`/org/${activeOrgId}/team`),
-		});
-	}
-	if (activeOrgId !== null && activeWorkspaceId !== null) {
-		items.push({
-			id: "page-settings",
-			group: "Pages",
-			label: "Settings",
-			keywords: "workspace environments",
-			icon: <Settings2Icon />,
-			run: go(withEnv(workspacePath(activeOrgId, activeWorkspaceId, "settings"))),
+			label: page.name,
+			keywords: page.keywords,
+			icon: page.icon,
+			run: go(page.to),
 		});
 	}
 	items.push(
