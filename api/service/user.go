@@ -208,7 +208,7 @@ func (s *UserServer) ListUsers(
 	}, nil
 }
 
-// DeleteUser deletes a user (only if no active resources)
+// DeleteUser deletes a user when no memberships or owned records block deletion.
 func (s *UserServer) DeleteUser(
 	ctx context.Context,
 	req *userv1.DeleteUserRequest,
@@ -252,7 +252,7 @@ func (s *UserServer) DeleteUser(
 			return fmt.Errorf("list user identities: %w", listErr)
 		}
 		if deleteErr := qtx.DeleteUser(ctx, userID); deleteErr != nil {
-			return deleteErr
+			return deleteUserReferenceError(deleteErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.UserDeleted,
@@ -276,6 +276,25 @@ func (s *UserServer) DeleteUser(
 	}
 
 	return &userv1.DeleteUserResponse{}, nil
+}
+
+func deleteUserReferenceError(err error) error {
+	var message string
+	switch pgForeignKeyConstraint(err) {
+	case "workspaces_created_by_fkey":
+		message = "user created workspaces"
+	case "environments_created_by_fkey":
+		message = "user created environments"
+	case "api_tokens_created_by_fkey":
+		message = "user created API tokens"
+	case "invitations_invited_by_fkey":
+		message = "user sent invitations"
+	case "invitations_claimed_by_fkey":
+		message = "user claimed invitations"
+	default:
+		return err
+	}
+	return connect.NewError(connect.CodeFailedPrecondition, message).WithCause(err)
 }
 
 // SetUserStatus suspends or reinstates a user
