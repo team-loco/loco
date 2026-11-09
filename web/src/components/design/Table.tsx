@@ -1,9 +1,7 @@
 import {
 	Table as TableBase,
 	TableBody,
-	TableCaption,
 	TableCell as TableCellBase,
-	TableFooter,
 	TableHead as TableHeadBase,
 	TableHeader as TableHeaderBase,
 	TableRow as TableRowBase,
@@ -44,4 +42,4 @@ function TableCell({ className, ...props }: React.ComponentProps<typeof TableCel
 	return <TableCellBase className={cn("h-[62px] px-2.5 py-3 first:pl-0 last:pr-0", className)} {...props} />;
 }
 
-export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow };
+export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow };

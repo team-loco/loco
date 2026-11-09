@@ -42,4 +42,4 @@ function Badge({
 	return <BadgeBase variant="outline" className={cn(badgeVariants({ tone, size }), className)} {...props} />;
 }
 
-export { Badge, badgeVariants, type BadgeTone };
+export { Badge, type BadgeTone };
