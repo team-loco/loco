@@ -1,4 +1,4 @@
-import { BoxIcon, SearchXIcon, XIcon } from "lucide-react";
+import { SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
@@ -21,15 +21,7 @@ import { cn } from "@/lib/utils";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { deploymentImage, statusRank } from "./format";
-import {
-	ALL,
-	filterRows,
-	resourceRow,
-	STATUS_FILTERS,
-	TYPE_FILTERS,
-	type ResourceRow,
-	type RowFilter,
-} from "./resourceRows";
+import { ALL, filterRows, STATUS_FILTERS, TYPE_FILTERS, type RowFilter } from "./resourceRows";
 import { ResourceRowMenu } from "./ResourceRowMenu";
 import type { EnvResource } from "./useDashboardData";
 
@@ -105,31 +97,30 @@ function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: num
 }
 
 function DataRow({
-	row,
+	item,
 	hrefFor,
 	orgId,
 	workspaceId,
 	envName,
 	nowMs,
 }: {
-	row: ResourceRow;
+	item: EnvResource;
 	hrefFor: (id: string) => string;
 	orgId: string;
 	workspaceId: string;
 	envName: string;
 	nowMs: number;
 }) {
-	const it = row.item;
 	const nameClass = "truncate text-left text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline";
-	const note = statusNote(it);
-	const last = it.last;
+	const note = statusNote(item);
+	const last = item.last;
 	const message = last?.message ?? "";
-	const degraded = row.status === ResourceStatus.DEGRADED;
+	const degraded = item.status === ResourceStatus.DEGRADED;
 	return (
 		<TableRow>
 			<TableCell>
 				<div className="flex min-w-0 flex-col items-start gap-[3px]">
-					<ResourceStatusBadge status={row.status} />
+					<ResourceStatusBadge status={item.status} />
 					{note !== "" && (
 						<span title={note} className="max-w-full truncate text-[12px] text-fg3">
 							{note}
@@ -139,22 +130,22 @@ function DataRow({
 			</TableCell>
 			<TableCell>
 				<div className="flex min-w-0 flex-col gap-0.5">
-					<Link to={hrefFor(row.key)} className={nameClass}>
-						{row.name}
+					<Link to={hrefFor(item.resource.id)} className={nameClass}>
+						{item.resource.name}
 					</Link>
-					<span className="truncate text-[12.5px] text-fg3">{row.description}</span>
+					<span className="truncate text-[12.5px] text-fg3">{item.resource.description ?? ""}</span>
 				</div>
 			</TableCell>
 			<TableCell>
 				<div className="flex flex-col font-mono text-[12px] leading-[1.6] text-fg2">
-					{row.regions.map((g) => (
+					{item.regions.map((g) => (
 						<span key={g.region}>{g.region}</span>
 					))}
 				</div>
 			</TableCell>
 			<TableCell>
 				<div className="flex flex-col">
-					{row.regions.map((g) => (
+					{item.regions.map((g) => (
 						<span key={g.region} className="flex h-[19px] items-center gap-2.5">
 							<ReplicaPips desired={g.desired} ready={g.ready} degraded={degraded} />
 							<span className="font-mono text-[12px] text-fg2 tabular-nums">
@@ -179,7 +170,7 @@ function DataRow({
 				{last === undefined ? "—" : agoLabel(tsMs(last.createdAt), nowMs)}
 			</TableCell>
 			<TableCell className="text-right">
-				<ResourceRowMenu resource={it.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
+				<ResourceRowMenu resource={item.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
 			</TableCell>
 		</TableRow>
 	);
@@ -217,28 +208,27 @@ export function ResourcesTable({
 	const [sortDir, setSortDir] = useState(1);
 
 	const sorted = items.toSorted((a, b) => compare(sortKey, a, b) * sortDir);
-	const allRows = sorted.map(resourceRow);
-	const visible = filterRows(allRows, filter);
-	const paged = usePagedRows(visible, PAGE_SIZES, `0 of ${allRows.length.toString()}`);
+	const visible = filterRows(sorted, filter);
+	const paged = usePagedRows(visible, PAGE_SIZES, `0 of ${items.length.toString()}`);
 
 	const statusCounts = new Map<ResourceStatus, number>();
 	const typeCounts = new Map<ResourceType, number>();
 	const regionCounts = new Map<string, number>();
 	const regionNames = new Set(regions.map((r) => r.region));
-	for (const row of allRows) {
-		statusCounts.set(row.status, (statusCounts.get(row.status) ?? 0) + 1);
-		typeCounts.set(row.type, (typeCounts.get(row.type) ?? 0) + 1);
-		for (const name of new Set(row.regions.map((g) => g.region))) {
+	for (const item of items) {
+		statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
+		typeCounts.set(item.resource.type, (typeCounts.get(item.resource.type) ?? 0) + 1);
+		for (const name of new Set(item.regions.map((g) => g.region))) {
 			regionNames.add(name);
 			regionCounts.set(name, (regionCounts.get(name) ?? 0) + 1);
 		}
 	}
 	const typeOptions = [
-		{ value: ALL, label: "All", count: allRows.length },
+		{ value: ALL, label: "All", count: items.length },
 		...TYPE_FILTERS.map((o) => ({ value: o.value, label: o.label, count: typeCounts.get(o.type) ?? 0 })),
 	];
 	const regionOptions = [
-		{ value: ALL, label: "All", count: allRows.length },
+		{ value: ALL, label: "All", count: items.length },
 		...[...regionNames].map((name) => ({ value: name, label: name, count: regionCounts.get(name) ?? 0 })),
 	];
 
@@ -255,7 +245,7 @@ export function ResourcesTable({
 	const title = (
 		<>
 			Resources
-			<Badge tone="count">{allRows.length}</Badge>
+			<Badge tone="count">{items.length}</Badge>
 		</>
 	);
 	const actions = (
@@ -294,7 +284,7 @@ export function ResourcesTable({
 					if (v[0] !== undefined) update({ status: v[0] });
 				}}
 			>
-				<ToggleGroupItem value={ALL} count={allRows.length}>
+				<ToggleGroupItem value={ALL} count={items.length}>
 					All
 				</ToggleGroupItem>
 				{STATUS_FILTERS.map((o) => (
@@ -327,22 +317,19 @@ export function ResourcesTable({
 		</div>
 	);
 
-	const empty =
-		allRows.length === 0 ? (
-			<EmptyState icon={<BoxIcon />} title={`No resources in ${envName} yet`} />
-		) : (
-			<EmptyState
-				icon={<SearchXIcon />}
-				title="No resources match"
-				query={filter.query.trim()}
-				action={
-					<Button variant="outline" onClick={clearFilters}>
-						<XIcon />
-						Clear filters
-					</Button>
-				}
-			/>
-		);
+	const empty = (
+		<EmptyState
+			icon={<SearchXIcon />}
+			title="No resources match"
+			query={filter.query.trim()}
+			action={
+				<Button variant="outline" onClick={clearFilters}>
+					<XIcon />
+					Clear filters
+				</Button>
+			}
+		/>
+	);
 
 	const toggleSort = (key: SortKey) => {
 		setSortDir(sortKey === key ? -sortDir : 1);
@@ -413,10 +400,10 @@ export function ResourcesTable({
 									</TableCell>
 								</TableRow>
 							)}
-							{paged.rows.map((row) => (
+							{paged.rows.map((item) => (
 								<DataRow
-									key={row.key}
-									row={row}
+									key={item.resource.id}
+									item={item}
 									hrefFor={hrefFor}
 									orgId={orgId}
 									workspaceId={workspaceId}

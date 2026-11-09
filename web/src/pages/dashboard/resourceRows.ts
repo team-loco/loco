@@ -1,7 +1,7 @@
-import { ResourceStatus, ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus, ResourceType, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { statusRank } from "./format";
-import type { EnvResource, RegionReplicas } from "./useDashboardData";
+import type { EnvResource } from "./useDashboardData";
 
 export const ALL = "all";
 
@@ -22,17 +22,6 @@ export const TYPE_FILTERS: { value: string; type: ResourceType; label: string }[
 	{ value: "blob", type: ResourceType.BLOB, label: "Blob" },
 ];
 
-export interface ResourceRow {
-	key: string;
-	name: string;
-	description: string;
-	status: ResourceStatus;
-	type: ResourceType;
-	domain: string | null;
-	regions: RegionReplicas[];
-	item: EnvResource;
-}
-
 export interface RowFilter {
 	status: string;
 	type: string;
@@ -40,45 +29,41 @@ export interface RowFilter {
 	query: string;
 }
 
-export function resourceRow(item: EnvResource): ResourceRow {
-	const { resource } = item;
+export function primaryDomain(resource: Resource): string | null {
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
-	return {
-		key: resource.id,
-		name: resource.name,
-		description: resource.description ?? "",
-		status: item.status,
-		type: resource.type,
-		domain: domain?.domain ?? null,
-		regions: item.regions,
-		item,
-	};
+	return domain?.domain ?? null;
 }
 
-function matchesQuery(row: ResourceRow, query: string): boolean {
+function matchesQuery(item: EnvResource, query: string): boolean {
 	const q = query.trim().toLowerCase();
 	if (q === "") return true;
-	const fields = [row.name, row.description, row.domain ?? "", ...row.regions.map((g) => g.region)];
+	const { resource } = item;
+	const fields = [
+		resource.name,
+		resource.description ?? "",
+		primaryDomain(resource) ?? "",
+		...item.regions.map((g) => g.region),
+	];
 	return fields.some((f) => f.toLowerCase().includes(q));
 }
 
-function matchesStatus(row: ResourceRow, status: string): boolean {
+function matchesStatus(item: EnvResource, status: string): boolean {
 	if (status === ALL) return true;
-	return STATUS_FILTERS.some((o) => o.value === status && o.status === row.status);
+	return STATUS_FILTERS.some((o) => o.value === status && o.status === item.status);
 }
 
-function matchesType(row: ResourceRow, type: string): boolean {
+function matchesType(item: EnvResource, type: string): boolean {
 	if (type === ALL) return true;
-	return TYPE_FILTERS.some((o) => o.value === type && o.type === row.type);
+	return TYPE_FILTERS.some((o) => o.value === type && o.type === item.resource.type);
 }
 
-export function filterRows(rows: ResourceRow[], filter: RowFilter): ResourceRow[] {
-	return rows.filter(
-		(row) =>
-			matchesStatus(row, filter.status) &&
-			matchesType(row, filter.type) &&
-			(filter.region === ALL || row.regions.some((g) => g.region === filter.region)) &&
-			matchesQuery(row, filter.query),
+export function filterRows(items: EnvResource[], filter: RowFilter): EnvResource[] {
+	return items.filter(
+		(item) =>
+			matchesStatus(item, filter.status) &&
+			matchesType(item, filter.type) &&
+			(filter.region === ALL || item.regions.some((g) => g.region === filter.region)) &&
+			matchesQuery(item, filter.query),
 	);
 }
 
@@ -108,18 +93,20 @@ export interface MapLayout {
 	nodeHeight: number;
 	internetY: number;
 	gateways: MapGateway[];
-	publicNodes: { row: ResourceRow; y: number }[];
+	publicNodes: { row: EnvResource; y: number }[];
 	hiddenPublic: number;
 	moreY: number;
-	internal: ResourceRow[];
+	internal: EnvResource[];
 	hiddenInternal: number;
 	edges: MapEdge[];
 }
 
-export function mapLayout(rows: ResourceRow[], regionOrder: string[]): MapLayout {
-	const ranked = rows.toSorted((a, b) => statusRank(a.status) - statusRank(b.status) || a.name.localeCompare(b.name));
-	const publicRows = ranked.filter((r) => r.domain !== null);
-	const internalRows = ranked.filter((r) => r.domain === null);
+export function mapLayout(rows: EnvResource[], regionOrder: string[]): MapLayout {
+	const ranked = rows.toSorted(
+		(a, b) => statusRank(a.status) - statusRank(b.status) || a.resource.name.localeCompare(b.resource.name),
+	);
+	const publicRows = ranked.filter((r) => primaryDomain(r.resource) !== null);
+	const internalRows = ranked.filter((r) => primaryDomain(r.resource) === null);
 	const shown = publicRows.slice(0, MAP_PUBLIC_LIMIT);
 	const slot = (i: number) => MAP_PAD + i * (NODE_H + NODE_GAP);
 	const publicNodes = shown.map((row, i) => ({ row, y: slot(i) }));
@@ -147,7 +134,7 @@ export function mapLayout(rows: ResourceRow[], regionOrder: string[]): MapLayout
 	const edges: MapEdge[] = gateways.flatMap((g) =>
 		publicNodes
 			.filter((n) => n.row.regions.some((r) => r.region === g.region))
-			.map((n) => ({ from: g.region, to: n.row.key, y1: g.y, y2: n.y })),
+			.map((n) => ({ from: g.region, to: n.row.resource.id, y1: g.y, y2: n.y })),
 	);
 	const slots = Math.max(shown.length + (publicRows.length > shown.length ? 1 : 0), 1);
 	const bottom = Math.max(slot(slots - 1), gateways.at(-1)?.y ?? 0);
