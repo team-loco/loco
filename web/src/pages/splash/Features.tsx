@@ -1,57 +1,63 @@
-import { FeatureGlyph, type GlyphKind } from "./FeatureGlyph";
-import { CornerMarks, Frame, SectionHeading } from "./primitives";
+import { Activity, KeyRound, Lock, RefreshCw, ShieldCheck, Zap, type LucideIcon } from "lucide-react";
 
-const FEATURES: readonly { glyph: GlyphKind; title: string; body: string }[] = [
+import { Section, SectionTitle } from "./primitives";
+
+const FEATURES: readonly { icon: LucideIcon; title: string; body: string; tech: string }[] = [
 	{
-		glyph: "tls",
+		icon: Lock,
 		title: "HTTPS by default",
-		body: "Every service gets a certificate on deploy, renewed before it expires.",
+		body: "Services on the platform domain are served over HTTPS, with certificates renewed before they expire.",
+		tech: "cert-manager · Let's Encrypt",
 	},
 	{
-		glyph: "quic",
+		icon: Zap,
 		title: "HTTP/3 at the edge",
-		body: "Envoy terminates TLS, speaks QUIC and routes by host and path.",
+		body: "Envoy terminates TLS and routes each hostname to its service.",
+		tech: "Envoy Gateway · HTTP/3",
 	},
 	{
-		glyph: "roll",
-		title: "Zero-downtime rollouts",
-		body: "New replicas must pass health checks before old ones drain. One-click rollback.",
+		icon: RefreshCw,
+		title: "Rolling deploys",
+		body: "Replicas are replaced a quarter at a time and take traffic once their health check passes. Roll back from the dashboard.",
+		tech: "25% surge · 25% max unavailable",
 	},
 	{
-		glyph: "scale",
-		title: "Autoscaling",
-		body: "Set a replica range and a CPU target per region.",
+		icon: ShieldCheck,
+		title: "Private services",
+		body: "Leave out the domain and a service only accepts connections from inside its workspace.",
+		tech: "Kubernetes NetworkPolicy",
 	},
 	{
-		glyph: "obs",
-		title: "Logs and metrics",
-		body: "Collected from every replica, searchable and charted in the dashboard.",
+		icon: Activity,
+		title: "Logs, traces and metrics",
+		body: "Write logs to stdout. Every replica gets an OpenTelemetry endpoint for traces.",
+		tech: "OpenTelemetry · ClickHouse",
 	},
 	{
-		glyph: "token",
-		title: "Granular tokens",
-		body: "Give CI write on one service and nothing else. Expire in 30 days or less.",
+		icon: KeyRound,
+		title: "Scoped tokens",
+		body: "Give CI access to one workspace or a few resources, with an expiry.",
+		tech: "organization · workspace · resource",
 	},
 ];
 
 export function Features() {
 	return (
-		<section id="features" className="scroll-mt-16 border-t border-line bg-bg2">
-			<Frame className="flex flex-col gap-12 py-28">
-				<CornerMarks />
-				<SectionHeading index="02" eyebrow="Included" title="The platform work, already done." />
-				<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] border-t border-l border-line">
-					{FEATURES.map(({ glyph, title, body }) => (
-						<div key={title} className="flex flex-col gap-2.5 border-r border-b border-line bg-background p-7">
-							<span className="mb-1.5 flex h-14">
-								<FeatureGlyph kind={glyph} />
-							</span>
-							<span className="font-semibold">{title}</span>
-							<span className="text-[14.5px] text-pretty text-fg2">{body}</span>
-						</div>
-					))}
-				</div>
-			</Frame>
-		</section>
+		<Section id="features">
+			<SectionTitle>Everything a service needs.</SectionTitle>
+			<div className="grid gap-px overflow-hidden rounded-[12px] border border-line bg-line min-[900px]:grid-cols-3">
+				{FEATURES.map(({ icon: Icon, title, body, tech }) => (
+					<div
+						key={title}
+						className="flex flex-col gap-1.5 bg-background p-6 transition-colors duration-150 hover:bg-panel"
+					>
+						<Icon aria-hidden="true" className="mb-2 size-[18px] text-brand" />
+						<span className="text-[15px] font-medium">{title}</span>
+						<span className="text-[13.5px] text-pretty text-fg3">{body}</span>
+						<span className="mt-auto pt-3 font-mono text-[11.5px] text-fg3">{tech}</span>
+					</div>
+				))}
+			</div>
+		</Section>
 	);
 }

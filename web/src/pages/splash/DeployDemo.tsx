@@ -4,17 +4,10 @@ import { useState, useSyncExternalStore } from "react";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { cn } from "@/lib/utils";
 
-import { demoFrame, ENDPOINT, STRATEGY, TERMINAL, type LineTone, type Pod } from "./deploy";
+import { demoFrame, ENDPOINT, STRATEGY, TERMINAL, TONE_CLASS, type Pod } from "./deploy";
 import { RolloutPlayer } from "./rolloutPlayer";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
-
-const TONE_CLASS: Record<LineTone, string> = {
-	command: "text-foreground",
-	output: "text-fg3",
-	ok: "text-ok-fg",
-	link: "text-brand",
-};
 
 function podClass(pod: Pod): string {
 	switch (pod.phase) {

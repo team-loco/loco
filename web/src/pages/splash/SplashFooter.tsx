@@ -1,16 +1,19 @@
 import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Button } from "@/components/design/Button";
 import { LocoLogo } from "@/components/design/LocoLogo";
+import { ThemeIcon } from "@/components/shell/ThemeIcon";
+import { useTheme } from "@/lib/use-theme";
 
 import { DOCS_URL, EXAMPLES_URL, GITHUB_URL } from "./links";
 
-const LINK_CLASS = "flex w-fit items-center gap-1 transition-colors hover:text-background";
+const LINK_CLASS = "inline-flex w-fit items-center text-fg2 transition-colors hover:text-foreground";
 
 function Column({ title, children }: { title: string; children: ReactNode }) {
 	return (
-		<div className="flex flex-col gap-[9px]">
-			<span className="font-mono text-[11.5px] tracking-[0.08em] text-background/75 uppercase">{title}</span>
+		<div className="flex flex-col gap-[9px] text-[13.5px]">
+			<span className="mb-0.5 text-[12.5px] text-fg3">{title}</span>
 			{children}
 		</div>
 	);
@@ -20,25 +23,42 @@ function ExternalLink({ href, children }: { href: string; children: string }) {
 	return (
 		<a href={href} target="_blank" rel="noopener" className={LINK_CLASS}>
 			{children}
-			<ArrowUpRight className="size-3 opacity-70" />
+			<ArrowUpRight aria-hidden="true" className="ml-0.5 size-3 text-fg4" />
 		</a>
+	);
+}
+
+function ThemeToggle() {
+	const { theme, toggle } = useTheme();
+	const toDark = theme !== "dark";
+
+	return (
+		<Button
+			variant="outline"
+			size="icon"
+			aria-label={toDark ? "Dark mode" : "Light mode"}
+			title={toDark ? "Dark mode" : "Light mode"}
+			onClick={toggle}
+		>
+			<ThemeIcon mode={toDark ? "moon" : "sun"} />
+		</Button>
 	);
 }
 
 export function SplashFooter({ onSignIn, redirecting }: { onSignIn: () => void; redirecting: boolean }) {
 	return (
-		<footer className="border-t border-background/10 bg-foreground text-background/55 [--logo:var(--logo-inverse)]">
-			<div className="mx-auto grid max-w-[1200px] grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-8 px-4 py-12 text-[13.5px] sm:px-7">
-				<div className="flex flex-col gap-2.5">
-					<LocoLogo className="w-[72px] self-start" />
-					<span>Built by developers, for developers.</span>
+		<footer className="mt-auto border-t border-line bg-panel">
+			<div className="mx-auto grid w-full max-w-[1160px] grid-cols-2 gap-8 px-4 pt-11 pb-14 sm:px-7 min-[760px]:grid-cols-[1.4fr_repeat(3,1fr)]">
+				<div className="flex flex-col items-start gap-[18px]">
+					<LocoLogo className="w-[72px]" />
+					<ThemeToggle />
 				</div>
 				<Column title="Product">
-					<a href="#product" className={LINK_CLASS}>
-						Live demo
-					</a>
 					<a href="#start" className={LINK_CLASS}>
-						Get started
+						How it works
+					</a>
+					<a href="#features" className={LINK_CLASS}>
+						Features
 					</a>
 					<a href="#stack" className={LINK_CLASS}>
 						Architecture
@@ -46,7 +66,7 @@ export function SplashFooter({ onSignIn, redirecting }: { onSignIn: () => void; 
 				</Column>
 				<Column title="Developers">
 					<ExternalLink href={DOCS_URL}>Docs</ExternalLink>
-					<ExternalLink href={GITHUB_URL}>GitHub</ExternalLink>
+					<ExternalLink href={GITHUB_URL}>Source code</ExternalLink>
 					<ExternalLink href={EXAMPLES_URL}>Examples</ExternalLink>
 				</Column>
 				<Column title="Account">

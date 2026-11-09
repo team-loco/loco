@@ -8,6 +8,8 @@ import { Architecture } from "./splash/Architecture";
 import { Features } from "./splash/Features";
 import { GetStarted } from "./splash/GetStarted";
 import { Hero } from "./splash/Hero";
+import { Section, SectionTitle } from "./splash/primitives";
+import { SplashCtas } from "./splash/SplashCtas";
 import { SplashFooter } from "./splash/SplashFooter";
 import { SplashNav } from "./splash/SplashNav";
 
@@ -35,6 +37,10 @@ export function Splash() {
 			<GetStarted />
 			<Features />
 			<Architecture />
+			<Section className="flex flex-col items-center pb-[120px] text-center">
+				<SectionTitle className="mb-7">Ship something today.</SectionTitle>
+				<SplashCtas onSignIn={startSignIn} redirecting={redirecting} />
+			</Section>
 			<SplashFooter onSignIn={startSignIn} redirecting={redirecting} />
 		</div>
 	);

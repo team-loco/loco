@@ -1,155 +1,97 @@
 import { Check, Copy } from "lucide-react";
-import { useRef, useState } from "react";
 
 import { Button } from "@/components/design/Button";
 import { useCopy } from "@/hooks/useCopy";
 import { cn } from "@/lib/utils";
 
-import { INSTALL_COMMAND } from "./links";
-import { CornerMarks, Frame, SectionHeading } from "./primitives";
-
-type Tone = "ink" | "muted" | "warn" | "ok" | "accent";
-
-const TONE_CLASS: Record<Tone, string> = {
-	ink: "text-foreground",
-	muted: "text-fg3",
-	warn: "text-warn",
-	ok: "text-ok-fg",
-	accent: "text-brand",
-};
+import { ENDPOINT, TONE_CLASS, type LineTone } from "./deploy";
+import { COPIED_MS, INSTALL_COMMAND } from "./links";
+import { Section, SectionTitle } from "./primitives";
 
 interface Step {
 	n: string;
 	title: string;
 	body: string;
 	command: string;
-	output: readonly (readonly [string, Tone])[];
+	output: readonly (readonly [string, LineTone])[];
 }
 
 const STEPS: readonly Step[] = [
 	{
 		n: "01",
 		title: "Install the CLI",
-		body: "Install the latest Loco release for your platform.",
+		body: "One binary for macOS and Linux.",
 		command: INSTALL_COMMAND,
-		output: [],
+		output: [
+			["Downloading loco (darwin, arm64)", "output"],
+			["Installed loco to ~/.local/bin/loco", "ok"],
+		],
 	},
 	{
 		n: "02",
-		title: "Sign in with GitHub",
-		body: "Device flow, no passwords. Your session is scoped to your org and workspaces.",
+		title: "Sign in",
+		body: "Opens your browser. Use --device on a machine without one.",
 		command: "loco login",
 		output: [
-			["! one-time code  8F2A-91C3", "warn"],
-			["  open github.com/login/device", "muted"],
-			["✓ signed in as nikumar1206", "ok"],
+			["Opening your browser to sign in. If it doesn't open, visit:", "output"],
+			["✔ Authentication successful!", "ok"],
+			["  Organization: acme", "output"],
 		],
 	},
 	{
 		n: "03",
 		title: "Deploy",
-		body: "Build, push, roll out, health-check and route. Then it's live.",
-		command: "loco deploy api",
+		body: "Builds your Dockerfile, rolls out the replicas and serves the service over HTTPS.",
+		command: "loco deploy",
 		output: [
-			["✓ built  sha-8a03f2", "muted"],
-			["✓ 3/3 replicas healthy", "muted"],
-			["→ https://api.onloco.app", "accent"],
+			["Packed 214 files from . (1.8 MiB compressed)", "output"],
+			["Building api from Dockerfile in .", "output"],
+			[`api: https://${ENDPOINT}`, "link"],
 		],
 	},
 ];
 
-const STEP_LINES = STEPS.map((step, i) => {
-	const before = STEPS.slice(0, i).reduce((sum, s) => sum + 1 + s.output.length, 0);
-	const lines: readonly (readonly [string, Tone])[] = [[`$ ${step.command}`, "ink"], ...step.output];
-	return lines.map(([text, tone], j) => ({ text, tone, order: before + j }));
-});
-
-const TOTAL_LINES = STEP_LINES.flat().length;
-const REVEAL_INTERVAL_MS = 260;
-
-function TerminalLine({ text, tone, shown }: { text: string; tone: Tone; shown: boolean }) {
-	return (
-		<div
-			className={cn(
-				"wrap-anywhere whitespace-pre-wrap transition-opacity duration-[260ms]",
-				TONE_CLASS[tone],
-				!shown && "opacity-[0.08] motion-reduce:opacity-100",
-			)}
-		>
-			{text}
-		</div>
-	);
-}
-
 export function GetStarted() {
-	const [shown, setShown] = useState(0);
-	const [copied, copy] = useCopy(1400);
-	const playedRef = useRef(false);
-
-	const revealRef = (el: HTMLElement | null) => {
-		if (el === null || playedRef.current) return;
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (playedRef.current || !entries.some((e) => e.isIntersecting)) return;
-				playedRef.current = true;
-				observer.disconnect();
-				const reveal = (count: number) => {
-					setShown(count);
-					if (count < TOTAL_LINES) setTimeout(reveal, REVEAL_INTERVAL_MS, count + 1);
-				};
-				reveal(1);
-			},
-			{ threshold: 0.35 },
-		);
-		observer.observe(el);
-		return () => {
-			observer.disconnect();
-		};
-	};
+	const [copied, copy] = useCopy(COPIED_MS);
 
 	return (
-		<section id="start" ref={revealRef} className="scroll-mt-16 border-t border-line">
-			<Frame className="flex flex-col gap-14 py-28">
-				<CornerMarks />
-				<SectionHeading index="01" eyebrow="Get started" title="Three commands to production." />
-				<div className="grid border-t border-line md:grid-cols-3">
-					{STEPS.map((step, i) => {
-						const isCopied = copied === step.n;
-						return (
-							<div
-								key={step.n}
-								className="flex min-w-0 flex-col gap-4 pt-7 pb-2 max-md:not-last:border-b max-md:not-last:border-line max-md:not-last:pb-7 md:not-first:pl-6 md:not-last:border-r md:not-last:border-line md:not-last:pr-6"
-							>
-								<span className="flex items-baseline gap-3">
-									<span className="font-mono text-[12.5px] text-fg4">{step.n}</span>
-									<span className="text-[17px] font-semibold">{step.title}</span>
-								</span>
-								<span className="text-pretty text-fg2 md:min-h-12">{step.body}</span>
-								<div className="relative rounded-[10px] border border-line bg-bg2 py-3.5 pr-11 pl-4 font-mono text-[12.5px] leading-[1.75]">
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										title="Copy command"
-										aria-label={`Copy ${step.command}`}
-										onClick={() => {
-											copy(step.n, step.command);
-										}}
-										className={cn(
-											"absolute top-2 right-2 hover:bg-line hover:text-foreground",
-											isCopied ? "text-ok-fg" : "text-fg4",
-										)}
-									>
-										{isCopied ? <Check /> : <Copy />}
-									</Button>
-									{STEP_LINES[i]?.map((line) => (
-										<TerminalLine key={line.order} text={line.text} tone={line.tone} shown={line.order < shown} />
-									))}
-								</div>
+		<Section id="start">
+			<SectionTitle>Three commands to production.</SectionTitle>
+			<div className="grid gap-4 min-[900px]:grid-cols-3">
+				{STEPS.map((step) => {
+					const isCopied = copied === step.n;
+					return (
+						<div key={step.n} className="flex min-w-0 flex-col gap-2">
+							<span className="font-mono text-xs text-fg4">{step.n}</span>
+							<span className="text-[16px] font-medium">{step.title}</span>
+							<span className="text-md text-pretty text-fg3 min-[900px]:min-h-10">{step.body}</span>
+							<div className="relative mt-1.5 flex-1 rounded-[10px] border border-line bg-panel py-3.5 pr-10 pl-4 font-mono text-[12.5px] leading-[1.85] min-[900px]:min-h-[118px]">
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									title="Copy command"
+									aria-label={`Copy ${step.command}`}
+									onClick={() => {
+										copy(step.n, step.command);
+									}}
+									className={cn(
+										"absolute top-2 right-2 hover:bg-panel2 hover:text-foreground",
+										isCopied ? "text-ok-fg" : "text-fg4",
+									)}
+								>
+									{isCopied ? <Check /> : <Copy />}
+								</Button>
+								<div className={cn("truncate", TONE_CLASS.command)}>$ {step.command}</div>
+								{step.output.map(([text, tone]) => (
+									<div key={text} className={cn("truncate whitespace-pre", TONE_CLASS[tone])}>
+										{text}
+									</div>
+								))}
 							</div>
-						);
-					})}
-				</div>
-			</Frame>
-		</section>
+						</div>
+					);
+				})}
+			</div>
+		</Section>
 	);
 }
