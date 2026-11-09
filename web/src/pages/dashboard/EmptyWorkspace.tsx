@@ -1,13 +1,12 @@
-import { CheckIcon, CopyIcon, ExternalLinkIcon, PlusIcon } from "lucide-react";
+import { ExternalLinkIcon, PlusIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
+import { CopyButton } from "@/components/design/CopyButton";
 import { EmptyHero } from "@/components/design/EmptyHero";
-import { useCopy } from "@/hooks/useCopy";
 import { DOCS_URL } from "@/pages/splash/links";
 
 const COMMANDS = ["loco login", "loco deploy"];
-const COPY_KEY = "cli";
 const TILE_STROKE = "color-mix(in oklch, var(--fg) 42%, var(--bg))";
 const TOP_STROKE = "color-mix(in oklch, var(--info) 70%, var(--bg))";
 const SIDE_FILL = "color-mix(in oklch, var(--panel2) 70%, var(--line2))";
@@ -79,8 +78,6 @@ export function EmptyWorkspace({
 	otherEnvName: string | null;
 	onSwitchEnv: () => void;
 }) {
-	const [copied, copy] = useCopy();
-	const done = copied === COPY_KEY;
 	return (
 		<EmptyHero
 			art={<StackArt />}
@@ -96,18 +93,7 @@ export function EmptyWorkspace({
 						</span>
 					))}
 				</div>
-				<Button
-					variant="outline"
-					size="sm"
-					aria-label={done ? "Copied" : "Copy commands"}
-					className={done ? "text-ok-fg" : undefined}
-					onClick={() => {
-						copy(COPY_KEY, COMMANDS.join("\n"));
-					}}
-				>
-					{done ? <CheckIcon /> : <CopyIcon />}
-					{done ? "Copied" : "Copy"}
-				</Button>
+				<CopyButton text={COMMANDS.join("\n")} name="Copy commands" />
 			</div>
 			<div className="flex flex-wrap justify-center gap-2">
 				<Button size="lg" nativeButton={false} render={<Link to={newHref} />}>
