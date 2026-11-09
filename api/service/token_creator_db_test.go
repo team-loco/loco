@@ -10,14 +10,13 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 	f := newSecretFixture(t)
 	server := NewTokenServer(f.pool, f.queries, f.machine)
 	for _, tc := range []struct {
-		name       string
 		entityType tokenv1.EntityType
 		entityID   string
 	}{
-		{"organization", tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, f.orgID.String()},
-		{"workspace", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, f.workspaceID.String()},
+		{tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, f.orgID.String()},
+		{tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, f.workspaceID.String()},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.entityType.String(), func(t *testing.T) {
 			const name = "creator-check"
 			created, err := server.CreateToken(f.owner, &tokenv1.CreateTokenRequest{
 				Name: name, EntityType: tc.entityType, EntityId: tc.entityID, ExpiresInSec: 60,

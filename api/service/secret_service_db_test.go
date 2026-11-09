@@ -845,7 +845,7 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 		t.Fatalf("secret.set actor = %s %s, want the workspace", actorType, actorID)
 	}
 
-	f.set(t, server, map[string]string{stripeKey: "rotated-value"})
+	f.set(t, server, map[string]string{stripeKey: "owner-rotation"})
 	var creatorType, updaterType string
 	var creatorID, updaterID uuid.UUID
 	const attribution = `SELECT created_by_type, created_by_id, updated_by_type, updated_by_id
