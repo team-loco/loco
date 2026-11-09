@@ -459,7 +459,15 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 	deleteCtx := reqctx.WithPrincipal(f.ctx, reqctx.Principal{Scopes: []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeWrite},
 	}})
-	deployments := NewDeploymentServer(f.pool, f.queries, nil, "", testServiceDefaults(), testClusterSilentAfter)
+	deployments := NewDeploymentServer(
+		f.pool,
+		f.queries,
+		nil,
+		"",
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		testMaxPlacementBytes,
+	)
 	_, err = deployments.DeleteDeployment(deleteCtx, &deploymentv1.DeleteDeploymentRequest{
 		DeploymentId: deployment.ID.String(),
 	})

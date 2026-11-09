@@ -32,7 +32,15 @@ func (f *deployFixture) listDeployments(
 	req *deploymentv1.ListDeploymentsRequest,
 ) *deploymentv1.ListDeploymentsResponse {
 	t.Helper()
-	server := NewDeploymentServer(f.pool, f.queries, nil, "", testServiceDefaults(), testClusterSilentAfter)
+	server := NewDeploymentServer(
+		f.pool,
+		f.queries,
+		nil,
+		"",
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		testMaxPlacementBytes,
+	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
 	}

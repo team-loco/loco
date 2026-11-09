@@ -364,6 +364,43 @@ func (q *Queries) ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphe
 	return items, nil
 }
 
+const listSecretSizes = `-- name: ListSecretSizes :many
+SELECT name, octet_length(ciphertext)::bigint AS ciphertext_bytes
+FROM secrets
+WHERE resource_id = $1 AND environment_id = $2 AND name = ANY($3::text[])
+`
+
+type ListSecretSizesParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Names         []string  `json:"names"`
+}
+
+type ListSecretSizesRow struct {
+	Name            string `json:"name"`
+	CiphertextBytes int64  `json:"ciphertextBytes"`
+}
+
+func (q *Queries) ListSecretSizes(ctx context.Context, arg ListSecretSizesParams) ([]ListSecretSizesRow, error) {
+	rows, err := q.db.Query(ctx, listSecretSizes, arg.ResourceID, arg.EnvironmentID, arg.Names)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSecretSizesRow
+	for rows.Next() {
+		var i ListSecretSizesRow
+		if err := rows.Scan(&i.Name, &i.CiphertextBytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSecrets = `-- name: ListSecrets :many
 SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets

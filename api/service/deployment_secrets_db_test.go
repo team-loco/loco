@@ -4,8 +4,10 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -13,6 +15,89 @@ import (
 )
 
 var testSecretNames = []string{"DATABASE_URL", "SESSION_KEY"}
+
+func TestCreateDeploymentBindsSelectedSecrets(t *testing.T) {
+	f := newDeployFixture(t)
+	seedDeployment(t, f, domainsTwoRegionSpec)
+	if _, err := f.pool.Exec(
+		t.Context(), `UPDATE clusters SET region = $2 WHERE id = $1`, f.otherCluster, otherRegion,
+	); err != nil {
+		t.Fatal(err)
+	}
+	provider := newTestKeyProvider(t, "k1")
+	f.storeSecret(t, provider, databaseURLName, stripeValue)
+	f.storeSecret(t, provider, sessionKeyName, sessionKeyValue)
+
+	for _, step := range []struct {
+		name     string
+		region   string
+		cluster  uuid.UUID
+		bindings *deploymentv1.DeploymentSecretBindings
+		want     []string
+	}{
+		{"first deployment", testRegion, f.clusterID,
+			&deploymentv1.DeploymentSecretBindings{Names: []string{databaseURLName}}, []string{databaseURLName}},
+		{"new region", otherRegion, f.otherCluster,
+			&deploymentv1.DeploymentSecretBindings{Names: []string{sessionKeyName}}, []string{sessionKeyName}},
+		{"omitted bindings", testRegion, f.clusterID, nil, []string{databaseURLName}},
+		{"empty bindings", testRegion, f.clusterID, &deploymentv1.DeploymentSecretBindings{}, nil},
+	} {
+		t.Run(step.name, func(t *testing.T) {
+			f.finishRollouts(t)
+			resp, err := deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+				ResourceId:    f.resourceID.String(),
+				EnvironmentId: f.envID.String(),
+				Region:        step.region,
+				Spec: &deploymentv1.DeploymentSpec{
+					Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
+				},
+				SecretBindings: step.bindings,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			deployment, err := f.queries.GetDeploymentByID(t.Context(), uuid.MustParse(resp.GetDeploymentId()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(deployment.SecretNames, step.want) {
+				t.Fatalf("deployment secret names = %v, want %v", deployment.SecretNames, step.want)
+			}
+			if got := f.placement(t, step.cluster).SecretNames; !slices.Equal(got, step.want) {
+				t.Fatalf("placement secret names = %v, want %v", got, step.want)
+			}
+		})
+	}
+}
+
+func TestCreateDeploymentRejectsUnavailableOrOversizedSecrets(t *testing.T) {
+	f := newDeployFixture(t)
+	provider := newTestKeyProvider(t, "k1")
+	f.storeSecret(t, provider, databaseURLName, stripeValue)
+	f.envID = f.addStagingEnvironment(t)
+	f.setStagingTier(t, f.otherCluster)
+	f.storeSecret(t, provider, sessionKeyName, strings.Repeat("x", testMaxPlacementBytes))
+	seedDeployment(t, f, sameRegionSpec)
+
+	for _, name := range []string{databaseURLName, sessionKeyName} {
+		t.Run(name, func(t *testing.T) {
+			before := f.rolloutSnapshot(t)
+			_, err := deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+				ResourceId:    f.resourceID.String(),
+				EnvironmentId: f.envID.String(),
+				Region:        testRegion,
+				Spec: &deploymentv1.DeploymentSpec{
+					Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
+				},
+				SecretBindings: &deploymentv1.DeploymentSecretBindings{Names: []string{name}},
+			})
+			wantCode(t, err, connect.CodeFailedPrecondition)
+			if f.rolloutSnapshot(t) != before {
+				t.Fatal("rejected deployment changed persisted state")
+			}
+		})
+	}
+}
 
 func TestDeploymentRecordsSecretNamesAndEnvironmentOnThePlacement(t *testing.T) {
 	f := newDeployFixture(t)

@@ -295,21 +295,28 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 }
 
 func checkSecrets(name string, service locofile.Service, in Input) []Error {
-	var errs []Error
-	held := in.Secrets[name]
+	bindingErrors := CheckSecretBindings(service.Secrets, in.Secrets[name], in.MaxSecretBytes)
+	errs := make([]Error, 0, len(bindingErrors))
+	for _, err := range bindingErrors {
+		errs = append(errs, Error{Service: name, Path: pathSecrets, Err: err})
+	}
+	return errs
+}
+
+// CheckSecretBindings validates selected names against stored plaintext lengths and the placement limit.
+func CheckSecretBindings(names []string, held map[string]int64, maxBytes int64) []error {
+	var errs []error
 	var total int64
-	for _, secret := range slices.Sorted(slices.Values(service.Secrets)) {
-		valueBytes, found := held[secret]
+	for _, name := range slices.Sorted(slices.Values(names)) {
+		valueBytes, found := held[name]
 		if !found {
-			missing := fmt.Errorf("%w: %s", ErrMissingSecret, secret)
-			errs = append(errs, Error{Service: name, Path: pathSecrets, Err: missing})
+			errs = append(errs, ErrMissingSecret.Detail("%s", name))
 			continue
 		}
-		total += int64(len(secret)) + valueBytes
+		total += int64(len(name)) + valueBytes
 	}
-	if total > in.MaxSecretBytes {
-		tooLarge := fmt.Errorf("%w: %d bytes over a limit of %d", ErrSecretsTooLarge, total, in.MaxSecretBytes)
-		errs = append(errs, Error{Service: name, Path: pathSecrets, Err: tooLarge})
+	if total > maxBytes {
+		errs = append(errs, ErrSecretsTooLarge.Detail("%d bytes over a limit of %d", total, maxBytes))
 	}
 	return errs
 }
