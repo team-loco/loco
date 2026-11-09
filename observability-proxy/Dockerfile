@@ -12,7 +12,7 @@ COPY observability-proxy/go.mod observability-proxy/go.sum ./observability-proxy
 COPY go.mod go.sum ./
 
 WORKDIR /app/observability-proxy
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download || go mod download
 
 WORKDIR /app
 COPY observability-proxy ./observability-proxy

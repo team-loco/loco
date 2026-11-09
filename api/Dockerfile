@@ -13,7 +13,7 @@ COPY go.mod go.sum ./
 COPY k8sapi/go.mod k8sapi/go.sum ./k8sapi/
 
 WORKDIR /app/api
-RUN go mod download
+RUN go mod download || go mod download
 
 WORKDIR /app
 COPY api ./api

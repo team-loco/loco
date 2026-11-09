@@ -9,7 +9,7 @@ ENV CGO_ENABLED=0 \
 WORKDIR /app/builder
 
 COPY builder/go.mod builder/go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download || go mod download
 
 COPY builder ./
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -trimpath -ldflags "-X main.version=${VERSION}" -o loco-builder .

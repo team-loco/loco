@@ -9,7 +9,7 @@ COPY controller/go.mod controller/go.sum ./controller/
 COPY k8sapi/go.mod k8sapi/go.sum ./k8sapi/
 
 WORKDIR /workspace/controller
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download || go mod download
 
 WORKDIR /workspace
 COPY k8sapi ./k8sapi
