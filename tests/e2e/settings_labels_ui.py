@@ -43,22 +43,22 @@ def descriptions(field):
 
 
 def check_webhooks(page):
-    https_error = "Use an https:// URL."
     page.get_by_role("button", name="New webhook", exact=True).click()
     url = page.get_by_role("textbox", name="Endpoint URL", exact=True)
     assert url.evaluate("node => node.labels.length") == 1
     assert url.evaluate("node => node === document.activeElement")
     assert descriptions(url) == []
     create = page.get_by_role("button", name="Create webhook", exact=True)
-    url.fill("http://hooks.invalid/loco")
-    page.get_by_text(https_error, exact=True).wait_for()
+    url.fill("https://user:secret@hooks.invalid/loco")
+    create.click()
+    rejection = "Use an https URL with a host name."
+    page.get_by_text(rejection, exact=True).wait_for()
     assert url.get_attribute("aria-invalid") == "true"
-    assert https_error in descriptions(url)
-    assert create.is_disabled()
+    assert rejection in descriptions(url)
     endpoint = "https://hooks.invalid/loco"
     url.fill(endpoint)
     assert url.get_attribute("aria-invalid") == "false"
-    assert https_error not in descriptions(url)
+    assert rejection not in descriptions(url)
     page.get_by_role("button", name="Choose events", exact=True).click()
     assert create.is_disabled()
     page.get_by_role("checkbox", name="Builds", exact=True).check()

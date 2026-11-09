@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 import {
 	DELIVERY_TICKS,
@@ -8,12 +9,11 @@ import {
 	eventsSummary,
 	failingCount,
 	groupState,
-	HTTPS_ERROR,
+	isUrlRejection,
 	tickStrip,
 	toggleEvent,
 	toggleGroup,
 	webhookEventGroups,
-	webhookUrlError,
 } from "./webhooks";
 
 const delivery = (id: string, status: string, lastError = "", attempts = 1) => ({
@@ -74,12 +74,12 @@ test("describes the last error with the attempt count", () => {
 	expect(deliveryDetail(delivery("a", "pending"))).toBeNull();
 });
 
-test("asks for an https URL with a host", () => {
-	expect(webhookUrlError("")).toBeNull();
-	expect(webhookUrlError(" https://example.com/hooks ")).toBeNull();
-	expect(webhookUrlError("http://example.com")).toBe(HTTPS_ERROR);
-	expect(webhookUrlError("example.com")).toBe(HTTPS_ERROR);
-	expect(webhookUrlError("https://")).toBe(HTTPS_ERROR);
+test("places only argument rejections under the URL field", () => {
+	expect(isUrlRejection(new ConnectError("use an https URL with a host name", Code.InvalidArgument))).toBe(true);
+	expect(isUrlRejection(new ConnectError("a workspace can have at most 10 webhooks", Code.FailedPrecondition))).toBe(
+		false,
+	);
+	expect(isUrlRejection(new Error("network down"))).toBe(false);
 });
 
 test("summarises event filters", () => {

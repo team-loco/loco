@@ -1,3 +1,5 @@
+import { Code, ConnectError } from "@connectrpc/connect";
+
 import { pluralize } from "@/lib/format";
 import { agoLabel, DAY_MS } from "@/lib/time";
 
@@ -79,14 +81,8 @@ export function deliveryDetail(d: DeliveryFields): string | null {
 	return `${d.lastError} · ${pluralize(d.attempts, "attempt")}`;
 }
 
-export const HTTPS_ERROR = "Use an https:// URL.";
-
-export function webhookUrlError(raw: string): string | null {
-	const value = raw.trim();
-	if (value === "") return null;
-	if (!URL.canParse(value)) return HTTPS_ERROR;
-	const url = new URL(value);
-	return url.protocol === "https:" && url.hostname !== "" ? null : HTTPS_ERROR;
+export function isUrlRejection(error: unknown): boolean {
+	return error instanceof ConnectError && error.code === Code.InvalidArgument;
 }
 
 export function eventsSummary(types: readonly string[]): string {

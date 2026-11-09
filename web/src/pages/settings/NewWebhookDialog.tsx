@@ -10,7 +10,7 @@ import { Input } from "@/components/design/Input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 
-import { groupState, toggleEvent, toggleGroup, webhookEventGroups, webhookUrlError, type EventGroup } from "./webhooks";
+import { groupState, toggleEvent, toggleGroup, isUrlRejection, webhookEventGroups, type EventGroup } from "./webhooks";
 
 type Mode = "all" | "choose";
 
@@ -76,8 +76,9 @@ function NewWebhookForm({
 	const [types, setTypes] = useState<string[]>([]);
 
 	const target = url.trim();
-	const urlError = webhookUrlError(url);
-	const ok = target !== "" && urlError === null && (mode === "all" || types.length > 0) && !create.isPending;
+	const rejected = isUrlRejection(create.error);
+	const urlError = rejected ? getErrorMessage(create.error) : null;
+	const ok = target !== "" && (mode === "all" || types.length > 0) && !create.isPending;
 
 	const submit = () => {
 		if (!ok) return;
@@ -149,7 +150,7 @@ function NewWebhookForm({
 							))}
 						</div>
 					)}
-					{create.error !== null && (
+					{create.error !== null && !rejected && (
 						<span className="text-[12.5px] text-bad-fg">
 							{getErrorMessage(create.error, "Could not add the webhook")}
 						</span>
