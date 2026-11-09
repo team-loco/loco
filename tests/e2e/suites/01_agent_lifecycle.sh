@@ -14,6 +14,13 @@ test_api_health() {
         curl -sf "${E2E_API_URL}/health"
 }
 
+test_api_migrate_command() {
+    assert "API migrations exit successfully with only DATABASE_URL configured" \
+        env -i DATABASE_URL="$E2E_DATABASE_URL" "$E2E_BIN_DIR/loco-api" migrate
+    assert "Replaying migrations preserves API readiness" \
+        curl -sf "${E2E_API_URL}/health"
+}
+
 test_agent_registered() {
     local version
     version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")

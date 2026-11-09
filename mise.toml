@@ -344,6 +344,10 @@ run = "./tests/e2e/certificates.sh"
 description = "Test cluster enrollment with a join token, agent key reuse and rotation, heartbeats and application deployment from an empty cluster registry"
 run = "./tests/e2e/run.sh --builds-disabled cluster_attachment"
 
+[tasks."e2e:api-migrations"]
+description = "Test the API migration command and API readiness through the agent lifecycle suite"
+run = "./tests/e2e/run.sh --builds-disabled 01_agent_lifecycle"
+
 [tasks."e2e:builds"]
 description = "Run only the image build end-to-end tests, controller-only and through the API and agent; takes the e2e flags"
 run = "./tests/e2e/run.sh build"

@@ -145,6 +145,16 @@ func serve(server *http.Server) error {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		if err := runCommand(context.Background(), os.Args[1:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	runAPI()
+}
+
+func runAPI() {
 	failed := false
 	defer func() {
 		if failed {
