@@ -1,6 +1,6 @@
 import { useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { EllipsisIcon } from "lucide-react";
+import { ActivityIcon, ChevronsUpDownIcon, EllipsisIcon, ScrollTextIcon, Trash2Icon, VariableIcon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -71,17 +71,27 @@ export function ResourceRowMenu({
 							variant="ghost"
 							size="icon-sm"
 							aria-label={`Actions for ${resource.name}`}
-							className="text-fg2 hover:border-line hover:bg-background dark:hover:bg-background"
+							className="text-fg3 hover:bg-panel2 hover:text-foreground aria-expanded:bg-panel2"
 						/>
 					}
 				>
 					<EllipsisIcon className="size-4" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" className="w-auto min-w-[180px]">
-					<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>View logs</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => void navigate(obs("events"))}>View events</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>Scale</DropdownMenuItem>
+				<DropdownMenuContent align="end" className="w-[236px]">
+					<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>
+						<ScrollTextIcon className="text-fg3" />
+						View logs
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => void navigate(obs("events"))}>
+						<ActivityIcon className="text-fg3" />
+						View events
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>
+						<ChevronsUpDownIcon className="text-fg3" />
+						Scale
+					</DropdownMenuItem>
 					<DropdownMenuItem onClick={() => void navigate(`${base}?tab=variables&${envQuery}`)}>
+						<VariableIcon className="text-fg3" />
 						Environment variables
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
@@ -91,6 +101,7 @@ export function ResourceRowMenu({
 							setConfirmOpen(true);
 						}}
 					>
+						<Trash2Icon />
 						Delete
 					</DropdownMenuItem>
 				</DropdownMenuContent>
