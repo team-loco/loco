@@ -13,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
+import { Button } from "@/components/design/Button";
 import { CommandPalette, type PaletteItem } from "@/components/design/CommandPalette";
 import { Kbd } from "@/components/design/Kbd";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -142,19 +143,19 @@ export function CommandMenu() {
 
 	return (
 		<>
-			<button
-				type="button"
+			<Button
+				variant="outline"
 				aria-label="Search and run commands"
 				aria-keyshortcuts="Meta+K Control+K"
 				onClick={() => {
 					setOpen(true);
 				}}
-				className="flex h-8 shrink-0 items-center gap-2 rounded-md border border-line bg-raise px-2 text-[13px] text-fg3 outline-none transition-colors duration-150 hover:border-line2 hover:text-fg2 focus-visible:ring-2 focus-visible:ring-ring/50 md:pr-2 md:pl-2.5"
+				className="px-2 text-fg3 hover:text-fg2 md:pr-2 md:pl-2.5"
 			>
-				<SearchIcon aria-hidden className="size-3.5" />
+				<SearchIcon aria-hidden />
 				<span className="hidden md:inline">Search</span>
 				<Kbd className="ml-3.5 hidden md:inline-flex">{SHORTCUT_LABEL}</Kbd>
-			</button>
+			</Button>
 			<CommandPalette open={open} onOpenChange={setOpen} items={items} />
 		</>
 	);
