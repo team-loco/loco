@@ -378,7 +378,6 @@ test_r00_registry_challenges_with_the_named_realm() {
 }
 
 test_r01_first_deploys_in_new_workspaces() {
-    cli_seed_session
     rt_seed_workspace "$rt_ws_a" "$rt_env_a" e2e-registry-a
     rt_seed_workspace "$rt_ws_b" "$rt_env_b" e2e-registry-b
 
