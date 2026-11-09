@@ -1,149 +1,257 @@
+import { useMutation } from "@connectrpc/connect-query";
+import { resendInvitation } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import type { Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { Building2Icon, PlusIcon } from "lucide-react";
+import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
+import { toast } from "sonner";
 
-import { Page, PageHeader } from "@/components/design/Page";
-import { SearchInput } from "@/components/design/SearchInput";
-import { Button } from "@/components/design/Button";
 import { useAuth } from "@/auth/AuthProvider";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
+import { EmptyHero } from "@/components/design/EmptyHero";
+import { EmptyState } from "@/components/design/EmptyState";
+import { Page, PageHeader, Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
+import { SearchInput } from "@/components/design/SearchInput";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { getErrorMessage } from "@/lib/error-handler";
-import { pluralize } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { useNow } from "@/hooks/useNow";
+import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { usePagedRows } from "@/lib/paging";
 
-import { InvitationsTable } from "./team/InvitationsTable";
-import { InviteDialog } from "./team/InviteDialog";
-import { MemberPanel } from "./team/MemberPanel";
-import { MembersTable } from "./team/MembersTable";
-import { toScope } from "./team/scopes";
+import { DOCS_URL } from "./splash/links";
+import { InviteDrawer } from "./team/InviteDrawer";
+import { buildRows, invitationBadge, VIEWS, type Member, type ScopeName, type View } from "./team/model";
+import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
+import { TeamArt } from "./team/TeamArt";
+import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
+import { WorkspaceAccessDialog } from "./team/WorkspaceAccessDialog";
+
+const PAGE_SIZES = [25, 50, 100] as const;
+const NOW_TICK_MS = 60_000;
+const ACCESS_DOCS = `${DOCS_URL}/operations/access/`;
+const SCOPE_OF: Record<ScopeName, Scope> = { read: Scope.READ, write: Scope.WRITE, admin: Scope.ADMIN };
 
 export function Team() {
 	const { orgId = "" } = useParams<{ orgId: string }>();
+	const [params, setParams] = useSearchParams();
 	const { user } = useAuth();
 	const meId = user?.id ?? "";
 	const scopes = useMyScopes();
-	const {
-		org,
-		members,
-		workspaces,
-		invitations,
-		invitationsLoading,
-		invalidateInvitations,
-		isLoading,
-		scopesLoading,
-		error,
-	} = useTeamData(orgId, meId, scopes.scopes);
+	const data = useTeamData(orgId);
+	const now = useNow(NOW_TICK_MS).getTime();
+	const resend = useMutation(resendInvitation);
+	const [view, setView] = useState<View>("all");
 	const [q, setQ] = useState("");
-	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const [inviting, setInviting] = useState(false);
+	const [accessId, setAccessId] = useState<string | null>(null);
+	const [revoking, setRevoking] = useState<Invitation | null>(null);
+
 	const canInvite = scopes.holds(orgId, "", Scope.ADMIN);
+	const orgName = data.org?.name ?? "";
+	const inviteOpen = canInvite && params.get("invite") === "1";
+	const rows = buildRows(data.members, data.invitations, view, q, meId);
+	const paged = usePagedRows(rows, PAGE_SIZES);
+	const counts: Record<View, number> = {
+		all: data.members.length + data.invitations.length,
+		members: data.members.length,
+		invitations: data.invitations.length,
+	};
+	const accessMember = data.members.find((m) => m.member.user?.id === accessId) ?? null;
+	const justYou = !data.isLoading && data.members.length <= 1 && data.invitations.length === 0;
 
-	const tq = q.trim().toLowerCase();
-	const shown = members
-		.filter((m) => tq === "" || `${m.user.name} ${m.user.email}`.toLowerCase().includes(tq))
-		.toSorted((a, b) => {
-			const aMe = a.user.id === meId ? 1 : 0;
-			const bMe = b.user.id === meId ? 1 : 0;
-			if (aMe !== bMe) return bMe - aMe;
-			return (a.user.name || a.user.email).localeCompare(b.user.name || b.user.email);
-		});
-	const selected = selectedId !== null ? members.find((m) => m.user.id === selectedId) : undefined;
-	const count = pluralize(members.length, "member");
-	const errorMessage = error ? getErrorMessage(error, "Failed to load members") : null;
+	const setInviteOpen = (open: boolean) => {
+		setParams(
+			(prev) => {
+				const p = new URLSearchParams(prev);
+				if (open) p.set("invite", "1");
+				else p.delete("invite");
+				return p;
+			},
+			{ replace: true },
+		);
+	};
 
-	return (
-		<Page className="max-w-[1360px] gap-[18px]">
-			<PageHeader
-				title="Team"
-				actions={
+	const doResend = async (invitation: Invitation) => {
+		try {
+			const res = await resend.mutateAsync({ id: invitation.id });
+			const label = res.invitation === undefined ? "Invite sent" : invitationBadge(res.invitation.status).label;
+			toast(`${invitation.email}: ${label}`);
+		} catch (err) {
+			toastConnectError(err, "Failed to resend the invitation");
+		} finally {
+			await data.invalidateInvitations();
+		}
+	};
+
+	const inviteTitle = canInvite ? undefined : "Only organization admins can invite members";
+	const inviteButton = (
+		<Button
+			disabled={!canInvite}
+			title={inviteTitle}
+			onClick={() => {
+				setInviteOpen(true);
+			}}
+		>
+			<PlusIcon />
+			Invite
+		</Button>
+	);
+
+	const empty =
+		q.trim() !== "" ? (
+			<EmptyState
+				icon={<SearchXIcon />}
+				title="Nobody matches"
+				query={q.trim()}
+				action={
 					<Button
-						size="lg"
-						className="px-3.5"
-						disabled={!canInvite}
-						title={canInvite ? undefined : "Only organization admins can invite members"}
+						variant="outline"
 						onClick={() => {
-							setInviting(true);
+							setQ("");
+							paged.reset();
 						}}
 					>
-						<PlusIcon />
-						Invite
+						<XIcon />
+						Clear search
 					</Button>
 				}
 			/>
-			<div className="flex flex-wrap items-center gap-2.5">
-				<span className="flex items-center gap-2 text-fg2">
-					<Building2Icon className="size-[15px] text-fg3" />
-					<span className="font-semibold text-foreground">{org?.name ?? "…"}</span>
-					{!isLoading && <span className="text-fg3">{count}</span>}
-				</span>
-				<div className="flex-1" />
-				<SearchInput
-					value={q}
-					placeholder="Search members"
-					className="w-[260px] max-w-full"
-					onChange={(e) => {
-						setQ(e.target.value);
-					}}
-				/>
-			</div>
+		) : (
+			<div className="py-7 text-center text-fg3">No invitations</div>
+		);
 
-			{errorMessage !== null ? (
-				<div className="rounded-lg border border-line px-4 py-8 text-fg3">{errorMessage}</div>
-			) : (
-				<div
-					className={cn(
-						"grid items-start gap-5",
-						selected ? "grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]" : "grid-cols-1",
-					)}
+	const body = (() => {
+		if (data.error !== null) {
+			return <div className="py-7 text-center text-fg3">{getErrorMessage(data.error, "Failed to load members")}</div>;
+		}
+		if (justYou && q.trim() === "") {
+			return (
+				<EmptyHero
+					art={<TeamArt />}
+					title="It's just you so far"
+					subtitle={`Invite teammates by email. They join ${orgName} as members the first time they sign in.`}
+					className="rounded-none border-t border-line2"
 				>
-					<MembersTable
-						members={shown}
-						meId={meId}
-						selectedId={selected ? selected.user.id : null}
-						onSelect={setSelectedId}
-						isLoading={isLoading}
-						scopesLoading={scopesLoading}
-						compact={selected !== undefined}
-						query={q.trim()}
-						onClearQuery={() => {
-							setQ("");
-						}}
-					/>
-					{selected && (
-						<MemberPanel
-							key={selected.user.id}
-							member={selected}
-							orgName={org?.name ?? ""}
-							isMe={selected.user.id === meId}
-							workspaces={workspaces}
-							holds={(wsId, s) => scopes.holds(orgId, wsId, toScope(s))}
-							onClose={() => {
-								setSelectedId(null);
-							}}
-						/>
-					)}
-				</div>
-			)}
-			{errorMessage === null && (
-				<InvitationsTable
-					invitations={invitations}
-					isLoading={invitationsLoading}
-					canManage={canInvite}
-					onChanged={() => {
-						void invalidateInvitations();
+					<span className="flex flex-wrap justify-center gap-2">
+						{inviteButton}
+						<Button variant="outline" render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}>
+							Read the docs
+							<ExternalLinkIcon className="text-fg3" />
+						</Button>
+					</span>
+				</EmptyHero>
+			);
+		}
+		return (
+			<>
+				<TeamTable
+					rows={paged.rows}
+					now={now}
+					isLoading={data.isLoading}
+					accessLoading={data.accessLoading}
+					empty={empty}
+					actions={{
+						meId,
+						orgName,
+						canManageInvitations: canInvite,
+						onAccess: (m: Member) => {
+							setAccessId(m.member.user?.id ?? null);
+						},
+						onCopyLink: (invitation) => {
+							void navigator.clipboard.writeText(invitation.link).then(() => {
+								toast(`Copied the invite link for ${invitation.email}`);
+							});
+						},
+						onResend: (invitation) => {
+							void doResend(invitation);
+						},
+						onRevoke: setRevoking,
 					}}
 				/>
-			)}
-			<InviteDialog
+				<Pager {...paged.pager} />
+			</>
+		);
+	})();
+
+	return (
+		<Page>
+			<PageHeader
+				title={
+					<>
+						Team
+						{!data.isLoading && <Badge tone="count">{data.members.length}</Badge>}
+					</>
+				}
+				actions={inviteButton}
+			/>
+			<Section
+				actions={
+					<>
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Show"
+							className="max-w-full overflow-x-auto"
+							value={[view]}
+							onValueChange={(v: string[]) => {
+								const next = VIEWS.find((x) => x.key === v[0]);
+								if (next === undefined) return;
+								setView(next.key);
+								paged.reset();
+							}}
+						>
+							{VIEWS.map((v) => (
+								<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
+									{v.label}
+								</ToggleGroupItem>
+							))}
+						</ToggleGroup>
+						<SearchInput
+							value={q}
+							onChange={(e) => {
+								setQ(e.target.value);
+								paged.reset();
+							}}
+							placeholder="Search by name or email"
+							aria-label="Search people"
+							className="w-full sm:ml-auto sm:max-w-[280px]"
+						/>
+					</>
+				}
+			>
+				{body}
+			</Section>
+			<InviteDrawer
 				orgId={orgId}
-				open={inviting}
+				orgName={orgName}
+				open={inviteOpen}
 				onClose={() => {
-					setInviting(false);
+					setInviteOpen(false);
 				}}
 				onInvited={() => {
-					void invalidateInvitations();
+					void data.invalidateInvitations();
+				}}
+			/>
+			<WorkspaceAccessDialog
+				member={accessMember}
+				workspaces={data.workspaces}
+				holds={(workspaceId, s) => scopes.holds(orgId, workspaceId, SCOPE_OF[s])}
+				onClose={() => {
+					setAccessId(null);
+				}}
+				onChanged={data.invalidateAccess}
+			/>
+			<RevokeInvitationDialog
+				invitation={revoking}
+				onClose={() => {
+					setRevoking(null);
+				}}
+				onRevoked={(email) => {
+					setRevoking(null);
+					toast(`Revoked the invitation to ${email}`);
+					void data.invalidateInvitations();
 				}}
 			/>
 		</Page>
