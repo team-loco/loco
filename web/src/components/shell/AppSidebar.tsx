@@ -43,7 +43,7 @@ import { expandOrgLink } from "@/lib/org-links";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
-import { newResourcePath, workspacePath } from "@/lib/routes";
+import { accountSettingsPath, newResourcePath, workspacePath } from "@/lib/routes";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 import { useNavSections } from "./nav";
@@ -196,10 +196,10 @@ export function AppSidebar() {
 							<MenuLink
 								icon={<UserIcon />}
 								onClick={() => {
-									void navigate("/profile");
+									void navigate(accountSettingsPath(activeOrgId, activeWorkspaceId));
 								}}
 							>
-								Profile
+								Account
 							</MenuLink>
 							<MenuLink
 								icon={<KeyRoundIcon />}

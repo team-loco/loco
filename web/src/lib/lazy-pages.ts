@@ -7,6 +7,5 @@ export const pageImporters = {
 	Team: async () => await import("@/pages/Team"),
 	Tokens: async () => await import("@/pages/Tokens"),
 	Organizations: async () => await import("@/pages/Organizations"),
-	Profile: async () => await import("@/pages/Profile"),
 	DashboardRedirect: async () => await import("@/pages/DashboardRedirect"),
 } as const;
