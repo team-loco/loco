@@ -56,11 +56,6 @@ function SecretBody({ revealed, onClose }: { revealed: RevealedSecret; onClose: 
 						{copied ? "Copied" : "Copy"}
 					</Button>
 				</div>
-				<p className="m-0 text-sm text-fg2">
-					To deploy from CI with a workspace write grant, save the token as <code>LOCO_TOKEN</code> and set{" "}
-					<code>LOCO_HOST</code> to the API URL. Run <code>loco deploy --yes</code> with <code>--org</code>,{" "}
-					<code>--workspace</code> (the workspace ID), and <code>--env</code>.
-				</p>
 			</DialogBody>
 			<DialogFooter>
 				<Button variant="inverted" size="lg" onClick={onClose}>
