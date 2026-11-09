@@ -114,14 +114,67 @@ export function AccessPicker({
 		}
 	};
 
+	const rows = items.map((it, i) => {
+		const n = tree.nodes.get(it.key);
+		if (n === undefined) return null;
+		const lvl = heldLevel(held, tree, n.key);
+		return (
+			<div
+				key={it.key}
+				className="grid grid-cols-[22px_minmax(0,1fr)_auto_22px] items-center gap-2.5 border-b border-line py-2 pr-2.5 pl-3"
+			>
+				<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
+				<span className="flex min-w-0 flex-col gap-px">
+					<span className="truncate font-mono text-[12.5px]">{n.label}</span>
+					<span className="truncate text-[11.5px] text-fg3">{itemKind(n)}</span>
+				</span>
+				<ToggleGroup
+					variant="segmented"
+					aria-label={`Level for ${n.label}`}
+					value={[it.level.toString()]}
+					onValueChange={(v: string[]) => {
+						const next = LEVELS.find((l) => l.toString() === v[0]);
+						if (next === undefined || next > lvl) return;
+						onChange(items.map((x, j) => (j === i ? { ...x, level: next } : x)));
+					}}
+				>
+					{LEVELS.map((l) => {
+						const dis = l > lvl;
+						const tip = dis
+							? `You only have ${lvl === 0 ? "no access" : LEVEL_LABEL[lvl]} on ${n.label}`
+							: ALLOWS[n.kind].slice(0, l).join(" · ");
+						return (
+							<ToggleGroupItem key={l} value={l.toString()} disabled={dis} title={tip} className="disabled:opacity-45">
+								{LEVEL_LABEL[l]}
+							</ToggleGroupItem>
+						);
+					})}
+				</ToggleGroup>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-xs"
+					aria-label={`Remove ${n.label}`}
+					onClick={() => {
+						onChange(items.filter((_, j) => j !== i));
+					}}
+				>
+					<XIcon />
+				</Button>
+			</div>
+		);
+	});
+
 	return (
 		<div
 			className={cn(
-				"flex flex-col overflow-hidden rounded-lg border bg-background",
-				focus ? "border-fg4" : invalid ? "border-bad-fg" : "border-line",
+				"relative rounded-lg border bg-raise",
+				focus ? "border-fg4" : invalid ? "border-bad-fg" : "border-line2",
 			)}
 		>
-			<div className="flex h-[38px] items-center gap-2 px-2.5">
+			{items.length === 0 && <div className="border-b border-line p-3 text-[12.5px] text-fg3">No permissions yet.</div>}
+			{rows}
+			<div className="flex h-[38px] items-center gap-2 px-3">
 				<SearchIcon className="size-3.5 text-fg3" />
 				<input
 					value={q}
@@ -152,7 +205,7 @@ export function AccessPicker({
 					placeholder="Add a workspace or resource"
 					autoComplete="off"
 					aria-label="Add a workspace or resource"
-					className="min-w-0 flex-1 border-0 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-fg4"
+					className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-fg4"
 				/>
 			</div>
 			{focus && (
@@ -161,7 +214,7 @@ export function AccessPicker({
 					onMouseDown={(e) => {
 						e.preventDefault();
 					}}
-					className="max-h-[228px] overflow-y-auto border-t border-line p-1"
+					className="absolute inset-x-[-1px] top-[calc(100%+4px)] z-10 max-h-[320px] overflow-y-auto rounded-lg border border-line2 bg-popover p-1 shadow-popover"
 				>
 					{shown.map((n) => {
 						const lvl = heldLevel(held, tree, n.key);
@@ -177,19 +230,23 @@ export function AccessPicker({
 									add(n);
 								}}
 								className={cn(
-									"flex h-[34px] w-full items-center gap-2.5 rounded-sm px-2 text-left text-foreground hover:bg-bg3",
+									"flex h-8 w-full items-center gap-2.5 rounded-[5px] px-2 text-left text-foreground hover:bg-panel dark:hover:bg-panel2",
 									disabled && "opacity-45",
 									covered && "opacity-50",
 								)}
 							>
 								<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
-								<span className="min-w-0 flex-1 truncate font-medium">{n.label}</span>
-								<span className="text-sm whitespace-nowrap text-fg3">{disabled ? "No access" : resultNote(n)}</span>
+								<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
+								<span className="text-[11.5px] whitespace-nowrap text-fg3">
+									{disabled ? "No access" : resultNote(n)}
+								</span>
 							</button>
 						);
 					})}
 					{shown.length === 0 && !resourcesLoading && resourcesError === null && (
-						<div className="px-2.5 py-2 text-fg3">No matches</div>
+						<div className="p-3 text-[12.5px] text-fg3">
+							{query === "" ? "Nothing left to add." : `Nothing matches “${q.trim()}”.`}
+						</div>
 					)}
 					{resourcesError !== null && (
 						<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
@@ -201,65 +258,12 @@ export function AccessPicker({
 					)}
 					{resourcesLoading && <div className="px-2.5 py-1.5 text-sm text-fg3">Loading resources…</div>}
 					{pool.length > shown.length && (
-						<div className="px-2.5 py-1.5 text-sm text-fg3">
-							{(pool.length - shown.length).toString()} more. Keep typing to narrow.
+						<div className="px-2.5 py-1.5 text-[11.5px] text-fg3">
+							{(pool.length - shown.length).toString()} more, keep typing
 						</div>
 					)}
 				</div>
 			)}
-			{items.map((it, i) => {
-				const n = tree.nodes.get(it.key);
-				if (n === undefined) return null;
-				const lvl = heldLevel(held, tree, n.key);
-				return (
-					<div key={it.key} className="flex min-h-11 items-center gap-2.5 border-t border-line pr-1.5 pl-2.5">
-						<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
-						<span className="flex min-w-0 flex-1 flex-col">
-							<span className="truncate font-medium">{n.label}</span>
-							<span className="text-sm text-fg3">{itemKind(n)}</span>
-						</span>
-						<ToggleGroup
-							variant="segmented"
-							value={[it.level.toString()]}
-							onValueChange={(v: string[]) => {
-								const next = LEVELS.find((l) => l.toString() === v[0]);
-								if (next === undefined || next > lvl) return;
-								onChange(items.map((x, j) => (j === i ? { ...x, level: next } : x)));
-							}}
-						>
-							{LEVELS.map((l) => {
-								const dis = l > lvl;
-								const tip = dis
-									? `You only have ${lvl === 0 ? "no access" : LEVEL_LABEL[lvl]} on ${n.label}`
-									: ALLOWS[n.kind].slice(0, l).join(" · ");
-								return (
-									<ToggleGroupItem
-										key={l}
-										value={l.toString()}
-										disabled={dis}
-										title={tip}
-										className="h-[26px]! text-[12.5px] disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-45"
-									>
-										{LEVEL_LABEL[l]}
-									</ToggleGroupItem>
-								);
-							})}
-						</ToggleGroup>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							title="Remove"
-							className="text-fg3 hover:text-foreground"
-							onClick={() => {
-								onChange(items.filter((_, j) => j !== i));
-							}}
-						>
-							<XIcon className="size-4" />
-						</Button>
-					</div>
-				);
-			})}
 		</div>
 	);
 }

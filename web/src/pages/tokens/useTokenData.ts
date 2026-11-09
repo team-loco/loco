@@ -16,8 +16,6 @@ export interface Owner {
 	entityType: EntityType;
 	id: string | null;
 	label: string;
-	kind: string;
-	noun: string;
 	canList: boolean;
 	canCreate: boolean;
 }
@@ -33,7 +31,6 @@ export interface TokenData {
 	owners: Record<OwnerKey, OwnerTokens>;
 	tree: EntityTree;
 	held: HeldScopes;
-	userId: string | null;
 	scopesLoading: boolean;
 	scopesError: unknown;
 	resourcesLoading: boolean;
@@ -128,41 +125,18 @@ export function useTokenData(): TokenData {
 		return holds(held, tree, key, level);
 	};
 
-	const mkOwner = (
-		key: OwnerKey,
-		entityType: EntityType,
-		id: string | null,
-		label: string,
-		kind: string,
-		noun: string,
-	): Owner => ({
+	const mkOwner = (key: OwnerKey, entityType: EntityType, id: string | null, label: string): Owner => ({
 		key,
 		entityType,
 		id,
 		label,
-		kind,
-		noun,
 		canList: can(entityType, id, 1),
 		canCreate: can(entityType, id, 2),
 	});
 
-	const orgOwner = mkOwner(
-		"org",
-		EntityType.ORGANIZATION,
-		activeOrgId,
-		activeOrg?.name ?? "Organization",
-		"Organization",
-		"organization",
-	);
-	const wsOwner = mkOwner(
-		"workspace",
-		EntityType.WORKSPACE,
-		activeWorkspaceId,
-		activeWs?.name ?? "Workspace",
-		"Workspace",
-		"workspace",
-	);
-	const personalOwner = mkOwner("personal", EntityType.USER, userId, "Personal", "You", "personal");
+	const orgOwner = mkOwner("org", EntityType.ORGANIZATION, activeOrgId, activeOrg?.name ?? "Organization");
+	const wsOwner = mkOwner("workspace", EntityType.WORKSPACE, activeWorkspaceId, activeWs?.name ?? "Workspace");
+	const personalOwner = mkOwner("personal", EntityType.USER, userId, "Personal");
 
 	const orgTokens = useQuery(
 		listTokens,
@@ -200,7 +174,6 @@ export function useTokenData(): TokenData {
 		owners,
 		tree: fullTree,
 		held,
-		userId,
 		scopesLoading: scopesQuery.isLoading,
 		scopesError: scopesQuery.error,
 		resourcesLoading,

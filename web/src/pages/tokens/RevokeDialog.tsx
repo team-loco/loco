@@ -10,6 +10,7 @@ import {
 	AlertDialogContent,
 	AlertDialogDescription,
 	AlertDialogFooter,
+	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/design/AlertDialog";
 import { toastConnectError } from "@/lib/error-handler";
@@ -50,20 +51,18 @@ export function RevokeDialog({
 				if (!open) onClose();
 			}}
 		>
-			<AlertDialogContent className="w-[520px]">
-				<div className="border-b border-line px-4 py-3.5">
-					<AlertDialogTitle>Revoke {shown?.name ?? ""}</AlertDialogTitle>
-				</div>
-				<AlertDialogDescription className="flex flex-col gap-2 px-4 py-[18px] text-foreground" render={<div />}>
-					<span>
-						Requests using <span className="font-semibold">{shown?.name ?? ""}</span> will fail immediately.
-					</span>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Revoke {shown?.name ?? ""}?</AlertDialogTitle>
+					<AlertDialogDescription>
+						Requests using {shown?.name ?? ""} will fail immediately. This can&apos;t be undone.
+					</AlertDialogDescription>
 					<span className="text-[12.5px] text-fg3">
 						{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}
 					</span>
-				</AlertDialogDescription>
+				</AlertDialogHeader>
 				<AlertDialogFooter>
-					<AlertDialogCancel className="px-3">Cancel</AlertDialogCancel>
+					<AlertDialogCancel>Cancel</AlertDialogCancel>
 					<AlertDialogAction
 						disabled={mutation.isPending}
 						onClick={() => {
