@@ -23,6 +23,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { LocoLogo } from "@/components/design/LocoLogo";
 import {
 	DropdownMenu,
@@ -405,13 +406,11 @@ function ExternalMenuLink({ icon, href, children }: { icon: ReactNode; href: str
 
 function UserAvatar({ name, src, className }: { name: string; src?: string | undefined; className?: string }) {
 	return (
-		<span
-			className={cn(
-				"flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-panel2 font-mono text-fg2",
-				className,
-			)}
-		>
-			{src !== undefined && src !== "" ? <img src={src} alt="" className="size-full object-cover" /> : initials(name)}
-		</span>
+		<Avatar className={cn("rounded-full after:hidden [&_img]:rounded-full", className)}>
+			{src !== undefined && src !== "" && <AvatarImage src={src} alt="" />}
+			<AvatarFallback className="rounded-full bg-panel2 font-mono text-[length:inherit] font-normal text-fg2">
+				{initials(name)}
+			</AvatarFallback>
+		</Avatar>
 	);
 }
