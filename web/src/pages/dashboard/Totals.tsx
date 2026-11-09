@@ -16,7 +16,7 @@ const TRAFFIC = ["Requests", "Errors", "Bandwidth out"];
 const TOP = 5;
 const PERCENT = 100;
 
-const CARD = "flex min-w-0 sm:min-h-[150px] flex-col gap-1 rounded-[10px] bg-panel px-5 pt-[18px] pb-4";
+const CARD = "flex min-w-0 sm:min-h-[150px] flex-col gap-1 rounded-card bg-panel px-5 pt-[18px] pb-4";
 const VALUE = "font-mono text-[30px] leading-[1.25] font-medium tracking-[-0.03em] tabular-nums";
 
 function share(part: number, total: number): string {

@@ -22,7 +22,7 @@ function SheetContent({
 		<SheetContentBase
 			side={side}
 			className={cn(
-				"gap-0 border border-line bg-background text-base shadow-overlay duration-[320ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none dark:border-line2 data-[side=right]:inset-y-2 data-[side=right]:right-2 data-[side=right]:h-auto data-[side=right]:max-w-none data-[side=right]:rounded-[12px] data-[side=right]:sm:max-w-none data-[side=right]:data-ending-style:translate-x-[calc(100%+16px)] data-[side=right]:data-starting-style:translate-x-[calc(100%+16px)] [&>[data-slot=sheet-close]]:top-[18px] [&>[data-slot=sheet-close]]:right-4 [&>[data-slot=sheet-close]]:text-fg3",
+				"gap-0 border border-line bg-background text-base shadow-overlay duration-[320ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none dark:border-line2 data-[side=right]:inset-y-2 data-[side=right]:right-2 data-[side=right]:h-auto data-[side=right]:max-w-none data-[side=right]:rounded-overlay data-[side=right]:sm:max-w-none data-[side=right]:data-ending-style:translate-x-[calc(100%+16px)] data-[side=right]:data-starting-style:translate-x-[calc(100%+16px)] [&>[data-slot=sheet-close]]:top-[18px] [&>[data-slot=sheet-close]]:right-4 [&>[data-slot=sheet-close]]:text-fg3",
 				sheetWidths[size],
 				className,
 			)}

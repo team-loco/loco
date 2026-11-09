@@ -278,7 +278,7 @@ export function NetworkingSection({
 			{isPublic && base.isPublic && (
 				<div className="flex flex-col gap-1.5">
 					<span className="text-[13px] font-medium">Domains</span>
-					<div className="overflow-hidden rounded-[10px] border border-line bg-background">
+					<div className="overflow-hidden rounded-card border border-line bg-background">
 						{sorted.map((d) => (
 							<DomainRow
 								key={d.id}

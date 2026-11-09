@@ -23,7 +23,7 @@ export function SettingsCard({
 	children: ReactNode;
 }) {
 	return (
-		<section aria-labelledby={labelledBy} className={cn("min-w-0 overflow-hidden rounded-[10px] bg-panel", className)}>
+		<section aria-labelledby={labelledBy} className={cn("min-w-0 overflow-hidden rounded-card bg-panel", className)}>
 			{children}
 		</section>
 	);

@@ -10,7 +10,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<typeof InputGr
 	return (
 		<InputGroupBase
 			className={cn(
-				"h-[34px] rounded-lg border-line2 bg-raise has-disabled:opacity-45 has-[[data-slot=input-group-control]:focus-visible]:border-fg3 has-[[data-slot=input-group-control]:focus-visible]:ring-foreground/8 has-[[data-slot][aria-invalid=true]]:border-err has-[[data-slot][aria-invalid=true]]:ring-0 has-[>[data-align=inline-start]]:[&>input]:pl-2 dark:bg-raise dark:has-[[data-slot][aria-invalid=true]]:ring-0",
+				"h-[34px] rounded-control border-line2 bg-raise has-disabled:opacity-45 has-[[data-slot=input-group-control]:focus-visible]:border-fg3 has-[[data-slot=input-group-control]:focus-visible]:ring-foreground/8 has-[[data-slot][aria-invalid=true]]:border-err has-[[data-slot][aria-invalid=true]]:ring-0 has-[>[data-align=inline-start]]:[&>input]:pl-2 dark:bg-raise dark:has-[[data-slot][aria-invalid=true]]:ring-0",
 				className,
 			)}
 			{...props}

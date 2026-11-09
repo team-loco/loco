@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseMode, resolveMode, toggledMode } from "./theme";
+import { parseColorTheme, parseMode, resolveMode, toggledMode } from "./theme";
 
 describe("theme mode", () => {
 	test("reads a stored explicit mode", () => {
@@ -36,5 +36,17 @@ describe("theme mode", () => {
 	test("toggling an explicit theme that matches the system stores the opposite", () => {
 		expect(toggledMode("dark", true)).toBe("light");
 		expect(toggledMode("light", false)).toBe("dark");
+	});
+});
+
+describe("colour theme", () => {
+	test("reads a stored colour theme", () => {
+		expect(parseColorTheme("gruvbox")).toBe("gruvbox");
+		expect(parseColorTheme("rose-pine")).toBe("rose-pine");
+	});
+
+	test("falls back to the Loco theme without a known stored theme", () => {
+		expect(parseColorTheme(null)).toBe("loco");
+		expect(parseColorTheme("github")).toBe("loco");
 	});
 });

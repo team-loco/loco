@@ -230,7 +230,7 @@ export function VariablesSection({
 		>
 			<div className="flex flex-col gap-2">
 				<span className="text-[13px] font-medium">Secrets</span>
-				<div className="overflow-hidden rounded-[10px] border border-line bg-background">
+				<div className="overflow-hidden rounded-card border border-line bg-background">
 					{secretsQuery.isLoading && (
 						<div className="flex flex-col gap-2 p-3.5">
 							<Skeleton className="h-9 w-full" />
@@ -322,7 +322,7 @@ export function VariablesSection({
 					Read-only here. They come from the <code className="font-mono">env</code> map of loco.yaml.
 				</span>
 				{plain.length > 0 && (
-					<div className="overflow-hidden rounded-[10px] border border-line bg-background">
+					<div className="overflow-hidden rounded-card border border-line bg-background">
 						{plain.map(([k, v]) => (
 							<div
 								key={k}

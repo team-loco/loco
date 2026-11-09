@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { accountBlockers } from "./account";
+import { AppearanceSection } from "./AppearanceSection";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
@@ -124,6 +125,8 @@ export function PersonalTab({
 					/>
 				</SettingsCard>
 			</SettingsSection>
+
+			<AppearanceSection />
 
 			<SettingsSection title="Access">
 				<SettingsCard>

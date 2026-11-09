@@ -204,7 +204,7 @@ export function SidePanel({
 
 	return (
 		<aside className="flex min-w-0 flex-col gap-3 min-[980px]:sticky min-[980px]:top-4">
-			<div className="flex flex-col gap-3.5 rounded-[10px] bg-panel px-5 py-[18px]">
+			<div className="flex flex-col gap-3.5 rounded-card bg-panel px-5 py-[18px]">
 				<div className="flex items-center justify-between gap-2.5">
 					<h2 className="m-0 text-[15px] font-medium">Summary</h2>
 					<span className="font-mono text-[12px] text-fg3">{env.name}</span>
@@ -263,7 +263,7 @@ export function SidePanel({
 					</div>
 				)}
 			</div>
-			<div className="flex flex-col gap-2.5 rounded-[10px] bg-panel px-5 py-[18px]">
+			<div className="flex flex-col gap-2.5 rounded-card bg-panel px-5 py-[18px]">
 				<h2 className="m-0 text-[15px] font-medium">loco.yaml</h2>
 				<p className="m-0 text-[12.5px] text-fg3">
 					The same resource as a <code className="font-mono">loco.yaml</code>. Save it next to your code and run:

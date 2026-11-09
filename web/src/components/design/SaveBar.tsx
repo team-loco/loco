@@ -31,7 +31,7 @@ function SaveBar({
 		</Button>
 	);
 	return (
-		<div className="sticky bottom-4 z-20 flex animate-in items-center gap-3 rounded-[10px] bg-primary py-2.5 pr-2.5 pl-4 text-[13px] text-primary-foreground shadow-bar duration-240 fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none">
+		<div className="sticky bottom-4 z-20 flex animate-in items-center gap-3 rounded-card bg-primary py-2.5 pr-2.5 pl-4 text-[13px] text-primary-foreground shadow-bar duration-240 fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none">
 			<span className="flex-1">{unsavedLabel(count)}</span>
 			<Button
 				variant="ghost"

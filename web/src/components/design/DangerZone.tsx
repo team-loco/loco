@@ -30,7 +30,7 @@ function DangerZone({
 		</Button>
 	);
 	return (
-		<section className="flex flex-wrap items-center justify-between gap-4 rounded-[10px] p-4 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--err)_35%,transparent)]">
+		<section className="flex flex-wrap items-center justify-between gap-4 rounded-card p-4 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--err)_35%,transparent)]">
 			<div className="flex min-w-0 flex-1 basis-60 flex-col gap-0.5">
 				<span className="text-[13.5px] font-medium">{title}</span>
 				{description !== undefined && (

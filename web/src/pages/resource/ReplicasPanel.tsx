@@ -102,10 +102,7 @@ export function ReplicasPanel({
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
 
 	return (
-		<section
-			aria-labelledby="replicas-title"
-			className="flex flex-col gap-4 rounded-[10px] bg-panel px-5 pt-[18px] pb-4"
-		>
+		<section aria-labelledby="replicas-title" className="flex flex-col gap-4 rounded-card bg-panel px-5 pt-[18px] pb-4">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="flex flex-wrap items-baseline gap-2.5">
 					<h2 id="replicas-title" className="m-0 text-[16px] font-medium tracking-[-0.01em]">

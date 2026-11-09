@@ -48,7 +48,7 @@ export function Section({
 	children?: ReactNode;
 }) {
 	return (
-		<section className={cn("min-w-0 rounded-[10px] bg-panel", className)}>
+		<section className={cn("min-w-0 rounded-card bg-panel", className)}>
 			{(title !== undefined || actions !== undefined) && (
 				<div className="flex flex-wrap items-center gap-3.5 px-5 pt-4 pb-3.5">
 					{title !== undefined && (

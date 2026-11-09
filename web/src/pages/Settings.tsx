@@ -140,7 +140,7 @@ export function Settings() {
 			</ToggleGroup>
 
 			{scope === "org" && orgError !== null && (
-				<div className="rounded-[10px] bg-panel px-5 py-8 text-fg3">{orgError}</div>
+				<div className="rounded-card bg-panel px-5 py-8 text-fg3">{orgError}</div>
 			)}
 			{((scopes.isLoading && scope !== "account") || (scope === "org" && orgError === null && !org)) && (
 				<SettingsSkeleton />
