@@ -1,15 +1,14 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { inviteOrgMember } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import { CheckIcon, CopyIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { CopyButton } from "@/components/design/CopyButton";
 import { Field } from "@/components/design/Field";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Textarea } from "@/components/design/Textarea";
-import { useCopy } from "@/hooks/useCopy";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -159,7 +158,6 @@ function InviteForm({
 }
 
 function OutcomeRow({ outcome }: { outcome: InviteOutcome }) {
-	const [copied, copy] = useCopy();
 	const invitation = outcome.kind === "invited" ? outcome.invitation : undefined;
 	const badge = invitation === undefined ? undefined : invitationBadge(invitation.status);
 	const link = invitation !== undefined && needsSharedLink(invitation.status) ? invitation.link : null;
@@ -205,16 +203,7 @@ function OutcomeRow({ outcome }: { outcome: InviteOutcome }) {
 				{link !== null && (
 					<span className="flex items-center gap-2">
 						<span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-fg3">{link}</span>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								copy("link", link);
-							}}
-						>
-							{copied === null ? <CopyIcon /> : <CheckIcon className="text-ok-fg" />}
-							{copied === null ? "Copy link" : "Copied"}
-						</Button>
+						<CopyButton text={link} label="Copy link" />
 					</span>
 				)}
 			</span>
