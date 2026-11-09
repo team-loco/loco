@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
+import { Navigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { Pager } from "@/components/design/Pager";
@@ -134,6 +135,12 @@ function TraceSession() {
 		if (key === "trace") return traces.slice(0, paging.page + 1).map((t) => [t.id, t.spans.length]);
 		return [];
 	};
+
+	if (openId !== "" && active !== undefined && params.get("env") === null) {
+		const pinned = new URLSearchParams(params);
+		pinned.set("env", active.name);
+		return <Navigate to={{ search: `?${pinned.toString()}` }} replace />;
+	}
 
 	const header = (
 		<ViewHeader
