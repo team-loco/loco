@@ -11,7 +11,6 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { NEW_SERVICE_PARAM, NEW_SERVICE_VALUE, resourcePath } from "@/lib/routes";
-import { ArchitectureDiagram, type DiagramService } from "@/pages/dashboard/ArchitectureDiagram";
 import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
 import { DraftDrawer } from "@/pages/dashboard/DraftDrawer";
 import { FirstServiceEmpty } from "@/pages/dashboard/FirstServiceEmpty";
@@ -24,22 +23,13 @@ import { useDashboardData } from "@/pages/dashboard/useDashboardData";
 
 function DashboardSkeleton() {
 	return (
-		<>
-			<Section title="Architecture">
-				<div className="flex flex-col gap-3.5 p-6">
-					<Skeleton className="h-[60px] w-[300px] self-end" />
-					<Skeleton className="h-[60px] w-[180px] self-center" />
-					<Skeleton className="h-[60px] w-[300px] self-end" />
-				</div>
-			</Section>
-			<Section title="Resources">
-				<div className="flex flex-col gap-2 p-4">
-					{Array.from({ length: 4 }, (_, i) => (
-						<Skeleton key={i} className="h-9 w-full" />
-					))}
-				</div>
-			</Section>
-		</>
+		<Section title="Resources">
+			<div className="flex flex-col gap-2 p-4">
+				{Array.from({ length: 4 }, (_, i) => (
+					<Skeleton key={i} className="h-9 w-full" />
+				))}
+			</div>
+		</Section>
 	);
 }
 
@@ -105,27 +95,6 @@ export function Dashboard() {
 		setNewOpen(false);
 		openDraft(id);
 	};
-
-	const services: DiagramService[] = [
-		...data.envResources.map((it) => ({
-			key: it.resource.id,
-			name: it.resource.name,
-			status: it.status,
-			domain: it.resource.domains.find((d) => d.isPrimary)?.domain ?? it.resource.domains[0]?.domain ?? null,
-			regions: it.regions.map((g) => ({ region: g.region, replicas: g.desired })),
-			href: hrefFor(it.resource.id),
-		})),
-		...visibleDrafts.map((d) => ({
-			key: d.id,
-			name: d.name,
-			status: "draft" as const,
-			domain: !isPrivate(d) && d.sub !== "" ? d.sub : null,
-			regions: [{ region: d.region, replicas: 0 }],
-			onOpen: () => {
-				openDraft(d.id);
-			},
-		})),
-	];
 
 	const otherSubs = new Set(
 		drafts.drafts.filter((d) => d.id !== openDraftId && !isPrivate(d)).map((d) => d.sub.trim()),
@@ -200,15 +169,18 @@ export function Dashboard() {
 				/>
 			) : (
 				<>
-					<ArchitectureDiagram services={services} regionOrder={data.regions.map((r) => r.region)} />
 					<ResourcesTable
 						key={active.id}
 						items={data.envResources}
+						drafts={visibleDrafts}
 						regions={data.regions}
 						orgId={orgId}
 						workspaceId={workspaceId}
+						environmentId={active.id}
 						envName={active.name}
 						nowMs={nowMs}
+						hrefFor={hrefFor}
+						onOpenDraft={openDraft}
 					/>
 					<RecentDeployments
 						deployments={data.envDeployments}

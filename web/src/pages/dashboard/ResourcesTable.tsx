@@ -1,53 +1,56 @@
 import { BoxIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
-import { ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
+import { Link, useSearchParams } from "react-router";
+import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
-import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { SearchInput } from "@/components/design/SearchInput";
+import { SoonTag } from "@/components/design/SoonTag";
+import { ResourceStatusBadge, StatusLabel } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { imageVersion } from "@/lib/image";
-import { pageSlice } from "@/lib/paging";
-import { resourcePath } from "@/lib/routes";
+import { usePagedRows } from "@/lib/paging";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
+import { ArchitectureDiagram } from "./ArchitectureDiagram";
+import type { Draft } from "./drafts";
 import { deploymentImage, statusRank } from "./format";
+import {
+	ALL,
+	draftRow,
+	filterRows,
+	resourceRow,
+	STATUS_FILTERS,
+	TYPE_FILTERS,
+	type ResourceRow,
+	type RowFilter,
+} from "./resourceRows";
 import { ResourceRowMenu } from "./ResourceRowMenu";
 import type { EnvResource } from "./useDashboardData";
 
 type SortKey = "name" | "status" | "regions" | "replicas" | "deploy";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZES = [25] as const;
+const MAX_PIPS = 8;
+const VIEW_PARAM = "view";
+const MAP_VIEW = "map";
+const TABLE_VIEW = "table";
 
-const STATUS_OPTIONS: { value: string; status: ResourceStatus; label: string }[] = [
-	{ value: "healthy", status: ResourceStatus.HEALTHY, label: "Healthy" },
-	{ value: "deploying", status: ResourceStatus.DEPLOYING, label: "Deploying" },
-	{ value: "degraded", status: ResourceStatus.DEGRADED, label: "Degraded" },
-	{ value: "unavailable", status: ResourceStatus.UNAVAILABLE, label: "Unavailable" },
-	{ value: "unknown", status: ResourceStatus.UNKNOWN, label: "Unknown" },
-];
-
-const TYPE_OPTIONS: { value: string; type: ResourceType; label: string }[] = [
-	{ value: "service", type: ResourceType.SERVICE, label: "Service" },
-	{ value: "database", type: ResourceType.DATABASE, label: "Database" },
-	{ value: "function", type: ResourceType.FUNCTION, label: "Function" },
-	{ value: "cache", type: ResourceType.CACHE, label: "Cache" },
-	{ value: "queue", type: ResourceType.QUEUE, label: "Queue" },
-	{ value: "blob", type: ResourceType.BLOB, label: "Blob" },
-];
-
-const HEADERS: { key: SortKey; label: string; className: string }[] = [
-	{ key: "name", label: "Name", className: "w-[22%] min-w-[160px]" },
-	{ key: "status", label: "Status", className: "w-[18%] min-w-[130px]" },
-	{ key: "regions", label: "Regions", className: "w-[110px]" },
-	{ key: "replicas", label: "Replicas", className: "w-[96px]" },
-	{ key: "deploy", label: "Last deployment", className: "min-w-[220px]" },
+const HEADERS: { key: SortKey | null; label: string; className: string; soon?: boolean }[] = [
+	{ key: "status", label: "Status", className: "w-[130px]" },
+	{ key: "name", label: "Resource", className: "" },
+	{ key: "regions", label: "Region", className: "w-[100px]" },
+	{ key: "replicas", label: "Replicas", className: "w-[110px]" },
+	{ key: null, label: "Traffic", className: "w-[90px]", soon: true },
+	{ key: null, label: "Last deploy", className: "" },
+	{ key: "deploy", label: "Deployed", className: "w-[84px] text-right [&>button]:ml-auto" },
 ];
 
 function compare(key: SortKey, a: EnvResource, b: EnvResource): number {
@@ -87,276 +90,377 @@ function statusNote(item: EnvResource): string {
 	}
 }
 
-function ReplicaCells({ desired, ready }: { desired: number; ready: number }) {
+function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: number; degraded: boolean }) {
 	return (
-		<div className="flex gap-0.5">
-			{Array.from({ length: desired }, (_, i) => (
+		<span className="flex gap-[3px]" aria-hidden="true">
+			{Array.from({ length: Math.min(desired, MAX_PIPS) }, (_, i) => (
 				<span
 					key={i}
 					className={cn(
-						"h-3.5 w-[7px] rounded-[2px] border",
-						i < ready ? "border-foreground bg-foreground" : "border-fg4 bg-background",
+						"h-3.5 w-1.5 rounded-[1.5px]",
+						i >= ready ? "ring-1 ring-line2 ring-inset" : degraded ? "bg-warn" : "bg-foreground",
 					)}
 				/>
 			))}
-		</div>
+		</span>
 	);
 }
 
-export function ResourcesTable({
-	items,
-	regions,
+function DataRow({
+	row,
+	hrefFor,
+	onOpenDraft,
 	orgId,
 	workspaceId,
 	envName,
 	nowMs,
 }: {
-	items: EnvResource[];
-	regions: RegionInfo[];
+	row: ResourceRow;
+	hrefFor: (id: string) => string;
+	onOpenDraft: (id: string) => void;
 	orgId: string;
 	workspaceId: string;
 	envName: string;
 	nowMs: number;
 }) {
-	const [query, setQuery] = useState("");
-	const [status, setStatus] = useState("all");
-	const [type, setType] = useState("all");
-	const [region, setRegion] = useState("all");
+	const it = row.item;
+	const nameClass = "truncate text-left text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline";
+	const note = it === undefined ? "" : statusNote(it);
+	const last = it?.last;
+	const message = last?.message ?? "";
+	const degraded = row.status === ResourceStatus.DEGRADED;
+	return (
+		<TableRow>
+			<TableCell>
+				<div className="flex min-w-0 flex-col items-start gap-[3px]">
+					{row.status === "draft" ? (
+						<StatusLabel glyph="draft" label="Draft" />
+					) : (
+						<ResourceStatusBadge status={row.status} />
+					)}
+					{note !== "" && (
+						<span title={note} className="max-w-full truncate text-[12px] text-fg3">
+							{note}
+						</span>
+					)}
+				</div>
+			</TableCell>
+			<TableCell>
+				<div className="flex min-w-0 flex-col gap-0.5">
+					{it === undefined ? (
+						<button
+							type="button"
+							className={nameClass}
+							onClick={() => {
+								onOpenDraft(row.key);
+							}}
+						>
+							{row.name}
+						</button>
+					) : (
+						<Link to={hrefFor(row.key)} className={nameClass}>
+							{row.name}
+						</Link>
+					)}
+					<span className="truncate text-[12.5px] text-fg3">{row.description}</span>
+				</div>
+			</TableCell>
+			<TableCell>
+				<div className="flex flex-col font-mono text-[12px] leading-[1.6] text-fg2">
+					{row.regions.map((g) => (
+						<span key={g.region}>{g.region}</span>
+					))}
+				</div>
+			</TableCell>
+			<TableCell>
+				{it === undefined ? (
+					<span className="text-fg4">—</span>
+				) : (
+					<div className="flex flex-col">
+						{row.regions.map((g) => (
+							<span key={g.region} className="flex h-[19px] items-center gap-2.5">
+								<ReplicaPips desired={g.desired} ready={g.ready} degraded={degraded} />
+								<span className="font-mono text-[12px] text-fg2 tabular-nums">
+									{g.ready.toString()}/{g.desired.toString()}
+								</span>
+							</span>
+						))}
+					</div>
+				)}
+			</TableCell>
+			<TableCell />
+			<TableCell>
+				{last === undefined ? (
+					<span className="text-fg4">—</span>
+				) : (
+					<div className="flex min-w-0 flex-col gap-0.5">
+						<span className="truncate font-mono text-[12px]">{imageVersion(deploymentImage(last))}</span>
+						<span className="truncate text-[12.5px] text-fg3">{message !== "" ? message : "Running"}</span>
+					</div>
+				)}
+			</TableCell>
+			<TableCell className="text-right font-mono text-[12px] whitespace-nowrap text-fg3">
+				{last === undefined ? "—" : agoLabel(tsMs(last.createdAt), nowMs)}
+			</TableCell>
+			<TableCell className="text-right">
+				{it !== undefined && (
+					<ResourceRowMenu resource={it.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
+				)}
+			</TableCell>
+		</TableRow>
+	);
+}
+
+export function ResourcesTable({
+	items,
+	drafts,
+	regions,
+	orgId,
+	workspaceId,
+	environmentId,
+	envName,
+	nowMs,
+	hrefFor,
+	onOpenDraft,
+}: {
+	items: EnvResource[];
+	drafts: Draft[];
+	regions: RegionInfo[];
+	orgId: string;
+	workspaceId: string;
+	environmentId: string;
+	envName: string;
+	nowMs: number;
+	hrefFor: (id: string) => string;
+	onOpenDraft: (id: string) => void;
+}) {
+	const [params, setParams] = useSearchParams();
+	const isMap = params.get(VIEW_PARAM) === MAP_VIEW;
+	const setView = (view: string) => {
+		const next = new URLSearchParams(params);
+		if (view === MAP_VIEW) next.set(VIEW_PARAM, MAP_VIEW);
+		else next.delete(VIEW_PARAM);
+		setParams(next, { replace: true });
+	};
+	const [filter, setFilter] = useState<RowFilter>({ status: ALL, type: ALL, region: ALL, query: "" });
 	const [sortKey, setSortKey] = useState<SortKey>("status");
 	const [sortDir, setSortDir] = useState(1);
-	const [page, setPage] = useState(0);
 
-	const q = query.trim().toLowerCase();
-	const statusFilter = STATUS_OPTIONS.find((o) => o.value === status);
-	const typeFilter = TYPE_OPTIONS.find((o) => o.value === type);
-	const visible = items
-		.filter(
-			(it) =>
-				(statusFilter === undefined || it.status === statusFilter.status) &&
-				(typeFilter === undefined || it.resource.type === typeFilter.type) &&
-				(region === "all" || it.regions.some((g) => g.region === region)) &&
-				(q === "" || it.resource.name.toLowerCase().includes(q)),
-		)
-		.toSorted((a, b) => compare(sortKey, a, b) * sortDir);
+	const sorted = items.toSorted((a, b) => compare(sortKey, a, b) * sortDir);
+	const allRows = [...sorted.map(resourceRow), ...drafts.map(draftRow)];
+	const visible = filterRows(allRows, filter);
+	const paged = usePagedRows(visible, PAGE_SIZES, `0 of ${allRows.length.toString()}`);
 
-	const { rows: pageItems, page: safePage, pages: pageCount } = pageSlice(visible, page, PAGE_SIZE);
-
-	const regionNames = new Set(regions.map((r) => r.region));
-	const statusCounts = new Map<ResourceStatus, number>();
+	const statusCounts = new Map<ResourceStatus | "draft", number>();
 	const typeCounts = new Map<ResourceType, number>();
 	const regionCounts = new Map<string, number>();
-	for (const it of items) {
-		statusCounts.set(it.status, (statusCounts.get(it.status) ?? 0) + 1);
-		typeCounts.set(it.resource.type, (typeCounts.get(it.resource.type) ?? 0) + 1);
-		const itemRegions = new Set(it.regions.map((g) => g.region));
-		for (const name of itemRegions) {
+	const regionNames = new Set(regions.map((r) => r.region));
+	for (const row of allRows) {
+		statusCounts.set(row.status, (statusCounts.get(row.status) ?? 0) + 1);
+		typeCounts.set(row.type, (typeCounts.get(row.type) ?? 0) + 1);
+		for (const name of new Set(row.regions.map((g) => g.region))) {
 			regionNames.add(name);
 			regionCounts.set(name, (regionCounts.get(name) ?? 0) + 1);
 		}
 	}
-
-	const statusOptions = [
-		{ value: "all", label: "All", count: items.length },
-		...STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: statusCounts.get(o.status) ?? 0 })),
-	];
 	const typeOptions = [
-		{ value: "all", label: "All", count: items.length },
-		...TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: typeCounts.get(o.type) ?? 0 })),
+		{ value: ALL, label: "All", count: allRows.length },
+		...TYPE_FILTERS.map((o) => ({ value: o.value, label: o.label, count: typeCounts.get(o.type) ?? 0 })),
 	];
 	const regionOptions = [
-		{ value: "all", label: "All", count: items.length },
+		{ value: ALL, label: "All", count: allRows.length },
 		...[...regionNames].map((name) => ({ value: name, label: name, count: regionCounts.get(name) ?? 0 })),
 	];
 
-	const hasFilters = status !== "all" || type !== "all" || region !== "all" || q !== "";
-	const resetPage =
-		<T,>(set: (v: T) => void) =>
-		(v: T) => {
-			set(v);
-			setPage(0);
-		};
-
+	const update = (patch: Partial<RowFilter>) => {
+		setFilter({ ...filter, ...patch });
+		paged.reset();
+	};
+	const hasFilters =
+		filter.status !== ALL || filter.type !== ALL || filter.region !== ALL || filter.query.trim() !== "";
 	const clearFilters = () => {
-		setStatus("all");
-		setType("all");
-		setRegion("all");
-		setQuery("");
-		setPage(0);
+		update({ status: ALL, type: ALL, region: ALL, query: "" });
 	};
 
-	const toolbar = (
+	const title = (
 		<>
-			<Input
-				value={query}
-				placeholder="Search"
-				className="w-60"
+			Resources
+			<Badge tone="count">{allRows.length}</Badge>
+		</>
+	);
+	const actions = (
+		<>
+			<SearchInput
+				value={filter.query}
+				placeholder="Search resources"
+				aria-label="Search resources"
+				className="w-full sm:w-[220px]"
 				onChange={(e) => {
-					setQuery(e.target.value);
-					setPage(0);
+					update({ query: e.target.value });
 				}}
 			/>
-			<FilterMenu label="Status" value={status} options={statusOptions} onChange={resetPage(setStatus)} />
-			<FilterMenu label="Type" value={type} options={typeOptions} onChange={resetPage(setType)} />
-			<FilterMenu label="Region" value={region} options={regionOptions} onChange={resetPage(setRegion)} />
-			{hasFilters && (
-				<Button variant="link" className="h-8 px-2" onClick={clearFilters}>
-					Clear filters
-				</Button>
-			)}
+			<ToggleGroup
+				variant="segmented"
+				aria-label="View"
+				value={[isMap ? MAP_VIEW : TABLE_VIEW]}
+				onValueChange={(v: string[]) => {
+					if (v[0] !== undefined) setView(v[0]);
+				}}
+			>
+				<ToggleGroupItem value={TABLE_VIEW}>Table</ToggleGroupItem>
+				<ToggleGroupItem value={MAP_VIEW}>Map</ToggleGroupItem>
+			</ToggleGroup>
 		</>
 	);
 
-	const rangeLabel =
-		visible.length > PAGE_SIZE
-			? `Showing ${(safePage * PAGE_SIZE + 1).toString()}–${(safePage * PAGE_SIZE + pageItems.length).toString()} of ${visible.length.toString()} resources`
-			: `Showing ${visible.length.toString()} of ${items.length.toString()} resources`;
+	const filters = (
+		<div className="flex flex-wrap items-center gap-2.5 px-5 pb-3">
+			<ToggleGroup
+				variant="segmented"
+				aria-label="Filter resources by status"
+				className="max-w-full overflow-x-auto"
+				value={[filter.status]}
+				onValueChange={(v: string[]) => {
+					if (v[0] !== undefined) update({ status: v[0] });
+				}}
+			>
+				<ToggleGroupItem value={ALL} count={allRows.length}>
+					All
+				</ToggleGroupItem>
+				{STATUS_FILTERS.map((o) => (
+					<ToggleGroupItem key={o.value} value={o.value} count={statusCounts.get(o.status) ?? 0}>
+						{o.label}
+					</ToggleGroupItem>
+				))}
+			</ToggleGroup>
+			<FilterMenu
+				label="Type"
+				value={filter.type}
+				options={typeOptions}
+				onChange={(type) => {
+					update({ type });
+				}}
+			/>
+			<FilterMenu
+				label="Region"
+				value={filter.region}
+				options={regionOptions}
+				onChange={(region) => {
+					update({ region });
+				}}
+			/>
+			{hasFilters && (
+				<Button variant="link" className="px-1" onClick={clearFilters}>
+					Clear filters
+				</Button>
+			)}
+		</div>
+	);
 
-	return (
-		<Section title="Resources" actions={toolbar}>
-			<Table className="min-w-[860px] table-fixed">
-				<TableHeader>
-					<TableRow>
-						{HEADERS.map((h) => {
-							const on = sortKey === h.key;
-							return (
-								<TableHead key={h.key} className={h.className}>
-									<button
-										type="button"
-										className="flex items-center gap-1 hover:text-foreground"
-										onClick={() => {
-											setSortDir(on ? -sortDir : 1);
-											setSortKey(h.key);
-										}}
-									>
-										{h.label}
-										<span className={cn("text-[10px]", on ? "text-foreground" : "text-transparent")}>
-											{on && sortDir === -1 ? "▼" : "▲"}
-										</span>
-									</button>
-								</TableHead>
-							);
-						})}
-						<TableHead className="w-12" />
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{pageItems.length === 0 && (
-						<TableRow>
-							<TableCell colSpan={6} className="h-auto p-0 whitespace-normal">
-								{items.length === 0 ? (
-									<EmptyState icon={<BoxIcon />} title={`No resources in ${envName} yet`} />
-								) : (
-									<EmptyState
-										icon={<SearchXIcon />}
-										title="No resources match"
-										query={query.trim()}
-										action={
-											<Button variant="outline" onClick={clearFilters}>
-												<XIcon />
-												Clear filters
-											</Button>
-										}
-									/>
-								)}
-							</TableCell>
-						</TableRow>
-					)}
-					{pageItems.map((it) => {
-						const { resource, last } = it;
-						const note = statusNote(it);
-						const tag = last !== undefined ? imageVersion(deploymentImage(last)) : "";
-						const message = last?.message ?? "";
-						return (
-							<TableRow key={resource.id}>
-								<TableCell>
-									<div className="flex min-w-0 flex-col gap-px">
-										<Link
-											to={resourcePath(orgId, workspaceId, resource.id)}
-											className="truncate text-[13.5px] font-medium text-foreground underline-offset-3 hover:underline"
-										>
-											{resource.name}
-										</Link>
-										<span className="truncate text-sm text-fg3">{resource.description ?? ""}</span>
-									</div>
-								</TableCell>
-								<TableCell>
-									<div className="flex min-w-0 flex-col items-start gap-[3px]">
-										<ResourceStatusBadge status={it.status} />
-										{note !== "" && <span className="max-w-full truncate text-sm text-fg3">{note}</span>}
-									</div>
-								</TableCell>
-								<TableCell>
-									<div className="flex flex-col gap-px text-[12.5px] text-fg2">
-										{it.regions.map((g) => (
-											<span key={g.region}>{g.region}</span>
-										))}
-									</div>
-								</TableCell>
-								<TableCell>
-									<div className="flex flex-col justify-center gap-[3px]">
-										{it.regions.map((g) => (
-											<div key={g.region} className="flex h-[15px] items-center gap-2">
-												<ReplicaCells desired={g.desired} ready={g.ready} />
-												<span className="text-sm text-fg3 tabular-nums">
-													{g.ready.toString()}/{g.desired.toString()}
-												</span>
-											</div>
-										))}
-									</div>
-								</TableCell>
-								<TableCell>
-									{last === undefined ? (
-										<span className="text-fg3">—</span>
-									) : (
-										<div className="flex min-w-0 flex-col gap-px">
-											<span className="truncate">
-												{tag} <span className="text-fg3">· {agoLabel(tsMs(last.createdAt), nowMs)}</span>
-											</span>
-											<span className={cn("truncate text-sm", message !== "" ? "text-fg2" : "text-fg3")}>
-												{message !== "" ? message : "Running"}
-											</span>
-										</div>
-									)}
-								</TableCell>
-								<TableCell className="text-right">
-									<ResourceRowMenu resource={resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
-								</TableCell>
-							</TableRow>
-						);
-					})}
-				</TableBody>
-			</Table>
-			<Pager
-				label={rangeLabel}
-				onFirst={
-					safePage > 0
-						? () => {
-								setPage(0);
-							}
-						: null
-				}
-				onPrev={
-					safePage > 0
-						? () => {
-								setPage(safePage - 1);
-							}
-						: null
-				}
-				onNext={
-					safePage < pageCount - 1
-						? () => {
-								setPage(safePage + 1);
-							}
-						: null
-				}
-				onLast={
-					safePage < pageCount - 1
-						? () => {
-								setPage(pageCount - 1);
-							}
-						: null
+	const empty =
+		allRows.length === 0 ? (
+			<EmptyState icon={<BoxIcon />} title={`No resources in ${envName} yet`} />
+		) : (
+			<EmptyState
+				icon={<SearchXIcon />}
+				title="No resources match"
+				query={filter.query.trim()}
+				action={
+					<Button variant="outline" onClick={clearFilters}>
+						<XIcon />
+						Clear filters
+					</Button>
 				}
 			/>
+		);
+
+	const toggleSort = (key: SortKey) => {
+		setSortDir(sortKey === key ? -sortDir : 1);
+		setSortKey(key);
+	};
+
+	return (
+		<Section title={title} actions={actions}>
+			{filters}
+			{isMap ? (
+				visible.length === 0 ? (
+					<div className="border-t border-line2">{empty}</div>
+				) : (
+					<ArchitectureDiagram
+						rows={visible}
+						regionOrder={regions.map((r) => r.region)}
+						environmentId={environmentId}
+						hrefFor={hrefFor}
+						onOpenDraft={onOpenDraft}
+						onShowTable={() => {
+							setView(TABLE_VIEW);
+						}}
+					/>
+				)
+			) : (
+				<>
+					<Table className="min-w-[820px] table-fixed">
+						<TableHeader>
+							<TableRow>
+								{HEADERS.map((h) => {
+									const key = h.key;
+									const on = key !== null && sortKey === key;
+									return (
+										<TableHead
+											key={h.label}
+											className={h.className}
+											aria-sort={on ? (sortDir === 1 ? "ascending" : "descending") : undefined}
+										>
+											{key === null ? (
+												<span className="flex items-center gap-2">
+													{h.label}
+													{h.soon === true && <SoonTag />}
+												</span>
+											) : (
+												<button
+													type="button"
+													className="flex items-center gap-1 hover:text-foreground"
+													onClick={() => {
+														toggleSort(key);
+													}}
+												>
+													{h.label}
+													<span className={cn("text-[10px]", on ? "text-foreground" : "text-transparent")}>
+														{on && sortDir === -1 ? "▼" : "▲"}
+													</span>
+												</button>
+											)}
+										</TableHead>
+									);
+								})}
+								<TableHead className="w-10" />
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{paged.rows.length === 0 && (
+								<TableRow>
+									<TableCell colSpan={HEADERS.length + 1} className="h-auto p-0 whitespace-normal">
+										{empty}
+									</TableCell>
+								</TableRow>
+							)}
+							{paged.rows.map((row) => (
+								<DataRow
+									key={row.key}
+									row={row}
+									hrefFor={hrefFor}
+									onOpenDraft={onOpenDraft}
+									orgId={orgId}
+									workspaceId={workspaceId}
+									envName={envName}
+									nowMs={nowMs}
+								/>
+							))}
+						</TableBody>
+					</Table>
+					<Pager {...paged.pager} {...paged.ends} />
+				</>
+			)}
 		</Section>
 	);
 }

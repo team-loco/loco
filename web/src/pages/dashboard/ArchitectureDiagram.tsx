@@ -1,208 +1,209 @@
-import { BoxIcon, GlobeIcon, RouterIcon, type LucideIcon } from "lucide-react";
+import { useQuery } from "@connectrpc/connect-query";
+import { GlobeIcon, ShieldCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
-import { Section } from "@/components/design/Page";
-import { ResourceStatusBadge, StatusLabel } from "@/components/design/StatusBadge";
+import { Button } from "@/components/design/Button";
+import { resourceStatusStyle } from "@/components/design/StatusBadge";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export interface DiagramService {
-	key: string;
-	name: string;
-	status: ResourceStatus | "draft";
-	domain: string | null;
-	regions: { region: string; replicas: number }[];
-	href?: string | undefined;
-	onOpen?: (() => void) | undefined;
+import { servedDomain } from "./drafts";
+import { mapLayout, type ResourceRow } from "./resourceRows";
+
+const GATEWAY_X = 196;
+const PUBLIC_X = 404;
+const EDGE_W = 160;
+const PUBLIC_W = 200;
+const CANVAS_W = PUBLIC_X + PUBLIC_W;
+
+const NODE =
+	"absolute flex flex-col justify-center gap-0.5 rounded-lg px-3 py-[9px] text-foreground no-underline hover:no-underline";
+const RESOURCE_NODE = cn(
+	NODE,
+	"bg-raise ring-1 ring-line2 hover:ring-fg3 focus-visible:ring-2 focus-visible:ring-ring",
+);
+const EDGE_NODE = cn(NODE, "bg-panel2");
+
+function curve(x1: number, y1: number, x2: number, y2: number): string {
+	const mx = (x1 + x2) / 2;
+	return `M${x1.toString()},${y1.toString()} C${mx.toString()},${y1.toString()} ${mx.toString()},${y2.toString()} ${x2.toString()},${y2.toString()}`;
 }
 
-const SX = 20;
-const GX = 220;
-const RX = 460;
-const W0 = 140;
-const W1 = 180;
-const W2 = 300;
-const H = 60;
-const GAP = 14;
-const PAD = 24;
-
-interface Edge {
-	x1: number;
-	y1: number;
-	x2: number;
-	y2: number;
-	dashed: boolean;
+function rowGlyph(row: ResourceRow) {
+	return <StatusGlyph glyph={row.status === "draft" ? "draft" : resourceStatusStyle(row.status).glyph} />;
 }
 
-function edgePath(e: Edge): string {
-	const mx = (e.x1 + e.x2) / 2;
-	return `M${e.x1.toString()},${e.y1.toString()} C${mx.toString()},${e.y1.toString()} ${mx.toString()},${e.y2.toString()} ${e.x2.toString()},${e.y2.toString()}`;
-}
-
-function isWarn(status: ResourceStatus | "draft"): boolean {
-	return status === ResourceStatus.DEGRADED || status === ResourceStatus.UNAVAILABLE;
-}
-
-function NodeBody({
-	icon: Icon,
-	title,
-	badge,
-	sub,
-}: {
-	icon: LucideIcon;
-	title: string;
-	badge?: ReactNode;
-	sub: string;
-}) {
+function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; sub: string; meta: string }) {
 	return (
 		<>
-			<span className="flex min-w-0 items-center gap-2">
-				<Icon className="size-[15px] shrink-0 text-fg3" />
-				<span className="flex-1 truncate font-semibold">{title}</span>
-				{badge}
+			<span className="flex min-w-0 items-center gap-2 text-[13px] font-medium">
+				{icon}
+				<span className="truncate font-mono">{title}</span>
 			</span>
-			<span className="truncate text-sm text-fg3">{sub}</span>
+			<span className="truncate font-mono text-[11.5px] text-fg3">{sub}</span>
+			{meta !== "" && <span className="truncate text-[11.5px] text-fg3">{meta}</span>}
 		</>
 	);
 }
 
-const nodeClass =
-	"absolute flex flex-col justify-center gap-1 rounded-lg border px-3 leading-[1.3] text-foreground no-underline hover:no-underline";
-
-export function ArchitectureDiagram({ services, regionOrder }: { services: DiagramService[]; regionOrder: string[] }) {
-	const legend = (
-		<div className="flex gap-4 text-sm text-fg3">
-			<span className="flex items-center gap-1.5">
-				<span className="w-5 border-t-2 border-fg4" />
-				public route
-			</span>
-			<span className="flex items-center gap-1.5">
-				<span className="w-5 border-t-2 border-dashed border-line2" />
-				internal only
-			</span>
-		</div>
-	);
-
-	const sorted = services.toSorted(
-		(a, b) =>
-			Number(a.status === "draft") - Number(b.status === "draft") ||
-			Number(a.domain === null) - Number(b.domain === null),
-	);
-	const sy = (i: number) => PAD + i * (H + GAP);
-	const svcY = new Map<string, number>();
-	sorted.forEach((s, i) => svcY.set(s.key, sy(i)));
-	const total = sorted.length === 0 ? 0 : sy(sorted.length - 1) + H + PAD;
-
-	const regionNames = new Set(regionOrder);
-	for (const s of sorted) {
-		for (const g of s.regions) regionNames.add(g.region);
-	}
-
-	const edges: Edge[] = [];
-	const gateways: { region: string; y: number; services: number; replicas: number }[] = [];
-	for (const region of regionNames) {
-		const mine = sorted.filter((s) => s.regions.some((g) => g.region === region));
-		if (mine.length === 0) continue;
-		const ys = mine.map((s) => (svcY.get(s.key) ?? 0) + H / 2);
-		const cy = ys.reduce((a, b) => a + b, 0) / ys.length;
-		const gy = Math.min(Math.max(cy - H / 2, PAD), total - PAD - H);
-		const replicas = mine.reduce(
-			(n, s) => n + s.regions.filter((g) => g.region === region).reduce((m, g) => m + g.replicas, 0),
-			0,
+function ResourceLink({
+	row,
+	hrefFor,
+	onOpenDraft,
+	className,
+	style,
+	children,
+}: {
+	row: ResourceRow;
+	hrefFor: (id: string) => string;
+	onOpenDraft: (id: string) => void;
+	className: string;
+	style?: React.CSSProperties;
+	children: ReactNode;
+}) {
+	if (row.status === "draft") {
+		return (
+			<button
+				type="button"
+				className={cn(className, "text-left ring-0 outline-1 outline-fg4 outline-dashed")}
+				style={style}
+				onClick={() => {
+					onOpenDraft(row.key);
+				}}
+			>
+				{children}
+			</button>
 		);
-		gateways.push({ region, y: gy, services: mine.length, replicas });
-		for (const s of mine) {
-			edges.push({
-				x1: GX + W1,
-				y1: gy + H / 2,
-				x2: RX,
-				y2: (svcY.get(s.key) ?? 0) + H / 2,
-				dashed: s.domain === null,
-			});
-		}
 	}
-	const iy = gateways.length > 0 ? gateways.reduce((a, g) => a + g.y, 0) / gateways.length : PAD;
-	for (const g of gateways) edges.push({ x1: SX + W0, y1: iy + H / 2, x2: GX, y2: g.y + H / 2, dashed: false });
+	return (
+		<Link to={hrefFor(row.key)} className={className} style={style}>
+			{children}
+		</Link>
+	);
+}
+
+export function ArchitectureDiagram({
+	rows,
+	regionOrder,
+	environmentId,
+	hrefFor,
+	onOpenDraft,
+	onShowTable,
+}: {
+	rows: ResourceRow[];
+	regionOrder: string[];
+	environmentId: string;
+	hrefFor: (id: string) => string;
+	onOpenDraft: (id: string) => void;
+	onShowTable: () => void;
+}) {
+	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
+	const platformDomains = domainsRes?.platformDomains ?? [];
+	const layout = mapLayout(rows, regionOrder);
+	const h = layout.nodeHeight;
+	const mid = (y: number) => y + h / 2;
+	const hasPublic = layout.publicNodes.length > 0;
+	const moreButton = (n: number, what: string) => (
+		<Button variant="link" className="self-start" onClick={onShowTable}>
+			{`${n.toString()} more ${what} in the table`}
+		</Button>
+	);
 
 	return (
-		<Section title="Architecture" actions={legend}>
-			{sorted.length === 0 ? (
-				<div className="flex flex-col items-center justify-center gap-3 rounded-b-xl bg-[radial-gradient(var(--line)_1px,transparent_1px)] bg-size-[16px_16px] px-4 py-14 text-center">
-					<span className="font-semibold">Nothing deployed here yet</span>
-					<span className="max-w-sm text-fg3">
-						Services you deploy to this environment show up here with their routes.
-					</span>
-				</div>
-			) : (
-				<div className="overflow-x-auto rounded-b-xl bg-[radial-gradient(var(--line)_1px,transparent_1px)] bg-size-[16px_16px]">
-					<div className="relative" style={{ height: total, width: RX + W2 + PAD }}>
-						<svg width={RX + W2 + PAD} height={total} className="pointer-events-none absolute top-0 left-0">
-							{edges.map((e, i) => (
-								<path
-									key={i}
-									d={edgePath(e)}
-									fill="none"
-									strokeWidth={1.5}
-									strokeDasharray={e.dashed ? "4 4" : undefined}
-									className={e.dashed ? "stroke-line2" : "stroke-fg4"}
-								/>
+		<div className="overflow-x-auto px-5 pt-2 pb-5">
+			<div className="flex w-max items-start gap-6">
+				{hasPublic && (
+					<div className="relative shrink-0" style={{ width: CANVAS_W, height: layout.height }}>
+						<svg
+							width={CANVAS_W}
+							height={layout.height}
+							aria-hidden="true"
+							className="pointer-events-none absolute inset-0 fill-none stroke-fg4 stroke-[1.5]"
+						>
+							{layout.gateways.map((g) => (
+								<path key={g.region} d={curve(EDGE_W, mid(layout.internetY), GATEWAY_X, mid(g.y))} />
+							))}
+							{layout.edges.map((e) => (
+								<path key={`${e.from}/${e.to}`} d={curve(GATEWAY_X + EDGE_W, mid(e.y1), PUBLIC_X, mid(e.y2))} />
 							))}
 						</svg>
-						<div className={cn(nodeClass, "border-line bg-bg2")} style={{ left: SX, top: iy, width: W0, height: H }}>
-							<NodeBody icon={GlobeIcon} title="Internet" sub="HTTPS · HTTP/3" />
+						<div className={EDGE_NODE} style={{ left: 0, top: layout.internetY, width: EDGE_W, height: h }}>
+							<NodeText
+								icon={<GlobeIcon className="size-[15px] shrink-0 text-fg3" />}
+								title="Internet"
+								sub="HTTPS · HTTP/3"
+								meta=""
+							/>
 						</div>
-						{gateways.map((g) => (
-							<div
-								key={g.region}
-								className={cn(nodeClass, "border-line bg-bg2")}
-								style={{ left: GX, top: g.y, width: W1, height: H }}
-							>
-								<NodeBody
-									icon={RouterIcon}
-									title={g.region}
-									sub={`${pluralize(g.services, "service")} · ${pluralize(g.replicas, "replica")} · Envoy`}
-								/>
-							</div>
-						))}
-						{sorted.map((s) => {
-							const isDraft = s.status === "draft";
-							const badge =
-								s.status === "draft" ? (
-									<StatusLabel glyph="draft" label="Draft" />
-								) : (
-									<ResourceStatusBadge status={s.status} />
-								);
-							const regionsText = s.regions.map((g) => g.region).join(", ");
-							const sub = isDraft ? `Not deployed · ${regionsText}` : (s.domain ?? `internal · ${regionsText}`);
-							const cls = cn(
-								nodeClass,
-								"hover:border-foreground",
-								isDraft
-									? "border-dashed border-line2 bg-bg2 opacity-75"
-									: isWarn(s.status)
-										? "border-warn-fg bg-background"
-										: "border-line bg-background",
-							);
-							const pos = { left: RX, top: svcY.get(s.key) ?? 0, width: W2, height: H };
-							const body = <NodeBody icon={BoxIcon} title={s.name} badge={badge} sub={sub} />;
-							if (s.onOpen !== undefined) {
-								return (
-									<button key={s.key} type="button" className={cn(cls, "text-left")} style={pos} onClick={s.onOpen}>
-										{body}
-									</button>
-								);
-							}
+						{layout.gateways.map((g) => {
+							const domain = servedDomain(platformDomains, g.region);
 							return (
-								<Link key={s.key} to={s.href ?? "#"} className={cls} style={pos}>
-									{body}
-								</Link>
+								<div
+									key={g.region}
+									className={EDGE_NODE}
+									style={{ left: GATEWAY_X, top: g.y, width: EDGE_W, height: h }}
+								>
+									<NodeText
+										icon={<ShieldCheckIcon className="size-[15px] shrink-0 text-fg3" />}
+										title={g.region}
+										sub={domain === "" ? "Gateway" : `*.${domain}`}
+										meta={`${pluralize(g.resources, "route")} · ${pluralize(g.replicas, "replica")}`}
+									/>
+								</div>
 							);
 						})}
+						{layout.publicNodes.map(({ row, y }) => (
+							<ResourceLink
+								key={row.key}
+								row={row}
+								hrefFor={hrefFor}
+								onOpenDraft={onOpenDraft}
+								className={RESOURCE_NODE}
+								style={{ left: PUBLIC_X, top: y, width: PUBLIC_W, height: h }}
+							>
+								<NodeText
+									icon={rowGlyph(row)}
+									title={row.name}
+									sub={row.domain ?? ""}
+									meta={row.regions.map((g) => g.region).join(" · ")}
+								/>
+							</ResourceLink>
+						))}
+						{layout.hiddenPublic > 0 && (
+							<div className="absolute flex items-center" style={{ left: PUBLIC_X, top: layout.moreY, height: h }}>
+								{moreButton(layout.hiddenPublic, "public")}
+							</div>
+						)}
 					</div>
-				</div>
-			)}
-		</Section>
+				)}
+				{layout.internal.length > 0 && (
+					<div className="flex w-[220px] shrink-0 flex-col gap-1 rounded-lg bg-panel2 p-2">
+						<span className="px-2 pt-1 pb-1.5 text-[12.5px] text-fg3">Internal only · no public route</span>
+						{layout.internal.map((row) => (
+							<ResourceLink
+								key={row.key}
+								row={row}
+								hrefFor={hrefFor}
+								onOpenDraft={onOpenDraft}
+								className="flex flex-col gap-0.5 rounded-md bg-raise px-2.5 py-2 text-foreground no-underline ring-1 ring-line2 hover:no-underline hover:ring-fg3"
+							>
+								<NodeText
+									icon={rowGlyph(row)}
+									title={row.name}
+									sub={row.regions.map((g) => g.region).join(" · ")}
+									meta=""
+								/>
+							</ResourceLink>
+						))}
+						{layout.hiddenInternal > 0 && (
+							<div className="px-2 py-1">{moreButton(layout.hiddenInternal, "internal")}</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
 	);
 }

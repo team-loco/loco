@@ -8,7 +8,7 @@ interface StatusStyle {
 	glyph: Glyph;
 }
 
-function resourceStatusStyle(status: ResourceStatus | undefined): StatusStyle {
+export function resourceStatusStyle(status: ResourceStatus | undefined): StatusStyle {
 	switch (status) {
 		case ResourceStatus.HEALTHY:
 			return { label: "Healthy", glyph: "ok" };
