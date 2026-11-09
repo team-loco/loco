@@ -1,22 +1,16 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import { CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
+import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { matchPath, useLocation, useNavigate } from "react-router";
+import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
+import { EnvironmentType } from "@gen/loco/environment/v1/environment_pb";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
-import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from "@/components/design/Breadcrumb";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/design/Breadcrumb";
 import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
@@ -34,37 +28,9 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-import { useSidebarPeek } from "./AppShell";
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 
 const WORKSPACE_ROUTE = "/org/:orgId/wks/:workspaceId/*";
-
-const STATIC_CRUMBS: readonly (readonly [string, string])[] = [
-	["/org/:orgId/wks/:workspaceId", "Overview"],
-	["/org/:orgId/wks/:workspaceId/settings", "Settings"],
-	["/org/:orgId/team", "Team"],
-	["/tokens", "Tokens"],
-	["/profile", "Profile"],
-	["/organizations", "Organizations"],
-];
-
-const OBSERVABILITY_CRUMBS = new Map([
-	["logs", "Logs"],
-	["metrics", "Metrics"],
-	["traces", "Traces"],
-	["events", "Events"],
-]);
-
-function staticCrumb(pathname: string, search: string): string | null {
-	if (matchPath("/org/:orgId/wks/:workspaceId/observability", pathname) !== null) {
-		const view = new URLSearchParams(search).get("view") ?? "logs";
-		return OBSERVABILITY_CRUMBS.get(view) ?? "Logs";
-	}
-	for (const [pattern, label] of STATIC_CRUMBS) {
-		if (matchPath(pattern, pathname) !== null) return label;
-	}
-	return null;
-}
 
 function switchWorkspacePath(pathname: string, search: string, orgId: string, workspaceId: string): string {
 	const rest = matchPath(WORKSPACE_ROUTE, pathname)?.params["*"] ?? "";
@@ -76,42 +42,34 @@ function switchWorkspacePath(pathname: string, search: string, orgId: string, wo
 }
 
 const TRIGGER =
-	"flex h-7 min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-md text-foreground outline-none transition-colors duration-150 ease-out hover:bg-bg3 focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-bg3";
+	"flex h-8 min-w-0 items-center gap-2 rounded-md px-2 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
 
 function Slash() {
-	return <BreadcrumbSeparator className="px-0.5 text-lg font-light text-line2">/</BreadcrumbSeparator>;
+	return <BreadcrumbSeparator className="px-0.5 text-fg4">/</BreadcrumbSeparator>;
 }
 
-function Initial({ name }: { name: string }) {
-	return (
-		<span className="flex size-[18px] shrink-0 items-center justify-center rounded-sm bg-bg3 text-[10px] font-semibold text-fg2">
-			{(name[0] ?? "?").toUpperCase()}
-		</span>
-	);
+function envDot(type: EnvironmentType): string {
+	switch (type) {
+		case EnvironmentType.PRODUCTION:
+			return "bg-info";
+		case EnvironmentType.STAGING:
+			return "bg-warn";
+		case EnvironmentType.UNSPECIFIED:
+			return "bg-fg4";
+	}
 }
 
-function CrumbMenu({
-	title,
-	label,
-	heading,
-	children,
-}: {
-	title: string;
-	label: string;
-	heading: string;
-	children: ReactNode;
-}) {
-	const peek = useSidebarPeek();
+function EnvSwitcher({ children, label }: { children: ReactNode; label: string }) {
 	return (
 		<BreadcrumbItem className="min-w-0">
-			<DropdownMenu onOpenChange={peek.lock}>
-				<DropdownMenuTrigger title={title} className={cn(TRIGGER, "max-w-[280px]")}>
+			<DropdownMenu>
+				<DropdownMenuTrigger title="Switch environment" className={cn(TRIGGER, "max-w-[220px]")}>
 					<span className="truncate">{label}</span>
-					<ChevronDownIcon className="size-3.5 shrink-0 text-fg4" />
+					<ChevronDownIcon className="size-3.5 shrink-0 text-fg3" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent className="w-[260px]" align="start">
+				<DropdownMenuContent className="w-[240px]" align="start">
 					<DropdownMenuGroup>
-						<DropdownMenuLabel>{heading}</DropdownMenuLabel>
+						<DropdownMenuLabel>Environments</DropdownMenuLabel>
 						{children}
 					</DropdownMenuGroup>
 				</DropdownMenuContent>
@@ -135,7 +93,6 @@ function ScopeSwitcher({
 }) {
 	const { pathname, search } = useLocation();
 	const navigate = useNavigate();
-	const peek = useSidebarPeek();
 	const transport = useTransport();
 	const { orgs, activeWorkspaceId } = useOrgWorkspace();
 	const { orgLevel } = useMyScopes();
@@ -155,20 +112,19 @@ function ScopeSwitcher({
 				open={open}
 				onOpenChange={(next: boolean) => {
 					setOpen(next);
-					peek.lock(next);
 				}}
 			>
-				<DropdownMenuTrigger title="Switch workspace" className={cn(TRIGGER, "max-w-[360px] text-fg2")}>
-					<span className="truncate">{org.name}</span>
+				<DropdownMenuTrigger title="Switch workspace" className={cn(TRIGGER, "max-w-[360px]")}>
+					<span className="truncate text-fg3">{org.name}</span>
 					{workspace !== undefined && (
 						<>
 							<span className="text-fg4">/</span>
-							<span className="truncate font-medium text-foreground">{workspace.name}</span>
+							<span className="truncate">{workspace.name}</span>
 						</>
 					)}
 					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent className="w-[264px]" align="start">
+				<DropdownMenuContent className="w-[248px]" align="start">
 					{orgs.map((o, i) => {
 						const orgWorkspaces = results[i]?.data?.workspaces ?? [];
 						const first = orgWorkspaces[0];
@@ -194,12 +150,10 @@ function ScopeSwitcher({
 								{orgWorkspaces.map((w) => (
 									<DropdownMenuItem
 										key={w.id}
-										className={cn(w.id === activeWorkspaceId && "bg-bg3")}
 										onClick={() => {
 											if (w.id !== activeWorkspaceId) void navigate(switchWorkspacePath(pathname, search, o.id, w.id));
 										}}
 									>
-										<Initial name={w.name} />
 										<span className="flex-1 truncate">{w.name}</span>
 										{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
 									</DropdownMenuItem>
@@ -226,6 +180,14 @@ function ScopeSwitcher({
 						<PlusIcon className="text-fg3" />
 						New organization
 					</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={() => {
+							go("/organizations");
+						}}
+					>
+						<Building2Icon className="text-fg3" />
+						Organizations
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</BreadcrumbItem>
@@ -233,18 +195,10 @@ function ScopeSwitcher({
 }
 
 export function ShellBreadcrumb() {
-	const { pathname, search } = useLocation();
+	const { pathname } = useLocation();
 	const { orgs, workspaces, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active: env, setActive: setEnv } = useEnvironments();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
-
-	const resourceId = matchPath("/org/:orgId/wks/:workspaceId/resource/:resourceId", pathname)?.params.resourceId ?? "";
-	const { data: resourceRes } = useQuery(
-		getResource,
-		{ key: { case: "resourceId", value: resourceId } },
-		{ enabled: resourceId !== "" },
-	);
-	const pageCrumb = resourceId !== "" ? resourceRes?.resource?.name : staticCrumb(pathname, search);
 
 	const org = orgs.find((o) => o.id === activeOrgId);
 	const scopes = useMyScopes();
@@ -266,8 +220,8 @@ export function ShellBreadcrumb() {
 	const showEnv = inWorkspace && !pathname.endsWith("/settings");
 
 	return (
-		<Breadcrumb className="min-w-0 overflow-hidden">
-			<BreadcrumbList className="gap-0 sm:gap-0">
+		<Breadcrumb className="min-w-0 flex-1 overflow-hidden">
+			<BreadcrumbList>
 				{org !== undefined && (
 					<ScopeSwitcher
 						org={org}
@@ -280,7 +234,7 @@ export function ShellBreadcrumb() {
 
 				{org === undefined && workspace !== undefined && (
 					<BreadcrumbItem className="min-w-0">
-						<span className="truncate px-2 text-fg2">
+						<span className="truncate px-2 font-mono text-[12.5px] text-fg3">
 							{workspace.orgName} / {workspace.name}
 						</span>
 					</BreadcrumbItem>
@@ -289,7 +243,7 @@ export function ShellBreadcrumb() {
 				{showEnv && env !== undefined && (
 					<>
 						{hasScopeCrumb && <Slash />}
-						<CrumbMenu title="Environment" heading="Environments" label={env.name}>
+						<EnvSwitcher label={env.name}>
 							{environments.map((e) => (
 								<DropdownMenuItem
 									key={e.id}
@@ -297,21 +251,25 @@ export function ShellBreadcrumb() {
 										setEnv(e);
 									}}
 								>
-									<span className="flex-1 truncate">{e.name}</span>
-									<span className="text-sm text-fg3">{environmentTypeLabel(e.type)}</span>
-									{e.id === env.id && <CheckIcon className="size-3.5" />}
+									<span aria-hidden className={cn("size-[7px] shrink-0 rounded-full", envDot(e.type))} />
+									<span className="flex-1 truncate font-mono text-[12.5px]">{e.name}</span>
+									<span className="font-mono text-[10.5px] text-fg3">{environmentTypeLabel(e.type)}</span>
+									<CheckIcon className={cn("size-3.5", e.id !== env.id && "invisible")} />
 								</DropdownMenuItem>
 							))}
-						</CrumbMenu>
-					</>
-				)}
-
-				{pageCrumb !== undefined && pageCrumb !== null && (
-					<>
-						{(hasScopeCrumb || (showEnv && env !== undefined)) && <Slash />}
-						<BreadcrumbItem className="min-w-0">
-							<BreadcrumbPage className="px-2 font-medium">{pageCrumb}</BreadcrumbPage>
-						</BreadcrumbItem>
+							{activeOrgId !== null && activeWorkspaceId !== null && (
+								<>
+									<DropdownMenuSeparator />
+									<DropdownMenuItem
+										render={<Link to={workspacePath(activeOrgId, activeWorkspaceId, "settings")} />}
+										className="text-[13px] text-fg2"
+									>
+										<SettingsIcon className="text-fg3" />
+										Manage environments
+									</DropdownMenuItem>
+								</>
+							)}
+						</EnvSwitcher>
 					</>
 				)}
 			</BreadcrumbList>

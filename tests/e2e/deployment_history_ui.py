@@ -155,7 +155,8 @@ with sync_playwright() as playwright:
                     assert len(older_requests) == 2 and older_requests[0] == older_requests[1] == failed[0]
                     page.screenshot(path=out / f"older-{case}.png", animations="disabled")
                     stage = "environment-switch"
-                    page.get_by_title("Environment", exact=True).click()
+                    environment_switcher = page.get_by_title("Switch environment", exact=True)
+                    environment_switcher.click()
                     page.get_by_role("menuitem", name="staging staging", exact=True).click()
                     expect(page).to_have_url(re.compile(r"[?&]env=staging"))
                     section = page.locator("section").filter(has=page.get_by_role("status").filter(has_text=re.compile(r"^\d+ (loaded|total)")))
@@ -170,7 +171,7 @@ with sync_playwright() as playwright:
                     expect(next_button).to_be_disabled()
                     assert any(request["method"] == "GetDeployment" and request["body"]["deploymentId"] == data["staging_release"] for request in requests)
                     page.screenshot(path=out / f"staging-{case}.png", animations="disabled")
-                    page.get_by_title("Environment", exact=True).click()
+                    environment_switcher.click()
                     page.get_by_role("menuitem", name="production production", exact=True).click()
                     expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
                     expect(section.get_by_text("Pilot release 151", exact=True)).to_have_count(0)

@@ -4,11 +4,11 @@ export function ClaimedOrgsBanner() {
 	const { claimedOrgs, dismissClaimedOrgs } = useAuth();
 	if (claimedOrgs.length === 0) return null;
 	return (
-		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+		<div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
 			<button
 				type="button"
 				onClick={dismissClaimedOrgs}
-				className="pointer-events-auto flex max-w-full flex-col gap-1 rounded-lg border border-info-fg bg-info-bg px-3.5 py-2.5 text-left text-base text-info-fg shadow-popover"
+				className="pointer-events-auto flex max-w-full flex-col gap-1 rounded-lg bg-primary px-3.5 py-2.5 text-left text-[13px] text-primary-foreground shadow-toast"
 			>
 				{claimedOrgs.map((org) => (
 					<span key={org.orgId}>

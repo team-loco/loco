@@ -1,6 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
@@ -9,7 +10,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
-import { resourcePath } from "@/lib/routes";
+import { NEW_SERVICE_PARAM, NEW_SERVICE_VALUE, resourcePath } from "@/lib/routes";
 import { ArchitectureDiagram, type DiagramService } from "@/pages/dashboard/ArchitectureDiagram";
 import { AttentionSection, buildAttention } from "@/pages/dashboard/AttentionSection";
 import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
@@ -53,7 +54,14 @@ export function Dashboard() {
 	const now = useNow(60_000);
 	const nowMs = now.getTime();
 
-	const [newOpen, setNewOpen] = useState(false);
+	const [params, setParams] = useSearchParams();
+	const newOpen = params.get(NEW_SERVICE_PARAM) === NEW_SERVICE_VALUE;
+	const setNewOpen = (open: boolean) => {
+		const next = new URLSearchParams(params);
+		if (open) next.set(NEW_SERVICE_PARAM, NEW_SERVICE_VALUE);
+		else next.delete(NEW_SERVICE_PARAM);
+		setParams(next, { replace: !open });
+	};
 	const [openDraftId, setOpenDraftId] = useState<string | null>(null);
 	const [drawerOpen, setDrawerOpen] = useState(false);
 

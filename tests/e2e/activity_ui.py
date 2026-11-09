@@ -193,10 +193,11 @@ with sync_playwright() as playwright:
                 if user == 'owner' and theme == 'light' and not narrow:
                     page.goto(origin + base + '/resource/' + activity['resourceId'])
                     page.get_by_role('heading', name='Activity', exact=True).wait_for()
-                    page.get_by_title('Environment', exact=True).click()
+                    environment_switcher = page.get_by_title('Switch environment', exact=True)
+                    environment_switcher.click()
                     page.get_by_role('menuitem', name='staging', exact=False).click()
                     page.keyboard.press('Escape')
-                    expect(page.get_by_title('Environment', exact=True)).to_contain_text('staging')
+                    expect(environment_switcher).to_contain_text('staging')
                     assert 'env=staging' in page.url
                     page.get_by_title('Switch workspace', exact=True).click()
                     page.get_by_role('menuitem', name='sibling', exact=False).click()

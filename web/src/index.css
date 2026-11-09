@@ -103,11 +103,11 @@
 	--color-input: var(--line);
 	--color-ring: var(--fg4);
 
-	--color-sidebar: var(--bg);
+	--color-sidebar: var(--shell);
 	--color-sidebar-foreground: var(--fg);
 	--color-sidebar-primary: var(--fg);
 	--color-sidebar-primary-foreground: var(--bg);
-	--color-sidebar-accent: var(--panel2);
+	--color-sidebar-accent: var(--shell-hover);
 	--color-sidebar-accent-foreground: var(--fg);
 	--color-sidebar-border: var(--line);
 	--color-sidebar-ring: var(--fg4);
@@ -241,11 +241,11 @@
 	--border: var(--line);
 	--input: var(--line);
 	--ring: var(--fg4);
-	--sidebar: var(--bg);
+	--sidebar: var(--shell);
 	--sidebar-foreground: var(--fg);
 	--sidebar-primary: var(--fg);
 	--sidebar-primary-foreground: var(--bg);
-	--sidebar-accent: var(--panel2);
+	--sidebar-accent: var(--shell-hover);
 	--sidebar-accent-foreground: var(--fg);
 	--sidebar-border: var(--line);
 	--sidebar-ring: var(--fg4);
