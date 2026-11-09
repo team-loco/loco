@@ -11021,9 +11021,44 @@
           "scopeVersion": {
             "type": "string",
             "title": "scope_version"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.TraceSpanEvent"
+            },
+            "title": "events",
+            "description": "Events recorded during the span in emission order; an exception carries\n exception.type, exception.message and exception.stacktrace attributes."
           }
         },
         "title": "TraceSpan",
+        "additionalProperties": false
+      },
+      "loco.observability.v1.TraceSpanEvent": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "timestamp": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "timestamp"
+          },
+          "attributes": {
+            "type": "object",
+            "title": "attributes",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          }
+        },
+        "title": "TraceSpanEvent",
         "additionalProperties": false
       },
       "loco.org.v1.CreateOrgRequest": {

@@ -49,7 +49,8 @@ func buildTracesQuery(
 	args = append(args, limit+pageLookahead)
 	query := "SELECT Timestamp, TraceId, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, " +
 		"Duration, StatusCode, StatusMessage, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes, " +
-		"SpanAttributes, ScopeName, ScopeVersion, _block_number, _block_offset FROM otel_traces WHERE " + strings.Join(
+		"SpanAttributes, ScopeName, ScopeVersion, Events.Timestamp, Events.Name, Events.Attributes, " +
+		"_block_number, _block_offset FROM otel_traces WHERE " + strings.Join(
 		where,
 		" AND ",
 	) + " ORDER BY Timestamp ASC, _block_number ASC, _block_offset ASC LIMIT ?"
@@ -76,6 +77,9 @@ func (c *Client) QueryTraces(
 		span := &observabilityv1.TraceSpan{}
 		var timestamp time.Time
 		var position partPosition
+		var eventTimes []time.Time
+		var eventNames []string
+		var eventAttributes []map[string]string
 		if err := rows.Scan(
 			&timestamp,
 			&span.TraceId,
@@ -94,6 +98,9 @@ func (c *Client) QueryTraces(
 			&span.SpanAttributes,
 			&span.ScopeName,
 			&span.ScopeVersion,
+			&eventTimes,
+			&eventNames,
+			&eventAttributes,
 			&position.blockNumber,
 			&position.blockOffset,
 		); err != nil {
@@ -104,6 +111,7 @@ func (c *Client) QueryTraces(
 			break
 		}
 		span.StartTime = timestamppb.New(timestamp)
+		span.Events = spanEvents(eventTimes, eventNames, eventAttributes)
 		response.Spans = append(response.Spans, span)
 		position.timestamp = timestamp
 		last = position
@@ -112,4 +120,17 @@ func (c *Client) QueryTraces(
 		return nil, fmt.Errorf("trace rows iteration: %w", err)
 	}
 	return response, nil
+}
+
+// spanEvents zips the Events nested columns, whose arrays ClickHouse keeps equal in length.
+func spanEvents(times []time.Time, names []string, attributes []map[string]string) []*observabilityv1.TraceSpanEvent {
+	events := make([]*observabilityv1.TraceSpanEvent, len(names))
+	for i, name := range names {
+		events[i] = &observabilityv1.TraceSpanEvent{
+			Name:       name,
+			Timestamp:  timestamppb.New(times[i]),
+			Attributes: attributes[i],
+		}
+	}
+	return events
 }
