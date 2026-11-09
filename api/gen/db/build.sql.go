@@ -205,7 +205,7 @@ WHERE id IN (
   LIMIT $3
 )
   AND status = 'awaiting_upload'
-RETURNING id
+RETURNING id, resource_id
 `
 
 type ExpireAwaitingUploadBuildsParams struct {
@@ -214,58 +214,21 @@ type ExpireAwaitingUploadBuildsParams struct {
 	MaxBuilds     int32     `json:"maxBuilds"`
 }
 
-func (q *Queries) ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]uuid.UUID, error) {
+type ExpireAwaitingUploadBuildsRow struct {
+	ID         uuid.UUID `json:"id"`
+	ResourceID uuid.UUID `json:"resourceId"`
+}
+
+func (q *Queries) ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]ExpireAwaitingUploadBuildsRow, error) {
 	rows, err := q.db.Query(ctx, expireAwaitingUploadBuilds, arg.Message, arg.CreatedBefore, arg.MaxBuilds)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []uuid.UUID
+	var items []ExpireAwaitingUploadBuildsRow
 	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const failMissingClusterBuilds = `-- name: FailMissingClusterBuilds :many
-UPDATE builds
-SET status = 'failed',
-    message = $1,
-    finished_at = NOW()
-WHERE cluster_id = $2
-  AND status = 'running'
-  AND NOT (id = ANY($3::uuid[]))
-RETURNING id, source_key
-`
-
-type FailMissingClusterBuildsParams struct {
-	Message   string      `json:"message"`
-	ClusterID *uuid.UUID  `json:"clusterId"`
-	Held      []uuid.UUID `json:"held"`
-}
-
-type FailMissingClusterBuildsRow struct {
-	ID        uuid.UUID `json:"id"`
-	SourceKey string    `json:"sourceKey"`
-}
-
-func (q *Queries) FailMissingClusterBuilds(ctx context.Context, arg FailMissingClusterBuildsParams) ([]FailMissingClusterBuildsRow, error) {
-	rows, err := q.db.Query(ctx, failMissingClusterBuilds, arg.Message, arg.ClusterID, arg.Held)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []FailMissingClusterBuildsRow
-	for rows.Next() {
-		var i FailMissingClusterBuildsRow
-		if err := rows.Scan(&i.ID, &i.SourceKey); err != nil {
+		var i ExpireAwaitingUploadBuildsRow
+		if err := rows.Scan(&i.ID, &i.ResourceID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -276,36 +239,45 @@ func (q *Queries) FailMissingClusterBuilds(ctx context.Context, arg FailMissingC
 	return items, nil
 }
 
-const failQueuedClusterBuilds = `-- name: FailQueuedClusterBuilds :many
+const failClusterBuilds = `-- name: FailClusterBuilds :many
 UPDATE builds
 SET status = 'failed',
     message = $1,
     finished_at = NOW()
 WHERE cluster_id = $2
-  AND status = 'queued'
-RETURNING id, source_key
+  AND status = $3
+  AND NOT (id = ANY($4::uuid[]))
+RETURNING id, source_key, resource_id
 `
 
-type FailQueuedClusterBuildsParams struct {
-	Message   string     `json:"message"`
-	ClusterID *uuid.UUID `json:"clusterId"`
+type FailClusterBuildsParams struct {
+	Message        string      `json:"message"`
+	ClusterID      *uuid.UUID  `json:"clusterId"`
+	PreviousStatus BuildStatus `json:"previousStatus"`
+	Held           []uuid.UUID `json:"held"`
 }
 
-type FailQueuedClusterBuildsRow struct {
-	ID        uuid.UUID `json:"id"`
-	SourceKey string    `json:"sourceKey"`
+type FailClusterBuildsRow struct {
+	ID         uuid.UUID `json:"id"`
+	SourceKey  string    `json:"sourceKey"`
+	ResourceID uuid.UUID `json:"resourceId"`
 }
 
-func (q *Queries) FailQueuedClusterBuilds(ctx context.Context, arg FailQueuedClusterBuildsParams) ([]FailQueuedClusterBuildsRow, error) {
-	rows, err := q.db.Query(ctx, failQueuedClusterBuilds, arg.Message, arg.ClusterID)
+func (q *Queries) FailClusterBuilds(ctx context.Context, arg FailClusterBuildsParams) ([]FailClusterBuildsRow, error) {
+	rows, err := q.db.Query(ctx, failClusterBuilds,
+		arg.Message,
+		arg.ClusterID,
+		arg.PreviousStatus,
+		arg.Held,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []FailQueuedClusterBuildsRow
+	var items []FailClusterBuildsRow
 	for rows.Next() {
-		var i FailQueuedClusterBuildsRow
-		if err := rows.Scan(&i.ID, &i.SourceKey); err != nil {
+		var i FailClusterBuildsRow
+		if err := rows.Scan(&i.ID, &i.SourceKey, &i.ResourceID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -326,7 +298,7 @@ SET status = $1,
 WHERE id = $5
   AND cluster_id = $6
   AND status IN ('queued', 'running')
-RETURNING id, source_key
+RETURNING id, source_key, resource_id
 `
 
 type FinishBuildParams struct {
@@ -339,8 +311,9 @@ type FinishBuildParams struct {
 }
 
 type FinishBuildRow struct {
-	ID        uuid.UUID `json:"id"`
-	SourceKey string    `json:"sourceKey"`
+	ID         uuid.UUID `json:"id"`
+	SourceKey  string    `json:"sourceKey"`
+	ResourceID uuid.UUID `json:"resourceId"`
 }
 
 func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error) {
@@ -353,7 +326,7 @@ func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (Finis
 		arg.ClusterID,
 	)
 	var i FinishBuildRow
-	err := row.Scan(&i.ID, &i.SourceKey)
+	err := row.Scan(&i.ID, &i.SourceKey, &i.ResourceID)
 	return i, err
 }
 

@@ -1,13 +1,13 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -202,6 +202,10 @@ func TestBuildStatusMovesTheBuildThroughItsPhases(t *testing.T) {
 		t.Fatalf("late failure: %v", err)
 	}
 	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED)
+	if err := session.handleBuildStatus(f.ctx, succeeded); err != nil {
+		t.Fatalf("replayed success: %v", err)
+	}
+	f.wantBuildOutcome(t, id, events.BuildSucceeded, events.FieldImageDigest, testImageDigest)
 	if msgs := sent.take(); len(msgs) != 0 {
 		t.Fatalf("sent %v in response to statuses of a build the cluster finished", msgs)
 	}
@@ -220,6 +224,7 @@ func TestSucceededWithoutADigestFailsTheBuild(t *testing.T) {
 	if build.GetMessage() != buildMissingDigestMessage {
 		t.Fatalf("message = %q", build.GetMessage())
 	}
+	f.wantBuildOutcome(t, id, events.BuildFailed, events.FieldMessage, buildMissingDigestMessage)
 }
 
 func TestFailedAndCanceledStatusesRecordTheMessage(t *testing.T) {
@@ -237,6 +242,11 @@ func TestFailedAndCanceledStatusesRecordTheMessage(t *testing.T) {
 	if build.GetMessage() != "build exited with 1" || build.GetFinishedAt() == nil {
 		t.Fatalf("failed build message %q finished %v", build.GetMessage(), build.GetFinishedAt())
 	}
+
+	if err := session.handleBuildStatus(f.ctx, failed); err != nil {
+		t.Fatalf("replayed failure: %v", err)
+	}
+	f.wantBuildOutcome(t, failedID, events.BuildFailed, events.FieldMessage, buildFailedMessage)
 
 	canceledID := f.queued(t)
 	canceled := buildStatus(canceledID, agentv1.BuildPhase_BUILD_PHASE_CANCELED)
@@ -448,6 +458,7 @@ func TestInventoryRecoversBuildsAfterAReconnect(t *testing.T) {
 	if starts := startedBuilds(sent.take()); len(starts) != 1 || starts[0].GetBuildId() != queued {
 		t.Fatalf("started %v, want the queued build resent once the cluster lost it", starts)
 	}
+	f.wantBuildOutcome(t, lost, events.BuildFailed, events.FieldMessage, buildMissingMessage)
 }
 
 func TestSyncStreamDeliversQueuedAndCanceledBuilds(t *testing.T) {
@@ -496,26 +507,9 @@ func TestBuildDispatchWithoutASourceBucketSendsNothing(t *testing.T) {
 	}
 }
 
-type failingFinish struct {
-	genDb.Querier
-	failures int
-}
-
-func (q *failingFinish) FinishBuild(ctx context.Context, arg genDb.FinishBuildParams) (genDb.FinishBuildRow, error) {
-	if q.failures > 0 {
-		q.failures--
-		return genDb.FinishBuildRow{}, errInjectedWrite
-	}
-	return q.Querier.FinishBuild(ctx, arg)
-}
-
 func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 	f := newBuildFixture(t)
-	flaky := &failingFinish{Querier: f.queries, failures: 1}
-	serverConfig := testAgentConfig()
-	server := NewAgentServer(f.pool, flaky, nil, f.bucket, nil, testHeartbeatInterval, serverConfig)
-	sent := &sentMessages{}
-	session := newSyncSession(server, f.clusterID, sent.send)
+	session, sent := f.dispatchSession()
 	id := f.queued(t)
 	if err := session.sendPending(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
@@ -527,16 +521,28 @@ func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 
 	succeeded := buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
 	succeeded.ImageDigest = testImageDigest
-	err := session.handleBuildStatus(f.ctx, succeeded)
-	if !errors.Is(err, errInjectedWrite) {
-		t.Fatalf("handleBuildStatus with a failed write = %v, want the write error so the stream re-syncs", err)
+	if _, err := f.pool.Exec(f.ctx, failEventInsertsSQL); err != nil {
+		t.Fatalf("install failing trigger: %v", err)
+	}
+	if err := session.handleBuildStatus(
+		f.ctx,
+		succeeded,
+	); err == nil ||
+		!strings.Contains(err.Error(), "event store unavailable") {
+		t.Fatalf("handleBuildStatus with a failed event write = %v, want the write error so the stream re-syncs", err)
 	}
 	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_RUNNING)
 	if _, held := session.builds.active[uuid.MustParse(id)]; !held {
 		t.Fatal("the build left the active set before its terminal status was stored")
 	}
 
-	resynced := newSyncSession(server, f.clusterID, sent.send)
+	if f.bucket.wasDeleted(sourceKeyFor(id)) {
+		t.Fatal("source deleted before the build outcome committed")
+	}
+	if _, err := f.pool.Exec(f.ctx, "DROP TRIGGER fail_event_insert ON events"); err != nil {
+		t.Fatalf("drop failing trigger: %v", err)
+	}
+	resynced := newSyncSession(session.server, f.clusterID, sent.send)
 	inventory := []*agentv1.InventoryBuild{{BuildId: id, Phase: agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED}}
 	if err := resynced.reconcileBuildInventory(f.ctx, inventory); err != nil {
 		t.Fatalf("reconcile inventory: %v", err)
@@ -549,4 +555,5 @@ func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 	if build.GetImageDigest() != testImageDigest {
 		t.Fatalf("image digest = %q, want %q", build.GetImageDigest(), testImageDigest)
 	}
+	f.wantBuildOutcome(t, id, events.BuildSucceeded, events.FieldImageDigest, testImageDigest)
 }

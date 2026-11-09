@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
 
@@ -101,7 +102,11 @@ func TestSweepExpiresAbandonedUploads(t *testing.T) {
 	if result.Expired != 2 {
 		t.Fatalf("expired %d builds, want 2", result.Expired)
 	}
+	if result := f.sweep(t); result.Expired != 0 {
+		t.Fatalf("expired %d builds on retry, want 0", result.Expired)
+	}
 	for _, id := range []string{waitingID, uploadedID} {
+		f.wantBuildOutcome(t, id, events.BuildFailed, events.FieldMessage, sourceUploadExpired)
 		build := f.get(t, id)
 		wantStatus(t, build, buildv1.BuildStatus_BUILD_STATUS_FAILED)
 		if msg := build.GetMessage(); msg != sourceUploadExpired {

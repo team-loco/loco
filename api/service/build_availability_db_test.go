@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/events"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
@@ -126,6 +127,10 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 	if !f.bucket.wasDeleted(sourceKeyFor(id)) {
 		t.Fatal("the failed build's source was not deleted")
 	}
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending again: %v", err)
+	}
+	f.wantBuildOutcome(t, id, events.BuildFailed, events.FieldMessage, buildsDisabledMessage)
 }
 
 func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) {
