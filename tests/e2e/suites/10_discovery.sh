@@ -18,7 +18,7 @@ discovery_second_workspace=""
 
 discovery_failures_before=$E2E_FAIL
 
-discovery_diagnostics() {
+suite_diagnostics() {
     local status=$1
     if [ "$status" -ne 0 ] || [ "$E2E_FAIL" -gt "$discovery_failures_before" ]; then
         python3 "$E2E_ROOT_DIR/tests/e2e/discovery_diagnostics.py" \
@@ -26,10 +26,7 @@ discovery_diagnostics() {
             --namespace "$discovery_namespace" --namespace "${E2E_WORKSPACE_PREFIX}${discovery_second_workspace}" \
             --output "$E2E_ROOT_DIR/tests/e2e/out/discovery/$E2E_RUN_ID" || true
     fi
-    return "$status"
 }
-
-trap 'discovery_diagnostics "$?"' EXIT
 
 dk() {
     kubectl --context "$discovery_ctx" "$@"
