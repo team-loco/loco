@@ -28,10 +28,6 @@ test_binaries_report_their_build_version() {
         grep "starting observability proxy" "$E2E_LOG_DIR/obs-proxy.log"
 }
 
-agent_heartbeat_recorded() {
-    test "$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")" = "t"
-}
-
 test_agent_heartbeat() {
     wait_for "the agent's first heartbeat" 30 agent_heartbeat_recorded || true
 

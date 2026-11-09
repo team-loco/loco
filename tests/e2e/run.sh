@@ -917,6 +917,10 @@ agent_registered() {
     test "$(e2e_psql "SELECT EXISTS (SELECT 1 FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}' AND agent_version = '${E2E_VERSION}' AND sync_generation > ${E2E_PREVIOUS_SYNC_GENERATION})")" = t
 }
 
+agent_heartbeat_recorded() {
+    test "$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")" = t
+}
+
 start_agent() {
     log_step "Starting Agent..."
 
@@ -1005,52 +1009,124 @@ start_obs_proxy() {
 
 # ─── Test Runner ────────────────────────────────────────────────────────────
 
+select_suites() {
+    local file name filter matched
+    local files=() names=()
+    local filters=(${TEST_FILTERS[@]+"${TEST_FILTERS[@]}"})
+    for file in "$SCRIPT_DIR"/suites/*.sh; do
+        [ -f "$file" ] || continue
+        files+=("$file")
+    done
+    if [ ${#files[@]} -eq 0 ]; then
+        log_error "No e2e suites found in $SCRIPT_DIR/suites"
+        return 1
+    fi
+
+    for filter in ${filters[@]+"${filters[@]}"}; do
+        matched=false
+        for file in "${files[@]}"; do
+            name=${file##*/}
+            if [ -n "$filter" ] && suite_selected "${name%.sh}" "$filter"; then
+                matched=true
+                break
+            fi
+        done
+        if [ "$matched" = false ]; then
+            log_error "No e2e suite matches suite filter '$filter'"
+            return 1
+        fi
+    done
+
+    # Cluster attachment exercises an enrolled cluster with a running workload.
+    if [ "${#filters[@]}" -gt 0 ] && suite_selected 09_cluster_attachment "${filters[@]}"; then
+        filters+=(01_agent_lifecycle)
+    fi
+
+    SELECTED_SUITES=()
+    for file in "${files[@]}"; do
+        name=${file##*/}
+        name=${name%.sh}
+        if suite_selected "$name" ${filters[@]+"${filters[@]}"}; then
+            SELECTED_SUITES+=("$file")
+            names+=("$name")
+        fi
+    done
+    log_info "Selected e2e suites: ${names[*]}"
+}
+
+suite_cases() (
+    # With extdebug, declare -F reports the file that defined each function.
+    shopt -s extdebug
+    local name line file
+    while read -r name; do
+        read -r name line file <<<"$(declare -F "$name")"
+        if [ "$file" = "$1" ]; then
+            printf '%s\n' "$name"
+        fi
+    done < <(compgen -A function test_)
+)
+
+record_suite_result() {
+    local status=$1
+    if [ "$status" -ne 0 ]; then
+        log_error "${test_case} failed (exit ${status})"
+        if [ "$E2E_FAIL" -eq "$failures_before" ]; then
+            E2E_FAIL=$((E2E_FAIL + 1))
+        fi
+    fi
+    if declare -F suite_diagnostics >/dev/null; then
+        suite_diagnostics "$status"
+    fi
+    printf '%s %s %s\n' "$E2E_PASS" "$E2E_FAIL" "$E2E_SKIP" >"$suite_counts_file"
+}
+
+run_suite() (
+    # Cases share state within the suite. Call each directly so errexit applies.
+    set -e
+    local file=$1 name=$2 cases
+    # EXIT runs after Bash unwinds the function's locals.
+    test_case="$name setup"
+    failures_before=$E2E_FAIL
+    suite_counts_file=$3
+    trap 'record_suite_result "$?"' EXIT
+    source "$file"
+
+    if [ -n "${E2E_SKIP_REASON:-}" ]; then
+        log_warn "Skipping ${name}: ${E2E_SKIP_REASON}"
+        E2E_SKIP=$((E2E_SKIP + 1))
+        return 0
+    fi
+
+    cases=$(suite_cases "$file")
+    if [ -z "$cases" ]; then
+        log_error "No test cases defined in ${name}"
+        return 1
+    fi
+    for test_case in $cases; do
+        failures_before=$E2E_FAIL
+        log_info "  ${test_case}..."
+        "$test_case"
+    done
+)
+
 run_tests() {
     log_step "Running e2e tests..."
     echo ""
 
-    local test_files=("$SCRIPT_DIR"/suites/*.sh)
+    local test_file test_name
     local counts_file="$LOG_DIR/counts"
-    if [ ${#test_files[@]} -eq 0 ]; then
-        log_warn "No test files found in tests/e2e/suites/"
-        return 0
-    fi
-
-    for test_file in "${test_files[@]}"; do
-        [ -f "$test_file" ] || continue
-        local test_name
-        test_name="$(basename "$test_file" .sh)"
-
-        if ! suite_selected "$test_name" ${TEST_FILTERS[@]+"${TEST_FILTERS[@]}"}; then
-            log_info "Skipping ${test_name} (filtered)"
-            continue
-        fi
-
+    for test_file in "${SELECTED_SUITES[@]}"; do
+        test_name=${test_file##*/}
+        test_name=${test_name%.sh}
         echo "────────────────────────────────────────"
         log_step "Running: ${test_name}"
         echo "────────────────────────────────────────"
 
-        # Source the test file and run all test_ functions
-        (
-            source "$test_file"
-
-            if [ -n "${E2E_SKIP_REASON:-}" ]; then
-                log_warn "Skipping ${test_name}: ${E2E_SKIP_REASON}"
-                E2E_SKIP=$((E2E_SKIP + 1))
-            else
-                # Find and run all test_ functions
-                local funcs
-                funcs=$(declare -F | awk '{print $3}' | grep '^test_' || true)
-                for func in $funcs; do
-                    log_info "  ${func}..."
-                    if ! "$func"; then
-                        log_error "  ${func} had failures"
-                    fi
-                done
-            fi
-
-            echo "$E2E_PASS $E2E_FAIL $E2E_SKIP" > "$counts_file"
-        )
+        # A conditional call would disable errexit inside the suite as well.
+        rm -f "$counts_file"
+        set +e
+        run_suite "$test_file" "$test_name" "$counts_file"
+        set -e
         read -r E2E_PASS E2E_FAIL E2E_SKIP < "$counts_file"
 
         echo ""
@@ -1078,6 +1154,7 @@ main() {
     echo ""
     log_info "Run ${RUN_ID}: cluster ${KIND_CLUSTER_NAME}, compose project ${E2E_COMPOSE_PROJECT}, state in ${RUN_DIR}"
 
+    select_suites
     trap on_exit EXIT
 
     export E2E_BUILDS_ENABLED="$BUILDS_ENABLED"

@@ -1,9 +1,11 @@
 import json
 import os
+import shlex
 import subprocess
 from pathlib import Path
 
 import discovery_diagnostics as diagnostics
+from test_run import run_harness_functions
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -68,20 +70,33 @@ def failure_environment(tmp_path):
     executable.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$DIAGNOSTIC_ARGS"\nexit 7\n')
     executable.chmod(0o755)
     arguments = tmp_path / "args"
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "DIAGNOSTIC_ARGS": str(arguments),
-           "E2E_ROOT_DIR": str(ROOT), "E2E_KIND_CLUSTER": "fixture", "E2E_BUILD_WORK_DIR": str(tmp_path),
-           "E2E_RUN_ID": "fixture", "E2E_WORKSPACE_PREFIX": "loco-ws-", "KUBECONFIG_FILE": str(tmp_path / "private-kubeconfig")}
+    env = os.environ | {
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "DIAGNOSTIC_ARGS": str(arguments),
+        "E2E_RUN_ID": "fixture",
+    }
     return env, arguments
+
+
+def run_discovery_fixture(tmp_path, env, commands, *, summary=False):
+    fixture = tmp_path / "discovery.sh"
+    counts = shlex.quote(str(tmp_path / "counts"))
+    discovery_suite = shlex.quote(str(ROOT / "tests/e2e/suites/10_discovery.sh"))
+    fixture.write_text(f"source {discovery_suite}\ntest_fixture() {{\n{commands}\n}}\n")
+    script = f'E2E_KIND_CLUSTER=fixture\nrun_suite {shlex.quote(str(fixture))} discovery {counts}\n'
+    if summary:
+        script += f'read -r E2E_PASS E2E_FAIL E2E_SKIP < {counts}\nprint_summary\n'
+    return run_harness_functions(script, env=env)
 
 
 def test_discovery_failure_trap_preserves_original_exit_even_when_collection_fails(tmp_path):
     env, arguments = failure_environment(tmp_path)
-    script = f'''source "{ROOT}/tests/e2e/lib.sh"
-source "{ROOT}/tests/e2e/suites/10_discovery.sh"
-assert_contains "first workspace FQDN" workspace-one sh -c 'echo "curl: (6) Timeout while contacting DNS servers" >&2; exit 6' || true
-exit 23
-'''
-    result = subprocess.run(["bash", "-eu", "-c", script], env=env, capture_output=True, text=True)
+    result = run_discovery_fixture(
+        tmp_path,
+        env,
+        """assert_contains "first workspace FQDN" workspace-one sh -c 'echo "curl: (6) Timeout while contacting DNS servers" >&2; exit 6' || true
+exit 23""",
+    )
     assert result.returncode == 23
     assert "Timeout while contacting DNS servers" in result.stdout
     args = arguments.read_text().splitlines()
@@ -89,32 +104,25 @@ exit 23
     assert args.count("--namespace") == 2
     assert "--context" in args and "kind-fixture" in args
     arguments.unlink()
-    success = f'source "{ROOT}/tests/e2e/lib.sh"\nsource "{ROOT}/tests/e2e/suites/10_discovery.sh"\nexit 0\n'
-    assert subprocess.run(["bash", "-eu", "-c", success], env=env, capture_output=True).returncode == 0
+    assert run_discovery_fixture(tmp_path, env, "true").returncode == 0
     assert not arguments.exists()
 
 
 def test_uncaught_failure_collects_before_any_assertion_changes_counts(tmp_path):
     env, arguments = failure_environment(tmp_path)
-    result = subprocess.run(["bash", "-eu", "-c", f'source "{ROOT}/tests/e2e/lib.sh"\nsource "{ROOT}/tests/e2e/suites/10_discovery.sh"\nexit 19\n'],
-                            env=env, capture_output=True)
+    result = run_discovery_fixture(tmp_path, env, "exit 19")
     assert result.returncode == 19
     assert arguments.exists()
 
 
 def test_suite_subshell_writes_failed_counts_and_preserves_parent_failure(tmp_path):
     env, arguments = failure_environment(tmp_path)
-    counts = tmp_path / "counts"
-    script = f'''source "{ROOT}/tests/e2e/lib.sh"
-(
-    source "{ROOT}/tests/e2e/suites/10_discovery.sh"
-    assert_contains "first workspace FQDN" workspace-one sh -c 'echo "curl: (6) Timeout while contacting DNS servers" >&2; exit 6' || true
-    echo "$E2E_PASS $E2E_FAIL $E2E_SKIP" > "{counts}"
-)
-read -r E2E_PASS E2E_FAIL E2E_SKIP < "{counts}"
-[ "$E2E_FAIL" -eq 0 ]
-'''
-    result = subprocess.run(["bash", "-eu", "-c", script], env=env, capture_output=True)
+    result = run_discovery_fixture(
+        tmp_path,
+        env,
+        'assert "first workspace FQDN" false || true',
+        summary=True,
+    )
     assert result.returncode == 1
-    assert counts.read_text().strip() == "0 1 0"
+    assert (tmp_path / "counts").read_text().strip() == "0 1 0"
     assert arguments.exists()

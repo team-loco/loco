@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-source "$SCRIPT_DIR/suites/01_agent_lifecycle.sh"
-
 cluster_admin_code() {
     curl -s -o /dev/null -w '%{http_code}' \
         -H 'Content-Type: application/json' -H "Authorization: Bearer $3" \
