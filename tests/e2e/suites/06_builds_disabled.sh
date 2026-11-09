@@ -108,6 +108,16 @@ test_n06_workspace_api_token_deploys_without_a_session() {
         return 1
     fi
 
+    local list_request get_request listed found
+    list_request=$(printf '{"entityType":"ENTITY_TYPE_WORKSPACE","entityId":"%s"}' "$cli_workspace_id")
+    get_request=$(printf '{"name":"e2e-cli-deploy","entityType":"ENTITY_TYPE_WORKSPACE","entityId":"%s"}' "$cli_workspace_id")
+    listed=$(e2e_api loco.token.v1.TokenService/ListTokens "$list_request") || return 1
+    found=$(e2e_api loco.token.v1.TokenService/GetToken "$get_request") || return 1
+    assert "ListTokens reports the workspace token's creator" test \
+        "$(yq -p json -r '.tokens[] | select(.name == "e2e-cli-deploy") | .createdBy' <<<"$listed")" = "$cli_user_id"
+    assert "GetToken reports the workspace token's creator" test \
+        "$(yq -p json -r '.token.createdBy' <<<"$found")" = "$cli_user_id"
+
     local rc=0
     (cd "$token_dir" && cli_home="$token_home" LOCO_TOKEN="$token" loco_cli deploy --yes \
         --org "$cli_org_id" --workspace "$cli_workspace_id" --env "$E2E_ENVIRONMENT_ID") \

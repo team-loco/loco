@@ -547,7 +547,8 @@ func (q *Queries) SetLockTimeout(ctx context.Context, timeout string) error {
 }
 
 const upsertSecrets = `-- name: UpsertSecrets :exec
-INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version, updated_by_type, updated_by_id)
+INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version,
+                     updated_by_type, updated_by_id, created_by_type, created_by_id)
 SELECT $1,
        $2,
        unnest($3::text[]),
@@ -555,6 +556,8 @@ SELECT $1,
        unnest($5::bytea[]),
        unnest($6::bytea[]),
        unnest($7::smallint[]),
+       $8,
+       $9,
        $8,
        $9
 ON CONFLICT (resource_id, environment_id, name) DO UPDATE

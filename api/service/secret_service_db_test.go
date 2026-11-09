@@ -845,6 +845,22 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 		t.Fatalf("secret.set actor = %s %s, want the workspace", actorType, actorID)
 	}
 
+	f.set(t, server, map[string]string{stripeKey: "rotated-value"})
+	var creatorType, updaterType string
+	var creatorID, updaterID uuid.UUID
+	const attribution = `SELECT created_by_type, created_by_id, updated_by_type, updated_by_id
+FROM secrets WHERE resource_id = $1 AND environment_id = $2 AND name = $3`
+	if scanErr := f.pool.QueryRow(t.Context(), attribution, f.resourceID, f.environmentID, stripeKey).
+		Scan(&creatorType, &creatorID, &updaterType, &updaterID); scanErr != nil {
+		t.Fatalf("secret attribution: %v", scanErr)
+	}
+	if creatorType != workspaceType || creatorID != f.workspaceID {
+		t.Fatalf("secret creator = %s %s, want the workspace", creatorType, creatorID)
+	}
+	if updaterType != string(genDb.EntityTypeUser) || updaterID != f.ownerID {
+		t.Fatalf("secret updater = %s %s, want the user", updaterType, updaterID)
+	}
+
 	_, err = server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
 		ResourceId: resourceID, EnvironmentId: environmentID, Names: []string{stripeKey},
 	})

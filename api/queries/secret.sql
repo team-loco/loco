@@ -55,7 +55,8 @@ WHERE resource_id = $1 AND environment_id = $2 AND name = ANY(sqlc.arg(names)::t
 ORDER BY name;
 
 -- name: UpsertSecrets :exec
-INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version, updated_by_type, updated_by_id)
+INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version,
+                     updated_by_type, updated_by_id, created_by_type, created_by_id)
 SELECT sqlc.arg(resource_id),
        sqlc.arg(environment_id),
        unnest(sqlc.arg(names)::text[]),
@@ -63,6 +64,8 @@ SELECT sqlc.arg(resource_id),
        unnest(sqlc.arg(nonces)::bytea[]),
        unnest(sqlc.arg(ciphertexts)::bytea[]),
        unnest(sqlc.arg(format_versions)::smallint[]),
+       sqlc.arg(updated_by_type),
+       sqlc.arg(updated_by_id),
        sqlc.arg(updated_by_type),
        sqlc.arg(updated_by_id)
 ON CONFLICT (resource_id, environment_id, name) DO UPDATE
