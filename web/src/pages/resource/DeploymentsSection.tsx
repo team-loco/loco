@@ -11,7 +11,6 @@ import { Pager } from "@/components/design/Pager";
 import { SoonTag } from "@/components/design/SoonTag";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
-import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { pageRangeLabel, pageSlice } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
@@ -22,7 +21,6 @@ import { formatDuration, formatFullTime, shortId } from "./format";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
 import { specChanges } from "./spec";
 
-const CLOCK_TICK_MS = 60_000;
 const BASE_COLUMNS = 7;
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -124,6 +122,7 @@ export function DeploymentsSection({
 	logsHref,
 	onRollback,
 	onViewSpec,
+	nowMs,
 }: {
 	regions: RegionView[];
 	hasMore: boolean;
@@ -133,8 +132,8 @@ export function DeploymentsSection({
 	logsHref: string | undefined;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 	onViewSpec: (dep: Deployment) => void;
+	nowMs: number;
 }) {
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const [pagination, setPagination] = useState({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [open, setOpen] = useState<string | null>(null);
 	const { page, size } = pagination;

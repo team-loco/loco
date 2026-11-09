@@ -6,7 +6,6 @@ import { SoonTag } from "@/components/design/SoonTag";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useNow } from "@/hooks/useNow";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +15,6 @@ import { isDeployed, type RegionView } from "./model";
 import { replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
-const CLOCK_TICK_MS = 60_000;
 const UNSUPPORTED_RANGE = "7d";
 const PERCENT = 100;
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
@@ -82,6 +80,7 @@ export function ReplicasPanel({
 	onRange,
 	markers,
 	metricsHref,
+	nowMs,
 }: {
 	workspaceId: string;
 	environmentId: string;
@@ -94,8 +93,8 @@ export function ReplicasPanel({
 	onRange: (range: MetricRange) => void;
 	markers: number[];
 	metricsHref: string | undefined;
+	nowMs: number;
 }) {
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const deployed = regions.filter(isDeployed);
 	const region = selected ?? "";
 	const target = { workspaceId, environmentId, resourceId, region, range };

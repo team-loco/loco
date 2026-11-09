@@ -5,7 +5,6 @@ import type { Event } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
-import { useNow } from "@/hooks/useNow";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { agoLabel, formatClock, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -15,7 +14,6 @@ import { shortId } from "./format";
 import { depTag, startedMs, type RegionProblem, type RegionView } from "./model";
 import { specChanges } from "./spec";
 
-const CLOCK_TICK_MS = 60_000;
 const LOG_LINES = 6;
 const POD_LABEL = "k8s.pod.name";
 const ERROR_LEVEL = "ERROR";
@@ -99,6 +97,7 @@ export function IncidentCard({
 	resourceId,
 	logsHref,
 	onRollback,
+	nowMs,
 }: {
 	problem: RegionProblem;
 	region: RegionView;
@@ -110,8 +109,8 @@ export function IncidentCard({
 	resourceId: string;
 	logsHref: string | undefined;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+	nowMs: number;
 }) {
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const status = region.status;
 	const current = region.current;
 	const reportedMs = maybeTsMs(status?.reportedAt);

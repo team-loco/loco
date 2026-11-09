@@ -249,6 +249,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	return (
 		<Page className="gap-5">
 			<ResourceHeader
+				nowMs={nowMs}
 				resource={resource}
 				environment={environment}
 				regions={regions}
@@ -296,6 +297,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				<div className="flex flex-col gap-5">
 					{problem !== undefined && problemRegion !== undefined && environmentId !== undefined && (
 						<IncidentCard
+							nowMs={nowMs}
 							problem={problem}
 							region={problemRegion}
 							lastGood={lastGoodDeployment(problemRegion)}
@@ -311,6 +313,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					<RolloutProgress regions={regions} />
 					{deployed.length > 0 && environmentId !== undefined ? (
 						<ReplicasPanel
+							nowMs={nowMs}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
@@ -343,6 +346,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						</p>
 					</Section>
 					<DeploymentsSection
+						nowMs={nowMs}
 						regions={regions}
 						hasMore={hasMoreHistory}
 						isLoadingMore={isLoadingMoreHistory}
@@ -377,6 +381,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			)}
 
 			<EventsDrawer
+				nowMs={nowMs}
 				open={eventsOpen}
 				onOpenChange={setEventsOpen}
 				tab={eventsTab}

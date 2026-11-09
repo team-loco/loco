@@ -7,7 +7,6 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 import { ActivityPanel } from "@/pages/settings/ActivityPanel";
@@ -16,8 +15,6 @@ import { isWarning } from "./events";
 import { formatFullTime } from "./format";
 
 export type EventsTab = "all" | "warnings" | "activity";
-
-const CLOCK_TICK_MS = 60_000;
 
 const TABS: { value: EventsTab; label: string }[] = [
 	{ value: "all", label: "All" },
@@ -30,13 +27,14 @@ function EventList({
 	warningsOnly,
 	isLoading,
 	error,
+	nowMs,
 }: {
 	events: Event[];
 	warningsOnly: boolean;
 	isLoading: boolean;
 	error: unknown;
+	nowMs: number;
 }) {
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	if (isLoading) {
 		return (
 			<div className="flex flex-col gap-2">
@@ -104,6 +102,7 @@ export function EventsDrawer({
 	isLoading,
 	error,
 	eventsHref,
+	nowMs,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -117,6 +116,7 @@ export function EventsDrawer({
 	isLoading: boolean;
 	error: unknown;
 	eventsHref: string | undefined;
+	nowMs: number;
 }) {
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
@@ -154,7 +154,13 @@ export function EventsDrawer({
 							names={new Map([[resourceId, resourceName]])}
 						/>
 					) : (
-						<EventList events={events} warningsOnly={tab === "warnings"} isLoading={isLoading} error={error} />
+						<EventList
+							nowMs={nowMs}
+							events={events}
+							warningsOnly={tab === "warnings"}
+							isLoading={isLoading}
+							error={error}
+						/>
 					)}
 				</SheetBody>
 				{eventsHref !== undefined && (

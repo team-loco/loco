@@ -28,13 +28,10 @@ import { PartialBadge } from "@/components/design/PartialBadge";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
-import { useNow } from "@/hooks/useNow";
 import { shortImageRef } from "@/lib/image";
 import { agoLabel } from "@/lib/time";
 
 import { depImage, depTag, isDeployed, startedMs, type RegionView } from "./model";
-
-const CLOCK_TICK_MS = 60_000;
 
 interface SwitcherItem {
 	id: string;
@@ -86,6 +83,7 @@ export function ResourceHeader({
 	onViewSpec,
 	onCopyImage,
 	onDelete,
+	nowMs,
 }: {
 	resource: Resource;
 	environment: EnvironmentStatus | undefined;
@@ -104,8 +102,8 @@ export function ResourceHeader({
 	onViewSpec: () => void;
 	onCopyImage: () => void;
 	onDelete: () => void;
+	nowMs: number;
 }) {
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const deployed = regions.filter(isDeployed);
 	const primary = deployed[0]?.current;
 	const image = depImage(primary);
