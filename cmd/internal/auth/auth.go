@@ -39,11 +39,10 @@ func GetCurrentLocoToken(cmd *cobra.Command) (*keychain.UserToken, error) {
 	return FreshToken(ctx, apiHost, store)
 }
 
-// Login is the API host a command talks to, the logged-in token and the clients built from them.
+// Login holds the clients for an authenticated command.
 type Login struct {
-	Host    string
-	Token   string
-	Clients *rpc.Clients
+	Clients  *rpc.Clients
+	APIToken bool
 }
 
 // ResolveLogin resolves the host and the logged-in token.
@@ -56,7 +55,7 @@ func ResolveLogin(cmd *cobra.Command) (Login, error) {
 	if err != nil {
 		return Login{}, err
 	}
-	return Login{Host: apiHost, Token: locoToken.Token, Clients: rpc.ForHost(apiHost, locoToken.Token)}, nil
+	return Login{Clients: rpc.ForHost(apiHost, locoToken.Token)}, nil
 }
 
 func FreshToken(ctx context.Context, apiHost string, store keychain.TokenStore) (*keychain.UserToken, error) {

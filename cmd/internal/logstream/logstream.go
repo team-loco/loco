@@ -39,9 +39,7 @@ func BuildFilter(workspaceID, buildID string) Filter {
 type Emit func(entry *observabilityv1.LogEntry) error
 
 type Client struct {
-	URL       string
-	Token     string
-	NewClient func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient
+	Proxy observabilityv1connect.ObservabilityProxyServiceClient
 }
 
 type Window struct {
@@ -102,7 +100,6 @@ func (c *Client) query(
 	start, end time.Time,
 	limit int32,
 ) ([]*observabilityv1.LogEntry, error) {
-	client := c.NewClient(c.URL, c.Token)
 	order := observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST
 	size := int32(pageSize)
 	if limit > 0 {
@@ -125,7 +122,7 @@ func (c *Client) query(
 			Order:       order,
 		}
 
-		resp, err := client.QueryLogs(ctx, req)
+		resp, err := c.Proxy.QueryLogs(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("query logs: %w", err)
 		}
@@ -139,7 +136,6 @@ func (c *Client) query(
 }
 
 func (c *Client) Tail(ctx context.Context, filter Filter, since time.Time, emit Emit) error {
-	client := c.NewClient(c.URL, c.Token)
 	seen := newOverlap(since)
 	for {
 		start := timestamppb.New(seen.latest)
@@ -150,7 +146,7 @@ func (c *Client) Tail(ctx context.Context, filter Filter, since time.Time, emit 
 			Since:       start,
 		}
 
-		stream, err := client.TailLogs(ctx, req)
+		stream, err := c.Proxy.TailLogs(ctx, req)
 		if err != nil {
 			return tailError(ctx, err)
 		}
@@ -252,4 +248,8 @@ func compareEntries(a, b *observabilityv1.LogEntry) int {
 
 func stopped(ctx context.Context) bool {
 	return ctx.Err() != nil
+}
+
+func TrimNewline(body string) string {
+	return strings.TrimRight(body, "\r\n")
 }

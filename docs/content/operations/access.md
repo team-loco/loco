@@ -25,7 +25,25 @@ A user joins an organization only by accepting an invitation. An organization ad
 
 `WorkspaceService.CreateMember` grants `read`, `write` or `admin` on one workspace, and the dashboard's Team page calls it. It fails with `FailedPrecondition` for a user who is not a member of the workspace's organization; invite them to the organization first.
 
-A member sees the workspaces they hold `read` on, plus every workspace of an organization they hold `read` on. `loco use`, `--org` with `--workspace`, and the dashboard's workspace switcher all list that set.
+A member sees the workspaces they hold `read` on, plus every workspace of an organization they hold `read` on. With a user session, `loco use`, `--org` with `--workspace`, and the dashboard's workspace switcher use that set.
+
+## Deploy from CI with an API token
+
+Use a scoped API token to run `loco infra plan`, `loco infra apply` and `loco deploy` from a clean CI runner. Create a token on the dashboard's Tokens page and select **Read** on the target workspace for planning or **Write** for applying and deploying. The dashboard's **Write** level grants both scopes. If you create the token with `loco token create` or the API, specify both `read` and `write` for deployments so the CLI can resolve the workspace and plan before it applies.
+
+Set `LOCO_TOKEN` from your CI secret store. Set `LOCO_HOST` to the HTTPS API URL of the instance that issued the token. Supply the organization name or ID and the workspace ID explicitly:
+
+```sh
+export LOCO_HOST=https://api.loco.build
+export LOCO_ORG=my-org
+export LOCO_WORKSPACE=0199b6c4-5d1e-7f00-8000-000000000001
+export LOCO_ENV=production
+
+loco infra plan
+loco deploy --yes
+```
+
+Use `--org` and `--workspace` to override the corresponding environment variables, and `--env` to choose an environment by name or ID. A `--host` flag must match `LOCO_HOST` so a token cannot follow a host override. A set `LOCO_TOKEN` takes precedence over saved credentials. An empty value fails. Unset the variable to use the local session. If the API rejects an expired or revoked token, replace the CI secret with a valid token and rerun the command.
 
 ## Suspend an organization
 

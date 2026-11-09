@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/session"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -21,8 +22,9 @@ var (
 	errWorkspaceNotSpecified = errors.New(
 		"workspace not specified and no default found. Use --workspace flag or set LOCO_WORKSPACE environment variable",
 	)
-	errNotFound      = errors.New("not found")
-	errAmbiguousName = errors.New("pass the ID")
+	errTokenWorkspaceID = errors.New("set --workspace or LOCO_WORKSPACE to the workspace ID when using LOCO_TOKEN")
+	errNotFound         = errors.New("not found")
+	errAmbiguousName    = errors.New("pass the ID")
 )
 
 // ResolveOrg resolves an organization ID or name from flag > env > config.
@@ -126,6 +128,40 @@ func ResolveWorkspaceID(
 		return "", err
 	}
 	return ws.GetId(), nil
+}
+
+func resolveTokenWorkspaceID(
+	ctx context.Context,
+	cmd *cobra.Command,
+	client workspacev1connect.WorkspaceServiceClient,
+) (string, error) {
+	// Resolve an explicit workspace with workspace permissions. Scoped tokens
+	// cannot use the user workspace list or rely on a saved login's selection.
+	load := func() (*session.SessionConfig, error) { return session.NewSessionConfig(), nil }
+	ref, err := ResolveWorkspace(cmd, load)
+	if err != nil {
+		if errors.Is(err, errWorkspaceNotSpecified) {
+			return "", errTokenWorkspaceID
+		}
+		return "", err
+	}
+	id, err := uuid.Parse(ref)
+	if err != nil {
+		return "", errTokenWorkspaceID
+	}
+	org, err := ResolveOrg(cmd, load)
+	if err != nil {
+		return "", err
+	}
+	resp, err := client.GetWorkspace(ctx, &workspacev1.GetWorkspaceRequest{WorkspaceId: id.String()})
+	if err != nil {
+		return "", fmt.Errorf("get workspace: %w", err)
+	}
+	workspace := resp.GetWorkspace()
+	if org != workspace.GetOrgId() && org != workspace.GetOrgName() {
+		return "", fmt.Errorf("workspace %q in organization %q %w", ref, org, errNotFound)
+	}
+	return workspace.GetId(), nil
 }
 
 // FindOrg returns the organization whose ID or name is ref. Names are not

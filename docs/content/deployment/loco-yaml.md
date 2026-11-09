@@ -149,7 +149,7 @@ services:
         enabled: false
 ```
 
-Commands pick the environment with `--env` or `LOCO_ENV`; a workspace with one environment needs neither, and with several the CLI asks when it runs in a terminal. Select the workspace with `--workspace` or `LOCO_WORKSPACE`, and the organization with `--org` or `LOCO_ORG`. Each takes a name or an ID; names need not be unique, so pass the ID when the CLI reports that a name matches several.
+Commands pick the environment with `--env` or `LOCO_ENV`; a workspace with one environment needs neither, and with several the CLI asks when it runs in a terminal. Select the workspace with `--workspace` or `LOCO_WORKSPACE`, and the organization with `--org` or `LOCO_ORG`. With a user session, each takes a name or an ID. Pass the ID when the CLI reports an ambiguous name. When deploying with an [API token](../operations/access.md#deploy-from-ci-with-an-api-token), pass the workspace ID explicitly.
 
 ## Partials
 

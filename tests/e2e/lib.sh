@@ -265,13 +265,19 @@ e2e_api() {
 }
 
 api_token_body() {
-    local name=$1 entity_type=$2 entity_id=$3 scope=$4
-    printf '{"name":"%s","entityType":"%s","entityId":"%s","scopes":[{"scope":"%s","entityType":"%s","entityId":"%s"}],"expiresInSec":%d}' \
-        "$name" "$entity_type" "$entity_id" "$scope" "$entity_type" "$entity_id" "$API_TOKEN_TTL_SECONDS"
+    local name=$1 entity_type=$2 entity_id=$3
+    shift 3
+    printf '{"name":"%s","entityType":"%s","entityId":"%s","scopes":[' "$name" "$entity_type" "$entity_id"
+    local scope separator=
+    for scope in "$@"; do
+        printf '%s{"scope":"%s","entityType":"%s","entityId":"%s"}' "$separator" "$scope" "$entity_type" "$entity_id"
+        separator=,
+    done
+    printf '],"expiresInSec":%d}' "$API_TOKEN_TTL_SECONDS"
 }
 
 # Mint an API token through TokenService/CreateToken as the seeded e2e user.
-# Usage: mint_api_token <name> <ENTITY_TYPE_...> <entity id> <SCOPE_...>
+# Usage: mint_api_token <name> <ENTITY_TYPE_...> <entity id> <SCOPE_...> [<SCOPE_...> ...]
 mint_api_token() {
     local body response
     body=$(api_token_body "$@")

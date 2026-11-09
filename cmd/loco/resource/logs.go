@@ -132,7 +132,7 @@ func runResourceLogs(cmd *cobra.Command, name string) error {
 	filter := logstream.Filter{WorkspaceID: t.WorkspaceID, ResourceIDs: []string{resource.GetId()}}
 	end := time.Now()
 	start := end.Add(-opts.since)
-	logs := logstream.ForHost(t.Host, t.Token)
+	logs := &logstream.Client{Proxy: t.Clients.ObservabilityProxy}
 	window := logstream.Window{Start: start, End: end, Limit: opts.lines, Follow: opts.follow}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {

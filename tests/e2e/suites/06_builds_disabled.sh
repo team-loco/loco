@@ -96,3 +96,27 @@ test_n05_image_override_skips_unavailable_builds() {
     builds=$(e2e_psql "SELECT count(*) FROM builds")
     assert "--image creates no build" test "$builds" -eq 0
 }
+
+test_n06_workspace_api_token_deploys_without_a_session() {
+    local token_dir="$nobuild_dir/token-app"
+    local token_home="$nobuild_dir/token-home"
+    local app=e2e-api-token token
+    mkdir -p "$token_dir" "$token_home"
+    cli_write_image_config "$token_dir" "$app" "$nobuild_public_image" 8080 '[]'
+    if ! token=$(mint_api_token e2e-cli-deploy ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ SCOPE_WRITE); then
+        assert "Mint a workspace write token for the CLI" false
+        return 1
+    fi
+
+    local rc=0
+    (cd "$token_dir" && cli_home="$token_home" LOCO_TOKEN="$token" loco_cli deploy --yes \
+        --org "$cli_org_id" --workspace "$cli_workspace_id" --env "$E2E_ENVIRONMENT_ID") \
+        >"$token_dir/deploy.out" 2>"$token_dir/deploy.err" || rc=$?
+    if ! assert "A clean CLI deploys with a workspace write token (exit ${rc})" test "$rc" -eq 0; then
+        sed 's/^/    /' "$token_dir/deploy.out" "$token_dir/deploy.err"
+        return 1
+    fi
+    assert_contains "The token authenticated an apply" "Started deployment" cat "$token_dir/deploy.out"
+    assert_fails "The CLI did not write a session" test -e "$token_home/.loco/credentials.json"
+    wait_for "the token-authenticated app to be Ready" 120 cli_application_is_ready "$app"
+}

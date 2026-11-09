@@ -62,15 +62,13 @@ func (w *syncWriter) logLine(entry *observabilityv1.LogEntry) error {
 
 type Follower struct {
 	clients    *rpc.Clients
-	host       string
-	token      string
 	out        *syncWriter
 	Emit       logstream.Emit
 	QuietState bool
 }
 
-func NewFollower(clients *rpc.Clients, host, token string, out io.Writer) *Follower {
-	return &Follower{clients: clients, host: host, token: token, out: &syncWriter{out: out}}
+func NewFollower(clients *rpc.Clients, out io.Writer) *Follower {
+	return &Follower{clients: clients, out: &syncWriter{out: out}}
 }
 
 func (f *Follower) emitLog(entry *observabilityv1.LogEntry) error {
@@ -184,7 +182,7 @@ func (f *Follower) streamLogs(
 	workspaceID string,
 ) {
 	buildID := build.GetId()
-	logs := logstream.ForHost(f.host, f.token)
+	logs := &logstream.Client{Proxy: f.clients.ObservabilityProxy}
 	filter := logstream.BuildFilter(workspaceID, buildID)
 	start := build.GetCreatedAt().AsTime()
 	now := time.Now()

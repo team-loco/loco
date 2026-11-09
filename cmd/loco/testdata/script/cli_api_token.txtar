@@ -1,0 +1,82 @@
+# A workspace token can plan, apply and deploy without a local session.
+env LOCO_TOKEN=test-token
+env LOCO_ORG=acme
+env LOCO_WORKSPACE=00000000-0000-7000-8000-000000000002
+env LOCO_ENV=production
+env API_HOST=$LOCO_HOST
+fakeapi plan plan.json
+
+exec loco infra plan
+stdout '^  \+ api$'
+fakeapi called GetWorkspace 'Bearer test-token'
+fakeapi called ListEnvironments 'Bearer test-token'
+fakeapi called Plan 'Bearer test-token'
+! fakeapi called ListUserWorkspaces
+! exists $HOME/.loco/credentials.json
+! exists $HOME/.loco/config.yaml
+
+# An existing session cannot override the environment credential or trigger a refresh.
+cp credentials.json $HOME/.loco/credentials.json
+exec loco deploy --yes --host $LOCO_HOST --env 00000000-0000-7000-8000-0000000000e1
+stdout '^Applied\. Environment revision is now 8\.$'
+fakeapi called Apply 'Bearer test-token'
+! fakeapi called RefreshCLIToken
+cmp credentials.json $HOME/.loco/credentials.json
+
+fakeapi plan empty.json
+exec loco infra apply --yes
+stdout '^No changes\.'
+
+# The API rejects an invalid or expired token without falling back to the saved session.
+env LOCO_TOKEN=rejected-token
+! exec loco infra plan
+stderr 'fakeapi: unknown token'
+! stderr 'rejected-token'
+! stdout 'rejected-token'
+! grep 'rejected-token' $HOME/.loco/loco.log
+fakeapi called GetWorkspace 'Bearer rejected-token'
+! fakeapi called RefreshCLIToken
+
+# A missing CI secret leaves a set but empty token and must fail without using the session.
+env LOCO_TOKEN=
+! exec loco infra plan
+stderr 'LOCO_TOKEN variable is empty'
+! fakeapi called RefreshCLIToken
+
+# A workspace ID must belong to the organization explicitly selected for this run.
+env LOCO_TOKEN=test-token
+! exec loco infra plan --org wrong-org
+stderr 'in organization "wrong-org" not found'
+! exec loco infra plan --workspace production
+stderr 'to the workspace ID'
+
+# A token is bound to LOCO_HOST, even if a flag or saved login points elsewhere.
+env LOCO_TOKEN=wrong-host-token
+! exec loco infra plan --host http://127.0.0.1:1
+stderr 'match LOCO_HOST'
+! fakeapi called GetWorkspace 'Bearer wrong-host-token'
+
+env LOCO_HOST=
+! exec loco infra plan --host $API_HOST
+stderr '[Ss]et LOCO_HOST'
+! fakeapi called GetWorkspace 'Bearer wrong-host-token'
+
+-- empty.json --
+{"revision": "8"}
+-- credentials.json --
+{"Host":"http://127.0.0.1:1","ExpiresAt":"2000-01-01T00:00:00Z","Token":"stored-session","RefreshToken":"test-refresh-token"}
+-- loco.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "api", "changes": [{"path": "image", "after": "ghcr.io/acme/api:1"}]}
+  ]
+}

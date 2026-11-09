@@ -46,7 +46,6 @@ func newServiceTarget(t *testing.T) Target {
 	t.Cleanup(srv.Close)
 	clients := rpc.NewHTTPClients(srv.Client(), srv.URL, "")
 	var target Target
-	target.Host = srv.URL
 	target.Clients = clients
 	target.WorkspaceID = testTargetWorkspaceID
 	return target

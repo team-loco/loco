@@ -6,7 +6,7 @@ A CLI session belongs to a Loco API host. Sign in to the instance that operates 
 loco login
 ```
 
-The default API host is `https://api.loco.build`; the default dashboard is `https://loco.build`. Follow the sign-in instructions printed by the installed CLI.
+The default API host is `https://api.loco.build`; the default dashboard is `https://loco.build`. Follow the sign-in instructions printed by the installed CLI. For noninteractive deployments, configure a [scoped API token in CI](../operations/access.md#deploy-from-ci-with-an-api-token).
 
 An account that belongs to no organization gets one on its first sign-in from the CLI or the dashboard, named after the account (`Ada's Org`, or `ada@example.com's Org` without a profile name), with a `default` workspace.
 

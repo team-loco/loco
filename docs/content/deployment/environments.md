@@ -22,7 +22,7 @@ loco deploy --workspace my-team --env staging
 LOCO_WORKSPACE=my-team LOCO_ENV=production loco infra plan
 ```
 
-`--workspace` overrides `LOCO_WORKSPACE`, which overrides the workspace saved by `loco use`. `--env` overrides `LOCO_ENV`. Without either, a workspace with a single environment uses it, and a workspace with several asks in a terminal and fails otherwise.
+With a user session, `--workspace` overrides `LOCO_WORKSPACE`, which overrides the workspace saved by `loco use`. [API tokens](../operations/access.md#deploy-from-ci-with-an-api-token) require an explicit workspace ID. `--env` overrides `LOCO_ENV` and both accept an environment name or ID. Without either, a workspace with a single environment uses it, and a workspace with several asks in a terminal and fails otherwise.
 
 The same `loco.yaml` serves every environment. A service's `environments` block overrides its fields for one environment, or turns the service off there with `enabled: false`; see [loco.yaml](loco-yaml.md#environment-overrides). Staging and production keep separate resources and deployment history.
 

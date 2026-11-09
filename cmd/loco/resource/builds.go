@@ -43,7 +43,7 @@ func BuildBuildsCmd() *cobra.Command {
 }
 
 func follower(cmd *cobra.Command, t cmdutil.Target) *sourcebuild.Follower {
-	return sourcebuild.NewFollower(t.Clients, t.Host, t.Token, cmd.OutOrStdout())
+	return sourcebuild.NewFollower(t.Clients, cmd.OutOrStdout())
 }
 
 func workspaceOf(ctx context.Context, t cmdutil.Target, build *buildv1.Build) (string, error) {
@@ -288,7 +288,7 @@ func runBuildsLogs(cmd *cobra.Command, buildID string) error {
 		end = build.GetFinishedAt().AsTime().Add(finishedLogMargin)
 	}
 	filter := logstream.BuildFilter(workspaceID, buildID)
-	logs := logstream.ForHost(t.Host, t.Token)
+	logs := &logstream.Client{Proxy: t.Clients.ObservabilityProxy}
 	window := logstream.Window{Start: start, End: end}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {
