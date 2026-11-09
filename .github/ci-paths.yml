@@ -179,6 +179,8 @@ e2e:
     - "k8sapi/**"
     - "observability-proxy/**"
     - "proto/**"
+    # The suites build the binaries. The Tests workflow runs their Go tests.
+    - "!**/*_test.go"
     - "charts/loco-control-plane/**"
     - "charts/loco-worker/**"
     - "manifests/namespaces/**"
@@ -212,6 +214,8 @@ e2e-installation:
     - "k8sapi/**"
     - "observability-proxy/**"
     - "proto/**"
+    # The suites build the binaries. The Tests workflow runs their Go tests.
+    - "!**/*_test.go"
     - "charts/loco-control-plane/**"
     - "charts/loco-worker/**"
     - "manifests/namespaces/**"
@@ -223,8 +227,10 @@ e2e-installation:
     - "mise-tasks/crds/**"
     - "mise-tasks/e2e/**"
     - "mise-tasks/helm/**"
-    - "tests/e2e/**"
-    - "tools/e2e-auth/**"
+    # The installation runner and its operator image read these fixtures.
+    - "tests/e2e/fixtures/installation/**"
+    - "tests/e2e/fixtures/build-app/**"
+    - "tests/e2e/fixtures/public-image/**"
     - "tools/installation-e2e/**"
     - "charts/cert-manager.yaml"
     - "dev/compose.cloud-provider-kind.yaml"

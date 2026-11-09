@@ -99,6 +99,8 @@ func TestInstallationInputsSelectOnlyInstallationE2E(t *testing.T) {
 	require.NoError(t, err)
 	for _, path := range []string{
 		"tools/installation-e2e/workflow.go",
+		"tools/installation-e2e/main_test.go",
+		".github/workflows/e2e-installation.yml",
 		"charts/cert-manager.yaml",
 		"dev/compose.cloud-provider-kind.yaml",
 		"dev/dex.yaml",
@@ -124,15 +126,57 @@ func TestSuiteInputsSelectBothE2EWorkflows(t *testing.T) {
 	require.NoError(t, err)
 	for _, path := range []string{
 		"api/service/deployment.go",
+		"api/service/resource.go",
+		"api/queries/resource.sql",
 		"cmd/locoadm/main.go",
 		"charts/loco-worker/values.yaml",
-		"tools/e2e-auth/main.go",
+		"tests/e2e/fixtures/build-app/deploy/Dockerfile",
 		"tests/e2e/fixtures/installation/kind.yaml",
+		"tests/e2e/fixtures/public-image/Dockerfile",
 	} {
 		t.Run(path, func(t *testing.T) {
 			selected := selectWorkflows(filters, "pull_request", []string{path})
 			assert.True(t, selected["e2e-installation"])
 			assert.True(t, selected["e2e"])
+		})
+	}
+}
+
+func TestKindSuiteInputsSkipInstallationE2E(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for _, path := range []string{
+		"tests/e2e/run.sh",
+		"tests/e2e/suites/09_resource_status.sh",
+		"tests/e2e/fixtures/otel-app/main.go",
+		"tools/e2e-auth/main.go",
+	} {
+		t.Run(path, func(t *testing.T) {
+			selected := selectWorkflows(filters, "pull_request", []string{path})
+			assert.True(t, selected["e2e"])
+			assert.False(t, selected["e2e-installation"])
+		})
+	}
+}
+
+func TestUnitTestChangesSkipE2E(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for _, path := range []string{
+		"api/config_test.go",
+		"api/service/resource_create_db_test.go",
+		"cmd/locoadm/root_test.go",
+		"controller/internal/controller/application_controller_test.go",
+	} {
+		t.Run(path, func(t *testing.T) {
+			selected := selectWorkflows(filters, "pull_request", []string{path})
+			assert.True(t, selected["test"])
+			assert.False(t, selected["e2e"])
+			assert.False(t, selected["e2e-installation"])
+
+			selected = selectWorkflows(filters, "pull_request", []string{path, "api/service/resource.go"})
+			assert.True(t, selected["e2e"])
+			assert.True(t, selected["e2e-installation"])
 		})
 	}
 }
