@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
@@ -49,7 +50,7 @@ func (s *Admin) request(ctx context.Context, method, path, id string) (*http.Res
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+s.token)
+	req.Header.Set("Authorization", bearer.Header(s.token))
 	req.Header.Set("Accept", "application/json")
 	return s.client.Do(req)
 }

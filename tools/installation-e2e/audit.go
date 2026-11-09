@@ -22,6 +22,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 var (
@@ -243,7 +245,7 @@ func inspectionSecrets(ctx context.Context) ([]auditSecret, error) {
 	if err != nil {
 		return nil, errInspectionRequest
 	}
-	request.Header.Set("Authorization", "Bearer "+strings.TrimSpace(string(token)))
+	request.Header.Set("Authorization", bearer.Header(strings.TrimSpace(string(token))))
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, errInspection

@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
@@ -34,8 +35,8 @@ func (a *ClusterAuthenticator) Authenticate(
 	ctx context.Context,
 	authHeader string,
 ) (genDb.GetEnrolledClusterRow, error) {
-	token := extractBearerToken(authHeader)
-	if token == "" {
+	token, ok := bearer.Token(authHeader)
+	if !ok {
 		return genDb.GetEnrolledClusterRow{}, fmt.Errorf("%w: %w", ErrInvalidAgentToken, errMissingBearerToken)
 	}
 	issuer, err := clusterassertion.ClusterID(token)

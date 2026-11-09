@@ -73,7 +73,7 @@ func NewGate(cfg GateConfig) *Gate {
 }
 
 func (g *Gate) Admit(ctx context.Context, authorization string) (*Admission, error) {
-	token, ok := bearer.FromHeader(http.Header{"Authorization": {authorization}})
+	token, ok := bearer.Token(authorization)
 	if !ok {
 		return nil, ErrUnauthenticated
 	}

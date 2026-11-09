@@ -21,10 +21,15 @@ func New(prefix string) string {
 	return prefix + base64.RawURLEncoding.EncodeToString(raw)
 }
 
-// FromHeader returns the token of an "Authorization: Bearer <token>" header.
-// It reports false when the header is absent, uses another scheme or has an empty token.
+// FromHeader returns the token of the request's Authorization header, as Token does.
 func FromHeader(h HeaderGetter) (string, bool) {
-	token, ok := strings.CutPrefix(h.Get("Authorization"), scheme)
+	return Token(h.Get("Authorization"))
+}
+
+// Token returns the token of an Authorization header value of the form "Bearer <token>".
+// It reports false when the value uses another scheme or carries an empty token.
+func Token(authorization string) (string, bool) {
+	token, ok := strings.CutPrefix(authorization, scheme)
 	if !ok || token == "" {
 		return "", false
 	}
