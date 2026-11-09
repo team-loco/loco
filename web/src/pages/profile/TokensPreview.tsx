@@ -85,7 +85,7 @@ export function TokensPreview({ userId }: { userId: string }) {
 		>
 			{body}
 			{remaining > 0 && (
-				<SectionFooter className="border-t border-line">
+				<SectionFooter>
 					+{remaining} more token{remaining === 1 ? "" : "s"}
 				</SectionFooter>
 			)}

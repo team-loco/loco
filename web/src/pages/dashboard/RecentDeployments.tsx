@@ -31,43 +31,36 @@ export function RecentDeployments({
 }) {
 	const navigate = useNavigate();
 	const recent = deployments.filter((d) => nowMs - tsMs(d.deployment.createdAt) <= WINDOW_MS).slice(0, LIMIT);
-	const head = "h-10 px-0 text-sm font-semibold text-fg2";
 
 	return (
 		<Section title="Recent deployments">
 			{recent.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
-				<Table className="min-w-[720px] table-fixed text-base">
+				<Table className="min-w-[720px] table-fixed">
 					<TableHeader>
-						<TableRow className="border-line hover:bg-transparent">
-							<TableHead className={`${head} w-[112px] pl-4`}>Started</TableHead>
-							<TableHead className={`${head} w-[112px]`}>Status</TableHead>
-							<TableHead className={`${head} w-[142px]`}>Resource</TableHead>
-							<TableHead className={`${head} w-[112px]`}>Region</TableHead>
-							<TableHead className={`${head} w-[112px]`}>Image</TableHead>
-							<TableHead className={`${head} pr-4`}>Message</TableHead>
+						<TableRow>
+							<TableHead className="w-[112px]">Started</TableHead>
+							<TableHead className="w-[112px]">Status</TableHead>
+							<TableHead className="w-[142px]">Resource</TableHead>
+							<TableHead className="w-[112px]">Region</TableHead>
+							<TableHead className="w-[112px]">Image</TableHead>
+							<TableHead>Message</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{recent.map(({ deployment: d, resource }) => {
 							const href = resourcePath(orgId, workspaceId, resource.id);
 							return (
-								<TableRow
-									key={d.id}
-									className="h-11 cursor-pointer border-line hover:bg-bg2"
-									onClick={() => void navigate(href)}
-								>
-									<TableCell className="py-0 pr-3 pl-4 text-fg2 tabular-nums">
-										{startedLabel(tsMs(d.createdAt))}
-									</TableCell>
-									<TableCell className="py-0 pr-3 pl-0">
+								<TableRow key={d.id} className="cursor-pointer hover:bg-panel2" onClick={() => void navigate(href)}>
+									<TableCell className="text-fg2 tabular-nums">{startedLabel(tsMs(d.createdAt))}</TableCell>
+									<TableCell>
 										<DeploymentPhaseBadge phase={d.status} />
 									</TableCell>
-									<TableCell className="truncate py-0 pr-3 pl-0 font-semibold">{resource.name}</TableCell>
-									<TableCell className="py-0 pr-3 pl-0 text-fg2">{d.region}</TableCell>
-									<TableCell className="truncate py-0 pr-3 pl-0">{imageVersion(deploymentImage(d))}</TableCell>
-									<TableCell className="truncate py-0 pr-4 pl-0 text-fg2">{d.message}</TableCell>
+									<TableCell className="truncate font-medium">{resource.name}</TableCell>
+									<TableCell className="text-fg2">{d.region}</TableCell>
+									<TableCell className="truncate">{imageVersion(deploymentImage(d))}</TableCell>
+									<TableCell className="truncate text-fg2">{d.message}</TableCell>
 								</TableRow>
 							);
 						})}

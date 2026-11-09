@@ -108,11 +108,7 @@ export function MembersTable({
 								<div className="flex min-w-0 flex-col">
 									<span className="flex items-center gap-1.5 font-semibold whitespace-nowrap">
 										<span className="truncate">{m.user.name || m.user.email}</span>
-										{isMe && (
-											<Badge tone="muted" size="sm" className="text-fg2">
-												You
-											</Badge>
-										)}
+										{isMe && <Badge tone="pill">you</Badge>}
 									</span>
 									<span className="truncate text-sm text-fg3">{m.user.email}</span>
 								</div>

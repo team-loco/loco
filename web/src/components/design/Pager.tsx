@@ -1,19 +1,46 @@
+import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { cn } from "@/lib/utils";
 
+function PagerButton({
+	label,
+	onClick,
+	children,
+}: {
+	label: string;
+	onClick: (() => void) | null;
+	children: ReactNode;
+}) {
+	return (
+		<Button
+			variant="outline"
+			size="icon"
+			aria-label={label}
+			title={label}
+			disabled={onClick === null}
+			onClick={onClick ?? undefined}
+		>
+			{children}
+		</Button>
+	);
+}
+
 function Pager({
 	label,
 	pageSizes,
 	pageSize,
 	onPageSize,
-	prevLabel = "Previous",
-	nextLabel = "Next",
+	prevLabel = "Previous page",
+	nextLabel = "Next page",
+	firstLabel = "First page",
+	lastLabel = "Last page",
+	onFirst,
 	onPrev,
 	onNext,
-	buttonSize = "xs",
+	onLast,
 	className,
 }: {
 	label: ReactNode;
@@ -22,45 +49,62 @@ function Pager({
 	onPageSize?: ((size: number) => void) | undefined;
 	prevLabel?: string | undefined;
 	nextLabel?: string | undefined;
+	firstLabel?: string | undefined;
+	lastLabel?: string | undefined;
+	onFirst?: (() => void) | null | undefined;
 	onPrev: (() => void) | null;
 	onNext: (() => void) | null;
-	buttonSize?: "xs" | "sm" | undefined;
+	onLast?: (() => void) | null | undefined;
 	className?: string | undefined;
 }) {
 	const sizes = pageSizes !== undefined && pageSize !== undefined && onPageSize !== undefined;
 	return (
-		<div className={cn("flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm text-fg3", className)}>
-			<div className="flex items-center gap-3">
-				<span className="tabular-nums">{label}</span>
-				{sizes && (
-					<div className="flex items-center gap-1.5">
-						Rows
-						<ToggleGroup
-							variant="segmented"
-							value={[String(pageSize)]}
-							onValueChange={(v: string[]) => {
-								const n = Number(v[0]);
-								if (Number.isFinite(n) && n > 0) onPageSize(n);
-							}}
-							className="rounded-md p-0.5"
-						>
-							{pageSizes.map((n) => (
-								<ToggleGroupItem key={n} value={String(n)} className="h-5! rounded-sm! px-2 text-sm font-normal">
-									{n}
-								</ToggleGroupItem>
-							))}
-						</ToggleGroup>
-					</div>
+		<div
+			className={cn(
+				"flex flex-wrap items-center gap-2 border-t border-line2 px-5 pt-3 pb-3.5 text-[12.5px] text-fg2",
+				className,
+			)}
+		>
+			<span className="font-mono tabular-nums">{label}</span>
+			<span className="flex-1" />
+			{sizes && (
+				<span className="flex items-center gap-2 text-fg3">
+					Rows per page
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Rows per page"
+						value={[String(pageSize)]}
+						onValueChange={(v: string[]) => {
+							const n = Number(v[0]);
+							if (Number.isFinite(n) && n > 0) onPageSize(n);
+						}}
+					>
+						{pageSizes.map((n) => (
+							<ToggleGroupItem key={n} value={String(n)} className="h-6 px-2 font-mono text-[12px]">
+								{n}
+							</ToggleGroupItem>
+						))}
+					</ToggleGroup>
+				</span>
+			)}
+			<span className="flex gap-1">
+				{onFirst !== undefined && (
+					<PagerButton label={firstLabel} onClick={onFirst}>
+						<ChevronsLeftIcon />
+					</PagerButton>
 				)}
-			</div>
-			<div className="flex gap-1">
-				<Button variant="outline" size={buttonSize} disabled={onPrev === null} onClick={onPrev ?? undefined}>
-					{prevLabel}
-				</Button>
-				<Button variant="outline" size={buttonSize} disabled={onNext === null} onClick={onNext ?? undefined}>
-					{nextLabel}
-				</Button>
-			</div>
+				<PagerButton label={prevLabel} onClick={onPrev}>
+					<ChevronLeftIcon />
+				</PagerButton>
+				<PagerButton label={nextLabel} onClick={onNext}>
+					<ChevronRightIcon />
+				</PagerButton>
+				{onLast !== undefined && (
+					<PagerButton label={lastLabel} onClick={onLast}>
+						<ChevronsRightIcon />
+					</PagerButton>
+				)}
+			</span>
 		</div>
 	);
 }

@@ -212,17 +212,17 @@ export function ResourcesTable({
 			: `Showing ${visible.length.toString()} of ${items.length.toString()} resources`;
 
 	return (
-		<Section title="Resources" toolbar={toolbar}>
-			<Table className="min-w-[860px] table-fixed text-base">
+		<Section title="Resources" actions={toolbar}>
+			<Table className="min-w-[860px] table-fixed">
 				<TableHeader>
-					<TableRow className="h-10 border-line hover:bg-transparent">
+					<TableRow>
 						{HEADERS.map((h) => {
 							const on = sortKey === h.key;
 							return (
-								<TableHead key={h.key} className={cn("h-10 px-0 first:pl-4", h.className)}>
+								<TableHead key={h.key} className={h.className}>
 									<button
 										type="button"
-										className="flex items-center gap-1 text-sm font-semibold text-fg2"
+										className="flex items-center gap-1 hover:text-foreground"
 										onClick={() => {
 											setSortDir(on ? -sortDir : 1);
 											setSortKey(h.key);
@@ -236,13 +236,13 @@ export function ResourcesTable({
 								</TableHead>
 							);
 						})}
-						<TableHead className="h-10 w-12 pr-4" />
+						<TableHead className="w-12" />
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{pageItems.length === 0 && (
-						<TableRow className="hover:bg-transparent">
-							<TableCell colSpan={6} className="p-0 whitespace-normal">
+						<TableRow>
+							<TableCell colSpan={6} className="h-auto p-0 whitespace-normal">
 								{items.length === 0 ? (
 									<EmptyState icon={<BoxIcon />} title={`No resources in ${envName} yet`} />
 								) : (
@@ -267,32 +267,32 @@ export function ResourcesTable({
 						const tag = last !== undefined ? imageVersion(deploymentImage(last)) : "";
 						const message = last?.message ?? "";
 						return (
-							<TableRow key={resource.id} className="border-line hover:bg-bg2">
-								<TableCell className="py-1.5 pr-3 pl-4">
+							<TableRow key={resource.id}>
+								<TableCell>
 									<div className="flex min-w-0 flex-col gap-px">
 										<Link
 											to={resourcePath(orgId, workspaceId, resource.id)}
-											className="truncate text-md font-semibold text-foreground"
+											className="truncate text-[13.5px] font-medium text-foreground underline-offset-3 hover:underline"
 										>
 											{resource.name}
 										</Link>
 										<span className="truncate text-sm text-fg3">{resource.description ?? ""}</span>
 									</div>
 								</TableCell>
-								<TableCell className="py-1.5 pr-3 pl-0">
+								<TableCell>
 									<div className="flex min-w-0 flex-col items-start gap-[3px]">
 										<ResourceStatusBadge status={it.status} />
 										{note !== "" && <span className="max-w-full truncate text-sm text-fg3">{note}</span>}
 									</div>
 								</TableCell>
-								<TableCell className="py-1.5 pr-3 pl-0">
+								<TableCell>
 									<div className="flex flex-col gap-px text-[12.5px] text-fg2">
 										{it.regions.map((g) => (
 											<span key={g.region}>{g.region}</span>
 										))}
 									</div>
 								</TableCell>
-								<TableCell className="py-1.5 pr-3 pl-0">
+								<TableCell>
 									<div className="flex flex-col justify-center gap-[3px]">
 										{it.regions.map((g) => (
 											<div key={g.region} className="flex h-[15px] items-center gap-2">
@@ -304,7 +304,7 @@ export function ResourcesTable({
 										))}
 									</div>
 								</TableCell>
-								<TableCell className="py-1.5 pr-3 pl-0">
+								<TableCell>
 									{last === undefined ? (
 										<span className="text-fg3">—</span>
 									) : (
@@ -318,7 +318,7 @@ export function ResourcesTable({
 										</div>
 									)}
 								</TableCell>
-								<TableCell className="py-1.5 pr-4 pl-0 text-right">
+								<TableCell className="text-right">
 									<ResourceRowMenu resource={resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
 								</TableCell>
 							</TableRow>
@@ -328,8 +328,13 @@ export function ResourcesTable({
 			</Table>
 			<Pager
 				label={rangeLabel}
-				buttonSize="sm"
-				className="py-2.5"
+				onFirst={
+					safePage > 0
+						? () => {
+								setPage(0);
+							}
+						: null
+				}
 				onPrev={
 					safePage > 0
 						? () => {
@@ -341,6 +346,13 @@ export function ResourcesTable({
 					safePage < pageCount - 1
 						? () => {
 								setPage(safePage + 1);
+							}
+						: null
+				}
+				onLast={
+					safePage < pageCount - 1
+						? () => {
+								setPage(pageCount - 1);
 							}
 						: null
 				}

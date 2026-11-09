@@ -1,67 +1,66 @@
 import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
-import { Badge, type BadgeTone } from "./Badge";
+import { type Glyph, StatusGlyph } from "./StatusGlyph";
 
 interface StatusStyle {
 	label: string;
-	tone: BadgeTone;
+	glyph: Glyph;
 }
 
-export function resourceStatusStyle(status: ResourceStatus | undefined): StatusStyle {
+function resourceStatusStyle(status: ResourceStatus | undefined): StatusStyle {
 	switch (status) {
 		case ResourceStatus.HEALTHY:
-			return { label: "Healthy", tone: "ok" };
+			return { label: "Healthy", glyph: "ok" };
 		case ResourceStatus.DEPLOYING:
-			return { label: "Deploying", tone: "info" };
+			return { label: "Deploying", glyph: "spin" };
 		case ResourceStatus.DEGRADED:
-			return { label: "Degraded", tone: "warn" };
+			return { label: "Degraded", glyph: "warn" };
 		case ResourceStatus.UNAVAILABLE:
-			return { label: "Unavailable", tone: "bad" };
+			return { label: "Unavailable", glyph: "err" };
 		case ResourceStatus.UNKNOWN:
-			return { label: "Unknown", tone: "neutral" };
+			return { label: "Unknown", glyph: "off" };
 		case ResourceStatus.UNSPECIFIED:
-			return { label: "Pending", tone: "neutral" };
+			return { label: "Pending", glyph: "draft" };
 		case undefined:
-			return { label: "Pending", tone: "neutral" };
+			return { label: "Pending", glyph: "draft" };
 	}
 }
 
 function deploymentPhaseStyle(phase: DeploymentPhase | undefined): StatusStyle {
 	switch (phase) {
 		case DeploymentPhase.PENDING:
-			return { label: "Pending", tone: "neutral" };
+			return { label: "Pending", glyph: "draft" };
 		case DeploymentPhase.DEPLOYING:
-			return { label: "Deploying", tone: "info" };
+			return { label: "Deploying", glyph: "spin" };
 		case DeploymentPhase.RUNNING:
-			return { label: "Running", tone: "ok" };
+			return { label: "Running", glyph: "ok" };
 		case DeploymentPhase.SUCCEEDED:
-			return { label: "Succeeded", tone: "neutral" };
+			return { label: "Succeeded", glyph: "off" };
 		case DeploymentPhase.FAILED:
-			return { label: "Failed", tone: "bad" };
+			return { label: "Failed", glyph: "err" };
 		case DeploymentPhase.CANCELED:
-			return { label: "Canceled", tone: "neutral" };
+			return { label: "Canceled", glyph: "off" };
 		case DeploymentPhase.UNSPECIFIED:
-			return { label: "Pending", tone: "neutral" };
+			return { label: "Pending", glyph: "draft" };
 		case undefined:
-			return { label: "Pending", tone: "neutral" };
+			return { label: "Pending", glyph: "draft" };
 	}
 }
 
-export function ResourceStatusBadge({ status, size }: { status: ResourceStatus | undefined; size?: "default" | "sm" }) {
-	const s = resourceStatusStyle(status);
+export function StatusLabel({ glyph, label }: StatusStyle) {
 	return (
-		<Badge tone={s.tone} size={size}>
-			{s.label}
-		</Badge>
+		<span className="inline-flex items-center gap-2 text-[13.5px] whitespace-nowrap text-foreground">
+			<StatusGlyph glyph={glyph} />
+			{label}
+		</span>
 	);
 }
 
-export function DeploymentPhaseBadge({ phase, size }: { phase: DeploymentPhase | undefined; size?: "default" | "sm" }) {
-	const s = deploymentPhaseStyle(phase);
-	return (
-		<Badge tone={s.tone} size={size}>
-			{s.label}
-		</Badge>
-	);
+export function ResourceStatusBadge({ status }: { status: ResourceStatus | undefined }) {
+	return <StatusLabel {...resourceStatusStyle(status)} />;
+}
+
+export function DeploymentPhaseBadge({ phase }: { phase: DeploymentPhase | undefined }) {
+	return <StatusLabel {...deploymentPhaseStyle(phase)} />;
 }

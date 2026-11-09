@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
-import { Badge } from "@/components/design/Badge";
 import { Section } from "@/components/design/Page";
-import { resourceStatusStyle } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge, StatusLabel } from "@/components/design/StatusBadge";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -169,12 +168,12 @@ export function ArchitectureDiagram({ services, regionOrder }: { services: Diagr
 						))}
 						{sorted.map((s) => {
 							const isDraft = s.status === "draft";
-							const style = s.status === "draft" ? null : resourceStatusStyle(s.status);
-							const badge = (
-								<Badge size="sm" tone={style?.tone ?? "muted"}>
-									{style?.label ?? "Draft"}
-								</Badge>
-							);
+							const badge =
+								s.status === "draft" ? (
+									<StatusLabel glyph="draft" label="Draft" />
+								) : (
+									<ResourceStatusBadge status={s.status} />
+								);
 							const regionsText = s.regions.map((g) => g.region).join(", ");
 							const sub = isDraft ? `Not deployed · ${regionsText}` : (s.domain ?? `internal · ${regionsText}`);
 							const cls = cn(
