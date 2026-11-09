@@ -1,7 +1,7 @@
 FROM golang:1.27.3-alpine3.23@sha256:5d5113301ffcac84e2bfb20c42648803fecaea6789c89bb9b66884e18cbb30a7 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download || go mod download
 COPY main.go ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server .
 

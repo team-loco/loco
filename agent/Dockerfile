@@ -13,7 +13,7 @@ COPY go.mod go.sum ./
 COPY k8sapi/go.mod k8sapi/go.sum ./k8sapi/
 
 WORKDIR /app/agent
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download || go mod download
 
 WORKDIR /app
 COPY agent ./agent
