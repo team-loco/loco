@@ -170,7 +170,7 @@ func syncError(
 
 func requireCode(t *testing.T, err error, want connect.Code, what string) {
 	t.Helper()
-	if connect.CodeOf(err) != want {
+	if public := publicError(err); public == nil || public.Code() != want {
 		t.Fatalf("%s: %v, want %v", what, err, want)
 	}
 }

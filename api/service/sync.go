@@ -39,7 +39,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin cluster sync", "cluster_id", cluster.ID, "error", err)
-		return rpcerr.New(connect.CodeUnavailable, ErrDB)
+		return connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
 	}
 	clusterIDText := cluster.ID.String()
 	if notifyErr := s.queries.NotifyClusterPlacements(ctx, clusterIDText); notifyErr != nil {
