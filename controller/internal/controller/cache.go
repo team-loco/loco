@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/team-loco/loco/controller/internal/managed"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
@@ -65,6 +66,7 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 			&corev1.Service{}:        managedObjects,
 			&corev1.ServiceAccount{}: managedObjects,
 			&appsv1.Deployment{}:     managedObjects,
+			&v1Gateway.HTTPRoute{}:   managedObjects,
 			&corev1.Pod{}:            applicationPods,
 		},
 	}

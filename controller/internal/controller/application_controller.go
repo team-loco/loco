@@ -862,7 +862,10 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		predicate.AnnotationChangedPredicate{},
 	)
 	applicationPredicates := builder.WithPredicates(applicationChanged)
-	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
+	applicationHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
+	// Gateways report attachment and acceptance in status. Only desired route changes need repair.
+	routeChanged := predicate.Or(applicationChanged, predicate.LabelChangedPredicate{})
+	routePredicates := builder.WithPredicates(routeChanged)
 	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
 	nodeChanges := isolation.NodeRangesChanged()
 	nodePredicates := builder.WithPredicates(nodeChanges)
@@ -877,8 +880,9 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
-		Watches(&appsv1.Deployment{}, deploymentHandler).
-		Watches(&corev1.Service{}, deploymentHandler).
+		Watches(&appsv1.Deployment{}, applicationHandler).
+		Watches(&corev1.Service{}, applicationHandler).
+		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
 	if r.copiesPullSecret() {
