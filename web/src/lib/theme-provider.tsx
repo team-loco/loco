@@ -12,6 +12,14 @@ import {
 } from "./theme";
 import { ThemeContext } from "./theme-context";
 
+const THEME_SOUND_VOLUME = 0.9;
+
+function playThemeSound(toDark: boolean) {
+	const audio = new Audio(toDark ? "/darkMode.wav" : "/lightMode.wav");
+	audio.volume = THEME_SOUND_VOLUME;
+	void audio.play().catch(() => undefined);
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
 	const [mode, setMode] = useState<Mode>(readMode);
 	const systemDark = useSyncExternalStore(subscribeSystemTheme, systemPrefersDark);
@@ -25,6 +33,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		const next = toggledMode(mode, systemDark);
 		setMode(next);
 		storeMode(next);
+		playThemeSound(resolved !== "dark");
 	};
 
 	const contextValue = { theme: resolved, toggle };
