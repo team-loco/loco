@@ -1141,13 +1141,15 @@ func (x *RegionStatus) GetReportedAt() *timestamppb.Timestamp {
 
 // CreateResourceRequest is the request to create a new resource.
 type CreateResourceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Type          ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
-	Domain        *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
-	Spec          *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
-	Description   *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type        ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
+	Domain      *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
+	Spec        *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
+	Description *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// The environment for domain. If omitted, the workspace's production environment is used.
+	EnvironmentId *string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1220,6 +1222,13 @@ func (x *CreateResourceRequest) GetSpec() *ResourceSpec {
 func (x *CreateResourceRequest) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
+	}
+	return ""
+}
+
+func (x *CreateResourceRequest) GetEnvironmentId() string {
+	if x != nil && x.EnvironmentId != nil {
+		return *x.EnvironmentId
 	}
 	return ""
 }
@@ -2490,16 +2499,18 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"reportedAt\x88\x01\x01B\n" +
 	"\n" +
 	"\b_messageB\x0e\n" +
-	"\f_reported_at\"\xe1\x02\n" +
+	"\f_reported_at\"\xaa\x03\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12<\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeB\b\xbaH\x05\x82\x01\x02\x18\x01R\x04type\x128\n" +
 	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputH\x00R\x06domain\x88\x01\x01\x12:\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
-	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\t\n" +
+	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x124\n" +
+	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x02R\renvironmentId\x88\x01\x01B\t\n" +
 	"\a_domainB\x0e\n" +
-	"\f_description\"9\n" +
+	"\f_descriptionB\x11\n" +
+	"\x0f_environment_id\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"^\n" +

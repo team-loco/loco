@@ -473,9 +473,8 @@ func (s *DomainServer) checkResourceDomain(
 	return configplan.CheckDomain(hostname, check.clusters, check.targets)
 }
 
-// imperativeDomainEnvironment is the environment a domain added through the domain or resource
-// RPCs belongs to: the oldest production environment of the resource's workspace. Those RPCs
-// carry no environment; loco.yaml applies place domains in the environment they target.
+// imperativeDomainEnvironment resolves the production environment for domain RPCs
+// that operate on a resource without an environment ID.
 func imperativeDomainEnvironment(ctx context.Context, q genDb.Querier, resourceID uuid.UUID) (uuid.UUID, error) {
 	workspaceID, err := q.GetResourceWorkspaceID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -484,18 +483,26 @@ func imperativeDomainEnvironment(ctx context.Context, q genDb.Querier, resourceI
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("get resource workspace: %w", err)
 	}
-	return workspaceProductionEnvironment(ctx, q, workspaceID)
-}
-
-func workspaceProductionEnvironment(ctx context.Context, q genDb.Querier, workspaceID uuid.UUID) (uuid.UUID, error) {
-	env, err := q.GetWorkspaceProductionEnvironment(ctx, workspaceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.UUID{}, errNoProductionEnvironment
-	}
+	env, err := workspaceProductionEnvironment(ctx, q, workspaceID)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("get production environment: %w", err)
+		return uuid.UUID{}, err
 	}
 	return env.ID, nil
+}
+
+func workspaceProductionEnvironment(
+	ctx context.Context,
+	q genDb.Querier,
+	workspaceID uuid.UUID,
+) (genDb.Environment, error) {
+	env, err := q.GetWorkspaceProductionEnvironment(ctx, workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return genDb.Environment{}, errNoProductionEnvironment
+	}
+	if err != nil {
+		return genDb.Environment{}, fmt.Errorf("get production environment: %w", err)
+	}
+	return env, nil
 }
 
 func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
