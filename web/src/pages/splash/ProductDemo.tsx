@@ -12,7 +12,7 @@ const LOG_TONE: Record<LogTone, string> = {
 	body: "text-fg2",
 	ok: "text-ok-fg",
 	muted: "text-fg3",
-	accent: "text-primary",
+	accent: "text-brand",
 };
 
 function Fact({ label, value }: { label: string; value: string }) {

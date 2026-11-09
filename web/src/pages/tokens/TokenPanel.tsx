@@ -223,7 +223,7 @@ function GrantRow({
 						<button
 							type="button"
 							onClick={onToggle}
-							className="h-[22px] cursor-pointer rounded-sm px-[7px] text-sm font-medium text-primary"
+							className="h-[22px] cursor-pointer rounded-sm px-[7px] text-sm font-medium text-brand"
 						>
 							{moreBtn}
 						</button>

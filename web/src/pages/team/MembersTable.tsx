@@ -99,7 +99,7 @@ export function MembersTable({
 							}}
 							className={cn(
 								"grid w-full cursor-pointer items-center gap-x-4 gap-y-2 border-b border-l-[3px] border-b-line py-2.5 pr-4 pl-[13px] text-left last:border-b-0 hover:bg-bg2",
-								on ? "border-l-primary bg-info-bg hover:bg-info-bg" : "border-l-transparent",
+								on ? "border-l-brand bg-info-bg hover:bg-info-bg" : "border-l-transparent",
 								cols,
 							)}
 						>

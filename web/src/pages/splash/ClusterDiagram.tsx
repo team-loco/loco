@@ -108,7 +108,7 @@ function NodeCard({
 			}}
 			className={cn(
 				"absolute flex flex-col gap-1.5 rounded-[10px] border bg-background px-3 py-2.5 shadow-xs transition-colors duration-150",
-				hovered === node ? "border-primary/50" : "border-line",
+				hovered === node ? "border-brand/50" : "border-line",
 			)}
 			style={{ left: pctX(box.x), top: pctY(box.y), width: pctX(box.w), height: pctY(box.h) }}
 		>
@@ -160,7 +160,7 @@ function DiagramBackdrop({ hovered }: { hovered: NodeKey | null }) {
 				height={BOX.cluster.h}
 				rx={14}
 				strokeDasharray="5 5"
-				className="fill-primary/[0.03] stroke-primary/30"
+				className="fill-brand/[0.03] stroke-brand/30"
 			/>
 			<rect
 				x={BOX.ns.x}
@@ -179,10 +179,10 @@ function DiagramBackdrop({ hovered }: { hovered: NodeKey | null }) {
 							fill="none"
 							strokeWidth={hot ? 1.5 : 1.2}
 							markerEnd="url(#splash-arrow)"
-							className={hot ? "stroke-primary" : "stroke-line2"}
+							className={hot ? "stroke-brand" : "stroke-line2"}
 						/>
 						{e.packet && (
-							<circle r={2.6} className="fill-primary">
+							<circle r={2.6} className="fill-brand">
 								<animateMotion dur="2.2s" repeatCount="indefinite" path={e.d} begin={`${i * 0.37}s`} />
 							</circle>
 						)}
@@ -227,7 +227,7 @@ export function ClusterDiagram({ rollout }: { rollout: Rollout }) {
 				<CardMeta left="500m · 1Gi" right="1/1" />
 				<PodRow pods={DB_PODS} className="mt-auto" podClassName="size-4" />
 			</NodeCard>
-			<DiagramLabel x={BOX.cluster.x + 92} y={BOX.cluster.y} className="text-primary">
+			<DiagramLabel x={BOX.cluster.x + 92} y={BOX.cluster.y} className="text-brand">
 				us-east-1 · kubernetes
 			</DiagramLabel>
 			<DiagramLabel x={BOX.ns.x + 90} y={BOX.ns.y}>

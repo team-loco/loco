@@ -19,7 +19,7 @@ export function TopBar() {
 				aria-pressed={pinned}
 				className={cn(
 					"size-7 rounded-sm hover:bg-bg3",
-					pinned && "bg-info-bg text-primary hover:bg-info-bg hover:text-primary",
+					pinned && "bg-info-bg text-brand hover:bg-info-bg hover:text-brand",
 				)}
 			/>
 			<span className="mx-1 h-4 w-px bg-line" />

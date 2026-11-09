@@ -234,7 +234,7 @@ export function EventsView() {
 												}}
 												className={cn(
 													"grid min-h-10 w-full items-center gap-3 text-left border-b border-l-[3px] border-b-line py-1 pr-4 pl-[13px] [contain-intrinsic-block-size:auto_42px] [content-visibility:auto] hover:bg-bg2",
-													on ? "border-l-primary bg-info-bg shadow-[inset_0_0_0_1px_var(--accent)]" : st.bar,
+													on ? "border-l-brand bg-info-bg shadow-[inset_0_0_0_1px_var(--brand)]" : st.bar,
 												)}
 												style={{ gridTemplateColumns: rowCols }}
 											>

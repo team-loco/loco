@@ -4,9 +4,54 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+	font-family: "Geist Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2") format("woff2-variations");
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+		U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "Geist Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2") format("woff2-variations");
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Geist Mono Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/geist-mono/files/geist-mono-latin-ext-wght-normal.woff2") format("woff2-variations");
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+		U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "Geist Mono Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2") format("woff2-variations");
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @theme inline {
-	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
-	--font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+	--font-sans:
+		"Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	--font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 
 	--text-xs: 11px;
 	--text-xs--line-height: 1.4;
@@ -30,25 +75,25 @@
 	--radius-lg: 6px;
 	--radius-xl: 8px;
 
-	--shadow-popover: var(--shadow);
+	--shadow-popover: var(--pop-shadow);
 	--shadow-drawer: -8px 0 32px rgba(0, 0, 0, 0.12);
 
 	--color-background: var(--bg);
 	--color-foreground: var(--fg);
 	--color-card: var(--bg);
 	--color-card-foreground: var(--fg);
-	--color-popover: var(--bg);
+	--color-popover: var(--raise);
 	--color-popover-foreground: var(--fg);
-	--color-primary: var(--accent);
-	--color-primary-hover: var(--accent-hover);
-	--color-primary-foreground: #ffffff;
-	--color-secondary: var(--bg3);
+	--color-primary: var(--btn);
+	--color-primary-hover: color-mix(in oklch, var(--btn) 85%, var(--bg));
+	--color-primary-foreground: var(--btn-fg);
+	--color-secondary: var(--panel2);
 	--color-secondary-foreground: var(--fg);
-	--color-muted: var(--bg3);
+	--color-muted: var(--panel2);
 	--color-muted-foreground: var(--fg3);
-	--color-accent: var(--bg3);
+	--color-accent: var(--panel2);
 	--color-accent-foreground: var(--fg);
-	--color-destructive: var(--red);
+	--color-destructive: var(--err);
 	--color-border: var(--line);
 	--color-input: var(--line);
 	--color-ring: var(--fg4);
@@ -57,34 +102,43 @@
 	--color-sidebar-foreground: var(--fg);
 	--color-sidebar-primary: var(--fg);
 	--color-sidebar-primary-foreground: var(--bg);
-	--color-sidebar-accent: var(--bg3);
+	--color-sidebar-accent: var(--panel2);
 	--color-sidebar-accent-foreground: var(--fg);
 	--color-sidebar-border: var(--line);
 	--color-sidebar-ring: var(--fg4);
 
-	--color-bg2: var(--bg2);
-	--color-bg3: var(--bg3);
+	--color-panel: var(--panel);
+	--color-panel2: var(--panel2);
+	--color-raise: var(--raise);
+	--color-shell: var(--shell);
+	--color-shell-hover: var(--shell-hover);
+	--color-shell-active: var(--shell-active);
 	--color-line: var(--line);
 	--color-line2: var(--line2);
 	--color-fg2: var(--fg2);
 	--color-fg3: var(--fg3);
 	--color-fg4: var(--fg4);
-	--color-link: var(--link);
-	--color-red: var(--red);
+	--color-brand: var(--brand);
+	--color-ok: var(--ok);
+	--color-ok-glyph: var(--ok-glyph);
 	--color-err: var(--err);
 	--color-warn: var(--warn);
 	--color-info: var(--info);
 
-	--color-ok-bg: var(--g-bg);
-	--color-ok-fg: var(--g-fg);
-	--color-info-bg: var(--b-bg);
-	--color-info-fg: var(--b-fg);
-	--color-warn-bg: var(--a-bg);
-	--color-warn-fg: var(--a-fg);
-	--color-bad-bg: var(--r-bg);
-	--color-bad-fg: var(--r-fg);
-	--color-neutral-bg: var(--n-bg);
-	--color-neutral-fg: var(--n-fg);
+	--color-bg2: var(--panel);
+	--color-bg3: var(--panel2);
+	--color-red: var(--err);
+
+	--color-ok-bg: color-mix(in oklch, var(--ok) 12%, transparent);
+	--color-ok-fg: color-mix(in oklch, var(--ok) 70%, var(--fg));
+	--color-info-bg: color-mix(in oklch, var(--info) 12%, transparent);
+	--color-info-fg: color-mix(in oklch, var(--info) 70%, var(--fg));
+	--color-warn-bg: color-mix(in oklch, var(--warn) 12%, transparent);
+	--color-warn-fg: color-mix(in oklch, var(--warn) 70%, var(--fg));
+	--color-bad-bg: color-mix(in oklch, var(--err) 12%, transparent);
+	--color-bad-fg: color-mix(in oklch, var(--err) 70%, var(--fg));
+	--color-neutral-bg: var(--panel2);
+	--color-neutral-fg: var(--fg2);
 
 	--color-code-bg: var(--code-bg);
 
@@ -109,79 +163,75 @@
 }
 
 :root {
+	--shell: #f3f3f1;
+	--shell-hover: #eaeae7;
+	--shell-active: #e4e4e1;
 	--bg: #ffffff;
-	--trace-service-0: var(--fg3);
-	--trace-service-1: var(--accent);
-	--trace-service-2: var(--sh-keyword);
-	--trace-service-3: var(--sh-class);
-	--trace-service-4: var(--sh-string);
-	--trace-service-5: var(--warn);
-	--trace-service-6: var(--sh-property);
-	--trace-service-7: var(--sh-entity);
-	--bg2: #faf9f8;
-	--bg3: #f1efed;
-	--line: #e8e5e1;
-	--line2: #d3cfc9;
-	--fg: #2a2522;
-	--fg2: #56504a;
-	--fg3: #7d766e;
-	--fg4: #aaa39b;
-	--accent: #1e40af;
-	--accent-hover: #172f86;
-	--link: #2c4a99;
-	--red: #b3261e;
-	--err: #c0392b;
-	--warn: #d97706;
-	--info: #a8b3c7;
-	--shadow: 0 8px 24px rgba(42, 37, 34, 0.12);
-	--g-bg: #dcf3e3;
-	--g-fg: #1d5a36;
-	--b-bg: #dde9f7;
-	--b-fg: #23448a;
-	--a-bg: #fbe8d2;
-	--a-fg: #7c3f0d;
-	--r-bg: #fbe1de;
-	--r-fg: #7d2119;
-	--n-bg: #f1efed;
-	--n-fg: #56504a;
-	--diff-add: #e6f4ea;
-	--diff-del: #fbe3e0;
-	--scrim: rgba(20, 16, 14, 0.35);
-	--pe-dot: #e8e5e1;
-	--pe-panel: #ffffff;
-	--pe-head: #faf9f8;
-	--pe-shadow: 0 1px 2px rgba(20, 16, 14, 0.04), 0 8px 24px rgba(20, 16, 14, 0.06);
-	--pe-grid: #e8e5e1;
-	--pe-bar: #d3cfc9;
+	--panel: #f5f5f4;
+	--panel2: #ececea;
+	--raise: #ffffff;
+	--line: #ebebe9;
+	--line2: #d8d8d5;
+	--fg: #18181b;
+	--fg2: #45454a;
+	--fg3: #66666c;
+	--fg4: #a1a1a6;
+	--btn: #18181b;
+	--btn-fg: #ffffff;
+	--brand: #2455eb;
+	--ok: oklch(0.6 0.13 150);
+	--ok-glyph: oklch(0.68 0.12 150);
+	--info: oklch(0.55 0.16 258);
+	--warn: oklch(0.64 0.16 52);
+	--err: oklch(0.56 0.19 27);
+	--pop-shadow: 0 12px 32px rgba(28, 26, 24, 0.12), 0 2px 6px rgba(28, 26, 24, 0.06);
+	--scrim: rgba(20, 20, 20, 0.18);
+	--series-0: oklch(0.56 0.15 258);
+	--series-1: oklch(0.55 0.15 305);
+	--series-2: oklch(0.6 0.1 195);
+	--series-3: oklch(0.65 0.15 55);
+	--series-4: oklch(0.58 0.13 150);
+	--series-5: oklch(0.58 0.16 350);
+	--series-6: oklch(0.66 0.13 95);
+	--series-7: oklch(0.55 0.02 260);
+	--diff-add: color-mix(in oklch, var(--ok) 12%, var(--bg));
+	--diff-del: color-mix(in oklch, var(--err) 12%, var(--bg));
+	--pe-dot: var(--line);
+	--pe-panel: var(--bg);
+	--pe-head: var(--panel);
+	--pe-shadow: 0 1px 2px rgba(24, 24, 27, 0.04), 0 8px 24px rgba(24, 24, 27, 0.06);
+	--pe-grid: var(--line);
+	--pe-bar: var(--line2);
 	--pe-glow: 0.08;
-	--logo: #2455eb;
-	--logo-inverse: #6f8ff2;
-	--code-bg: #f7f5f2;
-	--code-line-number: #8c857d;
-	--sh-identifier: #2a2522;
-	--sh-sign: #6b655e;
+	--logo: var(--brand);
+	--logo-inverse: #7b9cff;
+	--code-bg: var(--panel);
+	--code-line-number: var(--fg3);
+	--sh-identifier: var(--fg);
+	--sh-sign: var(--fg3);
 	--sh-property: #2348a8;
 	--sh-string: #a13b14;
 	--sh-keyword: #7b3fb5;
 	--sh-class: #0e7552;
 	--sh-entity: #2c4a99;
-	--sh-jsxliterals: #56504a;
-	--sh-comment: #6f6861;
+	--sh-jsxliterals: var(--fg2);
+	--sh-comment: var(--fg3);
 
 	--background: var(--bg);
 	--foreground: var(--fg);
 	--card: var(--bg);
 	--card-foreground: var(--fg);
-	--popover: var(--bg);
+	--popover: var(--raise);
 	--popover-foreground: var(--fg);
-	--primary: var(--accent);
-	--primary-foreground: #ffffff;
-	--secondary: var(--bg3);
+	--primary: var(--btn);
+	--primary-foreground: var(--btn-fg);
+	--secondary: var(--panel2);
 	--secondary-foreground: var(--fg);
-	--muted: var(--bg3);
+	--muted: var(--panel2);
 	--muted-foreground: var(--fg3);
+	--accent: var(--panel2);
 	--accent-foreground: var(--fg);
-	--destructive: var(--red);
+	--destructive: var(--err);
 	--border: var(--line);
 	--input: var(--line);
 	--ring: var(--fg4);
@@ -189,63 +239,56 @@
 	--sidebar-foreground: var(--fg);
 	--sidebar-primary: var(--fg);
 	--sidebar-primary-foreground: var(--bg);
-	--sidebar-accent: var(--bg3);
+	--sidebar-accent: var(--panel2);
 	--sidebar-accent-foreground: var(--fg);
 	--sidebar-border: var(--line);
 	--sidebar-ring: var(--fg4);
 }
 
 .dark {
-	--bg: #161412;
-	--bg2: #1c1a17;
-	--bg3: #272420;
-	--line: #2f2b27;
-	--line2: #403b35;
-	--fg: #f3efea;
-	--fg2: #c9c2ba;
-	--fg3: #8f877e;
-	--fg4: #5e5750;
-	--accent: #4a74d6;
-	--accent-hover: #5d86e6;
-	--link: #8aa6e6;
-	--red: #f0665c;
-	--err: #e5675c;
-	--warn: #e89a3c;
-	--info: #4a5568;
-	--shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-	--g-bg: #16351f;
-	--g-fg: #8fe0a8;
-	--b-bg: #1a2c4e;
-	--b-fg: #9cc3f5;
-	--a-bg: #3f2709;
-	--a-fg: #f6bb79;
-	--r-bg: #46181a;
-	--r-fg: #f6a3a0;
-	--n-bg: #272420;
-	--n-fg: #c9c2ba;
-	--diff-add: #15301d;
-	--diff-del: #3c1715;
+	--shell: #0a0a0b;
+	--shell-hover: #161618;
+	--shell-active: #1c1c1f;
+	--bg: #0f0f11;
+	--panel: #161618;
+	--panel2: #202023;
+	--raise: #1c1c1f;
+	--line: #232327;
+	--line2: #313137;
+	--fg: #ececef;
+	--fg2: #b6b6bd;
+	--fg3: #8b8b94;
+	--fg4: #5b5b63;
+	--btn: #e6e6e9;
+	--btn-fg: #0f0f11;
+	--brand: #7b9cff;
+	--ok: oklch(0.74 0.14 150);
+	--info: oklch(0.72 0.13 258);
+	--warn: oklch(0.78 0.14 70);
+	--err: oklch(0.7 0.17 25);
+	--pop-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px #26262b;
 	--scrim: rgba(0, 0, 0, 0.5);
+	--series-0: oklch(0.72 0.12 258);
+	--series-1: oklch(0.72 0.12 305);
+	--series-2: oklch(0.76 0.1 195);
+	--series-3: oklch(0.78 0.13 60);
+	--series-4: oklch(0.76 0.13 150);
+	--series-5: oklch(0.74 0.13 350);
+	--series-6: oklch(0.82 0.12 95);
+	--series-7: oklch(0.72 0.02 260);
 	--pe-dot: rgba(255, 255, 255, 0.045);
-	--pe-panel: #1c1a17;
-	--pe-head: #211e1b;
+	--pe-panel: var(--panel);
+	--pe-head: var(--panel2);
 	--pe-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 40px rgba(0, 0, 0, 0.45);
-	--pe-grid: #36312c;
-	--pe-bar: #4a443d;
+	--pe-grid: var(--line2);
+	--pe-bar: var(--fg4);
 	--pe-glow: 0.18;
-	--logo: #6f8ff2;
 	--logo-inverse: #2455eb;
-	--code-bg: #1d1a17;
-	--code-line-number: #766e66;
-	--sh-identifier: #f3efea;
-	--sh-sign: #9a9188;
 	--sh-property: #8fb0f5;
 	--sh-string: #f2a97a;
 	--sh-keyword: #c8a5f4;
 	--sh-class: #74d4ad;
 	--sh-entity: #9cc3f5;
-	--sh-jsxliterals: #c9c2ba;
-	--sh-comment: #8a8279;
 }
 
 @layer base {
@@ -361,13 +404,9 @@
 }
 
 [data-slot="dialog-overlay"],
-[data-slot="alert-dialog-overlay"] {
-	background: var(--scrim);
-	backdrop-filter: none;
-}
-
+[data-slot="alert-dialog-overlay"],
 [data-slot="sheet-overlay"] {
-	background: rgba(0, 0, 0, 0.5);
+	background: var(--scrim);
 	backdrop-filter: none;
 }
 
@@ -489,7 +528,7 @@
 	}
 	56%,
 	80% {
-		stroke: var(--accent);
+		stroke: var(--brand);
 	}
 	90%,
 	100% {

@@ -16,7 +16,7 @@ export function Hero() {
 
 	return (
 		<section className="relative">
-			<Frame className="flex flex-col items-center gap-6 bg-[linear-gradient(var(--bg3)_1px,transparent_1px),linear-gradient(90deg,var(--bg3)_1px,transparent_1px)] bg-size-[48px_48px] bg-position-[-1px_-1px] pt-[104px] pb-14 text-center">
+			<Frame className="flex flex-col items-center gap-6 bg-[linear-gradient(var(--panel2)_1px,transparent_1px),linear-gradient(90deg,var(--panel2)_1px,transparent_1px)] bg-size-[48px_48px] bg-position-[-1px_-1px] pt-[104px] pb-14 text-center">
 				<CornerMarks />
 				<h1 className="m-0 max-w-[880px] text-[clamp(46px,6.6vw,80px)] leading-[1.02] font-semibold tracking-[-0.035em] text-balance">
 					Deploy containers,
@@ -45,7 +45,7 @@ export function Hero() {
 					}}
 					className="h-auto min-h-8 max-w-full gap-2.5 rounded-[7px] border-line bg-bg2 px-3 py-1.5 font-mono text-[13px] whitespace-normal text-fg3 hover:border-line2 hover:bg-bg3 hover:text-foreground"
 				>
-					<span className="text-primary">$</span>
+					<span className="text-brand">$</span>
 					<span className="min-w-0 text-left">
 						{INSTALL_SEGMENTS.map((segment, i) => (
 							<Fragment key={segment}>

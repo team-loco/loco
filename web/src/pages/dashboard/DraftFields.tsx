@@ -53,7 +53,7 @@ export function StopSlider({
 								key={s}
 								className={cn(
 									"absolute top-1/2 size-1.5 -translate-1/2 rounded-full",
-									i <= idx ? "bg-white/90" : "bg-line2",
+									i <= idx ? "bg-primary-foreground/90" : "bg-line2",
 								)}
 								style={{ left }}
 							/>

@@ -156,7 +156,7 @@ export function EventsSection({
 				{hasFilters && (
 					<Button
 						variant="ghost"
-						className="h-[30px] px-2 text-sm text-link hover:bg-transparent"
+						className="h-[30px] px-2 text-sm text-brand hover:bg-transparent"
 						onClick={() => {
 							setQuery("");
 							setType("all");

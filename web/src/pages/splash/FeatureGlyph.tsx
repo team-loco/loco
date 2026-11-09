@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export type GlyphKind = "tls" | "quic" | "roll" | "scale" | "obs" | "token";
 
 const BASE = "fill-none stroke-line2 [stroke-width:1.2]";
-const ACCENT = "fill-none stroke-primary [stroke-width:1.4]";
+const ACCENT = "fill-none stroke-brand [stroke-width:1.4]";
 
 function Label({
 	x,
@@ -45,7 +45,7 @@ function TlsGlyph() {
 			<Label x={77} y={31} center>
 				inter
 			</Label>
-			<Label x={133} y={31} accent="fill-primary" center>
+			<Label x={133} y={31} accent="fill-brand" center>
 				leaf
 			</Label>
 			<Label x={84} y={50}>
@@ -118,11 +118,11 @@ function ScaleGlyph() {
 					height={v}
 					rx={2}
 					strokeWidth={1}
-					className={v > 26 ? "fill-primary/20 stroke-primary" : "fill-bg3 stroke-line2"}
+					className={v > 26 ? "fill-brand/20 stroke-brand" : "fill-bg3 stroke-line2"}
 				/>
 			))}
 			<path d="M4,20 L152,20" strokeDasharray="4 3" className={ACCENT} />
-			<Label x={118} y={16} accent="fill-primary">
+			<Label x={118} y={16} accent="fill-brand">
 				cpu 70%
 			</Label>
 		</>
@@ -153,7 +153,7 @@ function TokenGlyph() {
 			<path d="M25,28 L60,12 M25,28 L60,44" className={BASE} />
 			<rect x={60} y={4} width={64} height={16} rx={4} className={ACCENT} />
 			<rect x={60} y={36} width={64} height={16} rx={4} className={BASE} />
-			<Label x={92} y={15} accent="fill-primary" center>
+			<Label x={92} y={15} accent="fill-brand" center>
 				api:write
 			</Label>
 			<Label x={92} y={47} center>

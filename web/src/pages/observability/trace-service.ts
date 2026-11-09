@@ -6,7 +6,7 @@ const HASH_MULTIPLIER = 31;
 export function traceServiceColor(name: string): string {
 	let value = 0;
 	for (const character of name) value = (value * HASH_MULTIPLIER + character.charCodeAt(0)) % SERVICE_COLORS;
-	return `var(--trace-service-${String(value)})`;
+	return `var(--series-${String(value)})`;
 }
 
 export function traceServiceLabel(span: TraceSpan, resourceName?: string): string {

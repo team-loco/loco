@@ -44,7 +44,7 @@ export function SectionHeading({
 	return (
 		<div className={cn("flex max-w-[640px] flex-col gap-3.5", className)}>
 			<span className="font-mono text-sm tracking-[0.08em] text-fg3 uppercase">
-				<span className="text-primary">{index}</span> / {eyebrow}
+				<span className="text-brand">{index}</span> / {eyebrow}
 			</span>
 			<h2 className="m-0 text-[clamp(32px,4vw,48px)] leading-[1.08] font-semibold tracking-[-0.03em] text-balance">
 				{title}

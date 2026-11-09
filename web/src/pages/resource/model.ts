@@ -92,7 +92,7 @@ export function regionDotClass(status: ResourceStatus | undefined): string {
 		case ResourceStatus.HEALTHY:
 			return "bg-ok-fg";
 		case ResourceStatus.DEPLOYING:
-			return "bg-primary";
+			return "bg-brand";
 		case ResourceStatus.DEGRADED:
 			return "bg-warn";
 		case ResourceStatus.UNAVAILABLE:

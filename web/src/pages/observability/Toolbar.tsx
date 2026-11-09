@@ -154,7 +154,7 @@ export function LiveTailButton({
 			className={cn(
 				"h-[38px] w-[136px] justify-start gap-2 rounded-lg pr-1.5 pl-3 font-medium",
 				on &&
-					"border-[color-mix(in_oklab,var(--g-fg)_40%,transparent)] bg-ok-bg text-ok-fg hover:border-ok-fg hover:bg-ok-bg dark:bg-ok-bg dark:hover:bg-ok-bg",
+					"border-[color-mix(in_oklab,var(--ok)_40%,transparent)] bg-ok-bg text-ok-fg hover:border-ok-fg hover:bg-ok-bg dark:bg-ok-bg dark:hover:bg-ok-bg",
 			)}
 		>
 			<span className="relative flex size-3.5 items-center justify-center">
@@ -171,7 +171,7 @@ export function LiveTailButton({
 			{on && (
 				<>
 					<span className="text-[11.5px] font-medium tabular-nums opacity-85">{rate.toFixed(1)}/s</span>
-					<span className="flex size-6 items-center justify-center rounded-sm bg-[color-mix(in_oklab,var(--g-fg)_14%,transparent)]">
+					<span className="flex size-6 items-center justify-center rounded-sm bg-[color-mix(in_oklab,var(--ok)_14%,transparent)]">
 						<PauseIcon className="size-3 fill-current" />
 					</span>
 				</>

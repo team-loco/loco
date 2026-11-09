@@ -15,7 +15,7 @@ const TONE_CLASS: Record<Tone, string> = {
 	muted: "text-fg3",
 	warn: "text-warn",
 	ok: "text-ok-fg",
-	accent: "text-primary",
+	accent: "text-brand",
 };
 
 interface Step {

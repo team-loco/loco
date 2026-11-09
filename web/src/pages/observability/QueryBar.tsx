@@ -289,7 +289,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 				onClick={focusInput}
 				className={cn(
 					"flex min-h-[38px] cursor-text flex-wrap items-center gap-1 rounded-lg border bg-background py-[5px] pr-1.5 pl-2.5",
-					open ? "border-primary shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_12%,transparent)]" : "border-line",
+					open ? "border-brand shadow-[0_0_0_3px_color-mix(in_oklab,var(--brand)_12%,transparent)]" : "border-line",
 				)}
 			>
 				<SearchIcon className="mr-0.5 size-3.5 text-fg3" />
@@ -457,7 +457,7 @@ function TokenChip({
 				"inline-flex h-[26px] items-center gap-[5px] rounded-[5px] pr-[3px] pl-2 text-[12.5px] whitespace-nowrap",
 				neg
 					? "bg-bad-bg shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--err)_28%,transparent),inset_3px_0_0_var(--err)]"
-					: "bg-[color-mix(in_oklab,var(--accent)_7%,var(--bg))] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_22%,transparent),inset_3px_0_0_var(--accent)]",
+					: "bg-[color-mix(in_oklab,var(--brand)_7%,var(--bg))] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--brand)_22%,transparent),inset_3px_0_0_var(--brand)]",
 				!supported && "line-through opacity-55",
 			)}
 		>
