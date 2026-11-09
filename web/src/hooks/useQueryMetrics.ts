@@ -1,20 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
-import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
-import { ObservabilityProxyService, type MetricSeries } from "@gen/loco/observability/v1/observability_pb";
-import { timeRangeMs, timeRangeIntervalSeconds, type TimeRange } from "@/lib/obs";
+import { createConnectQueryKey } from "@connectrpc/connect-query";
+import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
+import { stepSeconds } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 
-export interface MetricResult {
-	metricName: string;
-	series: MetricSeries[];
-	isLoading: boolean;
-	error: Error | null;
-}
+const REFRESH_MS = 60_000;
+
 interface UseQueryMetricsOptions {
 	workspaceId: string;
 	resourceIds: string[];
-	timeRange: TimeRange;
+	spanMs: number;
+	endMs?: number | undefined;
 	metricName: string;
 	environmentId: string;
 	region?: string;
@@ -26,7 +22,8 @@ export function metricsQueryOptions(
 	{
 		workspaceId,
 		resourceIds,
-		timeRange,
+		spanMs,
+		endMs,
 		metricName,
 		environmentId,
 		region = "",
@@ -41,7 +38,7 @@ export function metricsQueryOptions(
 		environmentId,
 		region,
 		aggregation,
-		intervalSeconds: timeRangeIntervalSeconds(timeRange),
+		intervalSeconds: stepSeconds(spanMs),
 	};
 	return {
 		queryKey: [
@@ -51,23 +48,19 @@ export function metricsQueryOptions(
 				cardinality: "finite",
 				input,
 			}),
-			timeRange,
+			spanMs,
+			endMs ?? null,
 		],
 		queryFn: async ({ signal }: { signal: AbortSignal }) => {
-			const now = Date.now();
+			const end = endMs ?? Date.now();
 			const response = await createClient(ObservabilityProxyService, transport).queryMetrics(
-				{ ...input, startTime: msToTimestamp(now - timeRangeMs(timeRange)), endTime: msToTimestamp(now) },
+				{ ...input, startTime: msToTimestamp(end - spanMs), endTime: msToTimestamp(end) },
 				{ signal },
 			);
 			return response.series;
 		},
 		enabled: enabled && workspaceId !== "" && environmentId !== "",
-		staleTime: 60_000,
-		refetchInterval: 60_000,
+		staleTime: REFRESH_MS,
+		refetchInterval: endMs === undefined ? REFRESH_MS : (false as const),
 	};
-}
-
-export function useQueryMetrics(options: UseQueryMetricsOptions): MetricResult {
-	const query = useQuery(metricsQueryOptions(useTransport(), options));
-	return { metricName: options.metricName, series: query.data ?? [], isLoading: query.isLoading, error: query.error };
 }

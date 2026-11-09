@@ -1,175 +1,219 @@
-import { BoxIcon, ChevronDownIcon, ClockIcon, PauseIcon, PlayIcon } from "lucide-react";
+import { useState } from "react";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, PauseIcon, PlayIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
-import {
-	DropdownMenu,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
-import { SoonTag } from "@/components/design/SoonTag";
+import { Input } from "@/components/design/Input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { StatusDot } from "@/components/design/StatusGlyph";
-import type { TimeRange } from "@/lib/obs";
+import {
+	checkCustomRange,
+	customRangeMessage,
+	formatSpan,
+	fromLocalInput,
+	parseSpan,
+	presetsWithin,
+	resolveWindow,
+	shiftWindow,
+	spanLabel,
+	toLocalInput,
+	windowLabel,
+} from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
-import { RANGES, useObs } from "./context";
-import { Dot } from "./shared";
+import { useObs } from "./context";
 
-export function TimeRangeMenu({
-	maxRange,
-	value,
-	onChange,
-	compact = false,
-	mode = "relative",
-}: {
-	mode?: "relative" | "window";
-	maxRange: TimeRange | null;
-	compact?: boolean;
-	value?: TimeRange;
-	onChange?: (range: TimeRange) => void;
-}) {
-	const context = useObs();
-	const range = value ?? context.range;
-	const setRange = onChange ?? context.setRange;
-	const current = RANGES.find((r) => r.key === range);
-	const maxIdx = maxRange === null ? RANGES.length - 1 : RANGES.findIndex((r) => r.key === maxRange);
+export function TimePicker() {
+	const { range, setRange, maxMs } = useObs();
+	const [open, setOpen] = useState(false);
+	const [text, setText] = useState("");
+	const [from, setFrom] = useState("");
+	const [to, setTo] = useState("");
+	const [error, setError] = useState<string | null>(null);
+	const limit = formatSpan(maxMs);
+
+	const onOpenChange = (next: boolean) => {
+		if (next) {
+			const bounds = resolveWindow(range, Date.now());
+			setFrom(toLocalInput(bounds.from));
+			setTo(toLocalInput(bounds.to));
+			setText("");
+			setError(null);
+		}
+		setOpen(next);
+	};
+	const pick = (spanMs: number) => {
+		setRange({ kind: "relative", spanMs });
+		setOpen(false);
+	};
+	const applyText = () => {
+		const span = parseSpan(text);
+		if (span === null) {
+			setError(`Try a span like 15m, 6h or ${limit}.`);
+			return;
+		}
+		if (span > maxMs) {
+			setError(`Pick a range of ${limit} or less.`);
+			return;
+		}
+		pick(span);
+	};
+	const applyCustom = () => {
+		const start = fromLocalInput(from);
+		const end = fromLocalInput(to);
+		const now = Date.now();
+		const problem = checkCustomRange(start, end, now, maxMs);
+		if (problem !== null) {
+			setError(customRangeMessage(problem, maxMs));
+			return;
+		}
+		setRange(end >= now ? { kind: "relative", spanMs: now - start } : { kind: "absolute", from: start, to: end });
+		setOpen(false);
+	};
+
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger
-				render={
-					<Button
-						variant="outline"
-						className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[38px] rounded-lg px-3 font-normal"}
-					/>
-				}
+		<div className="flex h-8 items-stretch overflow-hidden rounded-lg border border-line2 bg-raise">
+			<button
+				type="button"
+				aria-label="Earlier"
+				title="Earlier"
+				onClick={() => {
+					setRange(shiftWindow(range, -1, Date.now()));
+				}}
+				className="flex items-center px-2 text-fg2 hover:bg-panel hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
 			>
-				<ClockIcon className="text-fg3" />
-				{mode === "window" ? `${range} window` : (current?.label ?? range)}
-				<ChevronDownIcon className="size-[13px] text-fg3" />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-auto min-w-[200px]">
-				{RANGES.map((r, i) => {
-					const disabled = i > maxIdx;
-					return (
-						<DropdownMenuItem
-							key={r.key}
-							disabled={disabled}
-							onClick={() => {
-								setRange(r.key);
+				<ChevronLeftIcon className="size-3.5" />
+			</button>
+			<Popover open={open} onOpenChange={onOpenChange}>
+				<PopoverTrigger className="flex items-center gap-[7px] border-x border-line2 px-2.5 text-[13px] whitespace-nowrap hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset aria-expanded:bg-panel">
+					<ClockIcon className="size-3.5 text-fg3" />
+					{windowLabel(range)}
+					<ChevronDownIcon className="size-3.5 text-fg3" />
+				</PopoverTrigger>
+				<PopoverContent align="end" aria-label="Time range" className="w-[340px] gap-2.5 p-3">
+					<Input
+						autoFocus
+						value={text}
+						onChange={(e) => {
+							setText(e.target.value);
+							setError(null);
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								applyText();
+							}
+						}}
+						aria-label="Type a time range"
+						placeholder={`Type a range, like 90m or ${limit}`}
+						className="font-mono"
+					/>
+					<div role="group" aria-label="Presets" className="grid grid-cols-2 gap-0.5">
+						{presetsWithin(maxMs).map((ms) => {
+							const on = range.kind === "relative" && range.spanMs === ms;
+							return (
+								<button
+									key={ms}
+									type="button"
+									aria-pressed={on}
+									onClick={() => {
+										pick(ms);
+									}}
+									className={cn(
+										"flex h-8 items-center gap-2.5 rounded-sm px-2 text-left text-[13px] hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+										on && "bg-panel2",
+									)}
+								>
+									<span className="w-8 font-mono text-[11.5px] text-fg3">{formatSpan(ms)}</span>
+									{spanLabel(ms)}
+								</button>
+							);
+						})}
+					</div>
+					<p className="m-0 text-[12px] text-fg3">Ranges up to {limit}.</p>
+					<div className="h-px bg-line" />
+					<span className="text-[12.5px] text-fg3">Custom range</span>
+					<label className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-2 text-[12px] text-fg3">
+						From
+						<Input
+							type="datetime-local"
+							value={from}
+							onChange={(e) => {
+								setFrom(e.target.value);
+								setError(null);
 							}}
-							className={cn("justify-between gap-3", range === r.key && "bg-bg3")}
-						>
-							{mode === "window" ? `${r.key} window` : r.label}
-							<span className="flex items-center gap-1.5 text-sm text-fg3">
-								{disabled && <SoonTag />}
-								{mode === "relative" && r.key}
+							className="h-8 min-w-0 font-mono"
+						/>
+					</label>
+					<label className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-2 text-[12px] text-fg3">
+						To
+						<Input
+							type="datetime-local"
+							value={to}
+							onChange={(e) => {
+								setTo(e.target.value);
+								setError(null);
+							}}
+							className="h-8 min-w-0 font-mono"
+						/>
+					</label>
+					<div className="flex items-center gap-2">
+						{error !== null && (
+							<span role="alert" className="text-[12px] text-bad-fg">
+								{error}
 							</span>
-						</DropdownMenuItem>
-					);
-				})}
-			</DropdownMenuContent>
-		</DropdownMenu>
-	);
-}
-
-export function ResourceMenu({
-	value,
-	onChange,
-	compact = false,
-}: { compact?: boolean; value?: string[] | null; onChange?: (names: string[] | null) => void } = {}) {
-	const context = useObs();
-	const { resources } = context;
-	const selected = value === undefined ? context.selected : value;
-	const setSelected = onChange ?? context.setSelected;
-	const names = resources.map((r) => r.name);
-	const sel = new Set(selected ?? names);
-	const count = names.filter((n) => sel.has(n)).length;
-	const first = names.find((n) => sel.has(n));
-	const label =
-		count === names.length || count === 0
-			? "All resources"
-			: count === 1 && first !== undefined
-				? first
-				: `${String(count)} resources`;
-	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger
-				render={
-					<Button
-						variant="outline"
-						className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[34px] px-2.5 font-normal"}
-					/>
-				}
+						)}
+						<span className="flex-1" />
+						<Button size="sm" onClick={applyCustom}>
+							Apply
+						</Button>
+					</div>
+				</PopoverContent>
+			</Popover>
+			<button
+				type="button"
+				aria-label="Later"
+				title="Later"
+				disabled={range.kind === "relative"}
+				onClick={() => {
+					setRange(shiftWindow(range, 1, Date.now()));
+				}}
+				className="flex items-center px-2 text-fg2 hover:bg-panel hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset disabled:opacity-40 disabled:hover:bg-transparent"
 			>
-				<BoxIcon className="text-fg3" />
-				{label}
-				<ChevronDownIcon className="size-[13px] text-fg3" />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="w-auto min-w-[220px]">
-				{resources.length === 0 && <div className="px-2.5 py-2 text-fg3">No resources</div>}
-				{resources.map((r) => {
-					const on = sel.has(r.name);
-					return (
-						<DropdownMenuCheckboxItem
-							key={r.id}
-							checked={on}
-							onCheckedChange={() => {
-								const next = on
-									? names.filter((n) => sel.has(n) && n !== r.name)
-									: names.filter((n) => sel.has(n) || n === r.name);
-								if (next.length === 0) return;
-								setSelected(next.length === names.length ? null : next);
-							}}
-						>
-							<Dot size={8} color={r.color} />
-							<span className="flex-1">{r.name}</span>
-						</DropdownMenuCheckboxItem>
-					);
-				})}
-			</DropdownMenuContent>
-		</DropdownMenu>
+				<ChevronRightIcon className="size-3.5" />
+			</button>
+		</div>
 	);
 }
 
-export function LiveTailButton({
+export function LiveButton({
 	on,
-	rate,
 	onToggle,
-	disabled,
+	disabled = false,
 	pending = false,
+	detail,
+	title,
 }: {
 	on: boolean;
-	rate: number;
 	onToggle: () => void;
-	disabled: boolean;
+	disabled?: boolean;
 	pending?: boolean;
+	detail?: string | undefined;
+	title: string;
 }) {
 	return (
 		<Button
 			variant="outline"
-			disabled={disabled || pending}
+			aria-pressed={on}
 			aria-busy={pending}
-			title={on ? "Pause live tail" : "Stream new logs as they arrive"}
+			disabled={disabled || pending}
+			title={title}
 			onClick={onToggle}
-			className={cn(
-				"h-[38px] w-[136px] justify-start gap-2 rounded-lg pr-1.5 pl-3 font-medium",
-				on &&
-					"border-[color-mix(in_oklab,var(--ok)_40%,transparent)] bg-ok-bg text-ok-fg hover:border-ok-fg hover:bg-ok-bg dark:bg-ok-bg dark:hover:bg-ok-bg",
-			)}
+			className={cn("h-8", on && "border-[color-mix(in_oklab,var(--ok)_40%,transparent)] text-ok-fg")}
 		>
-			<span className="relative flex size-3.5 items-center justify-center">
-				{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon className="size-[13px] fill-current text-fg2" />}
-			</span>
-			<span className="flex-1 text-left whitespace-nowrap">{pending ? "Starting…" : on ? "Live" : "Live tail"}</span>
-			{on && (
-				<>
-					<span className="text-[11.5px] font-medium tabular-nums opacity-85">{rate.toFixed(1)}/s</span>
-					<span className="flex size-6 items-center justify-center rounded-sm bg-[color-mix(in_oklab,var(--ok)_14%,transparent)]">
-						<PauseIcon className="size-3 fill-current" />
-					</span>
-				</>
-			)}
+			{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon className="fill-current" />}
+			{pending ? "Starting…" : "Live"}
+			{on && detail !== undefined && <span className="font-mono text-[11.5px] opacity-85">{detail}</span>}
+			{on && <PauseIcon className="fill-current" />}
 		</Button>
 	);
 }

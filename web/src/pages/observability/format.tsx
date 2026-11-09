@@ -10,22 +10,42 @@ export function fmtTs(ms: number, withMs = false): string {
 }
 
 export interface LevelStyle {
-	bar: string;
 	badge: string;
 	body: string;
 	dot: string;
+	text: string;
 }
 
 export function levelStyle(level: Level): LevelStyle {
 	switch (level) {
 		case "error":
-			return { bar: "border-l-err", badge: "bg-bad-bg text-bad-fg", body: "text-bad-fg", dot: "bg-err" };
+			return {
+				badge: "bg-bad-bg text-bad-fg",
+				body: "text-bad-fg",
+				dot: "bg-err",
+				text: "text-bad-fg",
+			};
 		case "warn":
-			return { bar: "border-l-warn", badge: "bg-warn-bg text-warn-fg", body: "text-foreground", dot: "bg-warn" };
+			return {
+				badge: "bg-warn-bg text-warn-fg",
+				body: "text-foreground",
+				dot: "bg-warn",
+				text: "text-warn-fg",
+			};
 		case "info":
-			return { bar: "border-l-transparent", badge: "bg-bg3 text-fg2", body: "text-foreground", dot: "bg-info" };
+			return {
+				badge: "bg-bg3 text-fg2",
+				body: "text-foreground",
+				dot: "bg-info",
+				text: "text-fg3",
+			};
 		case "debug":
-			return { bar: "border-l-transparent", badge: "bg-transparent text-fg4", body: "text-fg3", dot: "bg-fg4" };
+			return {
+				badge: "bg-transparent text-fg3",
+				body: "text-fg3",
+				dot: "bg-fg4",
+				text: "text-fg3",
+			};
 	}
 }
 

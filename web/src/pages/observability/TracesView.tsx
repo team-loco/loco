@@ -1,599 +1,369 @@
 import { useState } from "react";
-import { Navigate, useSearchParams } from "react-router";
-import { ArrowLeftIcon, CheckIcon, CopyIcon, RefreshCwIcon, WaypointsIcon, XIcon } from "lucide-react";
+import { RefreshCwIcon } from "lucide-react";
+import { Navigate } from "react-router";
 
-import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
-import { useColumnWidths, useNarrowTable } from "@/hooks/useColumnWidths";
 import { Button } from "@/components/design/Button";
-import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
-import { TraceSurface, TraceDot } from "@/components/design/Trace";
-import { Input } from "@/components/design/Input";
+import { Skeleton } from "@/components/design/Skeleton";
+import { SoonTag } from "@/components/design/SoonTag";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useQueryTraces } from "@/hooks/useQueryTraces";
-import { useCopy } from "@/hooks/useCopy";
-import { getErrorMessage } from "@/lib/error-handler";
-import { timeRangeMs, type TimeRange } from "@/lib/obs";
+import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
+import { formatCount } from "@/lib/format";
+import { resolveWindow } from "@/lib/obs-time";
+import { pagedRows } from "@/lib/paging";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { QUERY_MAX_RANGE, RANGES, useObs } from "./context";
-import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
-import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, uniqueSpans } from "./traces";
-import { traceServiceColor, traceServiceLabel } from "./trace-service";
-import { TraceWaterfall } from "./TraceWaterfall";
+import { filteredResources, useObs } from "./context";
+import { fmtTs } from "./format";
+import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { liveTokens, passes, queryStr, sameToken, type FieldKey } from "./query";
+import { QueryBar } from "./QueryBar";
+import { PAGE_SIZES, readPaging } from "./shared";
+import { TraceDrawer } from "./TraceDrawer";
+import { traceServiceLabel } from "./trace-service";
+import { ViewHeader } from "./ViewHeader";
+import { TRACE_ID_PATTERN, durationLabel, spanError, summarizeTraces, uniqueSpans, type TraceSummary } from "./traces";
 
-const ROWS_PER_PAGE = 25;
-const LIST_COLUMNS = ["Service / operation", "Trace ID", "Observed duration", "Spans", "Start"];
-const LIST_LAYOUT = {
-	minimums: [200, 108, 120, 52, 76],
-	initial: () => [43, 17, 20, 10, 10],
-};
-const NARROW_LIST_LAYOUT = {
-	minimums: [144, 88, 48],
-	initial: () => [56, 27, 17],
-};
+const DEFAULT_PAGE_SIZE = 25;
+const NANOS_PER_MS = 1_000_000n;
+const PERCENT = 100n;
+const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 
-export function TracesView() {
-	const { workspaceId } = useObs();
-	const [initialNow] = useState(Date.now);
-	const [params] = useSearchParams();
-	const requested = params.get("range");
-	const range = RANGES.find((option) => option.key === requested && option.key !== "7d")?.key ?? "1h";
-	const { active, isLoading } = useEnvironments();
-	const end = Number(params.get("end"));
-	const start = Number(params.get("start"));
-	const validBounds =
-		params.get("range") === range &&
-		Number.isSafeInteger(start) &&
-		Number.isSafeInteger(end) &&
-		start > 0 &&
-		end >= start &&
-		end - start <= timeRangeMs(QUERY_MAX_RANGE);
-	if (active === undefined)
-		return (
-			<div role="status" className="py-8 text-fg3">
-				{isLoading ? "Loading environments…" : "No environments available"}
-			</div>
-		);
-	if (!validBounds || params.get("env") !== active.id) {
-		const now = initialNow;
-		const canonical = new URLSearchParams(params);
-		canonical.set("range", range);
-		if (!validBounds) {
-			canonical.set("start", String(now - timeRangeMs(range)));
-			canonical.set("end", String(now));
-		}
-		canonical.set("env", active.id);
-		return <Navigate to={{ search: `?${canonical.toString()}` }} replace />;
-	}
-	return (
-		<TraceSession
-			key={`${workspaceId}:${active.id}:${range}`}
-			environmentId={active.id}
-			environmentLoading={isLoading}
-			range={range}
-		/>
-	);
+function statusOf(trace: TraceSummary): string {
+	return trace.errors > 0 ? "error" : "ok";
 }
 
-function TraceSession({
-	environmentId,
-	environmentLoading,
-	range,
-}: {
-	environmentId: string;
-	environmentLoading: boolean;
-	range: TimeRange;
-}) {
-	const { workspaceId, resources, resourcesLoading } = useObs();
-	const narrow = useNarrowTable();
-	const {
-		ref: columnRef,
-		style: columnStyle,
-		handles,
-		resize,
-	} = useColumnWidths(
-		"loco:trace-list-columns:v1",
-		narrow ? "narrow" : "wide",
-		narrow ? NARROW_LIST_LAYOUT : LIST_LAYOUT,
-	);
-	const visibleColumns = narrow ? [0, 2, 3] : [0, 1, 2, 3, 4];
+export function TracesView() {
+	const { range } = useObs();
+	return <TraceSession key={JSON.stringify(range)} />;
+}
 
-	const [params, setParams] = useSearchParams();
-	const traceId = params.get("trace") ?? "";
-	const selected = params.has("r") ? (params.get("r") ?? "").split(",").filter(Boolean) : null;
-	const setSelected = (names: string[] | null) => {
-		const next = new URLSearchParams(params);
-		if (names === null) next.delete("r");
-		else next.set("r", names.join(","));
-		setParams(next);
-		setPage(0);
-	};
-	const [input, setInput] = useState(traceId);
-	const [invalid, setInvalid] = useState(false);
-	const [previousTrace, setPreviousTrace] = useState(traceId);
-	if (previousTrace !== traceId) {
-		setPreviousTrace(traceId);
-		setInput(traceId);
-		setInvalid(false);
-	}
-	const [page, setPage] = useState(0);
-	const bounds = {
-		start: Number(params.get("start")),
-		end: Number(params.get("end")),
-	};
-	const resourceIds =
-		selected === null
-			? []
-			: resources.filter((resource) => selected.includes(resource.name)).map((resource) => resource.id);
-	const filterReady =
-		selected === null || (!resourcesLoading && selected.length > 0 && resourceIds.length === selected.length);
-	const validTrace = traceId === "" || TRACE_ID_PATTERN.test(traceId);
+function TraceSession() {
+	const {
+		workspaceId,
+		resources,
+		resourcesLoading,
+		resourceById,
+		range,
+		tokens,
+		text,
+		setQuery,
+		params,
+		setParam,
+		setParams,
+		setPaging,
+	} = useObs();
+	const { active, isLoading: environmentLoading } = useEnvironments();
+	const environmentId = active?.id ?? "";
+	const [frozenEnd, setFrozenEnd] = useState(Date.now);
+	const bounds = resolveWindow(range, frozenEnd);
+	const traceToken = liveTokens("traces", tokens, "trace")[0];
+	const lookup = traceToken?.value.toLowerCase() ?? "";
+	const validLookup = lookup === "" || TRACE_ID_PATTERN.test(lookup);
+	const resourceFilter = liveTokens("traces", tokens, "resource").length > 0;
+	const visible = filteredResources("traces", resources, tokens);
+	const filterReady = !resourceFilter || (!resourcesLoading && visible.length > 0);
 	const browse = useQueryTraces({
 		workspaceId,
 		environmentId,
-		resourceIds,
-		traceId: "",
-		...bounds,
-		enabled: traceId === "" && filterReady,
+		resourceIds: resourceFilter ? visible.map((r) => r.id) : [],
+		traceId: validLookup ? lookup : "",
+		start: bounds.from,
+		end: bounds.to,
+		enabled: filterReady && validLookup,
 	});
+	const openId = params.get("trace") ?? "";
 	const detail = useQueryTraces({
 		workspaceId,
 		environmentId,
 		resourceIds: [],
-		traceId,
-		...bounds,
-		enabled: traceId !== "" && validTrace,
+		traceId: openId,
+		start: bounds.from,
+		end: bounds.to,
+		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId),
 	});
-	const query = traceId === "" ? browse : detail;
-	const spans = uniqueSpans(query.data?.pages.flatMap((result) => result.spans) ?? []);
-	const traces = summarizeTraces(spans);
-	const trace = traces[0];
-	const [copied, copy] = useCopy();
-	const loading = environmentLoading || query.isLoading || (traceId === "" && selected !== null && resourcesLoading);
-	const incomplete = query.hasNextPage;
-	const pageCount = Math.max(1, Math.ceil(traces.length / ROWS_PER_PAGE));
-	const currentPage = Math.min(page, pageCount - 1);
-	const update = (id: string) => {
-		const next = new URLSearchParams(params);
-		next.set("range", range);
-		next.set("start", String(bounds.start));
-		next.set("end", String(bounds.end));
-		next.delete("span");
-		if (id === "") next.delete("trace");
-		else next.set("trace", id);
-		setParams(next);
-		setInput(id);
-		setInvalid(false);
-	};
-	const rootLabel =
-		trace === undefined
-			? ""
-			: traceServiceLabel(trace.root, resources.find((resource) => resource.id === trace.root.resourceId)?.name);
-	const maxDuration = traces.reduce((max, item) => (item.duration > max ? item.duration : max), 1n);
-	const controls = (
-		<>
-			<TimeRangeMenu
-				compact
-				maxRange={QUERY_MAX_RANGE}
-				value={range}
-				onChange={(value) => {
-					const now = Date.now();
-					const next = new URLSearchParams(params);
-					next.set("range", value);
-					next.set("start", String(now - timeRangeMs(value)));
-					next.set("end", String(now));
-					setParams(next);
-				}}
-			/>
-			<Button
-				type="button"
-				variant="outline"
-				size="icon-xs"
-				aria-label="Refresh"
-				disabled={query.isFetching}
-				onClick={() => {
-					const now = Date.now();
-					const next = new URLSearchParams(params);
-					next.set("start", String(now - timeRangeMs(range)));
-					next.set("end", String(now));
-					setParams(next);
-					setPage(0);
-				}}
-			>
-				<RefreshCwIcon className={cn(query.isFetching && "animate-spin motion-reduce:animate-none")} />
-			</Button>
-		</>
+
+	const spans = uniqueSpans(browse.data?.pages.flatMap((r) => r.spans) ?? []);
+	const words = text.toLowerCase().split(" ").filter(Boolean);
+	const statusTokens = liveTokens("traces", tokens, "status");
+	const named = summarizeTraces(spans).filter((t) =>
+		words.every((w) => t.spans.some((s) => s.name.toLowerCase().includes(w))),
 	);
+	const traces = named
+		.filter((t) => passes([statusOf(t)], statusTokens))
+		.toSorted((a, b) => (a.start > b.start ? -1 : 1));
+	const errorCount = named.filter((t) => t.errors > 0).length;
+	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
+	const paging = readPaging(params, DEFAULT_PAGE_SIZE);
+	const paged = pagedRows(
+		traces,
+		paging,
+		(next) => {
+			setPaging(next, DEFAULT_PAGE_SIZE);
+		},
+		PAGE_SIZES,
+		"0",
+	);
+	const maxDuration = traces.reduce((max, t) => (t.duration > max ? t.duration : max), 1n);
+	const loading = environmentLoading || browse.isLoading || (resourceFilter && resourcesLoading);
+	const detailSpans = uniqueSpans(detail.data?.pages.flatMap((r) => r.spans) ?? []);
+	const openTrace = summarizeTraces(detailSpans)[0];
+	const query = queryStr(tokens, text);
+	const open = (id: string) => {
+		const next = new URLSearchParams(params);
+		next.set("trace", id);
+		next.delete("span");
+		setParams(next);
+	};
+	const close = () => {
+		const next = new URLSearchParams(params);
+		next.delete("trace");
+		next.delete("span");
+		setParams(next);
+	};
+	const crossesDay = new Date(bounds.from).toDateString() !== new Date(bounds.to).toDateString();
+	const valueCounts = (key: FieldKey): [string, number][] => {
+		if (key === "resource") return resources.map((r) => [r.name, 0]);
+		if (key === "status")
+			return [
+				["error", errorCount],
+				["ok", named.length - errorCount],
+			];
+		if (key === "trace") return traces.slice(0, paging.page + 1).map((t) => [t.id, t.spans.length]);
+		return [];
+	};
+
+	if (openId !== "" && active !== undefined && params.get("env") === null) {
+		const pinned = new URLSearchParams(params);
+		pinned.set("env", active.name);
+		return <Navigate to={{ search: `?${pinned.toString()}` }} replace />;
+	}
+
+	const header = (
+		<ViewHeader
+			actions={
+				<Button
+					variant="outline"
+					size="icon"
+					aria-label="Refresh"
+					title="Refresh"
+					disabled={browse.isFetching}
+					onClick={() => {
+						setFrozenEnd(Date.now());
+						setParam("page", null, true);
+					}}
+				>
+					<RefreshCwIcon className={cn(browse.isFetching && "animate-spin motion-reduce:animate-none")} />
+				</Button>
+			}
+		/>
+	);
+
+	if (!loading && browse.error !== null && isUnimplemented(browse.error)) {
+		return (
+			<>
+				{header}
+				<ObsHero
+					view="traces"
+					title="Traces aren't available here yet"
+					body="This installation has no trace store connected. Traces your services send over OTLP show up here once it does."
+				/>
+			</>
+		);
+	}
+	if (!loading && browse.error === null && spans.length === 0 && query === "") {
+		return (
+			<>
+				{header}
+				<QueryBar valueCounts={valueCounts} />
+				<ObsHero
+					view="traces"
+					title="No traces in this range"
+					body="Every replica is already pointed at a trace collector. Add an OpenTelemetry SDK to your app and its traces show up here."
+					action={<WidenRangeButton />}
+				/>
+			</>
+		);
+	}
+
 	return (
-		<div className="flex min-w-0 flex-col gap-2">
-			{traceId !== "" ? (
-				<>
-					<div className="flex flex-wrap items-center justify-between gap-2">
-						<div className="flex min-w-0 items-center gap-2">
-							<Button
-								variant="ghost"
-								size="xs"
-								className="-ml-2"
-								onClick={() => {
-									update("");
-								}}
-							>
-								<ArrowLeftIcon />
-								All traces
-							</Button>
-							<span className="text-[11px] text-fg3 max-sm:hidden">Workspace / environment · All resources</span>
-						</div>
-						<div className="flex items-center gap-1.5">{controls}</div>
-					</div>
-					<div className="flex min-w-0 items-start justify-between gap-3 pb-1">
-						<div className="min-w-0">
-							<h1 className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-								<TraceDot color={traceServiceColor(trace?.root.serviceName ?? "")} />
-								<span className="max-w-48 truncate text-fg3" title={trace?.root.serviceName}>
-									{rootLabel}
-								</span>
-								<span className="truncate" title={trace?.root.name}>
-									{trace?.root.name ?? "Trace details"}
-								</span>
-							</h1>
-							<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-fg3">
-								<span className="inline-flex items-center gap-1">
-									<code className="break-all">{traceId}</code>
-									<Button
-										variant="ghost"
-										size="icon-xs"
-										aria-label="Copy trace ID"
-										onClick={() => {
-											copy("trace", traceId);
-										}}
-									>
-										{copied === "trace" ? <CheckIcon /> : <CopyIcon />}
-									</Button>
-								</span>
-								{trace !== undefined && (
-									<>
-										<span>
-											{spans.length} loaded {spans.length === 1 ? "span" : "spans"} · {trace.services}{" "}
-											{trace.services === 1 ? "service" : "services"}
-										</span>
-										{trace.errors > 0 && (
-											<span className="rounded-sm bg-bad-bg px-1.5 py-0.5 text-bad-fg">
-												{trace.errors} error {trace.errors === 1 ? "span" : "spans"}
-											</span>
-										)}
-									</>
-								)}
-							</div>
-						</div>
-						{trace !== undefined && (
-							<div className="shrink-0 text-right">
-								<p className="font-mono text-sm">{durationLabel(trace.duration)}</p>
-								<p className="mt-0.5 text-[9px] text-fg3">Observed duration</p>
-							</div>
-						)}
-					</div>
-					{!validTrace && (
-						<p id="trace-id-error" className="text-xs text-bad-fg">
-							Enter a 32-character hexadecimal trace ID. Return to All traces to search again.
-						</p>
-					)}
-					<TraceSurface>
-						<QueryState
-							loading={loading}
-							error={query.error}
-							empty={spans.length === 0}
-							onRetry={() => {
-								void query.refetch();
-							}}
-						/>
-						{trace !== undefined && <TraceWaterfall key={traceId} trace={trace} incomplete={incomplete} />}
-						<PageStatus
-							count={spans.length}
-							incomplete={incomplete}
-							fetching={query.isFetchingNextPage}
-							onMore={() => {
-								void query.fetchNextPage();
-							}}
-							detail
-						/>
-					</TraceSurface>
-				</>
-			) : (
-				<>
-					<h1 className="text-sm font-semibold">Traces</h1>
-					<form
-						noValidate
-						className="flex flex-wrap items-center gap-1.5"
-						onSubmit={(event) => {
-							event.preventDefault();
-							const id = input.trim().toLowerCase();
-							if (id !== "" && !TRACE_ID_PATTERN.test(id)) {
-								setInvalid(true);
-								return;
-							}
-							update(id);
+		<>
+			{header}
+			<QueryBar valueCounts={valueCounts} />
+			{!validLookup && (
+				<p role="alert" className="m-0 text-[12.5px] text-bad-fg">
+					A trace ID is 32 lowercase hexadecimal characters.
+				</p>
+			)}
+			<section aria-labelledby="ts-duration" className="flex flex-col gap-2.5">
+				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
+					<h2 id="ts-duration" className="m-0 flex items-baseline gap-2 text-[18px] font-normal tracking-[-0.02em]">
+						Duration
+						<SoonTag />
+					</h2>
+					<span className="text-[12.5px] text-fg3">each trace as a dot by start time and duration</span>
+				</div>
+			</section>
+			<section aria-label="Trace list" className="flex min-w-0 flex-col rounded-[10px] bg-panel">
+				<div className="flex flex-wrap items-center gap-2 px-5 pt-3 pb-1.5">
+					<span className="text-[13.5px]">
+						{formatCount(traces.length)} {traces.length === 1 ? "trace" : "traces"}
+					</span>
+					<span className="text-[12.5px] text-fg3">
+						observed in {formatCount(spans.length)} loaded {spans.length === 1 ? "span" : "spans"}
+						{browse.hasNextPage ? " · partial" : ""}
+					</span>
+					<span className="flex-1" />
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Show"
+						value={[errorsOnly ? "errors" : "all"]}
+						onValueChange={(v: string[]) => {
+							const rest = tokens.filter((t) => t.key !== "status");
+							setQuery(v[0] === "errors" ? [...rest, ERROR_TOKEN] : rest, text);
 						}}
 					>
-						<div className="relative min-w-40 flex-1">
-							<Input
-								aria-label="Trace ID"
-								aria-invalid={invalid}
-								aria-describedby={invalid ? "trace-id-error" : undefined}
-								value={input}
-								placeholder="Find a trace by ID…"
-								className="h-7 rounded-sm pr-7 font-mono text-[11px]"
-								onChange={(event) => {
-									setInput(event.target.value);
-									setInvalid(false);
-								}}
-							/>
-							{input !== "" && (
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-xs"
-									aria-label="Clear trace search"
-									className="absolute top-0 right-0 h-7 w-7"
-									onClick={() => {
-										update("");
-										document.querySelector<HTMLInputElement>('input[aria-label="Trace ID"]')?.focus();
-									}}
-								>
-									<XIcon />
-								</Button>
-							)}
-						</div>
-						<Button type="submit" variant="outline" size="xs">
-							Search
-						</Button>
-						<ResourceMenu compact value={selected} onChange={setSelected} />
-						{controls}
-					</form>
-					{invalid && (
-						<p id="trace-id-error" className="text-xs text-bad-fg">
-							Enter a 32-character hexadecimal trace ID.
-						</p>
-					)}
-					<div className="flex flex-wrap justify-between gap-1 text-[10px] text-fg3">
-						<span>
-							{traces.length} {traces.length === 1 ? "trace" : "traces"} in {spans.length} loaded{" "}
-							{spans.length === 1 ? "span" : "spans"}
-							{incomplete ? " · Partial results" : ""}
-						</span>
-						<span>
-							{formatClock(bounds.start)}–{formatClock(bounds.end)} · Oldest spans first
-						</span>
-					</div>
-					<TraceSurface>
-						{!filterReady && !resourcesLoading && (
-							<div role="status" className="px-2.5 py-3 text-xs text-fg3">
-								The selected resources are unavailable.{" "}
-								<Button
-									variant="outline"
-									size="xs"
-									onClick={() => {
-										setSelected(null);
-									}}
-								>
-									Show all resources
-								</Button>
-							</div>
-						)}
-						<QueryState
-							loading={loading}
-							error={query.error}
-							empty={spans.length === 0 && filterReady}
-							onRetry={() => {
-								void query.refetch();
-							}}
-						/>
-						{spans.length > 0 && (
-							<div className="trace-results-scroller" ref={columnRef} style={columnStyle}>
-								<table className="trace-results">
-									<colgroup>
-										{LIST_COLUMNS.map((label, index) => {
-											const visible = visibleColumns.indexOf(index);
-											return (
-												<col
-													key={label}
-													className={index === 1 || index === 4 ? "max-sm:hidden" : undefined}
-													style={visible < 0 ? undefined : { width: `var(--column-${String(visible)})` }}
-												/>
-											);
-										})}
-									</colgroup>
-									<thead>
-										<tr>
-											{LIST_COLUMNS.map((label, index) => {
-												const visible = visibleColumns.indexOf(index);
-												const handle = handles[visible];
-												return (
-													<th key={label} className={index === 1 || index === 4 ? "max-sm:hidden" : undefined}>
-														{label}
-														{handle !== undefined && (
-															<ColumnResizeHandle
-																key={`${narrow ? "narrow" : "wide"}-${String(index)}`}
-																label={`Resize ${label} column`}
-																{...handle}
-																onResize={(value, commit) => {
-																	resize(visible, value, commit);
-																}}
-															/>
-														)}
-													</th>
-												);
-											})}
-										</tr>
-									</thead>
-									<tbody>
-										{traces.slice(currentPage * ROWS_PER_PAGE, (currentPage + 1) * ROWS_PER_PAGE).map((item) => (
-											<tr key={item.id}>
-												<td>
-													<button
-														type="button"
-														className="trace-results-operation w-full focus-visible:outline-2"
-														aria-label={`Open trace ${item.id}`}
-														onClick={() => {
-															update(item.id);
-														}}
-														title={`${item.root.serviceName} · ${item.root.name}`}
-													>
-														<TraceDot color={traceServiceColor(item.root.serviceName)} />
-														<span className="trace-results-service truncate text-fg3 max-sm:hidden">
-															{traceServiceLabel(
-																item.root,
-																resources.find((resource) => resource.id === item.root.resourceId)?.name,
-															)}
-														</span>
-														<strong>{item.root.name || "Unnamed span"}</strong>
-														{item.errors > 0 && (
-															<span title={`${String(item.errors)} error spans`} className="shrink-0 text-bad-fg">
-																!
-															</span>
-														)}
-													</button>
-												</td>
-												<td className="font-mono text-fg3 max-sm:hidden">{item.id.slice(0, 12)}</td>
-												<td>
-													<span className="flex items-center gap-2">
-														<span className="h-1.5 flex-1 rounded-sm bg-bg3 max-sm:hidden">
-															<span
-																className="block h-full rounded-sm"
-																style={{
-																	width: `${String(Number((item.duration * 100n) / maxDuration))}%`,
-																	background: traceServiceColor(item.root.serviceName),
-																}}
-															/>
-														</span>
-														<span className="w-20 shrink-0 text-right font-mono text-[10px] max-sm:w-auto">
-															{durationLabel(item.duration)}
-														</span>
+						<ToggleGroupItem value="all" count={formatCount(named.length)}>
+							All
+						</ToggleGroupItem>
+						<ToggleGroupItem value="errors" count={formatCount(errorCount)}>
+							Errors
+						</ToggleGroupItem>
+					</ToggleGroup>
+				</div>
+				<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
+					<table className="w-full min-w-[720px] border-collapse text-[12.5px]">
+						<thead>
+							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">
+								<th className="px-3 font-normal">When</th>
+								<th className="px-3 font-normal">Resource</th>
+								<th className="px-3 font-normal">Root span</th>
+								<th className="px-3 font-normal">Status</th>
+								<th className="px-3 text-right font-normal" title="From the first span's start to the last span's end">
+									Observed duration
+								</th>
+								<th className="px-3 text-right font-normal">Spans</th>
+							</tr>
+						</thead>
+						<tbody>
+							{loading &&
+								Array.from({ length: 8 }, (_, i) => (
+									<tr key={String(i)} className="h-[38px]">
+										<td colSpan={6} className="px-3">
+											<Skeleton className="h-3 w-full" />
+										</td>
+									</tr>
+								))}
+							{!loading &&
+								paged.rows.map((t) => {
+									const failed = t.errors > 0;
+									const startMs = Number(t.start / NANOS_PER_MS);
+									const on = t.id === openId;
+									return (
+										<tr
+											key={t.id}
+											className={cn(
+												"h-[38px] border-b border-line last:border-b-0 hover:bg-panel2",
+												on && "bg-background",
+											)}
+										>
+											<td className="px-3 font-mono whitespace-nowrap text-fg3">
+												{crossesDay ? fmtTs(startMs) : formatClock(startMs)}
+											</td>
+											<td className="px-3">{traceServiceLabel(t.root, resourceById.get(t.root.resourceId)?.name)}</td>
+											<td className="max-w-[360px] px-3">
+												<button
+													type="button"
+													aria-label={`Open trace ${t.root.name || t.id}`}
+													onClick={() => {
+														open(t.id);
+													}}
+													className="block w-full truncate rounded-sm text-left font-mono text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+												>
+													{t.root.name || "Unnamed span"}
+												</button>
+											</td>
+											<td className={cn("px-3 font-mono", failed ? "text-bad-fg" : "text-fg3")}>
+												{failed ? `error · ${String(t.errors)}` : "ok"}
+											</td>
+											<td className="px-3">
+												<span className="flex items-center justify-end gap-2">
+													<span className="h-1 w-20 overflow-hidden rounded-[2px] bg-line2 max-sm:hidden">
+														<span
+															className={cn("block h-full rounded-[2px]", failed ? "bg-err" : "bg-fg3")}
+															style={{ width: `${String(Number((t.duration * PERCENT) / maxDuration))}%` }}
+														/>
 													</span>
-												</td>
-												<td className="font-mono text-fg3">{item.spans.length}</td>
-												<td className="font-mono text-[10px] text-fg3 max-sm:hidden">
-													{formatClock(Number(item.start / 1_000_000n), true)}
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-						)}
-						{traces.length > ROWS_PER_PAGE && (
-							<Pager
-								label={`Page ${String(currentPage + 1)} of ${String(pageCount)} loaded results`}
-								onFirst={
-									currentPage === 0
-										? null
-										: () => {
-												setPage(0);
-											}
-								}
-								onPrev={
-									currentPage === 0
-										? null
-										: () => {
-												setPage(currentPage - 1);
-											}
-								}
-								onNext={
-									currentPage === pageCount - 1
-										? null
-										: () => {
-												setPage(currentPage + 1);
-											}
-								}
-								onLast={
-									currentPage === pageCount - 1
-										? null
-										: () => {
-												setPage(pageCount - 1);
-											}
-								}
-							/>
-						)}
-						<PageStatus
-							count={spans.length}
-							incomplete={incomplete}
-							fetching={query.isFetchingNextPage}
-							onMore={() => {
-								void query.fetchNextPage();
-							}}
+													<span className={cn("font-mono", failed ? "text-bad-fg" : "text-foreground")}>
+														{durationLabel(t.duration)}
+													</span>
+												</span>
+											</td>
+											<td className="relative px-3 text-right font-mono text-fg3">
+												{t.spans.length}
+												{t.spans.some(spanError) && <span className="sr-only">, with errors</span>}
+											</td>
+										</tr>
+									);
+								})}
+						</tbody>
+					</table>
+					{!loading && browse.error !== null && (
+						<div role="alert" className="flex flex-wrap items-center justify-between gap-3 px-3 py-6">
+							<span className="text-bad-fg">{getErrorMessage(browse.error, "Failed to load traces")}</span>
+							<Button
+								variant="outline"
+								onClick={() => {
+									void browse.refetch();
+								}}
+							>
+								Retry
+							</Button>
+						</div>
+					)}
+					{!loading && browse.error === null && traces.length === 0 && (
+						<NoMatches
+							title={filterReady ? "No traces match these filters" : "The filtered resources aren't in this workspace"}
 						/>
-					</TraceSurface>
-				</>
+					)}
+				</div>
+				{browse.hasNextPage && (
+					<div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-2 text-[12px] text-fg3">
+						<span>Partial results. Counts and durations reflect the loaded spans.</span>
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={browse.isFetchingNextPage}
+							onClick={() => {
+								void browse.fetchNextPage();
+							}}
+						>
+							{browse.isFetchingNextPage ? "Loading…" : "Load more spans"}
+						</Button>
+					</div>
+				)}
+				<Pager {...paged.pager} {...paged.ends} />
+			</section>
+			{openId !== "" && (
+				<TraceDrawer
+					traceId={openId}
+					trace={openTrace}
+					loading={detail.isLoading}
+					error={detail.error}
+					incomplete={detail.hasNextPage}
+					loadingMore={detail.isFetchingNextPage}
+					onLoadMore={() => {
+						void detail.fetchNextPage();
+					}}
+					onRetry={() => {
+						void detail.refetch();
+					}}
+					onClose={close}
+				/>
 			)}
-		</div>
-	);
-}
-
-function QueryState({
-	loading,
-	error,
-	empty,
-	onRetry,
-}: {
-	loading: boolean;
-	error: Error | null;
-	empty: boolean;
-	onRetry: () => void;
-}) {
-	if (loading)
-		return (
-			<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
-				<RefreshCwIcon className="size-4 animate-spin motion-reduce:animate-none" />
-				Loading spans…
-			</div>
-		);
-	if (error !== null)
-		return (
-			<div role="alert" className="flex flex-wrap items-center justify-between gap-3 px-4 py-6">
-				<span className="text-bad-fg">{getErrorMessage(error, "Failed to load traces")}</span>
-				<Button variant="outline" onClick={onRetry}>
-					Retry
-				</Button>
-			</div>
-		);
-	if (empty)
-		return (
-			<EmptyState icon={<WaypointsIcon />} title="No traces in this time range">
-				Choose a wider time range or send traces from your application through OTLP.
-			</EmptyState>
-		);
-	return null;
-}
-
-function PageStatus({
-	count,
-	incomplete,
-	fetching,
-	onMore,
-	detail = false,
-}: {
-	count: number;
-	incomplete: boolean;
-	fetching: boolean;
-	onMore: () => void;
-	detail?: boolean;
-}) {
-	if (count === 0) return null;
-	return (
-		<div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-bg2 px-2.5 py-1.5 text-[10px] text-fg3">
-			<span>
-				{incomplete
-					? "Partial results · Counts and durations reflect loaded spans."
-					: detail
-						? "All available spans in this time range are loaded. Sampling or retention may leave gaps."
-						: "All spans in this time range are loaded."}
-			</span>
-			{incomplete && (
-				<Button variant="outline" size="sm" disabled={fetching} onClick={onMore}>
-					{fetching ? "Loading…" : "Load more spans"}
-				</Button>
-			)}
-		</div>
+		</>
 	);
 }

@@ -1,86 +1,136 @@
-import { useState } from "react";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { BellIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 
 import { Skeleton } from "@/components/design/Skeleton";
+import { SoonTag } from "@/components/design/SoonTag";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
-import { useQueryMetrics } from "@/hooks/useQueryMetrics";
+import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
-import { getErrorMessage } from "@/lib/error-handler";
-import { timeRangeMs } from "@/lib/obs";
-import { formatClock, tsMs } from "@/lib/time";
+import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
+import { aroundWindow, resolveWindow, windowSpan } from "@/lib/obs-time";
+import { logAnchor } from "@/lib/log-history";
+import { formatHourMinute, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
-import { fitRange, QUERY_MAX_RANGE, selectedResources, useObs, type ObsResource } from "./context";
-import { MetricCard, MetricChart, type ChartMarker, type ChartSeries } from "./MetricChart";
-import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
+import { filteredResources, useObs, type ObsResource } from "./context";
+import { MetricChart, type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
+import { ObsHero } from "./ObsEmpty";
+import { liveTokens, narrow, type Token } from "./query";
+import { QueryBar } from "./QueryBar";
+import { ViewHeader } from "./ViewHeader";
 
 interface MetricDef {
-	key: string;
+	key: "cpu" | "mem";
 	metric: string;
 	title: string;
 }
 
-const COMPUTE: MetricDef[] = [
-	{ key: "cpu", metric: "k8s.pod.cpu_limit_utilization", title: "CPU" },
-	{ key: "mem", metric: "k8s.pod.memory_limit_utilization", title: "Memory" },
-];
+const CPU: MetricDef = { key: "cpu", metric: "k8s.pod.cpu_limit_utilization", title: "CPU" };
+const MEMORY: MetricDef = { key: "mem", metric: "k8s.pod.memory_limit_utilization", title: "Memory" };
 
-export function MetricsView() {
-	const { resources, selected } = useObs();
-	const [hidden, setHidden] = useState<string[]>([]);
-	const sel = selectedResources(resources, selected);
-	const hiddenNames = new Set(hidden);
-	const visible = sel.filter((r) => !hiddenNames.has(r.name));
+const TRAFFIC = ["Requests", "5xx responses", "Latency, p95"];
+const PERCENT = 100;
+const NOW_TICK_MS = 60_000;
+const CHART_HEIGHT = 190;
+const DEPLOYS_PER_RESOURCE = 20;
+const WARN_PERCENT = 85;
 
-	return (
-		<>
-			<div className="flex flex-wrap items-center gap-2">
-				<ResourceMenu />
-				<div className="flex-1" />
-				<TimeRangeMenu maxRange={QUERY_MAX_RANGE} />
-			</div>
-			<div className="flex flex-col gap-5">
-				<div className="flex flex-wrap items-center gap-3">
-					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-						{sel.map((r) => {
-							const off = hiddenNames.has(r.name);
-							return (
-								<button
-									key={r.id}
-									type="button"
-									title={off ? "Show" : "Hide"}
-									onClick={() => {
-										setHidden(off ? hidden.filter((x) => x !== r.name) : [...hidden, r.name]);
-									}}
-									className={cn(
-										"flex h-[30px] cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-foreground hover:border-fg4",
-										off ? "border-line bg-transparent opacity-50" : "border-line2 bg-background",
-									)}
-								>
-									<span className="h-[3px] w-2.5 rounded-[2px]" style={{ background: r.color }} />
-									<span className="font-medium">{r.name}</span>
-								</button>
-							);
-						})}
-					</div>
-				</div>
-				<ComputeSection visible={visible} />
-			</div>
-		</>
-	);
+interface Placement {
+	key: string;
+	resource: ObsResource;
+	region: string;
+	dashed: boolean;
+	ready: number | null;
+	desired: number | null;
 }
 
-function SectionTitle({ children }: { children: string }) {
-	return <span className="text-sm font-semibold tracking-[0.04em] text-fg3 uppercase">{children}</span>;
+function placements(resources: ObsResource[], environmentId: string, regionTokens: Token[]): Placement[] {
+	const out: Placement[] = [];
+	for (const resource of resources) {
+		const status = resource.raw.environmentStatuses.find((s) => s.environmentId === environmentId);
+		const regions =
+			status !== undefined && status.regions.length > 0 ? status.regions.map((r) => r.region) : resource.regions;
+		const kept = narrow(regions.toSorted(), regionTokens) ?? regions.toSorted();
+		kept.forEach((region, i) => {
+			const rs = status?.regions.find((r) => r.region === region);
+			out.push({
+				key: `${resource.id}|${region}`,
+				resource,
+				region,
+				dashed: i > 0,
+				ready: rs?.readyReplicas ?? null,
+				desired: rs?.desiredReplicas ?? null,
+			});
+		});
+	}
+	return out;
+}
+
+function useComputeSeries(def: MetricDef, rows: Placement[], spanMs: number, endMs: number | undefined) {
+	const transport = useTransport();
+	const { workspaceId } = useObs();
+	const { active: environment } = useEnvironments();
+	const environmentId = environment?.id ?? "";
+	const regions = [...new Set(rows.map((p) => p.region))];
+	const results = useQueries({
+		queries: regions.map((region) =>
+			metricsQueryOptions(transport, {
+				workspaceId,
+				environmentId,
+				resourceIds: [...new Set(rows.filter((p) => p.region === region).map((p) => p.resource.id))],
+				spanMs,
+				endMs,
+				metricName: def.metric,
+				aggregation: "max",
+				region,
+			}),
+		),
+	});
+	const series: ChartSeries[] = [];
+	const latest = new Map<string, number>();
+	const multi = new Set(rows.filter((p) => p.dashed).map((p) => p.resource.id));
+	regions.forEach((region, i) => {
+		const peaks = new Map<string, Map<number, number>>();
+		for (const s of results[i]?.data ?? []) {
+			const pts = peaks.get(s.resourceId) ?? new Map<number, number>();
+			for (const p of s.points) {
+				const t = tsMs(p.timestamp);
+				pts.set(t, Math.max(pts.get(t) ?? 0, p.value * PERCENT));
+			}
+			peaks.set(s.resourceId, pts);
+		}
+		for (const [id, pts] of peaks) {
+			const row = rows.find((p) => p.resource.id === id && p.region === region);
+			if (row === undefined) continue;
+			const points = [...pts].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
+			series.push({
+				key: `s${String(series.length)}`,
+				name: multi.has(id) ? `${row.resource.name} ${region}` : row.resource.name,
+				color: row.resource.color,
+				dashed: row.dashed,
+				points,
+			});
+			const last = points.at(-1);
+			if (last !== undefined) latest.set(row.key, last.v);
+		}
+	});
+	return {
+		series,
+		latest,
+		isLoading: results.some((r) => r.isLoading),
+		error: results.find((r) => r.error !== null)?.error ?? null,
+	};
 }
 
 function useDeployMarkers(visible: ObsResource[], from: number, to: number): ChartMarker[] {
 	const transport = useTransport();
 	const queries = useQueries({
-		queries: visible.map((r) => createQueryOptions(listDeployments, { resourceId: r.id, pageSize: 20 }, { transport })),
+		queries: visible.map((r) =>
+			createQueryOptions(listDeployments, { resourceId: r.id, pageSize: DEPLOYS_PER_RESOURCE }, { transport }),
+		),
 	});
 	const markers: ChartMarker[] = [];
 	visible.forEach((r, i) => {
@@ -94,138 +144,290 @@ function useDeployMarkers(visible: ObsResource[], from: number, to: number): Cha
 	return markers;
 }
 
-function ComputeSection({ visible }: { visible: ObsResource[] }) {
-	const { range, metricsFocusTs } = useObs();
-	const now = useNow(60_000);
-	const to = now.getTime();
-	const from = to - timeRangeMs(range);
-	const deployMarkers = useDeployMarkers(visible, from, to);
-	const focus: ChartMarker[] =
-		metricsFocusTs !== null && metricsFocusTs >= from
-			? [
-					{
-						t: metricsFocusTs,
-						label: `log · ${formatClock(metricsFocusTs)}`,
-						title: "Selected log",
-						color: "var(--fg)",
-					},
-				]
-			: [];
+function Meter({ value }: { value: number | undefined }) {
+	if (value === undefined) return <span className="text-fg4">—</span>;
 	return (
-		<div className="flex flex-col gap-2.5">
-			<SectionTitle>Compute</SectionTitle>
-			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-				{COMPUTE.map((d) => (
-					<ComputeChart
-						key={d.key}
-						def={d}
-						visible={visible}
-						from={from}
-						to={to}
-						markers={[...deployMarkers, ...focus]}
-					/>
-				))}
-			</div>
-		</div>
+		<span className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2">
+			<span className="h-1 overflow-hidden rounded-[2px] bg-line2">
+				<span
+					className={cn("block h-full rounded-[2px]", value >= WARN_PERCENT ? "bg-warn" : "bg-fg2")}
+					style={{ width: `${String(Math.min(PERCENT, value))}%` }}
+				/>
+			</span>
+			<span className="text-right font-mono text-[12px] text-fg2">{formatPercent(value)}</span>
+		</span>
 	);
 }
 
-function ComputeChart({
-	def,
-	visible,
-	from,
-	to,
-	markers,
-}: {
-	def: MetricDef;
-	visible: ObsResource[];
-	from: number;
-	to: number;
-	markers: ChartMarker[];
-}) {
-	const { workspaceId, resources, range, goTo } = useObs();
+export function MetricsView() {
+	const { resources, resourcesLoading, tokens, range, params, goTo, setQuery, text } = useObs();
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
-	const result = useQueryMetrics({
-		workspaceId,
-		environmentId: environment?.id ?? "",
-		resourceIds: visible.map((r) => r.id),
-		timeRange: range,
-		metricName: def.metric,
-		aggregation: "max",
-		enabled: resources.length === 0 || visible.length > 0,
-	});
-
-	const byId = new Map(visible.map((r) => [r.id, r]));
-	const merged = new Map<string, Map<number, number>>();
-	for (const s of result.series) {
-		const pts = merged.get(s.resourceId) ?? new Map<number, number>();
-		for (const p of s.points) {
-			const t = tsMs(p.timestamp);
-			pts.set(t, Math.max(pts.get(t) ?? 0, p.value * 100));
-		}
-		merged.set(s.resourceId, pts);
-	}
-	const series: ChartSeries[] = [];
-	for (const [id, pts] of merged) {
-		const r = byId.get(id);
-		const points = [...pts.entries()].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
-		series.push({ name: r?.name ?? (id.slice(0, 8) || "unknown"), color: r?.color ?? "var(--fg4)", points });
-	}
-
-	let peak = 0;
-	for (const s of series) {
-		for (const p of s.points) if (p.v > peak) peak = p.v;
-	}
-	const max = percentAxis(peak).maximum;
-	const lastOf = (s: ChartSeries) => s.points.at(-1)?.v ?? 0;
-	const firstOf = (s: ChartSeries) => s.points[0]?.v ?? 0;
-	const cur = series.length > 0 ? Math.max(...series.map(lastOf)) : 0;
-	const start = series.length > 0 ? Math.max(...series.map(firstOf)) : 0;
-	const pct = start > 0 ? ((cur - start) / start) * 100 : 0;
-	const hasData = series.some((s) => s.points.length > 0);
-
-	const onPick = (t: number) => {
-		const single = visible.length === 1 ? visible[0] : undefined;
-		goTo("logs", {
-			range: fitRange(t, to),
-			tokens: single !== undefined ? [{ neg: false, key: "resource", value: single.name }] : [],
-			focusTs: t,
-		});
+	const now = useNow(NOW_TICK_MS);
+	const { from, to } = resolveWindow(range, now.getTime());
+	const spanMs = windowSpan(range);
+	const endMs = range.kind === "absolute" ? range.to : undefined;
+	const visible = filteredResources("metrics", resources, tokens);
+	const rows = placements(visible, environment?.id ?? "", liveTokens("metrics", tokens, "region"));
+	const cpu = useComputeSeries(CPU, rows, spanMs, endMs);
+	const mem = useComputeSeries(MEMORY, rows, spanMs, endMs);
+	const deployMarkers = useDeployMarkers(visible, from, to);
+	const focusTs = logAnchor(params.get("at"));
+	const markers: ChartMarker[] = [
+		...deployMarkers,
+		...(focusTs !== null && focusTs >= from && focusTs <= to
+			? [{ t: focusTs, label: `focus ${formatHourMinute(focusTs)}`, title: "Selected time", color: "var(--fg)" }]
+			: []),
+	];
+	const actions = (t: number): PinAction[] => {
+		const around = aroundWindow(t, Date.now());
+		return [
+			{
+				key: "logs",
+				icon: <ScrollTextIcon />,
+				label: `Logs around ${formatHourMinute(t)}`,
+				sub: "±5 minutes, same filters",
+				run: () => {
+					goTo("logs", { range: around, focusTs: t });
+				},
+			},
+			{
+				key: "traces",
+				icon: <WaypointsIcon />,
+				label: `Traces around ${formatHourMinute(t)}`,
+				sub: "±5 minutes, same filters",
+				run: () => {
+					goTo("traces", { range: around });
+				},
+			},
+			{
+				key: "events",
+				icon: <BellIcon />,
+				label: `Events around ${formatHourMinute(t)}`,
+				sub: "deploys, restarts, health checks",
+				run: () => {
+					goTo("events", { range: around });
+				},
+			},
+		];
 	};
+	const error = cpu.error ?? mem.error;
+	const loading = cpu.isLoading || mem.isLoading || environmentLoading || resourcesLoading;
+
+	if (!loading && error !== null && isUnimplemented(error)) {
+		return (
+			<>
+				<ViewHeader />
+				<ObsHero
+					view="metrics"
+					title="Metrics aren't available here yet"
+					body="This installation has no metrics store connected. CPU and memory appear once it does."
+				/>
+			</>
+		);
+	}
+	if (!loading && error === null && cpu.series.length === 0 && mem.series.length === 0 && tokens.length === 0) {
+		return (
+			<>
+				<ViewHeader />
+				<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
+				<ObsHero
+					view="metrics"
+					title="No metrics in this range"
+					body="CPU and memory appear once a resource is running. Requests, errors and latency come from resources with a public address."
+				/>
+			</>
+		);
+	}
+
+	const cards = [
+		{ def: CPU, result: cpu },
+		{ def: MEMORY, result: mem },
+	];
 
 	return (
-		<MetricCard
-			title={def.title}
-			unit="% of limit · busiest replica"
-			big={hasData ? formatPercent(cur) : "—"}
-			delta={hasData && Math.abs(pct) >= 1 ? `${pct > 0 ? "↑" : "↓"} ${Math.abs(pct).toFixed(0)}%` : ""}
-			deltaBad={pct > 0}
-			bigNote={hasData ? (series.length > 1 ? "now · highest" : "now") : ""}
-		>
-			{result.isLoading || environmentLoading ? (
-				<Skeleton className="h-[200px] w-full" />
-			) : result.error !== null ? (
-				<div className="flex h-[200px] items-center justify-center text-sm text-bad-fg">
-					{getErrorMessage(result.error, "Failed to load metrics")}
+		<>
+			<ViewHeader />
+			<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
+			<section aria-labelledby="ms-compute" className="flex flex-col gap-2.5">
+				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
+					<h2 id="ms-compute" className="m-0 text-[18px] font-normal tracking-[-0.02em]">
+						Compute
+					</h2>
+					<span className="text-[12.5px] text-fg3">% of limit, busiest replica · dashed lines are another region</span>
 				</div>
-			) : !hasData ? (
-				<div className="flex h-[200px] items-center justify-center rounded-sm border border-dashed border-line2 text-sm text-fg3">
-					No data in this range
+				<div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+					{cards.map(({ def, result }) => (
+						<section
+							key={def.key}
+							aria-label={def.title}
+							className="flex min-w-0 flex-col gap-3.5 rounded-[10px] bg-panel px-5 pt-[18px] pb-4"
+						>
+							<div className="flex items-baseline gap-2">
+								<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{def.title}</h3>
+								<span className="font-mono text-[12px] text-fg3">%</span>
+							</div>
+							{result.isLoading || environmentLoading ? (
+								<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />
+							) : result.error !== null ? (
+								<div
+									role="alert"
+									className="flex items-center justify-center text-sm text-bad-fg"
+									style={{ height: CHART_HEIGHT }}
+								>
+									{getErrorMessage(result.error, "Failed to load metrics")}
+								</div>
+							) : result.series.length === 0 ? (
+								<div
+									className="flex items-center justify-center rounded-lg border border-dashed border-line2 text-sm text-fg3"
+									style={{ height: CHART_HEIGHT }}
+								>
+									No data in this range
+								</div>
+							) : (
+								<MetricChart
+									title={def.title}
+									series={result.series}
+									from={from}
+									to={to}
+									max={percentAxis(Math.max(0, ...result.series.flatMap((s) => s.points.map((p) => p.v)))).maximum}
+									fmt={formatPercent}
+									limit={{ v: PERCENT, label: "limit" }}
+									markers={markers}
+									height={CHART_HEIGHT}
+									actions={actions}
+								/>
+							)}
+							<div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-fg2">
+								{result.series.map((s) => (
+									<span key={s.key} className="flex items-center gap-1.5">
+										<span
+											className={cn("inline-block h-0 w-3 border-t-2", s.dashed && "border-dashed")}
+											style={{ borderColor: s.color }}
+										/>
+										{s.name}
+										<span className="font-mono text-[11.5px] text-fg3">{formatPercent(s.points.at(-1)?.v ?? 0)}</span>
+									</span>
+								))}
+							</div>
+						</section>
+					))}
 				</div>
-			) : (
-				<MetricChart
-					title={def.title}
-					series={series}
-					from={from}
-					to={to}
-					max={max}
-					fmt={formatPercent}
-					limit={{ v: 100, label: "limit" }}
-					markers={markers}
-					height={200}
-					onPick={onPick}
-				/>
-			)}
-		</MetricCard>
+			</section>
+
+			<section aria-labelledby="ms-traffic" className="flex flex-col gap-2.5">
+				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
+					<h2 id="ms-traffic" className="m-0 text-[18px] font-normal tracking-[-0.02em]">
+						Traffic
+					</h2>
+					<span className="text-[12.5px] text-fg3">measured at the gateway, for resources with a public address</span>
+				</div>
+				<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+					{TRAFFIC.map((title) => (
+						<div key={title} className="flex flex-col gap-2 rounded-[10px] bg-panel px-5 py-4">
+							<span className="flex items-baseline gap-2">
+								<span className="text-[15px] font-medium tracking-[-0.01em] text-fg3">{title}</span>
+								<SoonTag />
+							</span>
+							<div className="h-12 rounded-lg border border-dashed border-line2" />
+						</div>
+					))}
+				</div>
+			</section>
+
+			<section aria-labelledby="ms-break" className="flex flex-col gap-2.5">
+				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
+					<h2 id="ms-break" className="m-0 text-[18px] font-normal tracking-[-0.02em]">
+						By resource and region
+					</h2>
+					<span className="text-[12.5px] text-fg3">latest values · pick a row to focus the charts on it</span>
+				</div>
+				<div className="overflow-x-auto rounded-[10px] bg-panel px-5 pt-1 pb-3">
+					<table className="w-full min-w-[760px] border-collapse text-[12.5px]">
+						<thead>
+							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">
+								<th className="px-3 font-normal">Resource</th>
+								<th className="px-3 font-normal">Region</th>
+								<th className="px-3 font-normal">Replicas</th>
+								<th className="w-[170px] px-3 font-normal">CPU</th>
+								<th className="w-[170px] px-3 font-normal">Memory</th>
+								<th className="px-3 font-normal">
+									<span className="flex items-center gap-1.5">
+										Requests <SoonTag />
+									</span>
+								</th>
+								<th className="px-3 font-normal">
+									<span className="flex items-center gap-1.5">
+										5xx <SoonTag />
+									</span>
+								</th>
+								<th className="px-3 font-normal">
+									<span className="flex items-center gap-1.5">
+										p95 <SoonTag />
+									</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+							{rows.length === 0 && (
+								<tr>
+									<td colSpan={8} className="px-3 py-6 text-center text-fg3">
+										Nothing matches these filters.
+									</td>
+								</tr>
+							)}
+							{rows.map((p) => {
+								const short = p.ready !== null && p.desired !== null && p.ready < p.desired;
+								return (
+									<tr key={p.key} className="h-[38px] border-b border-line last:border-b-0 hover:bg-panel2">
+										<td className="px-3">
+											<button
+												type="button"
+												onClick={() => {
+													setQuery(
+														[
+															...tokens.filter((t) => t.key !== "resource" && t.key !== "region"),
+															{ neg: false, key: "resource", value: p.resource.name },
+															{ neg: false, key: "region", value: p.region },
+														],
+														text,
+													);
+												}}
+												className="flex items-center gap-1.5 rounded-sm text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+											>
+												<span className="size-2 rounded-[2px]" style={{ background: p.resource.color }} />
+												{p.resource.name}
+											</button>
+										</td>
+										<td className="px-3 font-mono text-fg2">{p.region}</td>
+										<td className={cn("px-3 font-mono", short ? "text-warn-fg" : "text-fg2")}>
+											{p.ready !== null && p.desired !== null ? `${String(p.ready)} of ${String(p.desired)}` : "—"}
+										</td>
+										<td className="px-3">
+											<Meter value={cpu.latest.get(p.key)} />
+										</td>
+										<td className="px-3">
+											<Meter value={mem.latest.get(p.key)} />
+										</td>
+										<td className="px-3 text-fg4">—</td>
+										<td className="px-3 text-fg4">—</td>
+										<td className="px-3 text-fg4">—</td>
+									</tr>
+								);
+							})}
+						</tbody>
+					</table>
+				</div>
+				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
+					Ready replicas over time
+					<SoonTag />
+				</span>
+			</section>
+		</>
 	);
+}
+
+function valueCounts(key: string, resources: ObsResource[]): [string, number][] {
+	if (key === "resource") return resources.map((r) => [r.name, 0]);
+	if (key === "region") return [...new Set(resources.flatMap((r) => r.regions))].map((g) => [g, 0]);
+	return [];
 }

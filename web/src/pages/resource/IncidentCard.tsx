@@ -6,6 +6,7 @@ import type { Event } from "@gen/loco/resource/v1/resource_pb";
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
+import { HOUR_MS } from "@/lib/obs-time";
 import { agoLabel, formatClock, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +44,7 @@ function PodLogs({
 		workspaceId,
 		environmentId,
 		resourceIds: [resourceId],
-		timeRange: "1h",
+		spanMs: HOUR_MS,
 		parsedQuery: { search: "", levels: NO_LEVELS, labels: { [POD_LABEL]: pod } },
 		limit: LOG_LINES,
 	});

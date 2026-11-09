@@ -15,7 +15,7 @@ export interface WorkspaceEventWithResource extends Event {
 
 const EVENTS_PER_RESOURCE = 500;
 
-export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[]) {
+export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[], pollMs?: number) {
 	const transport = useTransport();
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery({
 		...workspaceResourcesOptions(transport, workspaceId),
@@ -25,9 +25,10 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 	const resources = resourceFilter ?? resourcesData?.resources ?? [];
 
 	const queries = useQueries({
-		queries: resources.map((resource) =>
-			createQueryOptions(listResourceEvents, { resourceId: resource.id, limit: EVENTS_PER_RESOURCE }, { transport }),
-		),
+		queries: resources.map((resource) => ({
+			...createQueryOptions(listResourceEvents, { resourceId: resource.id, limit: EVENTS_PER_RESOURCE }, { transport }),
+			refetchInterval: pollMs ?? false,
+		})),
 	});
 
 	const events: WorkspaceEventWithResource[] = [];

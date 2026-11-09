@@ -8,8 +8,9 @@ import sys
 import json
 import time
 from pathlib import Path
-from playwright.sync_api import sync_playwright
-from trace_resize_ui import check_list_resize, check_waterfall_resize
+import re
+import urllib.parse
+from playwright.sync_api import expect, sync_playwright
 sys.dont_write_bytecode = True
 repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description='Exercise the production trace viewer with fixture trace responses')
@@ -66,6 +67,8 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with sync_playwright() as p:
     browser = p.chromium.launch()
+    root_name = 'POST /api/checkout'
+    failing = re.compile(r'^payment POST \/payments\/authorize, .*, error$')
     for theme in ('light', 'dark'):
         for narrow in (False, True):
             context = browser.new_context(permissions=['clipboard-read', 'clipboard-write'], viewport=evidence.NARROW if narrow else evidence.DESKTOP, device_scale_factor=2, color_scheme=theme)
@@ -77,118 +80,104 @@ with sync_playwright() as p:
             page.on('pageerror', lambda err: errors.append(str(err)))
             page.goto(state['ui_url'] + base)
             evidence.settle(page)
-            page.get_by_role('button', name='Open trace ' + trace, exact=True).first.wait_for()
+            open_trace = page.get_by_role('region', name='Trace list').get_by_role('button', name='Open trace ' + root_name, exact=True)
+            open_trace.wait_for()
             suffix = f"{theme}{('-narrow' if narrow else '')}"
-            check_list_resize(page, narrow)
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
-            page.get_by_role('button', name='Open trace ' + trace, exact=True).first.click()
+            open_trace.click()
+            drawer = page.get_by_role('dialog', name=root_name)
+            drawer.get_by_text('More spans exist than were loaded', exact=False).wait_for()
+            assert 'trace=' + trace in page.url
             evidence.settle(page)
-            page.get_by_text('Partial results · Counts', exact=False).wait_for()
-            page.evaluate('window.scrollTo(0,0)')
-            evidence.settle(page)
+            assert drawer.evaluate('(element) => element.contains(document.activeElement)')
             if not narrow:
                 page.screenshot(path=out / f'trace-partial-after-{suffix}.png', full_page=True, animations='disabled')
-            page.get_by_role('button', name='Load more spans').click()
+            flame = drawer.get_by_role('region', name='Flame graph')
+            assert flame.get_by_role('button').count() == 7
+            drawer.get_by_role('button', name='Load more spans').click()
             evidence.settle(page)
-            check_waterfall_resize(page, narrow)
-            page.get_by_role('button',name='payment POST /payments/authorize',exact=True).click()
+            expect(drawer.get_by_text('More spans exist than were loaded', exact=False)).to_have_count(0)
+            expect(flame.get_by_role('button')).to_have_count(len(spans))
+            flame.get_by_role('button', name=failing).click()
             evidence.settle(page)
-            page.get_by_role('complementary', name='Span details').wait_for()
-            if narrow:
-                dialog = page.get_by_role('dialog', name='Span details')
-                dialog.wait_for()
-                page.wait_for_function("getComputedStyle(document.querySelector('[role=dialog]')).opacity === '1'")
-                assert dialog.evaluate('(element) => element.contains(document.activeElement)')
-                page.screenshot(path=out / f'trace-inspector-after-{suffix}.png', full_page=True, animations='disabled')
-                page.keyboard.press('Escape')
-                evidence.settle(page)
-                assert page.get_by_role('button',name='payment POST /payments/authorize',exact=True).evaluate('(element) => element === document.activeElement')
-            assert page.locator('.trace-span-row').first.bounding_box()['height'] <= 28
-            axis = page.locator('.trace-axis').bounding_box()
-            timing = page.locator('.trace-span-time').first.bounding_box()
-            assert abs(axis['x'] - timing['x']) < 1 and abs(axis['width'] - timing['width']) < 1
-            page.evaluate('window.scrollTo(0,0)')
-            evidence.settle(page)
+            expect(flame.get_by_role('button', name=failing)).to_have_attribute('aria-pressed', 'true')
+            assert 'span=' + spans[10]['spanId'] in page.url
+            expect(drawer.get_by_role('region', name='Selected span').get_by_role('heading', name='POST /payments/authorize', exact=True)).to_be_visible()
+            expect(drawer.get_by_text('Payment authorization timed out after 90 ms', exact=True)).to_be_visible()
+            attributes = drawer.get_by_role('region', name='Span attributes')
+            expect(attributes.get_by_text(spans[10]['spanId'], exact=True)).to_be_visible()
+            expect(attributes.get_by_text('http.response.status_code', exact=True)).to_be_visible()
+            expect(attributes.get_by_text('service.version', exact=True)).to_be_visible()
+            expect(attributes.get_by_text('@opentelemetry/instrumentation-http', exact=True)).to_be_visible()
             page.screenshot(path=out / f'trace-detail-after-{suffix}.png', full_page=True, animations='disabled')
+            drawer.get_by_role('button', name='More for this trace', exact=True).click()
+            page.get_by_role('menuitem', name='Copy trace ID', exact=True).click()
+            assert page.evaluate('navigator.clipboard.readText()') == trace
             assert not errors, errors
             if not narrow and theme == 'light':
-                range_button = page.get_by_role('button', name='Last hour', exact=False)
-                range_button.focus()
-                range_button.press('Enter')
-                page.get_by_role('menu').wait_for()
-                page.get_by_role('menuitem', name='Last 15 minutes', exact=False).click()
+                previous_url = page.url
+                previous_request = dict(recorded[-1])
+                page.keyboard.press('Escape')
+                expect(drawer).to_have_count(0)
+                assert 'trace=' not in page.url
+                page.get_by_role('button', name='Past hour', exact=True).click()
+                page.get_by_role('group', name='Presets').get_by_role('button', name='Past 15 minutes', exact=False).click()
                 evidence.settle(page)
                 assert 'range=15m' in page.url
                 page.go_back()
                 evidence.settle(page)
-                page.get_by_role('button', name='payment POST /payments/authorize', exact=True).focus()
-                assert page.get_by_role('button', name='payment POST /payments/authorize', exact=True).evaluate('(element) => element === document.activeElement')
-                previous_url = page.url
-                previous_request = dict(recorded[-1])
+                assert 'range=15m' not in page.url
+                page.goto(previous_url)
+                evidence.settle(page)
+                drawer.get_by_role('button', name='Load more spans').click()
+                evidence.settle(page)
+                expect(flame.get_by_role('button', name=failing)).to_have_attribute('aria-pressed', 'true')
+                drawer.get_by_role('button', name='Close', exact=True).click()
+                expect(drawer).to_have_count(0)
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 evidence.settle(page)
-                assert page.get_by_role('button', name='Load more spans').is_visible()
                 assert recorded[-1]['startTime'] != previous_request['startTime']
-                page.get_by_text('The selected span has not loaded.',exact=False).wait_for()
-                page.go_back()
+                page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
                 evidence.settle(page)
-                assert page.url == previous_url
-                assert page.get_by_text('Payment authorization timed out after 90 ms', exact=True).is_visible()
-                assert page.get_by_role('button', name='Load more spans').count() == 0
-                page.get_by_role('button', name='Collapse oteldemo.CheckoutService/PlaceOrder').click()
-                assert page.get_by_role('button', name='payment POST /payments/authorize', exact=True).count() == 0
-                page.get_by_role('button', name='Expand all').click()
-                page.get_by_role('button', name='payment POST /payments/authorize', exact=True).wait_for()
-                page.get_by_role('textbox', name='Search span attributes').fill('status_code')
-                assert page.get_by_text('http.response.status_code', exact=True).is_visible()
-                assert page.get_by_text('http.request.method', exact=True).count() == 0
-                page.get_by_role('button', name='Clear attribute search').click()
-                assert page.get_by_role('textbox',name='Search span attributes').evaluate('(element) => element === document.activeElement')
-                page.get_by_role('button',name='Copy span ID',exact=True).click()
-                assert page.evaluate('navigator.clipboard.readText()') == spans[10]['spanId']
-                page.get_by_role('button',name='Copy trace ID',exact=True).click()
-                assert page.evaluate('navigator.clipboard.readText()') == trace
-                page.get_by_role('tab', name='Resource', exact=True).click()
-                page.get_by_text('service.version', exact=True).wait_for()
-                page.get_by_role('tab', name='Instrumentation', exact=True).click()
-                page.get_by_text('@opentelemetry/instrumentation-http', exact=True).wait_for()
-                page.get_by_role('button', name='All traces', exact=True).click()
+                expect(page.get_by_role('alert')).to_have_text('A trace ID is 32 lowercase hexadecimal characters.')
+                assert not any(row.get('traceId') == 'invalid' for row in recorded)
+                page.get_by_role('button', name='Clear filters', exact=True).click()
                 evidence.settle(page)
-                page.get_by_role('textbox', name='Trace ID', exact=True).fill('invalid')
-                page.get_by_role('button', name='Search', exact=True).click()
-                assert page.get_by_text('Enter a 32-character hexadecimal trace ID.').is_visible()
-                page.get_by_role('button', name='Clear trace search').click()
-                assert page.get_by_role('textbox',name='Trace ID',exact=True).evaluate('(element) => element === document.activeElement')
-                evidence.settle(page)
-                assert page.get_by_role('textbox', name='Trace ID', exact=True).input_value() == ''
+                expect(open_trace).to_be_visible()
                 page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=ffffffffffffffff')
                 evidence.settle(page)
-                page.get_by_text('The selected span has not loaded.',exact=False).wait_for()
-                page.get_by_role('button',name='Load more spans').click()
+                drawer.get_by_text('The selected span has not loaded.', exact=False).wait_for()
+                drawer.get_by_role('button', name='Load more spans').click()
                 evidence.settle(page)
-                page.get_by_text('The selected span is unavailable in this time range.',exact=True).wait_for()
+                drawer.get_by_text('The selected span is unavailable in this time range.', exact=True).wait_for()
+                drawer.get_by_role('button', name='Close', exact=True).click()
+                expect(drawer).to_have_count(0)
+            if drawer.count():
+                drawer.get_by_role('button', name='Close', exact=True).click()
+                expect(drawer).to_have_count(0)
             if not narrow:
                 mode[0] = 'empty'
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 evidence.settle(page)
-                page.get_by_text('No traces in this time range', exact=True).wait_for()
+                page.get_by_text('No traces in this range', exact=True).wait_for()
                 page.screenshot(path=out / f'trace-empty-after-{suffix}.png', full_page=True, animations='disabled')
                 mode[0] = 'error'
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 page.get_by_text('Trace storage is temporarily unavailable', exact=False).wait_for(timeout=20000)
                 evidence.settle(page)
                 page.screenshot(path=out / f'trace-error-after-{suffix}.png', full_page=True, animations='disabled')
-                page.get_by_role('button', name='Retry', exact=True).wait_for()
                 mode[0] = 'normal'
+                page.get_by_role('button', name='Retry', exact=True).click()
+                open_trace.wait_for()
             if not narrow:
                 previous_count = len(recorded)
                 page.goto(state['ui_url'] + base + '&r=not-a-resource')
                 evidence.settle(page)
-                page.get_by_text('The selected resources are unavailable.', exact=False).wait_for()
+                page.get_by_text("The filtered resources aren't in this workspace", exact=True).wait_for()
                 assert len(recorded) == previous_count
-                page.get_by_role('button', name='Show all resources').click()
+                page.get_by_role('button', name='Clear filters', exact=True).click()
                 evidence.settle(page)
-                page.get_by_role('button', name='Open trace ' + trace, exact=True).first.wait_for()
+                open_trace.wait_for()
             context.close()
     environments = evidence.rpc(state['api_url'], state['users']['owner']['token'], 'loco.environment.v1.EnvironmentService/ListEnvironments', {'workspaceId': workspace_id})['environments']
     staging = next((environment['id'] for environment in environments if environment['name'] == 'staging'), None)
@@ -202,7 +191,7 @@ with sync_playwright() as p:
     page.goto(state['ui_url'] + base + '&trace=' + trace)
     evidence.settle(page)
     shared_url = page.url
-    assert 'env=' + staging in shared_url
+    assert 'env=staging' in shared_url
     assert recorded[-1]['environmentId'] == staging
     context.close()
     context = browser.new_context()
@@ -222,8 +211,7 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=' + spans[0]['spanId'])
     evidence.settle(page)
-    page.get_by_role('dialog',name='Span details').get_by_role('tab',name='Resource',exact=True).click()
-    page.get_by_role('dialog',name='Span details').get_by_text(raw_service,exact=True).first.wait_for()
+    page.get_by_role('dialog', name=root_name).get_by_role('region', name='Span attributes').get_by_text(raw_service, exact=True).first.wait_for()
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
     mode[0] = 'many'
@@ -233,14 +221,9 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace)
     evidence.settle(page)
-    assert page.locator('.trace-span-row').count() == 114
-    scroller = page.locator('.trace-span-rows')
-    assert scroller.evaluate('(element) => element.scrollHeight > element.clientHeight')
-    scroller.evaluate('(element) => {element.scrollTop = 150;}')
-    axis = page.locator('.trace-axis').bounding_box()
-    lane = page.locator('.trace-span-time').first.bounding_box()
-    assert abs(axis['x'] - lane['x']) < 1 and abs(axis['width'] - lane['width']) < 1
-    assert page.locator('.trace-ruler').bounding_box()['y'] >= scroller.bounding_box()['y']
+    flame = page.get_by_role('dialog', name=root_name).get_by_role('region', name='Flame graph')
+    expect(flame.get_by_role('button')).to_have_count(114)
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
     browser.close()
 assert all((row.get('environmentId') for row in recorded))
@@ -249,4 +232,4 @@ for index, row in enumerate(recorded):
     if row.get('cursor'):
         previous = recorded[index - 1]
         assert row['startTime'] == previous['startTime'] and row['endTime'] == previous['endTime']
-print('PASS browser trace search, partial pagination, frozen bounds, hierarchy collapse, attribute search, and production UI light/dark desktop/390px; trace responses use explicit browser fixtures.')
+print('PASS browser trace list, drawer span paging, span selection and attributes, trace ID validation, frozen bounds, and production UI light/dark desktop/390px; trace responses use explicit browser fixtures.')

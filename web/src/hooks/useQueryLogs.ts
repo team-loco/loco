@@ -3,7 +3,6 @@ import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { ObservabilityProxyService, LogOrder } from "@gen/loco/observability/v1/observability_pb";
-import { timeRangeMs, type TimeRange } from "@/lib/obs";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 import { msToTimestamp } from "@/lib/time";
 
@@ -13,7 +12,7 @@ interface UseQueryLogsOptions {
 	workspaceId: string;
 	environmentId: string;
 	resourceIds: string[];
-	timeRange: TimeRange;
+	spanMs: number;
 	parsedQuery: ParsedQuery;
 	cursor?: string;
 	limit?: number;
@@ -30,7 +29,7 @@ export function logsQueryOptions(
 		workspaceId,
 		environmentId,
 		resourceIds,
-		timeRange,
+		spanMs,
 		parsedQuery,
 		cursor = "",
 		limit = 100,
@@ -64,7 +63,7 @@ export function logsQueryOptions(
 				cardinality: "finite",
 				input,
 			}),
-			timeRange,
+			spanMs,
 			around ?? null,
 		],
 		queryFn: async ({ signal }: { signal: AbortSignal }) => {
@@ -72,7 +71,7 @@ export function logsQueryOptions(
 			const client = createClient(ObservabilityProxyService, transport);
 			const request = {
 				...input,
-				startTime: startTime ?? msToTimestamp(now - timeRangeMs(timeRange)),
+				startTime: startTime ?? msToTimestamp(now - spanMs),
 				endTime: endTime ?? msToTimestamp(now),
 			};
 			if (around !== undefined) {
@@ -118,7 +117,7 @@ export function latestLogsQueryOptions(transport: Transport, options: UseQueryLo
 			cursor: "",
 			order: LogOrder.NEWEST_FIRST,
 			around: undefined,
-			startTime: msToTimestamp(end - timeRangeMs(options.timeRange)),
+			startTime: msToTimestamp(end - options.spanMs),
 			endTime: msToTimestamp(end),
 		}),
 		staleTime: 0,
@@ -131,6 +130,7 @@ export function useQueryLogs(options: UseQueryLogsOptions) {
 	const query = useQuery(logsQueryOptions(transport, options));
 	return {
 		entries: query.data?.entries ?? [],
+		totalMatched: query.data === undefined ? null : Number(query.data.totalMatched),
 		olderCursor: query.data?.olderCursor ?? "",
 		newerCursor: query.data?.newerCursor ?? "",
 		isLoading: query.isLoading,

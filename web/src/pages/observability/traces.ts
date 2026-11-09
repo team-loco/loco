@@ -80,11 +80,9 @@ export function summarizeTraces(spans: TraceSpan[]): TraceSummary[] {
 export interface SpanRow {
 	span: TraceSpan;
 	depth: number;
-	children: number;
-	missingParent: boolean;
 }
 
-export function spanTree(spans: TraceSpan[], collapsed: Set<string>): SpanRow[] {
+export function spanTree(spans: TraceSpan[]): SpanRow[] {
 	const ordered = uniqueSpans(spans).toSorted((a, b) =>
 		spanStart(a) < spanStart(b) ? -1 : spanStart(a) > spanStart(b) ? 1 : a.spanId.localeCompare(b.spanId),
 	);
@@ -103,34 +101,13 @@ export function spanTree(spans: TraceSpan[], collapsed: Set<string>): SpanRow[] 
 			const row = stack.pop();
 			if (row === undefined || visited.has(row.span.spanId)) continue;
 			visited.add(row.span.spanId);
-			const descendants = children.get(row.span.spanId) ?? [];
-			result.push({
-				...row,
-				children: descendants.length,
-				missingParent: row.span.parentSpanId !== "" && !ids.has(row.span.parentSpanId),
-			});
-			if (!collapsed.has(row.span.spanId)) {
-				for (const child of descendants.toReversed()) stack.push({ span: child, depth: row.depth + 1 });
-			} else {
-				const hidden = [...descendants];
-				while (hidden.length > 0) {
-					const child = hidden.pop();
-					if (child === undefined || visited.has(child.spanId)) continue;
-					visited.add(child.spanId);
-					hidden.push(...(children.get(child.spanId) ?? []));
-				}
+			result.push(row);
+			for (const child of (children.get(row.span.spanId) ?? []).toReversed()) {
+				stack.push({ span: child, depth: row.depth + 1 });
 			}
 		}
 	};
 	for (const span of ordered.filter((candidate) => !ids.has(candidate.parentSpanId))) walk(span);
 	for (const span of ordered) if (!visited.has(span.spanId)) walk(span);
 	return result;
-}
-
-export function spanPosition(span: TraceSpan, start: bigint, duration: bigint): { left: string; width: string } {
-	const total = duration > 0n ? duration : 1n;
-	return {
-		left: `${Number(((spanStart(span) - start) * 10000n) / total) / 100}%`,
-		width: `${Number((span.durationNanos * 10000n) / total) / 100}%`,
-	};
 }

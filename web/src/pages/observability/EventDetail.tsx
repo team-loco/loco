@@ -3,12 +3,13 @@ import { useNavigate } from "react-router";
 
 import { SoonTag } from "@/components/design/SoonTag";
 import { useCopy } from "@/hooks/useCopy";
+import { aroundWindow } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
 import { formatClock, formatHourMinute } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { fitRange, useObs } from "./context";
-import { severityStyle, type EventGroup } from "./events";
+import { useObs } from "./context";
+import { eventTitle, severityStyle, type EventGroup } from "./events";
 import { fmtTs } from "./format";
 import { CopyButton, DetailPanel, JumpButton, PanelNav } from "./shared";
 
@@ -16,13 +17,11 @@ const OCC_BUCKETS = 24;
 
 export function EventDetail({
 	item,
-	nowMs,
 	onPrev,
 	onNext,
 	onClose,
 }: {
 	item: EventGroup;
-	nowMs: number;
 	onPrev: (() => void) | null;
 	onNext: (() => void) | null;
 	onClose: () => void;
@@ -41,23 +40,25 @@ export function EventDetail({
 		ob[i] = (ob[i] ?? 0) + 1;
 	}
 	const obmax = Math.max(1, ...ob);
-	const range = fitRange(item.ts, nowMs);
+	const around = () => aroundWindow(item.ts, Date.now());
 
 	const fields: { k: string; v: string; copyable?: boolean; soon?: boolean }[] = [
 		{ k: "Resource", v: item.resourceName },
 		{ k: "Object", v: item.object, copyable: true },
 		{ k: "Deployment", v: "", soon: true },
-		{ k: "Region", v: res?.region === undefined || res.region === "" ? "—" : res.region },
+		{ k: "Reason", v: item.reason },
+		{ k: "Regions", v: res === undefined || res.regions.length === 0 ? "—" : res.regions.join(", ") },
 		{ k: "Last seen", v: fmtTs(last, true) },
 		{ k: "First seen", v: fmtTs(first, true) },
 	];
 
 	return (
 		<DetailPanel
+			label="Event"
 			header={
 				<>
 					<span className={cn("size-2 rounded-[2px]", st.dot)} />
-					<span className={cn("min-w-0 truncate font-semibold", st.fg)}>{item.reason}</span>
+					<span className={cn("min-w-0 truncate font-semibold", st.fg)}>{eventTitle(item.reason)}</span>
 					<span className={cn("inline-flex h-5 items-center rounded-sm px-[7px] text-xs font-medium", st.badge)}>
 						{st.label}
 					</span>
@@ -95,7 +96,11 @@ export function EventDetail({
 						label={`Logs from ${item.resourceName}`}
 						hint={`around ${formatHourMinute(item.ts)}`}
 						onClick={() => {
-							goTo("logs", { range, resource: item.resourceName, focusTs: item.ts });
+							goTo("logs", {
+								range: around(),
+								tokens: [{ neg: false, key: "resource", value: item.resourceName }],
+								focusTs: item.ts,
+							});
 						}}
 					/>
 					<JumpButton
@@ -103,7 +108,11 @@ export function EventDetail({
 						label={`Metrics at ${formatClock(item.ts)}`}
 						hint={item.resourceName}
 						onClick={() => {
-							goTo("metrics", { range, resource: item.resourceName, focusTs: item.ts });
+							goTo("metrics", {
+								range: around(),
+								tokens: [{ neg: false, key: "resource", value: item.resourceName }],
+								focusTs: item.ts,
+							});
 						}}
 					/>
 					<JumpButton

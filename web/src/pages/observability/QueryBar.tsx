@@ -1,7 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
-import { CornerDownRightIcon, HistoryIcon, SearchIcon, StarIcon, TagIcon, XIcon } from "lucide-react";
+import { HistoryIcon, SearchIcon, StarIcon, TagIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { Kbd } from "@/components/design/Kbd";
 import { SoonTag } from "@/components/design/SoonTag";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -9,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { useObs } from "./context";
 import { levelStyle } from "./format";
 import {
-	FIELDS,
 	fieldDef,
 	isFieldKey,
 	levelOf,
@@ -17,8 +17,11 @@ import {
 	queryStr,
 	readSaved,
 	sameToken,
+	searchesText,
 	tokenSupport,
+	viewFields,
 	writeSaved,
+	type FieldDef,
 	type FieldKey,
 	type SavedSearches,
 	type Token,
@@ -28,10 +31,7 @@ import { Dot } from "./shared";
 interface Suggestion {
 	key: string;
 	icon: ReactNode;
-	iconClass: string;
-	pre: string;
 	main: string;
-	post: string;
 	hint: string;
 	disabled?: boolean;
 	apply: () => void;
@@ -43,26 +43,50 @@ interface Group {
 	items: Suggestion[];
 }
 
-const MONO = "font-mono text-[12.5px]";
 const VALUE_WORD_RE = /^(-?)@(\w+):(.*)$/;
 const KEY_WORD_RE = /^(-?)@(\w*)$/;
 const COMPLETED_TOKEN_RE = /(^|\s)(-?)@(\w+):(\S+)\s$/;
+const MAX_VALUES = 10;
+const MAX_RECENT = 8;
+const MAX_PINNED = 10;
+const BLUR_CLOSE_MS = 120;
 
-export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [string, number][] }) {
-	const { tokens, setTokens, text, setText, setAppliedText, resourceByName } = useObs();
+export type ValueCounts = (key: FieldKey) => [string, number][];
+
+function placeholder(view: string): string {
+	switch (view) {
+		case "logs":
+			return "Search messages, or type @ to filter by resource, level, replica…";
+		case "traces":
+			return "Search span names, or type @ to filter by resource, status, trace…";
+		case "events":
+			return "Search events, or type @ to filter by resource or type";
+		default:
+			return "Type @ to filter by resource or region";
+	}
+}
+
+export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
+	const { view, tokens, text: applied, setQuery, resourceByName } = useObs();
+	const [text, setText] = useState(applied);
+	const [synced, setSynced] = useState(applied);
+	if (synced !== applied) {
+		setSynced(applied);
+		setText(applied);
+	}
 	const [open, setOpen] = useState(false);
 	const [hi, setHi] = useState(0);
 	const [saved, setSaved] = useState<SavedSearches>(readSaved);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const support = tokenSupport(tokens);
+	const fields = viewFields(view);
+	const support = tokenSupport(view, tokens);
+	const textIgnored = !searchesText(view) && applied !== "";
 	const words = text.split(" ");
 	const cur = words.at(-1) ?? "";
 	const focusInput = () => {
-		setTimeout(() => {
-			inputRef.current?.focus();
-		}, 0);
+		inputRef.current?.focus();
 	};
 
 	const updateSaved = (next: SavedSearches) => {
@@ -70,9 +94,9 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 		setSaved(next);
 	};
 
-	const setQ = (nextTokens: Token[], nextText: string) => {
-		setTokens(nextTokens);
+	const setTokens = (next: Token[], nextText = text) => {
 		setText(nextText);
+		setQuery(next, applied);
 		setHi(0);
 	};
 
@@ -80,7 +104,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 		const rest = text.split(" ");
 		rest.pop();
 		const exists = tokens.some((x) => sameToken(x, t));
-		setQ(exists ? tokens : [...tokens, t], rest.join(" ") + (rest.length > 0 ? " " : ""));
+		setTokens(exists ? tokens : [...tokens, t], rest.join(" ") + (rest.length > 0 ? " " : ""));
 		setOpen(true);
 		focusInput();
 	};
@@ -89,41 +113,34 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 		const p = parseQuery(text);
 		const nextTokens = [...tokens, ...p.tokens];
 		const q = queryStr(nextTokens, p.text);
-		if (q !== "") updateSaved({ ...saved, recent: [q, ...saved.recent.filter((x) => x !== q)].slice(0, 8) });
-		setQ(nextTokens, p.text);
-		setAppliedText(p.text);
+		if (q !== "") updateSaved({ ...saved, recent: [q, ...saved.recent.filter((x) => x !== q)].slice(0, MAX_RECENT) });
+		setText(p.text);
+		setQuery(nextTokens, p.text);
 		setOpen(false);
 	};
 
 	const loadQuery = (q: string) => {
 		const p = parseQuery(q);
-		setQ(p.tokens, p.text);
-		setAppliedText(p.text);
+		setText(p.text);
+		setQuery(p.tokens, p.text);
 		setOpen(false);
 	};
 
-	const keyItem = (k: FieldKey, neg: boolean): Suggestion => {
-		const def = fieldDef(k);
-		const disabled = def?.supported !== true;
-		return {
-			key: `f:${k}:${String(neg)}`,
-			icon: <TagIcon className="size-3.5" />,
-			iconClass: "text-fg3",
-			pre: `${neg ? "-" : ""}@`,
-			main: k,
-			post: ":",
-			hint: def?.info ?? "",
-			disabled,
-			apply: () => {
-				const w = text.split(" ");
-				w.pop();
-				setText([...w, `${neg ? "-" : ""}@${k}:`].join(" "));
-				setHi(0);
-				setOpen(true);
-				focusInput();
-			},
-		};
-	};
+	const keyItem = (def: FieldDef, neg: boolean): Suggestion => ({
+		key: `f:${def.key}:${String(neg)}`,
+		icon: <TagIcon className="size-3.5" />,
+		main: `${neg ? "-" : ""}@${def.key}`,
+		hint: def.label,
+		disabled: !def.views.includes(view),
+		apply: () => {
+			const w = text.split(" ");
+			w.pop();
+			setText([...w, `${neg ? "-" : ""}@${def.key}:`].join(" "));
+			setHi(0);
+			setOpen(true);
+			focusInput();
+		},
+	});
 
 	const groups: Group[] = [];
 	const vm = VALUE_WORD_RE.exec(cur);
@@ -131,44 +148,40 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 	const vmKey = vm?.[2] ?? "";
 	if (vm && isFieldKey(vmKey)) {
 		const neg = vm[1] === "-";
-		const pref = (vm[3] ?? "").toLowerCase();
+		const part = vm[3] ?? "";
+		const pref = part.toLowerCase();
 		const def = fieldDef(vmKey);
-		const vals =
-			def?.supported === true
-				? valueCounts(vmKey)
-						.filter(([v]) => v.toLowerCase().startsWith(pref))
-						.slice(0, 10)
-				: [];
-		groups.push({
-			title: `${neg ? "Exclude " : ""}${vmKey}`,
-			items: vals.map(([v, c]) => {
-				const res = resourceByName.get(v);
-				const icon =
-					vmKey === "level" ? (
-						<span className={cn("size-2 rounded-full", levelStyle(levelOf(v)).dot)} />
-					) : vmKey === "resource" && res !== undefined ? (
-						<Dot size={8} color={res.color} />
-					) : (
-						<CornerDownRightIcon className="size-3.5" />
-					);
-				return {
-					key: `v:${v}`,
-					icon,
-					iconClass: "text-fg3",
-					pre: `${neg ? "-" : ""}@${vmKey}:`,
-					main: v,
-					post: "",
-					hint: c > 0 ? formatCount(c) : "",
-					apply: () => {
-						addToken({ neg, key: vmKey, value: v });
-					},
-				};
-			}),
+		const vals = def.views.includes(view)
+			? valueCounts(vmKey)
+					.filter(([v]) => v.toLowerCase().includes(pref))
+					.slice(0, MAX_VALUES)
+			: [];
+		const typed: [string, number][] = part !== "" && !vals.some(([v]) => v.toLowerCase() === pref) ? [[part, 0]] : [];
+		const items: Suggestion[] = [...typed, ...vals].map(([v, c]) => {
+			const res = resourceByName.get(v);
+			const icon =
+				vmKey === "level" ? (
+					<span className={cn("size-2 rounded-full", levelStyle(levelOf(v)).dot)} />
+				) : vmKey === "resource" && res !== undefined ? (
+					<Dot size={8} color={res.color} />
+				) : (
+					<TagIcon className="size-3.5" />
+				);
+			return {
+				key: `v:${v}`,
+				icon,
+				main: `${neg ? "-" : ""}@${vmKey}:${v}`,
+				hint: c > 0 ? formatCount(c) : "",
+				apply: () => {
+					addToken({ neg, key: vmKey, value: v });
+				},
+			};
 		});
+		groups.push({ title: `@${vmKey} values`, items });
 	} else if (km) {
 		const neg = km[1] === "-";
-		const ks = FIELDS.filter((f) => f.key.startsWith((km[2] ?? "").toLowerCase()));
-		groups.push({ title: "Fields", items: ks.map((f) => keyItem(f.key, neg)) });
+		const ks = fields.filter((f) => f.key.startsWith((km[2] ?? "").toLowerCase()));
+		groups.push({ title: "Attributes", items: ks.map((f) => keyItem(f, neg)) });
 	} else if (cur.trim() === "") {
 		const curQ = queryStr(tokens, text);
 		if (saved.pinned.length > 0) {
@@ -176,11 +189,8 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 				title: "Pinned",
 				items: saved.pinned.map((q) => ({
 					key: `p:${q}`,
-					icon: <StarIcon className="size-3.5" />,
-					iconClass: "text-warn",
-					pre: "",
+					icon: <StarIcon className="size-3.5 text-warn" />,
 					main: q,
-					post: "",
 					hint: "",
 					apply: () => {
 						loadQuery(q);
@@ -198,10 +208,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 				items: rec.map((q) => ({
 					key: `r:${q}`,
 					icon: <HistoryIcon className="size-3.5" />,
-					iconClass: "text-fg3",
-					pre: "",
 					main: q,
-					post: "",
 					hint: "",
 					apply: () => {
 						loadQuery(q);
@@ -212,10 +219,24 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 				})),
 			});
 		}
-		groups.push({ title: "Fields", items: FIELDS.map((f) => keyItem(f.key, false)) });
+		groups.push({ title: "Filter by an attribute", items: fields.map((f) => keyItem(f, false)) });
 	} else {
-		const ks = FIELDS.filter((f) => f.key.startsWith(cur.toLowerCase()));
-		if (ks.length > 0) groups.push({ title: "Fields", items: ks.map((f) => keyItem(f.key, false)) });
+		if (searchesText(view)) {
+			groups.push({
+				title: "Search",
+				items: [
+					{
+						key: "search",
+						icon: <SearchIcon className="size-3.5" />,
+						main: `“${text.trim()}”`,
+						hint: "enter",
+						apply: commit,
+					},
+				],
+			});
+		}
+		const ks = fields.filter((f) => f.key.startsWith(cur.toLowerCase()));
+		if (ks.length > 0) groups.push({ title: "Attributes", items: ks.map((f) => keyItem(f, false)) });
 	}
 
 	const flat = groups.flatMap((g) => g.items).filter((s) => s.disabled !== true);
@@ -231,7 +252,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 		const key = m?.[3] ?? "";
 		if (m && isFieldKey(key)) {
 			const t: Token = { neg: m[2] === "-", key, value: m[4] ?? "" };
-			setQ([...tokens, t], v.slice(0, v.length - m[0].length + (m[1] ?? "").length));
+			setTokens([...tokens, t], v.slice(0, v.length - m[0].length + (m[1] ?? "").length));
 			setOpen(true);
 			return;
 		}
@@ -273,7 +294,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 				return;
 			}
 			case "Backspace": {
-				if (text === "" && tokens.length > 0) setQ(tokens.slice(0, -1), text);
+				if (text === "" && tokens.length > 0) setTokens(tokens.slice(0, -1));
 				return;
 			}
 			default:
@@ -283,27 +304,24 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 
 	let n = 0;
 	return (
-		<div className="relative min-w-0 basis-full sm:flex-1 sm:basis-0">
+		<div className="relative min-w-0">
 			<div
 				role="presentation"
 				onClick={focusInput}
-				className={cn(
-					"flex min-h-[38px] cursor-text flex-wrap items-center gap-1 rounded-lg border bg-background py-[5px] pr-1.5 pl-2.5",
-					open ? "border-brand shadow-[0_0_0_3px_color-mix(in_oklab,var(--brand)_12%,transparent)]" : "border-line",
-				)}
+				className="flex min-h-[42px] cursor-text flex-wrap items-center gap-1.5 rounded-lg border border-line2 bg-raise py-[5px] pr-1.5 pl-3 focus-within:border-fg3 focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--fg)_7%,transparent)]"
 			>
-				<SearchIcon className="mr-0.5 size-3.5 text-fg3" />
+				<SearchIcon className="mr-0.5 size-3.5 shrink-0 text-fg3" />
 				{tokens.map((t, i) => (
 					<TokenChip
 						key={`${String(i)}-${t.key}-${t.value}`}
 						token={t}
-						supported={support[i] === true}
+						reason={support[i]?.ok === true ? null : (support[i]?.reason ?? null)}
 						color={t.key === "resource" ? resourceByName.get(t.value)?.color : undefined}
+						onFlip={() => {
+							setTokens(tokens.map((x, j) => (j === i ? { ...x, neg: !x.neg } : x)));
+						}}
 						onRemove={() => {
-							setQ(
-								tokens.filter((_, j) => j !== i),
-								text,
-							);
+							setTokens(tokens.filter((_, j) => j !== i));
 						}}
 					/>
 				))}
@@ -321,45 +339,53 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 					onBlur={() => {
 						blurTimerRef.current = setTimeout(() => {
 							setOpen(false);
-						}, 120);
+						}, BLUR_CLOSE_MS);
 					}}
-					placeholder={tokens.length > 0 ? "" : "Search logs, or type @ to filter"}
+					placeholder={tokens.length > 0 ? "" : placeholder(view)}
+					aria-label="Search and filter"
+					aria-describedby={textIgnored ? "omni-text-ignored" : undefined}
 					autoComplete="off"
 					spellCheck={false}
 					className={cn(
-						"h-[26px] min-w-[180px] flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-fg4",
-						MONO,
+						"h-[30px] min-w-[200px] flex-1 border-0 bg-transparent font-mono text-[12.5px] text-foreground outline-none placeholder:font-sans placeholder:text-[13px] placeholder:text-fg4",
+						textIgnored && "text-fg3 line-through",
 					)}
 				/>
+				{textIgnored && (
+					<span id="omni-text-ignored" className="text-[12px] text-fg3">
+						Text search doesn&apos;t filter {view}
+					</span>
+				)}
 				{curQuery !== "" && (
 					<Button
-						variant="ghost"
-						size="icon-xs"
-						title="Clear"
+						variant="link"
 						onClick={(e) => {
 							e.stopPropagation();
-							setQ([], "");
-							setAppliedText("");
+							setText("");
+							setQuery([], "");
 							focusInput();
 						}}
-						className="size-[26px] text-fg3 hover:text-foreground"
+						className="px-1 text-[12px] text-fg3"
 					>
-						<XIcon className="size-3.5" />
+						Clear
 					</Button>
 				)}
 				<Button
 					variant="ghost"
 					size="icon-xs"
+					aria-label={pinned ? "Unpin search" : "Pin search"}
 					title={pinned ? "Unpin search" : "Pin search"}
 					disabled={curQuery === ""}
 					onClick={(e) => {
 						e.stopPropagation();
 						updateSaved({
 							...saved,
-							pinned: pinned ? saved.pinned.filter((x) => x !== curQuery) : [curQuery, ...saved.pinned].slice(0, 10),
+							pinned: pinned
+								? saved.pinned.filter((x) => x !== curQuery)
+								: [curQuery, ...saved.pinned].slice(0, MAX_PINNED),
 						});
 					}}
-					className={cn("size-[26px]", pinned ? "text-warn hover:text-warn" : "text-fg3")}
+					className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
 				>
 					<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
 				</Button>
@@ -367,24 +393,26 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 			{showMenu && (
 				<div
 					role="listbox"
+					aria-label="Suggestions"
 					tabIndex={-1}
 					onMouseDown={(e) => {
 						e.preventDefault();
 					}}
-					className="absolute top-[calc(100%+4px)] right-0 left-0 z-50 max-h-[380px] overflow-y-auto rounded-lg border border-line bg-popover p-1 shadow-popover"
+					className="absolute top-[calc(100%+6px)] left-0 z-50 flex max-h-[400px] w-[min(560px,100%)] flex-col overflow-y-auto rounded-[10px] border border-line bg-popover p-1.5 shadow-popover dark:border-line2"
 				>
 					{groups.map((g) =>
 						g.items.length === 0 ? null : (
-							<div key={g.title}>
-								<div className="px-2.5 pt-2 pb-1 text-xs font-semibold tracking-[0.02em] text-fg3">{g.title}</div>
+							<div key={g.title} className="flex flex-col">
+								<div className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">{g.title}</div>
 								{g.items.map((s) => {
 									const idx = s.disabled === true ? -1 : n++;
+									const active = idx === hiIdx && idx >= 0;
 									return (
 										<div
 											key={s.key}
 											role="option"
 											tabIndex={-1}
-											aria-selected={idx === hiIdx && idx >= 0}
+											aria-selected={active}
 											aria-disabled={s.disabled === true}
 											onMouseDown={(e) => {
 												e.preventDefault();
@@ -394,26 +422,20 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 												if (idx >= 0 && hi !== idx) setHi(idx);
 											}}
 											className={cn(
-												"flex h-8 items-center gap-2.5 rounded-sm px-2.5",
-												s.disabled === true && "text-fg4",
-												idx === hiIdx && idx >= 0 && "bg-bg3",
+												"flex h-8 items-center gap-2.5 rounded-sm px-2 text-[12.5px]",
+												s.disabled === true ? "text-fg4" : "text-foreground",
+												active && "bg-panel",
 											)}
 										>
-											<span className={cn("flex", s.iconClass)}>{s.icon}</span>
-											<span className={cn("min-w-0 flex-1 truncate", MONO)}>
-												<span className="text-fg3">{s.pre}</span>
-												<span className={cn("font-semibold", s.disabled === true ? "text-fg4" : "text-foreground")}>
-													{s.main}
-												</span>
-												<span className="text-fg3">{s.post}</span>
-											</span>
-											<span className="text-sm whitespace-nowrap text-fg3">{s.hint}</span>
+											<span className="flex text-fg3">{s.icon}</span>
+											<span className="min-w-0 flex-1 truncate font-mono">{s.main}</span>
+											<span className="text-[12px] whitespace-nowrap text-fg3">{s.hint}</span>
 											{s.disabled === true && <SoonTag />}
 											{s.remove !== undefined && (
 												<Button
 													variant="ghost"
 													size="icon-xs"
-													title="Remove"
+													aria-label="Remove"
 													onMouseDown={(e) => {
 														e.preventDefault();
 														e.stopPropagation();
@@ -431,6 +453,9 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 						),
 					)}
 					{noMatches && <div className="p-2.5 text-fg3">No matches</div>}
+					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
+						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix
+					</div>
 				</div>
 			)}
 		</div>
@@ -439,54 +464,59 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 
 function TokenChip({
 	token,
-	supported,
+	reason,
 	color,
+	onFlip,
 	onRemove,
 }: {
 	token: Token;
-	supported: boolean;
+	reason: string | null;
 	color: string | undefined;
+	onFlip: () => void;
 	onRemove: () => void;
 }) {
 	const neg = token.neg;
 	const levelDot = token.key === "level" ? levelStyle(levelOf(token.value)).dot : null;
+	const label = `${neg ? "Excluding" : "Only"} ${token.key} ${token.value}`;
 	return (
 		<span
-			title={supported ? undefined : "This filter isn't supported yet and is ignored"}
 			className={cn(
-				"inline-flex h-[26px] items-center gap-[5px] rounded-[5px] pr-[3px] pl-2 text-[12.5px] whitespace-nowrap",
-				neg
-					? "bg-bad-bg shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--err)_28%,transparent),inset_3px_0_0_var(--err)]"
-					: "bg-[color-mix(in_oklab,var(--brand)_7%,var(--bg))] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--brand)_22%,transparent),inset_3px_0_0_var(--brand)]",
-				!supported && "line-through opacity-55",
+				"inline-flex h-[26px] items-center rounded-sm bg-panel shadow-[inset_0_0_0_1px_var(--line2)]",
+				reason !== null && "opacity-55",
 			)}
 		>
-			<span className={cn("font-mono text-sm", neg ? "text-bad-fg" : "text-info-fg")}>
-				{neg ? "-" : ""}
-				{token.key}:
-			</span>
-			<span
+			<button
+				type="button"
+				title={reason ?? (neg ? "Excluding. Click to include." : "Click to exclude")}
+				aria-label={reason === null ? `${label}. Click to ${neg ? "include" : "exclude"}.` : `${label}. ${reason}.`}
+				onClick={(e) => {
+					e.stopPropagation();
+					onFlip();
+				}}
 				className={cn(
-					"inline-flex items-center gap-[5px] font-mono text-sm font-semibold",
+					"flex h-full items-center gap-[5px] pr-1 pl-2 font-mono text-[12px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 					neg ? "text-bad-fg" : "text-foreground",
+					reason !== null && "line-through",
 				)}
 			>
+				<span className={neg ? "text-bad-fg" : "text-fg3"}>
+					{neg ? "-" : ""}@{token.key}:
+				</span>
 				{levelDot !== null && <span className={cn("size-[7px] rounded-[2px]", levelDot)} />}
 				{color !== undefined && <Dot color={color} />}
 				{token.value}
-			</span>
-			<Button
-				variant="ghost"
-				size="icon-xs"
-				title="Remove filter"
+			</button>
+			<button
+				type="button"
+				aria-label={`Remove ${token.key} ${token.value}`}
 				onClick={(e) => {
 					e.stopPropagation();
 					onRemove();
 				}}
-				className="size-5 text-fg4 hover:bg-line hover:text-foreground"
+				className="flex h-full w-5 items-center justify-center rounded-r-sm text-fg3 hover:bg-panel2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 			>
-				<XIcon className="size-[11px]" />
-			</Button>
+				<XIcon className="size-3" />
+			</button>
 		</span>
 	);
 }

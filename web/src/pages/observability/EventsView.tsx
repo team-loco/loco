@@ -1,347 +1,301 @@
 import { useState } from "react";
-import { ActivityIcon, SearchXIcon, XIcon } from "lucide-react";
+import { Link } from "react-router";
 
-import { Button } from "@/components/design/Button";
-import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
-import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { getErrorMessage } from "@/lib/error-handler";
-import { timeRangeMs } from "@/lib/obs";
-import { pageRangeLabel, pageSlice } from "@/lib/paging";
-import { formatClock, tsMs } from "@/lib/time";
+import { formatCount } from "@/lib/format";
+import { resolveWindow } from "@/lib/obs-time";
+import { pagedRows } from "@/lib/paging";
+import { resourcePath } from "@/lib/routes";
+import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { EVENTS_MAX_RANGE, selectedResources, useObs } from "./context";
+import { filteredResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
-import { groupEvents, severityOf, severityStyle, type Severity } from "./events";
-import { fmtTs } from "./format";
-import { WidenRangeButton } from "./ObsEmpty";
-import { Dot, Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
-import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
+import { eventTitle, groupEvents, severityStyle, type Severity } from "./events";
+import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
+import { QueryBar } from "./QueryBar";
+import { PAGE_SIZES, readPaging } from "./shared";
+import { LiveButton } from "./Toolbar";
+import { ViewHeader } from "./ViewHeader";
 
-type TypeFilter = "all" | Severity;
+const DEFAULT_PAGE_SIZE = 25;
+const POLL_MS = 10_000;
+const NOW_TICK_MS = 30_000;
 
-const TYPES: { key: TypeFilter; label: string }[] = [
-	{ key: "all", label: "All" },
-	{ key: "error", label: "Errors" },
-	{ key: "warning", label: "Warnings" },
-	{ key: "normal", label: "Normal" },
-];
+type Show = "all" | "warning" | "error";
 
-const BUCKETS = 48;
+const SHOW_TOKENS: Record<Exclude<Show, "all">, Token> = {
+	warning: { neg: false, key: "type", value: "warning" },
+	error: { neg: false, key: "type", value: "error" },
+};
 
-function isTypeFilter(v: string | undefined): v is TypeFilter {
-	return v === "all" || v === "error" || v === "warning" || v === "normal";
+function typeValues(severity: Severity): string[] {
+	switch (severity) {
+		case "error":
+			return ["error", "warning"];
+		case "warning":
+			return ["warning"];
+		case "normal":
+			return ["normal"];
+	}
 }
 
 export function EventsView() {
-	const { workspaceId, resources, resourcesLoading, selected, range, resourceByName } = useObs();
-	const [query, setQuery] = useState("");
-	const [type, setType] = useState<TypeFilter>("all");
-	const [page, setPage] = useState(0);
-	const [size, setSize] = useState(25);
+	const {
+		orgId,
+		workspaceId,
+		resources,
+		resourcesLoading,
+		resourceByName,
+		range,
+		tokens,
+		text,
+		setQuery,
+		params,
+		setParam,
+		setPaging,
+	} = useObs();
+	const live = params.get("live") === "1";
 	const [selKey, setSelKey] = useState<string | null>(null);
-	const now = useNow(30_000);
+	const now = useNow(live ? POLL_MS : NOW_TICK_MS);
 	const nowMs = now.getTime();
-	const from = nowMs - timeRangeMs(range);
+	const { from, to } = resolveWindow(range, nowMs);
 
-	const sel = selectedResources(resources, selected);
 	const { events, isLoading, error, unavailable } = useWorkspaceEvents(
 		workspaceId,
 		resources.map((r) => r.raw),
+		live ? POLL_MS : undefined,
 	);
-	const selIds = new Set(sel.map((r) => r.id));
-	const q = query.trim().toLowerCase();
-	const base = events.filter((e) => {
+	const visible = new Set(filteredResources("events", resources, tokens).map((r) => r.id));
+	const words = text.toLowerCase().split(" ").filter(Boolean);
+	const inRange = events.filter((e) => {
 		const ts = tsMs(e.timestamp);
-		if (ts < from || !selIds.has(e.resourceId)) return false;
-		if (q === "") return true;
-		return `${e.reason} ${e.message} ${e.podName} ${e.resourceName}`.toLowerCase().includes(q);
+		if (ts < from || ts > to || !visible.has(e.resourceId)) return false;
+		const hay = `${eventTitle(e.reason)} ${e.reason} ${e.message} ${e.podName} ${e.resourceName}`.toLowerCase();
+		return words.every((w) => hay.includes(w));
 	});
+	const typeTokens = liveTokens("events", tokens, "type");
+	const all = groupEvents(inRange);
 	const sevCounts: Record<Severity, number> = { error: 0, warning: 0, normal: 0 };
-	const filtered: typeof base = [];
-	for (const e of base) {
-		const s = severityOf(e.type, e.reason);
-		sevCounts[s]++;
-		if (type === "all" || s === type) filtered.push(e);
-	}
-	const items = groupEvents(filtered);
+	for (const g of all) sevCounts[g.severity]++;
+	const items = all.filter((g) => passes(typeValues(g.severity), typeTokens));
+	const show: Show = tokens.some((t) => t.key === "type" && !t.neg && t.value === "error")
+		? "error"
+		: tokens.some((t) => t.key === "type" && !t.neg && t.value === "warning")
+			? "warning"
+			: "all";
 
-	const { rows: pageItems, page: curPage, pages } = pageSlice(items, page, size);
+	const paging = readPaging(params, DEFAULT_PAGE_SIZE);
+	const paged = pagedRows(
+		items,
+		paging,
+		(next) => {
+			setPaging(next, DEFAULT_PAGE_SIZE);
+		},
+		PAGE_SIZES,
+		"0",
+	);
 	const selIdx = selKey !== null ? items.findIndex((x) => x.key === selKey) : -1;
 	const selItem = selIdx >= 0 ? items[selIdx] : undefined;
-
-	const bw = timeRangeMs(range) / BUCKETS;
-	const counts = Array.from({ length: BUCKETS }, () => ({ e: 0, w: 0, n: 0 }));
-	for (const e of filtered) {
-		const i = Math.max(0, Math.min(BUCKETS - 1, Math.floor((tsMs(e.timestamp) - from) / bw)));
-		const b = counts[i];
-		if (b === undefined) continue;
-		const s = severityOf(e.type, e.reason);
-		if (s === "error") b.e++;
-		else if (s === "warning") b.w++;
-		else b.n++;
-	}
-	const histo: HistoBucket[] = counts.map((b, i) => ({
-		title: `${fmtTs(from + i * bw)} · ${String(b.e)} errors, ${String(b.w)} warnings, ${String(b.n)} normal`,
-		segments: [
-			{ value: b.e, className: "bg-err" },
-			{ value: b.w, className: "bg-warn" },
-			{ value: b.n, className: "bg-line2" },
-		],
-	}));
-
-	const open = selItem !== undefined;
-	const rowCols = open
-		? "84px 150px minmax(0,1fr) minmax(0,1fr) 48px"
-		: "120px 170px minmax(0,1.1fr) 104px minmax(0,1.6fr) 56px";
 	const select = (key: string | null) => {
 		setSelKey(key);
 		if (key === null) return;
 		const idx = items.findIndex((x) => x.key === key);
-		if (idx >= 0) setPage(Math.floor(idx / size));
+		if (idx >= 0) setPaging({ page: Math.floor(idx / paging.size), size: paging.size }, DEFAULT_PAGE_SIZE);
 	};
 	const loading = isLoading || resourcesLoading;
-	const toolbar = (
-		<div className="flex flex-wrap items-center gap-2">
-			<ResourceMenu />
-			<div className="flex-1" />
-			<TimeRangeMenu maxRange={null} />
-		</div>
-	);
-
-	const filtering = q !== "" || type !== "all";
-	const widen = range === EVENTS_MAX_RANGE ? undefined : <WidenRangeButton max={EVENTS_MAX_RANGE} />;
-	const clearFilters = () => {
-		setQuery("");
-		setType("all");
-		setPage(0);
+	const query = queryStr(tokens, text);
+	const valueCounts = (key: FieldKey): [string, number][] => {
+		if (key === "resource") return resources.map((r) => [r.name, 0]);
+		if (key === "type")
+			return [
+				["warning", sevCounts.warning + sevCounts.error],
+				["error", sevCounts.error],
+				["normal", sevCounts.normal],
+			];
+		return [];
 	};
+
+	const header = (
+		<ViewHeader
+			actions={
+				<LiveButton
+					on={live}
+					detail="every 10s"
+					title={live ? "Stop checking for new events" : "Check for new events every 10 seconds"}
+					onToggle={() => {
+						setParam("live", live ? null : "1", true);
+					}}
+				/>
+			}
+		/>
+	);
 
 	if (!loading && unavailable) {
 		return (
 			<>
-				{toolbar}
-				<section className="rounded-lg border border-line bg-background">
-					<EmptyState
-						title={
-							<span className="flex items-center gap-2">
-								Events aren&apos;t available yet
-								<SoonTag />
-							</span>
-						}
-					>
-						Events for your services will show up here once Loco records them.
-					</EmptyState>
-				</section>
+				{header}
+				<ObsHero
+					view="events"
+					title="Events aren't available yet"
+					body="Deploys, restarts, failed health checks and scaling show up here once this installation records them."
+				/>
+			</>
+		);
+	}
+	if (!loading && error === null && inRange.length === 0 && query === "") {
+		return (
+			<>
+				{header}
+				<QueryBar valueCounts={valueCounts} />
+				<ObsHero
+					view="events"
+					title="No events in this range"
+					body="Deploys, restarts, failed health checks and scaling show up here as they happen."
+					action={<WidenRangeButton />}
+				/>
 			</>
 		);
 	}
 
 	return (
 		<>
-			{toolbar}
+			{header}
+			<QueryBar valueCounts={valueCounts} />
 			<div
-				className="grid items-start gap-5"
-				style={{ gridTemplateColumns: open ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)" }}
+				className="grid grid-cols-1 items-start gap-4 xl:grid-cols-(--ev-cols)"
+				style={
+					{
+						"--ev-cols": selItem !== undefined ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)",
+					} as React.CSSProperties
+				}
 			>
-				<div className="flex min-w-0 flex-col gap-3">
-					<div className="flex flex-wrap items-center gap-2">
-						<SearchInput
-							value={query}
-							onChange={(e) => {
-								setQuery(e.target.value);
-								setPage(0);
-							}}
-							placeholder="Search reason, object or message"
-							className="min-w-[220px] flex-1"
-						/>
+				<section aria-label="Events" className="flex min-w-0 flex-col rounded-[10px] bg-panel">
+					<div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-3">
+						<span className="mr-auto text-[13.5px]">
+							{formatCount(items.length)} {items.length === 1 ? "event" : "events"}
+							{live && <span className="ml-2 text-[12.5px] text-fg3">checking every 10 seconds</span>}
+						</span>
 						<ToggleGroup
 							variant="segmented"
-							value={[type]}
+							aria-label="Show"
+							value={[show]}
 							onValueChange={(v: string[]) => {
+								const rest = tokens.filter((t) => t.key !== "type");
 								const next = v[0];
-								if (isTypeFilter(next)) {
-									setType(next);
-									setPage(0);
-								}
+								setQuery(next === "warning" || next === "error" ? [...rest, SHOW_TOKENS[next]] : rest, text);
 							}}
 						>
-							{TYPES.map((t) => (
-								<ToggleGroupItem key={t.key} value={t.key} className="h-[26px]! gap-1.5 text-sm">
-									<span
-										className={cn(
-											"size-[7px] rounded-[2px]",
-											t.key === "all" ? "bg-transparent" : severityStyle(t.key).dot,
-										)}
-									/>
-									{t.label}
-									<span className="text-xs font-normal text-fg3 tabular-nums">
-										{t.key === "all" ? base.length : sevCounts[t.key]}
-									</span>
-								</ToggleGroupItem>
-							))}
+							<ToggleGroupItem value="all" count={formatCount(all.length)}>
+								All
+							</ToggleGroupItem>
+							<ToggleGroupItem value="warning" count={formatCount(sevCounts.warning + sevCounts.error)}>
+								Warnings
+							</ToggleGroupItem>
+							<ToggleGroupItem value="error" count={formatCount(sevCounts.error)}>
+								Errors
+							</ToggleGroupItem>
 						</ToggleGroup>
 					</div>
-					<section className="rounded-lg border border-line bg-background">
-						<Histogram buckets={histo} from={fmtTs(from)} height={64} />
-					</section>
-					<section className="overflow-hidden rounded-lg border border-line bg-background">
-						<div className="overflow-x-auto">
-							<div className="min-w-[720px]">
-								<div
-									className="grid h-[34px] items-center gap-3 border-b border-line bg-bg2 px-4 text-sm font-semibold text-fg2"
-									style={{ gridTemplateColumns: rowCols }}
-								>
-									<span>Last seen</span>
-									<span>Reason</span>
-									<span>Object</span>
-									{!open && (
-										<span className="flex items-center gap-1.5 text-fg4">
-											Deployment
-											<SoonTag />
-										</span>
-									)}
-									<span>Message</span>
-									<span className="text-right">Count</span>
-								</div>
+					<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
+						<table className="w-full min-w-[640px] border-collapse text-[13px]">
+							<thead>
+								<tr className="h-[38px] border-b border-line2 text-left text-[12.5px] text-fg3">
+									<th className="w-[18px] font-normal">
+										<span className="sr-only">Severity</span>
+									</th>
+									<th className="px-3 font-normal">Event</th>
+									<th className="w-[160px] px-3 font-normal">Resource</th>
+									<th className="w-[72px] px-3 text-right font-normal">Count</th>
+									<th className="w-[110px] pl-3 text-right font-normal">Last seen</th>
+								</tr>
+							</thead>
+							<tbody>
 								{loading &&
 									Array.from({ length: 8 }, (_, i) => (
-										<div key={String(i)} className="flex h-10 items-center gap-3 border-b border-line px-4">
-											<Skeleton className="h-3 w-[100px]" />
-											<Skeleton className="h-3 w-[120px]" />
-											<Skeleton className="h-3 w-1/4" />
-											<Skeleton className="h-3 w-1/3" />
-										</div>
+										<tr key={String(i)} className="h-[58px] border-b border-line2">
+											<td colSpan={5}>
+												<Skeleton className="h-3 w-full" />
+											</td>
+										</tr>
 									))}
 								{!loading &&
-									pageItems.map((e) => {
-										const st = severityStyle(e.severity);
+									paged.rows.map((e) => {
 										const on = e.key === selItem?.key;
 										const res = resourceByName.get(e.resourceName);
 										return (
-											<button
+											<tr
 												key={e.key}
-												type="button"
-												aria-pressed={on}
-												onClick={() => {
-													select(on ? null : e.key);
-												}}
-												className={cn(
-													"grid min-h-10 w-full items-center gap-3 text-left border-b border-l-[3px] border-b-line py-1 pr-4 pl-[13px] [contain-intrinsic-block-size:auto_42px] [content-visibility:auto] hover:bg-bg2",
-													on ? "border-l-brand bg-info-bg shadow-[inset_0_0_0_1px_var(--brand)]" : st.bar,
-												)}
-												style={{ gridTemplateColumns: rowCols }}
+												className={cn("h-[58px] border-b border-line2 last:border-b-0", on && "bg-background")}
 											>
-												<span className="whitespace-nowrap text-fg3 tabular-nums">
-													{open ? formatClock(e.ts) : fmtTs(e.ts)}
-												</span>
-												<span className="flex min-w-0 items-center gap-[7px]">
-													<span className={cn("size-[7px] shrink-0 rounded-[2px]", st.dot)} />
-													<span className={cn("truncate font-semibold", st.fg)}>{e.reason}</span>
-												</span>
-												<span className="flex min-w-0 flex-col">
-													<span className="flex items-center gap-1.5 font-medium">
-														<Dot color={res?.color ?? "var(--fg4)"} />
-														{e.resourceName}
-													</span>
-													<span className="truncate font-mono text-xs text-fg3">{e.object}</span>
-												</span>
-												{!open && <span className="font-mono text-sm text-fg4">—</span>}
-												<span className="truncate text-fg2" title={e.message}>
-													{e.message}
-												</span>
-												<span className="flex justify-end">
-													{e.occ.length > 1 && (
+												<td className={cn(e.severity === "normal" && "opacity-60")}>
+													<StatusGlyph glyph={severityStyle(e.severity).glyph} />
+													<span className="sr-only">{e.severity}</span>
+												</td>
+												<td className="max-w-0 px-3">
+													<button
+														type="button"
+														aria-pressed={on}
+														onClick={() => {
+															select(on ? null : e.key);
+														}}
+														className="flex w-full min-w-0 flex-col items-start rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+													>
 														<span
-															className={cn(
-																"inline-flex h-5 items-center rounded-full px-[7px] text-[11.5px] font-semibold tabular-nums",
-																st.count,
-															)}
+															className={cn("font-medium", e.severity === "error" && "text-bad-fg")}
+															title={e.reason}
 														>
+															{eventTitle(e.reason)}
+														</span>
+														<span className="w-full truncate font-mono text-[12px] text-fg3" title={e.message}>
+															{e.object !== e.resourceName ? `${e.object} · ` : ""}
+															{e.message}
+														</span>
+													</button>
+												</td>
+												<td className="px-3">
+													<Link
+														to={resourcePath(orgId, workspaceId, e.resourceId)}
+														className="flex items-center gap-[7px] text-fg2 hover:text-foreground hover:underline"
+													>
+														<span className="size-2 rounded-[2px]" style={{ background: res?.color ?? "var(--fg4)" }} />
+														{e.resourceName}
+													</Link>
+												</td>
+												<td className="px-3 text-right">
+													{e.occ.length > 1 && (
+														<span className="rounded-sm border border-line2 px-1.5 font-mono text-[11.5px] text-fg2">
 															×{e.occ.length}
 														</span>
 													)}
-												</span>
-											</button>
+												</td>
+												<td className="pl-3 text-right font-mono text-[12px] whitespace-nowrap text-fg3">
+													{agoLabel(e.ts, nowMs)}
+												</td>
+											</tr>
 										);
 									})}
-								{!loading && error !== null && (
-									<div className="px-4 py-6 text-bad-fg">{getErrorMessage(error, "Failed to load events")}</div>
-								)}
-								{!loading && error === null && items.length === 0 && (
-									<div className="border-b border-line">
-										{filtering ? (
-											<EmptyState
-												icon={<SearchXIcon />}
-												title="No events match"
-												query={query.trim()}
-												action={
-													<>
-														<Button variant="outline" onClick={clearFilters}>
-															<XIcon />
-															Clear filters
-														</Button>
-														{widen}
-													</>
-												}
-											/>
-										) : (
-											<EmptyState icon={<ActivityIcon />} title={`No events in the last ${range}`} action={widen} />
-										)}
-									</div>
-								)}
+							</tbody>
+						</table>
+						{!loading && error !== null && (
+							<div role="alert" className="py-6 text-bad-fg">
+								{getErrorMessage(error, "Failed to load events")}
 							</div>
-						</div>
-						<Pager
-							className="bg-bg2"
-							label={items.length > 0 ? pageRangeLabel(curPage, size, items.length) : "0"}
-							pageSizes={PAGE_SIZES}
-							pageSize={size}
-							onPageSize={(n) => {
-								setSize(n);
-								setPage(0);
-							}}
-							onFirst={
-								curPage > 0
-									? () => {
-											setPage(0);
-										}
-									: null
-							}
-							onPrev={
-								curPage > 0
-									? () => {
-											setPage(curPage - 1);
-										}
-									: null
-							}
-							onNext={
-								curPage < pages - 1
-									? () => {
-											setPage(curPage + 1);
-										}
-									: null
-							}
-							onLast={
-								curPage < pages - 1
-									? () => {
-											setPage(pages - 1);
-										}
-									: null
-							}
-						/>
-					</section>
-				</div>
+						)}
+						{!loading && error === null && items.length === 0 && <NoMatches title="No events match these filters" />}
+					</div>
+					<Pager {...paged.pager} {...paged.ends} />
+				</section>
 				{selItem !== undefined && (
 					<EventDetail
 						item={selItem}
-						nowMs={nowMs}
 						onPrev={
 							selIdx > 0
 								? () => {
