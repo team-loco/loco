@@ -14,6 +14,46 @@ const ERROR_REASONS = new Set([
 	"InvalidImageName",
 ]);
 
+const REASON_TITLES: Record<string, string> = {
+	BackOff: "Restarting after crash",
+	CrashLoopBackOff: "Restarting after crash",
+	Unhealthy: "Health check failing",
+	ProbeWarning: "Health check warning",
+	Pulling: "Pulling image",
+	Pulled: "Image pulled",
+	ErrImagePull: "Image pull failed",
+	ImagePullBackOff: "Image pull failed",
+	InvalidImageName: "Invalid image name",
+	Failed: "Container failed",
+	Created: "Container created",
+	Started: "Container started",
+	Killing: "Stopping container",
+	Scheduled: "Replica scheduled",
+	FailedScheduling: "Couldn't schedule replica",
+	SuccessfulCreate: "Replica created",
+	SuccessfulDelete: "Replica removed",
+	FailedCreate: "Couldn't create replica",
+	ScalingReplicaSet: "Scaled",
+	OOMKilling: "Out of memory, replica killed",
+	OOMKilled: "Out of memory, replica killed",
+	Evicted: "Replica evicted",
+	Preempting: "Replica preempted",
+	FailedMount: "Volume mount failed",
+	FailedAttachVolume: "Volume attach failed",
+	NodeNotReady: "Node not ready",
+	SandboxChanged: "Replica sandbox recreated",
+	FailedKillPod: "Couldn't stop replica",
+};
+
+const WORD_BOUNDARY_RE = /([a-z0-9])([A-Z])/g;
+
+export function eventTitle(reason: string): string {
+	const known = REASON_TITLES[reason];
+	if (known !== undefined) return known;
+	const words = reason.replace(WORD_BOUNDARY_RE, "$1 $2").toLowerCase();
+	return words === "" ? "Event" : words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export function severityOf(type: string, reason: string): Severity {
 	if (type.toLowerCase() !== "warning") return "normal";
 	if (ERROR_REASONS.has(reason) || reason.startsWith("Failed")) return "error";
@@ -24,8 +64,6 @@ export interface SeverityStyle {
 	dot: string;
 	fg: string;
 	badge: string;
-	count: string;
-	bar: string;
 	label: string;
 }
 
@@ -36,8 +74,6 @@ export function severityStyle(s: Severity): SeverityStyle {
 				dot: "bg-err",
 				fg: "text-bad-fg",
 				badge: "bg-bad-bg text-bad-fg",
-				count: "bg-bad-bg text-bad-fg",
-				bar: "border-l-err",
 				label: "Error",
 			};
 		case "warning":
@@ -45,8 +81,6 @@ export function severityStyle(s: Severity): SeverityStyle {
 				dot: "bg-warn",
 				fg: "text-warn-fg",
 				badge: "bg-warn-bg text-warn-fg",
-				count: "bg-warn-bg text-warn-fg",
-				bar: "border-l-warn",
 				label: "Warning",
 			};
 		case "normal":
@@ -54,8 +88,6 @@ export function severityStyle(s: Severity): SeverityStyle {
 				dot: "bg-line2",
 				fg: "text-foreground",
 				badge: "bg-neutral-bg text-neutral-fg",
-				count: "bg-bg3 text-fg2",
-				bar: "border-l-transparent",
 				label: "Normal",
 			};
 	}

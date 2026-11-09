@@ -1,80 +1,64 @@
-import { createContext, use, useState, type ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import type { TimeRange } from "@/lib/obs";
 import type { ObservabilityView } from "@/lib/routes";
-
-import type { Token } from "./query";
 import { configuredRegions } from "@/lib/resource-regions";
 
-const RESOURCE_COLORS = ["#1e40af", "#0e7490", "#7c3aed", "#b45309", "#be185d", "#15803d", "#4f46e5", "#a16207"];
+import { liveTokens, narrow, readQuery, writeQuery, type Token } from "./query";
+import { EVENTS_MAX_MS, QUERY_MAX_MS, readWindow, writeWindow, type TimeWindow } from "@/lib/obs-time";
+
+const SERIES_COLORS = 8;
+const VIEW_STATE_KEYS = ["page", "at", "trace", "span"];
+
+export function seriesColor(index: number): string {
+	return `var(--series-${String(index % SERIES_COLORS)})`;
+}
 
 export interface ObsResource {
 	id: string;
 	name: string;
 	color: string;
-	region: string;
+	regions: string[];
 	raw: Resource;
 }
 
-export const RANGES: { key: TimeRange; label: string }[] = [
-	{ key: "15m", label: "Last 15 minutes" },
-	{ key: "1h", label: "Last hour" },
-	{ key: "6h", label: "Last 6 hours" },
-	{ key: "24h", label: "Last 24 hours" },
-	{ key: "7d", label: "Last 7 days" },
-];
-
-export const QUERY_MAX_RANGE: TimeRange = "24h";
-export const EVENTS_MAX_RANGE: TimeRange = "7d";
-
-const RANGE_SECONDS: Record<string, number> = { "15m": 900, "1h": 3600, "6h": 21600, "24h": 86400, "7d": 604800 };
-
-export function fitRange(ts: number, now: number, max: TimeRange = "24h"): TimeRange {
-	const ago = (now - ts) / 1000 + 300;
-	const fit = RANGES.find((r) => (RANGE_SECONDS[r.key] ?? 0) >= ago);
-	if (fit === undefined) return max;
-	return (RANGE_SECONDS[fit.key] ?? 0) > (RANGE_SECONDS[max] ?? 0) ? max : fit.key;
-}
-
-function isTimeRange(v: string | null): v is TimeRange {
-	return v === "15m" || v === "1h" || v === "3h" || v === "6h" || v === "24h" || v === "7d";
-}
-
-interface GoToOptions {
-	range?: TimeRange | undefined;
-	resource?: string | undefined;
+export interface GoToOptions {
+	range?: TimeWindow | undefined;
 	tokens?: Token[] | undefined;
 	focusTs?: number | undefined;
+	trace?: string | undefined;
+	span?: string | undefined;
 }
 
 interface ObsContextValue {
 	orgId: string;
 	workspaceId: string;
 	view: ObservabilityView;
+	params: URLSearchParams;
 	resources: ObsResource[];
 	resourcesLoading: boolean;
 	resourceByName: Map<string, ObsResource>;
 	resourceById: Map<string, ObsResource>;
-	range: TimeRange;
-	setRange: (r: TimeRange) => void;
-	selected: string[] | null;
-	setSelected: (names: string[] | null) => void;
+	maxMs: number;
+	range: TimeWindow;
+	setRange: (w: TimeWindow) => void;
 	tokens: Token[];
-	setTokens: (t: Token[]) => void;
 	text: string;
-	setText: (t: string) => void;
-	appliedText: string;
-	setAppliedText: (t: string) => void;
-	metricsFocusTs: number | null;
+	setQuery: (tokens: Token[], text: string) => void;
+	setParam: (key: string, value: string | null, replace?: boolean) => void;
+	setParams: (next: URLSearchParams, replace?: boolean) => void;
 	goTo: (view: ObservabilityView, opts?: GoToOptions) => void;
 }
 
 const ObsContext = createContext<ObsContextValue | null>(null);
+
+export function maxSpanFor(view: ObservabilityView): number {
+	return view === "events" ? EVENTS_MAX_MS : QUERY_MAX_MS;
+}
 
 export function ObsProvider({
 	orgId,
@@ -93,84 +77,72 @@ export function ObsProvider({
 		workspaceResourcesOptions(transport, workspaceId),
 	);
 
-	const initialNames = (params.get("r") ?? "").split(",").filter(Boolean);
-	const requestedRange = params.get("range");
-	const range: TimeRange = isTimeRange(requestedRange) ? requestedRange : "1h";
-	const setRange = (value: TimeRange) => {
-		const next = new URLSearchParams(params);
-		next.set("range", value);
-		setParams(next);
-	};
-	const [selected, setSelected] = useState<string[] | null>(initialNames.length > 0 ? initialNames : null);
-	const [tokens, setTokens] = useState<Token[]>(() =>
-		initialNames.map((value) => ({ neg: false, key: "resource", value })),
-	);
-	const [text, setText] = useState("");
-	const [appliedText, setAppliedText] = useState("");
-	const [metricsFocusTs, setMetricsFocusTs] = useState<number | null>(null);
+	const maxMs = maxSpanFor(view);
+	const range = readWindow(params, maxMs);
+	const { tokens, text } = readQuery(params);
 
 	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
-	const resources: ObsResource[] = sorted.map((r, i) => {
-		return {
-			id: r.id,
-			name: r.name,
-			color: RESOURCE_COLORS[i % RESOURCE_COLORS.length] ?? "#1e40af",
-			region: configuredRegions(r)[0] ?? "",
-			raw: r,
-		};
-	});
+	const resources: ObsResource[] = sorted.map((r, i) => ({
+		id: r.id,
+		name: r.name,
+		color: seriesColor(i),
+		regions: configuredRegions(r),
+		raw: r,
+	}));
 	const resourceByName = new Map(resources.map((r) => [r.name, r]));
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
 
+	const commit = (next: URLSearchParams, replace = false) => {
+		setParams(next, { replace });
+	};
+	const resetViewState = (next: URLSearchParams) => {
+		for (const key of VIEW_STATE_KEYS) next.delete(key);
+		return next;
+	};
+
+	const setRange = (w: TimeWindow) => {
+		commit(resetViewState(writeWindow(params, w)));
+	};
+	const setQuery = (nextTokens: Token[], nextText: string) => {
+		const next = writeQuery(params, nextTokens, nextText);
+		next.delete("page");
+		commit(next);
+	};
+	const setParam = (key: string, value: string | null, replace = false) => {
+		const next = new URLSearchParams(params);
+		if (value === null) next.delete(key);
+		else next.set(key, value);
+		commit(next, replace);
+	};
+
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
-		if (next === "logs") {
-			if (opts.tokens !== undefined) {
-				setTokens(opts.tokens);
-				setText("");
-				setAppliedText("");
-			} else if (opts.resource !== undefined) {
-				setTokens([{ neg: false, key: "resource", value: opts.resource }]);
-				setText("");
-				setAppliedText("");
-			}
-		}
-		if (next === "metrics") {
-			if (opts.resource !== undefined) setSelected([opts.resource]);
-			setMetricsFocusTs(opts.focusTs ?? null);
-		}
-		if (next === "events" && opts.resource !== undefined) setSelected([opts.resource]);
-		const env = params.get("env");
 		const search = new URLSearchParams({ view: next });
+		const env = params.get("env");
 		if (env !== null) search.set("env", env);
-		search.set("range", opts.range ?? range);
-		if (next === "logs" && opts.focusTs !== undefined) search.set("at", String(opts.focusTs));
-		const names =
-			opts.resource !== undefined
-				? [opts.resource]
-				: opts.tokens?.filter((token) => token.key === "resource" && !token.neg).map((token) => token.value);
-		if (names !== undefined && names.length > 0) search.set("r", names.join(","));
-		setParams(search);
+		const target = writeQuery(writeWindow(search, opts.range ?? range), opts.tokens ?? tokens, opts.tokens ? "" : text);
+		if (opts.focusTs !== undefined) target.set("at", String(opts.focusTs));
+		if (opts.trace !== undefined) target.set("trace", opts.trace);
+		if (opts.span !== undefined) target.set("span", opts.span);
+		commit(target);
 	};
 
 	const value: ObsContextValue = {
 		orgId,
 		workspaceId,
 		view,
+		params,
 		resources,
 		resourcesLoading,
 		resourceByName,
 		resourceById,
+		maxMs,
 		range,
 		setRange,
-		selected,
-		setSelected,
 		tokens,
-		setTokens,
 		text,
-		setText,
-		appliedText,
-		setAppliedText,
-		metricsFocusTs,
+		setQuery,
+		setParam,
+		setParams: commit,
 		goTo,
 	};
 
@@ -183,9 +155,12 @@ export function useObs(): ObsContextValue {
 	return ctx;
 }
 
-export function selectedResources(all: ObsResource[], selected: string[] | null): ObsResource[] {
-	if (selected === null) return all;
-	const set = new Set(selected);
-	const picked = all.filter((r) => set.has(r.name));
-	return picked.length > 0 ? picked : all;
+export function filteredResources(view: ObservabilityView, all: ObsResource[], tokens: Token[]): ObsResource[] {
+	const names = narrow(
+		all.map((r) => r.name),
+		liveTokens(view, tokens, "resource"),
+	);
+	if (names === null) return all;
+	const set = new Set(names);
+	return all.filter((r) => set.has(r.name));
 }

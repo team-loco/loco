@@ -26,7 +26,7 @@ export function useMetricBand({
 			metricsQueryOptions(transport, {
 				workspaceId,
 				resourceIds: [resourceId],
-				timeRange: range,
+				spanMs: RANGE_MS[range],
 				metricName,
 				environmentId,
 				region,

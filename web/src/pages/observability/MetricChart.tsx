@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ListIcon } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import { Button } from "@/components/design/Button";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/design/Chart";
@@ -12,15 +12,16 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
-import { DAY_MS } from "@/lib/time";
 import { formatMetricTime, timeAxis } from "@/lib/compute-chart";
-import { cn } from "@/lib/utils";
+import { DAY_MS, formatHourMinute } from "@/lib/time";
 
 import { fmtTs } from "./format";
 
 export interface ChartSeries {
+	key: string;
 	name: string;
 	color: string;
+	dashed: boolean;
 	points: { t: number; v: number }[];
 }
 
@@ -31,34 +32,50 @@ export interface ChartMarker {
 	color: string;
 }
 
+export interface PinAction {
+	key: string;
+	icon: ReactNode;
+	label: string;
+	sub: string;
+	run: () => void;
+}
+
+const DASH = "4 3";
+const MARGIN = 24;
+const WIDE_MARGIN = 44;
+const PIN_FLIP = 0.6;
+const Y_TICKS = 4;
+
+type Datum = { t: number; [series: string]: number };
+
 function MetricEvents({
 	title,
 	markers,
-	onPick,
+	actions,
 }: {
 	title: string;
 	markers: ChartMarker[];
-	onPick: (t: number) => void;
+	actions: (t: number) => PinAction[];
 }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
 				render={<Button variant="ghost" size="sm" className="self-start" />}
-				aria-label={`View ${title} timeline events`}
+				aria-label={`${title} timeline events`}
 			>
 				<ListIcon className="text-fg3" />
-				{markers.length} timeline {markers.length === 1 ? "event" : "events"}
+				{markers.length} {markers.length === 1 ? "deploy" : "deploys"} in range
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="max-h-64 w-[min(360px,calc(100vw-32px))] overflow-y-auto">
 				<DropdownMenuGroup>
-					<DropdownMenuLabel>View logs at an event</DropdownMenuLabel>
+					<DropdownMenuLabel>Logs around a deploy</DropdownMenuLabel>
 					{markers
 						.toSorted((a, b) => b.t - a.t)
 						.map((marker) => (
 							<DropdownMenuItem
 								key={`${String(marker.t)}-${marker.label}`}
 								onClick={() => {
-									onPick(marker.t);
+									actions(marker.t)[0]?.run();
 								}}
 								className="h-auto items-start py-2"
 							>
@@ -77,8 +94,6 @@ function MetricEvents({
 	);
 }
 
-type Datum = { t: number; [series: string]: number };
-
 function MetricTooltip({
 	active,
 	label,
@@ -96,60 +111,66 @@ function MetricTooltip({
 	const row = byT.get(t);
 	if (active !== true || row === undefined) return null;
 	const items = series
-		.map((s, i) => ({ s, v: row[`s${String(i)}`] }))
+		.map((s) => ({ s, v: row[s.key] }))
 		.filter((x): x is { s: ChartSeries; v: number } => x.v !== undefined)
 		.toSorted((a, b) => b.v - a.v);
 	return (
-		<div className="min-w-[150px] rounded-lg border border-line bg-background px-2.5 py-2 text-sm shadow-popover">
-			<div className="mb-1.5 text-fg3">{fmtTs(t)}</div>
+		<div className="min-w-[160px] rounded-lg border border-line bg-background px-2.5 py-2 text-[12px] shadow-popover">
+			<div className="mb-1.5 font-mono text-[11px] text-fg3">{fmtTs(t)}</div>
 			{items.map(({ s, v }) => (
-				<div key={s.name} className="flex h-5 items-center gap-2">
+				<div key={s.key} className="flex h-5 items-center gap-2">
 					<span className="size-2 rounded-[2px]" style={{ background: s.color }} />
 					<span className="flex-1 text-fg2">{s.name}</span>
-					<span className="font-semibold tabular-nums">{fmt(v)}</span>
+					<span className="font-mono tabular-nums">{fmt(v)}</span>
 				</div>
 			))}
-			<div className="mt-1.5 border-t border-line pt-1.5 text-xs text-fg3">Click for logs</div>
+			<div className="mt-1.5 border-t border-line pt-1.5 text-[11px] text-fg3">Click for logs, traces and events</div>
 		</div>
 	);
 }
 
-export function MetricCard({
-	title,
-	unit,
-	big,
-	delta,
-	deltaBad,
-	bigNote,
-	children,
-}: {
-	title: ReactNode;
-	unit: ReactNode;
-	big: string;
-	delta: string;
-	deltaBad: boolean;
-	bigNote: string;
-	children: ReactNode;
-}) {
+function PinMenu({ t, x, actions, onClose }: { t: number; x: number; actions: PinAction[]; onClose: () => void }) {
+	const flip = x > PIN_FLIP;
 	return (
-		<section className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-background px-4 pt-3.5 pb-2.5">
-			<div className="flex items-start gap-2">
-				<div className="flex min-w-0 flex-1 flex-col gap-1">
-					<span className="flex items-baseline gap-1.5">
-						<span className="font-semibold text-fg2">{title}</span>
-						<span className="text-sm text-fg3">{unit}</span>
+		<div
+			role="menu"
+			tabIndex={-1}
+			aria-label={`Around ${formatHourMinute(t)}`}
+			onKeyDown={(e) => {
+				if (e.key === "Escape") {
+					e.stopPropagation();
+					onClose();
+				}
+			}}
+			onBlur={(e) => {
+				if (!e.currentTarget.contains(e.relatedTarget)) onClose();
+			}}
+			className="absolute top-2 z-10 flex w-[250px] flex-col rounded-[10px] border border-line bg-popover p-[5px] shadow-popover dark:border-line2"
+			style={flip ? { right: `calc(${String((1 - x) * 100)}% + 8px)` } : { left: `calc(${String(x * 100)}% + 8px)` }}
+		>
+			<span className="px-2.5 pt-1.5 pb-1 font-mono text-[11.5px] text-fg3">{fmtTs(t)}</span>
+			{actions.map((a, i) => (
+				<button
+					key={a.key}
+					type="button"
+					role="menuitem"
+					ref={(el) => {
+						if (i === 0 && el !== null && !el.parentElement?.contains(document.activeElement)) el.focus();
+					}}
+					onClick={() => {
+						onClose();
+						a.run();
+					}}
+					className="flex items-start gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] hover:bg-panel focus-visible:bg-panel focus-visible:outline-none dark:hover:bg-panel2 dark:focus-visible:bg-panel2 [&_svg]:mt-0.5 [&_svg]:size-3.5 [&_svg]:text-fg3"
+				>
+					{a.icon}
+					<span className="flex min-w-0 flex-col">
+						<span>{a.label}</span>
+						<span className="text-[12px] text-fg3">{a.sub}</span>
 					</span>
-					<span className="flex items-baseline gap-2">
-						<span className="text-[22px] font-semibold tracking-[-0.01em] tabular-nums">{big}</span>
-						{delta !== "" && (
-							<span className={cn("text-sm font-medium", deltaBad ? "text-bad-fg" : "text-ok-fg")}>{delta}</span>
-						)}
-						<span className="text-sm text-fg3">{bigNote}</span>
-					</span>
-				</div>
-			</div>
-			{children}
-		</section>
+				</button>
+			))}
+		</div>
 	);
 }
 
@@ -163,7 +184,7 @@ export function MetricChart({
 	limit,
 	markers,
 	height,
-	onPick,
+	actions,
 }: {
 	title: string;
 	series: ChartSeries[];
@@ -174,96 +195,115 @@ export function MetricChart({
 	limit: { v: number; label: string } | null;
 	markers: ChartMarker[];
 	height: number;
-	onPick: (t: number) => void;
+	actions: (t: number) => PinAction[];
 }) {
+	const [pin, setPin] = useState<{ t: number; x: number } | null>(null);
 	const byT = new Map<number, Datum>();
-	series.forEach((s, i) => {
+	for (const s of series) {
 		for (const p of s.points) {
 			const row = byT.get(p.t) ?? { t: p.t };
-			row[`s${String(i)}`] = p.v;
+			row[s.key] = p.v;
 			byT.set(p.t, row);
 		}
-	});
+	}
 	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
-	const config: ChartConfig = Object.fromEntries(
-		series.map((s, i) => [`s${String(i)}`, { label: s.name, color: s.color }]),
-	);
+	const config: ChartConfig = Object.fromEntries(series.map((s) => [s.key, { label: s.name, color: s.color }]));
 	const ticks = timeAxis(from, to);
 	const tickLabel = (value: number) => formatMetricTime(value, from, to);
-	const single = series.length === 1;
+	const yTicks = Array.from({ length: Y_TICKS + 1 }, (_, i) => (max * i) / Y_TICKS);
 
 	return (
 		<>
-			<ChartContainer config={config} className="aspect-auto w-full cursor-crosshair" style={{ height }}>
-				<AreaChart
-					data={data}
-					margin={{ top: 6, right: to - from >= DAY_MS ? 40 : 12, bottom: 0, left: 0 }}
-					onClick={(state) => {
-						const t = Number(state.activeLabel);
-						if (Number.isFinite(t)) onPick(t);
-					}}
+			<div className="relative">
+				<ChartContainer
+					config={config}
+					className="aspect-auto w-full cursor-pointer"
+					style={{ height }}
+					aria-label={`${title} over time`}
 				>
-					<CartesianGrid vertical={false} stroke="var(--line)" />
-					<XAxis
-						dataKey="t"
-						type="number"
-						scale="time"
-						domain={[from, to]}
-						ticks={ticks}
-						tickFormatter={tickLabel}
-						tickLine={false}
-						axisLine={{ stroke: "var(--line)" }}
-						tick={{ fontSize: 11, fill: "var(--fg3)" }}
-					/>
-					<YAxis
-						domain={[0, max]}
-						ticks={[0, max / 4, max / 2, (max * 3) / 4, max]}
-						tickFormatter={fmt}
-						tickLine={false}
-						axisLine={false}
-						width={48}
-						tick={{ fontSize: 11, fill: "var(--fg3)" }}
-					/>
-					<ChartTooltip
-						cursor={{ stroke: "var(--fg3)", strokeWidth: 1 }}
-						content={<MetricTooltip byT={byT} series={series} fmt={fmt} />}
-					/>
-					{limit !== null && (
-						<ReferenceLine
-							y={limit.v}
-							stroke="var(--err)"
-							strokeDasharray="5 4"
-							label={{ value: limit.label, position: "insideTopRight", fill: "var(--err)", fontSize: 10.5 }}
+					<LineChart
+						data={data}
+						margin={{ top: 6, right: to - from >= DAY_MS ? WIDE_MARGIN : MARGIN, bottom: 0, left: 0 }}
+						onClick={(state) => {
+							const t = data[Number(state.activeTooltipIndex)]?.t ?? Number(state.activeLabel);
+							if (!Number.isFinite(t)) return;
+							setPin(pin?.t === t ? null : { t, x: (t - from) / Math.max(1, to - from) });
+						}}
+					>
+						<CartesianGrid vertical={false} stroke="var(--line)" />
+						<XAxis
+							dataKey="t"
+							type="number"
+							scale="time"
+							domain={[from, to]}
+							ticks={ticks}
+							tickFormatter={tickLabel}
+							tickLine={false}
+							axisLine={{ stroke: "var(--line)" }}
+							tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}
 						/>
-					)}
-					{markers.map((m) => (
-						<ReferenceLine
-							key={`${String(m.t)}-${m.label}`}
-							x={m.t}
-							stroke={m.color}
-							strokeDasharray="3 3"
-							strokeOpacity={0.8}
+						<YAxis
+							domain={[0, max]}
+							ticks={yTicks}
+							tickFormatter={fmt}
+							tickLine={false}
+							axisLine={false}
+							width={44}
+							tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}
 						/>
-					))}
-					{series.map((s, i) => (
-						<Area
-							key={s.name}
-							dataKey={`s${String(i)}`}
-							name={s.name}
-							type="monotone"
-							stroke={s.color}
-							strokeWidth={1.75}
-							fill={s.color}
-							fillOpacity={single ? 0.08 : 0}
-							dot={false}
-							activeDot={{ r: 4, stroke: "var(--bg)", strokeWidth: 2 }}
-							isAnimationActive={false}
-							connectNulls
-						/>
-					))}
-				</AreaChart>
-			</ChartContainer>
-			{markers.length > 0 && <MetricEvents title={title} markers={markers} onPick={onPick} />}
+						{pin === null && (
+							<ChartTooltip
+								cursor={{ stroke: "var(--fg4)", strokeWidth: 1 }}
+								content={<MetricTooltip byT={byT} series={series} fmt={fmt} />}
+							/>
+						)}
+						{limit !== null && (
+							<ReferenceLine
+								y={limit.v}
+								stroke="color-mix(in oklab, var(--err) 55%, transparent)"
+								strokeDasharray="5 4"
+								label={{ value: limit.label, position: "insideTopLeft", fill: "var(--color-bad-fg)", fontSize: 10 }}
+							/>
+						)}
+						{markers.map((m) => (
+							<ReferenceLine
+								key={`${String(m.t)}-${m.label}`}
+								x={m.t}
+								stroke={m.color}
+								strokeDasharray="3 3"
+								strokeOpacity={0.8}
+							/>
+						))}
+						{pin !== null && <ReferenceLine x={pin.t} stroke="var(--fg3)" />}
+						{series.map((s) => (
+							<Line
+								key={s.key}
+								dataKey={s.key}
+								name={s.name}
+								type="monotone"
+								stroke={s.color}
+								strokeWidth={1.6}
+								{...(s.dashed ? { strokeDasharray: DASH } : {})}
+								dot={false}
+								activeDot={{ r: 3.5, stroke: "var(--panel)", strokeWidth: 2 }}
+								isAnimationActive={false}
+								connectNulls
+							/>
+						))}
+					</LineChart>
+				</ChartContainer>
+				{pin !== null && (
+					<PinMenu
+						t={pin.t}
+						x={pin.x}
+						actions={actions(pin.t)}
+						onClose={() => {
+							setPin(null);
+						}}
+					/>
+				)}
+			</div>
+			{markers.length > 0 && <MetricEvents title={title} markers={markers} actions={actions} />}
 		</>
 	);
 }

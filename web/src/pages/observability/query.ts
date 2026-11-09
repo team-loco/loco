@@ -1,6 +1,8 @@
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 import { readStorage, writeStorage } from "@/lib/storage";
 
+import type { ObservabilityView } from "@/lib/routes";
+
 import type { ObsResource } from "./context";
 
 export type Level = "error" | "warn" | "info" | "debug";
@@ -30,33 +32,60 @@ export function levelOf(severity: string): Level {
 	return "info";
 }
 
-export type FieldKey = "level" | "resource" | "replica" | "region" | "status" | "method" | "path" | "trace_id";
+export type FieldKey = "resource" | "level" | "replica" | "region" | "type" | "status" | "trace" | "method" | "path";
 
 export interface FieldDef {
 	key: FieldKey;
-	info: string;
-	supported: boolean;
+	label: string;
+	views: ObservabilityView[];
+	negate: ObservabilityView[];
+	single: boolean;
+	planned: ObservabilityView[];
 }
+
+const ALL_VIEWS: ObservabilityView[] = ["logs", "metrics", "traces", "events"];
 
 export const FIELDS: FieldDef[] = [
-	{ key: "level", info: "error · warn · info · debug", supported: true },
-	{ key: "resource", info: "service name", supported: true },
-	{ key: "replica", info: "replica name", supported: true },
-	{ key: "region", info: "recorded region", supported: true },
-	{ key: "status", info: "HTTP status", supported: false },
-	{ key: "method", info: "HTTP method", supported: false },
-	{ key: "path", info: "request path", supported: false },
-	{ key: "trace_id", info: "trace id", supported: false },
+	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: false, planned: [] },
+	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: false, planned: [] },
+	{ key: "replica", label: "Replica", views: ["logs"], negate: [], single: true, planned: [] },
+	{
+		key: "region",
+		label: "Region",
+		views: ["logs", "metrics"],
+		negate: ["logs", "metrics"],
+		single: false,
+		planned: [],
+	},
+	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: false, planned: [] },
+	{ key: "status", label: "Span status", views: ["traces"], negate: ["traces"], single: false, planned: ["logs"] },
+	{ key: "trace", label: "Trace ID", views: ["traces"], negate: [], single: true, planned: ["logs"] },
+	{ key: "method", label: "HTTP method", views: [], negate: [], single: false, planned: ["logs"] },
+	{ key: "path", label: "Request path", views: [], negate: [], single: false, planned: ["logs"] },
 ];
 
-const FIELD_KEYS = new Set<string>(FIELDS.map((f) => f.key));
+const KEY_ALIASES: Record<string, FieldKey> = { pod: "replica", trace_id: "trace" };
 
-export function isFieldKey(key: string): key is FieldKey {
-	return FIELD_KEYS.has(key);
+function fieldKey(key: string): FieldKey | undefined {
+	return FIELDS.find((f) => f.key === key)?.key ?? KEY_ALIASES[key];
 }
 
-export function fieldDef(key: FieldKey): FieldDef | undefined {
-	return FIELDS.find((f) => f.key === key);
+export function isFieldKey(key: string): key is FieldKey {
+	return FIELDS.some((f) => f.key === key);
+}
+
+export function fieldDef(key: FieldKey): FieldDef {
+	const def = FIELDS.find((f) => f.key === key);
+	if (def === undefined) throw new Error(`unknown field ${key}`);
+	return def;
+}
+
+export function viewFields(view: ObservabilityView): FieldDef[] {
+	return FIELDS.filter((f) => f.views.includes(view) || f.planned.includes(view));
+}
+
+export function searchesText(view: ObservabilityView): boolean {
+	return view !== "metrics";
 }
 
 export interface Token {
@@ -66,6 +95,7 @@ export interface Token {
 }
 
 const TOKEN_RE = /(-?)@(\w+):(\S+)/g;
+const BARE_REPLICA_RE = /^(?:pod|replica):(\S+)$/;
 
 function tokStr(t: Token): string {
 	return `${t.neg ? "-" : ""}@${t.key}:${t.value}`;
@@ -76,33 +106,71 @@ export function queryStr(tokens: Token[], text: string): string {
 }
 
 export function parseQuery(q: string): { tokens: Token[]; text: string } {
+	const bare = BARE_REPLICA_RE.exec(q.trim());
+	if (bare !== null) return { tokens: [{ neg: false, key: "replica", value: bare[1] ?? "" }], text: "" };
 	const tokens: Token[] = [];
 	for (const m of q.matchAll(TOKEN_RE)) {
-		const key = m[2] ?? "";
-		if (isFieldKey(key)) tokens.push({ neg: m[1] === "-", key, value: m[3] ?? "" });
+		const key = fieldKey(m[2] ?? "");
+		if (key !== undefined) tokens.push({ neg: m[1] === "-", key, value: m[3] ?? "" });
 	}
 	const text = q
-		.replace(TOKEN_RE, (all: string, _neg: string, key: string) => (isFieldKey(key) ? "" : all))
+		.replace(TOKEN_RE, (all: string, _neg: string, key: string) => (fieldKey(key) !== undefined ? "" : all))
 		.replace(/\s+/g, " ")
 		.trim();
 	return { tokens, text };
+}
+
+export function readQuery(params: URLSearchParams): { tokens: Token[]; text: string } {
+	const parsed = parseQuery(params.get("q") ?? "");
+	const named = (params.get("r") ?? "")
+		.split(",")
+		.filter(Boolean)
+		.map((value): Token => ({ neg: false, key: "resource", value }));
+	return { tokens: [...named, ...parsed.tokens], text: parsed.text };
+}
+
+export function writeQuery(params: URLSearchParams, tokens: Token[], text: string): URLSearchParams {
+	const next = new URLSearchParams(params);
+	next.delete("r");
+	const q = queryStr(tokens, text);
+	if (q === "") next.delete("q");
+	else next.set("q", q);
+	return next;
 }
 
 export function sameToken(a: Token, b: Token): boolean {
 	return a.key === b.key && a.neg === b.neg && a.value.toLowerCase() === b.value.toLowerCase();
 }
 
-export function tokenSupport(tokens: Token[]): boolean[] {
-	let replicaSeen = false;
+export interface TokenSupport {
+	ok: boolean;
+	reason: string;
+}
+
+const SUPPORTED: TokenSupport = { ok: true, reason: "" };
+
+export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSupport[] {
+	const seen = new Set<FieldKey>();
 	return tokens.map((t) => {
 		const def = fieldDef(t.key);
-		if (def?.supported !== true) return false;
-		if (t.key === "replica") {
-			if (t.neg || replicaSeen) return false;
-			replicaSeen = true;
+		if (!def.views.includes(view)) {
+			return {
+				ok: false,
+				reason: def.planned.includes(view)
+					? `Filtering ${view} by @${t.key} isn't supported yet`
+					: `@${t.key} doesn't apply to ${view}`,
+			};
 		}
-		return true;
+		if (t.neg && !def.negate.includes(view)) return { ok: false, reason: `Excluding @${t.key} isn't supported yet` };
+		if (def.single && seen.has(t.key)) return { ok: false, reason: `Only the first @${t.key} filter applies` };
+		seen.add(t.key);
+		return SUPPORTED;
 	});
+}
+
+export function liveTokens(view: ObservabilityView, tokens: Token[], key: FieldKey): Token[] {
+	const support = tokenSupport(view, tokens);
+	return tokens.filter((t, i) => t.key === key && support[i]?.ok === true);
 }
 
 function matches(value: string, pattern: string): boolean {
@@ -111,12 +179,21 @@ function matches(value: string, pattern: string): boolean {
 	return p.endsWith("*") ? v.startsWith(p.slice(0, -1)) : v === p;
 }
 
-function narrow<T extends string>(universe: T[], tokens: Token[]): T[] | null {
+export function narrow<T extends string>(universe: T[], tokens: Token[]): T[] | null {
 	if (tokens.length === 0) return null;
 	const pos = tokens.filter((t) => !t.neg);
 	const neg = tokens.filter((t) => t.neg);
 	return universe.filter(
 		(u) => (pos.length === 0 || pos.some((t) => matches(u, t.value))) && !neg.some((t) => matches(u, t.value)),
+	);
+}
+
+export function passes(values: string[], tokens: Token[]): boolean {
+	const pos = tokens.filter((t) => !t.neg);
+	const neg = tokens.filter((t) => t.neg);
+	return (
+		(pos.length === 0 || pos.some((t) => values.some((v) => matches(v, t.value)))) &&
+		!neg.some((t) => values.some((v) => matches(v, t.value)))
 	);
 }
 
@@ -127,9 +204,7 @@ export interface BackendQuery {
 }
 
 export function buildBackendQuery(tokens: Token[], text: string, resources: ObsResource[]): BackendQuery {
-	const support = tokenSupport(tokens);
-	const live = tokens.filter((_, i) => support[i] === true);
-	const byKey = (k: FieldKey) => live.filter((t) => t.key === k);
+	const byKey = (k: FieldKey) => liveTokens("logs", tokens, k);
 
 	const levelSet = narrow(LEVELS, byKey("level"));
 	const levels = levelSet === null ? [] : levelSet.flatMap((l) => LEVEL_VARIANTS[l]);

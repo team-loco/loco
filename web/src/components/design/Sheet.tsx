@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const sheetWidths = {
 	default: "data-[side=right]:w-[min(440px,calc(100vw-16px))]",
 	wide: "data-[side=right]:w-[min(520px,calc(100vw-16px))]",
+	full: "data-[side=right]:w-[min(1120px,calc(100vw-16px))]",
 } as const;
 
 function SheetContent({

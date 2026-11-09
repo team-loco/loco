@@ -9,6 +9,7 @@ import {
 } from "@gen/loco/observability/v1/observability_pb";
 
 import { latestLogsQueryOptions, logsQueryOptions } from "./useQueryLogs";
+import { HOUR_MS } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 import { metricsQueryOptions } from "./useQueryMetrics";
 import { toRows, visibleLogRows } from "@/pages/observability/rows";
@@ -18,7 +19,7 @@ const logOptions = {
 	workspaceId,
 	environmentId: workspaceId,
 	resourceIds: [],
-	timeRange: "1h" as const,
+	spanMs: HOUR_MS,
 	parsedQuery: { search: "", levels: [], labels: {}, regions: ["us-*"], excludedRegions: ["us-west-*"] },
 };
 
@@ -55,7 +56,7 @@ describe("regional control-plane queries", () => {
 			workspaceId,
 			resourceIds: [],
 			metricName: "k8s.pod.cpu_limit_utilization",
-			timeRange: "6h" as const,
+			spanMs: 6 * HOUR_MS,
 		};
 		expect(metricsQueryOptions(transport, { ...input, environmentId: "" }).enabled).toBe(false);
 		expect(metricsQueryOptions(transport, { ...input, environmentId: workspaceId }).enabled).toBe(true);
@@ -85,7 +86,7 @@ describe("regional control-plane queries", () => {
 					environmentId: workspaceId,
 					resourceIds: [],
 					metricName: "k8s.pod.cpu.usage",
-					timeRange: "1h",
+					spanMs: HOUR_MS,
 				}),
 			);
 			for (const request of received) {
@@ -304,7 +305,7 @@ describe("regional control-plane queries", () => {
 			environmentId: workspaceId,
 			resourceIds: [],
 			metricName: "k8s.pod.cpu.usage",
-			timeRange: "1h" as const,
+			spanMs: HOUR_MS,
 		};
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 		const east = metricsQueryOptions(transport, { ...input, region: "us-east-1" });

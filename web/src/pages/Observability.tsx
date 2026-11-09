@@ -1,7 +1,6 @@
 import { useSearchParams } from "react-router";
 
-import { PageHeader } from "@/components/design/Page";
-import { PageTitle } from "@/components/PageTitle";
+import { Page } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { ObservabilityView } from "@/lib/routes";
 
@@ -19,25 +18,10 @@ function parseView(v: string | null): ObservabilityView {
 			return "traces";
 		case "events":
 			return "events";
-		case "logs":
-			return "logs";
 		case null:
 			return "logs";
 		default:
 			return "logs";
-	}
-}
-
-function viewTitle(view: ObservabilityView): string {
-	switch (view) {
-		case "logs":
-			return "Logs";
-		case "metrics":
-			return "Metrics";
-		case "traces":
-			return "Traces";
-		case "events":
-			return "Events";
 	}
 }
 
@@ -62,16 +46,10 @@ export function Observability() {
 	if (activeOrgId === null || activeWorkspaceId === null) return null;
 
 	return (
-		<div className="flex w-full max-w-[1440px] min-w-0 flex-col gap-4 px-4 pt-7 pb-16 md:px-8">
-			{view !== "traces" && (
-				<>
-					<PageTitle title={viewTitle(view)} />
-					<PageHeader title={viewTitle(view)} />
-				</>
-			)}
-			<ObsProvider orgId={activeOrgId} workspaceId={activeWorkspaceId} view={view}>
+		<Page className="max-w-[1440px] gap-4">
+			<ObsProvider key={view} orgId={activeOrgId} workspaceId={activeWorkspaceId} view={view}>
 				<ViewBody view={view} />
 			</ObsProvider>
-		</div>
+		</Page>
 	);
 }
