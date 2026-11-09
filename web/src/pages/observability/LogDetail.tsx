@@ -31,9 +31,9 @@ import { aroundWindow } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-import type { ColumnKey } from "./columns";
+import { rowAttributes, type ColumnKey } from "./columns";
 import { useObs } from "./context";
-import { bodyParts, flattenJson, fmtTs, levelStyle } from "./format";
+import { bodyParts, fmtTs, levelStyle } from "./format";
 import { sameToken, type FieldKey, type Token } from "./query";
 import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
@@ -58,12 +58,7 @@ function attributes(row: LogRow): Attribute[] {
 		{ key: "trace_id", value: e.traceId, column: "trace" },
 		{ key: "span_id", value: e.spanId },
 	];
-	const extra = {
-		...e.resourceAttributes,
-		...e.logAttributes,
-		...(row.json !== null ? flattenJson(row.json) : {}),
-	};
-	for (const [key, value] of Object.entries(extra)) {
+	for (const [key, value] of Object.entries(rowAttributes(row))) {
 		if (key === "k8s.pod.name" || key === "loco.region") continue;
 		list.push({ key, value, column: key });
 	}
