@@ -1,18 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
-import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
-import { ObservabilityProxyService, type MetricSeries } from "@gen/loco/observability/v1/observability_pb";
+import { createConnectQueryKey } from "@connectrpc/connect-query";
+import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
 import { stepSeconds } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 
 const REFRESH_MS = 60_000;
 
-export interface MetricResult {
-	metricName: string;
-	series: MetricSeries[];
-	isLoading: boolean;
-	error: Error | null;
-}
 interface UseQueryMetricsOptions {
 	workspaceId: string;
 	resourceIds: string[];
@@ -70,9 +63,4 @@ export function metricsQueryOptions(
 		staleTime: REFRESH_MS,
 		refetchInterval: endMs === undefined ? REFRESH_MS : (false as const),
 	};
-}
-
-export function useQueryMetrics(options: UseQueryMetricsOptions): MetricResult {
-	const query = useQuery(metricsQueryOptions(useTransport(), options));
-	return { metricName: options.metricName, series: query.data ?? [], isLoading: query.isLoading, error: query.error };
 }
