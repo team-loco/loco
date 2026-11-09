@@ -1,18 +1,30 @@
+import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
-import { ResourceStatus, ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceSchema, ResourceStatus, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { ALL, filterRows, MAP_PUBLIC_LIMIT, mapLayout, type ResourceRow, type RowFilter } from "./resourceRows";
 
 function row(name: string, patch: Partial<ResourceRow> = {}): ResourceRow {
+	const regions = patch.regions ?? [{ region: "us-east-1", desired: 1, ready: 1 }];
+	const status = patch.status ?? ResourceStatus.HEALTHY;
 	return {
 		key: name,
 		name,
 		description: "",
-		status: ResourceStatus.HEALTHY,
+		status,
 		type: ResourceType.SERVICE,
 		domain: null,
-		regions: [{ region: "us-east-1", desired: 1, ready: 1 }],
-		item: undefined,
+		regions,
+		item: {
+			resource: create(ResourceSchema, { id: name, name }),
+			environment: undefined,
+			status,
+			envDeployments: [],
+			last: undefined,
+			regions,
+			totalReplicas: regions.reduce((n, g) => n + g.desired, 0),
+			neverDeployed: false,
+		},
 		...patch,
 	};
 }
@@ -27,7 +39,7 @@ describe("filterRows", () => {
 	const rows = [
 		row("api", { description: "Public storefront API", domain: "api.example.dev" }),
 		row("worker", { status: ResourceStatus.UNAVAILABLE, regions: [{ region: "eu-west-1", desired: 2, ready: 0 }] }),
-		row("billing", { status: "draft" }),
+		row("billing", { status: ResourceStatus.DEPLOYING }),
 	];
 
 	test("search matches the description, the domain and the region", () => {
@@ -36,7 +48,7 @@ describe("filterRows", () => {
 		expect(names(filterRows(rows, { ...everything, query: "EU-WEST" }))).toEqual(["worker"]);
 	});
 
-	test("a status filter keeps only that status and leaves drafts under All", () => {
+	test("a status filter keeps only that status and All keeps every row", () => {
 		expect(names(filterRows(rows, { ...everything, status: "unavailable" }))).toEqual(["worker"]);
 		expect(names(filterRows(rows, { ...everything, status: "healthy" }))).toEqual(["api"]);
 		expect(names(filterRows(rows, everything))).toEqual(["api", "worker", "billing"]);

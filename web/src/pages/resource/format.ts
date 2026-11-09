@@ -4,38 +4,6 @@ export function shortId(id: string): string {
 	return id.slice(0, 8);
 }
 
-export function parseCpuMilli(cpu: string): number {
-	if (cpu === "") return 0;
-	if (cpu.endsWith("m")) return parseFloat(cpu);
-	return parseFloat(cpu) * 1000;
-}
-
-export function parseMemMi(mem: string): number {
-	if (mem === "") return 0;
-	if (mem.endsWith("Gi")) return parseFloat(mem) * 1024;
-	if (mem.endsWith("Mi")) return parseFloat(mem);
-	if (mem.endsWith("Ki")) return parseFloat(mem) / 1024;
-	if (mem.endsWith("G")) return (parseFloat(mem) * 1e9) / 1048576;
-	if (mem.endsWith("M")) return (parseFloat(mem) * 1e6) / 1048576;
-	return parseFloat(mem) / 1048576;
-}
-
-export function fmtCpu(milli: number): string {
-	if (milli >= 1000) {
-		const cores = (milli / 1000).toFixed(2).replace(/\.?0+$/, "");
-		return `${cores} CPU`;
-	}
-	return `${Math.round(milli).toString()}m`;
-}
-
-export function fmtMem(mi: number): string {
-	if (mi >= 1024) {
-		const gi = (mi / 1024).toFixed(1).replace(/\.0$/, "");
-		return `${gi}Gi`;
-	}
-	return `${Math.round(mi).toString()}Mi`;
-}
-
 const startedFormat = new Intl.DateTimeFormat("en-US", {
 	month: "short",
 	day: "numeric",

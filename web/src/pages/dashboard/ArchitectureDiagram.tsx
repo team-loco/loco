@@ -8,9 +8,9 @@ import { Button } from "@/components/design/Button";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { pluralize } from "@/lib/format";
+import { servedDomains } from "@/lib/new-resource";
 import { cn } from "@/lib/utils";
 
-import { servedDomain } from "./drafts";
 import { mapLayout, type ResourceRow } from "./resourceRows";
 
 const GATEWAY_X = 196;
@@ -33,7 +33,7 @@ function curve(x1: number, y1: number, x2: number, y2: number): string {
 }
 
 function rowGlyph(row: ResourceRow) {
-	return <StatusGlyph glyph={row.status === "draft" ? "draft" : resourceStatusStyle(row.status).glyph} />;
+	return <StatusGlyph glyph={resourceStatusStyle(row.status).glyph} />;
 }
 
 function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; sub: string; meta: string }) {
@@ -52,32 +52,16 @@ function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; 
 function ResourceLink({
 	row,
 	hrefFor,
-	onOpenDraft,
 	className,
 	style,
 	children,
 }: {
 	row: ResourceRow;
 	hrefFor: (id: string) => string;
-	onOpenDraft: (id: string) => void;
 	className: string;
 	style?: React.CSSProperties;
 	children: ReactNode;
 }) {
-	if (row.status === "draft") {
-		return (
-			<button
-				type="button"
-				className={cn(className, "text-left ring-0 outline-1 outline-fg4 outline-dashed")}
-				style={style}
-				onClick={() => {
-					onOpenDraft(row.key);
-				}}
-			>
-				{children}
-			</button>
-		);
-	}
 	return (
 		<Link to={hrefFor(row.key)} className={className} style={style}>
 			{children}
@@ -90,14 +74,12 @@ export function ArchitectureDiagram({
 	regionOrder,
 	environmentId,
 	hrefFor,
-	onOpenDraft,
 	onShowTable,
 }: {
 	rows: ResourceRow[];
 	regionOrder: string[];
 	environmentId: string;
 	hrefFor: (id: string) => string;
-	onOpenDraft: (id: string) => void;
 	onShowTable: () => void;
 }) {
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
@@ -139,7 +121,7 @@ export function ArchitectureDiagram({
 							/>
 						</div>
 						{layout.gateways.map((g) => {
-							const domain = servedDomain(platformDomains, g.region);
+							const domain = servedDomains(platformDomains, [g.region])[0] ?? "";
 							return (
 								<div
 									key={g.region}
@@ -160,7 +142,6 @@ export function ArchitectureDiagram({
 								key={row.key}
 								row={row}
 								hrefFor={hrefFor}
-								onOpenDraft={onOpenDraft}
 								className={RESOURCE_NODE}
 								style={{ left: PUBLIC_X, top: y, width: PUBLIC_W, height: h }}
 							>
@@ -187,7 +168,6 @@ export function ArchitectureDiagram({
 								key={row.key}
 								row={row}
 								hrefFor={hrefFor}
-								onOpenDraft={onOpenDraft}
 								className="flex flex-col gap-0.5 rounded-md bg-raise px-2.5 py-2 text-foreground no-underline ring-1 ring-line2 hover:no-underline hover:ring-fg3"
 							>
 								<NodeText

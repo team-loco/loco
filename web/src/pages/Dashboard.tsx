@@ -1,30 +1,28 @@
-import { useQuery } from "@connectrpc/connect-query";
-import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
-import { Page, PageHeader, Section } from "@/components/design/Page";
+import { Page, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
-import { NEW_SERVICE_PARAM, NEW_SERVICE_VALUE, resourcePath, settingsPath } from "@/lib/routes";
-import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
-import { DraftDrawer } from "@/pages/dashboard/DraftDrawer";
-import { FirstServiceEmpty } from "@/pages/dashboard/FirstServiceEmpty";
-import { draftSizing, isPrivate, nameFromImage, uniqueName, useDrafts } from "@/pages/dashboard/drafts";
-import { NewServiceDialog } from "@/pages/dashboard/NewServiceDialog";
+import { newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
+import { allocation } from "@/pages/dashboard/allocation";
+import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
 import { ResourcesTable } from "@/pages/dashboard/ResourcesTable";
+import { Totals } from "@/pages/dashboard/Totals";
 import { useDashboardData } from "@/pages/dashboard/useDashboardData";
+
+const NOW_TICK_MS = 60_000;
+const SKELETON_ROWS = 4;
 
 function DashboardSkeleton() {
 	return (
 		<Section title="Resources">
 			<div className="flex flex-col gap-2 p-4">
-				{Array.from({ length: 4 }, (_, i) => (
+				{Array.from({ length: SKELETON_ROWS }, (_, i) => (
 					<Skeleton key={i} className="h-9 w-full" />
 				))}
 			</div>
@@ -33,94 +31,25 @@ function DashboardSkeleton() {
 }
 
 export function Dashboard() {
-	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
-	const configQuery = useQuery(getConfig, {});
-	const serviceDefaults = configQuery.data?.serviceDefaults;
 	const data = useDashboardData(activeWorkspaceId, active);
-	const drafts = useDrafts(activeWorkspaceId, active?.id);
-	const now = useNow(60_000);
-	const nowMs = now.getTime();
-
-	const [params, setParams] = useSearchParams();
-	const newOpen = params.get(NEW_SERVICE_PARAM) === NEW_SERVICE_VALUE;
-	const setNewOpen = (open: boolean) => {
-		const next = new URLSearchParams(params);
-		if (open) next.set(NEW_SERVICE_PARAM, NEW_SERVICE_VALUE);
-		else next.delete(NEW_SERVICE_PARAM);
-		setParams(next, { replace: !open });
-	};
-	const [openDraftId, setOpenDraftId] = useState<string | null>(null);
-	const [drawerOpen, setDrawerOpen] = useState(false);
+	const nowMs = useNow(NOW_TICK_MS).getTime();
 
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
 	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id);
-
-	const knownIds = new Set(data.resources.map((r) => r.id));
-	const visibleDrafts = drafts.drafts.filter((d) => d.resourceId === undefined || !knownIds.has(d.resourceId));
-
-	const changeDrawerOpen = (open: boolean) => {
-		setDrawerOpen(open);
-		if (open) return;
-		for (const d of drafts.drafts) {
-			if (d.resourceId !== undefined && knownIds.has(d.resourceId)) drafts.remove(d.id);
-		}
-	};
-
-	const openDraft = (id: string) => {
-		setOpenDraftId(id);
-		setDrawerOpen(true);
-	};
-
-	const defaultRegion = data.regions.find((r) => r.isDefault)?.region ?? data.regions[0]?.region ?? "";
-	const workspaceName = workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? "";
 	const otherEnv = environments.find((e) => e.id !== active?.id);
+	const loading = envsLoading || data.isLoading;
+	const heading = <h1 className="sr-only">Dashboard</h1>;
 
-	const addDraft = (image: string) => {
-		if (serviceDefaults === undefined) return;
-		const taken = new Set([...data.resources.map((r) => r.name), ...drafts.drafts.map((d) => d.name)]);
-		const name = uniqueName(nameFromImage(image), taken);
-		const id = `d${Date.now().toString(36)}`;
-		drafts.add({
-			id,
-			name,
-			image,
-			region: defaultRegion,
-			sub: name,
-			...draftSizing(serviceDefaults),
-			vars: [{ key: "", value: "" }],
-		});
-		setNewOpen(false);
-		openDraft(id);
-	};
-
-	const otherSubs = new Set(
-		drafts.drafts.filter((d) => d.id !== openDraftId && !isPrivate(d)).map((d) => d.sub.trim()),
-	);
-	const openDraftValue = drafts.drafts.find((d) => d.id === openDraftId);
-	const loading = envsLoading || data.isLoading || configQuery.isPending;
-	const canCreate = active !== undefined && activeWorkspaceId !== null;
-	const isEmpty = data.envResources.length === 0 && visibleDrafts.length === 0;
-	const openNew = () => {
-		setNewOpen(true);
-	};
-
-	const header = (
-		<PageHeader
-			title="Overview"
-			actions={loading ? undefined : <CreateResourceMenu disabled={!canCreate} onService={openNew} />}
-		/>
-	);
-
-	const loadError = data.error ?? configQuery.error;
-	if (loadError !== null) {
+	if (data.error !== null) {
 		return (
 			<Page>
-				{header}
+				{heading}
 				<Section>
 					<EmptyState title="Couldn't load resources">
-						{getErrorMessage(loadError, "Failed to load resources")}
+						{getErrorMessage(data.error, "Failed to load resources")}
 					</EmptyState>
 				</Section>
 			</Page>
@@ -130,7 +59,7 @@ export function Dashboard() {
 	if (!envsLoading && active === undefined) {
 		return (
 			<Page>
-				{header}
+				{heading}
 				<Section>
 					<EmptyState title="No environments yet">
 						Create one in{" "}
@@ -146,26 +75,24 @@ export function Dashboard() {
 
 	return (
 		<Page>
-			{header}
+			{heading}
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
-			) : isEmpty ? (
-				<FirstServiceEmpty
-					scope={`${workspaceName} / ${active.name}`}
-					environmentId={active.id}
-					region={defaultRegion}
+			) : data.envResources.length === 0 ? (
+				<EmptyWorkspace
+					envName={active.name}
+					newHref={newResourcePath(orgId, workspaceId, { env: active.name })}
 					otherEnvName={otherEnv?.name ?? null}
 					onSwitchEnv={() => {
 						if (otherEnv !== undefined) setActive(otherEnv);
 					}}
-					onImage={addDraft}
 				/>
 			) : (
 				<>
+					<Totals value={allocation(data.envResources)} hrefFor={hrefFor} />
 					<ResourcesTable
 						key={active.id}
 						items={data.envResources}
-						drafts={visibleDrafts}
 						regions={data.regions}
 						orgId={orgId}
 						workspaceId={workspaceId}
@@ -173,7 +100,6 @@ export function Dashboard() {
 						envName={active.name}
 						nowMs={nowMs}
 						hrefFor={hrefFor}
-						onOpenDraft={openDraft}
 					/>
 					<RecentDeployments
 						deployments={data.envDeployments}
@@ -183,21 +109,6 @@ export function Dashboard() {
 						nowMs={nowMs}
 					/>
 				</>
-			)}
-			<NewServiceDialog open={newOpen} onOpenChange={setNewOpen} onAdd={addDraft} />
-			{active !== undefined && (
-				<DraftDrawer
-					draft={openDraftValue}
-					open={drawerOpen}
-					onOpenChange={changeDrawerOpen}
-					orgId={orgId}
-					workspaceId={workspaceId}
-					env={active}
-					regions={data.regions}
-					otherSubs={otherSubs}
-					update={drafts.update}
-					remove={drafts.remove}
-				/>
 			)}
 		</Page>
 	);

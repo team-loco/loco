@@ -11,7 +11,7 @@ import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
 import { SoonTag } from "@/components/design/SoonTag";
-import { ResourceStatusBadge, StatusLabel } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { imageVersion } from "@/lib/image";
@@ -20,11 +20,9 @@ import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
-import type { Draft } from "./drafts";
 import { deploymentImage, statusRank } from "./format";
 import {
 	ALL,
-	draftRow,
 	filterRows,
 	resourceRow,
 	STATUS_FILTERS,
@@ -109,7 +107,6 @@ function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: num
 function DataRow({
 	row,
 	hrefFor,
-	onOpenDraft,
 	orgId,
 	workspaceId,
 	envName,
@@ -117,7 +114,6 @@ function DataRow({
 }: {
 	row: ResourceRow;
 	hrefFor: (id: string) => string;
-	onOpenDraft: (id: string) => void;
 	orgId: string;
 	workspaceId: string;
 	envName: string;
@@ -125,19 +121,15 @@ function DataRow({
 }) {
 	const it = row.item;
 	const nameClass = "truncate text-left text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline";
-	const note = it === undefined ? "" : statusNote(it);
-	const last = it?.last;
+	const note = statusNote(it);
+	const last = it.last;
 	const message = last?.message ?? "";
 	const degraded = row.status === ResourceStatus.DEGRADED;
 	return (
 		<TableRow>
 			<TableCell>
 				<div className="flex min-w-0 flex-col items-start gap-[3px]">
-					{row.status === "draft" ? (
-						<StatusLabel glyph="draft" label="Draft" />
-					) : (
-						<ResourceStatusBadge status={row.status} />
-					)}
+					<ResourceStatusBadge status={row.status} />
 					{note !== "" && (
 						<span title={note} className="max-w-full truncate text-[12px] text-fg3">
 							{note}
@@ -147,21 +139,9 @@ function DataRow({
 			</TableCell>
 			<TableCell>
 				<div className="flex min-w-0 flex-col gap-0.5">
-					{it === undefined ? (
-						<button
-							type="button"
-							className={nameClass}
-							onClick={() => {
-								onOpenDraft(row.key);
-							}}
-						>
-							{row.name}
-						</button>
-					) : (
-						<Link to={hrefFor(row.key)} className={nameClass}>
-							{row.name}
-						</Link>
-					)}
+					<Link to={hrefFor(row.key)} className={nameClass}>
+						{row.name}
+					</Link>
 					<span className="truncate text-[12.5px] text-fg3">{row.description}</span>
 				</div>
 			</TableCell>
@@ -173,20 +153,16 @@ function DataRow({
 				</div>
 			</TableCell>
 			<TableCell>
-				{it === undefined ? (
-					<span className="text-fg4">—</span>
-				) : (
-					<div className="flex flex-col">
-						{row.regions.map((g) => (
-							<span key={g.region} className="flex h-[19px] items-center gap-2.5">
-								<ReplicaPips desired={g.desired} ready={g.ready} degraded={degraded} />
-								<span className="font-mono text-[12px] text-fg2 tabular-nums">
-									{g.ready.toString()}/{g.desired.toString()}
-								</span>
+				<div className="flex flex-col">
+					{row.regions.map((g) => (
+						<span key={g.region} className="flex h-[19px] items-center gap-2.5">
+							<ReplicaPips desired={g.desired} ready={g.ready} degraded={degraded} />
+							<span className="font-mono text-[12px] text-fg2 tabular-nums">
+								{g.ready.toString()}/{g.desired.toString()}
 							</span>
-						))}
-					</div>
-				)}
+						</span>
+					))}
+				</div>
 			</TableCell>
 			<TableCell />
 			<TableCell>
@@ -203,9 +179,7 @@ function DataRow({
 				{last === undefined ? "—" : agoLabel(tsMs(last.createdAt), nowMs)}
 			</TableCell>
 			<TableCell className="text-right">
-				{it !== undefined && (
-					<ResourceRowMenu resource={it.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
-				)}
+				<ResourceRowMenu resource={it.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
 			</TableCell>
 		</TableRow>
 	);
@@ -213,7 +187,6 @@ function DataRow({
 
 export function ResourcesTable({
 	items,
-	drafts,
 	regions,
 	orgId,
 	workspaceId,
@@ -221,10 +194,8 @@ export function ResourcesTable({
 	envName,
 	nowMs,
 	hrefFor,
-	onOpenDraft,
 }: {
 	items: EnvResource[];
-	drafts: Draft[];
 	regions: RegionInfo[];
 	orgId: string;
 	workspaceId: string;
@@ -232,7 +203,6 @@ export function ResourcesTable({
 	envName: string;
 	nowMs: number;
 	hrefFor: (id: string) => string;
-	onOpenDraft: (id: string) => void;
 }) {
 	const [params, setParams] = useSearchParams();
 	const isMap = params.get(VIEW_PARAM) === MAP_VIEW;
@@ -247,11 +217,11 @@ export function ResourcesTable({
 	const [sortDir, setSortDir] = useState(1);
 
 	const sorted = items.toSorted((a, b) => compare(sortKey, a, b) * sortDir);
-	const allRows = [...sorted.map(resourceRow), ...drafts.map(draftRow)];
+	const allRows = sorted.map(resourceRow);
 	const visible = filterRows(allRows, filter);
 	const paged = usePagedRows(visible, PAGE_SIZES, `0 of ${allRows.length.toString()}`);
 
-	const statusCounts = new Map<ResourceStatus | "draft", number>();
+	const statusCounts = new Map<ResourceStatus, number>();
 	const typeCounts = new Map<ResourceType, number>();
 	const regionCounts = new Map<string, number>();
 	const regionNames = new Set(regions.map((r) => r.region));
@@ -391,7 +361,6 @@ export function ResourcesTable({
 						regionOrder={regions.map((r) => r.region)}
 						environmentId={environmentId}
 						hrefFor={hrefFor}
-						onOpenDraft={onOpenDraft}
 						onShowTable={() => {
 							setView(TABLE_VIEW);
 						}}
@@ -449,7 +418,6 @@ export function ResourcesTable({
 									key={row.key}
 									row={row}
 									hrefFor={hrefFor}
-									onOpenDraft={onOpenDraft}
 									orgId={orgId}
 									workspaceId={workspaceId}
 									envName={envName}

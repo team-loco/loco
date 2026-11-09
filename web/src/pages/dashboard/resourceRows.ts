@@ -1,6 +1,5 @@
 import { ResourceStatus, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
-import { isPrivate, type Draft } from "./drafts";
 import { statusRank } from "./format";
 import type { EnvResource, RegionReplicas } from "./useDashboardData";
 
@@ -27,11 +26,11 @@ export interface ResourceRow {
 	key: string;
 	name: string;
 	description: string;
-	status: ResourceStatus | "draft";
+	status: ResourceStatus;
 	type: ResourceType;
 	domain: string | null;
 	regions: RegionReplicas[];
-	item: EnvResource | undefined;
+	item: EnvResource;
 }
 
 export interface RowFilter {
@@ -53,19 +52,6 @@ export function resourceRow(item: EnvResource): ResourceRow {
 		domain: domain?.domain ?? null,
 		regions: item.regions,
 		item,
-	};
-}
-
-export function draftRow(draft: Draft): ResourceRow {
-	return {
-		key: draft.id,
-		name: draft.name,
-		description: draft.image,
-		status: "draft",
-		type: ResourceType.SERVICE,
-		domain: isPrivate(draft) || draft.sub === "" ? null : draft.sub,
-		regions: [{ region: draft.region, desired: 0, ready: 0 }],
-		item: undefined,
 	};
 }
 
@@ -94,10 +80,6 @@ export function filterRows(rows: ResourceRow[], filter: RowFilter): ResourceRow[
 			(filter.region === ALL || row.regions.some((g) => g.region === filter.region)) &&
 			matchesQuery(row, filter.query),
 	);
-}
-
-export function rowRank(row: ResourceRow): number {
-	return row.status === "draft" ? statusRank(ResourceStatus.HEALTHY) + 1 : statusRank(row.status);
 }
 
 export const MAP_PUBLIC_LIMIT = 8;
@@ -135,7 +117,7 @@ export interface MapLayout {
 }
 
 export function mapLayout(rows: ResourceRow[], regionOrder: string[]): MapLayout {
-	const ranked = rows.toSorted((a, b) => rowRank(a) - rowRank(b) || a.name.localeCompare(b.name));
+	const ranked = rows.toSorted((a, b) => statusRank(a.status) - statusRank(b.status) || a.name.localeCompare(b.name));
 	const publicRows = ranked.filter((r) => r.domain !== null);
 	const internalRows = ranked.filter((r) => r.domain === null);
 	const shown = publicRows.slice(0, MAP_PUBLIC_LIMIT);
