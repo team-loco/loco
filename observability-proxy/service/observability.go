@@ -54,7 +54,7 @@ func NewObservabilityService(
 // Handler serves the query RPCs. The validation interceptor checks each request against its proto
 // rules before a handler asks the control plane about the workspace.
 func (s *ObservabilityService) Handler() http.Handler {
-	server := connect.NewServer(auth.NewAuthInterceptor().Interceptor(), validate.NewServerInterceptor())
+	server := connect.NewServer(auth.Interceptor(), validate.NewServerInterceptor())
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, s)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

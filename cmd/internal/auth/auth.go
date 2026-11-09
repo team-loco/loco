@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
 var (
@@ -105,7 +104,7 @@ func refreshLocoToken(
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	httpClient := httputil.NewHTTPClient()
+	httpClient := rpc.NewHTTPClient()
 	authClients := rpc.NewHTTPClients(httpClient, apiHost, "")
 	authClient := authClients.Auth
 	req := &authv1.RefreshCLITokenRequest{

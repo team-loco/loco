@@ -16,10 +16,9 @@ import (
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 )
-
-const bearerPrefix = "Bearer "
 
 var (
 	ErrUnauthenticated = errors.New("missing or invalid ingest token")
@@ -74,8 +73,8 @@ func NewGate(cfg GateConfig) *Gate {
 }
 
 func (g *Gate) Admit(ctx context.Context, authorization string) (*Admission, error) {
-	token, ok := strings.CutPrefix(authorization, bearerPrefix)
-	if !ok || token == "" {
+	token, ok := bearer.FromHeader(http.Header{"Authorization": {authorization}})
+	if !ok {
 		return nil, ErrUnauthenticated
 	}
 	claims, err := g.verify(ctx, token)
@@ -179,7 +178,7 @@ func (c *clusterPlacements) load(ctx context.Context, g *Gate, token string, max
 
 func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) error {
 	ctx, info := connect.NewClientContext(ctx)
-	info.RequestHeader().Set("Authorization", bearerPrefix+token)
+	info.RequestHeader().Set("Authorization", bearer.Header(token))
 	resp, err := g.placements.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
 	if err != nil && connect.CodeOf(err) == connect.CodePermissionDenied {
 		c.revoked = true

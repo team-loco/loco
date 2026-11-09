@@ -15,7 +15,6 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/internal/sourcepack"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -43,7 +42,7 @@ type Builder struct {
 func New(clients *rpc.Clients, out io.Writer) *Builder {
 	return &Builder{
 		follower: NewFollower(clients, out),
-		storage:  httputil.NewHTTPClient(),
+		storage:  rpc.NewHTTPClient(),
 	}
 }
 

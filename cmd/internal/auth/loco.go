@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/host"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -48,7 +47,7 @@ func ResolveLocoLogin(cmd *cobra.Command) (Login, error) {
 		return Login{}, errTokenHostMismatch
 	}
 
-	client := httputil.NewHTTPClient()
+	client := rpc.NewHTTPClient()
 	// Redirects can forward the Authorization header to another origin.
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	return Login{Clients: rpc.NewHTTPClients(client, tokenHost, token), APIToken: true}, nil

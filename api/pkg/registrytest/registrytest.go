@@ -23,12 +23,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
 	"github.com/team-loco/loco/api/pkg/registrytoken"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
 	pingPath        = "/v2/"
 	catalogPath     = "/v2/_catalog"
-	bearerPrefix    = "Bearer "
 	challengeFormat = `Bearer realm="http://%s/token",service=%q`
 	imageLayers     = 1
 	imageLayerBytes = 64
@@ -120,7 +120,7 @@ func (r *Registry) write(t *testing.T, repository, tag, token string) string {
 
 func (r *Registry) handler(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		token, ok := strings.CutPrefix(req.Header.Get("Authorization"), bearerPrefix)
+		token, ok := bearer.FromHeader(req.Header)
 		if !ok {
 			challenge := fmt.Sprintf(challengeFormat, r.Host, r.service)
 			w.Header().Set("WWW-Authenticate", challenge)

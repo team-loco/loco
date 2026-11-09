@@ -2,6 +2,7 @@ package bearer_test
 
 import (
 	"encoding/base64"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -43,5 +44,40 @@ func TestNewIsUnique(t *testing.T) {
 			t.Fatalf("duplicate token %q", token)
 		}
 		seen[token] = struct{}{}
+	}
+}
+
+func TestFromHeader(t *testing.T) {
+	withAuthorization := func(value string) http.Header {
+		h := http.Header{}
+		h.Set("Authorization", value)
+		return h
+	}
+	cases := []struct {
+		name   string
+		header http.Header
+		token  string
+		ok     bool
+	}{
+		{"missing", http.Header{}, "", false},
+		{"wrong scheme", withAuthorization("Basic abc"), "", false},
+		{"empty token", withAuthorization("Bearer "), "", false},
+		{"ok", withAuthorization("Bearer abc"), "abc", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			token, ok := bearer.FromHeader(tc.header)
+			if token != tc.token || ok != tc.ok {
+				t.Fatalf("FromHeader = %q, %v; want %q, %v", token, ok, tc.token, tc.ok)
+			}
+		})
+	}
+}
+
+func TestHeaderRoundTripsThroughFromHeader(t *testing.T) {
+	h := http.Header{}
+	h.Set("Authorization", bearer.Header("abc"))
+	if token, ok := bearer.FromHeader(h); !ok || token != "abc" {
+		t.Fatalf("FromHeader = %q, %v", token, ok)
 	}
 }

@@ -36,7 +36,7 @@ func TestAuthenticateReportsDatabaseFailure(t *testing.T) {
 	machine := tvm.NewVendingMachine(pool, genDb.New(pool), tvm.Config{})
 	t.Cleanup(machine.Close)
 	i := NewAuthInterceptor(machine, nil, nil, nil)
-	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer("loco_s_unknown"))
+	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer("loco_s_unknown"))
 	if err == nil || connect.CodeOf(err) == connect.CodeUnauthenticated {
 		t.Fatalf("authenticate on a closed pool: got %v, want a database error that is not Unauthenticated", err)
 	}

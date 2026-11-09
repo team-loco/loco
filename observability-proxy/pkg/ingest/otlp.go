@@ -283,7 +283,7 @@ func exportHandler[Req otlpRequest, Resp otlpResponse, Payload any](
 		}
 		w.Header().Set("Content-Type", enc.contentType())
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write(payload); err != nil { //nolint:gosec // G705: an OTLP protobuf or JSON body, never HTML
+		if _, err := w.Write(payload); err != nil {
 			slog.WarnContext(r.Context(), "write OTLP response", "error", err)
 		}
 	}

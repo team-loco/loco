@@ -25,7 +25,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 type Clients struct {
@@ -50,7 +50,15 @@ type Clients struct {
 	ObservabilityProxy observabilityv1connect.ObservabilityProxyServiceClient
 }
 
-var defaultHTTPClient = httputil.NewHTTPClient()
+// NewHTTPClient creates an HTTP client with HTTP/2 support enabled.
+func NewHTTPClient() *http.Client {
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	return &http.Client{Transport: &http.Transport{Protocols: protocols}}
+}
+
+var defaultHTTPClient = NewHTTPClient()
 
 func ForHost(host, token string) *Clients {
 	return NewHTTPClients(defaultHTTPClient, host, token)
@@ -93,7 +101,7 @@ func BearerInterceptor(token string) connect.ClientInterceptor {
 				if !ok {
 					ctx, info = connect.NewClientContext(ctx)
 				}
-				info.RequestHeader().Set("Authorization", "Bearer "+token)
+				info.RequestHeader().Set("Authorization", bearer.Header(token))
 			}
 			return next(ctx, spec)
 		}

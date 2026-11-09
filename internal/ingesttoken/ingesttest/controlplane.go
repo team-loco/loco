@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,11 +15,11 @@ import (
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 )
 
 const (
-	bearerPrefix = "Bearer "
 	revoked      = "cluster is removed"
 	outage       = "database unavailable"
 	unauthorized = "unauthorized"
@@ -119,7 +118,7 @@ func (c *ControlPlane) ListPlacementWindows(
 	defer c.mu.Unlock()
 	c.listCalls++
 	info, _ := connect.CallInfoForServerContext(ctx)
-	token, _ := strings.CutPrefix(info.RequestHeader().Get("Authorization"), bearerPrefix)
+	token, _ := bearer.FromHeader(info.RequestHeader())
 	keys := KeySet(c.state.Keys)
 	if _, err := ingesttoken.Verify(token, keys, time.Now()); err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, unauthorized)
