@@ -53,24 +53,6 @@ function SheetBody({ className, ...props }: React.ComponentProps<"div">) {
 	);
 }
 
-function SheetSection({
-	className,
-	title,
-	children,
-	...props
-}: Omit<React.ComponentProps<"section">, "title"> & { title?: React.ReactNode }) {
-	return (
-		<section
-			data-slot="sheet-section"
-			className={cn("flex flex-col gap-3 border-b border-line px-6 py-5", className)}
-			{...props}
-		>
-			{title !== undefined && <span className="font-semibold">{title}</span>}
-			{children}
-		</section>
-	);
-}
-
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
@@ -89,4 +71,4 @@ function SheetDescription({ className, ...props }: React.ComponentProps<typeof S
 	return <SheetDescriptionBase className={cn("text-sm text-fg3", className)} {...props} />;
 }
 
-export { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetSection, SheetTitle };
+export { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle };
