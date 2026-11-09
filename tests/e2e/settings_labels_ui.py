@@ -77,7 +77,7 @@ with sync_playwright() as playwright:
                             assert name.count() == 1
                             assert page.get_by_text("Created", exact=True).first.evaluate("node => node.tagName") == "DT"
                             assert name.evaluate("node => node.labels.length") == 1
-                            assert descriptions(name) == ["Shown across Loco. Commands also accept the " + ("workspace" if tab == "ws" else "organization") + " ID."]
+                            assert descriptions(name) == []
                             if user == "member":
                                 assert name.is_disabled()
                             else:
