@@ -15,7 +15,7 @@ import { specChanges } from "./spec";
 function DiffCell({ value, tone }: { value: string | null; tone: "add" | "del" }) {
 	const cls = value === null ? "bg-hatch" : tone === "add" ? "bg-ok-bg text-ok-fg" : "bg-bad-bg text-bad-fg";
 	return (
-		<td className={cn("border-l border-line px-2.5 py-0.5 break-all", cls)}>
+		<td className={cn("border-l border-line px-2.5 py-0.5 align-top break-all", cls)}>
 			{value ?? <span className="sr-only">not set</span>}
 		</td>
 	);
@@ -66,11 +66,11 @@ export function RollbackDialogContent({
 						<div className="max-h-[min(52vh,420px)] overflow-y-auto">
 							<table className="w-full table-fixed border-collapse font-mono text-[12px] leading-[1.6]">
 								<colgroup>
-									<col className="w-24 sm:w-[150px]" />
+									<col className="w-24 sm:w-[190px]" />
 									<col />
 									<col />
 								</colgroup>
-								<thead className="sticky top-0 bg-panel font-sans text-[11.5px] text-fg3">
+								<thead className="sticky top-0 bg-panel align-bottom font-sans text-[11.5px] text-fg3">
 									<tr className="border-b border-line">
 										<th scope="col" className="py-2 pl-3.5 text-left font-normal">
 											<span className="sr-only">Setting</span>
@@ -86,7 +86,7 @@ export function RollbackDialogContent({
 								<tbody>
 									{changes.map((c) => (
 										<tr key={c.label}>
-											<th scope="row" className="py-0.5 pl-3.5 text-left font-normal break-all text-fg3">
+											<th scope="row" className="py-0.5 pl-3.5 text-left align-top font-normal break-all text-fg3">
 												{c.label}
 											</th>
 											<DiffCell value={c.from} tone="del" />
