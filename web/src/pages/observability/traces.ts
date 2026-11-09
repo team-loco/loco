@@ -80,7 +80,6 @@ export function summarizeTraces(spans: TraceSpan[]): TraceSummary[] {
 export interface SpanRow {
 	span: TraceSpan;
 	depth: number;
-	missingParent: boolean;
 }
 
 export function spanTree(spans: TraceSpan[]): SpanRow[] {
@@ -102,7 +101,7 @@ export function spanTree(spans: TraceSpan[]): SpanRow[] {
 			const row = stack.pop();
 			if (row === undefined || visited.has(row.span.spanId)) continue;
 			visited.add(row.span.spanId);
-			result.push({ ...row, missingParent: row.span.parentSpanId !== "" && !ids.has(row.span.parentSpanId) });
+			result.push(row);
 			for (const child of (children.get(row.span.spanId) ?? []).toReversed()) {
 				stack.push({ span: child, depth: row.depth + 1 });
 			}

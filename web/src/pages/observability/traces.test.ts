@@ -27,10 +27,10 @@ describe("trace timing and hierarchy", () => {
 	});
 	test("builds a stable parent-first tree even when child arrives first and parent starts later", () => {
 		const rows = spanTree([span("child", "root"), span("root", "", 20), span("missing", "unavailable", 30)]);
-		expect(rows.map((row) => [row.span.spanId, row.depth, row.missingParent])).toEqual([
-			["root", 0, false],
-			["child", 1, false],
-			["missing", 0, true],
+		expect(rows.map((row) => [row.span.spanId, row.depth])).toEqual([
+			["root", 0],
+			["child", 1],
+			["missing", 0],
 		]);
 	});
 	test("cycles and self references terminate and remain inspectable", () => {
