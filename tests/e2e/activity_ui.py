@@ -77,7 +77,7 @@ with sync_playwright() as playwright:
             ]:
                 context = browser.new_context(viewport={'width': 390, 'height': 844} if narrow else {'width': 1440, 'height': 1000}, color_scheme=theme)
                 auth = {'idToken': state['users'][user]['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS}
-                context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.THEME_KEY)},{json.dumps(theme)});')
+                context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});')
                 recorded = []
                 mode = {'fail_older': False, 'hold_initial': scene == 'resource' and not narrow, 'fail_initial': False}
                 held = []

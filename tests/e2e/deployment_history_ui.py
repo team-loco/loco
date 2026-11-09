@@ -104,7 +104,7 @@ with sync_playwright() as playwright:
                 context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
                 context.set_default_timeout(evidence.STEP_TIMEOUT_MS)
                 auth = {"idToken": owner, "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
-                context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.THEME_KEY)},{json.dumps(theme)});")
+                context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
                 page = context.new_page()
                 errors = []
                 requests = []
@@ -177,7 +177,7 @@ with sync_playwright() as playwright:
                     page.screenshot(path=out / f"owner-settings-{case}.png", animations="disabled")
                     member_context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
                     member_auth = dict(auth, idToken=state["users"]["member"]["token"])
-                    member_context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(member_auth)}));localStorage.setItem({json.dumps(evidence.THEME_KEY)},{json.dumps(theme)});")
+                    member_context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(member_auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
                     member_context.tracing.start(screenshots=True, snapshots=True)
                     member_page = member_context.new_page()
                     active_page, active_context = member_page, member_context

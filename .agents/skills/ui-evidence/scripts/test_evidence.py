@@ -10,7 +10,7 @@ PAGE = b"""<!doctype html>
 <html>
 <button hidden>Show output</button>
 <script>
-document.documentElement.classList.toggle("dark", localStorage.getItem("loco:theme:v1") === "dark");
+document.documentElement.classList.toggle("dark", localStorage.getItem("loco:mode:v1") === "dark");
 const button = document.querySelector("button");
 fetch("/stream").then(async response => {
   await response.body.getReader().read();
