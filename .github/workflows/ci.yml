@@ -256,9 +256,11 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Fail when a check failed or was cancelled
+      # Only success and skipped pass: a job the runner abandons reports
+      # "abandoned", and if changes never ran every check is skipped.
+      - name: Fail unless changes ran and every check passed or was skipped
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
           jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
-          jq -e 'all(.[]; .result != "failure" and .result != "cancelled")' <<<"$NEEDS" > /dev/null
+          jq -e '.changes.result == "success" and all(.[]; .result == "success" or .result == "skipped")' <<<"$NEEDS" > /dev/null
