@@ -202,11 +202,11 @@ func logFilters(q LogQuery, b logBinder) []string {
 
 	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
 
-	scope := "ResourceAttributes[" + b.str(telemetryScopeAttribute) + "]"
+	scope := "ResourceAttributes[" + b.str(TelemetryScopeAttribute) + "]"
 	if q.KubernetesEvents {
-		whereParts = append(whereParts, scope+" = "+b.str(kubernetesEventScope))
+		whereParts = append(whereParts, scope+" = "+b.str(KubernetesEventScope))
 	} else {
-		whereParts = append(whereParts, scope+" != "+b.str(kubernetesEventScope))
+		whereParts = append(whereParts, scope+" != "+b.str(KubernetesEventScope))
 	}
 
 	if len(q.Levels) > 0 {

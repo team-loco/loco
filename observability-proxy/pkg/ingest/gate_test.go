@@ -31,6 +31,7 @@ import (
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
+	"github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 )
 
 const (
@@ -598,10 +599,9 @@ func TestRevocationSeenOnRefetchFailsTheRequest(t *testing.T) {
 	}
 }
 
-func TestIngestNamesTheEnvironmentOfPlacedResourcesThatCarryNone(t *testing.T) {
+func TestIngestNamesTheEnvironmentOfPlacedResourcesEvents(t *testing.T) {
 	const (
 		earlierEnvironment = "77777777-8888-9999-aaaa-bbbbbbbbbbbb"
-		podEnvironment     = "88888888-9999-aaaa-bbbb-cccccccccccc"
 		unplacedResource   = "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
 		removedResource    = "cccccccc-dddd-eeee-ffff-000000000000"
 	)
@@ -625,11 +625,11 @@ func TestIngestNamesTheEnvironmentOfPlacedResourcesThatCarryNone(t *testing.T) {
 		)
 	})
 	cases := []struct {
-		name        string
-		resourceID  string
-		environment string
-		at          time.Time
-		want        string
+		name       string
+		resourceID string
+		notEvent   bool
+		at         time.Time
+		want       string
 	}{
 		{
 			name:       "before the move",
@@ -638,13 +638,7 @@ func TestIngestNamesTheEnvironmentOfPlacedResourcesThatCarryNone(t *testing.T) {
 			want:       earlierEnvironment,
 		},
 		{name: "after the move", resourceID: testResourceID, at: now, want: testEnvironmentID},
-		{
-			name:        "labeled by its pod",
-			resourceID:  testResourceID,
-			environment: podEnvironment,
-			at:          now,
-			want:        podEnvironment,
-		},
+		{name: "a build log of the resource", resourceID: testResourceID, notEvent: true, at: now},
 		{name: "after its removal", resourceID: removedResource, at: now, want: earlierEnvironment},
 		{name: "not placed here", resourceID: unplacedResource, at: now},
 		{name: "no resource", at: now},
@@ -657,8 +651,8 @@ func TestIngestNamesTheEnvironmentOfPlacedResourcesThatCarryNone(t *testing.T) {
 		if c.resourceID != "" {
 			attributes.PutStr(resourceAttribute, c.resourceID)
 		}
-		if c.environment != "" {
-			attributes.PutStr(environmentAttribute, c.environment)
+		if !c.notEvent {
+			attributes.PutStr(clickhouse.TelemetryScopeAttribute, clickhouse.KubernetesEventScope)
 		}
 		record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
 		record.SetObservedTimestamp(pcommon.NewTimestampFromTime(c.at))
@@ -686,7 +680,7 @@ func TestIngestNamesTheEnvironmentOfPlacedResourcesThatCarryNone(t *testing.T) {
 	}
 }
 
-func TestIngestRefetchesWindowsOlderThanARecordWithoutAnEnvironment(t *testing.T) {
+func TestIngestRefetchesWindowsOlderThanAnEvent(t *testing.T) {
 	cp := newPlacedControlPlane(t)
 	gate := NewGate(GateConfig{
 		ControlPlaneURL:     cp.URL(),
@@ -713,6 +707,7 @@ func TestIngestRefetchesWindowsOlderThanARecordWithoutAnEnvironment(t *testing.T
 	resourceLogs := logs.ResourceLogs().AppendEmpty()
 	resourceLogs.Resource().Attributes().PutStr(workspaceAttribute, testWorkspaceID)
 	resourceLogs.Resource().Attributes().PutStr(resourceAttribute, testResourceID)
+	resourceLogs.Resource().Attributes().PutStr(clickhouse.TelemetryScopeAttribute, clickhouse.KubernetesEventScope)
 	record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
 	record.SetObservedTimestamp(pcommon.NewTimestampFromTime(time.Now()))
 

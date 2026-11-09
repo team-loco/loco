@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	telemetryScopeAttribute = "loco.telemetry.scope"
-	// kubernetesEventScope marks the Kubernetes events the worker's cluster collector attributes
+	TelemetryScopeAttribute = "loco.telemetry.scope"
+	// KubernetesEventScope marks the Kubernetes events the worker's cluster collector attributes
 	// to a resource; keep in sync with transform/kubernetes_events in charts/loco-worker/values.yaml.
-	kubernetesEventScope = "kubernetes-event"
+	KubernetesEventScope = "kubernetes-event"
 )
 
 // watchEvent is the body the k8sobjects receiver stores for a watched events.k8s.io/v1 Event.

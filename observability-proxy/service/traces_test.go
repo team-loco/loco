@@ -61,7 +61,7 @@ func traceTestClient(
 		t.Fatal(err)
 	}
 	t.Cleanup(validator.Close)
-	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour}
+	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, MaxTailDuration: time.Minute}
 	service := NewObservabilityService(clickhouse, cfg, validator)
 	proxyHTTP := httptest.NewServer(service.Handler())
 	t.Cleanup(proxyHTTP.Close)

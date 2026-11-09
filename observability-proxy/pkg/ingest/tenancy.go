@@ -12,6 +12,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+
+	"github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 )
 
 const (
@@ -122,15 +124,15 @@ func logTimestamp(record plog.LogRecord) pcommon.Timestamp {
 	return record.Timestamp()
 }
 
-// stampEnvironment names the environment of a resource's logs that carry no environment, such as
-// Kubernetes events, whose objects have no pod labels. Each environment runs on its own clusters,
-// so the resource's placement on the sending cluster names it.
+// stampEnvironment names the environment of a resource's Kubernetes events, whose objects carry no
+// pod labels, from the resource's placement on the sending cluster.
 func (f *tenancyFilter) stampEnvironment(resource pcommon.Resource, timestamp pcommon.Timestamp) {
 	if f.err != nil {
 		return
 	}
 	attributes := resource.Attributes()
-	if _, ok := attributes.Get(environmentAttribute); ok {
+	scope, _ := attributes.Get(clickhouse.TelemetryScopeAttribute)
+	if scope.Str() != clickhouse.KubernetesEventScope {
 		return
 	}
 	resourceID, ok := attributes.Get(resourceAttribute)

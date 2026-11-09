@@ -10,7 +10,7 @@ const testEventBody = `{"type":"ADDED","object":{"reason":"BackOff","note":"Back
 func TestLogQueriesLeaveOutKubernetesEvents(t *testing.T) {
 	f := newQueryFixture(t)
 	attributes := tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID)
-	attributes[telemetryScopeAttribute] = kubernetesEventScope
+	attributes[TelemetryScopeAttribute] = KubernetesEventScope
 	err := f.conn.Exec(t.Context(), "INSERT INTO otel_logs (Timestamp, Body, ResourceAttributes) VALUES (?, ?, ?)",
 		f.logTime(1), testEventBody, attributes)
 	if err != nil {
