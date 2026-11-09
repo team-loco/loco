@@ -9,7 +9,7 @@ import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SoonTag } from "@/components/design/SoonTag";
-import { DeploymentPhaseBadge, StatusLabel } from "@/components/design/StatusBadge";
+import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -31,11 +31,6 @@ interface Row {
 	region: RegionView;
 	prev: Deployment | undefined;
 	isCurrent: boolean;
-}
-
-function DeploymentStatus({ dep }: { dep: Deployment }) {
-	if (deploymentState(dep) === "superseded") return <StatusLabel glyph="off" label="Superseded" />;
-	return <DeploymentPhaseBadge phase={dep.status} />;
 }
 
 function timeFact(ms: number | undefined): string {
@@ -223,7 +218,7 @@ export function DeploymentsSection({
 											</Button>
 										</TableCell>
 										<TableCell>
-											<DeploymentStatus dep={dep} />
+											<DeploymentPhaseBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />
 										</TableCell>
 										<TableCell>
 											<span className="flex items-center gap-2">

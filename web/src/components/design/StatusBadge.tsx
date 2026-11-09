@@ -48,7 +48,7 @@ function deploymentPhaseStyle(phase: DeploymentPhase | undefined): StatusStyle {
 	}
 }
 
-export function StatusLabel({ glyph, label }: StatusStyle) {
+function StatusLabel({ glyph, label }: StatusStyle) {
 	return (
 		<span className="inline-flex items-center gap-2 text-[13.5px] whitespace-nowrap text-foreground">
 			<StatusGlyph glyph={glyph} />
