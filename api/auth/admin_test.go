@@ -65,12 +65,7 @@ func TestNewAdminsBuildsFromFactory(t *testing.T) {
 	}
 }
 
-func TestNewAdminsValidation(t *testing.T) {
-	if _, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
-		Issuer: adminIssuer, Admin: &AdminConfig{Type: fakeAdminType, TokenEnv: "MISSING"},
-	}}, fakeFactories()); !errors.Is(err, ErrAdminTokenMissing) {
-		t.Fatalf("empty token: err = %v, want %v", err, ErrAdminTokenMissing)
-	}
+func TestNewAdminsRejectsUnknownType(t *testing.T) {
 	if _, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
 		Issuer: adminIssuer, Admin: &AdminConfig{Type: "okta", TokenEnv: "X", Token: adminToken},
 	}}, fakeFactories()); err == nil {

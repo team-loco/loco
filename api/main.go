@@ -70,7 +70,6 @@ const (
 	envProduction           = "PRODUCTION"
 	imageResolveTimeout     = 15 * time.Second
 	eventsRetentionInterval = time.Hour
-	tokenCleanupInterval    = time.Minute
 )
 
 var version string
@@ -164,36 +163,30 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err = migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
+	if err = migrations.Up(context.Background(), ac.Database.URL); err != nil {
 		log.Fatal(err)
 	}
 
-	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
+	pool, err := db.NewPool(context.Background(), ac.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer dbConn.Close()
+	defer pool.Close()
 
-	pool := dbConn.Pool()
 	queries := genDb.New(pool)
 	if syncErr := webhooks.SyncInstallWebhooks(context.Background(), pool, ac.InstallWebhooks); syncErr != nil {
 		log.Fatalf("INSTALL_WEBHOOKS: %v", syncErr)
 	}
 
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
-		MaxAPITokenDuration:         time.Hour * 24 * 365,
-		SessionAccessTokenDuration:  time.Hour,
-		SessionRefreshTokenDuration: time.Hour * 24 * 7,
-		LastUsedUpdateInterval:      time.Minute * 5,
-	})
+	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
 
 	shutdownCtx, beginShutdown := context.WithCancel(context.Background())
 	defer beginShutdown()
 
 	var background sync.WaitGroup
-	background.Go(func() { machine.RunCleanup(shutdownCtx, tokenCleanupInterval) })
+	background.Go(func() { machine.RunCleanup(shutdownCtx, ac.TokenCleanupInterval) })
 
-	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
+	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, ac.RPCTimeout)
 	errorInterceptor := interceptor.NewErrorInterceptor()
 	tracingInterceptor, err := newTracingInterceptor()
 	if err != nil {
@@ -230,13 +223,13 @@ func main() {
 		fmt.Fprintln(w, "Server is healthy.")
 	})
 
-	appCache, err := newCache(ac.CacheType, ac.CacheAddr, 24*time.Hour)
+	appCache, err := newCache(ac.CacheType, ac.CacheAddr)
 	if err != nil {
 		log.Fatalf("failed to create cache: %v", err)
 	}
 	defer appCache.Close()
 
-	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, clusternotify.DefaultPollInterval)
+	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
 	if err := placementNotifier.Start(shutdownCtx); err != nil {
 		log.Fatalf("failed to start placement listener: %v", err)
 	}
@@ -244,10 +237,10 @@ func main() {
 	eventServiceHandler := service.NewEventServer(queries, machine)
 	background.Go(func() { events.RunRetention(shutdownCtx, queries, ac.EventsRetention, eventsRetentionInterval) })
 	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
-	workspaceWebhookClient := webhooks.NewClient(ac.WebhooksAllowPrivate)
-	installWebhookClient := webhooks.NewClient(true)
-	webhookDispatcher := webhooks.NewDispatcher(queries, workspaceWebhookClient, installWebhookClient)
-	background.Go(func() { webhookDispatcher.Run(shutdownCtx, webhooks.DefaultPollPeriod) })
+	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
+	installWebhookClient := webhooks.NewClient(ac.Webhooks, true)
+	webhookDispatcher := webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient)
+	background.Go(func() { webhookDispatcher.Run(shutdownCtx) })
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine, ac.Invitations)
@@ -441,7 +434,7 @@ func main() {
 
 		beginShutdown()
 
-		drainCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		drainCtx, cancel := context.WithTimeout(ctx, ac.ShutdownDrainTimeout)
 		defer cancel()
 
 		if pprofServer != nil {

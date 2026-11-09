@@ -1,10 +1,13 @@
 package webhooks
 
+import "time"
+
 var Blocked = blocked
 
 const (
-	ClaimBatch     = claimBatch
-	RequestTimeout = requestTimeout
+	StatusPending   = statusPending
+	StatusSucceeded = statusSucceeded
+	StatusFailed    = statusFailed
 )
 
-const Lease = lease
+func Lease(cfg Config) time.Duration { return cfg.lease() }

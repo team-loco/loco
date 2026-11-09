@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 )
 
@@ -69,7 +70,9 @@ func startNotifier(t *testing.T, pool *pgxpool.Pool) *clusternotify.Notifier {
 	return n
 }
 
-const notifySQL = "SELECT pg_notify($1, $2)"
+func notify(ctx context.Context, db genDb.DBTX, clusterID uuid.UUID) error {
+	return genDb.New(db).NotifyClusterPlacements(ctx, clusterID.String())
+}
 
 func TestListenerWakesOnlyOnCommittedNotifyForItsCluster(t *testing.T) {
 	pool := newPool(t)
@@ -84,7 +87,7 @@ func TestListenerWakesOnlyOnCommittedNotifyForItsCluster(t *testing.T) {
 
 	rollback := errors.New("rollback")
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		if _, execErr := tx.Exec(ctx, notifySQL, clusternotify.Channel, clusterID.String()); execErr != nil {
+		if execErr := notify(ctx, tx, clusterID); execErr != nil {
 			return execErr
 		}
 		return rollback
@@ -98,7 +101,7 @@ func TestListenerWakesOnlyOnCommittedNotifyForItsCluster(t *testing.T) {
 	case <-time.After(300 * time.Millisecond):
 	}
 
-	if _, err := pool.Exec(ctx, notifySQL, clusternotify.Channel, clusterID.String()); err != nil {
+	if err := notify(ctx, pool, clusterID); err != nil {
 		t.Fatalf("notify: %v", err)
 	}
 	select {
@@ -130,7 +133,7 @@ func TestListenersHoldNoPoolConnections(t *testing.T) {
 	if acquired := pool.Stat().AcquiredConns(); acquired != 0 {
 		t.Fatalf("%d pool connections acquired by %d listeners", acquired, len(listeners))
 	}
-	if _, err := pool.Exec(ctx, notifySQL, clusternotify.Channel, clusterID.String()); err != nil {
+	if err := notify(ctx, pool, clusterID); err != nil {
 		t.Fatalf("notify: %v", err)
 	}
 	select {
@@ -170,7 +173,7 @@ func TestListenerSurvivesListenConnectionLoss(t *testing.T) {
 
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		if _, execErr := pool.Exec(ctx, notifySQL, clusternotify.Channel, clusterID.String()); execErr != nil {
+		if execErr := notify(ctx, pool, clusterID); execErr != nil {
 			t.Fatalf("notify: %v", execErr)
 		}
 		select {
@@ -206,7 +209,7 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 	clusterID := uuid.New()
 	target := notifier.Listen(ctx, clusterID)
 	defer target.Close()
-	if _, err := sender.Exec(ctx, notifySQL, clusternotify.Channel, clusterID.String()); err != nil {
+	if err := notify(ctx, sender, clusterID); err != nil {
 		t.Fatal(err)
 	}
 	select {

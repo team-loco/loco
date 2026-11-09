@@ -7,10 +7,7 @@ import (
 	"net/http"
 )
 
-var (
-	ErrNoEmailVerifier   = errors.New("emailVerification admin needs an admin client that can look up emails")
-	ErrAdminTokenMissing = errors.New("admin token is empty")
-)
+var ErrNoEmailVerifier = errors.New("emailVerification admin needs an admin client that can look up emails")
 
 type IdentityState int
 
@@ -62,9 +59,6 @@ func NewAdmins(
 		factory, ok := factories[ic.Admin.Type]
 		if !ok {
 			return nil, fmt.Errorf("issuer %s: unknown admin type %q", ic.Issuer, ic.Admin.Type)
-		}
-		if ic.Admin.Token == "" {
-			return nil, fmt.Errorf("issuer %s: %w", ic.Issuer, ErrAdminTokenMissing)
 		}
 		admins[ic.Issuer] = factory(ic.Admin.URL, ic.Admin.Token, httpClient)
 	}

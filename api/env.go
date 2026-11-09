@@ -98,6 +98,22 @@ func positiveDurationEnv(name string, fallback time.Duration) time.Duration {
 	if raw == "" {
 		return fallback
 	}
+	return parsePositiveDuration(name, raw)
+}
+
+func positiveDurationListEnv(name string, fallback []time.Duration) []time.Duration {
+	raw := listEnv(name)
+	if len(raw) == 0 {
+		return fallback
+	}
+	values := make([]time.Duration, len(raw))
+	for i, item := range raw {
+		values[i] = parsePositiveDuration(name, item)
+	}
+	return values
+}
+
+func parsePositiveDuration(name, raw string) time.Duration {
 	parsed, err := time.ParseDuration(raw)
 	if err != nil {
 		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidDuration))

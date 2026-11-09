@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	Channel             = "placements"
-	DefaultPollInterval = 5 * time.Second
-	reconnectDelay      = time.Second
+	// channel is the one NotifyClusterPlacements in queries/placement.sql signals; update both together.
+	channel        = "placements"
+	reconnectDelay = time.Second
 )
 
 type Notifier struct {
@@ -26,9 +26,6 @@ type Notifier struct {
 }
 
 func New(connConfig *pgx.ConnConfig, pollInterval time.Duration) *Notifier {
-	if pollInterval <= 0 {
-		pollInterval = DefaultPollInterval
-	}
 	listenConfig := connConfig.Copy()
 	return &Notifier{
 		connConfig:   listenConfig,
@@ -60,10 +57,10 @@ func (n *Notifier) listen(ctx context.Context) (*pgx.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect listen connection: %w", err)
 	}
-	channel := pgx.Identifier{Channel}.Sanitize()
-	if _, err := conn.Exec(ctx, "LISTEN "+channel); err != nil {
+	identifier := pgx.Identifier{channel}.Sanitize()
+	if _, err := conn.Exec(ctx, "LISTEN "+identifier); err != nil {
 		closeConn(ctx, conn)
-		return nil, fmt.Errorf("listen on %s: %w", channel, err)
+		return nil, fmt.Errorf("listen on %s: %w", identifier, err)
 	}
 	return conn, nil
 }

@@ -2,41 +2,46 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var errDatabaseURLMissing = errors.New("DATABASE_URL not set")
+const (
+	statementTimeoutParam = "statement_timeout"
+	maxConnLifetime       = time.Hour
+	maxConnLifetimeJitter = 5 * time.Minute
+	maxConnIdleTime       = 2 * time.Minute
+	connectTimeout        = 5 * time.Second
+)
 
-// DB wraps the connection pool
-type DB struct {
-	pool *pgxpool.Pool
+type Config struct {
+	URL      string
+	MaxConns int32
+	MinConns int32
+	// StatementTimeout applies unless URL sets statement_timeout itself.
+	StatementTimeout time.Duration
 }
 
-// NewDB creates a new database connection pool
-func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
-	if databaseURL == "" {
-		return nil, errDatabaseURLMissing
-	}
-
-	cfg, err := pgxpool.ParseConfig(databaseURL)
+func NewPool(ctx context.Context, config Config) (*pgxpool.Pool, error) {
+	cfg, err := pgxpool.ParseConfig(config.URL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse database config: %w", err)
 	}
 
-	cfg.MaxConns = 25
-	cfg.MinConns = 5
-	cfg.MaxConnLifetime = time.Hour
-	cfg.MaxConnLifetimeJitter = 5 * time.Minute
-	cfg.MaxConnIdleTime = 2 * time.Minute
-	cfg.ConnConfig.ConnectTimeout = 5 * time.Second
-	if _, ok := cfg.ConnConfig.RuntimeParams["statement_timeout"]; !ok {
-		cfg.ConnConfig.RuntimeParams["statement_timeout"] = "15s"
+	cfg.MaxConns = config.MaxConns
+	cfg.MinConns = config.MinConns
+	cfg.MaxConnLifetime = maxConnLifetime
+	cfg.MaxConnLifetimeJitter = maxConnLifetimeJitter
+	cfg.MaxConnIdleTime = maxConnIdleTime
+	cfg.ConnConfig.ConnectTimeout = connectTimeout
+	if _, ok := cfg.ConnConfig.RuntimeParams[statementTimeoutParam]; !ok {
+		milliseconds := strconv.FormatInt(config.StatementTimeout.Milliseconds(), 10)
+		cfg.ConnConfig.RuntimeParams[statementTimeoutParam] = milliseconds
 	}
 
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
@@ -46,24 +51,11 @@ func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
-	// Verify connection
 	if err := pool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	slog.Info("Database connection established")
 
-	return &DB{pool: pool}, nil
-}
-
-// Close closes the connection pool
-func (d *DB) Close() {
-	if d.pool != nil {
-		d.pool.Close()
-	}
-}
-
-// Pool returns the underlying pgxpool.Pool
-func (d *DB) Pool() *pgxpool.Pool {
-	return d.pool
+	return pool, nil
 }

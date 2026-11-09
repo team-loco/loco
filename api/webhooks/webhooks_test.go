@@ -10,10 +10,30 @@ import (
 	"testing"
 	"time"
 
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
 const maxBody = 1 << 20
+
+var testConfig = webhooks.Config{
+	RequestTimeout: 10 * time.Second,
+	ClaimBatch:     50,
+	RetryDelays: []time.Duration{
+		30 * time.Second,
+		2 * time.Minute,
+		10 * time.Minute,
+		time.Hour,
+		6 * time.Hour,
+		24 * time.Hour,
+	},
+	PollInterval: time.Second,
+}
+
+func newDispatcher(queries genDb.Querier, workspacePrivate bool) *webhooks.Dispatcher {
+	workspace := webhooks.NewClient(testConfig, workspacePrivate)
+	return webhooks.NewDispatcher(queries, testConfig, workspace, webhooks.NewClient(testConfig, true))
+}
 
 func TestSignatureVerifiesAsStandardWebhooks(t *testing.T) {
 	secret, err := webhooks.NewSecret()
@@ -66,7 +86,7 @@ func TestClientRefusesPrivateNetworks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	blockedRes, err := webhooks.NewClient(false).Do(req)
+	blockedRes, err := webhooks.NewClient(testConfig, false).Do(req)
 	if err == nil {
 		if closeErr := blockedRes.Body.Close(); closeErr != nil {
 			t.Fatalf("close: %v", closeErr)
@@ -75,7 +95,7 @@ func TestClientRefusesPrivateNetworks(t *testing.T) {
 	if !errors.Is(err, webhooks.ErrBlockedAddress) {
 		t.Fatalf("loopback request = %v, want ErrBlockedAddress", err)
 	}
-	res, err := webhooks.NewClient(true).Do(req)
+	res, err := webhooks.NewClient(testConfig, true).Do(req)
 	if err != nil {
 		t.Fatalf("allowed request: %v", err)
 	}
@@ -107,7 +127,8 @@ func TestBlockedAddresses(t *testing.T) {
 }
 
 func TestLeaseCoversWorstCaseBatch(t *testing.T) {
-	if worst := webhooks.ClaimBatch * webhooks.RequestTimeout; webhooks.Lease < worst {
-		t.Fatalf("lease %s is shorter than the worst-case batch %s", webhooks.Lease, worst)
+	worst := time.Duration(testConfig.ClaimBatch) * testConfig.RequestTimeout
+	if lease := webhooks.Lease(testConfig); lease < worst {
+		t.Fatalf("lease %s is shorter than the worst-case batch %s", lease, worst)
 	}
 }

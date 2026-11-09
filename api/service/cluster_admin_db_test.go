@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
@@ -32,7 +33,8 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(machine, nil, nil, authz.New(pool, queries)).Interceptor(),
+		interceptor.NewAuthInterceptor(machine, auth.NewVerifier(http.DefaultClient, nil), nil, authz.New(pool, queries)).
+			Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	clusterv1connect.RegisterClusterAdminServiceHandler(

@@ -82,7 +82,8 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(machine, nil, nil, authorizer).Interceptor(),
+		interceptor.NewAuthInterceptor(machine, auth.NewVerifier(http.DefaultClient, nil), nil, authorizer).
+			Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, machine, invitations))

@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -112,7 +111,7 @@ func componentAuthHTTP(t *testing.T, a *membershipAPI, issuer string) string {
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
 	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Mode: auth.SignupDomains, Domains: []string{"test.local"}})
-	store, err := cache.NewMemory(time.Minute)
+	store, err := cache.NewMemory()
 	if err != nil {
 		t.Fatal(err)
 	}
