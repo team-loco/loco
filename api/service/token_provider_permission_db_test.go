@@ -52,7 +52,6 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 		f.queries,
 		tvm.Config{LastUsedUpdateInterval: time.Minute, MaxAPITokenDuration: time.Hour},
 	)
-	t.Cleanup(machine.Close)
 	authorizer := authz.New(f.pool, f.queries)
 	authInterceptor := interceptor.NewAuthInterceptor(machine, verifier, resolver, authorizer)
 	service := NewTokenServer(f.pool, f.queries, machine)
@@ -102,8 +101,7 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 	}
 	entity := genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: workspaceID}
 	scopes := []genDb.EntityScope{{EntityType: entity.Type, EntityID: entity.ID, Scope: genDb.ScopeRead}}
-	userID := user.ID.String()
-	apiToken, err := machine.Issue(t.Context(), "permission-reader", userID, entity, scopes, time.Hour)
+	apiToken, _, err := machine.Issue(t.Context(), "permission-reader", user.ID, entity, scopes, time.Hour)
 	if err != nil {
 		t.Fatalf("issue API token: %v", err)
 	}

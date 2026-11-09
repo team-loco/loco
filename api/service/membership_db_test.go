@@ -74,7 +74,6 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 		SessionRefreshTokenDuration: membershipSessionDuration,
 		LastUsedUpdateInterval:      membershipSessionDuration,
 	})
-	t.Cleanup(machine.Close)
 	policy, err := auth.ParseSignupPolicy("open", "")
 	if err != nil {
 		t.Fatalf("policy: %v", err)

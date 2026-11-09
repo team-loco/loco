@@ -154,9 +154,10 @@ ORDER BY last_used_at DESC;
 -- API token queries
 -- -----------------------------------------------------------------------------
 
--- name: CreateAPIToken :exec
+-- name: CreateAPIToken :one
 INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at;
 
 -- name: GetAPIToken :one
 SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at

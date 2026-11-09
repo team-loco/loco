@@ -106,10 +106,11 @@ func (s *TokenServer) CreateToken(
 
 	duration := time.Duration(req.GetExpiresInSec()) * time.Second
 	var token string
+	var tokenData genDb.CreateAPITokenRow
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var issueErr error
-		token, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, req.GetName(), p.Entity.ID.String(), targetEntity, dbScopes, duration)
+		token, tokenData, issueErr = s.tvm.WithQueries(qtx).
+			Issue(ctx, req.GetName(), p.Entity.ID, targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
@@ -123,13 +124,6 @@ func (s *TokenServer) CreateToken(
 			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrTokenAlreadyExists)
 		}
 		return nil, fmt.Errorf("issue token: %w", err)
-	}
-
-	// fetch metadata using the token we just issued
-	tokenHash := hashToken(token)
-	tokenData, err := s.queries.GetAPIToken(ctx, tokenHash)
-	if err != nil {
-		return nil, fmt.Errorf("get created token metadata: %w", err)
 	}
 
 	slog.InfoContext(

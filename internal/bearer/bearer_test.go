@@ -79,3 +79,10 @@ func TestHeaderRoundTripsThroughFromHeader(t *testing.T) {
 		t.Fatalf("FromHeader without a header = %q, %v", token, ok)
 	}
 }
+
+func TestHashIsTheSHA256HexOfTheToken(t *testing.T) {
+	const want = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+	if got := bearer.Hash("abc"); got != want {
+		t.Fatalf("Hash(abc) = %s, want %s", got, want)
+	}
+}

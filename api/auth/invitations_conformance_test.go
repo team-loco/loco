@@ -85,7 +85,6 @@ func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journey
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Hour,
 	})
-	t.Cleanup(machine.Close)
 
 	issuers, err := auth.ParseIssuers(`[{"issuer":"` + dexIssuerURL + `","audience":"` + conformanceClientID + `"}]`)
 	if err != nil {

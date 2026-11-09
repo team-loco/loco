@@ -43,7 +43,6 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
 	})
-	t.Cleanup(machine.Close)
 	policy, err := auth.ParseSignupPolicy("open", "")
 	if err != nil {
 		t.Fatalf("policy: %v", err)

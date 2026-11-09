@@ -1,8 +1,6 @@
 package tvm
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"strings"
 
 	"github.com/team-loco/loco/internal/bearer"
@@ -16,13 +14,7 @@ const (
 
 func generateToken(prefix string) (token string, hash string) {
 	token = bearer.New(prefix)
-	return token, hashToken(token)
-}
-
-// hashToken returns the SHA-256 hex digest of a token string.
-func hashToken(token string) string {
-	sum := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(sum[:])
+	return token, bearer.Hash(token)
 }
 
 // tokenPrefix returns the prefix of the token, or empty string if unrecognized.
