@@ -15,7 +15,7 @@ import { ResourceStatusBadge, StatusLabel } from "@/components/design/StatusBadg
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { imageVersion } from "@/lib/image";
-import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { usePagedRows } from "@/lib/paging";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +37,7 @@ import type { EnvResource } from "./useDashboardData";
 
 type SortKey = "name" | "status" | "regions" | "replicas" | "deploy";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZES = [25] as const;
 const MAX_PIPS = 8;
 const VIEW_PARAM = "view";
 const MAP_VIEW = "map";
@@ -245,12 +245,11 @@ export function ResourcesTable({
 	const [filter, setFilter] = useState<RowFilter>({ status: ALL, type: ALL, region: ALL, query: "" });
 	const [sortKey, setSortKey] = useState<SortKey>("status");
 	const [sortDir, setSortDir] = useState(1);
-	const [page, setPage] = useState(0);
 
 	const sorted = items.toSorted((a, b) => compare(sortKey, a, b) * sortDir);
 	const allRows = [...sorted.map(resourceRow), ...drafts.map(draftRow)];
 	const visible = filterRows(allRows, filter);
-	const { rows: pageRows, page: safePage, pages: pageCount } = pageSlice(visible, page, PAGE_SIZE);
+	const paged = usePagedRows(visible, PAGE_SIZES, `0 of ${allRows.length.toString()}`);
 
 	const statusCounts = new Map<ResourceStatus | "draft", number>();
 	const typeCounts = new Map<ResourceType, number>();
@@ -275,7 +274,7 @@ export function ResourcesTable({
 
 	const update = (patch: Partial<RowFilter>) => {
 		setFilter({ ...filter, ...patch });
-		setPage(0);
+		paged.reset();
 	};
 	const hasFilters =
 		filter.status !== ALL || filter.type !== ALL || filter.region !== ALL || filter.query.trim() !== "";
@@ -438,14 +437,14 @@ export function ResourcesTable({
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{pageRows.length === 0 && (
+							{paged.rows.length === 0 && (
 								<TableRow>
 									<TableCell colSpan={HEADERS.length + 1} className="h-auto p-0 whitespace-normal">
 										{empty}
 									</TableCell>
 								</TableRow>
 							)}
-							{pageRows.map((row) => (
+							{paged.rows.map((row) => (
 								<DataRow
 									key={row.key}
 									row={row}
@@ -459,41 +458,7 @@ export function ResourcesTable({
 							))}
 						</TableBody>
 					</Table>
-					<Pager
-						label={
-							visible.length === 0
-								? `0 of ${allRows.length.toString()}`
-								: pageRangeLabel(safePage, PAGE_SIZE, visible.length)
-						}
-						onFirst={
-							safePage > 0
-								? () => {
-										setPage(0);
-									}
-								: null
-						}
-						onPrev={
-							safePage > 0
-								? () => {
-										setPage(safePage - 1);
-									}
-								: null
-						}
-						onNext={
-							safePage < pageCount - 1
-								? () => {
-										setPage(safePage + 1);
-									}
-								: null
-						}
-						onLast={
-							safePage < pageCount - 1
-								? () => {
-										setPage(pageCount - 1);
-									}
-								: null
-						}
-					/>
+					<Pager {...paged.pager} {...paged.ends} />
 				</>
 			)}
 		</Section>
