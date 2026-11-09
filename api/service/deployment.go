@@ -80,13 +80,14 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
-	db           *pgxpool.Pool
-	queries      genDb.Querier
-	resolver     ImageResolver
-	registryHost string
-	defaults     servicedefaults.Defaults
-	authz        *authz.Authorizer
-	silentAfter  time.Duration
+	db             *pgxpool.Pool
+	queries        genDb.Querier
+	resolver       ImageResolver
+	registryHost   string
+	defaults       servicedefaults.Defaults
+	authz          *authz.Authorizer
+	silentAfter    time.Duration
+	maxSecretBytes int32
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -97,15 +98,17 @@ func NewDeploymentServer(
 	registryHost string,
 	defaults servicedefaults.Defaults,
 	clusterSilentAfter time.Duration,
+	maxSecretBytes int32,
 ) *DeploymentServer {
 	return &DeploymentServer{
-		db:           db,
-		queries:      queries,
-		resolver:     resolver,
-		registryHost: registryHost,
-		defaults:     defaults,
-		authz:        authz.New(db, queries),
-		silentAfter:  clusterSilentAfter,
+		db:             db,
+		queries:        queries,
+		resolver:       resolver,
+		registryHost:   registryHost,
+		defaults:       defaults,
+		authz:          authz.New(db, queries),
+		silentAfter:    clusterSilentAfter,
+		maxSecretBytes: maxSecretBytes,
 	}
 }
 
@@ -226,14 +229,13 @@ func (s *DeploymentServer) CreateDeployment(
 			return &invalidInputError{public: publicInvalidSpec, err: marshalErr}
 		}
 
-		requestedEnv := mergedServiceSpec.GetEnv()
-		plainEnv, secretNames, bindingsErr := currentDeploymentBindings(
+		plainEnv, secretNames, bindingsErr := s.deploymentBindings(
 			ctx,
 			qtx,
 			resourceID,
 			environmentID,
-			region,
-			requestedEnv,
+			req,
+			mergedServiceSpec.GetEnv(),
 		)
 		if bindingsErr != nil {
 			return bindingsErr

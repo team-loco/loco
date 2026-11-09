@@ -22,7 +22,7 @@ loco resource scale web --env staging --cpu 250m --memory 512Mi
 
 ## Secrets
 
-`loco env` manages the secrets of one service in one environment. `--service` names the service and is required; `--env` or `LOCO_ENV` selects the environment. Secrets belong to that service only, so two services that need the same value each get it set. `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions and who set them. No command prints a value, and `$NAME` in a `.env` file stays literal. `unset` refuses a name that the service's active deployment declares in `loco.yaml`; remove it there and apply first.
+`loco env` manages the secrets of one service in one environment. `--service` names the service and is required; `--env` or `LOCO_ENV` selects the environment. Secrets belong to that service only, so two services that need the same value each get it set. `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions and who set them. No command prints a value, and `$NAME` in a `.env` file stays literal. `unset` refuses a name bound by an active deployment. Remove the binding from the deployment first.
 
 ```sh
 loco env push --service web --env production .env
@@ -53,7 +53,7 @@ An instrumented application whose OpenTelemetry SDK supports environment configu
 
 An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set with `loco env`, replaces Loco's connection or identity default when the name matches. Sampler variables pass directly to the SDK. Plain values take precedence when the same name also appears in `secrets`. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden. A plain value can reference them as `$(LOCO_OTEL_HOST)`; see [Variables and secrets](../deployment/loco-yaml.md#variables-and-secrets).
 
-Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. `CreateDeployment` has the same behavior when its environment map is empty; a nonempty map replaces the plain values while retaining the secret names. To remove plain values or secret declarations, edit `loco.yaml` and apply it.
+Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. In `CreateDeployment`, a nonempty environment map replaces the plain values. Omit `secret_bindings` to keep the current secret names. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings. To remove plain values, edit `loco.yaml` and apply it.
 
 ### Trace sampling
 

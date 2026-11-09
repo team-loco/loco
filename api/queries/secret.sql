@@ -34,6 +34,11 @@ JOIN resources r ON r.id = s.resource_id
 WHERE s.environment_id = $1
 ORDER BY r.name, s.name;
 
+-- name: ListSecretSizes :many
+SELECT name, octet_length(ciphertext)::bigint AS ciphertext_bytes
+FROM secrets
+WHERE resource_id = $1 AND environment_id = $2 AND name = ANY(sqlc.arg(names)::text[]);
+
 -- name: ListSecrets :many
 SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets

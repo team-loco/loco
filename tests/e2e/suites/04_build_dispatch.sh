@@ -253,12 +253,15 @@ deploy_build() {
         .spec.service.build.buildId = \"$1\" |
         .spec.service.port = 8080
     ")
+    if [[ -n ${2:-} ]]; then
+        body=$(json ".secretBindings.names = [\"$2\"]" <<<"$body")
+    fi
     api loco.deployment.v1.DeploymentService/CreateDeployment "$body" 2>&1 || true
 }
 
 deploy_and_wait() {
     local build_id=$1 created deployment_id
-    created=$(deploy_build "$build_id")
+    created=$(deploy_build "$@")
     deployment_id=$(field .deploymentId <<<"$created" 2>/dev/null)
     if ! assert "API created a deployment of build ${build_id} (${deployment_id})" test -n "$deployment_id"; then
         log_error "  CreateDeployment: ${created}"
@@ -273,11 +276,27 @@ deploy_and_wait() {
 }
 
 test_d02_deploy_the_built_image() {
-    local build_id
+    local build_id resource_id secret_name=FIRST_DEPLOYMENT_SECRET secret_value=e2e-first-deployment
     build_id=$(dispatch_state first.id)
-    if ! deploy_and_wait "$build_id"; then
+    resource_id=$(dispatch_state resource)
+    local secret_body
+    secret_body=$(json -n "
+        .resourceId = \"${resource_id}\" |
+        .environmentId = \"${dispatch_environment_id}\" |
+        .values.${secret_name} = \"${secret_value}\"
+    ")
+    if ! api loco.secret.v1.SecretService/SetSecrets "$secret_body" >/dev/null; then
         return 1
     fi
+    if ! deploy_and_wait "$build_id" "$secret_name"; then
+        return 1
+    fi
+
+    local namespace="${E2E_WORKSPACE_PREFIX}${dispatch_workspace_id}" secret_ref mounted_value
+    secret_ref=$(dk -n "$namespace" get deployment "resource-${resource_id}" \
+        -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].secretRef.name}')
+    mounted_value=$(dk -n "$namespace" get secret "$secret_ref" -o "jsonpath={.data.${secret_name}}" | base64 -d)
+    assert "The first deployment references the selected secret" test "$mounted_value" = "$secret_value"
 
     local repository digest
     repository=$(get_build "$build_id" | field .build.imageRepository)

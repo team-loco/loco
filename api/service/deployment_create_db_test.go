@@ -72,32 +72,34 @@ func deployServiceIn(
 	environmentID uuid.UUID,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
-	ctx := context.Background()
-	resolver := &fakeResolver{digest: testDigest}
+	return deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+		ResourceId:    f.resourceID.String(),
+		Region:        testRegion,
+		EnvironmentId: environmentID.String(),
+		Spec:          &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}},
+	})
+}
+
+func deployRequest(
+	t *testing.T,
+	f *deployFixture,
+	req *deploymentv1.CreateDeploymentRequest,
+) (*deploymentv1.CreateDeploymentResponse, error) {
+	t.Helper()
 	server := NewDeploymentServer(
 		f.pool,
 		f.queries,
-		resolver,
+		&fakeResolver{digest: testDigest},
 		testRegistryHost,
 		testServiceDefaults(),
 		testClusterSilentAfter,
+		testMaxPlacementBytes,
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	scoped := reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
-	spec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}}
-	req := &deploymentv1.CreateDeploymentRequest{
-		ResourceId:    f.resourceID.String(),
-		Region:        testRegion,
-		EnvironmentId: environmentID.String(),
-		Spec:          spec,
-	}
-	resp, err := server.CreateDeployment(scoped, req)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	return server.CreateDeployment(ctx, req)
 }
 
 func (f *deployFixture) addDomain(t *testing.T, domain string, primary bool) {

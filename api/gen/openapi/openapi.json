@@ -8750,6 +8750,15 @@
             "type": "string",
             "title": "environment_id",
             "format": "uuid"
+          },
+          "secretBindings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSecretBindings"
+              }
+            ],
+            "title": "secret_bindings",
+            "description": "Omit to keep the active deployment's secret bindings in the target environment and region."
           }
         },
         "title": "CreateDeploymentRequest",
@@ -8917,6 +8926,24 @@
           "DEPLOYMENT_PHASE_CANCELED"
         ],
         "description": "DeploymentPhase indicates the current state of a deployment lifecycle."
+      },
+      "loco.deployment.v1.DeploymentSecretBindings": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]*$"
+            },
+            "title": "names",
+            "uniqueItems": true,
+            "description": "An empty list clears the bindings."
+          }
+        },
+        "title": "DeploymentSecretBindings",
+        "additionalProperties": false,
+        "description": "DeploymentSecretBindings selects secrets already stored for the resource in the target environment."
       },
       "loco.deployment.v1.DeploymentSpec": {
         "type": "object",

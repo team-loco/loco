@@ -26,6 +26,7 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 		testRegistryHost,
 		testServiceDefaults(),
 		testClusterSilentAfter,
+		testMaxPlacementBytes,
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},

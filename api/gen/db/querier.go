@@ -190,6 +190,7 @@ type Querier interface {
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
 	ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error)
 	ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphertextsParams) ([]ListSecretCiphertextsRow, error)
+	ListSecretSizes(ctx context.Context, arg ListSecretSizesParams) ([]ListSecretSizesRow, error)
 	ListSecrets(ctx context.Context, arg ListSecretsParams) ([]ListSecretsRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)

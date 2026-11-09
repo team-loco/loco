@@ -12,9 +12,15 @@ var (
 	ErrOwnedByOtherPartial = errors.New("service is owned by another partial")
 	ErrUnknownRegion       = errors.New("region has no active cluster")
 	ErrUnknownEnvironment  = errors.New("environment does not exist in the workspace")
-	ErrMissingSecret       = errors.New("secret is not set for the service in the environment")
-	ErrSecretsTooLarge     = errors.New("secrets of the service exceed the size limit of one placement")
-	ErrCustomDomain        = rpcerr.NewCoded(
+	ErrMissingSecret       = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"secret is not set for the service in the environment",
+	)
+	ErrSecretsTooLarge = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"secrets of the service exceed the size limit of one placement",
+	)
+	ErrCustomDomain = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"domain is not under a platform domain any cluster serves",
 	)

@@ -275,6 +275,7 @@ func main() {
 		ac.RegistryHost,
 		ac.ServiceDefaults,
 		clusterSilentAfter,
+		ac.SecretLimits.MaxPlacementBytes,
 	)
 	buildServiceHandler := service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
 		RegistryHost:   ac.RegistryHost,
