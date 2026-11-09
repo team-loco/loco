@@ -120,6 +120,9 @@ with sync_playwright() as playwright:
                 marker = 'Audit log' if scene == 'org-audit' else 'Settings' if scene in ('workspace', 'org-member') else 'checkout'
                 page.get_by_text(marker, exact=True).first.wait_for()
                 page.locator('[role=status][aria-busy]').wait_for(state='detached')
+                if scene == 'resource':
+                    page.get_by_role('button', name='Events', exact=True).click()
+                    page.get_by_role('dialog', name='Events').get_by_role('button', name='Activity', exact=True).click()
                 if mode['hold_initial']:
                     panel = page.get_by_role('region', name=title, exact=True)
                     expect(panel.locator('[data-slot=skeleton]')).to_have_count(3)
@@ -193,7 +196,7 @@ with sync_playwright() as playwright:
                     assert filtered and all('workspace.created' in request['types'] for request in filtered)
                 if user == 'owner' and theme == 'light' and not narrow:
                     page.goto(origin + base + '/resource/' + activity['resourceId'])
-                    page.get_by_role('heading', name='Activity', exact=True).wait_for()
+                    page.get_by_role('button', name='Events', exact=True).wait_for()
                     environment_switcher = page.get_by_title('Switch environment', exact=True)
                     environment_switcher.click()
                     page.get_by_role('menuitem', name='staging', exact=False).click()

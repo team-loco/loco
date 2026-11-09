@@ -1,4 +1,4 @@
-import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Area, ComposedChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -6,58 +6,89 @@ import { DAY_MS } from "@/lib/time";
 import { formatMetricTime, formatPercent, percentAxis, timeAxis } from "@/lib/compute-chart";
 
 import { formatFullTime } from "./format";
-import type { MetricPointPct } from "./metric";
+import { latestBand, type BandPoint } from "./metric";
 
-const tooltipPercent = (value: unknown) => `${formatPercent(Number(value))} of request`;
+const FULL_REQUEST = 100;
+const AXIS_FONT = 11;
+const DAY_MARGIN = 40;
+const MARGIN = 12;
+const BAND_OPACITY = 0.14;
+const LINE_WIDTH = 1.75;
+
+const CHART_CONFIG = {
+	median: { label: "Median", color: "var(--series-0)" },
+	band: { label: "Min – max", color: "var(--series-0)" },
+};
+
 const tooltipTime = (_label: unknown, payload: readonly { payload?: { time?: number } }[]) => {
 	const time = payload[0]?.payload?.time;
 	return time === undefined ? "" : formatFullTime(time);
 };
 
-const CHART_CONFIG = { pct: { label: "Utilization", color: "var(--brand)" } };
+const tooltipValue = (value: unknown) =>
+	Array.isArray(value)
+		? value.map((v) => formatPercent(Number(v))).join(" – ")
+		: `${formatPercent(Number(value))} of request`;
+
+function Stat({ label, value }: { label: string; value: number | undefined }) {
+	return (
+		<div className="flex flex-col gap-0.5">
+			<span className="text-[12px] text-fg3">{label}</span>
+			<span className="text-[22px] leading-[1.1] font-light tracking-[-0.03em] tabular-nums">
+				{value === undefined ? "—" : formatPercent(value)}
+			</span>
+		</div>
+	);
+}
 
 export function MetricChart({
-	label,
-	current,
-	unit,
+	title,
 	points,
 	isLoading,
-	emptyText,
+	failed,
 	from,
 	to,
-	last,
+	markers,
 }: {
-	label: string;
-	current: string;
-	unit: string;
-	points: MetricPointPct[];
+	title: string;
+	points: BandPoint[];
 	isLoading: boolean;
-	emptyText: string;
+	failed: boolean;
 	from: number;
 	to: number;
-	last: boolean;
+	markers: number[];
 }) {
-	const { maximum, ticks } = percentAxis(Math.max(0, ...points.map((p) => p.pct)));
+	const peak = Math.max(0, ...points.map((p) => p.band?.[1] ?? p.median ?? 0));
+	const { maximum, ticks } = percentAxis(peak);
+	const latest = latestBand(points);
+	const shown = markers.filter((m) => m >= from && m <= to);
 	return (
-		<div className={`flex min-w-0 flex-col gap-2 px-4 py-3.5 ${last ? "" : "border-line lg:border-r"}`}>
+		<div className="flex min-w-0 flex-col gap-3.5">
 			<div className="flex items-baseline gap-2">
-				<span className="flex-1 text-sm text-fg3">{label}</span>
-				<span className="text-xl font-semibold tabular-nums">{current}</span>
+				<span className="text-[13.5px] font-medium">{title}</span>
+				<span className="text-[12px] text-fg3">of request, across replicas</span>
 			</div>
-			<span className="text-xs text-fg3">{unit}</span>
+			<div className="flex gap-6">
+				<Stat label="Min" value={latest.min} />
+				<Stat label="Median" value={latest.median} />
+				<Stat label="Max" value={latest.max} />
+			</div>
 			{isLoading ? (
-				<Skeleton className="h-44 w-full" />
+				<Skeleton className="h-40 w-full" />
 			) : points.length === 0 ? (
-				<div className="flex h-44 items-center justify-center rounded-sm border border-dashed border-line text-sm text-fg3">
-					{emptyText}
+				<div className="flex h-40 items-center justify-center rounded-md border border-dashed border-line2 text-sm text-fg3">
+					{failed ? "Failed to load metrics" : "No data in this range"}
 				</div>
 			) : (
 				<ChartContainer
 					config={CHART_CONFIG}
-					className="h-44 w-full aspect-auto"
-					aria-label={`${label} percentage of requested capacity over time`}
+					className="aspect-auto h-40 w-full"
+					aria-label={`${title}: minimum, median and maximum across replicas as a percentage of the request`}
 				>
-					<AreaChart data={points} margin={{ top: 8, right: to - from >= DAY_MS ? 40 : 12, bottom: 0, left: 0 }}>
+					<ComposedChart
+						data={points}
+						margin={{ top: 8, right: to - from >= DAY_MS ? DAY_MARGIN : MARGIN, bottom: 0, left: 0 }}
+					>
 						<CartesianGrid vertical={false} stroke="var(--line)" />
 						<XAxis
 							dataKey="time"
@@ -69,7 +100,7 @@ export function MetricChart({
 							tickLine={false}
 							axisLine={false}
 							minTickGap={24}
-							tick={{ fontSize: 11, fill: "var(--fg3)" }}
+							tick={{ fontSize: AXIS_FONT, fill: "var(--fg3)" }}
 						/>
 						<YAxis
 							domain={[0, maximum]}
@@ -78,21 +109,32 @@ export function MetricChart({
 							tickLine={false}
 							axisLine={false}
 							width={44}
-							tick={{ fontSize: 11, fill: "var(--fg3)" }}
+							tick={{ fontSize: AXIS_FONT, fill: "var(--fg3)" }}
 						/>
-						<ReferenceLine y={100} stroke="var(--fg3)" strokeDasharray="4 4" />
-						<ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTime} formatter={tooltipPercent} />} />
+						<ReferenceLine y={FULL_REQUEST} stroke="var(--fg4)" strokeDasharray="4 4" />
+						{shown.map((m) => (
+							<ReferenceLine key={m} x={m} stroke="var(--fg3)" strokeDasharray="2 3" />
+						))}
+						<ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTime} formatter={tooltipValue} />} />
 						<Area
-							dataKey="pct"
+							dataKey="band"
 							type="linear"
-							stroke="var(--brand)"
-							fill="var(--brand)"
-							fillOpacity={0.08}
-							strokeWidth={1.75}
+							stroke="none"
+							fill="var(--series-0)"
+							fillOpacity={BAND_OPACITY}
+							isAnimationActive={false}
+							connectNulls
+						/>
+						<Line
+							dataKey="median"
+							type="linear"
+							stroke="var(--series-0)"
+							strokeWidth={LINE_WIDTH}
 							dot={points.length === 1}
 							isAnimationActive={false}
+							connectNulls
 						/>
-					</AreaChart>
+					</ComposedChart>
 				</ChartContainer>
 			)}
 		</div>

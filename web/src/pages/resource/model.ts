@@ -11,6 +11,7 @@ import {
 } from "@gen/loco/resource/v1/resource_pb";
 
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { needsAttention } from "@/lib/alerts";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { environmentStatus } from "@/lib/resource-status";
@@ -32,8 +33,7 @@ export interface RegionView {
 }
 
 export type ModalState =
-	| { kind: "spec" }
-	| { kind: "diff"; region: string; fromId: string; toId: string }
+	| { kind: "spec"; deploymentId: string; compareId: string | null }
 	| { kind: "rollback"; target: Deployment; current: Deployment | undefined }
 	| { kind: "delete" };
 
@@ -47,7 +47,7 @@ export function startedMs(dep: Deployment): number | undefined {
 	return maybeTsMs(dep.startedAt) ?? maybeTsMs(dep.createdAt);
 }
 
-export function depService(dep: Deployment | undefined): ServiceDeploymentSpec | undefined {
+function depService(dep: Deployment | undefined): ServiceDeploymentSpec | undefined {
 	return dep === undefined ? undefined : getServiceSpec(dep);
 }
 
@@ -87,25 +87,6 @@ export function buildRegions(
 	});
 }
 
-export function regionDotClass(status: ResourceStatus | undefined): string {
-	switch (status) {
-		case ResourceStatus.HEALTHY:
-			return "bg-ok-fg";
-		case ResourceStatus.DEPLOYING:
-			return "bg-brand";
-		case ResourceStatus.DEGRADED:
-			return "bg-warn";
-		case ResourceStatus.UNAVAILABLE:
-			return "bg-err";
-		case ResourceStatus.UNKNOWN:
-			return "bg-fg4";
-		case ResourceStatus.UNSPECIFIED:
-			return "bg-fg4";
-		case undefined:
-			return "bg-fg4";
-	}
-}
-
 export interface RegionProblem {
 	region: string;
 	title: string;
@@ -114,7 +95,7 @@ export interface RegionProblem {
 
 export function regionProblem(region: RegionView): RegionProblem | undefined {
 	const status = region.status;
-	if (status === undefined) return undefined;
+	if (status === undefined || !needsAttention(status)) return undefined;
 	const message = status.message ?? "";
 	switch (status.status) {
 		case ResourceStatus.UNAVAILABLE:
@@ -130,15 +111,33 @@ export function regionProblem(region: RegionView): RegionProblem | undefined {
 		case ResourceStatus.UNSPECIFIED:
 			break;
 	}
-	if (status.deploymentStatus === DeploymentPhase.FAILED) {
-		const title = `Deployment ${shortId(status.deploymentId)} failed in ${region.name}`;
-		return { region: region.name, title, message };
-	}
-	return undefined;
+	return { region: region.name, title: `Deployment ${shortId(status.deploymentId)} failed in ${region.name}`, message };
 }
 
-export function isRunning(dep: Deployment | undefined): boolean {
-	return dep?.status === DeploymentPhase.RUNNING;
+export function isDeployed(region: RegionView): boolean {
+	return region.current?.isActive === true;
+}
+
+export function canRollBackTo(dep: Deployment, region: RegionView): boolean {
+	return dep.id !== region.current?.id && dep.status !== DeploymentPhase.FAILED && dep.spec !== undefined;
+}
+
+export function lastGoodDeployment(region: RegionView): Deployment | undefined {
+	return region.history.find(
+		(d) => canRollBackTo(d, region) && (d.status === DeploymentPhase.RUNNING || d.status === DeploymentPhase.SUCCEEDED),
+	);
+}
+
+export function previousDeployment(region: RegionView, dep: Deployment): Deployment | undefined {
+	const index = region.history.findIndex((d) => d.id === dep.id);
+	return index === -1 ? undefined : region.history[index + 1];
+}
+
+export function tookMs(dep: Deployment): number | undefined {
+	const started = maybeTsMs(dep.startedAt);
+	const completed = maybeTsMs(dep.completedAt);
+	if (started === undefined || completed === undefined) return undefined;
+	return Math.max(0, completed - started);
 }
 
 export function activeDeploymentPlaces(resource: Resource): string[] {

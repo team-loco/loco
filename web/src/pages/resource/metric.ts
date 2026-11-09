@@ -1,8 +1,6 @@
-import type { MessageInitShape } from "@bufbuild/protobuf";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { MetricSeries, QueryMetricsRequestSchema } from "@gen/loco/observability/v1/observability_pb";
+import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
-import { maybeTsMs, msToTimestamp } from "@/lib/time";
+import { maybeTsMs } from "@/lib/time";
 
 export type MetricRange = "1h" | "6h" | "24h";
 
@@ -14,55 +12,15 @@ export const RANGE_MS: Record<MetricRange, number> = {
 	"24h": 86_400_000,
 };
 
-const RANGE_INTERVAL: Record<MetricRange, number> = {
-	"1h": 60,
-	"6h": 300,
-	"24h": 900,
-};
+export const BAND_AGGREGATIONS = ["min", "p50", "max"] as const;
+
+export type BandAggregation = (typeof BAND_AGGREGATIONS)[number];
 
 const PERCENT = 100;
 
-export interface MetricPointPct {
+interface MetricPointPct {
 	time: number;
 	pct: number;
-}
-
-export interface RegionMetricTarget {
-	workspaceId: string;
-	deployment: Deployment;
-	range: MetricRange;
-	metricName: string;
-}
-
-export function regionMetricKey(target: RegionMetricTarget) {
-	const { workspaceId, deployment, range, metricName } = target;
-	return [
-		"resource-metric",
-		workspaceId,
-		deployment.environmentId,
-		deployment.resourceId,
-		deployment.region,
-		range,
-		metricName,
-	];
-}
-
-export function regionMetricRequest(
-	target: RegionMetricTarget,
-	nowMs: number,
-): MessageInitShape<typeof QueryMetricsRequestSchema> {
-	const { workspaceId, deployment, range, metricName } = target;
-	return {
-		workspaceId,
-		environmentId: deployment.environmentId,
-		region: deployment.region,
-		resourceIds: [deployment.resourceId],
-		startTime: msToTimestamp(nowMs - RANGE_MS[range]),
-		endTime: msToTimestamp(nowMs),
-		metricName,
-		intervalSeconds: RANGE_INTERVAL[range],
-		aggregation: "avg",
-	};
 }
 
 export function percentPoints(series: MetricSeries[], resourceId: string): MetricPointPct[] {
@@ -75,4 +33,39 @@ export function percentPoints(series: MetricSeries[], resourceId: string): Metri
 		}
 	}
 	return points.toSorted((a, b) => a.time - b.time);
+}
+
+export interface BandPoint {
+	time: number;
+	median: number | null;
+	band: [number, number] | null;
+}
+
+export function mergeBand(parts: Record<BandAggregation, MetricPointPct[]>): BandPoint[] {
+	const byTime = new Map<number, Partial<Record<BandAggregation, number>>>();
+	for (const aggregation of BAND_AGGREGATIONS) {
+		for (const p of parts[aggregation]) {
+			const entry = byTime.get(p.time) ?? {};
+			entry[aggregation] = p.pct;
+			byTime.set(p.time, entry);
+		}
+	}
+	return [...byTime.entries()]
+		.toSorted(([a], [b]) => a - b)
+		.map(([time, v]) => ({
+			time,
+			median: v.p50 ?? null,
+			band: v.min !== undefined && v.max !== undefined ? [v.min, v.max] : null,
+		}));
+}
+
+interface BandSummary {
+	min: number | undefined;
+	median: number | undefined;
+	max: number | undefined;
+}
+
+export function latestBand(points: BandPoint[]): BandSummary {
+	const last = points.at(-1);
+	return { min: last?.band?.[0], median: last?.median ?? undefined, max: last?.band?.[1] };
 }

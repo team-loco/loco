@@ -1,49 +1,81 @@
-import { useMutation } from "@connectrpc/connect-query";
+import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { deleteResource, listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
-import { Page } from "@/components/design/Page";
+import { Page, Section } from "@/components/design/Page";
+import { SoonTag } from "@/components/design/SoonTag";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { useNow } from "@/hooks/useNow";
+import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { getErrorMessage, isUnimplemented, toastConnectError } from "@/lib/error-handler";
 import { environmentStatus } from "@/lib/resource-status";
-import { observabilityPath, workspacePath } from "@/lib/routes";
-import { ErrorBanner, NoticeBanner } from "@/pages/resource/Banners";
+import { observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
+import { tsMs } from "@/lib/time";
+import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
-import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@/pages/resource/Dialogs";
-import { DiffDialogContent } from "@/pages/resource/DiffDialog";
-import { EventsSection } from "@/pages/resource/EventsSection";
+import { DeleteDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
+import { newestFirst, recentWarningCount } from "@/pages/resource/events";
+import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { shortId } from "@/pages/resource/format";
+import { IncidentCard } from "@/pages/resource/IncidentCard";
+import type { MetricRange } from "@/pages/resource/metric";
 import {
 	activeDeploymentPlaces,
 	buildRegions,
+	depImage,
 	depTag,
+	isDeployed,
+	lastGoodDeployment,
 	regionProblem,
 	useResourceData,
 	type ModalState,
 	type Notice,
 } from "@/pages/resource/model";
-import { RegionPanel } from "@/pages/resource/RegionPanel";
+import { ReplicasPanel } from "@/pages/resource/ReplicasPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
-import { parseTab, ResourceToolbar, type ObsLinks, type ResourceTab } from "@/pages/resource/ResourceToolbar";
-import { SettingsTab } from "@/pages/resource/SettingsTab";
-import type { MetricRange } from "@/pages/resource/metric";
-import { ActivityPanel } from "@/pages/settings/ActivityPanel";
-import { VariablesTab } from "@/pages/resource/VariablesTab";
+import { RolloutProgress } from "@/pages/resource/RolloutProgress";
+import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
+import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView";
+import { SpecDialogContent } from "@/pages/resource/SpecDialog";
+import { isInFlight } from "@/pages/dashboard/format";
 
+const READ_LEVEL = 1;
 const WRITE_LEVEL = 2;
+const EVENT_LIMIT = 500;
+const EVENTS_REFRESH_MS = 30_000;
+const CLOCK_TICK_MS = 60_000;
+
+type View = "overview" | SettingsFocus;
+
+function parseView(value: string | null): View {
+	if (value === "settings") return "settings";
+	if (value === "variables") return "settings";
+	if (value === "scaling") return "scaling";
+	return "overview";
+}
 
 export function Resource() {
-	const { orgId = "", resourceId = "" } = useParams<{ orgId: string; resourceId: string }>();
+	const { resourceId = "" } = useParams<{ resourceId: string }>();
+	const { active } = useEnvironments();
+	return <ResourcePage key={`${resourceId}:${active?.id ?? ""}`} resourceId={resourceId} />;
+}
+
+function ResourcePage({ resourceId }: { resourceId: string }) {
+	const { orgId = "" } = useParams<{ orgId: string }>();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
+	const transport = useTransport();
 	const [params, setParams] = useSearchParams();
 	const {
 		resource,
@@ -58,18 +90,34 @@ export function Resource() {
 		error,
 		refresh,
 	} = useResourceData(resourceId);
-	const { resourceLevel } = useMyScopes();
+	const { resourceLevel, workspaceLevel } = useMyScopes();
+	const nowMs = useNow(CLOCK_TICK_MS).getTime();
+	const configQuery = useQuery(getConfig, {});
+	const eventsQuery = useQuery(
+		listResourceEvents,
+		{ resourceId, limit: EVENT_LIMIT },
+		{ enabled: resourceId !== "", refetchInterval: EVENTS_REFRESH_MS },
+	);
+	const canListResources =
+		activeOrgId !== null && activeWorkspaceId !== null && workspaceLevel(activeOrgId, activeWorkspaceId) >= READ_LEVEL;
+	const resourcesQuery = useTanstackQuery({
+		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
+		enabled: canListResources,
+	});
 
-	const [regionName, setRegionName] = useState<string | null>(null);
+	const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 	const [range, setRange] = useState<MetricRange>("1h");
 	const [modal, setModal] = useState<ModalState | null>(null);
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
+	const [eventsOpen, setEventsOpen] = useState(false);
+	const [eventsTab, setEventsTab] = useState<EventsTab>("all");
+	const [draft, setDraft] = useState<SettingsDraft>({});
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
 
-	const tab = parseTab(params.get("tab"));
-	const setTab = (next: ResourceTab) => {
+	const view = parseView(params.get("tab"));
+	const setView = (next: View) => {
 		const p = new URLSearchParams(params);
 		if (next === "overview") p.delete("tab");
 		else p.set("tab", next);
@@ -92,25 +140,49 @@ export function Resource() {
 
 	const environment = environmentStatus(resource, environmentId);
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);
-	const region = regions.find((r) => r.name === regionName) ?? regions[0];
-	const currents = regions.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
-	const primaryDomain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
+	const deployed = regions.filter(isDeployed);
+	const currents = deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
+	const events = newestFirst(eventsQuery.data?.events ?? []);
+	const base = baseline(
+		resource.name,
+		regions,
+		resource.domains.length > 0,
+		configQuery.data?.serviceDefaults?.healthCheck,
+	);
+	const dirty = changeCount(draft, base) > 0;
+	const canWrite =
+		activeOrgId !== null &&
+		activeWorkspaceId !== null &&
+		resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= WRITE_LEVEL;
 
 	const env = params.get("env");
+	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
-	const obsLink = (view: "logs" | "metrics" | "traces"): string =>
-		hasWs
-			? observabilityPath(activeOrgId, activeWorkspaceId, view, { ...(env !== null ? { env } : {}), r: resource.name })
-			: "";
-	const obs: ObsLinks | undefined = hasWs
-		? { logs: obsLink("logs"), metrics: obsLink("metrics"), traces: obsLink("traces") }
-		: undefined;
+	const obsLink = (obsView: "logs" | "metrics" | "events"): string | undefined =>
+		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, obsView, { ...envParam, r: resource.name }) : undefined;
+	const switcher = hasWs
+		? (resourcesQuery.data?.resources ?? []).map((r) => ({
+				id: r.id,
+				name: r.name,
+				status: environmentStatus(r, environmentId)?.status,
+				href: `${resourcePath(activeOrgId, activeWorkspaceId, r.id)}${env !== null ? `?env=${encodeURIComponent(env)}` : ""}`,
+			}))
+		: [];
 
-	const problem = regions.map(regionProblem).find((p) => p !== undefined);
-
-	const scrollEvents = () => {
-		document.getElementById("events")?.scrollIntoView({ behavior: "smooth", block: "start" });
-	};
+	const problemRegion = regions.find(
+		(r) => (r.current === undefined || !isInFlight(r.current.status)) && regionProblem(r) !== undefined,
+	);
+	const problem = problemRegion === undefined ? undefined : regionProblem(problemRegion);
+	const focusRegion = problemRegion ?? deployed[0];
+	const rollbackTarget = focusRegion === undefined ? undefined : lastGoodDeployment(focusRegion);
+	const markers = [...new Set(regions.flatMap((r) => r.history).map((d) => tsMs(d.createdAt)))];
+	const specDeployments = [
+		...new Map(
+			[...currents, ...regions.flatMap((r) => r.history)]
+				.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt))
+				.map((d) => [d.id, d]),
+		).values(),
+	];
 
 	const redeployFrom = async (deps: Deployment[]) => {
 		const failures: string[] = [];
@@ -164,8 +236,8 @@ export function Resource() {
 					toast.success(`Deleted ${resource.name}`);
 					setModal(null);
 					if (hasWs) {
-						const base = workspacePath(activeOrgId, activeWorkspaceId);
-						void navigate(env !== null ? `${base}?env=${encodeURIComponent(env)}` : base);
+						const home = workspacePath(activeOrgId, activeWorkspaceId);
+						void navigate(env !== null ? `${home}?env=${encodeURIComponent(env)}` : home);
 					}
 				},
 				onError: (err) => {
@@ -175,27 +247,50 @@ export function Resource() {
 		);
 	};
 
-	const specDep = region?.current;
-	const diffRegion = modal?.kind === "diff" ? regions.find((r) => r.name === modal.region) : undefined;
+	const openRollback = (target: Deployment, current: Deployment | undefined) => {
+		setModal({ kind: "rollback", target, current });
+	};
+	const openSpec = (dep: Deployment | undefined) => {
+		if (dep !== undefined) setModal({ kind: "spec", deploymentId: dep.id, compareId: null });
+	};
 
 	return (
 		<Page className="gap-5">
 			<ResourceHeader
+				nowMs={nowMs}
 				resource={resource}
-				regions={regions}
 				environment={environment}
-				onViewSpec={() => {
-					setModal({ kind: "spec" });
-				}}
-			/>
-			<ResourceToolbar
-				tab={tab}
-				onTab={setTab}
-				domain={primaryDomain?.domain}
-				obs={obs}
-				canRedeploy={currents.length > 0}
+				regions={regions}
+				switcher={switcher}
+				warnings={recentWarningCount(events, nowMs)}
+				isSettings={view !== "overview"}
+				dirty={dirty}
 				redeploying={redeploying}
+				rollbackTarget={rollbackTarget}
+				onEvents={() => {
+					setEventsOpen(true);
+				}}
+				onSettings={() => {
+					setView(view === "overview" ? "settings" : "overview");
+				}}
 				onRedeploy={() => void handleRedeploy()}
+				onRollback={() => {
+					if (rollbackTarget !== undefined) openRollback(rollbackTarget, focusRegion?.current);
+				}}
+				onScale={() => {
+					setView("scaling");
+				}}
+				onViewSpec={() => {
+					openSpec(deployed[0]?.current);
+				}}
+				onCopyImage={() => {
+					void navigator.clipboard.writeText(depImage(deployed[0]?.current)).then(() => {
+						toast.success("Copied image reference");
+					});
+				}}
+				onDelete={() => {
+					setModal({ kind: "delete" });
+				}}
 			/>
 			{notice !== null && (
 				<NoticeBanner
@@ -206,76 +301,108 @@ export function Resource() {
 				/>
 			)}
 
-			{tab === "overview" && (
+			{view === "overview" ? (
 				<div className="flex flex-col gap-5">
-					{problem !== undefined && (
-						<ErrorBanner title={problem.title} message={problem.message} logsHref={obs?.logs} onEvents={scrollEvents} />
-					)}
-					{region !== undefined ? (
-						<RegionPanel
+					{problem !== undefined && problemRegion !== undefined && environmentId !== undefined && (
+						<IncidentCard
+							nowMs={nowMs}
+							problem={problem}
+							region={problemRegion}
+							lastGood={lastGoodDeployment(problemRegion)}
+							events={events}
+							eventsUnavailable={isUnimplemented(eventsQuery.error)}
 							workspaceId={resource.workspaceId}
+							environmentId={environmentId}
+							resourceId={resource.id}
+							logsHref={obsLink("logs")}
+							onRollback={openRollback}
+						/>
+					)}
+					<RolloutProgress regions={regions} />
+					{deployed.length > 0 && environmentId !== undefined ? (
+						<ReplicasPanel
+							nowMs={nowMs}
+							workspaceId={resource.workspaceId}
+							environmentId={environmentId}
+							resourceId={resource.id}
+							environment={environment}
 							regions={regions}
-							region={region}
-							onRegion={setRegionName}
+							selected={selectedRegion}
+							onSelect={setSelectedRegion}
 							range={range}
 							onRange={setRange}
+							markers={markers}
+							metricsHref={obsLink("metrics")}
 						/>
 					) : (
-						<section className="rounded-lg border border-line">
+						<Section>
 							<EmptyState title="Not deployed yet">
-								Run <code className="font-mono">loco deploy {resource.name}</code> to create the first deployment of{" "}
-								{resource.name}.
+								Run <code className="font-mono">loco deploy</code> to create the first deployment of {resource.name}.
 							</EmptyState>
-						</section>
+						</Section>
 					)}
+					<Section
+						title={
+							<>
+								Traffic
+								<SoonTag />
+							</>
+						}
+					>
+						<p className="m-0 px-5 pb-5 text-fg3">
+							Requests, errors and latency for this resource are not collected yet.
+						</p>
+					</Section>
 					<DeploymentsSection
-						key={`${resource.id}:${environmentId ?? ""}`}
+						nowMs={nowMs}
 						regions={regions}
 						hasMore={hasMoreHistory}
 						isLoadingMore={isLoadingMoreHistory}
 						historyError={historyError}
 						onLoadMore={loadMoreHistory}
-						onDiff={(r, fromId, toId) => {
-							setModal({ kind: "diff", region: r, fromId, toId });
-						}}
-						onRollback={(target, current) => {
-							setModal({ kind: "rollback", target, current });
-						}}
+						logsHref={obsLink("logs")}
+						onRollback={openRollback}
+						onViewSpec={openSpec}
 					/>
-					{orgId !== "" && (
-						<ActivityPanel
-							key={resource.id}
-							orgId={orgId}
-							workspaceId={resource.workspaceId}
-							resourceId={resource.id}
-							description={`Changes made to ${resource.name}, newest first.`}
-							names={new Map([[resource.id, resource.name]])}
-						/>
-					)}
-					<EventsSection resourceId={resourceId} resourceName={resource.name} multiRegion={regions.length > 1} />
 				</div>
-			)}
-
-			{tab === "variables" && (
-				<VariablesTab
-					resourceId={resourceId}
-					workspaceId={resource.workspaceId}
-					canWrite={hasWs && resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= WRITE_LEVEL}
-				/>
-			)}
-
-			{tab === "settings" && (
-				<SettingsTab
+			) : (
+				<SettingsView
 					resource={resource}
-					environmentId={environmentId}
+					environmentId={environmentId ?? ""}
 					regions={regions}
-					onNotice={setNotice}
-					onSaved={refresh}
+					draft={draft}
+					base={base}
+					focus={view}
+					canWrite={canWrite}
+					onDraft={setDraft}
+					onBack={() => {
+						setView("overview");
+					}}
 					onDelete={() => {
 						setModal({ kind: "delete" });
 					}}
+					onSaved={(next) => {
+						setNotice(next);
+						refresh();
+					}}
 				/>
 			)}
+
+			<EventsDrawer
+				nowMs={nowMs}
+				open={eventsOpen}
+				onOpenChange={setEventsOpen}
+				tab={eventsTab}
+				onTab={setEventsTab}
+				resourceId={resource.id}
+				resourceName={resource.name}
+				orgId={orgId}
+				workspaceId={resource.workspaceId}
+				events={events}
+				isLoading={eventsQuery.isLoading}
+				error={eventsQuery.error}
+				eventsHref={obsLink("events")}
+			/>
 
 			<Dialog
 				open={modal !== null}
@@ -283,19 +410,13 @@ export function Resource() {
 					if (!open) setModal(null);
 				}}
 			>
-				{modal?.kind === "spec" && specDep !== undefined && (
-					<SpecDialogContent dep={specDep} specVersion={resource.specVersion} />
-				)}
-				{modal?.kind === "diff" && diffRegion !== undefined && (
-					<DiffDialogContent
-						region={diffRegion}
-						fromId={modal.fromId}
-						toId={modal.toId}
-						onChange={(fromId, toId) => {
-							setModal({ kind: "diff", region: modal.region, fromId, toId });
-						}}
-						onRollback={(target, current) => {
-							setModal({ kind: "rollback", target, current });
+				{modal?.kind === "spec" && (
+					<SpecDialogContent
+						deployments={specDeployments}
+						deploymentId={modal.deploymentId}
+						compareId={modal.compareId}
+						onChange={(deploymentId, compareId) => {
+							setModal({ kind: "spec", deploymentId, compareId });
 						}}
 					/>
 				)}

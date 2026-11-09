@@ -35,9 +35,3 @@ export function formatDuration(ms: number): string {
 	}
 	return `${Math.max(1, mins).toString()}m`;
 }
-
-const QUANTITY = /^\d+(\.\d+)?(m|k|Ki|M|Mi|G|Gi|T|Ti)?$/;
-
-export function isQuantity(value: string): boolean {
-	return QUANTITY.test(value.trim());
-}

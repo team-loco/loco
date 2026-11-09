@@ -1,180 +1,219 @@
-import { CheckIcon, ClockIcon, CopyIcon, FileCodeIcon, HashIcon, PackageIcon } from "lucide-react";
-import { ResourceStatus, ResourceType, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
+import {
+	ArrowUpRightIcon,
+	BellIcon,
+	CheckIcon,
+	ChevronsUpDownIcon,
+	CopyIcon,
+	EllipsisIcon,
+	FileCodeIcon,
+	RotateCwIcon,
+	Settings2Icon,
+	SlidersHorizontalIcon,
+	Trash2Icon,
+	Undo2Icon,
+} from "lucide-react";
+import { Link } from "react-router";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { ResourceStatus, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import { CopyId } from "@/components/design/CopyId";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/design/DropdownMenu";
 import { PartialBadge } from "@/components/design/PartialBadge";
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { useCopy } from "@/hooks/useCopy";
-import { useNow } from "@/hooks/useNow";
+import { SoonTag } from "@/components/design/SoonTag";
+import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { shortImageRef } from "@/lib/image";
-import { tsMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { agoLabel } from "@/lib/time";
 
-import { formatDuration, formatFullTime, formatStarted, shortId } from "./format";
-import { depImage, startedMs, type RegionView } from "./model";
-import { replicaLine, unreportedRegions } from "./replicas";
+import { depImage, depTag, isDeployed, startedMs, type RegionView } from "./model";
 
-function typeLabel(type: ResourceType): string {
-	switch (type) {
-		case ResourceType.SERVICE:
-			return "Service";
-		case ResourceType.DATABASE:
-			return "Database";
-		case ResourceType.FUNCTION:
-			return "Function";
-		case ResourceType.CACHE:
-			return "Cache";
-		case ResourceType.QUEUE:
-			return "Queue";
-		case ResourceType.BLOB:
-			return "Blob";
-		case ResourceType.UNSPECIFIED:
-			return "Resource";
-	}
+interface SwitcherItem {
+	id: string;
+	name: string;
+	status: ResourceStatus | undefined;
+	href: string;
 }
 
-function healthDotClass(status: ResourceStatus): string {
-	switch (status) {
-		case ResourceStatus.HEALTHY:
-			return "bg-ok-fg";
-		case ResourceStatus.DEPLOYING:
-			return "bg-warn";
-		case ResourceStatus.DEGRADED:
-			return "bg-warn";
-		case ResourceStatus.UNAVAILABLE:
-			return "bg-err";
-		case ResourceStatus.UNKNOWN:
-			return "bg-fg4";
-		case ResourceStatus.UNSPECIFIED:
-			return "bg-fg4";
-	}
-}
-
-function ImageRef({ image }: { image: string }) {
-	const [copiedKey, copy] = useCopy(1500);
-	const copied = copiedKey === image;
-	const short = shortImageRef(image);
-
+function Switcher({ items, currentId }: { items: SwitcherItem[]; currentId: string }) {
 	return (
-		<Tooltip>
-			<TooltipTrigger
-				render={
-					<Button
-						variant="ghost"
-						aria-label={`Copy image ${image}`}
-						onClick={() => {
-							copy(image, image);
-						}}
-						className="-mx-1.5 -my-0.5 h-auto max-w-full min-w-0 gap-1.5 px-1.5 py-0.5 font-normal text-fg2 hover:text-foreground"
-					/>
-				}
+		<DropdownMenu>
+			<DropdownMenuTrigger
+				render={<Button variant="ghost" size="icon-sm" aria-label="Switch resource" className="text-fg3" />}
 			>
-				<PackageIcon className="size-3.5 shrink-0 text-fg3" />
-				<span className="max-w-[44ch] truncate font-mono text-sm">{short}</span>
-				<span className="flex text-fg3">
-					{copied ? <CheckIcon className="size-[13px]" /> : <CopyIcon className="size-[13px]" />}
-				</span>
-			</TooltipTrigger>
-			<TooltipContent className="max-w-[min(90vw,560px)] font-mono break-all">
-				{copied ? "Copied" : image}
-			</TooltipContent>
-		</Tooltip>
+				<ChevronsUpDownIcon />
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="max-h-80 w-auto min-w-[240px]">
+				{items.map((it) => (
+					<DropdownMenuItem key={it.id} render={<Link to={it.href} />} className="gap-2">
+						<StatusGlyph glyph={resourceStatusStyle(it.status).glyph} />
+						<span className="flex-1 truncate">{it.name}</span>
+						{it.id === currentId && <CheckIcon className="size-3.5 text-fg3" />}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
+}
+
+function MenuIcon({ children }: { children: React.ReactNode }) {
+	return <span className="flex text-fg3 [&_svg]:size-[15px]">{children}</span>;
 }
 
 export function ResourceHeader({
 	resource,
 	environment,
 	regions,
+	switcher,
+	warnings,
+	isSettings,
+	dirty,
+	redeploying,
+	rollbackTarget,
+	onEvents,
+	onSettings,
+	onRedeploy,
+	onRollback,
+	onScale,
 	onViewSpec,
+	onCopyImage,
+	onDelete,
+	nowMs,
 }: {
 	resource: Resource;
 	environment: EnvironmentStatus | undefined;
 	regions: RegionView[];
+	switcher: SwitcherItem[];
+	warnings: number;
+	isSettings: boolean;
+	dirty: boolean;
+	redeploying: boolean;
+	rollbackTarget: Deployment | undefined;
+	onEvents: () => void;
+	onSettings: () => void;
+	onRedeploy: () => void;
+	onRollback: () => void;
+	onScale: () => void;
 	onViewSpec: () => void;
+	onCopyImage: () => void;
+	onDelete: () => void;
+	nowMs: number;
 }) {
-	const status = environment?.status ?? ResourceStatus.UNSPECIFIED;
-	const now = useNow(60_000);
-	const prim = regions[0]?.current;
-	const actives = regions.flatMap((r) => (r.current === undefined ? [] : [r.current]));
-	const readyLine = replicaLine(environment, now.getTime());
-	const unreported = unreportedRegions(environment);
-	const primImage = depImage(prim);
-	const sameImage = actives.every((d) => depImage(d) === primImage);
-	const since = prim === undefined ? undefined : startedMs(prim);
-	const extra = actives.length > 1 ? ` +${(actives.length - 1).toString()}` : "";
-	const deployTitle = regions
-		.flatMap((r) => (r.current === undefined ? [] : [`${r.name}: ${shortId(r.current.id)}`]))
-		.join(" · ");
+	const deployed = regions.filter(isDeployed);
+	const primary = deployed[0]?.current;
+	const image = depImage(primary);
+	const since = primary === undefined ? undefined : startedMs(primary);
+	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
+	const canRedeploy = deployed.length > 0 && !redeploying;
 
 	return (
-		<div className="flex flex-col gap-1.5">
-			<div className="flex flex-wrap items-center gap-3">
-				<h1 className="m-0 text-2xl font-semibold tracking-[-0.01em]">{resource.name}</h1>
-				<ResourceStatusBadge status={status} />
-				<Badge tone="outline" size="sm" className="text-sm text-fg3">
-					{typeLabel(resource.type)}
-				</Badge>
-				{resource.partial !== undefined && <PartialBadge />}
+		<div className="flex flex-wrap items-end justify-between gap-4">
+			<div className="flex min-w-0 flex-col gap-2">
+				<div className="flex flex-wrap items-center gap-3">
+					<div className="flex items-center gap-1">
+						<h1 className="m-0 text-[28px] leading-[1.15] font-normal tracking-[-0.03em] break-all">{resource.name}</h1>
+						<Switcher items={switcher} currentId={resource.id} />
+					</div>
+					<ResourceStatusBadge status={environment?.status} />
+					{resource.partial !== undefined && <PartialBadge />}
+				</div>
+				<div className="flex flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
+					{image !== "" && (
+						<span className="font-mono text-[12px] text-fg2" title={image}>
+							{shortImageRef(image)}
+						</span>
+					)}
+					{since !== undefined && <span>deployed {agoLabel(since, nowMs)}</span>}
+					{domain !== undefined ? (
+						<a
+							href={`https://${domain.domain}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="flex items-center gap-1 font-mono text-[12px] text-fg2 hover:text-foreground"
+						>
+							{domain.domain}
+							<ArrowUpRightIcon aria-hidden className="size-3" />
+						</a>
+					) : (
+						<span>internal only</span>
+					)}
+					{deployed.length > 0 && (
+						<span className="font-mono text-[12px]">{deployed.map((r) => r.name).join(", ")}</span>
+					)}
+				</div>
 			</div>
-			{resource.description !== undefined && resource.description !== "" && (
-				<div className="text-fg3">{resource.description}</div>
-			)}
-			<div className="mt-1.5 flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-fg2">
-				{unreported.length === 0 ? (
-					<span className="flex items-center gap-1.5">
-						<span className={cn("size-2 rounded-full", healthDotClass(status))} />
-						{readyLine}
-					</span>
-				) : (
-					<Tooltip>
-						<TooltipTrigger render={<span className="flex items-center gap-1.5" />}>
-							<span className={cn("size-2 rounded-full", healthDotClass(status))} />
-							{readyLine}
-						</TooltipTrigger>
-						<TooltipContent className="flex max-w-[min(90vw,420px)] flex-col gap-1">
-							{unreported.map((r) => (
-								<span key={r.region}>
-									{r.region}: {r.message}
-									{r.reportedAt !== undefined && ` · last report ${formatFullTime(tsMs(r.reportedAt))}`}
-								</span>
-							))}
-						</TooltipContent>
-					</Tooltip>
-				)}
-				{prim !== undefined && primImage !== "" && sameImage && <ImageRef image={primImage} />}
-				{prim !== undefined && !sameImage && (
-					<span className="flex items-center gap-1.5">
-						<PackageIcon className="size-3.5 text-fg3" />
-						Differs by region
-					</span>
-				)}
-				{prim !== undefined && (
-					<CopyId value={prim.id} title={deployTitle} className="-mx-1.5 -my-0.5 text-fg2 hover:text-foreground">
-						<HashIcon className="size-3.5 text-fg3" />
-						{shortId(prim.id)}
-						{extra}
-					</CopyId>
-				)}
-				{since !== undefined && (
-					<span className="flex items-center gap-1.5" title={`Since ${formatStarted(since)}`}>
-						<ClockIcon className="size-3.5 text-fg3" />
-						Active {formatDuration(now.getTime() - since)}
-					</span>
-				)}
-				{prim !== undefined && (
-					<button
-						type="button"
-						onClick={onViewSpec}
-						className="flex items-center gap-1.5 border-0 bg-transparent p-0 text-brand hover:underline"
-					>
-						<FileCodeIcon className="size-3.5" />
-						View spec
-					</button>
-				)}
+			<div className="flex flex-wrap items-center gap-2">
+				<Button variant="outline" aria-haspopup="dialog" onClick={onEvents}>
+					<BellIcon />
+					Events
+					{warnings > 0 && (
+						<span
+							aria-label={`${warnings.toString()} warnings in the last hour`}
+							className="ml-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-warn-bg px-[5px] font-mono text-[11px] text-warn-fg"
+						>
+							{warnings}
+						</span>
+					)}
+				</Button>
+				<Button variant="outline" aria-pressed={isSettings} onClick={onSettings}>
+					<Settings2Icon />
+					Settings
+					{dirty && <span aria-label="unsaved changes" className="size-1.5 rounded-full bg-warn" />}
+				</Button>
+				<Button variant="outline" disabled={!canRedeploy} onClick={onRedeploy}>
+					<RotateCwIcon />
+					{redeploying ? "Redeploying…" : "Redeploy"}
+				</Button>
+				<DropdownMenu>
+					<DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More actions" />}>
+						<EllipsisIcon />
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-auto min-w-[220px]">
+						<DropdownMenuItem disabled={rollbackTarget === undefined} onClick={onRollback}>
+							<MenuIcon>
+								<Undo2Icon />
+							</MenuIcon>
+							{rollbackTarget === undefined ? "Roll back" : `Roll back to ${depTag(rollbackTarget)}`}
+						</DropdownMenuItem>
+						<DropdownMenuItem disabled>
+							<MenuIcon>
+								<RotateCwIcon />
+							</MenuIcon>
+							Restart all replicas
+							<SoonTag />
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={onScale}>
+							<MenuIcon>
+								<SlidersHorizontalIcon />
+							</MenuIcon>
+							Scale
+						</DropdownMenuItem>
+						<DropdownMenuItem disabled={primary === undefined} onClick={onViewSpec}>
+							<MenuIcon>
+								<FileCodeIcon />
+							</MenuIcon>
+							View spec
+						</DropdownMenuItem>
+						<DropdownMenuItem disabled={image === ""} onClick={onCopyImage}>
+							<MenuIcon>
+								<CopyIcon />
+							</MenuIcon>
+							Copy image reference
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem variant="destructive" onClick={onDelete}>
+							<MenuIcon>
+								<Trash2Icon />
+							</MenuIcon>
+							Delete resource
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 		</div>
 	);
