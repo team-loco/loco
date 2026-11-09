@@ -25,21 +25,10 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { workspacePath } from "@/lib/routes";
+import { switchWorkspacePath, WORKSPACE_ROUTE, workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
-
-const WORKSPACE_ROUTE = "/org/:orgId/wks/:workspaceId/*";
-
-function switchWorkspacePath(pathname: string, search: string, orgId: string, workspaceId: string): string {
-	const rest = matchPath(WORKSPACE_ROUTE, pathname)?.params["*"] ?? "";
-	if (rest === "" || rest.startsWith("resource/")) return workspacePath(orgId, workspaceId);
-	const params = new URLSearchParams(search);
-	params.delete("env");
-	const query = params.toString();
-	return `${workspacePath(orgId, workspaceId, rest)}${query === "" ? "" : `?${query}`}`;
-}
 
 const TRIGGER =
 	"flex h-8 min-w-0 items-center gap-2 rounded-md px-2 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";

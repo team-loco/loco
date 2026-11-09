@@ -1,6 +1,19 @@
+import { matchPath } from "react-router";
+
 export function workspacePath(orgId: string, workspaceId: string, sub = ""): string {
 	const base = `/org/${orgId}/wks/${workspaceId}`;
 	return sub === "" ? base : `${base}/${sub}`;
+}
+
+export const WORKSPACE_ROUTE = "/org/:orgId/wks/:workspaceId/*";
+
+export function switchWorkspacePath(pathname: string, search: string, orgId: string, workspaceId: string): string {
+	const rest = matchPath(WORKSPACE_ROUTE, pathname)?.params["*"] ?? "";
+	if (rest === "" || rest.startsWith("resource/")) return workspacePath(orgId, workspaceId);
+	const params = new URLSearchParams(search);
+	params.delete("env");
+	const query = params.toString();
+	return `${workspacePath(orgId, workspaceId, rest)}${query === "" ? "" : `?${query}`}`;
 }
 
 export function resourcePath(orgId: string, workspaceId: string, resourceId: string): string {
