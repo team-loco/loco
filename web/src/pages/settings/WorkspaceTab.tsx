@@ -23,6 +23,7 @@ import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { workspacePath } from "@/lib/routes";
+import { userLabel } from "@/lib/user";
 
 import { ActivityPanel } from "./ActivityPanel";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
@@ -85,7 +86,7 @@ export function WorkspaceTab({
 	const shownErr = dirty ? nameErr : null;
 	const creator = users.find((u) => u.id === ws.createdBy);
 	const createdDay = formatDay(ws.createdAt);
-	const created = creator ? `${createdDay} by ${creator.name || creator.email}` : createdDay;
+	const created = creator ? `${createdDay} by ${userLabel(creator)}` : createdDay;
 
 	const nRes = resourceCount?.count ?? 0;
 	const hasRes = nRes > 0 || resourceCount?.more === true;

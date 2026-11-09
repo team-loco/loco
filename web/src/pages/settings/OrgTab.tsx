@@ -26,6 +26,7 @@ import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
 import { usePagedRows } from "@/lib/paging";
 import { settingsPath } from "@/lib/routes";
+import { userLabel } from "@/lib/user";
 
 import { AuditLogTab } from "./AuditLogTab";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
@@ -104,7 +105,7 @@ export function OrgTab({
 	const paged = usePagedRows(matches, PAGE_SIZES);
 	const userName = (id: string) => {
 		const u = users.find((x) => x.id === id);
-		return u ? u.name || u.email : "";
+		return u ? userLabel(u) : "";
 	};
 
 	const save = () => {
