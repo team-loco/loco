@@ -1,7 +1,4 @@
-import { SearchIcon } from "lucide-react";
-
-import { Kbd } from "@/components/design/Kbd";
-
+import { CommandMenu } from "./CommandMenu";
 import { ShellBreadcrumb } from "./ShellBreadcrumb";
 import { SidebarToggle } from "./SidebarToggle";
 
@@ -13,16 +10,7 @@ export function TopBar() {
 		>
 			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
-			<div
-				aria-disabled
-				title="Search (soon)"
-				className="hidden h-8 cursor-not-allowed items-center gap-2 rounded-md border border-line bg-raise pr-2 pl-2.5 text-[13px] text-fg4 md:flex"
-			>
-				<SearchIcon className="size-3.5" />
-				<span>Search</span>
-				<span className="text-xs">soon</span>
-				<Kbd className="ml-2">⌘K</Kbd>
-			</div>
+			<CommandMenu />
 		</header>
 	);
 }

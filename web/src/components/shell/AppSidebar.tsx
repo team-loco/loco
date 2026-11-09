@@ -1,25 +1,18 @@
 import { useQuery } from "@connectrpc/connect-query";
 import {
-	BellIcon,
 	BookOpenIcon,
 	Building2Icon,
-	ChartLineIcon,
 	ChevronsUpDownIcon,
 	KeyRoundIcon,
-	LayoutGridIcon,
 	LifeBuoyIcon,
 	LinkIcon,
 	LogOutIcon,
 	ArrowUpRightIcon,
 	PlusIcon,
-	ScrollTextIcon,
-	Settings2Icon,
 	UserIcon,
-	UsersIcon,
-	WaypointsIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -49,9 +42,10 @@ import { pageImporters } from "@/lib/lazy-pages";
 import { expandOrgLink } from "@/lib/org-links";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
-import { newServicePath, observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
+import { newServicePath, workspacePath } from "@/lib/routes";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
+import { useNavSections } from "./nav";
 import { SidebarToggle } from "./SidebarToggle";
 import { ThemeIcon } from "./ThemeIcon";
 
@@ -79,7 +73,6 @@ function preloadPage(load: (() => Promise<unknown>) | undefined) {
 }
 
 export function AppSidebar() {
-	const { pathname } = useLocation();
 	const [params] = useSearchParams();
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
@@ -90,14 +83,9 @@ export function AppSidebar() {
 
 	const env = params.get("env");
 	const envParams: Record<string, string> = env !== null ? { env } : {};
-	const view = params.get("view") ?? "logs";
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
-	const onObs = wsBase !== null && pathname.startsWith(`${wsBase}/observability`);
 
-	const obs = (v: ObservabilityView): string | undefined =>
-		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, v, envParams) : undefined;
-	const withEnv = (path: string) => (env !== null ? `${path}?env=${encodeURIComponent(env)}` : path);
 	const orgLinks: NavItem[] =
 		activeOrgId !== null
 			? (config?.orgLinks ?? []).map((link) => ({
@@ -108,79 +96,10 @@ export function AppSidebar() {
 				}))
 			: [];
 
-	const sections: { label?: string; items: NavItem[] }[] = [
-		{
-			items: [
-				{
-					name: "Dashboard",
-					icon: <LayoutGridIcon />,
-					to: wsBase !== null ? withEnv(wsBase) : undefined,
-					active: wsBase !== null && (pathname === wsBase || pathname.startsWith(`${wsBase}/resource`)),
-					preload: pageImporters.Dashboard,
-				},
-			],
-		},
-		{
-			label: "Observability",
-			items: [
-				{
-					name: "Logs",
-					icon: <ScrollTextIcon />,
-					to: obs("logs"),
-					active: onObs && view === "logs",
-					preload: pageImporters.Observability,
-				},
-				{
-					name: "Metrics",
-					icon: <ChartLineIcon />,
-					to: obs("metrics"),
-					active: onObs && view === "metrics",
-					preload: pageImporters.Observability,
-				},
-				{
-					name: "Traces",
-					icon: <WaypointsIcon />,
-					to: obs("traces"),
-					active: onObs && view === "traces",
-					preload: pageImporters.Observability,
-				},
-				{
-					name: "Events",
-					icon: <BellIcon />,
-					to: obs("events"),
-					active: onObs && view === "events",
-					preload: pageImporters.Observability,
-				},
-			],
-		},
-		{
-			label: "Manage",
-			items: [
-				{
-					name: "Tokens",
-					icon: <KeyRoundIcon />,
-					to: "/tokens",
-					active: pathname === "/tokens",
-					preload: pageImporters.Tokens,
-				},
-				{
-					name: "Team",
-					icon: <UsersIcon />,
-					to: activeOrgId !== null ? `/org/${activeOrgId}/team` : undefined,
-					active: pathname.endsWith("/team"),
-					preload: pageImporters.Team,
-				},
-				{
-					name: "Settings",
-					icon: <Settings2Icon />,
-					to: wsBase !== null ? withEnv(`${wsBase}/settings`) : undefined,
-					active: pathname.endsWith("/settings"),
-					preload: pageImporters.Settings,
-				},
-				...orgLinks,
-			],
-		},
-	];
+	const sections: { label?: string | undefined; items: NavItem[] }[] = useNavSections().map((section) => ({
+		label: section.label,
+		items: section.label === "Manage" ? [...section.pages, ...orgLinks] : section.pages,
+	}));
 
 	const displayName = user?.name !== undefined && user.name !== "" ? user.name : (user?.email ?? "");
 
