@@ -11,16 +11,22 @@ function unquote(v: string): string {
 	return v;
 }
 
+export type DotEnvLine = { kind: "blank" } | { kind: "invalid" } | { kind: "pair"; key: string; value: string };
+
+export function parseDotEnvLine(raw: string): DotEnvLine {
+	const line = raw.trim().replace(/^export\s+/, "");
+	if (line === "" || line.startsWith("#")) return { kind: "blank" };
+	const eq = line.indexOf("=");
+	const key = line.slice(0, eq).trim();
+	if (eq < 1 || !isEnvKey(key)) return { kind: "invalid" };
+	return { kind: "pair", key, value: unquote(line.slice(eq + 1).trim()) };
+}
+
 export function parseDotEnv(text: string): [string, string][] {
 	const out: [string, string][] = [];
 	for (const raw of text.split(/\r?\n/)) {
-		const line = raw.trim().replace(/^export\s+/, "");
-		if (line === "" || line.startsWith("#")) continue;
-		const eq = line.indexOf("=");
-		if (eq < 1) continue;
-		const key = line.slice(0, eq).trim();
-		if (!isEnvKey(key)) continue;
-		out.push([key, unquote(line.slice(eq + 1).trim())]);
+		const line = parseDotEnvLine(raw);
+		if (line.kind === "pair") out.push([line.key, line.value]);
 	}
 	return out;
 }

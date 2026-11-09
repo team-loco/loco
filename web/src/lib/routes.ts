@@ -23,9 +23,9 @@ export function resourcePath(orgId: string, workspaceId: string, resourceId: str
 export const NEW_SERVICE_PARAM = "new";
 export const NEW_SERVICE_VALUE = "1";
 
-export function newServicePath(orgId: string, workspaceId: string, params: Record<string, string> = {}): string {
-	const search = new URLSearchParams({ ...params, [NEW_SERVICE_PARAM]: NEW_SERVICE_VALUE });
-	return `${workspacePath(orgId, workspaceId)}?${search.toString()}`;
+export function newResourcePath(orgId: string, workspaceId: string, params: Record<string, string> = {}): string {
+	const search = new URLSearchParams(params).toString();
+	return `${workspacePath(orgId, workspaceId, "new")}${search === "" ? "" : `?${search}`}`;
 }
 
 export type ObservabilityView = "logs" | "metrics" | "traces" | "events";

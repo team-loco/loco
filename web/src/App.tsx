@@ -25,6 +25,7 @@ import { pageImporters } from "@/lib/lazy-pages";
 
 const Dashboard = lazy(async () => ({ default: (await pageImporters.Dashboard()).Dashboard }));
 const Resource = lazy(async () => ({ default: (await pageImporters.Resource()).Resource }));
+const NewResource = lazy(async () => ({ default: (await pageImporters.NewResource()).NewResource }));
 const Observability = lazy(async () => ({ default: (await pageImporters.Observability()).Observability }));
 const Settings = lazy(async () => ({ default: (await pageImporters.Settings()).Settings }));
 const Team = lazy(async () => ({ default: (await pageImporters.Team()).Team }));
@@ -168,6 +169,15 @@ function AppRoutes() {
 							}
 						/>
 						<Route path="dashboard" element={<Navigate to=".." relative="path" replace />} />
+						<Route
+							path="new"
+							element={
+								<>
+									<PageTitle title="New resource" />
+									<NewResource />
+								</>
+							}
+						/>
 						<Route
 							path="resource/:resourceId"
 							element={
