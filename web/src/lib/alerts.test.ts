@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
+import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { alertedResourceCount, buildAlerts } from "./alerts";
@@ -30,7 +31,10 @@ const api = create(ResourceSchema, {
 		},
 		{
 			environmentId: STAGING,
-			regions: [{ region: "us-east", status: ResourceStatus.DEPLOYING }],
+			regions: [
+				{ region: "us-east", status: ResourceStatus.DEPLOYING },
+				{ region: "eu-west", status: ResourceStatus.HEALTHY, deploymentStatus: DeploymentPhase.FAILED },
+			],
 		},
 	],
 });
@@ -72,8 +76,11 @@ describe("buildAlerts", () => {
 	});
 
 	test("ignores other environments and resources without a status there", () => {
-		expect(buildAlerts([api, worker], STAGING).map((a) => a.key)).toEqual(["r-api/us-east"]);
 		expect(buildAlerts([api, worker], "env-other")).toEqual([]);
+	});
+
+	test("alerts on a failed deployment but not on a rollout alone", () => {
+		expect(buildAlerts([api, worker], STAGING).map((a) => a.key)).toEqual(["r-api/eu-west"]);
 	});
 });
 
