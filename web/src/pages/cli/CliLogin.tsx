@@ -39,8 +39,9 @@ export function CliLogin() {
 		return (
 			<CliCard title="This sign-in link is incomplete">
 				{() => (
-					<p className="m-0 text-center text-fg2">
-						Run <code>loco login</code> again to get a new link.
+					<p className="m-0 text-center text-[13.5px] text-fg2">
+						Run <code className="font-mono text-[0.92em] whitespace-nowrap text-foreground">loco login</code> again to
+						get a new link.
 					</p>
 				)}
 			</CliCard>
@@ -63,28 +64,26 @@ export function CliLogin() {
 	if (done !== null) {
 		return (
 			<CliCard title={done === "approved" ? "You're signed in" : "Sign-in canceled"}>
-				{() => <p className="m-0 text-center text-fg2">You can return to your terminal.</p>}
+				{() => <p className="m-0 text-center text-[13.5px] text-fg2">You can return to your terminal.</p>}
 			</CliCard>
 		);
 	}
 
 	return (
-		<CliCard title="Sign in to the Loco CLI">
+		<CliCard
+			title="Sign in to the loco CLI"
+			error={approve.error !== null ? getErrorMessage(approve.error, "Could not authorize the CLI") : null}
+		>
 			{(email) => (
 				<>
-					<p className="m-0 text-center text-fg2">
+					<p className="m-0 text-center text-[13.5px] text-fg2">
 						A terminal on this computer is asking to sign in as{" "}
-						<span className="font-semibold text-foreground">{email}</span>. Continue only if you just ran{" "}
-						<code>loco login</code>.
+						<span className="font-medium text-foreground">{email}</span>. Continue only if you just ran{" "}
+						<code className="font-mono text-[0.92em] whitespace-nowrap text-foreground">loco login</code>.
 					</p>
-					{approve.error !== null && (
-						<div role="alert" className="rounded-sm bg-bad-bg px-3 py-2 text-center text-sm text-bad-fg">
-							{getErrorMessage(approve.error, "Could not authorize the CLI")}
-						</div>
-					)}
 					<div className="flex flex-col gap-2">
 						<Button
-							size="lg"
+							size="xl"
 							className="w-full"
 							disabled={approve.isPending}
 							onClick={() => {
@@ -94,7 +93,7 @@ export function CliLogin() {
 							{approve.isPending && <Loader2 className="size-4 animate-spin" />}
 							Authorize
 						</Button>
-						<Button variant="outline" size="lg" className="w-full" disabled={approve.isPending} onClick={cancel}>
+						<Button variant="outline" size="xl" className="w-full" disabled={approve.isPending} onClick={cancel}>
 							Cancel
 						</Button>
 					</div>

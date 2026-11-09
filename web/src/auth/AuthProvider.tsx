@@ -2,6 +2,7 @@ import { createContext, use, useSyncExternalStore, type ReactNode } from "react"
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { ClaimedOrg, User } from "@gen/loco/user/v1/user_pb";
 
@@ -36,7 +37,8 @@ const neverSignedIn = () => false;
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const client = use(clientForUI);
 	const hasSession = useSyncExternalStore(client?.subscribe ?? noSubscription, client?.hasSession ?? neverSignedIn);
-	const onSignInPage = SIGN_IN_PATHS.some((path) => window.location.pathname.startsWith(path));
+	const { pathname } = useLocation();
+	const onSignInPage = SIGN_IN_PATHS.some((path) => pathname.startsWith(path));
 	const { data: user, isPending, error } = useQuery(whoAmI, {}, { enabled: hasSession && !onSignInPage });
 	const queryClient = useQueryClient();
 	const claimedOrgs = useSyncExternalStore(subscribeClaimedOrgs, getClaimedOrgs);

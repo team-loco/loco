@@ -6,7 +6,12 @@ import { AuthStep, type AuthStepRun } from "./AuthStep";
 const completeSignIn: AuthStepRun = async (transport) => {
 	const client = await authClient();
 	await client.completeSignIn(new URL(window.location.href));
-	return await landingPath(transport);
+	try {
+		return await landingPath(transport);
+	} catch (err) {
+		await client.signOut();
+		throw err;
+	}
 };
 
 export function AuthCallback() {

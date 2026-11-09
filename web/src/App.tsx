@@ -86,7 +86,15 @@ function AppRoutes() {
 			<Routes>
 				{/* Public routes */}
 				<Route path="/" element={<Splash />} />
-				<Route path="/login" element={<Login />} />
+				<Route
+					path="/login"
+					element={
+						<>
+							<PageTitle title="Sign in" />
+							<Login />
+						</>
+					}
+				/>
 				<Route path="/auth/callback" element={<AuthCallback />} />
 				<Route
 					path="/cli/login"

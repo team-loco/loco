@@ -5,6 +5,13 @@ import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 const TOKENS_KEY = "loco:auth:oidc:v1";
 const PENDING_KEY = "loco:auth:oidc:pending:v1";
 const EXPIRY_SKEW_MS = 30_000;
+const ACCESS_DENIED = "access_denied";
+
+const errNoIDToken = new Error("The identity provider did not return an ID token");
+const errNoAuthorizationEndpoint = new Error("The identity provider has no authorization endpoint");
+const errSignInExpired = new Error("This sign-in link has expired. Try signing in again.");
+const errSignInCancelled = new Error("Sign-in was cancelled.");
+const errSignInRefused = new Error("The identity provider could not sign you in. Try again.");
 
 interface StoredTokens {
 	idToken: string;
@@ -72,6 +79,20 @@ function idTokenExpiry(idToken: string): number {
 	return (claims?.exp ?? 0) * 1000;
 }
 
+function callbackParams(
+	as: oauth.AuthorizationServer,
+	client: oauth.Client,
+	callback: URL,
+	state: string,
+): URLSearchParams {
+	try {
+		return oauth.validateAuthResponse(as, client, callback, state);
+	} catch (err) {
+		if (!(err instanceof oauth.AuthorizationResponseError)) throw err;
+		throw err.error === ACCESS_DENIED ? errSignInCancelled : errSignInRefused;
+	}
+}
+
 export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	const issuer = new URL(cfg.issuer);
 	const insecure = issuer.protocol === "http:";
@@ -99,7 +120,7 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	};
 
 	const fromResponse = (res: oauth.TokenEndpointResponse, previousRefresh: string | null): StoredTokens => {
-		if (res.id_token === undefined) throw new Error("The identity provider did not return an ID token");
+		if (res.id_token === undefined) throw errNoIDToken;
 		return {
 			idToken: res.id_token,
 			refreshToken: res.refresh_token ?? previousRefresh,
@@ -145,8 +166,7 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 			return await refreshing;
 		},
 		signIn: async (redirectTo, loginHint) => {
-			if (as.authorization_endpoint === undefined)
-				throw new Error("The identity provider has no authorization endpoint");
+			if (as.authorization_endpoint === undefined) throw errNoAuthorizationEndpoint;
 			const pending: PendingLogin = {
 				verifier: oauth.generateRandomCodeVerifier(),
 				state: oauth.generateRandomState(),
@@ -169,8 +189,8 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 		completeSignIn: async (current) => {
 			const pending = parseJSON(readStorage(PENDING_KEY, "session"), isPendingLogin);
 			removeStorage(PENDING_KEY, "session");
-			if (pending === null) throw new Error("This sign-in link has expired. Try signing in again.");
-			const params = oauth.validateAuthResponse(as, oauthClient, current, pending.state);
+			if (pending === null) throw errSignInExpired;
+			const params = callbackParams(as, oauthClient, current, pending.state);
 			const res = await oauth.processAuthorizationCodeResponse(
 				as,
 				oauthClient,
