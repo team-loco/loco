@@ -43,8 +43,9 @@ export function CliDevice() {
 			{(email) => (
 				<form className="flex flex-col gap-4" onSubmit={submit}>
 					<p className="m-0 text-center text-[13.5px] text-fg2">
-						Enter the code shown by <code className="font-mono text-[0.92em] text-foreground">loco login --device</code>{" "}
-						to sign that device in as <span className="font-medium text-foreground">{email}</span>.
+						Enter the code shown by{" "}
+						<code className="font-mono text-[0.92em] whitespace-nowrap text-foreground">loco login --device</code> to
+						sign that device in as <span className="font-medium text-foreground">{email}</span>.
 					</p>
 					<Field
 						label="Device code"
