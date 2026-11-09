@@ -7,16 +7,7 @@ import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
 import { useState, type MouseEvent } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/design/AlertDialog";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { orgMembersOptions } from "@/hooks/completeMembers";
@@ -192,34 +183,22 @@ export function Settings() {
 				/>
 			)}
 
-			<AlertDialog
+			<ConfirmDialog
 				open={leaveTo !== null}
-				onOpenChange={(open) => {
-					if (!open) setLeaveTo(null);
+				title="Discard unsaved changes?"
+				description="The changes you made here are not saved. Leaving this page drops them."
+				confirmLabel="Discard and leave"
+				cancelLabel="Keep editing"
+				onConfirm={() => {
+					const to = leaveTo;
+					setDrafts(NO_DRAFTS);
+					setLeaveTo(null);
+					if (to !== null) void navigate(to);
 				}}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
-						<AlertDialogDescription>
-							The changes you made here are not saved. Leaving this page drops them.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Keep editing</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={() => {
-								const to = leaveTo;
-								setDrafts(NO_DRAFTS);
-								setLeaveTo(null);
-								if (to !== null) void navigate(to);
-							}}
-						>
-							Discard and leave
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+				onClose={() => {
+					setLeaveTo(null);
+				}}
+			/>
 		</Page>
 	);
 }

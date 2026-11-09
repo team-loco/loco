@@ -10,16 +10,7 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/design/AlertDialog";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
@@ -199,32 +190,20 @@ export function EnvironmentsSection({
 				)}
 			</Dialog>
 
-			<AlertDialog
+			<ConfirmDialog
 				open={deleting !== null}
-				onOpenChange={(open) => {
-					if (!open && !remove.isPending) setDeleting(null);
+				title={`Delete ${deleting?.name ?? ""}?`}
+				description={`This removes the environment from ${workspaceName}. Loco refuses while it still has deployments.`}
+				confirmLabel="Delete environment"
+				pendingLabel="Deleting…"
+				pending={remove.isPending}
+				onConfirm={() => {
+					if (deleting !== null) confirmDelete(deleting);
 				}}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
-						<AlertDialogDescription>
-							This removes the environment from {workspaceName}. Loco refuses while it still has deployments.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							disabled={remove.isPending}
-							onClick={() => {
-								if (deleting !== null) confirmDelete(deleting);
-							}}
-						>
-							{remove.isPending ? "Deleting…" : "Delete environment"}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+				onClose={() => {
+					setDeleting(null);
+				}}
+			/>
 		</SettingsSection>
 	);
 }
