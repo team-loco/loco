@@ -19,6 +19,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
 import { settingsPath } from "@/lib/routes";
+import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
@@ -91,7 +92,7 @@ export function PersonalTab({
 					<div className="flex min-w-0 items-center gap-3.5">
 						<MemberAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} className="size-12" />
 						<div className="flex min-w-0 flex-col gap-0.5">
-							<span className="truncate text-[15px] font-medium">{user.name || user.email}</span>
+							<span className="truncate text-[15px] font-medium">{userLabel(user)}</span>
 							<span className="truncate font-mono text-[12px] text-fg3">{user.email}</span>
 						</div>
 					</div>
