@@ -56,6 +56,14 @@ function SecretBody({ revealed, onClose }: { revealed: RevealedSecret; onClose: 
 						{copied ? "Copied" : "Copy"}
 					</Button>
 				</div>
+				<a
+					href="/docs/operations/access/#deploy-from-ci-with-an-api-token"
+					target="_blank"
+					rel="noopener"
+					className="self-start text-sm text-primary underline underline-offset-3"
+				>
+					Deploy from CI
+				</a>
 			</DialogBody>
 			<DialogFooter>
 				<Button variant="inverted" size="lg" onClick={onClose}>
