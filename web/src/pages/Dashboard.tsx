@@ -12,7 +12,6 @@ import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { NEW_SERVICE_PARAM, NEW_SERVICE_VALUE, resourcePath } from "@/lib/routes";
 import { ArchitectureDiagram, type DiagramService } from "@/pages/dashboard/ArchitectureDiagram";
-import { AttentionSection, buildAttention } from "@/pages/dashboard/AttentionSection";
 import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
 import { DraftDrawer } from "@/pages/dashboard/DraftDrawer";
 import { FirstServiceEmpty } from "@/pages/dashboard/FirstServiceEmpty";
@@ -132,7 +131,6 @@ export function Dashboard() {
 		drafts.drafts.filter((d) => d.id !== openDraftId && !isPrivate(d)).map((d) => d.sub.trim()),
 	);
 	const openDraftValue = drafts.drafts.find((d) => d.id === openDraftId);
-	const attention = buildAttention(data.envResources, hrefFor, nowMs);
 	const loading = envsLoading || data.isLoading || configQuery.isPending;
 	const canCreate = active !== undefined && activeWorkspaceId !== null;
 	const isEmpty = data.envResources.length === 0 && visibleDrafts.length === 0;
@@ -202,7 +200,6 @@ export function Dashboard() {
 				/>
 			) : (
 				<>
-					<AttentionSection items={attention} />
 					<ArchitectureDiagram services={services} regionOrder={data.regions.map((r) => r.region)} />
 					<ResourcesTable
 						key={active.id}
