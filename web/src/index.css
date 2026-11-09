@@ -563,6 +563,22 @@
 	}
 }
 
+@keyframes team-seat {
+	0%,
+	20% {
+		transform: scale(0);
+	}
+	30%,
+	82% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	95%,
+	100% {
+		opacity: 0;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.pe-art * {
 		animation: none !important;

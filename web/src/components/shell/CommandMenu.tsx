@@ -1,4 +1,5 @@
 import { useTransport } from "@connectrpc/connect-query";
+import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQuery } from "@tanstack/react-query";
 import {
 	Building2Icon,
@@ -9,6 +10,7 @@ import {
 	SearchIcon,
 	SunIcon,
 	UserIcon,
+	UserPlusIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
@@ -17,6 +19,7 @@ import { Button } from "@/components/design/Button";
 import { CommandPalette, type PaletteItem } from "@/components/design/CommandPalette";
 import { Kbd } from "@/components/design/Kbd";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
 import { useTheme } from "@/lib/use-theme";
@@ -35,6 +38,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	const { theme, toggle } = useTheme();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
 	const navPages = useNavSections().flatMap((section) => section.pages);
+	const scopes = useMyScopes();
 	const resources = useQuery({
 		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
 		enabled: open && activeWorkspaceId !== null,
@@ -88,6 +92,16 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			keywords: page.keywords,
 			icon: page.icon,
 			run: go(page.to),
+		});
+	}
+	if (activeOrgId !== null && scopes.holds(activeOrgId, "", Scope.ADMIN)) {
+		items.push({
+			id: "action-invite",
+			group: "Actions",
+			label: "Invite member",
+			keywords: "team people email add",
+			icon: <UserPlusIcon />,
+			run: go(`/org/${activeOrgId}/team?invite=1`),
 		});
 	}
 	items.push(
