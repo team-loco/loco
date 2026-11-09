@@ -137,7 +137,7 @@ with sync_playwright() as playwright:
                     page.screenshot(path=out / f"initial-{case}.png", animations="disabled")
                     stage = "older-page-retry"
                     section.get_by_role("button", name="50", exact=True).click()
-                    next_button = section.get_by_role("button", name="Next", exact=True)
+                    next_button = section.get_by_role("button", name="Next page", exact=True)
                     for _ in range(3):
                         next_button.click()
                     expect(section.get_by_text("Pilot release 151", exact=True)).to_be_visible()
@@ -167,7 +167,7 @@ with sync_playwright() as playwright:
                     expect(section.get_by_text("Staging current", exact=True)).to_be_visible()
                     assert not section.get_by_text("Pilot release 221", exact=True).count()
                     assert any(request["method"] == "ListDeployments" and request["body"].get("environmentId") == data["staging"] and not request["body"].get("pageToken") for request in requests)
-                    expect(section.get_by_role("button", name="Next", exact=True)).to_be_disabled()
+                    expect(next_button).to_be_disabled()
                     assert any(request["method"] == "GetDeployment" and request["body"]["deploymentId"] == data["staging_release"] for request in requests)
                     page.screenshot(path=out / f"staging-{case}.png", animations="disabled")
                     page.get_by_title("Environment", exact=True).click()
