@@ -16,9 +16,9 @@ import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-q
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { accountSettingsPath, PROFILE_PATH, settingsPath } from "@/lib/routes";
+import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import { pageImporters } from "@/lib/lazy-pages";
@@ -26,7 +26,6 @@ import { pageImporters } from "@/lib/lazy-pages";
 const Dashboard = lazy(async () => ({ default: (await pageImporters.Dashboard()).Dashboard }));
 const Resources = lazy(async () => ({ default: (await pageImporters.Resources()).Resources }));
 const Resource = lazy(async () => ({ default: (await pageImporters.Resource()).Resource }));
-const NewResource = lazy(async () => ({ default: (await pageImporters.NewResource()).NewResource }));
 const Observability = lazy(async () => ({ default: (await pageImporters.Observability()).Observability }));
 const Settings = lazy(async () => ({ default: (await pageImporters.Settings()).Settings }));
 const Team = lazy(async () => ({ default: (await pageImporters.Team()).Team }));
@@ -69,6 +68,12 @@ const persister = createAsyncStoragePersister({
 });
 
 const transport = createTransport();
+
+function NewResourceRedirect() {
+	const { orgId = "", workspaceId = "" } = useParams();
+	const params = Object.fromEntries(new URLSearchParams(useLocation().search));
+	return <Navigate to={newResourcePath(orgId, workspaceId, params)} replace />;
+}
 
 function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const { orgId } = useParams();
@@ -184,15 +189,7 @@ function AppRoutes() {
 								</>
 							}
 						/>
-						<Route
-							path="new"
-							element={
-								<>
-									<PageTitle title="New resource" />
-									<NewResource />
-								</>
-							}
-						/>
+						<Route path="new" element={<NewResourceRedirect />} />
 						<Route
 							path="resource/:resourceId"
 							element={

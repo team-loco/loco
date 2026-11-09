@@ -1,16 +1,20 @@
+import { useSearchParams } from "react-router";
+
 import { Badge } from "@/components/design/Badge";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
 import { getErrorMessage } from "@/lib/error-handler";
-import { newResourcePath } from "@/lib/routes";
+import { NEW_RESOURCE_PARAM, newResourcePath } from "@/lib/routes";
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
+import { NewService } from "@/pages/resources/NewService";
 import { ResourcesEmpty } from "@/pages/resources/ResourcesEmpty";
 import { ResourceTable } from "@/pages/resources/ResourceTable";
 import { buildRows } from "@/pages/resources/table";
@@ -37,6 +41,7 @@ export function Resources() {
 	const { environments, active, isLoading: envsLoading } = useEnvironments();
 	const data = useWorkspaceDeployments(activeWorkspaceId);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
+	const [params, setParams] = useSearchParams();
 
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
@@ -95,6 +100,19 @@ export function Resources() {
 				}
 			/>
 			{body}
+			{params.has(NEW_RESOURCE_PARAM) && !envsLoading && (
+				<NewService
+					key={active?.id}
+					orgId={orgId}
+					workspaceId={workspaceId}
+					env={active}
+					onClose={() => {
+						const next = new URLSearchParams(params);
+						next.delete(NEW_RESOURCE_PARAM);
+						setParams(next);
+					}}
+				/>
+			)}
 		</Page>
 	);
 }

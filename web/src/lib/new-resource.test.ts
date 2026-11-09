@@ -4,6 +4,8 @@ import { PlatformDomainSchema } from "@gen/loco/domain/v1/domain_pb";
 
 import {
 	errorCount,
+	imageError,
+	looksSecret,
 	locoYaml,
 	nameFromImage,
 	parseEnvText,
@@ -118,4 +120,23 @@ test("locoYaml quotes values YAML would read as numbers or booleans", () => {
 	expect(yaml).not.toContain("domains");
 	expect(yaml).not.toContain("health");
 	expect(yaml.startsWith("version: 1\n")).toBe(true);
+});
+
+test("looksSecret flags keys whose words name a credential", () => {
+	expect(
+		["API_KEY", "stripe_secret_key", "GITHUB_TOKEN", "DB_PASSWORD", "DATABASE_URL", "SENTRY_DSN"].map(looksSecret),
+	).toEqual([true, true, true, true, true, true]);
+	expect(["LOG_LEVEL", "PORT", "KEYBOARD_LAYOUT", "PUBLIC_URL", "MONKEY"].map(looksSecret)).toEqual([
+		false,
+		false,
+		false,
+		false,
+		false,
+	]);
+});
+
+test("imageError asks for an image reference before the drawer opens", () => {
+	expect(imageError("  ")).toBe("Enter an image");
+	expect(imageError("Not An Image")).toBe("Use registry/repository:tag");
+	expect(imageError(" ghcr.io/acme/web:1.4.2 ")).toBeNull();
 });

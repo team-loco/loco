@@ -90,7 +90,7 @@ services:
       us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
 
-`loco deploy` then prints that the application has no public URL, and `loco resource status` shows `URL: none`. The dashboard's new-service form offers the same choice under Networking. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.
+`loco deploy` then prints that the application has no public URL, and `loco resource status` shows `URL: none`. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.
 
 ## Investigate a rollout
 
