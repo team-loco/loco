@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 type Credentials struct {
@@ -36,7 +38,7 @@ func (c *Credentials) Interceptor() connect.ClientInterceptor {
 			if !ok {
 				ctx, info = connect.NewClientContext(ctx)
 			}
-			info.RequestHeader().Set("Authorization", "Bearer "+assertion)
+			info.RequestHeader().Set("Authorization", bearer.Header(assertion))
 			return next(ctx, spec)
 		}
 	}

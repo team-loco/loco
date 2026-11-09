@@ -2,6 +2,7 @@ package bearer_test
 
 import (
 	"encoding/base64"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -43,5 +44,38 @@ func TestNewIsUnique(t *testing.T) {
 			t.Fatalf("duplicate token %q", token)
 		}
 		seen[token] = struct{}{}
+	}
+}
+
+func TestToken(t *testing.T) {
+	cases := []struct {
+		name          string
+		authorization string
+		token         string
+		ok            bool
+	}{
+		{"missing", "", "", false},
+		{"wrong scheme", "Basic abc", "", false},
+		{"empty token", "Bearer ", "", false},
+		{"ok", "Bearer abc", "abc", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			token, ok := bearer.Token(tc.authorization)
+			if token != tc.token || ok != tc.ok {
+				t.Fatalf("Token = %q, %v; want %q, %v", token, ok, tc.token, tc.ok)
+			}
+		})
+	}
+}
+
+func TestHeaderRoundTripsThroughFromHeader(t *testing.T) {
+	h := http.Header{}
+	h.Set("Authorization", bearer.Header("abc"))
+	if token, ok := bearer.FromHeader(h); !ok || token != "abc" {
+		t.Fatalf("FromHeader = %q, %v", token, ok)
+	}
+	if token, ok := bearer.FromHeader(http.Header{}); ok || token != "" {
+		t.Fatalf("FromHeader without a header = %q, %v", token, ok)
 	}
 }

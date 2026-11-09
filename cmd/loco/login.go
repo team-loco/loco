@@ -25,7 +25,6 @@ import (
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
 const spinnerFrameDelay = 100 * time.Millisecond
@@ -67,7 +66,7 @@ func newLoginCmd(env Env) *cobra.Command {
 			} else {
 				slog.Debug("no token found in keychain", "error", err)
 			}
-			httpClient := httputil.NewHTTPClient()
+			httpClient := rpc.NewHTTPClient()
 			configClients := rpc.NewHTTPClients(httpClient, apiHost, "")
 			configClient := configClients.Config
 			config, err := configClient.GetConfig(cmd.Context(), &configv1.GetConfigRequest{})

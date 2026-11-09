@@ -60,7 +60,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 	}
 }
 
-func bearer(token string) http.Header {
+func withBearer(token string) http.Header {
 	h := http.Header{}
 	h.Set("Authorization", "Bearer "+token)
 	return h
@@ -74,7 +74,7 @@ func TestAuthenticateProviderTokenProvisionsUser(t *testing.T) {
 	f := newProviderFixture(t, policy)
 	token := f.issuer.Sign("k1", f.issuer.Claims("sub-1", "dev@example.test", true))
 
-	ctx, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(token))
+	ctx, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer(token))
 	if err != nil {
 		t.Fatalf("authenticate: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestAuthenticateProviderTokenProvisionsUser(t *testing.T) {
 		t.Fatalf("login = %+v", login)
 	}
 
-	again, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(token))
+	again, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer(token))
 	if err != nil {
 		t.Fatalf("second authenticate: %v", err)
 	}
@@ -125,7 +125,11 @@ func TestAuthenticateProviderTokenErrors(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(tc.token))
+			_, err := f.interceptor.authenticate(
+				t.Context(),
+				orgv1connect.OrgServiceGetOrgProcedure,
+				withBearer(tc.token),
+			)
 			if code := connect.CodeOf(err); code != tc.want {
 				t.Fatalf("code = %v (%v), want %v", code, err, tc.want)
 			}
@@ -140,7 +144,11 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	}
 	f := newProviderFixture(t, policy)
 	providerToken := f.issuer.Sign("k1", f.issuer.Claims("sub-1", "dev@example.test", true))
-	ctx, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(providerToken))
+	ctx, err := f.interceptor.authenticate(
+		t.Context(),
+		orgv1connect.OrgServiceGetOrgProcedure,
+		withBearer(providerToken),
+	)
 	if err != nil {
 		t.Fatalf("authenticate: %v", err)
 	}
@@ -169,7 +177,7 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 		t.Fatalf("issue api token: %v", err)
 	}
 	if _, sessionErr := f.interceptor.authenticate(
-		t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(sessionToken),
+		t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer(sessionToken),
 	); sessionErr != nil {
 		t.Fatalf("session token before suspension: %v", sessionErr)
 	}
@@ -181,12 +189,12 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	}
 
 	for name, token := range map[string]string{"provider token": providerToken, "session token": sessionToken} {
-		_, authErr := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(token))
+		_, authErr := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer(token))
 		if code := connect.CodeOf(authErr); code != connect.CodeUnauthenticated {
 			t.Errorf("%s: code = %v (%v), want %v", name, code, authErr, connect.CodeUnauthenticated)
 		}
 	}
-	orgCtx, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, bearer(apiToken))
+	orgCtx, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer(apiToken))
 	if err != nil {
 		t.Fatalf("org api token after its creator was suspended: %v", err)
 	}
@@ -207,7 +215,7 @@ func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
 	}
 	f := newProviderFixture(t, policy)
 	token := f.issuer.Sign("k1", f.issuer.Claims("sub-1", "dev@example.test", true))
-	ctx, err := f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, bearer(token))
+	ctx, err := f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, withBearer(token))
 	if err != nil {
 		t.Fatalf("first authenticate: %v", err)
 	}
@@ -229,7 +237,7 @@ func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
 		t.Fatalf("invite: %v", inviteErr)
 	}
 
-	ctx, err = f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, bearer(token))
+	ctx, err = f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, withBearer(token))
 	if err != nil {
 		t.Fatalf("second authenticate: %v", err)
 	}
@@ -237,7 +245,7 @@ func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
 	if len(claimed) != 1 || claimed[0].OrgID != org.ID || claimed[0].OrgName != providerOrgName {
 		t.Fatalf("claimed orgs = %+v, want acme", claimed)
 	}
-	ctx, err = f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, bearer(token))
+	ctx, err = f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, withBearer(token))
 	if err != nil {
 		t.Fatalf("third authenticate: %v", err)
 	}

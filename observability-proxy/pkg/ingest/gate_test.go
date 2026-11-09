@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 )
@@ -80,28 +81,28 @@ func TestHTTPAuthStatusMapping(t *testing.T) {
 			name: "forged signature",
 			authorization: func(cp *controlPlane) string {
 				forger := newSigningKey(cp.t, testCurrentKeyID)
-				return bearerPrefix + signedWith(cp.t, forger, ingesttoken.Audience, time.Now())
+				return bearer.Header(signedWith(cp.t, forger, ingesttoken.Audience, time.Now()))
 			},
 			wantHTTP: http.StatusUnauthorized, wantCode: codes.Unauthenticated,
 		},
 		{
 			name: "wrong audience",
 			authorization: func(cp *controlPlane) string {
-				return bearerPrefix + signedWith(cp.t, cp.SigningKey(), testForeignAudience, time.Now())
+				return bearer.Header(signedWith(cp.t, cp.SigningKey(), testForeignAudience, time.Now()))
 			},
 			wantHTTP: http.StatusUnauthorized, wantCode: codes.Unauthenticated,
 		},
 		{
 			name: "expired with a wrong audience",
 			authorization: func(cp *controlPlane) string {
-				return bearerPrefix + signedWith(cp.t, cp.SigningKey(), testForeignAudience, expired)
+				return bearer.Header(signedWith(cp.t, cp.SigningKey(), testForeignAudience, expired))
 			},
 			wantHTTP: http.StatusUnauthorized, wantCode: codes.Unauthenticated,
 		},
 		{
 			name: "expired",
 			authorization: func(cp *controlPlane) string {
-				return bearerPrefix + cp.token(expired)
+				return bearer.Header(cp.token(expired))
 			},
 			wantHTTP: http.StatusServiceUnavailable, wantCode: codes.Unavailable,
 		},
@@ -162,14 +163,14 @@ func TestGRPCAuthStatusMapping(t *testing.T) {
 			name: "forged signature",
 			authorization: func(cp *controlPlane) string {
 				forger := newSigningKey(cp.t, testCurrentKeyID)
-				return bearerPrefix + signedWith(cp.t, forger, ingesttoken.Audience, time.Now())
+				return bearer.Header(signedWith(cp.t, forger, ingesttoken.Audience, time.Now()))
 			},
 			want: codes.Unauthenticated,
 		},
 		{
 			name: "expired",
 			authorization: func(cp *controlPlane) string {
-				return bearerPrefix + cp.token(time.Now().Add(-2*testTokenLifetime))
+				return bearer.Header(cp.token(time.Now().Add(-2 * testTokenLifetime)))
 			},
 			want: codes.Unavailable,
 		},
@@ -227,7 +228,7 @@ func TestJWKSRefreshesOnAnUnknownKeyAtMostOncePerInterval(t *testing.T) {
 		t.Fatalf("token from the rotated key: %v", err)
 	}
 	unpublished := newSigningKey(t, "unpublished")
-	_, err := gate.Admit(ctx, bearerPrefix+signedWith(t, unpublished, ingesttoken.Audience, time.Now()))
+	_, err := gate.Admit(ctx, bearer.Header(signedWith(t, unpublished, ingesttoken.Audience, time.Now())))
 	if !strings.Contains(err.Error(), ErrAuthUnavailable.Error()) {
 		t.Fatalf("unknown key within the refresh interval = %v, want a retryable failure", err)
 	}
@@ -235,7 +236,7 @@ func TestJWKSRefreshesOnAnUnknownKeyAtMostOncePerInterval(t *testing.T) {
 		t.Fatalf("JWKS fetched %d times, want 2", jwks)
 	}
 	gate.keysFetched = time.Now().Add(-2 * time.Hour)
-	_, err = gate.Admit(ctx, bearerPrefix+signedWith(t, unpublished, ingesttoken.Audience, time.Now()))
+	_, err = gate.Admit(ctx, bearer.Header(signedWith(t, unpublished, ingesttoken.Audience, time.Now())))
 	if !strings.Contains(err.Error(), ErrUnauthenticated.Error()) {
 		t.Fatalf("unknown key after a refresh = %v, want unauthenticated", err)
 	}

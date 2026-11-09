@@ -18,6 +18,7 @@ import (
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -87,7 +88,7 @@ func (s *IngestServer) ListPlacementWindows(
 	_ *ingestv1.ListPlacementWindowsRequest,
 ) (*ingestv1.ListPlacementWindowsResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	token := extractBearerToken(info.RequestHeader().Get("Authorization"))
+	token, _ := bearer.FromHeader(info.RequestHeader())
 	keys, err := s.keySet(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)

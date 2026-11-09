@@ -28,7 +28,6 @@ import (
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpc"
 )
@@ -331,7 +330,7 @@ func verificationUpload(ctx context.Context, url string, data []byte) error {
 		return errVerification
 	}
 	request.Header.Set("Content-Type", "application/gzip")
-	response, err := httputil.NewHTTPClient().Do(request)
+	response, err := rpc.NewHTTPClient().Do(request)
 	if err != nil {
 		return errVerification
 	}
@@ -363,7 +362,7 @@ func verificationBuild(ctx context.Context, clients *rpc.Clients, id string) err
 }
 
 func verificationProbe(ctx context.Context, url, marker string) error {
-	client := httputil.NewHTTPClient()
+	client := rpc.NewHTTPClient()
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	for {
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

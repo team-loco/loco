@@ -18,7 +18,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -113,7 +113,7 @@ func (f *fakeAPI) record(spec connect.Spec, authorization string) error {
 
 func (f *fakeAPI) authenticate(
 	spec connect.Spec,
-	header httputil.HeaderGetter,
+	header bearer.HeaderGetter,
 ) (string, *userv1.User, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

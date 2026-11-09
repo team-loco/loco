@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"strings"
 	"time"
 
 	"buf.build/go/protovalidate"
@@ -79,13 +78,6 @@ func NewAgentServer(
 func hashToken(token string) string {
 	h := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(h[:])
-}
-
-func extractBearerToken(header string) string {
-	if after, ok := strings.CutPrefix(header, "Bearer "); ok {
-		return after
-	}
-	return ""
 }
 
 func agentAuthError(err error) error {

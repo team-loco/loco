@@ -6,6 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 )
@@ -57,7 +58,7 @@ func (c *controlPlane) token(issuedAt time.Time) string {
 
 func (c *controlPlane) bearer() string {
 	c.t.Helper()
-	return bearerPrefix + c.token(time.Now())
+	return bearer.Header(c.token(time.Now()))
 }
 
 func (c *controlPlane) gate() *Gate {

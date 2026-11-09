@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"connectrpc.com/connect/v2"
 
@@ -15,7 +14,7 @@ import (
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
-	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -45,15 +44,6 @@ func NewAuthInterceptor(
 	}
 }
 
-func extractToken(header httputil.HeaderGetter) (string, error) {
-	authHeader := header.Get("Authorization")
-	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-		return strings.TrimPrefix(authHeader, "Bearer "), nil
-	}
-
-	return "", errNoToken
-}
-
 var publicProcedures = map[string]struct{}{
 	authv1connect.AuthServiceExchangeCLICodeProcedure:  {},
 	authv1connect.AuthServiceStartDeviceLoginProcedure: {},
@@ -69,15 +59,15 @@ func isPublicProcedure(procedure string) bool {
 func (i *authInterceptor) authenticate(
 	ctx context.Context,
 	procedure string,
-	header httputil.HeaderGetter,
+	header bearer.HeaderGetter,
 ) (context.Context, error) {
 	if isPublicProcedure(procedure) {
 		return ctx, nil
 	}
 
-	token, err := extractToken(header)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+	token, ok := bearer.FromHeader(header)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(errNoToken)
 	}
 
 	if auth.LooksLikeJWT(token) && i.verifier.Enabled() {

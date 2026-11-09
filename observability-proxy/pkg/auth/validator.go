@@ -13,6 +13,7 @@ import (
 
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 var (
@@ -87,7 +88,7 @@ func (v *Validator) CheckPermission(
 	}
 
 	ctx, info := connect.NewClientContext(ctx)
-	info.RequestHeader().Set("Authorization", "Bearer "+token)
+	info.RequestHeader().Set("Authorization", bearer.Header(token))
 	resp, err := v.client.CheckPermission(ctx, req)
 	if err != nil {
 		code := connect.CodeOf(err)

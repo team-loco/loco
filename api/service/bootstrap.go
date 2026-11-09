@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"errors"
 	"log/slog"
-	"strings"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -16,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -68,7 +68,7 @@ func (s *BootstrapServer) Bootstrap(
 		return nil, rpcerr.New(connect.CodePermissionDenied, ErrBootstrapTokenInvalid)
 	}
 	info, _ := connect.CallInfoForServerContext(ctx)
-	raw, found := strings.CutPrefix(info.RequestHeader().Get("Authorization"), "Bearer ")
+	raw, found := bearer.FromHeader(info.RequestHeader())
 	if !found || !s.verifier.Enabled() {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrBootstrapUserRequired)
 	}
