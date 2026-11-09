@@ -5,18 +5,10 @@ import { useState } from "react";
 
 import { Dialog, DialogBody, DialogContent, DialogDescription } from "@/components/design/Dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
 
-import {
-	LEVEL_LABEL,
-	LEVELS,
-	levelBlocked,
-	levelOf,
-	levelPlan,
-	type Level,
-	type Member,
-	type ScopeName,
-} from "./model";
+import { LEVELS, levelBlocked, levelOf, levelPlan, type Level, type Member, type ScopeName } from "./model";
 
 export function WorkspaceAccessDialog({
 	member,

@@ -2,18 +2,17 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { InvitationStatus, type Invitation, type OrgMember } from "@gen/loco/org/v1/org_pb";
 
 import type { BadgeTone } from "@/components/design/Badge";
+import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DAY_MS, tsMs } from "@/lib/time";
 
 export type ScopeName = "read" | "write" | "admin";
-export type Level = 0 | 1 | 2 | 3;
+export type Level = AccessLevel;
 export type View = "all" | "members" | "invitations";
 export type Role = "Admin" | "Member";
 
 export const SCOPE_NAMES: ScopeName[] = ["read", "write", "admin"];
 export const LEVELS: Level[] = [0, 1, 2, 3];
-export const LEVEL_LABEL: Record<Level, string> = { 0: "None", 1: "Read", 2: "Write", 3: "Admin" };
-export const LEVEL_TEXT: Record<Level, string> = { 0: "text-fg3", 1: "text-fg2", 2: "text-info-fg", 3: "text-warn-fg" };
 export const VIEWS: { key: View; label: string }[] = [
 	{ key: "all", label: "All" },
 	{ key: "members", label: "Members" },

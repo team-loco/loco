@@ -22,6 +22,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { LevelChip } from "@/components/design/LevelChip";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
@@ -29,16 +30,7 @@ import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { MemberAvatar } from "./MemberAvatar";
-import {
-	invitationBadge,
-	LEVEL_LABEL,
-	LEVEL_TEXT,
-	levelOf,
-	roleOf,
-	untilLabel,
-	type Member,
-	type TeamRow,
-} from "./model";
+import { invitationBadge, levelOf, roleOf, untilLabel, type Member, type TeamRow } from "./model";
 
 const SKELETON_ROWS = [0, 1, 2, 3];
 const COLUMNS = 7;
@@ -115,15 +107,7 @@ function MemberRow({
 					<span className="flex min-w-0 flex-wrap gap-1">
 						{member.workspaces.map((w) => {
 							const level = levelOf(w.scopes);
-							return (
-								<span
-									key={w.id}
-									className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md bg-panel2 px-2 text-[12px] whitespace-nowrap text-fg2"
-								>
-									<span className="truncate font-mono text-[11.5px]">{w.name}</span>
-									<span className={cn("font-medium", LEVEL_TEXT[level])}>{LEVEL_LABEL[level]}</span>
-								</span>
-							);
+							return <LevelChip key={w.id} level={level} name={w.name} nameFirst />;
 						})}
 					</span>
 				)}
