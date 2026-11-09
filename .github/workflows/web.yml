@@ -41,6 +41,9 @@ jobs:
       - name: Install browser
         run: uv run --frozen --project docs playwright install --with-deps chromium
 
+      - name: Test screenshot readiness in Chromium
+        run: uv run --frozen --project docs pytest .agents/skills/ui-evidence/scripts/test_evidence.py
+
       - name: Test trace viewer in Chromium
         run: mise run e2e:trace-ui
 

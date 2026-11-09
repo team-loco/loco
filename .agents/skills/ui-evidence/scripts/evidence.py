@@ -215,6 +215,10 @@ def validate_spec(spec):
         names.add(name)
         if not shot.get("user") or not shot.get("path", "").startswith("/"):
             raise EvidenceError(f"shot {name} needs a user and a path starting with /")
+        if "ready_selector" in shot:
+            selector = shot["ready_selector"]
+            if not isinstance(selector, str) or not selector.strip():
+                raise EvidenceError(f"shot {name}: ready_selector must be a non-empty selector")
         crop = shot.get("crop", "viewport")
         valid_crop = crop in ("viewport", "full") or (
             isinstance(crop, dict) and (("selector" in crop) != ("clip" in crop))
@@ -496,8 +500,9 @@ SETTLE_SCRIPT = """async (timeout) => {
 }"""
 
 
-def settle(page):
-    page.wait_for_load_state("networkidle")
+def settle(page, *, wait_for_network=True):
+    if wait_for_network:
+        page.wait_for_load_state("networkidle")
     if not page.evaluate(SETTLE_SCRIPT, SETTLE_TIMEOUT_MS):
         raise EvidenceError("animations did not finish")
 
@@ -519,10 +524,15 @@ def capture(browser, state, shot, theme, narrow, target):
     page = context.new_page()
     page.on("console", lambda m: problems.append(f"console {m.type}: {m.text}") if m.type == "error" else None)
     page.on("requestfailed", lambda r: problems.append(f"request failed: {r.url} {r.failure}"))
+    ready_selector = shot.get("ready_selector")
+    wait_for_network = ready_selector is None
+    steps = shot.get("steps", [])
+    if ready_selector is not None:
+        steps = [*steps, {"wait": ready_selector}]
     try:
-        page.goto(state["ui_url"] + shot["path"])
-        settle(page)
-        for step in shot.get("steps", []):
+        page.goto(state["ui_url"] + shot["path"], wait_until="load" if wait_for_network else "domcontentloaded")
+        settle(page, wait_for_network=wait_for_network)
+        for step in steps:
             action, selector = next(iter(step.items()))
             locator = page.locator(selector)
             try:
@@ -531,13 +541,13 @@ def capture(browser, state, shot, theme, narrow, target):
                 raise EvidenceError(f"{shot['name']}: selector {selector!r} never became visible") from None
             if action == "click":
                 locator.first.click()
-            settle(page)
+            settle(page, wait_for_network=wait_for_network)
         applied = f"() => document.documentElement.classList.contains('dark') === {json.dumps(theme == 'dark')}"
         try:
             page.wait_for_function(applied, timeout=STEP_TIMEOUT_MS)
         except PlaywrightTimeout:
             raise EvidenceError(f"{shot['name']}: the page did not apply the {theme} theme") from None
-        settle(page)
+        settle(page, wait_for_network=wait_for_network)
         crop = shot.get("crop", "viewport")
         tmp = target.with_suffix(".partial.png")
         if crop == "full":
