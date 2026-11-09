@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import type { Paging } from "@/lib/paging";
 import type { ObservabilityView } from "@/lib/routes";
 import { configuredRegions } from "@/lib/resource-regions";
 
@@ -51,6 +52,7 @@ interface ObsContextValue {
 	setQuery: (tokens: Token[], text: string) => void;
 	setParam: (key: string, value: string | null, replace?: boolean) => void;
 	setParams: (next: URLSearchParams, replace?: boolean) => void;
+	setPaging: (paging: Paging, defaultSize: number) => void;
 	goTo: (view: ObservabilityView, opts?: GoToOptions) => void;
 }
 
@@ -114,6 +116,14 @@ export function ObsProvider({
 		else next.set(key, value);
 		commit(next, replace);
 	};
+	const setPaging = ({ page, size }: Paging, defaultSize: number) => {
+		const next = new URLSearchParams(params);
+		if (page === 0) next.delete("page");
+		else next.set("page", String(page + 1));
+		if (size === defaultSize) next.delete("size");
+		else next.set("size", String(size));
+		commit(next, true);
+	};
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
 		const search = new URLSearchParams({ view: next });
@@ -143,6 +153,7 @@ export function ObsProvider({
 		setQuery,
 		setParam,
 		setParams: commit,
+		setPaging,
 		goTo,
 	};
 

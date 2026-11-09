@@ -3,6 +3,7 @@ import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XI
 
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
+import type { Paging } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 
 export function Dot({ className, color, size = 7 }: { className?: string; color?: string; size?: number }) {
@@ -230,6 +231,15 @@ export function PanelNav({
 }
 
 export const PAGE_SIZES = [25, 50, 100];
+
+export function readPaging(params: URLSearchParams, defaultSize: number): Paging {
+	const page = Number(params.get("page"));
+	const size = Number(params.get("size"));
+	return {
+		page: Number.isSafeInteger(page) && page > 0 ? page - 1 : 0,
+		size: PAGE_SIZES.includes(size) ? size : defaultSize,
+	};
+}
 
 export function DetailPanel({ label, header, children }: { label: string; header: ReactNode; children: ReactNode }) {
 	return (

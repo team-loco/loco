@@ -11,7 +11,7 @@ import { useQueryTraces } from "@/hooks/useQueryTraces";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow } from "@/lib/obs-time";
-import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { pagedRows } from "@/lib/paging";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ import { fmtTs } from "./format";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, sameToken, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
-import { PAGE_SIZES } from "./shared";
+import { PAGE_SIZES, readPaging } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
 import { traceServiceColor, traceServiceLabel } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
@@ -33,16 +33,6 @@ const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 
 function statusOf(trace: TraceSummary): string {
 	return trace.errors > 0 ? "error" : "ok";
-}
-
-function readPage(value: string | null): number {
-	const n = Number(value);
-	return Number.isSafeInteger(n) && n > 0 ? n - 1 : 0;
-}
-
-function readSize(value: string | null): number {
-	const n = Number(value);
-	return PAGE_SIZES.includes(n) ? n : DEFAULT_PAGE_SIZE;
 }
 
 export function TracesView() {
@@ -63,6 +53,7 @@ function TraceSession() {
 		params,
 		setParam,
 		setParams,
+		setPaging,
 	} = useObs();
 	const { active, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = active?.id ?? "";
@@ -105,16 +96,21 @@ function TraceSession() {
 		.toSorted((a, b) => (a.start > b.start ? -1 : 1));
 	const errorCount = named.filter((t) => t.errors > 0).length;
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
-	const size = readSize(params.get("size"));
-	const { rows, page, pages } = pageSlice(traces, readPage(params.get("page")), size);
+	const paging = readPaging(params, DEFAULT_PAGE_SIZE);
+	const paged = pagedRows(
+		traces,
+		paging,
+		(next) => {
+			setPaging(next, DEFAULT_PAGE_SIZE);
+		},
+		PAGE_SIZES,
+		"0",
+	);
 	const maxDuration = traces.reduce((max, t) => (t.duration > max ? t.duration : max), 1n);
 	const loading = environmentLoading || browse.isLoading || (resourceFilter && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.pages.flatMap((r) => r.spans) ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
 	const query = queryStr(tokens, text);
-	const setPage = (p: number) => {
-		setParam("page", p === 0 ? null : String(p + 1), true);
-	};
 	const open = (id: string) => {
 		const next = new URLSearchParams(params);
 		next.set("trace", id);
@@ -135,7 +131,7 @@ function TraceSession() {
 				["error", errorCount],
 				["ok", named.length - errorCount],
 			];
-		if (key === "trace") return traces.slice(0, page + 1).map((t) => [t.id, t.spans.length]);
+		if (key === "trace") return traces.slice(0, paging.page + 1).map((t) => [t.id, t.spans.length]);
 		return [];
 	};
 
@@ -150,7 +146,7 @@ function TraceSession() {
 					disabled={browse.isFetching}
 					onClick={() => {
 						setFrozenEnd(Date.now());
-						setPage(0);
+						setParam("page", null, true);
 					}}
 				>
 					<RefreshCwIcon className={cn(browse.isFetching && "animate-spin motion-reduce:animate-none")} />
@@ -255,7 +251,7 @@ function TraceSession() {
 									</tr>
 								))}
 							{!loading &&
-								rows.map((t) => {
+								paged.rows.map((t) => {
 									const failed = t.errors > 0;
 									const startMs = Number(t.start / NANOS_PER_MS);
 									const on = t.id === openId;
@@ -350,46 +346,7 @@ function TraceSession() {
 						</Button>
 					</div>
 				)}
-				<Pager
-					label={traces.length > 0 ? pageRangeLabel(page, size, traces.length) : "0"}
-					pageSizes={PAGE_SIZES}
-					pageSize={size}
-					onPageSize={(n) => {
-						const next = new URLSearchParams(params);
-						next.delete("page");
-						if (n === DEFAULT_PAGE_SIZE) next.delete("size");
-						else next.set("size", String(n));
-						setParams(next, true);
-					}}
-					onFirst={
-						page > 0
-							? () => {
-									setPage(0);
-								}
-							: null
-					}
-					onPrev={
-						page > 0
-							? () => {
-									setPage(page - 1);
-								}
-							: null
-					}
-					onNext={
-						page < pages - 1
-							? () => {
-									setPage(page + 1);
-								}
-							: null
-					}
-					onLast={
-						page < pages - 1
-							? () => {
-									setPage(pages - 1);
-								}
-							: null
-					}
-				/>
+				<Pager {...paged.pager} {...paged.ends} />
 			</section>
 			{openId !== "" && (
 				<TraceDrawer

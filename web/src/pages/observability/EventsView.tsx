@@ -10,7 +10,7 @@ import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow } from "@/lib/obs-time";
-import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { pagedRows } from "@/lib/paging";
 import { resourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ import { eventTitle, groupEvents, type Severity } from "./events";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
-import { PAGE_SIZES } from "./shared";
+import { PAGE_SIZES, readPaging } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
@@ -58,16 +58,6 @@ function glyphFor(severity: Severity) {
 	}
 }
 
-function readPage(value: string | null): number {
-	const n = Number(value);
-	return Number.isSafeInteger(n) && n > 0 ? n - 1 : 0;
-}
-
-function readSize(value: string | null): number {
-	const n = Number(value);
-	return PAGE_SIZES.includes(n) ? n : DEFAULT_PAGE_SIZE;
-}
-
 export function EventsView() {
 	const {
 		orgId,
@@ -81,7 +71,7 @@ export function EventsView() {
 		setQuery,
 		params,
 		setParam,
-		setParams,
+		setPaging,
 	} = useObs();
 	const live = params.get("live") === "1";
 	const [selKey, setSelKey] = useState<string | null>(null);
@@ -113,18 +103,23 @@ export function EventsView() {
 			? "warning"
 			: "all";
 
-	const size = readSize(params.get("size"));
-	const { rows: pageItems, page, pages } = pageSlice(items, readPage(params.get("page")), size);
-	const setPage = (p: number) => {
-		setParam("page", p === 0 ? null : String(p + 1), true);
-	};
+	const paging = readPaging(params, DEFAULT_PAGE_SIZE);
+	const paged = pagedRows(
+		items,
+		paging,
+		(next) => {
+			setPaging(next, DEFAULT_PAGE_SIZE);
+		},
+		PAGE_SIZES,
+		"0",
+	);
 	const selIdx = selKey !== null ? items.findIndex((x) => x.key === selKey) : -1;
 	const selItem = selIdx >= 0 ? items[selIdx] : undefined;
 	const select = (key: string | null) => {
 		setSelKey(key);
 		if (key === null) return;
 		const idx = items.findIndex((x) => x.key === key);
-		if (idx >= 0) setPage(Math.floor(idx / size));
+		if (idx >= 0) setPaging({ page: Math.floor(idx / paging.size), size: paging.size }, DEFAULT_PAGE_SIZE);
 	};
 	const loading = isLoading || resourcesLoading;
 	const query = queryStr(tokens, text);
@@ -243,7 +238,7 @@ export function EventsView() {
 										</tr>
 									))}
 								{!loading &&
-									pageItems.map((e) => {
+									paged.rows.map((e) => {
 										const on = e.key === selItem?.key;
 										const res = resourceByName.get(e.resourceName);
 										return (
@@ -307,46 +302,7 @@ export function EventsView() {
 						)}
 						{!loading && error === null && items.length === 0 && <NoMatches title="No events match these filters" />}
 					</div>
-					<Pager
-						label={items.length > 0 ? pageRangeLabel(page, size, items.length) : "0"}
-						pageSizes={PAGE_SIZES}
-						pageSize={size}
-						onPageSize={(n) => {
-							const next = new URLSearchParams(params);
-							next.delete("page");
-							if (n === DEFAULT_PAGE_SIZE) next.delete("size");
-							else next.set("size", String(n));
-							setParams(next, true);
-						}}
-						onFirst={
-							page > 0
-								? () => {
-										setPage(0);
-									}
-								: null
-						}
-						onPrev={
-							page > 0
-								? () => {
-										setPage(page - 1);
-									}
-								: null
-						}
-						onNext={
-							page < pages - 1
-								? () => {
-										setPage(page + 1);
-									}
-								: null
-						}
-						onLast={
-							page < pages - 1
-								? () => {
-										setPage(pages - 1);
-									}
-								: null
-						}
-					/>
+					<Pager {...paged.pager} {...paged.ends} />
 				</section>
 				{selItem !== undefined && (
 					<EventDetail

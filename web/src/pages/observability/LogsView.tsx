@@ -29,7 +29,7 @@ import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { buildBackendQuery, LEVELS, queryStr, sameToken, type FieldKey, type Level } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
-import { PAGE_SIZES, VolumeBars, type VolumeBucket } from "./shared";
+import { PAGE_SIZES, readPaging, VolumeBars, type VolumeBucket } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
@@ -59,17 +59,12 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 	return best;
 }
 
-function readSize(value: string | null): number {
-	const n = Number(value);
-	return PAGE_SIZES.includes(n) ? n : DEFAULT_PAGE_SIZE;
-}
-
 export function LogsView() {
 	const { workspaceId, resources, resourceById, range, setRange, tokens, text, setQuery, params, setParam } = useObs();
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = environment?.id ?? "";
 	const mobile = useIsMobile();
-	const size = readSize(params.get("size"));
+	const { size } = readPaging(params, DEFAULT_PAGE_SIZE);
 	const columns = readColumns(params.get("cols"));
 	const colorBy: ColorBy = params.get("color") === "resource" ? "resource" : "level";
 	const [page, setPage] = useState<number | "last">(0);
