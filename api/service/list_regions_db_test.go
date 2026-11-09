@@ -86,3 +86,35 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 	_, err := server.ListRegions(denied, &resourcev1.ListRegionsRequest{EnvironmentId: f.envID.String()})
 	wantCode(t, err, connect.CodeNotFound)
 }
+
+func TestListRegionsReportsDegradedRegions(t *testing.T) {
+	f := newDeployFixture(t)
+	f.markClustersHealthy(t)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	scopes := f.workspaceReadScopes(t)
+
+	ctx := t.Context()
+	update := `UPDATE clusters SET health_status = 'degraded' WHERE id = $1`
+	if _, err := f.pool.Exec(ctx, update, f.clusterID); err != nil {
+		t.Fatalf("mark default cluster degraded: %v", err)
+	}
+
+	regions := listRegions(t, server, scopes, f.envID.String())
+	if len(regions) != 1 || regions[0].GetHealthStatus() != clusterHealthHealthy || regions[0].GetIsDefault() {
+		t.Fatalf("regions with a healthy fallback = %v, want the healthy non-default cluster", regions)
+	}
+
+	move := `UPDATE clusters SET region = $2 WHERE id = $1`
+	if _, err := f.pool.Exec(ctx, move, f.clusterID, statusSecondRegion); err != nil {
+		t.Fatalf("move degraded cluster to its own region: %v", err)
+	}
+	regions = listRegions(t, server, scopes, f.envID.String())
+	if len(regions) != 2 || regions[0].GetRegion() != testRegion ||
+		regions[1].GetRegion() != statusSecondRegion ||
+		regions[1].GetHealthStatus() != clusterHealthDegraded || regions[1].GetIsDefault() {
+		t.Fatalf("regions = %v, want the healthy region first and the degraded region without a default", regions)
+	}
+
+	_, err := eligibleCluster(ctx, f.queries, statusSecondRegion, "production", testClusterSilentAfter)
+	wantCode(t, err, connect.CodeFailedPrecondition)
+}
