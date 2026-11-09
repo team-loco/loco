@@ -3,6 +3,7 @@ import { createClient } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import { ObservabilityProxyService, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
+import { msToTimestamp } from "@/lib/time";
 
 const MAX_TAIL_ENTRIES = 500;
 
@@ -12,6 +13,7 @@ interface UseTailLogsOptions {
 	allEnvironments?: boolean;
 	resourceIds: string[];
 	parsedQuery: ParsedQuery;
+	sinceMs?: number | undefined;
 	enabled?: boolean;
 }
 
@@ -24,16 +26,15 @@ interface TailState {
 
 const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false, error: null };
 
-export function useTailLogs({
+export function tailLogsRequest({
 	workspaceId,
 	environmentId,
 	allEnvironments = false,
 	resourceIds,
 	parsedQuery,
-	enabled = true,
+	sinceMs,
 }: UseTailLogsOptions) {
-	const transport = useTransport();
-	const request = {
+	return {
 		workspaceId,
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
@@ -42,11 +43,18 @@ export function useTailLogs({
 		labels: parsedQuery.labels,
 		regions: parsedQuery.regions ?? [],
 		excludedRegions: parsedQuery.excludedRegions ?? [],
+		since: sinceMs === undefined ? undefined : msToTimestamp(sinceMs),
 	};
+}
+
+export function useTailLogs(options: UseTailLogsOptions) {
+	const { workspaceId, environmentId, allEnvironments = false, sinceMs, enabled = true } = options;
+	const transport = useTransport();
+	const request = tailLogsRequest(options);
 	const streamKey = JSON.stringify([
 		enabled,
 		createConnectQueryKey({ schema: ObservabilityProxyService, transport, cardinality: "finite" }),
-		request,
+		{ ...request, since: sinceMs ?? null },
 	]);
 	const [tail, setTail] = useState<TailState>({ key: streamKey, ...NO_TAIL });
 	if (tail.key !== streamKey) {

@@ -9,6 +9,7 @@ import {
 } from "@gen/loco/observability/v1/observability_pb";
 
 import { latestLogsQueryOptions, logsQueryOptions } from "./useQueryLogs";
+import { tailLogsRequest } from "./useTailLogs";
 import { HOUR_MS } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 import { metricsQueryOptions } from "./useQueryMetrics";
@@ -69,6 +70,12 @@ describe("regional control-plane queries", () => {
 		} finally {
 			client.clear();
 		}
+	});
+
+	test("tails from a given time and from now by default", () => {
+		const sinceMs = 1_760_000_000_123;
+		expect(tailLogsRequest({ ...logOptions, sinceMs }).since).toEqual(msToTimestamp(sinceMs));
+		expect(tailLogsRequest(logOptions).since).toBeUndefined();
 	});
 
 	test("waits for an environment before enabling dashboard metrics", () => {
