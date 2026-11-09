@@ -4,6 +4,7 @@ import { BellIcon, ScrollTextIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
@@ -17,19 +18,16 @@ import { agoLabel } from "@/lib/time";
 
 const CLOCK_TICK_MS = 60_000;
 
-interface AlertLinks {
-	resource: (alert: Alert) => string;
-	logs: (alert: Alert) => string;
-}
-
 function AlertCard({
 	alert,
-	links,
+	resourceHref,
+	logsHref,
 	nowMs,
 	onNavigate,
 }: {
 	alert: Alert;
-	links: AlertLinks;
+	resourceHref: string;
+	logsHref: string;
 	nowMs: number;
 	onNavigate: () => void;
 }) {
@@ -52,15 +50,10 @@ function AlertCard({
 				</p>
 			)}
 			<div className="mt-3.5 flex gap-2">
-				<Button size="sm" nativeButton={false} render={<Link to={links.resource(alert)} onClick={onNavigate} />}>
+				<Button size="sm" nativeButton={false} render={<Link to={resourceHref} onClick={onNavigate} />}>
 					Open {alert.name}
 				</Button>
-				<Button
-					size="sm"
-					variant="outline"
-					nativeButton={false}
-					render={<Link to={links.logs(alert)} onClick={onNavigate} />}
-				>
+				<Button size="sm" variant="outline" nativeButton={false} render={<Link to={logsHref} onClick={onNavigate} />}>
 					<ScrollTextIcon className="text-fg3" />
 					Logs
 				</Button>
@@ -69,21 +62,10 @@ function AlertCard({
 	);
 }
 
-function AlertList({ alerts, links, onNavigate }: { alerts: Alert[]; links: AlertLinks; onNavigate: () => void }) {
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
-	if (alerts.length === 0) return <p className="px-2 py-12 text-center text-[13.5px] text-fg3">No active alerts</p>;
-	return (
-		<ul className="flex flex-col gap-2.5">
-			{alerts.map((a) => (
-				<AlertCard key={a.key} alert={a} links={links} nowMs={nowMs} onNavigate={onNavigate} />
-			))}
-		</ul>
-	);
-}
-
 export function AlertsDrawer() {
 	const [open, setOpen] = useState(false);
 	const transport = useTransport();
+	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
 	const resources = useQuery({
@@ -96,34 +78,26 @@ export function AlertsDrawer() {
 	const alerts = buildAlerts(resources.data?.resources ?? [], active.id);
 	const count = alertedResourceCount(alerts);
 	const envParams = { env: active.name };
-	const links: AlertLinks = {
-		resource: (a) => resourcePath(activeOrgId, activeWorkspaceId, a.resourceId),
-		logs: (a) => observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: a.name }),
-	};
 	const close = () => {
 		setOpen(false);
 	};
 
 	return (
 		<>
-			<button
-				type="button"
+			<Button
+				variant="outline"
 				aria-label={`Alerts, ${count.toString()} active`}
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				onClick={() => {
 					setOpen(true);
 				}}
-				className="flex h-8 shrink-0 items-center gap-[7px] rounded-md border border-line bg-background pr-2.5 pl-[9px] text-[13px] text-fg2 outline-none transition-colors duration-150 hover:border-line2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+				className="px-2.5"
 			>
-				<BellIcon aria-hidden className="size-3.5" />
+				<BellIcon aria-hidden />
 				<span className="hidden md:inline">Alerts</span>
-				{count > 0 && (
-					<span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-panel2 px-[5px] font-mono text-[11px] text-foreground">
-						{count}
-					</span>
-				)}
-			</button>
+				{count > 0 && <Badge tone="count">{count}</Badge>}
+			</Button>
 			<Sheet open={open} onOpenChange={setOpen}>
 				<SheetContent>
 					<SheetHeader>
@@ -131,7 +105,22 @@ export function AlertsDrawer() {
 						<span className="font-mono text-[13px] text-fg3">{count}</span>
 					</SheetHeader>
 					<SheetBody className="p-4">
-						<AlertList alerts={alerts} links={links} onNavigate={close} />
+						{alerts.length === 0 ? (
+							<p className="px-2 py-12 text-center text-[13.5px] text-fg3">No active alerts</p>
+						) : (
+							<ul className="flex flex-col gap-2.5">
+								{alerts.map((a) => (
+									<AlertCard
+										key={a.key}
+										alert={a}
+										resourceHref={resourcePath(activeOrgId, activeWorkspaceId, a.resourceId)}
+										logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: a.name })}
+										nowMs={nowMs}
+										onNavigate={close}
+									/>
+								))}
+							</ul>
+						)}
 					</SheetBody>
 					<SheetFooter>
 						<Button
