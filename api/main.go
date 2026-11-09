@@ -40,6 +40,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -263,7 +264,7 @@ func main() {
 		slog.Warn("LOCO_REGISTRY_HOST is not set; builds are disabled")
 	}
 	if sourceBucket != nil {
-		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
+		sourceSweeper := sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 		background.Go(func() { sourceSweeper.Run(shutdownCtx) })
 	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
@@ -335,7 +336,7 @@ func main() {
 		log.Fatal(registryErr)
 	}
 	if imageRegistry != nil {
-		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
+		imageSweeper := sweepers.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
 		background.Go(func() { imageSweeper.Run(shutdownCtx) })
 	}
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
@@ -375,7 +376,7 @@ func main() {
 		mux.HandleFunc("GET "+registrytoken.KeyPath, registryKeyHandler)
 		mux.HandleFunc("GET "+registrytoken.TokenPath, registryServiceHandler.Token)
 		mux.HandleFunc("POST "+registrytoken.TokenPath, registryServiceHandler.Token)
-		registrySweeper := service.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
+		registrySweeper := sweepers.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
 		background.Go(func() { registrySweeper.Run(shutdownCtx) })
 	}
 	planServiceHandler := service.NewPlanServer(

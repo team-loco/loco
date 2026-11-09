@@ -1,4 +1,4 @@
-package service
+package sweepers
 
 import (
 	"context"
@@ -34,9 +34,7 @@ func NewRegistrySweeper(db *pgxpool.Pool, interval time.Duration) *RegistrySweep
 }
 
 func (s *RegistrySweeper) Run(ctx context.Context) {
-	ticker := time.NewTicker(s.interval)
-	defer ticker.Stop()
-	for {
+	runEvery(ctx, s.interval, func(ctx context.Context) {
 		result, err := s.tracedSweep(ctx)
 		if err != nil && ctx.Err() == nil {
 			slog.ErrorContext(ctx, "registry credential sweep failed", "error", err)
@@ -44,12 +42,7 @@ func (s *RegistrySweeper) Run(ctx context.Context) {
 		if result.CredentialsDeleted > 0 {
 			slog.InfoContext(ctx, "registry credential sweep finished", "deleted", result.CredentialsDeleted)
 		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
+	})
 }
 
 func (s *RegistrySweeper) tracedSweep(ctx context.Context) (RegistrySweepResult, error) {
@@ -65,32 +58,24 @@ func (s *RegistrySweeper) tracedSweep(ctx context.Context) (RegistrySweepResult,
 
 func (s *RegistrySweeper) Sweep(ctx context.Context) (RegistrySweepResult, error) {
 	var result RegistrySweepResult
-	conn, err := s.db.Acquire(ctx)
-	if err != nil {
-		return result, fmt.Errorf("acquire connection: %w", err)
-	}
-	lockQueries := genDb.New(conn)
-	locked, err := lockQueries.TryAdvisoryLock(ctx, advisorylock.RegistrySweep)
-	if err != nil {
-		conn.Release()
-		return result, fmt.Errorf("lock registry credential sweep: %w", err)
-	}
-	if !locked {
-		conn.Release()
-		return result, nil
-	}
-	defer unlockAdvisory(ctx, conn, lockQueries, advisorylock.RegistrySweep)
-	result.Ran = true
+	ran, err := runLocked(ctx, s.db, advisorylock.RegistrySweep, func() error {
+		return s.deleteCredentials(ctx, &result)
+	})
+	result.Ran = ran
+	return result, err
+}
 
-	expired, err := lockQueries.DeleteExpiredPullRegistryCredentials(ctx)
+func (s *RegistrySweeper) deleteCredentials(ctx context.Context, result *RegistrySweepResult) error {
+	queries := genDb.New(s.db)
+	expired, err := queries.DeleteExpiredPullRegistryCredentials(ctx)
 	result.CredentialsDeleted = expired
 	if err != nil {
-		return result, fmt.Errorf("delete expired pull registry credentials: %w", err)
+		return fmt.Errorf("delete expired pull registry credentials: %w", err)
 	}
-	stopped, err := lockQueries.DeleteStoppedBuildRegistryCredentials(ctx)
+	stopped, err := queries.DeleteStoppedBuildRegistryCredentials(ctx)
 	result.CredentialsDeleted += stopped
 	if err != nil {
-		return result, fmt.Errorf("delete stopped build registry credentials: %w", err)
+		return fmt.Errorf("delete stopped build registry credentials: %w", err)
 	}
-	return result, nil
+	return nil
 }

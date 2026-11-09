@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -18,6 +17,8 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/buildsource"
+	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -27,8 +28,6 @@ import (
 const (
 	buildSourceTypeUpload = "upload"
 	defaultBuildContext   = "."
-	buildUploadURLTTL     = 15 * time.Minute
-	buildSourcePrefix     = "sources/"
 )
 
 var (
@@ -90,25 +89,6 @@ func buildsUnavailable(reason error) *connect.Error {
 	return withDetail(connectErr, &buildv1.BuildsUnavailable{})
 }
 
-func imageRepository(registryHost, registryPrefix string, workspaceID, resourceID uuid.UUID) string {
-	host := strings.TrimSuffix(registryHost, "/")
-	workspacePath := workspaceRepositoryPrefix(registryPrefix, workspaceID)
-	return host + "/" + workspacePath + resourceID.String()
-}
-
-func workspaceRepositoryPrefix(registryPrefix string, workspaceID uuid.UUID) string {
-	workspacePath := workspacePathPrefix + workspaceID.String() + "/"
-	prefix := strings.Trim(registryPrefix, "/")
-	if prefix == "" {
-		return workspacePath
-	}
-	return prefix + "/" + workspacePath
-}
-
-func buildSourceKey(buildID uuid.UUID) string {
-	return buildSourcePrefix + buildID.String() + ".tar.gz"
-}
-
 func (s *BuildServer) CreateBuild(
 	ctx context.Context,
 	req *buildv1.CreateBuildRequest,
@@ -151,15 +131,20 @@ func (s *BuildServer) CreateBuild(
 	if err != nil {
 		return nil, fmt.Errorf("generate build id: %w", err)
 	}
-	sourceKey := buildSourceKey(buildID)
+	sourceKey := buildsource.Key(buildID)
 
 	issuedAt := s.now()
-	uploadURL, err := s.bucket.PresignPut(ctx, sourceKey, sourceSize, buildUploadURLTTL)
+	uploadURL, err := s.bucket.PresignPut(ctx, sourceKey, sourceSize, buildsource.UploadURLTTL)
 	if err != nil {
 		return nil, fmt.Errorf("presign source upload for build %s: %w", buildID, err)
 	}
 
-	repository := imageRepository(s.config.RegistryHost, s.config.RegistryPrefix, resource.WorkspaceID, resource.ID)
+	repository := imagepath.Repository(
+		s.config.RegistryHost,
+		s.config.RegistryPrefix,
+		resource.WorkspaceID,
+		resource.ID,
+	)
 	dockerfilePath := req.GetDockerfilePath()
 	buildContext := req.GetContext()
 	if buildContext == "" {
@@ -192,7 +177,7 @@ func (s *BuildServer) CreateBuild(
 		return nil, createErr
 	}
 
-	expiresAt := issuedAt.Add(buildUploadURLTTL)
+	expiresAt := issuedAt.Add(buildsource.UploadURLTTL)
 	uploadExpiresAt := timestamppb.New(expiresAt)
 	buildIDStr := buildID.String()
 	return &buildv1.CreateBuildResponse{
@@ -358,7 +343,7 @@ func deleteBuildSources(ctx context.Context, queries genDb.Querier, bucket Sourc
 		return
 	}
 	for _, source := range sources {
-		if err := deleteBuildSource(ctx, queries, bucket, source.id, source.key); err != nil {
+		if err := buildsource.Delete(ctx, queries, bucket, source.id, source.key); err != nil {
 			slog.WarnContext(ctx, "failed to delete build source", "buildId", source.id, "error", err)
 		}
 	}

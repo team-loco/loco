@@ -24,6 +24,8 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/buildsource"
+	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
@@ -150,7 +152,7 @@ func (f *registryFixture) pullCredential(t *testing.T) string {
 }
 
 func workspaceRepository(workspace, resource string) string {
-	return testRegistryPrefix + "/" + workspacePathPrefix + workspace + "/" + resource
+	return testRegistryPrefix + "/" + imagepath.WorkspaceDirPrefix + workspace + "/" + resource
 }
 
 type registryExchange struct {
@@ -377,11 +379,11 @@ func TestRegistryRealmGrantsPullOnTheWorkspaceRepositoriesOnly(t *testing.T) {
 	other := uuid.NewString()
 	refused := []string{
 		"repository:" + workspaceRepository(workspace+"x", "r") + ":pull",
-		"repository:" + testRegistryPrefix + "/" + workspacePathPrefix + workspace + ":pull",
-		"repository:" + workspaceRepository(workspace, "../"+workspacePathPrefix+other+"/r") + ":pull",
+		"repository:" + testRegistryPrefix + "/" + imagepath.WorkspaceDirPrefix + workspace + ":pull",
+		"repository:" + workspaceRepository(workspace, "../"+imagepath.WorkspaceDirPrefix+other+"/r") + ":pull",
 		"repository:" + workspaceRepository(other, "r") + ":pull",
-		"repository:other/" + workspacePathPrefix + workspace + "/r:pull",
-		"repository:" + workspacePathPrefix + workspace + "/r:pull",
+		"repository:other/" + imagepath.WorkspaceDirPrefix + workspace + "/r:pull",
+		"repository:" + imagepath.WorkspaceDirPrefix + workspace + "/r:pull",
 		"repository::pull",
 		"repository:" + strings.ToUpper(repository) + ":pull",
 		"repository:" + repository + "/:pull",
@@ -575,14 +577,14 @@ func TestRegistryPullCredentialStopsWhenThePlacementEnds(t *testing.T) {
 func (f *registryFixture) insertBuild(t *testing.T, status genDb.BuildStatus) (uuid.UUID, string) {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())
-	repository := imageRepository(testRegistryHost, testRegistryPrefix, f.workspaceID, f.resourceID)
+	repository := imagepath.Repository(testRegistryHost, testRegistryPrefix, f.workspaceID, f.resourceID)
 	f.exec(t, `
 INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, created_by)
 VALUES ($1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7)`,
-		id, f.resourceID, f.clusterID, status, buildSourceKey(id), repository, uuid.New(),
+		id, f.resourceID, f.clusterID, status, buildsource.Key(id), repository, uuid.New(),
 	)
-	path, err := registryPath(testRegistryHost, repository)
+	path, err := imagepath.Path(testRegistryHost, repository)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,56 +644,6 @@ func TestRegistryBuildCredentialGrantsItsBuildRepositoryWhileTheBuildRuns(t *tes
 	f.exec(t, "UPDATE builds SET status = 'failed', finished_at = NOW() WHERE id = $1", buildID)
 	for _, method := range registryExchanges {
 		wantRegistryStatus(t, f.exchange(t, build(method, ownScope)), http.StatusUnauthorized, "finished build")
-	}
-}
-
-func TestRegistrySweepDeletesDeadCredentials(t *testing.T) {
-	f := newRegistryFixture(t, testRegistryConfig())
-	insertPull := func(expiresIn string) []byte {
-		hash := sha256.Sum256([]byte(uuid.NewString()))
-		f.exec(t, `
-INSERT INTO registry_credentials (kind, cluster_id, workspace_id, secret_hash, expires_at)
-VALUES ('pull', $1, $2, $3, NOW() + $4::interval)`,
-			f.clusterID, f.workspaceID, hash[:], expiresIn,
-		)
-		return hash[:]
-	}
-	buildHash := func(buildID uuid.UUID) []byte {
-		sum := sha256.Sum256([]byte(f.insertBuildCredential(t, buildID)))
-		return sum[:]
-	}
-	livePull := insertPull("1 hour")
-	insertPull("-1 second")
-	running, _ := f.insertBuild(t, genDb.BuildStatusRunning)
-	liveBuild := buildHash(running)
-	failed, _ := f.insertBuild(t, genDb.BuildStatusFailed)
-	buildHash(failed)
-	moved, _ := f.insertBuild(t, genDb.BuildStatusRunning)
-	buildHash(moved)
-	f.exec(t, "UPDATE builds SET cluster_id = $2 WHERE id = $1", moved, f.otherCluster)
-
-	sweeper := NewRegistrySweeper(f.pool, time.Minute)
-	result, err := sweeper.Sweep(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !result.Ran || result.CredentialsDeleted != 3 {
-		t.Fatalf("deleted %d registry credentials, want 3", result.CredentialsDeleted)
-	}
-	rows, err := f.pool.Query(t.Context(), "SELECT secret_hash FROM registry_credentials ORDER BY kind DESC")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var kept [][]byte
-	for rows.Next() {
-		var hash []byte
-		if scanErr := rows.Scan(&hash); scanErr != nil {
-			t.Fatal(scanErr)
-		}
-		kept = append(kept, hash)
-	}
-	if !reflect.DeepEqual(kept, [][]byte{livePull, liveBuild}) {
-		t.Fatalf("kept %x, want the live pull and build credentials", kept)
 	}
 }
 

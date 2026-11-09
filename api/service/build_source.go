@@ -34,7 +34,10 @@ var (
 		connect.CodeInvalidArgument,
 		"build_id must not be set for image deployments",
 	)
-	errImageRequired         = rpcerr.NewCoded(connect.CodeInvalidArgument, "image is required for image deployments")
+	errImageRequired     = rpcerr.NewCoded(connect.CodeInvalidArgument, "image is required for image deployments")
+	errBuildImageDeleted = rpcerr.NewCoded(connect.CodeFailedPrecondition,
+		"the build's image was deleted from the registry by image retention; build the source again",
+	)
 	errImageFromLocoRegistry = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"images from the loco registry can only be deployed through a build",

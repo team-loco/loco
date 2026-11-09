@@ -1,24 +1,21 @@
-package service
+package sweepers
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"maps"
-	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/buildsource"
+	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/registryclient"
-	"github.com/team-loco/loco/api/pkg/registrytest"
-	"github.com/team-loco/loco/api/pkg/registrytoken"
-	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -40,10 +37,6 @@ const (
 	uuidVariantMask     = 0x3f
 	uuidTimestampBytes  = 6
 	bitsPerByte         = 8
-
-	testTokenSweepBuilds       = 2
-	testTokenSweepRepositories = 10
-	testTokenSweepTimeout      = 10 * time.Second
 )
 
 var errFakeRegistry = errors.New("fake registry failure")
@@ -160,7 +153,7 @@ func (r *fakeRegistry) TagDigest(_ context.Context, path, tag string) (string, e
 }
 
 type imageSweepFixture struct {
-	*buildFixture
+	*fixture
 	registry    *fakeRegistry
 	sweeper     *ImageSweeper
 	workspaceID uuid.UUID
@@ -171,24 +164,18 @@ type imageSweepFixture struct {
 
 func newImageSweepFixture(t *testing.T, retention int32) *imageSweepFixture {
 	t.Helper()
-	f := newBuildFixture(t)
-	registry := newFakeRegistry()
-	var workspaceID uuid.UUID
-	row := f.pool.QueryRow(f.ctx, `SELECT workspace_id FROM resources WHERE id = $1`, f.resourceID)
-	if err := row.Scan(&workspaceID); err != nil {
-		t.Fatalf("read workspace: %v", err)
-	}
-	repository := imageRepository(testRegistryHost, testRegistryPrefix, workspaceID, f.resourceID)
-	repoPath, err := registryPath(testRegistryHost, repository)
+	f := newFixture(t)
+	repository := imagepath.Repository(testRegistryHost, testRegistryPrefix, f.workspaceID, f.resourceID)
+	repoPath, err := imagepath.Path(testRegistryHost, repository)
 	if err != nil {
 		t.Fatalf("registry path: %v", err)
 	}
 	fixture := &imageSweepFixture{
-		buildFixture: f,
-		registry:     registry,
-		workspaceID:  workspaceID,
-		repoPath:     repoPath,
-		now:          time.Now(),
+		fixture:     f,
+		registry:    newFakeRegistry(),
+		workspaceID: f.workspaceID,
+		repoPath:    repoPath,
+		now:         time.Now(),
 	}
 	fixture.sweeper = fixture.newSweeper(retention)
 	return fixture
@@ -239,7 +226,7 @@ func (f *imageSweepFixture) succeededWith(t *testing.T, image, cache string) swe
 	id := uuid.Must(uuid.NewV7())
 	finished := f.now.Add(time.Duration(f.built) * testBuildSpacing)
 	repository := testRegistryHost + "/" + f.repoPath
-	key := buildSourceKey(id)
+	key := buildsource.Key(id)
 	if _, err := f.pool.Exec(f.ctx, `
 INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, image_digest, cache_digest, created_by,
@@ -268,7 +255,7 @@ func (f *imageSweepFixture) sweep(t *testing.T) ImageSweepResult {
 
 func (f *imageSweepFixture) imageDeleted(t *testing.T, b sweptBuild) bool {
 	t.Helper()
-	return f.row(t, b.id).ImageDeletedAt != nil
+	return f.build(t, uuid.MustParse(b.id)).ImageDeletedAt != nil
 }
 
 func (f *imageSweepFixture) wantDeleted(t *testing.T, builds ...sweptBuild) {
@@ -301,14 +288,12 @@ func (f *imageSweepFixture) wantKept(t *testing.T, builds ...sweptBuild) {
 func (f *imageSweepFixture) activeDeployment(t *testing.T, image string) uuid.UUID {
 	t.Helper()
 	spec := fmt.Sprintf(`{"build":{"type":"dockerfile","image":"%s/%s@%s"}}`, testRegistryHost, f.repoPath, image)
-	params := f.paramsFor(f.clusterID)
-	params.Spec = []byte(spec)
 	var id uuid.UUID
 	err := f.pool.QueryRow(f.ctx, `
 INSERT INTO deployments (resource_id, cluster_id, region, replicas, status,
                          is_active, message, spec, spec_version, environment_id, started_at)
-VALUES ($1, $2, $3, 1, 'running', true, '', $4, 1, $5, NOW())
-RETURNING id`, params.ResourceID, params.ClusterID, params.Region, params.Spec, params.EnvironmentID).Scan(&id)
+VALUES ($1, $2, 'us-east-1', 1, 'running', true, '', $3, 1, $4, NOW())
+RETURNING id`, f.resourceID, f.clusterID, []byte(spec), f.envID).Scan(&id)
 	if err != nil {
 		t.Fatalf("insert deployment: %v", err)
 	}
@@ -357,14 +342,6 @@ func TestImageSweepKeepsTheNewestBuilds(t *testing.T) {
 	}
 	f.wantDeleted(t, oldest, older)
 	f.wantKept(t, newer, newest)
-
-	proto := f.get(t, oldest.id)
-	if proto.GetImageDeletedAt() == nil {
-		t.Fatal("GetBuild does not report the deleted image")
-	}
-	if kept := f.get(t, newest.id); kept.GetImageDeletedAt() != nil {
-		t.Fatal("GetBuild reports a kept image as deleted")
-	}
 
 	if again := f.sweep(t); again.ImagesDeleted != 0 {
 		t.Fatalf("second sweep deleted %d images, want 0", again.ImagesDeleted)
@@ -461,9 +438,9 @@ func TestImageSweepPurgesOrphanedRepositories(t *testing.T) {
 	f.registry.push(strangerPath, strangerDigest)
 
 	unrelated := map[string]string{
-		"other/" + "ws-" + f.workspaceID.String() + "/" + gone.String(): fakeDigest("9999", 1),
-		testRegistryPrefix + "/ws-x/not-a-uuid":                         fakeDigest("9999", 2),
-		testRegistryPrefix + "/e2e/build-app":                           fakeDigest("9999", 3),
+		"other/" + imagepath.WorkspaceDirPrefix + f.workspaceID.String() + "/" + gone.String(): fakeDigest("9999", 1),
+		testRegistryPrefix + "/ws-x/not-a-uuid":                                                fakeDigest("9999", 2),
+		testRegistryPrefix + "/e2e/build-app":                                                  fakeDigest("9999", 3),
 	}
 	for path, digest := range unrelated {
 		f.registry.push(path, digest)
@@ -551,71 +528,6 @@ func TestConcurrentImageSweepsRunOnce(t *testing.T) {
 	}
 }
 
-func dockerfileService(buildID string) *deploymentv1.ServiceDeploymentSpec {
-	build := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
-	return &deploymentv1.ServiceDeploymentSpec{Build: build, Port: 8080}
-}
-
-func TestDeployingABuildWithADeletedImageFails(t *testing.T) {
-	f := newImageSweepFixture(t, 1)
-	old := f.succeeded(t)
-	f.succeeded(t)
-	f.sweep(t)
-
-	service := dockerfileService(old.id)
-	_, err := createDeploymentWith(t, f.deployFixture, sameRegionSpec, service)
-	wantCode(t, err, connect.CodeFailedPrecondition)
-	if !strings.Contains(err.Error(), errBuildImageDeleted.Error()) {
-		t.Fatalf("err = %v, want %v", err, errBuildImageDeleted)
-	}
-}
-
-func TestDeployWaitsForAnImageDeleteInFlight(t *testing.T) {
-	f := newImageSweepFixture(t, 1)
-	old := f.succeeded(t)
-	f.succeeded(t)
-
-	entered, release := f.blockFirstDelete(t)
-
-	swept := make(chan error, 1)
-	go func() {
-		_, err := f.sweeper.Sweep(f.ctx)
-		swept <- err
-	}()
-	select {
-	case <-entered:
-	case <-time.After(testSweepDeadline):
-		t.Fatal("the sweep never reached the registry")
-	}
-
-	deployed := make(chan error, 1)
-	go func() {
-		service := dockerfileService(old.id)
-		_, err := createDeploymentWith(t, f.deployFixture, sameRegionSpec, service)
-		deployed <- err
-	}()
-	select {
-	case err := <-deployed:
-		t.Fatalf("the deploy finished while the image delete held the build: %v", err)
-	case <-time.After(time.Second):
-	}
-
-	release()
-	if err := <-swept; err != nil {
-		t.Fatalf("sweep: %v", err)
-	}
-	var err error
-	select {
-	case err = <-deployed:
-	case <-time.After(testSweepDeadline):
-		t.Fatal("the deploy did not finish after the sweep")
-	}
-	wantCode(t, err, connect.CodeFailedPrecondition)
-	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
-		t.Fatalf("%d deployments were created for a deleted image, want 0", n)
-	}
-}
-
 func uuidV7At(t *testing.T, at time.Time) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
@@ -646,7 +558,7 @@ func (f *imageSweepFixture) tagBuild(id uuid.UUID) taggedBuild {
 func (f *imageSweepFixture) unfinishedBuild(t *testing.T, status genDb.BuildStatus, finished *time.Time) taggedBuild {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())
-	key := buildSourceKey(id)
+	key := buildsource.Key(id)
 	repository := testRegistryHost + "/" + f.repoPath
 	if _, err := f.pool.Exec(f.ctx, `
 INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
@@ -698,7 +610,7 @@ func TestImageSweepDeletesTagsOfUnfinishedBuilds(t *testing.T) {
 INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, created_by, finished_at)
 VALUES ($1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfile', $5, $6, $7)`,
-		sharedID, f.resourceID, f.clusterID, buildSourceKey(sharedID), testRegistryHost+"/"+f.repoPath,
+		sharedID, f.resourceID, f.clusterID, buildsource.Key(sharedID), testRegistryHost+"/"+f.repoPath,
 		uuid.New(), old,
 	); err != nil {
 		t.Fatalf("insert build: %v", err)
@@ -741,8 +653,8 @@ func TestImageSweepBoundsTagDeletesPerRun(t *testing.T) {
 
 func sweptRepository(t *testing.T, workspaceID, resourceID uuid.UUID) string {
 	t.Helper()
-	repository := imageRepository(testRegistryHost, testRegistryPrefix, workspaceID, resourceID)
-	path, err := registryPath(testRegistryHost, repository)
+	repository := imagepath.Repository(testRegistryHost, testRegistryPrefix, workspaceID, resourceID)
+	path, err := imagepath.Path(testRegistryHost, repository)
 	if err != nil {
 		t.Fatalf("registry path: %v", err)
 	}
@@ -775,107 +687,4 @@ func TestImageSweepToleratesEmptyRepositories(t *testing.T) {
 		}
 	}
 	f.wantKept(t, kept)
-}
-
-type tokenSweepRegistry struct {
-	*registrytest.Registry
-	server *RegistryServer
-	client *registryclient.Client
-}
-
-func newTokenSweepRegistry(t *testing.T, f *imageSweepFixture) *tokenSweepRegistry {
-	t.Helper()
-	realm := registryFixtureFor(t, f.deployFixture, testRegistryConfig())
-	publicPEM, err := registrytoken.EncodePublicKey(realm.public)
-	if err != nil {
-		t.Fatalf("encode registry key: %v", err)
-	}
-	reg := registrytest.New(t, publicPEM, testRegistryService)
-	client, err := registryclient.New(registryclient.Config{
-		URL:         "http://" + reg.Host,
-		TokenSource: realm.server.SignAPIToken,
-		Timeout:     testTokenSweepTimeout,
-	})
-	if err != nil {
-		t.Fatalf("registry client: %v", err)
-	}
-	return &tokenSweepRegistry{Registry: reg, server: realm.server, client: client}
-}
-
-func (r *tokenSweepRegistry) pushToken(t *testing.T, path string) string {
-	t.Helper()
-	access := []registrytoken.Access{{
-		Type:    registrytoken.TypeRepository,
-		Name:    path,
-		Actions: []string{registrytoken.ActionPull, registrytoken.ActionPush},
-	}}
-	token, err := r.server.SignAPIToken(t.Context(), access)
-	if err != nil {
-		t.Fatalf("sign push token: %v", err)
-	}
-	return token
-}
-
-func (r *tokenSweepRegistry) deleted(path, digest string) bool {
-	want := "/v2/" + path + "/manifests/" + digest
-	for _, request := range r.Requests() {
-		if request.Method == http.MethodDelete && request.Path == want {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *tokenSweepRegistry) listedTags(path string) bool {
-	want := "/v2/" + path + "/tags/list"
-	for _, request := range r.Requests() {
-		if request.Method == http.MethodGet && request.Path == want {
-			return true
-		}
-	}
-	return false
-}
-
-func TestImageSweepRunsOnRegistryAccessTokens(t *testing.T) {
-	f := newImageSweepFixture(t, 1)
-	reg := newTokenSweepRegistry(t, f)
-	config := imageSweepConfig(1, testTagBatch)
-	config.RepositoryBatch = testTokenSweepRepositories
-	f.sweeper = NewImageSweeper(f.pool, f.queries, reg.client, config)
-
-	liveToken := reg.pushToken(t, f.repoPath)
-	builds := make([]sweptBuild, 0, testTokenSweepBuilds)
-	for i := range testTokenSweepBuilds {
-		image := reg.Push(t, f.repoPath, fmt.Sprintf("image-%d", i), liveToken)
-		cache := reg.Push(t, f.repoPath, fmt.Sprintf("cache-%d", i), liveToken)
-		builds = append(builds, f.succeededWith(t, image, cache))
-	}
-	orphan := f.deletedResourceRepository(t)
-	orphanDigest := reg.Push(t, orphan, "image", reg.pushToken(t, orphan))
-	empty := f.deletedResourceRepository(t)
-	emptyDigest := reg.PushUntagged(t, empty, reg.pushToken(t, empty))
-	if err := reg.client.DeleteManifest(f.ctx, empty, emptyDigest); err != nil {
-		t.Fatalf("empty the repository: %v", err)
-	}
-
-	result := f.sweep(t)
-	if result.ImagesDeleted != 1 || result.OrphanRepositories != 1 {
-		t.Fatalf("sweep = %+v, want one image and one orphaned repository deleted", result)
-	}
-	oldest, newest := builds[0], builds[len(builds)-1]
-	if !f.imageDeleted(t, oldest) {
-		t.Fatal("the oldest build is not marked image deleted")
-	}
-	if !reg.deleted(f.repoPath, oldest.image) || !reg.deleted(f.repoPath, oldest.cache) {
-		t.Fatal("the oldest build's image and cache were not deleted from the registry")
-	}
-	if f.imageDeleted(t, newest) || reg.deleted(f.repoPath, newest.image) {
-		t.Fatal("the newest build's image was deleted")
-	}
-	if !reg.deleted(orphan, orphanDigest) {
-		t.Fatal("the deleted resource's repository was not purged")
-	}
-	if !reg.listedTags(empty) {
-		t.Fatal("the sweep never reached the empty repository")
-	}
 }

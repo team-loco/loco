@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -160,8 +161,8 @@ type APIConfig struct {
 	RegistryPrefix        string
 	Registry              registryclient.Config
 	RegistryAuth          RegistryAuthConfig
-	ImageSweep            service.ImageSweepConfig
-	SourceSweep           service.SourceSweepConfig
+	ImageSweep            sweepers.ImageSweepConfig
+	SourceSweep           sweepers.SourceSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
 	AuthIssuers           []auth.IssuerConfig
 	SignupPolicy          auth.SignupPolicy
@@ -514,8 +515,8 @@ func newRegistryTokenAuthConfig(
 	}
 }
 
-func newImageSweepConfig(registryHost, registryPrefix string) service.ImageSweepConfig {
-	return service.ImageSweepConfig{
+func newImageSweepConfig(registryHost, registryPrefix string) sweepers.ImageSweepConfig {
+	return sweepers.ImageSweepConfig{
 		RegistryHost:    registryHost,
 		RegistryPrefix:  registryPrefix,
 		Retention:       nonNegativeInt32Env("LOCO_IMAGE_RETENTION", defaultImageRetention),
@@ -527,8 +528,8 @@ func newImageSweepConfig(registryHost, registryPrefix string) service.ImageSweep
 	}
 }
 
-func newSourceSweepConfig() service.SourceSweepConfig {
-	return service.SourceSweepConfig{
+func newSourceSweepConfig() sweepers.SourceSweepConfig {
+	return sweepers.SourceSweepConfig{
 		Interval:       positiveDurationEnv("LOCO_SOURCE_SWEEP_INTERVAL", defaultSourceSweepInterval),
 		UploadGrace:    positiveDurationEnv("LOCO_SOURCE_SWEEP_UPLOAD_GRACE", defaultSourceUploadGrace),
 		OrphanMinAge:   positiveDurationEnv("LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE", defaultSourceOrphanMinAge),
@@ -550,7 +551,7 @@ func newSourceBucket(cfg sourcebucket.Config) (service.SourceBucket, error) {
 	return bucket, nil
 }
 
-func newImageRegistry(cfg registryclient.Config, retention int32) (service.ImageRegistry, error) {
+func newImageRegistry(cfg registryclient.Config, retention int32) (sweepers.ImageRegistry, error) {
 	if retention == imageRetentionDisabled {
 		slog.Warn("LOCO_IMAGE_RETENTION is 0; image cleanup is disabled by configuration")
 		return nil, nil

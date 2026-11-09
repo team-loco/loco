@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
@@ -20,8 +21,9 @@ import (
 )
 
 const (
-	testRegistryHost = "registry.loco.test"
-	testDockerfile   = "Dockerfile"
+	testRegistryHost   = "registry.loco.test"
+	testRegistryPrefix = "builds"
+	testDockerfile     = "Dockerfile"
 )
 
 var errFakeDelete = errors.New("fake delete failure")
@@ -130,13 +132,6 @@ func (b *fakeBucket) uploadAt(key string, size int64, at time.Time) {
 	b.modified[key] = at
 }
 
-func (b *fakeBucket) has(key string) bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	_, ok := b.objects[key]
-	return ok
-}
-
 func (b *fakeBucket) deleteCount(key string) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -243,8 +238,18 @@ func (f *buildFixture) get(t *testing.T, buildID string) *buildv1.Build {
 func (f *buildFixture) uploadFor(t *testing.T, buildID string, size int64) {
 	t.Helper()
 	parsed := uuid.MustParse(buildID)
-	key := buildSourceKey(parsed)
+	key := buildsource.Key(parsed)
 	f.bucket.upload(key, size)
+}
+
+func (f *buildFixture) sourceDeleted(t *testing.T, buildID string) bool {
+	t.Helper()
+	var deleted bool
+	row := f.pool.QueryRow(f.ctx, `SELECT source_deleted_at IS NOT NULL FROM builds WHERE id = $1`, buildID)
+	if err := row.Scan(&deleted); err != nil {
+		t.Fatalf("read source_deleted_at: %v", err)
+	}
+	return deleted
 }
 
 func wantCode(t *testing.T, err error, want connect.Code) {

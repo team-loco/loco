@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/internal/bearer"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -221,7 +222,7 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
 	}
-	wantSweep := service.ImageSweepConfig{
+	wantSweep := sweepers.ImageSweepConfig{
 		Retention:       defaultImageRetention,
 		Interval:        defaultImageSweepInterval,
 		BuildBatch:      defaultImageSweepBuildBatch,
@@ -232,7 +233,7 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	if ac.ImageSweep != wantSweep {
 		t.Errorf("image sweep = %+v, want %+v", ac.ImageSweep, wantSweep)
 	}
-	wantSource := service.SourceSweepConfig{
+	wantSource := sweepers.SourceSweepConfig{
 		Interval:       defaultSourceSweepInterval,
 		UploadGrace:    defaultSourceUploadGrace,
 		OrphanMinAge:   defaultSourceOrphanMinAge,
@@ -376,7 +377,7 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 	if !reflect.DeepEqual(ac.Registry, wantRegistry) {
 		t.Errorf("registry = %+v, want %+v", ac.Registry, wantRegistry)
 	}
-	wantSweep := service.ImageSweepConfig{
+	wantSweep := sweepers.ImageSweepConfig{
 		RegistryHost:    testRegistryHost,
 		RegistryPrefix:  "builds",
 		Retention:       2,
