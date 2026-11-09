@@ -133,7 +133,7 @@ export function EventDetail({
 								<div
 									key={String(i)}
 									title={`${String(n)} at ${fmtTs(first + (i * span) / OCC_BUCKETS)}`}
-									className={cn("min-h-px flex-1 rounded-[1px]", n > 0 ? st.dot : "bg-bg3")}
+									className={cn("min-h-px flex-1 rounded-[1px]", n > 0 ? st.dot : "bg-panel2")}
 									style={{ height: `${String((n / obmax) * 100)}%` }}
 								/>
 							))}

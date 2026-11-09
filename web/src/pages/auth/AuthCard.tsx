@@ -16,7 +16,7 @@ export function AuthCard({
 }) {
 	return (
 		<main className="flex min-h-dvh items-start justify-center bg-shell px-4 pt-[14vh] pb-10 text-foreground">
-			<div className="flex w-full max-w-[400px] flex-col gap-5 rounded-[12px] border border-line bg-background px-8 pt-9 pb-8 shadow-popover max-[420px]:px-6 dark:border-line2">
+			<div className="flex w-full max-w-[400px] flex-col gap-5 rounded-overlay border border-line bg-background px-8 pt-9 pb-8 shadow-popover max-[420px]:px-6 dark:border-line2">
 				<div className="flex flex-col items-center gap-2 text-center">
 					<Link to="/" aria-label="loco home" className="mb-3 rounded-lg">
 						<LocoLogo className="w-24" />

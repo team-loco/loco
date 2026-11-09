@@ -116,7 +116,7 @@ export function DeleteDialogContent({
 				}}
 			>
 				<DialogBody className="gap-3">
-					<code className="w-fit max-w-full rounded-sm bg-bg2 px-2 py-1 font-mono font-semibold break-all">
+					<code className="w-fit max-w-full rounded-sm bg-panel px-2 py-1 font-mono font-semibold break-all">
 						{resource.name}
 					</code>
 					<span className="leading-normal text-fg2">

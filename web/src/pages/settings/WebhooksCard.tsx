@@ -149,7 +149,7 @@ function WebhookRow({ workspaceId, webhook }: { workspaceId: string; webhook: We
 function NewSecret({ secret, onDone }: { secret: string; onDone: () => void }) {
 	const [copied, copy] = useCopy();
 	return (
-		<div className="flex flex-col gap-2.5 border-t border-line bg-bg2 px-5 py-3.5">
+		<div className="flex flex-col gap-2.5 border-t border-line bg-panel px-5 py-3.5">
 			<span className="text-[12.5px] text-fg2">
 				Copy this signing secret now. Loco won&apos;t show it again. Use it to verify the{" "}
 				<code className="font-mono">webhook-signature</code> header.
@@ -195,7 +195,7 @@ function AddWebhook({ workspaceId, onCreated }: { workspaceId: string; onCreated
 	};
 
 	return (
-		<form className="flex flex-col gap-2.5 border-t border-line bg-bg2 px-5 py-3.5" onSubmit={submit}>
+		<form className="flex flex-col gap-2.5 border-t border-line bg-panel px-5 py-3.5" onSubmit={submit}>
 			<Input
 				value={url}
 				placeholder="https://example.com/loco-events"

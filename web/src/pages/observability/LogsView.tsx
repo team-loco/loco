@@ -345,7 +345,7 @@ export function LogsView() {
 				/>
 			) : (
 				<>
-					<section aria-label="Log volume" className="flex flex-col gap-2.5 rounded-[10px] bg-panel px-5 pt-4 pb-3.5">
+					<section aria-label="Log volume" className="flex flex-col gap-2.5 rounded-card bg-panel px-5 pt-4 pb-3.5">
 						<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
 							{isLoading ? (
 								<Skeleton className="h-4 w-28" />
@@ -421,7 +421,7 @@ export function LogsView() {
 							} as CSSProperties
 						}
 					>
-						<section aria-label="Log lines" className="flex min-w-0 flex-col rounded-[10px] bg-panel">
+						<section aria-label="Log lines" className="flex min-w-0 flex-col rounded-card bg-panel">
 							{held > 0 && (
 								<button
 									type="button"
@@ -429,7 +429,7 @@ export function LogsView() {
 										setFreezeTs(allTail[0]?.ts ?? nowMs);
 										setPage(0);
 									}}
-									className="flex h-[30px] w-full items-center justify-center gap-1.5 rounded-t-[10px] bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
+									className="flex h-[30px] w-full items-center justify-center gap-1.5 rounded-t-card bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
 								>
 									<ArrowUpIcon className="size-[13px]" />
 									{held} {held === 1 ? "new line" : "new lines"}

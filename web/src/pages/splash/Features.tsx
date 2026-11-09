@@ -45,7 +45,7 @@ export function Features() {
 	return (
 		<Section id="features">
 			<SectionTitle>Everything a service needs.</SectionTitle>
-			<div className="grid gap-px overflow-hidden rounded-[12px] border border-line bg-line min-[900px]:grid-cols-3">
+			<div className="grid gap-px overflow-hidden rounded-overlay border border-line bg-line min-[900px]:grid-cols-3">
 				{FEATURES.map(({ icon: Icon, title, body, tech }) => (
 					<div
 						key={title}

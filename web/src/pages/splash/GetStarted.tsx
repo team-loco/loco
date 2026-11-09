@@ -65,7 +65,7 @@ export function GetStarted() {
 							<span className="font-mono text-xs text-fg4">{step.n}</span>
 							<span className="text-[16px] font-medium">{step.title}</span>
 							<span className="text-md text-pretty text-fg3 min-[900px]:min-h-10">{step.body}</span>
-							<div className="relative mt-1.5 flex-1 rounded-[10px] border border-line bg-panel py-3.5 pr-10 pl-4 font-mono text-[12.5px] leading-[1.85] min-[900px]:min-h-[118px]">
+							<div className="relative mt-1.5 flex-1 rounded-card border border-line bg-panel py-3.5 pr-10 pl-4 font-mono text-[12.5px] leading-[1.85] min-[900px]:min-h-[118px]">
 								<Button
 									variant="ghost"
 									size="icon-sm"

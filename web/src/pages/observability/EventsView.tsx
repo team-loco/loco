@@ -177,7 +177,7 @@ export function EventsView() {
 					} as React.CSSProperties
 				}
 			>
-				<section aria-label="Events" className="flex min-w-0 flex-col rounded-[10px] bg-panel">
+				<section aria-label="Events" className="flex min-w-0 flex-col rounded-card bg-panel">
 					<div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-3">
 						<span className="mr-auto text-[13.5px]">
 							{formatCount(items.length)} {items.length === 1 ? "event" : "events"}
