@@ -7,29 +7,34 @@ import {
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
-import { workspaceMembersOptions } from "@/hooks/completeMembers";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
+import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
+import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { SaveBar } from "@/components/design/SaveBar";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
+import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { workspacePath } from "@/lib/routes";
-import { cn } from "@/lib/utils";
 
 import { ActivityPanel } from "./ActivityPanel";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { EnvironmentsSection } from "./EnvironmentsSection";
 import { WebhooksCard } from "./WebhooksCard";
-import { formatDay, SettingsCard, SettingsRow } from "./parts";
+import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import type { ResourceCount } from "./useResourceCounts";
 
-interface Draft {
+const MAX_NAME = 63;
+const MAX_DESCRIPTION = 256;
+
+export interface WorkspaceDraft {
 	name: string;
 	desc: string;
 }
@@ -41,6 +46,8 @@ export function WorkspaceTab({
 	users,
 	level,
 	resourceCount,
+	draft,
+	onDraft,
 }: {
 	orgId: string;
 	workspaceId: string;
@@ -48,12 +55,9 @@ export function WorkspaceTab({
 	users: User[];
 	level: AccessLevel;
 	resourceCount: ResourceCount | undefined;
+	draft: WorkspaceDraft | null;
+	onDraft: (draft: WorkspaceDraft | null) => void;
 }) {
-	const nameId = useId();
-	const nameHintId = `${nameId}-hint`;
-	const nameErrorId = `${nameId}-error`;
-	const descriptionId = useId();
-	const descriptionHintId = `${descriptionId}-hint`;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const transport = useTransport();
@@ -62,7 +66,6 @@ export function WorkspaceTab({
 	const update = useMutation(updateWorkspace);
 	const remove = useMutation(deleteWorkspace);
 
-	const [draft, setDraft] = useState<Draft | null>(null);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const ws = data?.workspace;
@@ -72,10 +75,11 @@ export function WorkspaceTab({
 		return <div className="rounded-lg border border-line px-5 py-8 text-fg3">{message}</div>;
 	}
 
-	const current: Draft = draft ?? { name: ws.name, desc: ws.description };
+	const current: WorkspaceDraft = draft ?? { name: ws.name, desc: ws.description };
 	const nameT = current.name.trim();
 	const dirty = current.name !== ws.name || current.desc !== ws.description;
-	const nameErr = nameT === "" ? "Name required" : nameT.length > 63 ? "Max 63 characters" : null;
+	const nameErr =
+		nameT === "" ? "Name required" : nameT.length > MAX_NAME ? `Max ${MAX_NAME.toString()} characters` : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 	const shownErr = dirty ? nameErr : null;
@@ -90,7 +94,13 @@ export function WorkspaceTab({
 	const subtitle = hasRes
 		? `Delete the ${resLabel} ${nRes === 1 ? "resource" : "resources"} in ${ws.name} first.`
 		: `${resLabel} resources, ${pluralize(members, "member")} with direct access`;
-	const blockedReason = !canAdmin ? `Requires Admin on ${ws.name}` : hasRes ? "Workspace still has resources" : null;
+	const blockedReason = !canAdmin
+		? `Requires Admin on ${ws.name}`
+		: resourceCount === undefined
+			? "Checking for resources"
+			: hasRes
+				? "Workspace still has resources"
+				: null;
 
 	const save = () => {
 		if (nameErr !== null || update.isPending) return;
@@ -98,7 +108,7 @@ export function WorkspaceTab({
 			{ workspaceId: ws.id, name: nameT, description: current.desc },
 			{
 				onSuccess: () => {
-					setDraft(null);
+					onDraft(null);
 					toast.success("Saved");
 					void queryClient.invalidateQueries();
 				},
@@ -128,57 +138,55 @@ export function WorkspaceTab({
 	};
 
 	return (
-		<div className="flex flex-col gap-5">
-			<SettingsCard>
-				<SettingsRow
-					label="Name"
-					hint="Shown across Loco. Commands also accept the workspace ID."
-					controlId={nameId}
-					hintId={nameHintId}
-				>
-					<Input
-						id={nameId}
-						value={current.name}
-						placeholder="storefront"
-						disabled={!canWrite}
-						aria-invalid={shownErr !== null}
-						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
-						className="h-9 max-w-[320px] text-[13.5px]"
-						onChange={(e) => {
-							setDraft({ ...current, name: e.target.value.toLowerCase() });
-						}}
+		<div className="flex flex-col gap-[22px]">
+			<SettingsSection title="General" meta={ws.name}>
+				<SettingsCard className="flex flex-col gap-4 px-5 py-[18px]">
+					<Field label="Name" error={shownErr}>
+						<Input
+							value={current.name}
+							placeholder="storefront"
+							disabled={!canWrite}
+							aria-invalid={shownErr !== null}
+							className="h-9 max-w-[420px] font-mono text-[13.5px]"
+							onChange={(e) => {
+								onDraft({ ...current, name: e.target.value.toLowerCase() });
+							}}
+						/>
+					</Field>
+					<Field label="Description" hint={`${current.desc.length.toString()} / ${MAX_DESCRIPTION.toString()}`}>
+						<Textarea
+							rows={2}
+							maxLength={MAX_DESCRIPTION}
+							value={current.desc}
+							placeholder="What runs in this workspace"
+							disabled={!canWrite}
+							className="text-[13.5px]"
+							onChange={(e) => {
+								onDraft({ ...current, desc: e.target.value });
+							}}
+						/>
+					</Field>
+					<KeyValues
+						items={[
+							[
+								"ID",
+								<CopyId key="id" value={ws.id} className="h-6 bg-panel2 px-2 font-mono text-[12px] font-normal">
+									{ws.id}
+								</CopyId>,
+							],
+							[
+								"Organization",
+								<span key="org" className="font-mono">
+									{ws.orgName}
+								</span>,
+							],
+							["Created", created],
+						]}
 					/>
-					{shownErr !== null && (
-						<span id={nameErrorId} className="text-sm text-bad-fg">
-							{shownErr}
-						</span>
-					)}
-				</SettingsRow>
-				<SettingsRow label="Description" controlId={descriptionId}>
-					<Textarea
-						id={descriptionId}
-						aria-describedby={descriptionHintId}
-						rows={3}
-						maxLength={256}
-						value={current.desc}
-						placeholder="What runs in this workspace"
-						disabled={!canWrite}
-						className="text-[13.5px]"
-						onChange={(e) => {
-							setDraft({ ...current, desc: e.target.value });
-						}}
-					/>
-					<span
-						id={descriptionHintId}
-						className={cn("self-end text-sm", current.desc.length > 240 ? "text-warn-fg" : "text-fg4")}
-					>
-						{current.desc.length} / 256
-					</span>
-				</SettingsRow>
-				<SettingsRow label="Created" last>
-					<span className="text-fg2">{created}</span>
-				</SettingsRow>
-			</SettingsCard>
+				</SettingsCard>
+			</SettingsSection>
+
+			<EnvironmentsSection workspaceId={ws.id} workspaceName={ws.name} canWrite={canWrite} canAdmin={canAdmin} />
 
 			{canAdmin && <WebhooksCard workspaceId={ws.id} />}
 
@@ -192,21 +200,23 @@ export function WorkspaceTab({
 				/>
 			)}
 
-			<DangerZone
-				title="Delete workspace"
-				description={subtitle}
-				warn={hasRes}
-				actionLabel={`Delete ${ws.name}`}
-				blockedReason={blockedReason}
-				onAction={() => {
-					setDeleteOpen(true);
-				}}
-			/>
+			<SettingsSection title="Danger zone">
+				<DangerZone
+					title={`Delete ${ws.name}`}
+					description={subtitle}
+					warn={hasRes}
+					actionLabel="Delete workspace"
+					blockedReason={blockedReason}
+					onAction={() => {
+						setDeleteOpen(true);
+					}}
+				/>
+			</SettingsSection>
 
 			{dirty && canWrite && (
 				<SaveBar
 					onDiscard={() => {
-						setDraft(null);
+						onDraft(null);
 					}}
 					onSave={save}
 					saving={update.isPending}
@@ -230,15 +240,9 @@ export function WorkspaceTab({
 
 export function SettingsSkeleton() {
 	return (
-		<div className="flex flex-col gap-5">
-			<SettingsCard>
-				{[0, 1, 2].map((i) => (
-					<SettingsRow key={i} label="" last={i === 2}>
-						<Skeleton className="h-9 w-full max-w-[320px]" />
-					</SettingsRow>
-				))}
-			</SettingsCard>
-			<Skeleton className="h-[74px] w-full rounded-lg" />
+		<div className="flex max-w-[960px] flex-col gap-[22px]">
+			<Skeleton className="h-[220px] w-full rounded-[10px]" />
+			<Skeleton className="h-[74px] w-full rounded-[10px]" />
 		</div>
 	);
 }

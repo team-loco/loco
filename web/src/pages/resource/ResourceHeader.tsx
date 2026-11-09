@@ -3,6 +3,7 @@ import { ResourceStatus, ResourceType, type EnvironmentStatus, type Resource } f
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { CopyId } from "@/components/design/CopyId";
 import { PartialBadge } from "@/components/design/PartialBadge";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -12,7 +13,6 @@ import { shortImageRef } from "@/lib/image";
 import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { CopyId } from "./CopyId";
 import { formatDuration, formatFullTime, formatStarted, shortId } from "./format";
 import { depImage, startedMs, type RegionView } from "./model";
 import { replicaLine, unreportedRegions } from "./replicas";

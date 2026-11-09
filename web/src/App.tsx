@@ -18,7 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { workspacePath } from "@/lib/routes";
+import { settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import { pageImporters } from "@/lib/lazy-pages";
@@ -78,7 +78,7 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	if (!workspacesSettled) return <AppLoading />;
 	const ws = workspaces.find((w) => w.orgId === org)?.id;
 	if (ws === undefined) return <Navigate to="/organizations" replace />;
-	return <Navigate to={`${workspacePath(org, ws, "settings")}?tab=org`} replace />;
+	return <Navigate to={settingsPath(org, ws, "org")} replace />;
 }
 
 function AppRoutes() {

@@ -25,7 +25,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { switchWorkspacePath, WORKSPACE_ROUTE, workspacePath } from "@/lib/routes";
+import { settingsPath, switchWorkspacePath, WORKSPACE_ROUTE } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
@@ -65,10 +65,6 @@ function EnvSwitcher({ children, label }: { children: ReactNode; label: string }
 			</DropdownMenu>
 		</BreadcrumbItem>
 	);
-}
-
-function orgSettingsPath(orgId: string, workspaceId: string): string {
-	return `${workspacePath(orgId, workspaceId, "settings")}?tab=org`;
 }
 
 function ScopeSwitcher({
@@ -129,7 +125,7 @@ function ScopeSwitcher({
 											aria-label={`${o.name} settings`}
 											className="text-fg3"
 											onClick={() => {
-												go(orgSettingsPath(o.id, first.id));
+												go(settingsPath(o.id, first.id, "org"));
 											}}
 										>
 											<SettingsIcon />
@@ -250,7 +246,7 @@ export function ShellBreadcrumb() {
 								<>
 									<DropdownMenuSeparator />
 									<DropdownMenuItem
-										render={<Link to={workspacePath(activeOrgId, activeWorkspaceId, "settings")} />}
+										render={<Link to={settingsPath(activeOrgId, activeWorkspaceId, "workspace")} />}
 										className="text-[13px] text-fg2"
 									>
 										<SettingsIcon className="text-fg3" />

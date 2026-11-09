@@ -79,12 +79,10 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 	const envId = env?.id ?? "";
 	const envResources: EnvResource[] = [];
 	const envDeployments: { deployment: Deployment; resource: Resource }[] = [];
-	const usedEnvIds = new Set<string>();
 
 	resources.forEach((resource, i) => {
 		const all = deploymentQueries[i]?.data?.deployments ?? [];
 		const mine = all.filter((d) => d.environmentId === envId).toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
-		for (const d of all) usedEnvIds.add(d.environmentId);
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
 		const neverDeployed = all.length === 0;
 		if (mine.length === 0 && !neverDeployed) return;
@@ -110,7 +108,6 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 		resources,
 		envResources,
 		envDeployments,
-		usedEnvIds,
 		regions: regionInfos,
 		isLoading: resourcesQuery.isLoading || deploymentsLoading,
 		error: resourcesQuery.error,

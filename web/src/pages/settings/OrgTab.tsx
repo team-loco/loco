@@ -32,6 +32,8 @@ export function OrgTab({
 	level,
 	counts,
 	countsLoading,
+	draft,
+	onDraft,
 }: {
 	org: Organization;
 	workspaces: Workspace[];
@@ -40,6 +42,8 @@ export function OrgTab({
 	level: AccessLevel;
 	counts: Map<string, ResourceCount>;
 	countsLoading: boolean;
+	draft: string | null;
+	onDraft: (name: string | null) => void;
 }) {
 	const nameId = useId();
 	const nameHintId = `${nameId}-hint`;
@@ -49,7 +53,6 @@ export function OrgTab({
 	const update = useMutation(updateOrg);
 	const remove = useMutation(deleteOrg);
 
-	const [draft, setDraft] = useState<string | null>(null);
 	const [newOpen, setNewOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -88,7 +91,7 @@ export function OrgTab({
 			{ orgId: org.id, name: nameT },
 			{
 				onSuccess: () => {
-					setDraft(null);
+					onDraft(null);
 					toast.success("Saved");
 					void queryClient.invalidateQueries();
 				},
@@ -148,7 +151,7 @@ export function OrgTab({
 						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
-							setDraft(e.target.value);
+							onDraft(e.target.value);
 						}}
 					/>
 					{shownErr !== null && (
@@ -221,7 +224,7 @@ export function OrgTab({
 			{dirty && canWrite && (
 				<SaveBar
 					onDiscard={() => {
-						setDraft(null);
+						onDraft(null);
 					}}
 					onSave={save}
 					saving={update.isPending}

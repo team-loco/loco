@@ -16,6 +16,12 @@ export function switchWorkspacePath(pathname: string, search: string, orgId: str
 	return `${workspacePath(orgId, workspaceId, rest)}${query === "" ? "" : `?${query}`}`;
 }
 
+export type SettingsScope = "org" | "workspace" | "account";
+
+export function settingsPath(orgId: string, workspaceId: string, scope: SettingsScope): string {
+	return `${workspacePath(orgId, workspaceId, "settings")}?scope=${scope}`;
+}
+
 export function resourcePath(orgId: string, workspaceId: string, resourceId: string): string {
 	return workspacePath(orgId, workspaceId, `resource/${resourceId}`);
 }
