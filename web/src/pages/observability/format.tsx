@@ -34,7 +34,7 @@ export function levelStyle(level: Level): LevelStyle {
 			};
 		case "info":
 			return {
-				badge: "bg-bg3 text-fg2",
+				badge: "bg-panel2 text-fg2",
 				body: "text-foreground",
 				dot: "bg-info",
 				text: "text-fg3",
@@ -161,7 +161,7 @@ export function jsonPreview(obj: JsonObject, words: string[]): ReactNode[] {
 	const out: ReactNode[] = [
 		<span
 			key="tag"
-			className="mr-2 inline-block rounded-[3px] bg-bg3 px-1 align-[1px] text-[10px] leading-[15px] font-semibold text-fg3"
+			className="mr-2 inline-block rounded-[3px] bg-panel2 px-1 align-[1px] text-[10px] leading-[15px] font-semibold text-fg3"
 		>
 			JSON
 		</span>,

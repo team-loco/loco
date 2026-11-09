@@ -145,7 +145,7 @@ function PinMenu({ t, x, actions, onClose }: { t: number; x: number; actions: Pi
 			onBlur={(e) => {
 				if (!e.currentTarget.contains(e.relatedTarget)) onClose();
 			}}
-			className="absolute top-2 z-10 flex w-[250px] flex-col rounded-[10px] border border-line bg-popover p-[5px] shadow-popover dark:border-line2"
+			className="absolute top-2 z-10 flex w-[250px] flex-col rounded-card border border-line bg-popover p-[5px] shadow-popover dark:border-line2"
 			style={flip ? { right: `calc(${String((1 - x) * 100)}% + 8px)` } : { left: `calc(${String(x * 100)}% + 8px)` }}
 		>
 			<span className="px-2.5 pt-1.5 pb-1 font-mono text-[11.5px] text-fg3">{fmtTs(t)}</span>

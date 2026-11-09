@@ -17,7 +17,10 @@ export function EmptyHero({
 }) {
 	return (
 		<section
-			className={cn("flex flex-col items-center gap-3 rounded-[12px] bg-panel px-6 pt-14 pb-16 text-center", className)}
+			className={cn(
+				"flex flex-col items-center gap-3 rounded-overlay bg-panel px-6 pt-14 pb-16 text-center",
+				className,
+			)}
 		>
 			{art}
 			<h2 className="m-0 mt-2 text-2xl font-normal tracking-[-0.03em]">{title}</h2>

@@ -260,7 +260,7 @@ export function MetricsView() {
 						<section
 							key={def.key}
 							aria-label={def.title}
-							className="flex min-w-0 flex-col gap-3.5 rounded-[10px] bg-panel px-5 pt-[18px] pb-4"
+							className="flex min-w-0 flex-col gap-3.5 rounded-card bg-panel px-5 pt-[18px] pb-4"
 						>
 							<div className="flex items-baseline gap-2">
 								<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{def.title}</h3>
@@ -323,7 +323,7 @@ export function MetricsView() {
 				</div>
 				<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
 					{TRAFFIC.map((title) => (
-						<div key={title} className="flex flex-col gap-2 rounded-[10px] bg-panel px-5 py-4">
+						<div key={title} className="flex flex-col gap-2 rounded-card bg-panel px-5 py-4">
 							<span className="flex items-baseline gap-2">
 								<span className="text-[15px] font-medium tracking-[-0.01em] text-fg3">{title}</span>
 								<SoonTag />
@@ -341,7 +341,7 @@ export function MetricsView() {
 					</h2>
 					<span className="text-[12.5px] text-fg3">latest values · pick a row to focus the charts on it</span>
 				</div>
-				<div className="overflow-x-auto rounded-[10px] bg-panel px-5 pt-1 pb-3">
+				<div className="overflow-x-auto rounded-card bg-panel px-5 pt-1 pb-3">
 					<table className="w-full min-w-[760px] border-collapse text-[12.5px]">
 						<thead>
 							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">

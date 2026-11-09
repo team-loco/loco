@@ -36,7 +36,7 @@ export function Architecture() {
 					Read the source
 				</a>
 			</div>
-			<div className="flex flex-col overflow-hidden rounded-[12px] border border-line">
+			<div className="flex flex-col overflow-hidden rounded-overlay border border-line">
 				{STACK.map(({ layer, parts }, i) => {
 					const on = highlighted === i;
 					return (

@@ -30,7 +30,7 @@ export function OrgRow({
 	const created = formatCreated(org);
 
 	return (
-		<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-line px-5 py-3 last:border-b-0 hover:bg-bg2 md:grid-cols-[minmax(0,1fr)_160px_auto]">
+		<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-line px-5 py-3 last:border-b-0 hover:bg-panel md:grid-cols-[minmax(0,1fr)_160px_auto]">
 			<span className="flex min-w-0 items-center gap-2.5">
 				<span className="flex text-fg3">
 					<Building2 className="size-4" />
@@ -62,7 +62,7 @@ export function OrgRow({
 				<Button
 					variant="ghost"
 					size="icon-sm"
-					className="text-fg3 hover:bg-bad-bg hover:text-red"
+					className="text-fg3 hover:bg-bad-bg hover:text-err"
 					aria-label={`Delete ${org.name}`}
 					title="Delete organization"
 					onClick={() => {

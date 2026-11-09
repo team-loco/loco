@@ -82,7 +82,7 @@ export function CopyField({
 	return (
 		<div className="flex min-w-0 flex-col gap-1">
 			<span className="text-[12px] text-fg3">{label}</span>
-			<div className="flex min-w-0 items-center gap-1.5 rounded-sm border border-line bg-bg2 py-1 pr-1 pl-2.5">
+			<div className="flex min-w-0 items-center gap-1.5 rounded-sm border border-line bg-panel py-1 pr-1 pl-2.5">
 				<code className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{value}</code>
 				<Button variant="ghost" size="icon-sm" aria-label={`Copy ${label}`} onClick={onCopy}>
 					{copied ? <CheckIcon /> : <CopyIcon />}

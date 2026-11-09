@@ -30,7 +30,7 @@ DB_USER = "evidence"
 DB_PASSWORD = "evidence"
 DB_NAME = "evidence"
 SESSION_PREFIX = "loco_s_"
-THEME_KEY = "loco:theme:v1"
+MODE_KEY = "loco:mode:v1"
 AUTH_KEY = "loco:auth:oidc:v1"
 THEMES = ("light", "dark")
 DESKTOP = {"width": 1280, "height": 800}
@@ -518,7 +518,7 @@ def capture(browser, state, shot, theme, narrow, target):
     stored = json.dumps({"idToken": user["token"], "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS})
     context.add_init_script(
         f"localStorage.setItem({json.dumps(AUTH_KEY)}, {json.dumps(stored)});"
-        f"localStorage.setItem({json.dumps(THEME_KEY)}, {json.dumps(theme)});"
+        f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
     )
     problems = []
     page = context.new_page()

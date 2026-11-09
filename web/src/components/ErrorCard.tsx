@@ -37,7 +37,7 @@ export function ErrorCard({ error, fallbackMessage = "Failed to load data", minH
 				<p className="m-0 whitespace-pre-wrap text-fg3">{mainMessage}</p>
 				{requestId !== null && (
 					<div className="mt-2 flex items-center gap-1.5">
-						<code className="rounded-xs bg-bg3 px-2 py-0.5 font-mono text-sm text-fg2">{requestId}</code>
+						<code className="rounded-xs bg-panel2 px-2 py-0.5 font-mono text-sm text-fg2">{requestId}</code>
 						<Button
 							size="icon-xs"
 							variant="ghost"

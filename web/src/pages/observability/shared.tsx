@@ -171,7 +171,7 @@ export function JumpButton({
 			onClick={onClick}
 			className={cn(
 				"flex h-[34px] w-full items-center gap-2 rounded-sm border border-line bg-background px-2.5 text-left text-foreground",
-				disabled ? "cursor-not-allowed text-fg4" : "cursor-pointer hover:border-fg4 hover:bg-bg2",
+				disabled ? "cursor-not-allowed text-fg4" : "cursor-pointer hover:border-fg4 hover:bg-panel",
 			)}
 		>
 			<span className={cn("flex [&_svg]:size-[15px]", disabled ? "text-fg4" : "text-fg3")}>{icon}</span>
@@ -245,7 +245,7 @@ export function DetailPanel({ label, header, children }: { label: string; header
 	return (
 		<aside
 			aria-label={label}
-			className="sticky top-4 flex max-h-[calc(100dvh-32px)] min-w-0 flex-col overflow-hidden rounded-[12px] border border-line bg-background"
+			className="sticky top-4 flex max-h-[calc(100dvh-32px)] min-w-0 flex-col overflow-hidden rounded-overlay border border-line bg-background"
 		>
 			<div className="flex items-start gap-1 border-b border-line py-3 pr-2.5 pl-4">{header}</div>
 			{children}

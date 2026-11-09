@@ -207,7 +207,7 @@ function TraceSession() {
 					<span className="text-[12.5px] text-fg3">each trace as a dot by start time and duration</span>
 				</div>
 			</section>
-			<section aria-label="Trace list" className="flex min-w-0 flex-col rounded-[10px] bg-panel">
+			<section aria-label="Trace list" className="flex min-w-0 flex-col rounded-card bg-panel">
 				<div className="flex flex-wrap items-center gap-2 px-5 pt-3 pb-1.5">
 					<span className="text-[13.5px]">
 						{formatCount(traces.length)} {traces.length === 1 ? "trace" : "traces"}

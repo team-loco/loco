@@ -73,7 +73,7 @@ with sync_playwright() as p:
         for narrow in (False, True):
             context = browser.new_context(permissions=['clipboard-read', 'clipboard-write'], viewport=evidence.NARROW if narrow else evidence.DESKTOP, device_scale_factor=2, color_scheme=theme)
             auth = json.dumps({'idToken': state['users']['owner']['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS})
-            context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});localStorage.setItem({json.dumps(evidence.THEME_KEY)},{json.dumps(theme)});')
+            context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});')
             context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces', handle)
             page = context.new_page()
             errors = []

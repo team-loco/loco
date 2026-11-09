@@ -82,7 +82,6 @@
 	--radius-xl: 8px;
 
 	--shadow-popover: var(--pop-shadow);
-	--shadow-drawer: -8px 0 32px rgba(0, 0, 0, 0.12);
 	--shadow-overlay: 0 24px 64px -16px rgba(20, 20, 20, 0.28);
 	--shadow-bar: 0 16px 40px -10px rgba(0, 0, 0, 0.35);
 	--shadow-toast: 0 12px 32px rgba(0, 0, 0, 0.2);
@@ -95,7 +94,6 @@
 	--color-popover: var(--raise);
 	--color-popover-foreground: var(--fg);
 	--color-primary: var(--btn);
-	--color-primary-hover: color-mix(in oklch, var(--btn) 85%, var(--bg));
 	--color-primary-foreground: var(--btn-fg);
 	--color-secondary: var(--panel2);
 	--color-secondary-foreground: var(--fg);
@@ -135,10 +133,6 @@
 	--color-warn: var(--warn);
 	--color-info: var(--info);
 
-	--color-bg2: var(--panel);
-	--color-bg3: var(--panel2);
-	--color-red: var(--err);
-
 	--color-ok-bg: color-mix(in oklch, var(--ok) 12%, transparent);
 	--color-ok-fg: color-mix(in oklch, var(--ok) 70%, var(--fg));
 	--color-info-bg: color-mix(in oklch, var(--info) 12%, transparent);
@@ -152,21 +146,10 @@
 
 	--color-code-bg: var(--code-bg);
 
-	--color-pe-dot: var(--pe-dot);
-	--color-pe-panel: var(--pe-panel);
-	--color-pe-head: var(--pe-head);
-	--color-pe-grid: var(--pe-grid);
-	--color-pe-bar: var(--pe-bar);
-	--shadow-pe: var(--pe-shadow);
-
-	--animate-drawer-in: drawer-in 380ms cubic-bezier(0.32, 0.72, 0, 1);
-	--animate-fade-in: fade-in 140ms ease-out;
-	--animate-pop-in: pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 	--animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
 	--animate-pod-pop: pod-pop 220ms ease-out;
 	--animate-pod-starting: pod-pop 220ms ease-out, pulse-soft 0.8s 220ms ease-in-out infinite;
 	--animate-log-in: log-in 200ms ease-out;
-	--animate-ping-soft: ping-soft 1.6s ease-out infinite;
 	--animate-ring: ring 1.8s ease-out infinite;
 }
 
@@ -203,15 +186,7 @@
 	--series-5: oklch(0.58 0.16 350);
 	--series-6: oklch(0.66 0.13 95);
 	--series-7: oklch(0.55 0.02 260);
-	--pe-dot: var(--line);
-	--pe-panel: var(--bg);
-	--pe-head: var(--panel);
-	--pe-shadow: 0 1px 2px rgba(24, 24, 27, 0.04), 0 8px 24px rgba(24, 24, 27, 0.06);
-	--pe-grid: var(--line);
-	--pe-bar: var(--line2);
-	--pe-glow: 0.08;
 	--logo: var(--brand);
-	--logo-inverse: #7b9cff;
 	--code-bg: var(--panel);
 	--code-line-number: var(--fg3);
 	--sh-identifier: var(--fg);
@@ -283,14 +258,6 @@
 	--series-5: oklch(0.74 0.13 350);
 	--series-6: oklch(0.82 0.12 95);
 	--series-7: oklch(0.72 0.02 260);
-	--pe-dot: rgba(255, 255, 255, 0.045);
-	--pe-panel: var(--panel);
-	--pe-head: var(--panel2);
-	--pe-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 40px rgba(0, 0, 0, 0.45);
-	--pe-grid: var(--line2);
-	--pe-bar: var(--fg4);
-	--pe-glow: 0.18;
-	--logo-inverse: #2455eb;
 	--sh-property: #8fb0f5;
 	--sh-string: #f2a97a;
 	--sh-keyword: #c8a5f4;
@@ -701,35 +668,6 @@
 	backdrop-filter: none;
 }
 
-@keyframes drawer-in {
-	from {
-		transform: translateX(100%);
-	}
-	to {
-		transform: translateX(0);
-	}
-}
-
-@keyframes fade-in {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
-@keyframes pop-in {
-	from {
-		transform: translateY(8px) scale(0.98);
-		opacity: 0;
-	}
-	to {
-		transform: none;
-		opacity: 1;
-	}
-}
-
 @keyframes pulse-soft {
 	0%,
 	100% {
@@ -762,17 +700,6 @@
 	}
 }
 
-@keyframes ping-soft {
-	0% {
-		transform: scale(1);
-		opacity: 0.6;
-	}
-	100% {
-		transform: scale(2.6);
-		opacity: 0;
-	}
-}
-
 @keyframes ring {
 	from {
 		transform: scale(0.5);
@@ -781,15 +708,6 @@
 	to {
 		transform: scale(1.35);
 		opacity: 0;
-	}
-}
-
-@keyframes pe-sweep {
-	from {
-		transform: translateX(0);
-	}
-	to {
-		transform: translateX(var(--sw));
 	}
 }
 

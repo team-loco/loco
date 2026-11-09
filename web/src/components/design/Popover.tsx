@@ -5,7 +5,7 @@ function PopoverContent({ className, ...props }: React.ComponentProps<typeof Pop
 	return (
 		<PopoverContentBase
 			className={cn(
-				"rounded-[12px] border border-line bg-popover text-[13px] text-foreground shadow-popover ring-0 dark:border-line2",
+				"rounded-overlay border border-line bg-popover text-[13px] text-foreground shadow-popover ring-0 dark:border-line2",
 				className,
 			)}
 			{...props}

@@ -398,7 +398,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					onMouseDown={(e) => {
 						e.preventDefault();
 					}}
-					className="absolute top-[calc(100%+6px)] left-0 z-50 flex max-h-[400px] w-[min(560px,100%)] flex-col overflow-y-auto rounded-[10px] border border-line bg-popover p-1.5 shadow-popover dark:border-line2"
+					className="absolute top-[calc(100%+6px)] left-0 z-50 flex max-h-[400px] w-[min(560px,100%)] flex-col overflow-y-auto rounded-card border border-line bg-popover p-1.5 shadow-popover dark:border-line2"
 				>
 					{groups.map((g) =>
 						g.items.length === 0 ? null : (

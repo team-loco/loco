@@ -127,7 +127,7 @@ function FlameGraph({
 	const zoomed = width < 1;
 	const shares = serviceShares(trace);
 	return (
-		<section aria-label="Flame graph" className="flex flex-col gap-1.5 rounded-[10px] bg-panel px-3.5 pt-3 pb-3.5">
+		<section aria-label="Flame graph" className="flex flex-col gap-1.5 rounded-card bg-panel px-3.5 pt-3 pb-3.5">
 			<div className="flex min-h-7 flex-wrap items-center gap-x-4 gap-y-1.5">
 				<div className="mr-auto flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-fg2">
 					{shares.map((s) => (

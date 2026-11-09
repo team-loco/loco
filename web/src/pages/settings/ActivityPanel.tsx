@@ -183,7 +183,7 @@ export function ActivityPanel({
 				</div>
 			)}
 			{query.hasNextPage && !query.isFetchNextPageError && (
-				<div className="border-t border-line bg-bg2 px-5 py-3" aria-busy={query.isFetchingNextPage}>
+				<div className="border-t border-line bg-panel px-5 py-3" aria-busy={query.isFetchingNextPage}>
 					<Button
 						variant="outline"
 						className="h-[30px] px-2.5"
