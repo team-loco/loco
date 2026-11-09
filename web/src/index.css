@@ -367,12 +367,6 @@
 		transition-duration: 120ms;
 		transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 	}
-	[data-slot="slider-thumb"] {
-		cursor: grab;
-	}
-	[data-slot="slider-thumb"]:active {
-		cursor: grabbing;
-	}
 	:disabled,
 	[aria-disabled="true"],
 	[data-disabled]:not([data-disabled="false"]) {

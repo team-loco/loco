@@ -61,6 +61,14 @@ export function ResourceStatusBadge({ status }: { status: ResourceStatus | undef
 	return <StatusLabel {...resourceStatusStyle(status)} />;
 }
 
-export function DeploymentPhaseBadge({ phase }: { phase: DeploymentPhase | undefined }) {
-	return <StatusLabel {...deploymentPhaseStyle(phase)} />;
+const SUPERSEDED: StatusStyle = { label: "Superseded", glyph: "off" };
+
+export function DeploymentPhaseBadge({
+	phase,
+	superseded = false,
+}: {
+	phase: DeploymentPhase | undefined;
+	superseded?: boolean;
+}) {
+	return <StatusLabel {...(superseded ? SUPERSEDED : deploymentPhaseStyle(phase))} />;
 }

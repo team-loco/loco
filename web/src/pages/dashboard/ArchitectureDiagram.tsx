@@ -8,10 +8,11 @@ import { Button } from "@/components/design/Button";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { pluralize } from "@/lib/format";
+import { servedDomains } from "@/lib/new-resource";
 import { cn } from "@/lib/utils";
 
-import { servedDomain } from "./drafts";
-import { mapLayout, type ResourceRow } from "./resourceRows";
+import { mapLayout, primaryDomain } from "./resourceRows";
+import type { EnvResource } from "./useDashboardData";
 
 const GATEWAY_X = 196;
 const PUBLIC_X = 404;
@@ -32,8 +33,8 @@ function curve(x1: number, y1: number, x2: number, y2: number): string {
 	return `M${x1.toString()},${y1.toString()} C${mx.toString()},${y1.toString()} ${mx.toString()},${y2.toString()} ${x2.toString()},${y2.toString()}`;
 }
 
-function rowGlyph(row: ResourceRow) {
-	return <StatusGlyph glyph={row.status === "draft" ? "draft" : resourceStatusStyle(row.status).glyph} />;
+function rowGlyph(row: EnvResource) {
+	return <StatusGlyph glyph={resourceStatusStyle(row.status).glyph} />;
 }
 
 function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; sub: string; meta: string }) {
@@ -49,55 +50,17 @@ function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; 
 	);
 }
 
-function ResourceLink({
-	row,
-	hrefFor,
-	onOpenDraft,
-	className,
-	style,
-	children,
-}: {
-	row: ResourceRow;
-	hrefFor: (id: string) => string;
-	onOpenDraft: (id: string) => void;
-	className: string;
-	style?: React.CSSProperties;
-	children: ReactNode;
-}) {
-	if (row.status === "draft") {
-		return (
-			<button
-				type="button"
-				className={cn(className, "text-left ring-0 outline-1 outline-fg4 outline-dashed")}
-				style={style}
-				onClick={() => {
-					onOpenDraft(row.key);
-				}}
-			>
-				{children}
-			</button>
-		);
-	}
-	return (
-		<Link to={hrefFor(row.key)} className={className} style={style}>
-			{children}
-		</Link>
-	);
-}
-
 export function ArchitectureDiagram({
 	rows,
 	regionOrder,
 	environmentId,
 	hrefFor,
-	onOpenDraft,
 	onShowTable,
 }: {
-	rows: ResourceRow[];
+	rows: EnvResource[];
 	regionOrder: string[];
 	environmentId: string;
 	hrefFor: (id: string) => string;
-	onOpenDraft: (id: string) => void;
 	onShowTable: () => void;
 }) {
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
@@ -139,7 +102,7 @@ export function ArchitectureDiagram({
 							/>
 						</div>
 						{layout.gateways.map((g) => {
-							const domain = servedDomain(platformDomains, g.region);
+							const domain = servedDomains(platformDomains, [g.region])[0] ?? "";
 							return (
 								<div
 									key={g.region}
@@ -156,21 +119,19 @@ export function ArchitectureDiagram({
 							);
 						})}
 						{layout.publicNodes.map(({ row, y }) => (
-							<ResourceLink
-								key={row.key}
-								row={row}
-								hrefFor={hrefFor}
-								onOpenDraft={onOpenDraft}
+							<Link
+								key={row.resource.id}
+								to={hrefFor(row.resource.id)}
 								className={RESOURCE_NODE}
 								style={{ left: PUBLIC_X, top: y, width: PUBLIC_W, height: h }}
 							>
 								<NodeText
 									icon={rowGlyph(row)}
-									title={row.name}
-									sub={row.domain ?? ""}
+									title={row.resource.name}
+									sub={primaryDomain(row.resource) ?? ""}
 									meta={row.regions.map((g) => g.region).join(" · ")}
 								/>
-							</ResourceLink>
+							</Link>
 						))}
 						{layout.hiddenPublic > 0 && (
 							<div className="absolute flex items-center" style={{ left: PUBLIC_X, top: layout.moreY, height: h }}>
@@ -183,20 +144,18 @@ export function ArchitectureDiagram({
 					<div className="flex w-[220px] shrink-0 flex-col gap-1 rounded-lg bg-panel2 p-2">
 						<span className="px-2 pt-1 pb-1.5 text-[12.5px] text-fg3">Internal only · no public route</span>
 						{layout.internal.map((row) => (
-							<ResourceLink
-								key={row.key}
-								row={row}
-								hrefFor={hrefFor}
-								onOpenDraft={onOpenDraft}
+							<Link
+								key={row.resource.id}
+								to={hrefFor(row.resource.id)}
 								className="flex flex-col gap-0.5 rounded-md bg-raise px-2.5 py-2 text-foreground no-underline ring-1 ring-line2 hover:no-underline hover:ring-fg3"
 							>
 								<NodeText
 									icon={rowGlyph(row)}
-									title={row.name}
+									title={row.resource.name}
 									sub={row.regions.map((g) => g.region).join(" · ")}
 									meta=""
 								/>
-							</ResourceLink>
+							</Link>
 						))}
 						{layout.hiddenInternal > 0 && (
 							<div className="px-2 py-1">{moreButton(layout.hiddenInternal, "internal")}</div>

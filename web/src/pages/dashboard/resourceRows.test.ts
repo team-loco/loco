@@ -1,33 +1,39 @@
+import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
-import { ResourceStatus, ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
-import { ALL, filterRows, MAP_PUBLIC_LIMIT, mapLayout, type ResourceRow, type RowFilter } from "./resourceRows";
+import { ALL, filterRows, MAP_PUBLIC_LIMIT, mapLayout, type RowFilter } from "./resourceRows";
+import type { EnvResource, RegionReplicas } from "./useDashboardData";
 
-function row(name: string, patch: Partial<ResourceRow> = {}): ResourceRow {
+function row(
+	name: string,
+	patch: { description?: string; domain?: string; status?: ResourceStatus; regions?: RegionReplicas[] } = {},
+): EnvResource {
+	const regions = patch.regions ?? [{ region: "us-east-1", desired: 1, ready: 1 }];
+	const domains = patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true }];
 	return {
-		key: name,
-		name,
-		description: "",
-		status: ResourceStatus.HEALTHY,
-		type: ResourceType.SERVICE,
-		domain: null,
-		regions: [{ region: "us-east-1", desired: 1, ready: 1 }],
-		item: undefined,
-		...patch,
+		resource: create(ResourceSchema, { id: name, name, description: patch.description ?? "", domains }),
+		environment: undefined,
+		status: patch.status ?? ResourceStatus.HEALTHY,
+		envDeployments: [],
+		last: undefined,
+		regions,
+		totalReplicas: regions.reduce((n, g) => n + g.desired, 0),
+		neverDeployed: false,
 	};
 }
 
 const everything: RowFilter = { status: ALL, type: ALL, region: ALL, query: "" };
 
-function names(rows: ResourceRow[]): string[] {
-	return rows.map((r) => r.name);
+function names(rows: EnvResource[]): string[] {
+	return rows.map((r) => r.resource.name);
 }
 
 describe("filterRows", () => {
 	const rows = [
 		row("api", { description: "Public storefront API", domain: "api.example.dev" }),
 		row("worker", { status: ResourceStatus.UNAVAILABLE, regions: [{ region: "eu-west-1", desired: 2, ready: 0 }] }),
-		row("billing", { status: "draft" }),
+		row("billing", { status: ResourceStatus.DEPLOYING }),
 	];
 
 	test("search matches the description, the domain and the region", () => {
@@ -36,7 +42,7 @@ describe("filterRows", () => {
 		expect(names(filterRows(rows, { ...everything, query: "EU-WEST" }))).toEqual(["worker"]);
 	});
 
-	test("a status filter keeps only that status and leaves drafts under All", () => {
+	test("a status filter keeps only that status and All keeps every row", () => {
 		expect(names(filterRows(rows, { ...everything, status: "unavailable" }))).toEqual(["worker"]);
 		expect(names(filterRows(rows, { ...everything, status: "healthy" }))).toEqual(["api"]);
 		expect(names(filterRows(rows, everything))).toEqual(["api", "worker", "billing"]);
@@ -46,7 +52,7 @@ describe("filterRows", () => {
 describe("mapLayout", () => {
 	test("internal resources are grouped without edges", () => {
 		const layout = mapLayout([row("web", { domain: "web.example.dev" }), row("queue")], ["us-east-1"]);
-		expect(layout.internal.map((r) => r.name)).toEqual(["queue"]);
+		expect(names(layout.internal)).toEqual(["queue"]);
 		expect(layout.edges.map((e) => e.to)).toEqual(["web"]);
 	});
 
@@ -65,7 +71,7 @@ describe("mapLayout", () => {
 		);
 		const broken = row("z-broken", { domain: "z.example.dev", status: ResourceStatus.DEGRADED });
 		const layout = mapLayout([...healthy, broken], ["us-east-1"]);
-		expect(layout.publicNodes[0]?.row.name).toBe("z-broken");
+		expect(layout.publicNodes[0]?.row.resource.name).toBe("z-broken");
 	});
 
 	test("gateways of regions serving the same resources do not overlap", () => {
