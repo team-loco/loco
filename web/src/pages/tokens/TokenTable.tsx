@@ -12,44 +12,28 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { LevelChip } from "@/components/design/LevelChip";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { LEVEL_LABEL, LEVEL_TEXT } from "@/hooks/useMyScopes";
 import { maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import {
-	accessChips,
-	expiresLabel,
-	kindLabel,
-	LEVEL_LABEL,
-	LEVEL_TEXT,
-	lastUsedLabel,
-	relAgo,
-	tokenStatus,
-} from "./model";
+import { accessChips, expiresLabel, kindLabel, lastUsedLabel, relAgo, tokenStatus } from "./model";
 import type { AccessChip, EntityTree } from "./model";
 
 const SHOWN_CHIPS = 3;
 const SKELETON_ROWS = [0, 1, 2, 3];
 const COLUMNS = 6;
 
-function Chip({ chip }: { chip: AccessChip }) {
-	return (
-		<span className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md bg-panel2 px-2 text-[12px] whitespace-nowrap text-fg2">
-			<span className={cn("font-medium", LEVEL_TEXT[chip.level])}>{LEVEL_LABEL[chip.level]}</span>
-			<span className="truncate font-mono text-[11.5px]">{chip.node.label}</span>
-		</span>
-	);
-}
-
 function AccessCell({ chips }: { chips: AccessChip[] }) {
 	const rest = chips.length - SHOWN_CHIPS;
 	return (
 		<div className="flex min-w-0 flex-wrap gap-1">
 			{chips.slice(0, SHOWN_CHIPS).map((c) => (
-				<Chip key={c.key} chip={c} />
+				<LevelChip key={c.key} level={c.level} name={c.node.label} />
 			))}
 			{rest > 0 && (
 				<Tooltip>

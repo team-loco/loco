@@ -16,8 +16,6 @@ export const OWNER_TITLE: Record<OwnerKey, string> = {
 };
 
 export const LEVELS: Level[] = [1, 2, 3];
-export const LEVEL_LABEL: Record<Level, string> = { 1: "Read", 2: "Write", 3: "Admin" };
-export const LEVEL_TEXT: Record<Level, string> = { 1: "text-fg2", 2: "text-info-fg", 3: "text-warn-fg" };
 
 export const ALLOWS: Record<NodeKind, string[]> = {
 	org: [

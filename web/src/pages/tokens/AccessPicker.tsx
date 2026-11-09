@@ -6,7 +6,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
-import { ALLOWS, heldLevel, LEVEL_LABEL, LEVELS } from "./model";
+import { LEVEL_LABEL } from "@/hooks/useMyScopes";
+
+import { ALLOWS, heldLevel, LEVELS } from "./model";
 import type { EntityNode, EntityTree, HeldScopes, Level } from "./model";
 import { kindIcon } from "./icons";
 
