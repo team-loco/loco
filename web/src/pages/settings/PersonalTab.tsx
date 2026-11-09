@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/design/Button";
+import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
@@ -25,7 +26,6 @@ import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { accountBlockers } from "./account";
 import { AppearanceSection } from "./AppearanceSection";
-import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
 const TOKENS_PATH = "/tokens?owner=personal";

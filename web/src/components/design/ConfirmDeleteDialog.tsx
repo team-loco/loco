@@ -1,5 +1,5 @@
 import { XIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
 	AlertDialog,
@@ -7,9 +7,9 @@ import {
 	AlertDialogContent,
 	AlertDialogDescription,
 	AlertDialogTitle,
-} from "@/components/design/AlertDialog";
-import { Button } from "@/components/design/Button";
-import { Input } from "@/components/design/Input";
+} from "./AlertDialog";
+import { Button } from "./Button";
+import { Input } from "./Input";
 
 export function ConfirmDeleteDialog({
 	open,
@@ -20,6 +20,7 @@ export function ConfirmDeleteDialog({
 	confirmLabel,
 	pending,
 	onConfirm,
+	children,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -29,6 +30,7 @@ export function ConfirmDeleteDialog({
 	confirmLabel: string;
 	pending: boolean;
 	onConfirm: () => void;
+	children?: ReactNode;
 }) {
 	return (
 		<AlertDialog
@@ -49,7 +51,9 @@ export function ConfirmDeleteDialog({
 						onClose={() => {
 							onOpenChange(false);
 						}}
-					/>
+					>
+						{children}
+					</ConfirmBody>
 				)}
 			</AlertDialogContent>
 		</AlertDialog>
@@ -64,6 +68,7 @@ function ConfirmBody({
 	pending,
 	onConfirm,
 	onClose,
+	children,
 }: {
 	title: string;
 	text: string;
@@ -72,6 +77,7 @@ function ConfirmBody({
 	pending: boolean;
 	onConfirm: () => void;
 	onClose: () => void;
+	children: ReactNode;
 }) {
 	const [typed, setTyped] = useState("");
 	const typedOk = typed.trim() === target;
@@ -100,6 +106,7 @@ function ConfirmBody({
 			</div>
 			<div className="flex flex-col gap-3.5 p-4">
 				<AlertDialogDescription className="text-base leading-normal text-foreground">{text}</AlertDialogDescription>
+				{children}
 				<label className="flex flex-col gap-1.5">
 					<span className="text-[12.5px] text-fg2">
 						Type <span className="font-semibold text-foreground">{target}</span> to confirm

@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
+import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
@@ -26,7 +27,6 @@ import { workspacePath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
 
 import { ActivityPanel } from "./ActivityPanel";
-import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { EnvironmentsSection } from "./EnvironmentsSection";
 import { WebhooksCard } from "./WebhooksCard";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
