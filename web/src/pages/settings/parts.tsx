@@ -13,8 +13,20 @@ export function formatDay(ts: Timestamp | undefined): string {
 	return sameYear ? formatMonthDay(ms) : formatMonthDayYear(ms);
 }
 
-export function SettingsCard({ className, children }: { className?: string; children: ReactNode }) {
-	return <div className={cn("min-w-0 overflow-hidden rounded-[10px] bg-panel", className)}>{children}</div>;
+export function SettingsCard({
+	className,
+	labelledBy,
+	children,
+}: {
+	className?: string;
+	labelledBy?: string;
+	children: ReactNode;
+}) {
+	return (
+		<section aria-labelledby={labelledBy} className={cn("min-w-0 overflow-hidden rounded-[10px] bg-panel", className)}>
+			{children}
+		</section>
+	);
 }
 
 export function SettingsSection({
