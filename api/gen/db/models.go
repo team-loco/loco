@@ -563,20 +563,20 @@ type ResourceDomain struct {
 }
 
 type Secret struct {
-	ID            uuid.UUID  `json:"id"`
-	ResourceID    uuid.UUID  `json:"resourceId"`
-	EnvironmentID uuid.UUID  `json:"environmentId"`
-	Name          string     `json:"name"`
-	Version       int32      `json:"version"`
-	Nonce         []byte     `json:"nonce"`
-	Ciphertext    []byte     `json:"ciphertext"`
-	FormatVersion int16      `json:"formatVersion"`
-	UpdatedByType string     `json:"updatedByType"`
-	UpdatedByID   uuid.UUID  `json:"updatedById"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
-	CreatedByType *string    `json:"createdByType"`
-	CreatedByID   *uuid.UUID `json:"createdById"`
+	ID            uuid.UUID `json:"id"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Name          string    `json:"name"`
+	Version       int32     `json:"version"`
+	Nonce         []byte    `json:"nonce"`
+	Ciphertext    []byte    `json:"ciphertext"`
+	FormatVersion int16     `json:"formatVersion"`
+	UpdatedByType string    `json:"updatedByType"`
+	UpdatedByID   uuid.UUID `json:"updatedById"`
+	CreatedByType string    `json:"createdByType"`
+	CreatedByID   uuid.UUID `json:"createdById"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 type SessionToken struct {
