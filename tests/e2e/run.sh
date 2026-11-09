@@ -457,6 +457,11 @@ postgres_accepts_queries() {
 
 setup_postgres() {
     log_step "Setting up Postgres..."
+    if ! e2e_compose pull --quiet postgres; then
+        log_warn "Pulling the Postgres image failed, retrying once"
+        sleep 5
+        e2e_compose pull --quiet postgres
+    fi
     e2e_compose up -d --wait postgres
     local port
     port=$(compose_host_port postgres 5432)
