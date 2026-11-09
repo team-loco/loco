@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"connectrpc.com/connect/v2"
@@ -14,7 +13,7 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-var errPartialUnchanged = errors.New("resource already belongs to this partial")
+var errPartialUnchanged = rpcerr.NewCoded(connect.CodeFailedPrecondition, "resource already belongs to this partial")
 
 // TransferPartial moves a resource to another partial.
 func (s *ResourceServer) TransferPartial(
@@ -63,14 +62,8 @@ func (s *ResourceServer) TransferPartial(
 			Data:        map[string]any{events.FieldPartial: partial, events.FieldFrom: previous},
 		})
 	})
-	if errors.Is(err, ErrResourceNotFound) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
-	}
-	if errors.Is(err, errPartialUnchanged) {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, errPartialUnchanged)
-	}
 	if err != nil {
-		return nil, txError(ctx, "failed to transfer partial", err)
+		return nil, err
 	}
 
 	return &resourcev1.TransferPartialResponse{}, nil

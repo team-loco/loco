@@ -187,7 +187,7 @@ func TestSetSecretsEnforcesLimits(t *testing.T) {
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{"BIG": strings.Repeat("x", testMaxValue+1)},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeInvalidArgument {
+	if code := wireCode(err); code != connect.CodeInvalidArgument {
 		t.Fatalf("oversized value: code = %v, want InvalidArgument", code)
 	}
 	f.set(t, server, map[string]string{"A": "1", "B": "2"})
@@ -195,7 +195,7 @@ func TestSetSecretsEnforcesLimits(t *testing.T) {
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{"B": "2", "C": "3", "D": "4"},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeResourceExhausted {
+	if code := wireCode(err); code != connect.CodeResourceExhausted {
 		t.Fatalf("fourth name: code = %v, want ResourceExhausted", code)
 	}
 	if names := f.names(t); len(names) != 2 {
@@ -211,7 +211,7 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{"A", missingName},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeNotFound {
+	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("delete with a missing name: code = %v, want NotFound", code)
 	}
 	if names := f.names(t); len(names) != 2 {
@@ -305,7 +305,7 @@ func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 		EnvironmentId: "0199c3f0-0000-7000-8000-000000000000",
 		Values:        map[string]string{"A": "1"},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeNotFound {
+	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("code = %v, want NotFound", code)
 	}
 }
@@ -317,19 +317,19 @@ func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: other.String(), Values: map[string]string{"A": "1"},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeNotFound {
+	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("set: code = %v, want NotFound", code)
 	}
 	_, err = server.ListSecrets(f.owner, &secretv1.ListSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: other.String(),
 	})
-	if code := connect.CodeOf(err); code != connect.CodeNotFound {
+	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("list: code = %v, want NotFound", code)
 	}
 	_, err = server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: other.String(), Names: []string{"A"},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeNotFound {
+	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("delete: code = %v, want NotFound", code)
 	}
 }
@@ -553,7 +553,7 @@ func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: strings.Repeat("a", 30)},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
+	if code := wireCode(err); code != connect.CodeFailedPrecondition {
 		t.Fatalf("oversized placement: err = %v, want FailedPrecondition", err)
 	}
 	got, version := f.plaintext(t, provider, alphaKey)
@@ -573,7 +573,7 @@ func TestDeleteSecretsRefusesANameTheServiceDeclares(t *testing.T) {
 		EnvironmentId: f.environmentID.String(),
 		Names:         []string{alphaKey, unusedKey},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), alphaKey) {
+	if code := wireCode(err); code != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), alphaKey) {
 		t.Fatalf("delete of a declared name: err = %v, want FailedPrecondition naming %s", err, alphaKey)
 	}
 	if names := f.names(t); len(names) != 2 {
@@ -633,7 +633,7 @@ func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing
 	if commitErr := holder.Commit(t.Context()); commitErr != nil {
 		t.Fatalf("commit: %v", commitErr)
 	}
-	if code := connect.CodeOf(<-result); code != connect.CodeNotFound {
+	if code := wireCode(<-result); code != connect.CodeNotFound {
 		t.Fatalf("set on a deleted resource: code = %v, want NotFound", code)
 	}
 }
@@ -691,13 +691,13 @@ func TestResourceTokenManagesOnlyItsOwnServicesSecrets(t *testing.T) {
 		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{stripeKey: stripeValue},
 	})
-	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
+	if code := wireCode(err); code != connect.CodePermissionDenied {
 		t.Fatalf("set on another service: code = %v, want PermissionDenied", code)
 	}
 	_, err = server.ListSecrets(ctx, &secretv1.ListSecretsRequest{
 		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
 	})
-	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
+	if code := wireCode(err); code != connect.CodePermissionDenied {
 		t.Fatalf("list another service: code = %v, want PermissionDenied", code)
 	}
 }
@@ -745,13 +745,13 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 				EnvironmentId: f.environmentID.String(),
 				Values:        map[string]string{alphaKey: "2"},
 			})
-			if code := connect.CodeOf(err); code != connect.CodeAborted {
+			if code := wireCode(err); code != connect.CodeAborted {
 				t.Fatalf("set under a held lock: code = %v, want Aborted", code)
 			}
 			_, err = server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 				ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{alphaKey},
 			})
-			if code := connect.CodeOf(err); code != connect.CodeAborted {
+			if code := wireCode(err); code != connect.CodeAborted {
 				t.Fatalf("delete under a held lock: code = %v, want Aborted", code)
 			}
 		})
@@ -770,7 +770,7 @@ func TestSetSecretsFailsClosedOnAnUnknownFormatVersion(t *testing.T) {
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: "1"},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeInternal {
+	if code := wireCode(err); code != connect.CodeInternal {
 		t.Fatalf("set over an unknown format: code = %v, want Internal", code)
 	}
 	if _, execErr := f.pool.Exec(t.Context(), `UPDATE secrets SET format_version = 1;
@@ -782,7 +782,7 @@ UPDATE environment_keys SET format_version = 2`); execErr != nil {
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: "2"},
 	})
-	if code := connect.CodeOf(err); code != connect.CodeInternal {
+	if code := wireCode(err); code != connect.CodeInternal {
 		t.Fatalf("set under an unknown key format: code = %v, want Internal", code)
 	}
 }

@@ -319,7 +319,7 @@ func TestDeploymentsAreRejectedWhileSuspended(t *testing.T) {
 	wantSuspendedError(t, err)
 	wantSuspendedError(t, scaleResource(t, f, 2))
 	_, err = f.deploy(t.Context(), staticSpec)
-	wantSuspendedError(t, deploymentTxError(t.Context(), err))
+	wantSuspendedError(t, err)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 1 {
 		t.Fatalf("%d deployments after rejected deploys, want 1", n)
 	}
@@ -409,5 +409,5 @@ func TestSuspensionCancelsBuildsAndRefusesNewOnes(t *testing.T) {
 	fresh := f.insertBuild(t, genDb.BuildStatusAwaitingUpload)
 	resourceID := f.row(t, fresh).ResourceID
 	_, err := queueBuild(f.ctx, f.pool, uuid.MustParse(fresh), resourceID, f.clusterID)
-	wantSuspendedError(t, handlerError(f.ctx, "queue build", err))
+	wantSuspendedError(t, err)
 }

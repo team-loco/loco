@@ -42,7 +42,7 @@ func TestApplyRefusedLogsADetailThatCannotBeEncoded(t *testing.T) {
 	}
 }
 
-func TestHandlerErrorMapsDomainErrorsToCodes(t *testing.T) {
+func TestErrorInterceptorMapsDomainErrorsToCodes(t *testing.T) {
 	cases := map[string]struct {
 		err         error
 		wantCode    connect.Code
@@ -68,43 +68,30 @@ func TestHandlerErrorMapsDomainErrorsToCodes(t *testing.T) {
 			wantCode:    connect.CodeInvalidArgument,
 			wantMessage: publicInvalidRequest,
 		},
+		"invalid spec under a desired spec failure": {
+			err:         fmt.Errorf("%w: %w", errDesiredSpec, &invalidSpecError{err: errors.New("port 80")}),
+			wantCode:    connect.CodeInvalidArgument,
+			wantMessage: "invalid deployment spec: port 80",
+		},
 		"anything else is a server failure": {
 			err:         errors.New("connection reset"),
 			wantCode:    connect.CodeInternal,
-			wantMessage: ErrDB.Error(),
+			wantMessage: "request failed",
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			for _, attrs := range [][]any{nil, {"buildId", "build-1"}} {
-				mapped := handlerError(t.Context(), "test", tc.err, attrs...)
-				connectErr, ok := errors.AsType[*connect.Error](mapped)
-				if !ok {
-					t.Fatalf("err = %v, want a connect error", mapped)
-				}
-				if connectErr.Code() != tc.wantCode {
-					t.Fatalf("attrs %v: code = %v, want %v", attrs, connectErr.Code(), tc.wantCode)
-				}
-				if connectErr.Message() != tc.wantMessage {
-					t.Fatalf("attrs %v: message = %q, want %q", attrs, connectErr.Message(), tc.wantMessage)
-				}
+			connectErr, ok := errors.AsType[*connect.Error](wireError(fmt.Errorf("handler: %w", tc.err)))
+			if !ok {
+				t.Fatalf("err = %v, want a connect error", tc.err)
+			}
+			if connectErr.Code() != tc.wantCode {
+				t.Fatalf("code = %v, want %v", connectErr.Code(), tc.wantCode)
+			}
+			if connectErr.Message() != tc.wantMessage {
+				t.Fatalf("message = %q, want %q", connectErr.Message(), tc.wantMessage)
 			}
 		})
-	}
-}
-
-func TestHandlerErrorLogsAttributesOnServerFailures(t *testing.T) {
-	var logs bytes.Buffer
-	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
-	t.Cleanup(func() { slog.SetDefault(previous) })
-
-	mapped := handlerError(t.Context(), "failed to queue build", errors.New("connection reset"), "buildId", "build-1")
-	if code := connect.CodeOf(mapped); code != connect.CodeInternal {
-		t.Fatalf("code = %v, want internal", code)
-	}
-	if !strings.Contains(logs.String(), "buildId=build-1") || !strings.Contains(logs.String(), "connection reset") {
-		t.Fatalf("logs = %q, want the build ID and the error", logs.String())
 	}
 }
 

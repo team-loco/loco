@@ -29,15 +29,27 @@ import (
 )
 
 var (
-	ErrSecretValueTooLarge   = errors.New("secret value exceeds the size limit")
-	ErrTooManySecrets        = errors.New("service has reached its secret limit in the environment")
-	ErrSecretNotFound        = errors.New("secret not found")
-	ErrKeyProvider           = errors.New("secrets key provider unavailable")
-	ErrSecretLockTimeout     = errors.New("secrets of the service are locked by another operation")
+	ErrSecretValueTooLarge = errors.New("secret value exceeds the size limit")
+	ErrTooManySecrets      = rpcerr.NewCoded(
+		connect.CodeResourceExhausted,
+		"service has reached its secret limit in the environment",
+	)
+	ErrSecretNotFound    = rpcerr.NewCoded(connect.CodeNotFound, "secret not found")
+	ErrKeyProvider       = errors.New("secrets key provider unavailable")
+	ErrSecretLockTimeout = rpcerr.NewCoded(
+		connect.CodeAborted,
+		"secrets of the service are locked by another operation",
+	)
 	ErrSecretKeyChanging     = errors.New("environment key changed during the write, retry")
-	ErrPlacementSecretsLarge = errors.New("secrets of a placement of the service exceed the size limit")
-	ErrSecretInUse           = errors.New("secret is declared by the service's active deployment")
-	ErrUnknownSecretFormat   = errors.New("secret has a format version this binary does not know")
+	ErrPlacementSecretsLarge = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"secrets of a placement of the service exceed the size limit",
+	)
+	ErrSecretInUse = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"secret is declared by the service's active deployment",
+	)
+	ErrUnknownSecretFormat = errors.New("secret has a format version this binary does not know")
 
 	ErrNewDEKNeedsEnvironment = errors.New("a new data key requires an environment id")
 	ErrNoEnvironmentKey       = errors.New("environment has no secrets key")
@@ -113,22 +125,20 @@ func (s *SecretServer) authorizeTarget(
 	}
 	resource, err := s.queries.GetResourceByID(ctx, parsedResourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return secretTarget{}, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return secretTarget{}, ErrResourceNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load resource", "error", err)
-		return secretTarget{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return secretTarget{}, fmt.Errorf("get resource: %w", err)
 	}
 	env, err := s.queries.GetEnvironmentByID(ctx, parsedEnvironmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return secretTarget{}, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return secretTarget{}, ErrEnvironmentNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load environment", "error", err)
-		return secretTarget{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return secretTarget{}, fmt.Errorf("get environment: %w", err)
 	}
 	if env.WorkspaceID != resource.WorkspaceID {
-		return secretTarget{}, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return secretTarget{}, ErrEnvironmentNotFound
 	}
 	return secretTarget{env: env, resourceID: resource.ID}, nil
 }
@@ -199,7 +209,7 @@ func (s *SecretServer) setSecretsOnce(
 			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,
 		})
 		if listErr != nil {
-			return listErr
+			return fmt.Errorf("list secret ciphertexts: %w", listErr)
 		}
 		current := make(map[string]genDb.ListSecretCiphertextsRow, len(existing))
 		for _, row := range existing {
@@ -254,10 +264,7 @@ func (s *SecretServer) setSecretsOnce(
 		return s.writeSecrets(ctx, qtx, target, revision, params, added, response)
 	})
 	if err != nil {
-		if errors.Is(err, errKeyChanged) {
-			return nil, err
-		}
-		return nil, txError(ctx, "failed to set secrets", err)
+		return nil, err
 	}
 	return response, nil
 }
@@ -275,25 +282,24 @@ func (s *SecretServer) writeSecrets(
 		ResourceID: target.resourceID, EnvironmentID: target.env.ID,
 	})
 	if countErr != nil {
-		return countErr
+		return fmt.Errorf("count secrets: %w", countErr)
 	}
 	if count+added > int64(s.config.MaxPerService) {
-		return rpcerr.New(connect.CodeResourceExhausted, ErrTooManySecrets)
+		return ErrTooManySecrets
 	}
 	if upsertErr := qtx.UpsertSecrets(ctx, params); upsertErr != nil {
-		return upsertErr
+		return fmt.Errorf("upsert secrets: %w", upsertErr)
 	}
 	sizes, sizesErr := qtx.ListPlacementSecretSizes(ctx, genDb.ListPlacementSecretSizesParams{
 		ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: params.Names,
 	})
 	if sizesErr != nil {
-		return sizesErr
+		return fmt.Errorf("list placement secret sizes: %w", sizesErr)
 	}
 	for _, size := range sizes {
 		total := size.NameBytes + size.CiphertextBytes - size.SecretCount*secretTagBytes
 		if total > int64(s.config.MaxPlacementBytes) {
-			tooLarge := fmt.Errorf("%w: placement %s holds %d bytes", ErrPlacementSecretsLarge, size.PlacementID, total)
-			return rpcerr.New(connect.CodeFailedPrecondition, tooLarge)
+			return ErrPlacementSecretsLarge.Detail("placement %s holds %d bytes", size.PlacementID, total)
 		}
 	}
 	if rollErr := rollPlacementsForSecrets(ctx, qtx, target, params.Names); rollErr != nil {
@@ -353,24 +359,27 @@ func (s *SecretServer) lockEnvironmentKey(
 ) (genDb.EnvironmentKey, int64, error) {
 	timeoutMillis := strconv.FormatInt(s.config.LockTimeout.Milliseconds(), 10)
 	if err := qtx.SetLockTimeout(ctx, timeoutMillis); err != nil {
-		return genDb.EnvironmentKey{}, 0, err
+		return genDb.EnvironmentKey{}, 0, fmt.Errorf("set lock timeout: %w", err)
 	}
 	revisions, err := lockWorkspaceEnvironments(ctx, qtx, env.WorkspaceID)
 	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, rpcerr.New(connect.CodeAborted, ErrSecretLockTimeout)
+		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
 	}
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, err
 	}
 	revision, found := revisions[env.ID]
 	if !found {
-		return genDb.EnvironmentKey{}, 0, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return genDb.EnvironmentKey{}, 0, ErrEnvironmentNotFound
 	}
 	key, err := qtx.LockEnvironmentKey(ctx, env.ID)
 	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, rpcerr.New(connect.CodeAborted, ErrSecretLockTimeout)
+		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
 	}
-	return key, revision, err
+	if err != nil {
+		return genDb.EnvironmentKey{}, 0, fmt.Errorf("lock environment key: %w", err)
+	}
+	return key, revision, nil
 }
 
 func (s *SecretServer) lockTarget(
@@ -384,12 +393,12 @@ func (s *SecretServer) lockTarget(
 	}
 	err = lockResource(ctx, qtx, target.resourceID)
 	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, rpcerr.New(connect.CodeAborted, ErrSecretLockTimeout)
+		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
 	}
-	if errors.Is(err, ErrResourceNotFound) {
-		return genDb.EnvironmentKey{}, 0, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+	if err != nil {
+		return genDb.EnvironmentKey{}, 0, err
 	}
-	return key, revision, err
+	return key, revision, nil
 }
 
 // DeleteSecrets removes names from a service in an environment.
@@ -407,7 +416,7 @@ func (s *SecretServer) DeleteSecrets(
 		_, lockedRevision, lockErr := s.lockTarget(ctx, qtx, target)
 		if lockErr != nil {
 			if errors.Is(lockErr, pgx.ErrNoRows) {
-				return connect.NewError(connect.CodeNotFound, fmt.Errorf("%w: %s", ErrSecretNotFound, names[0]).Error())
+				return ErrSecretNotFound.Detail("%s", names[0])
 			}
 			return lockErr
 		}
@@ -418,23 +427,22 @@ func (s *SecretServer) DeleteSecrets(
 			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,
 		})
 		if declaredErr != nil {
-			return declaredErr
+			return fmt.Errorf("list declared secret names: %w", declaredErr)
 		}
 		if len(declared) > 0 {
-			inUse := fmt.Errorf("%w: %s", ErrSecretInUse, strings.Join(declared, ", "))
-			return rpcerr.New(connect.CodeFailedPrecondition, inUse)
+			return ErrSecretInUse.Detail("%s", strings.Join(declared, ", "))
 		}
 		deleted, deleteErr := qtx.DeleteSecrets(ctx, genDb.DeleteSecretsParams{
 			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,
 		})
 		if deleteErr != nil {
-			return deleteErr
+			return fmt.Errorf("delete secrets: %w", deleteErr)
 		}
 		if len(deleted) != len(names) {
 			slices.Sort(deleted)
 			for _, name := range names {
 				if _, found := slices.BinarySearch(deleted, name); !found {
-					return connect.NewError(connect.CodeNotFound, fmt.Errorf("%w: %s", ErrSecretNotFound, name).Error())
+					return ErrSecretNotFound.Detail("%s", name)
 				}
 			}
 		}
@@ -445,7 +453,7 @@ func (s *SecretServer) DeleteSecrets(
 		return events.Record(ctx, qtx, target.event(events.SecretDeleted, names, revision))
 	})
 	if err != nil {
-		return nil, txError(ctx, "failed to delete secrets", err)
+		return nil, err
 	}
 	return &secretv1.DeleteSecretsResponse{Revision: revision}, nil
 }
@@ -463,8 +471,7 @@ func (s *SecretServer) ListSecrets(
 		ResourceID: target.resourceID, EnvironmentID: target.env.ID,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list secrets", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list secrets: %w", err)
 	}
 	secrets := make([]*secretv1.Secret, 0, len(rows))
 	for _, row := range rows {
@@ -522,15 +529,13 @@ func (s *SecretServer) rewrapTargets(ctx context.Context, environmentID string) 
 			return nil, rpcerr.New(connect.CodeNotFound, ErrNoEnvironmentKey)
 		}
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to load the environment key", "error", err)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+			return nil, fmt.Errorf("get environment key: %w", err)
 		}
 		return []uuid.UUID{key.EnvironmentID}, nil
 	}
 	keys, err := s.queries.ListEnvironmentKeys(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list environment keys", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("list environment keys: %w", err)
 	}
 	environmentIDs := make([]uuid.UUID, 0, len(keys))
 	for _, key := range keys {
@@ -547,8 +552,7 @@ func (s *SecretServer) rewrapEnvironment(
 	for range setSecretsAttempts {
 		key, err := s.queries.GetEnvironmentKey(ctx, environmentID)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to load the environment key", "environmentId", environmentID, "error", err)
-			return rewrapSkipped, rpcerr.New(connect.CodeInternal, ErrDB)
+			return rewrapSkipped, fmt.Errorf("get environment %s key: %w", environmentID, err)
 		}
 		outcome, err := s.rewrapEnvironmentKey(ctx, key, newDEK)
 		if errors.Is(err, errKeyChanged) {
@@ -567,7 +571,7 @@ func (s *SecretServer) rewrapEnvironmentKey(
 	current, err := s.provider.KeyID(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to read the current key id", "error", err)
-		return rewrapSkipped, rpcerr.New(connect.CodeUnavailable, ErrKeyProvider)
+		return rewrapSkipped, keyProviderUnavailable(err)
 	}
 	if key.Provider != s.provider.Name() {
 		slog.WarnContext(ctx, "environment key belongs to another provider",
@@ -578,9 +582,12 @@ func (s *SecretServer) rewrapEnvironmentKey(
 		return rewrapCurrent, nil
 	}
 	if key.FormatVersion != secretFormatVersion {
-		slog.ErrorContext(ctx, "unknown environment key format",
-			"environmentId", key.EnvironmentID, "formatVersion", key.FormatVersion)
-		return rewrapSkipped, rpcerr.New(connect.CodeInternal, ErrUnknownSecretFormat)
+		return rewrapSkipped, fmt.Errorf(
+			"%w: environment %s key has %d",
+			ErrUnknownSecretFormat,
+			key.EnvironmentID,
+			key.FormatVersion,
+		)
 	}
 	dek, err := unwrapEnvironmentKey(ctx, s.provider, key)
 	if err != nil {
@@ -593,8 +600,7 @@ func (s *SecretServer) rewrapEnvironmentKey(
 	if newDEK {
 		replacement, err = secretkeys.NewDEK()
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to generate a data key", "error", err)
-			return rewrapSkipped, rpcerr.New(connect.CodeInternal, ErrKeyProvider)
+			return rewrapSkipped, fmt.Errorf("generate a data key: %w", err)
 		}
 		defer secretkeys.Zero(replacement)
 	}
@@ -602,12 +608,11 @@ func (s *SecretServer) rewrapEnvironmentKey(
 	rewrapped, err := s.provider.Wrap(ctx, replacement, aad)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to wrap environment key", "environmentId", key.EnvironmentID, "error", err)
-		return rewrapSkipped, rpcerr.New(connect.CodeUnavailable, ErrKeyProvider)
+		return rewrapSkipped, keyProviderUnavailable(err)
 	}
 	env, err := s.queries.GetEnvironmentByID(ctx, key.EnvironmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load environment", "environmentId", key.EnvironmentID, "error", err)
-		return rewrapSkipped, rpcerr.New(connect.CodeInternal, ErrDB)
+		return rewrapSkipped, fmt.Errorf("get environment %s: %w", key.EnvironmentID, err)
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		locked, _, lockErr := s.lockEnvironmentKey(ctx, qtx, env)
@@ -629,7 +634,7 @@ func (s *SecretServer) rewrapEnvironmentKey(
 			WrappedDek:         rewrapped.Bytes,
 			PreviousWrappedDek: key.WrappedDek,
 		}); updateErr != nil {
-			return updateErr
+			return fmt.Errorf("rewrap environment key: %w", updateErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.SecretKeyRewrapped,
@@ -643,11 +648,8 @@ func (s *SecretServer) rewrapEnvironmentKey(
 			},
 		})
 	})
-	if errors.Is(err, errKeyChanged) {
-		return rewrapSkipped, err
-	}
 	if err != nil {
-		return rewrapSkipped, txError(ctx, "failed to rewrap environment key", err)
+		return rewrapSkipped, err
 	}
 	return rewrapDone, nil
 }
@@ -661,7 +663,7 @@ func reencryptSecrets(
 ) error {
 	rows, err := qtx.ListEnvironmentSecretCiphertexts(ctx, env.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("list environment secret ciphertexts: %w", err)
 	}
 	params := genDb.ReencryptSecretsParams{EnvironmentID: env.ID}
 	for _, row := range rows {
@@ -689,7 +691,7 @@ func reencryptSecrets(
 	}
 	updated, err := qtx.ReencryptSecrets(ctx, params)
 	if err != nil {
-		return err
+		return fmt.Errorf("re-encrypt secrets: %w", err)
 	}
 	if updated != int64(len(rows)) {
 		return fmt.Errorf("re-encrypted %d of %d secrets of environment %s", updated, len(rows), env.ID)
@@ -710,20 +712,17 @@ func (s *SecretServer) environmentDEK(
 		return genDb.EnvironmentKey{}, nil, err
 	}
 	if key.FormatVersion != secretFormatVersion {
-		slog.ErrorContext(
-			ctx,
-			"unknown environment key format",
-			"environmentId",
+		return genDb.EnvironmentKey{}, nil, fmt.Errorf(
+			"%w: environment %s key has %d",
+			ErrUnknownSecretFormat,
 			environmentID,
-			"formatVersion",
 			key.FormatVersion,
 		)
-		return genDb.EnvironmentKey{}, nil, rpcerr.New(connect.CodeInternal, ErrUnknownSecretFormat)
 	}
 	dek, err := unwrapEnvironmentKey(ctx, s.provider, key)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to unwrap environment key", "environmentId", environmentID, "error", err)
-		return genDb.EnvironmentKey{}, nil, rpcerr.New(connect.CodeUnavailable, ErrKeyProvider)
+		return genDb.EnvironmentKey{}, nil, keyProviderUnavailable(err)
 	}
 	return key, dek, nil
 }
@@ -741,14 +740,13 @@ func (s *SecretServer) createEnvironmentKey(
 ) (genDb.EnvironmentKey, error) {
 	dek, err := secretkeys.NewDEK()
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate a data key", "error", err)
-		return genDb.EnvironmentKey{}, rpcerr.New(connect.CodeInternal, ErrKeyProvider)
+		return genDb.EnvironmentKey{}, fmt.Errorf("generate a data key: %w", err)
 	}
 	defer secretkeys.Zero(dek)
 	wrapped, err := s.provider.Wrap(ctx, dek, aad)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to wrap a data key", "environmentId", environmentID, "error", err)
-		return genDb.EnvironmentKey{}, rpcerr.New(connect.CodeUnavailable, ErrKeyProvider)
+		return genDb.EnvironmentKey{}, keyProviderUnavailable(err)
 	}
 	key, err := s.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
 		EnvironmentID: environmentID,
@@ -761,8 +759,12 @@ func (s *SecretServer) createEnvironmentKey(
 		key, err = s.queries.GetEnvironmentKey(ctx, environmentID)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to store the environment key", "environmentId", environmentID, "error", err)
-		return genDb.EnvironmentKey{}, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.EnvironmentKey{}, fmt.Errorf("store environment %s key: %w", environmentID, err)
 	}
 	return key, nil
+}
+
+// keyProviderUnavailable reports a key provider failure the client can retry; err stays private.
+func keyProviderUnavailable(err error) *connect.Error {
+	return connect.NewError(connect.CodeUnavailable, ErrKeyProvider.Error()).WithCause(err)
 }

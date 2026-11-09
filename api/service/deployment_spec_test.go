@@ -139,7 +139,7 @@ func TestDesiredSpecAcceptsValidSpec(t *testing.T) {
 	}
 }
 
-func TestDeploymentTxErrorRejectsInvalidSpecAsInvalidArgument(t *testing.T) {
+func TestDesiredSpecRejectsInvalidSpecAsInvalidArgument(t *testing.T) {
 	buildSpec := testDesiredSpec(t, 80)
 	_, specErr := buildSpec(uuid.New())
 	if specErr == nil {
@@ -147,19 +147,14 @@ func TestDeploymentTxErrorRejectsInvalidSpecAsInvalidArgument(t *testing.T) {
 	}
 
 	joined := errors.Join(errDesiredSpec, specErr)
-	txErr := deploymentTxError(context.Background(), joined)
-	wantCode(t, txErr, connect.CodeInvalidArgument)
-	var connectErr *connect.Error
-	if !errors.As(txErr, &connectErr) {
-		t.Fatalf("err = %v, want a connect error", txErr)
-	}
+	wantCode(t, joined, connect.CodeInvalidArgument)
 	want := "invalid deployment spec: invalid deployment: port must be between 1024 and 65535, got 80"
-	if msg := connectErr.Message(); msg != want {
+	if msg := publicError(joined).Message(); msg != want {
 		t.Fatalf("message = %q, want %q", msg, want)
 	}
 }
 
-func TestDeploymentTxErrorRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
+func TestDesiredSpecRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 	resourceSpec := testResourceSpec()
 	deploymentSpec := mergedTestSpec(t, resourceSpec, testDeploymentSpec(8080))
 	buildSpec := desiredApplicationSpec(
@@ -175,15 +170,12 @@ func TestDeploymentTxErrorRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 	)
 	_, specErr := buildSpec(uuid.New())
 	joined := errors.Join(errDesiredSpec, specErr)
-	txErr := deploymentTxError(context.Background(), joined)
-	wantCode(t, txErr, connect.CodeInvalidArgument)
+	wantCode(t, joined, connect.CodeInvalidArgument)
 }
 
-func TestDeploymentTxErrorKeepsOtherSpecFailuresInternal(t *testing.T) {
+func TestDesiredSpecKeepsOtherSpecFailuresInternal(t *testing.T) {
 	boom := errors.New("boom")
-	joined := errors.Join(errDesiredSpec, boom)
-	txErr := deploymentTxError(context.Background(), joined)
-	wantCode(t, txErr, connect.CodeInternal)
+	wantServerFailure(t, errors.Join(errDesiredSpec, boom))
 }
 
 func TestDeployRejectsInvalidSpecWithoutWritingADeployment(t *testing.T) {
@@ -192,8 +184,7 @@ func TestDeployRejectsInvalidSpecWithoutWritingADeployment(t *testing.T) {
 
 	buildSpec := testDesiredSpec(t, 80)
 	_, err := f.deploy(ctx, buildSpec)
-	txErr := deploymentTxError(ctx, err)
-	wantCode(t, txErr, connect.CodeInvalidArgument)
+	wantCode(t, err, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments after an invalid deploy, want 0", n)
 	}
@@ -314,8 +305,7 @@ func TestDeployRejectsAnOutOfRangeQuantityAsInvalidArgument(t *testing.T) {
 	requestSpec.GetService().Cpu = &cpu
 	buildSpec := testDesiredSpecFrom(t, testResourceSpec(), requestSpec)
 	_, err := f.deploy(ctx, buildSpec)
-	txErr := deploymentTxError(ctx, err)
-	wantCode(t, txErr, connect.CodeInvalidArgument)
+	wantCode(t, err, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments after an invalid deploy, want 0", n)
 	}

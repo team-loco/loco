@@ -1,10 +1,8 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectproto"
@@ -16,7 +14,6 @@ import (
 
 var (
 	ErrImproperUsage = errors.New("improper usage of the api")
-	ErrDB            = errors.New(http.StatusText(http.StatusInternalServerError))
 
 	errUnknownOperation = errors.New("configplan produced an operation kind outside KindCreate..KindImport")
 )
@@ -35,25 +32,6 @@ func (e *invalidInputError) Error() string {
 // inside the private cause.
 func (e *invalidInputError) Unwrap() []error {
 	return []error{rpcerr.NewCoded(connect.CodeInvalidArgument, e.public), e.err}
-}
-
-// handlerError returns the public error of a coded failure. It logs any other error with msg
-// and attrs and hides it behind ErrDB.
-func handlerError(ctx context.Context, msg string, err error, attrs ...any) error {
-	if public, ok := rpcerr.Public(err); ok {
-		return public
-	}
-	attrs = append(attrs, "error", err)
-	slog.ErrorContext(ctx, msg, attrs...)
-	return rpcerr.New(connect.CodeInternal, ErrDB)
-}
-
-// txError maps the error of a transaction whose closure may still return connect errors.
-func txError(ctx context.Context, msg string, err error) error {
-	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
-		return connectErr
-	}
-	return handlerError(ctx, msg, err)
 }
 
 func withDetail(err *connect.Error, msg proto.Message) *connect.Error {

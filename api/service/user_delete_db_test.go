@@ -118,8 +118,7 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
 
 			_, err := server.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID.String()})
 			wantCode(t, err, connect.CodeFailedPrecondition)
-			connectErr, ok := errors.AsType[*connect.Error](err)
-			if !ok || connectErr.Message() != tt.message {
+			if public := publicError(err); public.Message() != tt.message {
 				t.Fatalf("DeleteUser error = %v, want %q", err, tt.message)
 			}
 		})

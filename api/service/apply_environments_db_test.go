@@ -159,7 +159,7 @@ func TestApplyInTwoEnvironmentsDoNotDeadlock(t *testing.T) {
 		wg.Wait()
 
 		for _, err := range errs {
-			if err != nil && connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			if err != nil && wireCode(err) != connect.CodeFailedPrecondition {
 				t.Fatalf("Apply = %v, want success or a stale-revision refusal", err)
 			}
 		}

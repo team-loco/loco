@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"maps"
 	"slices"
 
@@ -68,13 +67,12 @@ func (s *PlanServer) Apply(
 	}
 	builds, err := s.resolveBuilds(ctx, planned, req.GetBuilds())
 	if err != nil {
-		return nil, handlerError(ctx, "failed to resolve builds", err)
+		return nil, err
 	}
 
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, planned.env.WorkspaceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, fmt.Errorf("get workspace organization: %w", err)
 	}
 
 	a := &applier{
@@ -119,7 +117,7 @@ func (s *PlanServer) Apply(
 		}
 		applied, getErr := qtx.GetEnvironmentByID(ctx, planned.env.ID)
 		if getErr != nil {
-			return getErr
+			return fmt.Errorf("get applied environment: %w", getErr)
 		}
 		revision = applied.Revision
 		return nil
@@ -127,13 +125,12 @@ func (s *PlanServer) Apply(
 	if errors.Is(err, errRevisionMoved) {
 		current, getErr := s.queries.GetEnvironmentByID(ctx, planned.env.ID)
 		if getErr != nil {
-			slog.ErrorContext(ctx, "failed to get environment", "error", getErr, "environmentId", planned.env.ID)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+			return nil, fmt.Errorf("get environment %s: %w", planned.env.ID, getErr)
 		}
 		return nil, applyRefused(errRevisionMoved, &planv1.ApplyRefusal{Revision: current.Revision})
 	}
 	if err != nil {
-		return nil, applyTxError(ctx, err)
+		return nil, err
 	}
 
 	return &planv1.ApplyResponse{
@@ -261,12 +258,4 @@ func unconfirmedOperations(
 func applyRefused(reason error, refusal *planv1.ApplyRefusal) error {
 	refused := rpcerr.New(connect.CodeFailedPrecondition, reason)
 	return withDetail(refused, refusal)
-}
-
-func applyTxError(ctx context.Context, err error) error {
-	if isDomainTaken(err) {
-		slog.WarnContext(ctx, "apply rejected by a constraint", "error", err)
-		return rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)
-	}
-	return deploymentTxError(ctx, err)
 }

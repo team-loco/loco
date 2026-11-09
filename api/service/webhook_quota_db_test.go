@@ -82,7 +82,7 @@ func testWebhookQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 			switch {
 			case createErr == nil:
 				succeeded++
-			case connect.CodeOf(createErr) == connect.CodeFailedPrecondition:
+			case wireCode(createErr) == connect.CodeFailedPrecondition:
 				limited++
 			default:
 				t.Fatalf("create failed: %v", createErr)

@@ -227,7 +227,7 @@ func TestConcurrentAPIInstancesAcceptOnlyOneScale(t *testing.T) {
 		switch {
 		case err == nil:
 			accepted++
-		case connect.CodeOf(err) == connect.CodeFailedPrecondition:
+		case wireCode(err) == connect.CodeFailedPrecondition:
 			rejected++
 		default:
 			t.Fatal(err)

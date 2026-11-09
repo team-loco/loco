@@ -200,6 +200,9 @@ func (a *applier) createDomain(
 		PlatformDomain: &platformDomain,
 		IsPrimary:      false,
 	})
+	if isDomainTaken(err) {
+		return uuid.UUID{}, errDomainInUse
+	}
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("create domain %s: %w", domain, err)
 	}
