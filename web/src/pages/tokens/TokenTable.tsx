@@ -160,7 +160,7 @@ export function TokenTable({
 									<AccessCell chips={accessChips(tree, t)} />
 								</TableCell>
 								<TableCell className="truncate text-[12px] text-fg2" title={t.createdBy}>
-									{t.createdBy === "" ? "Unknown" : (creators.get(t.createdBy) ?? t.createdBy)}
+									{t.createdBy === "" ? "Unknown" : (creators.get(t.createdBy) ?? "") || t.createdBy}
 								</TableCell>
 								<TableCell className="font-mono text-[11.5px] text-fg3">
 									{created === undefined ? null : relAgo(created, now)}

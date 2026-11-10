@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { orgMembersOptions, workspaceMembersOptions } from "@/hooks/completeMembers";
+import { userLabel } from "@/lib/user";
 
 import type { Owner } from "./useTokenData";
 
@@ -19,11 +20,11 @@ export function useTokenCreators(owner: Owner): ReadonlyMap<string, string> {
 	});
 	const names = new Map<string, string>();
 	for (const member of org.data?.members ?? []) {
-		if (member.user !== undefined) names.set(member.user.id, member.user.name || member.user.email || member.user.id);
+		if (member.user !== undefined) names.set(member.user.id, userLabel(member.user));
 	}
 	for (const member of workspace.data?.members ?? []) {
-		names.set(member.userId, member.userName || member.userEmail || member.userId);
+		names.set(member.userId, userLabel({ name: member.userName, email: member.userEmail }));
 	}
-	if (user !== null) names.set(user.id, user.name || user.email || user.id);
+	if (user !== null) names.set(user.id, userLabel(user));
 	return names;
 }

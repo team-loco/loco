@@ -16,8 +16,12 @@ test("token creator uses a member name, preserves an unresolved ID and marks abs
 					createdBy: "former-member-id",
 				}),
 				create(TokenSchema, { name: "legacy" }),
+				create(TokenSchema, { name: "unlabelled", createdBy: "unlabelled-member-id" }),
 			],
-			creators: new Map([["member-id", "Olivia Owner"]]),
+			creators: new Map([
+				["member-id", "Olivia Owner"],
+				["unlabelled-member-id", ""],
+			]),
 			tree: { nodes: new Map(), order: [], childCount: new Map() },
 			now: 0,
 			isLoading: false,
@@ -32,4 +36,5 @@ test("token creator uses a member name, preserves an unresolved ID and marks abs
 	expect(html).toContain("Olivia Owner");
 	expect(html).toContain("former-member-id");
 	expect(html).toContain("Unknown");
+	expect(html).toContain(">unlabelled-member-id<");
 });
