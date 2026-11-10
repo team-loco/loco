@@ -5,11 +5,15 @@ import { DeploymentSchema, type Deployment } from "@gen/loco/deployment/v1/deplo
 import { EnvironmentSchema } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceSchema, ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import type { Draft } from "@/lib/drafts";
+
 import {
 	ALL,
 	buildRows,
 	cellSummary,
+	draftRows,
 	filterRows,
+	isDraftRow,
 	linkEnvironment,
 	NOT_DEPLOYED,
 	readTableState,
@@ -20,7 +24,7 @@ import {
 	tableColumns,
 	writeTableState,
 	type Filter,
-	type ResourceRow,
+	type ListRow,
 } from "./table";
 
 const prod = create(EnvironmentSchema, { id: "e-prod", name: "production" });
@@ -89,8 +93,12 @@ function deployment(id: string, env: string, image: string, createdMs: number): 
 
 const everything: Filter = { query: "", status: ALL, region: ALL };
 
-function names(rows: ResourceRow[]): string[] {
-	return rows.map((r) => r.resource.name);
+function names(rows: ListRow[]): string[] {
+	return rows.map((r) => (isDraftRow(r) ? r.draft.name : r.resource.name));
+}
+
+function draft(name: string, edits: Draft["edits"] = {}): Draft {
+	return { id: `d-${name}`, name, image: `ghcr.io/acme/${name}:1.2`, createdMs: 5, edits };
 }
 
 describe("buildRows", () => {
@@ -242,6 +250,60 @@ describe("sortRows", () => {
 			"c-down",
 			"a-missing",
 		]);
+	});
+});
+
+describe("draft rows", () => {
+	const sizing = { cpu: "500m", memory: "1Gi", minReplicas: 1 };
+	const resources = buildRows(
+		[
+			resource("healthy", [
+				{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [{ region: "r", ready: 1, desired: 1 }] },
+			]),
+			resource("rolling", [
+				{ env: "e-prod", status: ResourceStatus.DEPLOYING, regions: [{ region: "r", ready: 0, desired: 1 }] },
+			]),
+			resource("missing"),
+		],
+		[[], [], []],
+		envs,
+		"e-prod",
+	);
+	const drafts = draftRows([draft("web", { cpu: "2", replicas: 3 }), draft("api")], "e-prod", sizing);
+	const rows: ListRow[] = [...resources, ...drafts];
+
+	test("take sizing from the draft's edits, then the service defaults", () => {
+		const [web, api] = drafts;
+		expect([web?.cpuMilli, web?.memMi, web?.replicas]).toEqual([2000, 1024, { min: 3, max: 3 }]);
+		expect([api?.cpuMilli, api?.replicas]).toEqual([500, { min: 1, max: 1 }]);
+		expect(draftRows([draft("x")], "e-prod", undefined)[0]?.replicas).toBeNull();
+		expect(api?.image).toBe("ghcr.io/acme/api");
+	});
+
+	test("sort between deploying and healthy in their environment's column", () => {
+		expect(names(sortRows(rows, { key: "env-production", dir: "asc" }, columns))).toEqual([
+			"rolling",
+			"api",
+			"web",
+			"healthy",
+			"missing",
+		]);
+	});
+
+	test("sort with the undeployed in another environment's column", () => {
+		expect(names(sortRows(rows, { key: "env-staging", dir: "asc" }, columns))).toEqual([
+			"api",
+			"healthy",
+			"missing",
+			"rolling",
+			"web",
+		]);
+	});
+
+	test("match their name and image in a search and count as not deployed", () => {
+		expect(names(filterRows(rows, { ...everything, query: "acme/web" }))).toEqual(["web"]);
+		expect(names(filterRows(rows, { ...everything, query: "not deployed" }))).toEqual([]);
+		expect(names(filterRows(rows, { ...everything, status: NOT_DEPLOYED }))).toEqual(["missing", "web", "api"]);
 	});
 });
 

@@ -1,6 +1,4 @@
-import { primaryDomain, statusRank } from "@/lib/resource-status";
-
-import type { EnvResource } from "./useDashboardData";
+import { type DashboardItem, isDraftItem, itemIsPublic, itemKey, itemName, itemRank } from "./resourceRows";
 
 export const MAP_PUBLIC_LIMIT = 8;
 const MAP_INTERNAL_LIMIT = 8;
@@ -24,13 +22,14 @@ export interface MapGateway extends MapPoint {
 }
 
 export interface MapNode extends MapPoint {
-	row: EnvResource;
+	row: DashboardItem;
 }
 
 export interface MapEdge {
 	key: string;
 	y1: number;
 	y2: number;
+	draft: boolean;
 }
 
 export interface MapGap {
@@ -100,12 +99,10 @@ function middle(p: MapPoint): number {
 	return p.y + MAP_NODE_H / 2;
 }
 
-export function mapLayout(rows: EnvResource[], regionOrder: string[], availableWidth: number): MapLayout {
-	const ranked = rows.toSorted(
-		(a, b) => statusRank(a.status) - statusRank(b.status) || a.resource.name.localeCompare(b.resource.name),
-	);
-	const publicRows = ranked.filter((r) => primaryDomain(r.resource) !== null);
-	const internalRows = ranked.filter((r) => primaryDomain(r.resource) === null);
+export function mapLayout(rows: DashboardItem[], regionOrder: string[], availableWidth: number): MapLayout {
+	const ranked = rows.toSorted((a, b) => itemRank(a) - itemRank(b) || itemName(a).localeCompare(itemName(b)));
+	const publicRows = ranked.filter(itemIsPublic);
+	const internalRows = ranked.filter((r) => !itemIsPublic(r));
 	const shownPublic = publicRows.slice(0, MAP_PUBLIC_LIMIT);
 	const shownInternal = internalRows.slice(0, MAP_INTERNAL_LIMIT);
 
@@ -144,7 +141,7 @@ export function mapLayout(rows: EnvResource[], regionOrder: string[], availableW
 	const gateways = served.map((g, i) =>
 		at(placed.get("gateways")?.nodes ?? [], i, {
 			region: g.region,
-			resources: g.rows.length,
+			resources: g.rows.filter((r) => !isDraftItem(r)).length,
 			replicas: g.rows.reduce(
 				(sum, r) => sum + r.regions.filter((x) => x.region === g.region).reduce((m, x) => m + x.desired, 0),
 				0,
@@ -158,12 +155,17 @@ export function mapLayout(rows: EnvResource[], regionOrder: string[], availableW
 
 	const edgesInto = (key: string): MapEdge[] => {
 		if (key === "gateways" && internet !== null)
-			return gateways.map((g) => ({ key: `net/${g.region}`, y1: middle(internet), y2: middle(g) }));
+			return gateways.map((g) => ({ key: `net/${g.region}`, y1: middle(internet), y2: middle(g), draft: false }));
 		if (key === "public")
 			return gateways.flatMap((g) =>
 				publicNodes
 					.filter((p) => p.row.regions.some((r) => r.region === g.region))
-					.map((p) => ({ key: `${g.region}/${p.row.resource.id}`, y1: middle(g), y2: middle(p) })),
+					.map((p) => ({
+						key: `${g.region}/${itemKey(p.row)}`,
+						y1: middle(g),
+						y2: middle(p),
+						draft: isDraftItem(p.row),
+					})),
 			);
 		return [];
 	};

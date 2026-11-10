@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+import { create } from "@bufbuild/protobuf";
+import { RegionInfoSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { MAP_MIN_GAP, MAP_NODE_H, MAP_NODE_W, MAP_PUBLIC_LIMIT, mapLayout } from "./mapLayout";
-import { row } from "./testRows";
+import { draftItems, itemName } from "./resourceRows";
+import { draft, row } from "./testRows";
 
 const WIDE = 1200;
 const PHONE = 350;
@@ -102,9 +104,29 @@ describe("mapLayout", () => {
 		const layout = mapLayout([...healthy, broken], ["us-east-1"], WIDE);
 		expect(layout.publicNodes).toHaveLength(MAP_PUBLIC_LIMIT);
 		expect(layout.hiddenPublic).toBe(3);
-		expect(layout.publicNodes[0]?.row.resource.name).toBe("z-broken");
+		expect(itemName(layout.publicNodes[0]?.row ?? row("none"))).toBe("z-broken");
 		expect(layout.publicMore?.y).toBeGreaterThan(layout.publicNodes.at(-1)?.y ?? 0);
 		expect(layout.publicMore?.x).toBe(layout.publicNodes[0]?.x);
 		expect(layout.internalMore).toBeNull();
+	});
+
+	test("drafts sit in their column after deploying resources, on dashed edges, and add no routes", () => {
+		const regions = [create(RegionInfoSchema, { region: "us-east-1", isDefault: true })];
+		const drafts = draftItems([draft("new-web"), draft("new-queue", { isPublic: false })], regions);
+		const rows = [
+			row("web", { domain: "web.example.dev" }),
+			row("rolling", { domain: "r.example.dev", status: ResourceStatus.DEPLOYING }),
+			...drafts,
+		];
+		const layout = mapLayout(rows, ["us-east-1"], WIDE);
+		expect(layout.publicNodes.map((n) => itemName(n.row))).toEqual(["rolling", "new-web", "web"]);
+		expect(layout.internalNodes.map((n) => itemName(n.row))).toEqual(["new-queue"]);
+		expect(layout.gateways[0]?.resources).toBe(2);
+		const edges = layout.gaps.find((g) => g.key === "public")?.edges ?? [];
+		expect(edges.map((e) => [e.key, e.draft])).toEqual([
+			["us-east-1/rolling", false],
+			["us-east-1/d-new-web", true],
+			["us-east-1/web", false],
+		]);
 	});
 });

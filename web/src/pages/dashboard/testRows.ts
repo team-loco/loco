@@ -1,7 +1,13 @@
 import { create } from "@bufbuild/protobuf";
 import { ResourceSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
+import type { Draft } from "@/lib/drafts";
+
 import type { EnvResource, RegionReplicas } from "./useDashboardData";
+
+export function draft(name: string, edits: Draft["edits"] = {}): Draft {
+	return { id: `d-${name}`, name, image: `ghcr.io/acme/${name}:1`, createdMs: 1, edits };
+}
 
 export function row(
 	name: string,

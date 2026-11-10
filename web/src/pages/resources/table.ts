@@ -3,6 +3,7 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { deploymentImage, getServiceSpec } from "@/lib/deployment-utils";
+import { DRAFT_RANK, type Draft } from "@/lib/drafts";
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
@@ -40,6 +41,21 @@ export interface ResourceRow {
 	address: string | null;
 	image: string;
 	createdMs: number;
+}
+
+export interface DraftRow extends Omit<ResourceRow, "resource"> {
+	draft: Draft;
+	environmentId: string;
+}
+
+export type ListRow = ResourceRow | DraftRow;
+
+export function isDraftRow(row: ListRow): row is DraftRow {
+	return "draft" in row;
+}
+
+function rowName(row: ListRow): string {
+	return isDraftRow(row) ? row.draft.name : row.resource.name;
 }
 
 function newestFirst(a: Deployment, b: Deployment): number {
@@ -98,13 +114,40 @@ export function buildRows(
 	});
 }
 
+export interface DraftSizing {
+	cpu: string;
+	memory: string;
+	minReplicas: number;
+}
+
+export function draftRows(
+	drafts: readonly Draft[],
+	environmentId: string,
+	sizing: DraftSizing | undefined,
+): DraftRow[] {
+	return drafts.map((draft) => {
+		const replicas = draft.edits.replicas ?? sizing?.minReplicas;
+		return {
+			draft,
+			environmentId,
+			cells: new Map(),
+			cpuMilli: parseCpuMilli(draft.edits.cpu ?? sizing?.cpu ?? ""),
+			memMi: parseMemMi(draft.edits.memory ?? sizing?.memory ?? ""),
+			replicas: replicas === undefined ? null : { min: replicas, max: replicas },
+			address: null,
+			image: imageName(draft.image),
+			createdMs: draft.createdMs,
+		};
+	});
+}
+
 export function cellSummary(cell: EnvCell): string {
 	const [first = "", ...rest] = cell.regions;
 	const more = rest.length > 0 ? ` +${rest.length.toString()}` : "";
 	return `${cell.ready.toString()}/${cell.desired.toString()} · ${first}${more}`;
 }
 
-export function replicasLabel(row: ResourceRow): string | null {
+export function replicasLabel(row: ListRow): string | null {
 	if (row.replicas === null) return null;
 	const { min, max } = row.replicas;
 	return min === max ? min.toString() : `${min.toString()}–${max.toString()}`;
@@ -160,16 +203,19 @@ export interface Sort {
 
 const NO_CELL_RANK = statusRank(ResourceStatus.HEALTHY) + 1;
 
-function primaryOrder(column: Column, a: ResourceRow, b: ResourceRow): number {
+function envRank(row: ListRow, environmentId: string): number {
+	if (isDraftRow(row)) return row.environmentId === environmentId ? DRAFT_RANK : NO_CELL_RANK;
+	const cell = row.cells.get(environmentId);
+	return cell === undefined ? NO_CELL_RANK : statusRank(cell.status);
+}
+
+function primaryOrder(column: Column, a: ListRow, b: ListRow): number {
 	switch (column.kind) {
 		case "name":
-			return a.resource.name.localeCompare(b.resource.name);
+			return rowName(a).localeCompare(rowName(b));
 		case "env": {
 			const id = column.environment?.id ?? "";
-			const rank = (r: ResourceRow) => {
-				const cell = r.cells.get(id);
-				return cell === undefined ? NO_CELL_RANK : statusRank(cell.status);
-			};
+			const rank = (r: ListRow) => envRank(r, id);
 			return rank(a) - rank(b);
 		}
 		case "size":
@@ -187,11 +233,11 @@ function primaryOrder(column: Column, a: ResourceRow, b: ResourceRow): number {
 	}
 }
 
-export function sortRows(rows: ResourceRow[], sort: Sort, columns: Column[]): ResourceRow[] {
+export function sortRows<T extends ListRow>(rows: T[], sort: Sort, columns: Column[]): T[] {
 	const column = columns.find((c) => c.key === sort.key);
 	if (column === undefined) return rows;
 	const sign = sort.dir === "asc" ? 1 : -1;
-	return rows.toSorted((a, b) => sign * primaryOrder(column, a, b) || a.resource.name.localeCompare(b.resource.name));
+	return rows.toSorted((a, b) => sign * primaryOrder(column, a, b) || rowName(a).localeCompare(rowName(b)));
 }
 
 export function firstDir(column: Column): SortDir {
@@ -204,13 +250,13 @@ export interface Filter {
 	region: string;
 }
 
-function matchesQuery(row: ResourceRow, query: string): boolean {
+function matchesQuery(row: ListRow, query: string): boolean {
 	const q = query.trim().toLowerCase();
 	if (q === "") return true;
 	const cells = [...row.cells.values()];
 	const fields = [
-		row.resource.name,
-		row.resource.description ?? "",
+		rowName(row),
+		isDraftRow(row) ? "" : (row.resource.description ?? ""),
 		row.image,
 		row.address ?? "",
 		...cells.map((c) => c.tag),
@@ -219,31 +265,31 @@ function matchesQuery(row: ResourceRow, query: string): boolean {
 	return fields.some((f) => f.toLowerCase().includes(q));
 }
 
-function matchesRegion(row: ResourceRow, region: string): boolean {
+function matchesRegion(row: ListRow, region: string): boolean {
 	return region === ALL || [...row.cells.values()].some((c) => c.regions.includes(region));
 }
 
-function matchesStatus(row: ResourceRow, status: string): boolean {
+function matchesStatus(row: ListRow, status: string): boolean {
 	if (status === ALL) return true;
 	if (status === NOT_DEPLOYED) return row.cells.size === 0;
 	const want = STATUS_FILTERS.find((f) => f.value === status)?.status;
 	return [...row.cells.values()].some((c) => c.status === want);
 }
 
-export function filterRows(rows: ResourceRow[], filter: Filter): ResourceRow[] {
+export function filterRows<T extends ListRow>(rows: T[], filter: Filter): T[] {
 	return rows.filter(
 		(r) => matchesQuery(r, filter.query) && matchesRegion(r, filter.region) && matchesStatus(r, filter.status),
 	);
 }
 
-export function statusCounts(rows: ResourceRow[], filter: Filter): Map<string, number> {
+export function statusCounts(rows: ListRow[], filter: Filter): Map<string, number> {
 	const base = filterRows(rows, { ...filter, status: ALL });
 	const counts = new Map<string, number>([[ALL, base.length]]);
 	for (const f of STATUS_FILTERS) counts.set(f.value, base.filter((r) => matchesStatus(r, f.value)).length);
 	return counts;
 }
 
-export function regionCounts(rows: ResourceRow[], filter: Filter): { region: string; count: number }[] {
+export function regionCounts(rows: ListRow[], filter: Filter): { region: string; count: number }[] {
 	const base = filterRows(rows, { ...filter, status: ALL, region: ALL });
 	const regions = new Set(rows.flatMap((r) => [...r.cells.values()].flatMap((c) => c.regions)));
 	return [...regions]
