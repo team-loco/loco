@@ -15,6 +15,7 @@ import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SaveBar } from "@/components/design/SaveBar";
 import { SearchInput } from "@/components/design/SearchInput";
@@ -206,9 +207,10 @@ export function OrgTab({
 				</SettingsCard>
 			</SettingsSection>
 
-			<SettingsSection
+			<Section
 				title="Workspaces"
 				count={workspaces.length}
+				className="max-w-[960px]"
 				actions={
 					canWrite ? (
 						newButton
@@ -219,83 +221,80 @@ export function OrgTab({
 						</Tooltip>
 					)
 				}
+				search={
+					<SearchInput
+						aria-label="Search workspaces"
+						placeholder="Search workspaces"
+						value={query}
+						onChange={(e) => {
+							setQuery(e.target.value);
+							paged.reset();
+						}}
+					/>
+				}
 			>
-				<SettingsCard>
-					<div className="px-5 pt-3">
-						<SearchInput
-							aria-label="Search workspaces"
-							placeholder="Search workspaces"
-							className="max-w-[320px]"
-							value={query}
-							onChange={(e) => {
-								setQuery(e.target.value);
-								paged.reset();
-							}}
-						/>
+				{workspacesLoading ? (
+					<div className="flex flex-col gap-2 px-5 py-3">
+						<Skeleton className="h-9 w-full" />
+						<Skeleton className="h-9 w-full" />
 					</div>
-					{workspacesLoading ? (
-						<div className="flex flex-col gap-2 px-5 py-3">
-							<Skeleton className="h-9 w-full" />
-							<Skeleton className="h-9 w-full" />
-						</div>
-					) : paged.rows.length === 0 ? (
-						<div className="px-5 py-7 text-fg3">
-							{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
-						</div>
-					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Name</TableHead>
-									<TableHead className="hidden md:table-cell">Description</TableHead>
-									<TableHead>Resources</TableHead>
-									<TableHead className="hidden md:table-cell">Created</TableHead>
-									<TableHead className="w-6">
-										<span className="sr-only">Open</span>
-									</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{paged.rows.map((w) => {
-									const by = userName(w.createdBy);
-									const day = formatDay(w.createdAt);
-									return (
-										<TableRow key={w.id} className="relative hover:bg-panel2">
-											<TableCell>
-												<Link
-													to={settingsPath(org.id, w.id, "workspace")}
-													className="font-mono text-[13px] text-foreground no-underline after:absolute after:inset-0"
-													onClick={(e) => {
-														onOpenWorkspace(e, w);
-													}}
-												>
-													{w.name}
-												</Link>
-												{w.id === currentWorkspaceId && (
-													<Badge tone="pill" className="ml-2">
-														current
-													</Badge>
-												)}
-											</TableCell>
-											<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
-												{w.description || "—"}
-											</TableCell>
-											<TableCell className="text-[12.5px] text-fg2">{formatResourceCount(counts.get(w.id))}</TableCell>
-											<TableCell className="hidden text-[12px] text-fg3 md:table-cell">
-												{by === "" ? day : `${day} · ${by}`}
-											</TableCell>
-											<TableCell className="text-fg3">
-												<ChevronRightIcon className="size-3.5" />
-											</TableCell>
-										</TableRow>
-									);
-								})}
-							</TableBody>
-						</Table>
-					)}
-					<Pager className="border-t-0" {...paged.pager} {...paged.ends} />
-				</SettingsCard>
-			</SettingsSection>
+				) : paged.rows.length === 0 ? (
+					<div className="px-5 py-7 text-fg3">
+						{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
+					</div>
+				) : (
+					<Table flush>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Name</TableHead>
+								<TableHead className="hidden md:table-cell">Description</TableHead>
+								<TableHead>Resources</TableHead>
+								<TableHead className="hidden md:table-cell">Created</TableHead>
+								<TableHead className="w-6">
+									<span className="sr-only">Open</span>
+								</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{paged.rows.map((w) => {
+								const by = userName(w.createdBy);
+								const day = formatDay(w.createdAt);
+								return (
+									<TableRow key={w.id} className="relative hover:bg-panel2 [&>td]:h-[52px]">
+										<TableCell>
+											<Link
+												to={settingsPath(org.id, w.id, "workspace")}
+												className="font-mono text-[13px] text-foreground no-underline after:absolute after:inset-0"
+												onClick={(e) => {
+													onOpenWorkspace(e, w);
+												}}
+											>
+												{w.name}
+											</Link>
+											{w.id === currentWorkspaceId && (
+												<Badge tone="pill" className="ml-2">
+													current
+												</Badge>
+											)}
+										</TableCell>
+										<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
+											{w.description || "—"}
+										</TableCell>
+										<TableCell className="text-[12.5px] text-fg2">{formatResourceCount(counts.get(w.id))}</TableCell>
+										<TableCell className="hidden text-[12px] text-fg3 md:table-cell">
+											{by === "" ? day : `${day} · ${by}`}
+										</TableCell>
+										<TableCell className="text-fg3">
+											<ChevronRightIcon className="size-3.5" />
+										</TableCell>
+									</TableRow>
+								);
+							})}
+						</TableBody>
+					</Table>
+				)}
+				<Pager {...paged.pager} {...paged.ends} />
+			</Section>
 
 			{canAdmin && <AuditLogTab org={org} workspaces={workspaces} users={users} />}
 
