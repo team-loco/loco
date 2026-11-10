@@ -63,6 +63,14 @@ func TestAADLayout(t *testing.T) {
 	if string(dek) != wantDEK {
 		t.Fatalf("dek aad = %q, want %q", dek, wantDEK)
 	}
+	webhookDEK := WebhookDEKAAD(resourceID)
+	if want := "loco/dek/v1|webhook=" + resourceID; string(webhookDEK) != want {
+		t.Fatalf("webhook dek aad = %q, want %q", webhookDEK, want)
+	}
+	webhookSecret := WebhookSecretAAD(resourceID)
+	if want := "loco/webhook-secret/v1|webhook=" + resourceID; string(webhookSecret) != want {
+		t.Fatalf("webhook secret aad = %q, want %q", webhookSecret, want)
+	}
 }
 
 func TestSealUsesAFreshNonceEveryTime(t *testing.T) {

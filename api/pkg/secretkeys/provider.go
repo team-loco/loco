@@ -1,5 +1,5 @@
-// Package secretkeys wraps per-environment data keys with a Transit key and encrypts secret
-// values under those keys with AES-256-GCM.
+// Package secretkeys wraps per-environment and per-webhook data keys with a Transit key and
+// encrypts secret values under those keys with AES-256-GCM.
 package secretkeys
 
 import "context"

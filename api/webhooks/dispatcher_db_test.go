@@ -1,11 +1,15 @@
 package webhooks_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -17,11 +21,17 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/webhooksig"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/transit"
+	"github.com/team-loco/loco/api/pkg/transit/transittest"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
-const orgName = "acme"
+const (
+	orgName        = "acme"
+	transitTimeout = 2 * time.Second
+	dekCacheTTL    = time.Minute
+)
 
 type receiver struct {
 	srv          *httptest.Server
@@ -76,6 +86,7 @@ func (r *receiver) types() []string {
 type fixture struct {
 	pool        *pgxpool.Pool
 	queries     *genDb.Queries
+	provider    secretkeys.Provider
 	orgID       uuid.UUID
 	workspaceID uuid.UUID
 	other       uuid.UUID
@@ -105,20 +116,92 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatalf("other workspace: %v", err)
 	}
-	return &fixture{pool: pool, queries: q, orgID: org.ID, workspaceID: workspace, other: other}
+	return &fixture{
+		pool:        pool,
+		queries:     q,
+		provider:    newKeyProvider(t),
+		orgID:       org.ID,
+		workspaceID: workspace,
+		other:       other,
+	}
+}
+
+// newKeyProvider returns the provider the API runs with, against a fake Transit server.
+func newKeyProvider(t *testing.T) *secretkeys.DEKCache {
+	t.Helper()
+	server := transittest.New(t).Server()
+	client, err := transit.New(t.Context(), transit.Config{
+		Address:        server.URL,
+		Mount:          transittest.Mount,
+		Auth:           transit.AuthToken,
+		Token:          transittest.Token,
+		Timeout:        transitTimeout,
+		StartupTimeout: transitTimeout,
+		RenewMargin:    time.Second,
+		RenewRetry:     time.Second,
+	})
+	if err != nil {
+		t.Fatalf("transit client: %v", err)
+	}
+	provider, err := secretkeys.New(t.Context(), client, secretkeys.Config{Key: transittest.Key, CacheTTL: dekCacheTTL})
+	if err != nil {
+		t.Fatalf("key provider: %v", err)
+	}
+	return provider
+}
+
+func (f *fixture) dispatcher(workspacePrivate bool) *webhooks.Dispatcher {
+	workspace := webhooks.NewClient(testConfig, workspacePrivate)
+	return webhooks.NewDispatcher(f.queries, f.provider, testConfig, workspace, webhooks.NewClient(testConfig, true))
+}
+
+// stored returns webhook id's data key and sealed secrets as the database holds them.
+func (f *fixture) stored(t *testing.T, id uuid.UUID) (secretkeys.WrappedKey, []byte, []byte) {
+	t.Helper()
+	var key secretkeys.WrappedKey
+	var secret, previous []byte
+	if err := f.pool.QueryRow(
+		t.Context(),
+		"SELECT provider, kek_id, wrapped_dek, secret, previous_secret FROM webhooks WHERE id = $1",
+		id,
+	).Scan(&key.Provider, &key.KeyID, &key.Bytes, &secret, &previous); err != nil {
+		t.Fatalf("stored secrets: %v", err)
+	}
+	return key, secret, previous
+}
+
+// assertSealed fails when a stored column holds secret or the key bytes it encodes.
+func assertSealed(t *testing.T, stored []byte, secret string) {
+	t.Helper()
+	key, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(secret, "whsec_"))
+	if err != nil {
+		t.Fatalf("decode secret: %v", err)
+	}
+	if len(stored) == 0 || bytes.Contains(stored, []byte(secret)) || bytes.Contains(stored, key) {
+		t.Fatalf("stored secret column %x holds the plain secret %q", stored, secret)
+	}
 }
 
 func (f *fixture) webhook(t *testing.T, workspace uuid.UUID, types ...string) (genDb.Webhook, string) {
 	t.Helper()
-	secret, err := webhooksig.NewSecret()
-	if err != nil {
-		t.Fatalf("secret: %v", err)
-	}
+	secret := newSecret(t)
 	if types == nil {
 		types = []string{}
 	}
+	id := uuid.Must(uuid.NewV7())
+	key, sealed, err := webhooks.SealSecretWithNewKey(t.Context(), f.provider, id, secret)
+	if err != nil {
+		t.Fatalf("seal: %v", err)
+	}
 	w, err := f.queries.CreateWorkspaceWebhook(t.Context(), genDb.CreateWorkspaceWebhookParams{
-		WorkspaceID: workspace, Url: "https://placeholder.test", Secret: secret, EventTypes: types,
+		ID:          id,
+		WorkspaceID: workspace,
+		Url:         "https://placeholder.test",
+		Provider:    key.Provider,
+		KekID:       key.KeyID,
+		WrappedDek:  key.Bytes,
+		Secret:      sealed,
+		EventTypes:  types,
 	})
 	if err != nil {
 		t.Fatalf("webhook: %v", err)
@@ -199,7 +282,7 @@ func TestEventsFanOutToMatchingWebhooks(t *testing.T) {
 		t.Fatalf("other workspace's webhook deliveries = %d, want 1", got)
 	}
 
-	d := newDispatcher(f.queries, true)
+	d := f.dispatcher(true)
 	sent, err := d.DispatchDue(t.Context())
 	if err != nil || sent != 4 {
 		t.Fatalf("dispatch = %d, %v", sent, err)
@@ -241,7 +324,7 @@ func TestFailedDeliveriesRetryThenGiveUp(t *testing.T) {
 	r.status.Store(http.StatusInternalServerError)
 	f.setURL(t, hook.ID, r.srv.URL)
 	f.record(t, f.workspaceID, events.ResourceUpdated)
-	d := newDispatcher(f.queries, true)
+	d := f.dispatcher(true)
 
 	if _, err := d.DispatchDue(t.Context()); err != nil {
 		t.Fatalf("dispatch: %v", err)
@@ -292,7 +375,7 @@ func TestConcurrentDispatchersDeliverOnce(t *testing.T) {
 	var dispatched atomic.Int64
 	for range 3 {
 		wg.Go(func() {
-			d := newDispatcher(f.queries, true)
+			d := f.dispatcher(true)
 			n, err := d.DispatchDue(context.Background())
 			if err != nil {
 				t.Errorf("dispatch: %v", err)
@@ -358,7 +441,7 @@ func TestOutcomeIsRecordedAfterShutdown(t *testing.T) {
 	t.Cleanup(srv.Close)
 	f.setURL(t, hook.ID, srv.URL)
 	f.record(t, f.workspaceID, events.ResourceUpdated)
-	d := newDispatcher(f.queries, true)
+	d := f.dispatcher(true)
 
 	if _, err := d.DispatchDue(ctx); err != nil {
 		t.Fatalf("dispatch: %v", err)
@@ -372,10 +455,20 @@ func TestOutcomeIsRecordedAfterShutdown(t *testing.T) {
 func TestDeliveriesCarryThePreviousSecretUntilItExpires(t *testing.T) {
 	f := newFixture(t)
 	hook, previous := f.webhook(t, f.workspaceID)
-	current, err := webhooksig.NewSecret()
+	current := newSecret(t)
+	key, _, _ := f.stored(t, hook.ID)
+	sealed, err := webhooks.SealSecret(t.Context(), f.provider, hook.ID, key, current)
 	if err != nil {
-		t.Fatalf("secret: %v", err)
+		t.Fatalf("seal: %v", err)
 	}
+	if _, err = f.queries.RotateWorkspaceWebhookSecret(t.Context(), genDb.RotateWorkspaceWebhookSecretParams{
+		ID: hook.ID, WorkspaceID: f.workspaceID, Secret: sealed, GraceSeconds: 3600,
+	}); err != nil {
+		t.Fatalf("rotate: %v", err)
+	}
+	_, storedCurrent, storedPrevious := f.stored(t, hook.ID)
+	assertSealed(t, storedCurrent, current)
+	assertSealed(t, storedPrevious, previous)
 	type request struct {
 		header http.Header
 		body   []byte
@@ -391,7 +484,7 @@ func TestDeliveriesCarryThePreviousSecretUntilItExpires(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	f.setURL(t, hook.ID, srv.URL)
-	d := newDispatcher(f.queries, true)
+	d := f.dispatcher(true)
 	verifies := func(secret string, got request) bool {
 		t.Helper()
 		verifier, verifierErr := standardwebhooks.NewWebhook(secret)
@@ -402,10 +495,10 @@ func TestDeliveriesCarryThePreviousSecretUntilItExpires(t *testing.T) {
 	}
 	deliver := func(expiresIn string) request {
 		t.Helper()
-		if _, execErr := f.pool.Exec(t.Context(), `UPDATE webhooks
-			SET secret = $1, previous_secret = $2, previous_secret_expires_at = NOW() + $3::interval
-			WHERE id = $4`, current, previous, expiresIn, hook.ID); execErr != nil {
-			t.Fatalf("rotate: %v", execErr)
+		if _, execErr := f.pool.Exec(t.Context(),
+			"UPDATE webhooks SET previous_secret_expires_at = NOW() + $1::interval WHERE id = $2",
+			expiresIn, hook.ID); execErr != nil {
+			t.Fatalf("set expiry: %v", execErr)
 		}
 		f.record(t, f.workspaceID, events.ResourceUpdated)
 		if _, dispatchErr := d.DispatchDue(t.Context()); dispatchErr != nil {
@@ -423,5 +516,70 @@ func TestDeliveriesCarryThePreviousSecretUntilItExpires(t *testing.T) {
 	if !verifies(current, after) || verifies(previous, after) {
 		t.Fatalf("delivery after the grace period = %v, want only the current secret's signature",
 			after.header.Values(standardwebhooks.HeaderWebhookSignature))
+	}
+}
+
+// unavailableProvider seals through the wrapped provider but cannot unwrap, like a sealed Transit.
+type unavailableProvider struct {
+	secretkeys.Provider
+}
+
+var errProviderDown = errors.New("transit is unavailable")
+
+func (unavailableProvider) Unwrap(context.Context, secretkeys.WrappedKey, []byte) ([]byte, error) {
+	return nil, errProviderDown
+}
+
+func TestDeliveriesWaitOutAKeyProviderOutage(t *testing.T) {
+	f := newFixture(t)
+	hook, secret := f.webhook(t, f.workspaceID)
+	r := newReceiver(t, secret)
+	f.setURL(t, hook.ID, r.srv.URL)
+	f.record(t, f.workspaceID, events.ResourceUpdated)
+	down := webhooks.NewDispatcher(
+		f.queries, unavailableProvider{f.provider}, testConfig,
+		webhooks.NewClient(testConfig, true), webhooks.NewClient(testConfig, true),
+	)
+
+	for range len(testConfig.RetryDelays) + 2 {
+		f.makeDue(t)
+		if _, err := down.DispatchDue(t.Context()); err != nil {
+			t.Fatalf("dispatch: %v", err)
+		}
+	}
+	row := f.deliveries(t, hook.ID)[0]
+	if row.Status != webhooks.StatusPending || row.Attempts != 0 || row.LastError == nil ||
+		strings.Contains(*row.LastError, errProviderDown.Error()) || time.Until(row.NextAttemptAt) <= 0 {
+		t.Fatalf("delivery during the outage = %+v", row)
+	}
+	if got := len(r.types()); got != 0 {
+		t.Fatalf("receiver got %d deliveries during the outage", got)
+	}
+
+	f.makeDue(t)
+	if _, err := f.dispatcher(true).DispatchDue(t.Context()); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if row = f.deliveries(t, hook.ID)[0]; row.Status != webhooks.StatusSucceeded || row.Attempts != 1 {
+		t.Fatalf("delivery after the outage = %+v", row)
+	}
+}
+
+func TestASecretThatDoesNotOpenUsesAnAttempt(t *testing.T) {
+	f := newFixture(t)
+	hook, _ := f.webhook(t, f.workspaceID)
+	if _, err := f.pool.Exec(t.Context(),
+		"UPDATE webhooks SET secret = set_byte(secret, 20, get_byte(secret, 20) # 1) WHERE id = $1",
+		hook.ID); err != nil {
+		t.Fatalf("corrupt secret: %v", err)
+	}
+	f.record(t, f.workspaceID, events.ResourceUpdated)
+	if _, err := f.dispatcher(true).DispatchDue(t.Context()); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	row := f.deliveries(t, hook.ID)[0]
+	if row.Status != webhooks.StatusPending || row.Attempts != 1 || row.LastError == nil ||
+		*row.LastError != webhooks.ErrSecretUnusable.Error() {
+		t.Fatalf("delivery with a corrupt secret = %+v", row)
 	}
 }

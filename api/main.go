@@ -172,9 +172,6 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
-	if err = webhooks.SyncInstallWebhooks(context.Background(), pool, ac.InstallWebhooks); err != nil {
-		return fmt.Errorf("INSTALL_WEBHOOKS: %w", err)
-	}
 	appCache, err := newCache(ac.CacheType, ac.CacheAddr)
 	if err != nil {
 		return fmt.Errorf("create cache: %w", err)
@@ -323,6 +320,9 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		return nil, fmt.Errorf("verify the transit keys: %w", err)
 	}
 	secretKeyProvider := transitKeys.Provider
+	if err = webhooks.SyncInstallWebhooks(ctx, pool, secretKeyProvider, ac.InstallWebhooks); err != nil {
+		return nil, fmt.Errorf("INSTALL_WEBHOOKS: %w", err)
+	}
 	clusterAuthenticator := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
 	registryConfig := service.RegistryConfig{
 		TokenMode:              ac.RegistryAuth.TokenMode(),
@@ -362,13 +362,16 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		registrySweeper = sweepers.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
 	}
 
+	webhookDispatcher := webhooks.NewDispatcher(
+		queries, secretKeyProvider, ac.Webhooks, workspaceWebhookClient, installWebhookClient,
+	)
 	return &deps{
 		machine:           machine,
 		queries:           queries,
 		verifier:          verifier,
 		resolver:          resolver,
 		authorizer:        authz.New(pool, queries),
-		webhookDispatcher: webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient),
+		webhookDispatcher: webhookDispatcher,
 		placementNotifier: placementNotifier,
 		sourceSweeper:     sourceSweeper,
 		imageSweeper:      imageSweeper,
@@ -388,7 +391,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		user:      service.NewUserServer(pool, queries, machine, admins),
 		auth:      authServiceHandler,
 		event:     service.NewEventServer(queries),
-		webhook:   service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate),
+		webhook:   service.NewWebhookServer(pool, queries, secretKeyProvider, ac.WebhooksAllowPrivate),
 		org:       service.NewOrgServer(pool, queries, ac.Invitations),
 		workspace: service.NewWorkspaceServer(pool, queries),
 		resource:  service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),

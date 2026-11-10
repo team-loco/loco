@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
@@ -48,11 +49,23 @@ type WebhookServer struct {
 	db           *pgxpool.Pool
 	queries      genDb.Querier
 	authz        *authz.Authorizer
+	provider     secretkeys.Provider
 	allowPrivate bool
 }
 
-func NewWebhookServer(db *pgxpool.Pool, queries genDb.Querier, allowPrivate bool) *WebhookServer {
-	return &WebhookServer{db: db, queries: queries, authz: authz.New(db, queries), allowPrivate: allowPrivate}
+func NewWebhookServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	provider secretkeys.Provider,
+	allowPrivate bool,
+) *WebhookServer {
+	return &WebhookServer{
+		db:           db,
+		queries:      queries,
+		authz:        authz.New(db, queries),
+		provider:     provider,
+		allowPrivate: allowPrivate,
+	}
 }
 
 func (s *WebhookServer) validURL(raw string) bool {
@@ -99,6 +112,14 @@ func (s *WebhookServer) CreateWebhook(
 	if err != nil {
 		return nil, fmt.Errorf("generate webhook secret: %w", err)
 	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("generate webhook id: %w", err)
+	}
+	key, sealed, err := webhooks.SealSecretWithNewKey(ctx, s.provider, id, secret)
+	if err != nil {
+		return nil, keyProviderUnavailable(err)
+	}
 	var createdBy *uuid.UUID
 	if p.Entity.Type == genDb.EntityTypeUser {
 		createdBy = new(p.Entity.ID)
@@ -125,9 +146,13 @@ func (s *WebhookServer) CreateWebhook(
 			return ErrWebhookLimit
 		}
 		created, createErr := qtx.CreateWorkspaceWebhook(ctx, genDb.CreateWorkspaceWebhookParams{
+			ID:          id,
 			WorkspaceID: workspaceID,
 			Url:         req.GetUrl(),
-			Secret:      secret,
+			Provider:    key.Provider,
+			KekID:       key.KeyID,
+			WrappedDek:  key.Bytes,
+			Secret:      sealed,
 			EventTypes:  types,
 			CreatedBy:   createdBy,
 		})
@@ -229,16 +254,26 @@ func (s *WebhookServer) RotateWebhookSecret(
 	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
 		return nil, err
 	}
+	current, err := s.loadWebhook(ctx, workspaceID, req.GetWebhookId())
+	if err != nil {
+		return nil, err
+	}
 	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		return nil, fmt.Errorf("generate webhook secret: %w", err)
 	}
+	// A workspace webhook keeps its data key for life, so sealing outside the update cannot race another rotation.
+	key := secretkeys.WrappedKey{Provider: current.Provider, KeyID: current.KekID, Bytes: current.WrappedDek}
+	sealed, err := webhooks.SealSecret(ctx, s.provider, current.ID, key, secret)
+	if err != nil {
+		return nil, keyProviderUnavailable(err)
+	}
 	var row genDb.Webhook
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		rotated, rotateErr := qtx.RotateWorkspaceWebhookSecret(ctx, genDb.RotateWorkspaceWebhookSecretParams{
-			ID:           uuid.MustParse(req.GetWebhookId()),
+			ID:           current.ID,
 			WorkspaceID:  workspaceID,
-			Secret:       secret,
+			Secret:       sealed,
 			GraceSeconds: req.GetGracePeriodSeconds(),
 		})
 		if errors.Is(rotateErr, pgx.ErrNoRows) {

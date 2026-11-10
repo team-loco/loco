@@ -56,9 +56,14 @@ CREATE TABLE webhooks (
     kind webhook_kind NOT NULL,
     workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
-    secret TEXT NOT NULL,
-    -- The secret a rotation replaced; deliveries are also signed with it until it expires.
-    previous_secret TEXT,
+    -- The webhook's data key, wrapped by the secret key provider.
+    provider TEXT NOT NULL,
+    kek_id TEXT NOT NULL,
+    wrapped_dek BYTEA NOT NULL,
+    -- The signing secret: an AES-256-GCM nonce followed by the ciphertext under the data key.
+    secret BYTEA NOT NULL,
+    -- The secret a rotation replaced, sealed the same way; deliveries are also signed with it until it expires.
+    previous_secret BYTEA,
     previous_secret_expires_at TIMESTAMPTZ,
     event_types TEXT[] NOT NULL DEFAULT '{}',
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,

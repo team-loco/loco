@@ -14,7 +14,7 @@ const webhookDeleteContenders = 2
 
 func TestConcurrentWebhookDeletionRecordsOneEvent(t *testing.T) {
 	f := newWebhookFixture(t)
-	server := NewWebhookServer(f.pool, f.queries, false)
+	server := NewWebhookServer(f.pool, f.queries, newTestKeyProvider(t, "k1"), false)
 	created, err := server.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID,
 		Url:         receiverURL,

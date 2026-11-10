@@ -33,8 +33,8 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	var webhookID uuid.UUID
 	if queryErr := f.pool.QueryRow(
 		t.Context(),
-		`INSERT INTO webhooks (kind,workspace_id,url,secret,event_types)
- VALUES ('workspace',$1,'https://hooks.example.test/runtime','secret',$2) RETURNING id`,
+		`INSERT INTO webhooks (kind,workspace_id,url,provider,kek_id,wrapped_dek,secret,event_types)
+ VALUES ('workspace',$1,'https://hooks.example.test/runtime','test','k1','\x00','\x00',$2) RETURNING id`,
 		resource.WorkspaceID,
 		[]string{events.ResourceDegraded, events.ResourceRecovered},
 	).Scan(&webhookID); queryErr != nil {

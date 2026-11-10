@@ -10,9 +10,12 @@ import (
 const (
 	// Overhead is how many bytes Seal's ciphertext adds to its plaintext: the AES-GCM tag.
 	Overhead = 16
+	// NonceSize is the length of the nonce Seal returns.
+	NonceSize = 12
 
-	secretAADPrefix = "loco/secret/v1"
-	dekAADPrefix    = "loco/dek/v1"
+	secretAADPrefix  = "loco/secret/v1"
+	webhookAADPrefix = "loco/webhook-secret/v1"
+	dekAADPrefix     = "loco/dek/v1"
 )
 
 // NewDEK returns a fresh random data-encryption key.
@@ -36,6 +39,17 @@ func DEKAAD(environmentID string) []byte {
 	return []byte(dekAADPrefix + "|environment=" + environmentID)
 }
 
+// WebhookSecretAAD binds a webhook signing secret's ciphertext to its webhook. A webhook's
+// current and previous secrets share it, so a rotation moves the ciphertext as it is.
+func WebhookSecretAAD(webhookID string) []byte {
+	return []byte(webhookAADPrefix + "|webhook=" + webhookID)
+}
+
+// WebhookDEKAAD binds a wrapped data key to its webhook.
+func WebhookDEKAAD(webhookID string) []byte {
+	return []byte(dekAADPrefix + "|webhook=" + webhookID)
+}
+
 // Seal encrypts plaintext under key with a fresh nonce and returns the nonce and the
 // ciphertext with its authentication tag.
 func Seal(key, plaintext, aad []byte) (nonce, ciphertext []byte, err error) {
@@ -43,7 +57,7 @@ func Seal(key, plaintext, aad []byte) (nonce, ciphertext []byte, err error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	nonce = make([]byte, gcm.NonceSize())
+	nonce = make([]byte, NonceSize)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, nil, fmt.Errorf("generate nonce: %w", err)
 	}

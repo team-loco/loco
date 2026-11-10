@@ -64,7 +64,7 @@ func TestDeliveriesLinkTheEventAndPropagateOnlyToInstallWebhooks(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("record: %v", err)
 	}
-	d := newDispatcher(f.queries, true)
+	d := f.dispatcher(true)
 	if sent, err := d.DispatchDue(t.Context()); err != nil || sent != 2 {
 		t.Fatalf("dispatch = %d, %v", sent, err)
 	}
