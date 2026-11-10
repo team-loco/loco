@@ -1,9 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { EntityScopeSchema, EntityType, Scope } from "@gen/loco/token/v1/token_pb";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 
-import { resourceMissing, workspaceKnown } from "./not-found";
+import { logCaughtError, notFound, resourceMissing, workspaceKnown } from "./not-found";
 
 const ORG = "org-1";
 const WS = "ws-1";
@@ -65,5 +65,22 @@ describe("workspaceKnown", () => {
 				[scope(EntityType.WORKSPACE, "ws-2"), scope(EntityType.ORGANIZATION, "org-2")],
 			),
 		).toBe(false);
+	});
+});
+
+describe("logCaughtError", () => {
+	test("logs caught errors except the not-found page", () => {
+		const log = spyOn(console, "error").mockImplementation(() => undefined);
+		const info = { componentStack: "\n    at Page" };
+		try {
+			notFound();
+		} catch (error) {
+			logCaughtError(error, info);
+		}
+		expect(log).not.toHaveBeenCalled();
+		const failure = new Error("render failed");
+		logCaughtError(failure, info);
+		expect(log).toHaveBeenCalledWith(failure, info.componentStack);
+		log.mockRestore();
 	});
 });

@@ -9,6 +9,11 @@ export function notFound(): never {
 	throw new PageNotFound("Page not found");
 }
 
+export function logCaughtError(error: unknown, info: { componentStack?: string | undefined }): void {
+	if (error instanceof PageNotFound) return;
+	console.error(error, info.componentStack);
+}
+
 export function resourceMissing(error: unknown, canReadWorkspace: boolean): boolean {
 	if (!(error instanceof ConnectError)) return false;
 	if (error.code === Code.NotFound) return true;
