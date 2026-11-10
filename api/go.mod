@@ -22,6 +22,7 @@ require (
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/rs/cors v1.11.1
+	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1
 	github.com/team-loco/loco v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0
 	github.com/valkey-io/valkey-go v1.0.79

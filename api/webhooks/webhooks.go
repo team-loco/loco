@@ -1,12 +1,7 @@
 package webhooks
 
 import (
-	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,14 +10,13 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/tracing"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/internal/clip"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -31,14 +25,11 @@ import (
 )
 
 const (
-	secretPrefix     = "whsec_"
-	secretBytes      = 32
-	leaseMargin      = 30 * time.Second
-	maxErrorLength   = 500
-	maxResponseBytes = 64 << 10
-	statusPending    = "pending"
-	statusSucceeded  = "succeeded"
-	statusFailed     = "failed"
+	leaseMargin     = 30 * time.Second
+	maxErrorLength  = 500
+	statusPending   = "pending"
+	statusSucceeded = "succeeded"
+	statusFailed    = "failed"
 
 	deliverySpan          = "webhook.deliver"
 	deliveryIDAttr        = "loco.webhook.delivery_id"
@@ -50,7 +41,6 @@ const (
 
 var (
 	ErrBlockedAddress = errors.New("webhook address is on a private or reserved network")
-	ErrInvalidSecret  = errors.New("webhook secret is malformed")
 	ErrUnknownKind    = errors.New("unknown webhook kind")
 
 	sharedAddressSpace = netip.MustParsePrefix("100.64.0.0/10")
@@ -68,37 +58,6 @@ type Config struct {
 // lease outlasts sending a whole claimed batch, so no other dispatcher reclaims a delivery still in flight.
 func (c Config) lease() time.Duration {
 	return time.Duration(c.ClaimBatch)*c.RequestTimeout + leaseMargin
-}
-
-func NewSecret() (string, error) {
-	b := make([]byte, secretBytes)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate webhook secret: %w", err)
-	}
-	return secretPrefix + base64.StdEncoding.EncodeToString(b), nil
-}
-
-func decodeSecret(secret string) ([]byte, error) {
-	encoded, ok := strings.CutPrefix(secret, secretPrefix)
-	if !ok {
-		return nil, ErrInvalidSecret
-	}
-	key, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil || len(key) != secretBytes {
-		return nil, ErrInvalidSecret
-	}
-	return key, nil
-}
-
-func Sign(secret, id string, timestamp time.Time, body []byte) (string, error) {
-	key, err := decodeSecret(secret)
-	if err != nil {
-		return "", err
-	}
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(id + "." + strconv.FormatInt(timestamp.Unix(), 10) + "."))
-	mac.Write(body)
-	return "v1," + base64.StdEncoding.EncodeToString(mac.Sum(nil)), nil
 }
 
 func blocked(addr netip.Addr) bool {
@@ -304,20 +263,11 @@ func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhoo
 	if err != nil {
 		return 0, fmt.Errorf("encode payload: %w", err)
 	}
-	now := d.now()
-	signature, err := Sign(row.Secret, id.String(), now, body)
+	req, err := webhooksig.NewSignedRequest(ctx, row.Url, row.Secret, id.String(), body)
 	if err != nil {
 		return 0, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, row.Url, bytes.NewReader(body))
-	if err != nil {
-		return 0, fmt.Errorf("build request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Loco-Webhooks")
-	req.Header.Set("Webhook-Id", id.String())
-	req.Header.Set("Webhook-Timestamp", strconv.FormatInt(now.Unix(), 10))
-	req.Header.Set("Webhook-Signature", signature)
 	if row.Kind == genDb.WebhookKindInstall {
 		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 	}
@@ -330,7 +280,7 @@ func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhoo
 		return 0, err
 	}
 	defer res.Body.Close()
-	if _, err := io.Copy(io.Discard, io.LimitReader(res.Body, maxResponseBytes)); err != nil {
+	if _, err := io.Copy(io.Discard, io.LimitReader(res.Body, webhooksig.MaxResponseBytes)); err != nil {
 		slog.DebugContext(ctx, "failed to drain webhook response", "error", err)
 	}
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {

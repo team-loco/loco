@@ -3,6 +3,7 @@ package webhooks_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -12,9 +13,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	standardwebhooks "github.com/standard-webhooks/standard-webhooks/libraries/go"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
@@ -30,15 +33,18 @@ type receiver struct {
 
 func newReceiver(t *testing.T, secret string) *receiver {
 	t.Helper()
-	verifier, err := newStandardVerifier(secret)
+	verifier, err := standardwebhooks.NewWebhook(secret)
 	if err != nil {
 		t.Fatalf("verifier: %v", err)
 	}
 	r := &receiver{}
 	r.status.Store(http.StatusNoContent)
 	r.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		body, verifyErr := verifier.Verify(req, maxBody)
-		if verifyErr != nil {
+		body, readErr := io.ReadAll(req.Body)
+		if readErr != nil {
+			t.Errorf("read body: %v", readErr)
+		}
+		if verifyErr := verifier.Verify(body, req.Header); verifyErr != nil {
 			t.Errorf("signature: %v", verifyErr)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -104,7 +110,7 @@ func newFixture(t *testing.T) *fixture {
 
 func (f *fixture) webhook(t *testing.T, workspace uuid.UUID, types ...string) (genDb.Webhook, string) {
 	t.Helper()
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
 	}

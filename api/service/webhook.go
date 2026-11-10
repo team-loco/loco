@@ -16,7 +16,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/webhooks"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -82,7 +82,7 @@ func (s *WebhookServer) CreateWebhook(
 	if !s.validURL(req.GetUrl()) {
 		return nil, ErrWebhookURL
 	}
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		return nil, fmt.Errorf("generate webhook secret: %w", err)
 	}

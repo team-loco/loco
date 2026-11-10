@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/team-loco/loco/api/events"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
@@ -75,7 +76,7 @@ func (f *fixture) deliveryCount(t *testing.T, webhookID uuid.UUID) int {
 
 func newSecret(t *testing.T) string {
 	t.Helper()
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
 	}

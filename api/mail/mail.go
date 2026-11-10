@@ -8,8 +8,6 @@ import (
 	netmail "net/mail"
 	"net/url"
 	"time"
-
-	"github.com/team-loco/loco/api/webhooks"
 )
 
 const (
@@ -84,9 +82,4 @@ func ParseTransport(raw, from, hookSecret string, timeout time.Duration, opts ..
 		return newHook(u, hookSecret, applied.tlsConfig, timeout)
 	}
 	return nil, ErrUnsupportedScheme
-}
-
-func validHookSecret(secret string) bool {
-	_, err := webhooks.Sign(secret, "", time.Time{}, nil)
-	return err == nil
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
@@ -19,7 +20,7 @@ func installConfig(entries ...string) string {
 }
 
 func TestParseInstallWebhooks(t *testing.T) {
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
 	}
@@ -64,13 +65,13 @@ func TestParseInstallWebhooks(t *testing.T) {
 		"no host":        {raw: installConfig(entry("https:///path", secret)), want: webhooks.ErrInstallWebhookURL},
 		"relative url":   {raw: installConfig(entry("/hooks", secret)), want: webhooks.ErrInstallWebhookURL},
 		"userinfo":       {raw: installConfig(entry("https://user:pw@a.test", secret)), want: webhooks.ErrInstallWebhookURL},
-		"missing secret": {raw: installConfig(`{"url":"https://a.test"}`), want: webhooks.ErrInvalidSecret},
+		"missing secret": {raw: installConfig(`{"url":"https://a.test"}`), want: webhooksig.ErrInvalidSecret},
 		"no prefix": {
 			raw:  installConfig(entry("https://a.test", secret[len("whsec_"):])),
-			want: webhooks.ErrInvalidSecret,
+			want: webhooksig.ErrInvalidSecret,
 		},
-		"not base64":   {raw: installConfig(entry("https://a.test", "whsec_not base64")), want: webhooks.ErrInvalidSecret},
-		"short secret": {raw: installConfig(entry("https://a.test", shortSecret)), want: webhooks.ErrInvalidSecret},
+		"not base64":   {raw: installConfig(entry("https://a.test", "whsec_not base64")), want: webhooksig.ErrInvalidSecret},
+		"short secret": {raw: installConfig(entry("https://a.test", shortSecret)), want: webhooksig.ErrInvalidSecret},
 		"duplicate url": {
 			raw:  installConfig(entry("https://a.test/x", secret), entry("https://a.test/x", secret)),
 			want: webhooks.ErrDuplicateInstallWebhook,

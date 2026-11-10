@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -276,7 +277,7 @@ func TestWebhookChangesFailWithoutTheirEvent(t *testing.T) {
 func TestWorkspaceWebhookAPIHidesInstallWebhooks(t *testing.T) {
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, false)
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
 	}
