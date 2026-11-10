@@ -9,18 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/observability-proxy/migrations"
 )
 
 var (
-	errInvalidOrigin   = errors.New("must contain only HTTP or HTTPS origins")
-	errMissing         = errors.New("is required")
-	errInvalidInt      = errors.New("is not an integer")
-	errInvalidBool     = errors.New("is not a boolean")
-	errInvalidDuration = errors.New("is not a duration")
-	errNotPositive     = errors.New("must be positive")
-	errFractional      = errors.New("must be a whole number of seconds")
-	errInvalidName     = errors.New("is not a ClickHouse identifier")
+	errInvalidOrigin = errors.New("must contain only HTTP or HTTPS origins")
+	errMissing       = errors.New("is required")
+	errInvalidInt    = errors.New("is not an integer")
+	errFractional    = errors.New("must be a whole number of seconds")
+	errInvalidName   = errors.New("is not a ClickHouse identifier")
 )
 
 func requiredStringEnv(name string) string {
@@ -63,56 +61,13 @@ func requiredIntEnv(name string) int {
 func positiveIntEnv(name string, fallback int) int {
 	value := intEnv(name, fallback)
 	if value <= 0 {
-		panic(fmt.Errorf("%s %d %w", name, value, errNotPositive))
+		panic(fmt.Errorf("%s %d %w", name, value, envconfig.ErrNotPositive))
 	}
 	return value
 }
 
-func boolEnv(name string, fallback bool) bool {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseBool(raw)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidBool))
-	}
-	return parsed
-}
-
-func int32Env(name string, fallback int32) int32 {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseInt(raw, 10, 32)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt))
-	}
-	return int32(parsed)
-}
-
-func positiveDurationEnv(name string, fallback time.Duration) time.Duration {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	return parsePositiveDuration(name, raw)
-}
-
-func parsePositiveDuration(name, raw string) time.Duration {
-	parsed, err := time.ParseDuration(raw)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidDuration))
-	}
-	if parsed <= 0 {
-		panic(fmt.Errorf("%s %q %w", name, raw, errNotPositive))
-	}
-	return parsed
-}
-
 func ttlEnv(name string, fallback time.Duration) time.Duration {
-	ttl := positiveDurationEnv(name, fallback)
+	ttl := envconfig.PositiveDuration(name, fallback)
 	if ttl%time.Second != 0 {
 		panic(fmt.Errorf("%s %q %w", name, ttl, errFractional))
 	}

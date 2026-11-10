@@ -4,32 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/internal/loglevel"
 )
 
 const listEnvSeparator = ","
 
-var (
-	errInvalidInt32    = errors.New("is not a 32-bit integer")
-	errInvalidDuration = errors.New("is not a duration")
-	errNotPositive     = errors.New("must be positive")
-	errNegative        = errors.New("must not be negative")
-)
-
-func stringEnv(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
-	}
-	return fallback
-}
+var errNegative = errors.New("must not be negative")
 
 func listEnv(name string) []string {
-	raw := stringEnv(name, "")
+	raw := envconfig.String(name, "")
 	values := []string{}
 	if raw == "" {
 		return values
@@ -41,20 +29,8 @@ func listEnv(name string) []string {
 	return values
 }
 
-func boolEnv(name string, fallback bool, invalid error) bool {
-	raw := stringEnv(name, "")
-	if raw == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseBool(raw)
-	if err != nil {
-		panic(fmt.Errorf("%w: %q", invalid, raw))
-	}
-	return parsed
-}
-
 func positiveInt64Env(name string, fallback int64, invalid error) int64 {
-	raw := stringEnv(name, "")
+	raw := envconfig.String(name, "")
 	if raw == "" {
 		return fallback
 	}
@@ -65,40 +41,20 @@ func positiveInt64Env(name string, fallback int64, invalid error) int64 {
 	return parsed
 }
 
-func int32Env(name string, fallback int32) int32 {
-	raw := stringEnv(name, "")
-	if raw == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseInt(raw, 10, 32)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt32))
-	}
-	return int32(parsed)
-}
-
 func positiveInt32Env(name string, fallback int32) int32 {
-	value := int32Env(name, fallback)
+	value := envconfig.Int32(name, fallback)
 	if value <= 0 {
-		panic(fmt.Errorf("%s %d %w", name, value, errNotPositive))
+		panic(fmt.Errorf("%s %d %w", name, value, envconfig.ErrNotPositive))
 	}
 	return value
 }
 
 func nonNegativeInt32Env(name string, fallback int32) int32 {
-	value := int32Env(name, fallback)
+	value := envconfig.Int32(name, fallback)
 	if value < 0 {
 		panic(fmt.Errorf("%s %d %w", name, value, errNegative))
 	}
 	return value
-}
-
-func positiveDurationEnv(name string, fallback time.Duration) time.Duration {
-	raw := stringEnv(name, "")
-	if raw == "" {
-		return fallback
-	}
-	return parsePositiveDuration(name, raw)
 }
 
 func positiveDurationListEnv(name string, fallback []time.Duration) []time.Duration {
@@ -108,24 +64,13 @@ func positiveDurationListEnv(name string, fallback []time.Duration) []time.Durat
 	}
 	values := make([]time.Duration, len(raw))
 	for i, item := range raw {
-		values[i] = parsePositiveDuration(name, item)
+		values[i] = envconfig.ParsePositiveDuration(name, item)
 	}
 	return values
 }
 
-func parsePositiveDuration(name, raw string) time.Duration {
-	parsed, err := time.ParseDuration(raw)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidDuration))
-	}
-	if parsed <= 0 {
-		panic(fmt.Errorf("%s %q %w", name, raw, errNotPositive))
-	}
-	return parsed
-}
-
 func logLevelEnv(name string) (slog.Level, bool) {
-	raw := stringEnv(name, "")
+	raw := envconfig.String(name, "")
 	if raw == "" {
 		return slog.Level(0), false
 	}
