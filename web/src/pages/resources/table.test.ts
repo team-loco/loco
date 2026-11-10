@@ -1,3 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { useTable } from "@tanstack/react-table";
+import { sortingFeatures } from "@/components/design/DataTable";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { describe, expect, test } from "bun:test";
@@ -19,13 +23,34 @@ import {
 	readTableState,
 	regionCounts,
 	replicasLabel,
-	sortRows,
+	resourceColumns,
+	resourceSorting,
 	statusCounts,
 	tableColumns,
 	writeTableState,
 	type Filter,
 	type ListRow,
 } from "./table";
+
+function sortRows(
+	rows: ListRow[],
+	sort: { key: string; dir: "asc" | "desc" },
+	columns: Parameters<typeof resourceColumns>[0],
+): ListRow[] {
+	const sorted: ListRow[] = [];
+	function Rows() {
+		const table = useTable({
+			features: sortingFeatures,
+			columns: resourceColumns(columns),
+			data: rows,
+			initialState: { sorting: resourceSorting(sort) },
+		});
+		sorted.push(...table.getRowModel().rows.map((row) => row.original));
+		return null;
+	}
+	renderToStaticMarkup(createElement(Rows));
+	return sorted;
+}
 
 const prod = create(EnvironmentSchema, { id: "e-prod", name: "production" });
 const staging = create(EnvironmentSchema, { id: "e-stg", name: "staging" });

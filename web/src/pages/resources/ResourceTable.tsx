@@ -1,13 +1,6 @@
-import {
-	ArrowDownIcon,
-	ArrowUpIcon,
-	Columns3Icon,
-	CopyIcon,
-	ScrollTextIcon,
-	SearchXIcon,
-	Settings2Icon,
-	XIcon,
-} from "lucide-react";
+import { useTable, functionalUpdate } from "@tanstack/react-table";
+import { sortingFeatures, SortableTableHead } from "@/components/design/DataTable";
+import { Columns3Icon, CopyIcon, ScrollTextIcon, SearchXIcon, Settings2Icon, XIcon } from "lucide-react";
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -50,14 +43,14 @@ import {
 	ALL,
 	cellSummary,
 	filterRows,
-	firstDir,
 	isDraftRow,
 	linkEnvironment,
 	PAGE_SIZES,
 	readTableState,
 	regionCounts,
 	replicasLabel,
-	sortRows,
+	resourceColumns,
+	resourceSorting,
 	STATUS_FILTERS,
 	statusCounts,
 	tableColumns,
@@ -292,7 +285,20 @@ export function ResourceTable({
 		update({ filter: { query: "", status: ALL, region: ALL }, page: 0 });
 	};
 
-	const visible = sortRows(filterRows(rows, filter), sort, columns);
+	const sorting = resourceSorting(sort);
+	const table = useTable({
+		features: sortingFeatures,
+		columns: resourceColumns(columns),
+		data: filterRows(rows, filter),
+		state: { sorting },
+		enableSortingRemoval: false,
+		enableMultiSort: false,
+		onSortingChange: (updater) => {
+			const next = functionalUpdate(updater, sorting)[0];
+			if (next !== undefined) update({ sort: { key: next.id, dir: next.desc ? "desc" : "asc" }, page: 0 });
+		},
+	});
+	const visible = table.getRowModel().rows.map((row) => row.original);
 	const paged = pagedRows(
 		visible,
 		{ page: state.page, size: state.size },
@@ -314,10 +320,6 @@ export function ResourceTable({
 	const selectedRows = pageResources.filter((r) => selected.has(r.resource.id));
 	const hasFilters = filter.query.trim() !== "" || filter.status !== ALL || filter.region !== ALL;
 
-	const toggleSort = (c: Column) => {
-		const dir = sort.key === c.key ? (sort.dir === "asc" ? "desc" : "asc") : firstDir(c);
-		update({ sort: { key: c.key, dir }, page: 0 });
-	};
 	const toggleColumn = (key: string) => {
 		const on = state.visible.includes(key);
 		update({
@@ -428,7 +430,6 @@ export function ResourceTable({
 							/>
 						</TableHead>
 						{shown.map((c) => {
-							const on = sort.key === c.key;
 							const label = (
 								<>
 									{c.label}
@@ -436,31 +437,13 @@ export function ResourceTable({
 								</>
 							);
 							return (
-								<TableHead
+								<SortableTableHead
+									column={table.getColumn(c.key)}
 									key={c.key}
 									className="relative"
 									style={c.kind === "name" ? undefined : { width: widthOf(c) }}
-									aria-sort={on ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
 								>
-									{c.sortable ? (
-										<button
-											type="button"
-											className={cn("flex items-center gap-1 hover:text-foreground", on && "text-foreground")}
-											onClick={() => {
-												toggleSort(c);
-											}}
-										>
-											{label}
-											{on &&
-												(sort.dir === "asc" ? (
-													<ArrowUpIcon className="size-3" />
-												) : (
-													<ArrowDownIcon className="size-3" />
-												))}
-										</button>
-									) : (
-										<span className="flex items-center gap-2">{label}</span>
-									)}
+									{label}
 									{c.kind !== "name" && (
 										<ResizeHandle
 											label={c.label}
@@ -470,7 +453,7 @@ export function ResourceTable({
 											}}
 										/>
 									)}
-								</TableHead>
+								</SortableTableHead>
 							);
 						})}
 						<TableHead className="text-right" style={{ width: MENU_WIDTH }}>

@@ -1,3 +1,5 @@
+import type { SortColumn } from "@/components/design/DataTable";
+import type { SortingState } from "@tanstack/react-table";
 import type { Deployment, ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -203,39 +205,39 @@ function envRank(row: ListRow, environmentId: string): number {
 	return cell === undefined ? NO_CELL_RANK : statusRank(cell.status);
 }
 
-function primaryOrder(column: Column, a: ListRow, b: ListRow): number {
-	switch (column.kind) {
-		case "name":
-			return rowName(a).localeCompare(rowName(b));
-		case "env": {
-			const id = column.environment?.id ?? "";
-			const rank = (r: ListRow) => envRank(r, id);
-			return rank(a) - rank(b);
-		}
-		case "size":
-			return a.cpuMilli - b.cpuMilli || a.memMi - b.memMi;
-		case "created":
-			return a.createdMs - b.createdMs;
-		case "replicas":
-			return 0;
-		case "cost":
-			return 0;
-		case "address":
-			return 0;
-		case "image":
-			return 0;
-	}
+export function resourceColumns(columns: Column[]): SortColumn<ListRow>[] {
+	return columns.map((column) => ({
+		id: column.key,
+		enableSorting: column.sortable,
+		sortDescFirst: column.kind === "size" || column.kind === "created",
+		sortFn:
+			column.kind === "name"
+				? (a, b) => rowName(a.original).localeCompare(rowName(b.original))
+				: column.kind === "size"
+					? (a, b) => a.original.cpuMilli - b.original.cpuMilli || a.original.memMi - b.original.memMi
+					: "basic",
+		accessorFn: (row) => {
+			switch (column.kind) {
+				case "name":
+					return rowName(row);
+				case "env":
+					return envRank(row, column.environment?.id ?? "");
+				case "size":
+					return row.cpuMilli;
+				case "created":
+					return row.createdMs;
+				case "replicas":
+				case "cost":
+				case "address":
+				case "image":
+					return "";
+			}
+		},
+	}));
 }
 
-export function sortRows<T extends ListRow>(rows: T[], sort: Sort, columns: Column[]): T[] {
-	const column = columns.find((c) => c.key === sort.key);
-	if (column === undefined) return rows;
-	const sign = sort.dir === "asc" ? 1 : -1;
-	return rows.toSorted((a, b) => sign * primaryOrder(column, a, b) || rowName(a).localeCompare(rowName(b)));
-}
-
-export function firstDir(column: Column): SortDir {
-	return column.kind === "size" || column.kind === "created" ? "desc" : "asc";
+export function resourceSorting(sort: Sort): SortingState {
+	return [{ id: sort.key, desc: sort.dir === "desc" }, ...(sort.key === "name" ? [] : [{ id: "name", desc: false }])];
 }
 
 export interface Filter {

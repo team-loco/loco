@@ -1,3 +1,5 @@
+import { useTable } from "@tanstack/react-table";
+import { sortingFeatures, SortableTableHead, type SortColumn } from "@/components/design/DataTable";
 import {
 	ActivityIcon,
 	ArrowRightIcon,
@@ -76,20 +78,23 @@ function lastDeployMs(item: DashboardItem): number {
 	return isDraftItem(item) ? 0 : tsMs(item.last?.createdAt);
 }
 
-function compare(key: SortKey, a: DashboardItem, b: DashboardItem): number {
-	switch (key) {
-		case "name":
-			return itemName(a).localeCompare(itemName(b));
-		case "status":
-			return itemRank(a) - itemRank(b);
-		case "regions":
-			return (a.regions[0]?.region ?? "").localeCompare(b.regions[0]?.region ?? "");
-		case "replicas":
-			return replicaTotal(b) - replicaTotal(a);
-		case "deploy":
-			return lastDeployMs(b) - lastDeployMs(a);
-	}
-}
+const SORT_COLUMNS: SortColumn<DashboardItem>[] = [
+	{
+		id: "name",
+		accessorFn: itemName,
+		sortFn: (a, b) => itemName(a.original).localeCompare(itemName(b.original)),
+		sortDescFirst: false,
+	},
+	{ id: "status", accessorFn: itemRank, sortFn: "basic", sortDescFirst: false },
+	{
+		id: "regions",
+		accessorFn: (item) => item.regions[0]?.region ?? "",
+		sortFn: (a, b) => (a.original.regions[0]?.region ?? "").localeCompare(b.original.regions[0]?.region ?? ""),
+		sortDescFirst: false,
+	},
+	{ id: "replicas", accessorFn: replicaTotal, sortFn: "basic", sortDescFirst: true },
+	{ id: "deploy", accessorFn: lastDeployMs, sortFn: "basic", sortDescFirst: true },
+];
 
 function regionNote(item: EnvResource): string {
 	return item.environment?.regions.find((r) => (r.message ?? "") !== "")?.message ?? "";
@@ -315,11 +320,15 @@ export function ResourcesTable({
 		setParams(next, { replace: true });
 	};
 	const [filter, setFilter] = useState<RowFilter>({ status: ALL, type: ALL, region: ALL, query: "" });
-	const [sortKey, setSortKey] = useState<SortKey>("status");
-	const [sortDir, setSortDir] = useState(1);
-
-	const sorted = items.toSorted((a, b) => compare(sortKey, a, b) * sortDir);
-	const visible = filterRows(sorted, filter);
+	const table = useTable({
+		features: sortingFeatures,
+		data: filterRows(items, filter),
+		columns: SORT_COLUMNS,
+		initialState: { sorting: [{ id: "status", desc: false }] },
+		enableSortingRemoval: false,
+		enableMultiSort: false,
+	});
+	const visible = table.getRowModel().rows.map((row) => row.original);
 	const paged = usePagedRows(visible, PAGE_SIZES, `0 of ${items.length.toString()}`);
 
 	const statusCounts = new Map<ResourceStatus, number>();
@@ -449,11 +458,6 @@ export function ResourcesTable({
 	const itemHref = (item: DashboardItem) =>
 		isDraftItem(item) ? draftSearch(params, item.draft.id) : hrefFor(item.resource.id);
 
-	const toggleSort = (key: SortKey) => {
-		setSortDir(sortKey === key ? -sortDir : 1);
-		setSortKey(key);
-	};
-
 	return (
 		<Section title="Resources" count={items.length} actions={actions} filters={filters} search={search}>
 			{isMap ? (
@@ -477,33 +481,17 @@ export function ResourcesTable({
 							<TableRow>
 								{HEADERS.map((h) => {
 									const key = h.key;
-									const on = key !== null && sortKey === key;
-									return (
-										<TableHead
-											key={h.label}
-											className={h.className}
-											aria-sort={on ? (sortDir === 1 ? "ascending" : "descending") : undefined}
-										>
-											{key === null ? (
-												<span className="flex items-center gap-2">
-													{h.label}
-													{h.soon === true && <SoonTag />}
-												</span>
-											) : (
-												<button
-													type="button"
-													className="flex items-center gap-1 hover:text-foreground"
-													onClick={() => {
-														toggleSort(key);
-													}}
-												>
-													{h.label}
-													<span className={cn("text-[10px]", on ? "text-foreground" : "text-transparent")}>
-														{on && sortDir === -1 ? "▼" : "▲"}
-													</span>
-												</button>
-											)}
+									return key === null ? (
+										<TableHead key={h.label} className={h.className}>
+											<span className="flex items-center gap-2">
+												{h.label}
+												{h.soon === true && <SoonTag />}
+											</span>
 										</TableHead>
+									) : (
+										<SortableTableHead key={h.label} column={table.getColumn(key)} className={h.className}>
+											{h.label}
+										</SortableTableHead>
 									);
 								})}
 								<TableHead className="w-10" />
