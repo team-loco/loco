@@ -85,6 +85,29 @@ def time_presets(page, suffix):
     expect(time_range).not_to_be_visible()
 
 
+def calendar(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    page.get_by_role("button", name=re.compile(r"^Past ")).click()
+    time_range = page.get_by_role("dialog", name="Time range")
+    date_trigger = time_range.get_by_role("button", name="From date")
+    date_trigger.press("Space")
+    popup = page.get_by_role("dialog", name="From calendar")
+    expect(popup.get_by_role("grid")).to_be_visible()
+    popup.screenshot(path=str(out / f"calendar-{suffix}.png"), animations="disabled")
+    page.keyboard.press("Escape")
+    expect(popup).not_to_be_visible()
+    expect(date_trigger).to_be_focused()
+    expect(time_range).to_be_visible()
+    before = date_trigger.inner_text()
+    date_trigger.click()
+    popup.get_by_role("grid").get_by_role("button", name=re.compile(r"selected", re.I)).focus()
+    page.keyboard.press("ArrowLeft")
+    page.keyboard.press("Enter")
+    expect(popup).not_to_be_visible()
+    expect(time_range).to_be_visible()
+    expect(date_trigger).not_to_have_text(before)
+
+
 def metrics(page, suffix):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
     chart = page.locator('[aria-label="CPU over time"]')
@@ -192,7 +215,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, time_presets, metrics):
+                        for check in (log_levels, time_presets, calendar, metrics):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})
