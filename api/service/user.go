@@ -11,13 +11,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -380,7 +380,7 @@ func dbUserToProto(user genDb.User) *userv1.User {
 		Email:     user.Email,
 		Name:      derefString(user.Name),
 		AvatarUrl: derefString(user.AvatarUrl),
-		CreatedAt: timeutil.ParsePostgresTimestamp(user.CreatedAt),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(user.UpdatedAt),
+		CreatedAt: timestamppb.New(user.CreatedAt),
+		UpdatedAt: timestamppb.New(user.UpdatedAt),
 	}
 }

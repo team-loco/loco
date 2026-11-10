@@ -20,7 +20,6 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/timeutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -162,8 +161,8 @@ func (s *ClusterAdminServer) ListClusters(
 	for _, row := range rows {
 		cluster := &clusterv1.Cluster{
 			Id: row.ID.String(), Name: row.Name, Region: row.Region, Tier: stringToProtoEnvType(row.Tier),
-			IsActive: row.IsActive, RemovedAt: timeutil.ParsePostgresTimestampPtr(row.RemovedAt),
-			LastHeartbeat: timeutil.ParsePostgresTimestampPtr(row.LastHeartbeat),
+			IsActive: row.IsActive, RemovedAt: optionalTimestamp(row.RemovedAt),
+			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
 			BuildsEnabled: row.BuildsEnabled,
 		}

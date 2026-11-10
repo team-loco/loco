@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
@@ -31,7 +32,7 @@ type providerFixture struct {
 
 func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	issuer := authtest.NewIssuer(t)
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{

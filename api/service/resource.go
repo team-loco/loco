@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
@@ -22,7 +23,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/api/timeutil"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -969,8 +969,8 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 			Domain:       d.Domain,
 			DomainSource: domainSource,
 			IsPrimary:    d.IsPrimary,
-			CreatedAt:    timeutil.ParsePostgresTimestamp(d.CreatedAt),
-			UpdatedAt:    timeutil.ParsePostgresTimestamp(d.UpdatedAt),
+			CreatedAt:    timestamppb.New(d.CreatedAt),
+			UpdatedAt:    timestamppb.New(d.UpdatedAt),
 		}
 
 		domain.SubdomainLabel = d.SubdomainLabel
@@ -1001,8 +1001,8 @@ func dbResourceToProto(
 		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),
-		CreatedAt:           timeutil.ParsePostgresTimestamp(res.CreatedAt),
-		UpdatedAt:           timeutil.ParsePostgresTimestamp(res.UpdatedAt),
+		CreatedAt:           timestamppb.New(res.CreatedAt),
+		UpdatedAt:           timestamppb.New(res.UpdatedAt),
 		Description:         &res.Description,
 		Partial:             res.Partial,
 		EnvironmentStatuses: statuses,

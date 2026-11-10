@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/db/dbtest"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -643,7 +643,7 @@ func TestEveryOrgScopeImpliesMembership(t *testing.T) {
 }
 
 func TestCheckReportsDatabaseFailure(t *testing.T) {
-	pool := authtest.ClosedPool(t)
+	pool := dbtest.ClosedPool(t)
 	a := authz.New(pool, queries.New(pool))
 	for _, entityType := range []queries.EntityType{queries.EntityTypeWorkspace, queries.EntityTypeResource} {
 		required := queries.EntityScope{EntityType: entityType, EntityID: uuid.New(), Scope: queries.ScopeRead}

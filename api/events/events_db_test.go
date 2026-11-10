@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/tracing"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestRecordFillsActorScopeAndRequest(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	ctx := t.Context()
 
@@ -76,7 +76,7 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 		t.Fatalf("data = %s (%v)", ev.Data, jsonErr)
 	}
 
-	authtest.WaitForEarlierTransactions(t, pool)
+	dbtest.WaitForEarlierTransactions(t, pool)
 	all, err := q.ListEventsAfter(ctx, genDb.ListEventsAfterParams{MaxRows: 10})
 	if err != nil || len(all) != 2 || all[1].ActorType != "agent" || all[0].Seq >= all[1].Seq {
 		t.Fatalf("stream order = %+v (%v)", all, err)
@@ -93,12 +93,12 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 }
 
 func TestRecordWithoutCallerIsAnonymous(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	if err := events.Record(t.Context(), q, events.Event{Type: events.UserCreated}); err != nil {
 		t.Fatalf("record: %v", err)
 	}
-	authtest.WaitForEarlierTransactions(t, pool)
+	dbtest.WaitForEarlierTransactions(t, pool)
 	rows, err := q.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 1})
 	if err != nil || len(rows) != 1 || rows[0].ActorType != events.ActorAnonymous || rows[0].ActorID != nil {
 		t.Fatalf("rows = %+v (%v)", rows, err)
@@ -107,7 +107,7 @@ func TestRecordWithoutCallerIsAnonymous(t *testing.T) {
 
 func TestRecordStoresTheCallersTraceparent(t *testing.T) {
 	tracingtest.Record(t)
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	traced := tracingtest.StartParent(t)
 	if err := events.Record(traced, q, events.Event{Type: events.ClusterRegistered}); err != nil {
@@ -141,7 +141,7 @@ func TestRecordStoresTheCallersTraceparent(t *testing.T) {
 
 func TestRetentionRunRecordsARootSpan(t *testing.T) {
 	recorder := tracingtest.Record(t)
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	request := tracingtest.StartParent(t)
 	events.DeleteExpired(request, q, time.Hour)

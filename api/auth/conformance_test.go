@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/auth/supabase"
+	"github.com/team-loco/loco/api/db/dbtest"
 )
 
 const (
@@ -306,7 +306,7 @@ func TestProviderConformance(t *testing.T) {
 			if err != nil {
 				t.Fatalf("policy: %v", err)
 			}
-			resolver := auth.NewResolver(authtest.NewPool(t), policy, auth.WithEmailVerifiers(emailVerifiers))
+			resolver := auth.NewResolver(dbtest.NewPool(t), policy, auth.WithEmailVerifiers(emailVerifiers))
 
 			for _, a := range p.accounts {
 				t.Run(a.name, func(t *testing.T) {

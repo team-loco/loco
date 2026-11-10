@@ -15,7 +15,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
@@ -55,7 +55,7 @@ type authFixture struct {
 
 func newAuthFixture(t *testing.T) *authFixture {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,

@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
@@ -37,7 +37,7 @@ func identity(sub, email string, verified bool) Identity {
 }
 
 func TestResolveProvisionsOnceAndGrantsSelfScopes(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	q := genDb.New(pool)
 
@@ -66,7 +66,7 @@ func TestResolveProvisionsOnceAndGrantsSelfScopes(t *testing.T) {
 }
 
 func TestResolveLinksVerifiedEmailToExistingUser(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 
 	github, _, err := r.Resolve(t.Context(), Identity{
@@ -85,7 +85,7 @@ func TestResolveLinksVerifiedEmailToExistingUser(t *testing.T) {
 }
 
 func TestResolveRejectsUnverifiedEmailCollision(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	q := genDb.New(pool)
 
@@ -105,7 +105,7 @@ func TestResolveRejectsUnverifiedEmailCollision(t *testing.T) {
 }
 
 func TestResolveUnverifiedIdentityNeverCreatesAnAccount(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	q := genDb.New(pool)
 
@@ -133,7 +133,7 @@ func TestResolveUnverifiedIdentityNeverCreatesAnAccount(t *testing.T) {
 }
 
 func TestResolveDoesNotLinkIntoAccountWithUnverifiedIdentity(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	q := genDb.New(pool)
 
@@ -157,7 +157,7 @@ func TestResolveDoesNotLinkIntoAccountWithUnverifiedIdentity(t *testing.T) {
 }
 
 func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	policy, err := ParseSignupPolicy("domains", "acme.test")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
@@ -181,7 +181,7 @@ func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 }
 
 func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	openResolver := NewResolver(pool, open(t))
 	if _, _, err := openResolver.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -200,7 +200,7 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 }
 
 func TestResolveRequiresEmail(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	_, _, err := r.Resolve(t.Context(), identity("s1", "", false))
 	if rejected, ok := errors.AsType[*SignupRejectedError](err); !ok {
@@ -211,7 +211,7 @@ func TestResolveRequiresEmail(t *testing.T) {
 }
 
 func TestResolveConcurrentFirstLoginsCreateOneUser(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 
 	const n = 8
@@ -242,7 +242,7 @@ const (
 )
 
 func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	q := genDb.New(pool)
 
@@ -274,7 +274,7 @@ func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
 }
 
 func TestResolveUnverifiedEmailChangeKeepsTheAccountEmail(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	q := genDb.New(pool)
 
@@ -304,7 +304,7 @@ func TestResolveUnverifiedEmailChangeKeepsTheAccountEmail(t *testing.T) {
 }
 
 func TestResolveVerifiedEmailChangeKeepsAnAddressAnotherUserHas(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 	q := genDb.New(pool)
 
@@ -334,7 +334,7 @@ func TestResolveVerifiedEmailChangeKeepsAnAddressAnotherUserHas(t *testing.T) {
 }
 
 func TestResolveEmailChangeKeepsAnAccountEmailAnotherIdentityConfirms(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 
 	user, _, err := r.Resolve(t.Context(), identity("first", "shared@example.test", true))
@@ -373,7 +373,7 @@ func (f *fakeEmailVerifier) callCount() int {
 }
 
 func TestResolveAsksTheProviderOnlyWhenItNeedsTheVerifiedState(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
 	r := NewResolver(pool, open(t), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
 	q := genDb.New(pool)
@@ -425,7 +425,7 @@ func TestResolveAsksTheProviderOnlyWhenItNeedsTheVerifiedState(t *testing.T) {
 }
 
 func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
 	r := NewResolver(pool, open(t), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
 
@@ -452,7 +452,7 @@ func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
 }
 
 func TestResolveRecordsTheAccountEmailMove(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t))
 
 	user, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
@@ -487,7 +487,7 @@ type invitationFixture struct {
 
 func newInvitationFixture(t *testing.T) *invitationFixture {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	inviter, err := q.CreateUser(t.Context(), genDb.CreateUserParams{Email: "admin@x.test"})
 	if err != nil {

@@ -8,12 +8,12 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/timeutil"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -273,8 +273,8 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 		Description: env.Description,
 		Type:        stringToProtoEnvType(env.EnvironmentType),
 		CreatedBy:   env.CreatedBy.String(),
-		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(env.UpdatedAt),
+		CreatedAt:   timestamppb.New(env.CreatedAt),
+		UpdatedAt:   timestamppb.New(env.UpdatedAt),
 		Revision:    env.Revision,
 	}
 }

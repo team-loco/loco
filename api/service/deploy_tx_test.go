@@ -5,18 +5,15 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"errors"
-	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
@@ -75,49 +72,8 @@ func enrollTestCluster(t *testing.T, pool *pgxpool.Pool, clusterID uuid.UUID) {
 
 func newDeployFixture(t *testing.T) *deployFixture {
 	t.Helper()
-	baseURL := os.Getenv("LOCO_TEST_DATABASE_URL")
-	if baseURL == "" {
-		t.Skip("LOCO_TEST_DATABASE_URL not set")
-	}
+	pool := dbtest.NewPool(t)
 	ctx := context.Background()
-
-	admin, err := pgx.Connect(ctx, baseURL)
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	t.Cleanup(func() {
-		if closeErr := admin.Close(context.Background()); closeErr != nil {
-			t.Logf("close admin connection: %v", closeErr)
-		}
-	})
-
-	dbName := "service_" + uuid.NewString()[:8]
-	ident := pgx.Identifier{dbName}.Sanitize()
-	if _, createErr := admin.Exec(ctx, "CREATE DATABASE "+ident); createErr != nil {
-		t.Fatalf("create database: %v", createErr)
-	}
-
-	parsed, err := url.Parse(baseURL)
-	if err != nil {
-		t.Fatalf("parse url: %v", err)
-	}
-	parsed.Path = "/" + dbName
-	dbURL := parsed.String()
-
-	if migrateErr := migrations.Up(ctx, dbURL); migrateErr != nil {
-		t.Fatalf("migrate: %v", migrateErr)
-	}
-
-	pool, err := pgxpool.New(ctx, dbURL)
-	if err != nil {
-		t.Fatalf("pool: %v", err)
-	}
-	t.Cleanup(func() {
-		pool.Close()
-		if _, dropErr := admin.Exec(context.Background(), "DROP DATABASE "+ident+" WITH (FORCE)"); dropErr != nil {
-			t.Logf("drop database: %v", dropErr)
-		}
-	})
 
 	f := &deployFixture{pool: pool, queries: genDb.New(pool)}
 	row := pool.QueryRow(ctx, `

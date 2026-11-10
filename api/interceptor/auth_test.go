@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
@@ -32,7 +32,7 @@ func TestAuthenticateRejectsMissingToken(t *testing.T) {
 }
 
 func TestAuthenticateReportsDatabaseFailure(t *testing.T) {
-	pool := authtest.ClosedPool(t)
+	pool := dbtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(pool, genDb.New(pool), tvm.Config{})
 	i := NewAuthInterceptor(machine, nil, nil, nil)
 	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer("loco_s_unknown"))

@@ -20,7 +20,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
-	timeutil "github.com/team-loco/loco/api/timeutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -512,10 +511,10 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 	resourceID := b.ResourceID.String()
 	status := buildStatusToProto(b.Status)
 	createdBy := b.CreatedBy.String()
-	createdAt := timeutil.ParsePostgresTimestamp(b.CreatedAt)
-	startedAt := timeutil.ParsePostgresTimestampPtr(b.StartedAt)
-	finishedAt := timeutil.ParsePostgresTimestampPtr(b.FinishedAt)
-	imageDeletedAt := timeutil.ParsePostgresTimestampPtr(b.ImageDeletedAt)
+	createdAt := timestamppb.New(b.CreatedAt)
+	startedAt := optionalTimestamp(b.StartedAt)
+	finishedAt := optionalTimestamp(b.FinishedAt)
+	imageDeletedAt := optionalTimestamp(b.ImageDeletedAt)
 
 	out := &buildv1.Build{
 		Id:              id,

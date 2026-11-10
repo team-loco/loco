@@ -6,9 +6,9 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
-	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
 )
@@ -49,7 +49,7 @@ func TestAuthorizeAllowsCoveredAction(t *testing.T) {
 }
 
 func TestAuthorizeKeepsLookupFailuresOutOfPermissionDenied(t *testing.T) {
-	pool := authtest.ClosedPool(t)
+	pool := dbtest.ClosedPool(t)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{})
 	err := authorize(ctx, authz.New(pool, genDb.New(pool)), actions.GetResource, uuid.New())
 	if err == nil || connect.CodeOf(err) == connect.CodePermissionDenied {

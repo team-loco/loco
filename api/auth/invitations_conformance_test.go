@@ -24,8 +24,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/mail"
@@ -78,7 +78,7 @@ type journeyAPI struct {
 
 func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journeyAPI {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,

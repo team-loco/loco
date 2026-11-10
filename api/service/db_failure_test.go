@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -14,7 +14,7 @@ import (
 )
 
 func TestGetResourceReportsDatabaseFailure(t *testing.T) {
-	pool := authtest.ClosedPool(t)
+	pool := dbtest.ClosedPool(t)
 	server := NewResourceServer(pool, genDb.New(pool), testServiceDefaults(), testClusterSilentAfter)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
@@ -27,7 +27,7 @@ func TestGetResourceReportsDatabaseFailure(t *testing.T) {
 }
 
 func TestCheckPermissionReportsDatabaseFailure(t *testing.T) {
-	pool := authtest.ClosedPool(t)
+	pool := dbtest.ClosedPool(t)
 	server := NewTokenServer(pool, genDb.New(pool), nil)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{}})
 	resp, err := server.CheckPermission(ctx, &tokenv1.CheckPermissionRequest{
