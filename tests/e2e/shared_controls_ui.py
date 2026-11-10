@@ -73,6 +73,16 @@ def log_levels(page, suffix):
     page.screenshot(path=str(out / f"log-levels-{suffix}.png"))
 
 
+def time_presets(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    page.get_by_role("button", name=re.compile(r"^Past ")).click()
+    time_range = page.get_by_role("dialog", name="Time range")
+    active = time_range.get_by_role("group", name="Presets").locator('[aria-pressed="true"]')
+    expect(active).to_have_count(1)
+    active.click()
+    expect(time_range).not_to_be_visible()
+
+
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 results = []
@@ -159,7 +169,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels,):
+                        for check in (log_levels, time_presets):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})

@@ -114,7 +114,9 @@ export function TimePicker() {
 						aria-label="Presets"
 						value={range.kind === "relative" ? [String(range.spanMs)] : []}
 						onValueChange={(values) => {
-							if (values[0] !== undefined) pick(Number(values[0]));
+							const [value] = values;
+							if (value !== undefined) pick(Number(value));
+							else if (range.kind === "relative") pick(range.spanMs);
 						}}
 						className="grid grid-cols-2 gap-0.5"
 					>
