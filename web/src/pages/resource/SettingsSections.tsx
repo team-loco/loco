@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
-import { Badge } from "@/components/design/Badge";
+import { RegionHealth } from "@/components/design/RegionHealth";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
@@ -22,7 +22,6 @@ export interface SectionProps {
 	onChange: (patch: Partial<SettingsDraft>) => void;
 }
 
-const HEALTHY = "healthy";
 const grid2 = "grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] gap-x-[18px] gap-y-3.5";
 
 export function SettingsBlock({
@@ -262,15 +261,18 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 }
 
 function regionNote(info: RegionInfo | undefined, inSpec: boolean, deployed: boolean): ReactNode {
-	if (!inSpec) return "Not in this resource's spec";
-	if (!deployed) return "Starts without this resource's secrets";
-	if (info !== undefined && info.healthStatus !== "" && info.healthStatus !== HEALTHY)
-		return (
-			<Badge tone="warn" size="sm">
-				{info.healthStatus}
-			</Badge>
-		);
-	return info?.isDefault === true ? "default" : null;
+	return (
+		<span className="flex flex-wrap items-center gap-2">
+			<RegionHealth region={info} />
+			{!inSpec
+				? "Not in this resource's spec"
+				: !deployed
+					? "Starts without this resource's secrets"
+					: info?.isDefault === true
+						? "default"
+						: null}
+		</span>
+	);
 }
 
 export function RegionsSection({

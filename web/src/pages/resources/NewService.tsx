@@ -13,7 +13,7 @@ import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_conn
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
-import { Badge } from "@/components/design/Badge";
+import { RegionHealth } from "@/components/design/RegionHealth";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
@@ -57,7 +57,6 @@ import {
 import { slug } from "@/lib/slug";
 import { DeployRunView, DrawerHeader, useServiceDeploy, type DeployError } from "@/pages/resources/NewServiceDeploy";
 
-const HEALTHY = "healthy";
 const MIN_REPLICAS = 1;
 const SKELETON_ROWS = 6;
 const NON_DIGITS_RE = /\D/g;
@@ -488,11 +487,7 @@ function ServiceForm({
 									className="h-[38px] w-full min-w-0 gap-1.5 rounded-lg border-line2 px-3 font-mono text-[12.5px] font-normal text-fg3 hover:bg-transparent hover:text-foreground aria-pressed:border-foreground aria-pressed:bg-raise aria-pressed:text-foreground aria-pressed:ring-1 aria-pressed:ring-foreground aria-pressed:ring-inset"
 								>
 									<span className="truncate">{r.region}</span>
-									{r.healthStatus !== "" && r.healthStatus !== HEALTHY && (
-										<Badge size="sm" tone="warn">
-											{r.healthStatus}
-										</Badge>
-									)}
+									<RegionHealth region={r} />
 								</ToggleGroupItem>
 							))}
 						</ToggleGroup>
@@ -531,6 +526,7 @@ function ServiceForm({
 									subdomain={form.subdomain}
 									platformDomain={form.platformDomain}
 									options={platformDomains.filter((d) => served.includes(d.domain))}
+									regions={regions}
 									check={check}
 									placeholder={slug(name)}
 									onSubdomainChange={(subdomain) => {
@@ -699,6 +695,7 @@ function EnvSection({
 }) {
 	const [pasteOpen, setPasteOpen] = useState(false);
 	const [pasteText, setPasteText] = useState("");
+	const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
 	const [focusId, setFocusId] = useState<string | null>(null);
 	const pasteId = useId();
 	const pasted = parseDotEnv(pasteText);
@@ -783,7 +780,7 @@ function EnvSection({
 						return (
 							<li
 								key={r.id}
-								className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] items-center border-b border-line last:border-b-0"
+								className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]"
 							>
 								<span className="flex min-w-0 items-center border-r border-line">
 									<Input
@@ -802,17 +799,49 @@ function EnvSection({
 										<LockIcon aria-label="Looks like a secret" className="mr-2.5 size-3.5 shrink-0 text-fg3" />
 									)}
 								</span>
-								<Input
-									value={r.value}
-									placeholder="value"
-									aria-label={`Value of ${label}`}
-									autoComplete="off"
-									spellCheck={false}
-									className={ENV_CELL}
-									onChange={(e) => {
-										update(r.id, { value: e.target.value });
-									}}
-								/>
+								<span className="flex min-w-0 items-center">
+									<Input
+										type={r.secret && !visible.has(r.id) ? "password" : "text"}
+										value={r.value}
+										placeholder="value"
+										aria-label={`Value of ${label}`}
+										autoComplete="off"
+										spellCheck={false}
+										className={ENV_CELL}
+										onChange={(e) => {
+											update(r.id, { value: e.target.value });
+										}}
+									/>
+									{r.secret && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="xs"
+											aria-label={`${visible.has(r.id) ? "Hide" : "Show"} ${label}`}
+											aria-pressed={visible.has(r.id)}
+											onClick={() => {
+												setVisible((current) => {
+													const next = new Set(current);
+													if (next.has(r.id)) next.delete(r.id);
+													else next.add(r.id);
+													return next;
+												});
+											}}
+										>
+											{visible.has(r.id) ? "Hide" : "Show"}
+										</Button>
+									)}
+								</span>
+								<span className="flex items-center gap-2 px-2">
+									<Switch
+										aria-label={`Store ${label} as secret`}
+										checked={r.secret ?? false}
+										onCheckedChange={(secret) => {
+											update(r.id, { secret });
+										}}
+									/>
+									<span className="text-[11.5px] text-fg3">Secret</span>
+								</span>
 								<Button
 									type="button"
 									variant="ghost"
@@ -831,15 +860,10 @@ function EnvSection({
 				</ul>
 			)}
 			{error !== null && <span className="text-[12.5px] text-bad-fg">{error}</span>}
-			<div className="flex items-center justify-between gap-4">
-				<span className="flex flex-col gap-0.5">
-					<span className="flex items-center gap-2 text-[13px] font-medium text-fg3">
-						Secret <SoonTag />
-					</span>
-					<span className="text-[12.5px] text-fg3">Store a variable as a secret instead of plain text.</span>
-				</span>
-				<Switch disabled checked={false} aria-label="Secret" />
-			</div>
+			<p className="m-0 text-[12.5px] text-fg3">
+				Mark each sensitive value as Secret. Secret values stay in this drawer until you deploy; re-enter them after
+				closing or reloading it.
+			</p>
 		</DrawerSection>
 	);
 }

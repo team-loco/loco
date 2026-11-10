@@ -8,6 +8,7 @@ import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
+import { SecretService } from "@gen/loco/secret/v1/secret_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -17,7 +18,13 @@ import { StepList } from "@/components/design/StepList";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { regionDeploySteps, runOutcome, type RunOutcome } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
-import { apiFieldError, envVars, healthCheckSpec, type ApiFieldError, type NewResourceForm } from "@/lib/new-resource";
+import {
+	apiFieldError,
+	deploymentVariables,
+	healthCheckSpec,
+	type ApiFieldError,
+	type NewResourceForm,
+} from "@/lib/new-resource";
 import { resourcePath } from "@/lib/routes";
 
 interface RegionRun {
@@ -100,7 +107,27 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			});
 			setRun({ ...start, resourceId });
 			const deployments = createClient(DeploymentService, transport);
-			const envMap = Object.fromEntries(envVars(form.vars));
+			const { env: envMap, secrets } = deploymentVariables(form.vars);
+			const secretNames = Object.keys(secrets);
+			if (secretNames.length > 0) {
+				try {
+					await createClient(SecretService, transport).setSecrets({
+						resourceId,
+						environmentId: env.id,
+						values: secrets,
+					});
+				} catch (error) {
+					const message = getErrorMessage(error, "Couldn't store the secrets");
+					if (await removed(resourceId)) return { message, field: null };
+					setRun({
+						...start,
+						resourceId,
+						deploying: false,
+						regions: start.regions.map((region) => ({ ...region, error: message })),
+					});
+					return null;
+				}
+			}
 			const regions = await Promise.all(
 				form.regions.map(async (region): Promise<RegionRun & { cause: unknown }> => {
 					try {
@@ -108,6 +135,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 							resourceId,
 							region,
 							environmentId: env.id,
+							secretBindings: { names: secretNames },
 							spec: {
 								spec: {
 									case: "service",
