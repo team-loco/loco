@@ -1,7 +1,6 @@
 package mail
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -10,16 +9,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	"github.com/team-loco/loco/api/webhooks"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 )
-
-const maxHookResponse = 64 << 10
 
 type hookTransport struct {
 	url     string
@@ -29,7 +25,7 @@ type hookTransport struct {
 }
 
 func newHook(u *url.URL, secret string, tlsConfig *tls.Config, timeout time.Duration) (*hookTransport, error) {
-	if secret == "" || !validHookSecret(secret) {
+	if webhooksig.ValidateSecret(secret) != nil {
 		return nil, ErrHookSecret
 	}
 	transport := http.DefaultTransport
@@ -47,28 +43,19 @@ func (t *hookTransport) Send(ctx context.Context, msg Message) error {
 		return fmt.Errorf("encode hook payload: %w", err)
 	}
 	id := uuid.NewString()
-	now := time.Now()
-	signature, err := webhooks.Sign(t.secret, id, now, body)
-	if err != nil {
-		return fmt.Errorf("sign hook payload: %w", err)
-	}
 	ctx, cancel := context.WithTimeout(ctx, t.timeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.url, bytes.NewReader(body))
+	req, err := webhooksig.NewSignedRequest(ctx, t.url, t.secret, id, body)
 	if err != nil {
 		return fmt.Errorf("build hook request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Loco-Mail")
-	req.Header.Set("Webhook-Id", id)
-	req.Header.Set("Webhook-Timestamp", strconv.FormatInt(now.Unix(), 10))
-	req.Header.Set("Webhook-Signature", signature)
 	res, err := t.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("post hook: %w", err)
 	}
 	defer res.Body.Close()
-	response, readErr := io.ReadAll(io.LimitReader(res.Body, maxHookResponse))
+	response, readErr := io.ReadAll(io.LimitReader(res.Body, webhooksig.MaxResponseBytes))
 	if readErr != nil {
 		return fmt.Errorf("read hook response: %w", readErr)
 	}

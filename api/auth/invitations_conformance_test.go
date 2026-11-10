@@ -30,9 +30,9 @@ import (
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/mail/mailtest"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/webhooks"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -238,7 +238,7 @@ type hookCall struct {
 
 func hookDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInvitations)) {
 	t.Helper()
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("hook secret: %v", err)
 	}
@@ -288,7 +288,7 @@ func hookDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInv
 		if err != nil {
 			t.Fatalf("webhook-timestamp: %v", err)
 		}
-		wantSignature, err := webhooks.Sign(secret, id, time.Unix(stamp, 0), call.body)
+		wantSignature, err := webhooksig.Sign(secret, id, time.Unix(stamp, 0), call.body)
 		if err != nil {
 			t.Fatalf("sign: %v", err)
 		}

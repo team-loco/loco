@@ -11,6 +11,7 @@ import (
 	"time"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
@@ -36,7 +37,7 @@ func newDispatcher(queries genDb.Querier, workspacePrivate bool) *webhooks.Dispa
 }
 
 func TestSignatureVerifiesAsStandardWebhooks(t *testing.T) {
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
 	}
@@ -45,7 +46,7 @@ func TestSignatureVerifiesAsStandardWebhooks(t *testing.T) {
 		t.Fatalf("verifier: %v", err)
 	}
 	body := `{"type":"org.updated"}`
-	signature, err := webhooks.Sign(secret, "msg_1", time.Now(), []byte(body))
+	signature, err := webhooksig.Sign(secret, "msg_1", time.Now(), []byte(body))
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -63,14 +64,14 @@ func TestSignatureVerifiesAsStandardWebhooks(t *testing.T) {
 	if _, err := verifier.Verify(tampered, maxBody); err == nil {
 		t.Fatal("tampered body verified")
 	}
-	if _, err := webhooks.Sign(
+	if _, err := webhooksig.Sign(
 		"whsec_not base64",
 		"msg_1",
 		time.Now(),
 		nil,
 	); !errors.Is(
 		err,
-		webhooks.ErrInvalidSecret,
+		webhooksig.ErrInvalidSecret,
 	) {
 		t.Fatalf("bad secret: %v", err)
 	}

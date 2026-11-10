@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
@@ -104,7 +105,7 @@ func newFixture(t *testing.T) *fixture {
 
 func (f *fixture) webhook(t *testing.T, workspace uuid.UUID, types ...string) (genDb.Webhook, string) {
 	t.Helper()
-	secret, err := webhooks.NewSecret()
+	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
 	}

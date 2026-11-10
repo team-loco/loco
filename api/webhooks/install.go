@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/advisorylock"
+	"github.com/team-loco/loco/api/pkg/webhooksig"
 )
 
 const (
@@ -62,10 +63,7 @@ func (h *InstallWebhook) validate() error {
 	if err != nil || u.Hostname() == "" || u.User != nil || (u.Scheme != schemeHTTP && u.Scheme != schemeHTTPS) {
 		return ErrInstallWebhookURL
 	}
-	if _, err := decodeSecret(h.Secret); err != nil {
-		return err
-	}
-	return nil
+	return webhooksig.ValidateSecret(h.Secret)
 }
 
 func SyncInstallWebhooks(ctx context.Context, pool *pgxpool.Pool, hooks []InstallWebhook) error {
