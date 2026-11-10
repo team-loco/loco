@@ -22,6 +22,7 @@ const cell: EnvCell = {
 	regions: ["us-east"],
 	note: "",
 	deployedMs: 0,
+	spec: undefined,
 };
 
 function row(id: string, envIds: string[]): ResourceRow {

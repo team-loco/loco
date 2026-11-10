@@ -222,6 +222,11 @@ with sync_playwright() as playwright:
                     expect(section.get_by_role("button", name="Cancel build", exact=True)).to_have_count(0)
                     expect(section.get_by_text("canceled", exact=True).first).to_be_visible()
                     stage = "resources"
+                    page.goto(state["ui_url"] + base + "/resources?env=staging&cols=env-production,env-staging,size,replicas")
+                    pilot_row = page.get_by_role("row").filter(has=page.get_by_role("link", name="history-pilot", exact=True))
+                    expect(pilot_row).to_be_visible()
+                    headers = page.get_by_role("columnheader").all_inner_texts()
+                    expect(pilot_row.get_by_role("cell").nth(headers.index("Replicas"))).to_have_text("2")
                     page.goto(state["ui_url"] + base + "/resources?env=production")
                     page.get_by_role("button", name="Region: All regions", exact=True).click()
                     region = page.get_by_role("menuitemradio", name=re.compile(r"^eu-west-1"))

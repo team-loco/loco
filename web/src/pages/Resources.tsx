@@ -73,7 +73,7 @@ export function Resources() {
 		if (total === 0) return <ResourcesEmpty />;
 		return (
 			<ResourceTable
-				rows={buildRows(data.resources, data.deployments, environments)}
+				rows={buildRows(data.resources, data.deployments, environments, active?.id)}
 				environments={environments}
 				active={active}
 				orgId={orgId}

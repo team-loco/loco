@@ -1,8 +1,8 @@
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Deployment, ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
-import { deploymentImage } from "@/lib/deployment-utils";
+import { deploymentImage, getServiceSpec } from "@/lib/deployment-utils";
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
@@ -28,6 +28,7 @@ export interface EnvCell {
 	regions: string[];
 	note: string;
 	deployedMs: number;
+	spec: ServiceDeploymentSpec | undefined;
 }
 
 export interface ResourceRow {
@@ -60,6 +61,7 @@ function envCell(resource: Resource, environment: Environment, deployments: Depl
 		regions: status.regions.map((r) => r.region),
 		note: status.regions.find((r) => (r.message ?? "") !== "")?.message ?? "",
 		deployedMs: tsMs(active?.createdAt),
+		spec: active === undefined ? undefined : getServiceSpec(active),
 	};
 }
 
@@ -67,6 +69,7 @@ export function buildRows(
 	resources: Resource[],
 	deployments: Deployment[][],
 	environments: Environment[],
+	activeEnvironmentId: string | undefined,
 ): ResourceRow[] {
 	return resources.map((resource, i) => {
 		const mine = (deployments[i] ?? []).toSorted(newestFirst);
@@ -78,13 +81,16 @@ export function buildRows(
 		const spec = resource.spec?.spec;
 		const region = configuredRegions(resource)[0];
 		const target = spec?.case === "service" && region !== undefined ? spec.value.regions[region] : undefined;
+		const running = activeEnvironmentId === undefined ? undefined : cells.get(activeEnvironmentId)?.spec;
+		const minReplicas = running?.minReplicas ?? target?.minReplicas;
+		const maxReplicas = running?.maxReplicas ?? target?.maxReplicas;
 		const latest = mine[0];
 		return {
 			resource,
 			cells,
-			cpuMilli: parseCpuMilli(target?.cpu ?? ""),
-			memMi: parseMemMi(target?.memory ?? ""),
-			replicas: target === undefined ? null : { min: target.minReplicas, max: target.maxReplicas },
+			cpuMilli: parseCpuMilli(running?.cpu ?? target?.cpu ?? ""),
+			memMi: parseMemMi(running?.memory ?? target?.memory ?? ""),
+			replicas: minReplicas === undefined || maxReplicas === undefined ? null : { min: minReplicas, max: maxReplicas },
 			address: primaryDomain(resource),
 			image: latest === undefined ? "" : imageName(deploymentImage(latest)),
 			createdMs: tsMs(resource.createdAt),
