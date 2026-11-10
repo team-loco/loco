@@ -168,18 +168,12 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 	return w.Flush()
 }
 
-// shortCommit abbreviates the build's commit and marks a dirty work tree the way
-// git describe --dirty does.
 func shortCommit(build *buildv1.Build) string {
 	commit := build.GetGitCommit()
 	if commit == "" {
 		return "-"
 	}
-	commit = commit[:min(len(commit), shortCommitLength)]
-	if build.GetGitDirty() {
-		commit += "-dirty"
-	}
-	return commit
+	return commit[:min(len(commit), shortCommitLength)]
 }
 
 func newBuildsGetCmd() *cobra.Command {
@@ -217,17 +211,13 @@ func writeBuildDetails(out io.Writer, build *buildv1.Build) error {
 	status := build.GetStatus()
 	sourceSize := build.GetSourceSize()
 	created := build.GetCreatedAt().AsTime().UTC().Format(time.RFC3339)
-	commit := build.GetGitCommit()
-	if commit != "" && build.GetGitDirty() {
-		commit += " (uncommitted changes)"
-	}
 	rows := [][2]string{
 		{"ID", build.GetId()},
 		{"Service", build.GetResourceId()},
 		{"Status", sourcebuild.StatusLabel(status)},
 		{"Message", build.GetMessage()},
 		{"Dockerfile", build.GetDockerfilePath()},
-		{"Commit", commit},
+		{"Commit", build.GetGitCommit()},
 		{"Branch", build.GetGitBranch()},
 		{"Commit message", build.GetGitCommitMessage()},
 		{"Source size", sourcebuild.FormatBytes(sourceSize)},

@@ -110,10 +110,8 @@ type Build struct {
 	GitBranch *string `protobuf:"bytes,19,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
 	// git_commit_message is the commit's subject line.
 	GitCommitMessage *string `protobuf:"bytes,20,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
-	// git_dirty is true when the working tree differed from the commit, untracked files included.
-	GitDirty      *bool `protobuf:"varint,21,opt,name=git_dirty,json=gitDirty,proto3,oneof" json:"git_dirty,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Build) Reset() {
@@ -286,13 +284,6 @@ func (x *Build) GetGitCommitMessage() string {
 	return ""
 }
 
-func (x *Build) GetGitDirty() bool {
-	if x != nil && x.GitDirty != nil {
-		return *x.GitDirty
-	}
-	return false
-}
-
 type BuildsUnavailable struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -341,7 +332,6 @@ type CreateBuildRequest struct {
 	GitBranch *string `protobuf:"bytes,6,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
 	// git_commit_message longer than the API's limit is stored clipped.
 	GitCommitMessage *string `protobuf:"bytes,7,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
-	GitDirty         *bool   `protobuf:"varint,8,opt,name=git_dirty,json=gitDirty,proto3,oneof" json:"git_dirty,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -423,13 +413,6 @@ func (x *CreateBuildRequest) GetGitCommitMessage() string {
 		return *x.GitCommitMessage
 	}
 	return ""
-}
-
-func (x *CreateBuildRequest) GetGitDirty() bool {
-	if x != nil && x.GitDirty != nil {
-		return *x.GitDirty
-	}
-	return false
 }
 
 type CreateBuildResponse struct {
@@ -872,7 +855,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\a\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcc\a\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -905,8 +888,7 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"git_commit\x18\x12 \x01(\tH\x05R\tgitCommit\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"git_branch\x18\x13 \x01(\tH\x06R\tgitBranch\x88\x01\x01\x121\n" +
-	"\x12git_commit_message\x18\x14 \x01(\tH\aR\x10gitCommitMessage\x88\x01\x01\x12 \n" +
-	"\tgit_dirty\x18\x15 \x01(\bH\bR\bgitDirty\x88\x01\x01B\r\n" +
+	"\x12git_commit_message\x18\x14 \x01(\tH\aR\x10gitCommitMessage\x88\x01\x01B\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +
@@ -914,10 +896,8 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\x11_image_deleted_atB\r\n" +
 	"\v_git_commitB\r\n" +
 	"\v_git_branchB\x15\n" +
-	"\x13_git_commit_messageB\f\n" +
-	"\n" +
-	"_git_dirty\"\x13\n" +
-	"\x11BuildsUnavailable\"\x8e\a\n" +
+	"\x13_git_commit_message\"\x13\n" +
+	"\x11BuildsUnavailable\"\xde\x06\n" +
 	"\x12CreateBuildRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\x80\x02\n" +
@@ -932,13 +912,10 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
 	"git_branch\x18\x06 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\bH\x01R\tgitBranch\x88\x01\x01\x121\n" +
-	"\x12git_commit_message\x18\a \x01(\tH\x02R\x10gitCommitMessage\x88\x01\x01\x12 \n" +
-	"\tgit_dirty\x18\b \x01(\bH\x03R\bgitDirty\x88\x01\x01B\r\n" +
+	"\x12git_commit_message\x18\a \x01(\tH\x02R\x10gitCommitMessage\x88\x01\x01B\r\n" +
 	"\v_git_commitB\r\n" +
 	"\v_git_branchB\x15\n" +
-	"\x13_git_commit_messageB\f\n" +
-	"\n" +
-	"_git_dirty\"\x97\x01\n" +
+	"\x13_git_commit_message\"\x97\x01\n" +
 	"\x13CreateBuildResponse\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12\x1d\n" +
 	"\n" +

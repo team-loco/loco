@@ -65,8 +65,8 @@ test_c02_cli_lists_the_build() {
 test_c03_cli_records_the_source_commit() {
     local commit want
     commit=$(loco_cli builds list "$cli_app" --output json |
-        yq -p json -r '.builds[0] | .gitCommit + " " + .gitBranch + " " + .gitCommitMessage + " " + (.gitDirty | tostring)')
-    want="$(cli_git rev-parse HEAD) e2e-branch e2e source commit false"
+        yq -p json -r '.builds[0] | .gitCommit + " " + .gitBranch + " " + .gitCommitMessage')
+    want="$(cli_git rev-parse HEAD) e2e-branch e2e source commit"
     assert "the build records the deployed commit (${commit})" test "$commit" = "$want"
 }
 

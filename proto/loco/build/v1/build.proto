@@ -50,8 +50,6 @@ message Build {
   optional string git_branch = 19;
   // git_commit_message is the commit's subject line.
   optional string git_commit_message = 20;
-  // git_dirty is true when the working tree differed from the commit, untracked files included.
-  optional bool git_dirty = 21;
 }
 
 message BuildsUnavailable {}
@@ -87,7 +85,6 @@ message CreateBuildRequest {
   }];
   // git_commit_message longer than the API's limit is stored clipped.
   optional string git_commit_message = 7;
-  optional bool git_dirty = 8;
 }
 
 message CreateBuildResponse {

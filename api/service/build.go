@@ -171,7 +171,6 @@ func (s *BuildServer) CreateBuild(
 			GitCommit:        req.GitCommit,
 			GitBranch:        req.GitBranch,
 			GitCommitMessage: gitCommitMessage,
-			GitDirty:         req.GitDirty,
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)
 		}
@@ -548,7 +547,6 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 		GitCommit:        b.GitCommit,
 		GitBranch:        b.GitBranch,
 		GitCommitMessage: b.GitCommitMessage,
-		GitDirty:         b.GitDirty,
 	}
 	if b.ClusterID != nil {
 		clusterID := b.ClusterID.String()

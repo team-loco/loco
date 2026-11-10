@@ -7820,14 +7820,6 @@
             ],
             "title": "git_commit_message",
             "description": "git_commit_message is the commit's subject line."
-          },
-          "gitDirty": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "title": "git_dirty",
-            "description": "git_dirty is true when the working tree differed from the commit, untracked files included."
           }
         },
         "title": "Build",
@@ -7926,13 +7918,6 @@
             ],
             "title": "git_commit_message",
             "description": "git_commit_message longer than the API's limit is stored clipped."
-          },
-          "gitDirty": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "title": "git_dirty"
           }
         },
         "title": "CreateBuildRequest",

@@ -459,7 +459,6 @@ func (s *fakeBuildService) CreateBuild(
 		GitCommit:        req.GitCommit,
 		GitBranch:        req.GitBranch,
 		GitCommitMessage: req.GitCommitMessage,
-		GitDirty:         req.GitDirty,
 	})
 	return &buildv1.CreateBuildResponse{
 		BuildId:   id,

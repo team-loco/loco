@@ -103,9 +103,8 @@ func (b *Builder) Build(ctx context.Context, in Input) (*buildv1.Build, error) {
 
 func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBuildResponse, error) {
 	var gitCommit, gitBranch, gitMessage *string
-	var gitDirty *bool
 	if commit := in.Commit; commit.SHA != "" {
-		gitCommit, gitMessage, gitDirty = &commit.SHA, &commit.Message, &commit.Dirty
+		gitCommit, gitMessage = &commit.SHA, &commit.Message
 		if commit.Branch != "" {
 			gitBranch = &commit.Branch
 		}
@@ -118,7 +117,6 @@ func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBui
 		GitCommit:        gitCommit,
 		GitBranch:        gitBranch,
 		GitCommitMessage: gitMessage,
-		GitDirty:         gitDirty,
 	}
 	resp, err := b.follower.clients.Build.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {

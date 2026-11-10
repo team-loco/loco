@@ -616,9 +616,9 @@ func TestCreateBuildStoresTheGitCommit(t *testing.T) {
 	f := newBuildFixture(t)
 
 	withoutGit := f.get(t, f.create(t, 1).GetBuildId())
-	if withoutGit.GitCommit != nil || withoutGit.GitBranch != nil || withoutGit.GitDirty != nil {
-		t.Fatalf("build without git metadata reports commit %v, branch %v, dirty %v",
-			withoutGit.GitCommit, withoutGit.GitBranch, withoutGit.GitDirty)
+	if withoutGit.GitCommit != nil || withoutGit.GitBranch != nil || withoutGit.GitCommitMessage != nil {
+		t.Fatalf("build without git metadata reports commit %v, branch %v, message %v",
+			withoutGit.GitCommit, withoutGit.GitBranch, withoutGit.GitCommitMessage)
 	}
 
 	want := &buildv1.CreateBuildRequest{
@@ -628,7 +628,6 @@ func TestCreateBuildStoresTheGitCommit(t *testing.T) {
 		GitCommit:        new("0123456789abcdef0123456789abcdef01234567"),
 		GitBranch:        new("main"),
 		GitCommitMessage: new("Fix the health check"),
-		GitDirty:         new(true),
 	}
 	resp, err := f.server.CreateBuild(f.ctx, want)
 	if err != nil {
@@ -650,9 +649,9 @@ func TestCreateBuildStoresTheGitCommit(t *testing.T) {
 		"list": listed.GetBuilds()[listIndex],
 	} {
 		if got.GetGitCommit() != want.GetGitCommit() || got.GetGitBranch() != want.GetGitBranch() ||
-			got.GetGitCommitMessage() != want.GetGitCommitMessage() || got.GitDirty == nil || !got.GetGitDirty() {
-			t.Fatalf("%s returned commit %q, branch %q, message %q, dirty %v; want the request's values",
-				source, got.GetGitCommit(), got.GetGitBranch(), got.GetGitCommitMessage(), got.GitDirty)
+			got.GetGitCommitMessage() != want.GetGitCommitMessage() {
+			t.Fatalf("%s returned commit %q, branch %q, message %q; want the request's values",
+				source, got.GetGitCommit(), got.GetGitBranch(), got.GetGitCommitMessage())
 		}
 	}
 }

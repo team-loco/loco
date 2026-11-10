@@ -1,8 +1,8 @@
 -- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
-                    git_commit, git_branch, git_commit_message, git_dirty)
+                    git_commit, git_branch, git_commit_message)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
-        sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message), sqlc.narg(git_dirty))
+        sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message))
 RETURNING *;
 
 -- name: GetBuildByID :one

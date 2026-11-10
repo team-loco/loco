@@ -42,23 +42,6 @@ func TestRead(t *testing.T) {
 		}
 	})
 
-	t.Run("untracked file", func(t *testing.T) {
-		untracked := filepath.Join(dir, "notes.txt")
-		writeFile(t, untracked, "draft\n")
-		defer os.Remove(untracked)
-		if got := read(t, dir); !got.Dirty {
-			t.Fatalf("Read = %+v, want dirty", got)
-		}
-	})
-
-	t.Run("modified file", func(t *testing.T) {
-		writeFile(t, filepath.Join(subdir, "main.go"), "package changed\n")
-		defer runGit(t, dir, "checkout", "-q", "--", ".")
-		if got := read(t, dir); !got.Dirty {
-			t.Fatalf("Read = %+v, want dirty", got)
-		}
-	})
-
 	t.Run("git not installed", func(t *testing.T) {
 		t.Setenv("PATH", t.TempDir())
 		if got := read(t, dir); got != (Commit{}) {

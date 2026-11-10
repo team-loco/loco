@@ -17,15 +17,13 @@ type Commit struct {
 	Branch string
 	// Message is the commit's subject line.
 	Message string
-	// Dirty reports whether the work tree differs from the commit, untracked files included.
-	Dirty bool
 }
 
 func Read(ctx context.Context, dir string) (Commit, error) {
-	status, err := git(ctx, dir, "status", "--porcelain=v2", "--branch")
-	// git exits non-zero both outside a work tree and in one it cannot read; telling them
-	// apart means parsing localized messages, and a build needs neither, so both read as
-	// no commit.
+	head, err := git(ctx, dir, "log", "-1", "--format=%H%n%s")
+	// git exits non-zero outside a work tree, in one without commits and in one it cannot
+	// read; telling them apart means parsing localized messages, and a build needs none of
+	// them, so all read as no commit.
 	_, exited := errors.AsType[*exec.ExitError](err)
 	if exited || errors.Is(err, exec.ErrNotFound) {
 		return Commit{}, nil
@@ -33,39 +31,21 @@ func Read(ctx context.Context, dir string) (Commit, error) {
 	if err != nil {
 		return Commit{}, err
 	}
+	sha, subject, _ := strings.Cut(strings.TrimSuffix(head, "\n"), "\n")
 
-	var commit Commit
-	for line := range strings.SplitSeq(strings.TrimSuffix(status, "\n"), "\n") {
-		switch {
-		case line == "":
-		case strings.HasPrefix(line, "# branch.oid "):
-			commit.SHA = strings.TrimPrefix(line, "# branch.oid ")
-		case strings.HasPrefix(line, "# branch.head "):
-			commit.Branch = strings.TrimPrefix(line, "# branch.head ")
-		case strings.HasPrefix(line, "# "):
-		default:
-			commit.Dirty = true
-		}
+	branch, err := git(ctx, dir, "symbolic-ref", "--quiet", "--short", "HEAD")
+	// With --quiet, exit status 1 means HEAD is detached and names no branch.
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && exitErr.ExitCode() == 1 {
+		err = nil
 	}
-	if commit.SHA == "(initial)" {
-		return Commit{}, nil
-	}
-	if commit.Branch == "(detached)" {
-		commit.Branch = ""
-	}
-	subject, err := git(ctx, dir, "log", "-1", "--format=%s", commit.SHA)
 	if err != nil {
 		return Commit{}, err
 	}
-	commit.Message = strings.TrimSuffix(subject, "\n")
-	return commit, nil
+	return Commit{SHA: sha, Branch: strings.TrimSuffix(branch, "\n"), Message: subject}, nil
 }
 
 func git(ctx context.Context, dir string, args ...string) (string, error) {
-	// --no-optional-locks keeps status from rewriting the index while another git command
-	// in the same repository holds its lock.
-	global := []string{"--no-optional-locks", "-C", dir}
-	out, err := exec.CommandContext(ctx, "git", append(global, args...)...).Output()
+	out, err := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...).Output()
 	if err != nil {
 		return "", fmt.Errorf("git %s in %s: %w", args[0], dir, err)
 	}

@@ -348,7 +348,6 @@ type Build struct {
 	GitCommit        *string     `json:"gitCommit"`
 	GitBranch        *string     `json:"gitBranch"`
 	GitCommitMessage *string     `json:"gitCommitMessage"`
-	GitDirty         *bool       `json:"gitDirty"`
 	ImageRepository  string      `json:"imageRepository"`
 	ImageDigest      *string     `json:"imageDigest"`
 	CacheDigest      *string     `json:"cacheDigest"`

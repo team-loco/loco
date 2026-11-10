@@ -315,7 +315,6 @@ CREATE TABLE
         git_commit TEXT,
         git_branch TEXT,
         git_commit_message TEXT,
-        git_dirty BOOLEAN,
         image_repository TEXT NOT NULL,
         image_digest TEXT,
         cache_digest TEXT,
