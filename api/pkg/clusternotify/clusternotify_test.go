@@ -80,9 +80,9 @@ func TestListenerWakesOnlyOnCommittedNotifyForItsCluster(t *testing.T) {
 	ctx := context.Background()
 
 	clusterID := uuid.New()
-	listener := n.Listen(ctx, clusterID)
+	listener := n.Listen(clusterID)
 	defer listener.Close()
-	other := n.Listen(ctx, uuid.New())
+	other := n.Listen(uuid.New())
 	defer other.Close()
 
 	rollback := errors.New("rollback")
@@ -124,10 +124,10 @@ func TestListenersHoldNoPoolConnections(t *testing.T) {
 	maxConns := int(pool.Config().MaxConns)
 	listeners := make([]*clusternotify.Listener, 0, maxConns*2+1)
 	for range maxConns * 2 {
-		listeners = append(listeners, n.Listen(ctx, uuid.New()))
+		listeners = append(listeners, n.Listen(uuid.New()))
 	}
 	clusterID := uuid.New()
-	target := n.Listen(ctx, clusterID)
+	target := n.Listen(clusterID)
 	listeners = append(listeners, target)
 
 	if acquired := pool.Stat().AcquiredConns(); acquired != 0 {
@@ -152,7 +152,7 @@ func TestListenerSurvivesListenConnectionLoss(t *testing.T) {
 	ctx := context.Background()
 
 	clusterID := uuid.New()
-	listener := n.Listen(ctx, clusterID)
+	listener := n.Listen(clusterID)
 	defer listener.Close()
 
 	var terminated int
@@ -207,7 +207,7 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 		}
 	}()
 	clusterID := uuid.New()
-	target := notifier.Listen(ctx, clusterID)
+	target := notifier.Listen(clusterID)
 	defer target.Close()
 	if err := notify(ctx, sender, clusterID); err != nil {
 		t.Fatal(err)

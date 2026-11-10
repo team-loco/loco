@@ -264,6 +264,15 @@ func startSyncServerWithConfig(
 	if err := notifier.Start(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
+	return serveSync(f, notifier, sources, cfg)
+}
+
+func serveSync(
+	f *deployFixture,
+	notifier *clusternotify.Notifier,
+	sources SourceBucket,
+	cfg AgentConfig,
+) agentv1connect.AgentServiceClient {
 	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval, cfg)
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
@@ -359,6 +368,42 @@ func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
 	}
 	if code := connect.CodeOf(got.err); code != connect.CodeAborted {
 		t.Fatalf("older stream ended with %v, want aborted", got.err)
+	}
+}
+
+func TestSyncStreamDeliversChangesFromNotifyAlone(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	notifier := clusternotify.New(f.pool.Config().ConnConfig, time.Hour)
+	if err := notifier.Start(ctx); err != nil {
+		t.Fatalf("start notifier: %v", err)
+	}
+	client := serveSync(f, notifier, nil, testAgentConfig())
+
+	stream := openSync(ctx, t, client, f.clusterID)
+	if _, err := f.deploy(ctx, staticSpec); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	got := nextResult(t, stream)
+	if got.err != nil || got.msg.GetApply().GetRevision() != 1 {
+		t.Fatalf("got %v, %v; want an Apply at revision 1", got.msg, got.err)
+	}
+}
+
+func TestSyncStreamDeliversChangesFromPollAlone(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	// Never started, so no notification reaches the stream.
+	notifier := clusternotify.New(f.pool.Config().ConnConfig, 200*time.Millisecond)
+	client := serveSync(f, notifier, nil, testAgentConfig())
+
+	stream := openSync(ctx, t, client, f.clusterID)
+	if _, err := f.deploy(ctx, staticSpec); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	got := nextResult(t, stream)
+	if got.err != nil || got.msg.GetApply().GetRevision() != 1 {
+		t.Fatalf("got %v, %v; want an Apply at revision 1", got.msg, got.err)
 	}
 }
 
