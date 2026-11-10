@@ -27,7 +27,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -111,27 +110,18 @@ func post(
 
 func decodeStatus(t *testing.T, response *httptest.ResponseRecorder) *spb.Status {
 	t.Helper()
-	message := &spb.Status{}
-	body := response.Body.Bytes()
-	var err error
-	if response.Header().Get("Content-Type") == jsonContentType {
-		err = protojson.Unmarshal(body, message)
-	} else {
-		err = proto.Unmarshal(body, message)
+	if got := response.Header().Get("Content-Type"); got != protobufContentType {
+		t.Fatalf("content type = %q, want %q", got, protobufContentType)
 	}
-	if err != nil {
-		t.Fatalf("decode status body %q: %v", body, err)
+	message := &spb.Status{}
+	if err := proto.Unmarshal(response.Body.Bytes(), message); err != nil {
+		t.Fatalf("decode status body %q: %v", response.Body.Bytes(), err)
 	}
 	return message
 }
 
-func TestHTTPExportAcceptsProtobufJSONAndGzip(t *testing.T) {
+func TestHTTPExportAcceptsProtobufAndGzip(t *testing.T) {
 	service, recorder, cp := newTestService(t, nil)
-	request := testLogsRequest()
-	jsonBody, err := request.MarshalJSON()
-	if err != nil {
-		t.Fatalf("marshal json: %v", err)
-	}
 	var compressed bytes.Buffer
 	writer := gzip.NewWriter(&compressed)
 	if _, err := writer.Write(protoBody(t)); err != nil {
@@ -147,7 +137,7 @@ func TestHTTPExportAcceptsProtobufJSONAndGzip(t *testing.T) {
 		body        []byte
 	}{
 		{name: "protobuf", contentType: protobufContentType, body: protoBody(t)},
-		{name: "json", contentType: jsonContentType + "; charset=utf-8", body: jsonBody},
+		{name: "content type parameter", contentType: protobufContentType + "; charset=utf-8", body: protoBody(t)},
 		{name: "gzip", contentType: protobufContentType, encoding: gzipEncoding, body: compressed.Bytes()},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -155,12 +145,8 @@ func TestHTTPExportAcceptsProtobufJSONAndGzip(t *testing.T) {
 			if response.Code != http.StatusOK {
 				t.Fatalf("status = %d, body %q", response.Code, response.Body.String())
 			}
-			want := protobufContentType
-			if test.name == "json" {
-				want = jsonContentType
-			}
-			if got := response.Header().Get("Content-Type"); got != want {
-				t.Fatalf("content type = %q, want %q", got, want)
+			if got := response.Header().Get("Content-Type"); got != protobufContentType {
+				t.Fatalf("content type = %q, want %q", got, protobufContentType)
 			}
 		})
 	}
@@ -176,6 +162,11 @@ func TestHTTPExportAcceptsProtobufJSONAndGzip(t *testing.T) {
 }
 
 func TestHTTPExportStatusCodes(t *testing.T) {
+	request := testLogsRequest()
+	jsonBody, err := request.MarshalJSON()
+	if err != nil {
+		t.Fatalf("marshal json: %v", err)
+	}
 	for _, test := range []struct {
 		name        string
 		consumerErr error
@@ -201,9 +192,8 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument, wantError: true,
 		},
 		{
-			name: "undecodable json", contentType: jsonContentType, body: []byte("{"),
-			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
-			wantError: true,
+			name: "json is unsupported", contentType: "application/json", body: jsonBody,
+			wantHTTP: http.StatusUnsupportedMediaType, wantCode: codes.InvalidArgument,
 		},
 		{
 			name: "unsupported content type", contentType: "text/plain",

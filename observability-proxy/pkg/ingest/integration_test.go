@@ -232,13 +232,13 @@ func testMetrics(now time.Time) pmetric.Metrics {
 	return metrics
 }
 
-func postOTLP(t *testing.T, endpoint, authorization, contentType string, body []byte) []byte {
+func postOTLP(t *testing.T, endpoint, authorization string, body []byte) []byte {
 	t.Helper()
 	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("build request: %v", err)
 	}
-	request.Header.Set("Content-Type", contentType)
+	request.Header.Set("Content-Type", protobufContentType)
 	request.Header.Set(authorizationHeader, authorization)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -316,13 +316,13 @@ func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal logs: %v", err)
 	}
-	postOTLP(t, httpURL+LogsPath, cp.bearer(), protobufContentType, logsBody)
+	postOTLP(t, httpURL+LogsPath, cp.bearer(), logsBody)
 	metricsRequest := pmetricotlp.NewExportRequestFromMetrics(testMetrics(now))
-	metricsBody, err := metricsRequest.MarshalJSON()
+	metricsBody, err := metricsRequest.MarshalProto()
 	if err != nil {
 		t.Fatalf("marshal metrics: %v", err)
 	}
-	postOTLP(t, httpURL+MetricsPath, cp.bearer(), jsonContentType, metricsBody)
+	postOTLP(t, httpURL+MetricsPath, cp.bearer(), metricsBody)
 	tracesRequest := ptraceotlp.NewExportRequestFromTraces(testTraces(now))
 	tracesCtx := metadata.AppendToOutgoingContext(t.Context(), authorizationMetadata, cp.bearer())
 	if _, err = tracesClient.Export(tracesCtx, tracesRequest); err != nil {
@@ -406,7 +406,7 @@ func TestOnlyRecordsOfPlacedWorkspacesReachClickHouse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal logs: %v", err)
 	}
-	payload := postOTLP(t, httpURL+LogsPath, cp.bearer(), protobufContentType, body)
+	payload := postOTLP(t, httpURL+LogsPath, cp.bearer(), body)
 	response := plogotlp.NewExportResponse()
 	if decodeErr := response.UnmarshalProto(payload); decodeErr != nil {
 		t.Fatalf("decode response: %v", decodeErr)
@@ -462,12 +462,12 @@ func TestClusterLevelRowsStayOutOfTenantQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal logs: %v", err)
 	}
-	postOTLP(t, httpURL+LogsPath, cp.bearer(), protobufContentType, logsBody)
+	postOTLP(t, httpURL+LogsPath, cp.bearer(), logsBody)
 	metricsBody, err := pmetricotlp.NewExportRequestFromMetrics(metrics).MarshalProto()
 	if err != nil {
 		t.Fatalf("marshal metrics: %v", err)
 	}
-	postOTLP(t, httpURL+MetricsPath, cp.bearer(), protobufContentType, metricsBody)
+	postOTLP(t, httpURL+MetricsPath, cp.bearer(), metricsBody)
 	tracesCtx := metadata.AppendToOutgoingContext(t.Context(), authorizationMetadata, cp.bearer())
 	if _, err = tracesClient.Export(tracesCtx, ptraceotlp.NewExportRequestFromTraces(traces)); err != nil {
 		t.Fatalf("export traces: %v", err)

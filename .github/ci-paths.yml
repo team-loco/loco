@@ -52,6 +52,7 @@ charts:
     - "tests/e2e/cluster-metrics.py"
     - "tests/e2e/fixtures/api-failover/**"
     - "tests/e2e/fixtures/control-plane/**"
+    - "observability-proxy/tools/otlplog/**"
     - "tests/conformance/transit/compose.yaml"
     - "dev/compose.yaml"
     - "dev/api.env"
