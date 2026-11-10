@@ -163,6 +163,7 @@ test_d03_resource_rename_moves_the_alias_without_a_build() {
         "{\"resourceId\":\"${id}\",\"name\":\"${discovery_renamed}\"}"
     wait_for "the renamed alias" 60 discovery_alias_exists "$discovery_renamed"
     wait_for "the previous alias to be removed" 60 discovery_alias_absent "$discovery_tcp"
+    wait_for "the renamed TCP endpoint" 60 discovery_call "${discovery_renamed}:50051" tcp
     assert_contains "an app reaches the renamed TCP endpoint" 'private-tcp-ok' discovery_call "${discovery_renamed}:50051" tcp
     after=$(e2e_psql "SELECT count(*) FROM builds")
     assert "rename starts no build" test "$before" -eq "$after"
