@@ -1,6 +1,7 @@
 import { createClient } from "@connectrpc/connect";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
@@ -13,9 +14,9 @@ import { Button } from "@/components/design/Button";
 import { SheetBody, SheetFooter } from "@/components/design/Sheet";
 import { StepList } from "@/components/design/StepList";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
-import { createdStep, isLive, regionDeploySteps } from "@/lib/deploy-progress";
+import { isLive, regionDeploySteps } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
-import { parseEnvText, type NewResourceForm } from "@/lib/new-resource";
+import { apiFieldError, envVars, healthCheckSpec, type ApiFieldError, type NewResourceForm } from "@/lib/new-resource";
 import { resourcePath } from "@/lib/routes";
 
 interface RegionRun {
@@ -31,25 +32,16 @@ interface DeployRun {
 	regions: RegionRun[];
 }
 
-function healthCheck(path: string, defaults: DefaultServiceConfig) {
-	if (path === "") return {};
-	const hc = defaults.healthCheck;
-	return {
-		healthCheck: {
-			path,
-			intervalSeconds: hc?.intervalSeconds ?? 0,
-			timeoutSeconds: hc?.timeoutSeconds ?? 0,
-			failureThreshold: hc?.failureThreshold ?? 0,
-			initialDelaySeconds: hc?.initialDelaySeconds ?? 0,
-		},
-	};
+export interface DeployError {
+	message: string;
+	field: ApiFieldError | null;
 }
 
 export function useServiceDeploy(workspaceId: string, env: Environment, defaults: DefaultServiceConfig) {
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 	const [run, setRun] = useState<DeployRun | null>(null);
-	const [createError, setCreateError] = useState<string | null>(null);
+	const [deployError, setDeployError] = useState<DeployError | null>(null);
 
 	const removed = async (resourceId: string) => {
 		try {
@@ -60,8 +52,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 		}
 	};
 
-	const deploy = async (form: NewResourceForm) => {
-		setCreateError(null);
+	const attempt = async (form: NewResourceForm): Promise<DeployError | null> => {
 		const start: DeployRun = {
 			form,
 			resourceId: undefined,
@@ -71,6 +62,8 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 		setRun(start);
 		const port = Number(form.port);
 		const replicas = { cpu: form.cpu.trim(), memory: form.memory.trim(), minReplicas: form.replicas };
+		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
+		const health = healthCheck === undefined ? {} : { healthCheck };
 		try {
 			const { resourceId } = await createClient(ResourceService, transport).createResource({
 				workspaceId,
@@ -99,16 +92,16 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 							regions: Object.fromEntries(
 								form.regions.map((r) => [r, { enabled: true, ...replicas, maxReplicas: form.replicas }]),
 							),
-							...healthCheck(form.healthPath, defaults),
+							...health,
 						},
 					},
 				},
 			});
 			setRun({ ...start, resourceId });
 			const deployments = createClient(DeploymentService, transport);
-			const envVars = Object.fromEntries(parseEnvText(form.envText).vars);
+			const envMap = Object.fromEntries(envVars(form.vars));
 			const regions = await Promise.all(
-				form.regions.map(async (region): Promise<RegionRun> => {
+				form.regions.map(async (region): Promise<RegionRun & { cause: unknown }> => {
 					try {
 						const res = await deployments.createDeployment({
 							resourceId,
@@ -121,41 +114,66 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 										build: { type: "image", image: form.image.trim() },
 										...replicas,
 										maxReplicas: form.replicas,
-										env: envVars,
+										env: envMap,
 										port,
-										...healthCheck(form.healthPath, defaults),
+										...health,
 									},
 								},
 							},
 						});
-						return { region, deploymentId: res.deploymentId, error: null };
+						return { region, deploymentId: res.deploymentId, error: null, cause: null };
 					} catch (err) {
-						return { region, deploymentId: undefined, error: getErrorMessage(err, "Couldn't start the deployment") };
+						return {
+							region,
+							deploymentId: undefined,
+							error: getErrorMessage(err, "Couldn't start the deployment"),
+							cause: err,
+						};
 					}
 				}),
 			);
-			const firstError = regions[0]?.error ?? null;
-			if (regions.every((r) => r.deploymentId === undefined) && firstError !== null && (await removed(resourceId))) {
-				setRun(null);
-				setCreateError(`Couldn't deploy ${form.image.trim()}: ${firstError}`);
-			} else {
-				setRun({ ...start, resourceId, deploying: false, regions });
+			const first = regions[0];
+			if (
+				first !== undefined &&
+				first.error !== null &&
+				regions.every((r) => r.deploymentId === undefined) &&
+				(await removed(resourceId))
+			) {
+				return {
+					message: `Couldn't deploy ${form.image.trim()}: ${first.error}`,
+					field: apiFieldError(first.cause),
+				};
 			}
+			setRun({ ...start, resourceId, deploying: false, regions });
+			return null;
 		} catch (err) {
-			setRun(null);
-			setCreateError(getErrorMessage(err, "Couldn't create the resource"));
+			return { message: getErrorMessage(err, "Couldn't create the resource"), field: apiFieldError(err) };
 		}
-		void queryClient.invalidateQueries();
 	};
 
-	return { run, createError, deploy };
+	const deploy = async (form: NewResourceForm) => {
+		setDeployError(null);
+		const error = await attempt(form);
+		if (error !== null) setRun(null);
+		setDeployError(error);
+		void queryClient.invalidateQueries();
+		return error;
+	};
+
+	return {
+		run,
+		deployError,
+		deploy,
+		clearError: () => {
+			setDeployError(null);
+		},
+	};
 }
 
-function useDeployProgress(run: DeployRun, env: Environment, defaults: DefaultServiceConfig) {
+function useDeployProgress(run: DeployRun) {
 	const watchFor = useDeploymentWatch(
 		run.regions.flatMap((r) => (r.deploymentId === undefined ? [] : [r.deploymentId])),
 	);
-	const created = run.resourceId !== undefined;
 	const regions = run.regions.map((r) => {
 		const watch = watchFor(r.deploymentId);
 		return {
@@ -163,9 +181,7 @@ function useDeployProgress(run: DeployRun, env: Environment, defaults: DefaultSe
 			live: isLive(watch.phase),
 			steps: regionDeploySteps({
 				form: run.form,
-				hcInterval: String(defaults.healthCheck?.intervalSeconds ?? 0),
-				created,
-				deploymentId: r.deploymentId,
+				created: run.resourceId !== undefined,
 				region: r.region,
 				phase: watch.phase,
 				message: watch.message,
@@ -173,74 +189,69 @@ function useDeployProgress(run: DeployRun, env: Environment, defaults: DefaultSe
 			}),
 		};
 	});
-	return {
-		created: createdStep(run.form.name, env.name, created, run.deploying),
-		regions,
-		allLive: regions.length > 0 && regions.every((r) => r.live),
-	};
+	return { regions, allLive: regions.length > 0 && regions.every((r) => r.live) };
 }
 
-function DeployProgress({ progress }: { progress: ReturnType<typeof useDeployProgress> }) {
-	return (
-		<div className="flex flex-col gap-1" aria-live="polite">
-			<StepList steps={[progress.created]} />
-			{progress.regions.map((r) => (
-				<div key={r.region} className="flex flex-col">
-					<span className="pt-2 font-mono text-[12px] text-fg3">{r.region}</span>
-					<StepList steps={r.steps} />
-				</div>
-			))}
-		</div>
-	);
-}
-
-function OpenResourceButton({
-	run,
-	allLive,
-	orgId,
-	workspaceId,
-}: {
-	run: DeployRun;
-	allLive: boolean;
-	orgId: string;
-	workspaceId: string;
-}) {
-	if (run.resourceId === undefined || run.deploying) return null;
-	return (
-		<Button
-			variant={allLive ? "default" : "outline"}
-			nativeButton={false}
-			render={<Link to={resourcePath(orgId, workspaceId, run.resourceId)} />}
-		>
-			Open {run.form.name}
-		</Button>
-	);
+function progressTitle(run: DeployRun, allLive: boolean): string {
+	if (allLive) return "Live";
+	return run.resourceId === undefined ? `Creating ${run.form.name}` : `Deploying ${run.form.name}`;
 }
 
 export function DeployRunView({
 	run,
 	env,
-	defaults,
 	orgId,
 	workspaceId,
+	onDone,
 }: {
 	run: DeployRun;
 	env: Environment;
-	defaults: DefaultServiceConfig;
 	orgId: string;
 	workspaceId: string;
+	onDone: () => void;
 }) {
-	const progress = useDeployProgress(run, env, defaults);
+	const { regions, allLive } = useDeployProgress(run);
+	const host = `${run.form.subdomain}.${run.form.platformDomain}`;
 	return (
 		<>
-			<SheetBody>
-				<DeployProgress progress={progress} />
+			<SheetBody className="gap-1">
+				<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pt-1">
+					<span className="text-[15px] font-medium">{progressTitle(run, allLive)}</span>
+					{allLive && run.form.isPublic && (
+						<a
+							href={`https://${host}`}
+							target="_blank"
+							rel="noreferrer"
+							className="flex items-center gap-1 font-mono text-[12.5px] text-fg2 hover:text-foreground"
+						>
+							{host}
+							<ExternalLinkIcon className="size-3.5" />
+						</a>
+					)}
+				</div>
+				<div className="flex flex-col" aria-live="polite">
+					{regions.map((r) => (
+						<section key={r.region} aria-label={r.region} className="flex flex-col">
+							{regions.length > 1 && <span className="pt-2 font-mono text-[12px] text-fg3">{r.region}</span>}
+							<StepList steps={r.steps} />
+						</section>
+					))}
+				</div>
 			</SheetBody>
 			<SheetFooter className="flex-wrap items-center">
 				<span className="min-w-0 flex-1 text-[12.5px] text-fg3 max-sm:basis-full">
 					To <span className="font-mono text-fg2">{env.name}</span>
 				</span>
-				<OpenResourceButton run={run} allLive={progress.allLive} orgId={orgId} workspaceId={workspaceId} />
+				{run.resourceId !== undefined && !run.deploying && (
+					<Button
+						variant="outline"
+						nativeButton={false}
+						render={<Link to={resourcePath(orgId, workspaceId, run.resourceId)} />}
+					>
+						Open {run.form.name}
+					</Button>
+				)}
+				<Button onClick={onDone}>Done</Button>
 			</SheetFooter>
 		</>
 	);

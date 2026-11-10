@@ -1,16 +1,23 @@
 import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
 import { PlatformDomainSchema } from "@gen/loco/domain/v1/domain_pb";
 
 import {
-	errorCount,
+	apiFieldError,
+	envError,
+	firstError,
+	healthCheckSpec,
+	healthSummary,
 	imageError,
 	looksSecret,
 	locoYaml,
+	mergeEnv,
 	nameFromImage,
-	parseEnvText,
 	servedDomains,
 	validateForm,
+	type EnvRow,
 	type NewResourceForm,
 } from "./new-resource";
 
@@ -25,9 +32,14 @@ const form: NewResourceForm = {
 	subdomain: "web",
 	platformDomain: "example.com",
 	port: "8080",
-	envText: "LOG_LEVEL=info\nexport ON='yes: really'",
-	healthPath: "/healthz",
+	vars: [
+		{ id: "1", key: "LOG_LEVEL", value: "info" },
+		{ id: "2", key: "ON", value: "yes: really" },
+	],
+	health: { path: "/healthz", interval: "10", timeout: "3", failAfter: "5" },
 };
+
+const row = (key: string, value: string, id = key): EnvRow => ({ id, key, value });
 
 test("nameFromImage slugs the repository and skips taken names", () => {
 	expect(nameFromImage("ghcr.io/acme/My_Web:1.0", new Set())).toBe("my-web");
@@ -44,14 +56,36 @@ test("servedDomains keeps only domains every selected region serves", () => {
 	expect(servedDomains(domains, ["us-east-1"])).toEqual(["a.test", "b.test"]);
 });
 
-test("parseEnvText reports lines the API would reject", () => {
-	expect(parseEnvText("A=1\n# note\n\nA=2")).toEqual({ vars: [["A", "2"]], error: null });
-	expect(parseEnvText("A=1\n1BAD=x").error).toBe("Line 2 is not KEY=value with a letter or _ first");
-	expect(parseEnvText("EMPTY=").error).toBe("EMPTY has no value");
+test("envError ignores blank rows and reports rows the API would reject", () => {
+	expect(envError([row("A", "1"), row("", "", "blank")])).toBeNull();
+	expect(envError([row("", "x")])).toBe("A variable has a value but no name");
+	expect(envError([row("1BAD", "x")])).toBe(
+		"1BAD isn't a valid name: use letters, digits and _, not starting with a digit",
+	);
+	expect(envError([row("EMPTY", "")])).toBe("EMPTY has no value");
+	expect(envError([row("A", "1", "a"), row(" A ", "2", "b")])).toBe("A is set twice");
+});
+
+test("mergeEnv replaces pasted keys in place, appends new ones and drops blank rows", () => {
+	let next = 0;
+	const newId = () => {
+		next += 1;
+		return `new-${next.toString()}`;
+	};
+	expect(
+		mergeEnv(
+			[row("A", "1"), row("", "", "blank"), row("B", "2")],
+			[
+				["B", "3"],
+				["C", "4"],
+			],
+			newId,
+		),
+	).toEqual([row("A", "1"), row("B", "3"), { id: "new-1", key: "C", value: "4" }]);
 });
 
 test("validateForm accepts a complete form", () => {
-	expect(errorCount(validateForm(form, new Map(), "available"))).toBe(0);
+	expect(firstError(validateForm(form, new Map(), "available"))).toBeNull();
 });
 
 test("validateForm follows the API's name rules", () => {
@@ -65,28 +99,61 @@ test("validateForm follows the API's name rules", () => {
 	expect(nameErr("Web", new Map([["web", "web"]]))).toBe("web already uses the name web");
 });
 
-test("validateForm flags every missing or malformed field", () => {
+test("validateForm leaves port and health check numbers to the API", () => {
+	const loose = { ...form, port: "", health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
+	expect(firstError(validateForm(loose, new Map(), "available"))).toBeNull();
+});
+
+test("firstError reports the first blocking field in form order", () => {
 	const errors = validateForm(
-		{
-			...form,
-			image: "Not An Image",
-			regions: [],
-			cpu: " ",
-			memory: "",
-			subdomain: "Bad_Sub",
-			port: "80a",
-			envText: "KEY=",
-			healthPath: "healthz",
-		},
+		{ ...form, regions: [], cpu: " ", memory: "", subdomain: "Bad_Sub", vars: [row("KEY", "")] },
 		new Map(),
 		"empty",
 	);
-	expect(errorCount(errors)).toBe(8);
+	expect([errors.regions, errors.subdomain, errors.cpu, errors.memory, errors.env].every((e) => e !== null)).toBe(true);
+	expect(firstError(errors)).toBe("Choose at least one region");
 	expect(validateForm({ ...form, platformDomain: "" }, new Map(), "empty").subdomain).toBe(
 		"No platform domain is served in every selected region",
 	);
 	expect(validateForm(form, new Map(), "taken").subdomain).toBe("web.example.com is taken");
 	expect(validateForm({ ...form, isPublic: false, platformDomain: "" }, new Map(), "taken").subdomain).toBeNull();
+});
+
+test("healthCheckSpec sends the fields the user set, or no check without a path", () => {
+	expect(healthCheckSpec(form.health, 4)).toEqual({
+		path: "/healthz",
+		intervalSeconds: 10,
+		timeoutSeconds: 3,
+		failureThreshold: 5,
+		initialDelaySeconds: 4,
+	});
+	expect(healthCheckSpec({ ...form.health, path: "" }, 4)).toBeUndefined();
+	expect(healthSummary(form.health)).toBe("/healthz · every 10s");
+	expect(healthSummary({ ...form.health, path: "" })).toBe("None");
+});
+
+test("apiFieldError maps a validation violation to the field it names", () => {
+	const violations = create(ViolationsSchema, {
+		violations: [
+			{
+				message: "must be greater than or equal to 1",
+				field: {
+					elements: [
+						{ fieldName: "spec" },
+						{ fieldName: "service" },
+						{ fieldName: "health_check" },
+						{ fieldName: "interval_seconds" },
+					],
+				},
+			},
+		],
+	});
+	const err = new ConnectError("validation error", Code.InvalidArgument, undefined, [
+		{ desc: ViolationsSchema, value: violations },
+	]);
+	expect(apiFieldError(err)).toEqual({ field: "interval", message: "Must be greater than or equal to 1" });
+	expect(apiFieldError(new ConnectError("name is taken", Code.AlreadyExists))).toBeNull();
+	expect(apiFieldError(new Error("offline"))).toBeNull();
 });
 
 test("locoYaml writes a loco.yaml that parses to the form", () => {
@@ -99,7 +166,7 @@ test("locoYaml writes a loco.yaml that parses to the form", () => {
 			web: {
 				image: "ghcr.io/acme/web:1.4.2",
 				port: 8080,
-				health: { path: "/healthz" },
+				health: { path: "/healthz", interval: 10, timeout: 3, failThreshold: 5 },
 				domains: ["web.example.com"],
 				env: { LOG_LEVEL: "info", ON: "yes: really" },
 				regions: {
@@ -114,12 +181,15 @@ test("locoYaml writes a loco.yaml that parses to the form", () => {
 test("locoYaml quotes values YAML would read as numbers or booleans", () => {
 	const yaml = locoYaml({
 		schemaUrl: "",
-		form: { ...form, cpu: "1", isPublic: false, envText: "", healthPath: "", regions: ["on"] },
+		form: { ...form, cpu: "1", isPublic: false, vars: [], health: { ...form.health, path: "" }, regions: ["on"] },
 	});
 	expect(yaml).toContain('"on": { cpu: "1", memory: 512Mi');
 	expect(yaml).not.toContain("domains");
 	expect(yaml).not.toContain("health");
 	expect(yaml.startsWith("version: 1\n")).toBe(true);
+	expect(
+		locoYaml({ schemaUrl: "", form: { ...form, health: { path: "/up", interval: "", timeout: "", failAfter: "2" } } }),
+	).toContain("    health: { path: /up, failThreshold: 2 }\n");
 });
 
 test("looksSecret flags keys whose words name a credential", () => {
