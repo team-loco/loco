@@ -38,16 +38,16 @@ export function resourcesPath(orgId: string, workspaceId: string): string {
 
 export function inResourcesSection(pathname: string, orgId: string, workspaceId: string): boolean {
 	const base = workspacePath(orgId, workspaceId);
-	return (
-		pathname === resourcesPath(orgId, workspaceId) ||
-		pathname === `${base}/new` ||
-		pathname.startsWith(`${base}/resource/`)
-	);
+	return pathname === resourcesPath(orgId, workspaceId) || pathname.startsWith(`${base}/resource/`);
 }
 
+export const NEW_RESOURCE_PARAM = "new";
+const NEW_RESOURCE_FLAG = "1";
+
 export function newResourcePath(orgId: string, workspaceId: string, params: Record<string, string> = {}): string {
-	const search = new URLSearchParams(params).toString();
-	return `${workspacePath(orgId, workspaceId, "new")}${search === "" ? "" : `?${search}`}`;
+	const search = new URLSearchParams(params);
+	search.set(NEW_RESOURCE_PARAM, NEW_RESOURCE_FLAG);
+	return `${resourcesPath(orgId, workspaceId)}?${search.toString()}`;
 }
 
 export type ObservabilityView = "logs" | "metrics" | "traces" | "events";

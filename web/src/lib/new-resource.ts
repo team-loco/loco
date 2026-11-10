@@ -45,6 +45,14 @@ export function nameFromImage(image: string, takenSlugs: ReadonlySet<string>): s
 	return name;
 }
 
+const SECRET_WORDS = new Set(["SECRET", "TOKEN", "PASSWORD", "PASSWD", "KEY", "CREDENTIALS", "DSN", "PRIVATE"]);
+const SECRET_NAMES = new Set(["DATABASE_URL"]);
+
+export function looksSecret(key: string): boolean {
+	const upper = key.toUpperCase();
+	return SECRET_NAMES.has(upper) || upper.split("_").some((word) => SECRET_WORDS.has(word));
+}
+
 export function servedDomains(domains: PlatformDomain[], regions: string[]): string[] {
 	return domains.filter((d) => regions.every((r) => d.regions.includes(r))).map((d) => d.domain);
 }
@@ -85,14 +93,19 @@ function subdomainError(form: NewResourceForm, availability: DomainCheck["state"
 	return null;
 }
 
+export function imageError(image: string): string | null {
+	const trimmed = image.trim();
+	if (trimmed === "") return "Enter an image";
+	return IMAGE_RE.test(trimmed) ? null : "Use registry/repository:tag";
+}
+
 export function validateForm(
 	form: NewResourceForm,
 	takenSlugs: ReadonlyMap<string, string>,
 	availability: DomainCheck["state"],
 ): FormErrors {
-	const image = form.image.trim();
 	return {
-		image: image === "" ? "Enter an image" : IMAGE_RE.test(image) ? null : "Use registry/repository:tag",
+		image: imageError(form.image),
 		name: nameError(form.name, takenSlugs),
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
 		cpu: form.cpu.trim() === "" ? "Enter a CPU amount" : null,
