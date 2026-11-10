@@ -1,5 +1,9 @@
+import { create } from "@bufbuild/protobuf";
 import { expect, test } from "bun:test";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { WebhookDeliverySchema } from "@gen/loco/webhook/v1/webhook_pb";
+
+import { msToTimestamp } from "@/lib/time";
 
 import {
 	DELIVERY_TICKS,
@@ -13,13 +17,8 @@ import {
 	webhookEventGroups,
 } from "./webhooks";
 
-const delivery = (id: string, status: string, lastError = "", attempts = 1) => ({
-	id,
-	eventType: "deployment.created",
-	status,
-	attempts,
-	lastError,
-});
+const delivery = (id: string, status: string, lastError = "", attempts = 1) =>
+	create(WebhookDeliverySchema, { id, eventType: "deployment.created", status, attempts, lastError });
 
 test("colours ticks oldest first and caps the strip", () => {
 	const newestFirst = [
@@ -52,15 +51,16 @@ test("counts failed and retrying deliveries but not queued ones", () => {
 test("shows the next attempt for a pending retry and the age otherwise", () => {
 	const created = Date.UTC(2026, 10, 9);
 	const now = created + 10 * 60_000;
-	expect(
-		deliveryWhen({ status: "pending", createdMs: created, deliveredMs: undefined, nextMs: now + 2 * 60_000 }, now),
-	).toBe("next in 2 min");
-	expect(deliveryWhen({ status: "pending", createdMs: created, deliveredMs: undefined, nextMs: now - 1 }, now)).toBe(
-		"10 min ago",
-	);
-	expect(deliveryWhen({ status: "succeeded", createdMs: created, deliveredMs: now - 60_000, nextMs: now }, now)).toBe(
-		"1 min ago",
-	);
+	const at = (status: string, nextMs: number, deliveredMs?: number) =>
+		create(WebhookDeliverySchema, {
+			status,
+			createdAt: msToTimestamp(created),
+			nextAttemptAt: msToTimestamp(nextMs),
+			...(deliveredMs === undefined ? {} : { deliveredAt: msToTimestamp(deliveredMs) }),
+		});
+	expect(deliveryWhen(at("pending", now + 2 * 60_000), now)).toBe("next in 2 min");
+	expect(deliveryWhen(at("pending", now - 1), now)).toBe("10 min ago");
+	expect(deliveryWhen(at("succeeded", now, now - 60_000), now)).toBe("1 min ago");
 });
 
 test("describes the last error with the attempt count", () => {

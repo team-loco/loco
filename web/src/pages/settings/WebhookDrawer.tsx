@@ -12,7 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { usePagedRows } from "@/lib/paging";
-import { formatClock, maybeTsMs, tsMs } from "@/lib/time";
+import { formatClock, tsMs } from "@/lib/time";
 
 import { formatDay } from "./parts";
 import {
@@ -158,7 +158,6 @@ function DeliveryList({
 		<ul aria-label="Deliveries" className="m-0 flex list-none flex-col p-0">
 			{deliveries.map((d) => {
 				const detail = deliveryDetail(d);
-				const createdMs = tsMs(d.createdAt);
 				return (
 					<li
 						key={d.id}
@@ -171,17 +170,9 @@ function DeliveryList({
 						<span className="truncate font-mono text-[12px]">{d.eventType}</span>
 						<span
 							className="text-right font-mono text-[11.5px] whitespace-nowrap text-fg3"
-							title={`${formatDay(d.createdAt)} · ${formatClock(createdMs)}`}
+							title={`${formatDay(d.createdAt)} · ${formatClock(tsMs(d.createdAt))}`}
 						>
-							{deliveryWhen(
-								{
-									status: d.status,
-									createdMs,
-									deliveredMs: maybeTsMs(d.deliveredAt),
-									nextMs: maybeTsMs(d.nextAttemptAt),
-								},
-								nowMs,
-							)}
+							{deliveryWhen(d, nowMs)}
 						</span>
 						{detail !== null && (
 							<span className="col-start-2 col-end-4 font-mono text-[11.5px] [overflow-wrap:anywhere] text-fg3">

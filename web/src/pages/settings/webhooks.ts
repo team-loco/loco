@@ -1,7 +1,8 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
 
 import { pluralize } from "@/lib/format";
-import { agoLabel, DAY_MS } from "@/lib/time";
+import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
 
 import { AUDIT_EVENT_TYPES } from "./auditEvents";
 
@@ -16,29 +17,21 @@ const HOUR_MS = 3_600_000;
 
 export type Tick = "ok" | "warn" | "err";
 
-export interface DeliveryFields {
-	id: string;
-	eventType: string;
-	status: string;
-	attempts: number;
-	lastError: string;
-}
-
-export function deliveryTick(d: DeliveryFields): Tick {
+export function deliveryTick(d: WebhookDelivery): Tick {
 	if (d.status === STATUS_SUCCEEDED) return "ok";
 	if (d.status === STATUS_FAILED) return "err";
 	return "warn";
 }
 
-export function isFailing(d: DeliveryFields): boolean {
+export function isFailing(d: WebhookDelivery): boolean {
 	return d.status === STATUS_FAILED || (d.status === STATUS_PENDING && d.lastError !== "");
 }
 
-export function failingCount(deliveries: readonly DeliveryFields[]): number {
+export function failingCount(deliveries: readonly WebhookDelivery[]): number {
 	return deliveries.filter(isFailing).length;
 }
 
-export function deliveryLabel(d: DeliveryFields): string {
+export function deliveryLabel(d: WebhookDelivery): string {
 	if (d.status === STATUS_SUCCEEDED) return "Delivered";
 	if (d.status === STATUS_FAILED) return "Failed";
 	if (d.status === STATUS_PENDING) return d.lastError === "" ? "Pending" : "Retrying";
@@ -51,24 +44,22 @@ export interface TickMark {
 	tip: string;
 }
 
-export function tickStrip(newestFirst: readonly DeliveryFields[]): TickMark[] {
+export function tickStrip(newestFirst: readonly WebhookDelivery[]): TickMark[] {
 	return newestFirst
 		.slice(0, DELIVERY_TICKS)
 		.toReversed()
 		.map((d) => ({ id: d.id, tick: deliveryTick(d), tip: `${d.eventType} · ${deliveryLabel(d)}` }));
 }
 
-export function deliveryWhen(
-	d: { status: string; createdMs: number; deliveredMs: number | undefined; nextMs: number | undefined },
-	nowMs: number,
-): string {
-	if (d.status === STATUS_PENDING && d.nextMs !== undefined && d.nextMs > nowMs) {
-		return `next ${inLabel(d.nextMs, nowMs)}`;
+export function deliveryWhen(d: WebhookDelivery, nowMs: number): string {
+	const nextMs = maybeTsMs(d.nextAttemptAt);
+	if (d.status === STATUS_PENDING && nextMs !== undefined && nextMs > nowMs) {
+		return `next ${inLabel(nextMs, nowMs)}`;
 	}
-	return agoLabel(d.deliveredMs ?? d.createdMs, nowMs);
+	return agoLabel(maybeTsMs(d.deliveredAt) ?? tsMs(d.createdAt), nowMs);
 }
 
-export function inLabel(ms: number, nowMs: number): string {
+function inLabel(ms: number, nowMs: number): string {
 	const left = ms - nowMs;
 	if (left < MINUTE_MS) return "in under a minute";
 	if (left < HOUR_MS) return `in ${Math.round(left / MINUTE_MS).toString()} min`;
@@ -76,7 +67,7 @@ export function inLabel(ms: number, nowMs: number): string {
 	return `in ${pluralize(Math.round(left / DAY_MS), "day")}`;
 }
 
-export function deliveryDetail(d: DeliveryFields): string | null {
+export function deliveryDetail(d: WebhookDelivery): string | null {
 	if (d.lastError === "" || d.status === STATUS_SUCCEEDED) return null;
 	return `${d.lastError} · ${pluralize(d.attempts, "attempt")}`;
 }
