@@ -9,6 +9,7 @@ import {
 	ComboboxItem,
 	ComboboxGroup,
 	ComboboxLabel,
+	ComboboxEmpty,
 	useComboboxAnchor,
 } from "@/components/design/Combobox";
 import { Button } from "@/components/design/Button";
@@ -255,10 +256,8 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		if (ks.length > 0) groups.push({ title: "Attributes", items: ks.map((f) => keyItem(f, false)) });
 	}
 
-	const flat = groups.flatMap((g) => g.items).filter((s) => s.disabled !== true);
 	const curQuery = queryStr(tokens, text);
 	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
-	const noMatches = open && flat.length === 0 && cur !== "";
 
 	const onChange = (v: string) => {
 		const m = COMPLETED_TOKEN_RE.exec(v);
@@ -273,11 +272,14 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		setOpen(true);
 	};
 
-	const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+	const onKeyDown: NonNullable<React.ComponentProps<typeof ComboboxChipsInput>["onKeyDown"]> = (e) => {
 		if (e.nativeEvent.isComposing) return;
 		const highlighted = highlightedRef.current;
-		if (e.key === "Enter" && (!open || highlighted === undefined || (cur.trim() === "" && tokens.length > 0))) {
+		const typingWord = cur.trim() !== "";
+		const emptyQuery = text.trim() === "" && tokens.length === 0;
+		if (e.key === "Enter" && !(open && highlighted !== undefined && (typingWord || emptyQuery))) {
 			e.preventDefault();
+			e.preventBaseUIHandler();
 			commit();
 		} else if (e.key === "Tab" && open && highlighted !== undefined && cur.trim() !== "") {
 			e.preventDefault();
@@ -423,7 +425,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 									))}
 								</ComboboxGroup>
 							))}
-						{noMatches && <div className="p-2.5 text-fg3">No matches</div>}
+						<ComboboxEmpty className="p-2.5 text-fg3">No matches</ComboboxEmpty>
 					</ComboboxList>
 					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
 						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix

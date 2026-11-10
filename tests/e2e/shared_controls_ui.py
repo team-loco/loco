@@ -108,6 +108,43 @@ def calendar(page, suffix):
     expect(date_trigger).not_to_have_text(before)
 
 
+def query_enter(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
+    search = page.locator('input[aria-label="Search and filter"]')
+    search.click()
+    suggestions = page.get_by_role("listbox", name="Suggestions")
+    expect(suggestions).to_be_visible()
+    search.press("Enter")
+    expect(suggestions).not_to_be_visible()
+    expect(search).to_have_value("")
+    assert query_param(page) == "@level:warn", query_param(page)
+    search.press_sequentially("checkout ")
+    expect(suggestions).to_be_visible()
+    search.press("Enter")
+    expect(suggestions).not_to_be_visible()
+    expect(page).to_have_url(re.compile(r"checkout"))
+    assert query_param(page) == "@level:warn checkout", query_param(page)
+
+
+def query_suggestions(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    search = page.locator('input[aria-label="Search and filter"]')
+    search.fill("@lev")
+    expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
+    suggestions = page.get_by_role("listbox", name="Suggestions")
+    suggestions.locator("..").screenshot(path=str(out / f"log-query-{suffix}.png"), animations="disabled")
+    expect(search).to_have_attribute("aria-expanded", "true")
+    search.press("Enter")
+    expect(search).to_have_value("@level:")
+    search.fill("@level:warn")
+    search.press("Tab")
+    expect(search).to_have_value("")
+    search.fill("@zz")
+    expect(page.get_by_text("No matches", exact=True)).to_be_visible()
+    search.press("Escape")
+    expect(search).to_have_attribute("aria-expanded", "false")
+
+
 def volume(page, suffix):
     end = int(datetime.now(UTC).timestamp() * 1000)
     page.goto(state["ui_url"] + base + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}")
@@ -251,7 +288,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, time_presets, calendar, metrics, volume):
+                        for check in (log_levels, time_presets, calendar, metrics, query_enter, query_suggestions, volume):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})
