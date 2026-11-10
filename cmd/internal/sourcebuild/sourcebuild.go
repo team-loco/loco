@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"connectrpc.com/connect/v2"
+	"github.com/team-loco/loco/cmd/internal/gitsource"
 	"github.com/team-loco/loco/cmd/internal/sourcepack"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/internal/rpc"
@@ -47,11 +48,13 @@ func New(clients *rpc.Clients, out io.Writer) *Builder {
 }
 
 // Input names what one build of a service compiles: the service's resource, the archive
-// to upload, and the Dockerfile relative to the context directory of the archive.
+// to upload, the commit it was packed from, and the Dockerfile relative to the context
+// directory of the archive.
 type Input struct {
 	ResourceID  string
 	WorkspaceID string
 	Archive     *sourcepack.Archive
+	Commit      gitsource.Commit
 	Dockerfile  string
 	Context     string
 }
@@ -99,11 +102,21 @@ func (b *Builder) Build(ctx context.Context, in Input) (*buildv1.Build, error) {
 }
 
 func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBuildResponse, error) {
+	var gitCommit, gitBranch, gitMessage *string
+	if commit := in.Commit; commit.SHA != "" {
+		gitCommit, gitMessage = &commit.SHA, &commit.Message
+		if commit.Branch != "" {
+			gitBranch = &commit.Branch
+		}
+	}
 	req := &buildv1.CreateBuildRequest{
-		ResourceId:     in.ResourceID,
-		DockerfilePath: in.Dockerfile,
-		SourceSize:     in.Archive.Size,
-		Context:        in.Context,
+		ResourceId:       in.ResourceID,
+		DockerfilePath:   in.Dockerfile,
+		SourceSize:       in.Archive.Size,
+		Context:          in.Context,
+		GitCommit:        gitCommit,
+		GitBranch:        gitBranch,
+		GitCommitMessage: gitMessage,
 	}
 	resp, err := b.follower.clients.Build.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {

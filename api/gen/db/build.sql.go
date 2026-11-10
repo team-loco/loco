@@ -138,21 +138,26 @@ func (q *Queries) CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherAc
 }
 
 const createBuild = `-- name: CreateBuild :one
-INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by)
-VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
+INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
+                    git_commit, git_branch, git_commit_message)
+VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
+        $10, $11, $12)
+RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
 `
 
 type CreateBuildParams struct {
-	ID              uuid.UUID `json:"id"`
-	ResourceID      uuid.UUID `json:"resourceId"`
-	SourceType      string    `json:"sourceType"`
-	SourceKey       string    `json:"sourceKey"`
-	SourceSize      int64     `json:"sourceSize"`
-	DockerfilePath  string    `json:"dockerfilePath"`
-	Context         string    `json:"context"`
-	ImageRepository string    `json:"imageRepository"`
-	CreatedBy       uuid.UUID `json:"createdBy"`
+	ID               uuid.UUID `json:"id"`
+	ResourceID       uuid.UUID `json:"resourceId"`
+	SourceType       string    `json:"sourceType"`
+	SourceKey        string    `json:"sourceKey"`
+	SourceSize       int64     `json:"sourceSize"`
+	DockerfilePath   string    `json:"dockerfilePath"`
+	Context          string    `json:"context"`
+	ImageRepository  string    `json:"imageRepository"`
+	CreatedBy        uuid.UUID `json:"createdBy"`
+	GitCommit        *string   `json:"gitCommit"`
+	GitBranch        *string   `json:"gitBranch"`
+	GitCommitMessage *string   `json:"gitCommitMessage"`
 }
 
 func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error) {
@@ -166,6 +171,9 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		arg.Context,
 		arg.ImageRepository,
 		arg.CreatedBy,
+		arg.GitCommit,
+		arg.GitBranch,
+		arg.GitCommitMessage,
 	)
 	var i Build
 	err := row.Scan(
@@ -178,6 +186,9 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		&i.SourceSize,
 		&i.DockerfilePath,
 		&i.Context,
+		&i.GitCommit,
+		&i.GitBranch,
+		&i.GitCommitMessage,
 		&i.ImageRepository,
 		&i.ImageDigest,
 		&i.CacheDigest,
@@ -331,7 +342,7 @@ func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (Finis
 }
 
 const getBuildByID = `-- name: GetBuildByID :one
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
 `
 
 func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -347,6 +358,9 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 		&i.SourceSize,
 		&i.DockerfilePath,
 		&i.Context,
+		&i.GitCommit,
+		&i.GitBranch,
+		&i.GitCommitMessage,
 		&i.ImageRepository,
 		&i.ImageDigest,
 		&i.CacheDigest,
@@ -471,7 +485,7 @@ func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]Li
 }
 
 const listBuildsForResource = `-- name: ListBuildsForResource :many
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
 WHERE b.resource_id = $1
   AND ($3::text IS NULL
        OR (b.created_at, b.id) < (
@@ -513,6 +527,9 @@ func (q *Queries) ListBuildsForResource(ctx context.Context, arg ListBuildsForRe
 			&i.SourceSize,
 			&i.DockerfilePath,
 			&i.Context,
+			&i.GitCommit,
+			&i.GitBranch,
+			&i.GitCommitMessage,
 			&i.ImageRepository,
 			&i.ImageDigest,
 			&i.CacheDigest,

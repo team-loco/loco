@@ -19,6 +19,13 @@ cli_setup() {
     cp -R "$E2E_ROOT_DIR/tests/e2e/fixtures/build-app/." "$cli_app_dir/"
     printf 'SECRET=never-uploaded\n' >"$cli_app_dir/.env"
     cli_write_service_config "$cli_app_dir" "$cli_app" 8080 /healthz
+    cli_git init -q -b e2e-branch
+    cli_git add -A
+    cli_git commit -q -m "e2e source commit"
+}
+
+cli_git() {
+    git -C "$cli_app_dir" -c user.name=e2e -c user.email=e2e@loco.test "$@"
 }
 
 cli_built_image() {
@@ -55,7 +62,15 @@ test_c02_cli_lists_the_build() {
         loco_cli builds list "$cli_app" --output json
 }
 
-test_c03_cli_deployment_runs_the_build() {
+test_c03_cli_records_the_source_commit() {
+    local commit want
+    commit=$(loco_cli builds list "$cli_app" --output json |
+        yq -p json -r '.builds[0] | .gitCommit + " " + .gitBranch + " " + .gitCommitMessage')
+    want="$(cli_git rev-parse HEAD) e2e-branch e2e source commit"
+    assert "the build records the deployed commit (${commit})" test "$commit" = "$want"
+}
+
+test_c04_cli_deployment_runs_the_build() {
     local image
     image=$(cli_built_image)
     if ! assert "loco builds list reported the built image (${image})" grep -q '@sha256:[a-f0-9]\{64\}$' <<<"$image"; then
@@ -66,7 +81,7 @@ test_c03_cli_deployment_runs_the_build() {
         -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
 }
 
-test_c04_cli_deploys_without_loco_yaml() {
+test_c05_cli_deploys_without_loco_yaml() {
     local minimal_dir="$cli_dir/minimal" minimal_app="e2e-cli-minimal" rc=0
     mkdir -p "$minimal_dir"
     cp -R "$E2E_ROOT_DIR/tests/e2e/fixtures/build-app/." "$minimal_dir/"

@@ -447,15 +447,18 @@ func (s *fakeBuildService) CreateBuild(
 	}
 	id := fmt.Sprintf("0199b6c4-5d1e-7f00-8000-%012d", len(f.platform.builds)+1)
 	f.platform.builds = append(f.platform.builds, &buildv1.Build{
-		Id:              id,
-		ResourceId:      req.GetResourceId(),
-		Status:          buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD,
-		SourceType:      sourceTypeUpload,
-		SourceSize:      size,
-		DockerfilePath:  req.GetDockerfilePath(),
-		Context:         req.GetContext(),
-		ImageRepository: fakeImageRepo,
-		CreatedAt:       timestamppb.Now(),
+		Id:               id,
+		ResourceId:       req.GetResourceId(),
+		Status:           buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD,
+		SourceType:       sourceTypeUpload,
+		SourceSize:       size,
+		DockerfilePath:   req.GetDockerfilePath(),
+		Context:          req.GetContext(),
+		ImageRepository:  fakeImageRepo,
+		CreatedAt:        timestamppb.Now(),
+		GitCommit:        req.GitCommit,
+		GitBranch:        req.GitBranch,
+		GitCommitMessage: req.GitCommitMessage,
 	})
 	return &buildv1.CreateBuildResponse{
 		BuildId:   id,

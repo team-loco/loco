@@ -8,7 +8,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -607,5 +609,73 @@ func TestCreateBuildStoresTheContext(t *testing.T) {
 	}
 	if got := f.get(t, resp.GetBuildId()).GetContext(); got != "services/web" {
 		t.Fatalf("context = %q, want services/web", got)
+	}
+}
+
+func TestCreateBuildStoresTheGitCommit(t *testing.T) {
+	f := newBuildFixture(t)
+
+	withoutGit := f.get(t, f.create(t, 1).GetBuildId())
+	if withoutGit.GitCommit != nil || withoutGit.GitBranch != nil || withoutGit.GitCommitMessage != nil {
+		t.Fatalf("build without git metadata reports commit %v, branch %v, message %v",
+			withoutGit.GitCommit, withoutGit.GitBranch, withoutGit.GitCommitMessage)
+	}
+
+	want := &buildv1.CreateBuildRequest{
+		ResourceId:       f.resourceID.String(),
+		DockerfilePath:   testDockerfile,
+		SourceSize:       1,
+		GitCommit:        new("0123456789abcdef0123456789abcdef01234567"),
+		GitBranch:        new("main"),
+		GitCommitMessage: new("Fix the health check"),
+	}
+	resp, err := f.server.CreateBuild(f.ctx, want)
+	if err != nil {
+		t.Fatalf("create build: %v", err)
+	}
+	listReq := &buildv1.ListBuildsRequest{ResourceId: f.resourceID.String()}
+	listed, err := f.server.ListBuilds(f.ctx, listReq)
+	if err != nil {
+		t.Fatalf("list builds: %v", err)
+	}
+	listIndex := slices.IndexFunc(listed.GetBuilds(), func(b *buildv1.Build) bool {
+		return b.GetId() == resp.GetBuildId()
+	})
+	if listIndex < 0 {
+		t.Fatalf("list builds did not return build %s", resp.GetBuildId())
+	}
+	for source, got := range map[string]*buildv1.Build{
+		"get":  f.get(t, resp.GetBuildId()),
+		"list": listed.GetBuilds()[listIndex],
+	} {
+		if got.GetGitCommit() != want.GetGitCommit() || got.GetGitBranch() != want.GetGitBranch() ||
+			got.GetGitCommitMessage() != want.GetGitCommitMessage() {
+			t.Fatalf("%s returned commit %q, branch %q, message %q; want the request's values",
+				source, got.GetGitCommit(), got.GetGitBranch(), got.GetGitCommitMessage())
+		}
+	}
+}
+
+func TestCreateBuildClipsALongCommitMessage(t *testing.T) {
+	f := newBuildFixture(t)
+	subject := strings.Repeat("€", maxGitCommitMessageRunes+1)
+	req := &buildv1.CreateBuildRequest{
+		ResourceId:       f.resourceID.String(),
+		DockerfilePath:   testDockerfile,
+		SourceSize:       1,
+		GitCommit:        new("0123456789abcdef0123456789abcdef01234567"),
+		GitCommitMessage: &subject,
+	}
+	if err := protovalidate.Validate(req); err != nil {
+		t.Fatalf("validate a long commit message: %v", err)
+	}
+	resp, err := f.server.CreateBuild(f.ctx, req)
+	if err != nil {
+		t.Fatalf("create build: %v", err)
+	}
+	want := strings.Repeat("€", maxGitCommitMessageRunes)
+	if got := f.get(t, resp.GetBuildId()).GetGitCommitMessage(); got != want {
+		t.Fatalf("stored a %d-rune message, want it clipped to %d runes",
+			utf8.RuneCountInString(got), maxGitCommitMessageRunes)
 	}
 }

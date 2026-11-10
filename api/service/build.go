@@ -21,12 +21,16 @@ import (
 	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
 	buildSourceTypeUpload = "upload"
 	defaultBuildContext   = "."
+	// maxGitCommitMessageRunes bounds the stored subject line; longer ones are clipped
+	// rather than refused, so commit metadata never fails a build.
+	maxGitCommitMessageRunes = 4096
 )
 
 var (
@@ -145,21 +149,28 @@ func (s *BuildServer) CreateBuild(
 		resource.ID,
 	)
 	dockerfilePath := req.GetDockerfilePath()
+	var gitCommitMessage *string
+	if req.GitCommitMessage != nil {
+		gitCommitMessage = new(clip.Runes(req.GetGitCommitMessage(), maxGitCommitMessageRunes))
+	}
 	buildContext := req.GetContext()
 	if buildContext == "" {
 		buildContext = defaultBuildContext
 	}
 	createErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, err := qtx.CreateBuild(ctx, genDb.CreateBuildParams{
-			ID:              buildID,
-			ResourceID:      resource.ID,
-			SourceType:      buildSourceTypeUpload,
-			SourceKey:       sourceKey,
-			SourceSize:      sourceSize,
-			DockerfilePath:  dockerfilePath,
-			Context:         buildContext,
-			ImageRepository: repository,
-			CreatedBy:       p.Entity.ID,
+			ID:               buildID,
+			ResourceID:       resource.ID,
+			SourceType:       buildSourceTypeUpload,
+			SourceKey:        sourceKey,
+			SourceSize:       sourceSize,
+			DockerfilePath:   dockerfilePath,
+			Context:          buildContext,
+			ImageRepository:  repository,
+			CreatedBy:        p.Entity.ID,
+			GitCommit:        req.GitCommit,
+			GitBranch:        req.GitBranch,
+			GitCommitMessage: gitCommitMessage,
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)
 		}
@@ -517,22 +528,25 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 	imageDeletedAt := optionalTimestamp(b.ImageDeletedAt)
 
 	out := &buildv1.Build{
-		Id:              id,
-		ResourceId:      resourceID,
-		Status:          status,
-		SourceType:      b.SourceType,
-		SourceKey:       b.SourceKey,
-		SourceSize:      b.SourceSize,
-		DockerfilePath:  b.DockerfilePath,
-		Context:         b.Context,
-		ImageRepository: b.ImageRepository,
-		ImageDigest:     b.ImageDigest,
-		Message:         b.Message,
-		CreatedBy:       createdBy,
-		CreatedAt:       createdAt,
-		StartedAt:       startedAt,
-		FinishedAt:      finishedAt,
-		ImageDeletedAt:  imageDeletedAt,
+		Id:               id,
+		ResourceId:       resourceID,
+		Status:           status,
+		SourceType:       b.SourceType,
+		SourceKey:        b.SourceKey,
+		SourceSize:       b.SourceSize,
+		DockerfilePath:   b.DockerfilePath,
+		Context:          b.Context,
+		ImageRepository:  b.ImageRepository,
+		ImageDigest:      b.ImageDigest,
+		Message:          b.Message,
+		CreatedBy:        createdBy,
+		CreatedAt:        createdAt,
+		StartedAt:        startedAt,
+		FinishedAt:       finishedAt,
+		ImageDeletedAt:   imageDeletedAt,
+		GitCommit:        b.GitCommit,
+		GitBranch:        b.GitBranch,
+		GitCommitMessage: b.GitCommitMessage,
 	}
 	if b.ClusterID != nil {
 		clusterID := b.ClusterID.String()

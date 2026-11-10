@@ -8045,6 +8045,29 @@
             "type": "string",
             "title": "context",
             "description": "context is the build context directory relative to the uploaded source."
+          },
+          "gitCommit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "git_commit",
+            "description": "The git_* fields describe the commit the uploaded source was checked out at; unset when\n the CLI packed a directory outside a git work tree or one without commits."
+          },
+          "gitBranch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "git_branch"
+          },
+          "gitCommitMessage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "git_commit_message",
+            "description": "git_commit_message is the commit's subject line."
           }
         },
         "title": "Build",
@@ -8117,6 +8140,32 @@
             "title": "context",
             "maxLength": 1024,
             "description": "context is the build context directory relative to the uploaded source; \".\" when empty.\nbuild.context // context must be '.' or a relative directory inside the uploaded source\n"
+          },
+          "gitCommit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "git_commit",
+            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+            "description": "The git_* fields carry the same values as on Build; branch is unset on a detached HEAD."
+          },
+          "gitBranch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "git_branch",
+            "maxLength": 1024,
+            "minLength": 1
+          },
+          "gitCommitMessage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "git_commit_message",
+            "description": "git_commit_message longer than the API's limit is stored clipped."
           }
         },
         "title": "CreateBuildRequest",

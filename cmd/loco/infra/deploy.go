@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/gitsource"
 	"github.com/team-loco/loco/cmd/internal/sourcebuild"
 	"github.com/team-loco/loco/cmd/internal/sourcepack"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -141,8 +142,10 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return err
 	}
 	var archive *sourcepack.Archive
+	var commit gitsource.Commit
 	if len(targets) > 0 {
-		archive, err = packTargets(filepath.Dir(filePath), targets, os.Stdout)
+		dir := filepath.Dir(filePath)
+		archive, err = packTargets(dir, targets, os.Stdout)
 		if err != nil {
 			return err
 		}
@@ -151,6 +154,10 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 				fmt.Fprintf(os.Stdout, "Could not remove %s: %v\n", archive.Path, removeErr)
 			}
 		}()
+		commit, err = gitsource.Read(ctx, dir)
+		if err != nil {
+			return err
+		}
 	}
 	if proceed, askErr := cmdutil.Confirm(cmd, "Deploy?"); !proceed {
 		return askErr
@@ -175,7 +182,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 
 	var builds map[string]string
 	if len(targets) > 0 {
-		builds, err = buildServices(ctx, t, archive, targets, os.Stdout)
+		builds, err = buildServices(ctx, t, archive, commit, targets, os.Stdout)
 		if err != nil {
 			return err
 		}
@@ -310,6 +317,7 @@ func buildServices(
 	ctx context.Context,
 	t cmdutil.Target,
 	archive *sourcepack.Archive,
+	commit gitsource.Commit,
 	targets []buildTarget,
 	out io.Writer,
 ) (map[string]string, error) {
@@ -325,6 +333,7 @@ func buildServices(
 			ResourceID:  res.GetId(),
 			WorkspaceID: t.WorkspaceID,
 			Archive:     archive,
+			Commit:      commit,
 			Dockerfile:  target.dockerfile,
 			Context:     target.context,
 		})

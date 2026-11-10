@@ -24,6 +24,7 @@ const (
 	defaultBuildListSize = 20
 	finishedLogMargin    = time.Minute
 	imageDeletedSuffix   = " (deleted)"
+	shortCommitLength    = 7
 )
 
 func BuildBuildsCmd() *cobra.Command {
@@ -144,7 +145,7 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 		return err
 	}
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tSTATUS\tCREATED\tDURATION\tIMAGE DIGEST")
+	fmt.Fprintln(w, "ID\tSTATUS\tCOMMIT\tCREATED\tDURATION\tIMAGE DIGEST")
 	for _, build := range builds {
 		created := build.GetCreatedAt().AsTime().UTC().Format(time.RFC3339)
 		duration := sourcebuild.Duration(build)
@@ -161,9 +162,18 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 		status := build.GetStatus()
 		label := sourcebuild.StatusLabel(status)
 		id := build.GetId()
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", id, label, created, duration, digest)
+		commit := shortCommit(build)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, label, commit, created, duration, digest)
 	}
 	return w.Flush()
+}
+
+func shortCommit(build *buildv1.Build) string {
+	commit := build.GetGitCommit()
+	if commit == "" {
+		return "-"
+	}
+	return commit[:min(len(commit), shortCommitLength)]
 }
 
 func newBuildsGetCmd() *cobra.Command {
@@ -207,6 +217,9 @@ func writeBuildDetails(out io.Writer, build *buildv1.Build) error {
 		{"Status", sourcebuild.StatusLabel(status)},
 		{"Message", build.GetMessage()},
 		{"Dockerfile", build.GetDockerfilePath()},
+		{"Commit", build.GetGitCommit()},
+		{"Branch", build.GetGitBranch()},
+		{"Commit message", build.GetGitCommitMessage()},
 		{"Source size", sourcebuild.FormatBytes(sourceSize)},
 		{"Image", build.GetImageRepository()},
 		{"Image digest", build.GetImageDigest()},

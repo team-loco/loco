@@ -44,6 +44,12 @@ message Build {
   optional google.protobuf.Timestamp image_deleted_at = 16;
   // context is the build context directory relative to the uploaded source.
   string context = 17;
+  // The git_* fields describe the commit the uploaded source was checked out at; unset when
+  // the CLI packed a directory outside a git work tree or one without commits.
+  optional string git_commit = 18;
+  optional string git_branch = 19;
+  // git_commit_message is the commit's subject line.
+  optional string git_commit_message = 20;
 }
 
 message BuildsUnavailable {}
@@ -71,6 +77,14 @@ message CreateBuildRequest {
       expression: "this == '' || this == '.' || (!this.startsWith('/') && !this.endsWith('/') && !this.split('/').exists(p, p == '..' || p == '.' || p == ''))"
     }
   ];
+  // The git_* fields carry the same values as on Build; branch is unset on a detached HEAD.
+  optional string git_commit = 5 [(buf.validate.field).string.pattern = "^[0-9a-f]{40}([0-9a-f]{24})?$"];
+  optional string git_branch = 6 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 1024
+  }];
+  // git_commit_message longer than the API's limit is stored clipped.
+  optional string git_commit_message = 7;
 }
 
 message CreateBuildResponse {
