@@ -12,7 +12,6 @@ import {
 	deliveryWhen,
 	eventsSummary,
 	failingCount,
-	failingLabel,
 	groupCountLabel,
 	isUrlRejection,
 	tickStrip,
@@ -47,8 +46,6 @@ test("counts failed and retrying deliveries but not queued ones", () => {
 		delivery("d", "failed", "endpoint returned 500"),
 	];
 	expect(failingCount(deliveries)).toBe(2);
-	expect(failingLabel(1)).toBe("1 error");
-	expect(failingLabel(2)).toBe("2 errors");
 	expect(deliveries.map(deliveryLabel)).toEqual(["Delivered", "Pending", "Retrying", "Failed"]);
 });
 

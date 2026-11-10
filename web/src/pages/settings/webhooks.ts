@@ -31,10 +31,6 @@ export function failingCount(deliveries: readonly WebhookDelivery[]): number {
 	return deliveries.filter(isFailing).length;
 }
 
-export function failingLabel(n: number): string {
-	return pluralize(n, "error");
-}
-
 export function deliveryLabel(d: WebhookDelivery): string {
 	if (d.status === STATUS_SUCCEEDED) return "Delivered";
 	if (d.status === STATUS_FAILED) return "Failed";
