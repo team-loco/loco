@@ -173,7 +173,8 @@ obs_versions() {
     envoy_proxy=$(obs_kube -n "$E2E_LOCO_NAMESPACE" get deployments \
         -l gateway.envoyproxy.io/owning-gateway-name=eg \
         -o jsonpath='{.items[0].spec.template.spec.containers[*].image}')
-    gateway_api=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$E2E_ROOT_DIR/controller/go.mod")
+    gateway_api=$(obs_kube get crd gateways.gateway.networking.k8s.io -o json |
+        yq -p json -r '.metadata.annotations."gateway.networking.k8s.io/bundle-version" // "unavailable"')
     otel_sdk=$(awk '$1 == "go.opentelemetry.io/otel/sdk" { print $2 }' "$obs_fixture_dir/go.mod")
     deps=$(yq -r '.dependencies[] | select(.name == "opentelemetry-collector") | .alias + " " + .version' "$E2E_ROOT_DIR/charts/loco-worker/Chart.yaml" |
         paste -sd ',' - | sed 's/,/, /g')
