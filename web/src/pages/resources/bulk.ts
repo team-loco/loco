@@ -1,6 +1,5 @@
 import type { ResourceRow } from "./table";
 
-export const MIN_REPLICAS = 1;
 const LISTED_NAMES = 6;
 
 export interface FanOutResult<T> {
@@ -39,10 +38,7 @@ export interface ScaleChange {
 export function replicasError(form: ScaleForm): string | undefined {
 	const text = form.replicas.trim();
 	if (text === "") return undefined;
-	if (!/^\d+$/.test(text) || Number(text) < MIN_REPLICAS) {
-		return `Enter a whole number of at least ${MIN_REPLICAS.toString()}`;
-	}
-	return undefined;
+	return /^\d+$/.test(text) ? undefined : "Enter a whole number";
 }
 
 export function scaleChange(form: ScaleForm): ScaleChange | null {

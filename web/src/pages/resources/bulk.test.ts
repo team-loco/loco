@@ -59,8 +59,8 @@ describe("scale form", () => {
 		expect(scaleChange({ replicas: "3", cpu: "", memory: "1Gi" })).toEqual({ replicas: 3, memory: "1Gi" });
 	});
 
-	test("rejects replicas that are not a positive whole number", () => {
-		for (const replicas of ["0", "1.5", "-2", "two"]) {
+	test("rejects replicas that are not a whole number", () => {
+		for (const replicas of ["1.5", "-2", "two"]) {
 			expect(replicasError({ ...blank, replicas })).toBeDefined();
 			expect(scaleChange({ ...blank, replicas, cpu: "1" })).toBeNull();
 		}
