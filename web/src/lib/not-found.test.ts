@@ -5,6 +5,7 @@ import { describe, expect, test } from "bun:test";
 
 import { resourceMissing, workspaceKnown } from "./not-found";
 
+const ORG = "org-1";
 const WS = "ws-1";
 
 function scope(entityType: EntityType, entityId: string) {
@@ -33,20 +34,36 @@ describe("resourceMissing", () => {
 
 describe("workspaceKnown", () => {
 	test("a workspace in the user's list is known", () => {
-		expect(workspaceKnown(WS, [{ id: WS }], [])).toBe(true);
+		expect(workspaceKnown(ORG, WS, [{ id: WS }], [])).toBe(true);
 	});
 
 	test("a workspace grant makes it known without the list", () => {
-		expect(workspaceKnown(WS, [], [scope(EntityType.WORKSPACE, WS)])).toBe(true);
+		expect(workspaceKnown(ORG, WS, [], [scope(EntityType.WORKSPACE, WS)])).toBe(true);
 	});
 
 	test("any resource grant makes it known", () => {
-		expect(workspaceKnown(WS, [], [scope(EntityType.RESOURCE, "res-1")])).toBe(true);
+		expect(workspaceKnown(ORG, WS, [], [scope(EntityType.RESOURCE, "res-1")])).toBe(true);
+	});
+
+	test("membership in the org makes every workspace in it known", () => {
+		expect(
+			workspaceKnown(
+				ORG,
+				WS,
+				[],
+				[create(EntityScopeSchema, { entityType: EntityType.ORGANIZATION, entityId: ORG, scope: Scope.MEMBER })],
+			),
+		).toBe(true);
 	});
 
 	test("anything else is unknown", () => {
 		expect(
-			workspaceKnown(WS, [{ id: "ws-2" }], [scope(EntityType.WORKSPACE, "ws-2"), scope(EntityType.ORGANIZATION, "o")]),
+			workspaceKnown(
+				ORG,
+				WS,
+				[{ id: "ws-2" }],
+				[scope(EntityType.WORKSPACE, "ws-2"), scope(EntityType.ORGANIZATION, "org-2")],
+			),
 		).toBe(false);
 	});
 });

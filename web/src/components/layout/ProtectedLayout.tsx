@@ -41,7 +41,9 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	const workspacesSettled = (orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading;
 	const workspaceNotFound =
-		workspacesSettled && workspaceParam !== undefined && !workspaceKnown(workspaceParam, workspaces, scopes.scopes);
+		workspacesSettled &&
+		workspaceParam !== undefined &&
+		!workspaceKnown(activeOrgId ?? "", workspaceParam, workspaces, scopes.scopes);
 
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 

@@ -121,9 +121,9 @@ with sync_playwright() as playwright:
                 expect(page.get_by_role("dialog", name="Command palette")).to_be_visible()
                 page.keyboard.press("Escape")
 
-                unknown = str(uuid.uuid4())
-                page.goto(f"{ui}/org/{org}/wks/{unknown}")
-                expect_not_found(page, f"/org/{org}/wks/{unknown}")
+                unknown = f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}"
+                page.goto(ui + unknown)
+                expect_not_found(page, unknown)
                 assert not errors, errors
                 cases.append(case)
             except BaseException:
@@ -134,8 +134,9 @@ with sync_playwright() as playwright:
 
         context, page, errors = open_page(browser, "member")
         try:
-            page.goto(f"{ui}/org/{org}/wks/{sibling}")
-            expect_not_found(page, f"/org/{org}/wks/{sibling}")
+            foreign = f"/org/{uuid.uuid4()}/wks/{sibling}"
+            page.goto(ui + foreign)
+            expect_not_found(page, foreign)
             page.get_by_role("link", name="Go to dashboard", exact=True).click()
             expect(page).to_have_url(base)
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
