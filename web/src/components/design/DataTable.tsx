@@ -6,6 +6,7 @@ import {
 	type Column,
 	type ColumnDef,
 	type RowData,
+	type SortDirection,
 } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { TableHead } from "@/components/design/Table";
@@ -20,15 +21,18 @@ export type SortColumn<T extends RowData> = ColumnDef<typeof sortingFeatures, T>
 
 export function SortableTableHead<T extends RowData>({
 	column,
+	direction,
 	className,
 	children,
+	afterLabel,
 	...props
 }: Omit<React.ComponentProps<typeof TableHead>, "children"> & {
 	column: Column<typeof sortingFeatures, T> | undefined;
+	direction: SortDirection | false;
 	children: React.ReactNode;
+	afterLabel?: React.ReactNode;
 }) {
 	if (column === undefined) throw new Error("Unknown table column");
-	const direction = column.getIsSorted();
 	return (
 		<TableHead
 			className={className}
@@ -54,6 +58,7 @@ export function SortableTableHead<T extends RowData>({
 			) : (
 				children
 			)}
+			{afterLabel}
 		</TableHead>
 	);
 }

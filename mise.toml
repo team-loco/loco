@@ -472,6 +472,10 @@ run = "uv run --frozen --project docs python tests/e2e/activity_ui.py"
 description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
 run = "uv run --frozen --project docs python tests/e2e/trace_ui.py"
 
+[tasks."e2e:ui-controls"]
+description = "Test keyboard interaction for observability, token permissions and resource sorting in Chromium"
+run = "uv run --frozen --project docs python tests/e2e/ui_controls_ui.py"
+
 [tasks."e2e:shared-controls"]
 description = "Test compact shared controls, segmented selection and settings navigation in the production browser"
 run = "uv run --frozen --project docs python tests/e2e/shared_controls_ui.py"

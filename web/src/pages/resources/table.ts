@@ -205,39 +205,50 @@ function envRank(row: ListRow, environmentId: string): number {
 	return cell === undefined ? NO_CELL_RANK : statusRank(cell.status);
 }
 
+const NAME_TIE_BREAKER = "name-tie-breaker";
+
+const nameColumn: SortColumn<ListRow> = {
+	id: "name",
+	accessorFn: rowName,
+	sortDescFirst: false,
+	sortFn: (a, b) => rowName(a.original).localeCompare(rowName(b.original)),
+};
+
 export function resourceColumns(columns: Column[]): SortColumn<ListRow>[] {
-	return columns.map((column) => ({
-		id: column.key,
-		enableSorting: column.sortable,
-		sortDescFirst: column.kind === "size" || column.kind === "created",
-		sortFn:
-			column.kind === "name"
-				? (a, b) => rowName(a.original).localeCompare(rowName(b.original))
-				: column.kind === "size"
-					? (a, b) => a.original.cpuMilli - b.original.cpuMilli || a.original.memMi - b.original.memMi
-					: "basic",
-		accessorFn: (row) => {
+	return [
+		...columns.map((column): SortColumn<ListRow> => {
 			switch (column.kind) {
 				case "name":
-					return rowName(row);
-				case "env":
-					return envRank(row, column.environment?.id ?? "");
+					return nameColumn;
+				case "env": {
+					const id = column.environment?.id ?? "";
+					return { id: column.key, accessorFn: (row) => envRank(row, id), sortFn: "basic", sortDescFirst: false };
+				}
 				case "size":
-					return row.cpuMilli;
+					return {
+						id: column.key,
+						accessorFn: (row) => row.cpuMilli,
+						sortDescFirst: true,
+						sortFn: (a, b) => a.original.cpuMilli - b.original.cpuMilli || a.original.memMi - b.original.memMi,
+					};
 				case "created":
-					return row.createdMs;
+					return { id: column.key, accessorFn: (row) => row.createdMs, sortFn: "basic", sortDescFirst: true };
 				case "replicas":
 				case "cost":
 				case "address":
 				case "image":
-					return "";
+					return { id: column.key };
 			}
-		},
-	}));
+		}),
+		{ ...nameColumn, id: NAME_TIE_BREAKER },
+	];
 }
 
 export function resourceSorting(sort: Sort): SortingState {
-	return [{ id: sort.key, desc: sort.dir === "desc" }, ...(sort.key === "name" ? [] : [{ id: "name", desc: false }])];
+	const primary = { id: sort.key, desc: sort.dir === "desc" };
+	// Ties always sort by name. Keep this column out of the visible headers so the
+	// Resource button still starts at ascending when selected as the primary sort.
+	return sort.key === "name" ? [primary] : [primary, { id: NAME_TIE_BREAKER, desc: false }];
 }
 
 export interface Filter {

@@ -1,4 +1,4 @@
-import { useTable } from "@tanstack/react-table";
+import { useTable, type SortingState } from "@tanstack/react-table";
 import { sortingFeatures, SortableTableHead, type SortColumn } from "@/components/design/DataTable";
 import {
 	ActivityIcon,
@@ -320,11 +320,13 @@ export function ResourcesTable({
 		setParams(next, { replace: true });
 	};
 	const [filter, setFilter] = useState<RowFilter>({ status: ALL, type: ALL, region: ALL, query: "" });
+	const [sorting, setSorting] = useState<SortingState>([{ id: "status", desc: false }]);
 	const table = useTable({
 		features: sortingFeatures,
 		data: filterRows(items, filter),
 		columns: SORT_COLUMNS,
-		initialState: { sorting: [{ id: "status", desc: false }] },
+		state: { sorting },
+		onSortingChange: setSorting,
 		enableSortingRemoval: false,
 		enableMultiSort: false,
 	});
@@ -489,7 +491,12 @@ export function ResourcesTable({
 											</span>
 										</TableHead>
 									) : (
-										<SortableTableHead key={h.label} column={table.getColumn(key)} className={h.className}>
+										<SortableTableHead
+											key={h.label}
+											column={table.getColumn(key)}
+											direction={sorting[0]?.id === key ? (sorting[0].desc ? "desc" : "asc") : false}
+											className={h.className}
+										>
 											{h.label}
 										</SortableTableHead>
 									);

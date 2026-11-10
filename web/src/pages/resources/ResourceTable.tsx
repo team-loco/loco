@@ -439,20 +439,23 @@ export function ResourceTable({
 							return (
 								<SortableTableHead
 									column={table.getColumn(c.key)}
+									direction={sort.key === c.key ? sort.dir : false}
 									key={c.key}
 									className="relative"
 									style={c.kind === "name" ? undefined : { width: widthOf(c) }}
+									afterLabel={
+										c.kind !== "name" && (
+											<ResizeHandle
+												label={c.label}
+												width={widthOf(c)}
+												onWidth={(w) => {
+													setWidths({ ...widths, [c.key]: w });
+												}}
+											/>
+										)
+									}
 								>
 									{label}
-									{c.kind !== "name" && (
-										<ResizeHandle
-											label={c.label}
-											width={widthOf(c)}
-											onWidth={(w) => {
-												setWidths({ ...widths, [c.key]: w });
-											}}
-										/>
-									)}
 								</SortableTableHead>
 							);
 						})}
