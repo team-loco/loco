@@ -100,6 +100,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 expect(edit).not_to_be_visible()
                 updated = call("ListWebhooks")["webhooks"]
                 assert next(h for h in updated if h["id"] == hook_id)["url"] == "https://hooks.invalid/updated"
+                drawer = page.get_by_role("dialog", name="https://hooks.invalid/updated", exact=True)
                 drawer.get_by_role("button", name="Rotate secret", exact=True).click()
                 rotation = page.get_by_role("dialog", name="Rotate signing secret", exact=True)
                 hours = rotation.get_by_role("textbox", name="Grace period (hours)", exact=True)
