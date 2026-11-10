@@ -171,12 +171,13 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 	};
 }
 
-type DrawerState = "draft" | "deploying" | "live";
+type DrawerState = "draft" | RunOutcome;
 
 const DRAWER_BADGE: Record<DrawerState, { label: string; glyph: Glyph }> = {
 	draft: { label: "Draft", glyph: "draft" },
 	deploying: { label: "Deploying", glyph: "spin" },
 	live: { label: "Live", glyph: "ok" },
+	failed: { label: "Failed", glyph: "err" },
 };
 
 export function DrawerHeader({ name, image, state }: { name: string; image: string; state: DrawerState }) {
@@ -245,11 +246,7 @@ export function DeployRunView({
 	const host = `${run.form.subdomain}.${run.form.platformDomain}`;
 	return (
 		<>
-			<DrawerHeader
-				name={run.form.name}
-				image={run.form.image.trim()}
-				state={outcome === "live" ? "live" : "deploying"}
-			/>
+			<DrawerHeader name={run.form.name} image={run.form.image.trim()} state={outcome} />
 			<SheetBody className="gap-1">
 				<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pt-1">
 					<span className="text-[15px] font-medium">{progressTitle(run, outcome)}</span>
