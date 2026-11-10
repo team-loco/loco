@@ -43,8 +43,8 @@ if resource_ids is None:
     resource_ids = [
         evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {
             "workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}},
-        })["resourceId"] for name in ("controls-alpha", "controls-zeta")
+            "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": cpu, "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}},
+        })["resourceId"] for name, cpu in (("controls-alpha", "100m"), ("controls-zeta", "200m"))
     ]
     state["controls_resources"] = resource_ids
     evidence.write_json(Path(args.state), state)
@@ -163,22 +163,41 @@ def tokens(page, suffix):
         expect(page.get_by_role("dialog")).to_be_visible()
 
 
+def first_click_sorts_descending(table, label, first):
+    button = table.page.get_by_role("button", name=label, exact=True)
+    header = table.get_by_role("columnheader").filter(has=button)
+    header.get_by_role("button", name=label, exact=True).press("Enter")
+    expect(header).to_have_attribute("aria-sort", "descending")
+    expect(table.locator("th[aria-sort]")).to_have_count(1)
+    expect(table.get_by_role("row").nth(1)).to_contain_text(first)
+
+
 def resources(page, suffix):
     for route in ("/resources", ""):
         page.goto(base + route + "?env=production")
-        table = page.get_by_role("table").filter(has=page.get_by_role("columnheader", name=re.compile(r"^Resource(?: [▲▼])?$"))).first
-        name = table.get_by_role("button", name=re.compile(r"^Resource(?: [▲▼])?$"))
+        table = page.get_by_role("table").filter(has=page.get_by_role("columnheader", name="Resource", exact=True)).first
+        header = table.get_by_role("columnheader", name="Resource", exact=True)
+        name = header.get_by_role("button", name="Resource", exact=True)
         name.press("Enter")
         expect(table.locator('th[aria-sort="ascending"]')).to_have_count(1)
-        expect(table.get_by_role("columnheader", name=re.compile(r"^Resource(?: [▲▼])?$"))).to_have_attribute("aria-sort", "ascending")
+        expect(header).to_have_attribute("aria-sort", "ascending")
         expect(table.get_by_role("row").nth(1)).to_contain_text("controls-alpha")
         name.press("Enter")
-        expect(table.get_by_role("columnheader", name=re.compile(r"^Resource(?: [▲▼])?$"))).to_have_attribute("aria-sort", "descending")
+        expect(header).to_have_attribute("aria-sort", "descending")
         expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
         if route:
             page.reload()
             expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
             screenshot(table.locator(".."), "resource-sorting", suffix)
+            name.press("Enter")
+            expect(table.get_by_role("row").nth(1)).to_contain_text("controls-alpha")
+            first_click_sorts_descending(table, "Size", "controls-zeta")
+            table.get_by_role("button", name="Columns", exact=True).click()
+            created = page.get_by_role("menuitemcheckbox", name="Created")
+            created.click()
+            expect(created).to_have_attribute("aria-checked", "true")
+            page.keyboard.press("Escape")
+            first_click_sorts_descending(table, "Created", "controls-zeta")
 
 
 with sync_playwright() as playwright:
