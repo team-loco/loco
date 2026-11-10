@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XIcon } from "lucide-react";
 
 import { HistogramSlider } from "@/components/design/Slider";
@@ -36,6 +36,7 @@ export function VolumeBars({
 	onPick: (index: number) => void;
 }) {
 	const [active, setActive] = useState<number | null>(null);
+	const labelId = useId();
 	const max = Math.max(1, ...buckets.map((b) => b.segments.reduce((a, s) => a + s.value, 0)));
 	const last = buckets.length - 1;
 	const current = active === null ? null : Math.min(active, last);
@@ -43,41 +44,21 @@ export function VolumeBars({
 		setActive(Math.max(0, Math.min(last, to)));
 	};
 
-	const bucketAt = (e: React.MouseEvent<HTMLDivElement>) => {
+	const bucketAt = (e: React.MouseEvent<HTMLElement>) => {
 		const rect = e.currentTarget.getBoundingClientRect();
 		return Math.floor(((e.clientX - rect.left) / rect.width) * buckets.length);
 	};
 	return (
 		<div
-			onBlur={() => {
-				setActive(null);
-			}}
-			onMouseMove={(e) => {
-				move(bucketAt(e));
-			}}
-			onMouseLeave={() => {
-				setActive(null);
-			}}
-			className="relative h-[72px] rounded-sm"
+			title={current === null ? undefined : buckets[current]?.label}
+			className="relative h-[72px] cursor-pointer rounded-sm"
 		>
-			<HistogramSlider
-				label={label}
-				valueText={buckets[current ?? last]?.label ?? "No data"}
-				value={current ?? Math.max(0, last)}
-				min={0}
-				max={Math.max(1, last)}
-				disabled={buckets.length === 0}
-				step={1}
-				onValueChange={move}
-				onActivate={() => {
-					if (buckets.length > 0) onPick(current ?? last);
-				}}
-			>
+			<div className="pointer-events-none absolute inset-0 flex items-end gap-0.5">
 				{buckets.map((b, i) => (
 					<div
 						key={String(i)}
 						className={cn(
-							"pointer-events-none flex h-full min-w-0.5 flex-1 flex-col-reverse overflow-hidden rounded-t-[2px]",
+							"flex h-full min-w-0.5 flex-1 flex-col-reverse overflow-hidden rounded-t-[2px]",
 							current === i && "bg-panel2 brightness-90",
 						)}
 					>
@@ -90,7 +71,49 @@ export function VolumeBars({
 						))}
 					</div>
 				))}
-			</HistogramSlider>
+			</div>
+			<span id={labelId} className="sr-only">
+				{label}
+			</span>
+			<span aria-live="polite" className="sr-only">
+				{current === null ? "" : buckets[current]?.label}
+			</span>
+			<HistogramSlider
+				aria-labelledby={labelId}
+				value={[current ?? Math.max(0, last)]}
+				min={0}
+				max={Math.max(0, last)}
+				disabled={buckets.length === 0}
+				onBlur={() => {
+					setActive(null);
+				}}
+				onMouseMove={(e) => {
+					move(bucketAt(e));
+				}}
+				onMouseLeave={() => {
+					setActive(null);
+				}}
+				onClick={(e) => {
+					onPick(Math.max(0, Math.min(last, bucketAt(e))));
+				}}
+				onKeyDownCapture={(e) => {
+					// From rest the thumb sits on the last bar; the first arrow starts at either end.
+					if (current === null && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+						e.preventDefault();
+						move(e.key === "ArrowRight" ? 0 : last);
+					}
+				}}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" && current !== null) {
+						e.preventDefault();
+						onPick(current);
+					}
+				}}
+				onValueChange={(value) => {
+					move([value].flat()[0] ?? last);
+				}}
+				className="absolute inset-0"
+			/>
 		</div>
 	);
 }

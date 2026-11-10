@@ -1,34 +1,16 @@
-import { Slider as SliderPrimitive } from "@base-ui/react/slider";
-import type { ReactNode } from "react";
+import { Slider as SliderBase } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 
-export function HistogramSlider({
-	label,
-	valueText,
-	children,
-	onActivate,
-	...props
-}: SliderPrimitive.Root.Props<number> & {
-	label: string;
-	valueText: string;
-	children: ReactNode;
-	onActivate: () => void;
-}) {
+// A full-height, transparent slider laid over a histogram: the bars show the data and
+// the thumb is a thin cursor that appears on keyboard focus.
+export function HistogramSlider({ className, ...props }: React.ComponentProps<typeof SliderBase>) {
 	return (
-		<SliderPrimitive.Root {...props}>
-			<SliderPrimitive.Control onClick={onActivate} className="relative h-[72px] w-full touch-none select-none">
-				<SliderPrimitive.Track className="flex h-full items-end gap-0.5">{children}</SliderPrimitive.Track>
-				<SliderPrimitive.Thumb
-					aria-label={label}
-					aria-valuetext={valueText}
-					onKeyDown={(event) => {
-						if (event.key === "Enter") {
-							event.preventDefault();
-							onActivate();
-						}
-					}}
-					className="absolute top-0 h-full w-0.5 rounded-sm outline-none focus-within:bg-foreground focus-within:ring-2 focus-within:ring-ring"
-				/>
-			</SliderPrimitive.Control>
-		</SliderPrimitive.Root>
+		<SliderBase
+			className={cn(
+				"h-full *:h-full [&_[data-slot=slider-range]]:hidden [&_[data-slot=slider-thumb]]:h-full! [&_[data-slot=slider-thumb]]:w-0.5! [&_[data-slot=slider-thumb]]:rounded-sm! [&_[data-slot=slider-thumb]]:border-0 [&_[data-slot=slider-thumb]]:bg-transparent [&_[data-slot=slider-thumb]]:ring-0! [&_[data-slot=slider-thumb]]:after:hidden [&_[data-slot=slider-thumb]]:has-focus-visible:bg-foreground [&_[data-slot=slider-track]]:h-full! [&_[data-slot=slider-track]]:bg-transparent",
+				className,
+			)}
+			{...props}
+		/>
 	);
 }
