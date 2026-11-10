@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import type { EnvironmentStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
+import { Section } from "@/components/design/Page";
 import { SoonTag } from "@/components/design/SoonTag";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -102,17 +103,12 @@ export function ReplicasPanel({
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
 
 	return (
-		<section aria-labelledby="replicas-title" className="flex flex-col gap-4 rounded-card bg-panel px-5 pt-[18px] pb-4">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="flex flex-wrap items-baseline gap-2.5">
-					<h2 id="replicas-title" className="m-0 text-[16px] font-medium tracking-[-0.01em]">
-						Replicas
-					</h2>
-					<span className="text-[12.5px] text-fg3">
-						{replicaLine(environment, nowMs)} · {scaleText(deployed)}
-					</span>
-				</div>
-				<div className="flex flex-wrap items-center gap-3">
+		<Section
+			title="Replicas"
+			meta={`${replicaLine(environment, nowMs)} · ${scaleText(deployed)}`}
+			bodyClassName="flex flex-col gap-4 px-5 pt-[18px] pb-4"
+			actions={
+				<>
 					{selected !== null && (
 						<Button
 							variant="link"
@@ -147,8 +143,9 @@ export function ReplicasPanel({
 							<SoonTag />
 						</ToggleGroupItem>
 					</ToggleGroup>
-				</div>
-			</div>
+				</>
+			}
+		>
 			<div className="flex flex-col gap-2">
 				{deployed.map((r) => (
 					<RegionRow
@@ -185,6 +182,6 @@ export function ReplicasPanel({
 					markers={markers}
 				/>
 			</div>
-		</section>
+		</Section>
 	);
 }

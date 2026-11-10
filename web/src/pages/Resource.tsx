@@ -347,14 +347,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						</Section>
 					)}
 					<Section
-						cardTitle={
+						title={
 							<>
 								Traffic
 								<SoonTag />
 							</>
 						}
 					>
-						<p className="m-0 px-5 pb-5 text-fg3">
+						<p className="m-0 px-5 py-4 text-fg3">
 							Requests, errors and latency for this resource are not collected yet.
 						</p>
 					</Section>

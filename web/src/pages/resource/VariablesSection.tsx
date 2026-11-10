@@ -209,7 +209,7 @@ export function VariablesSection({
 			title={
 				<>
 					Variables
-					<Badge tone="count">{rows.length + plain.length}</Badge>
+					<span className="font-mono text-[12.5px] font-normal text-fg3">{rows.length + plain.length}</span>
 				</>
 			}
 			hint="Secret values are never shown after they are saved."
