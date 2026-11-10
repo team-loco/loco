@@ -140,6 +140,23 @@ with sync_playwright() as playwright:
             finally:
                 context.close()
 
+        other_org = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], evidence.RPC_CREATE_ORG, {"name": f"globex-{uuid.uuid4().hex[:6]}"})["orgId"]
+        context, page, errors = open_page(browser, "owner")
+        try:
+            for path in (f"/org/{other_org}/wks/{shared}", f"/org/{org}/wks/{shared}/resource/not-a-uuid", f"/org/{uuid.uuid4()}/team"):
+                page.goto(ui + path)
+                expect_not_found(page, path)
+            page.goto(ui + f"/org/{org}/team")
+            expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
+            expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+            assert not errors, errors
+            cases.append("owner-other-org")
+        except BaseException:
+            page.screenshot(path=out / "failure-owner-other-org.png", animations="disabled")
+            raise
+        finally:
+            context.close()
+
         context, page, errors = open_page(browser, "member")
         try:
             foreign = f"/org/{uuid.uuid4()}/wks/{sibling}"

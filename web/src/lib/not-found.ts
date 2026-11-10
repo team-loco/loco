@@ -16,18 +16,26 @@ export function logCaughtError(error: unknown, info: { componentStack?: string |
 
 export function resourceMissing(error: unknown, canReadWorkspace: boolean): boolean {
 	if (!(error instanceof ConnectError)) return false;
-	if (error.code === Code.NotFound) return true;
+	if (error.code === Code.NotFound || error.code === Code.InvalidArgument) return true;
 	return error.code === Code.PermissionDenied && canReadWorkspace;
 }
 
-export function workspaceKnown(
-	orgId: string,
-	workspaceId: string,
+export interface Route {
+	orgId: string;
+	workspaceId: string | undefined;
+	workspaceOrgId: string | undefined;
+}
+
+export function routeKnown(
+	{ orgId, workspaceId, workspaceOrgId }: Route,
 	workspaces: readonly { id: string }[],
 	scopes: readonly EntityScope[],
 ): boolean {
+	const member = hasOrganizationMembership(scopes, orgId);
+	if (workspaceId === undefined) return member;
+	if (workspaceOrgId !== undefined && workspaceOrgId !== orgId) return false;
 	return (
-		hasOrganizationMembership(scopes, orgId) ||
+		member ||
 		workspaces.some((w) => w.id === workspaceId) ||
 		scopes.some(
 			(s) =>

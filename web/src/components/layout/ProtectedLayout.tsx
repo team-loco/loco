@@ -1,6 +1,6 @@
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { workspaceKnown } from "@/lib/not-found";
+import { routeKnown } from "@/lib/not-found";
 import { NotFound, NotFoundBoundary } from "@/pages/NotFound";
 import { useAuth } from "@/auth/AuthProvider";
 import { nextPathState } from "@/auth/next";
@@ -12,6 +12,7 @@ import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
@@ -42,10 +43,27 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const workspaces = workspacesRes?.workspaces ?? [];
 
 	const workspacesSettled = (orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading;
-	const workspaceNotFound =
+	const urlWorkspace = useQuery(
+		getWorkspace,
+		{ workspaceId: workspaceParam ?? "" },
+		{
+			enabled:
+				workspacesSettled &&
+				orgParam !== undefined &&
+				workspaceParam !== undefined &&
+				!workspaces.some((w) => w.id === workspaceParam) &&
+				scopes.workspaceLevel(orgParam, workspaceParam) >= 1,
+		},
+	);
+	const routeNotFound =
 		workspacesSettled &&
-		workspaceParam !== undefined &&
-		!workspaceKnown(activeOrgId ?? "", workspaceParam, workspaces, scopes.scopes);
+		!urlWorkspace.isLoading &&
+		orgParam !== undefined &&
+		!routeKnown(
+			{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
+			workspaces,
+			scopes.scopes,
+		);
 
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
@@ -64,7 +82,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	return (
 		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces} workspacesSettled={workspacesSettled}>
 			<CommandPaletteProvider>
-				{workspaceNotFound ? (
+				{routeNotFound ? (
 					<NotFound unknownWorkspace />
 				) : (
 					<NotFoundBoundary path={pathname}>
