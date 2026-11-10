@@ -6,12 +6,10 @@ import {
 	addDraft,
 	DRAFT_RANK,
 	draftIsPublic,
-	draftNameError,
 	draftRegions,
-	draftSlugs,
+	draftSizing,
 	draftsKey,
 	editDraft,
-	nameHolder,
 	parseDrafts,
 	removeDraft,
 	type Draft,
@@ -61,22 +59,6 @@ describe("draft changes", () => {
 	});
 });
 
-describe("names", () => {
-	test("finds the resource that holds a draft's name by slug", () => {
-		const taken = new Map([["web", "Web"]]);
-		expect(nameHolder(draft("1", "web"), taken)).toBe("Web");
-		expect(nameHolder(draft("2", "api"), taken)).toBeNull();
-	});
-
-	test("lists draft names by slug and says which draft holds a name", () => {
-		const drafted = draftSlugs([draft("1", "My App")]);
-		expect(drafted).toEqual(new Map([["my-app", "My App"]]));
-		expect(draftNameError("My App", drafted)).toBe("My App is already a draft");
-		expect(draftNameError("my-app", drafted)).toBe("The draft My App already uses the name my-app");
-		expect(draftNameError("web", drafted)).toBeNull();
-	});
-});
-
 describe("draft placement", () => {
 	const regions = [
 		create(RegionInfoSchema, { region: "us-east-1", isDefault: true }),
@@ -87,6 +69,16 @@ describe("draft placement", () => {
 		expect(draftRegions(draft("a"), regions)).toEqual(["us-east-1"]);
 		expect(draftRegions({ ...draft("a"), edits: { regions: ["eu-west-1"] } }, regions)).toEqual(["eu-west-1"]);
 		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, regions)).toEqual([]);
+	});
+
+	test("sizing comes from the draft's edits, then the service defaults", () => {
+		const defaults = { cpu: "500m", memory: "1Gi", minReplicas: 1 };
+		expect(draftSizing(draft("a"), defaults)).toEqual({ cpu: "500m", memory: "1Gi", replicas: 1 });
+		expect(draftSizing({ ...draft("a"), edits: { cpu: "2", replicas: 3 } }, defaults)).toEqual({
+			cpu: "2",
+			memory: "1Gi",
+			replicas: 3,
+		});
 	});
 
 	test("a draft is public until switched to internal", () => {

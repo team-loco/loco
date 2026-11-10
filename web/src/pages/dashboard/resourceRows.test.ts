@@ -7,6 +7,7 @@ import { RegionInfoSchema } from "@gen/loco/resource/v1/resource_pb";
 import {
 	ALL,
 	draftItems,
+	itemIsPublic,
 	filterRows,
 	type DashboardItem,
 	itemName,
@@ -50,7 +51,7 @@ describe("draftItems", () => {
 	const items = draftItems([draft("web"), draft("queue", { isPublic: false, regions: ["eu-west-1"] })], regions);
 
 	test("place a draft in its regions with nothing running", () => {
-		expect(items.map((i) => [i.draft.name, i.isPublic, i.regions])).toEqual([
+		expect(items.map((i) => [i.draft.name, itemIsPublic(i), i.regions])).toEqual([
 			["web", true, [{ region: "us-east-1", desired: 0, ready: 0 }]],
 			["queue", false, [{ region: "eu-west-1", desired: 0, ready: 0 }]],
 		]);

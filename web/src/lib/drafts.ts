@@ -2,7 +2,6 @@ import { ResourceStatus, type RegionInfo } from "@gen/loco/resource/v1/resource_
 
 import type { NewResourceForm } from "@/lib/new-resource";
 import { statusRank } from "@/lib/resource-status";
-import { slug } from "@/lib/slug";
 
 export type DraftEdits = Partial<Omit<NewResourceForm, "image" | "name">>;
 
@@ -61,16 +60,16 @@ export function draftIsPublic(draft: Draft): boolean {
 	return draft.edits.isPublic ?? true;
 }
 
-export function draftSlugs(drafts: readonly Draft[]): Map<string, string> {
-	return new Map(drafts.map((d) => [slug(d.name), d.name]));
+export interface ServiceSizing {
+	cpu: string;
+	memory: string;
+	minReplicas: number;
 }
 
-export function nameHolder(draft: Draft, taken: ReadonlyMap<string, string>): string | null {
-	return taken.get(slug(draft.name)) ?? null;
-}
-
-export function draftNameError(name: string, drafted: ReadonlyMap<string, string>): string | null {
-	const holder = drafted.get(slug(name));
-	if (holder === undefined) return null;
-	return holder === name ? `${name} is already a draft` : `The draft ${holder} already uses the name ${slug(name)}`;
+export function draftSizing(draft: Draft, defaults: ServiceSizing): { cpu: string; memory: string; replicas: number } {
+	return {
+		cpu: draft.edits.cpu ?? defaults.cpu,
+		memory: draft.edits.memory ?? defaults.memory,
+		replicas: draft.edits.replicas ?? defaults.minReplicas,
+	};
 }

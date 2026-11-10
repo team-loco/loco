@@ -3,7 +3,7 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { deploymentImage, getServiceSpec } from "@/lib/deployment-utils";
-import { DRAFT_RANK, type Draft } from "@/lib/drafts";
+import { DRAFT_RANK, draftSizing, type Draft, type ServiceSizing } from "@/lib/drafts";
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
@@ -114,26 +114,20 @@ export function buildRows(
 	});
 }
 
-export interface DraftSizing {
-	cpu: string;
-	memory: string;
-	minReplicas: number;
-}
-
 export function draftRows(
 	drafts: readonly Draft[],
 	environmentId: string,
-	sizing: DraftSizing | undefined,
+	defaults: ServiceSizing | undefined,
 ): DraftRow[] {
 	return drafts.map((draft) => {
-		const replicas = draft.edits.replicas ?? sizing?.minReplicas;
+		const size = defaults === undefined ? undefined : draftSizing(draft, defaults);
 		return {
 			draft,
 			environmentId,
 			cells: new Map(),
-			cpuMilli: parseCpuMilli(draft.edits.cpu ?? sizing?.cpu ?? ""),
-			memMi: parseMemMi(draft.edits.memory ?? sizing?.memory ?? ""),
-			replicas: replicas === undefined ? null : { min: replicas, max: replicas },
+			cpuMilli: parseCpuMilli(size?.cpu ?? ""),
+			memMi: parseMemMi(size?.memory ?? ""),
+			replicas: size === undefined ? null : { min: size.replicas, max: size.replicas },
 			address: null,
 			image: imageName(draft.image),
 			createdMs: draft.createdMs,

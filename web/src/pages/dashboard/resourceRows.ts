@@ -9,7 +9,6 @@ import type { EnvResource, RegionReplicas } from "./useDashboardData";
 export interface DraftItem {
 	draft: Draft;
 	regions: RegionReplicas[];
-	isPublic: boolean;
 }
 
 export type DashboardItem = EnvResource | DraftItem;
@@ -22,7 +21,6 @@ export function draftItems(drafts: readonly Draft[], regions: readonly RegionInf
 	return drafts.map((draft) => ({
 		draft,
 		regions: draftRegions(draft, regions).map((region) => ({ region, desired: 0, ready: 0 })),
-		isPublic: draftIsPublic(draft),
 	}));
 }
 
@@ -39,7 +37,7 @@ export function itemRank(item: DashboardItem): number {
 }
 
 export function itemIsPublic(item: DashboardItem): boolean {
-	return isDraftItem(item) ? item.isPublic : primaryDomain(item.resource) !== null;
+	return isDraftItem(item) ? draftIsPublic(item.draft) : primaryDomain(item.resource) !== null;
 }
 
 export function itemType(item: DashboardItem): ResourceType {

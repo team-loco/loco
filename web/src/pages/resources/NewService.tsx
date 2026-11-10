@@ -35,15 +35,7 @@ import { useDrafts } from "@/hooks/useDrafts";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { parseDotEnv } from "@/lib/dotenv";
-import {
-	draftIsPublic,
-	draftNameError,
-	draftRegions,
-	draftSlugs,
-	nameHolder,
-	type Draft,
-	type DraftEdits,
-} from "@/lib/drafts";
+import { draftIsPublic, draftRegions, draftSizing, type Draft, type DraftEdits } from "@/lib/drafts";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DRAFT_PARAM } from "@/lib/routes";
 import {
@@ -107,8 +99,7 @@ export function NewService({
 	const [image, setImage] = useState("");
 	const [editedName, setEditedName] = useState<string | null>(null);
 	const taken = useTakenNames(workspaceId);
-	const drafted = draftSlugs(store.drafts);
-	const name = editedName ?? nameFromImage(image, new Set([...taken.keys(), ...drafted.keys()]));
+	const name = editedName ?? nameFromImage(image, new Set([...taken.keys(), ...store.drafts.map((d) => slug(d.name))]));
 	return (
 		<Dialog
 			open
@@ -124,7 +115,6 @@ export function NewService({
 					image={image}
 					name={name}
 					taken={taken}
-					drafted={drafted}
 					onImage={setImage}
 					onName={setEditedName}
 					onContinue={() => {
@@ -145,7 +135,6 @@ function ImageStep({
 	image,
 	name,
 	taken,
-	drafted,
 	onImage,
 	onName,
 	onContinue,
@@ -156,7 +145,6 @@ function ImageStep({
 	image: string;
 	name: string;
 	taken: ReadonlyMap<string, string>;
-	drafted: ReadonlyMap<string, string>;
 	onImage: (image: string) => void;
 	onName: (name: string) => void;
 	onContinue: () => void;
@@ -166,7 +154,7 @@ function ImageStep({
 	const [edited, setEdited] = useState(false);
 	const error = imageError(image);
 	const shown = tried || edited ? error : null;
-	const nameErr = nameError(name, taken) ?? draftNameError(name, drafted);
+	const nameErr = nameError(name, taken);
 
 	if (scopes.isLoading) {
 		return (
@@ -316,7 +304,7 @@ export function DraftSheet({
 				deployment={deployment}
 				tried={tried}
 				healthOpen={healthOpen}
-				holder={nameHolder(draft, taken)}
+				holder={taken.get(slug(draft.name)) ?? null}
 				onTry={() => {
 					setTried(true);
 				}}
@@ -425,14 +413,15 @@ function ServiceForm({
 	const { deployError, deploy } = deployment;
 
 	const selected = draftRegions(draft, regions);
+	const size = draftSizing(draft, defaults);
 	const served = servedDomains(platformDomains, selected);
 	const form: NewResourceForm = {
 		image,
 		name,
 		regions: selected,
-		cpu: edits.cpu ?? defaults.cpu,
-		memory: edits.memory ?? defaults.memory,
-		replicas: edits.replicas ?? defaults.minReplicas,
+		cpu: size.cpu,
+		memory: size.memory,
+		replicas: size.replicas,
 		isPublic: draftIsPublic(draft),
 		subdomain: edits.subdomain ?? slug(name),
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
