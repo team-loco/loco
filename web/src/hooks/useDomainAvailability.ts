@@ -3,14 +3,15 @@ import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { DomainService } from "@gen/loco/domain/v1/domain_pb";
 
-import { checkTarget, domainCheck, type DomainCheck } from "@/lib/platform-domain";
+import { domainCheck, type DomainCheck } from "@/lib/platform-domain";
 
 const AVAILABILITY_DEBOUNCE_MS = 350;
 const AVAILABILITY_STALE_MS = 10_000;
 
 export function useDomainAvailability(subdomain: string, platformDomain: string, own: readonly string[]): DomainCheck {
 	const transport = useTransport();
-	const target = checkTarget(subdomain, platformDomain, own);
+	const before = domainCheck(subdomain, platformDomain, own, { fetching: false, available: undefined, error: null });
+	const target = before.state === "checking" ? before.host : null;
 	const query = useQuery({
 		queryKey: ["domain-availability", target],
 		queryFn: async ({ signal }) => {

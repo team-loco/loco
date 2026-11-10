@@ -1,16 +1,8 @@
 import { expect, test } from "bun:test";
 
-import { checkTarget, domainCheck, domainCoverage, type CheckResult } from "./platform-domain";
+import { domainCheck, domainCoverage, type CheckResult } from "./platform-domain";
 
 const idle: CheckResult = { fetching: false, available: undefined, error: null };
-
-test("checkTarget only queries valid hostnames the resource does not already own", () => {
-	expect(checkTarget("web", "onloco.app", [])).toBe("web.onloco.app");
-	expect(checkTarget("", "onloco.app", [])).toBeNull();
-	expect(checkTarget("web", "", [])).toBeNull();
-	expect(checkTarget("-web", "onloco.app", [])).toBeNull();
-	expect(checkTarget("web", "onloco.app", ["web.onloco.app"])).toBeNull();
-});
 
 test("domainCheck reports each state of the availability check", () => {
 	const state = (sub: string, own: string[], result: CheckResult) => domainCheck(sub, "onloco.app", own, result).state;

@@ -10,12 +10,6 @@ export interface CheckResult {
 	error: Error | null;
 }
 
-export function checkTarget(subdomain: string, platformDomain: string, own: readonly string[]): string | null {
-	if (subdomain === "" || platformDomain === "" || !SUBDOMAIN_RE.test(subdomain)) return null;
-	const host = `${subdomain}.${platformDomain}`;
-	return own.includes(host) ? null : host;
-}
-
 export function domainCheck(
 	subdomain: string,
 	platformDomain: string,
