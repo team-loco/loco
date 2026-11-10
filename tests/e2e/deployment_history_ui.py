@@ -52,6 +52,10 @@ def rpc(service, method, body):
     return evidence.rpc(state["api_url"], owner, f"loco.{service}.v1.{service.title()}Service/{method}", body)
 
 
+BUILD_DIGEST = "sha256:" + "7c41e9b2" * 8
+BUILD_LOG = [("INFO", "#1 [internal] load build definition from Dockerfile"), ("ERROR", "Pilot build step failed")]
+
+
 def fixture():
     existing = state.get("deployment_history")
     if existing is not None:
@@ -63,6 +67,7 @@ def fixture():
     clusters = [str(uuid.uuid4()) for _ in range(3)]
     release_ids = [str(uuid.uuid4()) for _ in range(221)]
     staging_release = str(uuid.uuid4())
+    builds = {name: str(uuid.uuid4()) for name in ("awaiting", "running", "deployed", "failed", "canceled", "older")}
     sql = []
     for cluster, region, tier in zip(clusters, ("us-east-1", "eu-west-1", "us-east-1"), ("production", "production", "staging"), strict=True):
         sql.append(f"INSERT INTO clusters (id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier) VALUES ('{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{tier}');")
@@ -71,14 +76,24 @@ def fixture():
         cluster = clusters[1] if region == "eu-west-1" else clusters[0]
         active = index in (1, len(release_ids))
         status = "running" if active else "succeeded"
-        runtime = json.dumps({"build": {"type": "image", "image": f"example.invalid/browser-pilot:release-{index:03}"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1})
+        source = {"type": "image", "image": f"example.invalid/browser-pilot:release-{index:03}"}
+        if index == 2:
+            source = dict(source, type="dockerfile", buildId=builds["deployed"])
+        runtime = json.dumps({"build": source, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1})
         sql.append(f"INSERT INTO deployments (id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,created_at,started_at) VALUES ('{deployment}','{resource}','{cluster}','{region}',1,'{status}',{str(active).lower()},'Pilot release {index:03}','{production}',{evidence.sql_literal(runtime)},1,NOW()-INTERVAL '{index} minutes',NOW()-INTERVAL '{index} minutes');")
     runtime = json.dumps({"build": {"type": "image", "image": "example.invalid/browser-pilot:staging-current"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 2, "maxReplicas": 2})
     sql.append(f"INSERT INTO deployments (id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('{staging_release}','{resource}','{clusters[2]}','us-east-1',2,'running',true,'Staging current','{staging}',{evidence.sql_literal(runtime)},1,NOW());")
     for deployment, cluster, environment, region, replicas in ((release_ids[0], clusters[0], production, "us-east-1", 1), (release_ids[-1], clusters[1], production, "eu-west-1", 1), (staging_release, clusters[2], staging, "us-east-1", 2)):
         sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource}','{cluster}','{region}','{deployment}','{environment}','{{}}',true,{replicas},'Ready',NOW());")
+    owner_id = state["users"]["owner"]["id"]
+    build_rows = (("awaiting", "awaiting_upload", ""), ("running", "running", ""), ("deployed", "succeeded", ""), ("failed", "failed", "RUN go build ./cmd/api exited with code 1"), ("canceled", "canceled", "canceled"), ("older", "succeeded", ""))
+    for minutes, (name, status, message) in enumerate(build_rows, 1):
+        digest = f"'{BUILD_DIGEST}'" if status == "succeeded" else "NULL"
+        started = "NULL" if status == "awaiting_upload" else f"NOW()-INTERVAL '{minutes} minutes'"
+        finished = f"NOW()-INTERVAL '{minutes} minutes'+INTERVAL '108 seconds'" if status in ("succeeded", "failed", "canceled") else "NULL"
+        sql.append(f"INSERT INTO builds (id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});")
     evidence.psql(state["container"], "BEGIN;" + "\n".join(sql) + "COMMIT;")
-    data = {"resource": resource, "production": production, "staging": staging, "releases": release_ids, "staging_release": staging_release}
+    data = {"resource": resource, "production": production, "staging": staging, "releases": release_ids, "staging_release": staging_release, "builds": builds}
     state["deployment_history"] = data
     evidence.write_json(Path(args.state), state)
     return data
@@ -100,6 +115,7 @@ with sync_playwright() as playwright:
         for theme in ("light", "dark"):
             for narrow in (False, True):
                 evidence.psql(state["container"], f"UPDATE clusters SET last_heartbeat=NOW() WHERE id IN (SELECT cluster_id FROM deployments WHERE resource_id='{data["resource"]}');")
+                evidence.psql(state["container"], f"UPDATE builds SET status='awaiting_upload', message='', finished_at=NULL WHERE id='{data["builds"]["awaiting"]}';")
                 case = f"{theme}{'-narrow' if narrow else ''}"
                 context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
                 context.set_default_timeout(evidence.STEP_TIMEOUT_MS)
@@ -110,6 +126,14 @@ with sync_playwright() as playwright:
                 requests = []
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.on("request", lambda request: requests.append({"method": request.url.rsplit("/", 1)[-1], "body": request.post_data_json}) if ".DeploymentService/" in request.url else None)
+                log_queries = []
+
+                def build_logs(route):
+                    log_queries.append(route.request.post_data_json)
+                    entries = [{"timestamp": f"2026-01-01T00:00:0{index}Z", "severity": severity, "body": text} for index, (severity, text) in enumerate(BUILD_LOG)]
+                    route.fulfill(json={"entries": entries})
+
+                context.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", build_logs)
                 failed = []
 
                 def history(route):
@@ -126,7 +150,7 @@ with sync_playwright() as playwright:
                 stage, user = "history", "owner"
                 try:
                     page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
-                    section = page.get_by_role("heading", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
+                    section = page.get_by_role("tab", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
                     expect(section.get_by_text("1–10 of 200+", exact=True)).to_be_visible()
                     expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
                     expect(section.get_by_role("columnheader", name="Region", exact=True)).to_be_visible()
@@ -167,6 +191,36 @@ with sync_playwright() as playwright:
                     page.get_by_role("menuitem", name="production production", exact=True).click()
                     expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
                     expect(section.get_by_text("Pilot release 151", exact=True)).to_have_count(0)
+                    stage = "builds"
+                    builds = data["builds"]
+                    section.get_by_role("button", name=f"Show details for {data['releases'][1][:8]}", exact=True).click()
+                    section.get_by_role("button", name=f"Build {builds['deployed'][:8]}", exact=True).click()
+                    expect(page).to_have_url(re.compile(r"[?&]hist=builds"))
+                    expect(section.get_by_role("tab", name=re.compile(r"^Builds\s*6$"))).to_have_attribute("aria-selected", "true")
+                    expect(section.get_by_text("1–5 of 6", exact=True)).to_be_visible()
+                    expect(section.get_by_role("button", name=f"Hide build {builds['deployed'][:8]}", exact=True)).to_be_visible()
+                    expect(section.get_by_text("Olivia Owner", exact=True).first).to_be_visible()
+                    expect(section.get_by_text(BUILD_DIGEST[:19], exact=True).first).to_be_visible()
+                    section.get_by_role("button", name="Deployment release-002", exact=True).click()
+                    expect(page).not_to_have_url(re.compile(r"[?&]hist=builds"))
+                    expect(section.get_by_role("button", name=f"Hide details for {data['releases'][1][:8]}", exact=True)).to_be_visible()
+                    section.get_by_role("tab", name=re.compile(r"^Builds")).click()
+                    section.get_by_role("button", name=f"Hide build {builds['deployed'][:8]}", exact=True).click()
+                    section.get_by_role("button", name=f"Show build {builds['failed'][:8]}", exact=True).click()
+                    expect(section.get_by_text("RUN go build ./cmd/api exited with code 1", exact=True)).to_be_visible()
+                    expect(section.get_by_text(BUILD_LOG[1][1], exact=True)).to_be_visible()
+                    expect(section.get_by_role("button", name="Open in Logs", exact=True)).to_have_attribute("href", re.compile(f"q=build%3A{builds['failed']}"))
+                    log_requests = [body for body in log_queries if body.get("labels", {}).get("loco.io/build-id") == builds["failed"]]
+                    assert log_requests and not log_requests[0].get("environmentId") and log_requests[0].get("order") == "LOG_ORDER_OLDEST_FIRST", log_queries
+                    expect(section.get_by_role("button", name="Cancel build", exact=True)).to_have_count(0)
+                    page.screenshot(path=out / f"builds-{case}.png", animations="disabled")
+                    section.get_by_role("button", name=f"Show build {builds['awaiting'][:8]}", exact=True).click()
+                    expect(section.get_by_text("Waiting for the CLI to upload source.", exact=True)).to_be_visible()
+                    section.get_by_role("button", name="Cancel build", exact=True).click()
+                    page.get_by_role("alertdialog").get_by_role("button", name="Cancel build", exact=True).click()
+                    expect(page.get_by_text(f"Canceled build {builds['awaiting'][:8]}", exact=True)).to_be_visible(timeout=evidence.STEP_TIMEOUT_MS)
+                    expect(section.get_by_role("button", name="Cancel build", exact=True)).to_have_count(0)
+                    expect(section.get_by_text("canceled", exact=True).first).to_be_visible()
                     stage = "owner-settings"
                     page.goto(state["ui_url"] + base + "/settings?tab=ws")
                     owner_name = page.get_by_placeholder("storefront", exact=True)

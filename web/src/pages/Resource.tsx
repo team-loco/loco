@@ -19,7 +19,7 @@ import { useNow } from "@/hooks/useNow";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage, isUnimplemented, toastConnectError } from "@/lib/error-handler";
 import { environmentStatus } from "@/lib/resource-status";
-import { observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
+import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
@@ -355,12 +355,17 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					</Section>
 					<DeploymentsSection
 						nowMs={nowMs}
+						resourceId={resource.id}
+						workspaceId={resource.workspaceId}
 						regions={regions}
 						hasMore={hasMoreHistory}
 						isLoadingMore={isLoadingMoreHistory}
 						historyError={historyError}
 						onLoadMore={loadMoreHistory}
 						logsHref={obsLink("logs")}
+						buildLogsHref={(buildId) => (hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined)}
+						canWrite={canWrite}
+						canReadWorkspace={canListResources}
 						onRollback={openRollback}
 						onViewSpec={openSpec}
 					/>
