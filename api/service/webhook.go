@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -23,7 +24,6 @@ import (
 
 const (
 	maxWebhooksPerWorkspace = 10
-	recentDeliveries        = 25
 	fieldWebhookURL         = "url"
 	fieldWebhookEvents      = "eventTypes"
 )
@@ -279,16 +279,24 @@ func (s *WebhookServer) ListWebhookDeliveries(
 	if err != nil {
 		return nil, err
 	}
+	cursor, err := decodePositionCursor(req.GetPageToken())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
+	}
+	pageSize := normalizePageSize(req.GetPageSize())
 	rows, err := s.queries.ListWebhookDeliveries(ctx, genDb.ListWebhookDeliveriesParams{
-		WebhookID: row.ID,
-		MaxRows:   recentDeliveries,
+		WebhookID:     row.ID,
+		Status:        req.GetStatus(),
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
+		MaxRows:       pageSize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list webhook deliveries: %w", err)
 	}
 	out := make([]*webhookv1.WebhookDelivery, len(rows))
 	for i, d := range rows {
-		delivery := &webhookv1.WebhookDelivery{
+		out[i] = &webhookv1.WebhookDelivery{
 			Id:            d.ID.String(),
 			EventId:       d.EventID.String(),
 			EventType:     d.EventType,
@@ -296,15 +304,12 @@ func (s *WebhookServer) ListWebhookDeliveries(
 			Attempts:      d.Attempts,
 			LastError:     derefString(d.LastError),
 			CreatedAt:     timestamppb.New(d.CreatedAt),
+			DeliveredAt:   optionalTimestamp(d.DeliveredAt),
 			NextAttemptAt: timestamppb.New(d.NextAttemptAt),
 		}
-		if d.LastStatusCode != nil {
-			delivery.LastStatusCode = *d.LastStatusCode
-		}
-		if d.DeliveredAt != nil {
-			delivery.DeliveredAt = timestamppb.New(*d.DeliveredAt)
-		}
-		out[i] = delivery
 	}
-	return &webhookv1.ListWebhookDeliveriesResponse{Deliveries: out}, nil
+	token := nextPageToken(rows, pageSize, func(d genDb.ListWebhookDeliveriesRow) (uuid.UUID, time.Time) {
+		return d.ID, d.CreatedAt
+	})
+	return &webhookv1.ListWebhookDeliveriesResponse{Deliveries: out, NextPageToken: token}, nil
 }

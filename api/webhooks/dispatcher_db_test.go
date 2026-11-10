@@ -247,8 +247,8 @@ func TestFailedDeliveriesRetryThenGiveUp(t *testing.T) {
 		t.Fatalf("dispatch: %v", err)
 	}
 	row := f.deliveries(t, hook.ID)[0]
-	if row.Status != webhooks.StatusPending || row.Attempts != 1 || row.LastStatusCode == nil ||
-		*row.LastStatusCode != http.StatusInternalServerError || row.LastError == nil {
+	if row.Status != webhooks.StatusPending || row.Attempts != 1 || row.LastError == nil ||
+		*row.LastError != "endpoint returned 500 Internal Server Error" {
 		t.Fatalf("after one failure = %+v", row)
 	}
 	if again, againErr := d.DispatchDue(t.Context()); againErr != nil || again != 0 {

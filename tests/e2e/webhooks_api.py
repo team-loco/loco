@@ -11,6 +11,7 @@ import json
 import os
 import queue
 import threading
+import time
 from pathlib import Path
 
 repo = Path(__file__).resolve().parents[2]
@@ -34,6 +35,7 @@ state = evidence.load_state(args.state)
 token = state["users"]["owner"]["token"]
 workspace = state["workspaces"]["acme/shared"]
 DELIVERY_TIMEOUT_S = 30
+FAILING_PATH = "/failing"
 
 
 def call(method, body):
@@ -46,7 +48,7 @@ class Receiver(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         body = self.rfile.read(int(self.headers["Content-Length"]))
         self.received.put({"path": self.path, "headers": dict(self.headers), "body": body})
-        self.send_response(204)
+        self.send_response(503 if self.path == FAILING_PATH else 204)
         self.end_headers()
 
     def log_message(self, format, *args):
@@ -93,6 +95,32 @@ updated = call("loco.webhook.v1.WebhookService/UpdateWebhook", {"workspaceId": w
 assert updated["webhook"]["url"] == f"{base_url}/second"
 touch_workspace("second")
 assert_signed(secret, receive("/second"))
+
+def deliveries(**filters):
+    return call("loco.webhook.v1.WebhookService/ListWebhookDeliveries", {"workspaceId": workspace, "webhookId": hook, **filters})
+
+
+def wait_for_delivery(match):
+    deadline = time.monotonic() + DELIVERY_TIMEOUT_S
+    while time.monotonic() < deadline:
+        found = [d for d in deliveries().get("deliveries", []) if match(d)]
+        if found:
+            return found[0]
+        time.sleep(0.5)
+    raise AssertionError("no matching delivery recorded")
+
+
+call("loco.webhook.v1.WebhookService/UpdateWebhook", {"workspaceId": workspace, "webhookId": hook, "url": base_url + FAILING_PATH, "eventTypes": ["workspace.updated"]})
+touch_workspace("failing")
+receive(FAILING_PATH)
+failing = wait_for_delivery(lambda d: d.get("lastError") == "endpoint returned 503 Service Unavailable")
+assert failing["status"] == "pending", failing
+pending = deliveries(status="pending")["deliveries"]
+assert [d["id"] for d in pending] == [failing["id"]], pending
+assert failing["id"] not in [d["id"] for d in deliveries(status="succeeded")["deliveries"]]
+first_page = deliveries(pageSize=1)
+second_page = deliveries(pageSize=1, pageToken=first_page["nextPageToken"])
+assert first_page["deliveries"][0]["id"] == failing["id"] and second_page["deliveries"][0]["id"] != failing["id"]
 
 server.shutdown()
 print("PASS: webhook deliveries", flush=True)

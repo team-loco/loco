@@ -21,6 +21,9 @@ import (
 const (
 	receiverURL = "https://hooks.example.test/loco"
 	installURL  = "https://install.example.test/loco"
+
+	deliveryPending = "pending"
+	deliveryFailed  = "failed"
 )
 
 type webhookFixture struct {
@@ -132,7 +135,7 @@ func TestWebhookLifecycle(t *testing.T) {
 		t.Fatalf("deliveries = %+v (%v)", deliveries, err)
 	}
 	if d := deliveries.GetDeliveries()[0]; d.GetEventType() != events.EnvironmentCreated ||
-		d.GetStatus() != "pending" {
+		d.GetStatus() != deliveryPending {
 		t.Fatalf("delivery = %+v", d)
 	}
 
@@ -406,4 +409,73 @@ func TestUpdateWebhookReroutesPendingDeliveriesAndFiltersNewEvents(t *testing.T)
 	if changes != 1 {
 		t.Fatalf("%s events = %d, want 1", events.WebhookUpdated, changes)
 	}
+}
+
+func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
+	f := newWebhookFixture(t)
+	s := NewWebhookServer(f.pool, f.queries, false)
+	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
+		WorkspaceId: f.workspaceID, Url: receiverURL,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	hookID := created.GetWebhook().GetId()
+	workspaceID := uuid.MustParse(f.workspaceID)
+	for range 3 {
+		event := events.Event{Type: events.ResourceUpdated, WorkspaceID: &workspaceID}
+		if recordErr := events.Record(f.owner, f.queries, event); recordErr != nil {
+			t.Fatalf("record: %v", recordErr)
+		}
+	}
+	list := func(t *testing.T, req *webhookv1.ListWebhookDeliveriesRequest) *webhookv1.ListWebhookDeliveriesResponse {
+		t.Helper()
+		req.WorkspaceId, req.WebhookId = f.workspaceID, hookID
+		resp, listErr := s.ListWebhookDeliveries(f.owner, req)
+		if listErr != nil {
+			t.Fatalf("list: %v", listErr)
+		}
+		return resp
+	}
+	all := list(t, &webhookv1.ListWebhookDeliveriesRequest{})
+	if len(all.GetDeliveries()) != 4 || all.GetNextPageToken() != "" {
+		t.Fatalf("deliveries = %d, next = %q; want the creation event and three updates on one page",
+			len(all.GetDeliveries()), all.GetNextPageToken())
+	}
+	failedID := all.GetDeliveries()[1].GetId()
+	if _, execErr := f.pool.Exec(t.Context(), `UPDATE webhook_deliveries
+		SET status = 'failed'
+		WHERE id = $1`, failedID); execErr != nil {
+		t.Fatalf("fail delivery: %v", execErr)
+	}
+
+	failed := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: deliveryFailed}).GetDeliveries()
+	if len(failed) != 1 || failed[0].GetId() != failedID {
+		t.Fatalf("failed deliveries = %+v", failed)
+	}
+	pending := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: deliveryPending}).GetDeliveries()
+	if len(pending) != 3 {
+		t.Fatalf("pending deliveries = %d, want 3", len(pending))
+	}
+
+	newestFirst := make([]string, 0, len(all.GetDeliveries()))
+	for _, d := range all.GetDeliveries() {
+		newestFirst = append(newestFirst, d.GetId())
+	}
+	page := func(t *testing.T, token string) ([]string, string) {
+		t.Helper()
+		resp := list(t, &webhookv1.ListWebhookDeliveriesRequest{PageSize: 1, PageToken: token})
+		ids := make([]string, 0, len(resp.GetDeliveries()))
+		for _, d := range resp.GetDeliveries() {
+			ids = append(ids, d.GetId())
+		}
+		return ids, resp.GetNextPageToken()
+	}
+	deleteRow := func(t *testing.T, id string) {
+		t.Helper()
+		if _, execErr := f.pool.Exec(t.Context(), "DELETE FROM webhook_deliveries WHERE id = $1", id); execErr != nil {
+			t.Fatal(execErr)
+		}
+	}
+	assertPagingSurvivesDeletingTheCursorRow(t, newestFirst, page, deleteRow)
 }
