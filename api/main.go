@@ -69,7 +69,6 @@ import (
 
 const (
 	envProduction           = "PRODUCTION"
-	imageResolveTimeout     = 15 * time.Second
 	eventsRetentionInterval = time.Hour
 )
 
@@ -306,7 +305,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 	if sourceBucket != nil {
 		sourceSweeper = sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 	}
-	imageResolver := imageresolver.New(imageResolveTimeout)
+	imageResolver := imageresolver.New(ac.ImageResolveTimeout)
 
 	var registryKey *transit.PinnedKey
 	if ac.RegistryAuth.TokenMode() {

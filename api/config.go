@@ -113,6 +113,7 @@ const (
 	defaultTokenLastUsedInterval      = 5 * time.Minute
 	defaultTokenCleanupInterval       = time.Minute
 
+	defaultImageResolveTimeout   = 15 * time.Second
 	defaultRPCTimeout            = 30 * time.Second
 	defaultShutdownDrainTimeout  = 30 * time.Second
 	defaultPlacementPollInterval = 5 * time.Second
@@ -186,6 +187,7 @@ type APIConfig struct {
 	PlacementPollInterval time.Duration
 	Tokens                tvm.Config
 	TokenCleanupInterval  time.Duration
+	ImageResolveTimeout   time.Duration
 	RPCTimeout            time.Duration
 	ShutdownDrainTimeout  time.Duration
 	LogLevel              slog.Level
@@ -276,6 +278,7 @@ func newAPIConfig() *APIConfig {
 		PlacementPollInterval: envconfig.PositiveDuration("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
 		Tokens:                newTokenConfig(),
 		TokenCleanupInterval:  envconfig.PositiveDuration("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
+		ImageResolveTimeout:   envconfig.PositiveDuration("LOCO_IMAGE_RESOLVE_TIMEOUT", defaultImageResolveTimeout),
 		RPCTimeout:            envconfig.PositiveDuration("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
 		ShutdownDrainTimeout:  envconfig.PositiveDuration("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
 		Port:                  envconfig.String("APP_PORT", ""),
