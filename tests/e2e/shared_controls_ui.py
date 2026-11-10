@@ -179,6 +179,30 @@ def volume(page, suffix):
     assert urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0] == clicked
 
 
+def access_picker(page, suffix):
+    page.goto(state["ui_url"] + "/tokens")
+    page.get_by_role("button", name="New token", exact=True).first.click()
+    dialog = page.get_by_role("dialog")
+    search = page.locator('input[aria-label="Add a workspace or resource"]')
+    search.focus()
+    expect(search).to_have_attribute("aria-expanded", "true")
+    search.fill("controls-")
+    expect(page.get_by_text("controls-pilot", exact=True)).to_be_visible()
+    dialog.screenshot(path=str(out / f"token-permissions-{suffix}.png"), animations="disabled")
+    expect(search).to_have_attribute("aria-activedescendant", re.compile(r".+"))
+    page.locator(f'[id={json.dumps(search.get_attribute("aria-activedescendant"))}]').hover()
+    page.mouse.move(0, 0)
+    expect(search).not_to_have_attribute("aria-activedescendant", re.compile(r".+"))
+    search.press("Enter")
+    expect(page.get_by_role("group", name="Level for controls-pilot")).to_be_visible()
+    expect(search).to_have_value("")
+    search.fill("no matching scope")
+    expect(page.get_by_text("Nothing matches “no matching scope”.")).to_be_visible()
+    search.press("Escape")
+    expect(search).to_have_attribute("aria-expanded", "false")
+    expect(dialog).to_be_visible()
+
+
 def metrics(page, suffix):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
     chart = page.locator('[aria-label="CPU over time"]')
@@ -288,7 +312,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, time_presets, calendar, metrics, query_enter, query_suggestions, volume):
+                        for check in (log_levels, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})

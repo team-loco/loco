@@ -51,6 +51,7 @@ export function AccessPicker({
 }) {
 	const [q, setQ] = useState("");
 	const [focus, setFocus] = useState(false);
+	const highlightedRef = useRef<EntityNode | undefined>(undefined);
 	const anchorRef = useRef<HTMLDivElement>(null);
 	const levelByKey = new Map(items.map((x) => [x.key, x.level]));
 	const query = q.trim().toLowerCase();
@@ -191,6 +192,9 @@ export function AccessPicker({
 			}}
 			open={focus}
 			onOpenChange={setFocus}
+			onItemHighlighted={(node) => {
+				highlightedRef.current = node;
+			}}
 			autoHighlight
 		>
 			<div
@@ -207,6 +211,16 @@ export function AccessPicker({
 				<div className="flex h-[38px] items-center gap-2 px-3">
 					<SearchIcon className="size-3.5 text-fg3" />
 					<ComboboxChipsInput
+						onFocus={() => {
+							setFocus(true);
+						}}
+						onKeyDown={(e) => {
+							if (e.key !== "Enter" || highlightedRef.current !== undefined) return;
+							e.preventDefault();
+							e.preventBaseUIHandler();
+							const first = shown.find((n) => heldLevel(held, tree, n.key) > 0);
+							if (first !== undefined) add(first);
+						}}
 						aria-invalid={invalid}
 						placeholder="Add a workspace or resource"
 						autoComplete="off"
@@ -226,11 +240,7 @@ export function AccessPicker({
 									value={n}
 									disabled={disabled}
 									title={disabled ? `You have no access to ${n.label}` : undefined}
-									className={cn(
-										"flex h-8 w-full items-center gap-2.5 rounded-[5px] px-2 text-left text-foreground hover:bg-panel dark:hover:bg-panel2",
-										disabled && "opacity-45",
-										covered && "opacity-50",
-									)}
+									className={cn(disabled && "opacity-45", covered && "opacity-50")}
 								>
 									<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
 									<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
