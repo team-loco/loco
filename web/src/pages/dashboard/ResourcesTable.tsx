@@ -12,7 +12,6 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { ResourceStatus, type RegionInfo, type Resource, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -291,41 +290,8 @@ export function ResourcesTable({
 		update({ status: ALL, type: ALL, region: ALL, query: "" });
 	};
 
-	const title = (
-		<>
-			Resources
-			<Badge tone="count">{items.length}</Badge>
-		</>
-	);
 	const actions = (
 		<>
-			<SearchInput
-				value={filter.query}
-				placeholder="Search resources"
-				aria-label="Search resources"
-				className="w-full sm:w-auto sm:min-w-[140px] sm:flex-[0_1_220px]"
-				onChange={(e) => {
-					update({ query: e.target.value });
-				}}
-			/>
-			<ToggleGroup
-				variant="segmented"
-				aria-label="Filter resources by status"
-				className="max-w-full overflow-x-auto"
-				value={[filter.status]}
-				onValueChange={(v: string[]) => {
-					if (v[0] !== undefined) update({ status: v[0] });
-				}}
-			>
-				<ToggleGroupItem value={ALL} count={items.length}>
-					All
-				</ToggleGroupItem>
-				{statusOptions(statusCounts, filter.status).map((o) => (
-					<ToggleGroupItem key={o.value} value={o.value} count={statusCounts.get(o.status) ?? 0}>
-						{o.label}
-					</ToggleGroupItem>
-				))}
-			</ToggleGroup>
 			<ToggleGroup
 				variant="segmented"
 				aria-label="View"
@@ -350,7 +316,25 @@ export function ResourcesTable({
 	);
 
 	const filters = (
-		<div className="flex flex-wrap items-center gap-2.5 px-5 pb-3">
+		<>
+			<ToggleGroup
+				variant="segmented"
+				aria-label="Filter resources by status"
+				className="max-w-full overflow-x-auto"
+				value={[filter.status]}
+				onValueChange={(v: string[]) => {
+					if (v[0] !== undefined) update({ status: v[0] });
+				}}
+			>
+				<ToggleGroupItem value={ALL} count={items.length}>
+					All
+				</ToggleGroupItem>
+				{statusOptions(statusCounts, filter.status).map((o) => (
+					<ToggleGroupItem key={o.value} value={o.value} count={statusCounts.get(o.status) ?? 0}>
+						{o.label}
+					</ToggleGroupItem>
+				))}
+			</ToggleGroup>
 			<FilterMenu
 				label="Type"
 				value={filter.type}
@@ -372,7 +356,17 @@ export function ResourcesTable({
 					Clear filters
 				</Button>
 			)}
-		</div>
+		</>
+	);
+	const search = (
+		<SearchInput
+			value={filter.query}
+			placeholder="Search resources"
+			aria-label="Search resources"
+			onChange={(e) => {
+				update({ query: e.target.value });
+			}}
+		/>
 	);
 
 	const empty = (
@@ -395,8 +389,7 @@ export function ResourcesTable({
 	};
 
 	return (
-		<Section cardTitle={title} cardActions={actions}>
-			{filters}
+		<Section title="Resources" count={items.length} actions={actions} filters={filters} search={search}>
 			{isMap ? (
 				visible.length === 0 ? (
 					<div className="border-t border-line2">{empty}</div>

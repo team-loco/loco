@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
@@ -48,12 +47,6 @@ export function RecentDeployments({
 	const counts = deploymentCounts(recent);
 	const rows = filterDeployments(recent, filter);
 
-	const title = (
-		<>
-			Deployments
-			<Badge tone="count">{recent.length}</Badge>
-		</>
-	);
 	const toolbar = (
 		<ToggleGroup
 			variant="segmented"
@@ -87,15 +80,7 @@ export function RecentDeployments({
 	);
 
 	return (
-		<Section
-			cardTitle={title}
-			cardActions={
-				<>
-					{toolbar}
-					{actions}
-				</>
-			}
-		>
+		<Section title="Deployments" count={recent.length} actions={actions} filters={toolbar}>
 			{recent.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
