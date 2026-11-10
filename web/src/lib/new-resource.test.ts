@@ -14,6 +14,7 @@ import {
 	looksSecret,
 	locoYaml,
 	mergeEnv,
+	nameError,
 	nameFromImage,
 	servedDomains,
 	validateForm,
@@ -85,12 +86,11 @@ test("mergeEnv replaces pasted keys in place, appends new ones and drops blank r
 });
 
 test("validateForm accepts a complete form", () => {
-	expect(firstError(validateForm(form, new Map(), "available"))).toBeNull();
+	expect(firstError(validateForm(form, "available"))).toBeNull();
 });
 
-test("validateForm follows the API's name rules", () => {
-	const nameErr = (name: string, taken = new Map<string, string>()) =>
-		validateForm({ ...form, name }, taken, "available").name;
+test("nameError follows the API's name rules", () => {
+	const nameErr = (name: string, taken = new Map<string, string>()) => nameError(name, taken);
 	expect(nameErr("")).toBe("Enter a name");
 	expect(nameErr("!!!")).toBe("Use at least one letter or digit");
 	expect(nameErr("Localhost")).toBe("localhost is reserved");
@@ -101,22 +101,21 @@ test("validateForm follows the API's name rules", () => {
 
 test("validateForm leaves port and health check numbers to the API", () => {
 	const loose = { ...form, port: "", health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
-	expect(firstError(validateForm(loose, new Map(), "available"))).toBeNull();
+	expect(firstError(validateForm(loose, "available"))).toBeNull();
 });
 
 test("firstError reports the first blocking field in form order", () => {
 	const errors = validateForm(
 		{ ...form, regions: [], cpu: " ", memory: "", subdomain: "Bad_Sub", vars: [row("KEY", "")] },
-		new Map(),
 		"empty",
 	);
 	expect([errors.regions, errors.subdomain, errors.cpu, errors.memory, errors.env].every((e) => e !== null)).toBe(true);
 	expect(firstError(errors)).toBe("Choose at least one region");
-	expect(validateForm({ ...form, platformDomain: "" }, new Map(), "empty").subdomain).toBe(
+	expect(validateForm({ ...form, platformDomain: "" }, "empty").subdomain).toBe(
 		"No platform domain is served in every selected region",
 	);
-	expect(validateForm(form, new Map(), "taken").subdomain).toBe("web.example.com is taken");
-	expect(validateForm({ ...form, isPublic: false, platformDomain: "" }, new Map(), "taken").subdomain).toBeNull();
+	expect(validateForm(form, "taken").subdomain).toBe("web.example.com is taken");
+	expect(validateForm({ ...form, isPublic: false, platformDomain: "" }, "taken").subdomain).toBeNull();
 });
 
 test("healthCheckSpec sends the fields the user set, or no check without a path", () => {

@@ -41,8 +41,6 @@ export interface NewResourceForm {
 }
 
 export interface FormErrors {
-	image: string | null;
-	name: string | null;
 	regions: string | null;
 	subdomain: string | null;
 	cpu: string | null;
@@ -135,14 +133,8 @@ export function imageError(image: string): string | null {
 	return IMAGE_RE.test(trimmed) ? null : "Use registry/repository:tag";
 }
 
-export function validateForm(
-	form: NewResourceForm,
-	takenSlugs: ReadonlyMap<string, string>,
-	availability: DomainCheck["state"],
-): FormErrors {
+export function validateForm(form: NewResourceForm, availability: DomainCheck["state"]): FormErrors {
 	return {
-		image: imageError(form.image),
-		name: nameError(form.name, takenSlugs),
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
 		subdomain: subdomainError(form, availability),
 		cpu: form.cpu.trim() === "" ? "Enter a CPU amount" : null,
@@ -152,15 +144,7 @@ export function validateForm(
 }
 
 export function firstError(errors: FormErrors): string | null {
-	const ordered: (string | null)[] = [
-		errors.image,
-		errors.name,
-		errors.regions,
-		errors.subdomain,
-		errors.cpu,
-		errors.memory,
-		errors.env,
-	];
+	const ordered: (string | null)[] = [errors.regions, errors.subdomain, errors.cpu, errors.memory, errors.env];
 	return ordered.find((e) => e !== null) ?? null;
 }
 

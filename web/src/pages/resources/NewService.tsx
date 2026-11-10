@@ -130,7 +130,6 @@ export function NewService({
 								env={env}
 								image={image}
 								name={name}
-								taken={taken}
 								onClose={onClose}
 							/>
 						)}
@@ -252,7 +251,6 @@ function ServiceDrawer({
 	env,
 	image,
 	name,
-	taken,
 	onClose,
 }: {
 	orgId: string;
@@ -260,7 +258,6 @@ function ServiceDrawer({
 	env: Environment;
 	image: string;
 	name: string;
-	taken: ReadonlyMap<string, string>;
 	onClose: () => void;
 }) {
 	const configQuery = useRpcQuery(getConfig, {});
@@ -296,7 +293,6 @@ function ServiceDrawer({
 			schemaUrl={configQuery.data?.schemaUrl ?? ""}
 			regions={regionsQuery.data.regions}
 			platformDomains={domainsQuery.data?.platformDomains ?? []}
-			taken={taken}
 			onClose={onClose}
 		/>
 	);
@@ -335,7 +331,6 @@ function ServiceForm({
 	schemaUrl,
 	regions,
 	platformDomains,
-	taken,
 	onClose,
 }: {
 	orgId: string;
@@ -347,7 +342,6 @@ function ServiceForm({
 	schemaUrl: string;
 	regions: RegionInfo[];
 	platformDomains: PlatformDomain[];
-	taken: ReadonlyMap<string, string>;
 	onClose: () => void;
 }) {
 	const [edits, setEdits] = useState<Partial<NewResourceForm>>({});
@@ -372,7 +366,7 @@ function ServiceForm({
 		health: edits.health ?? defaultHealth(defaults),
 	};
 	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.platformDomain, []);
-	const errors = validateForm(form, taken, check.state);
+	const errors = validateForm(form, check.state);
 	const shown = (e: string | null, field: keyof NewResourceForm) => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);
 	const subdomainError =
