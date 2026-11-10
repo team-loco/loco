@@ -19,12 +19,11 @@ import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
-import { resourceMissing } from "@/lib/not-found";
+import { notFound, resourceMissing } from "@/lib/not-found";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
-import { NotFound } from "@/pages/NotFound";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
 import { DeleteDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
@@ -135,14 +134,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	if (isLoading) return <ResourceSkeleton />;
 
 	if (error !== null) {
-		if (resourceMissing(error, canListResources)) return <NotFound />;
+		if (resourceMissing(error, canListResources)) notFound();
 		return (
 			<Page>
 				<EmptyState title="Couldn't load resource">{getErrorMessage(error, "Failed to load resource")}</EmptyState>
 			</Page>
 		);
 	}
-	if (resource === undefined) return <NotFound />;
+	if (resource === undefined) notFound();
 
 	const environment = environmentStatus(resource, environmentId);
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);

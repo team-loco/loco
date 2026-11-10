@@ -3,6 +3,12 @@ import { EntityType, type EntityScope } from "@gen/loco/token/v1/token_pb";
 
 import { hasOrganizationMembership } from "@/hooks/useMyScopes";
 
+export class PageNotFound extends Error {}
+
+export function notFound(): never {
+	throw new PageNotFound("Page not found");
+}
+
 export function resourceMissing(error: unknown, canReadWorkspace: boolean): boolean {
 	if (!(error instanceof ConnectError)) return false;
 	if (error.code === Code.NotFound) return true;

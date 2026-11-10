@@ -59,7 +59,9 @@ def open_page(browser, user, theme="light", narrow=False):
 def expect_not_found(page, path):
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
     expect(page.get_by_text(path, exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
+    for name in ("Resources", "Logs", "Settings"):
+        expect(page.get_by_role("link", name=name, exact=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="Search and run commands")).to_have_count(0)
 
 
 def b64(value):
@@ -113,11 +115,17 @@ with sync_playwright() as playwright:
                 expect_not_found(page, f"/org/{org}/wks/{shared}/no-such-tab")
                 page.get_by_role("link", name="Go to dashboard", exact=True).click()
                 expect(page).to_have_url(base)
+                if not narrow:
+                    expect(page.get_by_role("link", name="Resources", exact=True)).to_be_visible()
 
                 missing = str(uuid.uuid4())
                 page.goto(base + f"/resource/{missing}")
                 expect_not_found(page, f"/org/{org}/wks/{shared}/resource/{missing}")
                 page.get_by_role("button", name=re.compile(r"^Search (⌘K|Ctrl K)$")).click()
+                expect(page.get_by_role("dialog", name="Command palette")).to_be_visible()
+                page.keyboard.press("Escape")
+                expect(page.get_by_role("dialog", name="Command palette")).to_have_count(0)
+                page.keyboard.press("ControlOrMeta+k")
                 expect(page.get_by_role("dialog", name="Command palette")).to_be_visible()
                 page.keyboard.press("Escape")
 

@@ -1,11 +1,13 @@
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceKnown } from "@/lib/not-found";
+import { NotFound, NotFoundBoundary } from "@/pages/NotFound";
 import { useAuth } from "@/auth/AuthProvider";
 import { nextPathState } from "@/auth/next";
 import { ClaimedOrgsBanner } from "@/components/ClaimedOrgsBanner";
 import { ErrorCard } from "@/components/ErrorCard";
 import { AppShell } from "@/components/shell/AppShell";
+import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
@@ -60,13 +62,16 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	}
 
 	return (
-		<ContextProvider
-			availableOrgs={orgs}
-			availableWorkspaces={workspaces}
-			workspacesSettled={workspacesSettled}
-			workspaceNotFound={workspaceNotFound}
-		>
-			<AppShell>{children}</AppShell>
+		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces} workspacesSettled={workspacesSettled}>
+			<CommandPaletteProvider>
+				{workspaceNotFound ? (
+					<NotFound unknownWorkspace />
+				) : (
+					<NotFoundBoundary path={pathname}>
+						<AppShell>{children}</AppShell>
+					</NotFoundBoundary>
+				)}
+			</CommandPaletteProvider>
 			<ClaimedOrgsBanner />
 		</ContextProvider>
 	);
