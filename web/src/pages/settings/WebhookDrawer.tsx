@@ -166,10 +166,15 @@ function WebhookDetail({
 						))}
 					</ToggleGroup>
 				</div>
+				{query.data !== undefined && query.isRefetchError && (
+					<p role="alert" className="m-0 text-bad-fg">
+						{getErrorMessage(query.error, "Could not refresh deliveries")}
+					</p>
+				)}
 				<DeliveryList
 					deliveries={paged.rows}
 					isLoading={query.isPending}
-					error={query.isFetchNextPageError ? null : query.error}
+					error={query.data === undefined ? query.error : null}
 					onRedeliver={(deliveryId) => {
 						redeliver.mutate({ workspaceId, webhookId: webhook.id, deliveryId });
 					}}
@@ -183,8 +188,8 @@ function WebhookDetail({
 				{query.error !== null && (
 					<Button
 						variant="outline"
-						disabled={query.isFetching}
 						onClick={() => {
+							if (query.isFetching) return;
 							if (query.isFetchNextPageError) next?.();
 							else void query.refetch();
 						}}

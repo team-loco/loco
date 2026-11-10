@@ -39,6 +39,10 @@ def slow(route):
     time.sleep(0.5)
     route.continue_()
 
+def unavailable(route):
+    time.sleep(0.5)
+    route.fulfill(status=503, json={"code": "unavailable"})
+
 def call(method, **body):
     return evidence.rpc(state["api_url"], token, service + method, {"workspaceId": workspace, **body})
 
@@ -88,6 +92,21 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 expect(deliveries.locator("li")).to_have_count(1)
                 page.unroute("**/" + service + "ListWebhookDeliveries")
                 assert any(method == "ListWebhookDeliveries" and body.get("pageToken") for method, body in requests)
+                # A failed background refresh keeps the loaded rows and offers a retry.
+                page.route("**/" + service + "ListWebhookDeliveries", unavailable)
+                drawer.get_by_role("button", name="Send test event", exact=True).click()
+                expect(page.get_by_text("Test event queued", exact=True)).to_be_visible()
+                assert any(method == "SendTestEvent" for method, _ in requests)
+                expect(drawer.get_by_role("alert")).to_have_text("Could not refresh deliveries.")
+                expect(deliveries.locator("li")).to_have_count(1)
+                retry = drawer.get_by_role("button", name="Retry deliveries", exact=True)
+                retry.focus()
+                with page.expect_response("**/" + service + "ListWebhookDeliveries"):
+                    page.keyboard.press("Enter")
+                expect(retry).to_be_focused()
+                page.unroute("**/" + service + "ListWebhookDeliveries")
+                retry.click()
+                expect(drawer.get_by_role("alert")).to_have_count(0)
                 drawer.get_by_role("button", name="Failed", exact=True).click()
                 expect(deliveries.locator("li")).to_have_count(10)
                 assert all("Failed" in text for text in deliveries.locator("li").all_text_contents())
@@ -97,9 +116,6 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 assert any(method == "RedeliverWebhookDelivery" for method, _ in requests)
                 drawer.get_by_role("button", name="Pending", exact=True).click()
                 expect(deliveries.get_by_role("button", name="Redeliver", exact=True)).to_have_count(0)
-                drawer.get_by_role("button", name="Send test event", exact=True).click()
-                expect(page.get_by_text("Test event queued", exact=True)).to_be_visible()
-                assert any(method == "SendTestEvent" for method, _ in requests)
                 drawer.get_by_role("button", name="Edit webhook", exact=True).click()
                 edit = page.get_by_role("dialog", name="Edit webhook", exact=True)
                 url = edit.get_by_role("textbox", name="Endpoint URL", exact=True)
