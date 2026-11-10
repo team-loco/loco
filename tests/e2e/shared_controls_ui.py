@@ -24,7 +24,7 @@ spec.loader.exec_module(evidence)
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="after", scenario=str(repo / "tests/e2e/fixtures/settings-labels/scenario.json")))
+        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="shared-controls", scenario=str(repo / "tests/e2e/fixtures/settings-labels/scenario.json")))
     args.state = output.getvalue().strip().splitlines()[-1]
     print("Preview state:", args.state, flush=True)
     if not args.keep:
