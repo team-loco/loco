@@ -38,8 +38,6 @@ type Listener struct {
 	notifier  *Notifier
 	clusterID uuid.UUID
 	wake      chan struct{}
-	cancel    context.CancelFunc
-	done      chan struct{}
 }
 
 func (n *Notifier) Start(ctx context.Context) error {
@@ -131,14 +129,16 @@ func (n *Notifier) wakeAll() {
 	}
 }
 
-func (n *Notifier) Listen(ctx context.Context, clusterID uuid.UUID) *Listener {
-	pollCtx, cancel := context.WithCancel(ctx)
+// PollInterval is how often a listener's owner should re-check for changes in case a notification was missed.
+func (n *Notifier) PollInterval() time.Duration {
+	return n.pollInterval
+}
+
+func (n *Notifier) Listen(clusterID uuid.UUID) *Listener {
 	l := &Listener{
 		notifier:  n,
 		clusterID: clusterID,
 		wake:      make(chan struct{}, 1),
-		cancel:    cancel,
-		done:      make(chan struct{}),
 	}
 
 	n.mu.Lock()
@@ -150,7 +150,6 @@ func (n *Notifier) Listen(ctx context.Context, clusterID uuid.UUID) *Listener {
 	listeners[l] = struct{}{}
 	n.mu.Unlock()
 
-	go l.poll(pollCtx, n.pollInterval)
 	return l
 }
 
@@ -159,9 +158,6 @@ func (l *Listener) Wake() <-chan struct{} {
 }
 
 func (l *Listener) Close() {
-	l.cancel()
-	<-l.done
-
 	l.notifier.mu.Lock()
 	defer l.notifier.mu.Unlock()
 	listeners := l.notifier.subscribers[l.clusterID]
@@ -175,20 +171,6 @@ func (l *Listener) signal() {
 	select {
 	case l.wake <- struct{}{}:
 	default:
-	}
-}
-
-func (l *Listener) poll(ctx context.Context, interval time.Duration) {
-	defer close(l.done)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			l.signal()
-		}
 	}
 }
 

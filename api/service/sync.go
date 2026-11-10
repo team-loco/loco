@@ -30,7 +30,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 		return agentAuthError(err)
 	}
 
-	listener := s.notifier.Listen(ctx, cluster.ID)
+	listener := s.notifier.Listen(cluster.ID)
 	defer listener.Close()
 
 	generation, err := s.queries.BeginClusterSync(ctx, cluster.ID)
@@ -62,6 +62,8 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	}
 	session := newSyncSession(s, cluster.ID, send)
 
+	poll := time.NewTicker(s.notifier.PollInterval())
+	defer poll.Stop()
 	dirty := true
 	var retryDue <-chan time.Time
 	for {
@@ -97,6 +99,8 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 				return handleErr
 			}
 		case <-listener.Wake():
+			dirty = true
+		case <-poll.C:
 			dirty = true
 		case <-retryDue:
 			dirty = true
