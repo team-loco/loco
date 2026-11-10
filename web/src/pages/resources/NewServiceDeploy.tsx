@@ -60,7 +60,10 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		}
 	};
 
-	const attempt = async (form: NewResourceForm, defaults: DefaultServiceConfig): Promise<DeployError | null> => {
+	const attempt = async (
+		form: NewResourceForm,
+		defaults: DefaultServiceConfig,
+	): Promise<{ error: DeployError | null; deployed: boolean }> => {
 		const { vars, ...summary } = form;
 		const start: DeployRun = {
 			form: summary,
@@ -110,6 +113,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			const deployments = createClient(DeploymentService, transport);
 			const { env: envMap, secrets } = deploymentVariables(vars);
 			const secretNames = Object.keys(secrets);
+			let secretsError: unknown = undefined;
 			if (secretNames.length > 0) {
 				try {
 					await createClient(SecretService, transport).setSecrets({
@@ -118,19 +122,15 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 						values: secrets,
 					});
 				} catch (error) {
-					const message = getErrorMessage(error, "Couldn't store the secrets");
-					if (await removed(resourceId)) return { message, field: null };
-					setRun({
-						...start,
-						resourceId,
-						deploying: false,
-						regions: start.regions.map((region) => ({ ...region, error: message })),
-					});
-					return null;
+					secretsError = error;
 				}
 			}
 			const regions = await Promise.all(
 				form.regions.map(async (region): Promise<RegionRun & { cause: unknown }> => {
+					if (secretsError !== undefined) {
+						const error = getErrorMessage(secretsError, "Couldn't store the secrets");
+						return { region, deploymentId: undefined, error, cause: secretsError };
+					}
 					try {
 						const res = await deployments.createDeployment({
 							resourceId,
@@ -170,24 +170,25 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 				(await removed(resourceId))
 			) {
 				return {
-					message: `Couldn't deploy ${form.image.trim()}: ${first.error}`,
-					field: apiFieldError(first.cause),
+					error: { message: `Couldn't deploy ${form.image.trim()}: ${first.error}`, field: apiFieldError(first.cause) },
+					deployed: false,
 				};
 			}
 			setRun({ ...start, resourceId, deploying: false, regions });
-			return null;
+			return { error: null, deployed: regions.some((r) => r.deploymentId !== undefined) };
 		} catch (err) {
-			return { message: getErrorMessage(err, "Couldn't create the resource"), field: apiFieldError(err) };
+			const error = { message: getErrorMessage(err, "Couldn't create the resource"), field: apiFieldError(err) };
+			return { error, deployed: false };
 		}
 	};
 
 	const deploy = async (form: NewResourceForm, defaults: DefaultServiceConfig) => {
 		setDeployError(null);
-		const error = await attempt(form, defaults);
-		if (error !== null) setRun(null);
-		setDeployError(error);
+		const result = await attempt(form, defaults);
+		if (result.error !== null) setRun(null);
+		setDeployError(result.error);
 		void queryClient.invalidateQueries();
-		return error;
+		return result;
 	};
 
 	return {

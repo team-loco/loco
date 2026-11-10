@@ -309,6 +309,23 @@ with sync_playwright() as playwright:
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
                     assert stored_drafts(page) == [name], stored_drafts(page)
                     page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")
+                    # When SetSecrets fails and the cleanup delete fails too, nothing deployed and the draft stays.
+                    unavailable = lambda route: route.fulfill(status=503, json={"code": "unavailable"})
+                    page.route("**/loco.secret.v1.SecretService/SetSecrets", unavailable)
+                    page.route("**/loco.resource.v1.ResourceService/DeleteResource", unavailable)
+                    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+                    expect(drawer.get_by_text("Couldn't store the secrets.", exact=True)).to_be_visible()
+                    assert not deployments, deployments
+                    assert stored_drafts(page) == [name], stored_drafts(page)
+                    page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
+                    page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
+                    orphan = evidence.psql(state["container"], f"SELECT id FROM resources WHERE name='{name}';")
+                    evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan})
+                    drawer.get_by_role("button", name="Done", exact=True).click()
+                    expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+                    draft_row(page, name).get_by_role("link", name=name, exact=True).click()
+                    expect(page).to_have_url(DRAFT_URL)
+                    secret_value.fill("sk_test")
                 drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
                 open_button = drawer.get_by_role("link", name=f"Open {name}", exact=True)

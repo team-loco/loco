@@ -465,12 +465,12 @@ function ServiceForm({
 				e.preventDefault();
 				onTry();
 				if (blocker !== null) return;
-				void deploy(form, defaults).then((err) => {
-					if (err === null) {
+				void deploy(form, defaults).then(({ error, deployed }) => {
+					if (deployed) {
 						onDeployed();
 						return;
 					}
-					const field = err.field?.field;
+					const field = error?.field?.field;
 					if (field !== undefined && HEALTH_FIELDS.has(field)) onHealthOpen(true);
 				});
 			}}
