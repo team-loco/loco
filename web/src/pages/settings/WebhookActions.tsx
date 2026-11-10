@@ -59,8 +59,8 @@ export function WebhookActions({
 				</Button>
 				<Button
 					variant="outline"
-					disabled={test.isPending}
 					onClick={() => {
+						if (test.isPending) return;
 						test.mutate({ workspaceId, webhookId: webhook.id });
 					}}
 				>
@@ -163,7 +163,7 @@ function RotateSecret({
 							<Button variant="outline" type="button" disabled={rotate.isPending} onClick={close}>
 								Cancel
 							</Button>
-							<Button type="submit" disabled={!valid || rotate.isPending}>
+							<Button type="submit" disabled={!valid}>
 								Rotate secret
 							</Button>
 						</DialogFooter>

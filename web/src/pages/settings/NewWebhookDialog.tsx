@@ -103,10 +103,10 @@ function NewWebhookForm({
 	const target = url.trim();
 	const rejected = isUrlRejection(mutation.error);
 	const urlError = rejected ? getErrorMessage(mutation.error) : null;
-	const ok = target !== "" && (mode === "all" || types.size > 0) && !mutation.isPending;
+	const ok = target !== "" && (mode === "all" || types.size > 0);
 
 	const submit = () => {
-		if (!ok) return;
+		if (!ok || mutation.isPending) return;
 		const input = { workspaceId, url: target, eventTypes: mode === "all" ? [] : [...types] };
 		if (webhook !== undefined) {
 			update.mutate(

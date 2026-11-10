@@ -274,9 +274,8 @@ function DeliveryList({
 								className="col-start-2 w-fit"
 								variant="outline"
 								size="sm"
-								disabled={redelivering}
 								onClick={() => {
-									onRedeliver(d.id);
+									if (!redelivering) onRedeliver(d.id);
 								}}
 							>
 								Redeliver
