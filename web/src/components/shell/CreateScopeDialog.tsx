@@ -2,7 +2,7 @@ import { useMutation } from "@connectrpc/connect-query";
 import { createOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { Field } from "@/components/design/Field";
@@ -44,6 +44,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 	const queryClient = useQueryClient();
 	const { orgs, activeOrgId } = useOrgWorkspace();
 	const [name, setName] = useState("");
+	const nameRef = useRef<HTMLInputElement>(null);
 	const [description, setDescription] = useState("");
 	const [orgId, setOrgId] = useState(activeOrgId ?? orgs[0]?.id ?? "");
 	const orgMutation = useMutation(createOrg);
@@ -51,6 +52,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 	const pending = orgMutation.isPending || wsMutation.isPending;
 
 	const isOrg = kind === "org";
+	const orgName = orgs.find((o) => o.id === orgId)?.name ?? "";
 	const trimmed = name.trim();
 	const maxLen = isOrg ? 100 : 63;
 	const error = trimmed.length > maxLen ? "Too long" : null;
@@ -81,7 +83,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 	};
 
 	return (
-		<DialogContent title={isOrg ? "New organization" : "New workspace"}>
+		<DialogContent title={isOrg ? "New organization" : `New workspace in ${orgName}`} initialFocus={nameRef}>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -90,6 +92,12 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 				className="contents"
 			>
 				<DialogBody>
+					{!isOrg && (
+						<p className="m-0 text-[13px] leading-normal text-fg2">
+							A workspace is a project inside {orgName}. Its resources, environments, members, tokens and webhooks live
+							here.
+						</p>
+					)}
 					{!isOrg && orgs.length > 1 && (
 						<div className="flex flex-col gap-1.5">
 							<span className="font-semibold">Organization</span>
@@ -111,7 +119,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 					)}
 					<Field label="Name" error={error}>
 						<Input
-							autoFocus
+							ref={nameRef}
 							autoComplete="off"
 							value={name}
 							placeholder={isOrg ? "acme-labs" : "payments"}

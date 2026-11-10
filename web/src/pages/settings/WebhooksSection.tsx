@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { NewWebhookDialog } from "./NewWebhookDialog";
 import { WebhookDrawer } from "./WebhookDrawer";
 import { formatDay, SettingsCard, SettingsSection } from "./parts";
-import { DELIVERY_TICKS, eventsSummary, failingCount, tickStrip, type Tick } from "./webhooks";
+import { DELIVERY_TICKS, eventsSummary, failingCount, failingLabel, tickStrip, type Tick } from "./webhooks";
 
 const TICK_CLASS: Record<Tick, string> = {
 	ok: "bg-ok-glyph opacity-75",
@@ -237,14 +237,14 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 		<span className="flex min-w-0 items-center gap-2.5">
 			<span
 				role="img"
-				aria-label={`${ticks.length.toString()} recent deliveries, ${failing.toString()} failing`}
+				aria-label={`${ticks.length.toString()} recent deliveries, ${failingLabel(failing)}`}
 				className="flex items-center gap-0.5"
 			>
 				{ticks.map((t) => (
 					<i key={t.id} title={t.tip} className={cn("block h-4 w-1 rounded-[1.5px]", TICK_CLASS[t.tick])} />
 				))}
 			</span>
-			{failing > 0 && <span className="text-[12px] whitespace-nowrap text-warn-fg">{failing.toString()} failing</span>}
+			{failing > 0 && <span className="text-[12px] whitespace-nowrap text-warn-fg">{failingLabel(failing)}</span>}
 		</span>
 	);
 }

@@ -3,16 +3,16 @@ import { createWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_conne
 import { useRef, useState, type RefObject } from "react";
 
 import { Button } from "@/components/design/Button";
-import { Checkbox } from "@/components/design/Checkbox";
 import { CopyButton } from "@/components/design/CopyButton";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { ToggleChip } from "@/components/design/ToggleChip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
-import { pageSelection, toggleId, togglePage } from "@/lib/selection";
+import { pageSelection, setPage, toggleId } from "@/lib/selection";
 
-import { isUrlRejection, webhookEventGroups, type EventGroup } from "./webhooks";
+import { groupCountLabel, isUrlRejection, webhookEventGroups } from "./webhooks";
 
 type Mode = "all" | "choose";
 
@@ -149,19 +149,13 @@ function NewWebhookForm({
 					</ToggleGroup>
 				</div>
 				{mode === "choose" && (
-					<div className="grid max-h-[300px] grid-cols-1 gap-x-5 gap-y-3.5 overflow-y-auto rounded-lg bg-panel p-3 sm:grid-cols-2">
-						{GROUPS.map((g) => (
-							<GroupPicker
-								key={g.label}
-								group={g}
-								selected={types}
-								onChange={(next) => {
-									setTypes(next);
-									create.reset();
-								}}
-							/>
-						))}
-					</div>
+					<EventPicker
+						selected={types}
+						onChange={(next) => {
+							setTypes(next);
+							create.reset();
+						}}
+					/>
 				)}
 				{create.error !== null && !rejected && (
 					<span className="text-[12.5px] text-bad-fg">
@@ -181,41 +175,58 @@ function NewWebhookForm({
 	);
 }
 
-function GroupPicker({
-	group,
+function EventPicker({
 	selected,
 	onChange,
 }: {
-	group: EventGroup;
 	selected: ReadonlySet<string>;
 	onChange: (next: ReadonlySet<string>) => void;
 }) {
-	const state = pageSelection(selected, group.types);
+	const [opened, setOpened] = useState<string | null>(null);
+	const open = GROUPS.find((g) => g.label === opened && pageSelection(selected, g.types).some);
 	return (
-		<div role="group" aria-label={group.label} className="flex min-w-0 flex-col gap-1.5">
-			<label className="flex items-center gap-2 text-[13px] font-medium">
-				<Checkbox
-					checked={state.all}
-					indeterminate={state.some && !state.all}
-					onCheckedChange={() => {
-						onChange(togglePage(selected, group.types));
-					}}
-				/>
-				{group.label}
-			</label>
-			<div className="flex flex-col gap-1 pl-6">
-				{group.types.map((t) => (
-					<label key={t} className="flex min-w-0 items-center gap-2 font-mono text-[12px] text-fg2">
-						<Checkbox
-							checked={selected.has(t)}
-							onCheckedChange={() => {
+		<div className="flex flex-col gap-2.5">
+			<div role="group" aria-label="Event groups" className="flex flex-wrap gap-1.5">
+				{GROUPS.map((g) => {
+					const state = pageSelection(selected, g.types);
+					const count = groupCountLabel(state.count, g.types.length);
+					return (
+						<ToggleChip
+							key={g.label}
+							pressed={state.some}
+							aria-label={`${g.label} ${count}`}
+							onPressedChange={(on) => {
+								setOpened(g.label);
+								onChange(setPage(selected, g.types, on));
+							}}
+						>
+							{g.label}
+							{state.some && <span className="font-mono text-[11px] opacity-70">{count}</span>}
+						</ToggleChip>
+					);
+				})}
+			</div>
+			{open !== undefined && (
+				<div
+					role="group"
+					aria-label={`${open.label} events`}
+					className="flex flex-wrap items-center gap-1.5 rounded-lg bg-panel px-3 py-2.5"
+				>
+					<span className="mr-1 text-[12.5px] text-fg3">{open.label}</span>
+					{open.types.map((t) => (
+						<ToggleChip
+							key={t}
+							variant="event"
+							pressed={selected.has(t)}
+							onPressedChange={() => {
 								onChange(toggleId(selected, t));
 							}}
-						/>
-						<span className="truncate">{t}</span>
-					</label>
-				))}
-			</div>
+						>
+							{t}
+						</ToggleChip>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }

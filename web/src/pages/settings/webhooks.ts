@@ -31,6 +31,10 @@ export function failingCount(deliveries: readonly WebhookDelivery[]): number {
 	return deliveries.filter(isFailing).length;
 }
 
+export function failingLabel(n: number): string {
+	return pluralize(n, "error");
+}
+
 export function deliveryLabel(d: WebhookDelivery): string {
 	if (d.status === STATUS_SUCCEEDED) return "Delivered";
 	if (d.status === STATUS_FAILED) return "Failed";
@@ -92,9 +96,13 @@ const GROUPS: readonly { label: string; subjects: readonly string[] }[] = [
 	{ label: "Workspace", subjects: ["workspace", "webhook"] },
 ];
 
-export interface EventGroup {
+interface EventGroup {
 	label: string;
 	types: string[];
+}
+
+export function groupCountLabel(selected: number, total: number): string {
+	return selected === total ? "all" : `${selected.toString()}/${total.toString()}`;
 }
 
 export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES): EventGroup[] {

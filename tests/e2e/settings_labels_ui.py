@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
@@ -68,10 +69,32 @@ def check_webhooks(page):
     assert rejection not in descriptions(url)
     page.get_by_role("button", name="Choose events", exact=True).click()
     assert create.is_disabled()
-    page.get_by_role("checkbox", name="Builds", exact=True).check()
-    assert page.get_by_role("checkbox", name="build.failed", exact=True).is_checked()
-    page.get_by_role("checkbox", name="build.failed", exact=True).uncheck()
-    assert page.get_by_role("checkbox", name="Builds", exact=True).get_attribute("aria-checked") == "mixed"
+    groups = page.get_by_role("group", name="Event groups", exact=True)
+    builds = groups.get_by_role("button", name=re.compile(r"^Builds "))
+    deployments = groups.get_by_role("button", name=re.compile(r"^Deployments "))
+    expect(builds).to_have_attribute("aria-pressed", "false")
+    builds.click()
+    expect(builds).to_have_attribute("aria-pressed", "true")
+    expect(builds).to_have_accessible_name("Builds all")
+    expect(builds.get_by_text("all", exact=True)).to_be_visible()
+    build_events = page.get_by_role("group", name="Builds events", exact=True)
+    failed = build_events.get_by_role("button", name="build.failed", exact=True)
+    expect(failed).to_have_attribute("aria-pressed", "true")
+    failed.click()
+    expect(failed).to_have_attribute("aria-pressed", "false")
+    expect(builds).to_have_attribute("aria-pressed", "true")
+    expect(builds).to_have_accessible_name(re.compile(r"^Builds \d+/\d+$"))
+    chosen, total = builds.get_attribute("aria-label").removeprefix("Builds ").split("/")
+    assert int(chosen) == int(total) - 1
+    expect(builds.get_by_text(f"{chosen}/{total}", exact=True)).to_be_visible()
+    deployments.click()
+    expect(deployments).to_have_attribute("aria-pressed", "true")
+    page.get_by_role("group", name="Deployments events", exact=True).wait_for()
+    expect(build_events).to_be_hidden()
+    deployments.click()
+    expect(deployments).to_have_attribute("aria-pressed", "false")
+    expect(page.get_by_role("group", name="Deployments events", exact=True)).to_be_hidden()
+    expect(builds).to_have_attribute("aria-pressed", "true")
     create.click()
     page.get_by_role("dialog", name="Signing secret").wait_for()
     page.get_by_role("button", name="Copy signing secret", exact=True).wait_for()
@@ -95,6 +118,8 @@ def check_create_dialogs(page):
         opener = page.get_by_role("button", name=button, exact=True).first
         opener.click()
         expect(page.get_by_role("dialog").get_by_role("textbox", name=field, exact=True)).to_be_focused()
+        if button == "New workspace":
+            page.get_by_role("dialog", name="New workspace in acme", exact=True).get_by_text("A workspace is a project inside acme.", exact=False).wait_for()
         page.keyboard.press("Escape")
         expect(opener).to_be_focused()
 
