@@ -220,7 +220,7 @@ with sync_playwright() as playwright:
                     section.get_by_role("button", name=f"Show build {builds['failed'][:8]}", exact=True).click()
                     expect(section.get_by_text("RUN go build ./cmd/api exited with code 1", exact=True)).to_be_visible()
                     expect(section.get_by_text(BUILD_LOG[1][1], exact=True)).to_be_visible()
-                    expect(section.get_by_role("button", name="Open in Logs", exact=True)).to_have_attribute("href", re.compile(f"q=build%3A{builds['failed']}"))
+                    expect(section.get_by_role("link", name="Open in Logs", exact=True)).to_have_attribute("href", re.compile(f"q=build%3A{builds['failed']}"))
                     log_requests = [body for body in log_queries if body.get("labels", {}).get("loco.io/build-id") == builds["failed"]]
                     assert log_requests and not log_requests[0].get("environmentId") and log_requests[0].get("order") == "LOG_ORDER_OLDEST_FIRST", log_queries
                     expect(section.get_by_role("button", name="Cancel build", exact=True)).to_have_count(0)

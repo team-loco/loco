@@ -129,7 +129,7 @@ with sync_playwright() as playwright:
                     page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")
                     drawer.get_by_role("button", name=f"Deploy {repository}", exact=True).click()
 
-                open_button = drawer.get_by_role("button", name=f"Open {repository}", exact=True)
+                open_button = drawer.get_by_role("link", name=f"Open {repository}", exact=True)
                 expect(open_button).to_be_visible()
                 expect(drawer.get_by_text("Resource created", exact=True)).to_be_visible()
                 page.screenshot(path=out / f"deployed-{case}.png", animations="disabled")

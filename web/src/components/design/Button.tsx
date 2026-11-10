@@ -1,6 +1,7 @@
+import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { Button as ButtonBase } from "@/components/ui/button";
+import { Button as ButtonBase, buttonVariants as baseButtonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type BaseVariant = "default" | "outline" | "ghost" | "destructive" | "link";
@@ -87,15 +88,20 @@ function baseSize(size: ButtonSize): BaseSize {
 	}
 }
 
-function Button({
-	className,
-	variant = "default",
-	size = "default",
-	...props
-}: Omit<React.ComponentProps<typeof ButtonBase>, "variant" | "size"> & {
+type ButtonProps = Omit<React.ComponentProps<typeof ButtonBase>, "variant" | "size"> & {
 	variant?: ButtonVariant | undefined;
 	size?: ButtonSize | undefined;
-}) {
+};
+
+function Button({ className, variant = "default", size = "default", ...props }: ButtonProps) {
+	if (props.nativeButton === false) {
+		const classes = cn(
+			baseButtonVariants({ variant: baseVariant(variant), size: baseSize(size) }),
+			buttonVariants({ variant, size }),
+			className,
+		);
+		return <ButtonLink {...props} className={classes} />;
+	}
 	return (
 		<ButtonBase
 			variant={baseVariant(variant)}
@@ -104,6 +110,18 @@ function Button({
 			{...props}
 		/>
 	);
+}
+
+const LINK_STATE = { disabled: false };
+
+function ButtonLink({
+	render,
+	nativeButton: _nativeButton,
+	disabled: _disabled,
+	focusableWhenDisabled: _focusableWhenDisabled,
+	...props
+}: Omit<ButtonProps, "variant" | "size">) {
+	return useRender({ defaultTagName: "a", render, state: LINK_STATE, props: { "data-slot": "button", ...props } });
 }
 
 export { Button, type ButtonVariant };
