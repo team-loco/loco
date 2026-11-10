@@ -52,6 +52,26 @@ runs:
         cache_save: ${{ github.ref == 'refs/heads/main' }}
         cache_key: "{{cache_key_prefix}}-{{platform}}-{{version}}-{{env.MISE_TOOLS_HASH}}"
 
+    - if: github.ref == 'refs/heads/main'
+      id: helm-deps-save
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: charts/*/charts/*.tgz
+        key: helm-deps-${{ hashFiles('charts/*/Chart.yaml', 'charts/*/Chart.lock') }}
+
+    - if: github.ref != 'refs/heads/main'
+      id: helm-deps-restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: charts/*/charts/*.tgz
+        key: helm-deps-${{ hashFiles('charts/*/Chart.yaml', 'charts/*/Chart.lock') }}
+
+    # Cache archives keep their original mtimes. Mark an exact hit newer than
+    # checkout's Chart files so mise's sources/outputs check skips the download.
+    - if: steps.helm-deps-save.outputs.cache-hit == 'true' || steps.helm-deps-restore.outputs.cache-hit == 'true'
+      shell: bash
+      run: touch charts/*/charts/*.tgz
+
     - if: steps.go-modules-save.outcome == 'success' && steps.go-modules-save.outputs.cache-hit != 'true'
       shell: bash
       run: |
