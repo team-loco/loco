@@ -1,56 +1,29 @@
 import { describe, expect, test } from "bun:test";
 
-import { filterPalette, type PaletteEntry } from "./command-palette";
+import { scorePaletteItem } from "./command-palette";
 
-const entries: PaletteEntry[] = [
-	{ id: "p-logs", group: "Pages", label: "Logs" },
-	{ id: "p-dash", group: "Pages", label: "Dashboard" },
-	{ id: "r-api", group: "Resources", label: "billing-api", keywords: "payments service" },
-	{ id: "r-logs", group: "Resources", label: "log-shipper" },
-	{ id: "a-new", group: "Actions", label: "New resource", keywords: "create deploy" },
-	{ id: "w-prod", group: "Workspaces", label: "Switch to storefront" },
-];
+const score = (search: string, ...keywords: string[]) => scorePaletteItem("item-id", search, keywords);
 
-function ids(query: string): string[] {
-	return filterPalette(entries, query).flatMap((g) => g.items.map((i) => i.id));
-}
-
-describe("filterPalette", () => {
-	test("an empty query lists every group in order except workspaces", () => {
-		const groups = filterPalette(entries, "").map((g) => g.group);
-		expect(groups).toEqual(["Actions", "Resources", "Pages"]);
+describe("scorePaletteItem", () => {
+	test("matches a substring of the label or keywords, ignoring case", () => {
+		expect(score("PAYMENTS", "billing-api", "payments service")).toBeGreaterThan(0);
+		expect(score("store", "Switch to storefront")).toBeGreaterThan(0);
 	});
 
-	test("matches a substring of the label or keywords, ignoring case", () => {
-		expect(ids("PAYMENTS")).toEqual(["r-api"]);
-		expect(ids("store")).toEqual(["w-prod"]);
+	test("does not match letters scattered across words", () => {
+		expect(score("log", "Switch to light mode", "theme appearance toggle")).toBe(0);
+	});
+
+	test("ignores the item value", () => {
+		expect(score("item", "Logs")).toBe(0);
 	});
 
 	test("every word of the query must match", () => {
-		expect(ids("create resource")).toEqual(["a-new"]);
-		expect(ids("create logs")).toEqual([]);
+		expect(score("create resource", "New resource", "create deploy")).toBeGreaterThan(0);
+		expect(score("create logs", "New resource", "create deploy")).toBe(0);
 	});
 
-	test("labels starting with the query rank first within a group", () => {
-		const resources = filterPalette(entries, "log").find((g) => g.group === "Resources");
-		expect(resources?.items.map((i) => i.id)).toEqual(["r-logs"]);
-		const pages = filterPalette(
-			[
-				{ id: "p-audit", group: "Pages", label: "Audit log" },
-				{ id: "p-logs", group: "Pages", label: "Logs" },
-			],
-			"log",
-		);
-		expect(pages[0]?.items.map((i) => i.id)).toEqual(["p-logs", "p-audit"]);
-	});
-
-	test("caps each group", () => {
-		const many: PaletteEntry[] = Array.from({ length: 20 }, (_, i) => ({
-			id: `r${String(i)}`,
-			group: "Resources",
-			label: `svc-${String(i)}`,
-		}));
-		expect(filterPalette(many, "")[0]?.items.length).toBeLessThan(many.length);
-		expect(filterPalette(many, "svc")[0]?.items.length).toBeLessThan(many.length);
+	test("labels starting with the query rank above other matches", () => {
+		expect(score("log", "Logs")).toBeGreaterThan(score("log", "Audit log"));
 	});
 });
