@@ -175,6 +175,7 @@ export function VariablesSection({
 	environmentId,
 	draft,
 	canWrite,
+	canReadWorkspace,
 	onChange,
 }: {
 	resourceId: string;
@@ -182,12 +183,16 @@ export function VariablesSection({
 	environmentId: string;
 	draft: SettingsDraft;
 	canWrite: boolean;
+	canReadWorkspace: boolean;
 	onChange: (patch: Partial<SettingsDraft>) => void;
 }) {
 	const transport = useTransport();
 	const secretsQuery = useQuery(listSecrets, { resourceId, environmentId }, { enabled: environmentId !== "" });
 	const envQuery = useQuery(getResourceEnv, { resourceId, environmentId }, { enabled: environmentId !== "" });
-	const { data: membersRes } = useTanstackQuery(workspaceMembersOptions(transport, workspaceId));
+	const { data: membersRes } = useTanstackQuery({
+		...workspaceMembersOptions(transport, workspaceId),
+		enabled: canReadWorkspace,
+	});
 	const [importing, setImporting] = useState(false);
 	const [newName, setNewName] = useState("");
 	const [newValue, setNewValue] = useState("");

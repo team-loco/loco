@@ -94,6 +94,7 @@ def fixture():
         sql.append(f"INSERT INTO deployments (id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('{deployment}','{edge}','{cluster}','{region}',1,'running',true,'Edge current','{production}',{evidence.sql_literal(runtime)},1,NOW());")
         sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{edge}','{cluster}','{region}','{deployment}','{production}','{{}}',true,1,'Ready',NOW());")
     sql.append(f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);")
+    sql.append(f"INSERT INTO user_scopes (user_id,scope,entity_type,entity_id) VALUES ('{state['users']['resource_reader']['id']}','read','resource','{resource}');")
     owner_id = state["users"]["owner"]["id"]
     build_rows = (("awaiting", "awaiting_upload", ""), ("running", "running", ""), ("deployed", "succeeded", ""), ("failed", "failed", "RUN go build ./cmd/api exited with code 1"), ("canceled", "canceled", "canceled"), ("older", "succeeded", ""))
     for minutes, (name, status, message) in enumerate(build_rows, 1):
@@ -283,6 +284,20 @@ with sync_playwright() as playwright:
                     member_page.screenshot(path=out / f"reader-settings-{case}.png", animations="disabled")
                     member_context.tracing.stop()
                     member_context.close()
+                    reader_context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
+                    reader_auth = dict(auth, idToken=state["users"]["resource_reader"]["token"])
+                    reader_context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(reader_auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
+                    reader_page = reader_context.new_page()
+                    active_page, active_context = reader_page, reader_context
+                    stage, user = "resource-reader", "resource_reader"
+                    reader_page.on("pageerror", lambda error: errors.append(str(error)))
+                    denied = []
+                    reader_page.on("response", lambda response: denied.append(response.url) if response.status == 403 else None)
+                    reader_page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production&tab=settings")
+                    expect(reader_page.get_by_role("region", name="Variables")).to_be_visible()
+                    evidence.settle(reader_page)
+                    assert not denied, denied
+                    reader_context.close()
                     active_page, active_context = page, context
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "errors": errors, "requests": requests, "injectedFailures": len(failed)})

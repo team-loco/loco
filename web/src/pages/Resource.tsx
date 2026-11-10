@@ -383,6 +383,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					base={base}
 					focus={view}
 					canWrite={canWrite}
+					canReadWorkspace={canListResources}
 					onDraft={setDraft}
 					onBack={() => {
 						setView("overview");

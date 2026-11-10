@@ -1,7 +1,8 @@
 {
   "users": {
     "owner": {"email": "owner@acme.test", "name": "Olivia Owner"},
-    "member": {"email": "member@acme.test", "name": "Max Member"}
+    "member": {"email": "member@acme.test", "name": "Max Member"},
+    "resource_reader": {"email": "resource-reader@acme.test", "name": "Riley Reader"}
   },
   "orgs": [
     {"name": "acme", "owner": "owner", "members": ["member"], "workspaces": ["shared", "sibling"]}

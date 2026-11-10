@@ -57,6 +57,7 @@ export function SettingsView({
 	base,
 	focus,
 	canWrite,
+	canReadWorkspace,
 	onDraft,
 	onBack,
 	onDelete,
@@ -69,6 +70,7 @@ export function SettingsView({
 	base: Baseline;
 	focus: SettingsFocus;
 	canWrite: boolean;
+	canReadWorkspace: boolean;
 	onDraft: (draft: SettingsDraft) => void;
 	onBack: () => void;
 	onDelete: () => void;
@@ -149,6 +151,7 @@ export function SettingsView({
 						environmentId={environmentId}
 						draft={draft}
 						canWrite={canWrite}
+						canReadWorkspace={canReadWorkspace}
 						onChange={change}
 					/>
 					<NetworkingSection
