@@ -234,8 +234,8 @@ test_s06_crash_loop_records_one_event_across_reconnect() {
     mkdir -p "$crash_dir"
     cli_write_image_config "$crash_dir" e2e-runtime-crash "$E2E_PUBLIC_IMAGE" 8080 '[]'
     yq -i '.services["e2e-runtime-crash"].health = {"path": "/missing-health-check", "interval": 5, "timeout": 1, "failThreshold": 1}' "$crash_dir/loco.yaml"
-    # A failed deployment is expected; the event must come from the running stack.
-    (cd "$crash_dir" && loco_cli deploy --yes) >"$status_dir/crash.out" 2>&1 || true
+    # Deployment acceptance succeeds before the runtime failure is observed.
+    (cd "$crash_dir" && loco_cli deploy --yes) >"$status_dir/crash.out" 2>&1
     wait_for "one crash-loop event through ListEvents" 180 runtime_crash_recorded
     assert "The event contains the Loco crash reason" \
         test "$(runtime_event_list | yq -p json -r '.events[] | select(.data.reason == "crash_looping") | .data.reason')" = crash_looping
