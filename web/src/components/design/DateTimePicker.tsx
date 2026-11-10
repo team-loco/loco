@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { CalendarIcon } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
@@ -7,6 +7,14 @@ import { Button } from "@/components/design/Button";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { toLocalInput } from "@/lib/obs-time";
+
+const calendarStyle = {
+	"--rdp-accent-color": "var(--primary)",
+	"--rdp-day-height": "32px",
+	"--rdp-day-width": "32px",
+	"--rdp-day_button-height": "30px",
+	"--rdp-day_button-width": "30px",
+} as CSSProperties;
 
 export function DateTimePicker({
 	label,
@@ -44,7 +52,8 @@ export function DateTimePicker({
 							onChange(`${nextDay}T${time || "00:00"}`);
 							setOpen(false);
 						}}
-						className="m-0 text-[13px] [--rdp-accent-background-color:var(--panel2)] [--rdp-accent-color:var(--primary)] [--rdp-day-height:32px] [--rdp-day-width:32px] [--rdp-day_button-height:30px] [--rdp-day_button-width:30px]"
+						className="m-0 text-[13px]"
+						style={calendarStyle}
 					/>
 				</PopoverContent>
 			</Popover>
