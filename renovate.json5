@@ -48,7 +48,7 @@
       matchPackageNames: ["k8s.io/**", "sigs.k8s.io/**"],
     },
     {
-      description: "The Gateway API CRDs a cluster runs come from the gateway-helm chart (mise run crds:apply), so the Go types move only with it. gateway-helm 1.9.x ships the v1.6 CRDs; raise allowedVersions in the gateway-helm update that ships a newer bundle",
+      description: "The Gateway API CRDs a cluster runs come from the gateway-helm chart (mise run crds:apply), so the Go types move only with it. gateway-helm 1.10.x ships the v1.6 CRDs; raise allowedVersions in the gateway-helm update that ships a newer bundle",
       groupName: "gateway api",
       matchDepNames: ["sigs.k8s.io/gateway-api", "gateway-helm"],
     },
