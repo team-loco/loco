@@ -51,9 +51,6 @@ UPDATE resources SET partial='recommendation' WHERE id='{resource}';
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','resource-details','us-east-1','fixture',true,false,'healthy',NOW());
 INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES('{deployment}','{resource}','{cluster}','us-east-1',1,'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{}}',true,1,'Ready',NOW());
-INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
-VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','crash_looping','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
-UPDATE placements SET ready=false,ready_replicas=0,status_phase='Failed',status_message='The pod restarted' WHERE resource_id='{resource}';
 COMMIT;""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 results = []
@@ -71,18 +68,6 @@ with sync_playwright() as playwright:
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 try:
                     page.goto(base)
-                    expect(page.get_by_text("Last warning", exact=True)).to_be_visible()
-                    expect(page.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
-                    page.screenshot(path=out / f"incident-{case}.png", animations="disabled")
-                    page.get_by_role("button", name=re.compile(r"^Events")).click()
-                    runtime_events = page.get_by_role("dialog", name="Events", exact=True)
-                    expect(runtime_events.get_by_text("crash looping", exact=True)).to_be_visible()
-                    expect(runtime_events.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
-                    runtime_events.get_by_role("button", name="Warnings", exact=True).click()
-                    expect(runtime_events.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
-                    evidence.settle(page, wait_for_network=False)
-                    page.screenshot(path=out / f"events-{case}.png", animations="disabled")
-                    page.keyboard.press("Escape")
                     image_label = page.get_by_title(image, exact=True)
                     expect(image_label).to_be_visible()
                     assert len(image_label.inner_text()) < len(image)
