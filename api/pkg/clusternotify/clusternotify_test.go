@@ -20,9 +20,10 @@ func startNotifier(t *testing.T, pool *pgxpool.Pool) *clusternotify.Notifier {
 	t.Cleanup(cancel)
 	poolConfig := pool.Config()
 	n := clusternotify.New(poolConfig.ConnConfig, time.Hour)
-	if err := n.Start(ctx); err != nil {
+	if err := n.Connect(ctx); err != nil {
 		t.Fatalf("start: %v", err)
 	}
+	go n.Run(ctx)
 	return n
 }
 
@@ -150,9 +151,10 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 	pool.Close()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	if err := notifier.Start(ctx); err != nil {
+	if err := notifier.Connect(ctx); err != nil {
 		t.Fatal(err)
 	}
+	go notifier.Run(ctx)
 	sender, err := pgx.ConnectConfig(ctx, config)
 	if err != nil {
 		t.Fatal(err)
@@ -172,5 +174,38 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 	case <-target.Wake():
 	case <-time.After(time.Second):
 		t.Fatal("direct listener did not receive the notification")
+	}
+}
+
+func TestCancelledContextClosesListenConnectionBeforeWaitReturns(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	n := clusternotify.New(pool.Config().ConnConfig, time.Hour)
+	if err := n.Connect(ctx); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		n.Run(ctx)
+		close(done)
+	}()
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Run did not return after its context was canceled")
+	}
+
+	var listening int
+	err := pool.QueryRow(t.Context(), `
+		SELECT count(*) FROM pg_stat_activity
+		WHERE query LIKE 'LISTEN %' AND datname = current_database() AND pid <> pg_backend_pid()`).Scan(&listening)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if listening != 0 {
+		t.Fatalf("%d listen connections open after the notifier stopped", listening)
 	}
 }

@@ -199,22 +199,28 @@ func run() error {
 	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
 	var background sync.WaitGroup
+	var pprofServer *http.Server
 	defer func() {
 		stop()
+		if pprofServer != nil {
+			// Closing here lets the pprof goroutine finish when run returns before shutdown does.
+			if closeErr := pprofServer.Close(); closeErr != nil {
+				slog.Warn("failed to close pprof server", "error", closeErr)
+			}
+		}
 		background.Wait()
 	}()
 	startBackground(ctx, &background, ac, d)
 
 	server := newServer(ac, mux)
-	var pprofServer *http.Server
 	if ac.PprofAddr != "" {
 		pprofServer = newPprofServer(ac.PprofAddr)
-		go func() {
+		background.Go(func() {
 			slog.Info("starting pprof server", "addr", pprofServer.Addr)
 			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				slog.Error("pprof server error", "error", err)
 			}
-		}()
+		})
 	}
 
 	slog.Info("starting server", "addr", server.Addr)
@@ -237,6 +243,7 @@ type deps struct {
 	resolver          *auth.Resolver
 	authorizer        *authz.Authorizer
 	webhookDispatcher *webhooks.Dispatcher
+	placementNotifier *clusternotify.Notifier
 	// The sweepers are nil when the store they sweep is not configured.
 	sourceSweeper   *sweepers.SourceSweeper
 	imageSweeper    *sweepers.ImageSweeper
@@ -285,7 +292,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
 	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
-	if err = placementNotifier.Start(ctx); err != nil {
+	if err = placementNotifier.Connect(ctx); err != nil {
 		return nil, fmt.Errorf("start placement listener: %w", err)
 	}
 
@@ -362,6 +369,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		resolver:          resolver,
 		authorizer:        authz.New(pool, queries),
 		webhookDispatcher: webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient),
+		placementNotifier: placementNotifier,
 		sourceSweeper:     sourceSweeper,
 		imageSweeper:      imageSweeper,
 		registrySweeper:   registrySweeper,
@@ -490,6 +498,7 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval) })
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })
+	background.Go(func() { d.placementNotifier.Run(ctx) })
 	if d.sourceSweeper != nil {
 		background.Go(func() { d.sourceSweeper.Run(ctx) })
 	}
