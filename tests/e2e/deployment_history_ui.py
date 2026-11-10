@@ -27,6 +27,12 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 
 
+SEPARATED_ROWS = """section => [...section.querySelectorAll("table")].filter((table) => table.offsetParent !== null).every((table) => {
+    const rows = [...table.querySelectorAll("tbody tr")].slice(0, -1).filter((row) => !row.classList.contains("border-b-0"));
+    return rows.length > 0 && rows.every((row) => getComputedStyle(row).borderBottomWidth === "1px");
+})"""
+
+
 def failure_hook(kind, error, traceback):
     (out / "exception.json").write_text(json.dumps({"type": kind.__name__, "error": str(error)}, indent=2))
     sys.__excepthook__(kind, error, traceback)
@@ -205,6 +211,7 @@ with sync_playwright() as playwright:
                     page.get_by_role("menuitem", name="production production", exact=True).click()
                     expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
                     expect(section.get_by_text("Pilot release 151", exact=True)).to_have_count(0)
+                    assert section.evaluate(SEPARATED_ROWS), "deployment rows lost their separators"
                     stage = "builds"
                     builds = data["builds"]
                     section.get_by_role("button", name=f"Show details for {data['releases'][1][:8]}", exact=True).click()
@@ -212,6 +219,7 @@ with sync_playwright() as playwright:
                     expect(page).to_have_url(re.compile(r"[?&]hist=builds"))
                     expect(section.get_by_role("tab", name=re.compile(r"^Builds\s*6$"))).to_have_attribute("aria-selected", "true")
                     expect(section.get_by_text("1–5 of 6", exact=True)).to_be_visible()
+                    assert section.evaluate(SEPARATED_ROWS), "build rows lost their separators"
                     expect(section.get_by_role("button", name=f"Hide build {builds['deployed'][:8]}", exact=True)).to_be_visible()
                     expect(section.get_by_text("Olivia Owner", exact=True).first).to_be_visible()
                     expect(section.get_by_text(BUILD_DIGEST[:19], exact=True).first).to_be_visible()
