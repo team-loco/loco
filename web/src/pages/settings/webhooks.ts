@@ -23,12 +23,8 @@ export function deliveryTick(d: WebhookDelivery): Tick {
 	return "warn";
 }
 
-export function isFailing(d: WebhookDelivery): boolean {
-	return d.status === STATUS_FAILED || (d.status === STATUS_PENDING && d.lastError !== "");
-}
-
-export function failingCount(deliveries: readonly WebhookDelivery[]): number {
-	return deliveries.filter(isFailing).length;
+export function failedCount(deliveries: readonly WebhookDelivery[]): number {
+	return deliveries.filter((d) => d.status === STATUS_FAILED).length;
 }
 
 export function deliveryLabel(d: WebhookDelivery): string {

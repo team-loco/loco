@@ -11,7 +11,7 @@ import {
 	deliveryLabel,
 	deliveryWhen,
 	eventsSummary,
-	failingCount,
+	failedCount,
 	groupCountLabel,
 	isUrlRejection,
 	tickStrip,
@@ -38,14 +38,14 @@ test("colours ticks oldest first and caps the strip", () => {
 	expect(strip.at(-1)?.id).toBe("0");
 });
 
-test("counts failed and retrying deliveries but not queued ones", () => {
+test("counts only failed deliveries, like the Failed filter", () => {
 	const deliveries = [
 		delivery("a", "succeeded"),
 		delivery("b", "pending"),
 		delivery("c", "pending", "timeout"),
 		delivery("d", "failed", "endpoint returned 500"),
 	];
-	expect(failingCount(deliveries)).toBe(2);
+	expect(failedCount(deliveries)).toBe(1);
 	expect(deliveries.map(deliveryLabel)).toEqual(["Delivered", "Pending", "Retrying", "Failed"]);
 });
 
