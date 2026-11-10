@@ -64,10 +64,12 @@ func (s *UserServer) GetUser(
 		targetUserID = key.UserId
 	case *userv1.GetUserRequest_Email:
 		dbUser, getErr := s.queries.GetUserByEmail(ctx, key.Email)
-		if getErr != nil {
-			// Return NotFound regardless of reason to prevent user-existence probing by email.
-			slog.WarnContext(ctx, "user not found by email")
+		if errors.Is(getErr, pgx.ErrNoRows) {
+			// Same NotFound as a denied lookup, so a caller cannot probe which emails exist.
 			return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+		}
+		if getErr != nil {
+			return nil, fmt.Errorf("get user by email: %w", getErr)
 		}
 		targetUserID = dbUser.ID.String()
 	default:
@@ -305,8 +307,11 @@ func (s *UserServer) SetUserStatus(
 		userID = uuid.MustParse(key.UserId)
 	case *userv1.SetUserStatusRequest_Email:
 		dbUser, getErr := s.queries.GetUserByEmail(ctx, key.Email)
-		if getErr != nil {
+		if errors.Is(getErr, pgx.ErrNoRows) {
 			return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+		}
+		if getErr != nil {
+			return nil, fmt.Errorf("get user by email: %w", getErr)
 		}
 		userID = dbUser.ID
 	default:
