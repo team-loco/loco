@@ -43,7 +43,7 @@ jobs:
       attestations: write
     outputs:
       image: ${{ steps.meta.outputs.tags }}
-      digest: ${{ steps.push.outputs.digest }}
+      digest: ${{ steps.retry-push.outputs.digest || steps.push.outputs.digest }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,8 +68,9 @@ jobs:
 
       - name: Build and push Docker image
         id: push
+        continue-on-error: true
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
+        with: &image-build
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           build-args: |
@@ -82,6 +83,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ inputs.cache_scope }}
           cache-to: type=gha,scope=${{ inputs.cache_scope }},mode=max
+
+      - name: Wait before retrying the image push
+        if: steps.push.outcome == 'failure'
+        run: sleep 10
+
+      - name: Retry build and push Docker image
+        if: steps.push.outcome == 'failure'
+        id: retry-push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with: *image-build
 
   verify-platform:
     needs: build-and-push-image
