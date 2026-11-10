@@ -65,6 +65,7 @@ const (
 	TokenRevoked       = "token.revoked"
 	ClusterRegistered  = "cluster.registered"
 	WebhookCreated     = "webhook.created"
+	WebhookUpdated     = "webhook.updated"
 	WebhookDeleted     = "webhook.deleted"
 	SecretSet          = "secret.set"
 	SecretDeleted      = "secret.deleted"

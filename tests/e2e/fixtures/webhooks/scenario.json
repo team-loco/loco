@@ -1,0 +1,5 @@
+{
+  "users": {"owner": {"email": "owner@acme.test", "name": "Olivia Owner"}},
+  "orgs": [{"name": "acme", "owner": "owner", "workspaces": ["shared"]}],
+  "grants": []
+}

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/webhook/v1/webhook.proto.
  */
 export const file_loco_webhook_v1_webhook: GenFile = /*@__PURE__*/
-  fileDesc("Ch1sb2NvL3dlYmhvb2svdjEvd2ViaG9vay5wcm90bxIPbG9jby53ZWJob29rLnYxImcKB1dlYmhvb2sSCgoCaWQYASABKAkSCwoDdXJsGAIgASgJEhMKC2V2ZW50X3R5cGVzGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIqoCCg9XZWJob29rRGVsaXZlcnkSCgoCaWQYASABKAkSEAoIZXZlbnRfaWQYAiABKAkSEgoKZXZlbnRfdHlwZRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEAoIYXR0ZW1wdHMYBSABKAUSGAoQbGFzdF9zdGF0dXNfY29kZRgGIAEoBRISCgpsYXN0X2Vycm9yGAcgASgJEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGRlbGl2ZXJlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoPbmV4dF9hdHRlbXB0X2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ3ChRDcmVhdGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhgKA3VybBgCIAEoCUILukgIcgYYgBCIAQESJQoLZXZlbnRfdHlwZXMYAyADKAlCELpIDZIBChBkIgZyBBABGGQiUgoVQ3JlYXRlV2ViaG9va1Jlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vaxIOCgZzZWNyZXQYAiABKAkiNQoTTGlzdFdlYmhvb2tzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBIkIKFExpc3RXZWJob29rc1Jlc3BvbnNlEioKCHdlYmhvb2tzGAEgAygLMhgubG9jby53ZWJob29rLnYxLldlYmhvb2siVAoURGVsZXRlV2ViaG9va1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABASIXChVEZWxldGVXZWJob29rUmVzcG9uc2UiXAocTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKCndlYmhvb2tfaWQYAiABKAlCCLpIBXIDsAEBIlUKHUxpc3RXZWJob29rRGVsaXZlcmllc1Jlc3BvbnNlEjQKCmRlbGl2ZXJpZXMYASADKAsyIC5sb2NvLndlYmhvb2sudjEuV2ViaG9va0RlbGl2ZXJ5MqUDCg5XZWJob29rU2VydmljZRJeCg1DcmVhdGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXNwb25zZRJbCgxMaXN0V2ViaG9va3MSJC5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tzUmVxdWVzdBolLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va3NSZXNwb25zZRJeCg1EZWxldGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXNwb25zZRJ2ChVMaXN0V2ViaG9va0RlbGl2ZXJpZXMSLS5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVxdWVzdBouLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va0RlbGl2ZXJpZXNSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3dlYmhvb2svdjE7d2ViaG9va3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Ch1sb2NvL3dlYmhvb2svdjEvd2ViaG9vay5wcm90bxIPbG9jby53ZWJob29rLnYxImcKB1dlYmhvb2sSCgoCaWQYASABKAkSCwoDdXJsGAIgASgJEhMKC2V2ZW50X3R5cGVzGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIqoCCg9XZWJob29rRGVsaXZlcnkSCgoCaWQYASABKAkSEAoIZXZlbnRfaWQYAiABKAkSEgoKZXZlbnRfdHlwZRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEAoIYXR0ZW1wdHMYBSABKAUSGAoQbGFzdF9zdGF0dXNfY29kZRgGIAEoBRISCgpsYXN0X2Vycm9yGAcgASgJEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGRlbGl2ZXJlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoPbmV4dF9hdHRlbXB0X2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ3ChRDcmVhdGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhgKA3VybBgCIAEoCUILukgIcgYYgBCIAQESJQoLZXZlbnRfdHlwZXMYAyADKAlCELpIDZIBChBkIgZyBBABGGQiUgoVQ3JlYXRlV2ViaG9va1Jlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vaxIOCgZzZWNyZXQYAiABKAkiNQoTTGlzdFdlYmhvb2tzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBIkIKFExpc3RXZWJob29rc1Jlc3BvbnNlEioKCHdlYmhvb2tzGAEgAygLMhgubG9jby53ZWJob29rLnYxLldlYmhvb2silQEKFFVwZGF0ZVdlYmhvb2tSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQESGAoDdXJsGAMgASgJQgu6SAhyBhiAEIgBARIlCgtldmVudF90eXBlcxgEIAMoCUIQukgNkgEKEGQiBnIEEAEYZCJCChVVcGRhdGVXZWJob29rUmVzcG9uc2USKQoHd2ViaG9vaxgBIAEoCzIYLmxvY28ud2ViaG9vay52MS5XZWJob29rIlQKFERlbGV0ZVdlYmhvb2tSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQEiFwoVRGVsZXRlV2ViaG9va1Jlc3BvbnNlIlwKHExpc3RXZWJob29rRGVsaXZlcmllc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABASJVCh1MaXN0V2ViaG9va0RlbGl2ZXJpZXNSZXNwb25zZRI0CgpkZWxpdmVyaWVzGAEgAygLMiAubG9jby53ZWJob29rLnYxLldlYmhvb2tEZWxpdmVyeTKFBAoOV2ViaG9va1NlcnZpY2USXgoNQ3JlYXRlV2ViaG9vaxIlLmxvY28ud2ViaG9vay52MS5DcmVhdGVXZWJob29rUmVxdWVzdBomLmxvY28ud2ViaG9vay52MS5DcmVhdGVXZWJob29rUmVzcG9uc2USWwoMTGlzdFdlYmhvb2tzEiQubG9jby53ZWJob29rLnYxLkxpc3RXZWJob29rc1JlcXVlc3QaJS5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tzUmVzcG9uc2USXgoNVXBkYXRlV2ViaG9vaxIlLmxvY28ud2ViaG9vay52MS5VcGRhdGVXZWJob29rUmVxdWVzdBomLmxvY28ud2ViaG9vay52MS5VcGRhdGVXZWJob29rUmVzcG9uc2USXgoNRGVsZXRlV2ViaG9vaxIlLmxvY28ud2ViaG9vay52MS5EZWxldGVXZWJob29rUmVxdWVzdBomLmxvY28ud2ViaG9vay52MS5EZWxldGVXZWJob29rUmVzcG9uc2USdgoVTGlzdFdlYmhvb2tEZWxpdmVyaWVzEi0ubG9jby53ZWJob29rLnYxLkxpc3RXZWJob29rRGVsaXZlcmllc1JlcXVlc3QaLi5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVzcG9uc2VCPFo6Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby93ZWJob29rL3YxO3dlYmhvb2t2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.webhook.v1.Webhook
@@ -328,6 +328,94 @@ export const ListWebhooksResponseSchema: GenMessage<ListWebhooksResponse, {jsonT
   messageDesc(file_loco_webhook_v1_webhook, 5);
 
 /**
+ * @generated from message loco.webhook.v1.UpdateWebhookRequest
+ */
+export type UpdateWebhookRequest = Message<"loco.webhook.v1.UpdateWebhookRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string webhook_id = 2;
+   */
+  webhookId: string;
+
+  /**
+   * @generated from field: string url = 3;
+   */
+  url: string;
+
+  /**
+   * An empty list subscribes the webhook to every event.
+   *
+   * @generated from field: repeated string event_types = 4;
+   */
+  eventTypes: string[];
+};
+
+/**
+ * @generated from message loco.webhook.v1.UpdateWebhookRequest
+ */
+export type UpdateWebhookRequestJson = {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string webhook_id = 2;
+   */
+  webhookId?: string;
+
+  /**
+   * @generated from field: string url = 3;
+   */
+  url?: string;
+
+  /**
+   * An empty list subscribes the webhook to every event.
+   *
+   * @generated from field: repeated string event_types = 4;
+   */
+  eventTypes?: string[];
+};
+
+/**
+ * Describes the message loco.webhook.v1.UpdateWebhookRequest.
+ * Use `create(UpdateWebhookRequestSchema)` to create a new message.
+ */
+export const UpdateWebhookRequestSchema: GenMessage<UpdateWebhookRequest, {jsonType: UpdateWebhookRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_webhook_v1_webhook, 6);
+
+/**
+ * @generated from message loco.webhook.v1.UpdateWebhookResponse
+ */
+export type UpdateWebhookResponse = Message<"loco.webhook.v1.UpdateWebhookResponse"> & {
+  /**
+   * @generated from field: loco.webhook.v1.Webhook webhook = 1;
+   */
+  webhook?: Webhook | undefined;
+};
+
+/**
+ * @generated from message loco.webhook.v1.UpdateWebhookResponse
+ */
+export type UpdateWebhookResponseJson = {
+  /**
+   * @generated from field: loco.webhook.v1.Webhook webhook = 1;
+   */
+  webhook?: WebhookJson;
+};
+
+/**
+ * Describes the message loco.webhook.v1.UpdateWebhookResponse.
+ * Use `create(UpdateWebhookResponseSchema)` to create a new message.
+ */
+export const UpdateWebhookResponseSchema: GenMessage<UpdateWebhookResponse, {jsonType: UpdateWebhookResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_webhook_v1_webhook, 7);
+
+/**
  * @generated from message loco.webhook.v1.DeleteWebhookRequest
  */
 export type DeleteWebhookRequest = Message<"loco.webhook.v1.DeleteWebhookRequest"> & {
@@ -362,7 +450,7 @@ export type DeleteWebhookRequestJson = {
  * Use `create(DeleteWebhookRequestSchema)` to create a new message.
  */
 export const DeleteWebhookRequestSchema: GenMessage<DeleteWebhookRequest, {jsonType: DeleteWebhookRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_webhook_v1_webhook, 6);
+  messageDesc(file_loco_webhook_v1_webhook, 8);
 
 /**
  * @generated from message loco.webhook.v1.DeleteWebhookResponse
@@ -381,7 +469,7 @@ export type DeleteWebhookResponseJson = {
  * Use `create(DeleteWebhookResponseSchema)` to create a new message.
  */
 export const DeleteWebhookResponseSchema: GenMessage<DeleteWebhookResponse, {jsonType: DeleteWebhookResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_webhook_v1_webhook, 7);
+  messageDesc(file_loco_webhook_v1_webhook, 9);
 
 /**
  * @generated from message loco.webhook.v1.ListWebhookDeliveriesRequest
@@ -418,7 +506,7 @@ export type ListWebhookDeliveriesRequestJson = {
  * Use `create(ListWebhookDeliveriesRequestSchema)` to create a new message.
  */
 export const ListWebhookDeliveriesRequestSchema: GenMessage<ListWebhookDeliveriesRequest, {jsonType: ListWebhookDeliveriesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_webhook_v1_webhook, 8);
+  messageDesc(file_loco_webhook_v1_webhook, 10);
 
 /**
  * @generated from message loco.webhook.v1.ListWebhookDeliveriesResponse
@@ -445,7 +533,7 @@ export type ListWebhookDeliveriesResponseJson = {
  * Use `create(ListWebhookDeliveriesResponseSchema)` to create a new message.
  */
 export const ListWebhookDeliveriesResponseSchema: GenMessage<ListWebhookDeliveriesResponse, {jsonType: ListWebhookDeliveriesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_webhook_v1_webhook, 9);
+  messageDesc(file_loco_webhook_v1_webhook, 11);
 
 /**
  * @generated from service loco.webhook.v1.WebhookService
@@ -466,6 +554,16 @@ export const WebhookService: GenService<{
     methodKind: "unary";
     input: typeof ListWebhooksRequestSchema;
     output: typeof ListWebhooksResponseSchema;
+  },
+  /**
+   * UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
+   *
+   * @generated from rpc loco.webhook.v1.WebhookService.UpdateWebhook
+   */
+  updateWebhook: {
+    methodKind: "unary";
+    input: typeof UpdateWebhookRequestSchema;
+    output: typeof UpdateWebhookResponseSchema;
   },
   /**
    * @generated from rpc loco.webhook.v1.WebhookService.DeleteWebhook

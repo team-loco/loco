@@ -206,6 +206,11 @@ func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
 	}); codeOf(deleteErr) != connect.CodePermissionDenied {
 		t.Fatalf("writer deleted a webhook: %v", deleteErr)
 	}
+	if _, updateErr := s.UpdateWebhook(writer, &webhookv1.UpdateWebhookRequest{
+		WorkspaceId: f.workspaceID, WebhookId: hookID, Url: receiverURL,
+	}); codeOf(updateErr) != connect.CodePermissionDenied {
+		t.Fatalf("writer updated a webhook: %v", updateErr)
+	}
 	if _, otherErr := s.ListWebhooks(admin, &webhookv1.ListWebhooksRequest{
 		WorkspaceId: f.otherID,
 	}); codeOf(otherErr) != connect.CodePermissionDenied {
@@ -320,5 +325,85 @@ func TestWorkspaceWebhookAPIHidesInstallWebhooks(t *testing.T) {
 	count, err := f.queries.CountWorkspaceWebhooks(t.Context(), uuid.MustParse(f.workspaceID))
 	if err != nil || count != 1 {
 		t.Fatalf("workspace webhook count = %d (%v)", count, err)
+	}
+}
+
+func TestUpdateWebhookReroutesPendingDeliveriesAndFiltersNewEvents(t *testing.T) {
+	f := newWebhookFixture(t)
+	s := NewWebhookServer(f.pool, f.queries, false)
+	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
+		WorkspaceId: f.workspaceID, Url: receiverURL, EventTypes: []string{events.EnvironmentCreated},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	hookID := created.GetWebhook().GetId()
+	workspaceID := uuid.MustParse(f.workspaceID)
+	record := func(eventType string) {
+		t.Helper()
+		recordErr := events.Record(f.owner, f.queries, events.Event{Type: eventType, WorkspaceID: &workspaceID})
+		if recordErr != nil {
+			t.Fatalf("record %s: %v", eventType, recordErr)
+		}
+	}
+	record(events.EnvironmentCreated)
+
+	if _, badErr := s.UpdateWebhook(f.owner, &webhookv1.UpdateWebhookRequest{
+		WorkspaceId: f.workspaceID, WebhookId: hookID, Url: "http://hooks.example.test/loco",
+	}); codeOf(badErr) != connect.CodeInvalidArgument {
+		t.Fatalf("http url accepted: %v", badErr)
+	}
+	if _, crossErr := s.UpdateWebhook(f.owner, &webhookv1.UpdateWebhookRequest{
+		WorkspaceId: f.otherID, WebhookId: hookID, Url: receiverURL,
+	}); codeOf(crossErr) != connect.CodeNotFound {
+		t.Fatalf("webhook updated through another workspace: %v", crossErr)
+	}
+
+	const movedURL = "https://moved.example.test/loco"
+	updated, err := s.UpdateWebhook(f.owner, &webhookv1.UpdateWebhookRequest{
+		WorkspaceId: f.workspaceID, WebhookId: hookID, Url: movedURL, EventTypes: []string{events.ResourceCreated},
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if w := updated.GetWebhook(); w.GetId() != hookID || w.GetUrl() != movedURL ||
+		len(w.GetEventTypes()) != 1 || w.GetEventTypes()[0] != events.ResourceCreated {
+		t.Fatalf("updated = %+v", w)
+	}
+	record(events.EnvironmentCreated)
+	record(events.ResourceCreated)
+
+	deliveries, err := s.ListWebhookDeliveries(f.owner, &webhookv1.ListWebhookDeliveriesRequest{
+		WorkspaceId: f.workspaceID, WebhookId: hookID,
+	})
+	if err != nil {
+		t.Fatalf("deliveries: %v", err)
+	}
+	types := make([]string, 0, len(deliveries.GetDeliveries()))
+	for _, d := range deliveries.GetDeliveries() {
+		types = append(types, d.GetEventType())
+	}
+	if len(types) != 2 || types[0] != events.ResourceCreated || types[1] != events.EnvironmentCreated {
+		t.Fatalf("delivered event types newest first = %v", types)
+	}
+	earliest := deliveries.GetDeliveries()[1]
+	payload, err := f.queries.GetWebhookDeliveryPayload(t.Context(), uuid.MustParse(earliest.GetId()))
+	if err != nil || payload.Url != movedURL {
+		t.Fatalf("pending delivery sends to %q (%v), want %q", payload.Url, err, movedURL)
+	}
+
+	dbtest.WaitForEarlierTransactions(t, f.pool)
+	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 100})
+	if err != nil {
+		t.Fatalf("events: %v", err)
+	}
+	var changes int
+	for _, e := range all {
+		if e.Type == events.WebhookUpdated && e.SubjectID != nil && e.SubjectID.String() == hookID {
+			changes++
+		}
+	}
+	if changes != 1 {
+		t.Fatalf("%s events = %d, want 1", events.WebhookUpdated, changes)
 	}
 }

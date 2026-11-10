@@ -159,6 +159,53 @@ func (s *WebhookServer) ListWebhooks(
 	return &webhookv1.ListWebhooksResponse{Webhooks: out}, nil
 }
 
+func (s *WebhookServer) UpdateWebhook(
+	ctx context.Context,
+	req *webhookv1.UpdateWebhookRequest,
+) (*webhookv1.UpdateWebhookResponse, error) {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
+	}
+	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
+		return nil, err
+	}
+	if !s.validURL(req.GetUrl()) {
+		return nil, ErrWebhookURL
+	}
+	types := req.GetEventTypes()
+	if types == nil {
+		types = []string{}
+	}
+	var row genDb.Webhook
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		updated, updateErr := qtx.UpdateWorkspaceWebhook(ctx, genDb.UpdateWorkspaceWebhookParams{
+			ID:          uuid.MustParse(req.GetWebhookId()),
+			WorkspaceID: workspaceID,
+			Url:         req.GetUrl(),
+			EventTypes:  types,
+		})
+		if errors.Is(updateErr, pgx.ErrNoRows) {
+			return ErrWebhookNotFound
+		}
+		if updateErr != nil {
+			return fmt.Errorf("update webhook: %w", updateErr)
+		}
+		row = updated
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.WebhookUpdated,
+			WorkspaceID: new(workspaceID),
+			SubjectType: events.SubjectWebhook,
+			SubjectID:   new(row.ID),
+			Data:        map[string]any{fieldWebhookURL: row.Url, fieldWebhookEvents: row.EventTypes},
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &webhookv1.UpdateWebhookResponse{Webhook: webhookToProto(row)}, nil
+}
+
 func (s *WebhookServer) loadWebhook(
 	ctx context.Context,
 	workspaceID uuid.UUID,
