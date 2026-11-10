@@ -51,6 +51,15 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 	const [run, setRun] = useState<DeployRun | null>(null);
 	const [createError, setCreateError] = useState<string | null>(null);
 
+	const removed = async (resourceId: string) => {
+		try {
+			await createClient(ResourceService, transport).deleteResource({ resourceId });
+			return true;
+		} catch {
+			return false;
+		}
+	};
+
 	const deploy = async (form: NewResourceForm) => {
 		setCreateError(null);
 		const start: DeployRun = {
@@ -125,7 +134,13 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 					}
 				}),
 			);
-			setRun({ ...start, resourceId, deploying: false, regions });
+			const firstError = regions[0]?.error ?? null;
+			if (regions.every((r) => r.deploymentId === undefined) && firstError !== null && (await removed(resourceId))) {
+				setRun(null);
+				setCreateError(`Couldn't deploy ${form.image.trim()}: ${firstError}`);
+			} else {
+				setRun({ ...start, resourceId, deploying: false, regions });
+			}
 		} catch (err) {
 			setRun(null);
 			setCreateError(getErrorMessage(err, "Couldn't create the resource"));
