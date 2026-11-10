@@ -13,8 +13,9 @@ const (
 	testBody        = "control-plane-ingest-0123abcd"
 )
 
-func TestExportRequestCarriesTheWorkspaceBodyAndTime(t *testing.T) {
-	now := time.Unix(1_700_000_000, 0).UTC()
+func TestExportRequestCarriesTheWorkspaceBodyAndSecond(t *testing.T) {
+	second := time.Unix(1_700_000_000, 0).UTC()
+	now := second.Add(700 * time.Millisecond)
 	payload, err := exportRequest(testWorkspaceID, testBody, now)
 	if err != nil {
 		t.Fatal(err)
@@ -32,8 +33,8 @@ func TestExportRequestCarriesTheWorkspaceBodyAndTime(t *testing.T) {
 	if got := record.Body().Str(); got != testBody {
 		t.Fatalf("body = %q, want %q", got, testBody)
 	}
-	if got := record.Timestamp().AsTime(); !got.Equal(now) {
-		t.Fatalf("timestamp = %s, want %s", got, now)
+	if got := record.Timestamp().AsTime(); !got.Equal(second) {
+		t.Fatalf("timestamp = %s, want %s", got, second)
 	}
 }
 

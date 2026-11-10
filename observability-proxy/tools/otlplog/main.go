@@ -34,7 +34,8 @@ func exportRequest(workspace, body string, now time.Time) ([]byte, error) {
 	resourceLogs.Resource().Attributes().PutStr("service.name", serviceName)
 	resourceLogs.Resource().Attributes().PutStr(workspaceAttribute, workspace)
 	record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
-	record.SetTimestamp(pcommon.NewTimestampFromTime(now))
+	// Whole seconds keep the record inside a query window that ends at the current second.
+	record.SetTimestamp(pcommon.NewTimestampFromTime(now.Truncate(time.Second)))
 	record.SetSeverityText(severity)
 	record.Body().SetStr(body)
 	return plogotlp.NewExportRequestFromLogs(logs).MarshalProto()
