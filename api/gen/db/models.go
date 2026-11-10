@@ -635,16 +635,15 @@ type Webhook struct {
 }
 
 type WebhookDelivery struct {
-	ID             uuid.UUID  `json:"id"`
-	WebhookID      uuid.UUID  `json:"webhookId"`
-	EventSeq       int64      `json:"eventSeq"`
-	Status         string     `json:"status"`
-	Attempts       int32      `json:"attempts"`
-	NextAttemptAt  time.Time  `json:"nextAttemptAt"`
-	LastStatusCode *int32     `json:"lastStatusCode"`
-	LastError      *string    `json:"lastError"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	DeliveredAt    *time.Time `json:"deliveredAt"`
+	ID            uuid.UUID  `json:"id"`
+	WebhookID     uuid.UUID  `json:"webhookId"`
+	EventSeq      int64      `json:"eventSeq"`
+	Status        string     `json:"status"`
+	Attempts      int32      `json:"attempts"`
+	NextAttemptAt time.Time  `json:"nextAttemptAt"`
+	LastError     *string    `json:"lastError"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	DeliveredAt   *time.Time `json:"deliveredAt"`
 }
 
 type Workspace struct {

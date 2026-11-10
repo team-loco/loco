@@ -29,12 +29,18 @@ DELETE FROM webhooks
 WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid;
 
 -- name: ListWebhookDeliveries :many
-SELECT d.id, d.status, d.attempts, d.next_attempt_at, d.last_status_code, d.last_error, d.created_at, d.delivered_at,
+SELECT d.id, d.status, d.attempts, d.next_attempt_at, d.last_error, d.created_at, d.delivered_at,
        e.type AS event_type, e.id AS event_id
 FROM webhook_deliveries d
 JOIN events e ON e.seq = d.event_seq
-WHERE d.webhook_id = $1
-ORDER BY d.created_at DESC
+WHERE d.webhook_id = sqlc.arg('webhook_id')
+  AND (sqlc.arg('status')::text = '' OR d.status = sqlc.arg('status'))
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (d.created_at, d.id) < (
+         sqlc.narg('page_created_at')::timestamptz,
+         sqlc.narg('page_token')::uuid
+       ))
+ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('max_rows');
 
 -- name: ClaimWebhookDeliveries :many
@@ -63,7 +69,6 @@ WHERE d.id = $1;
 -- name: FinishWebhookDelivery :execrows
 UPDATE webhook_deliveries
 SET status = sqlc.arg('status'),
-    last_status_code = sqlc.narg('last_status_code'),
     last_error = sqlc.narg('last_error'),
     next_attempt_at = sqlc.arg('next_attempt_at'),
     delivered_at = sqlc.narg('delivered_at')

@@ -92,19 +92,18 @@ func (x *Webhook) GetCreatedAt() *timestamppb.Timestamp {
 }
 
 type WebhookDelivery struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	EventId        string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	EventType      string                 `protobuf:"bytes,3,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
-	Status         string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Attempts       int32                  `protobuf:"varint,5,opt,name=attempts,proto3" json:"attempts,omitempty"`
-	LastStatusCode int32                  `protobuf:"varint,6,opt,name=last_status_code,json=lastStatusCode,proto3" json:"last_status_code,omitempty"`
-	LastError      string                 `protobuf:"bytes,7,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
-	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	DeliveredAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=delivered_at,json=deliveredAt,proto3" json:"delivered_at,omitempty"`
-	NextAttemptAt  *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=next_attempt_at,json=nextAttemptAt,proto3" json:"next_attempt_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventType     string                 `protobuf:"bytes,3,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Attempts      int32                  `protobuf:"varint,5,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	LastError     string                 `protobuf:"bytes,6,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	DeliveredAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=delivered_at,json=deliveredAt,proto3" json:"delivered_at,omitempty"`
+	NextAttemptAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=next_attempt_at,json=nextAttemptAt,proto3" json:"next_attempt_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WebhookDelivery) Reset() {
@@ -168,13 +167,6 @@ func (x *WebhookDelivery) GetStatus() string {
 func (x *WebhookDelivery) GetAttempts() int32 {
 	if x != nil {
 		return x.Attempts
-	}
-	return 0
-}
-
-func (x *WebhookDelivery) GetLastStatusCode() int32 {
-	if x != nil {
-		return x.LastStatusCode
 	}
 	return 0
 }
@@ -608,10 +600,15 @@ func (*DeleteWebhookResponse) Descriptor() ([]byte, []int) {
 	return file_loco_webhook_v1_webhook_proto_rawDescGZIP(), []int{9}
 }
 
+// ListWebhookDeliveriesRequest lists a webhook's deliveries, newest first.
 type ListWebhookDeliveriesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	WebhookId     string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WebhookId   string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	PageSize    int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken   string                 `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Only deliveries with this status; empty lists every status.
+	Status        string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -660,9 +657,31 @@ func (x *ListWebhookDeliveriesRequest) GetWebhookId() string {
 	return ""
 }
 
+func (x *ListWebhookDeliveriesRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListWebhookDeliveriesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListWebhookDeliveriesRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 type ListWebhookDeliveriesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deliveries    []*WebhookDelivery     `protobuf:"bytes,1,rep,name=deliveries,proto3" json:"deliveries,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -704,6 +723,13 @@ func (x *ListWebhookDeliveriesResponse) GetDeliveries() []*WebhookDelivery {
 	return nil
 }
 
+func (x *ListWebhookDeliveriesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 var File_loco_webhook_v1_webhook_proto protoreflect.FileDescriptor
 
 const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
@@ -715,22 +741,20 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\vevent_types\x18\x03 \x03(\tR\n" +
 	"eventTypes\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x96\x03\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xec\x02\n" +
 	"\x0fWebhookDelivery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x03 \x01(\tR\teventType\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1a\n" +
-	"\battempts\x18\x05 \x01(\x05R\battempts\x12(\n" +
-	"\x10last_status_code\x18\x06 \x01(\x05R\x0elastStatusCode\x12\x1d\n" +
+	"\battempts\x18\x05 \x01(\x05R\battempts\x12\x1d\n" +
 	"\n" +
-	"last_error\x18\a \x01(\tR\tlastError\x129\n" +
+	"last_error\x18\x06 \x01(\tR\tlastError\x129\n" +
 	"\n" +
-	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
-	"\fdelivered_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vdeliveredAt\x12B\n" +
-	"\x0fnext_attempt_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\"\x95\x01\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
+	"\fdelivered_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vdeliveredAt\x12B\n" +
+	"\x0fnext_attempt_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\"\x95\x01\n" +
 	"\x14CreateWebhookRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1d\n" +
 	"\x03url\x18\x02 \x01(\tB\v\xbaH\br\x06\x18\x80\x10\x88\x01\x01R\x03url\x121\n" +
@@ -758,15 +782,21 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\n" +
 	"webhook_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\twebhookId\"\x17\n" +
-	"\x15DeleteWebhookResponse\"t\n" +
+	"\x15DeleteWebhookResponse\"\xfa\x01\n" +
 	"\x1cListWebhookDeliveriesRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\n" +
-	"webhook_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\twebhookId\"a\n" +
+	"webhook_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\twebhookId\x12'\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tR\tpageToken\x12<\n" +
+	"\x06status\x18\x05 \x01(\tB$\xbaH!\xd8\x01\x01r\x1cR\apendingR\tsucceededR\x06failedR\x06status\"\x89\x01\n" +
 	"\x1dListWebhookDeliveriesResponse\x12@\n" +
 	"\n" +
 	"deliveries\x18\x01 \x03(\v2 .loco.webhook.v1.WebhookDeliveryR\n" +
-	"deliveries2\x85\x04\n" +
+	"deliveries\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\x85\x04\n" +
 	"\x0eWebhookService\x12^\n" +
 	"\rCreateWebhook\x12%.loco.webhook.v1.CreateWebhookRequest\x1a&.loco.webhook.v1.CreateWebhookResponse\x12[\n" +
 	"\fListWebhooks\x12$.loco.webhook.v1.ListWebhooksRequest\x1a%.loco.webhook.v1.ListWebhooksResponse\x12^\n" +

@@ -3,7 +3,6 @@ package webhooks_test
 import (
 	"context"
 	"errors"
-	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -222,8 +221,7 @@ func TestInstallWebhooksBypassPrivateNetworkGuard(t *testing.T) {
 		t.Fatalf("receiver got %v", got)
 	}
 	install := f.deliveries(t, f.installRows(t)[r.srv.URL].id)[0]
-	if install.Status != webhooks.StatusSucceeded || install.LastStatusCode == nil ||
-		*install.LastStatusCode != http.StatusNoContent {
+	if install.Status != webhooks.StatusSucceeded || install.LastError != nil {
 		t.Fatalf("install-wide delivery = %+v", install)
 	}
 	refused := f.deliveries(t, workspace.ID)[0]

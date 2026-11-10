@@ -29,11 +29,10 @@ message WebhookDelivery {
   string event_type = 3;
   string status = 4;
   int32 attempts = 5;
-  int32 last_status_code = 6;
-  string last_error = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp delivered_at = 9;
-  google.protobuf.Timestamp next_attempt_at = 10;
+  string last_error = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp delivered_at = 8;
+  google.protobuf.Timestamp next_attempt_at = 9;
 }
 
 message CreateWebhookRequest {
@@ -96,11 +95,29 @@ message DeleteWebhookRequest {
 
 message DeleteWebhookResponse {}
 
+// ListWebhookDeliveriesRequest lists a webhook's deliveries, newest first.
 message ListWebhookDeliveriesRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string webhook_id = 2 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  string page_token = 4;
+  // Only deliveries with this status; empty lists every status.
+  string status = 5 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string = {
+      in: [
+        "pending",
+        "succeeded",
+        "failed"
+      ]
+    }
+  ];
 }
 
 message ListWebhookDeliveriesResponse {
   repeated WebhookDelivery deliveries = 1;
+  string next_page_token = 2; // empty if no more pages
 }

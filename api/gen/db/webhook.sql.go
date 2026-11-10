@@ -138,27 +138,24 @@ func (q *Queries) DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspac
 const finishWebhookDelivery = `-- name: FinishWebhookDelivery :execrows
 UPDATE webhook_deliveries
 SET status = $1,
-    last_status_code = $2,
-    last_error = $3,
-    next_attempt_at = $4,
-    delivered_at = $5
-WHERE id = $6 AND attempts = $7
+    last_error = $2,
+    next_attempt_at = $3,
+    delivered_at = $4
+WHERE id = $5 AND attempts = $6
 `
 
 type FinishWebhookDeliveryParams struct {
-	Status         string     `json:"status"`
-	LastStatusCode *int32     `json:"lastStatusCode"`
-	LastError      *string    `json:"lastError"`
-	NextAttemptAt  time.Time  `json:"nextAttemptAt"`
-	DeliveredAt    *time.Time `json:"deliveredAt"`
-	ID             uuid.UUID  `json:"id"`
-	Attempts       int32      `json:"attempts"`
+	Status        string     `json:"status"`
+	LastError     *string    `json:"lastError"`
+	NextAttemptAt time.Time  `json:"nextAttemptAt"`
+	DeliveredAt   *time.Time `json:"deliveredAt"`
+	ID            uuid.UUID  `json:"id"`
+	Attempts      int32      `json:"attempts"`
 }
 
 func (q *Queries) FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) (int64, error) {
 	result, err := q.db.Exec(ctx, finishWebhookDelivery,
 		arg.Status,
-		arg.LastStatusCode,
 		arg.LastError,
 		arg.NextAttemptAt,
 		arg.DeliveredAt,
@@ -257,35 +254,49 @@ func (q *Queries) GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebho
 }
 
 const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many
-SELECT d.id, d.status, d.attempts, d.next_attempt_at, d.last_status_code, d.last_error, d.created_at, d.delivered_at,
+SELECT d.id, d.status, d.attempts, d.next_attempt_at, d.last_error, d.created_at, d.delivered_at,
        e.type AS event_type, e.id AS event_id
 FROM webhook_deliveries d
 JOIN events e ON e.seq = d.event_seq
 WHERE d.webhook_id = $1
-ORDER BY d.created_at DESC
-LIMIT $2
+  AND ($2::text = '' OR d.status = $2)
+  AND ($3::text IS NULL
+       OR (d.created_at, d.id) < (
+         $4::timestamptz,
+         $3::uuid
+       ))
+ORDER BY d.created_at DESC, d.id DESC
+LIMIT $5
 `
 
 type ListWebhookDeliveriesParams struct {
-	WebhookID uuid.UUID `json:"webhookId"`
-	MaxRows   int32     `json:"maxRows"`
+	WebhookID     uuid.UUID  `json:"webhookId"`
+	Status        string     `json:"status"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
+	MaxRows       int32      `json:"maxRows"`
 }
 
 type ListWebhookDeliveriesRow struct {
-	ID             uuid.UUID  `json:"id"`
-	Status         string     `json:"status"`
-	Attempts       int32      `json:"attempts"`
-	NextAttemptAt  time.Time  `json:"nextAttemptAt"`
-	LastStatusCode *int32     `json:"lastStatusCode"`
-	LastError      *string    `json:"lastError"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	DeliveredAt    *time.Time `json:"deliveredAt"`
-	EventType      string     `json:"eventType"`
-	EventID        uuid.UUID  `json:"eventId"`
+	ID            uuid.UUID  `json:"id"`
+	Status        string     `json:"status"`
+	Attempts      int32      `json:"attempts"`
+	NextAttemptAt time.Time  `json:"nextAttemptAt"`
+	LastError     *string    `json:"lastError"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	DeliveredAt   *time.Time `json:"deliveredAt"`
+	EventType     string     `json:"eventType"`
+	EventID       uuid.UUID  `json:"eventId"`
 }
 
 func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error) {
-	rows, err := q.db.Query(ctx, listWebhookDeliveries, arg.WebhookID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listWebhookDeliveries,
+		arg.WebhookID,
+		arg.Status,
+		arg.PageToken,
+		arg.PageCreatedAt,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +309,6 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeli
 			&i.Status,
 			&i.Attempts,
 			&i.NextAttemptAt,
-			&i.LastStatusCode,
 			&i.LastError,
 			&i.CreatedAt,
 			&i.DeliveredAt,

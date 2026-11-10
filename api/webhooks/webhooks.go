@@ -227,12 +227,8 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 			span.AddLink(link)
 		}
 	}
-	code, sendErr := d.send(ctx, id, row)
+	sendErr := d.send(ctx, id, row)
 	params := genDb.FinishWebhookDeliveryParams{ID: id, Attempts: int32(attempt), NextAttemptAt: d.now()}
-	if code != 0 {
-		statusCode := int32(code)
-		params.LastStatusCode = &statusCode
-	}
 	switch {
 	case sendErr == nil:
 		params.Status = statusSucceeded
@@ -262,14 +258,14 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 	tracing.End(span, sendErr)
 }
 
-func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhookDeliveryPayloadRow) (int, error) {
+func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhookDeliveryPayloadRow) error {
 	body, err := json.Marshal(payloadFrom(row))
 	if err != nil {
-		return 0, fmt.Errorf("encode payload: %w", err)
+		return fmt.Errorf("encode payload: %w", err)
 	}
 	req, err := webhooksig.NewSignedRequest(ctx, row.Url, row.Secret, id.String(), body)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	req.Header.Set("User-Agent", "Loco-Webhooks")
 	if row.Kind == genDb.WebhookKindInstall {
@@ -277,18 +273,18 @@ func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhoo
 	}
 	client, err := d.clientFor(row.Kind)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer res.Body.Close()
 	if _, err := io.Copy(io.Discard, io.LimitReader(res.Body, webhooksig.MaxResponseBytes)); err != nil {
 		slog.DebugContext(ctx, "failed to drain webhook response", "error", err)
 	}
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
-		return res.StatusCode, fmt.Errorf("endpoint returned %s", res.Status)
+		return fmt.Errorf("endpoint returned %s", res.Status)
 	}
-	return res.StatusCode, nil
+	return nil
 }

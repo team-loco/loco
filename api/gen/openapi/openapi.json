@@ -13267,10 +13267,32 @@
             "type": "string",
             "title": "webhook_id",
             "format": "uuid"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 200,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "pageToken": {
+            "type": "string",
+            "title": "page_token"
+          },
+          "status": {
+            "type": "string",
+            "title": "status",
+            "enum": [
+              "pending",
+              "succeeded",
+              "failed"
+            ],
+            "description": "Only deliveries with this status; empty lists every status."
           }
         },
         "title": "ListWebhookDeliveriesRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "ListWebhookDeliveriesRequest lists a webhook's deliveries, newest first."
       },
       "loco.webhook.v1.ListWebhookDeliveriesResponse": {
         "type": "object",
@@ -13281,6 +13303,11 @@
               "$ref": "#/components/schemas/loco.webhook.v1.WebhookDelivery"
             },
             "title": "deliveries"
+          },
+          "nextPageToken": {
+            "type": "string",
+            "title": "next_page_token",
+            "description": "empty if no more pages"
           }
         },
         "title": "ListWebhookDeliveriesResponse",
@@ -13405,11 +13432,6 @@
           "attempts": {
             "type": "integer",
             "title": "attempts",
-            "format": "int32"
-          },
-          "lastStatusCode": {
-            "type": "integer",
-            "title": "last_status_code",
             "format": "int32"
           },
           "lastError": {
