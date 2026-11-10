@@ -86,8 +86,8 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 			Interceptor(),
 		validate.NewServerInterceptor(),
 	)
-	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, machine, invitations))
-	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries, machine))
+	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, invitations))
+	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries))
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine, auth.Admins{}))
 	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute)
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)

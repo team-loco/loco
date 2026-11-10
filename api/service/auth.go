@@ -199,7 +199,7 @@ func (s *AuthServer) issue(
 			ActorID:     new(grant.UserID),
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(grant.UserID),
-			Data:        map[string]any{"ip": ip, "userAgent": ua},
+			Data:        map[string]any{events.FieldIP: ip, events.FieldUserAgent: ua},
 		})
 	})
 	if err != nil {
@@ -231,7 +231,7 @@ func (s *AuthServer) ApproveCLILogin(
 			Type:        events.CLILoginApproved,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(grant.UserID),
-			Data:        map[string]any{"flow": "loopback"},
+			Data:        map[string]any{events.FieldFlow: "loopback"},
 		})
 	})
 	if err != nil {
@@ -363,7 +363,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 			Type:        events.CLILoginApproved,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(grant.UserID),
-			Data:        map[string]any{"flow": "device"},
+			Data:        map[string]any{events.FieldFlow: "device"},
 		})
 	})
 	if err != nil {
@@ -491,7 +491,10 @@ func (s *AuthServer) checkIdentity(ctx context.Context, session genDb.GetSession
 			ActorType:   events.ActorSystem,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(session.UserID),
-			Data:        map[string]any{"issuer": session.Issuer, "reason": "disabled at identity provider"},
+			Data: map[string]any{
+				events.FieldIssuer: session.Issuer,
+				events.FieldReason: "disabled at identity provider",
+			},
 		})
 	})
 	if err != nil {

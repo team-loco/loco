@@ -147,8 +147,8 @@ func TestIngestTokenExchange(t *testing.T) {
 	_, err = issueIngestToken(t, client, signAssertion(t, testClusterKey(f.otherCluster), f.clusterID))
 	requireCode(t, err, connect.CodeUnauthenticated, "assertion signed by another cluster's key")
 
-	for _, operation := range []string{ClusterPause, ClusterRemove} {
-		if _, opErr := ManageCluster(t.Context(), f.pool, operation, f.clusterID, false); opErr != nil {
+	for _, operation := range []clusterOperation{clusterPause, clusterRemove} {
+		if _, opErr := manageCluster(t.Context(), f.pool, operation, f.clusterID, false); opErr != nil {
 			t.Fatal(opErr)
 		}
 	}

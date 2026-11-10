@@ -208,7 +208,7 @@ func TestWorkspaceMembershipRejectsDeletedWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewWorkspaceServer(f.pool, f.queries, f.machine)
+	server := NewWorkspaceServer(f.pool, f.queries)
 	created, err := server.CreateWorkspace(
 		f.owner,
 		&workspacev1.CreateWorkspaceRequest{OrgId: f.orgID, Name: "workspace"},

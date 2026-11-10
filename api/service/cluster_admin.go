@@ -189,17 +189,18 @@ func clusterWorkloads(rows []genDb.ListClusterWorkloadsRow) []*clusterv1.Cluster
 
 func (s *ClusterAdminServer) manage(
 	ctx context.Context,
-	operation, id string,
+	operation clusterOperation,
+	id string,
 	force bool,
-) (ClusterOperationResult, error) {
+) (clusterOperationResult, error) {
 	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
-		return ClusterOperationResult{}, err
+		return clusterOperationResult{}, err
 	}
 	parsed, err := uuid.Parse(id)
 	if err != nil {
-		return ClusterOperationResult{}, rpcerr.New(connect.CodeInvalidArgument, err)
+		return clusterOperationResult{}, rpcerr.New(connect.CodeInvalidArgument, err)
 	}
-	result, err := ManageCluster(ctx, s.pool, operation, parsed, force)
+	result, err := manageCluster(ctx, s.pool, operation, parsed, force)
 	if err == nil {
 		return result, nil
 	}
@@ -223,7 +224,7 @@ func (s *ClusterAdminServer) PauseCluster(
 	ctx context.Context,
 	req *clusterv1.PauseClusterRequest,
 ) (*clusterv1.PauseClusterResponse, error) {
-	result, err := s.manage(ctx, ClusterPause, req.GetClusterId(), false)
+	result, err := s.manage(ctx, clusterPause, req.GetClusterId(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +235,7 @@ func (s *ClusterAdminServer) ResumeCluster(
 	ctx context.Context,
 	req *clusterv1.ResumeClusterRequest,
 ) (*clusterv1.ResumeClusterResponse, error) {
-	result, err := s.manage(ctx, ClusterResume, req.GetClusterId(), false)
+	result, err := s.manage(ctx, clusterResume, req.GetClusterId(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +246,7 @@ func (s *ClusterAdminServer) RemoveCluster(
 	ctx context.Context,
 	req *clusterv1.RemoveClusterRequest,
 ) (*clusterv1.RemoveClusterResponse, error) {
-	result, err := s.manage(ctx, ClusterRemove, req.GetClusterId(), req.GetForce())
+	result, err := s.manage(ctx, clusterRemove, req.GetClusterId(), req.GetForce())
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +260,7 @@ func (s *ClusterAdminServer) RestoreCluster(
 	ctx context.Context,
 	req *clusterv1.RestoreClusterRequest,
 ) (*clusterv1.RestoreClusterResponse, error) {
-	result, err := s.manage(ctx, ClusterRestore, req.GetClusterId(), false)
+	result, err := s.manage(ctx, clusterRestore, req.GetClusterId(), false)
 	if err != nil {
 		return nil, err
 	}

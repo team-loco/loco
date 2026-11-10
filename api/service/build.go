@@ -170,7 +170,10 @@ func (s *BuildServer) CreateBuild(
 			ResourceID:  new(resource.ID),
 			SubjectType: events.SubjectBuild,
 			SubjectID:   new(buildID),
-			Data:        map[string]any{events.FieldResourceID: resource.ID.String(), "sourceSize": sourceSize},
+			Data: map[string]any{
+				events.FieldResourceID: resource.ID.String(),
+				events.FieldSourceSize: sourceSize,
+			},
 		})
 	})
 	if createErr != nil {
@@ -314,8 +317,8 @@ func queueBuild(
 			SubjectID:   new(buildID),
 			Data: map[string]any{
 				events.FieldResourceID: resourceID.String(),
-				"clusterId":            clusterID.String(),
-				"superseded":           supersededIDs,
+				events.FieldClusterID:  clusterID.String(),
+				events.FieldSuperseded: supersededIDs,
 			},
 		})
 	})
@@ -323,14 +326,6 @@ func queueBuild(
 		return nil, err
 	}
 	return supersededSources, nil
-}
-
-func notifyCluster(ctx context.Context, qtx *genDb.Queries, clusterID uuid.UUID) error {
-	clusterIDText := clusterID.String()
-	if err := qtx.NotifyClusterPlacements(ctx, clusterIDText); err != nil {
-		return fmt.Errorf("notify cluster %s: %w", clusterID, err)
-	}
-	return nil
 }
 
 type buildSource struct {

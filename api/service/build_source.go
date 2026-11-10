@@ -48,13 +48,9 @@ type ImageResolver interface {
 	Resolve(ctx context.Context, ref name.Reference) (string, error)
 }
 
-type buildLookup interface {
-	GetBuildByID(ctx context.Context, id uuid.UUID) (genDb.Build, error)
-}
-
 func pinBuildSource(
 	ctx context.Context,
-	builds buildLookup,
+	builds genDb.Querier,
 	resolver ImageResolver,
 	registryHost string,
 	resourceID uuid.UUID,
@@ -78,7 +74,7 @@ func pinBuildSource(
 
 func pinDockerfileBuild(
 	ctx context.Context,
-	builds buildLookup,
+	builds genDb.Querier,
 	resourceID uuid.UUID,
 	src *deploymentv1.BuildSource,
 ) (*deploymentv1.BuildSource, error) {

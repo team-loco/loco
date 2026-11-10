@@ -70,7 +70,6 @@ func newEventFixture(t *testing.T) *eventFixture {
 	created, err := NewOrgServer(
 		pool,
 		queries,
-		machine,
 		InvitationConfig{},
 	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("acme"),
@@ -82,7 +81,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 		pool:    pool,
 		queries: queries,
 		machine: machine,
-		events:  NewEventServer(queries, machine),
+		events:  NewEventServer(queries),
 		owner:   scoped(t, queries, owner.ID),
 		orgID:   created.GetOrgId(),
 	}
@@ -108,6 +107,18 @@ func TestSignupAndOrgCreationAreRecorded(t *testing.T) {
 	}
 	if all[1].OrgID == nil || all[1].OrgID.String() != f.orgID || all[1].ActorType != "user" {
 		t.Fatalf("org event = %+v", all[1])
+	}
+}
+
+func TestAuthorizeEventScopeForAnOrganization(t *testing.T) {
+	f := newEventFixture(t)
+	scope, err := f.events.authorizeEventScope(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID})
+	if err != nil {
+		t.Fatalf("authorize: %v", err)
+	}
+	want := eventScope{kind: eventScopeOrg, orgID: uuid.MustParse(f.orgID)}
+	if scope != want {
+		t.Fatalf("scope = %+v, want %+v", scope, want)
 	}
 }
 
@@ -380,7 +391,7 @@ CREATE TRIGGER fail_event_insert BEFORE INSERT ON events FOR EACH ROW EXECUTE FU
 
 func TestMutationFailsWithoutItsEvent(t *testing.T) {
 	f := newEventFixture(t)
-	orgs := NewOrgServer(f.pool, f.queries, f.machine, InvitationConfig{})
+	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{})
 	orgID := uuid.MustParse(f.orgID)
 	if _, err := f.pool.Exec(t.Context(), failEventInsertsSQL); err != nil {
 		t.Fatalf("install failing trigger: %v", err)

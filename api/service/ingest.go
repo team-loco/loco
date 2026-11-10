@@ -27,11 +27,6 @@ const jwksContentType = "application/json"
 
 var errClusterRevoked = errors.New("cluster is removed")
 
-type IngestConfig struct {
-	TransitKey    string
-	TokenLifetime time.Duration
-}
-
 type IngestSigner interface {
 	ingesttoken.Signer
 	PublicKeys(ctx context.Context) (map[string]ed25519.PublicKey, error)

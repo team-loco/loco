@@ -16,7 +16,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/timeutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -48,7 +48,6 @@ type OrgServer struct {
 	db          *pgxpool.Pool
 	queries     genDb.Querier
 	authz       *authz.Authorizer
-	machine     *tvm.VendingMachine
 	invitations InvitationConfig
 }
 
@@ -56,13 +55,11 @@ type OrgServer struct {
 func NewOrgServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
-	machine *tvm.VendingMachine,
 	invitations InvitationConfig,
 ) *OrgServer {
 	return &OrgServer{
 		db:          db,
 		queries:     queries,
-		machine:     machine,
 		invitations: invitations,
 		authz:       authz.New(db, queries),
 	}
@@ -464,4 +461,24 @@ func (s *OrgServer) RemoveOrgMember(
 	}
 
 	return &orgv1.RemoveOrgMemberResponse{}, nil
+}
+
+func orgToProto(org genDb.Organization) *orgv1.Organization {
+	return &orgv1.Organization{
+		Id:               org.ID.String(),
+		Name:             org.Name,
+		CreatedBy:        org.CreatedBy.String(),
+		CreatedAt:        timeutil.ParsePostgresTimestamp(org.CreatedAt),
+		UpdatedAt:        timeutil.ParsePostgresTimestamp(org.UpdatedAt),
+		SuspendedAt:      timeutil.ParsePostgresTimestampPtr(org.SuspendedAt),
+		SuspensionReason: derefString(org.SuspensionReason),
+	}
+}
+
+// derefString safely dereferences a string pointer, returning an empty string if nil.
+func derefString(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
 }

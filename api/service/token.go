@@ -488,9 +488,9 @@ func tokenEvent(eventType string, target genDb.Entity, name string) events.Event
 		Type:        eventType,
 		SubjectType: events.SubjectToken,
 		Data: map[string]any{
-			events.FieldName: name,
-			"entityType":     string(target.Type),
-			"entityId":       target.ID.String(),
+			events.FieldName:       name,
+			events.FieldEntityType: string(target.Type),
+			events.FieldEntityID:   target.ID.String(),
 		},
 	}
 	switch target.Type {

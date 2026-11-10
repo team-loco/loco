@@ -30,10 +30,10 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 	for _, id := range []uuid.UUID{f.clusterID, f.otherCluster} {
-		if _, err := ManageCluster(ctx, f.pool, ClusterRemove, id, false); !errors.Is(err, ErrClusterNotPaused) {
+		if _, err := manageCluster(ctx, f.pool, clusterRemove, id, false); !errors.Is(err, ErrClusterNotPaused) {
 			t.Fatalf("remove active cluster: %v", err)
 		}
-		if _, err := ManageCluster(ctx, f.pool, ClusterPause, id, false); err != nil {
+		if _, err := manageCluster(ctx, f.pool, clusterPause, id, false); err != nil {
 			t.Fatal(err)
 		}
 		health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
@@ -45,7 +45,7 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 		if row.IsActive {
 			t.Fatal("heartbeat resumed paused cluster")
 		}
-		if _, err := ManageCluster(ctx, f.pool, ClusterRemove, id, false); err != nil {
+		if _, err := manageCluster(ctx, f.pool, clusterRemove, id, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -55,10 +55,10 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 			t.Fatalf("removed stream: %v", got.err)
 		}
 	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterResume, f.clusterID, false); !errors.Is(err, ErrClusterRemoved) {
+	if _, err := manageCluster(ctx, f.pool, clusterResume, f.clusterID, false); !errors.Is(err, ErrClusterRemoved) {
 		t.Fatalf("resume removed: %v", err)
 	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterRestore, f.clusterID, false); err != nil {
+	if _, err := manageCluster(ctx, f.pool, clusterRestore, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	restored, err := f.queries.GetClusterByID(ctx, f.clusterID)
@@ -68,7 +68,7 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 	if restored.IsActive || restored.LastHeartbeat != nil || restored.HealthStatus != nil {
 		t.Fatalf("restore reused health or resumed: %+v", restored)
 	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterResume, f.clusterID, false); err != nil {
+	if _, err := manageCluster(ctx, f.pool, clusterResume, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	reconnected := openSync(ctx, t, firstReplica, f.clusterID)
@@ -77,16 +77,16 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 		t.Fatalf("restored reconnect failed: %+v", result)
 	case <-time.After(100 * time.Millisecond):
 	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterPause, f.clusterID, false); err != nil {
+	if _, err := manageCluster(ctx, f.pool, clusterPause, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterRemove, f.clusterID, false); err != nil {
+	if _, err := manageCluster(ctx, f.pool, clusterRemove, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := nextResult(t, reconnected); connect.CodeOf(got.err) != connect.CodePermissionDenied {
 		t.Fatalf("restored stream removal: %v", got.err)
 	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterPause, uuid.New(), false); !errors.Is(err, ErrClusterNotFound) {
+	if _, err := manageCluster(ctx, f.pool, clusterPause, uuid.New(), false); !errors.Is(err, ErrClusterNotFound) {
 		t.Fatalf("missing cluster: %v", err)
 	}
 }
@@ -97,7 +97,7 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterPause, f.clusterID, false); err != nil {
+	if _, err := manageCluster(ctx, f.pool, clusterPause, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.deploy(ctx, staticSpec); !errors.Is(err, ErrClusterNotAssignable) {
@@ -107,11 +107,11 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	if _, err := queueBuild(ctx, f.pool, buildID, f.resourceID, f.clusterID); !errors.Is(err, ErrClusterNotAssignable) {
 		t.Fatalf("queue build while paused: %v", err)
 	}
-	result, err := ManageCluster(ctx, f.pool, ClusterRemove, f.clusterID, false)
+	result, err := manageCluster(ctx, f.pool, clusterRemove, f.clusterID, false)
 	if !errors.Is(err, ErrClusterHasWorkloads) || len(result.Workloads) != 2 {
 		t.Fatalf("normal removal: %v workloads %+v", err, result.Workloads)
 	}
-	result, err = ManageCluster(ctx, f.pool, ClusterRemove, f.clusterID, true)
+	result, err = manageCluster(ctx, f.pool, clusterRemove, f.clusterID, true)
 	if err != nil || len(result.Workloads) != 2 {
 		t.Fatalf("force removal: %v workloads %+v", err, result.Workloads)
 	}
@@ -142,7 +142,7 @@ func TestPauseWaitsForAnInFlightAssignment(t *testing.T) {
 	}
 	result := make(chan error, 1)
 	go func() {
-		_, pauseErr := ManageCluster(ctx, f.pool, ClusterPause, f.clusterID, false)
+		_, pauseErr := manageCluster(ctx, f.pool, clusterPause, f.clusterID, false)
 		result <- pauseErr
 	}()
 	select {

@@ -23,11 +23,8 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-const updateAvatarField = "avatar_url"
-
 var (
 	ErrUserNotFound           = rpcerr.NewCoded(connect.CodeNotFound, "user not found")
-	ErrInvalidRequest         = errors.New("invalid request")
 	ErrUserHasActiveResources = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
 		"user owns workspaces with active resources",
@@ -74,7 +71,7 @@ func (s *UserServer) GetUser(
 		}
 		targetUserID = dbUser.ID.String()
 	default:
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidRequest)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest)
 	}
 
 	targetID, err := parseID("user_id", targetUserID)
@@ -313,7 +310,7 @@ func (s *UserServer) SetUserStatus(
 		}
 		userID = dbUser.ID
 	default:
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidRequest)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest)
 	}
 
 	status, eventType := genDb.UserStatusActive, events.UserReinstated

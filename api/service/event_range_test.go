@@ -10,7 +10,7 @@ import (
 )
 
 func TestListEventsRejectsAnEmptyOrReversedTimeRange(t *testing.T) {
-	server := NewEventServer(nil, nil)
+	server := NewEventServer(nil)
 	at := time.Now()
 	for _, end := range []time.Time{at, at.Add(-time.Second)} {
 		_, err := server.ListEvents(

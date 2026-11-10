@@ -234,7 +234,7 @@ func main() {
 		log.Fatalf("failed to start placement listener: %v", err)
 	}
 
-	eventServiceHandler := service.NewEventServer(queries, machine)
+	eventServiceHandler := service.NewEventServer(queries)
 	background.Go(func() { events.RunRetention(shutdownCtx, queries, ac.EventsRetention, eventsRetentionInterval) })
 	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
 	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
@@ -243,8 +243,8 @@ func main() {
 	background.Go(func() { webhookDispatcher.Run(shutdownCtx) })
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
-	orgServiceHandler := service.NewOrgServer(pool, queries, machine, ac.Invitations)
-	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
+	orgServiceHandler := service.NewOrgServer(pool, queries, ac.Invitations)
+	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
 	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL)
 	bootstrapServiceHandler := service.NewBootstrapServer(
@@ -278,7 +278,7 @@ func main() {
 		RegistryPrefix: ac.RegistryPrefix,
 		SourceMaxBytes: ac.SourceMaxBytes,
 	})
-	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults, clusterSilentAfter)
+	domainServiceHandler := service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	var registryKey *transit.PinnedKey
 	if ac.RegistryAuth.TokenMode() {
@@ -334,7 +334,7 @@ func main() {
 		imageSweeper := sweepers.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
 		background.Go(func() { imageSweeper.Run(shutdownCtx) })
 	}
-	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
+	environmentServiceHandler := service.NewEnvironmentServer(pool, queries)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
 		ac.MinCLIVersion,

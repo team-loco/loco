@@ -346,7 +346,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		ActorID:     new(user.ID),
 		SubjectType: events.SubjectUser,
 		SubjectID:   new(user.ID),
-		Data:        map[string]any{"issuer": id.Issuer, events.FieldEmail: id.Email},
+		Data:        map[string]any{events.FieldIssuer: id.Issuer, events.FieldEmail: id.Email},
 	}); err != nil {
 		return genDb.User{}, nil, fmt.Errorf("%w: record identity event: %w", ErrResolve, err)
 	}

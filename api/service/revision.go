@@ -92,3 +92,18 @@ func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries)
 		return fn(qtx)
 	})
 }
+
+func notifyCluster(ctx context.Context, qtx *genDb.Queries, clusterID uuid.UUID) error {
+	clusterIDText := clusterID.String()
+	if err := qtx.NotifyClusterPlacements(ctx, clusterIDText); err != nil {
+		return fmt.Errorf("notify cluster %s: %w", clusterID, err)
+	}
+	return nil
+}
+
+func lockOrganization(ctx context.Context, qtx *genDb.Queries, workspaceID uuid.UUID) error {
+	if err := qtx.LockWorkspaceOrganization(ctx, workspaceID); err != nil {
+		return fmt.Errorf("lock organization: %w", err)
+	}
+	return nil
+}

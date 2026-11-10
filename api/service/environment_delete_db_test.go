@@ -31,7 +31,7 @@ func TestDeleteEnvironmentRefusesADeploymentThatCommitsWhileItWaits(t *testing.T
 	if _, err = lockWorkspaceEnvironments(ctx, qtx, workspaceID); err != nil {
 		t.Fatal(err)
 	}
-	server := NewEnvironmentServer(f.pool, f.queries, nil)
+	server := NewEnvironmentServer(f.pool, f.queries)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeAdmin},
 	}

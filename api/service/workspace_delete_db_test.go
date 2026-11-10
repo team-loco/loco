@@ -21,7 +21,7 @@ func deleteFixtureWorkspace(t *testing.T, f *deployFixture, confirm bool) error 
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: resource.WorkspaceID, Scope: genDb.ScopeAdmin},
 	}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
-	server := NewWorkspaceServer(f.pool, f.queries, nil)
+	server := NewWorkspaceServer(f.pool, f.queries)
 	workspaceID := resource.WorkspaceID.String()
 	request := &workspacev1.DeleteWorkspaceRequest{
 		WorkspaceId: workspaceID, ConfirmDeleteApps: confirm,

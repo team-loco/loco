@@ -15,6 +15,12 @@ import (
 )
 
 const (
+	clusterHealthHealthy   = "healthy"
+	clusterHealthDegraded  = "degraded"
+	clusterHealthUnhealthy = "unhealthy"
+)
+
+const (
 	regionMessageClusterSilent     = "the cluster running this region has stopped reporting"
 	regionMessageClusterUnhealthy  = "the cluster running this region reports that it is unhealthy"
 	regionMessageClusterNeverHeard = "the cluster running this region has never reported"

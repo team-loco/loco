@@ -44,7 +44,7 @@ func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
 	if _, err := f.pool.Exec(ctx, "UPDATE environments SET description='before' WHERE id=$1", f.envID); err != nil {
 		t.Fatal(err)
 	}
-	server := NewEnvironmentServer(f.pool, f.queries, nil)
+	server := NewEnvironmentServer(f.pool, f.queries)
 	if _, err := server.UpdateEnvironment(
 		ctx,
 		&environmentv1.UpdateEnvironmentRequest{EnvironmentId: f.envID.String(), Description: new("")},
@@ -135,7 +135,7 @@ func TestOptionalWorkspaceDescriptionClears(t *testing.T) {
 	if _, err := f.pool.Exec(ctx, "UPDATE workspaces SET description='before' WHERE id=$1", id); err != nil {
 		t.Fatal(err)
 	}
-	server := NewWorkspaceServer(f.pool, f.queries, nil)
+	server := NewWorkspaceServer(f.pool, f.queries)
 	_, err := server.UpdateWorkspace(
 		ctx,
 		&workspacev1.UpdateWorkspaceRequest{WorkspaceId: id.String(), Description: new("")},
@@ -218,7 +218,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewOrgServer(f.pool, f.queries, nil, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
 	_, err = server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: id.String(), Name: new("")})
 	if codeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty organization name error=%v", err)
@@ -228,7 +228,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 func TestOptionalOrganizationOmittedFieldsRequireExistingRow(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
-	server := NewOrgServer(f.pool, f.queries, nil, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
 	auditBefore := optionalAuditCount(t, f)
 	_, err := server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: uuid.NewString()})
 	if codeOf(err) != connect.CodeNotFound {
@@ -273,9 +273,9 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 			t.Fatal(err)
 		}
 	}
-	environment := NewEnvironmentServer(f.pool, f.queries, nil)
+	environment := NewEnvironmentServer(f.pool, f.queries)
 	resource := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
-	workspace := NewWorkspaceServer(f.pool, f.queries, nil)
+	workspace := NewWorkspaceServer(f.pool, f.queries)
 	if _, err := environment.UpdateEnvironment(
 		ctx,
 		&environmentv1.UpdateEnvironmentRequest{EnvironmentId: f.envID.String(), Name: new("renamed-env")},

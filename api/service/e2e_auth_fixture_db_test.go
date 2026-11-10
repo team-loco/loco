@@ -134,12 +134,12 @@ func componentAuthHTTP(t *testing.T, a *membershipAPI, issuer string) string {
 	userv1connect.RegisterUserServiceHandler(authenticated, NewUserServer(a.pool, a.queries, a.machine, auth.Admins{}))
 	orgv1connect.RegisterOrgServiceHandler(
 		authenticated,
-		NewOrgServer(a.pool, a.queries, a.machine, InvitationConfig{}),
+		NewOrgServer(a.pool, a.queries, InvitationConfig{}),
 	)
-	workspacev1connect.RegisterWorkspaceServiceHandler(authenticated, NewWorkspaceServer(a.pool, a.queries, a.machine))
+	workspacev1connect.RegisterWorkspaceServiceHandler(authenticated, NewWorkspaceServer(a.pool, a.queries))
 	environmentv1connect.RegisterEnvironmentServiceHandler(
 		authenticated,
-		NewEnvironmentServer(a.pool, a.queries, a.machine),
+		NewEnvironmentServer(a.pool, a.queries),
 	)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, base)

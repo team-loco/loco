@@ -27,7 +27,7 @@ type orgDeleteFixture struct {
 func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 	t.Helper()
 	f := newEventFixture(t)
-	server := NewWorkspaceServer(f.pool, f.queries, f.machine)
+	server := NewWorkspaceServer(f.pool, f.queries)
 	created, err := server.CreateWorkspace(
 		f.owner,
 		&workspacev1.CreateWorkspaceRequest{OrgId: f.orgID, Name: "org-guard-workspace"},
@@ -42,7 +42,7 @@ func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 	f.owner = scoped(t, f.queries, org.CreatedBy)
 	return &orgDeleteFixture{
 		eventFixture: f, workspaceID: created.GetWorkspaceId(),
-		orgs:      NewOrgServer(f.pool, f.queries, f.machine, InvitationConfig{}),
+		orgs:      NewOrgServer(f.pool, f.queries, InvitationConfig{}),
 		resources: NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter),
 	}
 }
@@ -180,7 +180,7 @@ func TestCreationReportsMissingParentWhenOrgDeletionWins(t *testing.T) {
 					created <- createErr
 					return
 				}
-				server := NewWorkspaceServer(f.pool, f.queries, f.machine)
+				server := NewWorkspaceServer(f.pool, f.queries)
 				_, createErr := server.CreateWorkspace(
 					f.owner,
 					&workspacev1.CreateWorkspaceRequest{OrgId: f.orgID, Name: "new-workspace"},

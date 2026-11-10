@@ -12,6 +12,11 @@ import (
 )
 
 const (
+	schemeHTTPS = "https"
+	schemeHTTP  = "http"
+)
+
+const (
 	orgIDPlaceholder     = "{orgId}"
 	orgLinkSampleID      = "0"
 	maxOrgLinks          = 10
