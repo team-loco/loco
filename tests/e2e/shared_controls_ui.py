@@ -24,7 +24,7 @@ spec.loader.exec_module(evidence)
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="shared-controls", scenario=str(repo / "tests/e2e/fixtures/settings-labels/scenario.json")))
+        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="after", scenario=str(repo / "tests/e2e/fixtures/settings-labels/scenario.json")))
     args.state = output.getvalue().strip().splitlines()[-1]
     print("Preview state:", args.state, flush=True)
     if not args.keep:
@@ -97,6 +97,17 @@ with sync_playwright() as playwright:
                         page.wait_for_timeout(50)
                         assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
                         assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
+                    if not args.capture_only:
+                        personal.click()
+                        colours = page.get_by_role("radiogroup", name="Colour theme")
+                        loco = colours.get_by_role("radio", name="Loco", exact=True)
+                        loco.focus()
+                        page.keyboard.press("ArrowRight")
+                        catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)
+                        expect(catppuccin).to_be_focused()
+                        expect(catppuccin).to_be_checked()
+                        page.keyboard.press("ArrowLeft")
+                        expect(loco).to_be_checked()
                     workspace_button.click()
                     page.wait_for_timeout(300)
                     page.get_by_role("textbox", name="Name", exact=True).wait_for()

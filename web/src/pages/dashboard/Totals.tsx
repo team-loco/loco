@@ -1,7 +1,8 @@
 import { ChevronDownIcon } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { pluralize } from "@/lib/format";
@@ -49,14 +50,13 @@ function SoonCard({ label }: { label: string }) {
 
 function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: string) => string }) {
 	const [open, setOpen] = useState(false);
-	const listId = useId();
 	const shown = value.resources.length > TOP + 1 ? value.resources.slice(0, TOP) : value.resources;
 	const rest = value.resources.slice(shown.length);
 	const restCpu = rest.reduce((n, r) => n + r.cpuMilli, 0);
 	const max = shown[0]?.cpuMilli ?? 0;
 
 	return (
-		<div className={CARD}>
+		<Collapsible open={open} onOpenChange={setOpen} className={CARD}>
 			<CardHead label="Allocated">
 				<span className="font-mono text-[11.5px]">now</span>
 			</CardHead>
@@ -64,22 +64,14 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 			<span className="font-mono text-[11.5px] text-fg3">{formatMemory(value.memMi)} memory</span>
 			{value.resources.length > 0 && (
 				<>
-					<button
-						type="button"
-						aria-expanded={open}
-						aria-controls={listId}
-						className="mt-auto flex items-center justify-between gap-2 rounded-sm border-t border-line pt-3 text-[12px] text-fg3 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-						onClick={() => {
-							setOpen(!open);
-						}}
-					>
+					<CollapsibleTrigger className="mt-auto flex items-center justify-between gap-2 rounded-sm border-t border-line pt-3 text-[12px] text-fg3 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
 						By resource
 						<span className="flex items-center gap-1.5 font-mono text-[11px]">
 							{pluralize(value.resources.length, "resource")}
 							<ChevronDownIcon className={cn("size-3.5 transition-transform", open && "rotate-180")} />
 						</span>
-					</button>
-					<ul id={listId} hidden={!open} className="m-0 mt-1 flex list-none flex-col p-0">
+					</CollapsibleTrigger>
+					<CollapsibleContent render={<ul />} className="m-0 mt-1 flex list-none flex-col p-0">
 						{shown.map((r) => (
 							<li key={r.id}>
 								<Link
@@ -117,10 +109,10 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 								</span>
 							</li>
 						)}
-					</ul>
+					</CollapsibleContent>
 				</>
 			)}
-		</div>
+		</Collapsible>
 	);
 }
 

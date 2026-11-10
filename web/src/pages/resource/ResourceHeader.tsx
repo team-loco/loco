@@ -16,6 +16,7 @@ import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { Toggle } from "@/components/design/Toggle";
 import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
@@ -167,11 +168,11 @@ export function ResourceHeader({
 						</span>
 					)}
 				</Button>
-				<Button variant="outline" aria-pressed={isSettings} onClick={onSettings}>
+				<Toggle variant="outline" pressed={isSettings} onPressedChange={onSettings}>
 					<Settings2Icon />
 					Settings
 					{dirty && <span aria-label="unsaved changes" className="size-1.5 rounded-full bg-warn" />}
-				</Button>
+				</Toggle>
 				<Button variant="outline" disabled={!canRedeploy} title={writeHint} onClick={onRedeploy}>
 					<RotateCwIcon />
 					{redeploying ? "Redeploying…" : "Redeploy"}

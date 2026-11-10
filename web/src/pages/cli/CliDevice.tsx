@@ -1,5 +1,5 @@
+import { Spinner } from "@/components/design/Spinner";
 import { useMutation } from "@connectrpc/connect-query";
-import { Loader2 } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
 import { useSearchParams } from "react-router";
 
@@ -65,7 +65,7 @@ export function CliDevice() {
 						/>
 					</Field>
 					<Button type="submit" size="xl" className="w-full" disabled={approve.isPending || userCode.trim() === ""}>
-						{approve.isPending && <Loader2 className="size-4 animate-spin" />}
+						{approve.isPending && <Spinner className="size-4" />}
 						Approve
 					</Button>
 				</form>

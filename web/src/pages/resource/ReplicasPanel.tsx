@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import type { EnvironmentStatus } from "@gen/loco/resource/v1/resource_pb";
 
+import { Progress } from "@/components/design/Progress";
 import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -55,16 +56,12 @@ function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: b
 					{status === undefined ? "Not reporting" : `${ready.toString()}/${desired.toString()} ready · ${style.label}`}
 				</span>
 			</button>
-			<div
-				className="h-2 overflow-hidden rounded-full bg-line2"
-				role="img"
-				aria-label={`${ready.toString()} of ${desired.toString()} replicas ready in ${region.name}`}
-			>
-				<div
-					className={cn("h-full rounded-full", ready < desired ? "bg-warn" : "bg-ok-glyph")}
-					style={{ width: `${pct.toString()}%` }}
-				/>
-			</div>
+			<Progress
+				value={pct}
+				aria-label={`Replicas ready in ${region.name}`}
+				getAriaValueText={() => `${ready.toString()} of ${desired.toString()} replicas ready`}
+				className={cn(ready < desired && "[&_[data-slot=progress-indicator]]:bg-warn")}
+			/>
 		</div>
 	);
 }

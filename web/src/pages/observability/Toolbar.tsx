@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, PauseIcon, PlayIcon } from "lucide-react";
 
+import { DateTimePicker } from "@/components/design/DateTimePicker";
 import { Button } from "@/components/design/Button";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
+import { Toggle } from "@/components/design/Toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { StatusDot } from "@/components/design/StatusGlyph";
 import {
 	checkCustomRange,
@@ -107,55 +110,50 @@ export function TimePicker() {
 						placeholder={`Type a range, like 90m or ${limit}`}
 						className="font-mono"
 					/>
-					<div role="group" aria-label="Presets" className="grid grid-cols-2 gap-0.5">
-						{presetsWithin(maxMs).map((ms) => {
-							const on = range.kind === "relative" && range.spanMs === ms;
-							return (
-								<button
-									key={ms}
-									type="button"
-									aria-pressed={on}
-									onClick={() => {
-										pick(ms);
-									}}
-									className={cn(
-										"flex h-8 items-center gap-2.5 rounded-sm px-2 text-left text-[13px] hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-										on && "bg-panel2",
-									)}
-								>
-									<span className="w-8 font-mono text-[11.5px] text-fg3">{formatSpan(ms)}</span>
-									{spanLabel(ms)}
-								</button>
-							);
-						})}
-					</div>
+					<ToggleGroup
+						aria-label="Presets"
+						value={range.kind === "relative" ? [String(range.spanMs)] : []}
+						onValueChange={(values) => {
+							if (values[0] !== undefined) pick(Number(values[0]));
+						}}
+						className="grid grid-cols-2 gap-0.5"
+					>
+						{presetsWithin(maxMs).map((ms) => (
+							<ToggleGroupItem
+								key={ms}
+								value={String(ms)}
+								className="h-8 justify-start gap-2.5 rounded-sm px-2 text-[13px] font-normal hover:bg-panel aria-pressed:bg-panel2"
+							>
+								<span className="w-8 font-mono text-[11.5px] text-fg3">{formatSpan(ms)}</span>
+								{spanLabel(ms)}
+							</ToggleGroupItem>
+						))}
+					</ToggleGroup>
 					<p className="m-0 text-[12px] text-fg3">Ranges up to {limit}.</p>
 					<div className="h-px bg-line" />
 					<span className="text-[12.5px] text-fg3">Custom range</span>
-					<label className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-2 text-[12px] text-fg3">
-						From
-						<Input
-							type="datetime-local"
+					<div className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-2 text-[12px] text-fg3">
+						<span>From</span>
+						<DateTimePicker
+							label="From"
 							value={from}
-							onChange={(e) => {
-								setFrom(e.target.value);
+							onChange={(value) => {
+								setFrom(value);
 								setError(null);
 							}}
-							className="h-8 min-w-0 font-mono"
 						/>
-					</label>
-					<label className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-2 text-[12px] text-fg3">
-						To
-						<Input
-							type="datetime-local"
+					</div>
+					<div className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-2 text-[12px] text-fg3">
+						<span>To</span>
+						<DateTimePicker
+							label="To"
 							value={to}
-							onChange={(e) => {
-								setTo(e.target.value);
+							onChange={(value) => {
+								setTo(value);
 								setError(null);
 							}}
-							className="h-8 min-w-0 font-mono"
 						/>
-					</label>
+					</div>
 					<div className="flex items-center gap-2">
 						{error !== null && (
 							<span role="alert" className="text-[12px] text-bad-fg">
@@ -201,19 +199,19 @@ export function LiveButton({
 	title: string;
 }) {
 	return (
-		<Button
+		<Toggle
 			variant="outline"
-			aria-pressed={on}
+			pressed={on}
 			aria-busy={pending}
 			disabled={disabled || pending}
 			title={title}
-			onClick={onToggle}
+			onPressedChange={onToggle}
 			className={cn("h-8", on && "border-[color-mix(in_oklab,var(--ok)_40%,transparent)] text-ok-fg")}
 		>
 			{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon className="fill-current" />}
 			{pending ? "Starting…" : "Live"}
 			{on && detail !== undefined && <span className="font-mono text-[11.5px] opacity-85">{detail}</span>}
 			{on && <PauseIcon className="fill-current" />}
-		</Button>
+		</Toggle>
 	);
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon } from "lucide-react";
 
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { Button } from "@/components/design/Button";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -273,11 +274,7 @@ export function LogsView() {
 	const setColumns = (next: ColumnKey[]) => {
 		setParam("cols", writeColumns(next), true);
 	};
-	const toggleLevel = (level: Level) => {
-		const tok = levelToken(level);
-		const on = tokens.some((t) => sameToken(t, tok));
-		setQuery(on ? tokens.filter((t) => !sameToken(t, tok)) : [...tokens, tok], text);
-	};
+
 	const away = anchor !== null || range.kind === "absolute";
 	const total = tail ? null : logs.totalMatched;
 	const count =
@@ -345,18 +342,28 @@ export function LogsView() {
 			) : (
 				<>
 					<section aria-label="Log volume" className="flex flex-col gap-2.5 rounded-card bg-panel px-5 pt-4 pb-3.5">
-						<div className="flex flex-wrap gap-1">
+						<ToggleGroup
+							multiple
+							aria-label="Log levels"
+							className="flex flex-wrap gap-1"
+							value={LEVELS.filter((l) => tokens.some((t) => sameToken(t, levelToken(l))))}
+							onValueChange={(values) => {
+								setQuery(
+									[
+										...tokens.filter((t) => !LEVELS.some((l) => sameToken(t, levelToken(l)))),
+										...LEVELS.filter((l) => values.includes(l)).map(levelToken),
+									],
+									text,
+								);
+							}}
+						>
 							{LEVELS.map((l) => {
 								const n = totals.get(l) ?? 0;
 								const on = tokens.some((t) => sameToken(t, levelToken(l)));
 								return (
-									<button
+									<ToggleGroupItem
 										key={l}
-										type="button"
-										aria-pressed={on}
-										onClick={() => {
-											toggleLevel(l);
-										}}
+										value={l}
 										className={cn(
 											"inline-flex h-[26px] items-center gap-1.5 rounded-sm px-2 text-[12.5px] text-fg2 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 											on && "bg-background text-foreground shadow-[inset_0_0_0_1px_var(--line2)]",
@@ -366,10 +373,10 @@ export function LogsView() {
 										<span className="size-2 rounded-[2px]" style={{ background: LEVEL_SERIES[l].color }} />
 										{LEVEL_SERIES[l].label}
 										<span className="font-mono text-[11.5px] text-fg3">{formatCount(n)}</span>
-									</button>
+									</ToggleGroupItem>
 								);
 							})}
-						</div>
+						</ToggleGroup>
 						<VolumeBars
 							buckets={buckets}
 							label="Log volume of the loaded lines. Arrow keys move between bars, Enter zooms in."

@@ -1,8 +1,7 @@
-import { createContext, useId, type ReactNode } from "react";
-
+import { Field as FieldPrimitive } from "@base-ui/react/field";
+import type { ReactNode } from "react";
+import { Field as FieldBase, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
-
-export const FieldMessageContext = createContext<string | undefined>(undefined);
 
 export function Field({
 	label,
@@ -17,20 +16,24 @@ export function Field({
 	className?: string;
 	children: ReactNode;
 }) {
-	const messageId = useId();
 	const failed = error !== undefined && error !== null && error !== false;
-	const message = failed ? error : hint;
 	return (
-		<div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-			<label className="flex min-w-0 flex-col gap-1.5">
-				<span className="text-[13px] font-medium text-foreground">{label}</span>
-				<FieldMessageContext value={message === undefined ? undefined : messageId}>{children}</FieldMessageContext>
-			</label>
-			{message !== undefined && (
-				<span id={messageId} className={cn("text-[12.5px]", failed ? "text-bad-fg" : "text-fg3")}>
-					{message}
-				</span>
+		<FieldPrimitive.Root invalid={failed} render={<FieldBase />} className={cn("min-w-0 gap-1.5", className)}>
+			<FieldPrimitive.Label render={<FieldLabel />} className="text-[13px] font-medium text-foreground">
+				{label}
+			</FieldPrimitive.Label>
+			{children}
+			{failed ? (
+				<FieldPrimitive.Error match render={<FieldError />} className="text-[12.5px] text-bad-fg">
+					{error}
+				</FieldPrimitive.Error>
+			) : (
+				hint != null && (
+					<FieldPrimitive.Description render={<FieldDescription />} className="m-0 text-[12.5px] text-fg3">
+						{hint}
+					</FieldPrimitive.Description>
+				)
 			)}
-		</div>
+		</FieldPrimitive.Root>
 	);
 }

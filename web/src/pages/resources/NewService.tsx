@@ -2,7 +2,7 @@ import { useQuery as useRpcQuery, useTransport } from "@connectrpc/connect-query
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
@@ -14,6 +14,7 @@ import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { RegionHealth } from "@/components/design/RegionHealth";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/design/Collapsible";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
@@ -708,52 +709,42 @@ function EnvSection({
 	const [pasteOpen, setPasteOpen] = useState(false);
 	const [pasteText, setPasteText] = useState("");
 	const [focusId, setFocusId] = useState<string | null>(null);
-	const pasteId = useId();
 	const pasted = parseDotEnv(pasteText);
 	const newId = () => crypto.randomUUID();
 	const update = (id: string, patch: Partial<EnvRow>) => {
 		onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 	};
 	return (
-		<DrawerSection
-			title={
-				<>
-					Environment variables <span className="ml-2 font-normal text-fg3">{rows.length}</span>
-				</>
-			}
-			actions={
-				<span className="flex gap-1.5">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						aria-expanded={pasteOpen}
-						aria-controls={pasteId}
-						onClick={() => {
-							setPasteOpen(!pasteOpen);
-						}}
-					>
-						<ClipboardPasteIcon />
-						Paste .env
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							const id = newId();
-							setFocusId(id);
-							onChange([...rows, { id, key: "", value: "" }]);
-						}}
-					>
-						<PlusIcon />
-						Add
-					</Button>
-				</span>
-			}
-		>
-			{pasteOpen && (
-				<div id={pasteId} className="flex flex-col gap-2">
+		<Collapsible open={pasteOpen} onOpenChange={setPasteOpen}>
+			<DrawerSection
+				title={
+					<>
+						Environment variables <span className="ml-2 font-normal text-fg3">{rows.length}</span>
+					</>
+				}
+				actions={
+					<span className="flex gap-1.5">
+						<CollapsibleTrigger render={<Button variant="outline" size="sm" />}>
+							<ClipboardPasteIcon />
+							Paste .env
+						</CollapsibleTrigger>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								const id = newId();
+								setFocusId(id);
+								onChange([...rows, { id, key: "", value: "" }]);
+							}}
+						>
+							<PlusIcon />
+							Add
+						</Button>
+					</span>
+				}
+			>
+				<CollapsibleContent className="flex flex-col gap-2">
 					<Textarea
 						autoFocus
 						rows={5}
@@ -780,81 +771,81 @@ function EnvSection({
 							{`Add ${pasted.length.toString()}`}
 						</Button>
 					</div>
-				</div>
-			)}
-			{rows.length === 0 ? (
-				<span className="text-[12.5px] text-fg3">None yet.</span>
-			) : (
-				<ul aria-label="Variables" className="m-0 list-none overflow-hidden rounded-[10px] border border-line p-0">
-					{rows.map((r) => {
-						const label = r.key.trim() === "" ? "variable" : r.key.trim();
-						return (
-							<li
-								key={r.id}
-								className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]"
-							>
-								<span className="flex min-w-0 items-center border-r border-line">
+				</CollapsibleContent>
+				{rows.length === 0 ? (
+					<span className="text-[12.5px] text-fg3">None yet.</span>
+				) : (
+					<ul aria-label="Variables" className="m-0 list-none overflow-hidden rounded-[10px] border border-line p-0">
+						{rows.map((r) => {
+							const label = r.key.trim() === "" ? "variable" : r.key.trim();
+							return (
+								<li
+									key={r.id}
+									className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]"
+								>
+									<span className="flex min-w-0 items-center border-r border-line">
+										<Input
+											autoFocus={r.id === focusId}
+											value={r.key}
+											placeholder="KEY"
+											aria-label="Variable name"
+											autoComplete="off"
+											spellCheck={false}
+											className={ENV_CELL}
+											onChange={(e) => {
+												update(r.id, { key: e.target.value });
+											}}
+										/>
+										{looksSecret(r.key) && (
+											<LockIcon aria-label="Looks like a secret" className="mr-2.5 size-3.5 shrink-0 text-fg3" />
+										)}
+									</span>
 									<Input
-										autoFocus={r.id === focusId}
-										value={r.key}
-										placeholder="KEY"
-										aria-label="Variable name"
+										type={r.secret ? "password" : "text"}
+										value={r.value}
+										placeholder="value"
+										aria-label={`Value of ${label}`}
 										autoComplete="off"
 										spellCheck={false}
 										className={ENV_CELL}
 										onChange={(e) => {
-											update(r.id, { key: e.target.value });
+											update(r.id, { value: e.target.value });
 										}}
 									/>
-									{looksSecret(r.key) && (
-										<LockIcon aria-label="Looks like a secret" className="mr-2.5 size-3.5 shrink-0 text-fg3" />
-									)}
-								</span>
-								<Input
-									type={r.secret ? "password" : "text"}
-									value={r.value}
-									placeholder="value"
-									aria-label={`Value of ${label}`}
-									autoComplete="off"
-									spellCheck={false}
-									className={ENV_CELL}
-									onChange={(e) => {
-										update(r.id, { value: e.target.value });
-									}}
-								/>
-								<span className="flex items-center gap-2 px-2">
-									<Switch
-										aria-label={`Store ${label} as secret`}
-										checked={r.secret ?? false}
-										onCheckedChange={(secret) => {
-											update(r.id, { secret });
+									<span className="flex items-center gap-2 px-2">
+										<Switch
+											aria-label={`Store ${label} as secret`}
+											checked={r.secret ?? false}
+											onCheckedChange={(secret) => {
+												update(r.id, { secret });
+											}}
+										/>
+										<span className="text-[11.5px] text-fg3">Secret</span>
+									</span>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon-sm"
+										className="mr-1.5"
+										aria-label={`Remove ${label}`}
+										onClick={() => {
+											onChange(rows.filter((x) => x.id !== r.id));
 										}}
-									/>
-									<span className="text-[11.5px] text-fg3">Secret</span>
-								</span>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									className="mr-1.5"
-									aria-label={`Remove ${label}`}
-									onClick={() => {
-										onChange(rows.filter((x) => x.id !== r.id));
-									}}
-								>
-									<Trash2Icon />
-								</Button>
-							</li>
-						);
-					})}
-				</ul>
-			)}
-			{error !== null && <span className="text-[12.5px] text-bad-fg">{error}</span>}
-			<p className="m-0 text-[12.5px] text-fg3">
-				Mark each sensitive value as Secret. Secret values stay in this drawer until you deploy; re-enter them after
-				closing or reloading it.
-			</p>
-		</DrawerSection>
+									>
+										<Trash2Icon />
+									</Button>
+								</li>
+							);
+						})}
+					</ul>
+				)}
+				{error !== null && <span className="text-[12.5px] text-bad-fg">{error}</span>}
+				<p className="m-0 text-[12.5px] text-fg3">
+					Mark each sensitive value as Secret. Secret values stay in this drawer until you deploy; re-enter them after
+					closing or reloading it.
+				</p>
+			</DrawerSection>
+		</Collapsible>
 	);
 }
 
@@ -874,7 +865,6 @@ function HealthSection({
 	onOpenChange: (open: boolean) => void;
 	onChange: (patch: Partial<HealthForm>) => void;
 }) {
-	const panelId = useId();
 	const numeric = (label: string, field: "interval" | "timeout" | "failAfter") => (
 		<Field label={label} error={apiError(field)}>
 			<Input
@@ -889,43 +879,33 @@ function HealthSection({
 		</Field>
 	);
 	return (
-		<section className="flex flex-col gap-3">
-			<button
-				type="button"
-				aria-expanded={open}
-				aria-controls={panelId}
-				className="flex w-full items-center gap-2.5 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:outline-none"
-				onClick={() => {
-					onOpenChange(!open);
-				}}
-			>
+		<Collapsible open={open} onOpenChange={onOpenChange} className="flex flex-col gap-3">
+			<CollapsibleTrigger className="flex w-full items-center gap-2.5 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:outline-none">
 				<span className="text-[14px] font-medium">Health check</span>
 				<span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg3">{healthSummary(health)}</span>
 				{open ? <ChevronDownIcon className="size-3.5 text-fg3" /> : <ChevronRightIcon className="size-3.5 text-fg3" />}
-			</button>
-			{open && (
-				<div id={panelId} className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-					<Field
-						label="Path"
-						className="col-span-full"
-						error={apiError("path")}
-						hint="Loco waits for this path to return 2xx before sending traffic. Leave empty for none."
-					>
-						<Input
-							value={health.path}
-							className="font-mono"
-							placeholder="/healthz"
-							aria-invalid={apiError("path") !== null}
-							onChange={(e) => {
-								onChange({ path: e.target.value });
-							}}
-						/>
-					</Field>
-					{numeric("Interval, sec", "interval")}
-					{numeric("Timeout, sec", "timeout")}
-					{numeric("Fail after, checks", "failAfter")}
-				</div>
-			)}
-		</section>
+			</CollapsibleTrigger>
+			<CollapsibleContent className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+				<Field
+					label="Path"
+					className="col-span-full"
+					error={apiError("path")}
+					hint="Loco waits for this path to return 2xx before sending traffic. Leave empty for none."
+				>
+					<Input
+						value={health.path}
+						className="font-mono"
+						placeholder="/healthz"
+						aria-invalid={apiError("path") !== null}
+						onChange={(e) => {
+							onChange({ path: e.target.value });
+						}}
+					/>
+				</Field>
+				{numeric("Interval, sec", "interval")}
+				{numeric("Timeout, sec", "timeout")}
+				{numeric("Fail after, checks", "failAfter")}
+			</CollapsibleContent>
+		</Collapsible>
 	);
 }
