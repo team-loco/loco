@@ -33,12 +33,8 @@ func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration) (string, st
 			}
 		}
 		for _, status := range pod.Status.ContainerStatuses {
-			// A restarted process can briefly be Ready on each retry without a
-			// readiness probe. Retained exit history only describes this episode
-			// while its current run has not survived the recovery window.
 			running := status.State.Running
-			recovering := running != nil &&
-				(running.StartedAt.IsZero() || time.Since(running.StartedAt.Time) < recoveryWindow)
+			recovering := runtimeRecovering(pod, status, recoveryWindow)
 			waiting := status.State.Waiting
 			backoff := waiting != nil && waiting.Reason == reasonCrashLoopBackOff
 			lastExit := status.LastTerminationState.Terminated
@@ -93,6 +89,28 @@ func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration) (string, st
 		}
 	}
 	return "", ""
+}
+
+// A long-running retry has not recovered while its pod has stayed unready
+// since before the run began. A later readiness failure leaves old exits historical.
+func runtimeRecovering(pod corev1.Pod, status corev1.ContainerStatus, recoveryWindow time.Duration) bool {
+	running := status.State.Running
+	if running == nil {
+		return false
+	}
+	if running.StartedAt.IsZero() || time.Since(running.StartedAt.Time) < recoveryWindow {
+		return true
+	}
+	if status.Ready {
+		return false
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.ContainersReady && condition.Status == corev1.ConditionFalse &&
+			!condition.LastTransitionTime.IsZero() && !condition.LastTransitionTime.After(running.StartedAt.Time) {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *ApplicationReconciler) observeRuntimeProblem(

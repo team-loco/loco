@@ -243,3 +243,41 @@ func TestRuntimeRecoveredExitDoesNotOverrideALaterHealthFailure(t *testing.T) {
 		t.Fatalf("historical exit overrode health failure: %q", reason)
 	}
 }
+
+func TestUnreadyCrashDoesNotRecoverBetweenSlowLivenessRestarts(t *testing.T) {
+	startedAt := time.Now().Add(-70 * time.Second)
+	pod := corev1.Pod{Status: corev1.PodStatus{
+		Conditions: []corev1.PodCondition{{
+			Type: corev1.ContainersReady, Status: corev1.ConditionFalse,
+			LastTransitionTime: metav1.NewTime(startedAt.Add(-time.Minute)),
+		}},
+		ContainerStatuses: []corev1.ContainerStatus{{
+			RestartCount: 1,
+			State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{
+				StartedAt: metav1.NewTime(startedAt),
+			}},
+			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}},
+		}},
+	}}
+	reason, _ := runtimeProblem([]corev1.Pod{pod}, time.Minute)
+	if reason != locov1alpha1.RuntimeCrashLooping {
+		t.Fatalf("unready retry cleared the crash after the recovery window: %q", reason)
+	}
+	pod.Status.ContainerStatuses[0].Ready = true
+	reason, _ = runtimeProblem([]corev1.Pod{pod}, time.Minute)
+	if reason != "" {
+		t.Fatalf("sustained ready run retained crash: %q", reason)
+	}
+	// A new failure after it became Ready has a transition newer than its run.
+	pod.Status.ContainerStatuses[0].Ready = false
+	pod.Status.Conditions[0].LastTransitionTime = metav1.NewTime(startedAt.Add(time.Minute))
+	reason, _ = runtimeProblem([]corev1.Pod{pod}, time.Minute)
+	if reason != "" {
+		t.Fatalf("later unreadiness revived historical crash: %q", reason)
+	}
+	pod.Status.Conditions[0].LastTransitionTime = metav1.Time{}
+	reason, _ = runtimeProblem([]corev1.Pod{pod}, time.Minute)
+	if reason != "" {
+		t.Fatalf("missing readiness history revived historical crash: %q", reason)
+	}
+}

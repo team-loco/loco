@@ -226,3 +226,23 @@ def test_ci_matrix_covers_every_suite():
     assert matrix.splitlines()
     ci_suites = {suite for arguments in matrix.splitlines() for suite in selected_suites(*shlex.split(arguments))}
     assert ci_suites == set(selected_suites())
+
+
+def test_resource_status_stops_when_crash_deployment_is_not_accepted(tmp_path):
+    suite = Path(__file__).resolve().parent / "suites/09_resource_status.sh"
+    result = run_fixture_suites(
+        tmp_path,
+        {"suites/01_runtime.sh": f'''
+            source {shlex.quote(str(suite))}
+            status_dir="$FIXTURE_ROOT/status"
+            cli_write_image_config() {{ :; }}
+            yq() {{ :; }}
+            loco_cli() {{ echo "fixture plan failed"; return 42; }}
+            e2e_psql() {{ :; }}
+            wait_for() {{ echo "incorrectly waited for an event"; }}
+            test_fixture() {{ test_s06_crash_loop_records_one_event_across_reconnect; }}
+        '''},
+    )
+    assert result.returncode != 0
+    assert "fixture plan failed" in result.stdout
+    assert "incorrectly waited for an event" not in result.stdout
