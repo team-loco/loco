@@ -1,7 +1,11 @@
-import { Field as FieldPrimitive } from "@base-ui/react/field";
-import type { ReactNode } from "react";
-import { Field as FieldBase, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field";
+import { createContext, useId, type ReactNode } from "react";
+
+import { Field as FieldBase, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
+
+export const FieldControlContext = createContext<
+	{ id: string; describedBy: string | undefined; invalid: boolean } | undefined
+>(undefined);
 
 export function Field({
 	label,
@@ -16,24 +20,29 @@ export function Field({
 	className?: string;
 	children: ReactNode;
 }) {
+	const id = useId();
+	const messageId = useId();
 	const failed = error !== undefined && error !== null && error !== false;
+	const message = failed ? error : hint;
 	return (
-		<FieldPrimitive.Root invalid={failed} render={<FieldBase />} className={cn("min-w-0 gap-1.5", className)}>
-			<FieldPrimitive.Label render={<FieldLabel />} className="text-[13px] font-medium text-foreground">
+		<FieldBase className={cn("min-w-0 gap-1.5", className)}>
+			<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
 				{label}
-			</FieldPrimitive.Label>
-			{children}
+			</FieldLabel>
+			<FieldControlContext value={{ id, describedBy: message == null ? undefined : messageId, invalid: failed }}>
+				{children}
+			</FieldControlContext>
 			{failed ? (
-				<FieldPrimitive.Error match render={<FieldError role={undefined} />} className="text-[12.5px] text-bad-fg">
+				<FieldError id={messageId} role={undefined} className="text-[12.5px] text-bad-fg">
 					{error}
-				</FieldPrimitive.Error>
+				</FieldError>
 			) : (
 				hint != null && (
-					<FieldPrimitive.Description render={<FieldDescription />} className="m-0 text-[12.5px] text-fg3">
+					<FieldDescription id={messageId} className="m-0 text-[12.5px] text-fg3">
 						{hint}
-					</FieldPrimitive.Description>
+					</FieldDescription>
 				)
 			)}
-		</FieldPrimitive.Root>
+		</FieldBase>
 	);
 }
