@@ -12,7 +12,16 @@ import { servedDomains } from "@/lib/new-resource";
 import { primaryDomain } from "@/lib/resource-status";
 import { cn } from "@/lib/utils";
 
-import { MAP_LABEL_H, MAP_MORE_H, MAP_NODE_H, MAP_NODE_W, mapLayout, type MapNode, type MapPoint } from "./mapLayout";
+import {
+	MAP_LABEL_H,
+	MAP_MORE_H,
+	MAP_NODE_H,
+	MAP_NODE_W,
+	mapLayout,
+	type MapGap,
+	type MapNode,
+	type MapPoint,
+} from "./mapLayout";
 import type { EnvResource } from "./useDashboardData";
 
 const NODE =
@@ -23,13 +32,39 @@ const RESOURCE_NODE = cn(
 );
 const EDGE_NODE = cn(NODE, "bg-panel2");
 
-function curve(x1: number, y1: number, x2: number, y2: number): string {
-	const my = (y1 + y2) / 2;
-	return `M${x1.toString()},${y1.toString()} C${x1.toString()},${my.toString()} ${x2.toString()},${my.toString()} ${x2.toString()},${y2.toString()}`;
+function curve(width: number, y1: number, y2: number): string {
+	const w = width.toString();
+	const mx = (width / 2).toString();
+	return `M0,${y1.toString()} C${mx},${y1.toString()} ${mx},${y2.toString()} ${w},${y2.toString()}`;
 }
 
 function box(p: MapPoint) {
 	return { left: p.x, top: p.y, width: MAP_NODE_W, height: MAP_NODE_H };
+}
+
+function GapEdges({ gap, height }: { gap: MapGap; height: number }) {
+	return (
+		<svg
+			width={gap.width}
+			height={height}
+			aria-hidden="true"
+			className="pointer-events-none absolute top-0 fill-none stroke-fg4 stroke-[1.5]"
+			style={{ left: gap.x }}
+		>
+			{gap.edges.map((e) => (
+				<path key={e.key} d={curve(gap.width, e.y1, e.y2)} />
+			))}
+			{gap.divider && (
+				<line
+					x1={gap.width / 2}
+					y1={0}
+					x2={gap.width / 2}
+					y2={height}
+					className="stroke-line2 [stroke-dasharray:4_4]"
+				/>
+			)}
+		</svg>
+	);
 }
 
 function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; sub: string; meta: string }) {
@@ -91,10 +126,13 @@ export function ArchitectureDiagram({
 	const platformDomains = domainsRes?.platformDomains ?? [];
 	const [measure, available] = useWidth();
 	const layout = mapLayout(rows, regionOrder, available);
-	const more = (n: number, what: string, y: number) => (
-		<div className="absolute inset-x-0 flex items-center justify-center" style={{ top: y, height: MAP_MORE_H }}>
+	const more = (n: number, p: MapPoint) => (
+		<div
+			className="absolute flex items-center justify-center"
+			style={{ left: p.x, top: p.y, width: MAP_NODE_W, height: MAP_MORE_H }}
+		>
 			<Button variant="link" onClick={onShowTable}>
-				{`${n.toString()} more ${what} in the table`}
+				{`${n.toString()} more in the table`}
 			</Button>
 		</div>
 	);
@@ -104,16 +142,9 @@ export function ArchitectureDiagram({
 			<div ref={measure} className="min-w-0">
 				{available > 0 && (
 					<div className="relative" style={{ width: layout.width, height: layout.height }}>
-						<svg
-							width={layout.width}
-							height={layout.height}
-							aria-hidden="true"
-							className="pointer-events-none absolute inset-0 fill-none stroke-fg4 stroke-[1.5]"
-						>
-							{layout.edges.map((e) => (
-								<path key={e.key} d={curve(e.x1, e.y1, e.x2, e.y2)} />
-							))}
-						</svg>
+						{layout.gaps.map((gap) => (
+							<GapEdges key={gap.key} gap={gap} height={layout.height} />
+						))}
 						{layout.internet !== null && (
 							<div className={EDGE_NODE} style={box(layout.internet)}>
 								<NodeText
@@ -145,15 +176,18 @@ export function ArchitectureDiagram({
 								href={hrefFor(node.row.resource.id)}
 							/>
 						))}
-						{layout.hiddenPublic > 0 && more(layout.hiddenPublic, "public", layout.publicMoreY)}
-						{layout.internalNodes.length > 0 && (
+						{layout.publicMore !== null && more(layout.hiddenPublic, layout.publicMore)}
+						{layout.internalLabel !== null && (
 							<div
-								className="absolute inset-x-0 flex items-center gap-3 text-[12px] text-fg3"
-								style={{ top: layout.internalLabelY, height: MAP_LABEL_H }}
+								className="absolute flex items-center text-[12px] text-fg3"
+								style={{
+									left: layout.internalLabel.x,
+									top: layout.internalLabel.y,
+									width: MAP_NODE_W,
+									height: MAP_LABEL_H,
+								}}
 							>
-								<span className="flex-1 border-t border-dashed border-line2" />
-								Internal only · no public route
-								<span className="flex-1 border-t border-dashed border-line2" />
+								Internal · no public route
 							</div>
 						)}
 						{layout.internalNodes.map((node) => (
@@ -164,7 +198,7 @@ export function ArchitectureDiagram({
 								href={hrefFor(node.row.resource.id)}
 							/>
 						))}
-						{layout.hiddenInternal > 0 && more(layout.hiddenInternal, "internal", layout.internalMoreY)}
+						{layout.internalMore !== null && more(layout.hiddenInternal, layout.internalMore)}
 					</div>
 				)}
 			</div>
