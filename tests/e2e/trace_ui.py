@@ -43,6 +43,10 @@ def span(row):
     sid, parent, service, name, offset, duration = row
     return {'traceId': trace, 'spanId': sid.zfill(16), 'parentSpanId': parent.zfill(16) if parent else '', 'name': name, 'kind': 'Server', 'serviceName': service, 'startTime': f"{time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(start))}.{int(offset * 1000000):09d}Z", 'durationNanos': str(int(duration * 1000000)), 'statusCode': 'Error' if sid in ('000a', '000b') else 'Ok', 'statusMessage': 'Payment authorization timed out after 90 ms' if sid == '000b' else '', 'spanAttributes': {'http.request.method': 'POST', 'http.response.status_code': '504' if sid == '000b' else '200', 'server.address': 'payments.internal', 'payment.attempt': '1'} if sid == '000b' else {'rpc.system': 'grpc', 'rpc.service': f'oteldemo.{service.title()}Service'}, 'resourceAttributes': {'service.name': service, 'service.version': '2.1.0', 'deployment.environment.name': 'production', 'cloud.region': 'us-east-1'}, 'scopeName': '@opentelemetry/instrumentation-http', 'scopeVersion': '0.210.0'}
 spans = [span(row) for row in rows]
+spans[10]['events'] = [
+    {'name': 'retry.scheduled', 'timestamp': spans[10]['startTime'], 'attributes': {'attempt': '1'}},
+    {'name': 'exception', 'timestamp': spans[10]['startTime'], 'attributes': {'exception.type': 'TimeoutError', 'exception.message': 'Authorization timed out', 'exception.stacktrace': 'TimeoutError: Authorization timed out\n    at authorize (payments.ts:42:7)\n    at checkout (checkout.ts:18:3)'}},
+]
 recorded = []
 mode = ['normal']
 
@@ -105,6 +109,13 @@ with sync_playwright() as p:
             assert 'span=' + spans[10]['spanId'] in page.url
             expect(drawer.get_by_role('region', name='Selected span').get_by_role('heading', name='POST /payments/authorize', exact=True)).to_be_visible()
             expect(drawer.get_by_text('Payment authorization timed out after 90 ms', exact=True)).to_be_visible()
+            events = drawer.get_by_role('region', name='Span events')
+            expect(events.get_by_text('TimeoutError', exact=True)).to_be_visible()
+            expect(events.get_by_text('Authorization timed out', exact=True)).to_be_visible()
+            expect(events.locator('pre')).to_have_text(spans[10]['events'][1]['attributes']['exception.stacktrace'])
+            expect(events.get_by_role('listitem')).to_have_count(2)
+            events.get_by_role('button', name='Copy stack trace', exact=True).click()
+            assert page.evaluate('navigator.clipboard.readText()') == spans[10]['events'][1]['attributes']['exception.stacktrace']
             attributes = drawer.get_by_role('region', name='Span attributes')
             expect(attributes.get_by_text(spans[10]['spanId'], exact=True)).to_be_visible()
             expect(attributes.get_by_text('http.response.status_code', exact=True)).to_be_visible()

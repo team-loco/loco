@@ -28,6 +28,7 @@ import { heldLevel, matchesQuery, OWNER_KEYS, OWNER_TITLE, tokenGrants, tokenSta
 import type { Level, OwnerKey } from "./tokens/model";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { TokenTable } from "./tokens/TokenTable";
+import { useTokenCreators } from "./tokens/useTokenCreators";
 import { useTokenData } from "./tokens/useTokenData";
 import type { Owner } from "./tokens/useTokenData";
 
@@ -51,7 +52,10 @@ function firstRun(owner: Owner): { title: string; body: string } {
 				body: `Workspace tokens let CI deploy to ${owner.label}, or to just a few of its resources.`,
 			};
 		case "personal":
-			return { title: "No personal tokens yet", body: "Personal tokens act as you, for scripts on your own machine." };
+			return {
+				title: "No personal tokens yet",
+				body: "Personal tokens act as you, for scripts on your own machine.",
+			};
 	}
 }
 
@@ -67,6 +71,7 @@ export function Tokens() {
 
 	const current = data.owners[ownerKey];
 	const { owner, tokens } = current;
+	const creators = useTokenCreators(owner);
 	const query = q.trim().toLowerCase();
 	const rows = tokens
 		.filter((t) => matchesQuery(data.tree, t, query))
@@ -95,7 +100,10 @@ export function Tokens() {
 	};
 
 	const invalidate = async () => {
-		const key = createConnectQueryKey({ schema: listTokens, cardinality: "finite" });
+		const key = createConnectQueryKey({
+			schema: listTokens,
+			cardinality: "finite",
+		});
 		await queryClient.invalidateQueries({ queryKey: key });
 	};
 
@@ -220,6 +228,7 @@ export function Tokens() {
 					<>
 						<TokenTable
 							tokens={paged.rows}
+							creators={creators}
 							tree={data.tree}
 							now={now}
 							isLoading={current.isLoading}
