@@ -77,6 +77,9 @@ jobs:
           path: tests/e2e/out/settings-labels
           if-no-files-found: warn
 
+      - name: Test webhook deliveries
+        run: mise run e2e:webhooks
+
       - name: Test deployment history in Chromium
         timeout-minutes: 15
         run: mise run e2e:deployment-history

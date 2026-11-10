@@ -6158,6 +6158,68 @@
         }
       }
     },
+    "/loco.webhook.v1.WebhookService/UpdateWebhook": {
+      "post": {
+        "tags": [
+          "loco.webhook.v1.WebhookService"
+        ],
+        "summary": "UpdateWebhook",
+        "description": "UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.",
+        "operationId": "loco.webhook.v1.WebhookService.UpdateWebhook",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.webhook.v1.UpdateWebhookRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.webhook.v1.UpdateWebhookResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.workspace.v1.WorkspaceService/CreateMember": {
       "post": {
         "tags": [
@@ -13248,6 +13310,51 @@
           }
         },
         "title": "ListWebhooksResponse",
+        "additionalProperties": false
+      },
+      "loco.webhook.v1.UpdateWebhookRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "webhookId": {
+            "type": "string",
+            "title": "webhook_id",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string",
+            "title": "url",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "eventTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100,
+              "minLength": 1
+            },
+            "title": "event_types",
+            "maxItems": 100,
+            "description": "An empty list subscribes the webhook to every event."
+          }
+        },
+        "title": "UpdateWebhookRequest",
+        "additionalProperties": false
+      },
+      "loco.webhook.v1.UpdateWebhookResponse": {
+        "type": "object",
+        "properties": {
+          "webhook": {
+            "title": "webhook",
+            "$ref": "#/components/schemas/loco.webhook.v1.Webhook"
+          }
+        },
+        "title": "UpdateWebhookResponse",
         "additionalProperties": false
       },
       "loco.webhook.v1.Webhook": {

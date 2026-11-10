@@ -30,6 +30,9 @@ const (
 	// WebhookServiceListWebhooksProcedure is the procedure name of the WebhookService's ListWebhooks
 	// RPC.
 	WebhookServiceListWebhooksProcedure = "/loco.webhook.v1.WebhookService/ListWebhooks"
+	// WebhookServiceUpdateWebhookProcedure is the procedure name of the WebhookService's UpdateWebhook
+	// RPC.
+	WebhookServiceUpdateWebhookProcedure = "/loco.webhook.v1.WebhookService/UpdateWebhook"
 	// WebhookServiceDeleteWebhookProcedure is the procedure name of the WebhookService's DeleteWebhook
 	// RPC.
 	WebhookServiceDeleteWebhookProcedure = "/loco.webhook.v1.WebhookService/DeleteWebhook"
@@ -53,6 +56,13 @@ var (
 			Procedure:  WebhookServiceListWebhooksProcedure,
 		}
 	})
+	webhookServiceUpdateWebhookSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_webhook_v1_webhook_proto.Services().ByName("WebhookService").Methods().ByName("UpdateWebhook"),
+			Procedure:  WebhookServiceUpdateWebhookProcedure,
+		}
+	})
 	webhookServiceDeleteWebhookSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -73,6 +83,8 @@ var (
 type WebhookServiceClient interface {
 	CreateWebhook(context.Context, *v1.CreateWebhookRequest) (*v1.CreateWebhookResponse, error)
 	ListWebhooks(context.Context, *v1.ListWebhooksRequest) (*v1.ListWebhooksResponse, error)
+	// UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
+	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
 }
@@ -87,6 +99,8 @@ func NewWebhookServiceClient(client *connect.Client) WebhookServiceClient {
 type WebhookServiceHandler interface {
 	CreateWebhook(context.Context, *v1.CreateWebhookRequest) (*v1.CreateWebhookResponse, error)
 	ListWebhooks(context.Context, *v1.ListWebhooksRequest) (*v1.ListWebhooksResponse, error)
+	// UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
+	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
 }
@@ -98,6 +112,7 @@ func RegisterWebhookServiceHandler(server *connect.Server, svc WebhookServiceHan
 	server.Register(
 		connect.Method{Spec: webhookServiceCreateWebhookSpec(), Handler: adapter.createWebhook},
 		connect.Method{Spec: webhookServiceListWebhooksSpec(), Handler: adapter.listWebhooks},
+		connect.Method{Spec: webhookServiceUpdateWebhookSpec(), Handler: adapter.updateWebhook},
 		connect.Method{Spec: webhookServiceDeleteWebhookSpec(), Handler: adapter.deleteWebhook},
 		connect.Method{Spec: webhookServiceListWebhookDeliveriesSpec(), Handler: adapter.listWebhookDeliveries},
 	)
@@ -112,6 +127,10 @@ func (UnimplementedWebhookServiceHandler) CreateWebhook(context.Context, *v1.Cre
 
 func (UnimplementedWebhookServiceHandler) ListWebhooks(context.Context, *v1.ListWebhooksRequest) (*v1.ListWebhooksResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.webhook.v1.WebhookService.ListWebhooks is not implemented")
+}
+
+func (UnimplementedWebhookServiceHandler) UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.webhook.v1.WebhookService.UpdateWebhook is not implemented")
 }
 
 func (UnimplementedWebhookServiceHandler) DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error) {
@@ -137,6 +156,14 @@ func (c *webhookServiceClient) CreateWebhook(ctx context.Context, req *v1.Create
 func (c *webhookServiceClient) ListWebhooks(ctx context.Context, req *v1.ListWebhooksRequest) (*v1.ListWebhooksResponse, error) {
 	var res v1.ListWebhooksResponse
 	if err := c.client.CallUnary(ctx, webhookServiceListWebhooksSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *webhookServiceClient) UpdateWebhook(ctx context.Context, req *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error) {
+	var res v1.UpdateWebhookResponse
+	if err := c.client.CallUnary(ctx, webhookServiceUpdateWebhookSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -178,6 +205,18 @@ func (h webhookServiceHandler) listWebhooks(ctx context.Context, _ connect.Spec,
 		return err
 	}
 	res, err := h.svc.ListWebhooks(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h webhookServiceHandler) updateWebhook(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpdateWebhookRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpdateWebhook(ctx, &req)
 	if err != nil {
 		return err
 	}

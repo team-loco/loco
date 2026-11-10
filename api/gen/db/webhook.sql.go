@@ -370,6 +370,41 @@ func (q *Queries) LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.U
 	return id_2, err
 }
 
+const updateWorkspaceWebhook = `-- name: UpdateWorkspaceWebhook :one
+UPDATE webhooks
+SET url = $1, event_types = $2
+WHERE id = $3 AND kind = 'workspace' AND workspace_id = $4::uuid
+RETURNING id, kind, workspace_id, url, secret, event_types, created_by, created_at
+`
+
+type UpdateWorkspaceWebhookParams struct {
+	Url         string    `json:"url"`
+	EventTypes  []string  `json:"eventTypes"`
+	ID          uuid.UUID `json:"id"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+}
+
+func (q *Queries) UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error) {
+	row := q.db.QueryRow(ctx, updateWorkspaceWebhook,
+		arg.Url,
+		arg.EventTypes,
+		arg.ID,
+		arg.WorkspaceID,
+	)
+	var i Webhook
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.WorkspaceID,
+		&i.Url,
+		&i.Secret,
+		&i.EventTypes,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const upsertInstallWebhook = `-- name: UpsertInstallWebhook :exec
 INSERT INTO webhooks (kind, url, secret, event_types)
 VALUES ('install', $1, $2, $3)
