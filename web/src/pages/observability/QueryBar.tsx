@@ -1,29 +1,35 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { HistoryIcon, SearchIcon, StarIcon, TagIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
 import { SoonTag } from "@/components/design/SoonTag";
 import { formatCount } from "@/lib/format";
+import { useStoredJSON } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
 import { levelStyle } from "./format";
 import {
+	addRecent,
+	agoShort,
 	fieldDef,
 	isFieldKey,
 	levelOf,
 	parseQuery,
+	PINNED_KEY,
+	pinnedQueries,
 	queryStr,
-	readSaved,
+	recentKey,
+	recentQueries,
+	recentQuery,
 	sameToken,
 	searchesText,
+	shownRecent,
 	tokenSupport,
 	viewFields,
-	writeSaved,
 	type FieldDef,
 	type FieldKey,
-	type SavedSearches,
 	type Token,
 } from "./query";
 import { Dot } from "./shared";
@@ -40,6 +46,7 @@ interface Suggestion {
 
 interface Group {
 	title: string;
+	action?: ReactNode;
 	items: Suggestion[];
 }
 
@@ -47,9 +54,9 @@ const VALUE_WORD_RE = /^(-?)@(\w+):(.*)$/;
 const KEY_WORD_RE = /^(-?)@(\w*)$/;
 const COMPLETED_TOKEN_RE = /(^|\s)(-?)@(\w+):(\S+)\s$/;
 const MAX_VALUES = 10;
-const MAX_RECENT = 8;
 const MAX_PINNED = 10;
 const BLUR_CLOSE_MS = 120;
+const RECENT_SAVE_MS = 1500;
 
 export type ValueCounts = (key: FieldKey) => [string, number][];
 
@@ -67,7 +74,7 @@ function placeholder(view: string): string {
 }
 
 export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
-	const { view, tokens, text: applied, setQuery, resourceByName } = useObs();
+	const { orgId, workspaceId, view, tokens, text: applied, setQuery, resourceByName } = useObs();
 	const [text, setText] = useState(applied);
 	const [synced, setSynced] = useState(applied);
 	if (synced !== applied) {
@@ -75,10 +82,24 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		setText(applied);
 	}
 	const [open, setOpen] = useState(false);
+	const [now, setNow] = useState(Date.now);
 	const [hi, setHi] = useState(0);
-	const [saved, setSaved] = useState<SavedSearches>(readSaved);
+	const [pinnedList, updatePinned] = useStoredJSON(PINNED_KEY, pinnedQueries);
+	const scope = recentKey(orgId, workspaceId, view);
+	const [recent, updateRecent] = useStoredJSON(scope, recentQueries);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const appliedRecent = recentQuery(view, tokens, applied);
+	useEffect(() => {
+		if (appliedRecent === "") return;
+		const timer = setTimeout(() => {
+			updateRecent((list) => addRecent(list, appliedRecent, Date.now()));
+		}, RECENT_SAVE_MS);
+		return () => {
+			clearTimeout(timer);
+		};
+	}, [appliedRecent, updateRecent]);
 
 	const fields = viewFields(view);
 	const support = tokenSupport(view, tokens);
@@ -87,11 +108,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const cur = words.at(-1) ?? "";
 	const focusInput = () => {
 		inputRef.current?.focus();
-	};
-
-	const updateSaved = (next: SavedSearches) => {
-		writeSaved(next);
-		setSaved(next);
 	};
 
 	const setTokens = (next: Token[], nextText = text) => {
@@ -112,8 +128,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const commit = () => {
 		const p = parseQuery(text);
 		const nextTokens = [...tokens, ...p.tokens];
-		const q = queryStr(nextTokens, p.text);
-		if (q !== "") updateSaved({ ...saved, recent: [q, ...saved.recent.filter((x) => x !== q)].slice(0, MAX_RECENT) });
 		setText(p.text);
 		setQuery(nextTokens, p.text);
 		setOpen(false);
@@ -183,11 +197,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		const ks = fields.filter((f) => f.key.startsWith((km[2] ?? "").toLowerCase()));
 		groups.push({ title: "Attributes", items: ks.map((f) => keyItem(f, neg)) });
 	} else if (cur.trim() === "") {
-		const curQ = queryStr(tokens, text);
-		if (saved.pinned.length > 0) {
+		if (pinnedList.length > 0) {
 			groups.push({
 				title: "Pinned",
-				items: saved.pinned.map((q) => ({
+				items: pinnedList.map((q) => ({
 					key: `p:${q}`,
 					icon: <StarIcon className="size-3.5 text-warn" />,
 					main: q,
@@ -196,25 +209,35 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 						loadQuery(q);
 					},
 					remove: () => {
-						updateSaved({ ...saved, pinned: saved.pinned.filter((x) => x !== q) });
+						updatePinned((list) => list.filter((x) => x !== q));
 					},
 				})),
 			});
 		}
-		const rec = saved.recent.filter((q) => q !== curQ);
-		if (rec.length > 0) {
+		const rec = shownRecent(recent, recentQuery(view, tokens, text));
+		if (scope !== null && rec.length > 0) {
 			groups.push({
 				title: "Recent",
-				items: rec.map((q) => ({
-					key: `r:${q}`,
+				action: (
+					<Button
+						variant="link"
+						onClick={() => {
+							updateRecent(() => null);
+							setHi(0);
+							focusInput();
+						}}
+						className="h-auto p-0 text-[11.5px] text-fg3"
+					>
+						Clear
+					</Button>
+				),
+				items: rec.map((r) => ({
+					key: `r:${r.q}`,
 					icon: <HistoryIcon className="size-3.5" />,
-					main: q,
-					hint: "",
+					main: r.q,
+					hint: agoShort(r.ts, now),
 					apply: () => {
-						loadQuery(q);
-					},
-					remove: () => {
-						updateSaved({ ...saved, recent: saved.recent.filter((x) => x !== q) });
+						loadQuery(r.q);
 					},
 				})),
 			});
@@ -243,7 +266,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const hiIdx = Math.min(hi, Math.max(0, flat.length - 1));
 	const highlighted = flat[hiIdx];
 	const curQuery = queryStr(tokens, text);
-	const pinned = curQuery !== "" && saved.pinned.includes(curQuery);
+	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
 	const showMenu = open && (groups.some((g) => g.items.length > 0) || cur !== "");
 	const noMatches = open && flat.length === 0 && cur !== "";
 
@@ -304,7 +327,15 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 
 	let n = 0;
 	return (
-		<div className="relative min-w-0">
+		<div
+			className="relative min-w-0"
+			onBlur={(e) => {
+				if (e.currentTarget.contains(e.relatedTarget)) return;
+				blurTimerRef.current = setTimeout(() => {
+					setOpen(false);
+				}, BLUR_CLOSE_MS);
+			}}
+		>
 			<div
 				role="presentation"
 				onClick={focusInput}
@@ -334,12 +365,8 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					onKeyDown={onKeyDown}
 					onFocus={() => {
 						if (blurTimerRef.current !== null) clearTimeout(blurTimerRef.current);
+						setNow(Date.now());
 						setOpen(true);
-					}}
-					onBlur={() => {
-						blurTimerRef.current = setTimeout(() => {
-							setOpen(false);
-						}, BLUR_CLOSE_MS);
 					}}
 					placeholder={tokens.length > 0 ? "" : placeholder(view)}
 					aria-label="Search and filter"
@@ -378,12 +405,9 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					disabled={curQuery === ""}
 					onClick={(e) => {
 						e.stopPropagation();
-						updateSaved({
-							...saved,
-							pinned: pinned
-								? saved.pinned.filter((x) => x !== curQuery)
-								: [curQuery, ...saved.pinned].slice(0, MAX_PINNED),
-						});
+						updatePinned((list) =>
+							pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
+						);
 					}}
 					className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
 				>
@@ -400,10 +424,14 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					}}
 					className="absolute top-[calc(100%+6px)] left-0 z-50 flex max-h-[400px] w-[min(560px,100%)] flex-col overflow-y-auto rounded-card border border-line bg-popover p-1.5 shadow-popover dark:border-line2"
 				>
-					{groups.map((g) =>
-						g.items.length === 0 ? null : (
-							<div key={g.title} className="flex flex-col">
-								<div className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">{g.title}</div>
+					{groups
+						.filter((g) => g.items.length > 0)
+						.map((g, gi) => (
+							<div key={g.title} className={cn("flex flex-col", gi > 0 && "mt-1 border-t border-line pt-1")}>
+								<div className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">
+									{g.title}
+									{g.action}
+								</div>
 								{g.items.map((s) => {
 									const idx = s.disabled === true ? -1 : n++;
 									const active = idx === hiIdx && idx >= 0;
@@ -435,11 +463,14 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 												<Button
 													variant="ghost"
 													size="icon-xs"
-													aria-label="Remove"
+													aria-label={`Unpin ${s.main}`}
 													onMouseDown={(e) => {
 														e.preventDefault();
 														e.stopPropagation();
+													}}
+													onClick={() => {
 														s.remove?.();
+														focusInput();
 													}}
 													className="size-[22px] text-fg4 hover:text-foreground"
 												>
@@ -450,8 +481,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 									);
 								})}
 							</div>
-						),
-					)}
+						))}
 					{noMatches && <div className="p-2.5 text-fg3">No matches</div>}
 					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
 						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix
