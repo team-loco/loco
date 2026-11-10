@@ -11,6 +11,7 @@ const NANOS_PER_SECOND = 1_000_000_000;
 interface UseQueryLogsOptions {
 	workspaceId: string;
 	environmentId: string;
+	allEnvironments?: boolean;
 	resourceIds: string[];
 	spanMs: number;
 	parsedQuery: ParsedQuery;
@@ -28,6 +29,7 @@ export function logsQueryOptions(
 	{
 		workspaceId,
 		environmentId,
+		allEnvironments = false,
 		resourceIds,
 		spanMs,
 		parsedQuery,
@@ -42,7 +44,7 @@ export function logsQueryOptions(
 ) {
 	const input = {
 		workspaceId,
-		environmentId,
+		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
 		search: parsedQuery.search,
 		levels: parsedQuery.levels,
@@ -105,7 +107,7 @@ export function logsQueryOptions(
 				newerCursor: order === LogOrder.OLDEST_FIRST ? response.nextCursor : "",
 			};
 		},
-		enabled: enabled && workspaceId !== "" && environmentId !== "",
+		enabled: enabled && workspaceId !== "" && (allEnvironments || environmentId !== ""),
 		staleTime: 30_000,
 	};
 }

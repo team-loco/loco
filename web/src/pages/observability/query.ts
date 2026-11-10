@@ -32,7 +32,8 @@ export function levelOf(severity: string): Level {
 	return "info";
 }
 
-export type FieldKey = "resource" | "level" | "replica" | "region" | "type" | "status" | "trace" | "method" | "path";
+export type FieldKey =
+	"resource" | "level" | "replica" | "build" | "region" | "type" | "status" | "trace" | "method" | "path";
 
 export interface FieldDef {
 	key: FieldKey;
@@ -49,6 +50,7 @@ export const FIELDS: FieldDef[] = [
 	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: false, planned: [] },
 	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: false, planned: [] },
 	{ key: "replica", label: "Replica", views: ["logs"], negate: [], single: true, planned: [] },
+	{ key: "build", label: "Build ID", views: ["logs"], negate: [], single: true, planned: [] },
 	{
 		key: "region",
 		label: "Region",
@@ -95,7 +97,9 @@ export interface Token {
 }
 
 const TOKEN_RE = /(-?)@(\w+):(\S+)/g;
-const BARE_REPLICA_RE = /^(?:pod|replica):(\S+)$/;
+const BARE_TOKEN_RE = /^(pod|replica|build):(\S+)$/;
+
+export const BUILD_ID_LABEL = "loco.io/build-id";
 
 function tokStr(t: Token): string {
 	return `${t.neg ? "-" : ""}@${t.key}:${t.value}`;
@@ -106,8 +110,9 @@ export function queryStr(tokens: Token[], text: string): string {
 }
 
 export function parseQuery(q: string): { tokens: Token[]; text: string } {
-	const bare = BARE_REPLICA_RE.exec(q.trim());
-	if (bare !== null) return { tokens: [{ neg: false, key: "replica", value: bare[1] ?? "" }], text: "" };
+	const bare = BARE_TOKEN_RE.exec(q.trim());
+	const bareKey = fieldKey(bare?.[1] ?? "");
+	if (bareKey !== undefined) return { tokens: [{ neg: false, key: bareKey, value: bare?.[2] ?? "" }], text: "" };
 	const tokens: Token[] = [];
 	for (const m of q.matchAll(TOKEN_RE)) {
 		const key = fieldKey(m[2] ?? "");
@@ -195,6 +200,7 @@ export function passes(values: string[], tokens: Token[]): boolean {
 export interface BackendQuery {
 	parsed: ParsedQuery;
 	resourceIds: string[];
+	allEnvironments: boolean;
 	impossible: boolean;
 }
 
@@ -212,6 +218,8 @@ export function buildBackendQuery(tokens: Token[], text: string, resources: ObsR
 	const labels: Record<string, string> = {};
 	const replica = byKey("replica")[0];
 	if (replica !== undefined) labels["k8s.pod.name"] = replica.value;
+	const build = byKey("build")[0];
+	if (build !== undefined) labels[BUILD_ID_LABEL] = build.value;
 
 	const impossible = levelSet?.length === 0 || resNames?.length === 0;
 
@@ -228,6 +236,7 @@ export function buildBackendQuery(tokens: Token[], text: string, resources: ObsR
 				.map((t) => t.value),
 		},
 		resourceIds,
+		allEnvironments: build !== undefined,
 		impossible,
 	};
 }

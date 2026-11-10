@@ -1,5 +1,7 @@
 import { matchPath } from "react-router";
 
+import { formatSpan, QUERY_MAX_MS } from "./obs-time";
+
 export function workspacePath(orgId: string, workspaceId: string, sub = ""): string {
 	const base = `/org/${orgId}/wks/${workspaceId}`;
 	return sub === "" ? base : `${base}/${sub}`;
@@ -60,4 +62,8 @@ export function observabilityPath(
 ): string {
 	const search = new URLSearchParams({ view, ...params });
 	return `${workspacePath(orgId, workspaceId, "observability")}?${search.toString()}`;
+}
+
+export function buildLogsPath(orgId: string, workspaceId: string, buildId: string): string {
+	return observabilityPath(orgId, workspaceId, "logs", { q: `build:${buildId}`, range: formatSpan(QUERY_MAX_MS) });
 }

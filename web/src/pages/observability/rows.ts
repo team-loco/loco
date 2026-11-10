@@ -4,7 +4,7 @@ import { tsMs } from "@/lib/time";
 
 import type { ObsResource } from "./context";
 import { parseJsonMsg, type JsonObject } from "./format";
-import { levelOf, type Level } from "./query";
+import { BUILD_ID_LABEL, levelOf, type Level } from "./query";
 
 export interface LogRow {
 	key: string;
@@ -17,6 +17,7 @@ export interface LogRow {
 	pod: string;
 	replica: string;
 	region: string;
+	build: string;
 	entry: LogEntry;
 	json: JsonObject | null;
 }
@@ -59,6 +60,7 @@ export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResourc
 			pod,
 			replica: replicaOf(pod),
 			region: entry.resourceAttributes["loco.region"] ?? "",
+			build: entry.resourceAttributes[BUILD_ID_LABEL] ?? "",
 			entry,
 			json: parseJsonMsg(entry.body),
 		});

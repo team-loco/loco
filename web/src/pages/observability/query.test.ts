@@ -1,8 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
+import { ResourceSchema } from "@gen/loco/resource/v1/resource_pb";
 
-import { buildBackendQuery, parseQuery, readQuery, tokenSupport, writeQuery } from "./query";
+import {
+	BUILD_ID_LABEL,
+	buildBackendQuery,
+	parseQuery,
+	readQuery,
+	tokenSupport,
+	writeQuery,
+	type Token,
+} from "./query";
 import { toRows } from "./rows";
 
 describe("regional telemetry filters", () => {
@@ -18,6 +27,7 @@ describe("regional telemetry filters", () => {
 				excludedRegions: ["us-west-*"],
 			},
 			resourceIds: [],
+			allEnvironments: false,
 			impossible: false,
 		});
 	});
@@ -95,5 +105,29 @@ describe("omnibar tokens per view", () => {
 		expect(params.get("r")).toBeNull();
 		expect(params.get("q")).toBe("-@level:debug slow");
 		expect(params.get("view")).toBe("logs");
+	});
+});
+
+describe("build log filters", () => {
+	test("reads the build deep link and the @build token", () => {
+		const token: Token = { neg: false, key: "build", value: "b-123" };
+		expect(readQuery(new URLSearchParams("q=build:b-123")).tokens).toEqual([token]);
+		expect(parseQuery("@build:b-123 failed")).toEqual({ tokens: [token], text: "failed" });
+	});
+
+	test("filters on the build ID label across environments", () => {
+		const { tokens, text } = parseQuery("@resource:api @build:b-123");
+		const raw = create(ResourceSchema, { id: "r1", name: "api" });
+		const query = buildBackendQuery(tokens, text, [{ id: "r1", name: "api", color: "", regions: [], raw }]);
+		expect(query.parsed.labels).toEqual({ [BUILD_ID_LABEL]: "b-123" });
+		expect(query.resourceIds).toEqual(["r1"]);
+		expect(query.allEnvironments).toBe(true);
+	});
+
+	test("applies one positive build filter to logs only", () => {
+		const { tokens } = parseQuery("@build:a @build:b -@build:c");
+		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, false]);
+		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([false, false, false]);
+		expect(buildBackendQuery(tokens, "", []).parsed.labels).toEqual({ [BUILD_ID_LABEL]: "a" });
 	});
 });

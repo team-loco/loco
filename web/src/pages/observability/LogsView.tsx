@@ -121,6 +121,7 @@ export function LogsView() {
 	const logs = useQueryLogs({
 		workspaceId,
 		environmentId,
+		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
 		spanMs,
 		parsedQuery: backend.parsed,
@@ -135,6 +136,7 @@ export function LogsView() {
 	const tailState = useTailLogs({
 		workspaceId,
 		environmentId,
+		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
 		parsedQuery: backend.parsed,
 		enabled: tail && cursor === "" && !backend.impossible,
@@ -266,6 +268,7 @@ export function LogsView() {
 			if (key === "resource") add(r.resourceName);
 			if (key === "region") add(r.region);
 			if (key === "replica") add(r.pod);
+			if (key === "build") add(r.build);
 		}
 		return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
 	};
