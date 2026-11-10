@@ -214,7 +214,7 @@ test("imageError asks for an image reference before the drawer opens", () => {
 test("marked values only go to the secret write and the YAML names their bindings", () => {
 	const vars = [row("LOG_LEVEL", "info"), { ...row("API_KEY", "private-test-value"), secret: true }];
 	expect(deploymentVariables(vars)).toEqual({ env: { LOG_LEVEL: "info" }, secrets: { API_KEY: "private-test-value" } });
-	expect(envError([{ ...row("api_key", "value"), secret: true }])).toContain("must use uppercase");
+	expect(envError([{ ...row("api_key", "value"), secret: true }])).toBeNull();
 	const yaml = locoYaml({ schemaUrl: "", form: { ...form, vars } });
 	expect(yaml).toContain("secrets: [API_KEY]");
 	expect(yaml).toContain('LOG_LEVEL: "info"');

@@ -93,12 +93,7 @@ export function deploymentVariables(rows: EnvRow[]) {
 
 export function envError(rows: EnvRow[]): string | null {
 	const seen = new Set<string>();
-	for (const row of rows) {
-		if (isBlank(row)) continue;
-		const key = row.key.trim();
-		const value = row.value;
-		if (row.secret && !/^[A-Z_][A-Z0-9_]*$/.test(key))
-			return `${key || "Secret name"} must use uppercase letters, digits and _, not starting with a digit`;
+	for (const [key, value] of envVars(rows)) {
 		if (key === "") return "A variable has a value but no name";
 		if (!isEnvKey(key)) return `${key} isn't a valid name: use letters, digits and _, not starting with a digit`;
 		if (value === "") return `${key} has no value`;
