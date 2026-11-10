@@ -1,7 +1,7 @@
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useState, type Dispatch, type SetStateAction } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { getErrorMessage } from "@/lib/error-handler";
-import { pageRangeLabel, pagedRows, pageSlice, type Paging } from "@/lib/paging";
+import { pagedRows, type PagedRows, type Paging } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
@@ -45,6 +45,22 @@ interface Row {
 	region: RegionView;
 	prev: Deployment | undefined;
 	isCurrent: boolean;
+}
+
+function nextPage(
+	rows: PagedRows<unknown>,
+	isLoading: boolean,
+	hasMore: boolean,
+	loadMore: () => Promise<boolean>,
+	setPaging: Dispatch<SetStateAction<Paging>>,
+): (() => void) | null {
+	if (isLoading) return null;
+	if (rows.pager.onNext !== null || !hasMore) return rows.pager.onNext;
+	return () => {
+		void loadMore().then((loaded) => {
+			if (loaded) setPaging((current) => ({ ...current, page: current.page + 1 }));
+		});
+	};
 }
 
 function timeFact(ms: number | undefined): string {
@@ -177,7 +193,7 @@ export function DeploymentsSection({
 }) {
 	const transport = useTransport();
 	const [params, setParams] = useSearchParams();
-	const [pagination, setPagination] = useState({ page: 0, size: DEFAULT_PAGE_SIZE });
+	const [pagination, setPagination] = useState<Paging>({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [open, setOpen] = useState<string | null>(null);
 	const [buildPaging, setBuildPaging] = useState<Paging>({ page: 0, size: BUILD_PAGE_SIZE });
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
@@ -186,7 +202,6 @@ export function DeploymentsSection({
 		...workspaceMembersOptions(transport, workspaceId),
 		enabled: canReadWorkspace,
 	});
-	const { page, size } = pagination;
 	const hist = parseHist(params.get(HIST_PARAM));
 
 	const setHist = (next: Hist) => {
@@ -206,7 +221,7 @@ export function DeploymentsSection({
 			})),
 		)
 		.toSorted((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));
-	const slice = pageSlice(all, page, size);
+	const deployRows = pagedRows(all, pagination, setPagination, PAGE_SIZES);
 	const multiRegion = regions.length > 1;
 	const columns = BASE_COLUMNS + (multiRegion ? 1 : 0);
 
@@ -218,12 +233,6 @@ export function DeploymentsSection({
 		]),
 	);
 	const buildRows = pagedRows(builds.builds, buildPaging, setBuildPaging, BUILD_PAGE_SIZES);
-	const loadMoreBuilds = () => {
-		void builds.loadMore().then((loaded) => {
-			if (loaded) setBuildPaging((current) => ({ ...current, page: current.page + 1 }));
-		});
-	};
-	const nextBuilds = builds.isLoadingMore ? null : (buildRows.pager.onNext ?? (builds.hasMore ? loadMoreBuilds : null));
 
 	const goBuild = (buildId: string) => {
 		const index = builds.builds.findIndex((b) => b.id === buildId);
@@ -234,7 +243,7 @@ export function DeploymentsSection({
 	const goDeployment = (row: Row) => {
 		setHist("deploys");
 		setOpen(row.dep.id);
-		setPagination({ page: pageOf(all.indexOf(row), size), size });
+		setPagination({ page: pageOf(all.indexOf(row), pagination.size), size: pagination.size });
 	};
 
 	return (
@@ -284,14 +293,14 @@ export function DeploymentsSection({
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{slice.rows.length === 0 && (
+								{deployRows.rows.length === 0 && (
 									<TableRow>
 										<TableCell colSpan={columns} className="text-fg3">
 											No deployments yet.
 										</TableCell>
 									</TableRow>
 								)}
-								{slice.rows.map((row) => {
+								{deployRows.rows.map((row) => {
 									const { dep, isCurrent } = row;
 									const expanded = open === dep.id;
 									const took = tookMs(dep);
@@ -367,37 +376,9 @@ export function DeploymentsSection({
 						</Table>
 					</div>
 					<Pager
-						label={all.length > 0 ? `${pageRangeLabel(slice.page, size, all.length)}${hasMore ? "+" : ""}` : "0 of 0"}
-						pageSizes={PAGE_SIZES}
-						pageSize={size}
-						onPageSize={(n) => {
-							setPagination({ page: 0, size: n });
-						}}
-						onPrev={
-							slice.page > 0
-								? () => {
-										setPagination({ page: slice.page - 1, size });
-									}
-								: null
-						}
-						onNext={
-							isLoadingMore
-								? null
-								: slice.page < slice.pages - 1
-									? () => {
-											setPagination({ page: slice.page + 1, size });
-										}
-									: hasMore
-										? () => {
-												void onLoadMore().then((loaded) => {
-													if (loaded)
-														setPagination((current) =>
-															current === pagination ? { page: slice.page + 1, size } : current,
-														);
-												});
-											}
-										: null
-						}
+						{...deployRows.pager}
+						label={`${deployRows.pager.label}${hasMore ? "+" : ""}`}
+						onNext={nextPage(deployRows, isLoadingMore, hasMore, onLoadMore, setPagination)}
 					/>
 					{historyError !== null && (
 						<div role="alert" className="px-5 pb-3 text-bad-fg">
@@ -435,7 +416,7 @@ export function DeploymentsSection({
 						prevLabel="Newer builds"
 						nextLabel="Older builds"
 						onPrev={buildRows.pager.onPrev}
-						onNext={nextBuilds}
+						onNext={nextPage(buildRows, builds.isLoadingMore, builds.hasMore, builds.loadMore, setBuildPaging)}
 					/>
 					{builds.error !== null && (
 						<div role="alert" className="px-5 pb-3 text-bad-fg">
