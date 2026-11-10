@@ -70,7 +70,8 @@ def observability(page, suffix):
     search.fill("@lev")
     option = page.get_by_role("option", name=re.compile(r"^@level"))
     expect(option).to_be_visible()
-    screenshot(page.get_by_role("listbox", name="Suggestions"), "log-query", suffix)
+    suggestions = page.get_by_role("listbox", name="Suggestions")
+    screenshot(suggestions if args.capture_only else suggestions.locator(".."), "log-query", suffix)
     if not args.capture_only:
         expect(search).to_have_attribute("aria-expanded", "true")
         search.press("Enter")
