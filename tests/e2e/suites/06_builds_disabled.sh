@@ -59,7 +59,7 @@ test_n03_public_image_deploys() {
     fi
     assert_contains "The CLI applied the file without a build" "Started deployment" cat "$nobuild_dir/image.out"
     wait_for "the image app to be Ready" 120 cli_application_is_ready "$nobuild_image_app"
-    local repository=${nobuild_public_image%%:*}
+    local repository=${nobuild_public_image%:*}
     assert_contains "The deployed app runs the public image, pinned by digest" "${repository}@sha256:" \
         nk -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" get deployments \
         -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
