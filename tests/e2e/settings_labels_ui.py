@@ -89,6 +89,16 @@ def check_webhooks(page):
     page.get_by_text("No webhooks yet.", exact=True).wait_for()
 
 
+def check_create_dialogs(page):
+    for path, button, field in (("/organizations", "New organization", "Name"), (base + "?tab=org", "New workspace", "Name"), ("/tokens", "New token", "Name")):
+        page.goto(state["ui_url"] + path)
+        opener = page.get_by_role("button", name=button, exact=True).first
+        opener.click()
+        expect(page.get_by_role("dialog").get_by_role("textbox", name=field, exact=True)).to_be_focused()
+        page.keyboard.press("Escape")
+        expect(opener).to_be_focused()
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     try:
@@ -154,6 +164,7 @@ with sync_playwright() as playwright:
                                     assert description.evaluate("node => node === document.activeElement")
                             if tab == "ws" and user == "owner" and theme == "light" and not narrow:
                                 check_webhooks(page)
+                                check_create_dialogs(page)
                             suffix = f"{user}-{tab}-{theme}{'-narrow' if narrow else ''}"
                             page.screenshot(path=out / f"settings-labels-{suffix}.png", animations="disabled")
                             assert not errors, errors

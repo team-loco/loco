@@ -1,5 +1,5 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
@@ -20,6 +20,7 @@ export function CreateOrgDialog({
 	onSuccess: (orgId: string) => void;
 }) {
 	const [orgName, setOrgName] = useState("");
+	const nameRef = useRef<HTMLInputElement>(null);
 	const { mutate: mutateCreateOrg, isPending } = useMutation(createOrg);
 	const trimmed = orgName.trim();
 
@@ -58,19 +59,19 @@ export function CreateOrgDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent title="New organization">
+			<DialogContent title="New organization" initialFocus={nameRef}>
 				<form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
 					<DialogBody>
 						<DialogDescription>Organizations are used to manage workspaces, resources, and billing.</DialogDescription>
 						<Field label="Name">
 							<Input
+								ref={nameRef}
 								value={orgName}
 								onChange={(e) => {
 									setOrgName(e.target.value);
 								}}
 								placeholder="team-loco"
 								disabled={isPending}
-								autoFocus
 							/>
 						</Field>
 					</DialogBody>

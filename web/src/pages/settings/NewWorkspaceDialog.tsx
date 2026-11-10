@@ -1,7 +1,7 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/design/Field";
@@ -39,6 +39,7 @@ function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void
 	const create = useMutation(createWorkspace);
 	const [name, setName] = useState("");
 	const [desc, setDesc] = useState("");
+	const nameRef = useRef<HTMLInputElement>(null);
 
 	const nameT = name.trim();
 	const error = nameT.length > 63 ? "Max 63 characters" : null;
@@ -63,7 +64,7 @@ function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void
 	};
 
 	return (
-		<DialogContent title="New workspace" className="w-[480px]">
+		<DialogContent title="New workspace" className="w-[480px]" initialFocus={nameRef}>
 			<form
 				className="contents"
 				onSubmit={(e) => {
@@ -74,7 +75,7 @@ function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void
 				<DialogBody>
 					<Field label="Name" error={error}>
 						<Input
-							autoFocus
+							ref={nameRef}
 							autoComplete="off"
 							value={name}
 							placeholder="payments"
