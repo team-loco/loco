@@ -5,7 +5,7 @@ import { pageSelection, toggleId, togglePage } from "./selection";
 describe("selection", () => {
 	test("counts only rows on the page", () => {
 		const sel = pageSelection(new Set(["a", "z"]), ["a", "b"]);
-		expect(sel).toEqual({ ids: ["a"], all: false, some: true });
+		expect(sel).toEqual({ all: false, some: true });
 	});
 
 	test("an empty page is never fully selected", () => {

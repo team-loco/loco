@@ -1,6 +1,6 @@
 export function pageSelection(selected: ReadonlySet<string>, pageIds: readonly string[]) {
-	const ids = pageIds.filter((id) => selected.has(id));
-	return { ids, all: pageIds.length > 0 && ids.length === pageIds.length, some: ids.length > 0 };
+	const count = pageIds.filter((id) => selected.has(id)).length;
+	return { all: pageIds.length > 0 && count === pageIds.length, some: count > 0 };
 }
 
 export function toggleId(selected: ReadonlySet<string>, id: string): Set<string> {
