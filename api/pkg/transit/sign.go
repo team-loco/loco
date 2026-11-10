@@ -25,6 +25,7 @@ type PinnedKey struct {
 	Version int
 }
 
+// Signer signs with an ed25519 Transit key.
 type Signer struct {
 	client *Client
 	key    string

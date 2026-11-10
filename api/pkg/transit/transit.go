@@ -76,6 +76,7 @@ type Config struct {
 	RenewRetry     time.Duration
 }
 
+// Validate reports the first invalid field of cfg.
 func (cfg Config) Validate() error {
 	address, err := url.Parse(cfg.Address)
 	if err != nil {
@@ -142,6 +143,7 @@ func validMount(mount string) bool {
 	return true
 }
 
+// Client calls one Transit mount with a token it keeps valid.
 type Client struct {
 	base        *url.URL
 	mount       string
@@ -158,6 +160,7 @@ type Client struct {
 	rejected   chan struct{}
 	rejections atomic.Int32
 
+	// lease is the login New made, which Renew starts from.
 	lease tokenLease
 }
 
@@ -175,6 +178,7 @@ func New(ctx context.Context, cfg Config) (*Client, error) {
 	return client, nil
 }
 
+// Renew keeps the token New logged in with valid until ctx is done.
 func (t *Client) Renew(ctx context.Context) {
 	t.renewToken(ctx, t.lease)
 }

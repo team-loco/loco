@@ -12,6 +12,7 @@ type Config struct {
 	CacheTTL time.Duration
 }
 
+// Validate reports the first invalid field of cfg.
 func (cfg Config) Validate() error {
 	if err := transit.ValidateKeyName(cfg.Key); err != nil {
 		return err
