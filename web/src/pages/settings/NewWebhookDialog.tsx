@@ -183,6 +183,7 @@ function EventPicker({
 	onChange: (next: ReadonlySet<string>) => void;
 }) {
 	const [opened, setOpened] = useState<string | null>(null);
+	const groupChipsRef = useRef(new Map<string, HTMLButtonElement>());
 	const open = GROUPS.find((g) => g.label === opened && pageSelection(selected, g.types).some);
 	return (
 		<div className="flex flex-col gap-2.5">
@@ -193,6 +194,9 @@ function EventPicker({
 					return (
 						<ToggleChip
 							key={g.label}
+							ref={(el) => {
+								if (el !== null) groupChipsRef.current.set(g.label, el);
+							}}
 							pressed={state.some}
 							aria-label={`${g.label} ${count}`}
 							onPressedChange={(on) => {
@@ -219,7 +223,9 @@ function EventPicker({
 							variant="event"
 							pressed={selected.has(t)}
 							onPressedChange={() => {
-								onChange(toggleId(selected, t));
+								const next = toggleId(selected, t);
+								onChange(next);
+								if (!pageSelection(next, open.types).some) groupChipsRef.current.get(open.label)?.focus();
 							}}
 						>
 							{t}
