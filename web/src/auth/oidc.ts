@@ -2,7 +2,8 @@ import * as oauth from "oauth4webapi";
 
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
-const TOKENS_KEY = "loco:auth:oidc:v1";
+import { TOKENS_KEY } from "./session";
+
 const PENDING_KEY = "loco:auth:oidc:pending:v1";
 const EXPIRY_SKEW_MS = 30_000;
 const ACCESS_DENIED = "access_denied";

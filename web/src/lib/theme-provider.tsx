@@ -1,7 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useLayoutEffect, useState, useSyncExternalStore } from "react";
+import { useLocation } from "react-router";
+
+import { useAuth } from "@/auth/AuthProvider";
 
 import {
 	applyTheme,
+	pageTheme,
 	readColorTheme,
 	readMode,
 	resolveMode,
@@ -27,11 +31,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 	const [mode, setMode] = useState<Mode>(readMode);
 	const [color, setColor] = useState<ColorTheme>(readColorTheme);
 	const systemDark = useSyncExternalStore(subscribeSystemTheme, systemPrefersDark);
+	const { pathname } = useLocation();
+	const { signedOut } = useAuth();
 	const resolved = resolveMode(mode, systemDark);
+	const page = pageTheme(pathname, !signedOut, resolved, color);
 
-	useEffect(() => {
-		applyTheme(resolved, color);
-	}, [resolved, color]);
+	useLayoutEffect(() => {
+		applyTheme(page.mode, page.color);
+	}, [page.mode, page.color]);
 
 	const toggle = () => {
 		const next = toggledMode(mode, systemDark);
@@ -45,7 +52,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		storeColorTheme(next);
 	};
 
-	const contextValue = { theme: resolved, toggle, color, setColor: changeColor };
+	const contextValue = { theme: page.mode, toggle, color, setColor: changeColor };
 
 	return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 }

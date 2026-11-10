@@ -222,23 +222,23 @@ function AppRoutes() {
 
 export default function App() {
 	return (
-		<ThemeProvider>
-			<BrowserRouter>
-				<TransportProvider transport={transport}>
-					<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
-						<AppLoaderProvider>
-							<Suspense fallback={<AppLoading />}>
-								<AuthProvider>
+		<BrowserRouter>
+			<TransportProvider transport={transport}>
+				<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+					<AppLoaderProvider>
+						<Suspense fallback={<AppLoading />}>
+							<AuthProvider>
+								<ThemeProvider>
 									<Toaster />
 									<ErrorBoundary>
 										<AppRoutes />
 									</ErrorBoundary>
-								</AuthProvider>
-							</Suspense>
-						</AppLoaderProvider>
-					</PersistQueryClientProvider>
-				</TransportProvider>
-			</BrowserRouter>
-		</ThemeProvider>
+								</ThemeProvider>
+							</AuthProvider>
+						</Suspense>
+					</AppLoaderProvider>
+				</PersistQueryClientProvider>
+			</TransportProvider>
+		</BrowserRouter>
 	);
 }
