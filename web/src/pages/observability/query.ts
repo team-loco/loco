@@ -1,5 +1,5 @@
 import type { ParsedQuery } from "@/lib/obs-query-parser";
-import { readStorage, writeStorage } from "@/lib/storage";
+import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import type { ObservabilityView } from "@/lib/routes";
 
@@ -241,30 +241,96 @@ export function buildBackendQuery(tokens: Token[], text: string, resources: ObsR
 	};
 }
 
-const SAVE_KEY = "loco:log-searches:v1";
+const PINNED_KEY = "loco:pinned-queries:v1";
+const RECENT_KEY_PREFIX = "loco:recent-queries:v1";
+const RECENT_VIEWS = new Set<ObservabilityView>(["logs", "metrics", "traces"]);
+const RECENT_KEEP = 8;
+const RECENT_SHOWN = 5;
+const MINUTE_MS = 60_000;
+const HOUR_MINUTES = 60;
+const DAY_MINUTES = 1440;
 
-export interface SavedSearches {
-	recent: string[];
-	pinned: string[];
+export interface RecentQuery {
+	q: string;
+	ts: number;
 }
 
 function isStringArray(v: unknown): v is string[] {
 	return Array.isArray(v) && v.every((x) => typeof x === "string");
 }
 
-export function readSaved(): SavedSearches {
-	try {
-		const raw: unknown = JSON.parse(readStorage(SAVE_KEY) ?? "null");
-		if (raw !== null && typeof raw === "object" && "recent" in raw && "pinned" in raw) {
-			const { recent, pinned } = raw;
-			if (isStringArray(recent) && isStringArray(pinned)) return { recent, pinned };
-		}
-	} catch {
-		return { recent: [], pinned: [] };
-	}
-	return { recent: [], pinned: [] };
+function isRecentList(v: unknown): v is RecentQuery[] {
+	return (
+		Array.isArray(v) &&
+		v.every(
+			(x: unknown) =>
+				typeof x === "object" &&
+				x !== null &&
+				"q" in x &&
+				"ts" in x &&
+				typeof x.q === "string" &&
+				typeof x.ts === "number",
+		)
+	);
 }
 
-export function writeSaved(saved: SavedSearches) {
-	writeStorage(SAVE_KEY, JSON.stringify(saved));
+function readJSON(key: string): unknown {
+	try {
+		return JSON.parse(readStorage(key) ?? "null");
+	} catch {
+		return null;
+	}
+}
+
+export function readPinned(): string[] {
+	const raw = readJSON(PINNED_KEY);
+	return isStringArray(raw) ? raw : [];
+}
+
+export function writePinned(pinned: string[]) {
+	writeStorage(PINNED_KEY, JSON.stringify(pinned));
+}
+
+export function recentKey(orgId: string, workspaceId: string, view: ObservabilityView): string | null {
+	return RECENT_VIEWS.has(view) ? `${RECENT_KEY_PREFIX}:${orgId}/${workspaceId}:${view}` : null;
+}
+
+export function recentQuery(view: ObservabilityView, tokens: Token[], text: string): string {
+	const support = tokenSupport(view, tokens);
+	return queryStr(
+		tokens.filter((_, i) => support[i]?.ok === true),
+		searchesText(view) ? text : "",
+	);
+}
+
+export function addRecent(list: RecentQuery[], q: string, ts: number): RecentQuery[] {
+	return [{ q, ts }, ...list.filter((r) => r.q !== q)].slice(0, RECENT_KEEP);
+}
+
+export function shownRecent(list: RecentQuery[], current: string): RecentQuery[] {
+	return list.filter((r) => r.q !== current).slice(0, RECENT_SHOWN);
+}
+
+export function readRecent(key: string | null): RecentQuery[] {
+	if (key === null) return [];
+	const raw = readJSON(key);
+	return isRecentList(raw) ? raw : [];
+}
+
+export function saveRecent(key: string, q: string): RecentQuery[] {
+	const next = addRecent(readRecent(key), q, Date.now());
+	writeStorage(key, JSON.stringify(next));
+	return next;
+}
+
+export function clearRecent(key: string) {
+	removeStorage(key);
+}
+
+export function agoShort(ms: number, nowMs: number): string {
+	const mins = Math.round((nowMs - ms) / MINUTE_MS);
+	if (mins < 1) return "now";
+	if (mins < HOUR_MINUTES) return `${mins.toString()}m`;
+	if (mins < DAY_MINUTES) return `${Math.round(mins / HOUR_MINUTES).toString()}h`;
+	return `${Math.round(mins / DAY_MINUTES).toString()}d`;
 }

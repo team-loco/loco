@@ -4,12 +4,18 @@ import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 import { ResourceSchema } from "@gen/loco/resource/v1/resource_pb";
 
 import {
+	addRecent,
+	agoShort,
 	BUILD_ID_LABEL,
 	buildBackendQuery,
 	parseQuery,
 	readQuery,
+	recentKey,
+	recentQuery,
+	shownRecent,
 	tokenSupport,
 	writeQuery,
+	type RecentQuery,
 	type Token,
 } from "./query";
 import { toRows } from "./rows";
@@ -129,5 +135,55 @@ describe("build log filters", () => {
 		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, false]);
 		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([false, false, false]);
 		expect(buildBackendQuery(tokens, "", []).parsed.labels).toEqual({ [BUILD_ID_LABEL]: "a" });
+	});
+});
+
+describe("recent queries", () => {
+	const MIN = 60_000;
+	const NOW = 1_800_000_000_000;
+
+	test("keeps one list per organization, workspace and view", () => {
+		const keys = [
+			recentKey("o1", "w1", "logs"),
+			recentKey("o1", "w1", "metrics"),
+			recentKey("o1", "w1", "traces"),
+			recentKey("o1", "w2", "logs"),
+			recentKey("o2", "w1", "logs"),
+		];
+		expect(new Set(keys).size).toBe(keys.length);
+		expect(recentKey("o1", "w1", "logs")).toBe(recentKey("o1", "w1", "logs"));
+		expect(recentKey("o1", "w1", "events")).toBeNull();
+	});
+
+	test("puts the newest first and moves a repeated query to the top", () => {
+		let list: RecentQuery[] = [];
+		list = addRecent(list, "a", 1);
+		list = addRecent(list, "b", 2);
+		list = addRecent(list, "a", 3);
+		expect(list).toEqual([
+			{ q: "a", ts: 3 },
+			{ q: "b", ts: 2 },
+		]);
+	});
+
+	test("keeps eight and shows five, leaving out the current query", () => {
+		let list: RecentQuery[] = [];
+		for (let i = 0; i < 10; i++) list = addRecent(list, `q${String(i)}`, i);
+		expect(list.map((r) => r.q)).toEqual(["q9", "q8", "q7", "q6", "q5", "q4", "q3", "q2"]);
+		expect(shownRecent(list, "q8").map((r) => r.q)).toEqual(["q9", "q7", "q6", "q5", "q4"]);
+	});
+
+	test("saves only the parts of a query that apply to the view", () => {
+		const { tokens, text } = parseQuery("@resource:api @level:error timeout");
+		expect(recentQuery("logs", tokens, text)).toBe("@resource:api @level:error timeout");
+		expect(recentQuery("metrics", tokens, text)).toBe("@resource:api");
+		expect(recentQuery("traces", [], "")).toBe("");
+	});
+
+	test("labels the age in minutes, hours or days", () => {
+		expect(agoShort(NOW - 20_000, NOW)).toBe("now");
+		expect(agoShort(NOW - 5 * MIN, NOW)).toBe("5m");
+		expect(agoShort(NOW - 3 * 60 * MIN, NOW)).toBe("3h");
+		expect(agoShort(NOW - 2 * 1440 * MIN, NOW)).toBe("2d");
 	});
 });
