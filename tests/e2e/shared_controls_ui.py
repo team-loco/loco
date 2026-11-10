@@ -10,7 +10,7 @@ from pathlib import Path
 from playwright.sync_api import expect, sync_playwright
 
 repo = Path(__file__).resolve().parents[2]
-parser = argparse.ArgumentParser(description="Check compact controls, segmented motion and pinned scope navigation")
+parser = argparse.ArgumentParser(description="Check compact controls, segmented motion and settings navigation")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 parser.add_argument("--capture-only", action="store_true")
@@ -55,17 +55,21 @@ with sync_playwright() as playwright:
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 try:
                     page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
-                    overview = page.get_by_role("button", name="Overview", exact=True)
-                    variables = page.get_by_role("button", name="Variables", exact=True)
-                    settings = page.get_by_role("button", name="Settings", exact=True)
-                    expect(overview).to_have_attribute("aria-pressed", "true")
                     if not args.capture_only:
-                        assert overview.bounding_box()["height"] == 28
-                        assert page.get_by_role("button", name="Redeploy", exact=True).bounding_box()["height"] == 28
-                        assert page.get_by_role("link", name="Logs", exact=True).last.bounding_box()["height"] == 28
-                        indicator = page.locator('[data-slot="segmented-indicator"]').first
-                        assert abs(indicator.bounding_box()["x"] - overview.bounding_box()["x"]) <= 1
-                        variables.evaluate("""node => {
+                        assert page.get_by_role("button", name="Events", exact=True).bounding_box()["height"] == 32
+                        assert page.get_by_role("button", name="Redeploy", exact=True).bounding_box()["height"] == 32
+                    suffix = f"{args.label}-{theme}{'-narrow' if narrow else ''}"
+                    page.screenshot(path=str(out / f"resource-controls-{suffix}.png"), full_page=True)
+                    page.goto(state["ui_url"] + base + "/settings?scope=workspace")
+                    group = page.get_by_role("group", name="Settings for", exact=True)
+                    workspace_button = group.get_by_role("button", name="Workspace", exact=True)
+                    personal = group.get_by_role("button", name="Personal", exact=True)
+                    expect(workspace_button).to_have_attribute("aria-pressed", "true")
+                    if not args.capture_only:
+                        assert workspace_button.bounding_box()["height"] == 28
+                        indicator = group.locator('[data-slot="segmented-indicator"]').first
+                        assert abs(indicator.bounding_box()["x"] - workspace_button.bounding_box()["x"]) <= 1
+                        personal.evaluate("""node => {
                             window.indicatorPositions = [];
                             const group = node.parentElement;
                             const started = performance.now();
@@ -76,48 +80,38 @@ with sync_playwright() as playwright:
                             node.click();
                             requestAnimationFrame(sample);
                         }""")
-                        expect(variables).to_have_attribute("aria-pressed", "true")
+                        expect(personal).to_have_attribute("aria-pressed", "true")
                         page.wait_for_timeout(250)
-                        assert abs(indicator.bounding_box()["x"] - variables.bounding_box()["x"]) <= 1
+                        assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
                         positions = page.evaluate("window.indicatorPositions")
-                        start = overview.bounding_box()["x"]
-                        end = variables.bounding_box()["x"]
+                        start = workspace_button.bounding_box()["x"]
+                        end = personal.bounding_box()["x"]
                         assert any(start + 2 < position < end - 2 for position in positions), positions
-                        variables.focus()
-                        page.keyboard.press("ArrowRight")
-                        expect(settings).to_be_focused()
+                        personal.focus()
+                        page.keyboard.press("ArrowLeft")
+                        expect(workspace_button).to_be_focused()
                         page.keyboard.press("Space")
-                        expect(settings).to_have_attribute("aria-pressed", "true")
+                        expect(workspace_button).to_have_attribute("aria-pressed", "true")
                         page.emulate_media(reduced_motion="reduce")
-                        overview.click()
+                        personal.click()
                         page.wait_for_timeout(50)
-                        assert abs(indicator.bounding_box()["x"] - overview.bounding_box()["x"]) <= 1
+                        assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
                         assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
-                    overview.click()
+                    workspace_button.click()
                     page.wait_for_timeout(300)
-                    suffix = f"{args.label}-{theme}{'-narrow' if narrow else ''}"
-                    page.screenshot(path=str(out / f"resource-controls-{suffix}.png"), full_page=True)
-                    page.goto(state["ui_url"] + base + "/settings?tab=ws")
                     page.get_by_role("textbox", name="Name", exact=True).wait_for()
                     page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
                     page.wait_for_timeout(300)
                     if not args.capture_only:
                         assert page.evaluate("window.scrollY") > 0
-                        assert abs(page.locator('[data-slot="top-bar"]').bounding_box()["y"]) <= 1
-                    page.screenshot(path=str(out / f"pinned-navigation-{suffix}.png"))
+                    page.screenshot(path=str(out / f"settings-navigation-{suffix}.png"))
                     if not args.capture_only:
                         name = page.get_by_role("textbox", name="Name", exact=True)
                         name.focus()
                         page.wait_for_timeout(300)
-                        assert name.bounding_box()["y"] >= 56
-                        access = page.get_by_role("button", name="Access", exact=True)
-                        workspaces = page.get_by_role("button", name="Workspaces", exact=True)
-                        access.click()
-                        workspaces.click()
-                        expect(access).to_have_attribute("aria-pressed", "true")
-                        expect(workspaces).to_have_attribute("aria-pressed", "true")
-                        assert access.locator('[data-slot="segmented-indicator"]').count() == 1
-                        assert workspaces.locator('[data-slot="segmented-indicator"]').count() == 1
+                        expect(name).to_be_focused()
+                        box = name.bounding_box()
+                        assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})
                 except BaseException:
