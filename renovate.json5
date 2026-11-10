@@ -149,6 +149,11 @@
       minimumReleaseAge: "3 days",
     },
     {
+      description: "Lock file maintenance has no release timestamp, so the stability-days check never passes; bunfig.toml's minimumReleaseAge still applies when bun regenerates bun.lock",
+      matchUpdateTypes: ["lockFileMaintenance"],
+      minimumReleaseAge: null,
+    },
+    {
       groupName: "javascript",
       matchManagers: ["bun"],
       matchUpdateTypes: ["minor", "patch"],
