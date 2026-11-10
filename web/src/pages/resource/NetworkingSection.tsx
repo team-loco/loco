@@ -1,6 +1,6 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { EllipsisIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import {
 	checkDomainAvailability,
@@ -222,9 +222,11 @@ function AddDomainForm({
 	const [subdomain, setSubdomain] = useState("");
 	const [picked, setPicked] = useState<string | null>(null);
 	const create = useMutation(createResourceDomain);
-	const fallback = options.find((d) => domainCoverage(d.regions, running).missing.length === 0) ?? options[0];
-	const platformDomain = options.find((d) => d.domain === picked)?.domain ?? fallback?.domain ?? "";
+	const served = options.filter((d) => domainCoverage(d.regions, running).missing.length === 0);
+	const platformDomain = (served.find((d) => d.domain === picked) ?? served[0])?.domain ?? "";
 	const check = useDomainAvailability(subdomain, platformDomain, own);
+	const unservedId = useId();
+	const unserved = served.length === 0;
 
 	return (
 		<form
@@ -253,18 +255,23 @@ function AddDomainForm({
 				className="max-w-[460px] min-w-[240px] flex-1"
 				subdomain={subdomain}
 				platformDomain={platformDomain}
-				options={options}
+				options={served}
 				check={check}
 				owner={resourceName}
 				placeholder={slug(resourceName)}
 				disabled={locked}
-				describedBy={describedBy}
+				describedBy={[unserved ? unservedId : undefined, describedBy].filter(Boolean).join(" ") || undefined}
 				onSubdomainChange={setSubdomain}
 				onPlatformDomainChange={setPicked}
 			/>
 			<Button type="submit" variant="outline" disabled={locked || check.state !== "available" || create.isPending}>
 				Add
 			</Button>
+			{unserved && (
+				<span id={unservedId} className="w-full text-[12.5px] text-fg3">
+					No platform domain is served in every region of {resourceName}
+				</span>
+			)}
 		</form>
 	);
 }

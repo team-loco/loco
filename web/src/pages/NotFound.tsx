@@ -65,7 +65,7 @@ export function NotFound({ unknownWorkspace = false }: { unknownWorkspace?: bool
 						{pathname + search}
 					</span>
 					<div className="mt-1.5 flex flex-wrap justify-center gap-2">
-						<Button variant="outline" nativeButton={false} role="link" render={<Link to={dashboard} />}>
+						<Button variant="outline" nativeButton={false} render={<Link to={dashboard} />}>
 							<LayoutGridIcon className="text-fg3" aria-hidden />
 							Go to dashboard
 						</Button>

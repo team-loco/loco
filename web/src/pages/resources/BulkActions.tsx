@@ -1,8 +1,9 @@
-import { useMutation, useTransport } from "@connectrpc/connect-query";
+import { createConnectQueryKey, useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2Icon, TrendingUpIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { deleteResource, scaleResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
@@ -154,7 +155,12 @@ export function BulkActions({
 	const listed = listedNames(names);
 
 	const finish = async (result: FanOutResult<ResourceRow>, verb: string, failVerb: string) => {
-		await queryClient.invalidateQueries({ queryKey: workspaceResourcesOptions(transport, workspaceId).queryKey });
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: workspaceResourcesOptions(transport, workspaceId).queryKey }),
+			queryClient.invalidateQueries({
+				queryKey: createConnectQueryKey({ schema: listDeployments, cardinality: "finite" }),
+			}),
+		]);
 		report(verb, failVerb, result);
 		onDone(new Set(result.failed.map((f) => f.item.resource.id)));
 		setPending(false);

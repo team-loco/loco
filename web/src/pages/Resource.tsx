@@ -7,6 +7,7 @@ import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -14,7 +15,7 @@ import { Page, Section } from "@/components/design/Page";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { useMyScopes } from "@/hooks/useMyScopes";
+import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
@@ -53,8 +54,6 @@ import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView"
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 import { isInFlight } from "@/lib/deployment-utils";
 
-const READ_LEVEL = 1;
-const WRITE_LEVEL = 2;
 const EVENTS_REFRESH_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 
@@ -106,7 +105,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	});
 
 	const canListResources =
-		activeOrgId !== null && activeWorkspaceId !== null && workspaceLevel(activeOrgId, activeWorkspaceId) >= READ_LEVEL;
+		activeOrgId !== null &&
+		activeWorkspaceId !== null &&
+		workspaceLevel(activeOrgId, activeWorkspaceId) >= scopeLevel(Scope.READ);
 	const resourcesQuery = useTanstackQuery({
 		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
 		enabled: canListResources,
@@ -155,10 +156,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		configQuery.data?.serviceDefaults?.healthCheck,
 	);
 	const dirty = changeCount(draft, base) > 0;
-	const canWrite =
-		activeOrgId !== null &&
-		activeWorkspaceId !== null &&
-		resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= WRITE_LEVEL;
+	const level =
+		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;
+	const canWrite = level >= scopeLevel(Scope.WRITE);
+	const canDelete = level >= scopeLevel(Scope.ADMIN);
 
 	const env = params.get("env");
 	const envParam: Record<string, string> = env !== null ? { env } : {};
@@ -271,6 +272,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				isSettings={view !== "overview"}
 				dirty={dirty}
 				redeploying={redeploying}
+				canWrite={canWrite}
+				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
 				onEvents={() => {
 					setEventsOpen(true);
@@ -319,6 +322,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							environmentId={environmentId}
 							resourceId={resource.id}
 							logsHref={obsLink("logs")}
+							canWrite={canWrite}
 							onRollback={openRollback}
 						/>
 					)}
@@ -383,6 +387,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					base={base}
 					focus={view}
 					canWrite={canWrite}
+					canDelete={canDelete}
+					canReadWorkspace={canListResources}
 					onDraft={setDraft}
 					onBack={() => {
 						setView("overview");

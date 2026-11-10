@@ -75,8 +75,13 @@ with sync_playwright() as playwright:
             image = f"registry.example.com/acme/{repository}:1.4.2"
             context, page, errors = open_page(browser, "owner", theme, narrow)
             deployments = []
+            rejected = []
 
             def create_deployment(route):
+                if theme == "light" and not rejected:
+                    rejected.append(route.request.post_data_json)
+                    route.fulfill(status=400, json={"code": "invalid_argument", "message": "invalid request"})
+                    return
                 deployments.append(route.request.post_data_json)
                 route.fulfill(json={"deploymentId": str(uuid.uuid4())})
 
@@ -101,6 +106,11 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_role("button", name="us-east-1")).to_have_attribute("aria-pressed", "true")
                 expect(drawer.get_by_role("textbox", name="Subdomain")).to_have_value(repository)
                 expect(drawer.get_by_text(f"{repository}.{platform_domain} is available", exact=True)).to_be_visible()
+                subdomain = drawer.get_by_role("textbox", name="Subdomain")
+                subdomain.fill("x" * 64)
+                expect(drawer.get_by_text("Use at most 63 characters", exact=True)).to_be_visible()
+                subdomain.fill(repository)
+                expect(drawer.get_by_text(f"{repository}.{platform_domain} is available", exact=True)).to_be_visible()
                 expect(drawer.get_by_role("group", name="Max replicas").get_by_role("button", name="Increase")).to_be_disabled()
                 drawer.get_by_role("group", name="Min replicas").get_by_role("button", name="Increase").click()
                 drawer.get_by_role("textbox", name="Environment variables").fill("STRIPE_API_KEY=sk_test\nLOG_LEVEL=info")
@@ -113,8 +123,13 @@ with sync_playwright() as playwright:
                 assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
                 page.screenshot(path=out / f"drawer-{case}.png", animations="disabled")
                 drawer.get_by_role("button", name=f"Deploy {repository}", exact=True).click()
+                if theme == "light":
+                    expect(drawer.get_by_text(f"Couldn't deploy {image}: Invalid request.", exact=True)).to_be_visible()
+                    assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{repository}';") == "0"
+                    page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")
+                    drawer.get_by_role("button", name=f"Deploy {repository}", exact=True).click()
 
-                open_button = drawer.get_by_role("button", name=f"Open {repository}", exact=True)
+                open_button = drawer.get_by_role("link", name=f"Open {repository}", exact=True)
                 expect(open_button).to_be_visible()
                 expect(drawer.get_by_text("Resource created", exact=True)).to_be_visible()
                 page.screenshot(path=out / f"deployed-{case}.png", animations="disabled")

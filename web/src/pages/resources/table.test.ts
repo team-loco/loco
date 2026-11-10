@@ -110,7 +110,7 @@ describe("buildRows", () => {
 			deployment("d2", "e-prod", "ghcr.io/acme/api:v2", 2000),
 			deployment("d3", "e-stg", "ghcr.io/acme/api:v3", 3000),
 		];
-		const [row] = buildRows([api], [deps], envs);
+		const [row] = buildRows([api], [deps], envs, undefined);
 		const cell = row?.cells.get("e-prod");
 		if (cell === undefined) throw new Error("no production cell");
 		expect(cell.tag).toBe("v2");
@@ -124,11 +124,34 @@ describe("buildRows", () => {
 		expect(row === undefined ? null : replicasLabel(row)).toBe("1–3");
 	});
 
+	test("size and replicas follow the active environment's running deployment", () => {
+		const api = resource("api", [
+			{
+				env: "e-prod",
+				status: ResourceStatus.HEALTHY,
+				regions: [{ region: "us-east-1", ready: 2, desired: 2, deploymentId: "d1" }],
+			},
+		]);
+		const scaled = create(DeploymentSchema, {
+			id: "d1",
+			environmentId: "e-prod",
+			spec: { spec: { case: "service", value: { memory: "512Mi", minReplicas: 2, maxReplicas: 2 } } },
+		});
+		const [inProd] = buildRows([api], [[scaled]], envs, "e-prod");
+		expect(inProd?.cpuMilli).toBe(500);
+		expect(inProd?.memMi).toBe(512);
+		expect(inProd === undefined ? null : replicasLabel(inProd)).toBe("2");
+		const [inStaging] = buildRows([api], [[scaled]], envs, "e-stg");
+		expect(inStaging?.memMi).toBe(1024);
+		expect(inStaging === undefined ? null : replicasLabel(inStaging)).toBe("1–3");
+	});
+
 	test("an environment with no reported regions has no cell", () => {
 		const [row] = buildRows(
 			[resource("api", [{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [] }])],
 			[[]],
 			envs,
+			undefined,
 		);
 		expect(row?.cells.size).toBe(0);
 	});
@@ -154,6 +177,7 @@ describe("filters", () => {
 		],
 		[[], [], []],
 		envs,
+		undefined,
 	);
 
 	test("a status matches when any environment has it, and not deployed means no environment", () => {
@@ -200,6 +224,7 @@ describe("sortRows", () => {
 		],
 		[[], [], []],
 		envs,
+		undefined,
 	);
 
 	test("an environment column puts problems first and undeployed resources last", () => {
@@ -229,6 +254,7 @@ describe("linkEnvironment", () => {
 		],
 		[[]],
 		envs,
+		undefined,
 	);
 
 	test("prefers the active environment and falls back to one the resource runs in", () => {

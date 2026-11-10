@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 
 import { latestBackOff } from "./events";
 import { shortId } from "./format";
+import { NEEDS_WRITE } from "@/hooks/useMyScopes";
+
 import { depTag, startedMs, type RegionProblem, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
 
@@ -94,6 +96,7 @@ export function IncidentCard({
 	environmentId,
 	resourceId,
 	logsHref,
+	canWrite,
 	onRollback,
 	nowMs,
 }: {
@@ -105,6 +108,7 @@ export function IncidentCard({
 	environmentId: string;
 	resourceId: string;
 	logsHref: string | undefined;
+	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 	nowMs: number;
 }) {
@@ -139,6 +143,8 @@ export function IncidentCard({
 					{lastGood !== undefined && (
 						<Button
 							size="sm"
+							disabled={!canWrite}
+							title={canWrite ? undefined : NEEDS_WRITE}
 							onClick={() => {
 								onRollback(lastGood, current);
 							}}

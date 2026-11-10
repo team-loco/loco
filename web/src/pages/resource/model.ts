@@ -152,21 +152,33 @@ export function deploymentsRequest(resourceId: string, environmentId: string | u
 	return { resourceId, environmentId, pageSize: DEPLOYMENT_HISTORY_SIZE, pageToken: "" };
 }
 
+export function statusEnvironmentId(resource: Resource, requested: string | null): string | undefined {
+	const statuses = resource.environmentStatuses;
+	const match =
+		requested === null
+			? statuses[0]
+			: statuses.find((e) => e.environmentName === requested || e.environmentId === requested);
+	return match?.environmentId;
+}
+
 export function useResourceData(resourceId: string) {
 	const transport = useTransport();
-	const { active, isLoading: environmentsLoading } = useEnvironments();
+	const { active, requested, isLoading: environmentsLoading } = useEnvironments();
 	const resourceQuery = useQuery(
 		getResource,
 		{ key: { case: "resourceId", value: resourceId } },
 		{ enabled: resourceId !== "", refetchInterval: REFRESH_MS },
 	);
-	const deploymentsQuery = useInfiniteQuery(listDeployments, deploymentsRequest(resourceId, active?.id), {
+	const resource = resourceQuery.data?.resource;
+	const environmentId =
+		active?.id ??
+		(resource === undefined || environmentsLoading ? undefined : statusEnvironmentId(resource, requested));
+	const deploymentsQuery = useInfiniteQuery(listDeployments, deploymentsRequest(resourceId, environmentId), {
 		pageParamKey: "pageToken",
 		getNextPageParam: (last) => (last.nextPageToken === "" ? undefined : last.nextPageToken),
 		refetchInterval: REFRESH_MS,
 	});
-	const resource = resourceQuery.data?.resource;
-	const environment = resource === undefined ? undefined : environmentStatus(resource, active?.id);
+	const environment = resource === undefined ? undefined : environmentStatus(resource, environmentId);
 	const currentIds = [...new Set(environment?.regions.map((region) => region.deploymentId).filter((id) => id !== ""))];
 	const currentQueries = useQueries({
 		queries: currentIds.map((deploymentId) => ({
@@ -185,7 +197,7 @@ export function useResourceData(resourceId: string) {
 	};
 	return {
 		resource,
-		environmentId: active?.id,
+		environmentId,
 		deployments: deploymentsQuery.data?.pages.flatMap((page) => page.deployments) ?? [],
 		currentDeployments: currentQueries.flatMap((query) =>
 			query.data?.deployment === undefined ? [] : [query.data.deployment],

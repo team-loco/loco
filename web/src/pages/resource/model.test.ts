@@ -16,6 +16,7 @@ import {
 	buildRegions,
 	deploymentsRequest,
 	lastGoodDeployment,
+	statusEnvironmentId,
 	tookMs,
 	type RegionView,
 } from "./model";
@@ -124,5 +125,25 @@ describe("tookMs", () => {
 
 	test("is unknown until the deployment completes", () => {
 		expect(tookMs(create(DeploymentSchema, { startedAt: msToTimestamp(1_000) }))).toBeUndefined();
+	});
+});
+
+describe("statusEnvironmentId", () => {
+	const resource = create(ResourceSchema, {
+		environmentStatuses: [
+			{ environmentId: "e-prod", environmentName: "production" },
+			{ environmentId: "e-stg", environmentName: "staging" },
+		],
+	});
+
+	test("finds the requested environment among the ones the resource runs in", () => {
+		expect(statusEnvironmentId(resource, "staging")).toBe("e-stg");
+		expect(statusEnvironmentId(resource, "e-prod")).toBe("e-prod");
+		expect(statusEnvironmentId(resource, "preview")).toBeUndefined();
+	});
+
+	test("takes the first environment when none is requested", () => {
+		expect(statusEnvironmentId(resource, null)).toBe("e-prod");
+		expect(statusEnvironmentId(create(ResourceSchema, {}), null)).toBeUndefined();
 	});
 });

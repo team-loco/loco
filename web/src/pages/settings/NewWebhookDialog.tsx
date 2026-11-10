@@ -1,6 +1,6 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { createWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
-import { useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import { Button } from "@/components/design/Button";
 import { Checkbox } from "@/components/design/Checkbox";
@@ -32,6 +32,7 @@ export function NewWebhookDialog({
 	onCreated: () => void;
 }) {
 	const [secret, setSecret] = useState<string | null>(null);
+	const urlRef = useRef<HTMLInputElement>(null);
 	const close = () => {
 		setSecret(null);
 		onClose();
@@ -43,32 +44,39 @@ export function NewWebhookDialog({
 				if (!next) close();
 			}}
 		>
-			{open &&
-				(secret === null ? (
-					<NewWebhookForm
-						workspaceId={workspaceId}
-						workspaceName={workspaceName}
-						onCancel={close}
-						onCreated={(s) => {
-							setSecret(s);
-							onCreated();
-						}}
-					/>
-				) : (
-					<SigningSecret secret={secret} onDone={close} />
-				))}
+			{open && (
+				<DialogContent
+					title={secret === null ? `New webhook in ${workspaceName}` : "Signing secret"}
+					className={secret === null ? "w-[560px]" : undefined}
+					initialFocus={urlRef}
+				>
+					{secret === null ? (
+						<NewWebhookForm
+							workspaceId={workspaceId}
+							urlRef={urlRef}
+							onCancel={close}
+							onCreated={(s) => {
+								setSecret(s);
+								onCreated();
+							}}
+						/>
+					) : (
+						<SigningSecret secret={secret} onDone={close} />
+					)}
+				</DialogContent>
+			)}
 		</Dialog>
 	);
 }
 
 function NewWebhookForm({
 	workspaceId,
-	workspaceName,
+	urlRef,
 	onCancel,
 	onCreated,
 }: {
 	workspaceId: string;
-	workspaceName: string;
+	urlRef: RefObject<HTMLInputElement | null>;
 	onCancel: () => void;
 	onCreated: (secret: string) => void;
 }) {
@@ -85,7 +93,11 @@ function NewWebhookForm({
 	const submit = () => {
 		if (!ok) return;
 		create.mutate(
-			{ workspaceId, url: target, eventTypes: mode === "all" ? [] : [...types] },
+			{
+				workspaceId,
+				url: target,
+				eventTypes: mode === "all" ? [] : [...types],
+			},
 			{
 				onSuccess: (res) => {
 					onCreated(res.secret);
@@ -95,79 +107,77 @@ function NewWebhookForm({
 	};
 
 	return (
-		<DialogContent title={`New webhook in ${workspaceName}`} className="w-[560px]">
-			<form
-				className="contents"
-				onSubmit={(e) => {
-					e.preventDefault();
-					submit();
-				}}
-			>
-				<DialogBody>
-					<p className="m-0 text-[12.5px] text-fg3">
-						Loco signs each request following the Standard Webhooks spec and retries failures for up to a day.
-					</p>
-					<Field label="Endpoint URL" error={urlError}>
-						<Input
-							autoFocus
-							autoComplete="off"
-							spellCheck={false}
-							value={url}
-							placeholder="https://example.com/hooks/loco"
-							aria-invalid={urlError !== null}
-							className="h-9 font-mono text-[13.5px]"
-							onChange={(e) => {
-								setUrl(e.target.value);
-								create.reset();
-							}}
-						/>
-					</Field>
-					<div className="flex flex-col gap-1.5">
-						<span className="text-[13px] font-medium">Events</span>
-						<ToggleGroup
-							variant="segmented"
-							aria-label="Events"
-							className="w-max"
-							value={[mode]}
-							onValueChange={(v: string[]) => {
-								if (v[0] === "all" || v[0] === "choose") setMode(v[0]);
-							}}
-						>
-							<ToggleGroupItem value="all">All events</ToggleGroupItem>
-							<ToggleGroupItem value="choose">Choose events</ToggleGroupItem>
-						</ToggleGroup>
+		<form
+			className="contents"
+			onSubmit={(e) => {
+				e.preventDefault();
+				submit();
+			}}
+		>
+			<DialogBody>
+				<p className="m-0 text-[12.5px] text-fg3">
+					Loco signs each request following the Standard Webhooks spec and retries failures for up to a day.
+				</p>
+				<Field label="Endpoint URL" error={urlError}>
+					<Input
+						ref={urlRef}
+						autoComplete="off"
+						spellCheck={false}
+						value={url}
+						placeholder="https://example.com/hooks/loco"
+						aria-invalid={urlError !== null}
+						className="h-9 font-mono text-[13.5px]"
+						onChange={(e) => {
+							setUrl(e.target.value);
+							create.reset();
+						}}
+					/>
+				</Field>
+				<div className="flex flex-col gap-1.5">
+					<span className="text-[13px] font-medium">Events</span>
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Events"
+						className="w-max"
+						value={[mode]}
+						onValueChange={(v: string[]) => {
+							if (v[0] === "all" || v[0] === "choose") setMode(v[0]);
+						}}
+					>
+						<ToggleGroupItem value="all">All events</ToggleGroupItem>
+						<ToggleGroupItem value="choose">Choose events</ToggleGroupItem>
+					</ToggleGroup>
+				</div>
+				{mode === "choose" && (
+					<div className="grid max-h-[300px] grid-cols-1 gap-x-5 gap-y-3.5 overflow-y-auto rounded-lg bg-panel p-3 sm:grid-cols-2">
+						{GROUPS.map((g) => (
+							<GroupPicker
+								key={g.label}
+								group={g}
+								selected={types}
+								onChange={(next) => {
+									setTypes(next);
+									create.reset();
+								}}
+							/>
+						))}
 					</div>
-					{mode === "choose" && (
-						<div className="grid max-h-[300px] grid-cols-1 gap-x-5 gap-y-3.5 overflow-y-auto rounded-lg bg-panel p-3 sm:grid-cols-2">
-							{GROUPS.map((g) => (
-								<GroupPicker
-									key={g.label}
-									group={g}
-									selected={types}
-									onChange={(next) => {
-										setTypes(next);
-										create.reset();
-									}}
-								/>
-							))}
-						</div>
-					)}
-					{create.error !== null && !rejected && (
-						<span className="text-[12.5px] text-bad-fg">
-							{getErrorMessage(create.error, "Could not add the webhook")}
-						</span>
-					)}
-				</DialogBody>
-				<DialogFooter>
-					<Button type="button" variant="outline" onClick={onCancel}>
-						Cancel
-					</Button>
-					<Button type="submit" disabled={!ok}>
-						{create.isPending ? "Creating…" : "Create webhook"}
-					</Button>
-				</DialogFooter>
-			</form>
-		</DialogContent>
+				)}
+				{create.error !== null && !rejected && (
+					<span className="text-[12.5px] text-bad-fg">
+						{getErrorMessage(create.error, "Could not add the webhook")}
+					</span>
+				)}
+			</DialogBody>
+			<DialogFooter>
+				<Button type="button" variant="outline" onClick={onCancel}>
+					Cancel
+				</Button>
+				<Button type="submit" disabled={!ok}>
+					{create.isPending ? "Creating…" : "Create webhook"}
+				</Button>
+			</DialogFooter>
+		</form>
 	);
 }
 
@@ -212,7 +222,7 @@ function GroupPicker({
 
 function SigningSecret({ secret, onDone }: { secret: string; onDone: () => void }) {
 	return (
-		<DialogContent title="Signing secret">
+		<>
 			<DialogBody>
 				<p className="m-0 text-[13.5px] text-fg2">
 					Copy it now. You won&apos;t see it again. Use it to verify the{" "}
@@ -226,6 +236,6 @@ function SigningSecret({ secret, onDone }: { secret: string; onDone: () => void 
 			<DialogFooter>
 				<Button onClick={onDone}>Done</Button>
 			</DialogFooter>
-		</DialogContent>
+		</>
 	);
 }

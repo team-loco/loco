@@ -31,6 +31,8 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { shortImageRef } from "@/lib/image";
 import { agoLabel } from "@/lib/time";
 
+import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
+
 import { depImage, depTag, isDeployed, startedMs, type RegionView } from "./model";
 
 interface SwitcherItem {
@@ -74,6 +76,8 @@ export function ResourceHeader({
 	isSettings,
 	dirty,
 	redeploying,
+	canWrite,
+	canDelete,
 	rollbackTarget,
 	onEvents,
 	onSettings,
@@ -93,6 +97,8 @@ export function ResourceHeader({
 	isSettings: boolean;
 	dirty: boolean;
 	redeploying: boolean;
+	canWrite: boolean;
+	canDelete: boolean;
 	rollbackTarget: Deployment | undefined;
 	onEvents: () => void;
 	onSettings: () => void;
@@ -109,7 +115,8 @@ export function ResourceHeader({
 	const image = depImage(primary);
 	const since = primary === undefined ? undefined : startedMs(primary);
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
-	const canRedeploy = deployed.length > 0 && !redeploying;
+	const canRedeploy = canWrite && deployed.length > 0 && !redeploying;
+	const writeHint = canWrite ? undefined : NEEDS_WRITE;
 
 	return (
 		<div className="flex flex-wrap items-end justify-between gap-4">
@@ -165,7 +172,7 @@ export function ResourceHeader({
 					Settings
 					{dirty && <span aria-label="unsaved changes" className="size-1.5 rounded-full bg-warn" />}
 				</Button>
-				<Button variant="outline" disabled={!canRedeploy} onClick={onRedeploy}>
+				<Button variant="outline" disabled={!canRedeploy} title={writeHint} onClick={onRedeploy}>
 					<RotateCwIcon />
 					{redeploying ? "Redeploying…" : "Redeploy"}
 				</Button>
@@ -174,7 +181,11 @@ export function ResourceHeader({
 						<EllipsisIcon />
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="w-auto min-w-[220px]">
-						<DropdownMenuItem disabled={rollbackTarget === undefined} onClick={onRollback}>
+						<DropdownMenuItem
+							disabled={!canWrite || rollbackTarget === undefined}
+							title={writeHint}
+							onClick={onRollback}
+						>
 							<MenuIcon>
 								<Undo2Icon />
 							</MenuIcon>
@@ -206,7 +217,12 @@ export function ResourceHeader({
 							Copy image reference
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem variant="destructive" onClick={onDelete}>
+						<DropdownMenuItem
+							variant="destructive"
+							disabled={!canDelete}
+							title={canDelete ? undefined : NEEDS_ADMIN}
+							onClick={onDelete}
+						>
 							<MenuIcon>
 								<Trash2Icon />
 							</MenuIcon>

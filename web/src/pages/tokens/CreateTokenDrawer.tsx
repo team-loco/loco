@@ -1,7 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useMutation } from "@connectrpc/connect-query";
 import { CheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { createToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { TokenService } from "@gen/loco/token/v1/token_pb";
 
@@ -57,6 +57,7 @@ export function CreateTokenDrawer({
 	onCreated: (owner: OwnerKey) => void;
 }) {
 	const [secret, setSecret] = useState<{ name: string; value: string } | null>(null);
+	const nameRef = useRef<HTMLInputElement>(null);
 	return (
 		<Sheet
 			open={draft !== null}
@@ -67,7 +68,7 @@ export function CreateTokenDrawer({
 				onClose();
 			}}
 		>
-			<SheetContent size="wide">
+			<SheetContent size="wide" initialFocus={nameRef}>
 				<SheetHeader>
 					<SheetTitle>{secret === null ? "New token" : "Token created"}</SheetTitle>
 				</SheetHeader>
@@ -83,6 +84,7 @@ export function CreateTokenDrawer({
 				)}
 				{secret === null && draft !== null && (
 					<CreateForm
+						nameRef={nameRef}
 						draft={draft}
 						data={data}
 						now={now}
@@ -99,12 +101,14 @@ export function CreateTokenDrawer({
 }
 
 function CreateForm({
+	nameRef,
 	draft,
 	data,
 	now,
 	onCancel,
 	onCreated,
 }: {
+	nameRef: RefObject<HTMLInputElement | null>;
 	draft: CreateDraft;
 	data: TokenData;
 	now: number;
@@ -165,7 +169,7 @@ function CreateForm({
 			<SheetBody>
 				<Field label="Name" error={nameErr}>
 					<Input
-						autoFocus
+						ref={nameRef}
 						autoComplete="off"
 						value={name}
 						maxLength={NAME_MAX}
