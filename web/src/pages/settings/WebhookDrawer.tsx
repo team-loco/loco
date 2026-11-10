@@ -18,23 +18,23 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
-import { pagedRows, type Paging } from "@/lib/paging";
+import { pageRangeLabel } from "@/lib/paging";
 import { formatClock, tsMs } from "@/lib/time";
 
 import { WebhookActions } from "./WebhookActions";
 import { formatDay } from "./parts";
 import { deliveryDetail, deliveryLabel, deliveryTick, deliveryWhen, eventsSummary } from "./webhooks";
 
-const PAGE_SIZES = [10] as const;
+const PAGE_SIZE = 10;
 const SKELETON_ROWS = [0, 1, 2];
 
-type Filter = "" | "pending" | "succeeded" | "failed";
 const FILTERS = [
 	{ value: "", label: "All" },
 	{ value: "pending", label: "Pending" },
 	{ value: "succeeded", label: "Delivered" },
 	{ value: "failed", label: "Failed" },
 ] as const;
+type Filter = (typeof FILTERS)[number]["value"];
 
 export function WebhookDrawer({
 	workspaceId,
@@ -72,21 +72,21 @@ function WebhookDetail({
 	workspaceName: string;
 	webhook: Webhook;
 }) {
-	const [filter, setFilter] = useState<Filter>("");
+	const [view, setView] = useState<{ filter: Filter; page: number }>({ filter: "", page: 0 });
+	const { filter } = view;
 	const queryClient = useQueryClient();
 	const query = useInfiniteQuery(
 		listWebhookDeliveries,
-		{ workspaceId, webhookId: webhook.id, status: filter, pageSize: 10, pageToken: "" },
+		{ workspaceId, webhookId: webhook.id, status: filter, pageSize: PAGE_SIZE, pageToken: "" },
 		{
 			pageParamKey: "pageToken",
 			getNextPageParam: (last) => last.nextPageToken || undefined,
 			refetchInterval: 15_000,
 		},
 	);
-	const redeliver = useMutation(redeliverWebhookDelivery);
-	const all = query.data?.pages.flatMap((page) => page.deliveries) ?? [];
-	const [paging, setPaging] = useState<Paging>({ page: 0, size: PAGE_SIZES[0] });
-	const paged = pagedRows(all, paging, setPaging, PAGE_SIZES);
+	const pages = query.data?.pages ?? [];
+	const page = Math.max(0, Math.min(view.page, pages.length - 1));
+	const total = pages.reduce((count, loaded) => count + loaded.deliveries.length, 0);
 	const refresh = () => {
 		void queryClient.invalidateQueries({
 			queryKey: createConnectQueryKey({ schema: listWebhookDeliveries, cardinality: undefined }),
@@ -95,15 +95,26 @@ function WebhookDetail({
 			queryKey: createConnectQueryKey({ schema: listWebhooks, cardinality: "finite" }),
 		});
 	};
-	const next =
-		paged.pager.onNext ??
-		(query.hasNextPage
-			? () => {
-					void query.fetchNextPage().then((res) => {
-						if (!res.isError) setPaging((current) => ({ ...current, page: current.page + 1 }));
-					});
-				}
-			: null);
+	const redeliver = useMutation(redeliverWebhookDelivery, {
+		onSuccess: () => {
+			toast.success("Redelivery queued");
+			refresh();
+		},
+		onError: (error) => {
+			toastConnectError(error, "Could not redeliver the event");
+		},
+	});
+	const go = (target: number) => () => {
+		setView({ filter, page: target });
+	};
+	const fetchMore = () => {
+		void query.fetchNextPage().then((result) => {
+			if (result.isSuccess && result.data.pages.length > page + 1) {
+				setView((current) => (current === view ? { filter, page: page + 1 } : current));
+			}
+		});
+	};
+	const next = page + 1 < pages.length ? go(page + 1) : query.hasNextPage ? fetchMore : null;
 	const chips = webhook.eventTypes.length === 0 ? [`Every event in ${workspaceName}`] : webhook.eventTypes;
 
 	return (
@@ -136,11 +147,8 @@ function WebhookDetail({
 						aria-label="Show deliveries"
 						value={[filter]}
 						onValueChange={(v: string[]) => {
-							const value = v[0];
-							if (value === "" || value === "pending" || value === "succeeded" || value === "failed") {
-								setFilter(value);
-								setPaging({ page: 0, size: PAGE_SIZES[0] });
-							}
+							const selected = FILTERS.find((option) => option.value === v[0]);
+							if (selected !== undefined) setView({ filter: selected.value, page: 0 });
 						}}
 					>
 						{FILTERS.map((f) => (
@@ -151,22 +159,11 @@ function WebhookDetail({
 					</ToggleGroup>
 				</div>
 				<DeliveryList
-					deliveries={paged.rows}
+					deliveries={pages[page]?.deliveries ?? []}
 					isLoading={query.isPending}
 					error={query.isFetchNextPageError ? null : query.error}
 					onRedeliver={(deliveryId) => {
-						redeliver.mutate(
-							{ workspaceId, webhookId: webhook.id, deliveryId },
-							{
-								onSuccess: () => {
-									toast.success("Redelivery queued");
-									refresh();
-								},
-								onError: (error) => {
-									toastConnectError(error, "Could not redeliver the event");
-								},
-							},
-						);
+						redeliver.mutate({ workspaceId, webhookId: webhook.id, deliveryId });
 					}}
 					redelivering={redeliver.isPending}
 					empty={
@@ -178,19 +175,20 @@ function WebhookDetail({
 				{query.error !== null && (
 					<Button
 						variant="outline"
+						disabled={query.isFetching}
 						onClick={() => {
-							if (query.isFetchNextPageError) void query.fetchNextPage();
+							if (query.isFetchNextPageError) fetchMore();
 							else void query.refetch();
 						}}
 					>
 						Retry deliveries
 					</Button>
 				)}
-				{all.length > 0 && (
+				{total > 0 && (
 					<Pager
-						{...paged.pager}
-						label={`${paged.pager.label}${query.hasNextPage ? "+ loaded" : ""}`}
-						onNext={query.isFetchingNextPage ? null : next}
+						label={`${pageRangeLabel(page, PAGE_SIZE, total)}${query.hasNextPage ? "+ loaded" : ""}`}
+						onPrev={page > 0 ? go(page - 1) : null}
+						onNext={query.isFetching ? null : next}
 						className="border-0 px-0 pt-0"
 					/>
 				)}

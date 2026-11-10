@@ -25,16 +25,26 @@ export function WebhookActions({
 	webhook: Webhook;
 	onChanged: () => void;
 }) {
-	const [editing, setEditing] = useState(false);
-	const [rotating, setRotating] = useState(false);
-	const test = useMutation(sendTestEvent);
+	const [dialog, setDialog] = useState<"edit" | "rotate" | null>(null);
+	const close = () => {
+		setDialog(null);
+	};
+	const test = useMutation(sendTestEvent, {
+		onSuccess: () => {
+			toast.success("Test event queued");
+			onChanged();
+		},
+		onError: (error) => {
+			toastConnectError(error, "Could not send the test event");
+		},
+	});
 	return (
 		<>
 			<div className="flex flex-wrap gap-2">
 				<Button
 					variant="outline"
 					onClick={() => {
-						setEditing(true);
+						setDialog("edit");
 					}}
 				>
 					Edit webhook
@@ -42,7 +52,7 @@ export function WebhookActions({
 				<Button
 					variant="outline"
 					onClick={() => {
-						setRotating(true);
+						setDialog("rotate");
 					}}
 				>
 					Rotate secret
@@ -51,18 +61,7 @@ export function WebhookActions({
 					variant="outline"
 					disabled={test.isPending}
 					onClick={() => {
-						test.mutate(
-							{ workspaceId, webhookId: webhook.id },
-							{
-								onSuccess: () => {
-									toast.success("Test event queued");
-									onChanged();
-								},
-								onError: (error) => {
-									toastConnectError(error, "Could not send the test event");
-								},
-							},
-						);
+						test.mutate({ workspaceId, webhookId: webhook.id });
 					}}
 				>
 					Send test event
@@ -78,20 +77,16 @@ export function WebhookActions({
 				workspaceId={workspaceId}
 				workspaceName={workspaceName}
 				webhook={webhook}
-				open={editing}
-				onClose={() => {
-					setEditing(false);
-				}}
+				open={dialog === "edit"}
+				onClose={close}
 				onCreated={onChanged}
 			/>
 			<RotateSecret
-				open={rotating}
+				open={dialog === "rotate"}
 				workspaceId={workspaceId}
 				webhook={webhook}
 				onChanged={onChanged}
-				onClose={() => {
-					setRotating(false);
-				}}
+				onClose={close}
 			/>
 		</>
 	);
@@ -110,13 +105,13 @@ function RotateSecret({
 	onChanged: () => void;
 	onClose: () => void;
 }) {
-	const rotate = useMutation(rotateWebhookSecret);
+	const rotate = useMutation(rotateWebhookSecret, { gcTime: 0, onSuccess: onChanged });
 	const [hours, setHours] = useState("24");
-	const [secret, setSecret] = useState<string | null>(null);
+	const secret = rotate.data?.secret;
 	const seconds = Number(hours) * 3600;
 	const valid = hours.trim() !== "" && Number.isInteger(seconds) && seconds >= 0 && seconds <= 604800;
 	const close = () => {
-		setSecret(null);
+		rotate.reset();
 		onClose();
 	};
 	return (
@@ -126,8 +121,8 @@ function RotateSecret({
 				if (!next && !rotate.isPending) close();
 			}}
 		>
-			<DialogContent title={secret === null ? "Rotate signing secret" : "Signing secret"}>
-				{secret !== null ? (
+			<DialogContent title={secret === undefined ? "Rotate signing secret" : "Signing secret"}>
+				{secret !== undefined ? (
 					<SigningSecret secret={secret} onDone={close} />
 				) : (
 					<form
@@ -136,15 +131,7 @@ function RotateSecret({
 						onSubmit={(e) => {
 							e.preventDefault();
 							if (!valid || rotate.isPending) return;
-							rotate.mutate(
-								{ workspaceId, webhookId: webhook.id, gracePeriodSeconds: seconds },
-								{
-									onSuccess: (res) => {
-										setSecret(res.secret);
-										onChanged();
-									},
-								},
-							);
+							rotate.mutate({ workspaceId, webhookId: webhook.id, gracePeriodSeconds: seconds });
 						}}
 					>
 						<DialogBody>
