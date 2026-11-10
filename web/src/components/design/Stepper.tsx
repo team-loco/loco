@@ -12,9 +12,10 @@ export function Stepper({
 	onChange: (value: number) => void;
 	min: number;
 	max: number;
-	label?: string;
+	label: string;
 	disabled?: boolean;
 }) {
+	const field = label.charAt(0).toLowerCase() + label.slice(1);
 	return (
 		<div role="group" className="flex h-[34px] w-fit items-center rounded-sm border border-line" aria-label={label}>
 			<Button
@@ -24,7 +25,7 @@ export function Stepper({
 				onClick={() => {
 					onChange(Math.max(min, value - 1));
 				}}
-				aria-label="Decrease"
+				aria-label={`Decrease ${field}`}
 			>
 				−
 			</Button>
@@ -36,7 +37,7 @@ export function Stepper({
 				onClick={() => {
 					onChange(Math.min(max, value + 1));
 				}}
-				aria-label="Increase"
+				aria-label={`Increase ${field}`}
 			>
 				+
 			</Button>

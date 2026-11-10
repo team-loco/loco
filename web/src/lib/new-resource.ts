@@ -1,14 +1,29 @@
+import { ConnectError } from "@connectrpc/connect";
+import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
 import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 
-import { parseDotEnvLine } from "@/lib/dotenv";
+import { isEnvKey } from "@/lib/dotenv";
 import { parseImage } from "@/lib/image";
 import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/platform-domain";
 import { MAX_SLUG_LENGTH, slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
 const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
-const PORT_RE = /^\d+$/;
+const DIGITS_RE = /^\d+$/;
 const LOCO_YAML_VERSION = 1;
+
+export interface EnvRow {
+	id: string;
+	key: string;
+	value: string;
+}
+
+export interface HealthForm {
+	path: string;
+	interval: string;
+	timeout: string;
+	failAfter: string;
+}
 
 export interface NewResourceForm {
 	image: string;
@@ -21,20 +36,23 @@ export interface NewResourceForm {
 	subdomain: string;
 	platformDomain: string;
 	port: string;
-	envText: string;
-	healthPath: string;
+	vars: EnvRow[];
+	health: HealthForm;
 }
 
 export interface FormErrors {
-	image: string | null;
-	name: string | null;
 	regions: string | null;
+	subdomain: string | null;
 	cpu: string | null;
 	memory: string | null;
-	subdomain: string | null;
-	port: string | null;
 	env: string | null;
-	healthPath: string | null;
+}
+
+export type ApiField = "port" | "path" | "interval" | "timeout" | "failAfter" | "cpu" | "memory" | "replicas";
+
+export interface ApiFieldError {
+	field: ApiField;
+	message: string;
 }
 
 export function nameFromImage(image: string, takenSlugs: ReadonlySet<string>): string {
@@ -57,23 +75,39 @@ export function servedDomains(domains: PlatformDomain[], regions: string[]): str
 	return domains.filter((d) => regions.every((r) => d.regions.includes(r))).map((d) => d.domain);
 }
 
-export function parseEnvText(text: string): { vars: [string, string][]; error: string | null } {
-	const vars = new Map<string, string>();
-	let error: string | null = null;
-	text.split(/\r?\n/).forEach((raw, i) => {
-		const line = parseDotEnvLine(raw);
-		if (line.kind === "blank") return;
-		if (line.kind === "invalid") {
-			error ??= `Line ${(i + 1).toString()} is not KEY=value with a letter or _ first`;
-			return;
-		}
-		if (line.value === "") error ??= `${line.key} has no value`;
-		vars.set(line.key, line.value);
-	});
-	return { vars: [...vars], error };
+function isBlank(row: EnvRow): boolean {
+	return row.key.trim() === "" && row.value === "";
 }
 
-function nameError(name: string, takenSlugs: ReadonlyMap<string, string>): string | null {
+export function envVars(rows: EnvRow[]): [string, string][] {
+	return rows.filter((r) => !isBlank(r)).map((r) => [r.key.trim(), r.value]);
+}
+
+export function envError(rows: EnvRow[]): string | null {
+	const seen = new Set<string>();
+	for (const [key, value] of envVars(rows)) {
+		if (key === "") return "A variable has a value but no name";
+		if (!isEnvKey(key)) return `${key} isn't a valid name: use letters, digits and _, not starting with a digit`;
+		if (value === "") return `${key} has no value`;
+		if (seen.has(key)) return `${key} is set twice`;
+		seen.add(key);
+	}
+	return null;
+}
+
+export function mergeEnv(rows: EnvRow[], pairs: [string, string][], newId: () => string): EnvRow[] {
+	const pasted = new Map(pairs);
+	const kept = rows
+		.filter((r) => !isBlank(r))
+		.map((r) => {
+			const value = pasted.get(r.key.trim());
+			return value === undefined ? r : { ...r, value };
+		});
+	const present = new Set(kept.map((r) => r.key.trim()));
+	return [...kept, ...pairs.filter(([key]) => !present.has(key)).map(([key, value]) => ({ id: newId(), key, value }))];
+}
+
+export function nameError(name: string, takenSlugs: ReadonlyMap<string, string>): string | null {
 	if (name.trim() === "") return "Enter a name";
 	if (Array.from(name).length > MAX_SLUG_LENGTH) return `Use at most ${MAX_SLUG_LENGTH.toString()} characters`;
 	const s = slug(name);
@@ -99,26 +133,56 @@ export function imageError(image: string): string | null {
 	return IMAGE_RE.test(trimmed) ? null : "Use registry/repository:tag";
 }
 
-export function validateForm(
-	form: NewResourceForm,
-	takenSlugs: ReadonlyMap<string, string>,
-	availability: DomainCheck["state"],
-): FormErrors {
+export function validateForm(form: NewResourceForm, availability: DomainCheck["state"]): FormErrors {
 	return {
-		image: imageError(form.image),
-		name: nameError(form.name, takenSlugs),
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
+		subdomain: subdomainError(form, availability),
 		cpu: form.cpu.trim() === "" ? "Enter a CPU amount" : null,
 		memory: form.memory.trim() === "" ? "Enter a memory amount" : null,
-		subdomain: subdomainError(form, availability),
-		port: PORT_RE.test(form.port) ? null : "Enter a port number",
-		env: parseEnvText(form.envText).error,
-		healthPath: form.healthPath === "" || form.healthPath.startsWith("/") ? null : "Start the path with /",
+		env: envError(form.vars),
 	};
 }
 
-export function errorCount(errors: FormErrors): number {
-	return Object.values(errors).filter((e) => e !== null).length;
+export function firstError(errors: FormErrors): string | null {
+	const ordered: (string | null)[] = [errors.regions, errors.subdomain, errors.cpu, errors.memory, errors.env];
+	return ordered.find((e) => e !== null) ?? null;
+}
+
+export function healthSummary(health: HealthForm): string {
+	return health.path === "" ? "None" : `${health.path} · every ${health.interval}s`;
+}
+
+export function healthCheckSpec(health: HealthForm, initialDelaySeconds: number) {
+	if (health.path === "") return undefined;
+	return {
+		path: health.path,
+		intervalSeconds: Number(health.interval),
+		timeoutSeconds: Number(health.timeout),
+		failureThreshold: Number(health.failAfter),
+		initialDelaySeconds,
+	};
+}
+
+const VIOLATION_FIELDS: Partial<Record<string, ApiField>> = {
+	port: "port",
+	path: "path",
+	interval_seconds: "interval",
+	timeout_seconds: "timeout",
+	failure_threshold: "failAfter",
+	cpu: "cpu",
+	memory: "memory",
+	min_replicas: "replicas",
+	max_replicas: "replicas",
+};
+
+export function apiFieldError(err: unknown): ApiFieldError | null {
+	if (!(err instanceof ConnectError)) return null;
+	for (const v of err.findDetails(ViolationsSchema).flatMap((d) => d.violations)) {
+		const name = v.field?.elements.at(-1)?.fieldName;
+		const field = name === undefined ? undefined : VIOLATION_FIELDS[name];
+		if (field !== undefined) return { field, message: v.message.charAt(0).toUpperCase() + v.message.slice(1) };
+	}
+	return null;
 }
 
 const BLOCK_PLAIN_RE = /^[A-Za-z0-9_./-][A-Za-z0-9_./:@-]*$/;
@@ -128,6 +192,26 @@ const YAML_SPECIAL_RE =
 
 function scalar(value: string, plain: RegExp): string {
 	return plain.test(value) && !YAML_SPECIAL_RE.test(value) && !value.endsWith(":") ? value : JSON.stringify(value);
+}
+
+function yamlInt(value: string): string {
+	return DIGITS_RE.test(value) ? value : JSON.stringify(value);
+}
+
+function healthYaml(health: HealthForm, flow: (v: string) => string): string {
+	const fields = [
+		`path: ${flow(health.path)}`,
+		...(
+			[
+				["interval", health.interval],
+				["timeout", health.timeout],
+				["failThreshold", health.failAfter],
+			] as const
+		)
+			.filter(([, v]) => v !== "")
+			.map(([k, v]) => `${k}: ${yamlInt(v)}`),
+	];
+	return `    health: { ${fields.join(", ")} }`;
 }
 
 export interface LocoYamlInput {
@@ -147,11 +231,11 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 		"services:",
 		`  ${name}:`,
 		`    image: ${scalar(form.image.trim(), BLOCK_PLAIN_RE)}`,
-		`    port: ${PORT_RE.test(form.port) ? form.port : JSON.stringify(form.port)}`,
+		`    port: ${yamlInt(form.port)}`,
 	];
-	if (form.healthPath !== "") lines.push(`    health: { path: ${flow(form.healthPath)} }`);
+	if (form.health.path !== "") lines.push(healthYaml(form.health, flow));
 	if (form.isPublic) lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
-	const vars = parseEnvText(form.envText).vars;
+	const vars = envVars(form.vars);
 	if (vars.length > 0) {
 		lines.push("    env:");
 		for (const [key, value] of vars) lines.push(`      ${scalar(key, FLOW_PLAIN_RE)}: ${JSON.stringify(value)}`);

@@ -1,6 +1,6 @@
 import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
 
-import type { NewResourceForm } from "./new-resource";
+import { healthSummary, type NewResourceForm } from "./new-resource";
 
 export type StepState = "done" | "active" | "failed" | "todo";
 
@@ -10,79 +10,58 @@ export interface ProgressStep {
 	meta: string;
 }
 
-export function isLive(phase: DeploymentPhase | undefined): boolean {
-	return phase === DeploymentPhase.RUNNING || phase === DeploymentPhase.SUCCEEDED;
-}
+const DEPLOYING_STEPS = 2;
 
-export function createdStep(name: string, envName: string, created: boolean, submitting: boolean): ProgressStep {
-	return {
-		label: "Resource created",
-		state: created ? "done" : submitting ? "active" : "todo",
-		meta: `${name} · ${envName}`,
-	};
+function isLive(phase: DeploymentPhase | undefined): boolean {
+	return phase === DeploymentPhase.RUNNING || phase === DeploymentPhase.SUCCEEDED;
 }
 
 export interface RegionProgress {
 	form: NewResourceForm;
-	hcInterval: string;
 	created: boolean;
-	deploymentId: string | undefined;
 	region: string;
 	phase: DeploymentPhase | undefined;
 	message: string;
 	error: string | null;
 }
 
-export function regionDeploySteps({
-	form,
-	hcInterval,
-	created,
-	deploymentId,
-	region,
-	phase,
-	message,
-	error,
-}: RegionProgress): ProgressStep[] {
-	const queued = deploymentId !== undefined;
-	const failedPhase = phase === DeploymentPhase.FAILED || phase === DeploymentPhase.CANCELED;
-	const live = isLive(phase);
-	const rolling = phase === DeploymentPhase.DEPLOYING;
+function stepState(i: number, { created, phase }: RegionProgress): StepState {
+	if (isLive(phase)) return "done";
+	if (!created) return "todo";
+	const active = phase === DeploymentPhase.DEPLOYING ? DEPLOYING_STEPS : 1;
+	return i < active ? "active" : "todo";
+}
 
-	const queueState: StepState = !created
-		? "todo"
-		: !queued
-			? error !== null
-				? "failed"
-				: "active"
-			: rolling || live
-				? "done"
-				: failedPhase
-					? "failed"
-					: "active";
-	const rollState: StepState = live ? "done" : rolling ? "active" : "todo";
-	const healthState: StepState = live ? "done" : "todo";
-
+export function regionDeploySteps(progress: RegionProgress): ProgressStep[] {
+	const { form, region, phase, message, error } = progress;
 	const image = form.image.trim();
-	const imageName = image.split("/").pop() ?? image;
-	const failMeta = error ?? message;
-	return [
-		{
-			label: "Deployment queued",
-			state: queueState,
-			meta: queueState === "failed" ? failMeta : queueState === "active" && message !== "" ? message : region,
-		},
-		{
-			label: "Rolling out",
-			state: rollState,
-			meta:
-				rolling && message !== ""
-					? message
-					: `${imageName} · ${form.replicas.toString()} × ${form.cpu} CPU · ${form.memory}`,
-		},
-		{
-			label: "Health checks passing",
-			state: healthState,
-			meta: form.healthPath === "" ? "No HTTP health check" : `${form.healthPath} every ${hcInterval}s`,
-		},
+	const steps: [string, string][] = [
+		["Pull image", image.split("/").pop() ?? image],
+		["Start replicas", `${form.replicas.toString()} × ${form.cpu} CPU · ${form.memory}`],
+		["Health checks", form.health.path === "" ? "No HTTP health check" : healthSummary(form.health)],
+		["Route traffic", form.isPublic ? `${form.subdomain}.${form.platformDomain}` : "Internal"],
+		["Live", region],
 	];
+	const canceled = phase === DeploymentPhase.CANCELED;
+	if (error !== null || phase === DeploymentPhase.FAILED || canceled) {
+		return [
+			...steps.map(([label, meta]): ProgressStep => ({ label, state: "todo", meta })),
+			{ label: canceled ? "Canceled" : "Failed", state: "failed", meta: error ?? message },
+		];
+	}
+	const states = steps.map((_, i) => stepState(i, progress));
+	const current = states.lastIndexOf("active");
+	return steps.map(([label, detail], i) => {
+		const state = states[i] ?? "todo";
+		return { label, state, meta: i === current && message !== "" ? message : detail };
+	});
+}
+
+export type RunOutcome = "deploying" | "live" | "failed";
+
+export function runOutcome(regions: readonly (readonly ProgressStep[])[]): RunOutcome {
+	if (regions.length === 0) return "deploying";
+	if (regions.every((steps) => steps.every((s) => s.state === "done"))) return "live";
+	if (regions.every((steps) => steps.some((s) => s.state === "failed"))) return "failed";
+	return "deploying";
 }

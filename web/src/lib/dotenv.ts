@@ -11,22 +11,20 @@ function unquote(v: string): string {
 	return v;
 }
 
-export type DotEnvLine = { kind: "blank" } | { kind: "invalid" } | { kind: "pair"; key: string; value: string };
-
-export function parseDotEnvLine(raw: string): DotEnvLine {
+function parseLine(raw: string): [string, string] | null {
 	const line = raw.trim().replace(/^export\s+/, "");
-	if (line === "" || line.startsWith("#")) return { kind: "blank" };
+	if (line === "" || line.startsWith("#")) return null;
 	const eq = line.indexOf("=");
 	const key = line.slice(0, eq).trim();
-	if (eq < 1 || !isEnvKey(key)) return { kind: "invalid" };
-	return { kind: "pair", key, value: unquote(line.slice(eq + 1).trim()) };
+	if (eq < 1 || !isEnvKey(key)) return null;
+	return [key, unquote(line.slice(eq + 1).trim())];
 }
 
 export function parseDotEnv(text: string): [string, string][] {
-	const out: [string, string][] = [];
+	const pairs = new Map<string, string>();
 	for (const raw of text.split(/\r?\n/)) {
-		const line = parseDotEnvLine(raw);
-		if (line.kind === "pair") out.push([line.key, line.value]);
+		const pair = parseLine(raw);
+		if (pair !== null) pairs.set(...pair);
 	}
-	return out;
+	return [...pairs];
 }
