@@ -64,7 +64,7 @@ def check_webhooks(page):
     page.get_by_role("checkbox", name="Builds", exact=True).check()
     assert page.get_by_role("checkbox", name="build.failed", exact=True).is_checked()
     page.get_by_role("checkbox", name="build.failed", exact=True).uncheck()
-    assert page.get_by_role("checkbox", name="Builds", exact=True).evaluate("node => node.indeterminate")
+    assert page.get_by_role("checkbox", name="Builds", exact=True).get_attribute("aria-checked") == "mixed"
     create.click()
     page.get_by_role("dialog", name="Signing secret").wait_for()
     page.get_by_role("button", name="Copy signing secret", exact=True).wait_for()

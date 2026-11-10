@@ -3,6 +3,7 @@ import { createWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_conne
 import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
+import { Checkbox } from "@/components/design/Checkbox";
 import { CopyButton } from "@/components/design/CopyButton";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
@@ -170,8 +171,6 @@ function NewWebhookForm({
 	);
 }
 
-const checkbox = "m-0 size-3.5 shrink-0 accent-foreground";
-
 function GroupPicker({
 	group,
 	selected,
@@ -185,27 +184,21 @@ function GroupPicker({
 	return (
 		<div role="group" aria-label={group.label} className="flex min-w-0 flex-col gap-1.5">
 			<label className="flex items-center gap-2 text-[13px] font-medium">
-				<input
-					type="checkbox"
-					className={checkbox}
+				<Checkbox
 					checked={state.all}
-					ref={(el) => {
-						if (el !== null) el.indeterminate = state.some && !state.all;
-					}}
-					onChange={() => {
+					indeterminate={state.some && !state.all}
+					onCheckedChange={() => {
 						onChange(togglePage(selected, group.types));
 					}}
 				/>
 				{group.label}
 			</label>
-			<div className="flex flex-col gap-1 pl-[22px]">
+			<div className="flex flex-col gap-1 pl-6">
 				{group.types.map((t) => (
 					<label key={t} className="flex min-w-0 items-center gap-2 font-mono text-[12px] text-fg2">
-						<input
-							type="checkbox"
-							className={checkbox}
+						<Checkbox
 							checked={selected.has(t)}
-							onChange={() => {
+							onCheckedChange={() => {
 								onChange(toggleId(selected, t));
 							}}
 						/>
