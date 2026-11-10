@@ -1,19 +1,22 @@
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
-import { newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
+import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
 import { allocation } from "@/pages/dashboard/allocation";
 import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
+import { draftItems } from "@/pages/dashboard/resourceRows";
 import { ResourcesTable } from "@/pages/dashboard/ResourcesTable";
 import { Totals } from "@/pages/dashboard/Totals";
 import { useDashboardData } from "@/pages/dashboard/useDashboardData";
+import { DraftSheet } from "@/pages/resources/NewService";
 
 const NOW_TICK_MS = 60_000;
 const SKELETON_ROWS = 4;
@@ -35,9 +38,12 @@ export function Dashboard() {
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
 	const data = useDashboardData(activeWorkspaceId, active);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
+	const [params] = useSearchParams();
 
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
+	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
+	const draftId = params.get(DRAFT_PARAM);
 	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id);
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
@@ -78,7 +84,7 @@ export function Dashboard() {
 			{heading}
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
-			) : data.envResources.length === 0 ? (
+			) : data.envResources.length === 0 && drafts.length === 0 ? (
 				<EmptyWorkspace
 					envName={active.name}
 					newHref={newResourcePath(orgId, workspaceId, { env: active.name })}
@@ -92,7 +98,7 @@ export function Dashboard() {
 					<Totals value={allocation(data.envResources)} hrefFor={hrefFor} />
 					<ResourcesTable
 						key={active.id}
-						items={data.envResources}
+						items={[...data.envResources, ...draftItems(drafts, data.regions)]}
 						regions={data.regions}
 						orgId={orgId}
 						workspaceId={workspaceId}
@@ -109,6 +115,9 @@ export function Dashboard() {
 						nowMs={nowMs}
 					/>
 				</>
+			)}
+			{draftId !== null && active !== undefined && (
+				<DraftSheet key={draftId} orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />
 			)}
 		</Page>
 	);

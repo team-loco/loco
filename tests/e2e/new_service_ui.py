@@ -39,22 +39,39 @@ evidence.psql(state["container"], f"""UPDATE clusters SET is_active=false WHERE 
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
 VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}');""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
+production = evidence.psql(state["container"], f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';")
+drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
+DRAFT_URL = re.compile(r"/resources\?env=production&draft=[0-9a-f-]+$")
 
 
-def open_page(browser, user, theme="light", narrow=False):
+def open_page(browser, user, theme="light", narrow=False, drafts=None):
     context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
     auth = {"idToken": state["users"][user]["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
-    context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
+    seeded = "" if drafts is None else f"localStorage.setItem({json.dumps(drafts_key)},{json.dumps(json.dumps(drafts))});"
+    context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});{seeded}")
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     return context, page, errors
 
 
+def stored_drafts(page):
+    raw = page.evaluate(f"localStorage.getItem({json.dumps(drafts_key)})")
+    return [] if raw is None else [d["name"] for d in json.loads(raw)]
+
+
+def draft_row(page, name):
+    return page.get_by_role("row").filter(has=page.get_by_role("link", name=name, exact=True)).filter(has_text="Not deployed yet")
+
+
+def seeded_draft(name, image):
+    return {"id": str(uuid.uuid4()), "name": name, "image": image, "createdMs": 0, "edits": {}}
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     try:
-        context, page, errors = open_page(browser, "member")
+        context, page, errors = open_page(browser, "member", drafts=[seeded_draft("member-draft", "registry.example.com/acme/member:1")])
         try:
             page.goto(base + "/new?env=production")
             expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
@@ -62,6 +79,11 @@ with sync_playwright() as playwright:
             expect(ask.get_by_text("You can't create resources here", exact=True)).to_be_visible()
             ask.get_by_role("button", name="Close", exact=True).last.click()
             expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+            expect(page.get_by_text("Deploy your first resource", exact=True)).to_be_visible()
+            expect(page.get_by_text("member-draft")).to_have_count(0)
+            page.goto(base + "?env=production")
+            expect(page.get_by_text("No resources yet", exact=True)).to_be_visible()
+            expect(page.get_by_text("member-draft")).to_have_count(0)
             assert not errors, errors
         except BaseException:
             page.screenshot(path=out / "failure-member.png", animations="disabled")
@@ -92,6 +114,25 @@ with sync_playwright() as playwright:
                 context.route("**/loco.deployment.v1.DeploymentService/WatchDeployment", lambda route: route.fulfill(content_type="application/connect+json", body=stream))
             try:
                 page.goto(base + "/resources?env=production")
+                if theme == "dark":
+                    stale = seeded_draft(repository, f"registry.example.com/acme/{repository}:0.9")
+                    page.evaluate(f"localStorage.setItem({json.dumps(drafts_key)},{json.dumps(json.dumps([stale]))})")
+                    page.reload()
+                    row = draft_row(page, repository)
+                    expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
+                    row.get_by_role("link", name=repository, exact=True).click()
+                    stale_drawer = page.get_by_role("dialog", name=repository, exact=True)
+                    expect(stale_drawer.get_by_role("note")).to_have_text(
+                        f"{repository} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name."
+                    )
+                    page.screenshot(path=out / f"taken-{case}.png", animations="disabled")
+                    stale_drawer.get_by_role("button", name="Discard draft", exact=True).click()
+                    confirm = page.get_by_role("alertdialog", name=f"Discard {repository}?")
+                    confirm.get_by_role("button", name="Discard draft", exact=True).click()
+                    expect(page.get_by_text(f"Discarded {repository}", exact=True)).to_be_visible()
+                    expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+                    expect(draft_row(page, repository)).to_have_count(0)
+                    assert stored_drafts(page) == [], stored_drafts(page)
                 page.get_by_role("button", name="New resource", exact=True).click()
                 page.get_by_role("menuitem", name="Service", exact=True).click()
                 expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
@@ -111,8 +152,11 @@ with sync_playwright() as playwright:
                 page.screenshot(path=out / f"image-{case}.png", animations="disabled")
                 ask.get_by_role("button", name="Continue", exact=True).click()
 
+                expect(page).to_have_url(DRAFT_URL)
                 drawer = page.get_by_role("dialog", name=name, exact=True)
                 expect(drawer.get_by_text(image, exact=True)).to_be_visible()
+                expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
+                assert stored_drafts(page) == [name], stored_drafts(page)
                 expect(drawer.get_by_role("button", name="us-east-1")).to_have_attribute("aria-pressed", "true")
                 expect(drawer.get_by_role("button", name="Public", exact=True)).to_have_attribute("aria-pressed", "true")
                 subdomain = drawer.get_by_role("textbox", name="Subdomain")
@@ -164,6 +208,45 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_text("To production", exact=True)).to_be_visible()
                 assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
                 page.screenshot(path=out / f"drawer-{case}.png", animations="disabled", full_page=True)
+
+                page.reload()
+                expect(page).to_have_url(DRAFT_URL)
+                expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+                expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
+                expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value("info")
+                expect(health).to_contain_text(f"{health_path} · every 15s")
+                page.keyboard.press("Escape")
+                expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+                row = draft_row(page, name)
+                expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
+                expect(row.get_by_text("Draft", exact=True)).to_be_visible()
+                expect(row.get_by_role("checkbox")).to_have_count(0)
+                expect(row.get_by_role("button")).to_have_count(0)
+                page.screenshot(path=out / f"table-{case}.png", animations="disabled")
+                if theme == "light":
+                    page.goto(base + "?env=production")
+                    dashboard_row = draft_row(page, name)
+                    expect(dashboard_row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
+                    expect(dashboard_row.get_by_text("Draft", exact=True)).to_be_visible()
+                    expect(dashboard_row.get_by_role("button")).to_have_count(0)
+                    page.screenshot(path=out / f"dashboard-{case}.png", animations="disabled")
+                    page.goto(base + "?env=production&view=map")
+                    node = page.get_by_role("link", name=re.compile(rf"^{re.escape(name)}\s*draft"))
+                    expect(node).to_be_visible()
+                    page.screenshot(path=out / f"map-{case}.png", animations="disabled")
+                    node.click()
+                    expect(page).to_have_url(re.compile(r"\?env=production&view=map&draft=[0-9a-f-]+$"))
+                    health.click()
+                    drawer.get_by_role("textbox", name="Timeout, sec").fill("5")
+                    page.keyboard.press("Escape")
+                    page.goto(base + "/resources?env=production")
+                row.get_by_role("link", name=name, exact=True).focus()
+                page.keyboard.press("Enter")
+                expect(page).to_have_url(DRAFT_URL)
+                health.click()
+                timeout = "5" if theme == "light" else "4"
+                expect(drawer.get_by_role("textbox", name="Timeout, sec")).to_have_value(timeout)
+                drawer.get_by_role("textbox", name="Timeout, sec").fill("4")
                 if theme == "light":
                     interval.fill("0")
                     drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
@@ -177,6 +260,7 @@ with sync_playwright() as playwright:
                     drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
                     expect(drawer.get_by_text(f"Couldn't deploy {image}: Invalid request.", exact=True)).to_be_visible()
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
+                    assert stored_drafts(page) == [name], stored_drafts(page)
                     page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")
                 drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
@@ -190,6 +274,9 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_text("Pull image", exact=True)).to_be_visible()
                 expect(drawer.get_by_text("Route traffic", exact=True)).to_be_visible()
                 expect(drawer.get_by_role("button", name="Done", exact=True)).to_be_visible()
+                header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
+                expect(header.get_by_text("Failed" if theme == "dark" else "Deploying", exact=True)).to_be_visible()
+                page.wait_for_function(f"localStorage.getItem({json.dumps(drafts_key)}) === null")
                 page.screenshot(path=out / f"deployed-{case}.png", animations="disabled")
                 open_button.click()
                 expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+$"))
@@ -212,4 +299,4 @@ with sync_playwright() as playwright:
                 context.close()
     finally:
         browser.close()
-print("PASS: new resource flow for the read-only member and two owner cases")
+print("PASS: new resource drafts for the read-only member and two owner cases")

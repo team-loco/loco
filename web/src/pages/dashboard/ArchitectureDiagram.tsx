@@ -22,13 +22,17 @@ import {
 	type MapNode,
 	type MapPoint,
 } from "./mapLayout";
-import type { EnvResource } from "./useDashboardData";
+import { isDraftItem, itemKey, itemName, type DashboardItem } from "./resourceRows";
 
 const NODE =
 	"absolute flex flex-col justify-center gap-0.5 rounded-lg px-3 py-[9px] text-foreground no-underline hover:no-underline";
 const RESOURCE_NODE = cn(
 	NODE,
 	"bg-raise ring-1 ring-line2 hover:ring-fg3 focus-visible:ring-2 focus-visible:ring-ring",
+);
+const DRAFT_NODE = cn(
+	NODE,
+	"border border-dashed border-fg4 bg-transparent hover:border-fg3 focus-visible:ring-2 focus-visible:ring-ring",
 );
 const EDGE_NODE = cn(NODE, "bg-panel2");
 
@@ -52,7 +56,7 @@ function GapEdges({ gap, height }: { gap: MapGap; height: number }) {
 			style={{ left: gap.x }}
 		>
 			{gap.edges.map((e) => (
-				<path key={e.key} d={curve(gap.width, e.y1, e.y2)} />
+				<path key={e.key} d={curve(gap.width, e.y1, e.y2)} className={e.draft ? "[stroke-dasharray:4_4]" : undefined} />
 			))}
 			{gap.divider && (
 				<line
@@ -82,12 +86,13 @@ function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; 
 
 function ResourceNode({ node, sub, href }: { node: MapNode; sub: string; href: string }) {
 	const { row } = node;
+	const draft = isDraftItem(row);
 	return (
-		<Link to={href} className={RESOURCE_NODE} style={box(node)}>
+		<Link to={href} className={draft ? DRAFT_NODE : RESOURCE_NODE} style={box(node)}>
 			<NodeText
-				icon={<StatusGlyph glyph={resourceStatusStyle(row.status).glyph} />}
-				title={row.resource.name}
-				sub={sub}
+				icon={<StatusGlyph glyph={draft ? "draft" : resourceStatusStyle(row.status).glyph} />}
+				title={itemName(row)}
+				sub={draft ? "draft" : sub}
 				meta={row.regions.map((g) => g.region).join(" · ")}
 			/>
 		</Link>
@@ -116,10 +121,10 @@ export function ArchitectureDiagram({
 	hrefFor,
 	onShowTable,
 }: {
-	rows: EnvResource[];
+	rows: DashboardItem[];
 	regionOrder: string[];
 	environmentId: string;
-	hrefFor: (id: string) => string;
+	hrefFor: (item: DashboardItem) => string;
 	onShowTable: () => void;
 }) {
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
@@ -170,10 +175,10 @@ export function ArchitectureDiagram({
 						})}
 						{layout.publicNodes.map((node) => (
 							<ResourceNode
-								key={node.row.resource.id}
+								key={itemKey(node.row)}
 								node={node}
-								sub={primaryDomain(node.row.resource) ?? ""}
-								href={hrefFor(node.row.resource.id)}
+								sub={isDraftItem(node.row) ? "" : (primaryDomain(node.row.resource) ?? "")}
+								href={hrefFor(node.row)}
 							/>
 						))}
 						{layout.publicMore !== null && more(layout.hiddenPublic, layout.publicMore)}
@@ -191,12 +196,7 @@ export function ArchitectureDiagram({
 							</div>
 						)}
 						{layout.internalNodes.map((node) => (
-							<ResourceNode
-								key={node.row.resource.id}
-								node={node}
-								sub="internal"
-								href={hrefFor(node.row.resource.id)}
-							/>
+							<ResourceNode key={itemKey(node.row)} node={node} sub="internal" href={hrefFor(node.row)} />
 						))}
 						{layout.internalMore !== null && more(layout.hiddenInternal, layout.internalMore)}
 					</div>

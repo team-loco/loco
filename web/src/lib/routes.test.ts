@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { readQuery } from "@/pages/observability/query";
 
 import { QUERY_MAX_MS, readWindow } from "./obs-time";
-import { buildLogsPath, inResourcesSection, newResourcePath } from "./routes";
+import { buildLogsPath, draftSearch, inResourcesSection, newResourcePath } from "./routes";
 
 test("newResourcePath opens the new resource flow on the resources page and keeps other params", () => {
 	const url = new URL(newResourcePath("o1", "w1", { env: "staging", new: "service" }), "https://loco.test");
@@ -11,6 +11,11 @@ test("newResourcePath opens the new resource flow on the resources page and keep
 	expect(url.searchParams.get("env")).toBe("staging");
 	expect(url.searchParams.getAll("new")).toEqual(["1"]);
 	expect(newResourcePath("o1", "w1")).toBe("/org/o1/wks/w1/resources?new=1");
+});
+
+test("draftSearch opens a draft in place of the new resource flow and keeps other params", () => {
+	expect(draftSearch(new URLSearchParams("env=staging&new=1&q=web"), "d1")).toBe("?env=staging&q=web&draft=d1");
+	expect(draftSearch(new URLSearchParams("draft=d1"), "d2")).toBe("?draft=d2");
 });
 
 test("inResourcesSection covers the resources list and resource pages of that workspace", () => {

@@ -1,7 +1,9 @@
 import { useQuery as useRpcQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
@@ -19,7 +21,9 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
-import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
+import { Notice } from "@/components/design/Notice";
+import { Sheet, SheetBody, SheetContent, SheetFooter } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Stepper } from "@/components/design/Stepper";
@@ -27,10 +31,13 @@ import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
+import { useDrafts } from "@/hooks/useDrafts";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { parseDotEnv } from "@/lib/dotenv";
+import { draftIsPublic, draftRegions, draftSizing, type Draft, type DraftEdits } from "@/lib/drafts";
 import { getErrorMessage } from "@/lib/error-handler";
+import { DRAFT_PARAM } from "@/lib/routes";
 import {
 	firstError,
 	healthSummary,
@@ -48,7 +55,7 @@ import {
 	type NewResourceForm,
 } from "@/lib/new-resource";
 import { slug } from "@/lib/slug";
-import { DeployRunView, useServiceDeploy, type DeployError } from "@/pages/resources/NewServiceDeploy";
+import { DeployRunView, DrawerHeader, useServiceDeploy, type DeployError } from "@/pages/resources/NewServiceDeploy";
 
 const HEALTHY = "healthy";
 const MIN_REPLICAS = 1;
@@ -69,74 +76,55 @@ const API_FIELD_LABEL: Record<ApiField, string> = {
 };
 const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeout", "failAfter"]);
 
-type Step = "image" | "drawer";
+function useTakenNames(workspaceId: string): Map<string, string> {
+	const transport = useTransport();
+	const resourcesQuery = useQuery(workspaceResourcesOptions(transport, workspaceId));
+	return new Map((resourcesQuery.data?.resources ?? []).map((r) => [r.slug, r.name]));
+}
 
 export function NewService({
 	orgId,
 	workspaceId,
 	env,
 	onClose,
+	onCreated,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment | undefined;
 	onClose: () => void;
+	onCreated: (draftId: string) => void;
 }) {
-	const transport = useTransport();
-	const resourcesQuery = useQuery(workspaceResourcesOptions(transport, workspaceId));
-	const [step, setStep] = useState<Step>("image");
+	const store = useDrafts(orgId, workspaceId, env?.id);
 	const [image, setImage] = useState("");
 	const [editedName, setEditedName] = useState<string | null>(null);
-	const taken = new Map((resourcesQuery.data?.resources ?? []).map((r) => [r.slug, r.name]));
-	const name = editedName ?? nameFromImage(image, new Set(taken.keys()));
-	const close = (open: boolean) => {
-		if (!open) onClose();
-	};
+	const taken = useTakenNames(workspaceId);
+	const name = editedName ?? nameFromImage(image, new Set([...taken.keys(), ...store.drafts.map((d) => slug(d.name))]));
 	return (
-		<>
-			<Dialog open={step === "image"} onOpenChange={close}>
-				<DialogContent title="New resource">
-					<ImageStep
-						orgId={orgId}
-						workspaceId={workspaceId}
-						env={env}
-						image={image}
-						name={name}
-						taken={taken}
-						onImage={setImage}
-						onName={setEditedName}
-						onContinue={() => {
-							setEditedName(name);
-							setStep("drawer");
-						}}
-					/>
-				</DialogContent>
-			</Dialog>
-			{env !== undefined && (
-				<Sheet open={step === "drawer"} onOpenChange={close}>
-					<SheetContent size="wide">
-						<SheetHeader>
-							<div className="flex min-w-0 flex-col gap-0.5">
-								<SheetTitle className="truncate">{name}</SheetTitle>
-								<span className="truncate font-mono text-[12px] text-fg3" title={image.trim()}>
-									{image.trim()}
-								</span>
-							</div>
-						</SheetHeader>
-						{step === "drawer" && (
-							<ServiceDrawer
-								orgId={orgId}
-								workspaceId={workspaceId}
-								env={env}
-								image={image}
-								name={name}
-								onClose={onClose}
-							/>
-						)}
-					</SheetContent>
-				</Sheet>
-			)}
-		</>
+		<Dialog
+			open
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
+		>
+			<DialogContent title="New resource">
+				<ImageStep
+					orgId={orgId}
+					workspaceId={workspaceId}
+					env={env}
+					image={image}
+					name={name}
+					taken={taken}
+					onImage={setImage}
+					onName={setEditedName}
+					onContinue={() => {
+						const id = crypto.randomUUID();
+						if (store.create({ id, image: image.trim(), name, createdMs: Date.now(), edits: {} })) onCreated(id);
+						else toast.error("Couldn't save the draft in this browser");
+					}}
+				/>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -245,56 +233,123 @@ function ImageStep({
 	);
 }
 
-function ServiceDrawer({
+export function DraftSheet({
 	orgId,
 	workspaceId,
 	env,
-	image,
-	name,
-	onClose,
+	draftId,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
-	image: string;
-	name: string;
-	onClose: () => void;
+	draftId: string;
 }) {
+	const [params, setParams] = useSearchParams();
+	const store = useDrafts(orgId, workspaceId, env.id);
+	const taken = useTakenNames(workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
 	const regionsQuery = useRpcQuery(listRegions, { environmentId: env.id });
 	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });
+	const deployment = useServiceDeploy(workspaceId, env);
+	const [tried, setTried] = useState(false);
+	const [healthOpen, setHealthOpen] = useState(false);
+	const [discarding, setDiscarding] = useState(false);
+	const close = () => {
+		const next = new URLSearchParams(params);
+		next.delete(DRAFT_PARAM);
+		setParams(next);
+	};
 
+	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const defaults = configQuery.data?.serviceDefaults;
-	if (loadError !== null) {
+	const header = <DrawerHeader name={draft?.name ?? "Draft"} image={draft?.image ?? ""} state="draft" />;
+	const body = (() => {
+		if (deployment.run !== null) {
+			return <DeployRunView run={deployment.run} env={env} orgId={orgId} workspaceId={workspaceId} onDone={close} />;
+		}
+		if (loadError !== null) {
+			return (
+				<SheetBody>
+					<EmptyState title="Couldn't load the form">{getErrorMessage(loadError, "Failed to load")}</EmptyState>
+				</SheetBody>
+			);
+		}
+		if (defaults === undefined || regionsQuery.data === undefined) {
+			return (
+				<SheetBody>
+					{Array.from({ length: SKELETON_ROWS }, (_, i) => (
+						<Skeleton key={i} className="h-14 w-full" />
+					))}
+				</SheetBody>
+			);
+		}
+		if (draft === undefined) {
+			return (
+				<SheetBody>
+					<EmptyState title="This draft isn't here">
+						It was deployed or discarded, or it was saved in another browser.
+					</EmptyState>
+				</SheetBody>
+			);
+		}
 		return (
-			<SheetBody>
-				<EmptyState title="Couldn't load the form">{getErrorMessage(loadError, "Failed to load")}</EmptyState>
-			</SheetBody>
+			<ServiceForm
+				env={env}
+				schemaUrl={configQuery.data?.schemaUrl ?? ""}
+				regions={regionsQuery.data.regions}
+				platformDomains={domainsQuery.data?.platformDomains ?? []}
+				draft={draft}
+				defaults={defaults}
+				deployment={deployment}
+				tried={tried}
+				healthOpen={healthOpen}
+				holder={taken.get(slug(draft.name)) ?? null}
+				onTry={() => {
+					setTried(true);
+				}}
+				onHealthOpen={setHealthOpen}
+				onEdit={(edits) => {
+					deployment.clearError();
+					store.edit(draft.id, edits);
+				}}
+				onDeployed={() => {
+					store.discard(draft.id);
+				}}
+				onDiscard={() => {
+					setDiscarding(true);
+				}}
+			/>
 		);
-	}
-	if (defaults === undefined || regionsQuery.data === undefined) {
-		return (
-			<SheetBody>
-				{Array.from({ length: SKELETON_ROWS }, (_, i) => (
-					<Skeleton key={i} className="h-14 w-full" />
-				))}
-			</SheetBody>
-		);
-	}
+	})();
 	return (
-		<ServiceForm
-			orgId={orgId}
-			workspaceId={workspaceId}
-			env={env}
-			image={image}
-			name={name}
-			defaults={defaults}
-			schemaUrl={configQuery.data?.schemaUrl ?? ""}
-			regions={regionsQuery.data.regions}
-			platformDomains={domainsQuery.data?.platformDomains ?? []}
-			onClose={onClose}
-		/>
+		<Sheet
+			open
+			onOpenChange={(open) => {
+				if (!open) close();
+			}}
+		>
+			<SheetContent size="wide">
+				{deployment.run === null && header}
+				{body}
+			</SheetContent>
+			{draft !== undefined && (
+				<ConfirmDialog
+					open={discarding}
+					title={`Discard ${draft.name}?`}
+					description="The draft is removed from this browser. This can't be undone."
+					confirmLabel="Discard draft"
+					onConfirm={() => {
+						store.discard(draft.id);
+						toast.success(`Discarded ${draft.name}`);
+						close();
+					}}
+					onClose={() => {
+						setDiscarding(false);
+					}}
+				/>
+			)}
+		</Sheet>
 	);
 }
 
@@ -322,43 +377,52 @@ function defaultHealth(defaults: DefaultServiceConfig): HealthForm {
 }
 
 function ServiceForm({
-	orgId,
-	workspaceId,
 	env,
-	image,
-	name,
+	draft,
 	defaults,
 	schemaUrl,
 	regions,
 	platformDomains,
-	onClose,
+	deployment,
+	tried,
+	healthOpen,
+	holder,
+	onTry,
+	onHealthOpen,
+	onEdit,
+	onDeployed,
+	onDiscard,
 }: {
-	orgId: string;
-	workspaceId: string;
 	env: Environment;
-	image: string;
-	name: string;
+	draft: Draft;
 	defaults: DefaultServiceConfig;
 	schemaUrl: string;
 	regions: RegionInfo[];
 	platformDomains: PlatformDomain[];
-	onClose: () => void;
+	deployment: ReturnType<typeof useServiceDeploy>;
+	tried: boolean;
+	healthOpen: boolean;
+	holder: string | null;
+	onTry: () => void;
+	onHealthOpen: (open: boolean) => void;
+	onEdit: (edits: DraftEdits) => void;
+	onDeployed: () => void;
+	onDiscard: () => void;
 }) {
-	const [edits, setEdits] = useState<Partial<NewResourceForm>>({});
-	const [tried, setTried] = useState(false);
-	const [healthOpen, setHealthOpen] = useState(false);
-	const { run, deployError, deploy, clearError } = useServiceDeploy(workspaceId, env, defaults);
+	const { edits, image, name } = draft;
+	const { deployError, deploy } = deployment;
 
-	const selected = edits.regions ?? regions.filter((r) => r.isDefault).map((r) => r.region);
+	const selected = draftRegions(draft, regions);
+	const size = draftSizing(draft, defaults);
 	const served = servedDomains(platformDomains, selected);
 	const form: NewResourceForm = {
 		image,
 		name,
 		regions: selected,
-		cpu: edits.cpu ?? defaults.cpu,
-		memory: edits.memory ?? defaults.memory,
-		replicas: edits.replicas ?? defaults.minReplicas,
-		isPublic: edits.isPublic ?? true,
+		cpu: size.cpu,
+		memory: size.memory,
+		replicas: size.replicas,
+		isPublic: draftIsPublic(draft),
 		subdomain: edits.subdomain ?? slug(name),
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
 		port: edits.port ?? String(defaults.routing?.port ?? ""),
@@ -371,18 +435,11 @@ function ServiceForm({
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);
 	const subdomainError =
 		check.state !== "empty" ? null : form.subdomain === "" ? shown(errors.subdomain, "subdomain") : errors.subdomain;
-	const set = (patch: Partial<NewResourceForm>) => {
-		clearError();
-		setEdits((prev) => ({ ...prev, ...patch }));
-	};
+	const set = onEdit;
 	const setHealth = (patch: Partial<HealthForm>) => {
 		set({ health: { ...form.health, ...patch } });
 	};
 	const blocker = firstError(errors);
-
-	if (run !== null) {
-		return <DeployRunView run={run} env={env} orgId={orgId} workspaceId={workspaceId} onDone={onClose} />;
-	}
 
 	return (
 		<form
@@ -390,15 +447,26 @@ function ServiceForm({
 			className="contents"
 			onSubmit={(e) => {
 				e.preventDefault();
-				setTried(true);
+				onTry();
 				if (blocker !== null) return;
-				void deploy(form).then((err) => {
-					const field = err?.field?.field;
-					if (field !== undefined && HEALTH_FIELDS.has(field)) setHealthOpen(true);
+				void deploy(form, defaults).then((err) => {
+					if (err === null) {
+						onDeployed();
+						return;
+					}
+					const field = err.field?.field;
+					if (field !== undefined && HEALTH_FIELDS.has(field)) onHealthOpen(true);
 				});
 			}}
 		>
 			<SheetBody className="gap-0 py-0 [&>*]:border-b [&>*]:border-line [&>*]:py-5 [&>*:last-child]:border-b-0">
+				{holder !== null && (
+					<div>
+						<Notice>
+							{`${holder} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name.`}
+						</Notice>
+					</div>
+				)}
 				<DrawerSection title="Regions">
 					{regions.length === 0 ? (
 						<span className="text-[13px] text-fg3">No cluster serves {env.name} yet.</span>
@@ -564,7 +632,7 @@ function ServiceForm({
 					health={form.health}
 					open={healthOpen}
 					apiError={apiError}
-					onOpenChange={setHealthOpen}
+					onOpenChange={onHealthOpen}
 					onChange={setHealth}
 				/>
 
@@ -586,8 +654,8 @@ function ServiceForm({
 					</span>
 					<FooterError tried={tried} blocker={blocker} deployError={deployError} />
 				</span>
-				<Button type="button" variant="outline" onClick={onClose}>
-					Cancel
+				<Button type="button" variant="destructive-outline" onClick={onDiscard}>
+					Discard draft
 				</Button>
 				<Button type="submit">{`Deploy ${name}`}</Button>
 			</SheetFooter>
@@ -629,16 +697,12 @@ function EnvSection({
 	error: string | null;
 	onChange: (rows: EnvRow[]) => void;
 }) {
-	const nextIdRef = useRef(0);
 	const [pasteOpen, setPasteOpen] = useState(false);
 	const [pasteText, setPasteText] = useState("");
 	const [focusId, setFocusId] = useState<string | null>(null);
 	const pasteId = useId();
 	const pasted = parseDotEnv(pasteText);
-	const newId = () => {
-		nextIdRef.current += 1;
-		return nextIdRef.current.toString();
-	};
+	const newId = () => crypto.randomUUID();
 	const update = (id: string, patch: Partial<EnvRow>) => {
 		onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 	};

@@ -11,7 +11,8 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
-import { SheetBody, SheetFooter } from "@/components/design/Sheet";
+import { SheetBody, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { StepList } from "@/components/design/StepList";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { regionDeploySteps, runOutcome, type RunOutcome } from "@/lib/deploy-progress";
@@ -37,7 +38,7 @@ export interface DeployError {
 	field: ApiFieldError | null;
 }
 
-export function useServiceDeploy(workspaceId: string, env: Environment, defaults: DefaultServiceConfig) {
+export function useServiceDeploy(workspaceId: string, env: Environment) {
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 	const [run, setRun] = useState<DeployRun | null>(null);
@@ -52,7 +53,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 		}
 	};
 
-	const attempt = async (form: NewResourceForm): Promise<DeployError | null> => {
+	const attempt = async (form: NewResourceForm, defaults: DefaultServiceConfig): Promise<DeployError | null> => {
 		const start: DeployRun = {
 			form,
 			resourceId: undefined,
@@ -151,9 +152,9 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 		}
 	};
 
-	const deploy = async (form: NewResourceForm) => {
+	const deploy = async (form: NewResourceForm, defaults: DefaultServiceConfig) => {
 		setDeployError(null);
-		const error = await attempt(form);
+		const error = await attempt(form, defaults);
 		if (error !== null) setRun(null);
 		setDeployError(error);
 		void queryClient.invalidateQueries();
@@ -168,6 +169,37 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 			setDeployError(null);
 		},
 	};
+}
+
+type DrawerState = "draft" | RunOutcome;
+
+const DRAWER_BADGE: Record<DrawerState, { label: string; glyph: Glyph }> = {
+	draft: { label: "Draft", glyph: "draft" },
+	deploying: { label: "Deploying", glyph: "spin" },
+	live: { label: "Live", glyph: "ok" },
+	failed: { label: "Failed", glyph: "err" },
+};
+
+export function DrawerHeader({ name, image, state }: { name: string; image: string; state: DrawerState }) {
+	const badge = DRAWER_BADGE[state];
+	return (
+		<SheetHeader>
+			<div className="flex min-w-0 flex-col gap-0.5">
+				<div className="flex min-w-0 items-center gap-2.5">
+					<SheetTitle className="truncate">{name}</SheetTitle>
+					<span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-fg2">
+						<StatusGlyph glyph={badge.glyph} />
+						{badge.label}
+					</span>
+				</div>
+				{image !== "" && (
+					<span className="truncate font-mono text-[12px] text-fg3" title={image}>
+						{image}
+					</span>
+				)}
+			</div>
+		</SheetHeader>
+	);
 }
 
 function useDeployProgress(run: DeployRun) {
@@ -214,6 +246,7 @@ export function DeployRunView({
 	const host = `${run.form.subdomain}.${run.form.platformDomain}`;
 	return (
 		<>
+			<DrawerHeader name={run.form.name} image={run.form.image.trim()} state={outcome} />
 			<SheetBody className="gap-1">
 				<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pt-1">
 					<span className="text-[15px] font-medium">{progressTitle(run, outcome)}</span>

@@ -21,18 +21,33 @@ import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentImage } from "@/lib/deployment-utils";
+import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
 import { usePagedRows } from "@/lib/paging";
-import { statusRank } from "@/lib/resource-status";
-import { observabilityPath, resourcePath, resourcesPath } from "@/lib/routes";
+import { draftSearch, observabilityPath, resourcePath, resourcesPath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
-import { ALL, filterRows, statusOptions, TYPE_FILTERS, type RowFilter, viewAllSearch } from "./resourceRows";
+import {
+	ALL,
+	filterRows,
+	isDraftItem,
+	itemKey,
+	itemName,
+	itemRank,
+	itemType,
+	statusOptions,
+	TYPE_FILTERS,
+	viewAllSearch,
+	type DashboardItem,
+	type DraftItem,
+	type RowFilter,
+} from "./resourceRows";
 import type { EnvResource } from "./useDashboardData";
 
 type SortKey = "name" | "status" | "regions" | "replicas" | "deploy";
@@ -53,18 +68,26 @@ const HEADERS: { key: SortKey | null; label: string; className: string; soon?: b
 	{ key: "deploy", label: "Deployed", className: "w-[84px] text-right [&>button]:ml-auto" },
 ];
 
-function compare(key: SortKey, a: EnvResource, b: EnvResource): number {
+function replicaTotal(item: DashboardItem): number {
+	return isDraftItem(item) ? 0 : item.totalReplicas;
+}
+
+function lastDeployMs(item: DashboardItem): number {
+	return isDraftItem(item) ? 0 : tsMs(item.last?.createdAt);
+}
+
+function compare(key: SortKey, a: DashboardItem, b: DashboardItem): number {
 	switch (key) {
 		case "name":
-			return a.resource.name.localeCompare(b.resource.name);
+			return itemName(a).localeCompare(itemName(b));
 		case "status":
-			return statusRank(a.status) - statusRank(b.status);
+			return itemRank(a) - itemRank(b);
 		case "regions":
 			return (a.regions[0]?.region ?? "").localeCompare(b.regions[0]?.region ?? "");
 		case "replicas":
-			return b.totalReplicas - a.totalReplicas;
+			return replicaTotal(b) - replicaTotal(a);
 		case "deploy":
-			return tsMs(b.last?.createdAt) - tsMs(a.last?.createdAt);
+			return lastDeployMs(b) - lastDeployMs(a);
 	}
 }
 
@@ -144,6 +167,51 @@ function DashboardRowMenu({
 	);
 }
 
+const NAME_CLASS = "truncate text-left text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline";
+
+function Regions({ item }: { item: DashboardItem }) {
+	return (
+		<div className="flex flex-col font-mono text-[12px] leading-[1.6] text-fg2">
+			{item.regions.map((g) => (
+				<span key={g.region}>{g.region}</span>
+			))}
+		</div>
+	);
+}
+
+function DraftDataRow({ item, href }: { item: DraftItem; href: string }) {
+	return (
+		<TableRow>
+			<TableCell>
+				<span className="inline-flex items-center gap-2 text-[13.5px] whitespace-nowrap text-foreground">
+					<StatusGlyph glyph="draft" />
+					Draft
+				</span>
+			</TableCell>
+			<TableCell>
+				<div className="flex min-w-0 flex-col gap-0.5">
+					<Link to={href} className={cn(NAME_CLASS, "underline decoration-fg4 decoration-dashed")}>
+						{item.draft.name}
+					</Link>
+					<span className="truncate text-[12.5px] text-fg3">{DRAFT_NOTE}</span>
+				</div>
+			</TableCell>
+			<TableCell>
+				<Regions item={item} />
+			</TableCell>
+			<TableCell className="font-mono text-[12px] text-fg4">—</TableCell>
+			<TableCell />
+			<TableCell>
+				<span className="block truncate font-mono text-[12px] text-fg3" title={item.draft.image}>
+					{item.draft.image}
+				</span>
+			</TableCell>
+			<TableCell className="text-right font-mono text-[12px] text-fg3">—</TableCell>
+			<TableCell />
+		</TableRow>
+	);
+}
+
 function DataRow({
 	item,
 	hrefFor,
@@ -159,7 +227,6 @@ function DataRow({
 	envName: string;
 	nowMs: number;
 }) {
-	const nameClass = "truncate text-left text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline";
 	const note = statusNote(item);
 	const last = item.last;
 	const message = last?.message ?? "";
@@ -178,18 +245,14 @@ function DataRow({
 			</TableCell>
 			<TableCell>
 				<div className="flex min-w-0 flex-col gap-0.5">
-					<Link to={hrefFor(item.resource.id)} className={nameClass}>
+					<Link to={hrefFor(item.resource.id)} className={NAME_CLASS}>
 						{item.resource.name}
 					</Link>
 					<span className="truncate text-[12.5px] text-fg3">{item.resource.description ?? ""}</span>
 				</div>
 			</TableCell>
 			<TableCell>
-				<div className="flex flex-col font-mono text-[12px] leading-[1.6] text-fg2">
-					{item.regions.map((g) => (
-						<span key={g.region}>{g.region}</span>
-					))}
-				</div>
+				<Regions item={item} />
 			</TableCell>
 			<TableCell>
 				<div className="flex flex-col">
@@ -234,7 +297,7 @@ export function ResourcesTable({
 	nowMs,
 	hrefFor,
 }: {
-	items: EnvResource[];
+	items: DashboardItem[];
 	regions: RegionInfo[];
 	orgId: string;
 	workspaceId: string;
@@ -264,8 +327,8 @@ export function ResourcesTable({
 	const regionCounts = new Map<string, number>();
 	const regionNames = new Set(regions.map((r) => r.region));
 	for (const item of items) {
-		statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
-		typeCounts.set(item.resource.type, (typeCounts.get(item.resource.type) ?? 0) + 1);
+		if (!isDraftItem(item)) statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
+		typeCounts.set(itemType(item), (typeCounts.get(itemType(item)) ?? 0) + 1);
 		for (const name of new Set(item.regions.map((g) => g.region))) {
 			regionNames.add(name);
 			regionCounts.set(name, (regionCounts.get(name) ?? 0) + 1);
@@ -383,6 +446,9 @@ export function ResourcesTable({
 		/>
 	);
 
+	const itemHref = (item: DashboardItem) =>
+		isDraftItem(item) ? draftSearch(params, item.draft.id) : hrefFor(item.resource.id);
+
 	const toggleSort = (key: SortKey) => {
 		setSortDir(sortKey === key ? -sortDir : 1);
 		setSortKey(key);
@@ -398,7 +464,7 @@ export function ResourcesTable({
 						rows={visible}
 						regionOrder={regions.map((r) => r.region)}
 						environmentId={environmentId}
-						hrefFor={hrefFor}
+						hrefFor={itemHref}
 						onShowTable={() => {
 							setView(TABLE_VIEW);
 						}}
@@ -451,17 +517,21 @@ export function ResourcesTable({
 									</TableCell>
 								</TableRow>
 							)}
-							{paged.rows.map((item) => (
-								<DataRow
-									key={item.resource.id}
-									item={item}
-									hrefFor={hrefFor}
-									orgId={orgId}
-									workspaceId={workspaceId}
-									envName={envName}
-									nowMs={nowMs}
-								/>
-							))}
+							{paged.rows.map((item) =>
+								isDraftItem(item) ? (
+									<DraftDataRow key={itemKey(item)} item={item} href={itemHref(item)} />
+								) : (
+									<DataRow
+										key={itemKey(item)}
+										item={item}
+										hrefFor={hrefFor}
+										orgId={orgId}
+										workspaceId={workspaceId}
+										envName={envName}
+										nowMs={nowMs}
+									/>
+								),
+							)}
 						</TableBody>
 					</Table>
 					<Pager {...paged.pager} {...paged.ends} />

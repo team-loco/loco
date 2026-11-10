@@ -52,6 +52,15 @@ export function newResourcePath(orgId: string, workspaceId: string, params: Reco
 	return `${resourcesPath(orgId, workspaceId)}?${search.toString()}`;
 }
 
+export const DRAFT_PARAM = "draft";
+
+export function draftSearch(params: URLSearchParams, draftId: string): string {
+	const next = new URLSearchParams(params);
+	next.delete(NEW_RESOURCE_PARAM);
+	next.set(DRAFT_PARAM, draftId);
+	return `?${next.toString()}`;
+}
+
 export type ObservabilityView = "logs" | "metrics" | "traces" | "events";
 
 export function observabilityPath(

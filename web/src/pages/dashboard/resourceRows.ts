@@ -1,9 +1,48 @@
-import { ResourceStatus, ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
-import { primaryDomain } from "@/lib/resource-status";
+import { DRAFT_RANK, draftIsPublic, draftRegions, type Draft } from "@/lib/drafts";
+import { primaryDomain, statusRank } from "@/lib/resource-status";
 import { STATUS_FILTERS as RESOURCES_STATUS_FILTERS, writeFilter } from "@/pages/resources/table";
 
-import type { EnvResource } from "./useDashboardData";
+import type { EnvResource, RegionReplicas } from "./useDashboardData";
+
+export interface DraftItem {
+	draft: Draft;
+	regions: RegionReplicas[];
+}
+
+export type DashboardItem = EnvResource | DraftItem;
+
+export function isDraftItem(item: DashboardItem): item is DraftItem {
+	return "draft" in item;
+}
+
+export function draftItems(drafts: readonly Draft[], regions: readonly RegionInfo[]): DraftItem[] {
+	return drafts.map((draft) => ({
+		draft,
+		regions: draftRegions(draft, regions).map((region) => ({ region, desired: 0, ready: 0 })),
+	}));
+}
+
+export function itemKey(item: DashboardItem): string {
+	return isDraftItem(item) ? item.draft.id : item.resource.id;
+}
+
+export function itemName(item: DashboardItem): string {
+	return isDraftItem(item) ? item.draft.name : item.resource.name;
+}
+
+export function itemRank(item: DashboardItem): number {
+	return isDraftItem(item) ? DRAFT_RANK : statusRank(item.status);
+}
+
+export function itemIsPublic(item: DashboardItem): boolean {
+	return isDraftItem(item) ? draftIsPublic(item.draft) : primaryDomain(item.resource) !== null;
+}
+
+export function itemType(item: DashboardItem): ResourceType {
+	return isDraftItem(item) ? ResourceType.SERVICE : item.resource.type;
+}
 
 export const ALL = "all";
 
@@ -35,30 +74,27 @@ export interface RowFilter {
 	query: string;
 }
 
-function matchesQuery(item: EnvResource, query: string): boolean {
+function matchesQuery(item: DashboardItem, query: string): boolean {
 	const q = query.trim().toLowerCase();
 	if (q === "") return true;
-	const { resource } = item;
-	const fields = [
-		resource.name,
-		resource.description ?? "",
-		primaryDomain(resource) ?? "",
-		...item.regions.map((g) => g.region),
-	];
+	const own = isDraftItem(item)
+		? [item.draft.name, item.draft.image]
+		: [item.resource.name, item.resource.description ?? "", primaryDomain(item.resource) ?? ""];
+	const fields = [...own, ...item.regions.map((g) => g.region)];
 	return fields.some((f) => f.toLowerCase().includes(q));
 }
 
-function matchesStatus(item: EnvResource, status: string): boolean {
+function matchesStatus(item: DashboardItem, status: string): boolean {
 	if (status === ALL) return true;
-	return STATUS_FILTERS.some((o) => o.value === status && o.status === item.status);
+	return !isDraftItem(item) && STATUS_FILTERS.some((o) => o.value === status && o.status === item.status);
 }
 
-function matchesType(item: EnvResource, type: string): boolean {
+function matchesType(item: DashboardItem, type: string): boolean {
 	if (type === ALL) return true;
-	return TYPE_FILTERS.some((o) => o.value === type && o.type === item.resource.type);
+	return TYPE_FILTERS.some((o) => o.value === type && o.type === itemType(item));
 }
 
-export function filterRows(items: EnvResource[], filter: RowFilter): EnvResource[] {
+export function filterRows<T extends DashboardItem>(items: T[], filter: RowFilter): T[] {
 	return items.filter(
 		(item) =>
 			matchesStatus(item, filter.status) &&

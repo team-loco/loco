@@ -1,4 +1,6 @@
+import { useQuery } from "@connectrpc/connect-query";
 import { useSearchParams } from "react-router";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
 import { Badge } from "@/components/design/Badge";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -8,16 +10,17 @@ import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
 import { getErrorMessage } from "@/lib/error-handler";
-import { NEW_RESOURCE_PARAM, newResourcePath } from "@/lib/routes";
+import { DRAFT_PARAM, draftSearch, NEW_RESOURCE_PARAM, newResourcePath } from "@/lib/routes";
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
-import { NewService } from "@/pages/resources/NewService";
+import { DraftSheet, NewService } from "@/pages/resources/NewService";
 import { ResourcesEmpty } from "@/pages/resources/ResourcesEmpty";
 import { ResourceTable } from "@/pages/resources/ResourceTable";
-import { buildRows } from "@/pages/resources/table";
+import { buildRows, draftRows } from "@/pages/resources/table";
 
 const NOW_TICK_MS = 60_000;
 const SKELETON_ROWS = 6;
@@ -42,11 +45,14 @@ export function Resources() {
 	const data = useWorkspaceDeployments(activeWorkspaceId);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
 	const [params, setParams] = useSearchParams();
-
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
+	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
+	const configQuery = useQuery(getConfig, {}, { enabled: drafts.length > 0 });
+
 	const loading = envsLoading || data.isLoading;
-	const total = data.resources.length;
+	const total = data.resources.length + drafts.length;
+	const draftId = params.get(DRAFT_PARAM);
 	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.name });
 
 	const body = (() => {
@@ -71,9 +77,14 @@ export function Resources() {
 			);
 		}
 		if (total === 0) return <ResourcesEmpty />;
+		const resources = buildRows(data.resources, data.deployments, environments, active?.id);
 		return (
 			<ResourceTable
-				rows={buildRows(data.resources, data.deployments, environments, active?.id)}
+				rows={
+					active === undefined
+						? resources
+						: [...resources, ...draftRows(drafts, active.id, configQuery.data?.serviceDefaults)]
+				}
 				environments={environments}
 				active={active}
 				orgId={orgId}
@@ -111,7 +122,13 @@ export function Resources() {
 						next.delete(NEW_RESOURCE_PARAM);
 						setParams(next);
 					}}
+					onCreated={(id) => {
+						setParams(new URLSearchParams(draftSearch(params, id)));
+					}}
 				/>
+			)}
+			{draftId !== null && active !== undefined && (
+				<DraftSheet key={draftId} orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />
 			)}
 		</Page>
 	);

@@ -8,7 +8,7 @@ import {
 	Settings2Icon,
 	XIcon,
 } from "lucide-react";
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
@@ -36,9 +36,11 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { DRAFT_NOTE } from "@/lib/drafts";
+import { imageVersion } from "@/lib/image";
 import { pagedRows } from "@/lib/paging";
 import { formatCpu, formatMemory } from "@/lib/quantity";
-import { observabilityPath, resourcePath } from "@/lib/routes";
+import { draftSearch, observabilityPath, resourcePath } from "@/lib/routes";
 import { pageSelection, toggleId, togglePage } from "@/lib/selection";
 import { agoLabel, formatMonthDayYear } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,7 @@ import {
 	cellSummary,
 	filterRows,
 	firstDir,
+	isDraftRow,
 	linkEnvironment,
 	PAGE_SIZES,
 	readTableState,
@@ -61,11 +64,14 @@ import {
 	writeTableState,
 	type Column,
 	type EnvCell,
+	type DraftRow,
 	type ResourceRow,
+	type ListRow,
 	type TableState,
 } from "./table";
 
 const MENU_WIDTH = 40;
+const DRAFT_NAME = "underline decoration-fg4 decoration-dashed hover:decoration-foreground";
 const CHECK_WIDTH = 36;
 const MIN_WIDTH = 72;
 const MAX_WIDTH = 520;
@@ -131,6 +137,45 @@ function EnvCellView({ cell, nowMs }: { cell: EnvCell | undefined; nowMs: number
 	);
 }
 
+function DraftCellView({ row }: { row: DraftRow }) {
+	return (
+		<span className="flex max-w-full min-w-0 flex-col items-start gap-0.5">
+			<span className="flex min-w-0 items-center gap-2">
+				<StatusGlyph glyph="draft" />
+				<span className="truncate font-mono text-[12.5px] text-foreground">Draft</span>
+			</span>
+			<span className="max-w-full truncate font-mono text-[11.5px] text-fg3">{imageVersion(row.draft.image)}</span>
+		</span>
+	);
+}
+
+function NameCell({
+	to,
+	name,
+	description,
+	draft = false,
+}: {
+	to: string;
+	name: string;
+	description: string;
+	draft?: boolean;
+}) {
+	return (
+		<div className="flex min-w-0 flex-col gap-0.5">
+			<Link
+				to={to}
+				className={cn(
+					"truncate text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline",
+					draft && DRAFT_NAME,
+				)}
+			>
+				{name}
+			</Link>
+			<span className="truncate text-[12.5px] text-fg3">{description}</span>
+		</div>
+	);
+}
+
 function Mono({ text }: { text: string | null }) {
 	if (text === null || text === "") return <span className="text-fg4">—</span>;
 	return (
@@ -140,11 +185,12 @@ function Mono({ text }: { text: string | null }) {
 	);
 }
 
-function DataCell({ column, row, nowMs }: { column: Column; row: ResourceRow; nowMs: number }) {
+function DataCell({ column, row, nowMs }: { column: Column; row: ListRow; nowMs: number }) {
 	switch (column.kind) {
 		case "name":
 			return null;
 		case "env":
+			if (isDraftRow(row) && row.environmentId === column.environment?.id) return <DraftCellView row={row} />;
 			return <EnvCellView cell={row.cells.get(column.environment?.id ?? "")} nowMs={nowMs} />;
 		case "size":
 			return <Mono text={row.cpuMilli === 0 ? null : `${formatCpu(row.cpuMilli)} · ${formatMemory(row.memMi)}`} />;
@@ -219,7 +265,7 @@ export function ResourceTable({
 	workspaceId,
 	nowMs,
 }: {
-	rows: ResourceRow[];
+	rows: ListRow[];
 	environments: Environment[];
 	active: Environment | undefined;
 	orgId: string;
@@ -262,9 +308,10 @@ export function ResourceTable({
 	];
 	const widthOf = (c: Column) => widths[c.key] ?? c.width;
 	const minWidth = shown.reduce((n, c) => n + widthOf(c), MENU_WIDTH + CHECK_WIDTH);
-	const pageIds = paged.rows.map((r) => r.resource.id);
+	const pageResources = paged.rows.filter((r): r is ResourceRow => !isDraftRow(r));
+	const pageIds = pageResources.map((r) => r.resource.id);
 	const selection = pageSelection(selected, pageIds);
-	const selectedRows = paged.rows.filter((r) => selected.has(r.resource.id));
+	const selectedRows = pageResources.filter((r) => selected.has(r.resource.id));
 	const hasFilters = filter.query.trim() !== "" || filter.status !== ALL || filter.region !== ALL;
 
 	const toggleSort = (c: Column) => {
@@ -451,47 +498,60 @@ export function ResourceTable({
 							</TableCell>
 						</TableRow>
 					)}
-					{paged.rows.map((row) => (
-						<TableRow key={row.resource.id} data-state={selected.has(row.resource.id) ? "selected" : undefined}>
-							<TableCell>
-								<Checkbox
-									aria-label={`Select ${row.resource.name}`}
-									checked={selected.has(row.resource.id)}
-									onCheckedChange={() => {
-										setSelected(toggleId(selected, row.resource.id));
-									}}
-								/>
-							</TableCell>
-							{shown.map((c) =>
-								c.kind === "name" ? (
-									<TableCell key={c.key}>
-										<div className="flex min-w-0 flex-col gap-0.5">
-											<Link
-												to={resourcePath(orgId, workspaceId, row.resource.id)}
-												className="truncate text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline"
-											>
-												{row.resource.name}
-											</Link>
-											<span className="truncate text-[12.5px] text-fg3">{row.resource.description ?? ""}</span>
-										</div>
-									</TableCell>
-								) : (
-									<TableCell key={c.key}>
-										<DataCell column={c} row={row} nowMs={nowMs} />
-									</TableCell>
-								),
-							)}
-							<TableCell className="text-right">
-								<RowActions
-									row={row}
-									environments={environments}
-									active={active}
-									orgId={orgId}
-									workspaceId={workspaceId}
-								/>
-							</TableCell>
-						</TableRow>
-					))}
+					{paged.rows.map((row) => {
+						const cells = (name: ReactNode) =>
+							shown.map((c) => (
+								<TableCell key={c.key}>
+									{c.kind === "name" ? name : <DataCell column={c} row={row} nowMs={nowMs} />}
+								</TableCell>
+							));
+						if (isDraftRow(row)) {
+							return (
+								<TableRow key={row.draft.id}>
+									<TableCell />
+									{cells(
+										<NameCell
+											to={draftSearch(params, row.draft.id)}
+											name={row.draft.name}
+											description={DRAFT_NOTE}
+											draft
+										/>,
+									)}
+									<TableCell />
+								</TableRow>
+							);
+						}
+						const on = selected.has(row.resource.id);
+						return (
+							<TableRow key={row.resource.id} data-state={on ? "selected" : undefined}>
+								<TableCell>
+									<Checkbox
+										aria-label={`Select ${row.resource.name}`}
+										checked={on}
+										onCheckedChange={() => {
+											setSelected(toggleId(selected, row.resource.id));
+										}}
+									/>
+								</TableCell>
+								{cells(
+									<NameCell
+										to={resourcePath(orgId, workspaceId, row.resource.id)}
+										name={row.resource.name}
+										description={row.resource.description ?? ""}
+									/>,
+								)}
+								<TableCell className="text-right">
+									<RowActions
+										row={row}
+										environments={environments}
+										active={active}
+										orgId={orgId}
+										workspaceId={workspaceId}
+									/>
+								</TableCell>
+							</TableRow>
+						);
+					})}
 				</TableBody>
 			</Table>
 			<Pager {...paged.pager} {...paged.ends} />
