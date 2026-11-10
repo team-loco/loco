@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.14,<3.15"
-# dependencies = ["playwright==1.64.1"]
+# dependencies = ["playwright==1.65.0"]
 # ///
 import argparse
 import base64
