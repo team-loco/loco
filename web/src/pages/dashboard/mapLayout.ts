@@ -8,10 +8,9 @@ export const MAP_NODE_W = 184;
 export const MAP_NODE_H = 66;
 export const MAP_MORE_H = 32;
 export const MAP_LABEL_H = 28;
+export const MAP_MIN_GAP = 56;
 
-const COL_GAP = 16;
-const LINE_GAP = 12;
-const TIER_GAP = 44;
+const ROW_GAP = 12;
 
 export interface MapPoint {
 	x: number;
@@ -30,10 +29,16 @@ export interface MapNode extends MapPoint {
 
 export interface MapEdge {
 	key: string;
-	x1: number;
 	y1: number;
-	x2: number;
 	y2: number;
+}
+
+export interface MapGap {
+	key: string;
+	x: number;
+	width: number;
+	edges: MapEdge[];
+	divider: boolean;
 }
 
 export interface MapLayout {
@@ -43,40 +48,46 @@ export interface MapLayout {
 	gateways: MapGateway[];
 	publicNodes: MapNode[];
 	hiddenPublic: number;
-	publicMoreY: number;
-	internalLabelY: number;
+	publicMore: MapPoint | null;
+	internalLabel: MapPoint | null;
 	internalNodes: MapNode[];
 	hiddenInternal: number;
-	internalMoreY: number;
-	edges: MapEdge[];
+	internalMore: MapPoint | null;
+	gaps: MapGap[];
 }
 
-export function perLine(width: number): number {
-	return Math.max(1, Math.floor((width + COL_GAP) / (MAP_NODE_W + COL_GAP)));
+interface Column {
+	key: string;
+	count: number;
+	label: boolean;
+	more: boolean;
 }
 
-export function placeRow(count: number, top: number, width: number): { points: MapPoint[]; bottom: number } {
-	const cols = perLine(width);
-	const points: MapPoint[] = [];
-	for (let i = 0; i < count; i++) {
-		const line = Math.floor(i / cols);
-		const inLine = Math.min(cols, count - line * cols);
-		const lineW = inLine * MAP_NODE_W + (inLine - 1) * COL_GAP;
-		const left = Math.max(0, (width - lineW) / 2);
-		points.push({ x: left + (i % cols) * (MAP_NODE_W + COL_GAP), y: top + line * (MAP_NODE_H + LINE_GAP) });
+interface PlacedColumn {
+	label: MapPoint | null;
+	nodes: MapPoint[];
+	more: MapPoint | null;
+}
+
+function columnHeight(c: Column): number {
+	return (
+		(c.label ? MAP_LABEL_H + ROW_GAP : 0) +
+		c.count * MAP_NODE_H +
+		(c.count - 1) * ROW_GAP +
+		(c.more ? ROW_GAP + MAP_MORE_H : 0)
+	);
+}
+
+function placeColumn(c: Column, x: number, height: number): PlacedColumn {
+	let y = (height - columnHeight(c)) / 2;
+	let label: MapPoint | null = null;
+	if (c.label) {
+		label = { x, y };
+		y += MAP_LABEL_H + ROW_GAP;
 	}
-	const lines = Math.ceil(count / cols);
-	return { points, bottom: top + lines * MAP_NODE_H + Math.max(0, lines - 1) * LINE_GAP };
-}
-
-function edge(key: string, from: MapPoint, to: MapPoint): MapEdge {
-	return {
-		key,
-		x1: from.x + MAP_NODE_W / 2,
-		y1: from.y + MAP_NODE_H,
-		x2: to.x + MAP_NODE_W / 2,
-		y2: to.y,
-	};
+	const nodes = Array.from({ length: c.count }, (_, i) => ({ x, y: y + i * (MAP_NODE_H + ROW_GAP) }));
+	const more = c.more ? { x, y: y + c.count * (MAP_NODE_H + ROW_GAP) } : null;
+	return { label, nodes, more };
 }
 
 function at<T>(points: MapPoint[], i: number, extra: T): MapPoint & T {
@@ -85,8 +96,11 @@ function at<T>(points: MapPoint[], i: number, extra: T): MapPoint & T {
 	return { ...p, ...extra };
 }
 
+function middle(p: MapPoint): number {
+	return p.y + MAP_NODE_H / 2;
+}
+
 export function mapLayout(rows: EnvResource[], regionOrder: string[], availableWidth: number): MapLayout {
-	const width = Math.max(availableWidth, MAP_NODE_W);
 	const ranked = rows.toSorted(
 		(a, b) => statusRank(a.status) - statusRank(b.status) || a.resource.name.localeCompare(b.resource.name),
 	);
@@ -101,70 +115,78 @@ export function mapLayout(rows: EnvResource[], regionOrder: string[], availableW
 		.map((region) => ({ region, rows: shownPublic.filter((r) => r.regions.some((g) => g.region === region)) }))
 		.filter((g) => g.rows.length > 0);
 
-	let y = 0;
-	let internet: MapPoint | null = null;
-	let gateways: MapGateway[] = [];
-	let publicNodes: MapNode[] = [];
-	let publicMoreY = 0;
+	const columns: Column[] = [];
 	if (shownPublic.length > 0) {
-		const net = placeRow(1, y, width);
-		internet = at(net.points, 0, {});
-		const gw = placeRow(served.length, net.bottom + TIER_GAP, width);
-		gateways = served.map((g, i) =>
-			at(gw.points, i, {
-				region: g.region,
-				resources: g.rows.length,
-				replicas: g.rows.reduce(
-					(sum, r) => sum + r.regions.filter((x) => x.region === g.region).reduce((m, x) => m + x.desired, 0),
-					0,
-				),
-			}),
+		columns.push(
+			{ key: "internet", count: 1, label: false, more: false },
+			{ key: "gateways", count: served.length, label: false, more: false },
+			{ key: "public", count: shownPublic.length, label: false, more: publicRows.length > shownPublic.length },
 		);
-		const pub = placeRow(shownPublic.length, gw.bottom + TIER_GAP, width);
-		publicNodes = shownPublic.map((row, i) => at(pub.points, i, { row }));
-		y = pub.bottom;
-		if (publicRows.length > shownPublic.length) {
-			publicMoreY = y + LINE_GAP;
-			y = publicMoreY + MAP_MORE_H;
-		}
 	}
-
-	let internalLabelY = 0;
-	let internalNodes: MapNode[] = [];
-	let internalMoreY = 0;
 	if (shownInternal.length > 0) {
-		internalLabelY = shownPublic.length > 0 ? y + TIER_GAP / 2 : y;
-		const internal = placeRow(shownInternal.length, internalLabelY + MAP_LABEL_H + LINE_GAP, width);
-		internalNodes = shownInternal.map((row, i) => at(internal.points, i, { row }));
-		y = internal.bottom;
-		if (internalRows.length > shownInternal.length) {
-			internalMoreY = y + LINE_GAP;
-			y = internalMoreY + MAP_MORE_H;
-		}
+		columns.push({
+			key: "internal",
+			count: shownInternal.length,
+			label: true,
+			more: internalRows.length > shownInternal.length,
+		});
 	}
 
-	const source = internet;
-	const edges: MapEdge[] = [
-		...(source === null ? [] : gateways.map((g) => edge(`net/${g.region}`, source, g))),
-		...gateways.flatMap((g) =>
-			publicNodes
-				.filter((n) => n.row.regions.some((r) => r.region === g.region))
-				.map((n) => edge(`${g.region}/${n.row.resource.id}`, g, n)),
-		),
-	];
+	const n = columns.length;
+	const width = Math.max(availableWidth, n * MAP_NODE_W + Math.max(0, n - 1) * MAP_MIN_GAP);
+	const gap = n > 1 ? (width - n * MAP_NODE_W) / (n - 1) : 0;
+	const height = Math.max(0, ...columns.map(columnHeight));
+	const xs = columns.map((_, i) => i * (MAP_NODE_W + gap));
+	const placed = new Map(columns.map((c, i) => [c.key, placeColumn(c, xs[i] ?? 0, height)]));
+
+	const net = placed.get("internet");
+	const internet = net === undefined ? null : at(net.nodes, 0, {});
+	const gateways = served.map((g, i) =>
+		at(placed.get("gateways")?.nodes ?? [], i, {
+			region: g.region,
+			resources: g.rows.length,
+			replicas: g.rows.reduce(
+				(sum, r) => sum + r.regions.filter((x) => x.region === g.region).reduce((m, x) => m + x.desired, 0),
+				0,
+			),
+		}),
+	);
+	const pub = placed.get("public");
+	const publicNodes = shownPublic.map((row, i) => at(pub?.nodes ?? [], i, { row }));
+	const internal = placed.get("internal");
+	const internalNodes = shownInternal.map((row, i) => at(internal?.nodes ?? [], i, { row }));
+
+	const edgesInto = (key: string): MapEdge[] => {
+		if (key === "gateways" && internet !== null)
+			return gateways.map((g) => ({ key: `net/${g.region}`, y1: middle(internet), y2: middle(g) }));
+		if (key === "public")
+			return gateways.flatMap((g) =>
+				publicNodes
+					.filter((p) => p.row.regions.some((r) => r.region === g.region))
+					.map((p) => ({ key: `${g.region}/${p.row.resource.id}`, y1: middle(g), y2: middle(p) })),
+			);
+		return [];
+	};
+	const gaps = columns.slice(1).map((c, i) => ({
+		key: c.key,
+		x: (xs[i] ?? 0) + MAP_NODE_W,
+		width: gap,
+		edges: edgesInto(c.key),
+		divider: c.key === "internal",
+	}));
 
 	return {
 		width,
-		height: y,
+		height,
 		internet,
 		gateways,
 		publicNodes,
 		hiddenPublic: publicRows.length - shownPublic.length,
-		publicMoreY,
-		internalLabelY,
+		publicMore: pub?.more ?? null,
+		internalLabel: internal?.label ?? null,
 		internalNodes,
 		hiddenInternal: internalRows.length - shownInternal.length,
-		internalMoreY,
-		edges,
+		internalMore: internal?.more ?? null,
+		gaps,
 	};
 }
