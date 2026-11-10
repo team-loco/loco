@@ -145,6 +145,9 @@ function TraceSession() {
 
 	const header = (
 		<ViewHeader
+			count={
+				loading || browse.error !== null ? undefined : `${formatCount(traces.length)}${browse.hasNextPage ? "+" : ""}`
+			}
 			actions={
 				<Button
 					variant="outline"
@@ -206,19 +209,10 @@ function TraceSession() {
 						<SoonTag />
 					</>
 				}
-				meta="each trace as a dot by start time and duration"
 				card={false}
 			/>
 			<section aria-label="Trace list" className="flex min-w-0 flex-col rounded-card bg-panel">
 				<div className="flex flex-wrap items-center gap-2 px-5 pt-3 pb-1.5">
-					<span className="text-[13.5px]">
-						{formatCount(traces.length)} {traces.length === 1 ? "trace" : "traces"}
-					</span>
-					<span className="text-[12.5px] text-fg3">
-						observed in {formatCount(spans.length)} loaded {spans.length === 1 ? "span" : "spans"}
-						{browse.hasNextPage ? " · partial" : ""}
-					</span>
-					<span className="flex-1" />
 					<ToggleGroup
 						variant="segmented"
 						aria-label="Show"

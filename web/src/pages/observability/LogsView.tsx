@@ -6,7 +6,6 @@ import { Button } from "@/components/design/Button";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
@@ -26,7 +25,7 @@ import { LogDetail } from "./LogDetail";
 import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
-import { buildBackendQuery, LEVELS, queryStr, sameToken, type FieldKey, type Level } from "./query";
+import { buildBackendQuery, LEVELS, queryStr, sameToken, type FieldKey, type Level, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
 import { PAGE_SIZES, readPaging, VolumeBars, type VolumeBucket } from "./shared";
@@ -42,14 +41,16 @@ const IDLE_TICK_MS = 15_000;
 const RATE_WINDOW_MS = 10_000;
 const FRESH_MS = 1800;
 
-type ColorBy = "level" | "resource";
-
 const LEVEL_SERIES: Record<Level, { label: string; color: string }> = {
 	error: { label: "Error", color: "var(--err)" },
 	warn: { label: "Warning", color: "var(--warn)" },
 	info: { label: "Info", color: "color-mix(in oklab, var(--fg) 28%, var(--panel))" },
 	debug: { label: "Debug", color: "var(--line2)" },
 };
+
+function levelToken(level: Level): Token {
+	return { neg: false, key: "level", value: level };
+}
 
 function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 	let best: LogRow | undefined;
@@ -66,7 +67,6 @@ export function LogsView() {
 	const mobile = useIsMobile();
 	const { size } = readPaging(params, DEFAULT_PAGE_SIZE);
 	const columns = readColumns(params.get("cols"));
-	const colorBy: ColorBy = params.get("color") === "resource" ? "resource" : "level";
 	const [page, setPage] = useState<number | "last">(0);
 	const [history, setHistory] = useState(createLogHistory);
 	const anchor = logAnchor(params.get("at"));
@@ -199,29 +199,22 @@ export function LogsView() {
 	const to = tail ? nowMs : historyTo;
 
 	const bw = (to - from) / BUCKETS;
-	const groups =
-		colorBy === "level"
-			? LEVELS.map((l) => ({ id: l, label: LEVEL_SERIES[l].label, color: LEVEL_SERIES[l].color }))
-			: resources.map((r) => ({ id: r.name, label: r.name, color: r.color }));
-	const groupOf = (r: LogRow) => (colorBy === "level" ? r.level : r.resourceName);
-	const counts = Array.from({ length: BUCKETS }, () => new Map<string, number>());
-	const totals = new Map<string, number>();
+	const counts = Array.from({ length: BUCKETS }, () => new Map<Level, number>());
+	const totals = new Map<Level, number>();
 	for (const r of rows) {
 		const idx = Math.min(BUCKETS - 1, Math.floor((r.ts - from) / bw));
 		const bucket = counts[idx];
-		const g = groupOf(r);
-		totals.set(g, (totals.get(g) ?? 0) + 1);
+		totals.set(r.level, (totals.get(r.level) ?? 0) + 1);
 		if (idx < 0 || bucket === undefined) continue;
-		bucket.set(g, (bucket.get(g) ?? 0) + 1);
+		bucket.set(r.level, (bucket.get(r.level) ?? 0) + 1);
 	}
 	const buckets: VolumeBucket[] = counts.map((b, i) => {
 		const total = [...b.values()].reduce((a, n) => a + n, 0);
 		return {
 			label: `${fmtTs(from + i * bw)}, ${formatCount(total)} loaded ${total === 1 ? "line" : "lines"}`,
-			segments: groups.map((g) => ({ value: b.get(g.id) ?? 0, color: g.color })),
+			segments: LEVELS.map((l) => ({ value: b.get(l) ?? 0, color: LEVEL_SERIES[l].color })),
 		};
 	});
-	const legendKey: FieldKey = colorBy === "level" ? "level" : "resource";
 
 	const pages = Math.max(1, Math.ceil(rows.length / size));
 	const focused = selectedKey === null && focusActive && anchor !== null ? nearest(rows, anchor) : undefined;
@@ -280,17 +273,19 @@ export function LogsView() {
 	const setColumns = (next: ColumnKey[]) => {
 		setParam("cols", writeColumns(next), true);
 	};
-	const toggleLegend = (id: string) => {
-		const tok = { neg: false, key: legendKey, value: id };
+	const toggleLevel = (level: Level) => {
+		const tok = levelToken(level);
 		const on = tokens.some((t) => sameToken(t, tok));
 		setQuery(on ? tokens.filter((t) => !sameToken(t, tok)) : [...tokens, tok], text);
 	};
 	const away = anchor !== null || range.kind === "absolute";
 	const total = tail ? null : logs.totalMatched;
-	const countLabel =
-		total !== null && total >= rows.length
-			? `${formatCount(total)} matching ${total === 1 ? "line" : "lines"}`
-			: `${formatCount(rows.length)}${truncated ? "+" : ""} ${rows.length === 1 ? "line" : "lines"}`;
+	const count =
+		isLoading || error !== null
+			? undefined
+			: total !== null && total >= rows.length
+				? formatCount(total)
+				: `${formatCount(rows.length)}${truncated ? "+" : ""}`;
 
 	const returnToLatest = () => {
 		setRange({ kind: "relative", spanMs });
@@ -298,6 +293,7 @@ export function LogsView() {
 	};
 	const header = (
 		<ViewHeader
+			count={count}
 			actions={
 				<>
 					{away && (
@@ -349,54 +345,30 @@ export function LogsView() {
 			) : (
 				<>
 					<section aria-label="Log volume" className="flex flex-col gap-2.5 rounded-card bg-panel px-5 pt-4 pb-3.5">
-						<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-							{isLoading ? (
-								<Skeleton className="h-4 w-28" />
-							) : (
-								<span
-									className="text-[13.5px]"
-									title={total !== null ? "Approximate count from the log store" : undefined}
-								>
-									{countLabel}
-								</span>
-							)}
-							<div className="mr-auto flex flex-wrap gap-1">
-								{groups.map((g) => {
-									const n = totals.get(g.id) ?? 0;
-									const on = tokens.some((t) => sameToken(t, { neg: false, key: legendKey, value: g.id }));
-									return (
-										<button
-											key={g.id}
-											type="button"
-											aria-pressed={on}
-											onClick={() => {
-												toggleLegend(g.id);
-											}}
-											className={cn(
-												"inline-flex h-[26px] items-center gap-1.5 rounded-sm px-2 text-[12.5px] text-fg2 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-												on && "bg-background text-foreground shadow-[inset_0_0_0_1px_var(--line2)]",
-												n === 0 && !on && "opacity-55",
-											)}
-										>
-											<span className="size-2 rounded-[2px]" style={{ background: g.color }} />
-											{g.label}
-											<span className="font-mono text-[11.5px] text-fg3">{formatCount(n)}</span>
-										</button>
-									);
-								})}
-							</div>
-							<ToggleGroup
-								variant="segmented"
-								aria-label="Color by"
-								value={[colorBy]}
-								onValueChange={(v: string[]) => {
-									const next = v[0];
-									if (next === "level" || next === "resource") setParam("color", next === "level" ? null : next, true);
-								}}
-							>
-								<ToggleGroupItem value="level">Level</ToggleGroupItem>
-								<ToggleGroupItem value="resource">Resource</ToggleGroupItem>
-							</ToggleGroup>
+						<div className="flex flex-wrap gap-1">
+							{LEVELS.map((l) => {
+								const n = totals.get(l) ?? 0;
+								const on = tokens.some((t) => sameToken(t, levelToken(l)));
+								return (
+									<button
+										key={l}
+										type="button"
+										aria-pressed={on}
+										onClick={() => {
+											toggleLevel(l);
+										}}
+										className={cn(
+											"inline-flex h-[26px] items-center gap-1.5 rounded-sm px-2 text-[12.5px] text-fg2 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+											on && "bg-background text-foreground shadow-[inset_0_0_0_1px_var(--line2)]",
+											n === 0 && !on && "opacity-55",
+										)}
+									>
+										<span className="size-2 rounded-[2px]" style={{ background: LEVEL_SERIES[l].color }} />
+										{LEVEL_SERIES[l].label}
+										<span className="font-mono text-[11.5px] text-fg3">{formatCount(n)}</span>
+									</button>
+								);
+							})}
 						</div>
 						<VolumeBars
 							buckets={buckets}

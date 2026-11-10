@@ -249,7 +249,7 @@ export function MetricsView() {
 		<>
 			<ViewHeader />
 			<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
-			<Section title="Compute" meta="% of limit, busiest replica · dashed lines are another region" card={false}>
+			<Section title="Compute" card={false}>
 				<div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
 					{cards.map(({ def, result }) => (
 						<section
@@ -309,7 +309,7 @@ export function MetricsView() {
 				</div>
 			</Section>
 
-			<Section title="Traffic" meta="measured at the gateway, for resources with a public address" card={false}>
+			<Section title="Traffic" card={false}>
 				<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
 					{TRAFFIC.map((title) => (
 						<div key={title} className="flex flex-col gap-2 rounded-card bg-panel px-5 py-4">
@@ -323,7 +323,7 @@ export function MetricsView() {
 				</div>
 			</Section>
 
-			<Section title="By resource and region" meta="latest values · pick a row to focus the charts on it" card={false}>
+			<Section title="By resource and region" card={false}>
 				<div className="overflow-x-auto rounded-card bg-panel px-5 pt-1 pb-3">
 					<table className="w-full min-w-[760px] border-collapse text-[12.5px]">
 						<thead>
