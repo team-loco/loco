@@ -715,7 +715,6 @@ function EnvSection({
 }) {
 	const [pasteOpen, setPasteOpen] = useState(false);
 	const [pasteText, setPasteText] = useState("");
-	const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
 	const [focusId, setFocusId] = useState<string | null>(null);
 	const pasteId = useId();
 	const pasted = parseDotEnv(pasteText);
@@ -819,39 +818,18 @@ function EnvSection({
 										<LockIcon aria-label="Looks like a secret" className="mr-2.5 size-3.5 shrink-0 text-fg3" />
 									)}
 								</span>
-								<span className="flex min-w-0 items-center">
-									<Input
-										type={r.secret && !visible.has(r.id) ? "password" : "text"}
-										value={r.value}
-										placeholder="value"
-										aria-label={`Value of ${label}`}
-										autoComplete="off"
-										spellCheck={false}
-										className={ENV_CELL}
-										onChange={(e) => {
-											update(r.id, { value: e.target.value });
-										}}
-									/>
-									{r.secret && (
-										<Button
-											type="button"
-											variant="ghost"
-											size="xs"
-											aria-label={`${visible.has(r.id) ? "Hide" : "Show"} ${label}`}
-											aria-pressed={visible.has(r.id)}
-											onClick={() => {
-												setVisible((current) => {
-													const next = new Set(current);
-													if (next.has(r.id)) next.delete(r.id);
-													else next.add(r.id);
-													return next;
-												});
-											}}
-										>
-											{visible.has(r.id) ? "Hide" : "Show"}
-										</Button>
-									)}
-								</span>
+								<Input
+									type={r.secret ? "password" : "text"}
+									value={r.value}
+									placeholder="value"
+									aria-label={`Value of ${label}`}
+									autoComplete="off"
+									spellCheck={false}
+									className={ENV_CELL}
+									onChange={(e) => {
+										update(r.id, { value: e.target.value });
+									}}
+								/>
 								<span className="flex items-center gap-2 px-2">
 									<Switch
 										aria-label={`Store ${label} as secret`}
