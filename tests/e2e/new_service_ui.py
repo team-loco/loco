@@ -100,19 +100,21 @@ with sync_playwright() as playwright:
             deployments = []
             rejected = []
             writes = []
+            order = []
 
             def record_secret_write(route):
                 writes.append(route.request.post_data_json)
+                order.append(("SetSecrets", route.request.post_data_json["resourceId"]))
                 route.continue_()
 
             context.route("**/loco.secret.v1.SecretService/SetSecrets", record_secret_write)
 
             def create_deployment(route):
+                order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
                 if theme == "light" and not rejected:
                     rejected.append(route.request.post_data_json)
                     route.fulfill(status=400, json={"code": "invalid_argument", "message": "invalid request"})
                     return
-                assert writes, "SetSecrets must complete before CreateDeployment"
                 deployments.append(route.request.post_data_json)
                 route.fulfill(json={"deploymentId": str(uuid.uuid4())})
 
@@ -334,6 +336,7 @@ with sync_playwright() as playwright:
                 assert spec["env"] == {"LOG_LEVEL": "info"}, spec
                 assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
                 assert writes[-1] == {"resourceId": resource, "environmentId": production, "values": {"STRIPE_API_KEY": "sk_test"}}
+                assert [call for call in order if call[1] == resource] == [("SetSecrets", resource), ("CreateDeployment", resource)], order
                 names = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.secret.v1.SecretService/ListSecrets", {"resourceId": resource, "environmentId": production})
                 assert [secret["name"] for secret in names["secrets"]] == ["STRIPE_API_KEY"]
                 check = spec["healthCheck"]
