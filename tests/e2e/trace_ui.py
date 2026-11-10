@@ -39,13 +39,16 @@ trace = '4bf92f3577b34da6a3ce929d0e0e4736'
 start = int(time.time()) - 60
 rows = [('0001', '', 'frontend-proxy', 'POST /api/checkout', 0, 427.6), ('0002', '0001', 'frontend', 'POST /api/checkout', 1.2, 424.1), ('0003', '0002', 'checkout', 'oteldemo.CheckoutService/PlaceOrder', 5.3, 412.0), ('0004', '0003', 'cart', 'GetCart', 8.4, 24.5), ('0005', '0004', 'valkey', 'GET cart:session', 10.1, 7.8), ('0006', '0003', 'product-catalog', 'GetProduct · OLJCESPC7Z', 34.1, 18.9), ('0007', '0003', 'currency', 'Convert · USD → EUR', 58.7, 12.4), ('0008', '0003', 'shipping', 'GetQuote', 76.3, 86.2), ('0009', '0008', 'quote', 'POST /quote', 79.5, 71.4), ('000a', '0003', 'payment', 'Charge · attempt 1', 166.8, 96.1), ('000b', '000a', 'payment', 'POST /payments/authorize', 168.2, 91.7), ('000c', '0003', 'payment', 'Charge · attempt 2', 275.2, 78.6), ('000d', '0003', 'email', 'SendOrderConfirmation', 357.4, 45.2), ('000e', '0003', 'cart', 'EmptyCart', 405.1, 8.6)]
 
+def stamp(offset):
+    return f"{time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(start))}.{int(offset * 1000000):09d}Z"
+
 def span(row):
     sid, parent, service, name, offset, duration = row
-    return {'traceId': trace, 'spanId': sid.zfill(16), 'parentSpanId': parent.zfill(16) if parent else '', 'name': name, 'kind': 'Server', 'serviceName': service, 'startTime': f"{time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(start))}.{int(offset * 1000000):09d}Z", 'durationNanos': str(int(duration * 1000000)), 'statusCode': 'Error' if sid in ('000a', '000b') else 'Ok', 'statusMessage': 'Payment authorization timed out after 90 ms' if sid == '000b' else '', 'spanAttributes': {'http.request.method': 'POST', 'http.response.status_code': '504' if sid == '000b' else '200', 'server.address': 'payments.internal', 'payment.attempt': '1'} if sid == '000b' else {'rpc.system': 'grpc', 'rpc.service': f'oteldemo.{service.title()}Service'}, 'resourceAttributes': {'service.name': service, 'service.version': '2.1.0', 'deployment.environment.name': 'production', 'cloud.region': 'us-east-1'}, 'scopeName': '@opentelemetry/instrumentation-http', 'scopeVersion': '0.210.0'}
+    return {'traceId': trace, 'spanId': sid.zfill(16), 'parentSpanId': parent.zfill(16) if parent else '', 'name': name, 'kind': 'Server', 'serviceName': service, 'startTime': stamp(offset), 'durationNanos': str(int(duration * 1000000)), 'statusCode': 'Error' if sid in ('000a', '000b') else 'Ok', 'statusMessage': 'Payment authorization timed out after 90 ms' if sid == '000b' else '', 'spanAttributes': {'http.request.method': 'POST', 'http.response.status_code': '504' if sid == '000b' else '200', 'server.address': 'payments.internal', 'payment.attempt': '1'} if sid == '000b' else {'rpc.system': 'grpc', 'rpc.service': f'oteldemo.{service.title()}Service'}, 'resourceAttributes': {'service.name': service, 'service.version': '2.1.0', 'deployment.environment.name': 'production', 'cloud.region': 'us-east-1'}, 'scopeName': '@opentelemetry/instrumentation-http', 'scopeVersion': '0.210.0'}
 spans = [span(row) for row in rows]
 spans[10]['events'] = [
-    {'name': 'retry.scheduled', 'timestamp': spans[10]['startTime'], 'attributes': {'attempt': '1'}},
-    {'name': 'exception', 'timestamp': spans[10]['startTime'], 'attributes': {'exception.type': 'TimeoutError', 'exception.message': 'Authorization timed out', 'exception.stacktrace': 'TimeoutError: Authorization timed out\n    at authorize (payments.ts:42:7)\n    at checkout (checkout.ts:18:3)'}},
+    {'name': 'retry.scheduled', 'timestamp': stamp(168.2 + 12.4), 'attributes': {'attempt': '1'}},
+    {'name': 'exception', 'timestamp': stamp(168.2 + 90), 'attributes': {'exception.type': 'TimeoutError', 'exception.message': 'Authorization timed out', 'exception.stacktrace': 'TimeoutError: Authorization timed out\n    at authorize (payments.ts:42:7)\n    at checkout (checkout.ts:18:3)'}},
 ]
 recorded = []
 mode = ['normal']
@@ -114,6 +117,8 @@ with sync_playwright() as p:
             expect(events.get_by_text('Authorization timed out', exact=True)).to_be_visible()
             expect(events.locator('pre')).to_have_text(spans[10]['events'][1]['attributes']['exception.stacktrace'])
             expect(events.get_by_role('listitem')).to_have_count(2)
+            expect(events.get_by_role('listitem').nth(0)).to_contain_text('+12.40 ms')
+            expect(events.get_by_role('listitem').nth(1)).to_contain_text('+90.00 ms')
             events.get_by_role('button', name='Copy stack trace', exact=True).click()
             assert page.evaluate('navigator.clipboard.readText()') == spans[10]['events'][1]['attributes']['exception.stacktrace']
             attributes = drawer.get_by_role('region', name='Span attributes')

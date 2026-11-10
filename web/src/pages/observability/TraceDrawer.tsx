@@ -414,7 +414,7 @@ export function TraceDrawer({
 									{selected.statusMessage}
 								</pre>
 							)}
-							<SpanEvents events={selected.events} />
+							<SpanEvents span={selected} />
 							<section aria-label="Span attributes" className="flex flex-col gap-3.5">
 								{groupAttributes(selected, trace, resourceById.get(selected.resourceId)?.name).map((g) => (
 									<div key={g.title} className="flex flex-col">

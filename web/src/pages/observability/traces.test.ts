@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
-import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import { axisLabel, durationLabel, spanTree, summarizeTraces, uniqueSpans } from "./traces";
+import { TraceSpanEventSchema, TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
+import { axisLabel, durationLabel, eventOffsetLabel, spanTree, summarizeTraces, uniqueSpans } from "./traces";
 
 const span = (id: string, parent = "", nanos = 0) =>
 	create(TraceSpanSchema, {
@@ -16,6 +16,11 @@ describe("trace timing and hierarchy", () => {
 	test("axis uses one unit including zero and short ticks", () => {
 		expect(axisLabel(0n, 2_000_000n)).toBe("0 ms");
 		expect(axisLabel(500_000n, 2_000_000n)).toBe("0.50 ms");
+	});
+	test("labels a span event by its offset from the span start", () => {
+		const event = create(TraceSpanEventSchema, { timestamp: { seconds: 1_800_000_000n, nanos: 12_400_000 } });
+		expect(eventOffsetLabel(span("root"), event)).toBe("+12.40 ms");
+		expect(eventOffsetLabel(span("root"), create(TraceSpanEventSchema))).toBeNull();
 	});
 	test("retains nanosecond offsets at epoch timestamps beyond safe integers", () => {
 		const root = span("root");

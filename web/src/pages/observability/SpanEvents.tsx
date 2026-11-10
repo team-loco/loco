@@ -1,27 +1,25 @@
-import type { TraceSpanEvent } from "@gen/loco/observability/v1/observability_pb";
+import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { CopyButton } from "@/components/design/CopyButton";
-import { maybeTsMs } from "@/lib/time";
 
-import { fmtTs } from "./format";
+import { eventOffsetLabel } from "./traces";
 
-export function SpanEvents({ events }: { events: TraceSpanEvent[] }) {
+export function SpanEvents({ span }: { span: TraceSpan }) {
+	const { events } = span;
 	return (
 		<section aria-label="Span events" className="flex min-w-0 flex-col gap-2.5">
 			<h3 className="m-0 text-[13px] font-medium">Events · {events.length}</h3>
 			{events.length === 0 && <p className="m-0 text-[12.5px] text-fg3">No events recorded for this span.</p>}
 			<ol className="m-0 flex list-none flex-col gap-3 p-0">
 				{events.map((event, index) => {
-					const timestamp = maybeTsMs(event.timestamp);
+					const offset = eventOffsetLabel(span, event);
 					const stack = event.attributes["exception.stacktrace"];
 					return (
 						<li key={`${index.toString()}:${event.name}`} className="min-w-0 rounded-lg border border-line p-3">
 							<div className="mb-2 flex flex-wrap items-center gap-2">
 								<Badge tone={event.name === "exception" ? "bad" : "muted"}>{event.name || "Unnamed event"}</Badge>
-								<span className="font-mono text-[11.5px] text-fg3">
-									{timestamp === undefined ? "Time unavailable" : fmtTs(timestamp, true)}
-								</span>
+								<span className="font-mono text-[11.5px] text-fg3">{offset ?? "Time unavailable"}</span>
 							</div>
 							<dl className="m-0">
 								{Object.entries(event.attributes)
