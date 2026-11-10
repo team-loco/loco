@@ -201,6 +201,7 @@ test_s05_suspension_stops_pods_and_resume_restores_them() {
 runtime_event_list() {
     local resource_id org_id environment_id
     resource_id=$(e2e_psql "SELECT id FROM resources WHERE name = 'e2e-runtime-crash'")
+    test -n "$resource_id" || return 1
     org_id=$(status_org_id)
     environment_id=$(e2e_psql "SELECT environment_id FROM placements WHERE resource_id = '${resource_id}'")
     curl -sS --fail-with-body "${E2E_API_URL}/loco.event.v1.EventService/ListEvents" \
@@ -216,8 +217,7 @@ test_s06_crash_loop_records_one_event_across_reconnect() {
     local crash_dir="$status_dir/e2e-runtime-crash"
     mkdir -p "$crash_dir"
     cli_write_image_config "$crash_dir" e2e-runtime-crash "$E2E_PUBLIC_IMAGE" 8080 '[]'
-    yq -i 'del(.services["e2e-runtime-crash"].health)' "$crash_dir/loco.yaml"
-    yq -i '.services["e2e-runtime-crash"].command = ["/bin/sh", "-c", "exit 1"]' "$crash_dir/loco.yaml"
+    yq -i '.services["e2e-runtime-crash"].health = {"path": "/missing-health-check"}' "$crash_dir/loco.yaml"
     # A failed deployment is expected; the event must come from the running stack.
     (cd "$crash_dir" && loco_cli deploy --yes) >"$status_dir/crash.out" 2>&1 || true
     wait_for "one crash-loop event through ListEvents" 180 runtime_crash_recorded
