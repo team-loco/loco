@@ -280,24 +280,25 @@ export function ResourceTable({
 		});
 	};
 
-	const toolbar = (
+	const search = (
+		<SearchInput
+			value={filter.query}
+			placeholder="Search name, image, version"
+			aria-label="Search resources"
+			onChange={(e) => {
+				setFilter({ query: e.target.value });
+			}}
+			onClear={() => {
+				setFilter({ query: "" });
+			}}
+		/>
+	);
+	const filters = (
 		<>
-			<SearchInput
-				value={filter.query}
-				placeholder="Search name, image, version"
-				aria-label="Search resources"
-				className="w-full sm:w-[220px]"
-				onChange={(e) => {
-					setFilter({ query: e.target.value });
-				}}
-				onClear={() => {
-					setFilter({ query: "" });
-				}}
-			/>
 			<ToggleGroup
 				variant="segmented"
 				aria-label="Filter by status"
-				className="max-w-full overflow-x-auto sm:ml-auto"
+				className="max-w-full overflow-x-auto"
 				value={[filter.status]}
 				onValueChange={(v: string[]) => {
 					if (v[0] !== undefined) setFilter({ status: v[0] });
@@ -364,7 +365,7 @@ export function ResourceTable({
 	);
 
 	return (
-		<Section cardActions={selection.some ? bulk : toolbar}>
+		<Section filters={selection.some ? bulk : filters} search={selection.some ? undefined : search}>
 			<Table className="table-fixed" style={{ minWidth }}>
 				<TableHeader>
 					<TableRow>

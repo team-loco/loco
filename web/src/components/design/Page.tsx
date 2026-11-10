@@ -44,8 +44,6 @@ export function Section({
 	filters,
 	search,
 	card = true,
-	cardTitle,
-	cardActions,
 	className,
 	bodyClassName,
 	children,
@@ -57,8 +55,6 @@ export function Section({
 	filters?: ReactNode;
 	search?: ReactNode;
 	card?: boolean;
-	cardTitle?: ReactNode;
-	cardActions?: ReactNode;
 	className?: string;
 	bodyClassName?: string;
 	children?: ReactNode;
@@ -66,16 +62,6 @@ export function Section({
 	const headingId = useId();
 	const body = (
 		<>
-			{(cardTitle !== undefined || cardActions !== undefined) && (
-				<div className="flex flex-wrap items-center gap-3.5 px-5 pt-4 pb-3.5">
-					{cardTitle !== undefined && (
-						<h2 className="m-0 mr-auto flex items-baseline gap-3 text-[22px] leading-[1.15] font-normal tracking-[-0.03em]">
-							{cardTitle}
-						</h2>
-					)}
-					{cardActions}
-				</div>
-			)}
 			{(filters !== undefined || search !== undefined) && (
 				<div className="flex flex-wrap items-center gap-2.5 px-5 pt-3.5 pb-2.5">
 					{filters}
