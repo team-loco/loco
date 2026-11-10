@@ -555,6 +555,14 @@
 	--series-3: #db6d28;
 }
 
+@utility bg-hatch {
+	background-image: repeating-linear-gradient(
+		135deg,
+		transparent 0 4px,
+		color-mix(in oklch, var(--fg) 5%, transparent) 4px 5px
+	);
+}
+
 @layer base {
 	* {
 		@apply border-border;

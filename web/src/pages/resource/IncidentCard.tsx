@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { latestBackOff } from "./events";
 import { shortId } from "./format";
 import { depTag, startedMs, type RegionProblem, type RegionView } from "./model";
-import { specChanges } from "./spec";
+import { ABSENT, specChanges } from "./spec";
 
 const LOG_LINES = 6;
 const POD_LABEL = "k8s.pod.name";
@@ -191,8 +191,8 @@ export function IncidentCard({
 							<span className="flex flex-col gap-0.5 font-mono text-[12px]">
 								{changes.map((c) => (
 									<span key={c.label}>
-										{c.label}: <span className="text-bad-fg">{c.from}</span> →{" "}
-										<span className="text-ok-fg">{c.to}</span>
+										{c.label}: <span className="text-bad-fg">{c.from ?? ABSENT}</span> →{" "}
+										<span className="text-ok-fg">{c.to ?? ABSENT}</span>
 									</span>
 								))}
 							</span>

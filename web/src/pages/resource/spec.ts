@@ -30,7 +30,11 @@ function normalize(value: JsonValue): JsonValue {
 function specObject(dep: Deployment): JsonObject {
 	const json = dep.spec === undefined ? {} : toJson(DeploymentSpecSchema, dep.spec);
 	const base = isObject(json) ? json : {};
-	const normalized = normalize({ ...base, region: dep.region, replicas: dep.replicas });
+	const normalized = normalize({
+		...base,
+		region: dep.region,
+		replicas: dep.replicas,
+	});
 	return isObject(normalized) ? normalized : {};
 }
 
@@ -137,15 +141,15 @@ export function sideBySide(lines: DiffLine[]): SideBySideRow[] {
 
 interface SpecChange {
 	label: string;
-	from: string;
-	to: string;
+	from: string | null;
+	to: string | null;
 }
 
-const NONE = "—";
+export const ABSENT = "—";
 
-function healthLine(dep: Deployment): string {
+function healthLine(dep: Deployment): string | null {
 	const hc = getServiceSpec(dep)?.healthCheck;
-	if (hc === undefined) return NONE;
+	if (hc === undefined) return null;
 	return `${hc.path} every ${hc.intervalSeconds.toString()}s`;
 }
 
@@ -153,22 +157,26 @@ export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
 	const f = getServiceSpec(from);
 	const t = getServiceSpec(to);
 	const out: SpecChange[] = [];
-	const push = (label: string, a: string, b: string) => {
+	const push = (label: string, a: string | null, b: string | null) => {
 		if (a !== b) out.push({ label, from: a, to: b });
 	};
 	const fromImage = f?.build?.image ?? "";
 	const toImage = t?.build?.image ?? "";
 	if (fromImage !== toImage) {
-		out.push({ label: "image", from: shortImageRef(fromImage) || NONE, to: shortImageRef(toImage) || NONE });
+		out.push({
+			label: "image",
+			from: shortImageRef(fromImage) || null,
+			to: shortImageRef(toImage) || null,
+		});
 	}
 	push("replicas", from.replicas.toString(), to.replicas.toString());
-	push("cpu", f?.cpu ?? NONE, t?.cpu ?? NONE);
-	push("memory", f?.memory ?? NONE, t?.memory ?? NONE);
-	push("port", f?.port.toString() ?? NONE, t?.port.toString() ?? NONE);
+	push("cpu", f?.cpu ?? null, t?.cpu ?? null);
+	push("memory", f?.memory ?? null, t?.memory ?? null);
+	push("port", f?.port.toString() ?? null, t?.port.toString() ?? null);
 	push("health", healthLine(from), healthLine(to));
 	const fEnv = f?.env ?? {};
 	const tEnv = t?.env ?? {};
 	const keys = [...new Set([...Object.keys(fEnv), ...Object.keys(tEnv)])].toSorted();
-	for (const k of keys) push(`env.${k}`, fEnv[k] ?? NONE, tEnv[k] ?? NONE);
+	for (const k of keys) push(`env.${k}`, fEnv[k] ?? null, tEnv[k] ?? null);
 	return out;
 }
