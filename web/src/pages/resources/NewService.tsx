@@ -232,10 +232,6 @@ function ImageStep({
 	);
 }
 
-function secretRowKey(row: EnvRow): string {
-	return `${row.id}:${row.key}`;
-}
-
 export function DraftSheet({
 	orgId,
 	workspaceId,
@@ -298,9 +294,7 @@ export function DraftSheet({
 				</SheetBody>
 			);
 		}
-		const vars = draft.edits.vars?.map((row) =>
-			row.secret ? { ...row, value: secretValues.get(secretRowKey(row)) ?? "" } : row,
-		);
+		const vars = draft.edits.vars?.map((row) => (row.secret ? { ...row, value: secretValues.get(row.id) ?? "" } : row));
 		return (
 			<ServiceForm
 				env={env}
@@ -326,9 +320,7 @@ export function DraftSheet({
 					}
 					setSaveFailed(false);
 					if (edits.vars !== undefined) {
-						setSecretValues(
-							new Map(edits.vars.filter((row) => row.secret).map((row) => [secretRowKey(row), row.value])),
-						);
+						setSecretValues(new Map(edits.vars.filter((row) => row.secret).map((row) => [row.id, row.value])));
 					}
 				}}
 				onDeployed={() => {

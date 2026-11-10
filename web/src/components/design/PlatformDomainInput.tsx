@@ -1,8 +1,7 @@
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from "lucide-react";
 import { useId, type ReactNode } from "react";
-import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
-import { RegionHealth } from "./RegionHealth";
 import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
+import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -13,6 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
+import { RegionHealth } from "@/components/design/RegionHealth";
 import { getErrorMessage } from "@/lib/error-handler";
 import { MAX_SUBDOMAIN_LENGTH, type DomainCheck } from "@/lib/platform-domain";
 import { cn } from "@/lib/utils";
