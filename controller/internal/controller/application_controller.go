@@ -287,7 +287,8 @@ func (r *ApplicationReconciler) patchStatus(
 	if equality.Semantic.DeepEqual(original.Status, app.Status) {
 		return nil
 	}
-	patch := client.MergeFrom(original)
+	// A cached copy can predate our own last status write; the lock makes that patch conflict instead of restamping it.
+	patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
 	if err := r.Status().Patch(ctx, app, patch); err != nil {
 		return fmt.Errorf("patch application status: %w", err)
 	}

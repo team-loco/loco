@@ -2,6 +2,7 @@ package controller
 
 import (
 	"errors"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -9,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -558,6 +560,31 @@ var _ = Describe("Application reconcile", func() {
 				Expect(ns.DeletionTimestamp).NotTo(BeNil(), "%s was kept although managed", nsKey.Name)
 			}
 		}
+	})
+	It("refuses a status patch built from a stale copy", func() {
+		app := isolationTestApplication("ws-stale-status", "stale-status")
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		stale := app.DeepCopy()
+		rolledOut := metav1.NewTime(time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC))
+		app.Status = locov1alpha1.ApplicationStatus{
+			Phase:       locov1alpha1.ApplicationPhaseReady,
+			Message:     "Deployment ready",
+			StartedAt:   &rolledOut,
+			CompletedAt: &rolledOut,
+			UpdatedAt:   &rolledOut,
+		}
+		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+		r := &ApplicationReconciler{Client: k8sClient}
+		restamped := stale.DeepCopy()
+		setPhase(restamped, locov1alpha1.ApplicationPhaseReady, "Deployment ready")
+		err := r.patchStatus(ctx, restamped, stale)
+		Expect(apierrors.IsConflict(err)).To(BeTrue(), "patching status from a stale copy returned %v", err)
+
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)).To(Succeed())
+		Expect(app.Status.StartedAt.Time).To(BeTemporally("==", rolledOut.Time))
+		Expect(app.Status.CompletedAt.Time).To(BeTemporally("==", rolledOut.Time))
+		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 	})
 	It("rejects an Application without the values the controller requires", func() {
 		valid := isolationTestApplication("ws-required", "required-valid")
