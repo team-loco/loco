@@ -49,7 +49,6 @@ const (
 	keySize           = 32
 )
 
-// Fake is a Transit server. Its methods change what it answers; Server starts serving it.
 type Fake struct {
 	t *testing.T
 
@@ -118,7 +117,6 @@ func (f *Fake) RaiseMinEncryptionVersion(minVersion int) {
 	f.minEncryptVersion = minVersion
 }
 
-// SetKeyType changes the type and derivation the encryption key reports.
 func (f *Fake) SetKeyType(keyType string, derived bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -126,7 +124,6 @@ func (f *Fake) SetKeyType(keyType string, derived bool) {
 	f.derived = derived
 }
 
-// DropSigningKeys removes every version of the signing key.
 func (f *Fake) DropSigningKeys() {
 	f.mu.Lock()
 	defer f.mu.Unlock()

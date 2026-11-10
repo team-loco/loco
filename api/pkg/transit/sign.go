@@ -20,13 +20,11 @@ var (
 	ErrSigningVersion = errors.New("transit signing key version is not usable")
 )
 
-// PinnedKey names a signing key and the version a Signer signs with.
 type PinnedKey struct {
 	Name    string
 	Version int
 }
 
-// Signer signs with an ed25519 Transit key.
 type Signer struct {
 	client *Client
 	key    string

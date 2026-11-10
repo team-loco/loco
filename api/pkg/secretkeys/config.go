@@ -7,13 +7,11 @@ import (
 	"github.com/team-loco/loco/api/pkg/transit"
 )
 
-// Config names the Transit key that wraps data keys and how long unwrapped keys stay cached.
 type Config struct {
 	Key      string
 	CacheTTL time.Duration
 }
 
-// Validate reports the first invalid field of cfg.
 func (cfg Config) Validate() error {
 	if err := transit.ValidateKeyName(cfg.Key); err != nil {
 		return err

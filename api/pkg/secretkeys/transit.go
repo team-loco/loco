@@ -8,7 +8,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/transit"
 )
 
-// ProviderTransit names the provider that wraps data keys with a Transit key.
 const ProviderTransit = "transit"
 
 // transitProvider wraps data keys with a derived Transit key, sending the data key's
