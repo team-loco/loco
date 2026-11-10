@@ -252,3 +252,59 @@ def test_resource_status_stops_when_crash_deployment_is_not_accepted(tmp_path):
     assert result.returncode != 0
     assert "fixture plan failed" in result.stdout
     assert "incorrectly waited for an event" not in result.stdout
+
+
+TRANSIT_FAILURE = (
+    '2026/11/10 16:43:52 ERROR <api/main.go:149> loco api failed error="verify the transit keys: '
+    'transit kubernetes login as loco-api: context deadline exceeded"'
+)
+
+
+def check_api_restarts(tmp_path, previous_log, restarts="1"):
+    # Stub kubectl with one pod whose previous container wrote previous_log.
+    (tmp_path / "previous.log").write_text(previous_log)
+    return subprocess.run(
+        [
+            "bash",
+            "-c",
+            '''
+            source "$1"
+            kubectl() {
+                case "$*" in
+                    *"get pods"*) echo regional-api-0 ;;
+                    *restartCount*) echo "$RESTARTS" ;;
+                    *lastState*) echo '{"exitCode":1,"reason":"Error"}' ;;
+                    *--previous*) cat "$PREVIOUS_LOG" ;;
+                esac
+            }
+            check_api_restarts loco-control-plane app=regional-api
+            ''',
+            "check_api_restarts",
+            str(LIB),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=os.environ | {"PREVIOUS_LOG": str(tmp_path / "previous.log"), "RESTARTS": restarts},
+    )
+
+
+def test_api_restart_check_accepts_a_restart_after_the_transit_keys_failed(tmp_path):
+    result = check_api_restarts(tmp_path, "2026/11/10 16:43:22 INFO starting loco api\n" + TRANSIT_FAILURE)
+    assert result.returncode == 0, result.stderr
+
+
+def test_api_restart_check_accepts_the_transit_failure_ahead_of_a_large_log(tmp_path):
+    result = check_api_restarts(tmp_path, TRANSIT_FAILURE + "\n" + "later output\n" * 100_000)
+    assert result.returncode == 0, result.stderr
+
+
+def test_api_restart_check_rejects_a_restart_for_another_reason(tmp_path):
+    result = check_api_restarts(tmp_path, '2026/11/10 16:43:22 ERROR loco api failed error="apply migrations: timeout"')
+    assert result.returncode == 1
+    assert "regional-api-0 restarted 1 times" in result.stderr
+    assert '{"exitCode":1,"reason":"Error"}' in result.stderr
+
+
+def test_api_restart_check_ignores_pods_that_never_restarted(tmp_path):
+    assert check_api_restarts(tmp_path, "", restarts="0").returncode == 0

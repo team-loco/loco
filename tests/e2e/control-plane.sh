@@ -32,6 +32,7 @@ for option in "$@"; do
         *) printf 'Unknown option: %s\n' "$option" >&2; exit 2 ;;
     esac
 done
+source "$ROOT_DIR/tests/e2e/lib.sh"
 mkdir -p "$RUN_DIR"
 export KUBECONFIG="$RUN_DIR/kubeconfig"
 PORT_FORWARD_PID=""
@@ -44,6 +45,10 @@ cleanup() {
     if [[ $result -ne 0 ]]; then
         kubectl -n "$NAMESPACE" get pods,events -o wide >"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs -l app=regional-api --all-pods=true --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        kubectl -n "$NAMESPACE" describe pods -l app=regional-api >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        for pod in $(kubectl -n "$NAMESPACE" get pods -l app=regional-api -o name 2>/dev/null); do
+            kubectl -n "$NAMESPACE" logs "$pod" --previous --prefix --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        done
         kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-query --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-ingest --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" get gateways,httproutes,clickhouseinstallations -o yaml >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
@@ -139,13 +144,7 @@ for user in clickhouse['clickhouse']['users']:
 PYSECRETS
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
     -f "$VALUES" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
-for pod in $(kubectl -n "$NAMESPACE" get pods -l app=regional-api -o jsonpath='{.items[*].metadata.name}'); do
-    restarts=$(kubectl -n "$NAMESPACE" get pod "$pod" -o jsonpath='{.status.containerStatuses[0].restartCount}')
-    if [[ $restarts != 0 ]] && ! kubectl -n "$NAMESPACE" logs "$pod" --previous | grep -q 'failed to verify the transit keys'; then
-        printf 'API pod %s restarted %s times without logging why it could not verify the transit keys\n' "$pod" "$restarts" >&2
-        exit 1
-    fi
-done
+check_api_restarts "$NAMESPACE" app=regional-api
 ENVOY_DEPLOYMENT=""
 for _attempt in $(seq 1 60); do
     ENVOY_DEPLOYMENT=$(kubectl -n "$NAMESPACE" get deployments -l "gateway.envoyproxy.io/owning-gateway-name=$GATEWAY_NAME" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
