@@ -8,7 +8,7 @@ python = "3.14.8"
 gh = "2.103.3"
 
 buf = "1.75.0"
-"go:github.com/sudorandom/protoc-gen-connect-openapi" = "0.28.0"
+"go:connectrpc.com/protoc-gen-connect-openapi" = "0.30.0"
 "github:sqlc-dev/sqlc" = "1.31.1"
 "github:pressly/goose" = "3.29.0"
 yq = "4.54.3"

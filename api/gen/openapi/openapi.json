@@ -6804,7 +6804,7 @@
       },
       "google.protobuf.Duration": {
         "type": "string",
-        "format": "duration",
+        "pattern": "^-?[0-9]+(\\.[0-9]{1,9})?s$",
         "description": "A signed duration in seconds, with up to nine fractional digits and an `s` suffix (for example, `3s` or `-0.001s`)."
       },
       "google.protobuf.FieldMask": {
@@ -6819,12 +6819,9 @@
         "description": "A JSON array whose elements may be any JSON value."
       },
       "google.protobuf.NullValue": {
-        "type": "string",
+        "type": "null",
         "title": "NullValue",
-        "enum": [
-          "NULL_VALUE"
-        ],
-        "description": "Represents a JSON `null`.\n\n `NullValue` is a sentinel, using an enum with only one value to represent\n the null value for the `Value` type union.\n\n A field of type `NullValue` with any value other than `0` is considered\n invalid. Most ProtoJSON serializers will emit a `Value` with a `null_value`\n set as a JSON `null` regardless of the integer value, and so will round trip\n to a `0` value."
+        "description": "The JSON `null` value."
       },
       "google.protobuf.Struct": {
         "type": "object",
@@ -6970,12 +6967,8 @@
             "format": "byte"
           },
           "envSecret": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.agent.v1.EnvSecret"
-              }
-            ],
-            "title": "env_secret"
+            "title": "env_secret",
+            "$ref": "#/components/schemas/loco.agent.v1.EnvSecret"
           }
         },
         "title": "Apply",
@@ -7002,18 +6995,13 @@
             "format": "uuid"
           },
           "phase": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.agent.v1.BuildPhase"
-              }
-            ],
             "not": {
               "enum": [
                 "BUILD_PHASE_UNSPECIFIED"
               ]
             },
             "title": "phase",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.agent.v1.BuildPhase"
           },
           "imageDigest": {
             "type": "string",
@@ -7077,9 +7065,8 @@
           "publicKey": {
             "type": "string",
             "title": "public_key",
-            "maxLength": 32,
-            "minLength": 32,
-            "format": "byte"
+            "format": "byte",
+            "description": "bytes.len = 32\n"
           }
         },
         "title": "Enrollment",
@@ -7112,20 +7099,12 @@
         "type": "object",
         "properties": {
           "capacity": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.agent.v1.AgentCapacity"
-              }
-            ],
-            "title": "capacity"
+            "title": "capacity",
+            "$ref": "#/components/schemas/loco.agent.v1.AgentCapacity"
           },
           "health": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.agent.v1.AgentHealth"
-              }
-            ],
-            "title": "health"
+            "title": "health",
+            "$ref": "#/components/schemas/loco.agent.v1.AgentHealth"
           },
           "buildsEnabled": {
             "type": "boolean",
@@ -7174,13 +7153,8 @@
             "format": "uuid"
           },
           "phase": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.agent.v1.BuildPhase"
-              }
-            ],
             "title": "phase",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.agent.v1.BuildPhase"
           }
         },
         "title": "InventoryBuild",
@@ -7255,12 +7229,8 @@
             "title": "agent_version"
           },
           "capacity": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.agent.v1.AgentCapacity"
-              }
-            ],
-            "title": "capacity"
+            "title": "capacity",
+            "$ref": "#/components/schemas/loco.agent.v1.AgentCapacity"
           },
           "buildsEnabled": {
             "type": "boolean",
@@ -7272,12 +7242,8 @@
             "format": "uuid"
           },
           "enrollment": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.agent.v1.Enrollment"
-              }
-            ],
-            "title": "enrollment"
+            "title": "enrollment",
+            "$ref": "#/components/schemas/loco.agent.v1.Enrollment"
           },
           "domains": {
             "type": "array",
@@ -7300,12 +7266,8 @@
             "title": "cluster_id"
           },
           "heartbeatInterval": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Duration"
-              }
-            ],
-            "title": "heartbeat_interval"
+            "title": "heartbeat_interval",
+            "$ref": "#/components/schemas/google.protobuf.Duration"
           }
         },
         "title": "RegisterResponse",
@@ -7371,86 +7333,23 @@
       },
       "loco.agent.v1.SyncRequest": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "applied": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.Applied"
-                  }
-                ],
-                "title": "applied"
-              }
-            },
-            "title": "applied"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "buildStatus": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.BuildStatus"
-                  }
-                ],
-                "title": "build_status"
-              }
-            },
-            "title": "build_status"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "heartbeat": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.Heartbeat"
-                  }
-                ],
-                "title": "heartbeat"
-              }
-            },
-            "title": "heartbeat"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "inventory": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.Inventory"
-                  }
-                ],
-                "title": "inventory"
-              }
-            },
-            "title": "inventory"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "status": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.PlacementStatus"
-                  }
-                ],
-                "title": "status"
-              }
-            },
-            "title": "status"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
           "allOf": [
             {
               "anyOf": [
                 {
                   "required": [
+                    "inventory"
+                  ]
+                },
+                {
+                  "required": [
                     "applied"
+                  ]
+                },
+                {
+                  "required": [
+                    "status"
                   ]
                 },
                 {
@@ -7462,16 +7361,6 @@
                   "required": [
                     "heartbeat"
                   ]
-                },
-                {
-                  "required": [
-                    "inventory"
-                  ]
-                },
-                {
-                  "required": [
-                    "status"
-                  ]
                 }
               ]
             },
@@ -7480,7 +7369,17 @@
                 "oneOf": [
                   {
                     "required": [
+                      "inventory"
+                    ]
+                  },
+                  {
+                    "required": [
                       "applied"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "status"
                     ]
                   },
                   {
@@ -7492,140 +7391,101 @@
                     "required": [
                       "heartbeat"
                     ]
-                  },
-                  {
-                    "required": [
-                      "inventory"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "status"
-                    ]
                   }
                 ]
               }
             }
           ]
         },
-        "title": "SyncRequest"
+        "properties": {
+          "inventory": {
+            "title": "inventory",
+            "$ref": "#/components/schemas/loco.agent.v1.Inventory"
+          },
+          "applied": {
+            "title": "applied",
+            "$ref": "#/components/schemas/loco.agent.v1.Applied"
+          },
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.agent.v1.PlacementStatus"
+          },
+          "buildStatus": {
+            "title": "build_status",
+            "$ref": "#/components/schemas/loco.agent.v1.BuildStatus"
+          },
+          "heartbeat": {
+            "title": "heartbeat",
+            "$ref": "#/components/schemas/loco.agent.v1.Heartbeat"
+          }
+        },
+        "title": "SyncRequest",
+        "additionalProperties": false,
+        "description": "At most one of `inventory`, `applied`, `status`, `buildStatus`, `heartbeat` may be set."
       },
       "loco.agent.v1.SyncResponse": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "apply": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.Apply"
-                  }
-                ],
-                "title": "apply"
-              }
-            },
-            "title": "apply"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "cancelBuild": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.CancelBuild"
-                  }
-                ],
-                "title": "cancel_build"
-              }
-            },
-            "title": "cancel_build"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "delete": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.Delete"
-                  }
-                ],
-                "title": "delete"
-              }
-            },
-            "title": "delete"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "startBuild": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.agent.v1.StartBuild"
-                  }
-                ],
-                "title": "start_build"
-              }
-            },
-            "title": "start_build"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
-          "allOf": [
+          "anyOf": [
             {
-              "anyOf": [
-                {
-                  "required": [
-                    "apply"
-                  ]
-                },
-                {
-                  "required": [
-                    "cancelBuild"
-                  ]
-                },
-                {
-                  "required": [
-                    "delete"
-                  ]
-                },
-                {
-                  "required": [
-                    "startBuild"
-                  ]
-                }
+              "required": [
+                "apply",
+                "delete"
               ]
             },
             {
-              "not": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "apply"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "cancelBuild"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "delete"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "startBuild"
-                    ]
-                  }
-                ]
-              }
+              "required": [
+                "apply",
+                "startBuild"
+              ]
+            },
+            {
+              "required": [
+                "apply",
+                "cancelBuild"
+              ]
+            },
+            {
+              "required": [
+                "delete",
+                "startBuild"
+              ]
+            },
+            {
+              "required": [
+                "delete",
+                "cancelBuild"
+              ]
+            },
+            {
+              "required": [
+                "startBuild",
+                "cancelBuild"
+              ]
             }
           ]
         },
-        "title": "SyncResponse"
+        "properties": {
+          "apply": {
+            "title": "apply",
+            "$ref": "#/components/schemas/loco.agent.v1.Apply"
+          },
+          "delete": {
+            "title": "delete",
+            "$ref": "#/components/schemas/loco.agent.v1.Delete"
+          },
+          "startBuild": {
+            "title": "start_build",
+            "$ref": "#/components/schemas/loco.agent.v1.StartBuild"
+          },
+          "cancelBuild": {
+            "title": "cancel_build",
+            "$ref": "#/components/schemas/loco.agent.v1.CancelBuild"
+          }
+        },
+        "title": "SyncResponse",
+        "additionalProperties": false,
+        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild` may be set."
       },
       "loco.auth.v1.ApproveCLILoginRequest": {
         "type": "object",
@@ -7718,12 +7578,8 @@
         "type": "object",
         "properties": {
           "tokens": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
-              }
-            ],
-            "title": "tokens"
+            "title": "tokens",
+            "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
           }
         },
         "title": "ExchangeCLICodeResponse",
@@ -7746,12 +7602,8 @@
         "type": "object",
         "properties": {
           "tokens": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
-              }
-            ],
-            "title": "tokens"
+            "title": "tokens",
+            "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
           }
         },
         "title": "PollDeviceLoginResponse",
@@ -7774,12 +7626,8 @@
         "type": "object",
         "properties": {
           "tokens": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
-              }
-            ],
-            "title": "tokens"
+            "title": "tokens",
+            "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
           }
         },
         "title": "RefreshCLITokenResponse",
@@ -7843,12 +7691,8 @@
             "title": "user_id"
           },
           "tokens": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
-              }
-            ],
-            "title": "tokens"
+            "title": "tokens",
+            "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
           }
         },
         "title": "BootstrapResponse",
@@ -7873,12 +7717,8 @@
             "title": "cluster_id"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.build.v1.BuildStatus"
-              }
-            ],
-            "title": "status"
+            "title": "status",
+            "$ref": "#/components/schemas/loco.build.v1.BuildStatus"
           },
           "sourceType": {
             "type": "string",
@@ -7917,12 +7757,8 @@
             "title": "created_by"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "startedAt": {
             "oneOf": [
@@ -8000,12 +7836,8 @@
         "type": "object",
         "properties": {
           "build": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.build.v1.Build"
-              }
-            ],
-            "title": "build"
+            "title": "build",
+            "$ref": "#/components/schemas/loco.build.v1.Build"
           }
         },
         "title": "CancelBuildResponse",
@@ -8027,10 +7859,10 @@
             "description": "build.dockerfile_path // dockerfile_path must be a relative path inside the build context\n"
           },
           "sourceSize": {
-            "exclusiveMinimum": 0,
             "type": "string",
             "title": "source_size",
-            "format": "int64"
+            "format": "int64",
+            "description": "int64.gt = 0\n"
           },
           "context": {
             "type": "string",
@@ -8054,12 +7886,8 @@
             "title": "upload_url"
           },
           "uploadExpiresAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "upload_expires_at"
+            "title": "upload_expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "CreateBuildResponse",
@@ -8081,12 +7909,8 @@
         "type": "object",
         "properties": {
           "build": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.build.v1.Build"
-              }
-            ],
-            "title": "build"
+            "title": "build",
+            "$ref": "#/components/schemas/loco.build.v1.Build"
           }
         },
         "title": "GetBuildResponse",
@@ -8149,12 +7973,8 @@
         "type": "object",
         "properties": {
           "build": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.build.v1.Build"
-              }
-            ],
-            "title": "build"
+            "title": "build",
+            "$ref": "#/components/schemas/loco.build.v1.Build"
           }
         },
         "title": "StartBuildResponse",
@@ -8180,24 +8000,16 @@
             "title": "region"
           },
           "tier": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
-              }
-            ],
-            "title": "tier"
+            "title": "tier",
+            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
           },
           "isActive": {
             "type": "boolean",
             "title": "is_active"
           },
           "removedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "removed_at"
+            "title": "removed_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "healthStatus": {
             "type": [
@@ -8207,12 +8019,8 @@
             "title": "health_status"
           },
           "lastHeartbeat": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "last_heartbeat"
+            "title": "last_heartbeat",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "agentVersion": {
             "type": [
@@ -8287,18 +8095,13 @@
             "minLength": 1
           },
           "tier": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENVIRONMENT_TYPE_UNSPECIFIED"
               ]
             },
             "title": "tier",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
           }
         },
         "title": "CreateClusterRequest",
@@ -8312,12 +8115,8 @@
             "title": "cluster_id"
           },
           "joinToken": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.cluster.v1.JoinToken"
-              }
-            ],
-            "title": "join_token"
+            "title": "join_token",
+            "$ref": "#/components/schemas/loco.cluster.v1.JoinToken"
           }
         },
         "title": "CreateClusterResponse",
@@ -8343,12 +8142,8 @@
             "title": "cluster_id"
           },
           "joinToken": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.cluster.v1.JoinToken"
-              }
-            ],
-            "title": "join_token"
+            "title": "join_token",
+            "$ref": "#/components/schemas/loco.cluster.v1.JoinToken"
           }
         },
         "title": "IssueJoinTokenResponse",
@@ -8362,12 +8157,8 @@
             "title": "token"
           },
           "expiresAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "expires_at"
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "JoinToken",
@@ -8518,22 +8309,14 @@
         "type": "object",
         "properties": {
           "routing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.RoutingConfig"
-              }
-            ],
             "title": "routing",
-            "description": "Default routing configuration"
+            "description": "Default routing configuration",
+            "$ref": "#/components/schemas/loco.resource.v1.RoutingConfig"
           },
           "healthCheck": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.HealthCheckConfig"
-              }
-            ],
             "title": "health_check",
-            "description": "Default health check configuration"
+            "description": "Default health check configuration",
+            "$ref": "#/components/schemas/loco.deployment.v1.HealthCheckConfig"
           },
           "cpu": {
             "type": "string",
@@ -8556,13 +8339,9 @@
             "format": "int32"
           },
           "observability": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ObservabilityConfig"
-              }
-            ],
             "title": "observability",
-            "description": "Default observability configuration"
+            "description": "Default observability configuration",
+            "$ref": "#/components/schemas/loco.resource.v1.ObservabilityConfig"
           },
           "deployAttempts": {
             "type": "integer",
@@ -8588,24 +8367,16 @@
         "type": "object",
         "properties": {
           "serviceDefaults": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.config.v1.DefaultServiceConfig"
-              }
-            ],
-            "title": "service_defaults"
+            "title": "service_defaults",
+            "$ref": "#/components/schemas/loco.config.v1.DefaultServiceConfig"
           },
           "minCliVersion": {
             "type": "string",
             "title": "min_cli_version"
           },
           "auth": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.config.v1.AuthConfig"
-              }
-            ],
-            "title": "auth"
+            "title": "auth",
+            "$ref": "#/components/schemas/loco.config.v1.AuthConfig"
           },
           "schemaUrl": {
             "type": "string",
@@ -8685,12 +8456,8 @@
             "minLength": 1
           },
           "spec": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSpec"
-              }
-            ],
-            "title": "spec"
+            "title": "spec",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSpec"
           },
           "environmentId": {
             "type": "string",
@@ -8698,13 +8465,9 @@
             "format": "uuid"
           },
           "secretBindings": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSecretBindings"
-              }
-            ],
             "title": "secret_bindings",
-            "description": "Omit to keep the active deployment's secret bindings in the target environment and region."
+            "description": "Omit to keep the active deployment's secret bindings in the target environment and region.",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSecretBindings"
           }
         },
         "title": "CreateDeploymentRequest",
@@ -8722,12 +8485,8 @@
             "title": "deployment_id"
           },
           "build": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.BuildSource"
-              }
-            ],
-            "title": "build"
+            "title": "build",
+            "$ref": "#/components/schemas/loco.deployment.v1.BuildSource"
           }
         },
         "title": "CreateDeploymentResponse",
@@ -8784,12 +8543,8 @@
             "format": "int32"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
-              }
-            ],
-            "title": "status"
+            "title": "status",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
           },
           "isActive": {
             "type": "boolean",
@@ -8800,12 +8555,8 @@
             "title": "message"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "startedAt": {
             "oneOf": [
@@ -8830,12 +8581,8 @@
             "title": "completed_at"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "specVersion": {
             "type": "integer",
@@ -8843,12 +8590,8 @@
             "format": "int32"
           },
           "spec": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSpec"
-              }
-            ],
-            "title": "spec"
+            "title": "spec",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSpec"
           },
           "environmentId": {
             "type": "string",
@@ -8893,121 +8636,67 @@
       },
       "loco.deployment.v1.DeploymentSpec": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "cache": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.deployment.v1.CacheDeploymentSpec"
-                  }
-                ],
-                "title": "cache"
-              }
-            },
-            "title": "cache"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "database": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.deployment.v1.DatabaseDeploymentSpec"
-                  }
-                ],
-                "title": "database"
-              }
-            },
-            "title": "database"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "queue": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.deployment.v1.QueueDeploymentSpec"
-                  }
-                ],
-                "title": "queue"
-              }
-            },
-            "title": "queue"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "service": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.deployment.v1.ServiceDeploymentSpec"
-                  }
-                ],
-                "title": "service"
-              }
-            },
-            "title": "service"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
-          "allOf": [
+          "anyOf": [
             {
-              "anyOf": [
-                {
-                  "required": [
-                    "cache"
-                  ]
-                },
-                {
-                  "required": [
-                    "database"
-                  ]
-                },
-                {
-                  "required": [
-                    "queue"
-                  ]
-                },
-                {
-                  "required": [
-                    "service"
-                  ]
-                }
+              "required": [
+                "service",
+                "database"
               ]
             },
             {
-              "not": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "cache"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "database"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "queue"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "service"
-                    ]
-                  }
-                ]
-              }
+              "required": [
+                "service",
+                "cache"
+              ]
+            },
+            {
+              "required": [
+                "service",
+                "queue"
+              ]
+            },
+            {
+              "required": [
+                "database",
+                "cache"
+              ]
+            },
+            {
+              "required": [
+                "database",
+                "queue"
+              ]
+            },
+            {
+              "required": [
+                "cache",
+                "queue"
+              ]
             }
           ]
         },
+        "properties": {
+          "service": {
+            "title": "service",
+            "$ref": "#/components/schemas/loco.deployment.v1.ServiceDeploymentSpec"
+          },
+          "database": {
+            "title": "database",
+            "$ref": "#/components/schemas/loco.deployment.v1.DatabaseDeploymentSpec"
+          },
+          "cache": {
+            "title": "cache",
+            "$ref": "#/components/schemas/loco.deployment.v1.CacheDeploymentSpec"
+          },
+          "queue": {
+            "title": "queue",
+            "$ref": "#/components/schemas/loco.deployment.v1.QueueDeploymentSpec"
+          }
+        },
         "title": "DeploymentSpec",
-        "description": "DeploymentSpec is the immutable runtime snapshot for a deployment.\n Uses oneof to support different resource types."
+        "additionalProperties": false,
+        "description": "DeploymentSpec is the immutable runtime snapshot for a deployment.\n Uses oneof to support different resource types.\n\nAt most one of `service`, `database`, `cache`, `queue` may be set."
       },
       "loco.deployment.v1.GetDeploymentRequest": {
         "type": "object",
@@ -9026,12 +8715,8 @@
         "type": "object",
         "properties": {
           "deployment": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.Deployment"
-              }
-            ],
-            "title": "deployment"
+            "title": "deployment",
+            "$ref": "#/components/schemas/loco.deployment.v1.Deployment"
           }
         },
         "title": "GetDeploymentResponse",
@@ -9233,12 +8918,8 @@
         "type": "object",
         "properties": {
           "build": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.BuildSource"
-              }
-            ],
-            "title": "build"
+            "title": "build",
+            "$ref": "#/components/schemas/loco.deployment.v1.BuildSource"
           },
           "healthCheck": {
             "oneOf": [
@@ -9329,32 +9010,26 @@
             "description": "routing is the HTTP routing the deployment's environment uses. An empty message means the\n service sets no routing and the defaults apply; without the field the resource's routing\n applies."
           },
           "runAsUser": {
-            "exclusiveMinimum": 0,
             "type": [
               "string",
               "null"
             ],
             "title": "run_as_user",
-            "maximum": 2147483647,
-            "format": "int64"
+            "format": "int64",
+            "description": "int64.lte = 2147483647\nint64.gt = 0\n"
           },
           "runAsGroup": {
-            "exclusiveMinimum": 0,
             "type": [
               "string",
               "null"
             ],
             "title": "run_as_group",
-            "maximum": 2147483647,
-            "format": "int64"
+            "format": "int64",
+            "description": "int64.lte = 2147483647\nint64.gt = 0\n"
           },
           "metrics": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.MetricsEndpoint"
-              }
-            ],
-            "title": "metrics"
+            "title": "metrics",
+            "$ref": "#/components/schemas/loco.deployment.v1.MetricsEndpoint"
           }
         },
         "title": "ServiceDeploymentSpec",
@@ -9402,24 +9077,16 @@
             "title": "deployment_id"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
-              }
-            ],
-            "title": "status"
+            "title": "status",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
           },
           "message": {
             "type": "string",
             "title": "message"
           },
           "timestamp": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "timestamp"
+            "title": "timestamp",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "WatchDeploymentResponse",
@@ -9460,12 +9127,8 @@
             "format": "uuid"
           },
           "domain": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.domain.v1.DomainInput"
-              }
-            ],
-            "title": "domain"
+            "title": "domain",
+            "$ref": "#/components/schemas/loco.domain.v1.DomainInput"
           }
         },
         "title": "CreateResourceDomainRequest",
@@ -9510,18 +9173,13 @@
         "type": "object",
         "properties": {
           "domainSource": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.domain.v1.DomainType"
-              }
-            ],
             "not": {
               "enum": [
                 "DOMAIN_TYPE_UNSPECIFIED"
               ]
             },
             "title": "domain_source",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.domain.v1.DomainType"
           },
           "subdomain": {
             "type": [
@@ -9666,12 +9324,8 @@
             "title": "domain"
           },
           "domainSource": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.domain.v1.DomainType"
-              }
-            ],
-            "title": "domain_source"
+            "title": "domain_source",
+            "$ref": "#/components/schemas/loco.domain.v1.DomainType"
           },
           "subdomainLabel": {
             "type": [
@@ -9692,20 +9346,12 @@
             "title": "is_primary"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "ResourceDomain",
@@ -9755,12 +9401,8 @@
             "format": "uuid"
           },
           "updateMask": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.FieldMask"
-              }
-            ],
-            "title": "update_mask"
+            "title": "update_mask",
+            "$ref": "#/components/schemas/google.protobuf.FieldMask"
           },
           "domain": {
             "type": [
@@ -9809,18 +9451,13 @@
             "maxLength": 256
           },
           "type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENVIRONMENT_TYPE_UNSPECIFIED"
               ]
             },
             "title": "type",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
           }
         },
         "title": "CreateEnvironmentRequest",
@@ -9881,32 +9518,20 @@
             "title": "description"
           },
           "type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
-              }
-            ],
-            "title": "type"
+            "title": "type",
+            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
           },
           "createdBy": {
             "type": "string",
             "title": "created_by"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "revision": {
             "type": "string",
@@ -9945,12 +9570,8 @@
         "type": "object",
         "properties": {
           "environment": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.environment.v1.Environment"
-              }
-            ],
-            "title": "environment"
+            "title": "environment",
+            "$ref": "#/components/schemas/loco.environment.v1.Environment"
           }
         },
         "title": "GetEnvironmentResponse",
@@ -10024,8 +9645,7 @@
                 "ENVIRONMENT_TYPE_UNSPECIFIED"
               ]
             },
-            "title": "type",
-            "description": "enum.defined_only = true\n"
+            "title": "type"
           }
         },
         "title": "UpdateEnvironmentRequest",
@@ -10089,20 +9709,12 @@
             "title": "request_id"
           },
           "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Struct"
-              }
-            ],
-            "title": "data"
+            "title": "data",
+            "$ref": "#/components/schemas/google.protobuf.Struct"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "actorEmail": {
             "type": "string",
@@ -10135,8 +9747,8 @@
           "beforeSeq": {
             "type": "string",
             "title": "before_seq",
-            "minimum": 0,
-            "format": "int64"
+            "format": "int64",
+            "description": "int64.gte = 0\n"
           },
           "types": {
             "type": "array",
@@ -10169,21 +9781,13 @@
             "format": "uuid"
           },
           "startTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "start_time",
-            "description": "Inclusive start and exclusive end of the event creation time range."
+            "description": "Inclusive start and exclusive end of the event creation time range.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "endTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "end_time"
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "ListEventsRequest",
@@ -10251,12 +9855,8 @@
             "title": "token"
           },
           "expiresAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "expires_at"
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "IssueTokenResponse",
@@ -10289,20 +9889,12 @@
             "title": "workspace_id"
           },
           "placedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "placed_at"
+            "title": "placed_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "removedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "removed_at"
+            "title": "removed_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "PlacementWindow",
@@ -10313,13 +9905,9 @@
         "type": "object",
         "properties": {
           "timestamp": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "timestamp",
-            "description": "Timestamp of the heartbeat."
+            "description": "Timestamp of the heartbeat.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "Heartbeat",
@@ -10330,13 +9918,9 @@
         "type": "object",
         "properties": {
           "timestamp": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "timestamp",
-            "description": "Timestamp when the log was emitted."
+            "description": "Timestamp when the log was emitted.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "severity": {
             "type": "string",
@@ -10400,18 +9984,26 @@
         "type": "object",
         "properties": {
           "timestamp": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "timestamp",
-            "description": "Timestamp of the data point."
+            "description": "Timestamp of the data point.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "value": {
-            "type": "number",
+            "oneOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "NaN",
+                  "Infinity",
+                  "-Infinity"
+                ]
+              }
+            ],
             "title": "value",
-            "format": "double",
             "description": "Metric value (result of aggregation function)."
           }
         },
@@ -10468,22 +10060,14 @@
             "description": "Resource IDs to filter by (e.g., deployment IDs). Empty means all resources."
           },
           "startTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "start_time",
-            "description": "Start of time range (inclusive)."
+            "description": "Start of time range (inclusive).",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "endTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "end_time",
-            "description": "End of time range (inclusive)."
+            "description": "End of time range (inclusive).",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "search": {
             "type": "string",
@@ -10521,13 +10105,9 @@
             "description": "Opaque cursor for pagination (from previous response). Empty for first request."
           },
           "order": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.observability.v1.LogOrder"
-              }
-            ],
             "title": "order",
-            "description": "Ordering of results (newest/oldest first)."
+            "description": "Ordering of results (newest/oldest first).",
+            "$ref": "#/components/schemas/loco.observability.v1.LogOrder"
           },
           "regions": {
             "type": "array",
@@ -10609,22 +10189,14 @@
             "description": "Resource IDs to filter by. Empty means all resources in the workspace."
           },
           "startTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "start_time",
-            "description": "Start of time range (inclusive)."
+            "description": "Start of time range (inclusive).",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "endTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
             "title": "end_time",
-            "description": "End of time range (inclusive)."
+            "description": "End of time range (inclusive).",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "metricName": {
             "type": "string",
@@ -10702,20 +10274,12 @@
             "format": "uuid"
           },
           "startTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "start_time"
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "endTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "end_time"
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "traceId": {
             "type": "string",
@@ -10801,12 +10365,8 @@
             "description": "Filter by resource attribute key-value pairs."
           },
           "since": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "since"
+            "title": "since",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "regions": {
             "type": "array",
@@ -10840,75 +10400,27 @@
       },
       "loco.observability.v1.TailLogsResponse": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "entry": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.observability.v1.LogEntry"
-                  }
-                ],
-                "title": "entry",
-                "description": "New log entry."
-              }
-            },
-            "title": "entry"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "heartbeat": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.observability.v1.Heartbeat"
-                  }
-                ],
-                "title": "heartbeat",
-                "description": "Heartbeat to indicate stream is still active."
-              }
-            },
-            "title": "heartbeat"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
-          "allOf": [
-            {
-              "anyOf": [
-                {
-                  "required": [
-                    "entry"
-                  ]
-                },
-                {
-                  "required": [
-                    "heartbeat"
-                  ]
-                }
-              ]
-            },
-            {
-              "not": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "entry"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "heartbeat"
-                    ]
-                  }
-                ]
-              }
-            }
+          "required": [
+            "entry",
+            "heartbeat"
           ]
         },
+        "properties": {
+          "entry": {
+            "title": "entry",
+            "description": "New log entry.",
+            "$ref": "#/components/schemas/loco.observability.v1.LogEntry"
+          },
+          "heartbeat": {
+            "title": "heartbeat",
+            "description": "Heartbeat to indicate stream is still active.",
+            "$ref": "#/components/schemas/loco.observability.v1.Heartbeat"
+          }
+        },
         "title": "TailLogsResponse",
-        "description": "TailLogsResponse is a server-streamed event (log entry or heartbeat)."
+        "additionalProperties": false,
+        "description": "TailLogsResponse is a server-streamed event (log entry or heartbeat).\n\nAt most one of `entry`, `heartbeat` may be set."
       },
       "loco.observability.v1.TraceSpan": {
         "type": "object",
@@ -10938,12 +10450,8 @@
             "title": "service_name"
           },
           "startTime": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "start_time"
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "durationNanos": {
             "type": "string",
@@ -11014,12 +10522,8 @@
             "title": "name"
           },
           "timestamp": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "timestamp"
+            "title": "timestamp",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "attributes": {
             "type": "object",
@@ -11098,12 +10602,8 @@
         "type": "object",
         "properties": {
           "organization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.Organization"
-              }
-            ],
-            "title": "organization"
+            "title": "organization",
+            "$ref": "#/components/schemas/loco.org.v1.Organization"
           }
         },
         "title": "GetOrgResponse",
@@ -11126,36 +10626,20 @@
             "title": "email"
           },
           "invitedBy": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.User"
-              }
-            ],
-            "title": "invited_by"
+            "title": "invited_by",
+            "$ref": "#/components/schemas/loco.org.v1.User"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "expiresAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "expires_at"
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.InvitationStatus"
-              }
-            ],
-            "title": "status"
+            "title": "status",
+            "$ref": "#/components/schemas/loco.org.v1.InvitationStatus"
           },
           "deliveryError": {
             "type": "string",
@@ -11201,12 +10685,8 @@
         "type": "object",
         "properties": {
           "invitation": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.Invitation"
-              }
-            ],
-            "title": "invitation"
+            "title": "invitation",
+            "$ref": "#/components/schemas/loco.org.v1.Invitation"
           }
         },
         "title": "InviteOrgMemberResponse",
@@ -11354,12 +10834,8 @@
         "type": "object",
         "properties": {
           "user": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.User"
-              }
-            ],
-            "title": "user"
+            "title": "user",
+            "$ref": "#/components/schemas/loco.org.v1.User"
           },
           "scopes": {
             "type": "array",
@@ -11388,28 +10864,16 @@
             "title": "created_by"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "suspendedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "suspended_at"
+            "title": "suspended_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "suspensionReason": {
             "type": "string",
@@ -11458,12 +10922,8 @@
         "type": "object",
         "properties": {
           "invitation": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.Invitation"
-              }
-            ],
-            "title": "invitation"
+            "title": "invitation",
+            "$ref": "#/components/schemas/loco.org.v1.Invitation"
           }
         },
         "title": "ResendInvitationResponse",
@@ -11486,12 +10946,8 @@
         "type": "object",
         "properties": {
           "organization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.Organization"
-              }
-            ],
-            "title": "organization"
+            "title": "organization",
+            "$ref": "#/components/schemas/loco.org.v1.Organization"
           }
         },
         "title": "ResumeOrgResponse",
@@ -11538,12 +10994,8 @@
         "type": "object",
         "properties": {
           "organization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.org.v1.Organization"
-              }
-            ],
-            "title": "organization"
+            "title": "organization",
+            "$ref": "#/components/schemas/loco.org.v1.Organization"
           }
         },
         "title": "SuspendOrgResponse",
@@ -11653,9 +11105,8 @@
           "file": {
             "type": "string",
             "title": "file",
-            "maxLength": 1048576,
-            "minLength": 1,
-            "format": "byte"
+            "format": "byte",
+            "description": "bytes.max_len = 1048576\nbytes.min_len = 1\n"
           },
           "environmentId": {
             "type": "string",
@@ -11790,12 +11241,8 @@
         "type": "object",
         "properties": {
           "kind": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.plan.v1.PlanOperationKind"
-              }
-            ],
-            "title": "kind"
+            "title": "kind",
+            "$ref": "#/components/schemas/loco.plan.v1.PlanOperationKind"
           },
           "service": {
             "type": "string",
@@ -11839,10 +11286,8 @@
           "file": {
             "type": "string",
             "title": "file",
-            "maxLength": 1048576,
-            "minLength": 1,
             "format": "byte",
-            "description": "file is the loco.yaml document."
+            "description": "file is the loco.yaml document.\nbytes.max_len = 1048576\nbytes.min_len = 1\n"
           },
           "environmentId": {
             "type": "string",
@@ -11935,12 +11380,8 @@
             "title": "password"
           },
           "expiresAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "expires_at"
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "registryHost": {
             "type": "string",
@@ -11977,15 +11418,11 @@
             "maxLength": 63
           },
           "type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
-              }
-            ],
             "title": "type",
             "enum": [
               "RESOURCE_TYPE_SERVICE"
-            ]
+            ],
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
           },
           "domain": {
             "oneOf": [
@@ -11999,12 +11436,8 @@
             "title": "domain"
           },
           "spec": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ResourceSpec"
-              }
-            ],
-            "title": "spec"
+            "title": "spec",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceSpec"
           },
           "description": {
             "type": [
@@ -12080,12 +11513,8 @@
             "title": "environment_name"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ResourceStatus"
-              }
-            ],
-            "title": "status"
+            "title": "status",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceStatus"
           },
           "regions": {
             "type": "array",
@@ -12160,80 +11589,32 @@
       },
       "loco.resource.v1.GetResourceRequest": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "nameKey": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.resource.v1.GetResourceNameKey"
-                  }
-                ],
-                "title": "name_key"
-              }
-            },
-            "title": "name_key"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "resourceId": {
-                "type": "string",
-                "title": "resource_id"
-              }
-            },
-            "title": "resource_id"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
-          "allOf": [
-            {
-              "anyOf": [
-                {
-                  "required": [
-                    "nameKey"
-                  ]
-                },
-                {
-                  "required": [
-                    "resourceId"
-                  ]
-                }
-              ]
-            },
-            {
-              "not": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "nameKey"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "resourceId"
-                    ]
-                  }
-                ]
-              }
-            }
+          "required": [
+            "resourceId",
+            "nameKey"
           ]
         },
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "nameKey": {
+            "title": "name_key",
+            "$ref": "#/components/schemas/loco.resource.v1.GetResourceNameKey"
+          }
+        },
         "title": "GetResourceRequest",
-        "description": "GetResourceRequest is the request to retrieve a resource."
+        "additionalProperties": false,
+        "description": "GetResourceRequest is the request to retrieve a resource.\n\nAt most one of `resourceId`, `nameKey` may be set."
       },
       "loco.resource.v1.GetResourceResponse": {
         "type": "object",
         "properties": {
           "resource": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.Resource"
-              }
-            ],
-            "title": "resource"
+            "title": "resource",
+            "$ref": "#/components/schemas/loco.resource.v1.Resource"
           }
         },
         "title": "GetResourceResponse",
@@ -12363,20 +11744,12 @@
         "type": "object",
         "properties": {
           "logging": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.LoggingConfig"
-              }
-            ],
-            "title": "logging"
+            "title": "logging",
+            "$ref": "#/components/schemas/loco.resource.v1.LoggingConfig"
           },
           "metrics": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.MetricsConfig"
-              }
-            ],
-            "title": "metrics"
+            "title": "metrics",
+            "$ref": "#/components/schemas/loco.resource.v1.MetricsConfig"
           }
         },
         "title": "ObservabilityConfig",
@@ -12417,12 +11790,8 @@
             "title": "region"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ResourceStatus"
-              }
-            ],
-            "title": "status"
+            "title": "status",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceStatus"
           },
           "readyReplicas": {
             "type": "integer",
@@ -12439,12 +11808,8 @@
             "title": "deployment_id"
           },
           "deploymentStatus": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
-              }
-            ],
-            "title": "deployment_status"
+            "title": "deployment_status",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
           },
           "message": {
             "type": [
@@ -12529,12 +11894,8 @@
             "title": "name"
           },
           "type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
-              }
-            ],
-            "title": "type"
+            "title": "type",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
           },
           "domains": {
             "type": "array",
@@ -12571,20 +11932,12 @@
             "title": "created_by"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "partial": {
             "type": [
@@ -12611,91 +11964,13 @@
       },
       "loco.resource.v1.ResourceSpec": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "blob": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.resource.v1.BlobSpec"
-                  }
-                ],
-                "title": "blob"
-              }
-            },
-            "title": "blob"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "cache": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.resource.v1.CacheSpec"
-                  }
-                ],
-                "title": "cache"
-              }
-            },
-            "title": "cache"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "database": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.resource.v1.DatabaseSpec"
-                  }
-                ],
-                "title": "database"
-              }
-            },
-            "title": "database"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "queue": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.resource.v1.QueueSpec"
-                  }
-                ],
-                "title": "queue"
-              }
-            },
-            "title": "queue"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "service": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/loco.resource.v1.ServiceSpec"
-                  }
-                ],
-                "title": "service"
-              }
-            },
-            "title": "service"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
           "allOf": [
             {
               "anyOf": [
                 {
                   "required": [
-                    "blob"
-                  ]
-                },
-                {
-                  "required": [
-                    "cache"
+                    "service"
                   ]
                 },
                 {
@@ -12705,12 +11980,17 @@
                 },
                 {
                   "required": [
+                    "cache"
+                  ]
+                },
+                {
+                  "required": [
                     "queue"
                   ]
                 },
                 {
                   "required": [
-                    "service"
+                    "blob"
                   ]
                 }
               ]
@@ -12720,12 +12000,7 @@
                 "oneOf": [
                   {
                     "required": [
-                      "blob"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "cache"
+                      "service"
                     ]
                   },
                   {
@@ -12735,12 +12010,17 @@
                   },
                   {
                     "required": [
+                      "cache"
+                    ]
+                  },
+                  {
+                    "required": [
                       "queue"
                     ]
                   },
                   {
                     "required": [
-                      "service"
+                      "blob"
                     ]
                   }
                 ]
@@ -12748,8 +12028,31 @@
             }
           ]
         },
+        "properties": {
+          "service": {
+            "title": "service",
+            "$ref": "#/components/schemas/loco.resource.v1.ServiceSpec"
+          },
+          "database": {
+            "title": "database",
+            "$ref": "#/components/schemas/loco.resource.v1.DatabaseSpec"
+          },
+          "cache": {
+            "title": "cache",
+            "$ref": "#/components/schemas/loco.resource.v1.CacheSpec"
+          },
+          "queue": {
+            "title": "queue",
+            "$ref": "#/components/schemas/loco.resource.v1.QueueSpec"
+          },
+          "blob": {
+            "title": "blob",
+            "$ref": "#/components/schemas/loco.resource.v1.BlobSpec"
+          }
+        },
         "title": "ResourceSpec",
-        "description": "ResourceSpec defines the global infrastructure intent for a resource.\n Uses oneof to support different resource types."
+        "additionalProperties": false,
+        "description": "ResourceSpec defines the global infrastructure intent for a resource.\n Uses oneof to support different resource types.\n\nAt most one of `service`, `database`, `cache`, `queue`, `blob` may be set."
       },
       "loco.resource.v1.ResourceStatus": {
         "type": "string",
@@ -12864,32 +12167,20 @@
         "type": "object",
         "properties": {
           "routing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.RoutingConfig"
-              }
-            ],
-            "title": "routing"
+            "title": "routing",
+            "$ref": "#/components/schemas/loco.resource.v1.RoutingConfig"
           },
           "observability": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ObservabilityConfig"
-              }
-            ],
-            "title": "observability"
+            "title": "observability",
+            "$ref": "#/components/schemas/loco.resource.v1.ObservabilityConfig"
           },
           "regions": {
             "type": "object",
             "title": "regions",
             "minProperties": 1,
             "additionalProperties": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/loco.resource.v1.RegionTarget"
-                }
-              ],
-              "title": "value"
+              "title": "value",
+              "$ref": "#/components/schemas/loco.resource.v1.RegionTarget"
             },
             "description": "key = region name"
           },
@@ -13114,20 +12405,12 @@
             "title": "updated_by_id"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "Secret",
@@ -13202,18 +12485,13 @@
         "type": "object",
         "properties": {
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENTITY_TYPE_UNSPECIFIED"
               ]
             },
             "title": "entity_type",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13221,18 +12499,13 @@
             "format": "uuid"
           },
           "scope": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.Scope"
-              }
-            ],
             "not": {
               "enum": [
                 "SCOPE_UNSPECIFIED"
               ]
             },
             "title": "scope",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.token.v1.Scope"
           }
         },
         "title": "CheckPermissionRequest",
@@ -13262,18 +12535,14 @@
             "description": "Human-readable token name"
           },
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENTITY_TYPE_UNSPECIFIED"
               ]
             },
             "title": "entity_type",
-            "description": "Entity type the token is for\nenum.defined_only = true\n"
+            "description": "Entity type the token is for",
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13293,9 +12562,8 @@
           "expiresInSec": {
             "type": "string",
             "title": "expires_in_sec",
-            "minimum": 1,
             "format": "int64",
-            "description": "Expiration duration in seconds (max: 2592000 = 30 days)"
+            "description": "Expiration duration in seconds (max: 2592000 = 30 days)\nint64.gte = 1\n"
           }
         },
         "title": "CreateTokenRequest",
@@ -13311,13 +12579,9 @@
             "description": "The actual token string (only returned on creation)"
           },
           "tokenMetadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.Token"
-              }
-            ],
             "title": "token_metadata",
-            "description": "Token metadata"
+            "description": "Token metadata",
+            "$ref": "#/components/schemas/loco.token.v1.Token"
           }
         },
         "title": "CreateTokenResponse",
@@ -13328,32 +12592,22 @@
         "type": "object",
         "properties": {
           "scope": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.Scope"
-              }
-            ],
             "not": {
               "enum": [
                 "SCOPE_UNSPECIFIED"
               ]
             },
             "title": "scope",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.token.v1.Scope"
           },
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENTITY_TYPE_UNSPECIFIED"
               ]
             },
             "title": "entity_type",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13388,12 +12642,8 @@
         "type": "object",
         "properties": {
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
-            "title": "entity_type"
+            "title": "entity_type",
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13420,18 +12670,13 @@
             "minLength": 1
           },
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENTITY_TYPE_UNSPECIFIED"
               ]
             },
             "title": "entity_type",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13447,12 +12692,8 @@
         "type": "object",
         "properties": {
           "token": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.Token"
-              }
-            ],
-            "title": "token"
+            "title": "token",
+            "$ref": "#/components/schemas/loco.token.v1.Token"
           }
         },
         "title": "GetTokenResponse",
@@ -13463,18 +12704,13 @@
         "type": "object",
         "properties": {
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENTITY_TYPE_UNSPECIFIED"
               ]
             },
             "title": "entity_type",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13510,18 +12746,13 @@
             "minLength": 1
           },
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
             "not": {
               "enum": [
                 "ENTITY_TYPE_UNSPECIFIED"
               ]
             },
             "title": "entity_type",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13559,12 +12790,8 @@
             "title": "name"
           },
           "entityType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.token.v1.EntityType"
-              }
-            ],
-            "title": "entity_type"
+            "title": "entity_type",
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
           },
           "entityId": {
             "type": "string",
@@ -13578,20 +12805,12 @@
             "title": "scopes"
           },
           "expiresAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "expires_at"
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "lastUsedAt": {
             "oneOf": [
@@ -13654,78 +12873,34 @@
       },
       "loco.user.v1.GetUserRequest": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "email": {
-                "type": "string",
-                "title": "email",
-                "format": "email"
-              }
-            },
-            "title": "email"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "userId": {
-                "type": "string",
-                "title": "user_id",
-                "format": "uuid"
-              }
-            },
-            "title": "user_id"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
-          "allOf": [
-            {
-              "anyOf": [
-                {
-                  "required": [
-                    "email"
-                  ]
-                },
-                {
-                  "required": [
-                    "userId"
-                  ]
-                }
-              ]
-            },
-            {
-              "not": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "email"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "userId"
-                    ]
-                  }
-                ]
-              }
-            }
+          "required": [
+            "userId",
+            "email"
           ]
         },
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "title": "email",
+            "format": "email"
+          }
+        },
         "title": "GetUserRequest",
-        "description": "GetUserRequest is the request to retrieve a user."
+        "additionalProperties": false,
+        "description": "GetUserRequest is the request to retrieve a user.\n\nAt most one of `userId`, `email` may be set."
       },
       "loco.user.v1.GetUserResponse": {
         "type": "object",
         "properties": {
           "user": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.user.v1.User"
-              }
-            ],
-            "title": "user"
+            "title": "user",
+            "$ref": "#/components/schemas/loco.user.v1.User"
           }
         },
         "title": "GetUserResponse",
@@ -13787,74 +12962,25 @@
       },
       "loco.user.v1.SetUserStatusRequest": {
         "type": "object",
-        "allOf": [
-          {
-            "oneOf": [
-              {
-                "required": [
-                  "userId"
-                ]
-              },
-              {
-                "required": [
-                  "email"
-                ]
-              }
-            ]
-          }
-        ],
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "email": {
-                "type": "string",
-                "title": "email",
-                "format": "email"
-              }
-            },
-            "title": "email"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "userId": {
-                "type": "string",
-                "title": "user_id",
-                "format": "uuid"
-              }
-            },
-            "title": "user_id"
-          }
-        ],
-        "unevaluatedProperties": false,
         "not": {
-          "allOf": [
+          "anyOf": [
             {
-              "anyOf": [
-                {
-                  "required": [
-                    "email"
-                  ]
-                },
-                {
-                  "required": [
-                    "userId"
-                  ]
-                }
+              "required": [
+                "userId",
+                "email"
               ]
             },
             {
               "not": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "required": [
-                      "email"
+                      "userId"
                     ]
                   },
                   {
                     "required": [
-                      "userId"
+                      "email"
                     ]
                   }
                 ]
@@ -13863,23 +12989,29 @@
           ]
         },
         "properties": {
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "title": "email",
+            "format": "email"
+          },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.user.v1.UserStatus"
-              }
-            ],
             "not": {
               "enum": [
                 "USER_STATUS_UNSPECIFIED"
               ]
             },
             "title": "status",
-            "description": "enum.defined_only = true\n"
+            "$ref": "#/components/schemas/loco.user.v1.UserStatus"
           }
         },
         "title": "SetUserStatusRequest",
-        "description": "SetUserStatusRequest is the request to suspend or reinstate a user."
+        "additionalProperties": false,
+        "description": "SetUserStatusRequest is the request to suspend or reinstate a user.\n\nExactly one of `userId`, `email` must be set."
       },
       "loco.user.v1.SetUserStatusResponse": {
         "type": "object",
@@ -13948,20 +13080,12 @@
             "title": "name"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "User",
@@ -13988,12 +13112,8 @@
         "type": "object",
         "properties": {
           "user": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.user.v1.User"
-              }
-            ],
-            "title": "user"
+            "title": "user",
+            "$ref": "#/components/schemas/loco.user.v1.User"
           },
           "claimedOrgs": {
             "type": "array",
@@ -14040,12 +13160,8 @@
         "type": "object",
         "properties": {
           "webhook": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.webhook.v1.Webhook"
-              }
-            ],
-            "title": "webhook"
+            "title": "webhook",
+            "$ref": "#/components/schemas/loco.webhook.v1.Webhook"
           },
           "secret": {
             "type": "string",
@@ -14153,12 +13269,8 @@
             "title": "event_types"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "Webhook",
@@ -14198,28 +13310,16 @@
             "title": "last_error"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "deliveredAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "delivered_at"
+            "title": "delivered_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "nextAttemptAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "next_attempt_at"
+            "title": "next_attempt_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "WebhookDelivery",
@@ -14370,12 +13470,8 @@
         "type": "object",
         "properties": {
           "workspace": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/loco.workspace.v1.Workspace"
-              }
-            ],
-            "title": "workspace"
+            "title": "workspace",
+            "$ref": "#/components/schemas/loco.workspace.v1.Workspace"
           }
         },
         "title": "GetWorkspaceResponse",
@@ -14585,20 +13681,12 @@
             "title": "created_by"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "updatedAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "updated_at"
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "orgName": {
             "type": "string",
@@ -14628,12 +13716,8 @@
             "title": "scopes"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "WorkspaceMember",
@@ -14659,12 +13743,8 @@
             "title": "scopes"
           },
           "createdAt": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "created_at"
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "userName": {
             "type": "string",
