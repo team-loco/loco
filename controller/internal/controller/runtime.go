@@ -16,7 +16,7 @@ import (
 const reasonOOMKilled = "OOMKilled"
 
 // Priority is independent of API list order when replicas have different problems.
-func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration, previousReason string) (string, string) {
+func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration) (string, string) {
 	reasons := []string{
 		locov1alpha1.RuntimeOutOfMemory,
 		locov1alpha1.RuntimeCrashLooping,
@@ -34,7 +34,7 @@ func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration, previousRea
 		}
 		for _, status := range pod.Status.ContainerStatuses {
 			running := status.State.Running
-			recovering := runtimeRecovering(status, recoveryWindow, previousReason)
+			recovering := runtimeRecovering(pod, status, recoveryWindow)
 			waiting := status.State.Waiting
 			backoff := waiting != nil && waiting.Reason == reasonCrashLoopBackOff
 			lastExit := status.LastTerminationState.Terminated
@@ -91,20 +91,26 @@ func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration, previousRea
 	return "", ""
 }
 
-// A retry must survive the recovery window and become Ready before an existing
-// crash episode clears. A slow liveness probe can leave it running but unready.
-func runtimeRecovering(status corev1.ContainerStatus, recoveryWindow time.Duration, previousReason string) bool {
+// A long-running retry has not recovered while its pod has stayed unready
+// since before the run began. A later readiness failure leaves old exits historical.
+func runtimeRecovering(pod corev1.Pod, status corev1.ContainerStatus, recoveryWindow time.Duration) bool {
 	running := status.State.Running
 	if running == nil {
 		return false
 	}
-	if !status.Ready {
-		switch previousReason {
-		case locov1alpha1.RuntimeCrashLooping, locov1alpha1.RuntimeOutOfMemory:
+	if running.StartedAt.IsZero() || time.Since(running.StartedAt.Time) < recoveryWindow {
+		return true
+	}
+	if status.Ready {
+		return false
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.ContainersReady && condition.Status == corev1.ConditionFalse &&
+			!condition.LastTransitionTime.IsZero() && !condition.LastTransitionTime.After(running.StartedAt.Time) {
 			return true
 		}
 	}
-	return running.StartedAt.IsZero() || time.Since(running.StartedAt.Time) < recoveryWindow
+	return false
 }
 
 func (r *ApplicationReconciler) observeRuntimeProblem(
@@ -132,8 +138,6 @@ func (r *ApplicationReconciler) observeRuntimeProblem(
 		}
 		current = append(current, pod)
 	}
-	app.Status.RuntimeReason, app.Status.RuntimeMessage = runtimeProblem(
-		current, r.RuntimeRecoveryWindow, app.Status.RuntimeReason,
-	)
+	app.Status.RuntimeReason, app.Status.RuntimeMessage = runtimeProblem(current, r.RuntimeRecoveryWindow)
 	return nil
 }
