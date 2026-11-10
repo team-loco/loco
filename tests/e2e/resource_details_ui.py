@@ -80,6 +80,7 @@ with sync_playwright() as playwright:
                     expect(runtime_events.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
                     runtime_events.get_by_role("button", name="Warnings", exact=True).click()
                     expect(runtime_events.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
+                    evidence.settle(page, wait_for_network=False)
                     page.screenshot(path=out / f"events-{case}.png", animations="disabled")
                     page.keyboard.press("Escape")
                     image_label = page.get_by_title(image, exact=True)

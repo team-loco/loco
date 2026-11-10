@@ -474,7 +474,7 @@ function ServiceForm({
 							multiple
 							variant="outline"
 							aria-label="Regions"
-							className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3"
+							className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2"
 							value={selected}
 							onValueChange={(v: string[]) => {
 								set({ regions: v });
