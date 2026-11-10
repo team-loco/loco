@@ -53,6 +53,7 @@ def rpc(service, method, body):
 
 
 BUILD_DIGEST = "sha256:" + "7c41e9b2" * 8
+PLATFORM_DOMAIN = "apps.e2e.test"
 BUILD_LOG = [("INFO", "#1 [internal] load build definition from Dockerfile"), ("ERROR", "Pilot build step failed")]
 
 
@@ -64,13 +65,15 @@ def fixture():
     production = next(env["id"] for env in environments if env["name"] == "production")
     staging = rpc("environment", "CreateEnvironment", {"workspaceId": workspace_id, "name": "staging", "type": "ENVIRONMENT_TYPE_STAGING"})["environmentId"]
     resource = rpc("resource", "CreateResource", {"workspaceId": workspace_id, "name": "history-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in ("us-east-1", "eu-west-1")}}}})["resourceId"]
+    edge = rpc("resource", "CreateResource", {"workspaceId": workspace_id, "name": "edge-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in ("us-east-1", "eu-west-1")}}}})["resourceId"]
     clusters = [str(uuid.uuid4()) for _ in range(3)]
     release_ids = [str(uuid.uuid4()) for _ in range(221)]
     staging_release = str(uuid.uuid4())
     builds = {name: str(uuid.uuid4()) for name in ("awaiting", "running", "deployed", "failed", "canceled", "older")}
     sql = []
     for cluster, region, tier in zip(clusters, ("us-east-1", "eu-west-1", "us-east-1"), ("production", "production", "staging"), strict=True):
-        sql.append(f"INSERT INTO clusters (id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier) VALUES ('{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{tier}');")
+        domains = "{" + PLATFORM_DOMAIN + "}" if cluster == clusters[0] else "{}"
+        sql.append(f"INSERT INTO clusters (id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier,domains) VALUES ('{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{tier}','{domains}');")
     for index, deployment in enumerate(release_ids, 1):
         region = "eu-west-1" if index == len(release_ids) else "us-east-1"
         cluster = clusters[1] if region == "eu-west-1" else clusters[0]
@@ -85,6 +88,12 @@ def fixture():
     sql.append(f"INSERT INTO deployments (id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('{staging_release}','{resource}','{clusters[2]}','us-east-1',2,'running',true,'Staging current','{staging}',{evidence.sql_literal(runtime)},1,NOW());")
     for deployment, cluster, environment, region, replicas in ((release_ids[0], clusters[0], production, "us-east-1", 1), (release_ids[-1], clusters[1], production, "eu-west-1", 1), (staging_release, clusters[2], staging, "us-east-1", 2)):
         sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource}','{cluster}','{region}','{deployment}','{environment}','{{}}',true,{replicas},'Ready',NOW());")
+    for cluster, region in ((clusters[0], "us-east-1"), (clusters[1], "eu-west-1")):
+        deployment = str(uuid.uuid4())
+        runtime = json.dumps({"build": {"type": "image", "image": "example.invalid/edge-pilot:1.0.0"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1})
+        sql.append(f"INSERT INTO deployments (id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('{deployment}','{edge}','{cluster}','{region}',1,'running',true,'Edge current','{production}',{evidence.sql_literal(runtime)},1,NOW());")
+        sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{edge}','{cluster}','{region}','{deployment}','{production}','{{}}',true,1,'Ready',NOW());")
+    sql.append(f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);")
     owner_id = state["users"]["owner"]["id"]
     build_rows = (("awaiting", "awaiting_upload", ""), ("running", "running", ""), ("deployed", "succeeded", ""), ("failed", "failed", "RUN go build ./cmd/api exited with code 1"), ("canceled", "canceled", "canceled"), ("older", "succeeded", ""))
     for minutes, (name, status, message) in enumerate(build_rows, 1):
@@ -93,7 +102,7 @@ def fixture():
         finished = f"NOW()-INTERVAL '{minutes} minutes'+INTERVAL '108 seconds'" if status in ("succeeded", "failed", "canceled") else "NULL"
         sql.append(f"INSERT INTO builds (id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});")
     evidence.psql(state["container"], "BEGIN;" + "\n".join(sql) + "COMMIT;")
-    data = {"resource": resource, "production": production, "staging": staging, "releases": release_ids, "staging_release": staging_release, "builds": builds}
+    data = {"resource": resource, "edge": edge, "production": production, "staging": staging, "releases": release_ids, "staging_release": staging_release, "builds": builds}
     state["deployment_history"] = data
     evidence.write_json(Path(args.state), state)
     return data
@@ -245,6 +254,13 @@ with sync_playwright() as playwright:
                     page.get_by_role("alertdialog").wait_for()
                     page.keyboard.press("Escape")
                     expect(bulk_delete).to_be_focused()
+                    stage = "domains"
+                    page.goto(state["ui_url"] + base + "/resource/" + data["edge"] + "?env=production&tab=settings")
+                    networking = page.get_by_role("region", name="Networking")
+                    networking.get_by_role("textbox", name="Subdomain", exact=True).fill("edge-v2")
+                    expect(networking.get_by_text("No platform domain is served in every region of edge-pilot", exact=True)).to_be_visible()
+                    expect(networking.get_by_role("button", name="Add", exact=True)).to_be_disabled()
+                    page.screenshot(path=out / f"domains-{case}.png", animations="disabled")
                     stage = "owner-settings"
                     page.goto(state["ui_url"] + base + "/settings?tab=ws")
                     owner_name = page.get_by_placeholder("storefront", exact=True)
