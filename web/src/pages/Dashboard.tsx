@@ -20,7 +20,7 @@ const SKELETON_ROWS = 4;
 
 function DashboardSkeleton() {
 	return (
-		<Section cardTitle="Resources">
+		<Section title="Resources">
 			<div className="flex flex-col gap-2 p-4">
 				{Array.from({ length: SKELETON_ROWS }, (_, i) => (
 					<Skeleton key={i} className="h-9 w-full" />
