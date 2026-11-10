@@ -221,11 +221,11 @@ export function OrgTab({
 				}
 			>
 				<SettingsCard>
-					<div className="px-5 pt-3">
+					<div className="flex justify-end px-5 pt-3.5 pb-2.5">
 						<SearchInput
 							aria-label="Search workspaces"
 							placeholder="Search workspaces"
-							className="max-w-[320px]"
+							className="w-full max-w-[300px]"
 							value={query}
 							onChange={(e) => {
 								setQuery(e.target.value);
@@ -243,7 +243,7 @@ export function OrgTab({
 							{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
 						</div>
 					) : (
-						<Table>
+						<Table flush>
 							<TableHeader>
 								<TableRow>
 									<TableHead>Name</TableHead>
@@ -260,7 +260,7 @@ export function OrgTab({
 									const by = userName(w.createdBy);
 									const day = formatDay(w.createdAt);
 									return (
-										<TableRow key={w.id} className="relative hover:bg-panel2">
+										<TableRow key={w.id} className="relative hover:bg-panel2 [&>td]:h-[52px]">
 											<TableCell>
 												<Link
 													to={settingsPath(org.id, w.id, "workspace")}
@@ -293,7 +293,7 @@ export function OrgTab({
 							</TableBody>
 						</Table>
 					)}
-					<Pager className="border-t-0" {...paged.pager} {...paged.ends} />
+					<Pager {...paged.pager} {...paged.ends} />
 				</SettingsCard>
 			</SettingsSection>
 

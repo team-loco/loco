@@ -8,10 +8,12 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<typeof TableBase>) {
+const FLUSH = "[&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5";
+
+function Table({ className, flush = false, ...props }: React.ComponentProps<typeof TableBase> & { flush?: boolean }) {
 	return (
-		<div className="px-5 pb-1.5">
-			<TableBase className={cn("text-[13px]", className)} {...props} />
+		<div className={cn(!flush && "px-5 pb-1.5")}>
+			<TableBase className={cn("text-[13px]", flush && FLUSH, className)} {...props} />
 		</div>
 	);
 }
