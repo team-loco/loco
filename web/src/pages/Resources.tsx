@@ -53,11 +53,6 @@ export function Resources() {
 	const loading = envsLoading || data.isLoading;
 	const total = data.resources.length + drafts.length;
 	const draftId = params.get(DRAFT_PARAM);
-	const closeParam = (name: string) => {
-		const next = new URLSearchParams(params);
-		next.delete(name);
-		setParams(next);
-	};
 	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.name });
 
 	const body = (() => {
@@ -123,7 +118,9 @@ export function Resources() {
 					workspaceId={workspaceId}
 					env={active}
 					onClose={() => {
-						closeParam(NEW_RESOURCE_PARAM);
+						const next = new URLSearchParams(params);
+						next.delete(NEW_RESOURCE_PARAM);
+						setParams(next);
 					}}
 					onCreated={(id) => {
 						setParams(new URLSearchParams(draftSearch(params, id)));
@@ -131,16 +128,7 @@ export function Resources() {
 				/>
 			)}
 			{draftId !== null && active !== undefined && (
-				<DraftSheet
-					key={draftId}
-					orgId={orgId}
-					workspaceId={workspaceId}
-					env={active}
-					draftId={draftId}
-					onClose={() => {
-						closeParam(DRAFT_PARAM);
-					}}
-				/>
+				<DraftSheet key={draftId} orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />
 			)}
 		</Page>
 	);

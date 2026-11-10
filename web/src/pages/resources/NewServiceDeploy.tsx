@@ -38,7 +38,7 @@ export interface DeployError {
 	field: ApiFieldError | null;
 }
 
-export function useServiceDeploy(workspaceId: string, env: Environment, defaults: DefaultServiceConfig) {
+export function useServiceDeploy(workspaceId: string, env: Environment) {
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 	const [run, setRun] = useState<DeployRun | null>(null);
@@ -53,7 +53,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 		}
 	};
 
-	const attempt = async (form: NewResourceForm): Promise<DeployError | null> => {
+	const attempt = async (form: NewResourceForm, defaults: DefaultServiceConfig): Promise<DeployError | null> => {
 		const start: DeployRun = {
 			form,
 			resourceId: undefined,
@@ -152,9 +152,9 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 		}
 	};
 
-	const deploy = async (form: NewResourceForm) => {
+	const deploy = async (form: NewResourceForm, defaults: DefaultServiceConfig) => {
 		setDeployError(null);
-		const error = await attempt(form);
+		const error = await attempt(form, defaults);
 		if (error !== null) setRun(null);
 		setDeployError(error);
 		void queryClient.invalidateQueries();

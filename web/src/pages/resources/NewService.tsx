@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
@@ -44,6 +45,7 @@ import {
 	type DraftEdits,
 } from "@/lib/drafts";
 import { getErrorMessage } from "@/lib/error-handler";
+import { DRAFT_PARAM } from "@/lib/routes";
 import {
 	firstError,
 	healthSummary,
@@ -81,8 +83,6 @@ const API_FIELD_LABEL: Record<ApiField, string> = {
 	replicas: "Replicas",
 };
 const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeout", "failAfter"]);
-
-type DraftStore = ReturnType<typeof useDrafts>;
 
 function useTakenNames(workspaceId: string): Map<string, string> {
 	const transport = useTransport();
@@ -250,167 +250,77 @@ export function DraftSheet({
 	workspaceId,
 	env,
 	draftId,
-	onClose,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
 	draftId: string;
-	onClose: () => void;
 }) {
+	const [params, setParams] = useSearchParams();
 	const store = useDrafts(orgId, workspaceId, env.id);
-	return (
-		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) onClose();
-			}}
-		>
-			<SheetContent size="wide">
-				<ServiceDrawer
-					orgId={orgId}
-					workspaceId={workspaceId}
-					env={env}
-					draft={store.drafts.find((d) => d.id === draftId)}
-					store={store}
-					onClose={onClose}
-				/>
-			</SheetContent>
-		</Sheet>
-	);
-}
-
-function ServiceDrawer({
-	orgId,
-	workspaceId,
-	env,
-	draft,
-	store,
-	onClose,
-}: {
-	orgId: string;
-	workspaceId: string;
-	env: Environment;
-	draft: Draft | undefined;
-	store: DraftStore;
-	onClose: () => void;
-}) {
+	const taken = useTakenNames(workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
 	const regionsQuery = useRpcQuery(listRegions, { environmentId: env.id });
 	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });
-	const taken = useTakenNames(workspaceId);
+	const deployment = useServiceDeploy(workspaceId, env);
+	const [tried, setTried] = useState(false);
+	const [healthOpen, setHealthOpen] = useState(false);
+	const [discarding, setDiscarding] = useState(false);
+	const close = () => {
+		const next = new URLSearchParams(params);
+		next.delete(DRAFT_PARAM);
+		setParams(next);
+	};
 
+	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const defaults = configQuery.data?.serviceDefaults;
 	const header = <DrawerHeader name={draft?.name ?? "Draft"} image={draft?.image ?? ""} state="draft" />;
-	if (loadError !== null) {
-		return (
-			<>
-				{header}
+	const body = (() => {
+		if (deployment.run !== null) {
+			return <DeployRunView run={deployment.run} env={env} orgId={orgId} workspaceId={workspaceId} onDone={close} />;
+		}
+		if (loadError !== null) {
+			return (
 				<SheetBody>
 					<EmptyState title="Couldn't load the form">{getErrorMessage(loadError, "Failed to load")}</EmptyState>
 				</SheetBody>
-			</>
-		);
-	}
-	if (defaults === undefined || regionsQuery.data === undefined) {
-		return (
-			<>
-				{header}
+			);
+		}
+		if (defaults === undefined || regionsQuery.data === undefined) {
+			return (
 				<SheetBody>
 					{Array.from({ length: SKELETON_ROWS }, (_, i) => (
 						<Skeleton key={i} className="h-14 w-full" />
 					))}
 				</SheetBody>
-			</>
-		);
-	}
-	return (
-		<DraftFlow
-			orgId={orgId}
-			workspaceId={workspaceId}
-			env={env}
-			draft={draft}
-			store={store}
-			defaults={defaults}
-			schemaUrl={configQuery.data?.schemaUrl ?? ""}
-			regions={regionsQuery.data.regions}
-			platformDomains={domainsQuery.data?.platformDomains ?? []}
-			taken={taken}
-			onClose={onClose}
-		/>
-	);
-}
-
-function DraftFlow({
-	orgId,
-	workspaceId,
-	env,
-	draft,
-	store,
-	defaults,
-	schemaUrl,
-	regions,
-	platformDomains,
-	taken,
-	onClose,
-}: {
-	orgId: string;
-	workspaceId: string;
-	env: Environment;
-	draft: Draft | undefined;
-	store: DraftStore;
-	defaults: DefaultServiceConfig;
-	schemaUrl: string;
-	regions: RegionInfo[];
-	platformDomains: PlatformDomain[];
-	taken: ReadonlyMap<string, string>;
-	onClose: () => void;
-}) {
-	const deployment = useServiceDeploy(workspaceId, env, defaults);
-	const [discarding, setDiscarding] = useState(false);
-	const [tried, setTried] = useState(false);
-	const [healthOpen, setHealthOpen] = useState(false);
-	if (deployment.run !== null) {
-		return <DeployRunView run={deployment.run} env={env} orgId={orgId} workspaceId={workspaceId} onDone={onClose} />;
-	}
-	if (draft === undefined) {
-		return (
-			<>
-				<DrawerHeader name="Draft" image="" state="draft" />
+			);
+		}
+		if (draft === undefined) {
+			return (
 				<SheetBody>
 					<EmptyState title="This draft isn't here">
 						It was deployed or discarded, or it was saved in another browser.
 					</EmptyState>
 				</SheetBody>
-			</>
-		);
-	}
-	const holder = nameHolder(draft, taken);
-	return (
-		<>
-			<DrawerHeader name={draft.name} image={draft.image} state="draft" />
+			);
+		}
+		return (
 			<ServiceForm
 				env={env}
-				schemaUrl={schemaUrl}
-				regions={regions}
-				platformDomains={platformDomains}
+				schemaUrl={configQuery.data?.schemaUrl ?? ""}
+				regions={regionsQuery.data.regions}
+				platformDomains={domainsQuery.data?.platformDomains ?? []}
 				draft={draft}
 				defaults={defaults}
 				deployment={deployment}
 				tried={tried}
 				healthOpen={healthOpen}
+				holder={nameHolder(draft, taken)}
 				onTry={() => {
 					setTried(true);
 				}}
 				onHealthOpen={setHealthOpen}
-				notice={
-					holder === null ? null : (
-						<Notice>
-							{`${holder} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name.`}
-						</Notice>
-					)
-				}
 				onEdit={(edits) => {
 					deployment.clearError();
 					store.edit(draft.id, edits);
@@ -422,21 +332,36 @@ function DraftFlow({
 					setDiscarding(true);
 				}}
 			/>
-			<ConfirmDialog
-				open={discarding}
-				title={`Discard ${draft.name}?`}
-				description="The draft is removed from this browser. This can't be undone."
-				confirmLabel="Discard draft"
-				onConfirm={() => {
-					store.discard(draft.id);
-					toast.success(`Discarded ${draft.name}`);
-					onClose();
-				}}
-				onClose={() => {
-					setDiscarding(false);
-				}}
-			/>
-		</>
+		);
+	})();
+	return (
+		<Sheet
+			open
+			onOpenChange={(open) => {
+				if (!open) close();
+			}}
+		>
+			<SheetContent size="wide">
+				{deployment.run === null && header}
+				{body}
+			</SheetContent>
+			{draft !== undefined && (
+				<ConfirmDialog
+					open={discarding}
+					title={`Discard ${draft.name}?`}
+					description="The draft is removed from this browser. This can't be undone."
+					confirmLabel="Discard draft"
+					onConfirm={() => {
+						store.discard(draft.id);
+						toast.success(`Discarded ${draft.name}`);
+						close();
+					}}
+					onClose={() => {
+						setDiscarding(false);
+					}}
+				/>
+			)}
+		</Sheet>
 	);
 }
 
@@ -473,9 +398,9 @@ function ServiceForm({
 	deployment,
 	tried,
 	healthOpen,
+	holder,
 	onTry,
 	onHealthOpen,
-	notice,
 	onEdit,
 	onDeployed,
 	onDiscard,
@@ -489,9 +414,9 @@ function ServiceForm({
 	deployment: ReturnType<typeof useServiceDeploy>;
 	tried: boolean;
 	healthOpen: boolean;
+	holder: string | null;
 	onTry: () => void;
 	onHealthOpen: (open: boolean) => void;
-	notice: ReactNode;
 	onEdit: (edits: DraftEdits) => void;
 	onDeployed: () => void;
 	onDiscard: () => void;
@@ -535,7 +460,7 @@ function ServiceForm({
 				e.preventDefault();
 				onTry();
 				if (blocker !== null) return;
-				void deploy(form).then((err) => {
+				void deploy(form, defaults).then((err) => {
 					if (err === null) {
 						onDeployed();
 						return;
@@ -546,7 +471,13 @@ function ServiceForm({
 			}}
 		>
 			<SheetBody className="gap-0 py-0 [&>*]:border-b [&>*]:border-line [&>*]:py-5 [&>*:last-child]:border-b-0">
-				{notice !== null && <div>{notice}</div>}
+				{holder !== null && (
+					<div>
+						<Notice>
+							{`${holder} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name.`}
+						</Notice>
+					</div>
+				)}
 				<DrawerSection title="Regions">
 					{regions.length === 0 ? (
 						<span className="text-[13px] text-fg3">No cluster serves {env.name} yet.</span>

@@ -38,7 +38,7 @@ export function Dashboard() {
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
 	const data = useDashboardData(activeWorkspaceId, active);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
-	const [params, setParams] = useSearchParams();
+	const [params] = useSearchParams();
 
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
@@ -117,18 +117,7 @@ export function Dashboard() {
 				</>
 			)}
 			{draftId !== null && active !== undefined && (
-				<DraftSheet
-					key={draftId}
-					orgId={orgId}
-					workspaceId={workspaceId}
-					env={active}
-					draftId={draftId}
-					onClose={() => {
-						const next = new URLSearchParams(params);
-						next.delete(DRAFT_PARAM);
-						setParams(next);
-					}}
-				/>
+				<DraftSheet key={draftId} orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />
 			)}
 		</Page>
 	);
