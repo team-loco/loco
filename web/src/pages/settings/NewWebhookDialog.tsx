@@ -287,15 +287,14 @@ export function SigningSecret({ secret, onDone }: { secret: string; onDone: () =
 						value={secret}
 						className="min-w-0 flex-1 font-mono"
 					/>
-					<Button
-						variant="ghost"
-						aria-pressed={visible}
-						onClick={() => {
-							setVisible(!visible);
+					<ToggleChip
+						pressed={visible}
+						onPressedChange={(pressed) => {
+							setVisible(pressed);
 						}}
 					>
-						{visible ? "Hide" : "Show"}
-					</Button>
+						Show
+					</ToggleChip>
 					<CopyButton text={secret} name="Copy signing secret" />
 				</div>
 			</DialogBody>
