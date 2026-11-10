@@ -13,7 +13,6 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/timeutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -169,13 +168,6 @@ func notifyClusters(ctx context.Context, qtx *genDb.Queries, clusters []uuid.UUI
 	return nil
 }
 
-func lockOrganization(ctx context.Context, qtx *genDb.Queries, workspaceID uuid.UUID) error {
-	if err := qtx.LockWorkspaceOrganization(ctx, workspaceID); err != nil {
-		return fmt.Errorf("lock organization: %w", err)
-	}
-	return nil
-}
-
 func ensureOrganizationActive(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
 	reason, err := qtx.LockResourceOrganization(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -188,16 +180,4 @@ func ensureOrganizationActive(ctx context.Context, qtx *genDb.Queries, resourceI
 		return ErrOrgSuspended.Detail("%s", *reason)
 	}
 	return nil
-}
-
-func orgToProto(org genDb.Organization) *orgv1.Organization {
-	return &orgv1.Organization{
-		Id:               org.ID.String(),
-		Name:             org.Name,
-		CreatedBy:        org.CreatedBy.String(),
-		CreatedAt:        timeutil.ParsePostgresTimestamp(org.CreatedAt),
-		UpdatedAt:        timeutil.ParsePostgresTimestamp(org.UpdatedAt),
-		SuspendedAt:      timeutil.ParsePostgresTimestampPtr(org.SuspendedAt),
-		SuspensionReason: derefString(org.SuspensionReason),
-	}
 }

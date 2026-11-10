@@ -59,7 +59,7 @@ func TestWorkspacePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 				}
 			}
 			slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(b[:], a[:]) })
-			server := NewWorkspaceServer(f.pool, f.queries, nil)
+			server := NewWorkspaceServer(f.pool, f.queries)
 			page := func(cursor string) ([]*workspacev1.Workspace, string) {
 				t.Helper()
 				if kind == "organization" {

@@ -62,7 +62,6 @@ func newSecretFixture(t *testing.T) *secretFixture {
 	created, err := NewOrgServer(
 		pool,
 		queries,
-		machine,
 		InvitationConfig{},
 	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("secrets"),

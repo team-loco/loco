@@ -298,8 +298,8 @@ func (a *applier) deploy(
 			SubjectType: events.SubjectDeployment,
 			SubjectID:   new(deploymentID),
 			Data: map[string]any{
-				events.FieldResourceID: res.ID.String(),
-				"environmentId":        a.env.ID.String(),
+				events.FieldResourceID:    res.ID.String(),
+				events.FieldEnvironmentID: a.env.ID.String(),
 			},
 		}); eventErr != nil {
 			return eventErr

@@ -105,7 +105,7 @@ func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journey
 		validate.NewServerInterceptor(),
 	)
 	invitations := service.InvitationConfig{Transport: transport, TTL: journeyTTL, WebURL: journeyWebURL}
-	orgv1connect.RegisterOrgServiceHandler(server, service.NewOrgServer(pool, queries, machine, invitations))
+	orgv1connect.RegisterOrgServiceHandler(server, service.NewOrgServer(pool, queries, invitations))
 	userv1connect.RegisterUserServiceHandler(server, service.NewUserServer(pool, queries, machine, auth.Admins{}))
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

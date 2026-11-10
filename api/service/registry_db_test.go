@@ -712,8 +712,8 @@ func TestRegistryCredentialsEndWhenTheClusterReenrolls(t *testing.T) {
 func TestRegistryCredentialsStayRevokedWhenARemovedClusterIsRestored(t *testing.T) {
 	f := newRegistryFixture(t, testRegistryConfig())
 	set := f.issueCredentialSet(t)
-	for _, operation := range []string{ClusterPause, ClusterRemove, ClusterRestore} {
-		if _, err := ManageCluster(t.Context(), f.pool, operation, f.clusterID, true); err != nil {
+	for _, operation := range []clusterOperation{clusterPause, clusterRemove, clusterRestore} {
+		if _, err := manageCluster(t.Context(), f.pool, operation, f.clusterID, true); err != nil {
 			t.Fatalf("%s: %v", operation, err)
 		}
 	}

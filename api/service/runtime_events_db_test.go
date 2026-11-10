@@ -60,7 +60,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := auditScope(t, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin)
-	eventServer := NewEventServer(f.queries, nil)
+	eventServer := NewEventServer(f.queries)
 	req := &eventv1.ListEventsRequest{
 		OrgId:         parents.OrgID.String(),
 		WorkspaceId:   parents.WorkspaceID.String(),
@@ -147,7 +147,7 @@ func TestListRuntimeEventTimeBoundariesAtEveryScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := auditScope(t, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin)
-	server := NewEventServer(f.queries, nil)
+	server := NewEventServer(f.queries)
 	req := &eventv1.ListEventsRequest{OrgId: parents.OrgID.String(), WorkspaceId: parents.WorkspaceID.String(),
 		ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Types: []string{events.ResourceDegraded}}
 	response, err := server.ListEvents(ctx, req)

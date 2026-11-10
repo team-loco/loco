@@ -92,10 +92,10 @@ func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
 			t.Fatal("admin status lost build capability")
 		}
 	}
-	if _, pauseErr := ManageCluster(ctx, e.pool, ClusterPause, id, false); pauseErr != nil {
+	if _, pauseErr := manageCluster(ctx, e.pool, clusterPause, id, false); pauseErr != nil {
 		t.Fatal(pauseErr)
 	}
-	if _, removeErr := ManageCluster(ctx, e.pool, ClusterRemove, id, false); removeErr != nil {
+	if _, removeErr := manageCluster(ctx, e.pool, clusterRemove, id, false); removeErr != nil {
 		t.Fatal(removeErr)
 	}
 	_, err = e.admin.CreateCluster(ctx, request)

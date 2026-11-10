@@ -117,6 +117,19 @@ const (
 	FieldPlacementID   = "placementId"
 	FieldRegion        = "region"
 	FieldEmail         = "email"
+	FieldScopes        = "scopes"
+	FieldSourceSize    = "sourceSize"
+	FieldClusterID     = "clusterId"
+	FieldSuperseded    = "superseded"
+	FieldIP            = "ip"
+	FieldUserAgent     = "userAgent"
+	FieldFlow          = "flow"
+	FieldIssuer        = "issuer"
+	FieldEntityType    = "entityType"
+	FieldEntityID      = "entityId"
+	FieldReplicas      = "replicas"
+	FieldCPU           = "cpu"
+	FieldMemory        = "memory"
 )
 
 type Event struct {

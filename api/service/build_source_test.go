@@ -5,15 +5,11 @@ import (
 	"errors"
 	"slices"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -33,16 +29,6 @@ func (f *fakeResolver) Resolve(_ context.Context, ref name.Reference) (string, e
 	return f.digest, f.err
 }
 
-type fakeBuildLookup map[uuid.UUID]genDb.Build
-
-func (f fakeBuildLookup) GetBuildByID(_ context.Context, id uuid.UUID) (genDb.Build, error) {
-	b, ok := f[id]
-	if !ok {
-		return genDb.Build{}, pgx.ErrNoRows
-	}
-	return b, nil
-}
-
 func connectCode(t *testing.T, err error) connect.Code {
 	t.Helper()
 	public := publicError(err)
@@ -50,137 +36,6 @@ func connectCode(t *testing.T, err error) connect.Code {
 		t.Fatalf("err = %v, want a connect or coded error", err)
 	}
 	return public.Code()
-}
-
-func TestPinDockerfileBuild(t *testing.T) {
-	resourceID := uuid.New()
-	otherResourceID := uuid.New()
-	succeededID := uuid.New()
-	runningID := uuid.New()
-	foreignID := uuid.New()
-	deletedID := uuid.New()
-	missingID := uuid.New()
-	deletedAt := time.Now()
-	repository := "registry.loco.test/builds/ws-1/" + resourceID.String()
-	foreignRepository := "registry.loco.test/builds/ws-2/" + otherResourceID.String()
-	digest := testDigest
-
-	builds := fakeBuildLookup{
-		succeededID: {
-			ID:              succeededID,
-			ResourceID:      resourceID,
-			Status:          genDb.BuildStatusSucceeded,
-			DockerfilePath:  testDockerfile,
-			ImageRepository: repository,
-			ImageDigest:     &digest,
-		},
-		runningID: {
-			ID:              runningID,
-			ResourceID:      resourceID,
-			Status:          genDb.BuildStatusRunning,
-			ImageRepository: repository,
-		},
-		foreignID: {
-			ID:              foreignID,
-			ResourceID:      otherResourceID,
-			Status:          genDb.BuildStatusSucceeded,
-			ImageRepository: foreignRepository,
-			ImageDigest:     &digest,
-		},
-		deletedID: {
-			ID:              deletedID,
-			ResourceID:      resourceID,
-			Status:          genDb.BuildStatusSucceeded,
-			ImageRepository: repository,
-			ImageDigest:     &digest,
-			ImageDeletedAt:  &deletedAt,
-		},
-	}
-
-	succeededIDStr := succeededID.String()
-	runningIDStr := runningID.String()
-	foreignIDStr := foreignID.String()
-	deletedIDStr := deletedID.String()
-	missingIDStr := missingID.String()
-
-	tests := []struct {
-		name     string
-		src      *deploymentv1.BuildSource
-		wantCode connect.Code
-	}{
-		{
-			name: "image set",
-			src: &deploymentv1.BuildSource{
-				Type:    buildSourceTypeDockerfile,
-				Image:   "nginx:1",
-				BuildId: &succeededIDStr,
-			},
-			wantCode: connect.CodeInvalidArgument,
-		},
-		{
-			name:     "no build id",
-			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile},
-			wantCode: connect.CodeInvalidArgument,
-		},
-		{
-			name:     "missing build",
-			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &missingIDStr},
-			wantCode: connect.CodeNotFound,
-		},
-		{
-			name:     "build of another resource",
-			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &foreignIDStr},
-			wantCode: connect.CodeNotFound,
-		},
-		{
-			name:     "build not finished",
-			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &runningIDStr},
-			wantCode: connect.CodeFailedPrecondition,
-		},
-		{
-			name:     "build image deleted",
-			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &deletedIDStr},
-			wantCode: connect.CodeFailedPrecondition,
-		},
-	}
-
-	resolver := &fakeResolver{digest: testDigest}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			_, err := pinBuildSource(ctx, builds, resolver, testRegistryHost, resourceID, tt.src)
-			if code := connectCode(t, err); code != tt.wantCode {
-				t.Fatalf("code = %v, want %v (%v)", code, tt.wantCode, err)
-			}
-		})
-	}
-
-	t.Run("succeeded build", func(t *testing.T) {
-		ctx := context.Background()
-		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &succeededIDStr}
-		pinned, err := pinBuildSource(ctx, builds, resolver, testRegistryHost, resourceID, src)
-		if err != nil {
-			t.Fatalf("pin: %v", err)
-		}
-		want := repository + "@" + testDigest
-		if image := pinned.GetImage(); image != want {
-			t.Fatalf("image = %q, want %q", image, want)
-		}
-		if pinnedBuildID := pinned.GetBuildId(); pinnedBuildID != succeededIDStr {
-			t.Fatalf("build id = %q, want %q", pinnedBuildID, succeededIDStr)
-		}
-		restored, restoreErr := pinBuildSource(ctx, builds, resolver, testRegistryHost, resourceID, pinned)
-		if restoreErr != nil {
-			t.Fatalf("reuse stored build spec: %v", restoreErr)
-		}
-		if !proto.Equal(restored, pinned) {
-			t.Fatalf("reused build spec = %v, want %v", restored, pinned)
-		}
-	})
-
-	if len(resolver.calls) != 0 {
-		t.Fatalf("resolver called for dockerfile builds: %v", resolver.calls)
-	}
 }
 
 func TestPinPublicImage(t *testing.T) {
@@ -267,8 +122,7 @@ func TestPinPublicImage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			builds := fakeBuildLookup{}
-			pinned, err := pinBuildSource(ctx, builds, tt.resolver, testRegistryHost, resourceID, tt.src)
+			pinned, err := pinBuildSource(ctx, nil, tt.resolver, testRegistryHost, resourceID, tt.src)
 			if tt.wantCode != 0 {
 				if code := connectCode(t, err); code != tt.wantCode {
 					t.Fatalf("code = %v, want %v (%v)", code, tt.wantCode, err)
@@ -294,9 +148,8 @@ func TestPinPublicImage(t *testing.T) {
 func TestPinBuildSourceRequiresSource(t *testing.T) {
 	ctx := context.Background()
 	resolver := &fakeResolver{digest: testDigest}
-	builds := fakeBuildLookup{}
 	resourceID := uuid.New()
-	_, err := pinBuildSource(ctx, builds, resolver, "", resourceID, nil)
+	_, err := pinBuildSource(ctx, nil, resolver, "", resourceID, nil)
 	if code := connectCode(t, err); code != connect.CodeInvalidArgument {
 		t.Fatalf("code = %v, want invalid argument", code)
 	}

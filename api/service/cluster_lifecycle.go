@@ -13,11 +13,13 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
+type clusterOperation string
+
 const (
-	ClusterPause   = "pause"
-	ClusterResume  = "resume"
-	ClusterRemove  = "remove"
-	ClusterRestore = "restore"
+	clusterPause   clusterOperation = "pause"
+	clusterResume  clusterOperation = "resume"
+	clusterRemove  clusterOperation = "remove"
+	clusterRestore clusterOperation = "restore"
 )
 
 var (
@@ -34,20 +36,20 @@ var (
 	)
 )
 
-type ClusterOperationResult struct {
-	ClusterID uuid.UUID                       `json:"clusterId"`
-	Operation string                          `json:"operation"`
-	Workloads []genDb.ListClusterWorkloadsRow `json:"workloads"`
+type clusterOperationResult struct {
+	ClusterID uuid.UUID
+	Operation clusterOperation
+	Workloads []genDb.ListClusterWorkloadsRow
 }
 
-func ManageCluster(
+func manageCluster(
 	ctx context.Context,
 	pool *pgxpool.Pool,
-	operation string,
+	operation clusterOperation,
 	id uuid.UUID,
 	force bool,
-) (ClusterOperationResult, error) {
-	result := ClusterOperationResult{ClusterID: id, Operation: operation, Workloads: []genDb.ListClusterWorkloadsRow{}}
+) (clusterOperationResult, error) {
+	result := clusterOperationResult{ClusterID: id, Operation: operation, Workloads: []genDb.ListClusterWorkloadsRow{}}
 	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
 		cluster, err := qtx.LockClusterLifecycle(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -58,16 +60,16 @@ func ManageCluster(
 		}
 		params := genDb.UpdateClusterLifecycleParams{ID: id}
 		switch operation {
-		case ClusterPause:
+		case clusterPause:
 			if cluster.RemovedAt != nil {
 				return ErrClusterRemoved
 			}
-		case ClusterResume:
+		case clusterResume:
 			if cluster.RemovedAt != nil {
 				return ErrClusterRemoved
 			}
 			params.Active = true
-		case ClusterRemove:
+		case clusterRemove:
 			if cluster.IsActive {
 				return ErrClusterNotPaused
 			}
@@ -82,7 +84,7 @@ func ManageCluster(
 				return fmt.Errorf("delete registry credentials: %w", err)
 			}
 			params.RemoveCluster = true
-		case ClusterRestore:
+		case clusterRestore:
 			if cluster.RemovedAt == nil {
 				return ErrClusterNotRemoved
 			}

@@ -157,6 +157,11 @@ var defaultWebhookRetryDelays = []time.Duration{
 	24 * time.Hour,
 }
 
+type IngestConfig struct {
+	TransitKey    string
+	TokenLifetime time.Duration
+}
+
 type RegistryAuthConfig struct {
 	Mode                   string
 	TransitKey             transit.PinnedKey
@@ -173,7 +178,7 @@ func (c RegistryAuthConfig) TokenMode() bool {
 type APIConfig struct {
 	ObservabilityProxyURL *url.URL
 	Agent                 service.AgentConfig
-	Ingest                service.IngestConfig
+	Ingest                IngestConfig
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	Database              db.Config
@@ -685,13 +690,13 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 	return config
 }
 
-func newIngestConfig() service.IngestConfig {
+func newIngestConfig() IngestConfig {
 	lifetime := envconfig.PositiveDuration("LOCO_INGEST_TOKEN_LIFETIME", defaultIngestTokenLifetime)
 	key := envconfig.String("LOCO_INGEST_TRANSIT_KEY", "")
 	if err := transit.ValidateKeyName(key); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidIngestKey, err))
 	}
-	return service.IngestConfig{TransitKey: key, TokenLifetime: lifetime}
+	return IngestConfig{TransitKey: key, TokenLifetime: lifetime}
 }
 
 func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {

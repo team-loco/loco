@@ -226,12 +226,6 @@ func reportedDomains(domains []string) []string {
 }
 
 // healthStatusFromProto converts agent health to a status string.
-const (
-	clusterHealthHealthy   = "healthy"
-	clusterHealthDegraded  = "degraded"
-	clusterHealthUnhealthy = "unhealthy"
-)
-
 func healthStatusFromProto(h *agentv1.AgentHealth) string {
 	if h == nil {
 		return clusterHealthDegraded

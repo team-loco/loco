@@ -20,7 +20,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -43,7 +42,6 @@ type DomainServer struct {
 	db          *pgxpool.Pool
 	queries     genDb.Querier
 	authz       *authz.Authorizer
-	machine     *tvm.VendingMachine
 	defaults    servicedefaults.Defaults
 	silentAfter time.Duration
 }
@@ -51,14 +49,12 @@ type DomainServer struct {
 func NewDomainServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
-	machine *tvm.VendingMachine,
 	defaults servicedefaults.Defaults,
 	clusterSilentAfter time.Duration,
 ) *DomainServer {
 	return &DomainServer{
 		db:          db,
 		queries:     queries,
-		machine:     machine,
 		authz:       authz.New(db, queries),
 		defaults:    defaults,
 		silentAfter: clusterSilentAfter,

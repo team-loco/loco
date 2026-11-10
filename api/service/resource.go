@@ -46,10 +46,8 @@ var (
 		connect.CodeAlreadyExists,
 		"another resource in this workspace has the same slug",
 	)
-	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
-	ErrClusterNotFound       = errors.New("cluster not found")
-	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
-	ErrInvalidResourceType   = errors.New("invalid resource type")
+	ErrClusterNotFound     = errors.New("cluster not found")
+	ErrInvalidResourceType = errors.New("invalid resource type")
 
 	errClusterHeldByEnvironment = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
@@ -698,16 +696,16 @@ func (s *ResourceServer) scaleCurrentDeployments(
 
 	scaled := map[string]any{events.FieldEnvironmentID: environmentID.String()}
 	if req.Replicas != nil {
-		scaled["replicas"] = req.GetReplicas()
+		scaled[events.FieldReplicas] = req.GetReplicas()
 	}
 	if req.Cpu != nil {
-		scaled["cpu"] = req.GetCpu()
+		scaled[events.FieldCPU] = req.GetCpu()
 	}
 	if req.Memory != nil {
-		scaled["memory"] = req.GetMemory()
+		scaled[events.FieldMemory] = req.GetMemory()
 	}
 	if req.Region != nil {
-		scaled["region"] = req.GetRegion()
+		scaled[events.FieldRegion] = req.GetRegion()
 	}
 	scaledEvent := events.Event{
 		Type:        events.ResourceScaled,

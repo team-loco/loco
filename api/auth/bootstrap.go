@@ -66,7 +66,7 @@ func (r *Resolver) BootstrapUser(
 	if err = events.Record(ctx, queries, events.Event{
 		Type: events.UserCreated, ActorType: string(genDb.EntityTypeUser), ActorID: new(user.ID),
 		SubjectType: events.SubjectUser, SubjectID: new(user.ID),
-		Data: map[string]any{"issuer": id.Issuer, events.FieldEmail: id.Email},
+		Data: map[string]any{events.FieldIssuer: id.Issuer, events.FieldEmail: id.Email},
 	}); err != nil {
 		return genDb.User{}, genDb.Identity{}, fmt.Errorf("record bootstrap user: %w", err)
 	}

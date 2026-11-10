@@ -17,7 +17,6 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
-	"github.com/team-loco/loco/api/tvm"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -36,12 +35,11 @@ type WorkspaceServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	authz   *authz.Authorizer
-	machine *tvm.VendingMachine
 }
 
 // NewWorkspaceServer creates a new WorkspaceServer instance
-func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *WorkspaceServer {
-	return &WorkspaceServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries)}
+func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier) *WorkspaceServer {
+	return &WorkspaceServer{db: db, queries: queries, authz: authz.New(db, queries)}
 }
 
 // CreateWorkspace creates a new workspace
@@ -148,16 +146,7 @@ func (s *WorkspaceServer) GetWorkspace(
 	}
 
 	return &workspacev1.GetWorkspaceResponse{
-		Workspace: &workspacev1.Workspace{
-			Id:          ws.ID.String(),
-			OrgId:       ws.OrgID.String(),
-			OrgName:     ws.OrgName,
-			Name:        ws.Name,
-			Description: derefString(ws.Description),
-			CreatedBy:   ws.CreatedBy.String(),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
-		},
+		Workspace: workspaceToProto(ws),
 	}, nil
 }
 
@@ -196,16 +185,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 
 	var workspaces []*workspacev1.Workspace
 	for _, ws := range workspaceList {
-		workspaces = append(workspaces, &workspacev1.Workspace{
-			Id:          ws.ID.String(),
-			OrgId:       ws.OrgID.String(),
-			OrgName:     ws.OrgName,
-			Name:        ws.Name,
-			Description: derefString(ws.Description),
-			CreatedBy:   ws.CreatedBy.String(),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
-		})
+		workspaces = append(workspaces, workspaceToProto(genDb.GetWorkspaceByIDQueryRow(ws)))
 	}
 
 	token := nextPageToken(
@@ -260,16 +240,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 
 	var workspaces []*workspacev1.Workspace
 	for _, ws := range workspaceList {
-		workspaces = append(workspaces, &workspacev1.Workspace{
-			Id:          ws.ID.String(),
-			OrgId:       ws.OrgID.String(),
-			OrgName:     ws.OrgName,
-			Name:        ws.Name,
-			Description: derefString(ws.Description),
-			CreatedBy:   ws.CreatedBy.String(),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
-		})
+		workspaces = append(workspaces, workspaceToProto(genDb.GetWorkspaceByIDQueryRow(ws)))
 	}
 
 	token := nextPageToken(
@@ -476,7 +447,7 @@ func (s *WorkspaceServer) CreateMember(
 			WorkspaceID: new(wsID),
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(userID),
-			Data:        map[string]any{"scopes": grantedScopes},
+			Data:        map[string]any{events.FieldScopes: grantedScopes},
 		})
 	})
 	if err != nil {
@@ -590,4 +561,19 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		Members:       members,
 		NextPageToken: token,
 	}, nil
+}
+
+// workspaceToProto takes the single-workspace row type; the list queries select the same columns
+// and convert to it.
+func workspaceToProto(ws genDb.GetWorkspaceByIDQueryRow) *workspacev1.Workspace {
+	return &workspacev1.Workspace{
+		Id:          ws.ID.String(),
+		OrgId:       ws.OrgID.String(),
+		OrgName:     ws.OrgName,
+		Name:        ws.Name,
+		Description: derefString(ws.Description),
+		CreatedBy:   ws.CreatedBy.String(),
+		CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
+	}
 }

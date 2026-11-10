@@ -14,16 +14,12 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
-	"github.com/team-loco/loco/api/tvm"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
 	environmentTypeProduction = "production"
-	updateNameField           = "name"
-	updateDescriptionField    = "description"
-	updateTypeField           = "type"
 )
 
 var (
@@ -45,12 +41,11 @@ type EnvironmentServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	authz   *authz.Authorizer
-	machine *tvm.VendingMachine
 }
 
 // NewEnvironmentServer creates a new EnvironmentServer instance.
-func NewEnvironmentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *EnvironmentServer {
-	return &EnvironmentServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries)}
+func NewEnvironmentServer(db *pgxpool.Pool, queries genDb.Querier) *EnvironmentServer {
+	return &EnvironmentServer{db: db, queries: queries, authz: authz.New(db, queries)}
 }
 
 // CreateEnvironment creates a new environment in a workspace.

@@ -18,7 +18,6 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/tvm"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -62,12 +61,11 @@ func decodeStreamCursor(cursor string) (streamPosition, error) {
 type EventServer struct {
 	queries genDb.Querier
 	authz   *authz.Authorizer
-	machine *tvm.VendingMachine
 	poll    time.Duration
 }
 
-func NewEventServer(queries genDb.Querier, machine *tvm.VendingMachine) *EventServer {
-	return &EventServer{queries: queries, machine: machine, poll: streamPollInterval, authz: authz.New(nil, queries)}
+func NewEventServer(queries genDb.Querier) *EventServer {
+	return &EventServer{queries: queries, poll: streamPollInterval, authz: authz.New(nil, queries)}
 }
 
 func uuidString(id *uuid.UUID) string {
@@ -110,7 +108,7 @@ func (s *EventServer) ListEvents(
 		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "start_time must be before end_time")
 	}
-	workspaceID, err := s.authorizeEventScope(ctx, req)
+	scope, err := s.authorizeEventScope(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +116,7 @@ func (s *EventServer) ListEvents(
 	if pageSize == 0 {
 		pageSize = defaultEventPage
 	}
-	rows, err := s.listAuditEvents(ctx, req, workspaceID, pageSize+1)
+	rows, err := s.listAuditEvents(ctx, req, scope, pageSize+1)
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
@@ -130,59 +128,81 @@ func (s *EventServer) ListEvents(
 	return response, nil
 }
 
-func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.ListEventsRequest) (*uuid.UUID, error) {
+type eventScopeKind int
+
+const (
+	eventScopeOrg eventScopeKind = iota
+	eventScopeWorkspace
+	eventScopeResource
+)
+
+// eventScope is the narrowest level a ListEvents request reads. workspaceID is set for the
+// workspace and resource levels, resourceID for the resource level.
+type eventScope struct {
+	kind        eventScopeKind
+	orgID       uuid.UUID
+	workspaceID uuid.UUID
+	resourceID  uuid.UUID
+}
+
+func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
 	orgID, err := parseID("org_id", req.GetOrgId())
 	if err != nil {
-		return nil, err
+		return eventScope{}, err
 	}
 	if req.GetResourceId() != "" {
 		resourceID, err := parseID("resource_id", req.GetResourceId())
 		if err != nil {
-			return nil, err
+			return eventScope{}, err
 		}
 		readErr := authorize(ctx, s.authz, actions.ListResourceAuditEvents, resourceID)
 		if readErr != nil {
 			if adminErr := authorize(ctx, s.authz, actions.ListResourceAuditAdminEvents, resourceID); adminErr != nil {
-				return nil, readErr
+				return eventScope{}, readErr
 			}
 		}
 		parents, err := s.queries.GetWorkspaceOrganizationIDByResourceID(ctx, resourceID)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+			return eventScope{}, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("get the parents of resource %s: %w", resourceID, err)
+			return eventScope{}, fmt.Errorf("get the parents of resource %s: %w", resourceID, err)
 		}
 		if parents.OrgID != orgID ||
 			(req.GetWorkspaceId() != "" && parents.WorkspaceID.String() != req.GetWorkspaceId()) {
-			return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+			return eventScope{}, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 		}
-		return new(parents.WorkspaceID), nil
+		return eventScope{
+			kind:        eventScopeResource,
+			orgID:       orgID,
+			workspaceID: parents.WorkspaceID,
+			resourceID:  resourceID,
+		}, nil
 	}
 	if req.GetWorkspaceId() != "" {
 		workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
 		if err != nil {
-			return nil, err
+			return eventScope{}, err
 		}
 		if err = authorize(ctx, s.authz, actions.ListWorkspaceAuditEvents, workspaceID); err != nil {
-			return nil, err
+			return eventScope{}, err
 		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+			return eventScope{}, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("get the organization of workspace %s: %w", workspaceID, err)
+			return eventScope{}, fmt.Errorf("get the organization of workspace %s: %w", workspaceID, err)
 		}
 		if parent != orgID {
-			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+			return eventScope{}, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
 		}
-		return &workspaceID, nil
+		return eventScope{kind: eventScopeWorkspace, orgID: orgID, workspaceID: workspaceID}, nil
 	}
 	if err := authorize(ctx, s.authz, actions.ListOrgAuditEvents, orgID); err != nil {
-		return nil, err
+		return eventScope{}, err
 	}
-	return nil, nil
+	return eventScope{kind: eventScopeOrg, orgID: orgID}, nil
 }
 
 func auditEvent(row genDb.Event, email, name *string) *eventv1.Event {
@@ -195,10 +215,10 @@ func auditEvent(row genDb.Event, email, name *string) *eventv1.Event {
 func (s *EventServer) listAuditEvents(
 	ctx context.Context,
 	req *eventv1.ListEventsRequest,
-	workspaceID *uuid.UUID,
+	scope eventScope,
 	maxRows int32,
 ) ([]*eventv1.Event, error) {
-	orgID := uuid.MustParse(req.GetOrgId())
+	orgID := scope.orgID
 	types := req.GetTypes()
 	if types == nil {
 		types = []string{}
@@ -223,16 +243,18 @@ func (s *EventServer) listAuditEvents(
 		endTime = new(req.GetEndTime().AsTime())
 	}
 	out := []*eventv1.Event{}
-	if req.GetResourceId() != "" {
-		resourceID := uuid.MustParse(req.GetResourceId())
+	switch scope.kind {
+	case eventScopeResource:
 		rows, err := s.queries.ListResourceAuditEvents(ctx, genDb.ListResourceAuditEventsParams{
 			OrgID:         &orgID,
-			WorkspaceID:   workspaceID,
-			ResourceID:    &resourceID,
+			WorkspaceID:   &scope.workspaceID,
+			ResourceID:    &scope.resourceID,
 			Types:         types,
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
-			EnvironmentID: environmentID, StartTime: startTime, EndTime: endTime,
+			EnvironmentID: environmentID,
+			StartTime:     startTime,
+			EndTime:       endTime,
 		})
 		if err != nil {
 			return nil, err
@@ -241,11 +263,27 @@ func (s *EventServer) listAuditEvents(
 			out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
 		}
 		return out, nil
-	}
-	if workspaceID != nil {
+	case eventScopeWorkspace:
 		rows, err := s.queries.ListWorkspaceAuditEvents(ctx, genDb.ListWorkspaceAuditEventsParams{
 			OrgID:         &orgID,
-			WorkspaceID:   workspaceID,
+			WorkspaceID:   &scope.workspaceID,
+			Types:         types,
+			BeforeSeq:     before,
+			MaxRows:       maxRows,
+			EnvironmentID: environmentID,
+			StartTime:     startTime,
+			EndTime:       endTime,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
+		}
+		return out, nil
+	default:
+		rows, err := s.queries.ListOrgAuditEvents(ctx, genDb.ListOrgAuditEventsParams{
+			OrgID:         &orgID,
 			Types:         types,
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
@@ -261,25 +299,6 @@ func (s *EventServer) listAuditEvents(
 		}
 		return out, nil
 	}
-	rows, err := s.queries.ListOrgAuditEvents(
-		ctx,
-		genDb.ListOrgAuditEventsParams{
-			OrgID:         &orgID,
-			Types:         types,
-			BeforeSeq:     before,
-			MaxRows:       maxRows,
-			EnvironmentID: environmentID,
-			StartTime:     startTime,
-			EndTime:       endTime,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	for _, row := range rows {
-		out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
-	}
-	return out, nil
 }
 
 func (s *EventServer) StreamEvents(

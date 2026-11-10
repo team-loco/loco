@@ -24,15 +24,16 @@ import (
 const (
 	maxWebhooksPerWorkspace = 10
 	recentDeliveries        = 25
-	schemeHTTPS             = "https"
-	schemeHTTP              = "http"
 	fieldWebhookURL         = "url"
 	fieldWebhookEvents      = "eventTypes"
 )
 
 var (
-	ErrWebhookURL      = rpcerr.NewCoded(connect.CodeInvalidArgument, "use an https URL with a host name")
-	ErrWebhookLimit    = rpcerr.NewCoded(connect.CodeFailedPrecondition, "a workspace can have at most 10 webhooks")
+	ErrWebhookURL   = rpcerr.NewCoded(connect.CodeInvalidArgument, "use an https URL with a host name")
+	ErrWebhookLimit = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		fmt.Sprintf("a workspace can have at most %d webhooks", maxWebhooksPerWorkspace),
+	)
 	ErrWebhookNotFound = rpcerr.NewCoded(connect.CodeNotFound, "webhook not found in this workspace")
 )
 

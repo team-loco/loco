@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/reqctx"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -509,31 +510,72 @@ func TestListBuildsPages(t *testing.T) {
 
 func TestPinDockerfileBuildFromDatabase(t *testing.T) {
 	f := newBuildFixture(t)
-	buildID := f.create(t, 10).GetBuildId()
+	succeeded := f.create(t, 10).GetBuildId()
 	if _, err := f.pool.Exec(
 		f.ctx,
 		`UPDATE builds SET status = 'succeeded', image_digest = $2 WHERE id = $1`,
-		buildID,
+		succeeded,
 		testDigest,
 	); err != nil {
 		t.Fatalf("mark build succeeded: %v", err)
 	}
-
-	build := f.get(t, buildID)
+	deleted := f.create(t, 10).GetBuildId()
+	if _, err := f.pool.Exec(
+		f.ctx,
+		`UPDATE builds SET status = 'succeeded', image_digest = $2, image_deleted_at = now() WHERE id = $1`,
+		deleted,
+		testDigest,
+	); err != nil {
+		t.Fatalf("mark build image deleted: %v", err)
+	}
+	unfinished := f.create(t, 10).GetBuildId()
+	missing := uuid.NewString()
 	resolver := &fakeResolver{}
-	src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
-	pinned, err := pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, f.resourceID, src)
+	pin := func(resourceID uuid.UUID, buildID string, image string) (*deploymentv1.BuildSource, error) {
+		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, Image: image, BuildId: &buildID}
+		return pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, resourceID, src)
+	}
+
+	pinned, err := pin(f.resourceID, succeeded, "")
 	if err != nil {
 		t.Fatalf("pin: %v", err)
 	}
-	want := build.GetImageRepository() + "@" + testDigest
+	want := f.get(t, succeeded).GetImageRepository() + "@" + testDigest
 	if image := pinned.GetImage(); image != want {
 		t.Fatalf("image = %q, want %q", image, want)
 	}
+	if pinnedBuildID := pinned.GetBuildId(); pinnedBuildID != succeeded {
+		t.Fatalf("build id = %q, want %q", pinnedBuildID, succeeded)
+	}
+	restored, err := pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, f.resourceID, pinned)
+	if err != nil {
+		t.Fatalf("reuse stored build spec: %v", err)
+	}
+	if !proto.Equal(restored, pinned) {
+		t.Fatalf("reused build spec = %v, want %v", restored, pinned)
+	}
 
-	otherResource := uuid.New()
-	_, err = pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, otherResource, src)
-	wantCode(t, err, connect.CodeNotFound)
+	for name, tt := range map[string]struct {
+		resourceID uuid.UUID
+		buildID    string
+		image      string
+		want       connect.Code
+	}{
+		"image set":                 {f.resourceID, succeeded, "nginx:1", connect.CodeInvalidArgument},
+		"no build id":               {f.resourceID, "", "", connect.CodeInvalidArgument},
+		"missing build":             {f.resourceID, missing, "", connect.CodeNotFound},
+		"build of another resource": {uuid.New(), succeeded, "", connect.CodeNotFound},
+		"build not finished":        {f.resourceID, unfinished, "", connect.CodeFailedPrecondition},
+		"build image deleted":       {f.resourceID, deleted, "", connect.CodeFailedPrecondition},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := pin(tt.resourceID, tt.buildID, tt.image)
+			wantCode(t, err, tt.want)
+		})
+	}
+	if len(resolver.calls) != 0 {
+		t.Fatalf("resolver called for dockerfile builds: %v", resolver.calls)
+	}
 }
 
 func TestSucceededBuildRequiresDigest(t *testing.T) {

@@ -279,8 +279,8 @@ func (s *DeploymentServer) CreateDeployment(
 			SubjectType: events.SubjectDeployment,
 			SubjectID:   new(deploymentID),
 			Data: map[string]any{
-				events.FieldResourceID: resourceID.String(),
-				"environmentId":        environmentID.String(),
+				events.FieldResourceID:    resourceID.String(),
+				events.FieldEnvironmentID: environmentID.String(),
 			},
 		})
 	})

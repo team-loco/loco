@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/api/tvm"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 )
 
@@ -33,12 +32,11 @@ type domainClient struct {
 
 func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 	t.Helper()
-	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
 	scoped := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
-	server := NewDomainServer(f.pool, f.queries, machine, testServiceDefaults(), testClusterSilentAfter)
+	server := NewDomainServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
 	f.serveDomains(t, testDomainPlatform)
 	return &domainClient{server: server, ctx: scoped, f: f}
 }

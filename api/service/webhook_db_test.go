@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -14,7 +13,6 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
-	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
@@ -39,11 +37,6 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 	t.Helper()
 	pool := authtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
-		SessionAccessTokenDuration:  time.Hour,
-		SessionRefreshTokenDuration: time.Hour,
-		LastUsedUpdateInterval:      time.Minute,
-	})
 	policy, err := auth.ParseSignupPolicy("open", "")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
@@ -51,7 +44,7 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 	f := &webhookFixture{pool: pool, queries: queries, resolver: auth.NewResolver(pool, policy)}
 	owner := f.signUp(t, "owner", "owner@corp.test")
 	ownerCtx := scoped(t, queries, owner)
-	orgs := NewOrgServer(pool, queries, machine, InvitationConfig{})
+	orgs := NewOrgServer(pool, queries, InvitationConfig{})
 	created, err := orgs.CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{Name: new("corp")})
 	if err != nil {
 		t.Fatalf("org: %v", err)

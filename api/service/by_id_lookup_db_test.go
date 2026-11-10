@@ -34,7 +34,7 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 	domainID := domains.domainID(t, testPrimaryDomain)
 	deploymentID := created.GetDeploymentId()
 	deployments, _ := f.deploymentWriter(t)
-	environments := NewEnvironmentServer(f.pool, f.queries, nil)
+	environments := NewEnvironmentServer(f.pool, f.queries)
 	resources := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
 	plans := newPlanServer(f)
 	var stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream
