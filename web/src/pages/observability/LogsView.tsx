@@ -274,7 +274,12 @@ export function LogsView() {
 	const setColumns = (next: ColumnKey[]) => {
 		setParam("cols", writeColumns(next), true);
 	};
-
+	const toggleLevel = (level: Level) => {
+		const tok = levelToken(level);
+		const on = tokens.some((t) => sameToken(t, tok));
+		setQuery(on ? tokens.filter((t) => !sameToken(t, tok)) : [...tokens, tok], text);
+	};
+	const pressedLevels = LEVELS.filter((l) => tokens.some((t) => sameToken(t, levelToken(l))));
 	const away = anchor !== null || range.kind === "absolute";
 	const total = tail ? null : logs.totalMatched;
 	const count =
@@ -346,28 +351,21 @@ export function LogsView() {
 							multiple
 							aria-label="Log levels"
 							className="flex flex-wrap gap-1"
-							value={LEVELS.filter((l) => tokens.some((t) => sameToken(t, levelToken(l))))}
+							value={pressedLevels}
 							onValueChange={(values) => {
-								setQuery(
-									[
-										...tokens.filter((t) => !LEVELS.some((l) => sameToken(t, levelToken(l)))),
-										...LEVELS.filter((l) => values.includes(l)).map(levelToken),
-									],
-									text,
-								);
+								const level = LEVELS.find((l) => values.includes(l) !== pressedLevels.includes(l));
+								if (level !== undefined) toggleLevel(level);
 							}}
 						>
 							{LEVELS.map((l) => {
 								const n = totals.get(l) ?? 0;
-								const on = tokens.some((t) => sameToken(t, levelToken(l)));
 								return (
 									<ToggleGroupItem
 										key={l}
 										value={l}
 										className={cn(
-											"inline-flex h-[26px] items-center gap-1.5 rounded-sm px-2 text-[12.5px] text-fg2 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-											on && "bg-background text-foreground shadow-[inset_0_0_0_1px_var(--line2)]",
-											n === 0 && !on && "opacity-55",
+											"inline-flex h-[26px] items-center gap-1.5 rounded-sm px-2 text-[12.5px] text-fg2 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-[inset_0_0_0_1px_var(--line2)]",
+											n === 0 && "opacity-55 aria-pressed:opacity-100",
 										)}
 									>
 										<span className="size-2 rounded-[2px]" style={{ background: LEVEL_SERIES[l].color }} />

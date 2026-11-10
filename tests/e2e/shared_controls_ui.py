@@ -5,6 +5,9 @@ import importlib.util
 import io
 import json
 import os
+import re
+import urllib.parse
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
@@ -39,6 +42,37 @@ if resource is None:
     state["shared_controls_resource"] = resource
     evidence.write_json(Path(args.state), state)
 base = f"/org/{org}/wks/{workspace}"
+
+
+def stamp(delta):
+    return (datetime.now(UTC) - delta).isoformat().replace("+00:00", "Z")
+
+
+def mock_telemetry(context):
+    logs = [{"timestamp": stamp(timedelta(seconds=i * 13 + 1)), "severity": ("INFO", "WARN", "ERROR", "DEBUG")[i % 4], "body": f"Request completed ({i + 1})", "resourceId": resource, "resourceAttributes": {"cloud.region": "us-east-1"}} for i in range(18)]
+    context.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: route.fulfill(json={"entries": logs, "totalMatched": str(len(logs))}))
+
+
+def query_param(page):
+    return urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query).get("q", [""])[0]
+
+
+def log_levels(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
+    levels = page.get_by_role("group", name="Log levels")
+    warn = levels.get_by_role("button", name=re.compile(r"^Warn"))
+    error = levels.get_by_role("button", name=re.compile(r"^Error"))
+    expect(warn).to_have_attribute("aria-pressed", "true")
+    error.click()
+    expect(error).to_have_attribute("aria-pressed", "true")
+    assert query_param(page) == "@level:warn @level:error", query_param(page)
+    warn.focus()
+    page.keyboard.press("Space")
+    expect(warn).to_have_attribute("aria-pressed", "false")
+    assert query_param(page) == "@level:error", query_param(page)
+    page.screenshot(path=str(out / f"log-levels-{suffix}.png"))
+
+
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 results = []
@@ -47,7 +81,8 @@ with sync_playwright() as playwright:
     try:
         for theme in ("light", "dark"):
             for narrow in (False, True):
-                context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
+                context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme, timezone_id="UTC")
+                mock_telemetry(context)
                 auth = {"idToken": owner["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
                 context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
                 page = context.new_page()
@@ -123,6 +158,9 @@ with sync_playwright() as playwright:
                         expect(name).to_be_focused()
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
+                    if not args.capture_only:
+                        for check in (log_levels,):
+                            check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})
                 except BaseException:
