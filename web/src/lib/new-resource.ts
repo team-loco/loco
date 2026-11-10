@@ -2,15 +2,13 @@ import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 
 import { parseDotEnvLine } from "@/lib/dotenv";
 import { parseImage } from "@/lib/image";
+import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/platform-domain";
 import { MAX_SLUG_LENGTH, slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
-export const SUBDOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 const PORT_RE = /^\d+$/;
 const LOCO_YAML_VERSION = 1;
-
-export type Availability = "available" | "taken" | "unknown" | "checking";
 
 export interface NewResourceForm {
 	image: string;
@@ -78,7 +76,7 @@ function nameError(name: string, takenSlugs: ReadonlyMap<string, string>): strin
 	return holder === name ? `${name} already exists in this workspace` : `${holder} already uses the name ${s}`;
 }
 
-function subdomainError(form: NewResourceForm, availability: Availability): string | null {
+function subdomainError(form: NewResourceForm, availability: DomainCheck["state"]): string | null {
 	if (!form.isPublic) return null;
 	if (form.platformDomain === "") return "No platform domain is served in every selected region";
 	if (form.subdomain === "") return "Enter a subdomain";
@@ -90,7 +88,7 @@ function subdomainError(form: NewResourceForm, availability: Availability): stri
 export function validateForm(
 	form: NewResourceForm,
 	takenSlugs: ReadonlyMap<string, string>,
-	availability: Availability,
+	availability: DomainCheck["state"],
 ): FormErrors {
 	const image = form.image.trim();
 	return {

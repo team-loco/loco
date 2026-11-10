@@ -77,10 +77,10 @@ test("validateForm flags every missing or malformed field", () => {
 			healthPath: "healthz",
 		},
 		new Map(),
-		"unknown",
+		"empty",
 	);
 	expect(errorCount(errors)).toBe(8);
-	expect(validateForm({ ...form, platformDomain: "" }, new Map(), "unknown").subdomain).toBe(
+	expect(validateForm({ ...form, platformDomain: "" }, new Map(), "empty").subdomain).toBe(
 		"No platform domain is served in every selected region",
 	);
 	expect(validateForm(form, new Map(), "taken").subdomain).toBe("web.example.com is taken");

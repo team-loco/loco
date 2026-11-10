@@ -4,11 +4,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
 	checkDomainAvailability,
+	createResourceDomain,
 	deleteResourceDomain,
 	setPrimaryResourceDomain,
 	updateResourceDomain,
 } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
-import { DomainType, type ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
+import { DomainType, type PlatformDomain, type ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
@@ -20,10 +21,11 @@ import {
 } from "@/components/design/DropdownMenu";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
-import { SoonTag } from "@/components/design/SoonTag";
+import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
 import { Switch } from "@/components/design/Switch";
+import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { toastConnectError } from "@/lib/error-handler";
+import { domainCoverage } from "@/lib/platform-domain";
 import { slug } from "@/lib/slug";
 
 import { MANAGED_NOTICE_ID } from "./ManagedNotice";
@@ -31,22 +33,17 @@ import { SettingsBlock, type SectionProps } from "./SettingsSections";
 
 const HOST = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
-function sourceLabel(source: DomainType): string {
-	switch (source) {
-		case DomainType.PLATFORM_PROVIDED:
-			return "platform";
-		case DomainType.UNSPECIFIED:
-			return "—";
-	}
-}
-
 function DomainRow({
 	domain,
+	served,
+	running,
 	onlyDomain,
 	managed,
 	onChanged,
 }: {
 	domain: ResourceDomain;
+	served: readonly string[];
+	running: readonly string[];
 	onlyDomain: boolean;
 	managed: boolean;
 	onChanged: () => void;
@@ -56,8 +53,8 @@ function DomainRow({
 	const remove = useMutation(deleteResourceDomain);
 	const check = useMutation(checkDomainAvailability);
 	const update = useMutation(updateResourceDomain);
-	const platform = domain.domainSource === DomainType.PLATFORM_PROVIDED;
 	const removeBlocked = domain.isPrimary && !onlyDomain;
+	const { serving, missing } = domainCoverage(served, running);
 
 	const saveEdit = async () => {
 		if (editing === null) return;
@@ -115,24 +112,20 @@ function DomainRow({
 	}
 
 	return (
-		<div className="grid h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 sm:grid-cols-[minmax(0,1fr)_100px_120px_auto]">
-			<a href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer" className="truncate font-medium">
+		<div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2">
+			<a
+				href={`https://${domain.domain}`}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="w-full font-mono text-[12.5px] font-medium [overflow-wrap:anywhere] sm:w-auto sm:min-w-0 sm:flex-1"
+			>
 				{domain.domain}
 			</a>
-			<span className="hidden text-fg3 sm:inline">{sourceLabel(domain.domainSource)}</span>
-			{platform ? (
-				<span className="hidden items-center gap-1.5 text-fg2 sm:flex">
-					<span className="size-[7px] rounded-full bg-ok-fg" />
-					TLS active
-				</span>
-			) : (
-				<span
-					className="hidden items-center gap-1.5 text-fg4 sm:flex"
-					title="Certificate status for custom domains is not reported yet"
-				>
-					TLS status
-					<SoonTag />
-				</span>
+			<span className="font-mono text-[11.5px] whitespace-nowrap text-fg3">
+				{serving.length === 0 ? "no regions" : serving.join(", ")}
+			</span>
+			{missing.length > 0 && (
+				<span className="text-[11.5px] whitespace-nowrap text-warn-fg">not served in {missing.join(", ")}</span>
 			)}
 			<div className="flex items-center justify-end gap-1.5">
 				{domain.isPrimary && <Badge tone="pill">primary</Badge>}
@@ -207,6 +200,75 @@ function DomainRow({
 	);
 }
 
+function AddDomainForm({
+	resourceId,
+	resourceName,
+	own,
+	options,
+	running,
+	locked,
+	describedBy,
+	onAdded,
+}: {
+	resourceId: string;
+	resourceName: string;
+	own: readonly string[];
+	options: PlatformDomain[];
+	running: readonly string[];
+	locked: boolean;
+	describedBy: string | undefined;
+	onAdded: () => void;
+}) {
+	const [subdomain, setSubdomain] = useState("");
+	const [picked, setPicked] = useState<string | null>(null);
+	const create = useMutation(createResourceDomain);
+	const fallback = options.find((d) => domainCoverage(d.regions, running).missing.length === 0) ?? options[0];
+	const platformDomain = options.find((d) => d.domain === picked)?.domain ?? fallback?.domain ?? "";
+	const check = useDomainAvailability(subdomain, platformDomain, own);
+
+	return (
+		<form
+			className="flex flex-wrap items-start gap-2 px-4 py-2.5"
+			onSubmit={(e) => {
+				e.preventDefault();
+				if (check.state !== "available") return;
+				create.mutate(
+					{
+						resourceId,
+						domain: { domainSource: DomainType.PLATFORM_PROVIDED, subdomain, platformDomain },
+					},
+					{
+						onSuccess: () => {
+							setSubdomain("");
+							onAdded();
+						},
+						onError: (err) => {
+							toastConnectError(err, "Failed to add domain");
+						},
+					},
+				);
+			}}
+		>
+			<PlatformDomainInput
+				className="max-w-[460px] min-w-[240px] flex-1"
+				subdomain={subdomain}
+				platformDomain={platformDomain}
+				options={options}
+				check={check}
+				owner={resourceName}
+				placeholder={slug(resourceName)}
+				disabled={locked}
+				describedBy={describedBy}
+				onSubdomainChange={setSubdomain}
+				onPlatformDomainChange={setPicked}
+			/>
+			<Button type="submit" variant="outline" disabled={locked || check.state !== "available" || create.isPending}>
+				Add
+			</Button>
+		</form>
+	);
+}
+
 export function NetworkingSection({
 	draft,
 	base,
@@ -214,14 +276,27 @@ export function NetworkingSection({
 	locked,
 	describedBy,
 	onChange,
+	resourceId,
 	domains,
+	platformDomains,
 	served,
 	onDomainsChanged,
-}: SectionProps & { domains: ResourceDomain[]; served: string[]; onDomainsChanged: () => void }) {
+}: SectionProps & {
+	resourceId: string;
+	domains: ResourceDomain[];
+	platformDomains: PlatformDomain[];
+	served: string[];
+	onDomainsChanged: () => void;
+}) {
 	const sorted = domains.toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+	const own = domains.map((d) => d.domain);
+	const running = Object.keys(base.regions).filter((r) => base.regions[r] === true);
 	const isPublic = draft.isPublic ?? base.isPublic;
 	const adding = isPublic && !base.isPublic;
 	const platformDomain = draft.platformDomain ?? served[0] ?? "";
+	const subdomain = draft.subdomain ?? "";
+	const check = useDomainAvailability(adding ? subdomain : "", platformDomain, own);
+	const draftError = check.state === "empty" ? (errors.subdomain ?? errors.platformDomain) : undefined;
 
 	return (
 		<SettingsBlock id="set-net" title="Networking">
@@ -258,22 +333,24 @@ export function NetworkingSection({
 				/>
 			</Field>
 			{adding && (
-				<Field label="Domain" error={errors.subdomain ?? errors.platformDomain}>
-					<InputGroup>
-						<InputGroupInput
-							className="font-mono"
-							aria-label="Subdomain"
-							value={draft.subdomain ?? ""}
-							aria-invalid={errors.subdomain !== undefined}
-							onChange={(e) => {
-								onChange({ subdomain: e.target.value.toLowerCase() });
-							}}
-						/>
-						<InputGroupAddon align="inline-end">
-							<InputGroupText>.{platformDomain === "" ? "no platform domain" : platformDomain}</InputGroupText>
-						</InputGroupAddon>
-					</InputGroup>
-				</Field>
+				<div className="flex min-w-0 flex-col gap-1.5">
+					<span className="text-[13px] font-medium">Domain</span>
+					<PlatformDomainInput
+						className="max-w-[460px]"
+						subdomain={subdomain}
+						platformDomain={platformDomain}
+						options={platformDomains.filter((d) => served.includes(d.domain))}
+						check={check}
+						owner={base.name}
+						onSubdomainChange={(next) => {
+							onChange({ subdomain: next });
+						}}
+						onPlatformDomainChange={(next) => {
+							onChange({ platformDomain: next });
+						}}
+					/>
+					{draftError !== undefined && <span className="text-[12.5px] text-bad-fg">{draftError}</span>}
+				</div>
 			)}
 			{isPublic && base.isPublic && (
 				<div className="flex flex-col gap-1.5">
@@ -283,18 +360,26 @@ export function NetworkingSection({
 							<DomainRow
 								key={d.id}
 								domain={d}
+								served={platformDomains.find((p) => p.domain === d.platformDomain)?.regions ?? []}
+								running={running}
 								onlyDomain={sorted.length === 1}
 								managed={locked}
 								onChanged={onDomainsChanged}
 							/>
 						))}
-						<div className="flex gap-2 px-4 py-2.5">
-							<Input disabled placeholder="shop.example.com" aria-label="Custom domain" className="flex-1" />
-							<Button variant="outline" disabled>
-								Add custom domain
-								<SoonTag />
-							</Button>
-						</div>
+						{sorted.length === 0 && (
+							<div className="border-b border-line px-4 py-3.5 text-[13px] text-fg3">No domains yet.</div>
+						)}
+						<AddDomainForm
+							resourceId={resourceId}
+							resourceName={base.name}
+							own={own}
+							options={platformDomains}
+							running={running}
+							locked={locked}
+							describedBy={describedBy}
+							onAdded={onDomainsChanged}
+						/>
 					</div>
 					<span className="text-[12.5px] text-fg3">
 						Changes to a domain row apply right away and take effect on the next deployment.
