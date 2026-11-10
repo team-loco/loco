@@ -9,8 +9,9 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
+import { pageSelection, toggleId, togglePage } from "@/lib/selection";
 
-import { groupState, toggleEvent, toggleGroup, isUrlRejection, webhookEventGroups, type EventGroup } from "./webhooks";
+import { isUrlRejection, webhookEventGroups, type EventGroup } from "./webhooks";
 
 type Mode = "all" | "choose";
 
@@ -73,17 +74,17 @@ function NewWebhookForm({
 	const create = useMutation(createWebhook);
 	const [url, setUrl] = useState("");
 	const [mode, setMode] = useState<Mode>("all");
-	const [types, setTypes] = useState<string[]>([]);
+	const [types, setTypes] = useState<ReadonlySet<string>>(() => new Set());
 
 	const target = url.trim();
 	const rejected = isUrlRejection(create.error);
 	const urlError = rejected ? getErrorMessage(create.error) : null;
-	const ok = target !== "" && (mode === "all" || types.length > 0) && !create.isPending;
+	const ok = target !== "" && (mode === "all" || types.size > 0) && !create.isPending;
 
 	const submit = () => {
 		if (!ok) return;
 		create.mutate(
-			{ workspaceId, url: target, eventTypes: mode === "all" ? [] : types },
+			{ workspaceId, url: target, eventTypes: mode === "all" ? [] : [...types] },
 			{
 				onSuccess: (res) => {
 					onCreated(res.secret);
@@ -177,22 +178,22 @@ function GroupPicker({
 	onChange,
 }: {
 	group: EventGroup;
-	selected: string[];
-	onChange: (next: string[]) => void;
+	selected: ReadonlySet<string>;
+	onChange: (next: ReadonlySet<string>) => void;
 }) {
-	const state = groupState(selected, group);
+	const state = pageSelection(selected, group.types);
 	return (
 		<div role="group" aria-label={group.label} className="flex min-w-0 flex-col gap-1.5">
 			<label className="flex items-center gap-2 text-[13px] font-medium">
 				<input
 					type="checkbox"
 					className={checkbox}
-					checked={state === "all"}
+					checked={state.all}
 					ref={(el) => {
-						if (el !== null) el.indeterminate = state === "some";
+						if (el !== null) el.indeterminate = state.some && !state.all;
 					}}
 					onChange={() => {
-						onChange(toggleGroup(selected, group));
+						onChange(togglePage(selected, group.types));
 					}}
 				/>
 				{group.label}
@@ -203,9 +204,9 @@ function GroupPicker({
 						<input
 							type="checkbox"
 							className={checkbox}
-							checked={selected.includes(t)}
+							checked={selected.has(t)}
 							onChange={() => {
-								onChange(toggleEvent(selected, t));
+								onChange(toggleId(selected, t));
 							}}
 						/>
 						<span className="truncate">{t}</span>

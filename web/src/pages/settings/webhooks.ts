@@ -112,20 +112,3 @@ export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES)
 		types: types.filter((t) => g.subjects.includes(t.slice(0, t.indexOf(".")))),
 	})).filter((g) => g.types.length > 0);
 }
-
-export type GroupState = "all" | "some" | "none";
-
-export function groupState(selected: readonly string[], group: EventGroup): GroupState {
-	const on = group.types.filter((t) => selected.includes(t)).length;
-	if (on === 0) return "none";
-	return on === group.types.length ? "all" : "some";
-}
-
-export function toggleGroup(selected: readonly string[], group: EventGroup): string[] {
-	if (groupState(selected, group) === "all") return selected.filter((t) => !group.types.includes(t));
-	return [...selected, ...group.types.filter((t) => !selected.includes(t))];
-}
-
-export function toggleEvent(selected: readonly string[], type: string): string[] {
-	return selected.includes(type) ? selected.filter((t) => t !== type) : [...selected, type];
-}

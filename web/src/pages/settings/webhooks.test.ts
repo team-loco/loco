@@ -8,11 +8,8 @@ import {
 	deliveryWhen,
 	eventsSummary,
 	failingCount,
-	groupState,
 	isUrlRejection,
 	tickStrip,
-	toggleEvent,
-	toggleGroup,
 	webhookEventGroups,
 } from "./webhooks";
 
@@ -102,16 +99,4 @@ test("groups workspace events by subject and leaves out organization events", ()
 	]);
 	const builds = webhookEventGroups().find((g) => g.label === "Builds");
 	expect(builds?.types).toContain("build.failed");
-});
-
-test("selects and clears a whole group", () => {
-	const group = { label: "Builds", types: ["build.created", "build.failed"] };
-	expect(groupState([], group)).toBe("none");
-	expect(groupState(["build.failed"], group)).toBe("some");
-	const all = toggleGroup(["token.created", "build.failed"], group);
-	expect(all).toEqual(["token.created", "build.failed", "build.created"]);
-	expect(groupState(all, group)).toBe("all");
-	expect(toggleGroup(all, group)).toEqual(["token.created"]);
-	expect(toggleEvent(["build.failed"], "build.failed")).toEqual([]);
-	expect(toggleEvent([], "build.failed")).toEqual(["build.failed"]);
 });
