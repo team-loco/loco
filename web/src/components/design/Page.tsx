@@ -65,7 +65,9 @@ export function Section({
 			{(filters !== undefined || search !== undefined) && (
 				<div className="flex flex-wrap items-center gap-2.5 px-5 pt-3.5 pb-2.5">
 					{filters}
-					{search !== undefined && <div className="ml-auto min-w-40 flex-[0_1_280px] max-sm:grow">{search}</div>}
+					{search !== undefined && (
+						<div className="ml-auto max-w-[280px] flex-[1_1_160px] max-sm:max-w-none">{search}</div>
+					)}
 				</div>
 			)}
 			<div className={bodyClassName}>{children}</div>
@@ -80,7 +82,9 @@ export function Section({
 				</h2>
 				{count !== undefined && <span className="font-mono text-[12.5px] text-fg3">{count}</span>}
 				{meta !== undefined && <span className="text-[12.5px] text-fg3">{meta}</span>}
-				{actions !== undefined && <div className="ml-auto flex items-center gap-2 self-center">{actions}</div>}
+				{actions !== undefined && (
+					<div className="ml-auto flex flex-wrap items-center justify-end gap-2 self-center">{actions}</div>
+				)}
 			</div>
 			{card ? <div className={CARD}>{body}</div> : children}
 		</section>
