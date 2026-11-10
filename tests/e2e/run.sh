@@ -150,9 +150,8 @@ E2E_BUILD_NAMESPACE=$(yq '.builds.namespace' "$WORKER_VALUES")
 export E2E_BUILD_NAMESPACE
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
 E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
-E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
-REALM_PROXY_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
-export E2E_AWS_CLI_IMAGE E2E_PUBLIC_IMAGE
+PUBLIC_FIXTURE_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+export E2E_AWS_CLI_IMAGE
 
 source "$SCRIPT_DIR/lib.sh"
 source "$SCRIPT_DIR/cli.sh"
@@ -609,7 +608,7 @@ start_realm_proxy() {
     docker rm -fv "$REALM_CONTAINER" >/dev/null 2>&1 || true
     docker run -d --name "$REALM_CONTAINER" --network kind --add-host host.docker.internal:host-gateway \
         -v "$E2E_REGISTRY_TOKEN_DIR/realm.conf:/etc/nginx/conf.d/default.conf:ro" \
-        "$REALM_PROXY_IMAGE" >/dev/null
+        "$PUBLIC_FIXTURE_IMAGE" >/dev/null
 }
 
 realm_proxy_reaches_api() {
@@ -640,12 +639,11 @@ setup_registry() {
 setup_public_image() {
     log_step "Mirroring the public fixture image into the run's anonymous registry..."
     e2e_compose up -d public-image-registry
-    local port node source_image
+    local port node
     port=$(compose_host_port public-image-registry 5000)
     wait_for "the public fixture registry" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${port}/v2/"
-    source_image=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
-    E2E_PUBLIC_IMAGE="localhost:${port}/public-image:e2e"
-    go -C "$ROOT_DIR" run ./tools/e2e-mirror-image "$source_image" "$E2E_PUBLIC_IMAGE"
+    export E2E_PUBLIC_IMAGE="localhost:${port}/public-image:e2e"
+    go -C "$ROOT_DIR" run ./tools/e2e-mirror-image "$PUBLIC_FIXTURE_IMAGE" "$E2E_PUBLIC_IMAGE"
     for node in $(kind get nodes --name "$KIND_CLUSTER_NAME"); do
         docker exec "$node" mkdir -p "/etc/containerd/certs.d/localhost:${port}"
         printf '[host."http://%s:5000"]\n  capabilities = ["pull", "resolve"]\n' "$E2E_PUBLIC_REGISTRY_ALIAS" |
