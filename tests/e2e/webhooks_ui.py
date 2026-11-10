@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import os
+import time
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
@@ -33,6 +34,10 @@ workspace = state["workspaces"]["acme/shared"]
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
 token = state["users"]["owner"]["token"]
 service = "loco.webhook.v1.WebhookService/"
+
+def slow(route):
+    time.sleep(0.5)
+    route.continue_()
 
 def call(method, **body):
     return evidence.rpc(state["api_url"], token, service + method, {"workspaceId": workspace, **body})
@@ -71,10 +76,17 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 if args.before:
                     continue
                 # Reach records beyond the API's old 25-record cutoff.
+                # Slow pages keep the loading state visible long enough to catch a disabled, unfocused button.
+                page.route("**/" + service + "ListWebhookDeliveries", slow)
+                next_page = drawer.get_by_role("button", name="Next page", exact=True)
+                next_page.focus()
                 for label in ("11–20 of 20+", "21–30 of 30+", "31–31 of 31"):
-                    drawer.get_by_role("button", name="Next page", exact=True).click()
+                    page.keyboard.press("Enter")
                     expect(drawer.get_by_text(label, exact=True)).to_be_visible()
+                    if label.endswith("+"):
+                        expect(next_page).to_be_focused()
                 expect(deliveries.locator("li")).to_have_count(1)
+                page.unroute("**/" + service + "ListWebhookDeliveries")
                 assert any(method == "ListWebhookDeliveries" and body.get("pageToken") for method, body in requests)
                 drawer.get_by_role("button", name="Failed", exact=True).click()
                 expect(deliveries.locator("li")).to_have_count(10)

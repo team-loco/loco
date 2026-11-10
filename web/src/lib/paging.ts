@@ -88,9 +88,10 @@ export function nextPage(
 	loadMore: () => Promise<boolean>,
 	setPaging: Dispatch<SetStateAction<Paging>>,
 ): (() => void) | null {
-	if (isLoading) return null;
 	if (rows.pager.onNext !== null || !hasMore) return rows.pager.onNext;
 	return () => {
+		// Disabling the button while a page loads would drop its keyboard focus.
+		if (isLoading) return;
 		void loadMore().then((loaded) => {
 			if (loaded) setPaging((current) => ({ ...current, page: current.page + 1 }));
 		});

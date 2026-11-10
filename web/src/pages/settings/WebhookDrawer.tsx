@@ -99,7 +99,7 @@ function WebhookDetail({
 	const paged = pagedRows(loaded, paging, setPaging, PAGE_SIZES);
 	const next = nextPage(
 		paged,
-		query.isFetching,
+		query.isFetchingNextPage,
 		query.hasNextPage,
 		async () => !(await query.fetchNextPage()).isError,
 		setPaging,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { pagedRows, type Paging } from "./paging";
+import { nextPage, pagedRows, type Paging } from "./paging";
 
 const ROWS = Array.from({ length: 7 }, (_, i) => i);
 const SIZES = [3, 6];
@@ -50,5 +50,35 @@ describe("pagedRows", () => {
 	test("offers no size choice for a single page size", () => {
 		const result = pagedRows(ROWS, { page: 0, size: 3 }, () => undefined, [3]);
 		expect(result.pager.pageSizes).toBeUndefined();
+	});
+});
+
+describe("nextPage", () => {
+	const lastLoaded = pagedRows(ROWS, { page: 2, size: 3 }, () => undefined, [3]);
+	let loads = 0;
+	const loadMore = async () => {
+		loads++;
+		await Promise.resolve();
+		return true;
+	};
+
+	test("loads the next server page and moves to it", async () => {
+		loads = 0;
+		const moves: Paging[] = [];
+		const next = nextPage(lastLoaded, false, true, loadMore, (update) => {
+			if (typeof update === "function") moves.push(update({ page: 2, size: 3 }));
+		});
+		next?.();
+		await Bun.sleep(0);
+		expect(loads).toBe(1);
+		expect(moves).toEqual([{ page: 3, size: 3 }]);
+	});
+
+	test("stays enabled but ignores a press while a page is loading", () => {
+		loads = 0;
+		const next = nextPage(lastLoaded, true, true, loadMore, () => undefined);
+		expect(next).not.toBeNull();
+		next?.();
+		expect(loads).toBe(0);
 	});
 });
