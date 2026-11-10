@@ -158,10 +158,7 @@ function FlameGraph({
 				<div className="relative h-1 rounded-[2px] bg-line" aria-hidden="true">
 					<span
 						className="absolute inset-y-0 rounded-[2px] bg-fg3"
-						style={{
-							left: `${String(zoom.a * PERCENT)}%`,
-							width: `${String(width * PERCENT)}%`,
-						}}
+						style={{ left: `${String(zoom.a * PERCENT)}%`, width: `${String(width * PERCENT)}%` }}
 					/>
 				</div>
 			)}

@@ -52,10 +52,7 @@ function firstRun(owner: Owner): { title: string; body: string } {
 				body: `Workspace tokens let CI deploy to ${owner.label}, or to just a few of its resources.`,
 			};
 		case "personal":
-			return {
-				title: "No personal tokens yet",
-				body: "Personal tokens act as you, for scripts on your own machine.",
-			};
+			return { title: "No personal tokens yet", body: "Personal tokens act as you, for scripts on your own machine." };
 	}
 }
 
@@ -100,10 +97,7 @@ export function Tokens() {
 	};
 
 	const invalidate = async () => {
-		const key = createConnectQueryKey({
-			schema: listTokens,
-			cardinality: "finite",
-		});
+		const key = createConnectQueryKey({ schema: listTokens, cardinality: "finite" });
 		await queryClient.invalidateQueries({ queryKey: key });
 	};
 
