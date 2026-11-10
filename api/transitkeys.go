@@ -17,12 +17,12 @@ type transitKeys struct {
 	RegistryPublicKey ed25519.PublicKey
 }
 
-// newTransitKeys logs in to Transit with one client, then checks that the secrets key is an
-// aes256-gcm96 key created with derived=true, that the ingest key is an ed25519 key with a
-// public key and, when registryKey is set, that it names an ed25519 key whose pinned version
-// can sign. It returns the secrets key provider, signers for the ingest and registry keys,
-// and the pinned registry key version's id and public key. The client renews its token until
-// ctx is done.
+// newTransitKeys logs in to Transit with one client and, all within one cfg.StartupTimeout,
+// checks that the secrets key is an aes256-gcm96 key created with derived=true, that the
+// ingest key is an ed25519 key with a public key and, when registryKey is set, that it names
+// an ed25519 key whose pinned version can sign. It returns the secrets key provider, signers
+// for the ingest and registry keys, and the pinned registry key version's id and public key.
+// Once every check passes, the client renews its token until ctx is done.
 func newTransitKeys(
 	ctx context.Context,
 	cfg transit.Config,
@@ -30,12 +30,12 @@ func newTransitKeys(
 	ingestKey string,
 	registryKey *transit.PinnedKey,
 ) (transitKeys, error) {
-	client, err := transit.New(ctx, cfg)
+	startup, cancel := context.WithTimeout(ctx, cfg.StartupTimeout)
+	defer cancel()
+	client, err := transit.New(startup, cfg)
 	if err != nil {
 		return transitKeys{}, err
 	}
-	startup, cancel := context.WithTimeout(ctx, cfg.StartupTimeout)
-	defer cancel()
 	provider, err := secretkeys.New(startup, client, secrets)
 	if err != nil {
 		return transitKeys{}, fmt.Errorf("secrets key %s/%s: %w", cfg.Mount, secrets.Key, err)
@@ -51,5 +51,6 @@ func newTransitKeys(
 			return transitKeys{}, fmt.Errorf("registry key %s/%s: %w", cfg.Mount, registryKey.Name, err)
 		}
 	}
+	go client.Renew(ctx)
 	return keys, nil
 }

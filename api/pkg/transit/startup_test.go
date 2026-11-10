@@ -1,6 +1,7 @@
 package transit
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -57,9 +58,9 @@ func TestNewWaitsForASealedTransit(t *testing.T) {
 func TestNewFailsWhenTransitIsUnreachable(t *testing.T) {
 	server := transittest.New(t).Server()
 	server.Close()
-	cfg := transitConfig(server.URL)
-	cfg.StartupTimeout = shortTransitTimeout
-	_, err := New(t.Context(), cfg)
+	ctx, cancel := context.WithTimeout(t.Context(), shortTransitTimeout)
+	defer cancel()
+	_, err := New(ctx, transitConfig(server.URL))
 	if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), server.URL) {
 		t.Fatalf("new: err = %v, want ErrUnavailable naming %s", err, server.URL)
 	}

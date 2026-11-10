@@ -160,27 +160,32 @@ type Client struct {
 
 	rejected   chan struct{}
 	rejections atomic.Int32
+
+	// lease is the login New made, which Renew starts from.
+	lease tokenLease
 }
 
-// New logs in to Transit within cfg.StartupTimeout and returns a client that renews its token
-// in the background until ctx is done.
+// New logs in to Transit, retrying while it is unavailable until ctx is done, and returns a
+// client that holds the token. Callers bound ctx with cfg.StartupTimeout and then run Renew.
 func New(ctx context.Context, cfg Config) (*Client, error) {
 	client, err := newClient(cfg)
 	if err != nil {
 		return nil, err
 	}
-	startup, cancel := context.WithTimeout(ctx, cfg.StartupTimeout)
-	defer cancel()
-	lease, err := client.logIn(startup)
+	client.lease, err = client.logIn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("log in to transit at %s: %w", cfg.Address, err)
 	}
-	go client.renewToken(ctx, lease)
 	return client, nil
 }
 
+// Renew keeps the token New logged in with valid until ctx is done.
+func (t *Client) Renew(ctx context.Context) {
+	t.renewToken(ctx, t.lease)
+}
+
 // newClient returns a client for cfg. It makes no request and neither logs in nor renews
-// its token; New does both.
+// its token; New logs in and Renew renews.
 func newClient(cfg Config) (*Client, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
