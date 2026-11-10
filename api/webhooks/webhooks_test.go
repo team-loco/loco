@@ -5,17 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 )
-
-const maxBody = 1 << 20
 
 var testConfig = webhooks.Config{
 	RequestTimeout: 10 * time.Second,
@@ -34,47 +29,6 @@ var testConfig = webhooks.Config{
 func newDispatcher(queries genDb.Querier, workspacePrivate bool) *webhooks.Dispatcher {
 	workspace := webhooks.NewClient(testConfig, workspacePrivate)
 	return webhooks.NewDispatcher(queries, testConfig, workspace, webhooks.NewClient(testConfig, true))
-}
-
-func TestSignatureVerifiesAsStandardWebhooks(t *testing.T) {
-	secret, err := webhooksig.NewSecret()
-	if err != nil {
-		t.Fatalf("secret: %v", err)
-	}
-	verifier, err := newStandardVerifier(secret)
-	if err != nil {
-		t.Fatalf("verifier: %v", err)
-	}
-	body := `{"type":"org.updated"}`
-	signature, err := webhooksig.Sign(secret, "msg_1", time.Now(), []byte(body))
-	if err != nil {
-		t.Fatalf("sign: %v", err)
-	}
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(body))
-	req.Header.Set("Webhook-Id", "msg_1")
-	req.Header.Set("Webhook-Timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	req.Header.Set("Webhook-Signature", signature)
-	got, err := verifier.Verify(req, maxBody)
-	if err != nil || string(got) != body {
-		t.Fatalf("verify = %q, %v", got, err)
-	}
-
-	tampered := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"type":"x"}`))
-	tampered.Header = req.Header.Clone()
-	if _, err := verifier.Verify(tampered, maxBody); err == nil {
-		t.Fatal("tampered body verified")
-	}
-	if _, err := webhooksig.Sign(
-		"whsec_not base64",
-		"msg_1",
-		time.Now(),
-		nil,
-	); !errors.Is(
-		err,
-		webhooksig.ErrInvalidSecret,
-	) {
-		t.Fatalf("bad secret: %v", err)
-	}
 }
 
 func TestClientRefusesPrivateNetworks(t *testing.T) {

@@ -22,6 +22,7 @@ require (
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/rs/cors v1.11.1
+	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1
 	github.com/team-loco/loco v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0
 	github.com/valkey-io/valkey-go v1.0.79
@@ -87,7 +88,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
-	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xo/terminfo v1.2.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
