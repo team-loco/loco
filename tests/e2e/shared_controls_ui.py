@@ -50,7 +50,9 @@ def stamp(delta):
 
 def mock_telemetry(context):
     logs = [{"timestamp": stamp(timedelta(seconds=i * 13 + 1)), "severity": ("INFO", "WARN", "ERROR", "DEBUG")[i % 4], "body": f"Request completed ({i + 1})", "resourceId": resource, "resourceAttributes": {"cloud.region": "us-east-1"}} for i in range(18)]
+    points = [{"timestamp": stamp(timedelta(minutes=minute)), "value": value} for minute, value in ((50, 0.25), (30, 0.55), (10, 0.35))]
     context.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: route.fulfill(json={"entries": logs, "totalMatched": str(len(logs))}))
+    context.route("**/loco.observability.v1.ObservabilityProxyService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
 
 def query_param(page):
@@ -82,6 +84,27 @@ def time_presets(page, suffix):
     active.click()
     expect(time_range).not_to_be_visible()
 
+
+def metrics(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
+    chart = page.locator('[aria-label="CPU over time"]')
+    expect(chart.locator(".recharts-line")).to_be_visible()
+    chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})
+    menu = page.get_by_role("menu", name=re.compile(r"^Around"))
+    expect(menu).to_be_visible()
+    menu.screenshot(path=str(out / f"metric-menu-{suffix}.png"), animations="disabled")
+    first, second = menu.get_by_role("menuitem").nth(0), menu.get_by_role("menuitem").nth(1)
+    first.focus()
+    page.keyboard.press("ArrowDown")
+    expect(second).to_be_focused()
+    page.keyboard.press("Escape")
+    expect(menu).not_to_be_visible()
+    chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})
+    expect(menu).to_be_visible()
+    assert page.evaluate("getComputedStyle(document.documentElement).overflow + getComputedStyle(document.body).overflow").count("hidden") == 0
+    page.get_by_role("button", name="Earlier", exact=True).click()
+    expect(menu).not_to_be_visible()
+    expect(page).to_have_url(re.compile(r"[?&]from="))
 
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
@@ -169,7 +192,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, time_presets):
+                        for check in (log_levels, time_presets, metrics):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})
