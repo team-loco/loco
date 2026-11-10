@@ -1,6 +1,7 @@
 import { Navigate, useLocation, useSearchParams } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { nextPathFrom } from "@/auth/next";
 import { AppLoading } from "@/context/AppLoader";
 
 import { SignInCard } from "./auth/SignInCard";
@@ -18,5 +19,11 @@ export function Login() {
 		return <AppLoading />;
 	}
 
-	return <SignInCard next={null} loginHint={searchParams.get("login_hint")} error={signInError(location.state)} />;
+	return (
+		<SignInCard
+			next={nextPathFrom(location.state)}
+			loginHint={searchParams.get("login_hint")}
+			error={signInError(location.state)}
+		/>
+	);
 }

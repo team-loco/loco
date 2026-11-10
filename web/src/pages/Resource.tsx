@@ -19,6 +19,7 @@ import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { notFound, resourceMissing } from "@/lib/not-found";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
@@ -132,17 +133,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	if (isLoading) return <ResourceSkeleton />;
 
-	if (error !== null || resource === undefined) {
-		const message =
-			error !== null
-				? getErrorMessage(error, "Failed to load resource")
-				: "This resource does not exist or was deleted.";
+	if (error !== null) {
+		if (resourceMissing(error, canListResources)) notFound();
 		return (
 			<Page>
-				<EmptyState title={error !== null ? "Couldn't load resource" : "Resource not found"}>{message}</EmptyState>
+				<EmptyState title="Couldn't load resource">{getErrorMessage(error, "Failed to load resource")}</EmptyState>
 			</Page>
 		);
 	}
+	if (resource === undefined) notFound();
 
 	const environment = environmentStatus(resource, environmentId);
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);

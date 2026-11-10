@@ -452,6 +452,10 @@ run = "uv run --frozen --project docs python tests/e2e/deployment_history_ui.py"
 description = "Test creating and deploying a service from the resources page with an isolated API and database"
 run = "uv run --frozen --project docs python tests/e2e/new_service_ui.py"
 
+[tasks."e2e:not-found"]
+description = "Test the not-found page for signed-in and signed-out visitors with an isolated API and database"
+run = "uv run --frozen --project docs python tests/e2e/not_found_ui.py"
+
 [tasks."e2e:resource-details"]
 description = "Test resource image copy, spec geometry, scoped secrets and managed deletion"
 run = "uv run --frozen --project docs python tests/e2e/resource_details_ui.py"

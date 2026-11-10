@@ -18,6 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { notFound } from "@/lib/not-found";
 import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
@@ -85,6 +86,10 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const ws = workspaces.find((w) => w.orgId === org)?.id;
 	if (ws === undefined) return <Navigate to="/organizations" replace />;
 	return <Navigate to={settingsPath(org, ws, "org")} replace />;
+}
+
+function NoRoute(): never {
+	notFound();
 }
 
 function ProfileRedirect() {
@@ -210,11 +215,10 @@ function AppRoutes() {
 								</>
 							}
 						/>
+						<Route path="*" element={<NoRoute />} />
 					</Route>
+					<Route path="*" element={<NoRoute />} />
 				</Route>
-
-				{/* Catch-all - redirect to workspace if authenticated, else to splash */}
-				<Route path="*" element={<Navigate to="/" />} />
 			</Routes>
 		</Suspense>
 	);

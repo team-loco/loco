@@ -1,25 +1,31 @@
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { routeKnown } from "@/lib/not-found";
+import { NotFound, NotFoundBoundary } from "@/pages/NotFound";
 import { useAuth } from "@/auth/AuthProvider";
+import { nextPathState } from "@/auth/next";
 import { ClaimedOrgsBanner } from "@/components/ClaimedOrgsBanner";
 import { ErrorCard } from "@/components/ErrorCard";
 import { AppShell } from "@/components/shell/AppShell";
+import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { Navigate, useParams } from "react-router";
+import { Navigate, useLocation, useParams } from "react-router";
 
 interface ProtectedLayoutProps {
 	children: ReactNode;
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
-	const { orgId: orgParam } = useParams();
+	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
+	const { pathname, search } = useLocation();
 	const transport = useTransport();
 	const { user, signedOut } = useAuth();
 	const { isPending, error } = useQuery(whoAmI, {}, { enabled: !signedOut });
@@ -36,10 +42,33 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	});
 	const workspaces = workspacesRes?.workspaces ?? [];
 
+	const workspacesSettled = (orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading;
+	const urlWorkspace = useQuery(
+		getWorkspace,
+		{ workspaceId: workspaceParam ?? "" },
+		{
+			enabled:
+				workspacesSettled &&
+				orgParam !== undefined &&
+				workspaceParam !== undefined &&
+				!workspaces.some((w) => w.id === workspaceParam) &&
+				scopes.workspaceLevel(orgParam, workspaceParam) >= 1,
+		},
+	);
+	const routeNotFound =
+		workspacesSettled &&
+		!urlWorkspace.isLoading &&
+		orgParam !== undefined &&
+		!routeKnown(
+			{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
+			workspaces,
+			scopes.scopes,
+		);
+
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
 	if (signedOut || unauthenticated) {
-		return <Navigate to="/login" replace />;
+		return <Navigate to="/login" replace state={nextPathState(pathname + search)} />;
 	}
 
 	if (isPending) {
@@ -51,12 +80,16 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	}
 
 	return (
-		<ContextProvider
-			availableOrgs={orgs}
-			availableWorkspaces={workspaces}
-			workspacesSettled={(orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading}
-		>
-			<AppShell>{children}</AppShell>
+		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces} workspacesSettled={workspacesSettled}>
+			<CommandPaletteProvider>
+				{routeNotFound ? (
+					<NotFound unknownWorkspace />
+				) : (
+					<NotFoundBoundary path={pathname}>
+						<AppShell>{children}</AppShell>
+					</NotFoundBoundary>
+				)}
+			</CommandPaletteProvider>
 			<ClaimedOrgsBanner />
 		</ContextProvider>
 	);
