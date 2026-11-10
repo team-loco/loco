@@ -21,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/envconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"golang.org/x/mod/semver"
 )
@@ -32,12 +33,10 @@ var (
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
 
-	errInvalidForcePathStyle  = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
 	errInvalidServiceDefault  = errors.New("invalid service default")
 	errRegistryAuthPartial    = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
 	errRegistryAuthNoHost     = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
 	errInvalidRegistry        = errors.New("invalid registry configuration")
-	errInvalidWebhooksPrivate = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
 	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
 	errInvalidOrgLinks        = errors.New("ORG_LINKS is invalid")
 	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
@@ -218,13 +217,13 @@ type APIConfig struct {
 
 func newAPIConfig() *APIConfig {
 	database := newDatabaseConfig()
-	observabilityRaw := stringEnv("OBSERVABILITY_PROXY_URL", "")
+	observabilityRaw := envconfig.String("OBSERVABILITY_PROXY_URL", "")
 	observabilityURL := parseObservabilityProxyURL(observabilityRaw)
 	ingestConfig := newIngestConfig()
 	databaseListenConfig := newDatabaseListenConfig(database.URL)
 	cacheType, cacheAddr := newCacheConfig()
-	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
-	registryPrefix := stringEnv("LOCO_REGISTRY_PREFIX", "")
+	registryHost := envconfig.String("LOCO_REGISTRY_HOST", "")
+	registryPrefix := envconfig.String("LOCO_REGISTRY_PREFIX", "")
 	sourceMaxBytes := positiveInt64Env("LOCO_SOURCE_MAX_BYTES", defaultSourceMaxBytes, errInvalidSourceBytes)
 	sourceBucket := newSourceBucketConfig()
 	serviceDefaults := newServiceDefaults()
@@ -237,48 +236,48 @@ func newAPIConfig() *APIConfig {
 		logLevel = slog.LevelInfo
 	}
 	corsOrigins := listEnv("CORS_ALLOWED_ORIGINS")
-	webhooksAllowPrivate := boolEnv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", false, errInvalidWebhooksPrivate)
+	webhooksAllowPrivate := envconfig.Bool("WEBHOOK_ALLOW_PRIVATE_NETWORKS", false)
 	installWebhooks := newInstallWebhooks()
 	orgLinks := newOrgLinks()
 	authIssuers := newAuthIssuers()
 	signupPolicy := newSignupPolicy()
 	minCLIVersion := newMinCLIVersion()
-	eventsRetention := positiveDurationEnv("EVENTS_RETENTION", defaultEventsRetention)
+	eventsRetention := envconfig.PositiveDuration("EVENTS_RETENTION", defaultEventsRetention)
 	secrets := newSecretsConfig()
 	registryAuth := newRegistryAuthConfig(registry, registryHost, secrets.Key, ingestConfig.TransitKey)
 	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
-	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
+	heartbeatInterval := envconfig.PositiveDuration("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	bootstrapTokenHash := newBootstrapTokenHash()
 	tracingEnabled := newTracingEnabled()
-	webURL := stringEnv("WEB_URL", "")
+	webURL := envconfig.String("WEB_URL", "")
 	invitations := newInvitationConfig(webURL)
 	secretLimits := service.SecretConfig{
 		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),
 		MaxPerService:     positiveInt32Env("LOCO_SECRETS_MAX_PER_SERVICE", defaultSecretMaxPerService),
 		MaxPlacementBytes: positiveInt32Env("LOCO_SECRETS_MAX_PLACEMENT_BYTES", defaultSecretMaxPlacementBytes),
-		LockTimeout:       positiveDurationEnv("LOCO_SECRETS_LOCK_TIMEOUT", defaultSecretLockTimeout),
+		LockTimeout:       envconfig.PositiveDuration("LOCO_SECRETS_LOCK_TIMEOUT", defaultSecretLockTimeout),
 	}
 
 	return &APIConfig{
 		Agent:                 agentConfig,
 		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
-		Env:                   stringEnv("APP_ENV", ""),
+		Env:                   envconfig.String("APP_ENV", ""),
 		Database:              database,
 		DatabaseListenConfig:  databaseListenConfig,
-		PlacementPollInterval: positiveDurationEnv("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
+		PlacementPollInterval: envconfig.PositiveDuration("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
 		Tokens:                newTokenConfig(),
-		TokenCleanupInterval:  positiveDurationEnv("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
-		RPCTimeout:            positiveDurationEnv("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
-		ShutdownDrainTimeout:  positiveDurationEnv("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
-		Port:                  stringEnv("APP_PORT", ""),
+		TokenCleanupInterval:  envconfig.PositiveDuration("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
+		RPCTimeout:            envconfig.PositiveDuration("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
+		ShutdownDrainTimeout:  envconfig.PositiveDuration("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
+		Port:                  envconfig.String("APP_PORT", ""),
 		ObservabilityProxyURL: observabilityURL,
 		LogLevel:              logLevel,
 		CacheType:             cacheType,
 		CacheAddr:             cacheAddr,
 		CORSAllowedOrigins:    corsOrigins,
 		MinCLIVersion:         minCLIVersion,
-		PprofAddr:             stringEnv("PPROF_ADDR", ""),
+		PprofAddr:             envconfig.String("PPROF_ADDR", ""),
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,
 		RegistryHost:          registryHost,
@@ -292,7 +291,7 @@ func newAPIConfig() *APIConfig {
 		SignupPolicy:          signupPolicy,
 		WebURL:                webURL,
 		Invitations:           invitations,
-		SchemaURL:             stringEnv("LOCO_SCHEMA_URL", defaultSchemaURL),
+		SchemaURL:             envconfig.String("LOCO_SCHEMA_URL", defaultSchemaURL),
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
 		Webhooks:              newWebhookConfig(),
@@ -308,10 +307,10 @@ func newAPIConfig() *APIConfig {
 
 func newDatabaseConfig() db.Config {
 	cfg := db.Config{
-		URL:              stringEnv("DATABASE_URL", ""),
+		URL:              envconfig.String("DATABASE_URL", ""),
 		MaxConns:         positiveInt32Env("DATABASE_MAX_CONNS", defaultDatabaseMaxConns),
 		MinConns:         nonNegativeInt32Env("DATABASE_MIN_CONNS", defaultDatabaseMinConns),
-		StatementTimeout: positiveDurationEnv("DATABASE_STATEMENT_TIMEOUT", defaultDatabaseStatementTimeout),
+		StatementTimeout: envconfig.PositiveDuration("DATABASE_STATEMENT_TIMEOUT", defaultDatabaseStatementTimeout),
 	}
 	if cfg.URL == "" {
 		panic(errDatabaseURLMissing)
@@ -324,47 +323,50 @@ func newDatabaseConfig() db.Config {
 
 func newTokenConfig() tvm.Config {
 	return tvm.Config{
-		MaxAPITokenDuration: positiveDurationEnv("LOCO_API_TOKEN_MAX_LIFETIME", defaultAPITokenMaxLifetime),
-		SessionAccessTokenDuration: positiveDurationEnv(
+		MaxAPITokenDuration: envconfig.PositiveDuration("LOCO_API_TOKEN_MAX_LIFETIME", defaultAPITokenMaxLifetime),
+		SessionAccessTokenDuration: envconfig.PositiveDuration(
 			"LOCO_SESSION_ACCESS_TOKEN_LIFETIME",
 			defaultSessionAccessTokenLifetime,
 		),
-		SessionRefreshTokenDuration: positiveDurationEnv(
+		SessionRefreshTokenDuration: envconfig.PositiveDuration(
 			"LOCO_SESSION_REFRESH_TOKEN_LIFETIME",
 			defaultSessionRefreshLifetime,
 		),
-		LastUsedUpdateInterval: positiveDurationEnv("LOCO_TOKEN_LAST_USED_INTERVAL", defaultTokenLastUsedInterval),
+		LastUsedUpdateInterval: envconfig.PositiveDuration(
+			"LOCO_TOKEN_LAST_USED_INTERVAL",
+			defaultTokenLastUsedInterval,
+		),
 	}
 }
 
 func newWebhookConfig() webhooks.Config {
 	return webhooks.Config{
-		RequestTimeout: positiveDurationEnv("WEBHOOK_TIMEOUT", defaultWebhookTimeout),
+		RequestTimeout: envconfig.PositiveDuration("WEBHOOK_TIMEOUT", defaultWebhookTimeout),
 		ClaimBatch:     positiveInt32Env("WEBHOOK_BATCH", defaultWebhookBatch),
 		RetryDelays:    positiveDurationListEnv("WEBHOOK_RETRY_DELAYS", defaultWebhookRetryDelays),
-		PollInterval:   positiveDurationEnv("WEBHOOK_POLL_INTERVAL", defaultWebhookPollInterval),
+		PollInterval:   envconfig.PositiveDuration("WEBHOOK_POLL_INTERVAL", defaultWebhookPollInterval),
 	}
 }
 
 func newInvitationConfig(webURL string) service.InvitationConfig {
 	transport, err := mail.ParseTransport(
-		stringEnv("EMAIL_TRANSPORT", ""),
-		stringEnv("EMAIL_FROM", ""),
-		stringEnv("EMAIL_HOOK_SECRET", ""),
-		positiveDurationEnv("EMAIL_TIMEOUT", defaultEmailTimeout),
+		envconfig.String("EMAIL_TRANSPORT", ""),
+		envconfig.String("EMAIL_FROM", ""),
+		envconfig.String("EMAIL_HOOK_SECRET", ""),
+		envconfig.PositiveDuration("EMAIL_TIMEOUT", defaultEmailTimeout),
 	)
 	if err != nil {
 		panic(err)
 	}
 	return service.InvitationConfig{
 		Transport: transport,
-		TTL:       positiveDurationEnv("INVITATION_TTL", defaultInvitationTTL),
+		TTL:       envconfig.PositiveDuration("INVITATION_TTL", defaultInvitationTTL),
 		WebURL:    webURL,
 	}
 }
 
 func newBootstrapTokenHash() []byte {
-	token := stringEnv(bootstrapEnv, "")
+	token := envconfig.String(bootstrapEnv, "")
 	if token == "" {
 		return nil
 	}
@@ -376,28 +378,28 @@ func newBootstrapTokenHash() []byte {
 
 func newSecretsConfig() secretkeys.TransitConfig {
 	transit := secretkeys.TransitConfig{
-		Address: stringEnv("LOCO_SECRETS_TRANSIT_ADDR", ""),
-		Mount:   stringEnv("LOCO_SECRETS_TRANSIT_MOUNT", defaultSecretsTransitMount),
-		Key:     stringEnv("LOCO_SECRETS_TRANSIT_KEY", ""),
-		Auth:    stringEnv("LOCO_SECRETS_TRANSIT_AUTH", ""),
-		Token:   stringEnv("LOCO_SECRETS_TRANSIT_TOKEN", ""),
+		Address: envconfig.String("LOCO_SECRETS_TRANSIT_ADDR", ""),
+		Mount:   envconfig.String("LOCO_SECRETS_TRANSIT_MOUNT", defaultSecretsTransitMount),
+		Key:     envconfig.String("LOCO_SECRETS_TRANSIT_KEY", ""),
+		Auth:    envconfig.String("LOCO_SECRETS_TRANSIT_AUTH", ""),
+		Token:   envconfig.String("LOCO_SECRETS_TRANSIT_TOKEN", ""),
 		Kubernetes: secretkeys.TransitKubernetesConfig{
-			Mount:     stringEnv("LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT", ""),
-			Role:      stringEnv("LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE", ""),
-			TokenFile: stringEnv("LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE", ""),
+			Mount:     envconfig.String("LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT", ""),
+			Role:      envconfig.String("LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE", ""),
+			TokenFile: envconfig.String("LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE", ""),
 		},
-		CAFile:  stringEnv("LOCO_SECRETS_TRANSIT_CA_FILE", ""),
-		Timeout: positiveDurationEnv("LOCO_SECRETS_TRANSIT_TIMEOUT", defaultSecretsTransitTimeout),
-		StartupTimeout: positiveDurationEnv(
+		CAFile:  envconfig.String("LOCO_SECRETS_TRANSIT_CA_FILE", ""),
+		Timeout: envconfig.PositiveDuration("LOCO_SECRETS_TRANSIT_TIMEOUT", defaultSecretsTransitTimeout),
+		StartupTimeout: envconfig.PositiveDuration(
 			"LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT",
 			defaultSecretsTransitStartup,
 		),
-		RenewMargin: positiveDurationEnv(
+		RenewMargin: envconfig.PositiveDuration(
 			"LOCO_SECRETS_TRANSIT_RENEW_MARGIN",
 			defaultSecretsTransitMargin,
 		),
-		RenewRetry: positiveDurationEnv("LOCO_SECRETS_TRANSIT_RENEW_RETRY", defaultSecretsTransitRetry),
-		CacheTTL:   positiveDurationEnv("LOCO_SECRETS_TRANSIT_CACHE_TTL", defaultSecretsTransitDEKTTL),
+		RenewRetry: envconfig.PositiveDuration("LOCO_SECRETS_TRANSIT_RENEW_RETRY", defaultSecretsTransitRetry),
+		CacheTTL:   envconfig.PositiveDuration("LOCO_SECRETS_TRANSIT_CACHE_TTL", defaultSecretsTransitDEKTTL),
 	}
 	if err := transit.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
@@ -406,7 +408,7 @@ func newSecretsConfig() secretkeys.TransitConfig {
 }
 
 func newMinCLIVersion() string {
-	minCLIVersion := stringEnv("MIN_CLI_VERSION", "")
+	minCLIVersion := envconfig.String("MIN_CLI_VERSION", "")
 	if minCLIVersion != "" && !semver.IsValid(minCLIVersion) {
 		panic(fmt.Errorf("%w: %q", errInvalidMinCLIVersion, minCLIVersion))
 	}
@@ -414,7 +416,7 @@ func newMinCLIVersion() string {
 }
 
 func newInstallWebhooks() []webhooks.InstallWebhook {
-	raw := stringEnv("INSTALL_WEBHOOKS", "")
+	raw := envconfig.String("INSTALL_WEBHOOKS", "")
 	hooks, err := webhooks.ParseInstallWebhooks(raw)
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidInstallWebhooks, err))
@@ -423,7 +425,7 @@ func newInstallWebhooks() []webhooks.InstallWebhook {
 }
 
 func newOrgLinks() []service.OrgLink {
-	raw := stringEnv("ORG_LINKS", "")
+	raw := envconfig.String("ORG_LINKS", "")
 	links, err := service.ParseOrgLinks(raw)
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidOrgLinks, err))
@@ -432,7 +434,7 @@ func newOrgLinks() []service.OrgLink {
 }
 
 func newAuthIssuers() []auth.IssuerConfig {
-	raw := stringEnv("AUTH_ISSUERS", "")
+	raw := envconfig.String("AUTH_ISSUERS", "")
 	issuers, err := auth.ParseIssuers(raw)
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidAuthIssuers, err))
@@ -441,7 +443,7 @@ func newAuthIssuers() []auth.IssuerConfig {
 		if ic.Admin == nil {
 			continue
 		}
-		ic.Admin.Token = stringEnv(ic.Admin.TokenEnv, "")
+		ic.Admin.Token = envconfig.String(ic.Admin.TokenEnv, "")
 		if ic.Admin.Token == "" {
 			panic(fmt.Errorf("%w: issuer %s: %q", errAdminTokenMissing, ic.Issuer, ic.Admin.TokenEnv))
 		}
@@ -450,8 +452,8 @@ func newAuthIssuers() []auth.IssuerConfig {
 }
 
 func newSignupPolicy() auth.SignupPolicy {
-	mode := stringEnv("AUTH_SIGNUP_MODE", "")
-	domains := stringEnv("AUTH_SIGNUP_DOMAINS", "")
+	mode := envconfig.String("AUTH_SIGNUP_MODE", "")
+	domains := envconfig.String("AUTH_SIGNUP_DOMAINS", "")
 	policy, err := auth.ParseSignupPolicy(mode, domains)
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidSignupPolicy, err))
@@ -460,8 +462,8 @@ func newSignupPolicy() auth.SignupPolicy {
 }
 
 func newCacheConfig() (string, string) {
-	cacheType := stringEnv("CACHE_TYPE", cacheTypeMemory)
-	cacheAddr := stringEnv("CACHE_ADDR", "")
+	cacheType := envconfig.String("CACHE_TYPE", cacheTypeMemory)
+	cacheAddr := envconfig.String("CACHE_ADDR", "")
 	if cacheType != cacheTypeValkey && cacheType != cacheTypeMemory {
 		panic(fmt.Errorf("%w: %q", errUnknownCacheType, cacheType))
 	}
@@ -472,13 +474,13 @@ func newCacheConfig() (string, string) {
 }
 
 func newSourceBucketConfig() sourcebucket.Config {
-	forcePathStyle := boolEnv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE", false, errInvalidForcePathStyle)
+	forcePathStyle := envconfig.Bool("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE", false)
 	cfg := sourcebucket.Config{
-		Endpoint:        stringEnv("LOCO_SOURCE_BUCKET_ENDPOINT", ""),
-		Bucket:          stringEnv("LOCO_SOURCE_BUCKET", ""),
-		Region:          stringEnv("LOCO_SOURCE_BUCKET_REGION", ""),
-		AccessKeyID:     stringEnv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", ""),
-		SecretAccessKey: stringEnv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY", ""),
+		Endpoint:        envconfig.String("LOCO_SOURCE_BUCKET_ENDPOINT", ""),
+		Bucket:          envconfig.String("LOCO_SOURCE_BUCKET", ""),
+		Region:          envconfig.String("LOCO_SOURCE_BUCKET_REGION", ""),
+		AccessKeyID:     envconfig.String("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", ""),
+		SecretAccessKey: envconfig.String("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY", ""),
 		ForcePathStyle:  forcePathStyle,
 	}
 	if cfg.Bucket != "" {
@@ -491,18 +493,18 @@ func newSourceBucketConfig() sourcebucket.Config {
 
 func newServiceDefaults() servicedefaults.Defaults {
 	defaults := servicedefaults.Defaults{
-		CPU:                      stringEnv("LOCO_DEFAULT_CPU", defaultServiceCPU),
-		Memory:                   stringEnv("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
-		MinReplicas:              int32Env("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
-		MaxReplicas:              int32Env("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
-		PathPrefix:               stringEnv("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
-		IdleTimeout:              int32Env("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
-		Port:                     int32Env("LOCO_DEFAULT_PORT", defaultServicePort),
-		HealthPath:               stringEnv("LOCO_DEFAULT_HEALTH_PATH", defaultHealthPath),
-		HealthInterval:           int32Env("LOCO_DEFAULT_HEALTH_INTERVAL", defaultHealthInterval),
-		HealthTimeout:            int32Env("LOCO_DEFAULT_HEALTH_TIMEOUT", defaultHealthTimeout),
-		HealthFailThreshold:      int32Env("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", defaultHealthFailThresh),
-		HealthStartupGracePeriod: int32Env("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", defaultHealthGracePeriod),
+		CPU:                      envconfig.String("LOCO_DEFAULT_CPU", defaultServiceCPU),
+		Memory:                   envconfig.String("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
+		MinReplicas:              envconfig.Int32("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
+		MaxReplicas:              envconfig.Int32("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
+		PathPrefix:               envconfig.String("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
+		IdleTimeout:              envconfig.Int32("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
+		Port:                     envconfig.Int32("LOCO_DEFAULT_PORT", defaultServicePort),
+		HealthPath:               envconfig.String("LOCO_DEFAULT_HEALTH_PATH", defaultHealthPath),
+		HealthInterval:           envconfig.Int32("LOCO_DEFAULT_HEALTH_INTERVAL", defaultHealthInterval),
+		HealthTimeout:            envconfig.Int32("LOCO_DEFAULT_HEALTH_TIMEOUT", defaultHealthTimeout),
+		HealthFailThreshold:      envconfig.Int32("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", defaultHealthFailThresh),
+		HealthStartupGracePeriod: envconfig.Int32("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", defaultHealthGracePeriod),
 		DeployAttempts:           positiveInt32Env("LOCO_DEFAULT_DEPLOY_ATTEMPTS", defaultDeployAttempts),
 		DeployRetryDelay:         positiveInt32Env("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", defaultDeployRetryDelay),
 		MetricsPort:              defaultMetricsPort,
@@ -517,10 +519,10 @@ func newServiceDefaults() servicedefaults.Defaults {
 
 func newRegistryConfig(registryHost string) registryclient.Config {
 	cfg := registryclient.Config{
-		URL:      stringEnv("LOCO_REGISTRY_URL", defaultRegistryScheme+registryHost),
-		Username: stringEnv("LOCO_REGISTRY_USERNAME", ""),
-		Password: stringEnv("LOCO_REGISTRY_PASSWORD", ""),
-		Timeout:  positiveDurationEnv("LOCO_REGISTRY_TIMEOUT", defaultRegistryTimeout),
+		URL:      envconfig.String("LOCO_REGISTRY_URL", defaultRegistryScheme+registryHost),
+		Username: envconfig.String("LOCO_REGISTRY_USERNAME", ""),
+		Password: envconfig.String("LOCO_REGISTRY_PASSWORD", ""),
+		Timeout:  envconfig.PositiveDuration("LOCO_REGISTRY_TIMEOUT", defaultRegistryTimeout),
 	}
 	if (cfg.Username == "") != (cfg.Password == "") {
 		panic(errRegistryAuthPartial)
@@ -541,7 +543,7 @@ func newRegistryAuthConfig(
 	registry registryclient.Config,
 	registryHost, secretsKey, ingestKey string,
 ) RegistryAuthConfig {
-	mode := stringEnv("LOCO_REGISTRY_AUTH", locoControllerV1.RegistryAuthStatic)
+	mode := envconfig.String("LOCO_REGISTRY_AUTH", locoControllerV1.RegistryAuthStatic)
 	switch mode {
 	case locoControllerV1.RegistryAuthStatic:
 		return RegistryAuthConfig{Mode: mode}
@@ -565,27 +567,33 @@ func newRegistryTokenAuthConfig(
 	if err := registry.ValidateEndpoint(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidRegistry, err))
 	}
-	key := stringEnv("LOCO_REGISTRY_TRANSIT_KEY", "")
+	key := envconfig.String("LOCO_REGISTRY_TRANSIT_KEY", "")
 	if err := secretkeys.ValidateKeyName(key); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidRegistryKey, err))
 	}
 	if key == secretsKey || key == ingestKey {
 		panic(fmt.Errorf("%w: %q", errRegistryKeyShared, key))
 	}
-	version := int32Env("LOCO_REGISTRY_TRANSIT_KEY_VERSION", 0)
+	version := envconfig.Int32("LOCO_REGISTRY_TRANSIT_KEY_VERSION", 0)
 	if version <= 0 {
 		panic(fmt.Errorf("%w: %d", errInvalidRegistryVersion, version))
 	}
-	tokenService := stringEnv("LOCO_REGISTRY_TOKEN_SERVICE", "")
+	tokenService := envconfig.String("LOCO_REGISTRY_TOKEN_SERVICE", "")
 	if tokenService == "" {
 		panic(errMissingRegistryService)
 	}
-	accessLifetime := positiveDurationEnv("LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME", defaultRegistryAccessTokenLifetime)
-	pullLifetime := positiveDurationEnv(
+	accessLifetime := envconfig.PositiveDuration(
+		"LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME",
+		defaultRegistryAccessTokenLifetime,
+	)
+	pullLifetime := envconfig.PositiveDuration(
 		"LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME",
 		defaultRegistryPullCredentialLifetime,
 	)
-	sweepInterval := positiveDurationEnv("LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL", defaultRegistryCredentialSweep)
+	sweepInterval := envconfig.PositiveDuration(
+		"LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL",
+		defaultRegistryCredentialSweep,
+	)
 	return RegistryAuthConfig{
 		Mode:                   locoControllerV1.RegistryAuthToken,
 		TransitKey:             secretkeys.PinnedKey{Name: key, Version: int(version)},
@@ -601,19 +609,19 @@ func newImageSweepConfig(registryHost, registryPrefix string) sweepers.ImageSwee
 		RegistryHost:    registryHost,
 		RegistryPrefix:  registryPrefix,
 		Retention:       nonNegativeInt32Env("LOCO_IMAGE_RETENTION", defaultImageRetention),
-		Interval:        positiveDurationEnv("LOCO_IMAGE_SWEEP_INTERVAL", defaultImageSweepInterval),
+		Interval:        envconfig.PositiveDuration("LOCO_IMAGE_SWEEP_INTERVAL", defaultImageSweepInterval),
 		BuildBatch:      positiveInt32Env("LOCO_IMAGE_SWEEP_BUILD_BATCH", defaultImageSweepBuildBatch),
 		RepositoryBatch: int(positiveInt32Env("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", defaultImageSweepRepositoryBatch)),
 		TagBatch:        int(positiveInt32Env("LOCO_IMAGE_SWEEP_TAG_BATCH", defaultImageSweepTagBatch)),
-		TagMinAge:       positiveDurationEnv("LOCO_IMAGE_SWEEP_TAG_MIN_AGE", defaultImageSweepTagMinAge),
+		TagMinAge:       envconfig.PositiveDuration("LOCO_IMAGE_SWEEP_TAG_MIN_AGE", defaultImageSweepTagMinAge),
 	}
 }
 
 func newSourceSweepConfig() sweepers.SourceSweepConfig {
 	return sweepers.SourceSweepConfig{
-		Interval:       positiveDurationEnv("LOCO_SOURCE_SWEEP_INTERVAL", defaultSourceSweepInterval),
-		UploadGrace:    positiveDurationEnv("LOCO_SOURCE_SWEEP_UPLOAD_GRACE", defaultSourceUploadGrace),
-		OrphanMinAge:   positiveDurationEnv("LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE", defaultSourceOrphanMinAge),
+		Interval:       envconfig.PositiveDuration("LOCO_SOURCE_SWEEP_INTERVAL", defaultSourceSweepInterval),
+		UploadGrace:    envconfig.PositiveDuration("LOCO_SOURCE_SWEEP_UPLOAD_GRACE", defaultSourceUploadGrace),
+		OrphanMinAge:   envconfig.PositiveDuration("LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE", defaultSourceOrphanMinAge),
 		BuildBatch:     positiveInt32Env("LOCO_SOURCE_SWEEP_BUILD_BATCH", defaultSourceSweepBuildBatch),
 		OrphanPageSize: positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", defaultSourceOrphanPageSize),
 		OrphanMaxPages: int(positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", defaultSourceOrphanMaxPages)),
@@ -656,7 +664,7 @@ func newCache(cacheType, cacheAddr string) (cache.Cache, error) {
 }
 
 func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
-	listenURL := stringEnv("DATABASE_LISTEN_URL", databaseURL)
+	listenURL := envconfig.String("DATABASE_LISTEN_URL", databaseURL)
 	config, err := pgx.ParseConfig(listenURL)
 	if err != nil {
 		panic(fmt.Errorf("invalid database listener URL: %w", err))
@@ -665,8 +673,8 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 }
 
 func newIngestConfig() service.IngestConfig {
-	lifetime := positiveDurationEnv("LOCO_INGEST_TOKEN_LIFETIME", defaultIngestTokenLifetime)
-	key := stringEnv("LOCO_INGEST_TRANSIT_KEY", "")
+	lifetime := envconfig.PositiveDuration("LOCO_INGEST_TOKEN_LIFETIME", defaultIngestTokenLifetime)
+	key := envconfig.String("LOCO_INGEST_TRANSIT_KEY", "")
 	if err := secretkeys.ValidateKeyName(key); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidIngestKey, err))
 	}
@@ -674,8 +682,11 @@ func newIngestConfig() service.IngestConfig {
 }
 
 func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
-	assertionLifetime := positiveDurationEnv("LOCO_AGENT_ASSERTION_MAX_LIFETIME", defaultAgentAssertionMaxLifetime)
-	joinTokenTTL := positiveDurationEnv("LOCO_CLUSTER_JOIN_TOKEN_TTL", defaultClusterJoinTokenTTL)
+	assertionLifetime := envconfig.PositiveDuration(
+		"LOCO_AGENT_ASSERTION_MAX_LIFETIME",
+		defaultAgentAssertionMaxLifetime,
+	)
+	joinTokenTTL := envconfig.PositiveDuration("LOCO_CLUSTER_JOIN_TOKEN_TTL", defaultClusterJoinTokenTTL)
 	return service.AgentConfig{
 		AssertionMaxLifetime: assertionLifetime,
 		JoinTokenTTL:         joinTokenTTL,

@@ -19,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+	"github.com/team-loco/loco/internal/envconfig"
 )
 
 const (
@@ -31,8 +32,8 @@ const (
 )
 
 func newTracingEnabled() bool {
-	endpoint := stringEnv(otlpEndpointEnv, "")
-	tracesEndpoint := stringEnv(otlpTracesEndpointEnv, "")
+	endpoint := envconfig.String(otlpEndpointEnv, "")
+	tracesEndpoint := envconfig.String(otlpTracesEndpointEnv, "")
 	return endpoint != "" || tracesEndpoint != ""
 }
 

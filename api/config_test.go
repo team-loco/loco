@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/bearer"
+	"github.com/team-loco/loco/internal/envconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -311,8 +312,8 @@ func TestNewAPIConfigReadsSecretLimits(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv(name, "0")
 			err := panicValue(t, func() { newAPIConfig() })
-			if !errors.Is(err, errNotPositive) {
-				t.Errorf("panic = %v, want %v", err, errNotPositive)
+			if !errors.Is(err, envconfig.ErrNotPositive) {
+				t.Errorf("panic = %v, want %v", err, envconfig.ErrNotPositive)
 			}
 		})
 	}
@@ -563,17 +564,17 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{
 			"non-boolean force path style",
 			map[string]string{"LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE": "sometimes"},
-			errInvalidForcePathStyle,
+			envconfig.ErrInvalidBool,
 		},
 		{
 			"non-boolean webhook private networks",
 			map[string]string{"WEBHOOK_ALLOW_PRIVATE_NETWORKS": "sometimes"},
-			errInvalidWebhooksPrivate,
+			envconfig.ErrInvalidBool,
 		},
 		{"invalid default cpu", map[string]string{"LOCO_DEFAULT_CPU": "lots"}, errInvalidServiceDefault},
 		{"invalid default memory", map[string]string{"LOCO_DEFAULT_MEMORY": "-1Gi"}, errInvalidServiceDefault},
 		{"zero default replicas", map[string]string{"LOCO_DEFAULT_MIN_REPLICAS": "0"}, errInvalidServiceDefault},
-		{"non-numeric default replicas", map[string]string{maxReplicasEnv: "many"}, errInvalidInt32},
+		{"non-numeric default replicas", map[string]string{maxReplicasEnv: "many"}, envconfig.ErrInvalidInt32},
 		{
 			"default max below min",
 			map[string]string{"LOCO_DEFAULT_MIN_REPLICAS": "3", maxReplicasEnv: "2"},
@@ -601,28 +602,52 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			errInvalidServiceDefault,
 		},
 		{"negative image retention", map[string]string{"LOCO_IMAGE_RETENTION": "-1"}, errNegative},
-		{"non-numeric image retention", map[string]string{"LOCO_IMAGE_RETENTION": "all"}, errInvalidInt32},
-		{"non-duration sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "10"}, errInvalidDuration},
-		{"negative sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "-1m"}, errNotPositive},
-		{"zero build batch", map[string]string{"LOCO_IMAGE_SWEEP_BUILD_BATCH": "0"}, errNotPositive},
-		{"zero repository batch", map[string]string{"LOCO_IMAGE_SWEEP_REPOSITORY_BATCH": "0"}, errNotPositive},
-		{"zero tag batch", map[string]string{"LOCO_IMAGE_SWEEP_TAG_BATCH": "0"}, errNotPositive},
-		{"zero tag min age", map[string]string{"LOCO_IMAGE_SWEEP_TAG_MIN_AGE": "0s"}, errNotPositive},
+		{"non-numeric image retention", map[string]string{"LOCO_IMAGE_RETENTION": "all"}, envconfig.ErrInvalidInt32},
+		{
+			"non-duration sweep interval",
+			map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "10"},
+			envconfig.ErrInvalidDuration,
+		},
+		{"negative sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "-1m"}, envconfig.ErrNotPositive},
+		{"zero build batch", map[string]string{"LOCO_IMAGE_SWEEP_BUILD_BATCH": "0"}, envconfig.ErrNotPositive},
+		{
+			"zero repository batch",
+			map[string]string{"LOCO_IMAGE_SWEEP_REPOSITORY_BATCH": "0"},
+			envconfig.ErrNotPositive,
+		},
+		{"zero tag batch", map[string]string{"LOCO_IMAGE_SWEEP_TAG_BATCH": "0"}, envconfig.ErrNotPositive},
+		{"zero tag min age", map[string]string{"LOCO_IMAGE_SWEEP_TAG_MIN_AGE": "0s"}, envconfig.ErrNotPositive},
 		{
 			"non-duration source sweep interval",
 			map[string]string{"LOCO_SOURCE_SWEEP_INTERVAL": "5"},
-			errInvalidDuration,
+			envconfig.ErrInvalidDuration,
 		},
-		{"zero upload grace", map[string]string{"LOCO_SOURCE_SWEEP_UPLOAD_GRACE": "0s"}, errNotPositive},
-		{"negative orphan min age", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE": "-1h"}, errNotPositive},
-		{"zero source build batch", map[string]string{"LOCO_SOURCE_SWEEP_BUILD_BATCH": "0"}, errNotPositive},
-		{"zero orphan page size", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE": "0"}, errNotPositive},
-		{"non-numeric orphan max pages", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES": "x"}, errInvalidInt32},
-		{"zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
-		{"zero events retention", map[string]string{retentionEnv: "0s"}, errNotPositive},
-		{"non-duration events retention", map[string]string{retentionEnv: "90"}, errInvalidDuration},
-		{"zero webhook retry delay", map[string]string{webhookRetryEnv: "30s,0s"}, errNotPositive},
-		{"non-duration webhook retry delay", map[string]string{webhookRetryEnv: "30s,soon"}, errInvalidDuration},
+		{"zero upload grace", map[string]string{"LOCO_SOURCE_SWEEP_UPLOAD_GRACE": "0s"}, envconfig.ErrNotPositive},
+		{
+			"negative orphan min age",
+			map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE": "-1h"},
+			envconfig.ErrNotPositive,
+		},
+		{"zero source build batch", map[string]string{"LOCO_SOURCE_SWEEP_BUILD_BATCH": "0"}, envconfig.ErrNotPositive},
+		{
+			"zero orphan page size",
+			map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE": "0"},
+			envconfig.ErrNotPositive,
+		},
+		{
+			"non-numeric orphan max pages",
+			map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES": "x"},
+			envconfig.ErrInvalidInt32,
+		},
+		{"zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, envconfig.ErrNotPositive},
+		{"zero events retention", map[string]string{retentionEnv: "0s"}, envconfig.ErrNotPositive},
+		{"non-duration events retention", map[string]string{retentionEnv: "90"}, envconfig.ErrInvalidDuration},
+		{"zero webhook retry delay", map[string]string{webhookRetryEnv: "30s,0s"}, envconfig.ErrNotPositive},
+		{
+			"non-duration webhook retry delay",
+			map[string]string{webhookRetryEnv: "30s,soon"},
+			envconfig.ErrInvalidDuration,
+		},
 		{
 			"database min conns above max",
 			map[string]string{"DATABASE_MIN_CONNS": "10", "DATABASE_MAX_CONNS": "5"},
@@ -1136,7 +1161,7 @@ func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 		{"token without a version", map[string]string{registryVersionEnv: ""}, errInvalidRegistryVersion},
 		{"token with version zero", map[string]string{registryVersionEnv: "0"}, errInvalidRegistryVersion},
 		{"token with a negative version", map[string]string{registryVersionEnv: "-1"}, errInvalidRegistryVersion},
-		{"token with a version name", map[string]string{registryVersionEnv: "v1"}, errInvalidInt32},
+		{"token with a version name", map[string]string{registryVersionEnv: "v1"}, envconfig.ErrInvalidInt32},
 		{"token without a service", map[string]string{registryServiceEnv: ""}, errMissingRegistryService},
 		{"token without a registry host", map[string]string{registryHostEnv: ""}, errRegistryTokenNoHost},
 		{
@@ -1149,11 +1174,15 @@ func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 			map[string]string{registryURLEnv: "ftp://" + testRegistryHost},
 			errInvalidRegistry,
 		},
-		{"token with a zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
-		{"token with a zero access lifetime", map[string]string{registryAccessEnv: "0s"}, errNotPositive},
-		{"token with a negative pull lifetime", map[string]string{registryPullEnv: "-1h"}, errNotPositive},
-		{"token with a pull lifetime in hours", map[string]string{registryPullEnv: "24"}, errInvalidDuration},
-		{"token with a zero sweep interval", map[string]string{registrySweepEnv: "0s"}, errNotPositive},
+		{
+			"token with a zero registry timeout",
+			map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"},
+			envconfig.ErrNotPositive,
+		},
+		{"token with a zero access lifetime", map[string]string{registryAccessEnv: "0s"}, envconfig.ErrNotPositive},
+		{"token with a negative pull lifetime", map[string]string{registryPullEnv: "-1h"}, envconfig.ErrNotPositive},
+		{"token with a pull lifetime in hours", map[string]string{registryPullEnv: "24"}, envconfig.ErrInvalidDuration},
+		{"token with a zero sweep interval", map[string]string{registrySweepEnv: "0s"}, envconfig.ErrNotPositive},
 		{
 			"token with static credentials",
 			map[string]string{

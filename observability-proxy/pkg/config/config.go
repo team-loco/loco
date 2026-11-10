@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/observability-proxy/pkg/ingest"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
@@ -84,8 +85,8 @@ type Config struct {
 
 func Load() *Config {
 	cfg := &Config{
-		QueryEnabled:       boolEnv("QUERY_ENABLED", true),
-		IngestEnabled:      boolEnv("INGEST_ENABLED", false),
+		QueryEnabled:       envconfig.Bool("QUERY_ENABLED", true),
+		IngestEnabled:      envconfig.Bool("INGEST_ENABLED", false),
 		Port:               requiredIntEnv("PORT"),
 		CORSAllowedOrigins: originsEnv("CORS_ALLOWED_ORIGINS"),
 		ClickHouseDB:       requiredIdentifierEnv("CLICKHOUSE_DB"),
@@ -93,36 +94,38 @@ func Load() *Config {
 		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL", defaultRetention),
 		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL", defaultRetention),
 		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL", defaultRetention),
-		MigrationRetryBudget:   positiveDurationEnv("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
-		MigrationRetryInterval: positiveDurationEnv("MIGRATION_RETRY_INTERVAL", defaultMigrationRetryInterval),
-		MigrationLockTTL:       positiveDurationEnv("MIGRATION_LOCK_TTL", defaultMigrationLockTTL),
-		MigrationLockRetry:     positiveDurationEnv("MIGRATION_LOCK_RETRY_PERIOD", defaultMigrationLockRetry),
+		MigrationRetryBudget:   envconfig.PositiveDuration("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
+		MigrationRetryInterval: envconfig.PositiveDuration("MIGRATION_RETRY_INTERVAL", defaultMigrationRetryInterval),
+		MigrationLockTTL:       envconfig.PositiveDuration("MIGRATION_LOCK_TTL", defaultMigrationLockTTL),
+		MigrationLockRetry:     envconfig.PositiveDuration("MIGRATION_LOCK_RETRY_PERIOD", defaultMigrationLockRetry),
 
-		DefaultLimit:       int32Env("DEFAULT_LIMIT", defaultLimit),
-		MaxLimit:           int32Env("MAX_LIMIT", defaultMaxLimit),
-		MaxTimeRange:       positiveDurationEnv("MAX_TIME_RANGE", defaultMaxTimeRange),
+		DefaultLimit:       envconfig.Int32("DEFAULT_LIMIT", defaultLimit),
+		MaxLimit:           envconfig.Int32("MAX_LIMIT", defaultMaxLimit),
+		MaxTimeRange:       envconfig.PositiveDuration("MAX_TIME_RANGE", defaultMaxTimeRange),
 		QueryTimeout:       ttlEnv("QUERY_TIMEOUT", defaultQueryTimeout),
 		MaxConcurrent:      intEnv("MAX_CONCURRENT_QUERIES", defaultMaxConcurrent),
-		MaxTailDuration:    positiveDurationEnv("MAX_TAIL_DURATION", defaultMaxTailDuration),
+		MaxTailDuration:    envconfig.PositiveDuration("MAX_TAIL_DURATION", defaultMaxTailDuration),
 		MaxConcurrentTails: intEnv("MAX_CONCURRENT_TAILS", defaultMaxConcurrentTails),
 
-		TokenCacheTTL: positiveDurationEnv("TOKEN_CACHE_TTL", defaultTokenCacheTTL),
+		TokenCacheTTL: envconfig.PositiveDuration("TOKEN_CACHE_TTL", defaultTokenCacheTTL),
 
 		OTLPMaxRequestBytes: positiveIntEnv("OTLP_MAX_REQUEST_BYTES", defaultOTLPMaxRequestBytes),
-		IngestTimeout:       positiveDurationEnv("CLICKHOUSE_INGEST_TIMEOUT", defaultIngestTimeout),
-		IngestDialTimeout:   positiveDurationEnv("CLICKHOUSE_INGEST_DIAL_TIMEOUT", defaultIngestDialTimeout),
+		IngestTimeout:       envconfig.PositiveDuration("CLICKHOUSE_INGEST_TIMEOUT", defaultIngestTimeout),
+		IngestDialTimeout:   envconfig.PositiveDuration("CLICKHOUSE_INGEST_DIAL_TIMEOUT", defaultIngestDialTimeout),
 
-		IngestAuthTimeout: positiveDurationEnv("INGEST_AUTH_TIMEOUT", defaultIngestAuthTimeout),
-		IngestJWKSRefreshInterval: positiveDurationEnv(
+		IngestAuthTimeout: envconfig.PositiveDuration("INGEST_AUTH_TIMEOUT", defaultIngestAuthTimeout),
+		IngestJWKSRefreshInterval: envconfig.PositiveDuration(
 			"INGEST_JWKS_REFRESH_INTERVAL",
 			defaultIngestJWKSRefreshInterval,
 		),
-		IngestPlacementCacheTTL: positiveDurationEnv("INGEST_PLACEMENT_CACHE_TTL", defaultIngestPlacementCacheTTL),
-		IngestPlacementRefetch: positiveDurationEnv(
+		IngestPlacementCacheTTL: envconfig.PositiveDuration(
+			"INGEST_PLACEMENT_CACHE_TTL", defaultIngestPlacementCacheTTL,
+		),
+		IngestPlacementRefetch: envconfig.PositiveDuration(
 			"INGEST_PLACEMENT_REFETCH_INTERVAL",
 			defaultIngestPlacementRefetch,
 		),
-		IngestClockSkew:  positiveDurationEnv("INGEST_CLOCK_SKEW", defaultIngestClockSkew),
+		IngestClockSkew:  envconfig.PositiveDuration("INGEST_CLOCK_SKEW", defaultIngestClockSkew),
 		IngestRetryAfter: ttlEnv("INGEST_RETRY_AFTER", defaultIngestRetryAfter),
 	}
 	if !cfg.QueryEnabled && !cfg.IngestEnabled {

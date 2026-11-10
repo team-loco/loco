@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"slices"
 	"testing"
-	"time"
 
+	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/internal/loglevel"
 )
 
@@ -34,17 +34,6 @@ func panicValue(t *testing.T, fn func()) error {
 	return err
 }
 
-func TestStringEnv(t *testing.T) {
-	t.Setenv(testEnvName, "")
-	if got := stringEnv(testEnvName, "fallback"); got != "fallback" {
-		t.Errorf("unset = %q, want the fallback", got)
-	}
-	t.Setenv(testEnvName, "value")
-	if got := stringEnv(testEnvName, "fallback"); got != "value" {
-		t.Errorf("set = %q, want value", got)
-	}
-}
-
 func TestListEnv(t *testing.T) {
 	t.Setenv(testEnvName, "")
 	if got := listEnv(testEnvName); len(got) != 0 {
@@ -56,32 +45,12 @@ func TestListEnv(t *testing.T) {
 	}
 }
 
-func TestBoolEnv(t *testing.T) {
-	t.Setenv(testEnvName, "")
-	if !boolEnv(testEnvName, true, errTestInvalid) {
-		t.Error("unset did not return the fallback")
-	}
-	t.Setenv(testEnvName, "false")
-	if boolEnv(testEnvName, true, errTestInvalid) {
-		t.Error("false parsed as true")
-	}
-	t.Setenv(testEnvName, "sometimes")
-	err := panicValue(t, func() { boolEnv(testEnvName, true, errTestInvalid) })
-	if !errors.Is(err, errTestInvalid) {
-		t.Errorf("panic = %v, want %v", err, errTestInvalid)
-	}
-}
-
-func readInt32()            { int32Env(testEnvName, testEnvFallback) }
 func readPositiveInt32()    { positiveInt32Env(testEnvName, testEnvFallback) }
 func readNonNegativeInt32() { nonNegativeInt32Env(testEnvName, testEnvFallback) }
 func readPositiveInt64()    { positiveInt64Env(testEnvName, testEnvFallback, errTestInvalid) }
 
 func TestIntegerEnvs(t *testing.T) {
 	t.Setenv(testEnvName, "")
-	if got := int32Env(testEnvName, testEnvFallback); got != testEnvFallback {
-		t.Errorf("unset = %d, want the fallback", got)
-	}
 	t.Setenv(testEnvName, "0")
 	if got := nonNegativeInt32Env(testEnvName, testEnvFallback); got != 0 {
 		t.Errorf("non-negative 0 = %d, want 0", got)
@@ -92,8 +61,7 @@ func TestIntegerEnvs(t *testing.T) {
 		read  func()
 		want  error
 	}{
-		{"int32 overflow", "4294967296", readInt32, errInvalidInt32},
-		{"positive int32 zero", "0", readPositiveInt32, errNotPositive},
+		{"positive int32 zero", "0", readPositiveInt32, envconfig.ErrNotPositive},
 		{"non-negative int32 below zero", "-1", readNonNegativeInt32, errNegative},
 		{"positive int64 zero", "0", readPositiveInt64, errTestInvalid},
 		{"positive int64 text", "many", readPositiveInt64, errTestInvalid},
@@ -105,27 +73,6 @@ func TestIntegerEnvs(t *testing.T) {
 				t.Errorf("panic = %v, want %v", err, tt.want)
 			}
 		})
-	}
-}
-
-func readPositiveDuration() { positiveDurationEnv(testEnvName, time.Minute) }
-
-func TestPositiveDurationEnv(t *testing.T) {
-	t.Setenv(testEnvName, "")
-	if got := positiveDurationEnv(testEnvName, time.Minute); got != time.Minute {
-		t.Errorf("unset = %s, want the fallback", got)
-	}
-	t.Setenv(testEnvName, "90s")
-	if got := positiveDurationEnv(testEnvName, time.Minute); got != 90*time.Second {
-		t.Errorf("set = %s, want 90s", got)
-	}
-	t.Setenv(testEnvName, "90")
-	if err := panicValue(t, readPositiveDuration); !errors.Is(err, errInvalidDuration) {
-		t.Errorf("panic = %v, want %v", err, errInvalidDuration)
-	}
-	t.Setenv(testEnvName, "-1s")
-	if err := panicValue(t, readPositiveDuration); !errors.Is(err, errNotPositive) {
-		t.Errorf("panic = %v, want %v", err, errNotPositive)
 	}
 }
 
