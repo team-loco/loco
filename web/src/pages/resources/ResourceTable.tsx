@@ -39,11 +39,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { pagedRows } from "@/lib/paging";
 import { formatCpu, formatMemory } from "@/lib/quantity";
 import { observabilityPath, resourcePath } from "@/lib/routes";
+import { pageSelection, toggleId, togglePage } from "@/lib/selection";
 import { agoLabel, formatMonthDayYear } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { BulkActions } from "./BulkActions";
-import { pageSelection, toggleId, togglePage } from "./bulk";
 import {
 	ALL,
 	cellSummary,
