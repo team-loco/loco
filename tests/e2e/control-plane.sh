@@ -369,18 +369,25 @@ fi
 printf 'The API issued an ingest token signed with the setup Job'"'"'s transit key and published its public key.\n'
 
 INGEST_MARKER="control-plane-ingest-$(openssl rand -hex 4)"
-printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}},{"key":"loco.workspace.id","value":{"stringValue":"%s"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \
-    "$INGEST_WORKSPACE" "$(date -u +%s)" "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.json"
-INGEST_STATUS=$(curl --silent -o /dev/null -w '%{http_code}' -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' \
-    --data-binary @"$RUN_DIR/otlp-logs.json" "http://127.0.0.1:$API_PORT/v1/logs")
+go -C "$ROOT_DIR/observability-proxy" build -o "$RUN_DIR/otlplog" ./tools/otlplog
+"$RUN_DIR/otlplog" -workspace "$INGEST_WORKSPACE" -body "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.binpb"
+INGEST_STATUS=$(curl --silent -o /dev/null -w '%{http_code}' -H "Host: $INGEST_HOST" -H 'Content-Type: application/x-protobuf' \
+    --data-binary @"$RUN_DIR/otlp-logs.binpb" "http://127.0.0.1:$API_PORT/v1/logs")
 if [[ $INGEST_STATUS != 401 ]]; then
     printf 'Expected OTLP without an ingest token to be rejected with 401, got %s\n' "$INGEST_STATUS" >&2
     exit 1
 fi
-curl --fail --silent -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' -H "Authorization: Bearer $INGEST_TOKEN" \
-    --data-binary @"$RUN_DIR/otlp-logs.json" "http://127.0.0.1:$API_PORT/v1/logs" >"$RUN_DIR/otlp-response.json"
-if grep -q rejectedLogRecords "$RUN_DIR/otlp-response.json"; then
-    printf 'Expected the placed workspace record to be accepted, got %s\n' "$(cat "$RUN_DIR/otlp-response.json")" >&2
+INGEST_STATUS=$(curl --silent -o /dev/null -w '%{http_code}' -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $INGEST_TOKEN" --data-binary '{}' "http://127.0.0.1:$API_PORT/v1/logs")
+if [[ $INGEST_STATUS != 415 ]]; then
+    printf 'Expected OTLP/JSON to be rejected with 415, got %s\n' "$INGEST_STATUS" >&2
+    exit 1
+fi
+curl --fail --silent -H "Host: $INGEST_HOST" -H 'Content-Type: application/x-protobuf' -H "Authorization: Bearer $INGEST_TOKEN" \
+    --data-binary @"$RUN_DIR/otlp-logs.binpb" "http://127.0.0.1:$API_PORT/v1/logs" >"$RUN_DIR/otlp-response.binpb"
+INGEST_REJECTED=$("$RUN_DIR/otlplog" -rejected <"$RUN_DIR/otlp-response.binpb")
+if [[ $INGEST_REJECTED != 0 ]]; then
+    printf 'Expected the placed workspace record to be accepted, got %s rejected\n' "$INGEST_REJECTED" >&2
     exit 1
 fi
 READER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ")) | .name' "$CHART_VALUES")

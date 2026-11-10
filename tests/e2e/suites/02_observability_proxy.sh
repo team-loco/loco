@@ -81,12 +81,11 @@ otlp_logs_url="http://127.0.0.1:${E2E_OTLP_HTTP_PORT}/v1/logs"
 otlp_dir="$E2E_BUILD_WORK_DIR/observability-proxy"
 cli_home="$otlp_dir/home"
 otlp_app="e2e-otlp-ingest"
-
-otlp_logs_body() {
-    local workspace_id=$1 body=$2
-    printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}},{"key":"loco.workspace.id","value":{"stringValue":"%s"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","severityText":"INFO","body":{"stringValue":"%s"}}]}]}]}' \
-        "$workspace_id" "$(date -u +%s)" "$body"
-}
+otlplog="$E2E_BUILD_WORK_DIR/otlplog"
+otlp_request="$E2E_BUILD_WORK_DIR/otlp-request.binpb"
+otlp_response="$E2E_BUILD_WORK_DIR/otlp-response.binpb"
+mkdir -p "$E2E_BUILD_WORK_DIR"
+go -C "$E2E_ROOT_DIR/observability-proxy" build -o "$otlplog" ./tools/otlplog
 
 ingest_token() {
     local namespace=${1:-$E2E_OBS_NAMESPACE}
@@ -98,15 +97,17 @@ ingest_token_written() {
     test -n "$(ingest_token)"
 }
 
+# Prints the HTTP status and leaves the response body in $otlp_response.
 otlp_post() {
     local workspace_id=$1 marker=$2
     shift 2
-    curl -s -w '\n%{http_code}' -X POST "$otlp_logs_url" -H 'Content-Type: application/json' "$@" \
-        -d "$(otlp_logs_body "$workspace_id" "$marker")"
+    "$otlplog" -workspace "$workspace_id" -body "$marker" >"$otlp_request"
+    curl -s -o "$otlp_response" -w '%{http_code}' -X POST "$otlp_logs_url" \
+        -H 'Content-Type: application/x-protobuf' "$@" --data-binary @"$otlp_request"
 }
 
-otlp_status() {
-    otlp_post "$@" | tail -n 1
+otlp_rejected() {
+    "$otlplog" -rejected <"$otlp_response"
 }
 
 forged_token() {
@@ -130,16 +131,16 @@ test_p06_otlp_ingest_requires_an_enrolled_cluster_token() {
     token=$(ingest_token)
     assert "The agent wrote an ingest token to the collector Secret" ingest_token_written
     assert "The node collector namespace holds the same token" test "$(ingest_token "$E2E_OBS_NODE_NAMESPACE")" = "$token"
-    status=$(otlp_status "$cli_workspace_id" "$marker")
+    status=$(otlp_post "$cli_workspace_id" "$marker")
     assert "OTLP without a token is unauthenticated (HTTP ${status})" test "$status" = 401
-    status=$(otlp_status "$cli_workspace_id" "$marker" -H "Authorization: Bearer $(forged_token "$token")")
+    status=$(otlp_post "$cli_workspace_id" "$marker" -H "Authorization: Bearer $(forged_token "$token")")
     assert "OTLP with a forged token is unauthenticated (HTTP ${status})" test "$status" = 401
-    status=$(otlp_status "$cli_workspace_id" "$marker" -H "Authorization: Bearer ${E2E_USER_TOKEN}")
+    status=$(otlp_post "$cli_workspace_id" "$marker" -H "Authorization: Bearer ${E2E_USER_TOKEN}")
     assert "OTLP with a user session token is unauthenticated (HTTP ${status})" test "$status" = 401
 }
 
 test_p07_otlp_ingest_accepts_placed_workspaces_only() {
-    local token marker rejected_marker response status body query
+    local token marker rejected_marker response status query
     if ! assert "loco deploy places the workspace on the cluster" place_cli_workspace; then
         sed 's/^/    /' "$otlp_dir/deploy.out" "$otlp_dir/deploy.err"
         return 1
@@ -147,20 +148,18 @@ test_p07_otlp_ingest_accepts_placed_workspaces_only() {
     token=$(ingest_token)
     marker="e2e-otlp-ingest-$(openssl rand -hex 4)"
     rejected_marker="e2e-otlp-rejected-$(openssl rand -hex 4)"
-    response=$(otlp_post "$cli_workspace_id" "$marker" -H "Authorization: Bearer ${token}")
-    status=$(tail -n 1 <<<"$response")
-    body=$(sed '$d' <<<"$response")
-    assert "OTLP/HTTP JSON logs of a placed workspace are accepted (HTTP ${status})" test "$status" = 200
-    assert "Nothing is rejected for a placed workspace" bash -c '[[ "$1" != *rejectedLogRecords* ]]' _ "$body"
-    response=$(otlp_post "$proxy_other_workspace_id" "$rejected_marker" -H "Authorization: Bearer ${token}")
-    status=$(tail -n 1 <<<"$response")
-    body=$(sed '$d' <<<"$response")
+    status=$(otlp_post "$cli_workspace_id" "$marker" -H "Authorization: Bearer ${token}")
+    assert "OTLP/HTTP protobuf logs of a placed workspace are accepted (HTTP ${status})" test "$status" = 200
+    assert "Nothing is rejected for a placed workspace" test "$(otlp_rejected)" = 0
+    status=$(otlp_post "$proxy_other_workspace_id" "$rejected_marker" -H "Authorization: Bearer ${token}")
     assert "Logs of a workspace not placed on the cluster still return 200 (HTTP ${status})" test "$status" = 200
-    assert "They are reported as rejected through partial success" \
-        bash -c '[[ "$1" == *"\"rejectedLogRecords\":\"1\""* ]]' _ "$body"
-    status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$otlp_logs_url" \
-        -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" -d '{"resourceLogs":')
+    assert "They are reported as rejected through partial success" test "$(otlp_rejected)" = 1
+    status=$(printf '\xff\xff' | curl -s -o /dev/null -w '%{http_code}' -X POST "$otlp_logs_url" \
+        -H 'Content-Type: application/x-protobuf' -H "Authorization: Bearer ${token}" --data-binary @-)
     assert "An undecodable OTLP request is rejected as permanent (HTTP ${status})" test "$status" = 400
+    status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$otlp_logs_url" \
+        -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" -d '{}')
+    assert "OTLP/JSON is unsupported (HTTP ${status})" test "$status" = 415
     query=$(mint_api_token "$(proxy_token_name ingest)" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
     response=$(curl -s -X POST "$proxy_query_logs" -H 'Content-Type: application/json' \
         -H "Authorization: Bearer ${query}" -d "$(proxy_logs_body "$cli_workspace_id")")

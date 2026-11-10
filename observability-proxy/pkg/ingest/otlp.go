@@ -27,7 +27,6 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -38,7 +37,6 @@ const (
 	MetricsPath = "/v1/metrics"
 
 	protobufContentType = "application/x-protobuf"
-	jsonContentType     = "application/json"
 	gzipEncoding        = "gzip"
 
 	authorizationHeader   = "Authorization"
@@ -83,35 +81,12 @@ func NewService(consumers Consumers, gate *Gate, cfg ServiceConfig, registerer p
 	}
 }
 
-type encoding int
-
-const (
-	protobufEncoding encoding = iota
-	jsonEncoding
-)
-
-func (e encoding) contentType() string {
-	if e == jsonEncoding {
-		return jsonContentType
-	}
-	return protobufContentType
-}
-
-func (e encoding) marshal(message proto.Message) ([]byte, error) {
-	if e == jsonEncoding {
-		return protojson.Marshal(message)
-	}
-	return proto.Marshal(message)
-}
-
 type otlpRequest interface {
 	UnmarshalProto(data []byte) error
-	UnmarshalJSON(data []byte) error
 }
 
 type otlpResponse interface {
 	MarshalProto() ([]byte, error)
-	MarshalJSON() ([]byte, error)
 }
 
 // signal describes one OTLP signal so a single export path serves logs, traces and metrics.
@@ -204,19 +179,12 @@ func (s *Service) Handler() http.Handler {
 	return mux
 }
 
-func requestEncoding(header string) (encoding, error) {
+func checkContentType(header string) error {
 	mediaType, _, err := mime.ParseMediaType(header)
-	if err != nil {
-		return protobufEncoding, errUnsupportedContentType
+	if err != nil || mediaType != protobufContentType {
+		return errUnsupportedContentType
 	}
-	switch mediaType {
-	case protobufContentType:
-		return protobufEncoding, nil
-	case jsonContentType:
-		return jsonEncoding, nil
-	default:
-		return protobufEncoding, errUnsupportedContentType
-	}
+	return nil
 }
 
 func (s *Service) readBody(r *http.Request) ([]byte, error) {
@@ -250,57 +218,42 @@ func exportHandler[Req otlpRequest, Resp otlpResponse, Payload any](
 	sig signal[Req, Resp, Payload],
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		enc, err := requestEncoding(r.Header.Get("Content-Type"))
-		if err != nil {
-			s.writeHTTPError(w, enc, http.StatusUnsupportedMediaType, codes.InvalidArgument, err)
+		if err := checkContentType(r.Header.Get("Content-Type")); err != nil {
+			s.writeHTTPError(w, http.StatusUnsupportedMediaType, codes.InvalidArgument, err)
 			return
 		}
 		admission, err := s.gate.Admit(r.Context(), r.Header.Get(authorizationHeader))
 		if err != nil {
-			s.writeFailure(r.Context(), w, enc, err)
+			s.writeFailure(r.Context(), w, err)
 			return
 		}
 		body, err := s.readBody(r)
 		if err != nil {
-			s.writeFailure(r.Context(), w, enc, err)
+			s.writeFailure(r.Context(), w, err)
 			return
 		}
 		request := sig.newRequest()
-		if decodeErr := unmarshal(enc, request, body); decodeErr != nil {
+		if decodeErr := request.UnmarshalProto(body); decodeErr != nil {
 			decodeFailure := consumererror.NewPermanent(fmt.Errorf("decode request: %w", decodeErr))
-			s.writeFailure(r.Context(), w, enc, decodeFailure)
+			s.writeFailure(r.Context(), w, decodeFailure)
 			return
 		}
 		response, err := export(r.Context(), s, sig, admission, request)
 		if err != nil {
-			s.writeFailure(r.Context(), w, enc, err)
+			s.writeFailure(r.Context(), w, err)
 			return
 		}
-		payload, err := marshal(enc, response)
+		payload, err := response.MarshalProto()
 		if err != nil {
-			s.writeFailure(r.Context(), w, enc, fmt.Errorf("encode response: %w", err))
+			s.writeFailure(r.Context(), w, fmt.Errorf("encode response: %w", err))
 			return
 		}
-		w.Header().Set("Content-Type", enc.contentType())
+		w.Header().Set("Content-Type", protobufContentType)
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write(payload); err != nil { //nolint:gosec // G705: an OTLP protobuf or JSON body, never HTML
+		if _, err := w.Write(payload); err != nil { //nolint:gosec // G705: an OTLP protobuf body, never HTML
 			slog.WarnContext(r.Context(), "write OTLP response", "error", err)
 		}
 	}
-}
-
-func unmarshal(enc encoding, request otlpRequest, body []byte) error {
-	if enc == jsonEncoding {
-		return request.UnmarshalJSON(body)
-	}
-	return request.UnmarshalProto(body)
-}
-
-func marshal(enc encoding, response otlpResponse) ([]byte, error) {
-	if enc == jsonEncoding {
-		return response.MarshalJSON()
-	}
-	return response.MarshalProto()
 }
 
 func publicError(err error) (int, codes.Code, error) {
@@ -353,20 +306,19 @@ func logExportFailure(ctx context.Context, err, public error, attrs ...any) {
 	slog.Log(ctx, level, "OTLP export failed", append([]any{"error", err}, attrs...)...)
 }
 
-func (s *Service) writeFailure(ctx context.Context, w http.ResponseWriter, enc encoding, err error) {
+func (s *Service) writeFailure(ctx context.Context, w http.ResponseWriter, err error) {
 	httpStatus, code, public := publicError(err)
 	logExportFailure(ctx, err, public, "status", httpStatus)
-	s.writeHTTPError(w, enc, httpStatus, code, public)
+	s.writeHTTPError(w, httpStatus, code, public)
 }
 
-func (s *Service) writeHTTPError(w http.ResponseWriter, enc encoding, httpStatus int, code codes.Code, public error) {
-	statusProto := s.status(code, public).Proto()
-	payload, err := enc.marshal(statusProto)
+func (s *Service) writeHTTPError(w http.ResponseWriter, httpStatus int, code codes.Code, public error) {
+	payload, err := proto.Marshal(s.status(code, public).Proto())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", enc.contentType())
+	w.Header().Set("Content-Type", protobufContentType)
 	if httpStatus == http.StatusServiceUnavailable {
 		retryAfter := strconv.Itoa(int(s.retryAfter.Seconds()))
 		w.Header().Set(retryAfterHeader, retryAfter)
