@@ -133,6 +133,21 @@ jobs:
           subject-digest: ${{ steps.platform.outputs.digest }}
           push-to-registry: true
 
+      # Install separately so a transient release download can retry without
+      # repeating the scan or allowing a missing SBOM through attestation.
+      - name: Install Syft
+        id: syft
+        continue-on-error: true
+        uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+
+      - name: Wait before retrying Syft installation
+        if: steps.syft.outcome == 'failure'
+        run: sleep 10
+
+      - name: Retry Syft installation
+        if: steps.syft.outcome == 'failure'
+        uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+
       - name: Generate platform SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
