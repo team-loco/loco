@@ -1,4 +1,4 @@
-package secretkeys
+package transit
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/api/pkg/tracingtest"
+	"github.com/team-loco/loco/api/pkg/transit/transittest"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 	wantFailedRenewal = 3
 )
 
-func startRenewal(t *testing.T, transit *Transit) {
+func startRenewal(t *testing.T, transit *Client) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	lease, err := transit.logIn(ctx)
@@ -53,47 +54,46 @@ func waitFor(t *testing.T, what string, condition func() bool) {
 }
 
 func TestTransitRenewsTheTokenBeforeItExpires(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.setToken(testTokenTTL, true)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	fake := transittest.New(t)
+	fake.SetToken(testTokenTTL, true)
+	server := fake.Server()
+	transit := newTestClient(t, transitConfig(server.URL))
 	startRenewal(t, transit)
 
-	waitFor(t, "two renewals", func() bool { return fake.count(fakeRenewSelfPath) >= wantRenewals })
-	if lookups := fake.count(fakeLookupSelfPath); lookups != 1 {
+	waitFor(t, "two renewals", func() bool { return fake.Count(transittest.RenewSelfPath) >= wantRenewals })
+	if lookups := fake.Count(transittest.LookupSelfPath); lookups != 1 {
 		t.Fatalf("lookups = %d, want 1", lookups)
 	}
 }
 
 func TestTransitKeepsRetryingAFailedRenewal(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.setToken(testTokenTTL, true)
-	fake.setRenewFails(true)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	fake := transittest.New(t)
+	fake.SetToken(testTokenTTL, true)
+	fake.SetRenewFails(true)
+	server := fake.Server()
+	transit := newTestClient(t, transitConfig(server.URL))
 	startRenewal(t, transit)
 
-	waitFor(t, "failed renewals", func() bool { return fake.count(fakeRenewSelfPath) >= wantFailedRenewal })
-	fake.setRenewFails(false)
-	failed := fake.count(fakeRenewSelfPath)
+	waitFor(t, "failed renewals", func() bool { return fake.Count(transittest.RenewSelfPath) >= wantFailedRenewal })
+	fake.SetRenewFails(false)
+	failed := fake.Count(transittest.RenewSelfPath)
 	waitFor(t, "a renewal after recovery", func() bool {
-		return fake.count(fakeRenewSelfPath) >= failed+wantRenewals
+		return fake.Count(transittest.RenewSelfPath) >= failed+wantRenewals
 	})
-	if _, err := transit.Wrap(context.Background(), testDEK(t), DEKAAD(environmentID)); err != nil {
-		t.Fatalf("wrap after recovery: %v", err)
+	if _, _, err := testKey(transit).Encrypt(context.Background(), testPlaintext(t), testContext); err != nil {
+		t.Fatalf("encrypt after recovery: %v", err)
 	}
 }
 
 func TestTransitExpiredTokenFailsEveryCall(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.setToken(testTokenTTL, false)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	fake := transittest.New(t)
+	fake.SetToken(testTokenTTL, false)
+	server := fake.Server()
+	transit := newTestClient(t, transitConfig(server.URL))
 	ctx := context.Background()
-	aad := DEKAAD(environmentID)
-	wrapped, err := transit.Wrap(ctx, testDEK(t), aad)
+	keyID, ciphertext, err := testKey(transit).Encrypt(ctx, testPlaintext(t), testContext)
 	if err != nil {
-		t.Fatalf("wrap: %v", err)
+		t.Fatalf("encrypt: %v", err)
 	}
 	var leap atomic.Int64
 	transit.now = func() time.Time { return time.Now().Add(time.Duration(leap.Load())) }
@@ -101,29 +101,29 @@ func TestTransitExpiredTokenFailsEveryCall(t *testing.T) {
 
 	leap.Store(int64(testClockLeap))
 
-	if _, err := transit.Wrap(ctx, testDEK(t), aad); !errors.Is(err, ErrTransitTokenExpired) {
-		t.Fatalf("wrap: err = %v, want ErrTransitTokenExpired", err)
+	if _, _, err := testKey(transit).Encrypt(ctx, testPlaintext(t), testContext); !errors.Is(err, ErrTokenExpired) {
+		t.Fatalf("encrypt: err = %v, want ErrTokenExpired", err)
 	}
-	if _, err := transit.Unwrap(ctx, wrapped, aad); !errors.Is(err, ErrTransitTokenExpired) {
-		t.Fatalf("unwrap: err = %v, want ErrTransitTokenExpired", err)
+	if _, err := testKey(transit).Decrypt(ctx, keyID, ciphertext, testContext); !errors.Is(err, ErrTokenExpired) {
+		t.Fatalf("decrypt: err = %v, want ErrTokenExpired", err)
 	}
-	if _, err := transit.KeyID(ctx); !errors.Is(err, ErrTransitTokenExpired) {
-		t.Fatalf("key id: err = %v, want ErrTransitTokenExpired", err)
+	if _, err := testKey(transit).KeyID(ctx); !errors.Is(err, ErrTokenExpired) {
+		t.Fatalf("key id: err = %v, want ErrTokenExpired", err)
 	}
-	if renewals := fake.count(fakeRenewSelfPath); renewals != 0 {
+	if renewals := fake.Count(transittest.RenewSelfPath); renewals != 0 {
 		t.Fatalf("renewals = %d, want none for a token that is not renewable", renewals)
 	}
 }
 
 func TestTransitDoesNotRenewATokenWithoutTTL(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.setToken(0, false)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	fake := transittest.New(t)
+	fake.SetToken(0, false)
+	server := fake.Server()
+	transit := newTestClient(t, transitConfig(server.URL))
 	startRenewal(t, transit)
 
 	time.Sleep(testQuietPeriod)
-	if renewals := fake.count(fakeRenewSelfPath); renewals != 0 {
+	if renewals := fake.Count(transittest.RenewSelfPath); renewals != 0 {
 		t.Fatalf("renewals = %d, want none", renewals)
 	}
 	if expiry := transit.tokenExpiry(); !expiry.IsZero() {
@@ -132,7 +132,7 @@ func TestTransitDoesNotRenewATokenWithoutTTL(t *testing.T) {
 }
 
 func TestTransitRenewalDelay(t *testing.T) {
-	transit := &Transit{renewMargin: time.Minute}
+	transit := &Client{renewMargin: time.Minute}
 	if delay := transit.renewalDelay(time.Hour); delay != time.Hour-time.Minute {
 		t.Fatalf("delay for an hour-long token = %v, want %v", delay, time.Hour-time.Minute)
 	}
@@ -142,16 +142,16 @@ func TestTransitRenewalDelay(t *testing.T) {
 }
 
 func TestTransitRenewalWithoutALeaseKeepsTheExpiry(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.setToken(testTokenTTL, true)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	fake := transittest.New(t)
+	fake.SetToken(testTokenTTL, true)
+	server := fake.Server()
+	transit := newTestClient(t, transitConfig(server.URL))
 	startRenewal(t, transit)
 
-	fake.setToken(0, true)
-	renewals := fake.count(fakeRenewSelfPath)
+	fake.SetToken(0, true)
+	renewals := fake.Count(transittest.RenewSelfPath)
 	waitFor(t, "renewals without a lease", func() bool {
-		return fake.count(fakeRenewSelfPath) >= renewals+wantFailedRenewal
+		return fake.Count(transittest.RenewSelfPath) >= renewals+wantFailedRenewal
 	})
 	if expiry := transit.tokenExpiry(); expiry.IsZero() {
 		t.Fatal("token expiry was cleared by a renewal without a lease")
@@ -160,10 +160,10 @@ func TestTransitRenewalWithoutALeaseKeepsTheExpiry(t *testing.T) {
 
 func TestTransitTokenRefreshRecordsARootSpan(t *testing.T) {
 	recorder := tracingtest.Record(t)
-	fake := newFakeTransit(t)
-	fake.setToken(testTokenTTL, true)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	fake := transittest.New(t)
+	fake.SetToken(testTokenTTL, true)
+	server := fake.Server()
+	transit := newTestClient(t, transitConfig(server.URL))
 	startRenewal(t, transit)
 
 	waitFor(t, "a traced token refresh with its request", func() bool {

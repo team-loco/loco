@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -342,7 +343,7 @@ func (s *PlanServer) serviceSecrets(
 		if secrets[row.ResourceName] == nil {
 			secrets[row.ResourceName] = make(map[string]int64)
 		}
-		secrets[row.ResourceName][row.Name] = row.CiphertextBytes - secretTagBytes
+		secrets[row.ResourceName][row.Name] = row.CiphertextBytes - secretkeys.Overhead
 	}
 	return secrets, nil
 }

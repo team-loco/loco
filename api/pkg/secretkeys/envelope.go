@@ -8,6 +8,9 @@ import (
 )
 
 const (
+	// Overhead is how many bytes Seal's ciphertext adds to its plaintext: the AES-GCM tag.
+	Overhead = 16
+
 	secretAADPrefix = "loco/secret/v1"
 	dekAADPrefix    = "loco/dek/v1"
 )

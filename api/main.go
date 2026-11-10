@@ -38,7 +38,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
-	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/transit"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/tvm"
@@ -280,11 +280,11 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults, clusterSilentAfter)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	var registryKey *secretkeys.PinnedKey
+	var registryKey *transit.PinnedKey
 	if ac.RegistryAuth.TokenMode() {
 		registryKey = &ac.RegistryAuth.TransitKey
 	}
-	transitKeys, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey, registryKey)
+	transitKeys, providerErr := newTransitKeys(shutdownCtx, ac.Transit, ac.Secrets, ac.Ingest.TransitKey, registryKey)
 	if providerErr != nil {
 		slog.ErrorContext(shutdownCtx, "failed to verify the transit keys", "error", providerErr)
 		os.Exit(1)

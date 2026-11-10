@@ -1,4 +1,4 @@
-package secretkeys
+package transit
 
 import (
 	"context"
@@ -12,28 +12,34 @@ import (
 	"strings"
 )
 
-const transitSigningKeyType = "ed25519"
+const signingKeyType = "ed25519"
 
 var (
-	ErrTransitSigningKeyType = errors.New("transit signing key must be an ed25519 key")
-	ErrTransitSignature      = errors.New("transit signature is malformed")
-	ErrTransitSigningVersion = errors.New("transit signing key version is not usable")
+	ErrSigningKeyType = errors.New("transit signing key must be an ed25519 key")
+	ErrSignature      = errors.New("transit signature is malformed")
+	ErrSigningVersion = errors.New("transit signing key version is not usable")
 )
 
-type TransitSigner struct {
-	transit *Transit
-	key     string
+type PinnedKey struct {
+	Name    string
+	Version int
 }
 
-func (t *Transit) Signer(key string) *TransitSigner {
-	return &TransitSigner{transit: t, key: key}
+// Signer signs with an ed25519 Transit key.
+type Signer struct {
+	client *Client
+	key    string
 }
 
-type transitPublicKey struct {
+func (t *Client) Signer(key string) *Signer {
+	return &Signer{client: t, key: key}
+}
+
+type publicKeyEntry struct {
 	PublicKey string `json:"public_key"`
 }
 
-type transitSigningKeyResponse struct {
+type signingKeyResponse struct {
 	Data struct {
 		Type                 string                     `json:"type"`
 		LatestVersion        int                        `json:"latest_version"`
@@ -43,23 +49,23 @@ type transitSigningKeyResponse struct {
 	} `json:"data"`
 }
 
-func (s *TransitSigner) readKey(ctx context.Context) (transitSigningKeyResponse, error) {
-	var response transitSigningKeyResponse
-	if err := s.transit.checkToken(); err != nil {
+func (s *Signer) readKey(ctx context.Context) (signingKeyResponse, error) {
+	var response signingKeyResponse
+	if err := s.client.checkToken(); err != nil {
 		return response, err
 	}
-	path := s.transit.namedKeyPath("keys", s.key)
-	if err := s.transit.do(ctx, http.MethodGet, path, nil, &response); err != nil {
+	path := s.client.keyPath("keys", s.key)
+	if err := s.client.do(ctx, http.MethodGet, path, nil, &response); err != nil {
 		return response, fmt.Errorf("read transit signing key: %w", err)
 	}
-	if response.Data.Type != transitSigningKeyType {
-		return response, fmt.Errorf("%w: type %q", ErrTransitSigningKeyType, response.Data.Type)
+	if response.Data.Type != signingKeyType {
+		return response, fmt.Errorf("%w: type %q", ErrSigningKeyType, response.Data.Type)
 	}
 	if response.Data.LatestVersion < 1 || response.Data.MinDecryptionVersion < 1 ||
 		response.Data.MinDecryptionVersion > response.Data.LatestVersion {
 		return response, fmt.Errorf(
 			"%w: latest_version %d, min_decryption_version %d",
-			ErrTransitResponse,
+			ErrResponse,
 			response.Data.LatestVersion,
 			response.Data.MinDecryptionVersion,
 		)
@@ -67,15 +73,15 @@ func (s *TransitSigner) readKey(ctx context.Context) (transitSigningKeyResponse,
 	return response, nil
 }
 
-func (s *TransitSigner) KeyID(ctx context.Context) (string, error) {
+func (s *Signer) KeyID(ctx context.Context) (string, error) {
 	response, err := s.readKey(ctx)
 	if err != nil {
 		return "", err
 	}
-	return transitKeyID(response.Data.LatestVersion), nil
+	return formatKeyID(response.Data.LatestVersion), nil
 }
 
-func (s *TransitSigner) Pin(ctx context.Context, version int) (string, ed25519.PublicKey, error) {
+func (s *Signer) Pin(ctx context.Context, version int) (string, ed25519.PublicKey, error) {
 	response, err := s.readKey(ctx)
 	if err != nil {
 		return "", nil, err
@@ -83,7 +89,7 @@ func (s *TransitSigner) Pin(ctx context.Context, version int) (string, ed25519.P
 	if version < response.Data.MinEncryptionVersion {
 		return "", nil, fmt.Errorf(
 			"%w: version %d is below min_encryption_version %d",
-			ErrTransitSigningVersion,
+			ErrSigningVersion,
 			version,
 			response.Data.MinEncryptionVersion,
 		)
@@ -92,10 +98,10 @@ func (s *TransitSigner) Pin(ctx context.Context, version int) (string, ed25519.P
 	if err != nil {
 		return "", nil, err
 	}
-	return transitKeyID(version), public, nil
+	return formatKeyID(version), public, nil
 }
 
-func (s *TransitSigner) PublicKeys(ctx context.Context) (map[string]ed25519.PublicKey, error) {
+func (s *Signer) PublicKeys(ctx context.Context) (map[string]ed25519.PublicKey, error) {
 	response, err := s.readKey(ctx)
 	if err != nil {
 		return nil, err
@@ -106,16 +112,16 @@ func (s *TransitSigner) PublicKeys(ctx context.Context) (map[string]ed25519.Publ
 		if err != nil {
 			return nil, err
 		}
-		keys[transitKeyID(version)] = public
+		keys[formatKeyID(version)] = public
 	}
 	return keys, nil
 }
 
-func (r transitSigningKeyResponse) publicKey(version int) (ed25519.PublicKey, error) {
+func (r signingKeyResponse) publicKey(version int) (ed25519.PublicKey, error) {
 	if version < r.Data.MinDecryptionVersion || version > r.Data.LatestVersion {
 		return nil, fmt.Errorf(
 			"%w: version %d is outside min_decryption_version %d to latest_version %d",
-			ErrTransitSigningVersion,
+			ErrSigningVersion,
 			version,
 			r.Data.MinDecryptionVersion,
 			r.Data.LatestVersion,
@@ -123,53 +129,53 @@ func (r transitSigningKeyResponse) publicKey(version int) (ed25519.PublicKey, er
 	}
 	raw, ok := r.Data.Keys[strconv.Itoa(version)]
 	if !ok {
-		return nil, fmt.Errorf("%w: no public key for version %d", ErrTransitResponse, version)
+		return nil, fmt.Errorf("%w: no public key for version %d", ErrResponse, version)
 	}
-	var entry transitPublicKey
+	var entry publicKeyEntry
 	if err := json.Unmarshal(raw, &entry); err != nil {
-		return nil, fmt.Errorf("%w: version %d: %w", ErrTransitResponse, version, err)
+		return nil, fmt.Errorf("%w: version %d: %w", ErrResponse, version, err)
 	}
 	public, err := base64.StdEncoding.DecodeString(entry.PublicKey)
 	if err != nil || len(public) != ed25519.PublicKeySize {
-		return nil, fmt.Errorf("%w: public key of version %d", ErrTransitResponse, version)
+		return nil, fmt.Errorf("%w: public key of version %d", ErrResponse, version)
 	}
 	return public, nil
 }
 
-type transitSignRequest struct {
+type signRequest struct {
 	Input      string `json:"input"`
 	KeyVersion int    `json:"key_version"`
 }
 
-type transitSignResponse struct {
+type signResponse struct {
 	Data struct {
 		Signature string `json:"signature"`
 	} `json:"data"`
 }
 
-func (s *TransitSigner) Sign(ctx context.Context, keyID string, input []byte) ([]byte, error) {
-	version, err := transitKeyVersion(keyID)
+func (s *Signer) Sign(ctx context.Context, keyID string, input []byte) ([]byte, error) {
+	version, err := keyVersion(keyID)
 	if err != nil {
 		return nil, err
 	}
-	if err = s.transit.checkToken(); err != nil {
+	if err = s.client.checkToken(); err != nil {
 		return nil, err
 	}
-	request := transitSignRequest{Input: base64.StdEncoding.EncodeToString(input), KeyVersion: version}
-	var response transitSignResponse
-	path := s.transit.namedKeyPath("sign", s.key)
-	if err = s.transit.do(ctx, http.MethodPost, path, request, &response); err != nil {
+	request := signRequest{Input: base64.StdEncoding.EncodeToString(input), KeyVersion: version}
+	var response signResponse
+	path := s.client.keyPath("sign", s.key)
+	if err = s.client.do(ctx, http.MethodPost, path, request, &response); err != nil {
 		return nil, fmt.Errorf("transit sign: %w", err)
 	}
 	signed := []byte(response.Data.Signature)
-	signedWith, err := transitCiphertextKeyID(signed)
+	signedWith, err := ciphertextKeyID(signed)
 	if err != nil || signedWith != keyID {
-		return nil, fmt.Errorf("%w: want %s", ErrTransitSignature, keyID)
+		return nil, fmt.Errorf("%w: want %s", ErrSignature, keyID)
 	}
-	encoded := response.Data.Signature[strings.LastIndex(response.Data.Signature, transitCiphertextSep)+1:]
+	encoded := response.Data.Signature[strings.LastIndex(response.Data.Signature, ciphertextSep)+1:]
 	signature, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil || len(signature) != ed25519.SignatureSize {
-		return nil, fmt.Errorf("%w: signature of %s", ErrTransitSignature, keyID)
+		return nil, fmt.Errorf("%w: signature of %s", ErrSignature, keyID)
 	}
 	return signature, nil
 }

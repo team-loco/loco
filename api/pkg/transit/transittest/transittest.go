@@ -1,7 +1,11 @@
-package secretkeys
+// Package transittest serves a fake Transit secrets engine for tests: token lookup and
+// renewal, Kubernetes login, one derived aes256-gcm96 key and one ed25519 signing key.
+package transittest
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/rand"
@@ -19,26 +23,34 @@ import (
 	"time"
 )
 
-var errFakeMissingContext = errors.New("missing 'context' for key derivation")
+var errMissingContext = errors.New("missing 'context' for key derivation")
 
 const (
-	fakeTransitMount = "transit"
-	fakeTransitKey   = "loco"
-	fakeTransitToken = "s.fake-token"
-	fakeSigningKey   = "loco-ingest"
+	Mount           = "transit"
+	Key             = "loco"
+	Token           = "s.fake-token"
+	SigningKey      = "loco-ingest"
+	KubernetesMount = "kubernetes"
+	KubernetesRole  = "loco-api"
+	LookupSelfPath  = "/v1/auth/token/lookup-self"
+	RenewSelfPath   = "/v1/auth/token/renew-self"
+	LoginPath       = "/v1/auth/" + KubernetesMount + "/login"
+	KeyPath         = "/v1/" + Mount + "/keys/" + Key
+	EncryptPath     = "/v1/" + Mount + "/encrypt/" + Key
+	DecryptPath     = "/v1/" + Mount + "/decrypt/" + Key
+	SigningKeyPath  = "/v1/" + Mount + "/keys/" + SigningKey
 
-	transitTypeField      = "type"
-	transitRenewableField = "renewable"
-	fakeLookupSelfPath    = "/v1/auth/token/lookup-self"
-	fakeRenewSelfPath     = "/v1/auth/token/renew-self"
-	fakeKubernetesMount   = "kubernetes"
-	fakeKubernetesRole    = "loco-api"
-	fakeLoginPath         = "/v1/auth/" + fakeKubernetesMount + "/login"
-
-	transitFakeNonceSize = 12
+	// Kept apart from the transit package so the fake follows the protocol, not the client.
+	authHeader        = "X-Vault-Token"
+	encryptionKeyType = "aes256-gcm96"
+	signingKeyType    = "ed25519"
+	typeField         = "type"
+	renewableField    = "renewable"
+	keySize           = 32
 )
 
-type fakeTransit struct {
+// Fake is a Transit server. Its methods change what it answers; Server starts serving it.
+type Fake struct {
 	t *testing.T
 
 	mu      sync.Mutex
@@ -63,28 +75,28 @@ type fakeTransit struct {
 	loginTokens    map[string]bool
 }
 
-func newFakeTransit(t *testing.T) *fakeTransit {
+func New(t *testing.T) *Fake {
 	t.Helper()
-	fake := &fakeTransit{
+	fake := &Fake{
 		t:        t,
 		derived:  true,
-		keyType:  transitKeyType,
-		token:    fakeTransitToken,
+		keyType:  encryptionKeyType,
+		token:    Token,
 		requests: map[string]int{},
 
 		loginTokens: map[string]bool{},
 
 		tokenRenewable: true,
 
-		signingKeyType:    transitSigningKeyType,
+		signingKeyType:    signingKeyType,
 		minSigningVersion: 1,
 	}
-	fake.rotate()
-	fake.rotateSigningKey()
+	fake.Rotate()
+	fake.RotateSigningKey()
 	return fake
 }
 
-func (f *fakeTransit) rotateSigningKey() {
+func (f *Fake) RotateSigningKey() {
 	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		f.t.Fatal(err)
@@ -94,25 +106,48 @@ func (f *fakeTransit) rotateSigningKey() {
 	f.signingKeys = append(f.signingKeys, key)
 }
 
-func (f *fakeTransit) trimSigningKeys(minVersion int) {
+func (f *Fake) TrimSigningKeys(minVersion int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.minSigningVersion = minVersion
 }
 
-func (f *fakeTransit) raiseMinEncryptionVersion(minVersion int) {
+func (f *Fake) RaiseMinEncryptionVersion(minVersion int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.minEncryptVersion = minVersion
 }
 
-func (f *fakeTransit) setSigningKeyType(keyType string) {
+// SetKeyType changes the type and derivation the encryption key reports.
+func (f *Fake) SetKeyType(keyType string, derived bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.keyType = keyType
+	f.derived = derived
+}
+
+// DropSigningKeys removes every version of the signing key.
+func (f *Fake) DropSigningKeys() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signingKeys = nil
+}
+
+// Block holds every request until the test ends or the request ends.
+func (f *Fake) Block() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.block = make(chan struct{})
+	f.t.Cleanup(func() { close(f.block) })
+}
+
+func (f *Fake) SetSigningKeyType(keyType string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.signingKeyType = keyType
 }
 
-func (f *fakeTransit) readSigningKey(w http.ResponseWriter) {
+func (f *Fake) readSigningKey(w http.ResponseWriter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	keys := map[string]any{}
@@ -122,14 +157,14 @@ func (f *fakeTransit) readSigningKey(w http.ResponseWriter) {
 			f.t.Fatal("ed25519 key without an ed25519 public key")
 		}
 		version := strconv.Itoa(f.minSigningVersion + index)
-		if f.signingKeyType != transitSigningKeyType {
+		if f.signingKeyType != signingKeyType {
 			keys[version] = time.Now().Unix()
 			continue
 		}
 		keys[version] = map[string]any{"public_key": base64.StdEncoding.EncodeToString(public)}
 	}
 	f.writeData(w, map[string]any{
-		transitTypeField:         f.signingKeyType,
+		typeField:                f.signingKeyType,
 		"latest_version":         len(f.signingKeys),
 		"min_decryption_version": f.minSigningVersion,
 		"min_encryption_version": f.minEncryptVersion,
@@ -137,7 +172,7 @@ func (f *fakeTransit) readSigningKey(w http.ResponseWriter) {
 	})
 }
 
-func (f *fakeTransit) sign(w http.ResponseWriter, r *http.Request) {
+func (f *Fake) sign(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Input      string `json:"input"`
 		KeyVersion int    `json:"key_version"`
@@ -162,37 +197,37 @@ func (f *fakeTransit) sign(w http.ResponseWriter, r *http.Request) {
 	f.writeData(w, map[string]any{"signature": fmt.Sprintf("vault:v%d:%s", body.KeyVersion, encoded)})
 }
 
-func (f *fakeTransit) rotate() {
+func (f *Fake) Rotate() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	version := byte(len(f.keys) + 1)
-	f.keys = append(f.keys, bytes.Repeat([]byte{version}, KeySize))
+	f.keys = append(f.keys, bytes.Repeat([]byte{version}, keySize))
 }
 
-func (f *fakeTransit) count(path string) int {
+func (f *Fake) Count(path string) int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.requests[path]
 }
 
-func (f *fakeTransit) server() *httptest.Server {
+func (f *Fake) Server() *httptest.Server {
 	server := httptest.NewServer(f)
 	f.t.Cleanup(server.Close)
 	return server
 }
 
-func (f *fakeTransit) tlsServer() *httptest.Server {
+func (f *Fake) TLSServer() *httptest.Server {
 	server := httptest.NewTLSServer(f)
 	f.t.Cleanup(server.Close)
 	return server
 }
 
-func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.requests[r.URL.Path]++
 	block := f.block
 	token := f.token
-	loggedIn := f.loginTokens[r.Header.Get(transitAuthHeader)]
+	loggedIn := f.loginTokens[r.Header.Get(authHeader)]
 	sealed := f.unavailable > 0
 	if sealed {
 		f.unavailable--
@@ -209,68 +244,68 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if r.Method == http.MethodPost && r.URL.Path == fakeLoginPath {
+	if r.Method == http.MethodPost && r.URL.Path == LoginPath {
 		f.login(w, r)
 		return
 	}
-	if r.Header.Get(transitAuthHeader) != token && !loggedIn {
+	if r.Header.Get(authHeader) != token && !loggedIn {
 		f.writeError(w, http.StatusForbidden, "permission denied")
 		return
 	}
-	prefix := "/v1/" + fakeTransitMount + "/"
+	prefix := "/v1/" + Mount + "/"
 	switch {
-	case r.Method == http.MethodGet && r.URL.Path == fakeLookupSelfPath:
+	case r.Method == http.MethodGet && r.URL.Path == LookupSelfPath:
 		f.lookupSelf(w)
-	case r.Method == http.MethodPost && r.URL.Path == fakeRenewSelfPath:
+	case r.Method == http.MethodPost && r.URL.Path == RenewSelfPath:
 		f.renewSelf(w)
-	case r.Method == http.MethodGet && r.URL.Path == prefix+"keys/"+fakeTransitKey:
+	case r.Method == http.MethodGet && r.URL.Path == prefix+"keys/"+Key:
 		f.readKey(w)
-	case r.Method == http.MethodPost && r.URL.Path == prefix+"encrypt/"+fakeTransitKey:
+	case r.Method == http.MethodPost && r.URL.Path == prefix+"encrypt/"+Key:
 		f.encrypt(w, r)
-	case r.Method == http.MethodPost && r.URL.Path == prefix+"decrypt/"+fakeTransitKey:
+	case r.Method == http.MethodPost && r.URL.Path == prefix+"decrypt/"+Key:
 		f.decrypt(w, r)
-	case r.Method == http.MethodGet && r.URL.Path == prefix+"keys/"+fakeSigningKey:
+	case r.Method == http.MethodGet && r.URL.Path == prefix+"keys/"+SigningKey:
 		f.readSigningKey(w)
-	case r.Method == http.MethodPost && r.URL.Path == prefix+"sign/"+fakeSigningKey:
+	case r.Method == http.MethodPost && r.URL.Path == prefix+"sign/"+SigningKey:
 		f.sign(w, r)
 	default:
 		f.writeError(w, http.StatusNotFound, "no handler for route")
 	}
 }
 
-func (f *fakeTransit) failRequests(count int) {
+func (f *Fake) FailRequests(count int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.unavailable = count
 }
 
-func (f *fakeTransit) setToken(ttl time.Duration, renewable bool) {
+func (f *Fake) SetToken(ttl time.Duration, renewable bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.tokenTTL = ttl
 	f.tokenRenewable = renewable
 }
 
-func (f *fakeTransit) currentToken() string {
+func (f *Fake) CurrentToken() string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.token
 }
 
-func (f *fakeTransit) forgetToken() {
+func (f *Fake) ForgetToken() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.token = "s.forgotten"
 	f.loginTokens = map[string]bool{}
 }
 
-func (f *fakeTransit) acceptJWT(jwt string) {
+func (f *Fake) AcceptJWT(jwt string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jwt = jwt
 }
 
-func (f *fakeTransit) login(w http.ResponseWriter, r *http.Request) {
+func (f *Fake) login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Role string `json:"role"`
 		JWT  string `json:"jwt"`
@@ -281,7 +316,7 @@ func (f *fakeTransit) login(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if r.Header.Get(transitAuthHeader) != "" || body.Role != fakeKubernetesRole || f.jwt == "" || body.JWT != f.jwt {
+	if r.Header.Get(authHeader) != "" || body.Role != KubernetesRole || f.jwt == "" || body.JWT != f.jwt {
 		f.writeError(w, http.StatusForbidden, "permission denied")
 		return
 	}
@@ -294,22 +329,22 @@ func (f *fakeTransit) login(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
-func (f *fakeTransit) setRenewFails(fails bool) {
+func (f *Fake) SetRenewFails(fails bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.renewFails = fails
 }
 
-func (f *fakeTransit) lookupSelf(w http.ResponseWriter) {
+func (f *Fake) lookupSelf(w http.ResponseWriter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.writeData(w, map[string]any{
-		"ttl":                 int(f.tokenTTL.Seconds()),
-		transitRenewableField: f.tokenRenewable,
+		"ttl":          int(f.tokenTTL.Seconds()),
+		renewableField: f.tokenRenewable,
 	})
 }
 
-func (f *fakeTransit) renewSelf(w http.ResponseWriter) {
+func (f *Fake) renewSelf(w http.ResponseWriter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.renewFails {
@@ -317,36 +352,36 @@ func (f *fakeTransit) renewSelf(w http.ResponseWriter) {
 		return
 	}
 	f.writeJSON(w, http.StatusOK, map[string]any{"auth": map[string]any{
-		"lease_duration":      int(f.tokenTTL.Seconds()),
-		transitRenewableField: f.tokenRenewable,
+		"lease_duration": int(f.tokenTTL.Seconds()),
+		renewableField:   f.tokenRenewable,
 	}})
 }
 
-func (f *fakeTransit) readKey(w http.ResponseWriter) {
+func (f *Fake) readKey(w http.ResponseWriter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.writeData(w, map[string]any{
-		transitTypeField: f.keyType,
+		typeField:        f.keyType,
 		"derived":        f.derived,
 		"latest_version": len(f.keys),
 	})
 }
 
-func (f *fakeTransit) derive(version int, context string) ([]byte, error) {
+func (f *Fake) derive(version int, context string) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if version < 1 || version > len(f.keys) {
 		return nil, fmt.Errorf("invalid key version %d", version)
 	}
 	if f.derived && context == "" {
-		return nil, errFakeMissingContext
+		return nil, errMissingContext
 	}
 	mac := hmac.New(sha256.New, f.keys[version-1])
 	mac.Write([]byte(context))
 	return mac.Sum(nil), nil
 }
 
-func (f *fakeTransit) encrypt(w http.ResponseWriter, r *http.Request) {
+func (f *Fake) encrypt(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Plaintext string `json:"plaintext"`
 		Context   string `json:"context"`
@@ -368,17 +403,22 @@ func (f *fakeTransit) encrypt(w http.ResponseWriter, r *http.Request) {
 		f.writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	nonce, sealed, err := Seal(key, plaintext, nil)
+	gcm, err := newGCM(key)
 	if err != nil {
 		f.writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	encoded := base64.StdEncoding.EncodeToString(append(nonce, sealed...))
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		f.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	encoded := base64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, plaintext, nil))
 	ciphertext := fmt.Sprintf("vault:v%d:%s", version, encoded)
 	f.writeData(w, map[string]any{"ciphertext": ciphertext, "key_version": version})
 }
 
-func (f *fakeTransit) decrypt(w http.ResponseWriter, r *http.Request) {
+func (f *Fake) decrypt(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Ciphertext string `json:"ciphertext"`
 		Context    string `json:"context"`
@@ -402,12 +442,17 @@ func (f *fakeTransit) decrypt(w http.ResponseWriter, r *http.Request) {
 		f.writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	gcm, err := newGCM(key)
+	if err != nil {
+		f.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	raw, err := base64.StdEncoding.DecodeString(parts[2])
-	if err != nil || len(raw) < transitFakeNonceSize {
+	if err != nil || len(raw) < gcm.NonceSize() {
 		f.writeError(w, http.StatusBadRequest, "invalid ciphertext encoding")
 		return
 	}
-	plaintext, err := Open(key, raw[:transitFakeNonceSize], raw[transitFakeNonceSize:], nil)
+	plaintext, err := gcm.Open(nil, raw[:gcm.NonceSize()], raw[gcm.NonceSize():], nil)
 	if err != nil {
 		f.writeError(w, http.StatusBadRequest, "cipher: message authentication failed")
 		return
@@ -416,15 +461,23 @@ func (f *fakeTransit) decrypt(w http.ResponseWriter, r *http.Request) {
 	f.writeData(w, map[string]any{"plaintext": encoded})
 }
 
-func (f *fakeTransit) writeData(w http.ResponseWriter, data map[string]any) {
+func newGCM(key []byte) (cipher.AEAD, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("new cipher: %w", err)
+	}
+	return cipher.NewGCM(block)
+}
+
+func (f *Fake) writeData(w http.ResponseWriter, data map[string]any) {
 	f.writeJSON(w, http.StatusOK, map[string]any{"data": data})
 }
 
-func (f *fakeTransit) writeError(w http.ResponseWriter, status int, message string) {
+func (f *Fake) writeError(w http.ResponseWriter, status int, message string) {
 	f.writeJSON(w, status, map[string]any{"errors": []string{message}})
 }
 
-func (f *fakeTransit) writeJSON(w http.ResponseWriter, status int, body any) {
+func (f *Fake) writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(body); err != nil {

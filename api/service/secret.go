@@ -59,10 +59,7 @@ var (
 
 const secretFormatVersion int16 = 1
 
-const (
-	secretTagBytes     = 16
-	setSecretsAttempts = 3
-)
+const setSecretsAttempts = 3
 
 type rewrapOutcome int
 
@@ -297,7 +294,7 @@ func (s *SecretServer) writeSecrets(
 		return fmt.Errorf("list placement secret sizes: %w", sizesErr)
 	}
 	for _, size := range sizes {
-		total := size.NameBytes + size.CiphertextBytes - size.SecretCount*secretTagBytes
+		total := size.NameBytes + size.CiphertextBytes - size.SecretCount*secretkeys.Overhead
 		if total > int64(s.config.MaxPlacementBytes) {
 			return ErrPlacementSecretsLarge.Detail("placement %s holds %d bytes", size.PlacementID, total)
 		}

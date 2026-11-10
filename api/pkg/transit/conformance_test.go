@@ -1,6 +1,6 @@
 //go:build conformance
 
-package secretkeys
+package transit
 
 import (
 	"bytes"
@@ -50,6 +50,9 @@ const (
 	conformanceTimeout      = 5 * time.Second
 	conformanceAdminTimeout = 10 * time.Second
 	conformanceExpiryGrace  = 500 * time.Millisecond
+
+	typeField      = "type"
+	renewableField = "renewable"
 )
 
 var conformanceServers = []struct {
@@ -112,7 +115,7 @@ func (a *transitAdmin) request(ctx context.Context, method, path string, body, o
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
-	request.Header.Set(transitAuthHeader, a.token)
+	request.Header.Set(authHeader, a.token)
 	response, err := a.client.Do(request)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errConformanceAdmin, err)
@@ -156,7 +159,7 @@ func newTransitFixture(t *testing.T, address string) *transitFixture {
 		mount:  "loco/transit-" + run,
 		policy: "loco-transit-" + run,
 	}
-	f.admin.call(t, http.MethodPost, "sys/mounts/"+f.mount, map[string]any{transitTypeField: ProviderTransit}, nil)
+	f.admin.call(t, http.MethodPost, "sys/mounts/"+f.mount, map[string]any{typeField: "transit"}, nil)
 	t.Cleanup(func() {
 		if err := f.admin.request(
 			context.Background(),
@@ -168,11 +171,11 @@ func newTransitFixture(t *testing.T, address string) *transitFixture {
 			t.Errorf("disable transit mount: %v", err)
 		}
 	})
-	derived := map[string]any{transitTypeField: transitKeyType, "derived": true}
+	derived := map[string]any{typeField: encryptionKeyType, "derived": true}
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceKey, derived, nil)
-	plain := map[string]any{transitTypeField: transitKeyType}
+	plain := map[string]any{typeField: encryptionKeyType}
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformancePlainKey, plain, nil)
-	signing := map[string]any{transitTypeField: transitSigningKeyType}
+	signing := map[string]any{typeField: signingKeyType}
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceSigningKey, signing, nil)
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceRegistryKey, signing, nil)
 	policy := fmt.Sprintf(conformancePolicy, f.mount, conformanceKey, conformanceSigningKey, conformanceRegistryKey)
@@ -188,27 +191,29 @@ func (f *transitFixture) token(t *testing.T, renewable bool) string {
 		} `json:"auth"`
 	}
 	request := map[string]any{
-		"policies":            []string{f.policy},
-		"ttl":                 conformanceTokenTTL,
-		transitRenewableField: renewable,
+		"policies":     []string{f.policy},
+		"ttl":          conformanceTokenTTL,
+		renewableField: renewable,
 	}
 	f.admin.call(t, http.MethodPost, "auth/token/create", request, &response)
 	return response.Auth.ClientToken
 }
 
-func (f *transitFixture) config(address, token, key string) TransitConfig {
-	return TransitConfig{
+func (f *transitFixture) config(address, token string) Config {
+	return Config{
 		Address:        address,
 		Mount:          f.mount,
-		Key:            key,
-		Auth:           TransitAuthToken,
+		Auth:           AuthToken,
 		Token:          token,
 		Timeout:        conformanceTimeout,
 		StartupTimeout: conformanceTimeout,
 		RenewMargin:    conformanceRenewMargin,
 		RenewRetry:     testRenewRetry,
-		CacheTTL:       testCacheTTL,
 	}
+}
+
+func dataKey(client *Client) *EncryptionKey {
+	return client.EncryptionKey(conformanceKey)
 }
 
 func TestTransitConformance(t *testing.T) {
@@ -225,106 +230,99 @@ func TestTransitConformance(t *testing.T) {
 
 func runTransitConformance(t *testing.T, address string) {
 	t.Helper()
-	t.Run("wraps and unwraps with the environment as context", func(t *testing.T) {
+	t.Run("encrypts and decrypts with the derivation context", func(t *testing.T) {
 		f := newTransitFixture(t, address)
-		transit := newTestTransit(t, f.config(address, f.admin.token, conformanceKey))
+		key := dataKey(newTestClient(t, f.config(address, f.admin.token)))
 		ctx := context.Background()
-		dek := testDEK(t)
-		aad := DEKAAD(environmentID)
-		wrapped, err := transit.Wrap(ctx, dek, aad)
+		plaintext := testPlaintext(t)
+		keyID, ciphertext, err := key.Encrypt(ctx, plaintext, testContext)
 		if err != nil {
-			t.Fatalf("wrap: %v", err)
+			t.Fatalf("encrypt: %v", err)
 		}
-		if wrapped.KeyID != "v1" || !bytes.HasPrefix(wrapped.Bytes, []byte("vault:v1:")) {
-			t.Fatalf("wrapped = %s %q, want v1 and the vault:v1: prefix", wrapped.KeyID, wrapped.Bytes)
+		if keyID != "v1" || !bytes.HasPrefix(ciphertext, []byte("vault:v1:")) {
+			t.Fatalf("ciphertext = %s %q, want v1 and the vault:v1: prefix", keyID, ciphertext)
 		}
-		unwrapped := mustUnwrap(t, transit, wrapped, aad)
-		if !bytes.Equal(unwrapped, dek) {
-			t.Fatal("unwrapped key differs from the original")
+		if got := mustDecrypt(t, key, keyID, ciphertext); !bytes.Equal(got, plaintext) {
+			t.Fatal("decrypted plaintext differs from the original")
 		}
-		other := DEKAAD(otherEnvironmentID)
-		if _, err := transit.Unwrap(ctx, wrapped, other); !errors.Is(err, ErrDecrypt) {
-			t.Fatalf("unwrap with another environment's context: err = %v, want ErrDecrypt", err)
+		if _, err := key.Decrypt(ctx, keyID, ciphertext, otherContext); !errors.Is(err, ErrDecrypt) {
+			t.Fatalf("decrypt with another context: err = %v, want ErrDecrypt", err)
 		}
 	})
 
 	t.Run("follows key rotation", func(t *testing.T) {
 		f := newTransitFixture(t, address)
-		transit := newTestTransit(t, f.config(address, f.admin.token, conformanceKey))
+		key := dataKey(newTestClient(t, f.config(address, f.admin.token)))
 		ctx := context.Background()
-		dek := testDEK(t)
-		aad := DEKAAD(environmentID)
-		old, err := transit.Wrap(ctx, dek, aad)
+		plaintext := testPlaintext(t)
+		oldKeyID, old, err := key.Encrypt(ctx, plaintext, testContext)
 		if err != nil {
-			t.Fatalf("wrap: %v", err)
+			t.Fatalf("encrypt: %v", err)
 		}
 		f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceKey+"/rotate", nil, nil)
-		keyID, err := transit.KeyID(ctx)
+		keyID, err := key.KeyID(ctx)
 		if err != nil || keyID != "v2" {
 			t.Fatalf("key id after rotation = %q, %v, want v2", keyID, err)
 		}
-		rewrapped, err := transit.Wrap(ctx, dek, aad)
-		if err != nil || rewrapped.KeyID != keyID {
-			t.Fatalf("wrap after rotation = %q, %v, want %s", rewrapped.KeyID, err, keyID)
+		newKeyID, _, err := key.Encrypt(ctx, plaintext, testContext)
+		if err != nil || newKeyID != keyID {
+			t.Fatalf("encrypt after rotation = %q, %v, want %s", newKeyID, err, keyID)
 		}
-		if got := mustUnwrap(t, transit, old, aad); !bytes.Equal(got, dek) {
-			t.Fatal("key wrapped before rotation no longer unwraps to the original")
+		if got := mustDecrypt(t, key, oldKeyID, old); !bytes.Equal(got, plaintext) {
+			t.Fatal("ciphertext from before rotation no longer decrypts to the original")
 		}
 	})
 
 	t.Run("refuses a key that is not derived", func(t *testing.T) {
 		f := newTransitFixture(t, address)
-		transit := newTestTransit(t, f.config(address, f.admin.token, conformancePlainKey))
-		if _, err := transit.KeyID(context.Background()); !errors.Is(err, ErrTransitKeyType) {
-			t.Fatalf("key id: err = %v, want ErrTransitKeyType", err)
+		plain := newTestClient(t, f.config(address, f.admin.token)).EncryptionKey(conformancePlainKey)
+		if _, err := plain.KeyID(context.Background()); !errors.Is(err, ErrKeyType) {
+			t.Fatalf("key id: err = %v, want ErrKeyType", err)
 		}
 	})
 
 	t.Run("works with the documented policy and nothing more", func(t *testing.T) {
 		f := newTransitFixture(t, address)
-		token := f.token(t, true)
-		transit := newTestTransit(t, f.config(address, token, conformanceKey))
+		client := newTestClient(t, f.config(address, f.token(t, true)))
+		key := dataKey(client)
 		ctx := context.Background()
-		if _, err := transit.KeyID(ctx); err != nil {
-			t.Fatalf("key id: %v", err)
-		}
-		aad := DEKAAD(environmentID)
-		dek := testDEK(t)
-		wrapped, err := transit.Wrap(ctx, dek, aad)
+		plaintext := testPlaintext(t)
+		keyID, ciphertext, err := key.Encrypt(ctx, plaintext, testContext)
 		if err != nil {
-			t.Fatalf("wrap: %v", err)
+			t.Fatalf("encrypt: %v", err)
 		}
-		if got := mustUnwrap(t, transit, wrapped, aad); !bytes.Equal(got, dek) {
-			t.Fatal("unwrapped key differs from the original")
+		if got := mustDecrypt(t, key, keyID, ciphertext); !bytes.Equal(got, plaintext) {
+			t.Fatal("decrypted plaintext differs from the original")
 		}
-		other := newTestTransit(t, f.config(address, token, conformancePlainKey))
-		if _, err := other.KeyID(ctx); !errors.Is(err, ErrTransitPermissionDenied) {
-			t.Fatalf("key id of a key outside the policy: err = %v, want ErrTransitPermissionDenied", err)
+		if _, err := client.EncryptionKey(conformancePlainKey).KeyID(ctx); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("key id of a key outside the policy: err = %v, want ErrPermissionDenied", err)
 		}
 	})
 
-	t.Run("starts only when both keys exist with their types", func(t *testing.T) {
+	t.Run("checks each key's type", func(t *testing.T) {
 		f := newTransitFixture(t, address)
 		ctx := t.Context()
-		cfg := f.config(address, f.token(t, true), conformanceKey)
-		registry := &PinnedKey{Name: conformanceRegistryKey, Version: 1}
-		keys, err := New(ctx, cfg, conformanceSigningKey, registry)
+		client, err := New(ctx, f.config(address, f.token(t, true)))
 		if err != nil {
 			t.Fatalf("new with the documented policy: %v", err)
 		}
-		if _, err := keys.Registry.Sign(ctx, keys.RegistryKeyID, []byte("header.claims")); err != nil {
+		registry := client.Signer(conformanceRegistryKey)
+		keyID, _, err := registry.Pin(ctx, 1)
+		if err != nil {
+			t.Fatalf("pin the registry key: %v", err)
+		}
+		if _, err := registry.Sign(ctx, keyID, []byte("header.claims")); err != nil {
 			t.Fatalf("sign with the pinned registry key: %v", err)
 		}
-		admin := f.config(address, f.admin.token, conformanceKey)
-		if _, err := New(ctx, admin, conformanceMissingKey, nil); !errors.Is(err, ErrTransitRequest) {
-			t.Fatalf("new with a missing ingest key: err = %v, want ErrTransitRequest", err)
+		admin := newTestClient(t, f.config(address, f.admin.token))
+		if _, err := admin.Signer(conformanceMissingKey).PublicKeys(ctx); !errors.Is(err, ErrRequest) {
+			t.Fatalf("public keys of a missing key: err = %v, want ErrRequest", err)
 		}
-		if _, err := New(ctx, admin, conformancePlainKey, nil); !errors.Is(err, ErrTransitSigningKeyType) {
-			t.Fatalf("new with an aes ingest key: err = %v, want ErrTransitSigningKeyType", err)
+		if _, err := admin.Signer(conformancePlainKey).PublicKeys(ctx); !errors.Is(err, ErrSigningKeyType) {
+			t.Fatalf("public keys of an aes key: err = %v, want ErrSigningKeyType", err)
 		}
-		admin.Key = conformanceSigningKey
-		if _, err := New(ctx, admin, conformanceSigningKey, nil); !errors.Is(err, ErrTransitKeyType) {
-			t.Fatalf("new with an ed25519 secrets key: err = %v, want ErrTransitKeyType", err)
+		if _, err := admin.EncryptionKey(conformanceSigningKey).KeyID(ctx); !errors.Is(err, ErrKeyType) {
+			t.Fatalf("key id of an ed25519 key: err = %v, want ErrKeyType", err)
 		}
 	})
 
@@ -334,35 +332,44 @@ func runTransitConformance(t *testing.T, address string) {
 
 	t.Run("renews its token past the first ttl", func(t *testing.T) {
 		f := newTransitFixture(t, address)
-		transit := newTestTransit(t, f.config(address, f.token(t, true), conformanceKey))
-		startRenewal(t, transit)
-		first := transit.tokenExpiry()
+		client := newTestClient(t, f.config(address, f.token(t, true)))
+		startRenewal(t, client)
+		first := client.tokenExpiry()
 		time.Sleep(conformanceTokenLife + conformanceExpiryGrace)
-		if !transit.tokenExpiry().After(first) {
+		if !client.tokenExpiry().After(first) {
 			t.Fatal("token expiry did not move")
 		}
-		if _, err := transit.Wrap(context.Background(), testDEK(t), DEKAAD(environmentID)); err != nil {
-			t.Fatalf("wrap after the first ttl: %v", err)
+		if _, _, err := dataKey(client).Encrypt(context.Background(), testPlaintext(t), testContext); err != nil {
+			t.Fatalf("encrypt after the first ttl: %v", err)
 		}
 	})
 
 	t.Run("reports a token that expired", func(t *testing.T) {
 		f := newTransitFixture(t, address)
-		transit := newTestTransit(t, f.config(address, f.token(t, false), conformanceKey))
-		startRenewal(t, transit)
+		client := newTestClient(t, f.config(address, f.token(t, false)))
+		startRenewal(t, client)
 		time.Sleep(conformanceTokenLife + conformanceExpiryGrace)
-		_, err := transit.Wrap(context.Background(), testDEK(t), DEKAAD(environmentID))
-		if !errors.Is(err, ErrTransitTokenExpired) {
-			t.Fatalf("wrap with an expired token: err = %v, want ErrTransitTokenExpired", err)
+		_, _, err := dataKey(client).Encrypt(context.Background(), testPlaintext(t), testContext)
+		if !errors.Is(err, ErrTokenExpired) {
+			t.Fatalf("encrypt with an expired token: err = %v, want ErrTokenExpired", err)
 		}
 	})
+}
+
+func mustDecrypt(t *testing.T, key *EncryptionKey, keyID string, ciphertext []byte) []byte {
+	t.Helper()
+	plaintext, err := key.Decrypt(context.Background(), keyID, ciphertext, testContext)
+	if err != nil {
+		t.Fatalf("decrypt: %v", err)
+	}
+	return plaintext
 }
 
 func runTransitSigningConformance(t *testing.T, address string) {
 	t.Helper()
 	f := newTransitFixture(t, address)
 	token := f.token(t, true)
-	signer := newTestTransit(t, f.config(address, token, conformanceKey)).Signer(conformanceSigningKey)
+	signer := newTestClient(t, f.config(address, token)).Signer(conformanceSigningKey)
 	ctx := context.Background()
 	input := []byte("header.claims")
 	signed := map[string][]byte{}
@@ -422,14 +429,14 @@ func runTransitSigningConformance(t *testing.T, address string) {
 	}
 	raise := map[string]any{"min_encryption_version": 3}
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceSigningKey+"/config", raise, nil)
-	if _, _, err := signer.Pin(ctx, 2); !errors.Is(err, ErrTransitSigningVersion) {
+	if _, _, err := signer.Pin(ctx, 2); !errors.Is(err, ErrSigningVersion) {
 		t.Fatalf("pin a version below min_encryption_version: err = %v", err)
 	}
-	if _, err := signer.Sign(ctx, pinned, input); !errors.Is(err, ErrTransitRequest) {
-		t.Fatalf("sign below min_encryption_version: err = %v, want ErrTransitRequest", err)
+	if _, err := signer.Sign(ctx, pinned, input); !errors.Is(err, ErrRequest) {
+		t.Fatalf("sign below min_encryption_version: err = %v, want ErrRequest", err)
 	}
-	plain := newTestTransit(t, f.config(address, token, conformanceKey)).Signer(conformancePlainKey)
-	if _, err := plain.KeyID(ctx); !errors.Is(err, ErrTransitPermissionDenied) {
+	plain := newTestClient(t, f.config(address, token)).Signer(conformancePlainKey)
+	if _, err := plain.KeyID(ctx); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("key id of a signing key outside the policy: err = %v", err)
 	}
 }
@@ -566,7 +573,7 @@ func (r *tokenReviewer) caPEM(t *testing.T) string {
 func (f *transitFixture) kubernetesAuth(t *testing.T, reviewer *tokenReviewer, serviceAccount string) string {
 	t.Helper()
 	mount := strings.Replace(f.mount, "transit", "kubernetes", 1)
-	f.admin.call(t, http.MethodPost, "sys/auth/"+mount, map[string]any{transitTypeField: "kubernetes"}, nil)
+	f.admin.call(t, http.MethodPost, "sys/auth/"+mount, map[string]any{typeField: "kubernetes"}, nil)
 	t.Cleanup(func() {
 		if err := f.admin.request(context.Background(), http.MethodDelete, "sys/auth/"+mount, nil, nil); err != nil {
 			t.Errorf("disable kubernetes auth: %v", err)
@@ -587,15 +594,15 @@ func (f *transitFixture) kubernetesAuth(t *testing.T, reviewer *tokenReviewer, s
 	return mount
 }
 
-func (f *transitFixture) kubernetesConfig(t *testing.T, address, mount, jwt string) TransitConfig {
+func (f *transitFixture) kubernetesConfig(t *testing.T, address, mount, jwt string) Config {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "token")
 	if err := os.WriteFile(path, []byte(jwt), 0o600); err != nil {
 		t.Fatalf("write jwt: %v", err)
 	}
-	cfg := f.config(address, "", conformanceKey)
-	cfg.Auth = TransitAuthKubernetes
-	cfg.Kubernetes = TransitKubernetesConfig{Mount: mount, Role: conformanceRole, TokenFile: path}
+	cfg := f.config(address, "")
+	cfg.Auth = AuthKubernetes
+	cfg.Kubernetes = KubernetesConfig{Mount: mount, Role: conformanceRole, TokenFile: path}
 	return cfg
 }
 
@@ -610,31 +617,30 @@ func TestTransitKubernetesConformance(t *testing.T) {
 			t.Run("logs in and logs in again past the first ttl", func(t *testing.T) {
 				f := newTransitFixture(t, address)
 				mount := f.kubernetesAuth(t, reviewer, conformanceServiceAccount)
-				transit := newTestTransit(t, f.kubernetesConfig(t, address, mount, reviewer.issue(t)))
-				startRenewal(t, transit)
-				first := transit.currentToken()
-				ctx := context.Background()
-				aad := DEKAAD(environmentID)
-				dek := testDEK(t)
-				wrapped, err := transit.Wrap(ctx, dek, aad)
+				client := newTestClient(t, f.kubernetesConfig(t, address, mount, reviewer.issue(t)))
+				startRenewal(t, client)
+				first := client.currentToken()
+				key := dataKey(client)
+				plaintext := testPlaintext(t)
+				keyID, ciphertext, err := key.Encrypt(context.Background(), plaintext, testContext)
 				if err != nil {
-					t.Fatalf("wrap: %v", err)
+					t.Fatalf("encrypt: %v", err)
 				}
 				time.Sleep(conformanceTokenLife + conformanceExpiryGrace)
-				if transit.currentToken() == first {
-					t.Fatal("the provider did not log in again before its token expired")
+				if client.currentToken() == first {
+					t.Fatal("the client did not log in again before its token expired")
 				}
-				if got := mustUnwrap(t, transit, wrapped, aad); !bytes.Equal(got, dek) {
-					t.Fatal("unwrapped key differs from the original")
+				if got := mustDecrypt(t, key, keyID, ciphertext); !bytes.Equal(got, plaintext) {
+					t.Fatal("decrypted plaintext differs from the original")
 				}
 			})
 			t.Run("is refused for another service account", func(t *testing.T) {
 				f := newTransitFixture(t, address)
 				mount := f.kubernetesAuth(t, reviewer, "someone-else")
 				cfg := f.kubernetesConfig(t, address, mount, reviewer.issue(t))
-				transit := newTestTransit(t, cfg)
-				if _, err := transit.login(context.Background()); !errors.Is(err, ErrTransitPermissionDenied) {
-					t.Fatalf("login: err = %v, want ErrTransitPermissionDenied", err)
+				client := newTestClient(t, cfg)
+				if _, err := client.login(context.Background()); !errors.Is(err, ErrPermissionDenied) {
+					t.Fatalf("login: err = %v, want ErrPermissionDenied", err)
 				}
 			})
 		})
