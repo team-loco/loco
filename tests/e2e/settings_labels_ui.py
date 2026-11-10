@@ -42,6 +42,45 @@ def descriptions(field):
     return field.evaluate("(node) => (node.getAttribute('aria-describedby') || '').split(/\\s+/).filter(Boolean).map(id => { const hint = document.getElementById(id); if (!hint) throw new Error('Missing describedby target'); return hint.textContent; })")
 
 
+def check_webhooks(page):
+    page.get_by_role("button", name="New webhook", exact=True).click()
+    url = page.get_by_role("textbox", name="Endpoint URL", exact=True)
+    assert url.evaluate("node => node.labels.length") == 1
+    assert url.evaluate("node => node === document.activeElement")
+    assert descriptions(url) == []
+    create = page.get_by_role("button", name="Create webhook", exact=True)
+    url.fill("https://user:secret@hooks.invalid/loco")
+    create.click()
+    rejection = "Use an https URL with a host name."
+    page.get_by_text(rejection, exact=True).wait_for()
+    assert url.get_attribute("aria-invalid") == "true"
+    assert rejection in descriptions(url)
+    endpoint = "https://hooks.invalid/loco"
+    url.fill(endpoint)
+    assert url.get_attribute("aria-invalid") == "false"
+    assert rejection not in descriptions(url)
+    page.get_by_role("button", name="Choose events", exact=True).click()
+    assert create.is_disabled()
+    page.get_by_role("checkbox", name="Builds", exact=True).check()
+    assert page.get_by_role("checkbox", name="build.failed", exact=True).is_checked()
+    page.get_by_role("checkbox", name="build.failed", exact=True).uncheck()
+    assert page.get_by_role("checkbox", name="Builds", exact=True).get_attribute("aria-checked") == "mixed"
+    create.click()
+    page.get_by_role("dialog", name="Signing secret").wait_for()
+    page.get_by_role("button", name="Copy signing secret", exact=True).wait_for()
+    page.get_by_role("button", name="Done", exact=True).click()
+    page.get_by_role("button", name=f"Deliveries for {endpoint}", exact=True).click()
+    drawer = page.get_by_role("dialog", name=endpoint)
+    drawer.get_by_text("build.created", exact=True).wait_for()
+    drawer.get_by_role("button", name="Failing", exact=False).wait_for()
+    page.keyboard.press("Escape")
+    drawer.wait_for(state="hidden")
+    page.get_by_role("button", name=f"Actions for {endpoint}", exact=True).click()
+    page.get_by_role("menuitem", name="Delete", exact=True).click()
+    page.get_by_role("alertdialog", name="Delete webhook?").get_by_role("button", name="Delete webhook", exact=True).click()
+    page.get_by_text("No webhooks yet.", exact=True).wait_for()
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     try:
@@ -105,6 +144,8 @@ with sync_playwright() as playwright:
                                     name.focus()
                                     page.keyboard.press("Tab")
                                     assert description.evaluate("node => node === document.activeElement")
+                            if tab == "ws" and user == "owner" and theme == "light" and not narrow:
+                                check_webhooks(page)
                             suffix = f"{user}-{tab}-{theme}{'-narrow' if narrow else ''}"
                             page.screenshot(path=out / f"settings-labels-{suffix}.png", animations="disabled")
                             assert not errors, errors

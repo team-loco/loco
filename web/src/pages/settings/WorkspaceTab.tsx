@@ -28,8 +28,8 @@ import { userLabel } from "@/lib/user";
 
 import { ActivityPanel } from "./ActivityPanel";
 import { EnvironmentsSection } from "./EnvironmentsSection";
-import { WebhooksCard } from "./WebhooksCard";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
+import { WebhooksSection } from "./WebhooksSection";
 import type { ResourceCount } from "./useResourceCounts";
 
 const MAX_NAME = 63;
@@ -193,7 +193,7 @@ export function WorkspaceTab({
 
 			<EnvironmentsSection workspaceId={ws.id} workspaceName={ws.name} canWrite={canWrite} canAdmin={canAdmin} />
 
-			{canAdmin && <WebhooksCard workspaceId={ws.id} />}
+			{canAdmin && <WebhooksSection workspaceId={ws.id} workspaceName={ws.name} />}
 
 			{canAdmin && (
 				<ActivityPanel
