@@ -20,6 +20,7 @@ const (
 	secretPrefix = "whsec_"
 	secretBytes  = 32
 
+	// MaxResponseBytes caps how much of a receiver's response body callers read.
 	MaxResponseBytes = 64 << 10
 )
 
@@ -33,11 +34,13 @@ func NewSecret() (string, error) {
 	return secretPrefix + base64.StdEncoding.EncodeToString(b), nil
 }
 
+// ValidateSecret reports whether secret is a whsec_ prefix followed by the base64 of 32 bytes.
 func ValidateSecret(secret string) error {
 	_, err := decodeSecret(secret)
 	return err
 }
 
+// Sign returns the Webhook-Signature header value for a message.
 func Sign(secret, id string, timestamp time.Time, body []byte) (string, error) {
 	key, err := decodeSecret(secret)
 	if err != nil {
@@ -50,6 +53,7 @@ func Sign(secret, id string, timestamp time.Time, body []byte) (string, error) {
 	return signer.Sign(id, timestamp, body)
 }
 
+// NewSignedRequest builds a JSON POST carrying the Webhook-Id, Webhook-Timestamp and Webhook-Signature headers.
 func NewSignedRequest(ctx context.Context, url, secret, id string, body []byte) (*http.Request, error) {
 	now := time.Now()
 	signature, err := Sign(secret, id, now, body)
