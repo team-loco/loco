@@ -37,17 +37,16 @@ describe("draftsKey", () => {
 describe("parseDrafts", () => {
 	test("reads back what was stored", () => {
 		const drafts = [draft("a"), { ...draft("b"), edits: { replicas: 3, regions: ["us-east-1"] } }];
-		expect(parseDrafts(JSON.stringify(drafts))).toEqual(drafts);
+		expect(parseDrafts(JSON.parse(JSON.stringify(drafts)))).toEqual(drafts);
 	});
 
-	test("returns no drafts for a missing, malformed or foreign value", () => {
+	test("returns no drafts for a missing or foreign value", () => {
 		expect(parseDrafts(null)).toEqual([]);
-		expect(parseDrafts("{not json")).toEqual([]);
-		expect(parseDrafts('{"id":"a"}')).toEqual([]);
+		expect(parseDrafts({ id: "a" })).toEqual([]);
 	});
 
 	test("drops entries that are not drafts", () => {
-		expect(parseDrafts(JSON.stringify([draft("a"), { id: "b" }, null, 3]))).toEqual([draft("a")]);
+		expect(parseDrafts([draft("a"), { id: "b" }, null, 3])).toEqual([draft("a")]);
 	});
 });
 

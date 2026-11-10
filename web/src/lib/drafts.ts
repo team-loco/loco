@@ -37,14 +37,7 @@ function isDraft(value: unknown): value is Draft {
 	);
 }
 
-export function parseDrafts(raw: string | null): Draft[] {
-	if (raw === null) return [];
-	let value: unknown;
-	try {
-		value = JSON.parse(raw);
-	} catch {
-		return [];
-	}
+export function parseDrafts(value: unknown): Draft[] {
 	return Array.isArray(value) ? value.filter(isDraft) : [];
 }
 
