@@ -150,6 +150,8 @@ with sync_playwright() as playwright:
                     continue
                 panel = page.get_by_role('region', name=title, exact=True)
                 expect(panel.get_by_role('listitem')).to_have_count(50)
+                heading = panel.evaluate("(section) => { const h = section.querySelector('h2'); return { size: getComputedStyle(h).fontSize, inCard: section.querySelector('ul').closest('.rounded-card').contains(h) }; }")
+                assert heading == {'size': '18px', 'inCard': False}, heading
                 assert panel.get_by_text('Olivia Owner', exact=True).count() > 0
                 if user != 'owner':
                     forbidden = [request for request in recorded if request['method'] in ('GetOrg', 'ListOrgMembers') or (request['method'] == 'ListOrgWorkspaces' and request['body'].get('orgId') == activity['orgId'])]

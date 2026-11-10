@@ -2,11 +2,12 @@ import { useInfiniteQuery } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import type { Event } from "@gen/loco/event/v1/event_pb";
 import { ScrollTextIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
+import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatClock, maybeTsMs } from "@/lib/time";
@@ -22,7 +23,7 @@ import {
 	typesIn,
 	distinctAuditEvents,
 } from "./auditEvents";
-import { formatDay, SettingsCard } from "./parts";
+import { formatDay } from "./parts";
 
 const PAGE_SIZE = 50;
 const NO_USERS = new Map<string, AuditUser>();
@@ -83,7 +84,6 @@ export function ActivityPanel({
 	users?: ReadonlyMap<string, AuditUser>;
 	names?: ReadonlyMap<string, string>;
 }) {
-	const headingId = useId();
 	const [category, setCategory] = useState<AuditCategory | "all">("all");
 	const query = useInfiniteQuery(
 		listEvents,
@@ -96,14 +96,11 @@ export function ActivityPanel({
 	const events = distinctAuditEvents(query.data?.pages.flatMap((p) => p.events) ?? []);
 
 	return (
-		<SettingsCard labelledBy={headingId}>
-			<div className="flex flex-wrap items-start gap-3 border-b border-line px-5 py-3.5">
-				<div className="flex min-w-0 flex-1 flex-col gap-1">
-					<h2 id={headingId} className="font-semibold">
-						{title}
-					</h2>
-					<span className="text-[12.5px] text-fg3">{description}</span>
-				</div>
+		<Section
+			title={title}
+			meta={description}
+			className="max-w-[960px]"
+			filters={
 				<FilterMenu
 					label="Category"
 					value={category}
@@ -113,7 +110,8 @@ export function ActivityPanel({
 						if (next !== undefined) setCategory(next.value);
 					}}
 				/>
-			</div>
+			}
+		>
 			{query.isLoading && (
 				<div className="flex flex-col gap-2 px-5 py-3">
 					<Skeleton className="h-9 w-full" />
@@ -196,6 +194,6 @@ export function ActivityPanel({
 					</Button>
 				</div>
 			)}
-		</SettingsCard>
+		</Section>
 	);
 }
