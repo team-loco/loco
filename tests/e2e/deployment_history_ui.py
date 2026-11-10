@@ -165,6 +165,9 @@ with sync_playwright() as playwright:
                     expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
                     expect(section.get_by_role("columnheader", name="Region", exact=True)).to_be_visible()
                     expect(page.get_by_role("button", name="Redeploy", exact=True)).to_be_enabled()
+                    page.get_by_role("button", name="More actions", exact=True).click()
+                    expect(page.get_by_role("menuitem", name="Delete resource", exact=True)).to_be_enabled()
+                    page.keyboard.press("Escape")
                     assert any(request["method"] == "GetDeployment" and request["body"]["deploymentId"] == data["releases"][-1] for request in requests)
                     page.screenshot(path=out / f"initial-{case}.png", animations="disabled")
                     stage = "older-page-retry"
@@ -256,6 +259,9 @@ with sync_playwright() as playwright:
                     page.get_by_role("alertdialog").wait_for()
                     page.keyboard.press("Escape")
                     expect(bulk_delete).to_be_focused()
+                    page.get_by_role("button", name="Actions for history-pilot", exact=True).click()
+                    expect(page.get_by_role("menuitem", name="Delete", exact=True)).to_be_enabled()
+                    page.keyboard.press("Escape")
                     stage = "domains"
                     page.goto(state["ui_url"] + base + "/resource/" + data["edge"] + "?env=production&tab=settings")
                     networking = page.get_by_role("region", name="Networking")
@@ -310,6 +316,29 @@ with sync_playwright() as playwright:
                     evidence.settle(reader_page)
                     assert not denied, denied
                     reader_context.close()
+                    writer_context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
+                    writer_auth = dict(auth, idToken=state["users"]["writer"]["token"])
+                    writer_context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(writer_auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
+                    writer_page = writer_context.new_page()
+                    active_page, active_context = writer_page, writer_context
+                    stage, user = "writer-delete", "writer"
+                    writer_page.on("pageerror", lambda error: errors.append(str(error)))
+                    needs_admin = "Needs admin access to this resource"
+                    writer_page.goto(state["ui_url"] + base + "/resources?env=production")
+                    writer_page.get_by_role("button", name="Actions for history-pilot", exact=True).click()
+                    row_delete = writer_page.get_by_role("menuitem", name="Delete", exact=True)
+                    expect(row_delete).to_be_disabled()
+                    expect(row_delete).to_have_attribute("title", needs_admin)
+                    writer_page.keyboard.press("Escape")
+                    writer_page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
+                    expect(writer_page.get_by_role("button", name="Redeploy", exact=True)).to_be_enabled()
+                    writer_page.get_by_role("button", name="More actions", exact=True).click()
+                    expect(writer_page.get_by_role("menuitem", name="Delete resource", exact=True)).to_be_disabled()
+                    writer_page.keyboard.press("Escape")
+                    writer_page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production&tab=settings")
+                    settings_delete = writer_page.get_by_role("button", name="Delete resource", exact=True)
+                    expect(settings_delete).to_be_disabled()
+                    writer_context.close()
                     active_page, active_context = page, context
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "errors": errors, "requests": requests, "injectedFailures": len(failed)})

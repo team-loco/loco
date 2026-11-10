@@ -55,6 +55,7 @@ import { isInFlight } from "@/lib/deployment-utils";
 
 const READ_LEVEL = 1;
 const WRITE_LEVEL = 2;
+const ADMIN_LEVEL = 3;
 const EVENTS_REFRESH_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 
@@ -159,6 +160,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		activeOrgId !== null &&
 		activeWorkspaceId !== null &&
 		resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= WRITE_LEVEL;
+	const canDelete =
+		activeOrgId !== null &&
+		activeWorkspaceId !== null &&
+		resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= ADMIN_LEVEL;
 
 	const env = params.get("env");
 	const envParam: Record<string, string> = env !== null ? { env } : {};
@@ -272,6 +277,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				dirty={dirty}
 				redeploying={redeploying}
 				canWrite={canWrite}
+				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
 				onEvents={() => {
 					setEventsOpen(true);
@@ -385,6 +391,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					base={base}
 					focus={view}
 					canWrite={canWrite}
+					canDelete={canDelete}
 					canReadWorkspace={canListResources}
 					onDraft={setDraft}
 					onBack={() => {

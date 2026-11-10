@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils";
 
 import { latestBackOff } from "./events";
 import { shortId } from "./format";
-import { depTag, NEEDS_WRITE, startedMs, type RegionProblem, type RegionView } from "./model";
+import { NEEDS_WRITE } from "@/hooks/useMyScopes";
+
+import { depTag, startedMs, type RegionProblem, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
 
 const LOG_LINES = 6;

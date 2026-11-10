@@ -12,6 +12,9 @@ export const LEVEL_TEXT: Record<AccessLevel, string> = {
 	3: "text-warn-fg",
 };
 
+export const NEEDS_WRITE = "Needs write access to this resource";
+export const NEEDS_ADMIN = "Needs admin access to this resource";
+
 export function scopeLevel(scope: Scope): AccessLevel {
 	switch (scope) {
 		case Scope.READ:

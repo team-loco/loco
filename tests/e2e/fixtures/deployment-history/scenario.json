@@ -2,12 +2,14 @@
   "users": {
     "owner": {"email": "owner@acme.test", "name": "Olivia Owner"},
     "member": {"email": "member@acme.test", "name": "Max Member"},
-    "resource_reader": {"email": "resource-reader@acme.test", "name": "Riley Reader"}
+    "resource_reader": {"email": "resource-reader@acme.test", "name": "Riley Reader"},
+    "writer": {"email": "writer@acme.test", "name": "Wanda Writer"}
   },
   "orgs": [
-    {"name": "acme", "owner": "owner", "members": ["member"], "workspaces": ["shared", "sibling"]}
+    {"name": "acme", "owner": "owner", "members": ["member", "writer"], "workspaces": ["shared", "sibling"]}
   ],
   "grants": [
-    {"user": "member", "workspace": "acme/shared", "scopes": ["read"]}
+    {"user": "member", "workspace": "acme/shared", "scopes": ["read"]},
+    {"user": "writer", "workspace": "acme/shared", "scopes": ["read", "write"]}
   ]
 }

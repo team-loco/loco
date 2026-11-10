@@ -31,7 +31,9 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { shortImageRef } from "@/lib/image";
 import { agoLabel } from "@/lib/time";
 
-import { depImage, depTag, isDeployed, NEEDS_WRITE, startedMs, type RegionView } from "./model";
+import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
+
+import { depImage, depTag, isDeployed, startedMs, type RegionView } from "./model";
 
 interface SwitcherItem {
 	id: string;
@@ -75,6 +77,7 @@ export function ResourceHeader({
 	dirty,
 	redeploying,
 	canWrite,
+	canDelete,
 	rollbackTarget,
 	onEvents,
 	onSettings,
@@ -95,6 +98,7 @@ export function ResourceHeader({
 	dirty: boolean;
 	redeploying: boolean;
 	canWrite: boolean;
+	canDelete: boolean;
 	rollbackTarget: Deployment | undefined;
 	onEvents: () => void;
 	onSettings: () => void;
@@ -213,7 +217,12 @@ export function ResourceHeader({
 							Copy image reference
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem variant="destructive" onClick={onDelete}>
+						<DropdownMenuItem
+							variant="destructive"
+							disabled={!canDelete}
+							title={canDelete ? undefined : NEEDS_ADMIN}
+							onClick={onDelete}
+						>
 							<MenuIcon>
 								<Trash2Icon />
 							</MenuIcon>

@@ -9,6 +9,7 @@ import { Button } from "@/components/design/Button";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Notice } from "@/components/design/Notice";
 import { SaveBar } from "@/components/design/SaveBar";
+import { NEEDS_ADMIN } from "@/hooks/useMyScopes";
 import { servedDomains } from "@/lib/new-resource";
 import { configuredRegions } from "@/lib/resource-regions";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ export function SettingsView({
 	base,
 	focus,
 	canWrite,
+	canDelete,
 	canReadWorkspace,
 	onDraft,
 	onBack,
@@ -70,6 +72,7 @@ export function SettingsView({
 	base: Baseline;
 	focus: SettingsFocus;
 	canWrite: boolean;
+	canDelete: boolean;
 	canReadWorkspace: boolean;
 	onDraft: (draft: SettingsDraft) => void;
 	onBack: () => void;
@@ -189,7 +192,7 @@ export function SettingsView({
 								)
 							}
 							actionLabel="Delete resource"
-							blockedReason={canWrite ? null : "Needs write access to this resource"}
+							blockedReason={canDelete ? null : NEEDS_ADMIN}
 							onAction={onDelete}
 						/>
 					</SettingsBlock>

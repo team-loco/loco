@@ -4,11 +4,14 @@ import { Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
+import { Scope } from "@gen/loco/token/v1/token_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { NEEDS_ADMIN, scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 
@@ -27,6 +30,9 @@ export function ResourceRowMenu({
 	const transport = useTransport();
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const deleteMutation = useMutation(deleteResource);
+	const { activeOrgId } = useOrgWorkspace();
+	const { resourceLevel } = useMyScopes();
+	const canDelete = resourceLevel(activeOrgId ?? "", workspaceId, resource.id) >= scopeLevel(Scope.ADMIN);
 
 	const confirmDelete = async () => {
 		try {
@@ -46,6 +52,8 @@ export function ResourceRowMenu({
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					variant="destructive"
+					disabled={!canDelete}
+					title={canDelete ? undefined : NEEDS_ADMIN}
 					onClick={() => {
 						setConfirmOpen(true);
 					}}
