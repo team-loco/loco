@@ -184,20 +184,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var background sync.WaitGroup
-	var pprofServer *http.Server
-	defer func() {
-		stop()
-		if pprofServer != nil {
-			// Closing here lets the pprof goroutine finish when run returns before shutdown does.
-			if closeErr := pprofServer.Close(); closeErr != nil {
-				slog.Warn("failed to close pprof server", "error", closeErr)
-			}
-		}
-		background.Wait()
-	}()
-
-	d, err := newDeps(ctx, ac, pool, appCache, &background)
+	d, err := newDeps(ctx, ac, pool, appCache)
 	if err != nil {
 		return err
 	}
@@ -211,6 +198,18 @@ func run() error {
 	mountOpenAPI(mux, ac.Version)
 	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
+	var background sync.WaitGroup
+	var pprofServer *http.Server
+	defer func() {
+		stop()
+		if pprofServer != nil {
+			// Closing here lets the pprof goroutine finish when run returns before shutdown does.
+			if closeErr := pprofServer.Close(); closeErr != nil {
+				slog.Warn("failed to close pprof server", "error", closeErr)
+			}
+		}
+		background.Wait()
+	}()
 	startBackground(ctx, &background, ac, d)
 
 	server := newServer(ac, mux)
@@ -244,6 +243,7 @@ type deps struct {
 	resolver          *auth.Resolver
 	authorizer        *authz.Authorizer
 	webhookDispatcher *webhooks.Dispatcher
+	placementNotifier *clusternotify.Notifier
 	// The sweepers are nil when the store they sweep is not configured.
 	sourceSweeper   *sweepers.SourceSweeper
 	imageSweeper    *sweepers.ImageSweeper
@@ -273,13 +273,7 @@ type deps struct {
 	registryKey http.HandlerFunc
 }
 
-func newDeps(
-	ctx context.Context,
-	ac *APIConfig,
-	pool *pgxpool.Pool,
-	appCache cache.Cache,
-	background *sync.WaitGroup,
-) (*deps, error) {
+func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache cache.Cache) (*deps, error) {
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
 
@@ -301,7 +295,6 @@ func newDeps(
 	if err = placementNotifier.Connect(ctx); err != nil {
 		return nil, fmt.Errorf("start placement listener: %w", err)
 	}
-	background.Go(func() { placementNotifier.Run(ctx) })
 
 	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
 	installWebhookClient := webhooks.NewClient(ac.Webhooks, true)
@@ -376,6 +369,7 @@ func newDeps(
 		resolver:          resolver,
 		authorizer:        authz.New(pool, queries),
 		webhookDispatcher: webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient),
+		placementNotifier: placementNotifier,
 		sourceSweeper:     sourceSweeper,
 		imageSweeper:      imageSweeper,
 		registrySweeper:   registrySweeper,
@@ -504,6 +498,7 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval) })
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })
+	background.Go(func() { d.placementNotifier.Run(ctx) })
 	if d.sourceSweeper != nil {
 		background.Go(func() { d.sourceSweeper.Run(ctx) })
 	}
