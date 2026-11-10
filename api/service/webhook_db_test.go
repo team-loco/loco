@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
@@ -35,7 +35,7 @@ type webhookFixture struct {
 
 func newWebhookFixture(t *testing.T) *webhookFixture {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
 	policy, err := auth.ParseSignupPolicy("open", "")
 	if err != nil {
@@ -152,7 +152,7 @@ func TestWebhookLifecycle(t *testing.T) {
 		t.Fatalf("second delete: %v", deleteErr)
 	}
 
-	authtest.WaitForEarlierTransactions(t, f.pool)
+	dbtest.WaitForEarlierTransactions(t, f.pool)
 	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 100})
 	if err != nil {
 		t.Fatalf("events: %v", err)

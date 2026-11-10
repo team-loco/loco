@@ -17,13 +17,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
-	"github.com/team-loco/loco/api/timeutil"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -477,8 +477,8 @@ func (s *SecretServer) ListSecrets(
 			Version:       row.Version,
 			UpdatedByType: row.UpdatedByType,
 			UpdatedById:   row.UpdatedByID.String(),
-			CreatedAt:     timeutil.ParsePostgresTimestamp(row.CreatedAt),
-			UpdatedAt:     timeutil.ParsePostgresTimestamp(row.UpdatedAt),
+			CreatedAt:     timestamppb.New(row.CreatedAt),
+			UpdatedAt:     timestamppb.New(row.UpdatedAt),
 		})
 	}
 	return &secretv1.ListSecretsResponse{Secrets: secrets}, nil

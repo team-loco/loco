@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/buildsource"
 )
@@ -28,7 +28,7 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	f := &fixture{ctx: context.Background(), pool: pool, queries: genDb.New(pool)}
 	row := pool.QueryRow(f.ctx, `
 WITH u AS (

@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 )
@@ -351,7 +351,7 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 }
 
 func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
-	pool := authtest.ClosedPool(t)
+	pool := dbtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(pool, queries.New(pool), tvm.Config{})
 	for _, token := range []string{"loco_s_unknown", "loco_k_unknown"} {
 		if _, _, err := machine.GetToken(t.Context(), token); err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {

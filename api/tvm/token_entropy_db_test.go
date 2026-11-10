@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/internal/bearer"
@@ -39,7 +39,7 @@ func digestOf(token string) string {
 }
 
 func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := queries.New(pool)
 	machine := tvm.NewVendingMachine(pool, q, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
@@ -123,7 +123,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 }
 
 func TestIssueRejectsADuplicateTokenName(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := queries.New(pool)
 	machine := tvm.NewVendingMachine(pool, q, tvm.Config{MaxAPITokenDuration: time.Hour})
 	ctx := t.Context()

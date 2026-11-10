@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
 func TestRecordPersistsResourceIdentityWithoutCurrentChildren(t *testing.T) {
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	var resourceID, workspaceID, orgID uuid.UUID
 	if err := pool.QueryRow(t.Context(), `

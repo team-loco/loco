@@ -11,12 +11,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/timeutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -543,7 +543,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 			WorkspaceId:   member.WorkspaceID.String(),
 			UserId:        member.UserID.String(),
 			Scopes:        member.Scopes,
-			CreatedAt:     timeutil.ParsePostgresTimestamp(member.JoinedAt),
+			CreatedAt:     timestamppb.New(member.JoinedAt),
 			UserName:      derefString(member.Name),
 			UserEmail:     member.Email,
 			UserAvatarUrl: derefString(member.AvatarUrl),
@@ -573,7 +573,7 @@ func workspaceToProto(ws genDb.GetWorkspaceByIDQueryRow) *workspacev1.Workspace 
 		Name:        ws.Name,
 		Description: derefString(ws.Description),
 		CreatedBy:   ws.CreatedBy.String(),
-		CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
+		CreatedAt:   timestamppb.New(ws.CreatedAt),
+		UpdatedAt:   timestamppb.New(ws.UpdatedAt),
 	}
 }

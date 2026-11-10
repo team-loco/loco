@@ -20,7 +20,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	timeutil "github.com/team-loco/loco/api/timeutil"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -60,8 +59,8 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 		Replicas:      d.Replicas,
 		Status:        parseDeploymentPhase(d.Status),
 		IsActive:      d.IsActive,
-		CreatedAt:     timeutil.ParsePostgresTimestamp(d.CreatedAt),
-		UpdatedAt:     timeutil.ParsePostgresTimestamp(d.UpdatedAt),
+		CreatedAt:     timestamppb.New(d.CreatedAt),
+		UpdatedAt:     timestamppb.New(d.UpdatedAt),
 		SpecVersion:   d.SpecVersion,
 		Message:       d.Message,
 	}
@@ -72,8 +71,8 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 	}
 	deployment.Spec = spec
 
-	deployment.StartedAt = timeutil.ParsePostgresTimestamp(d.StartedAt)
-	deployment.CompletedAt = timeutil.ParsePostgresTimestampPtr(d.CompletedAt)
+	deployment.StartedAt = timestamppb.New(d.StartedAt)
+	deployment.CompletedAt = optionalTimestamp(d.CompletedAt)
 
 	return deployment, nil
 }
@@ -557,4 +556,12 @@ func validateQuantities(service *deploymentv1.ServiceDeploymentSpec) error {
 		return err
 	}
 	return nil
+}
+
+// optionalTimestamp converts a nullable database time, mapping nil to a nil timestamp.
+func optionalTimestamp(ts *time.Time) *timestamppb.Timestamp {
+	if ts == nil {
+		return nil
+	}
+	return timestamppb.New(*ts)
 }

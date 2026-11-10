@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -404,7 +403,7 @@ func apiTokenRowToProto(
 
 	var lastUsedProto *timestamppb.Timestamp
 	if lastUsedAt != nil {
-		lastUsedProto = timeutil.ParsePostgresTimestamp(*lastUsedAt)
+		lastUsedProto = timestamppb.New(*lastUsedAt)
 	}
 
 	return &tokenv1.Token{
@@ -413,8 +412,8 @@ func apiTokenRowToProto(
 		EntityId:   entityID.String(),
 		Scopes:     scopes,
 		CreatedBy:  createdBy.String(),
-		CreatedAt:  timeutil.ParsePostgresTimestamp(createdAt),
-		ExpiresAt:  timeutil.ParsePostgresTimestamp(expiresAt),
+		CreatedAt:  timestamppb.New(createdAt),
+		ExpiresAt:  timestamppb.New(expiresAt),
 		LastUsedAt: lastUsedProto,
 	}
 }

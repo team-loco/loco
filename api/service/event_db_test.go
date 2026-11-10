@@ -15,8 +15,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
@@ -49,7 +49,7 @@ func scoped(t *testing.T, q genDb.Querier, userID uuid.UUID) context.Context {
 
 func newEventFixture(t *testing.T) *eventFixture {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
@@ -97,7 +97,7 @@ func eventTypes(list []*eventv1.Event) []string {
 
 func TestSignupAndOrgCreationAreRecorded(t *testing.T) {
 	f := newEventFixture(t)
-	authtest.WaitForEarlierTransactions(t, f.pool)
+	dbtest.WaitForEarlierTransactions(t, f.pool)
 	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 10})
 	if err != nil {
 		t.Fatalf("list: %v", err)
@@ -197,7 +197,7 @@ func (f *eventFixture) streamClient(t *testing.T, asSystem *atomic.Bool) eventv1
 
 func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 	f := newEventFixture(t)
-	authtest.WaitForEarlierTransactions(t, f.pool)
+	dbtest.WaitForEarlierTransactions(t, f.pool)
 	f.events.poll = 10 * time.Millisecond
 	var asSystem atomic.Bool
 	asSystem.Store(true)
@@ -282,7 +282,7 @@ func receiveBatches(stream eventv1connect.EventServiceStreamEventsClientStream) 
 
 func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	f := newEventFixture(t)
-	authtest.WaitForEarlierTransactions(t, f.pool)
+	dbtest.WaitForEarlierTransactions(t, f.pool)
 	f.events.poll = 10 * time.Millisecond
 	var asSystem atomic.Bool
 	asSystem.Store(true)

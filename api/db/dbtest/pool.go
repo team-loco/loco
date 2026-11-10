@@ -1,4 +1,4 @@
-package authtest
+package dbtest
 
 import (
 	"context"
@@ -19,6 +19,7 @@ const (
 	unreachableDatabaseURL  = "postgres://loco@127.0.0.1:1/loco"
 )
 
+// NewPool returns a pool on a freshly migrated database that is dropped when the test ends.
 func NewPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	baseURL := os.Getenv("LOCO_TEST_DATABASE_URL")
@@ -35,7 +36,7 @@ func NewPool(t *testing.T) *pgxpool.Pool {
 			t.Logf("close admin connection: %v", closeErr)
 		}
 	})
-	dbName := "auth_" + uuid.NewString()[:8]
+	dbName := "test_" + uuid.NewString()[:8]
 	ident := pgx.Identifier{dbName}.Sanitize()
 	if _, createErr := admin.Exec(ctx, "CREATE DATABASE "+ident); createErr != nil {
 		t.Fatalf("create database: %v", createErr)
@@ -72,6 +73,7 @@ func ClosedPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
+// WaitForEarlierTransactions blocks until every transaction open when it is called has finished.
 func WaitForEarlierTransactions(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), transactionWaitTimeout)

@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	standardwebhooks "github.com/standard-webhooks/standard-webhooks/libraries/go"
-	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
@@ -83,7 +83,7 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
-	pool := authtest.NewPool(t)
+	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	user, err := q.CreateUser(t.Context(), genDb.CreateUserParams{Email: "owner@acme.test"})
 	if err != nil {

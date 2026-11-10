@@ -10,13 +10,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/api/timeutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -468,9 +468,9 @@ func orgToProto(org genDb.Organization) *orgv1.Organization {
 		Id:               org.ID.String(),
 		Name:             org.Name,
 		CreatedBy:        org.CreatedBy.String(),
-		CreatedAt:        timeutil.ParsePostgresTimestamp(org.CreatedAt),
-		UpdatedAt:        timeutil.ParsePostgresTimestamp(org.UpdatedAt),
-		SuspendedAt:      timeutil.ParsePostgresTimestampPtr(org.SuspendedAt),
+		CreatedAt:        timestamppb.New(org.CreatedAt),
+		UpdatedAt:        timestamppb.New(org.UpdatedAt),
+		SuspendedAt:      optionalTimestamp(org.SuspendedAt),
 		SuspensionReason: derefString(org.SuspensionReason),
 	}
 }
