@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XIcon } from "lucide-react";
 
+import { HistogramSlider } from "@/components/design/Slider";
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
 import type { Paging } from "@/lib/paging";
@@ -41,53 +42,13 @@ export function VolumeBars({
 	const move = (to: number) => {
 		setActive(Math.max(0, Math.min(last, to)));
 	};
-	const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-		const at = current ?? last;
-		switch (e.key) {
-			case "ArrowLeft": {
-				e.preventDefault();
-				move(current === null ? last : at - 1);
-				return;
-			}
-			case "ArrowRight": {
-				e.preventDefault();
-				move(current === null ? 0 : at + 1);
-				return;
-			}
-			case "Home": {
-				e.preventDefault();
-				move(0);
-				return;
-			}
-			case "End": {
-				e.preventDefault();
-				move(last);
-				return;
-			}
-			case "Enter": {
-				e.preventDefault();
-				if (current !== null) onPick(current);
-				return;
-			}
-			default:
-				return;
-		}
-	};
+
 	const bucketAt = (e: React.MouseEvent<HTMLDivElement>) => {
 		const rect = e.currentTarget.getBoundingClientRect();
 		return Math.floor(((e.clientX - rect.left) / rect.width) * buckets.length);
 	};
 	return (
 		<div
-			role="slider"
-			tabIndex={0}
-			aria-label={label}
-			aria-valuemin={0}
-			aria-valuemax={last}
-			aria-valuenow={current ?? last}
-			aria-valuetext={buckets[current ?? last]?.label ?? ""}
-			title={current === null ? undefined : buckets[current]?.label}
-			onKeyDown={onKeyDown}
 			onBlur={() => {
 				setActive(null);
 			}}
@@ -97,28 +58,39 @@ export function VolumeBars({
 			onMouseLeave={() => {
 				setActive(null);
 			}}
-			onClick={(e) => {
-				onPick(Math.max(0, Math.min(last, bucketAt(e))));
-			}}
-			className="flex h-[72px] cursor-pointer items-end gap-0.5 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-panel focus-visible:outline-none"
+			className="relative h-[72px] rounded-sm"
 		>
-			{buckets.map((b, i) => (
-				<div
-					key={String(i)}
-					className={cn(
-						"flex h-full min-w-0.5 flex-1 flex-col-reverse overflow-hidden rounded-t-[2px]",
-						current === i && "bg-panel2 brightness-90",
-					)}
-				>
-					{b.segments.map((s, j) => (
-						<span
-							key={String(j)}
-							className="block w-full shrink-0"
-							style={{ height: `${String((s.value / max) * 100)}%`, background: s.color }}
-						/>
-					))}
-				</div>
-			))}
+			<HistogramSlider
+				label={label}
+				valueText={buckets[current ?? last]?.label ?? "No data"}
+				value={current ?? Math.max(0, last)}
+				min={0}
+				max={Math.max(1, last)}
+				disabled={buckets.length === 0}
+				step={1}
+				onValueChange={move}
+				onActivate={() => {
+					if (buckets.length > 0) onPick(current ?? last);
+				}}
+			>
+				{buckets.map((b, i) => (
+					<div
+						key={String(i)}
+						className={cn(
+							"pointer-events-none flex h-full min-w-0.5 flex-1 flex-col-reverse overflow-hidden rounded-t-[2px]",
+							current === i && "bg-panel2 brightness-90",
+						)}
+					>
+						{b.segments.map((s, j) => (
+							<span
+								key={String(j)}
+								className="block w-full shrink-0"
+								style={{ height: `${String((s.value / max) * 100)}%`, background: s.color }}
+							/>
+						))}
+					</div>
+				))}
+			</HistogramSlider>
 		</div>
 	);
 }
