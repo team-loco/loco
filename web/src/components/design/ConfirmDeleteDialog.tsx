@@ -1,5 +1,5 @@
 import { XIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode, type RefObject } from "react";
 
 import {
 	AlertDialog,
@@ -32,6 +32,7 @@ export function ConfirmDeleteDialog({
 	onConfirm: () => void;
 	children?: ReactNode;
 }) {
+	const inputRef = useRef<HTMLInputElement>(null);
 	return (
 		<AlertDialog
 			open={open}
@@ -39,9 +40,10 @@ export function ConfirmDeleteDialog({
 				if (!pending) onOpenChange(next);
 			}}
 		>
-			<AlertDialogContent className="flex w-[480px] flex-col gap-0 p-0">
+			<AlertDialogContent className="flex w-[480px] flex-col gap-0 p-0" initialFocus={inputRef}>
 				{open && (
 					<ConfirmBody
+						inputRef={inputRef}
 						title={title}
 						text={text}
 						target={target}
@@ -61,6 +63,7 @@ export function ConfirmDeleteDialog({
 }
 
 function ConfirmBody({
+	inputRef,
 	title,
 	text,
 	target,
@@ -70,6 +73,7 @@ function ConfirmBody({
 	onClose,
 	children,
 }: {
+	inputRef: RefObject<HTMLInputElement | null>;
 	title: string;
 	text: string;
 	target: string;
@@ -112,7 +116,7 @@ function ConfirmBody({
 						Type <span className="font-semibold text-foreground">{target}</span> to confirm
 					</span>
 					<Input
-						autoFocus
+						ref={inputRef}
 						autoComplete="off"
 						value={typed}
 						aria-invalid={typed !== "" && !typedOk}

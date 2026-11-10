@@ -221,6 +221,17 @@ with sync_playwright() as playwright:
                     expect(page.get_by_text(f"Canceled build {builds['awaiting'][:8]}", exact=True)).to_be_visible(timeout=evidence.STEP_TIMEOUT_MS)
                     expect(section.get_by_role("button", name="Cancel build", exact=True)).to_have_count(0)
                     expect(section.get_by_text("canceled", exact=True).first).to_be_visible()
+                    stage = "resources"
+                    page.goto(state["ui_url"] + base + "/resources?env=production")
+                    page.get_by_role("checkbox", name="Select history-pilot", exact=True).click()
+                    bulk_delete = page.get_by_role("button", name="Delete", exact=True)
+                    bulk_delete.click()
+                    page.get_by_role("alertdialog").get_by_role("button", name="Cancel", exact=True).click()
+                    expect(bulk_delete).to_be_focused()
+                    page.keyboard.press("Enter")
+                    page.get_by_role("alertdialog").wait_for()
+                    page.keyboard.press("Escape")
+                    expect(bulk_delete).to_be_focused()
                     stage = "owner-settings"
                     page.goto(state["ui_url"] + base + "/settings?tab=ws")
                     owner_name = page.get_by_placeholder("storefront", exact=True)

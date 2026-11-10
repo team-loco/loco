@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Check settings field names, focus and descriptions in the production UI")
@@ -43,10 +43,17 @@ def descriptions(field):
 
 
 def check_webhooks(page):
-    page.get_by_role("button", name="New webhook", exact=True).click()
+    new_webhook = page.get_by_role("button", name="New webhook", exact=True)
+    new_webhook.click()
+    page.keyboard.press("Escape")
+    expect(new_webhook).to_be_focused()
+    page.keyboard.press("Enter")
+    page.get_by_role("dialog").get_by_role("button", name="Cancel", exact=True).click()
+    expect(new_webhook).to_be_focused()
+    new_webhook.click()
     url = page.get_by_role("textbox", name="Endpoint URL", exact=True)
     assert url.evaluate("node => node.labels.length") == 1
-    assert url.evaluate("node => node === document.activeElement")
+    expect(url).to_be_focused()
     assert descriptions(url) == []
     create = page.get_by_role("button", name="Create webhook", exact=True)
     url.fill("https://user:secret@hooks.invalid/loco")
@@ -69,6 +76,7 @@ def check_webhooks(page):
     page.get_by_role("dialog", name="Signing secret").wait_for()
     page.get_by_role("button", name="Copy signing secret", exact=True).wait_for()
     page.get_by_role("button", name="Done", exact=True).click()
+    expect(new_webhook).to_be_focused()
     page.get_by_role("button", name=f"Deliveries for {endpoint}", exact=True).click()
     drawer = page.get_by_role("dialog", name=endpoint)
     drawer.get_by_text("build.created", exact=True).wait_for()
