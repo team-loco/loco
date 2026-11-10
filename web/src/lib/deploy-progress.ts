@@ -25,18 +25,15 @@ export interface RegionProgress {
 	error: string | null;
 }
 
-function stepState(i: number, { created, phase, error }: RegionProgress): StepState {
+function stepState(i: number, { created, phase }: RegionProgress): StepState {
 	if (isLive(phase)) return "done";
-	if (error !== null || phase === DeploymentPhase.FAILED || phase === DeploymentPhase.CANCELED) {
-		return i === 0 ? "failed" : "todo";
-	}
 	if (!created) return "todo";
 	const active = phase === DeploymentPhase.DEPLOYING ? DEPLOYING_STEPS : 1;
 	return i < active ? "active" : "todo";
 }
 
 export function regionDeploySteps(progress: RegionProgress): ProgressStep[] {
-	const { form, region, message, error } = progress;
+	const { form, region, phase, message, error } = progress;
 	const image = form.image.trim();
 	const steps: [string, string][] = [
 		["Pull image", image.split("/").pop() ?? image],
@@ -45,11 +42,17 @@ export function regionDeploySteps(progress: RegionProgress): ProgressStep[] {
 		["Route traffic", form.isPublic ? `${form.subdomain}.${form.platformDomain}` : "Internal"],
 		["Live", region],
 	];
+	const canceled = phase === DeploymentPhase.CANCELED;
+	if (error !== null || phase === DeploymentPhase.FAILED || canceled) {
+		return [
+			...steps.map(([label, meta]): ProgressStep => ({ label, state: "todo", meta })),
+			{ label: canceled ? "Canceled" : "Failed", state: "failed", meta: error ?? message },
+		];
+	}
 	const states = steps.map((_, i) => stepState(i, progress));
 	const current = states.lastIndexOf("active");
 	return steps.map(([label, detail], i) => {
 		const state = states[i] ?? "todo";
-		const meta = state === "failed" ? (error ?? message) : i === current && message !== "" ? message : detail;
-		return { label, state, meta };
+		return { label, state, meta: i === current && message !== "" ? message : detail };
 	});
 }

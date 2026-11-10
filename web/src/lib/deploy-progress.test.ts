@@ -42,11 +42,14 @@ test("regionDeploySteps pulls while queued and starts replicas while deploying",
 	expect(deploying.map((s) => s.meta).slice(0, 2)).toEqual(["web:1", "Scheduling deployment"]);
 });
 
-test("regionDeploySteps fails the first step of a region whose deployment did not start", () => {
+test("regionDeploySteps leaves every step to do and adds one failed line", () => {
 	const steps = regionDeploySteps({ ...progress, error: "region has no cluster" });
-	expect(steps.map((s) => s.state)).toEqual(["failed", "todo", "todo", "todo", "todo"]);
-	expect(steps[0]?.meta).toBe("region has no cluster");
-	expect(states({ phase: DeploymentPhase.FAILED })[0]).toBe("failed");
+	expect(steps.map((s) => s.state)).toEqual(["todo", "todo", "todo", "todo", "todo", "failed"]);
+	expect(steps.at(-1)).toEqual({ label: "Failed", state: "failed", meta: "region has no cluster" });
+	const failed = regionDeploySteps({ ...progress, phase: DeploymentPhase.FAILED, message: "image pull backoff" });
+	expect(failed.at(-1)).toEqual({ label: "Failed", state: "failed", meta: "image pull backoff" });
+	const canceled = regionDeploySteps({ ...progress, phase: DeploymentPhase.CANCELED, message: "superseded" });
+	expect(canceled.at(-1)).toEqual({ label: "Canceled", state: "failed", meta: "superseded" });
 });
 
 test("regionDeploySteps marks every step done once the deployment runs", () => {
