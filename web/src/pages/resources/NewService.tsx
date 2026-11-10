@@ -42,13 +42,7 @@ import {
 	type NewResourceForm,
 } from "@/lib/new-resource";
 import { slug } from "@/lib/slug";
-import {
-	DeployProgress,
-	OpenResourceButton,
-	useDeployProgress,
-	useServiceDeploy,
-	type DeployRun,
-} from "@/pages/resources/NewServiceDeploy";
+import { DeployRunView, useServiceDeploy } from "@/pages/resources/NewServiceDeploy";
 
 const HEALTHY = "healthy";
 const MIN_REPLICAS = 1;
@@ -554,34 +548,5 @@ function ServiceForm({
 				<Button type="submit">{form.name === "" ? "Deploy" : `Deploy ${form.name}`}</Button>
 			</SheetFooter>
 		</form>
-	);
-}
-
-function DeployRunView({
-	run,
-	env,
-	defaults,
-	orgId,
-	workspaceId,
-}: {
-	run: DeployRun;
-	env: Environment;
-	defaults: DefaultServiceConfig;
-	orgId: string;
-	workspaceId: string;
-}) {
-	const progress = useDeployProgress(run, env, defaults);
-	return (
-		<>
-			<SheetBody>
-				<DeployProgress progress={progress} />
-			</SheetBody>
-			<SheetFooter className="flex-wrap items-center">
-				<span className="min-w-0 flex-1 text-[12.5px] text-fg3 max-sm:basis-full">
-					To <span className="font-mono text-fg2">{env.name}</span>
-				</span>
-				<OpenResourceButton run={run} allLive={progress.allLive} orgId={orgId} workspaceId={workspaceId} />
-			</SheetFooter>
-		</>
 	);
 }

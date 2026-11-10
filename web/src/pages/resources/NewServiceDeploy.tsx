@@ -10,6 +10,7 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
+import { SheetBody, SheetFooter } from "@/components/design/Sheet";
 import { StepList } from "@/components/design/StepList";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { createdStep, isLive, regionDeploySteps } from "@/lib/deploy-progress";
@@ -23,7 +24,7 @@ interface RegionRun {
 	error: string | null;
 }
 
-export interface DeployRun {
+interface DeployRun {
 	form: NewResourceForm;
 	resourceId: string | undefined;
 	deploying: boolean;
@@ -135,7 +136,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment, defaults
 	return { run, createError, deploy };
 }
 
-export function useDeployProgress(run: DeployRun, env: Environment, defaults: DefaultServiceConfig) {
+function useDeployProgress(run: DeployRun, env: Environment, defaults: DefaultServiceConfig) {
 	const watchFor = useDeploymentWatch(
 		run.regions.flatMap((r) => (r.deploymentId === undefined ? [] : [r.deploymentId])),
 	);
@@ -164,7 +165,7 @@ export function useDeployProgress(run: DeployRun, env: Environment, defaults: De
 	};
 }
 
-export function DeployProgress({ progress }: { progress: ReturnType<typeof useDeployProgress> }) {
+function DeployProgress({ progress }: { progress: ReturnType<typeof useDeployProgress> }) {
 	return (
 		<div className="flex flex-col gap-1" aria-live="polite">
 			<StepList steps={[progress.created]} />
@@ -178,7 +179,7 @@ export function DeployProgress({ progress }: { progress: ReturnType<typeof useDe
 	);
 }
 
-export function OpenResourceButton({
+function OpenResourceButton({
 	run,
 	allLive,
 	orgId,
@@ -198,5 +199,34 @@ export function OpenResourceButton({
 		>
 			Open {run.form.name}
 		</Button>
+	);
+}
+
+export function DeployRunView({
+	run,
+	env,
+	defaults,
+	orgId,
+	workspaceId,
+}: {
+	run: DeployRun;
+	env: Environment;
+	defaults: DefaultServiceConfig;
+	orgId: string;
+	workspaceId: string;
+}) {
+	const progress = useDeployProgress(run, env, defaults);
+	return (
+		<>
+			<SheetBody>
+				<DeployProgress progress={progress} />
+			</SheetBody>
+			<SheetFooter className="flex-wrap items-center">
+				<span className="min-w-0 flex-1 text-[12.5px] text-fg3 max-sm:basis-full">
+					To <span className="font-mono text-fg2">{env.name}</span>
+				</span>
+				<OpenResourceButton run={run} allLive={progress.allLive} orgId={orgId} workspaceId={workspaceId} />
+			</SheetFooter>
+		</>
 	);
 }
