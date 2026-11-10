@@ -40,12 +40,15 @@ type Listener struct {
 	wake      chan struct{}
 }
 
-func (n *Notifier) Start(ctx context.Context) error {
+// Start opens the LISTEN connection, failing if it cannot, and runs the dispatch loop under background
+// until ctx is canceled. The loop closes its connection before it finishes, so waiting on background
+// makes shutdown leave no listener open.
+func (n *Notifier) Start(ctx context.Context, background *sync.WaitGroup) error {
 	conn, err := n.listen(ctx)
 	if err != nil {
 		return err
 	}
-	go n.run(ctx, conn)
+	background.Go(func() { n.run(ctx, conn) })
 	return nil
 }
 

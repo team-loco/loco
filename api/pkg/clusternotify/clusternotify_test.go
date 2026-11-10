@@ -3,6 +3,7 @@ package clusternotify_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func startNotifier(t *testing.T, pool *pgxpool.Pool) *clusternotify.Notifier {
 	t.Cleanup(cancel)
 	poolConfig := pool.Config()
 	n := clusternotify.New(poolConfig.ConnConfig, time.Hour)
-	if err := n.Start(ctx); err != nil {
+	if err := n.Start(ctx, new(sync.WaitGroup)); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	return n
@@ -150,7 +151,7 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 	pool.Close()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	if err := notifier.Start(ctx); err != nil {
+	if err := notifier.Start(ctx, new(sync.WaitGroup)); err != nil {
 		t.Fatal(err)
 	}
 	sender, err := pgx.ConnectConfig(ctx, config)
@@ -172,5 +173,30 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 	case <-target.Wake():
 	case <-time.After(time.Second):
 		t.Fatal("direct listener did not receive the notification")
+	}
+}
+
+func TestCancelledContextClosesListenConnectionBeforeWaitReturns(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	var background sync.WaitGroup
+	n := clusternotify.New(pool.Config().ConnConfig, time.Hour)
+	if err := n.Start(ctx, &background); err != nil {
+		t.Fatal(err)
+	}
+
+	cancel()
+	background.Wait()
+
+	var listening int
+	err := pool.QueryRow(t.Context(), `
+		SELECT count(*) FROM pg_stat_activity
+		WHERE query LIKE 'LISTEN %' AND datname = current_database() AND pid <> pg_backend_pid()`).Scan(&listening)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if listening != 0 {
+		t.Fatalf("%d listen connections open after the notifier stopped", listening)
 	}
 }

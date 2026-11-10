@@ -184,7 +184,20 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	d, err := newDeps(ctx, ac, pool, appCache)
+	var background sync.WaitGroup
+	var pprofServer *http.Server
+	defer func() {
+		stop()
+		if pprofServer != nil {
+			// Closing here lets the pprof goroutine finish when run returns before shutdown does.
+			if closeErr := pprofServer.Close(); closeErr != nil {
+				slog.Warn("failed to close pprof server", "error", closeErr)
+			}
+		}
+		background.Wait()
+	}()
+
+	d, err := newDeps(ctx, ac, pool, appCache, &background)
 	if err != nil {
 		return err
 	}
@@ -198,23 +211,17 @@ func run() error {
 	mountOpenAPI(mux, ac.Version)
 	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
-	var background sync.WaitGroup
-	defer func() {
-		stop()
-		background.Wait()
-	}()
 	startBackground(ctx, &background, ac, d)
 
 	server := newServer(ac, mux)
-	var pprofServer *http.Server
 	if ac.PprofAddr != "" {
 		pprofServer = newPprofServer(ac.PprofAddr)
-		go func() {
+		background.Go(func() {
 			slog.Info("starting pprof server", "addr", pprofServer.Addr)
 			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				slog.Error("pprof server error", "error", err)
 			}
-		}()
+		})
 	}
 
 	slog.Info("starting server", "addr", server.Addr)
@@ -266,7 +273,13 @@ type deps struct {
 	registryKey http.HandlerFunc
 }
 
-func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache cache.Cache) (*deps, error) {
+func newDeps(
+	ctx context.Context,
+	ac *APIConfig,
+	pool *pgxpool.Pool,
+	appCache cache.Cache,
+	background *sync.WaitGroup,
+) (*deps, error) {
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
 
@@ -285,7 +298,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
 	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
-	if err = placementNotifier.Start(ctx); err != nil {
+	if err = placementNotifier.Start(ctx, background); err != nil {
 		return nil, fmt.Errorf("start placement listener: %w", err)
 	}
 

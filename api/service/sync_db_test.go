@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -261,7 +262,7 @@ func startSyncServerWithConfig(
 
 	poolConfig := f.pool.Config()
 	notifier := clusternotify.New(poolConfig.ConnConfig, 200*time.Millisecond)
-	if err := notifier.Start(ctx); err != nil {
+	if err := notifier.Start(ctx, new(sync.WaitGroup)); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
 	return serveSync(f, notifier, sources, cfg)
@@ -375,7 +376,7 @@ func TestSyncStreamDeliversChangesFromNotifyAlone(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	notifier := clusternotify.New(f.pool.Config().ConnConfig, time.Hour)
-	if err := notifier.Start(ctx); err != nil {
+	if err := notifier.Start(ctx, new(sync.WaitGroup)); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
 	client := serveSync(f, notifier, nil, testAgentConfig())
