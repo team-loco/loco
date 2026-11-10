@@ -8,6 +8,9 @@ test("domainCheck reports each state of the availability check", () => {
 	const state = (sub: string, own: string[], result: CheckResult) => domainCheck(sub, "onloco.app", own, result).state;
 	expect(state("", [], idle)).toBe("empty");
 	expect(state("Web_1", [], idle)).toBe("invalid");
+	expect(state("x".repeat(63), [], idle)).toBe("checking");
+	expect(state("x".repeat(64), [], idle)).toBe("long");
+	expect(state(`${"x".repeat(63)}_`, [], idle)).toBe("long");
 	expect(state("web", ["web.onloco.app"], idle)).toBe("mine");
 	expect(state("web", [], idle)).toBe("checking");
 	expect(state("web", [], { ...idle, fetching: true, available: true })).toBe("checking");

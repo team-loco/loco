@@ -12,13 +12,15 @@ import {
 } from "@/components/design/DropdownMenu";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { getErrorMessage } from "@/lib/error-handler";
-import type { DomainCheck } from "@/lib/platform-domain";
+import { MAX_SUBDOMAIN_LENGTH, type DomainCheck } from "@/lib/platform-domain";
 import { cn } from "@/lib/utils";
 
 function statusLine(check: DomainCheck, owner: string): { tone: "ok" | "bad" | "muted"; text: ReactNode } | null {
 	switch (check.state) {
 		case "empty":
 			return null;
+		case "long":
+			return { tone: "bad", text: `Use at most ${MAX_SUBDOMAIN_LENGTH.toString()} characters` };
 		case "invalid":
 			return { tone: "bad", text: "Use a–z, 0–9 and dashes" };
 		case "mine":
