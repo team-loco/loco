@@ -15,7 +15,6 @@ const progress: RegionProgress = {
 		subdomain: "",
 		platformDomain: "",
 		port: "8080",
-		vars: [],
 		health: { path: "", interval: "10", timeout: "3", failAfter: "3" },
 	},
 	created: true,

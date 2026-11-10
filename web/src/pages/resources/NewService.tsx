@@ -232,6 +232,10 @@ function ImageStep({
 	);
 }
 
+function secretRowKey(row: EnvRow): string {
+	return `${row.id}:${row.key}`;
+}
+
 export function DraftSheet({
 	orgId,
 	workspaceId,
@@ -253,6 +257,7 @@ export function DraftSheet({
 	const [tried, setTried] = useState(false);
 	const [healthOpen, setHealthOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
+	const [secretValues, setSecretValues] = useState<ReadonlyMap<string, string>>(() => new Map());
 	const close = () => {
 		const next = new URLSearchParams(params);
 		next.delete(DRAFT_PARAM);
@@ -292,13 +297,16 @@ export function DraftSheet({
 				</SheetBody>
 			);
 		}
+		const vars = draft.edits.vars?.map((row) =>
+			row.secret ? { ...row, value: secretValues.get(secretRowKey(row)) ?? "" } : row,
+		);
 		return (
 			<ServiceForm
 				env={env}
 				schemaUrl={configQuery.data?.schemaUrl ?? ""}
 				regions={regionsQuery.data.regions}
 				platformDomains={domainsQuery.data?.platformDomains ?? []}
-				draft={draft}
+				draft={vars === undefined ? draft : { ...draft, edits: { ...draft.edits, vars } }}
 				defaults={defaults}
 				deployment={deployment}
 				tried={tried}
@@ -310,9 +318,18 @@ export function DraftSheet({
 				onHealthOpen={setHealthOpen}
 				onEdit={(edits) => {
 					deployment.clearError();
-					store.edit(draft.id, edits);
+					if (!store.edit(draft.id, edits)) {
+						toast.error("Couldn't save changes to this draft");
+						return;
+					}
+					if (edits.vars !== undefined) {
+						setSecretValues(
+							new Map(edits.vars.filter((row) => row.secret).map((row) => [secretRowKey(row), row.value])),
+						);
+					}
 				}}
 				onDeployed={() => {
+					setSecretValues(new Map());
 					store.discard(draft.id);
 				}}
 				onDiscard={() => {

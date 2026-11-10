@@ -207,6 +207,18 @@ with sync_playwright() as playwright:
                 expect(secret_value).to_have_attribute("type", "password")
                 expect(secret_value).to_have_value("sk_test")
                 assert "sk_test" not in page.evaluate(f"localStorage.getItem({json.dumps(drafts_key)})")
+                # A storage update from another tab must not be masked by the in-memory secret.
+                page.evaluate("""key => {
+                    const drafts = JSON.parse(localStorage.getItem(key));
+                    const row = drafts[0].edits.vars.find(row => row.key === "LOG_LEVEL");
+                    row.value = "debug";
+                    localStorage.setItem(key, JSON.stringify(drafts));
+                    dispatchEvent(new StorageEvent("storage", {key}));
+                }""", drafts_key)
+                log_level = variables.get_by_label("Value of LOG_LEVEL", exact=True)
+                expect(log_level).to_have_value("debug")
+                expect(secret_value).to_have_value("sk_test")
+                log_level.fill("info")
                 drawer.get_by_text("loco.yaml", exact=True).first.click()
                 expect(drawer.get_by_text("secrets: [STRIPE_API_KEY]", exact=False)).to_be_visible()
                 assert "sk_test" not in drawer.inner_text()

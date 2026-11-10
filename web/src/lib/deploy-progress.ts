@@ -17,7 +17,7 @@ function isLive(phase: DeploymentPhase | undefined): boolean {
 }
 
 export interface RegionProgress {
-	form: NewResourceForm;
+	form: Omit<NewResourceForm, "vars">;
 	created: boolean;
 	region: string;
 	phase: DeploymentPhase | undefined;

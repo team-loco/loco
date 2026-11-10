@@ -34,7 +34,7 @@ interface RegionRun {
 }
 
 interface DeployRun {
-	form: NewResourceForm;
+	form: Omit<NewResourceForm, "vars">;
 	resourceId: string | undefined;
 	deploying: boolean;
 	regions: RegionRun[];
@@ -61,8 +61,9 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 	};
 
 	const attempt = async (form: NewResourceForm, defaults: DefaultServiceConfig): Promise<DeployError | null> => {
+		const { vars, ...summary } = form;
 		const start: DeployRun = {
-			form,
+			form: summary,
 			resourceId: undefined,
 			deploying: true,
 			regions: form.regions.map((region) => ({ region, deploymentId: undefined, error: null })),
@@ -107,7 +108,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			});
 			setRun({ ...start, resourceId });
 			const deployments = createClient(DeploymentService, transport);
-			const { env: envMap, secrets } = deploymentVariables(form.vars);
+			const { env: envMap, secrets } = deploymentVariables(vars);
 			const secretNames = Object.keys(secrets);
 			if (secretNames.length > 0) {
 				try {
