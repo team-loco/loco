@@ -263,7 +263,11 @@ func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhoo
 	if err != nil {
 		return fmt.Errorf("encode payload: %w", err)
 	}
-	req, err := webhooksig.NewSignedRequest(ctx, row.Url, row.Secret, id.String(), body)
+	secrets := []string{row.Secret}
+	if row.PreviousSecret != nil && row.PreviousSecretExpiresAt.After(d.now()) {
+		secrets = append(secrets, *row.PreviousSecret)
+	}
+	req, err := webhooksig.NewSignedRequest(ctx, row.Url, secrets, id.String(), body)
 	if err != nil {
 		return err
 	}

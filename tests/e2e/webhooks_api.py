@@ -146,5 +146,24 @@ ping = receive("/second", lambda request: json.loads(request["body"])["type"] ==
 assert_signed(secret, ping)
 assert json.loads(ping["body"])["subject"] == {"type": "webhook", "id": hook}
 
+
+def workspace_update(request):
+    return json.loads(request["body"])["type"] == "workspace.updated"
+
+
+rotated = call("loco.webhook.v1.WebhookService/RotateWebhookSecret", {"workspaceId": workspace, "webhookId": hook, "gracePeriodSeconds": 3600})
+assert rotated["secret"] != secret and rotated["webhook"]["previousSecretExpiresAt"], rotated
+touch_workspace("rotating")
+during = receive("/second", workspace_update)
+assert_signed(secret, during)
+assert_signed(rotated["secret"], during)
+final = call("loco.webhook.v1.WebhookService/RotateWebhookSecret", {"workspaceId": workspace, "webhookId": hook})
+assert "previousSecretExpiresAt" not in final["webhook"], final
+touch_workspace("rotated")
+after = receive("/second", workspace_update)
+assert_signed(final["secret"], after)
+replaced, sent = signatures(rotated["secret"], after)
+assert replaced not in sent, sent
+
 server.shutdown()
 print("PASS: webhook deliveries", flush=True)

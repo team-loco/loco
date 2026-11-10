@@ -24,6 +24,16 @@ SET url = sqlc.arg('url'), event_types = sqlc.arg('event_types')
 WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid
 RETURNING *;
 
+-- name: RotateWorkspaceWebhookSecret :one
+UPDATE webhooks
+SET previous_secret = CASE WHEN sqlc.arg('grace_seconds')::int > 0 THEN secret END,
+    previous_secret_expires_at = CASE
+        WHEN sqlc.arg('grace_seconds')::int > 0 THEN NOW() + make_interval(secs => sqlc.arg('grace_seconds')::int)
+    END,
+    secret = sqlc.arg('secret')
+WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid
+RETURNING *;
+
 -- name: DeleteWorkspaceWebhook :execrows
 DELETE FROM webhooks
 WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid;
@@ -68,7 +78,7 @@ WHERE d.id IN (
 RETURNING d.id, d.attempts;
 
 -- name: GetWebhookDeliveryPayload :one
-SELECT d.id, w.url, w.secret, w.kind,
+SELECT d.id, w.url, w.secret, w.previous_secret, w.previous_secret_expires_at, w.kind,
        e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id,
        e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at
 FROM webhook_deliveries d

@@ -57,9 +57,13 @@ CREATE TABLE webhooks (
     workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     secret TEXT NOT NULL,
+    -- The secret a rotation replaced; deliveries are also signed with it until it expires.
+    previous_secret TEXT,
+    previous_secret_expires_at TIMESTAMPTZ,
     event_types TEXT[] NOT NULL DEFAULT '{}',
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT webhooks_previous_secret CHECK ((previous_secret IS NULL) = (previous_secret_expires_at IS NULL)),
     CONSTRAINT webhooks_kind_owner CHECK (
         (kind = 'workspace' AND workspace_id IS NOT NULL)
         OR (kind = 'install' AND workspace_id IS NULL)

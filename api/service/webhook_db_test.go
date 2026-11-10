@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -205,6 +206,11 @@ func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
 		WorkspaceId: f.workspaceID, WebhookId: hookID,
 	}); codeOf(deleteErr) != connect.CodePermissionDenied {
 		t.Fatalf("writer deleted a webhook: %v", deleteErr)
+	}
+	if _, rotateErr := s.RotateWebhookSecret(writer, &webhookv1.RotateWebhookSecretRequest{
+		WorkspaceId: f.workspaceID, WebhookId: hookID,
+	}); codeOf(rotateErr) != connect.CodePermissionDenied {
+		t.Fatalf("writer rotated a webhook secret: %v", rotateErr)
 	}
 	if _, updateErr := s.UpdateWebhook(writer, &webhookv1.UpdateWebhookRequest{
 		WorkspaceId: f.workspaceID, WebhookId: hookID, Url: receiverURL,
@@ -585,5 +591,78 @@ func TestSendTestEventReachesOnlyItsWebhook(t *testing.T) {
 	if rows.Err() != nil || len(receivers) != 1 || receivers[0] != tested {
 		t.Fatalf("test event delivered to %v (%v), want only %s and not %s or the install webhook",
 			receivers, rows.Err(), tested, sibling)
+	}
+}
+
+func TestRotateWebhookSecretKeepsThePreviousSecretForTheGracePeriod(t *testing.T) {
+	f := newWebhookFixture(t)
+	s := NewWebhookServer(f.pool, f.queries, false)
+	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
+		WorkspaceId: f.workspaceID, Url: receiverURL,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	hookID := created.GetWebhook().GetId()
+	rotate := func(grace int32) *webhookv1.RotateWebhookSecretResponse {
+		t.Helper()
+		rotated, rotateErr := s.RotateWebhookSecret(f.owner, &webhookv1.RotateWebhookSecretRequest{
+			WorkspaceId: f.workspaceID, WebhookId: hookID, GracePeriodSeconds: grace,
+		})
+		if rotateErr != nil {
+			t.Fatalf("rotate: %v", rotateErr)
+		}
+		return rotated
+	}
+	stored := func() genDb.Webhook {
+		t.Helper()
+		row, getErr := f.queries.GetWorkspaceWebhook(t.Context(), genDb.GetWorkspaceWebhookParams{
+			ID: uuid.MustParse(hookID), WorkspaceID: uuid.MustParse(f.workspaceID),
+		})
+		if getErr != nil {
+			t.Fatalf("get: %v", getErr)
+		}
+		return row
+	}
+
+	if _, crossErr := s.RotateWebhookSecret(f.owner, &webhookv1.RotateWebhookSecretRequest{
+		WorkspaceId: f.otherID, WebhookId: hookID,
+	}); codeOf(crossErr) != connect.CodeNotFound {
+		t.Fatalf("secret rotated through another workspace: %v", crossErr)
+	}
+
+	const hour = 3600
+	graced := rotate(hour)
+	if !strings.HasPrefix(graced.GetSecret(), "whsec_") || graced.GetSecret() == created.GetSecret() {
+		t.Fatalf("rotated secret = %q", graced.GetSecret())
+	}
+	row := stored()
+	if row.Secret != graced.GetSecret() || row.PreviousSecret == nil || *row.PreviousSecret != created.GetSecret() {
+		t.Fatalf("stored secrets = %q, previous %v", row.Secret, row.PreviousSecret)
+	}
+	expires := graced.GetWebhook().GetPreviousSecretExpiresAt().AsTime()
+	if left := time.Until(expires); left <= 0 || left > hour*time.Second {
+		t.Fatalf("previous secret expires in %s, want within an hour", left)
+	}
+
+	immediate := rotate(0)
+	if row = stored(); row.Secret != immediate.GetSecret() || row.PreviousSecret != nil ||
+		immediate.GetWebhook().GetPreviousSecretExpiresAt() != nil {
+		t.Fatalf("after rotating without a grace period = %+v", row)
+	}
+
+	dbtest.WaitForEarlierTransactions(t, f.pool)
+	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 100})
+	if err != nil {
+		t.Fatalf("events: %v", err)
+	}
+	var rotations int
+	for _, e := range all {
+		if e.Type == events.WebhookSecretRotated {
+			rotations++
+		}
+	}
+	if rotations != 2 {
+		t.Fatalf("%s events = %d, want 2", events.WebhookSecretRotated, rotations)
 	}
 }

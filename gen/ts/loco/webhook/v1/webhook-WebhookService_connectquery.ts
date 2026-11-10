@@ -27,6 +27,15 @@ export const updateWebhook = WebhookService.method.updateWebhook;
 export const deleteWebhook = WebhookService.method.deleteWebhook;
 
 /**
+ * RotateWebhookSecret replaces a webhook's signing secret and returns the new one. For
+ * grace_period_seconds, deliveries also carry a signature made with the replaced secret;
+ * rotating again during that window drops the older secret.
+ *
+ * @generated from rpc loco.webhook.v1.WebhookService.RotateWebhookSecret
+ */
+export const rotateWebhookSecret = WebhookService.method.rotateWebhookSecret;
+
+/**
  * @generated from rpc loco.webhook.v1.WebhookService.ListWebhookDeliveries
  */
 export const listWebhookDeliveries = WebhookService.method.listWebhookDeliveries;

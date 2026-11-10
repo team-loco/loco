@@ -36,6 +36,9 @@ const (
 	// WebhookServiceDeleteWebhookProcedure is the procedure name of the WebhookService's DeleteWebhook
 	// RPC.
 	WebhookServiceDeleteWebhookProcedure = "/loco.webhook.v1.WebhookService/DeleteWebhook"
+	// WebhookServiceRotateWebhookSecretProcedure is the procedure name of the WebhookService's
+	// RotateWebhookSecret RPC.
+	WebhookServiceRotateWebhookSecretProcedure = "/loco.webhook.v1.WebhookService/RotateWebhookSecret"
 	// WebhookServiceListWebhookDeliveriesProcedure is the procedure name of the WebhookService's
 	// ListWebhookDeliveries RPC.
 	WebhookServiceListWebhookDeliveriesProcedure = "/loco.webhook.v1.WebhookService/ListWebhookDeliveries"
@@ -76,6 +79,13 @@ var (
 			Procedure:  WebhookServiceDeleteWebhookProcedure,
 		}
 	})
+	webhookServiceRotateWebhookSecretSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_webhook_v1_webhook_proto.Services().ByName("WebhookService").Methods().ByName("RotateWebhookSecret"),
+			Procedure:  WebhookServiceRotateWebhookSecretProcedure,
+		}
+	})
 	webhookServiceListWebhookDeliveriesSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -106,6 +116,10 @@ type WebhookServiceClient interface {
 	// UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
 	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
+	// RotateWebhookSecret replaces a webhook's signing secret and returns the new one. For
+	// grace_period_seconds, deliveries also carry a signature made with the replaced secret;
+	// rotating again during that window drops the older secret.
+	RotateWebhookSecret(context.Context, *v1.RotateWebhookSecretRequest) (*v1.RotateWebhookSecretResponse, error)
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
 	// RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
 	// restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
@@ -128,6 +142,10 @@ type WebhookServiceHandler interface {
 	// UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
 	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
+	// RotateWebhookSecret replaces a webhook's signing secret and returns the new one. For
+	// grace_period_seconds, deliveries also carry a signature made with the replaced secret;
+	// rotating again during that window drops the older secret.
+	RotateWebhookSecret(context.Context, *v1.RotateWebhookSecretRequest) (*v1.RotateWebhookSecretResponse, error)
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
 	// RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
 	// restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
@@ -146,6 +164,7 @@ func RegisterWebhookServiceHandler(server *connect.Server, svc WebhookServiceHan
 		connect.Method{Spec: webhookServiceListWebhooksSpec(), Handler: adapter.listWebhooks},
 		connect.Method{Spec: webhookServiceUpdateWebhookSpec(), Handler: adapter.updateWebhook},
 		connect.Method{Spec: webhookServiceDeleteWebhookSpec(), Handler: adapter.deleteWebhook},
+		connect.Method{Spec: webhookServiceRotateWebhookSecretSpec(), Handler: adapter.rotateWebhookSecret},
 		connect.Method{Spec: webhookServiceListWebhookDeliveriesSpec(), Handler: adapter.listWebhookDeliveries},
 		connect.Method{Spec: webhookServiceRedeliverWebhookDeliverySpec(), Handler: adapter.redeliverWebhookDelivery},
 		connect.Method{Spec: webhookServiceSendTestEventSpec(), Handler: adapter.sendTestEvent},
@@ -169,6 +188,10 @@ func (UnimplementedWebhookServiceHandler) UpdateWebhook(context.Context, *v1.Upd
 
 func (UnimplementedWebhookServiceHandler) DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.webhook.v1.WebhookService.DeleteWebhook is not implemented")
+}
+
+func (UnimplementedWebhookServiceHandler) RotateWebhookSecret(context.Context, *v1.RotateWebhookSecretRequest) (*v1.RotateWebhookSecretResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.webhook.v1.WebhookService.RotateWebhookSecret is not implemented")
 }
 
 func (UnimplementedWebhookServiceHandler) ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error) {
@@ -214,6 +237,14 @@ func (c *webhookServiceClient) UpdateWebhook(ctx context.Context, req *v1.Update
 func (c *webhookServiceClient) DeleteWebhook(ctx context.Context, req *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error) {
 	var res v1.DeleteWebhookResponse
 	if err := c.client.CallUnary(ctx, webhookServiceDeleteWebhookSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *webhookServiceClient) RotateWebhookSecret(ctx context.Context, req *v1.RotateWebhookSecretRequest) (*v1.RotateWebhookSecretResponse, error) {
+	var res v1.RotateWebhookSecretResponse
+	if err := c.client.CallUnary(ctx, webhookServiceRotateWebhookSecretSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -287,6 +318,18 @@ func (h webhookServiceHandler) deleteWebhook(ctx context.Context, _ connect.Spec
 		return err
 	}
 	res, err := h.svc.DeleteWebhook(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h webhookServiceHandler) rotateWebhookSecret(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RotateWebhookSecretRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RotateWebhookSecret(ctx, &req)
 	if err != nil {
 		return err
 	}
