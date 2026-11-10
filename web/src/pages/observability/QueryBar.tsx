@@ -128,8 +128,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const commit = () => {
 		const p = parseQuery(text);
 		const nextTokens = [...tokens, ...p.tokens];
-		const q = recentQuery(view, nextTokens, p.text);
-		if (q !== "") updateRecent((list) => addRecent(list, q, Date.now()));
 		setText(p.text);
 		setQuery(nextTokens, p.text);
 		setOpen(false);
