@@ -49,7 +49,7 @@ export function FilterMenu({
 					}}
 				>
 					{options.map((o) => (
-						<DropdownMenuRadioItem key={o.value} value={o.value} className="justify-between gap-3 pr-2.5">
+						<DropdownMenuRadioItem key={o.value} value={o.value} className="justify-between gap-3">
 							<span>{o.label}</span>
 							{o.count !== undefined && <span className="text-sm text-fg3">{o.count}</span>}
 						</DropdownMenuRadioItem>
