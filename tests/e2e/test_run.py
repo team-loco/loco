@@ -240,6 +240,7 @@ def test_resource_status_stops_when_crash_deployment_is_not_accepted(tmp_path):
         {"suites/01_runtime.sh": f'''
             source {shlex.quote(str(suite))}
             status_dir="$FIXTURE_ROOT/status"
+            E2E_PUBLIC_IMAGE=fixture-image
             cli_write_image_config() {{ :; }}
             yq() {{ :; }}
             loco_cli() {{ echo "fixture plan failed"; return 42; }}
