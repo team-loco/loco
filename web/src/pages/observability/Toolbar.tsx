@@ -5,7 +5,7 @@ import { DateTimePicker } from "@/components/design/DateTimePicker";
 import { Button } from "@/components/design/Button";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
-import { Toggle } from "@/components/design/Toggle";
+import { ToggleChip } from "@/components/design/ToggleChip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { StatusDot } from "@/components/design/StatusGlyph";
 import {
@@ -201,8 +201,8 @@ export function LiveButton({
 	title: string;
 }) {
 	return (
-		<Toggle
-			variant="outline"
+		<ToggleChip
+			variant="button"
 			pressed={on}
 			aria-busy={pending}
 			disabled={disabled || pending}
@@ -214,6 +214,6 @@ export function LiveButton({
 			{pending ? "Starting…" : "Live"}
 			{on && detail !== undefined && <span className="font-mono text-[11.5px] opacity-85">{detail}</span>}
 			{on && <PauseIcon className="fill-current" />}
-		</Toggle>
+		</ToggleChip>
 	);
 }
