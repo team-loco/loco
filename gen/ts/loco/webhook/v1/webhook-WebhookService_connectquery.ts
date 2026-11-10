@@ -30,3 +30,19 @@ export const deleteWebhook = WebhookService.method.deleteWebhook;
  * @generated from rpc loco.webhook.v1.WebhookService.ListWebhookDeliveries
  */
 export const listWebhookDeliveries = WebhookService.method.listWebhookDeliveries;
+
+/**
+ * RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
+ * restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
+ *
+ * @generated from rpc loco.webhook.v1.WebhookService.RedeliverWebhookDelivery
+ */
+export const redeliverWebhookDelivery = WebhookService.method.redeliverWebhookDelivery;
+
+/**
+ * SendTestEvent records a webhook.test event and delivers it to this webhook only, whatever
+ * event types it subscribes to.
+ *
+ * @generated from rpc loco.webhook.v1.WebhookService.SendTestEvent
+ */
+export const sendTestEvent = WebhookService.method.sendTestEvent;

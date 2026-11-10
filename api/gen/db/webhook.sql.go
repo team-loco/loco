@@ -369,6 +369,24 @@ func (q *Queries) LockInstallWebhooks(ctx context.Context, lockKey int64) error 
 	return err
 }
 
+const lockWebhookDeliveryStatus = `-- name: LockWebhookDeliveryStatus :one
+SELECT status FROM webhook_deliveries
+WHERE id = $1 AND webhook_id = $2
+FOR UPDATE
+`
+
+type LockWebhookDeliveryStatusParams struct {
+	ID        uuid.UUID `json:"id"`
+	WebhookID uuid.UUID `json:"webhookId"`
+}
+
+func (q *Queries) LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error) {
+	row := q.db.QueryRow(ctx, lockWebhookDeliveryStatus, arg.ID, arg.WebhookID)
+	var status string
+	err := row.Scan(&status)
+	return status, err
+}
+
 const lockWorkspaceForWebhookCreation = `-- name: LockWorkspaceForWebhookCreation :one
 SELECT id FROM workspaces WHERE id = $1 FOR NO KEY UPDATE
 `
@@ -378,6 +396,17 @@ func (q *Queries) LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.U
 	var id_2 uuid.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const requeueWebhookDelivery = `-- name: RequeueWebhookDelivery :exec
+UPDATE webhook_deliveries
+SET status = 'pending', attempts = 0, next_attempt_at = NOW(), delivered_at = NULL, last_error = NULL
+WHERE id = $1
+`
+
+func (q *Queries) RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, requeueWebhookDelivery, id)
+	return err
 }
 
 const updateWorkspaceWebhook = `-- name: UpdateWorkspaceWebhook :one

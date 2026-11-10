@@ -39,6 +39,12 @@ const (
 	// WebhookServiceListWebhookDeliveriesProcedure is the procedure name of the WebhookService's
 	// ListWebhookDeliveries RPC.
 	WebhookServiceListWebhookDeliveriesProcedure = "/loco.webhook.v1.WebhookService/ListWebhookDeliveries"
+	// WebhookServiceRedeliverWebhookDeliveryProcedure is the procedure name of the WebhookService's
+	// RedeliverWebhookDelivery RPC.
+	WebhookServiceRedeliverWebhookDeliveryProcedure = "/loco.webhook.v1.WebhookService/RedeliverWebhookDelivery"
+	// WebhookServiceSendTestEventProcedure is the procedure name of the WebhookService's SendTestEvent
+	// RPC.
+	WebhookServiceSendTestEventProcedure = "/loco.webhook.v1.WebhookService/SendTestEvent"
 )
 
 var (
@@ -77,6 +83,20 @@ var (
 			Procedure:  WebhookServiceListWebhookDeliveriesProcedure,
 		}
 	})
+	webhookServiceRedeliverWebhookDeliverySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_webhook_v1_webhook_proto.Services().ByName("WebhookService").Methods().ByName("RedeliverWebhookDelivery"),
+			Procedure:  WebhookServiceRedeliverWebhookDeliveryProcedure,
+		}
+	})
+	webhookServiceSendTestEventSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_webhook_v1_webhook_proto.Services().ByName("WebhookService").Methods().ByName("SendTestEvent"),
+			Procedure:  WebhookServiceSendTestEventProcedure,
+		}
+	})
 )
 
 // WebhookServiceClient is a client for the loco.webhook.v1.WebhookService service.
@@ -87,6 +107,12 @@ type WebhookServiceClient interface {
 	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
+	// RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
+	// restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
+	RedeliverWebhookDelivery(context.Context, *v1.RedeliverWebhookDeliveryRequest) (*v1.RedeliverWebhookDeliveryResponse, error)
+	// SendTestEvent records a webhook.test event and delivers it to this webhook only, whatever
+	// event types it subscribes to.
+	SendTestEvent(context.Context, *v1.SendTestEventRequest) (*v1.SendTestEventResponse, error)
 }
 
 // NewWebhookServiceClient constructs a client for the loco.webhook.v1.WebhookService service.
@@ -103,6 +129,12 @@ type WebhookServiceHandler interface {
 	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
+	// RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
+	// restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
+	RedeliverWebhookDelivery(context.Context, *v1.RedeliverWebhookDeliveryRequest) (*v1.RedeliverWebhookDeliveryResponse, error)
+	// SendTestEvent records a webhook.test event and delivers it to this webhook only, whatever
+	// event types it subscribes to.
+	SendTestEvent(context.Context, *v1.SendTestEventRequest) (*v1.SendTestEventResponse, error)
 }
 
 // RegisterWebhookServiceHandler registers svc as the loco.webhook.v1.WebhookService implementation
@@ -115,6 +147,8 @@ func RegisterWebhookServiceHandler(server *connect.Server, svc WebhookServiceHan
 		connect.Method{Spec: webhookServiceUpdateWebhookSpec(), Handler: adapter.updateWebhook},
 		connect.Method{Spec: webhookServiceDeleteWebhookSpec(), Handler: adapter.deleteWebhook},
 		connect.Method{Spec: webhookServiceListWebhookDeliveriesSpec(), Handler: adapter.listWebhookDeliveries},
+		connect.Method{Spec: webhookServiceRedeliverWebhookDeliverySpec(), Handler: adapter.redeliverWebhookDelivery},
+		connect.Method{Spec: webhookServiceSendTestEventSpec(), Handler: adapter.sendTestEvent},
 	)
 }
 
@@ -139,6 +173,14 @@ func (UnimplementedWebhookServiceHandler) DeleteWebhook(context.Context, *v1.Del
 
 func (UnimplementedWebhookServiceHandler) ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.webhook.v1.WebhookService.ListWebhookDeliveries is not implemented")
+}
+
+func (UnimplementedWebhookServiceHandler) RedeliverWebhookDelivery(context.Context, *v1.RedeliverWebhookDeliveryRequest) (*v1.RedeliverWebhookDeliveryResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.webhook.v1.WebhookService.RedeliverWebhookDelivery is not implemented")
+}
+
+func (UnimplementedWebhookServiceHandler) SendTestEvent(context.Context, *v1.SendTestEventRequest) (*v1.SendTestEventResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.webhook.v1.WebhookService.SendTestEvent is not implemented")
 }
 
 type webhookServiceClient struct {
@@ -180,6 +222,22 @@ func (c *webhookServiceClient) DeleteWebhook(ctx context.Context, req *v1.Delete
 func (c *webhookServiceClient) ListWebhookDeliveries(ctx context.Context, req *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error) {
 	var res v1.ListWebhookDeliveriesResponse
 	if err := c.client.CallUnary(ctx, webhookServiceListWebhookDeliveriesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *webhookServiceClient) RedeliverWebhookDelivery(ctx context.Context, req *v1.RedeliverWebhookDeliveryRequest) (*v1.RedeliverWebhookDeliveryResponse, error) {
+	var res v1.RedeliverWebhookDeliveryResponse
+	if err := c.client.CallUnary(ctx, webhookServiceRedeliverWebhookDeliverySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *webhookServiceClient) SendTestEvent(ctx context.Context, req *v1.SendTestEventRequest) (*v1.SendTestEventResponse, error) {
+	var res v1.SendTestEventResponse
+	if err := c.client.CallUnary(ctx, webhookServiceSendTestEventSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -241,6 +299,30 @@ func (h webhookServiceHandler) listWebhookDeliveries(ctx context.Context, _ conn
 		return err
 	}
 	res, err := h.svc.ListWebhookDeliveries(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h webhookServiceHandler) redeliverWebhookDelivery(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RedeliverWebhookDeliveryRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RedeliverWebhookDelivery(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h webhookServiceHandler) sendTestEvent(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SendTestEventRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SendTestEvent(ctx, &req)
 	if err != nil {
 		return err
 	}

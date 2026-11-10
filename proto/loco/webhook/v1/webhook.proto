@@ -14,6 +14,12 @@ service WebhookService {
   rpc UpdateWebhook(UpdateWebhookRequest) returns (UpdateWebhookResponse);
   rpc DeleteWebhook(DeleteWebhookRequest) returns (DeleteWebhookResponse);
   rpc ListWebhookDeliveries(ListWebhookDeliveriesRequest) returns (ListWebhookDeliveriesResponse);
+  // RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
+  // restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
+  rpc RedeliverWebhookDelivery(RedeliverWebhookDeliveryRequest) returns (RedeliverWebhookDeliveryResponse);
+  // SendTestEvent records a webhook.test event and delivers it to this webhook only, whatever
+  // event types it subscribes to.
+  rpc SendTestEvent(SendTestEventRequest) returns (SendTestEventResponse);
 }
 
 message Webhook {
@@ -121,3 +127,18 @@ message ListWebhookDeliveriesResponse {
   repeated WebhookDelivery deliveries = 1;
   string next_page_token = 2; // empty if no more pages
 }
+
+message RedeliverWebhookDeliveryRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string webhook_id = 2 [(buf.validate.field).string.uuid = true];
+  string delivery_id = 3 [(buf.validate.field).string.uuid = true];
+}
+
+message RedeliverWebhookDeliveryResponse {}
+
+message SendTestEventRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string webhook_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message SendTestEventResponse {}

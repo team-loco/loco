@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
+	"github.com/team-loco/loco/api/webhooks"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -34,7 +35,12 @@ var (
 		connect.CodeFailedPrecondition,
 		fmt.Sprintf("a workspace can have at most %d webhooks", maxWebhooksPerWorkspace),
 	)
-	ErrWebhookNotFound = rpcerr.NewCoded(connect.CodeNotFound, "webhook not found in this workspace")
+	ErrWebhookNotFound  = rpcerr.NewCoded(connect.CodeNotFound, "webhook not found in this workspace")
+	ErrDeliveryNotFound = rpcerr.NewCoded(connect.CodeNotFound, "delivery not found for this webhook")
+	ErrDeliveryPending  = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"the delivery is still pending; redeliver it once it succeeds or fails",
+	)
 )
 
 type WebhookServer struct {
@@ -312,4 +318,73 @@ func (s *WebhookServer) ListWebhookDeliveries(
 		return d.ID, d.CreatedAt
 	})
 	return &webhookv1.ListWebhookDeliveriesResponse{Deliveries: out, NextPageToken: token}, nil
+}
+
+func (s *WebhookServer) RedeliverWebhookDelivery(
+	ctx context.Context,
+	req *webhookv1.RedeliverWebhookDeliveryRequest,
+) (*webhookv1.RedeliverWebhookDeliveryResponse, error) {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
+	}
+	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
+		return nil, err
+	}
+	row, err := s.loadWebhook(ctx, workspaceID, req.GetWebhookId())
+	if err != nil {
+		return nil, err
+	}
+	deliveryID := uuid.MustParse(req.GetDeliveryId())
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		status, lockErr := qtx.LockWebhookDeliveryStatus(ctx, genDb.LockWebhookDeliveryStatusParams{
+			ID:        deliveryID,
+			WebhookID: row.ID,
+		})
+		if errors.Is(lockErr, pgx.ErrNoRows) {
+			return ErrDeliveryNotFound
+		}
+		if lockErr != nil {
+			return fmt.Errorf("lock delivery: %w", lockErr)
+		}
+		// A pending delivery may be in flight; requeueing it would reset the attempt its sender finishes.
+		if status == webhooks.StatusPending {
+			return ErrDeliveryPending
+		}
+		if requeueErr := qtx.RequeueWebhookDelivery(ctx, deliveryID); requeueErr != nil {
+			return fmt.Errorf("requeue delivery: %w", requeueErr)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &webhookv1.RedeliverWebhookDeliveryResponse{}, nil
+}
+
+func (s *WebhookServer) SendTestEvent(
+	ctx context.Context,
+	req *webhookv1.SendTestEventRequest,
+) (*webhookv1.SendTestEventResponse, error) {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
+	}
+	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
+		return nil, err
+	}
+	row, err := s.loadWebhook(ctx, workspaceID, req.GetWebhookId())
+	if err != nil {
+		return nil, err
+	}
+	if err = events.Record(ctx, s.queries, events.Event{
+		Type:        events.WebhookTest,
+		WorkspaceID: new(workspaceID),
+		SubjectType: events.SubjectWebhook,
+		SubjectID:   new(row.ID),
+		Data:        map[string]any{fieldWebhookURL: row.Url},
+	}); err != nil {
+		return nil, err
+	}
+	return &webhookv1.SendTestEventResponse{}, nil
 }

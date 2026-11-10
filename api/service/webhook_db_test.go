@@ -21,9 +21,6 @@ import (
 const (
 	receiverURL = "https://hooks.example.test/loco"
 	installURL  = "https://install.example.test/loco"
-
-	deliveryPending = "pending"
-	deliveryFailed  = "failed"
 )
 
 type webhookFixture struct {
@@ -135,7 +132,7 @@ func TestWebhookLifecycle(t *testing.T) {
 		t.Fatalf("deliveries = %+v (%v)", deliveries, err)
 	}
 	if d := deliveries.GetDeliveries()[0]; d.GetEventType() != events.EnvironmentCreated ||
-		d.GetStatus() != deliveryPending {
+		d.GetStatus() != webhooks.StatusPending {
 		t.Fatalf("delivery = %+v", d)
 	}
 
@@ -449,11 +446,11 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 		t.Fatalf("fail delivery: %v", execErr)
 	}
 
-	failed := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: deliveryFailed}).GetDeliveries()
+	failed := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: webhooks.StatusFailed}).GetDeliveries()
 	if len(failed) != 1 || failed[0].GetId() != failedID {
 		t.Fatalf("failed deliveries = %+v", failed)
 	}
-	pending := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: deliveryPending}).GetDeliveries()
+	pending := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: webhooks.StatusPending}).GetDeliveries()
 	if len(pending) != 3 {
 		t.Fatalf("pending deliveries = %d, want 3", len(pending))
 	}
@@ -478,4 +475,115 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 		}
 	}
 	assertPagingSurvivesDeletingTheCursorRow(t, newestFirst, page, deleteRow)
+}
+
+func TestRedeliverWebhookDeliveryRequeuesFinishedDeliveries(t *testing.T) {
+	f := newWebhookFixture(t)
+	s := NewWebhookServer(f.pool, f.queries, false)
+	hook := func(url string) string {
+		t.Helper()
+		created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{WorkspaceId: f.workspaceID, Url: url})
+		if err != nil {
+			t.Fatalf("create: %v", err)
+		}
+		return created.GetWebhook().GetId()
+	}
+	hookID := hook(receiverURL)
+	otherHookID := hook(installURL)
+	deliveries, err := s.ListWebhookDeliveries(f.owner, &webhookv1.ListWebhookDeliveriesRequest{
+		WorkspaceId: f.workspaceID, WebhookId: hookID,
+	})
+	if err != nil || len(deliveries.GetDeliveries()) == 0 {
+		t.Fatalf("deliveries = %+v (%v)", deliveries, err)
+	}
+	deliveryID := deliveries.GetDeliveries()[0].GetId()
+	redeliver := func(webhookID string) error {
+		_, redeliverErr := s.RedeliverWebhookDelivery(f.owner, &webhookv1.RedeliverWebhookDeliveryRequest{
+			WorkspaceId: f.workspaceID, WebhookId: webhookID, DeliveryId: deliveryID,
+		})
+		return redeliverErr
+	}
+
+	if redeliverErr := redeliver(hookID); codeOf(redeliverErr) != connect.CodeFailedPrecondition {
+		t.Fatalf("pending delivery redelivered: %v", redeliverErr)
+	}
+	if _, execErr := f.pool.Exec(t.Context(), `UPDATE webhook_deliveries
+		SET status = 'failed', attempts = 7, last_error = 'endpoint returned 503',
+		    next_attempt_at = NOW() + INTERVAL '1 day'
+		WHERE id = $1`, deliveryID); execErr != nil {
+		t.Fatalf("fail delivery: %v", execErr)
+	}
+	if redeliverErr := redeliver(otherHookID); codeOf(redeliverErr) != connect.CodeNotFound {
+		t.Fatalf("delivery redelivered through another webhook: %v", redeliverErr)
+	}
+	if redeliverErr := redeliver(hookID); redeliverErr != nil {
+		t.Fatalf("redeliver: %v", redeliverErr)
+	}
+
+	var status string
+	var attempts int
+	var due, cleared bool
+	if scanErr := f.pool.QueryRow(t.Context(), `SELECT status, attempts, next_attempt_at <= NOW(),
+		    last_error IS NULL
+		FROM webhook_deliveries WHERE id = $1`, deliveryID).Scan(&status, &attempts, &due, &cleared); scanErr != nil {
+		t.Fatalf("delivery: %v", scanErr)
+	}
+	if status != webhooks.StatusPending || attempts != 0 || !due || !cleared {
+		t.Fatalf("redelivered = %s after %d attempts, due %t, cleared %t", status, attempts, due, cleared)
+	}
+}
+
+func TestSendTestEventReachesOnlyItsWebhook(t *testing.T) {
+	f := newWebhookFixture(t)
+	s := NewWebhookServer(f.pool, f.queries, false)
+	secret, err := webhooksig.NewSecret()
+	if err != nil {
+		t.Fatalf("secret: %v", err)
+	}
+	if syncErr := webhooks.SyncInstallWebhooks(t.Context(), f.pool, []webhooks.InstallWebhook{
+		{URL: installURL, Secret: secret, EventTypes: []string{}},
+	}); syncErr != nil {
+		t.Fatalf("sync: %v", syncErr)
+	}
+	create := func(types ...string) string {
+		t.Helper()
+		created, createErr := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
+			WorkspaceId: f.workspaceID, Url: receiverURL, EventTypes: types,
+		})
+		if createErr != nil {
+			t.Fatalf("create: %v", createErr)
+		}
+		return created.GetWebhook().GetId()
+	}
+	tested := create(events.EnvironmentCreated)
+	sibling := create()
+
+	if _, sendErr := s.SendTestEvent(f.owner, &webhookv1.SendTestEventRequest{
+		WorkspaceId: f.otherID, WebhookId: tested,
+	}); codeOf(sendErr) != connect.CodeNotFound {
+		t.Fatalf("test event sent through another workspace: %v", sendErr)
+	}
+	if _, sendErr := s.SendTestEvent(f.owner, &webhookv1.SendTestEventRequest{
+		WorkspaceId: f.workspaceID, WebhookId: tested,
+	}); sendErr != nil {
+		t.Fatalf("send test event: %v", sendErr)
+	}
+
+	var receivers []string
+	rows, err := f.pool.Query(t.Context(), `SELECT d.webhook_id::text FROM webhook_deliveries d
+		JOIN events e ON e.seq = d.event_seq WHERE e.type = $1`, events.WebhookTest)
+	if err != nil {
+		t.Fatalf("test deliveries: %v", err)
+	}
+	for rows.Next() {
+		var id string
+		if scanErr := rows.Scan(&id); scanErr != nil {
+			t.Fatalf("scan: %v", scanErr)
+		}
+		receivers = append(receivers, id)
+	}
+	if rows.Err() != nil || len(receivers) != 1 || receivers[0] != tested {
+		t.Fatalf("test event delivered to %v (%v), want only %s and not %s or the install webhook",
+			receivers, rows.Err(), tested, sibling)
+	}
 }
