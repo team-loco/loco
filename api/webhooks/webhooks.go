@@ -27,9 +27,9 @@ import (
 const (
 	leaseMargin     = 30 * time.Second
 	maxErrorLength  = 500
-	statusPending   = "pending"
-	statusSucceeded = "succeeded"
-	statusFailed    = "failed"
+	StatusPending   = "pending"
+	StatusSucceeded = "succeeded"
+	StatusFailed    = "failed"
 
 	deliverySpan          = "webhook.deliver"
 	deliveryIDAttr        = "loco.webhook.delivery_id"
@@ -231,13 +231,13 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 	params := genDb.FinishWebhookDeliveryParams{ID: id, Attempts: int32(attempt), NextAttemptAt: d.now()}
 	switch {
 	case sendErr == nil:
-		params.Status = statusSucceeded
+		params.Status = StatusSucceeded
 		delivered := d.now()
 		params.DeliveredAt = &delivered
 	case attempt > len(d.cfg.RetryDelays):
-		params.Status = statusFailed
+		params.Status = StatusFailed
 	default:
-		params.Status = statusPending
+		params.Status = StatusPending
 		params.NextAttemptAt = d.now().Add(d.cfg.RetryDelays[attempt-1])
 	}
 	if sendErr != nil {

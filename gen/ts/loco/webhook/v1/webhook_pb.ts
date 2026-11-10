@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/webhook/v1/webhook.proto.
  */
 export const file_loco_webhook_v1_webhook: GenFile = /*@__PURE__*/
-  fileDesc("Ch1sb2NvL3dlYmhvb2svdjEvd2ViaG9vay5wcm90bxIPbG9jby53ZWJob29rLnYxImcKB1dlYmhvb2sSCgoCaWQYASABKAkSCwoDdXJsGAIgASgJEhMKC2V2ZW50X3R5cGVzGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpACCg9XZWJob29rRGVsaXZlcnkSCgoCaWQYASABKAkSEAoIZXZlbnRfaWQYAiABKAkSEgoKZXZlbnRfdHlwZRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEAoIYXR0ZW1wdHMYBSABKAUSEgoKbGFzdF9lcnJvchgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxkZWxpdmVyZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKD25leHRfYXR0ZW1wdF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidwoUQ3JlYXRlV2ViaG9va1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIYCgN1cmwYAiABKAlCC7pICHIGGIAQiAEBEiUKC2V2ZW50X3R5cGVzGAMgAygJQhC6SA2SAQoQZCIGcgQQARhkIlIKFUNyZWF0ZVdlYmhvb2tSZXNwb25zZRIpCgd3ZWJob29rGAEgASgLMhgubG9jby53ZWJob29rLnYxLldlYmhvb2sSDgoGc2VjcmV0GAIgASgJIjUKE0xpc3RXZWJob29rc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABASJCChRMaXN0V2ViaG9va3NSZXNwb25zZRIqCgh3ZWJob29rcxgBIAMoCzIYLmxvY28ud2ViaG9vay52MS5XZWJob29rIpUBChRVcGRhdGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKCndlYmhvb2tfaWQYAiABKAlCCLpIBXIDsAEBEhgKA3VybBgDIAEoCUILukgIcgYYgBCIAQESJQoLZXZlbnRfdHlwZXMYBCADKAlCELpIDZIBChBkIgZyBBABGGQiQgoVVXBkYXRlV2ViaG9va1Jlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vayJUChREZWxldGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKCndlYmhvb2tfaWQYAiABKAlCCLpIBXIDsAEBIhcKFURlbGV0ZVdlYmhvb2tSZXNwb25zZSLFAQocTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKCndlYmhvb2tfaWQYAiABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgDIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAQgASgJEjQKBnN0YXR1cxgFIAEoCUIkukgh2AEBchxSB3BlbmRpbmdSCXN1Y2NlZWRlZFIGZmFpbGVkIm4KHUxpc3RXZWJob29rRGVsaXZlcmllc1Jlc3BvbnNlEjQKCmRlbGl2ZXJpZXMYASADKAsyIC5sb2NvLndlYmhvb2sudjEuV2ViaG9va0RlbGl2ZXJ5EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCTKFBAoOV2ViaG9va1NlcnZpY2USXgoNQ3JlYXRlV2ViaG9vaxIlLmxvY28ud2ViaG9vay52MS5DcmVhdGVXZWJob29rUmVxdWVzdBomLmxvY28ud2ViaG9vay52MS5DcmVhdGVXZWJob29rUmVzcG9uc2USWwoMTGlzdFdlYmhvb2tzEiQubG9jby53ZWJob29rLnYxLkxpc3RXZWJob29rc1JlcXVlc3QaJS5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tzUmVzcG9uc2USXgoNVXBkYXRlV2ViaG9vaxIlLmxvY28ud2ViaG9vay52MS5VcGRhdGVXZWJob29rUmVxdWVzdBomLmxvY28ud2ViaG9vay52MS5VcGRhdGVXZWJob29rUmVzcG9uc2USXgoNRGVsZXRlV2ViaG9vaxIlLmxvY28ud2ViaG9vay52MS5EZWxldGVXZWJob29rUmVxdWVzdBomLmxvY28ud2ViaG9vay52MS5EZWxldGVXZWJob29rUmVzcG9uc2USdgoVTGlzdFdlYmhvb2tEZWxpdmVyaWVzEi0ubG9jby53ZWJob29rLnYxLkxpc3RXZWJob29rRGVsaXZlcmllc1JlcXVlc3QaLi5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVzcG9uc2VCPFo6Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby93ZWJob29rL3YxO3dlYmhvb2t2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Ch1sb2NvL3dlYmhvb2svdjEvd2ViaG9vay5wcm90bxIPbG9jby53ZWJob29rLnYxImcKB1dlYmhvb2sSCgoCaWQYASABKAkSCwoDdXJsGAIgASgJEhMKC2V2ZW50X3R5cGVzGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpACCg9XZWJob29rRGVsaXZlcnkSCgoCaWQYASABKAkSEAoIZXZlbnRfaWQYAiABKAkSEgoKZXZlbnRfdHlwZRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEAoIYXR0ZW1wdHMYBSABKAUSEgoKbGFzdF9lcnJvchgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxkZWxpdmVyZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKD25leHRfYXR0ZW1wdF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidwoUQ3JlYXRlV2ViaG9va1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIYCgN1cmwYAiABKAlCC7pICHIGGIAQiAEBEiUKC2V2ZW50X3R5cGVzGAMgAygJQhC6SA2SAQoQZCIGcgQQARhkIlIKFUNyZWF0ZVdlYmhvb2tSZXNwb25zZRIpCgd3ZWJob29rGAEgASgLMhgubG9jby53ZWJob29rLnYxLldlYmhvb2sSDgoGc2VjcmV0GAIgASgJIjUKE0xpc3RXZWJob29rc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABASJCChRMaXN0V2ViaG9va3NSZXNwb25zZRIqCgh3ZWJob29rcxgBIAMoCzIYLmxvY28ud2ViaG9vay52MS5XZWJob29rIpUBChRVcGRhdGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKCndlYmhvb2tfaWQYAiABKAlCCLpIBXIDsAEBEhgKA3VybBgDIAEoCUILukgIcgYYgBCIAQESJQoLZXZlbnRfdHlwZXMYBCADKAlCELpIDZIBChBkIgZyBBABGGQiQgoVVXBkYXRlV2ViaG9va1Jlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vayJUChREZWxldGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKCndlYmhvb2tfaWQYAiABKAlCCLpIBXIDsAEBIhcKFURlbGV0ZVdlYmhvb2tSZXNwb25zZSLFAQocTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKCndlYmhvb2tfaWQYAiABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgDIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAQgASgJEjQKBnN0YXR1cxgFIAEoCUIkukgh2AEBchxSB3BlbmRpbmdSCXN1Y2NlZWRlZFIGZmFpbGVkIm4KHUxpc3RXZWJob29rRGVsaXZlcmllc1Jlc3BvbnNlEjQKCmRlbGl2ZXJpZXMYASADKAsyIC5sb2NvLndlYmhvb2sudjEuV2ViaG9va0RlbGl2ZXJ5EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJ+Ch9SZWRlbGl2ZXJXZWJob29rRGVsaXZlcnlSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQESHQoLZGVsaXZlcnlfaWQYAyABKAlCCLpIBXIDsAEBIiIKIFJlZGVsaXZlcldlYmhvb2tEZWxpdmVyeVJlc3BvbnNlIlQKFFNlbmRUZXN0RXZlbnRSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQEiFwoVU2VuZFRlc3RFdmVudFJlc3BvbnNlMuYFCg5XZWJob29rU2VydmljZRJeCg1DcmVhdGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXNwb25zZRJbCgxMaXN0V2ViaG9va3MSJC5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tzUmVxdWVzdBolLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va3NSZXNwb25zZRJeCg1VcGRhdGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLlVwZGF0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLlVwZGF0ZVdlYmhvb2tSZXNwb25zZRJeCg1EZWxldGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXNwb25zZRJ2ChVMaXN0V2ViaG9va0RlbGl2ZXJpZXMSLS5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVxdWVzdBouLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va0RlbGl2ZXJpZXNSZXNwb25zZRJ/ChhSZWRlbGl2ZXJXZWJob29rRGVsaXZlcnkSMC5sb2NvLndlYmhvb2sudjEuUmVkZWxpdmVyV2ViaG9va0RlbGl2ZXJ5UmVxdWVzdBoxLmxvY28ud2ViaG9vay52MS5SZWRlbGl2ZXJXZWJob29rRGVsaXZlcnlSZXNwb25zZRJeCg1TZW5kVGVzdEV2ZW50EiUubG9jby53ZWJob29rLnYxLlNlbmRUZXN0RXZlbnRSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLlNlbmRUZXN0RXZlbnRSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3dlYmhvb2svdjE7d2ViaG9va3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.webhook.v1.Webhook
@@ -578,6 +578,128 @@ export const ListWebhookDeliveriesResponseSchema: GenMessage<ListWebhookDeliveri
   messageDesc(file_loco_webhook_v1_webhook, 11);
 
 /**
+ * @generated from message loco.webhook.v1.RedeliverWebhookDeliveryRequest
+ */
+export type RedeliverWebhookDeliveryRequest = Message<"loco.webhook.v1.RedeliverWebhookDeliveryRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string webhook_id = 2;
+   */
+  webhookId: string;
+
+  /**
+   * @generated from field: string delivery_id = 3;
+   */
+  deliveryId: string;
+};
+
+/**
+ * @generated from message loco.webhook.v1.RedeliverWebhookDeliveryRequest
+ */
+export type RedeliverWebhookDeliveryRequestJson = {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string webhook_id = 2;
+   */
+  webhookId?: string;
+
+  /**
+   * @generated from field: string delivery_id = 3;
+   */
+  deliveryId?: string;
+};
+
+/**
+ * Describes the message loco.webhook.v1.RedeliverWebhookDeliveryRequest.
+ * Use `create(RedeliverWebhookDeliveryRequestSchema)` to create a new message.
+ */
+export const RedeliverWebhookDeliveryRequestSchema: GenMessage<RedeliverWebhookDeliveryRequest, {jsonType: RedeliverWebhookDeliveryRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_webhook_v1_webhook, 12);
+
+/**
+ * @generated from message loco.webhook.v1.RedeliverWebhookDeliveryResponse
+ */
+export type RedeliverWebhookDeliveryResponse = Message<"loco.webhook.v1.RedeliverWebhookDeliveryResponse"> & {
+};
+
+/**
+ * @generated from message loco.webhook.v1.RedeliverWebhookDeliveryResponse
+ */
+export type RedeliverWebhookDeliveryResponseJson = {
+};
+
+/**
+ * Describes the message loco.webhook.v1.RedeliverWebhookDeliveryResponse.
+ * Use `create(RedeliverWebhookDeliveryResponseSchema)` to create a new message.
+ */
+export const RedeliverWebhookDeliveryResponseSchema: GenMessage<RedeliverWebhookDeliveryResponse, {jsonType: RedeliverWebhookDeliveryResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_webhook_v1_webhook, 13);
+
+/**
+ * @generated from message loco.webhook.v1.SendTestEventRequest
+ */
+export type SendTestEventRequest = Message<"loco.webhook.v1.SendTestEventRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string webhook_id = 2;
+   */
+  webhookId: string;
+};
+
+/**
+ * @generated from message loco.webhook.v1.SendTestEventRequest
+ */
+export type SendTestEventRequestJson = {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string webhook_id = 2;
+   */
+  webhookId?: string;
+};
+
+/**
+ * Describes the message loco.webhook.v1.SendTestEventRequest.
+ * Use `create(SendTestEventRequestSchema)` to create a new message.
+ */
+export const SendTestEventRequestSchema: GenMessage<SendTestEventRequest, {jsonType: SendTestEventRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_webhook_v1_webhook, 14);
+
+/**
+ * @generated from message loco.webhook.v1.SendTestEventResponse
+ */
+export type SendTestEventResponse = Message<"loco.webhook.v1.SendTestEventResponse"> & {
+};
+
+/**
+ * @generated from message loco.webhook.v1.SendTestEventResponse
+ */
+export type SendTestEventResponseJson = {
+};
+
+/**
+ * Describes the message loco.webhook.v1.SendTestEventResponse.
+ * Use `create(SendTestEventResponseSchema)` to create a new message.
+ */
+export const SendTestEventResponseSchema: GenMessage<SendTestEventResponse, {jsonType: SendTestEventResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_webhook_v1_webhook, 15);
+
+/**
  * @generated from service loco.webhook.v1.WebhookService
  */
 export const WebhookService: GenService<{
@@ -622,6 +744,28 @@ export const WebhookService: GenService<{
     methodKind: "unary";
     input: typeof ListWebhookDeliveriesRequestSchema;
     output: typeof ListWebhookDeliveriesResponseSchema;
+  },
+  /**
+   * RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
+   * restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
+   *
+   * @generated from rpc loco.webhook.v1.WebhookService.RedeliverWebhookDelivery
+   */
+  redeliverWebhookDelivery: {
+    methodKind: "unary";
+    input: typeof RedeliverWebhookDeliveryRequestSchema;
+    output: typeof RedeliverWebhookDeliveryResponseSchema;
+  },
+  /**
+   * SendTestEvent records a webhook.test event and delivers it to this webhook only, whatever
+   * event types it subscribes to.
+   *
+   * @generated from rpc loco.webhook.v1.WebhookService.SendTestEvent
+   */
+  sendTestEvent: {
+    methodKind: "unary";
+    input: typeof SendTestEventRequestSchema;
+    output: typeof SendTestEventResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_webhook_v1_webhook, 0);

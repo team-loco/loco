@@ -730,6 +730,190 @@ func (x *ListWebhookDeliveriesResponse) GetNextPageToken() string {
 	return ""
 }
 
+type RedeliverWebhookDeliveryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WebhookId     string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	DeliveryId    string                 `protobuf:"bytes,3,opt,name=delivery_id,json=deliveryId,proto3" json:"delivery_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RedeliverWebhookDeliveryRequest) Reset() {
+	*x = RedeliverWebhookDeliveryRequest{}
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RedeliverWebhookDeliveryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RedeliverWebhookDeliveryRequest) ProtoMessage() {}
+
+func (x *RedeliverWebhookDeliveryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RedeliverWebhookDeliveryRequest.ProtoReflect.Descriptor instead.
+func (*RedeliverWebhookDeliveryRequest) Descriptor() ([]byte, []int) {
+	return file_loco_webhook_v1_webhook_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RedeliverWebhookDeliveryRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *RedeliverWebhookDeliveryRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+func (x *RedeliverWebhookDeliveryRequest) GetDeliveryId() string {
+	if x != nil {
+		return x.DeliveryId
+	}
+	return ""
+}
+
+type RedeliverWebhookDeliveryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RedeliverWebhookDeliveryResponse) Reset() {
+	*x = RedeliverWebhookDeliveryResponse{}
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RedeliverWebhookDeliveryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RedeliverWebhookDeliveryResponse) ProtoMessage() {}
+
+func (x *RedeliverWebhookDeliveryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RedeliverWebhookDeliveryResponse.ProtoReflect.Descriptor instead.
+func (*RedeliverWebhookDeliveryResponse) Descriptor() ([]byte, []int) {
+	return file_loco_webhook_v1_webhook_proto_rawDescGZIP(), []int{13}
+}
+
+type SendTestEventRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WebhookId     string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTestEventRequest) Reset() {
+	*x = SendTestEventRequest{}
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTestEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTestEventRequest) ProtoMessage() {}
+
+func (x *SendTestEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTestEventRequest.ProtoReflect.Descriptor instead.
+func (*SendTestEventRequest) Descriptor() ([]byte, []int) {
+	return file_loco_webhook_v1_webhook_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SendTestEventRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *SendTestEventRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+type SendTestEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTestEventResponse) Reset() {
+	*x = SendTestEventResponse{}
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTestEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTestEventResponse) ProtoMessage() {}
+
+func (x *SendTestEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_webhook_v1_webhook_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTestEventResponse.ProtoReflect.Descriptor instead.
+func (*SendTestEventResponse) Descriptor() ([]byte, []int) {
+	return file_loco_webhook_v1_webhook_proto_rawDescGZIP(), []int{15}
+}
+
 var File_loco_webhook_v1_webhook_proto protoreflect.FileDescriptor
 
 const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
@@ -796,13 +980,27 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\n" +
 	"deliveries\x18\x01 \x03(\v2 .loco.webhook.v1.WebhookDeliveryR\n" +
 	"deliveries\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\x85\x04\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa2\x01\n" +
+	"\x1fRedeliverWebhookDeliveryRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\twebhookId\x12)\n" +
+	"\vdelivery_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"deliveryId\"\"\n" +
+	" RedeliverWebhookDeliveryResponse\"l\n" +
+	"\x14SendTestEventRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\twebhookId\"\x17\n" +
+	"\x15SendTestEventResponse2\xe6\x05\n" +
 	"\x0eWebhookService\x12^\n" +
 	"\rCreateWebhook\x12%.loco.webhook.v1.CreateWebhookRequest\x1a&.loco.webhook.v1.CreateWebhookResponse\x12[\n" +
 	"\fListWebhooks\x12$.loco.webhook.v1.ListWebhooksRequest\x1a%.loco.webhook.v1.ListWebhooksResponse\x12^\n" +
 	"\rUpdateWebhook\x12%.loco.webhook.v1.UpdateWebhookRequest\x1a&.loco.webhook.v1.UpdateWebhookResponse\x12^\n" +
 	"\rDeleteWebhook\x12%.loco.webhook.v1.DeleteWebhookRequest\x1a&.loco.webhook.v1.DeleteWebhookResponse\x12v\n" +
-	"\x15ListWebhookDeliveries\x12-.loco.webhook.v1.ListWebhookDeliveriesRequest\x1a..loco.webhook.v1.ListWebhookDeliveriesResponseB<Z:github.com/team-loco/loco/gen/go/loco/webhook/v1;webhookv1b\x06proto3"
+	"\x15ListWebhookDeliveries\x12-.loco.webhook.v1.ListWebhookDeliveriesRequest\x1a..loco.webhook.v1.ListWebhookDeliveriesResponse\x12\x7f\n" +
+	"\x18RedeliverWebhookDelivery\x120.loco.webhook.v1.RedeliverWebhookDeliveryRequest\x1a1.loco.webhook.v1.RedeliverWebhookDeliveryResponse\x12^\n" +
+	"\rSendTestEvent\x12%.loco.webhook.v1.SendTestEventRequest\x1a&.loco.webhook.v1.SendTestEventResponseB<Z:github.com/team-loco/loco/gen/go/loco/webhook/v1;webhookv1b\x06proto3"
 
 var (
 	file_loco_webhook_v1_webhook_proto_rawDescOnce sync.Once
@@ -816,27 +1014,31 @@ func file_loco_webhook_v1_webhook_proto_rawDescGZIP() []byte {
 	return file_loco_webhook_v1_webhook_proto_rawDescData
 }
 
-var file_loco_webhook_v1_webhook_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_loco_webhook_v1_webhook_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_loco_webhook_v1_webhook_proto_goTypes = []any{
-	(*Webhook)(nil),                       // 0: loco.webhook.v1.Webhook
-	(*WebhookDelivery)(nil),               // 1: loco.webhook.v1.WebhookDelivery
-	(*CreateWebhookRequest)(nil),          // 2: loco.webhook.v1.CreateWebhookRequest
-	(*CreateWebhookResponse)(nil),         // 3: loco.webhook.v1.CreateWebhookResponse
-	(*ListWebhooksRequest)(nil),           // 4: loco.webhook.v1.ListWebhooksRequest
-	(*ListWebhooksResponse)(nil),          // 5: loco.webhook.v1.ListWebhooksResponse
-	(*UpdateWebhookRequest)(nil),          // 6: loco.webhook.v1.UpdateWebhookRequest
-	(*UpdateWebhookResponse)(nil),         // 7: loco.webhook.v1.UpdateWebhookResponse
-	(*DeleteWebhookRequest)(nil),          // 8: loco.webhook.v1.DeleteWebhookRequest
-	(*DeleteWebhookResponse)(nil),         // 9: loco.webhook.v1.DeleteWebhookResponse
-	(*ListWebhookDeliveriesRequest)(nil),  // 10: loco.webhook.v1.ListWebhookDeliveriesRequest
-	(*ListWebhookDeliveriesResponse)(nil), // 11: loco.webhook.v1.ListWebhookDeliveriesResponse
-	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
+	(*Webhook)(nil),                          // 0: loco.webhook.v1.Webhook
+	(*WebhookDelivery)(nil),                  // 1: loco.webhook.v1.WebhookDelivery
+	(*CreateWebhookRequest)(nil),             // 2: loco.webhook.v1.CreateWebhookRequest
+	(*CreateWebhookResponse)(nil),            // 3: loco.webhook.v1.CreateWebhookResponse
+	(*ListWebhooksRequest)(nil),              // 4: loco.webhook.v1.ListWebhooksRequest
+	(*ListWebhooksResponse)(nil),             // 5: loco.webhook.v1.ListWebhooksResponse
+	(*UpdateWebhookRequest)(nil),             // 6: loco.webhook.v1.UpdateWebhookRequest
+	(*UpdateWebhookResponse)(nil),            // 7: loco.webhook.v1.UpdateWebhookResponse
+	(*DeleteWebhookRequest)(nil),             // 8: loco.webhook.v1.DeleteWebhookRequest
+	(*DeleteWebhookResponse)(nil),            // 9: loco.webhook.v1.DeleteWebhookResponse
+	(*ListWebhookDeliveriesRequest)(nil),     // 10: loco.webhook.v1.ListWebhookDeliveriesRequest
+	(*ListWebhookDeliveriesResponse)(nil),    // 11: loco.webhook.v1.ListWebhookDeliveriesResponse
+	(*RedeliverWebhookDeliveryRequest)(nil),  // 12: loco.webhook.v1.RedeliverWebhookDeliveryRequest
+	(*RedeliverWebhookDeliveryResponse)(nil), // 13: loco.webhook.v1.RedeliverWebhookDeliveryResponse
+	(*SendTestEventRequest)(nil),             // 14: loco.webhook.v1.SendTestEventRequest
+	(*SendTestEventResponse)(nil),            // 15: loco.webhook.v1.SendTestEventResponse
+	(*timestamppb.Timestamp)(nil),            // 16: google.protobuf.Timestamp
 }
 var file_loco_webhook_v1_webhook_proto_depIdxs = []int32{
-	12, // 0: loco.webhook.v1.Webhook.created_at:type_name -> google.protobuf.Timestamp
-	12, // 1: loco.webhook.v1.WebhookDelivery.created_at:type_name -> google.protobuf.Timestamp
-	12, // 2: loco.webhook.v1.WebhookDelivery.delivered_at:type_name -> google.protobuf.Timestamp
-	12, // 3: loco.webhook.v1.WebhookDelivery.next_attempt_at:type_name -> google.protobuf.Timestamp
+	16, // 0: loco.webhook.v1.Webhook.created_at:type_name -> google.protobuf.Timestamp
+	16, // 1: loco.webhook.v1.WebhookDelivery.created_at:type_name -> google.protobuf.Timestamp
+	16, // 2: loco.webhook.v1.WebhookDelivery.delivered_at:type_name -> google.protobuf.Timestamp
+	16, // 3: loco.webhook.v1.WebhookDelivery.next_attempt_at:type_name -> google.protobuf.Timestamp
 	0,  // 4: loco.webhook.v1.CreateWebhookResponse.webhook:type_name -> loco.webhook.v1.Webhook
 	0,  // 5: loco.webhook.v1.ListWebhooksResponse.webhooks:type_name -> loco.webhook.v1.Webhook
 	0,  // 6: loco.webhook.v1.UpdateWebhookResponse.webhook:type_name -> loco.webhook.v1.Webhook
@@ -846,13 +1048,17 @@ var file_loco_webhook_v1_webhook_proto_depIdxs = []int32{
 	6,  // 10: loco.webhook.v1.WebhookService.UpdateWebhook:input_type -> loco.webhook.v1.UpdateWebhookRequest
 	8,  // 11: loco.webhook.v1.WebhookService.DeleteWebhook:input_type -> loco.webhook.v1.DeleteWebhookRequest
 	10, // 12: loco.webhook.v1.WebhookService.ListWebhookDeliveries:input_type -> loco.webhook.v1.ListWebhookDeliveriesRequest
-	3,  // 13: loco.webhook.v1.WebhookService.CreateWebhook:output_type -> loco.webhook.v1.CreateWebhookResponse
-	5,  // 14: loco.webhook.v1.WebhookService.ListWebhooks:output_type -> loco.webhook.v1.ListWebhooksResponse
-	7,  // 15: loco.webhook.v1.WebhookService.UpdateWebhook:output_type -> loco.webhook.v1.UpdateWebhookResponse
-	9,  // 16: loco.webhook.v1.WebhookService.DeleteWebhook:output_type -> loco.webhook.v1.DeleteWebhookResponse
-	11, // 17: loco.webhook.v1.WebhookService.ListWebhookDeliveries:output_type -> loco.webhook.v1.ListWebhookDeliveriesResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
+	12, // 13: loco.webhook.v1.WebhookService.RedeliverWebhookDelivery:input_type -> loco.webhook.v1.RedeliverWebhookDeliveryRequest
+	14, // 14: loco.webhook.v1.WebhookService.SendTestEvent:input_type -> loco.webhook.v1.SendTestEventRequest
+	3,  // 15: loco.webhook.v1.WebhookService.CreateWebhook:output_type -> loco.webhook.v1.CreateWebhookResponse
+	5,  // 16: loco.webhook.v1.WebhookService.ListWebhooks:output_type -> loco.webhook.v1.ListWebhooksResponse
+	7,  // 17: loco.webhook.v1.WebhookService.UpdateWebhook:output_type -> loco.webhook.v1.UpdateWebhookResponse
+	9,  // 18: loco.webhook.v1.WebhookService.DeleteWebhook:output_type -> loco.webhook.v1.DeleteWebhookResponse
+	11, // 19: loco.webhook.v1.WebhookService.ListWebhookDeliveries:output_type -> loco.webhook.v1.ListWebhookDeliveriesResponse
+	13, // 20: loco.webhook.v1.WebhookService.RedeliverWebhookDelivery:output_type -> loco.webhook.v1.RedeliverWebhookDeliveryResponse
+	15, // 21: loco.webhook.v1.WebhookService.SendTestEvent:output_type -> loco.webhook.v1.SendTestEventResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -869,7 +1075,7 @@ func file_loco_webhook_v1_webhook_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_webhook_v1_webhook_proto_rawDesc), len(file_loco_webhook_v1_webhook_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

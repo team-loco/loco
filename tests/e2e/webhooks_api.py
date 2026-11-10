@@ -60,10 +60,16 @@ threading.Thread(target=server.serve_forever, daemon=True).start()
 base_url = f"http://{evidence.HOST}:{server.server_address[1]}"
 
 
-def receive(path):
-    request = Receiver.received.get(timeout=DELIVERY_TIMEOUT_S)
-    assert request["path"] == path, (request["path"], path)
-    return request
+def receive(path, match=lambda request: True):
+    deadline = time.monotonic() + DELIVERY_TIMEOUT_S
+    while True:
+        request = Receiver.received.get(timeout=max(deadline - time.monotonic(), 0.1))
+        if request["path"] == path and match(request):
+            return request
+
+
+def header(request, name):
+    return {key.lower(): value for key, value in request["headers"].items()}[name]
 
 
 def signatures(secret, request):
@@ -121,6 +127,24 @@ assert failing["id"] not in [d["id"] for d in deliveries(status="succeeded")["de
 first_page = deliveries(pageSize=1)
 second_page = deliveries(pageSize=1, pageToken=first_page["nextPageToken"])
 assert first_page["deliveries"][0]["id"] == failing["id"] and second_page["deliveries"][0]["id"] != failing["id"]
+
+call("loco.webhook.v1.WebhookService/UpdateWebhook", {"workspaceId": workspace, "webhookId": hook, "url": f"{base_url}/second", "eventTypes": ["workspace.updated"]})
+try:
+    call("loco.webhook.v1.WebhookService/RedeliverWebhookDelivery", {"workspaceId": workspace, "webhookId": hook, "deliveryId": failing["id"]})
+except evidence.RPCError as error:
+    assert error.code == "failed_precondition", error.code
+else:
+    raise AssertionError("a pending delivery was redelivered")
+succeeded = deliveries(status="succeeded")["deliveries"][-1]
+call("loco.webhook.v1.WebhookService/RedeliverWebhookDelivery", {"workspaceId": workspace, "webhookId": hook, "deliveryId": succeeded["id"]})
+redelivered = receive("/second", lambda request: header(request, "webhook-id") == succeeded["id"])
+assert_signed(secret, redelivered)
+assert json.loads(first["body"]) == json.loads(redelivered["body"])
+
+call("loco.webhook.v1.WebhookService/SendTestEvent", {"workspaceId": workspace, "webhookId": hook})
+ping = receive("/second", lambda request: json.loads(request["body"])["type"] == "webhook.test")
+assert_signed(secret, ping)
+assert json.loads(ping["body"])["subject"] == {"type": "webhook", "id": hook}
 
 server.shutdown()
 print("PASS: webhook deliveries", flush=True)

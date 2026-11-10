@@ -43,6 +43,16 @@ WHERE d.webhook_id = sqlc.arg('webhook_id')
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('max_rows');
 
+-- name: LockWebhookDeliveryStatus :one
+SELECT status FROM webhook_deliveries
+WHERE id = sqlc.arg('id') AND webhook_id = sqlc.arg('webhook_id')
+FOR UPDATE;
+
+-- name: RequeueWebhookDelivery :exec
+UPDATE webhook_deliveries
+SET status = 'pending', attempts = 0, next_attempt_at = NOW(), delivered_at = NULL, last_error = NULL
+WHERE id = $1;
+
 -- name: ClaimWebhookDeliveries :many
 UPDATE webhook_deliveries d
 SET next_attempt_at = NOW() + make_interval(secs => sqlc.arg('lease_seconds')::int),

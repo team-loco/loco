@@ -67,6 +67,9 @@ const (
 	WebhookCreated     = "webhook.created"
 	WebhookUpdated     = "webhook.updated"
 	WebhookDeleted     = "webhook.deleted"
+	// WebhookTest is matched by name in the events_enqueue_webhooks trigger
+	// (migrations/00004_events.sql); update it too.
+	WebhookTest        = "webhook.test"
 	SecretSet          = "secret.set"
 	SecretDeleted      = "secret.deleted"
 	SecretKeyRewrapped = "secret_key.rewrapped"

@@ -6158,6 +6158,130 @@
         }
       }
     },
+    "/loco.webhook.v1.WebhookService/RedeliverWebhookDelivery": {
+      "post": {
+        "tags": [
+          "loco.webhook.v1.WebhookService"
+        ],
+        "summary": "RedeliverWebhookDelivery",
+        "description": "RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,\n restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.",
+        "operationId": "loco.webhook.v1.WebhookService.RedeliverWebhookDelivery",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.webhook.v1.RedeliverWebhookDeliveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.webhook.v1.RedeliverWebhookDeliveryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.webhook.v1.WebhookService/SendTestEvent": {
+      "post": {
+        "tags": [
+          "loco.webhook.v1.WebhookService"
+        ],
+        "summary": "SendTestEvent",
+        "description": "SendTestEvent records a webhook.test event and delivers it to this webhook only, whatever\n event types it subscribes to.",
+        "operationId": "loco.webhook.v1.WebhookService.SendTestEvent",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.webhook.v1.SendTestEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.webhook.v1.SendTestEventResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.webhook.v1.WebhookService/UpdateWebhook": {
       "post": {
         "tags": [
@@ -13337,6 +13461,55 @@
           }
         },
         "title": "ListWebhooksResponse",
+        "additionalProperties": false
+      },
+      "loco.webhook.v1.RedeliverWebhookDeliveryRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "webhookId": {
+            "type": "string",
+            "title": "webhook_id",
+            "format": "uuid"
+          },
+          "deliveryId": {
+            "type": "string",
+            "title": "delivery_id",
+            "format": "uuid"
+          }
+        },
+        "title": "RedeliverWebhookDeliveryRequest",
+        "additionalProperties": false
+      },
+      "loco.webhook.v1.RedeliverWebhookDeliveryResponse": {
+        "type": "object",
+        "title": "RedeliverWebhookDeliveryResponse",
+        "additionalProperties": false
+      },
+      "loco.webhook.v1.SendTestEventRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "webhookId": {
+            "type": "string",
+            "title": "webhook_id",
+            "format": "uuid"
+          }
+        },
+        "title": "SendTestEventRequest",
+        "additionalProperties": false
+      },
+      "loco.webhook.v1.SendTestEventResponse": {
+        "type": "object",
+        "title": "SendTestEventResponse",
         "additionalProperties": false
       },
       "loco.webhook.v1.UpdateWebhookRequest": {

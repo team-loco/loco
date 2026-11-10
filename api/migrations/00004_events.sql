@@ -88,11 +88,15 @@ CREATE INDEX webhook_deliveries_webhook_idx ON webhook_deliveries (webhook_id, c
 -- +goose StatementBegin
 CREATE FUNCTION events_enqueue_webhooks() RETURNS trigger AS $$
 BEGIN
+    -- A test event goes only to the webhook it tests, whatever that webhook subscribes to.
     INSERT INTO webhook_deliveries (webhook_id, event_seq)
     SELECT w.id, NEW.seq
     FROM webhooks w
-    WHERE (w.kind = 'install' OR (w.kind = 'workspace' AND w.workspace_id = NEW.workspace_id))
-      AND (cardinality(w.event_types) = 0 OR NEW.type = ANY(w.event_types));
+    WHERE CASE
+        WHEN NEW.type = 'webhook.test' THEN w.id = NEW.subject_id
+        ELSE (w.kind = 'install' OR (w.kind = 'workspace' AND w.workspace_id = NEW.workspace_id))
+            AND (cardinality(w.event_types) = 0 OR NEW.type = ANY(w.event_types))
+    END;
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
