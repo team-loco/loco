@@ -1,5 +1,4 @@
 import type { ParsedQuery } from "@/lib/obs-query-parser";
-import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import type { ObservabilityView } from "@/lib/routes";
 
@@ -241,7 +240,7 @@ export function buildBackendQuery(tokens: Token[], text: string, resources: ObsR
 	};
 }
 
-const PINNED_KEY = "loco:pinned-queries:v1";
+export const PINNED_KEY = "loco:pinned-queries:v1";
 const RECENT_KEY_PREFIX = "loco:recent-queries:v1";
 const RECENT_VIEWS = new Set<ObservabilityView>(["logs", "metrics", "traces"]);
 const RECENT_KEEP = 8;
@@ -255,40 +254,18 @@ export interface RecentQuery {
 	ts: number;
 }
 
-function isStringArray(v: unknown): v is string[] {
-	return Array.isArray(v) && v.every((x) => typeof x === "string");
+export function pinnedQueries(v: unknown): string[] {
+	return Array.isArray(v) && v.every((x) => typeof x === "string") ? v : [];
 }
 
-function isRecentList(v: unknown): v is RecentQuery[] {
+function isRecentQuery(x: unknown): x is RecentQuery {
 	return (
-		Array.isArray(v) &&
-		v.every(
-			(x: unknown) =>
-				typeof x === "object" &&
-				x !== null &&
-				"q" in x &&
-				"ts" in x &&
-				typeof x.q === "string" &&
-				typeof x.ts === "number",
-		)
+		typeof x === "object" && x !== null && "q" in x && "ts" in x && typeof x.q === "string" && typeof x.ts === "number"
 	);
 }
 
-function readJSON(key: string): unknown {
-	try {
-		return JSON.parse(readStorage(key) ?? "null");
-	} catch {
-		return null;
-	}
-}
-
-export function readPinned(): string[] {
-	const raw = readJSON(PINNED_KEY);
-	return isStringArray(raw) ? raw : [];
-}
-
-export function writePinned(pinned: string[]) {
-	writeStorage(PINNED_KEY, JSON.stringify(pinned));
+export function recentQueries(v: unknown): RecentQuery[] {
+	return Array.isArray(v) && v.every(isRecentQuery) ? v : [];
 }
 
 export function recentKey(orgId: string, workspaceId: string, view: ObservabilityView): string | null {
@@ -309,22 +286,6 @@ export function addRecent(list: RecentQuery[], q: string, ts: number): RecentQue
 
 export function shownRecent(list: RecentQuery[], current: string): RecentQuery[] {
 	return list.filter((r) => r.q !== current).slice(0, RECENT_SHOWN);
-}
-
-export function readRecent(key: string | null): RecentQuery[] {
-	if (key === null) return [];
-	const raw = readJSON(key);
-	return isRecentList(raw) ? raw : [];
-}
-
-export function saveRecent(key: string, q: string): RecentQuery[] {
-	const next = addRecent(readRecent(key), q, Date.now());
-	writeStorage(key, JSON.stringify(next));
-	return next;
-}
-
-export function clearRecent(key: string) {
-	removeStorage(key);
 }
 
 export function agoShort(ms: number, nowMs: number): string {

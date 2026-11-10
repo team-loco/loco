@@ -5,29 +5,29 @@ import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
 import { SoonTag } from "@/components/design/SoonTag";
 import { formatCount } from "@/lib/format";
+import { useStoredJSON } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
 import { levelStyle } from "./format";
 import {
+	addRecent,
 	agoShort,
-	clearRecent,
 	fieldDef,
 	isFieldKey,
 	levelOf,
 	parseQuery,
+	PINNED_KEY,
+	pinnedQueries,
 	queryStr,
-	readPinned,
-	readRecent,
 	recentKey,
+	recentQueries,
 	recentQuery,
 	sameToken,
-	saveRecent,
 	searchesText,
 	shownRecent,
 	tokenSupport,
 	viewFields,
-	writePinned,
 	type FieldDef,
 	type FieldKey,
 	type Token,
@@ -84,27 +84,22 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const [open, setOpen] = useState(false);
 	const [now, setNow] = useState(Date.now);
 	const [hi, setHi] = useState(0);
-	const [pinnedList, setPinnedList] = useState(readPinned);
+	const [pinnedList, updatePinned] = useStoredJSON(PINNED_KEY, pinnedQueries);
 	const scope = recentKey(orgId, workspaceId, view);
-	const [recentScope, setRecentScope] = useState(scope);
-	const [recent, setRecent] = useState(() => readRecent(scope));
-	if (recentScope !== scope) {
-		setRecentScope(scope);
-		setRecent(readRecent(scope));
-	}
+	const [recent, updateRecent] = useStoredJSON(scope, recentQueries);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const appliedRecent = recentQuery(view, tokens, applied);
 	useEffect(() => {
-		if (scope === null || appliedRecent === "") return;
+		if (appliedRecent === "") return;
 		const timer = setTimeout(() => {
-			setRecent(saveRecent(scope, appliedRecent));
+			updateRecent((list) => addRecent(list, appliedRecent, Date.now()));
 		}, RECENT_SAVE_MS);
 		return () => {
 			clearTimeout(timer);
 		};
-	}, [scope, appliedRecent]);
+	}, [appliedRecent, updateRecent]);
 
 	const fields = viewFields(view);
 	const support = tokenSupport(view, tokens);
@@ -113,11 +108,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const cur = words.at(-1) ?? "";
 	const focusInput = () => {
 		inputRef.current?.focus();
-	};
-
-	const updatePinned = (next: string[]) => {
-		writePinned(next);
-		setPinnedList(next);
 	};
 
 	const setTokens = (next: Token[], nextText = text) => {
@@ -139,7 +129,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		const p = parseQuery(text);
 		const nextTokens = [...tokens, ...p.tokens];
 		const q = recentQuery(view, nextTokens, p.text);
-		if (scope !== null && q !== "") setRecent(saveRecent(scope, q));
+		if (q !== "") updateRecent((list) => addRecent(list, q, Date.now()));
 		setText(p.text);
 		setQuery(nextTokens, p.text);
 		setOpen(false);
@@ -221,7 +211,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 						loadQuery(q);
 					},
 					remove: () => {
-						updatePinned(pinnedList.filter((x) => x !== q));
+						updatePinned((list) => list.filter((x) => x !== q));
 					},
 				})),
 			});
@@ -234,8 +224,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					<Button
 						variant="link"
 						onClick={() => {
-							clearRecent(scope);
-							setRecent([]);
+							updateRecent(() => null);
 							setHi(0);
 							focusInput();
 						}}
@@ -418,8 +407,8 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					disabled={curQuery === ""}
 					onClick={(e) => {
 						e.stopPropagation();
-						updatePinned(
-							pinned ? pinnedList.filter((x) => x !== curQuery) : [curQuery, ...pinnedList].slice(0, MAX_PINNED),
+						updatePinned((list) =>
+							pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
 						);
 					}}
 					className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
