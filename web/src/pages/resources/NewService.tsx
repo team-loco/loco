@@ -258,6 +258,7 @@ export function DraftSheet({
 	const [healthOpen, setHealthOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
 	const [secretValues, setSecretValues] = useState<ReadonlyMap<string, string>>(() => new Map());
+	const [saveFailed, setSaveFailed] = useState(false);
 	const close = () => {
 		const next = new URLSearchParams(params);
 		next.delete(DRAFT_PARAM);
@@ -319,9 +320,11 @@ export function DraftSheet({
 				onEdit={(edits) => {
 					deployment.clearError();
 					if (!store.edit(draft.id, edits)) {
-						toast.error("Couldn't save changes to this draft");
+						if (!saveFailed) toast.error("Couldn't save changes to this draft");
+						setSaveFailed(true);
 						return;
 					}
+					setSaveFailed(false);
 					if (edits.vars !== undefined) {
 						setSecretValues(
 							new Map(edits.vars.filter((row) => row.secret).map((row) => [secretRowKey(row), row.value])),

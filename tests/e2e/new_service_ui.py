@@ -221,6 +221,26 @@ with sync_playwright() as playwright:
                 expect(log_level).to_have_value("debug")
                 expect(secret_value).to_have_value("sk_test")
                 log_level.fill("info")
+                # A draft that cannot be saved reports it once, not on every keystroke.
+                save_failed = page.get_by_text("Couldn't save changes to this draft", exact=True)
+                for _ in range(2):
+                    page.evaluate("""key => {
+                        window.realSetItem = Storage.prototype.setItem;
+                        Storage.prototype.setItem = function (name, value) {
+                            if (name === key) throw new DOMException("full", "QuotaExceededError");
+                            return window.realSetItem.call(this, name, value);
+                        };
+                    }""", drafts_key)
+                    log_level.press_sequentially("abc")
+                    page.wait_for_timeout(500)
+                    expect(save_failed).to_have_count(1)
+                    expect(log_level).to_have_value("info")
+                    page.evaluate("() => { Storage.prototype.setItem = window.realSetItem; }")
+                    # A successful save shows the next failure again.
+                    log_level.press_sequentially("x")
+                    expect(log_level).to_have_value("infox")
+                    log_level.fill("info")
+                    expect(save_failed).to_have_count(0, timeout=10_000)
                 drawer.get_by_text("loco.yaml", exact=True).first.click()
                 expect(drawer.get_by_text("secrets: [STRIPE_API_KEY]", exact=False)).to_be_visible()
                 assert "sk_test" not in drawer.inner_text()
