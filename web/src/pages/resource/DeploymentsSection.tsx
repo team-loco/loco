@@ -346,7 +346,7 @@ export function DeploymentsSection({
 												{created === undefined ? "—" : agoLabel(created, nowMs)}
 											</TableCell>
 										</TableRow>
-										<CollapsibleContent render={<TableRow />}>
+										<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
 											<TableCell colSpan={columns} className="h-auto p-0 whitespace-normal">
 												<Detail
 													row={row}

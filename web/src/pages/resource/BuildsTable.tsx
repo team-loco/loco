@@ -306,7 +306,7 @@ export function BuildsTable({
 									{created === undefined ? "—" : agoLabel(created, nowMs)}
 								</TableCell>
 							</TableRow>
-							<CollapsibleContent render={<TableRow />}>
+							<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
 								<TableCell colSpan={COLUMNS} className="h-auto p-0 whitespace-normal">
 									<Detail
 										build={build}
