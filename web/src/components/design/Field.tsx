@@ -24,7 +24,7 @@ export function Field({
 			</FieldPrimitive.Label>
 			{children}
 			{failed ? (
-				<FieldPrimitive.Error match render={<FieldError />} className="text-[12.5px] text-bad-fg">
+				<FieldPrimitive.Error match render={<FieldError role={undefined} />} className="text-[12.5px] text-bad-fg">
 					{error}
 				</FieldPrimitive.Error>
 			) : (
