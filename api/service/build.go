@@ -21,12 +21,16 @@ import (
 	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
 	buildSourceTypeUpload = "upload"
 	defaultBuildContext   = "."
+	// maxGitCommitMessageRunes bounds the stored subject line; longer ones are clipped
+	// rather than refused, so commit metadata never fails a build.
+	maxGitCommitMessageRunes = 4096
 )
 
 var (
@@ -145,6 +149,10 @@ func (s *BuildServer) CreateBuild(
 		resource.ID,
 	)
 	dockerfilePath := req.GetDockerfilePath()
+	var gitCommitMessage *string
+	if req.GitCommitMessage != nil {
+		gitCommitMessage = new(clip.Runes(req.GetGitCommitMessage(), maxGitCommitMessageRunes))
+	}
 	buildContext := req.GetContext()
 	if buildContext == "" {
 		buildContext = defaultBuildContext
@@ -162,7 +170,7 @@ func (s *BuildServer) CreateBuild(
 			CreatedBy:        p.Entity.ID,
 			GitCommit:        req.GitCommit,
 			GitBranch:        req.GitBranch,
-			GitCommitMessage: req.GitCommitMessage,
+			GitCommitMessage: gitCommitMessage,
 			GitDirty:         req.GitDirty,
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)

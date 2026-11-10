@@ -85,7 +85,8 @@ message CreateBuildRequest {
     min_len: 1
     max_len: 1024
   }];
-  optional string git_commit_message = 7 [(buf.validate.field).string.max_len = 4096];
+  // git_commit_message longer than the API's limit is stored clipped.
+  optional string git_commit_message = 7;
   optional bool git_dirty = 8;
 }
 

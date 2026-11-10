@@ -39,3 +39,25 @@ func TestBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestRunes(t *testing.T) {
+	tests := []struct {
+		name  string
+		in    string
+		limit int
+		want  string
+	}{
+		{"shorter than the limit", short, 5, short},
+		{"exactly the limit", euroEnd, 3, euroEnd},
+		{"over the limit", euroEnd, 2, "ab"},
+		{"multi-byte runes", "€€€", 2, "€€"},
+		{"zero limit", short, 0, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := clip.Runes(tt.in, tt.limit); got != tt.want {
+				t.Fatalf("Runes(%q, %d) = %q, want %q", tt.in, tt.limit, got, tt.want)
+			}
+		})
+	}
+}

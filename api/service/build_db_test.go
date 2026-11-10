@@ -8,7 +8,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -652,5 +654,29 @@ func TestCreateBuildStoresTheGitCommit(t *testing.T) {
 			t.Fatalf("%s returned commit %q, branch %q, message %q, dirty %v; want the request's values",
 				source, got.GetGitCommit(), got.GetGitBranch(), got.GetGitCommitMessage(), got.GitDirty)
 		}
+	}
+}
+
+func TestCreateBuildClipsALongCommitMessage(t *testing.T) {
+	f := newBuildFixture(t)
+	subject := strings.Repeat("€", maxGitCommitMessageRunes+1)
+	req := &buildv1.CreateBuildRequest{
+		ResourceId:       f.resourceID.String(),
+		DockerfilePath:   testDockerfile,
+		SourceSize:       1,
+		GitCommit:        new("0123456789abcdef0123456789abcdef01234567"),
+		GitCommitMessage: &subject,
+	}
+	if err := protovalidate.Validate(req); err != nil {
+		t.Fatalf("validate a long commit message: %v", err)
+	}
+	resp, err := f.server.CreateBuild(f.ctx, req)
+	if err != nil {
+		t.Fatalf("create build: %v", err)
+	}
+	want := strings.Repeat("€", maxGitCommitMessageRunes)
+	if got := f.get(t, resp.GetBuildId()).GetGitCommitMessage(); got != want {
+		t.Fatalf("stored a %d-rune message, want it clipped to %d runes",
+			utf8.RuneCountInString(got), maxGitCommitMessageRunes)
 	}
 }

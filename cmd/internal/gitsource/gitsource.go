@@ -21,7 +21,6 @@ type Commit struct {
 	Dirty bool
 }
 
-// Read returns the commit dir is checked out at.
 func Read(ctx context.Context, dir string) (Commit, error) {
 	status, err := git(ctx, dir, "status", "--porcelain=v2", "--branch")
 	// git exits non-zero both outside a work tree and in one it cannot read; telling them

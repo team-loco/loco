@@ -337,8 +337,9 @@ type CreateBuildRequest struct {
 	// context is the build context directory relative to the uploaded source; "." when empty.
 	Context string `protobuf:"bytes,4,opt,name=context,proto3" json:"context,omitempty"`
 	// The git_* fields carry the same values as on Build; branch is unset on a detached HEAD.
-	GitCommit        *string `protobuf:"bytes,5,opt,name=git_commit,json=gitCommit,proto3,oneof" json:"git_commit,omitempty"`
-	GitBranch        *string `protobuf:"bytes,6,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
+	GitCommit *string `protobuf:"bytes,5,opt,name=git_commit,json=gitCommit,proto3,oneof" json:"git_commit,omitempty"`
+	GitBranch *string `protobuf:"bytes,6,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
+	// git_commit_message longer than the API's limit is stored clipped.
 	GitCommitMessage *string `protobuf:"bytes,7,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
 	GitDirty         *bool   `protobuf:"varint,8,opt,name=git_dirty,json=gitDirty,proto3,oneof" json:"git_dirty,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -916,7 +917,7 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\x13_git_commit_messageB\f\n" +
 	"\n" +
 	"_git_dirty\"\x13\n" +
-	"\x11BuildsUnavailable\"\x98\a\n" +
+	"\x11BuildsUnavailable\"\x8e\a\n" +
 	"\x12CreateBuildRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\x80\x02\n" +
@@ -930,8 +931,8 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"git_commit\x18\x05 \x01(\tB$\xbaH!r\x1f2\x1d^[0-9a-f]{40}([0-9a-f]{24})?$H\x00R\tgitCommit\x88\x01\x01\x12.\n" +
 	"\n" +
 	"git_branch\x18\x06 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\bH\x01R\tgitBranch\x88\x01\x01\x12;\n" +
-	"\x12git_commit_message\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80 H\x02R\x10gitCommitMessage\x88\x01\x01\x12 \n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\bH\x01R\tgitBranch\x88\x01\x01\x121\n" +
+	"\x12git_commit_message\x18\a \x01(\tH\x02R\x10gitCommitMessage\x88\x01\x01\x12 \n" +
 	"\tgit_dirty\x18\b \x01(\bH\x03R\bgitDirty\x88\x01\x01B\r\n" +
 	"\v_git_commitB\r\n" +
 	"\v_git_branchB\x15\n" +

@@ -7925,7 +7925,7 @@
               "null"
             ],
             "title": "git_commit_message",
-            "maxLength": 4096
+            "description": "git_commit_message longer than the API's limit is stored clipped."
           },
           "gitDirty": {
             "type": [
