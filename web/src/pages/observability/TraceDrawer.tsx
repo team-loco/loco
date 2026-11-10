@@ -132,7 +132,6 @@ function FlameGraph({
 				<div className="mr-auto flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-fg2">
 					{shares.map((s) => (
 						<span key={s.service} className="flex items-center gap-1.5" title="Share of self time">
-							<span className="inline-block h-0 w-3 border-t-2" style={{ borderColor: traceServiceColor(s.service) }} />
 							{s.service || "Unknown service"}
 							<span className="font-mono text-[11.5px] text-fg3">{Math.round(s.share * PERCENT)}%</span>
 						</span>
@@ -375,10 +374,6 @@ export function TraceDrawer({
 								</div>
 							)}
 							<section className="flex min-w-0 items-center gap-2.5" aria-label="Selected span">
-								<span
-									className="inline-block h-0 w-3 border-t-2"
-									style={{ borderColor: traceServiceColor(selected.serviceName) }}
-								/>
 								<h3 className="m-0 min-w-0 truncate font-mono text-[14px] font-medium">
 									{selected.name || "Unnamed span"}
 								</h3>

@@ -53,7 +53,6 @@ export function EventsView() {
 		workspaceId,
 		resources,
 		resourcesLoading,
-		resourceByName,
 		range,
 		tokens,
 		text,
@@ -125,6 +124,7 @@ export function EventsView() {
 
 	const header = (
 		<ViewHeader
+			count={loading || error !== null ? undefined : formatCount(items.length)}
 			actions={
 				<LiveButton
 					on={live}
@@ -166,11 +166,7 @@ export function EventsView() {
 				}
 			>
 				<section aria-label="Events" className="flex min-w-0 flex-col rounded-card bg-panel">
-					<div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-3">
-						<span className="mr-auto text-[13.5px]">
-							{formatCount(items.length)} {items.length === 1 ? "event" : "events"}
-							{live && <span className="ml-2 text-[12.5px] text-fg3">checking every 10 seconds</span>}
-						</span>
+					<div className="flex flex-wrap items-center gap-2.5 px-5 pt-3.5 pb-2.5">
 						<ToggleGroup
 							variant="segmented"
 							aria-label="Show"
@@ -217,7 +213,6 @@ export function EventsView() {
 								{!loading &&
 									paged.rows.map((e) => {
 										const on = e.key === selItem?.key;
-										const res = resourceByName.get(e.resourceName);
 										return (
 											<tr
 												key={e.key}
@@ -251,9 +246,8 @@ export function EventsView() {
 												<td className="px-3">
 													<Link
 														to={resourcePath(orgId, workspaceId, e.resourceId)}
-														className="flex items-center gap-[7px] text-fg2 hover:text-foreground hover:underline"
+														className="text-fg2 hover:text-foreground hover:underline"
 													>
-														<span className="size-2 rounded-[2px]" style={{ background: res?.color ?? "var(--fg4)" }} />
 														{e.resourceName}
 													</Link>
 												</td>

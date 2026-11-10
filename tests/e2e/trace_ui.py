@@ -82,6 +82,7 @@ with sync_playwright() as p:
             evidence.settle(page)
             open_trace = page.get_by_role('region', name='Trace list').get_by_role('button', name='Open trace ' + root_name, exact=True)
             open_trace.wait_for()
+            expect(page.get_by_role('heading', level=1)).to_have_text(re.compile(r'^Traces\s*7$'))
             suffix = f"{theme}{('-narrow' if narrow else '')}"
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
             open_trace.click()
