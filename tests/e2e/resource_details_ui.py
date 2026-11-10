@@ -67,30 +67,33 @@ with sync_playwright() as playwright:
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 try:
                     page.goto(base)
-                    image_button = page.get_by_role("button", name="Copy image " + image, exact=True)
-                    expect(image_button).to_be_visible()
-                    assert len(image_button.inner_text()) < len(image)
-                    image_button.click()
+                    image_label = page.get_by_title(image, exact=True)
+                    expect(image_label).to_be_visible()
+                    assert len(image_label.inner_text()) < len(image)
+                    more = page.get_by_role("button", name="More actions", exact=True)
+                    more.click()
+                    page.get_by_role("menuitem", name="Copy image reference", exact=True).click()
                     assert page.evaluate("navigator.clipboard.readText()") == image
                     expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
-                    view_spec = page.get_by_role("button", name="View spec", exact=True)
-                    view_spec.click()
+                    more.click()
+                    page.get_by_role("menuitem", name="View spec", exact=True).click()
                     dialog = page.get_by_role("dialog")
                     expect(dialog).to_be_visible()
-                    geometry = dialog.locator("pre").evaluate("e => ({height:e.clientHeight, content:e.scrollHeight, width:e.clientWidth, fullWidth:e.scrollWidth})")
+                    evidence.settle(page)
+                    geometry = dialog.locator(".overflow-auto").evaluate("e => ({height:e.clientHeight, content:e.scrollHeight, width:e.clientWidth})")
                     assert geometry["height"] > 0
-                    assert geometry["fullWidth"] <= geometry["width"] + 1, geometry
+                    # Long image references scroll within the spec body.
+                    assert geometry["width"] <= dialog.bounding_box()["width"], geometry
                     if not narrow:
                         assert geometry["content"] <= geometry["height"] + 1, geometry
                     assert dialog.bounding_box()["width"] <= page.viewport_size["width"]
                     dialog.get_by_role("button", name="Close", exact=True).click()
-                    expect(view_spec).to_be_focused()
-                    page.goto(base + "?tab=variables")
-                    expect(page.get_by_text("No secrets for this resource", exact=True)).to_be_visible()
-                    secrets = page.locator("section").filter(has=page.get_by_text("Secrets", exact=True))
+                    expect(more).to_be_focused()
+                    page.goto(base + "?tab=settings")
+                    expect(page.get_by_text("No secrets. Add them here or with", exact=False)).to_be_visible()
+                    secrets = page.locator("#set-env")
                     expect(secrets.get_by_role("button", name="Environment", exact=True)).to_have_count(0)
                     expect(page.get_by_text("declares which secrets", exact=False)).to_have_count(0)
-                    page.goto(base + "?tab=settings")
                     delete = page.get_by_role("button", name="Delete resource", exact=True)
                     expect(delete).to_be_enabled()
                     delete.click()
