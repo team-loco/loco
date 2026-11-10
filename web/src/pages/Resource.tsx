@@ -271,6 +271,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				isSettings={view !== "overview"}
 				dirty={dirty}
 				redeploying={redeploying}
+				canWrite={canWrite}
 				rollbackTarget={rollbackTarget}
 				onEvents={() => {
 					setEventsOpen(true);
@@ -319,6 +320,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							environmentId={environmentId}
 							resourceId={resource.id}
 							logsHref={obsLink("logs")}
+							canWrite={canWrite}
 							onRollback={openRollback}
 						/>
 					)}

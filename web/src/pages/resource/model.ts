@@ -21,6 +21,7 @@ import { shortId } from "./format";
 import { configuredRegions } from "@/lib/resource-regions";
 
 export const PAGE_SIZES = [10, 25, 50, 100];
+export const NEEDS_WRITE = "Needs write access to this resource";
 
 const DEPLOYMENT_HISTORY_SIZE = 200;
 const REFRESH_MS = 15_000;
