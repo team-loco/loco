@@ -676,12 +676,7 @@ build_all() {
 }
 
 pull_build_images() {
-    local image
-    for image in "$BUILDKIT_IMAGE" "$E2E_AWS_CLI_IMAGE"; do
-        if ! docker image inspect "$image" >/dev/null 2>&1; then
-            docker pull -q "$image"
-        fi
-    done
+    go -C "$ROOT_DIR" run ./tools/pullimage "$BUILDKIT_IMAGE" "$E2E_AWS_CLI_IMAGE"
 }
 
 image_reference() {
