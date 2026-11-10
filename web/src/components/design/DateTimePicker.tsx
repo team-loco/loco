@@ -5,7 +5,7 @@ import { Button } from "@/components/design/Button";
 import { Calendar } from "@/components/design/Calendar";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
-import { toLocalInput } from "@/lib/obs-time";
+import { joinLocalInput, toLocalInput } from "@/lib/obs-time";
 
 export function DateTimePicker({
 	label,
@@ -40,7 +40,7 @@ export function DateTimePicker({
 						required
 						onSelect={(date) => {
 							const [nextDay = ""] = toLocalInput(date.getTime()).split("T", 1);
-							onChange(`${nextDay}T${time || "00:00"}`);
+							onChange(joinLocalInput(nextDay, time || "00:00"));
 							setOpen(false);
 						}}
 					/>
@@ -51,7 +51,7 @@ export function DateTimePicker({
 				aria-label={`${label} time`}
 				value={time}
 				onChange={(event) => {
-					onChange(`${day}T${event.target.value}`);
+					onChange(joinLocalInput(day, event.target.value));
 				}}
 				className="h-8 w-[104px] shrink-0 font-mono"
 			/>

@@ -165,6 +165,10 @@ export function toLocalInput(ms: number): string {
 	return `${String(d.getFullYear())}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+export function joinLocalInput(day: string, time: string): string {
+	return day === "" ? "" : `${day}T${time}`;
+}
+
 export function fromLocalInput(value: string): number {
 	return value === "" ? Number.NaN : new Date(value).getTime();
 }
