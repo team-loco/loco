@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
 func TestGetResourceReportsDatabaseFailure(t *testing.T) {
@@ -37,5 +38,30 @@ func TestCheckPermissionReportsDatabaseFailure(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("CheckPermission on a closed pool: got allowed=%v, want the database error", resp.GetAllowed())
+	}
+}
+
+func TestGetUserByEmailReportsDatabaseFailure(t *testing.T) {
+	pool := dbtest.ClosedPool(t)
+	server := NewUserServer(pool, genDb.New(pool), nil, nil)
+	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	_, err := server.GetUser(ctx, &userv1.GetUserRequest{Key: &userv1.GetUserRequest_Email{Email: "a@example.com"}})
+	if err == nil || connect.CodeOf(err) == connect.CodeNotFound {
+		t.Fatalf("GetUser by email on a closed pool: got %v, want a database error that is not NotFound", err)
+	}
+}
+
+func TestSetUserStatusByEmailReportsDatabaseFailure(t *testing.T) {
+	pool := dbtest.ClosedPool(t)
+	server := NewUserServer(pool, genDb.New(pool), nil, nil)
+	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}}
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	_, err := server.SetUserStatus(ctx, &userv1.SetUserStatusRequest{
+		Key:    &userv1.SetUserStatusRequest_Email{Email: "a@example.com"},
+		Status: userv1.UserStatus_USER_STATUS_SUSPENDED,
+	})
+	if err == nil || connect.CodeOf(err) == connect.CodeNotFound {
+		t.Fatalf("SetUserStatus by email on a closed pool: got %v, want a database error that is not NotFound", err)
 	}
 }
