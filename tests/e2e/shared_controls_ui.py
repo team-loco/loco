@@ -197,6 +197,8 @@ with sync_playwright() as playwright:
                         catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)
                         expect(catppuccin).to_be_focused()
                         expect(catppuccin).to_be_checked()
+                        radio_classes = catppuccin.get_attribute("class").split()
+                        assert "rounded-card" in radio_classes and "rounded-full" not in radio_classes, radio_classes
                         page.keyboard.press("ArrowLeft")
                         expect(loco).to_be_checked()
                     workspace_button.click()

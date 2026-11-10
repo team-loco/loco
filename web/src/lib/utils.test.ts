@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 
+import { cn as cnImport } from "cn";
+
 import { cn } from "./utils";
 
 test("cn lets a theme radius replace a stock radius", () => {
@@ -7,4 +9,8 @@ test("cn lets a theme radius replace a stock radius", () => {
 	expect(cn("rounded-control", "rounded-control-inner")).toBe("rounded-control-inner");
 	expect(cn("rounded-lg", "rounded-card")).toBe("rounded-card");
 	expect(cn("md:data-[x=y]:rounded-xl", "md:data-[x=y]:rounded-overlay")).toBe("md:data-[x=y]:rounded-overlay");
+});
+
+test("the cn package import resolves to the theme-aware helper", () => {
+	expect(cnImport("rounded-full", "rounded-card")).toBe("rounded-card");
 });
