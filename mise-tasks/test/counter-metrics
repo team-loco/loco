@@ -46,6 +46,22 @@ wait_for() {
     "$@" >/dev/null
 }
 
+start_container() {
+    local name=$1 attempt output status
+    for attempt in 1 2 3; do
+        if output=$(docker start "$name" 2>&1); then
+            return 0
+        else
+            status=$?
+        fi
+        echo "$output" >&2
+        if [ "$attempt" -eq 3 ] || [[ "$output" != *"failed to start userland proxy"* ]]; then
+            return "$status"
+        fi
+        sleep $((attempt * 2))
+    done
+}
+
 if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
     image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-control-plane/values.yaml")
     {
@@ -56,9 +72,10 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
     chmod a+r "$work_dir/server.xml"
     go -C "$root" run ./tools/pullimage "$image"
     own_clickhouse=true
-    docker run -d --name "$clickhouse" --memory 2g --memory-swap 2g --cpus 2 -p 127.0.0.1::9000 \
+    docker create --name "$clickhouse" --memory 2g --memory-swap 2g --cpus 2 -p 127.0.0.1::9000 \
         -e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
         -v "$work_dir/server.xml:/etc/clickhouse-server/config.d/counter-test.xml:ro" "$image" >/dev/null
+    start_container "$clickhouse"
     wait_for docker exec "$clickhouse" clickhouse-client --user loco_test --password loco_test -q 'SELECT 1'
     address=$(docker port "$clickhouse" 9000/tcp | head -1)
     export LOCO_TEST_CLICKHOUSE_URL="clickhouse://loco_test:loco_test@$address"
@@ -102,9 +119,10 @@ for directory in $(yq '.extensions | with_entries(select(.key | test("^file_stor
 done
 collector_image=$(yq '.otel-col-deploy.image.repository + ":" + .otel-col-deploy.image.tag' "$root/charts/loco-worker/values.yaml")
 go -C "$root" run ./tools/pullimage "$collector_image"
-docker run -d --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \
+docker create --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \
     --add-host host.docker.internal:host-gateway -p 127.0.0.1::4318 "${mounts[@]}" \
     -v "$work_dir/collector.yaml:/etc/collector.yaml:ro" -v "$work_dir/token:$token_directory:ro" "$collector_image" --config /etc/collector.yaml >/dev/null
+start_container "$collector"
 address=$(docker port "$collector" 4318/tcp | head -1)
 export LOCO_TEST_COUNTER_OTLP_URL="http://$address"
 wait_for curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}'
