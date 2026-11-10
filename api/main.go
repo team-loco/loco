@@ -294,25 +294,6 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 	installWebhookClient := webhooks.NewClient(ac.Webhooks, true)
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
-	d := &deps{
-		machine:           machine,
-		queries:           queries,
-		verifier:          verifier,
-		resolver:          resolver,
-		authorizer:        authz.New(pool, queries),
-		webhookDispatcher: webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient),
-		event:             service.NewEventServer(queries),
-		webhook:           service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate),
-		auth:              authServiceHandler,
-		user:              service.NewUserServer(pool, queries, machine, admins),
-		org:               service.NewOrgServer(pool, queries, ac.Invitations),
-		workspace:         service.NewWorkspaceServer(pool, queries),
-		clusterAdmin:      service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
-		bootstrap: service.NewBootstrapServer(
-			pool, ac.BootstrapTokenHash, verifier, resolver, authServiceHandler,
-		),
-		resource: service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
-	}
 
 	sourceBucket, err := newSourceBucket(ac.SourceBucket)
 	if err != nil {
@@ -321,27 +302,12 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 	if ac.RegistryHost == "" {
 		slog.Warn("LOCO_REGISTRY_HOST is not set; builds are disabled")
 	}
+	var sourceSweeper *sweepers.SourceSweeper
 	if sourceBucket != nil {
-		d.sourceSweeper = sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
+		sourceSweeper = sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 
-	d.deployment = service.NewDeploymentServer(
-		pool,
-		queries,
-		imageResolver,
-		ac.RegistryHost,
-		ac.ServiceDefaults,
-		clusterSilentAfter,
-		ac.SecretLimits.MaxPlacementBytes,
-	)
-	d.build = service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
-		RegistryHost:   ac.RegistryHost,
-		RegistryPrefix: ac.RegistryPrefix,
-		SourceMaxBytes: ac.SourceMaxBytes,
-	})
-	d.domain = service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
-	d.token = service.NewTokenServer(pool, queries, machine)
 	var registryKey *transit.PinnedKey
 	if ac.RegistryAuth.TokenMode() {
 		registryKey = &ac.RegistryAuth.TransitKey
@@ -351,22 +317,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		return nil, fmt.Errorf("verify the transit keys: %w", err)
 	}
 	secretKeyProvider := transitKeys.Provider
-	d.agent = service.NewAgentServer(
-		pool,
-		queries,
-		placementNotifier,
-		sourceBucket,
-		secretKeyProvider,
-		ac.HeartbeatInterval,
-		ac.Agent,
-	)
 	clusterAuthenticator := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
-	d.ingest = service.NewIngestServer(
-		queries,
-		clusterAuthenticator,
-		transitKeys.Ingest,
-		ac.Ingest.TokenLifetime,
-	)
 	registryConfig := service.RegistryConfig{
 		TokenMode:              ac.RegistryAuth.TokenMode(),
 		Service:                ac.RegistryAuth.Service,
@@ -376,7 +327,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		AccessTokenLifetime:    ac.RegistryAuth.AccessTokenLifetime,
 		PullCredentialLifetime: ac.RegistryAuth.PullCredentialLifetime,
 	}
-	d.registry = service.NewRegistryServer(
+	registryServiceHandler := service.NewRegistryServer(
 		queries,
 		clusterAuthenticator,
 		transitKeys.Registry,
@@ -385,41 +336,100 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 	)
 	registryClientConfig := ac.Registry
 	if ac.RegistryAuth.TokenMode() {
-		registryClientConfig.TokenSource = d.registry.SignAPIToken
+		registryClientConfig.TokenSource = registryServiceHandler.SignAPIToken
 	}
 	imageRegistry, err := newImageRegistry(registryClientConfig, ac.ImageSweep.Retention)
 	if err != nil {
 		return nil, err
 	}
+	var imageSweeper *sweepers.ImageSweeper
 	if imageRegistry != nil {
-		d.imageSweeper = sweepers.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
+		imageSweeper = sweepers.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
 	}
-	d.environment = service.NewEnvironmentServer(pool, queries)
-	d.secret = service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
-	d.config = service.NewConfigServer(
-		ac.MinCLIVersion,
-		ac.SchemaURL,
-		ac.ServiceDefaults,
-		ac.AuthIssuers,
-		ac.OrgLinks,
-	)
+	var registryKeyHandler http.HandlerFunc
+	var registrySweeper *sweepers.RegistrySweeper
 	if registryKey != nil {
-		d.registryKey, err = service.NewRegistryKeyHandler(transitKeys.RegistryPublicKey)
+		registryKeyHandler, err = service.NewRegistryKeyHandler(transitKeys.RegistryPublicKey)
 		if err != nil {
 			return nil, fmt.Errorf("encode the registry public key: %w", err)
 		}
-		d.registrySweeper = sweepers.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
+		registrySweeper = sweepers.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
 	}
-	d.plan = service.NewPlanServer(
-		pool,
-		queries,
-		imageResolver,
-		ac.RegistryHost,
-		ac.ServiceDefaults,
-		ac.SecretLimits,
-		clusterSilentAfter,
-	)
-	return d, nil
+
+	return &deps{
+		machine:           machine,
+		queries:           queries,
+		verifier:          verifier,
+		resolver:          resolver,
+		authorizer:        authz.New(pool, queries),
+		webhookDispatcher: webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient),
+		sourceSweeper:     sourceSweeper,
+		imageSweeper:      imageSweeper,
+		registrySweeper:   registrySweeper,
+
+		config: service.NewConfigServer(
+			ac.MinCLIVersion,
+			ac.SchemaURL,
+			ac.ServiceDefaults,
+			ac.AuthIssuers,
+			ac.OrgLinks,
+		),
+		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
+		bootstrap: service.NewBootstrapServer(
+			pool, ac.BootstrapTokenHash, verifier, resolver, authServiceHandler,
+		),
+		user:      service.NewUserServer(pool, queries, machine, admins),
+		auth:      authServiceHandler,
+		event:     service.NewEventServer(queries),
+		webhook:   service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate),
+		org:       service.NewOrgServer(pool, queries, ac.Invitations),
+		workspace: service.NewWorkspaceServer(pool, queries),
+		resource:  service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
+		deployment: service.NewDeploymentServer(
+			pool,
+			queries,
+			imageResolver,
+			ac.RegistryHost,
+			ac.ServiceDefaults,
+			clusterSilentAfter,
+			ac.SecretLimits.MaxPlacementBytes,
+		),
+		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
+			RegistryHost:   ac.RegistryHost,
+			RegistryPrefix: ac.RegistryPrefix,
+			SourceMaxBytes: ac.SourceMaxBytes,
+		}),
+		domain: service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
+		token:  service.NewTokenServer(pool, queries, machine),
+		agent: service.NewAgentServer(
+			pool,
+			queries,
+			placementNotifier,
+			sourceBucket,
+			secretKeyProvider,
+			ac.HeartbeatInterval,
+			ac.Agent,
+		),
+		ingest: service.NewIngestServer(
+			queries,
+			clusterAuthenticator,
+			transitKeys.Ingest,
+			ac.Ingest.TokenLifetime,
+		),
+		registry: registryServiceHandler,
+		plan: service.NewPlanServer(
+			pool,
+			queries,
+			imageResolver,
+			ac.RegistryHost,
+			ac.ServiceDefaults,
+			ac.SecretLimits,
+			clusterSilentAfter,
+		),
+		environment: service.NewEnvironmentServer(pool, queries),
+		secret:      service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits),
+		registryKey: registryKeyHandler,
+	}, nil
 }
 
 func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authenticated *connect.Server, err error) {
