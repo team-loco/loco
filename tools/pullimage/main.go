@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -19,6 +20,8 @@ const (
 )
 
 var (
+	registryHTTP5xx = regexp.MustCompile(`unexpected status from [^\n]+: 5[0-9]{2}\b`)
+
 	errUsage = errors.New("usage: pullimage IMAGE [IMAGE]")
 
 	transientFailures = []string{
@@ -44,6 +47,9 @@ func imagePresent(ctx context.Context, image string) bool {
 }
 
 func transient(output []byte) bool {
+	if registryHTTP5xx.Match(output) {
+		return true
+	}
 	text := string(output)
 	for _, failure := range transientFailures {
 		if strings.Contains(text, failure) {
