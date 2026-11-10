@@ -126,3 +126,27 @@ def test_suite_subshell_writes_failed_counts_and_preserves_parent_failure(tmp_pa
     assert result.returncode == 1
     assert (tmp_path / "counts").read_text().strip() == "0 1 0"
     assert arguments.exists()
+
+
+def test_rename_waits_for_tcp_after_the_service_exists(tmp_path):
+    calls = tmp_path / "calls"
+    result = run_harness_functions(
+        r'''
+        source "$E2E_ROOT_DIR/tests/e2e/suites/10_discovery.sh"
+        discovery_resource_id() { echo resource; }
+        e2e_psql() { echo 0; }
+        discovery_api() { :; }
+        discovery_alias_exists() { :; }
+        discovery_alias_absent() { :; }
+        sleep() { :; }
+        discovery_call() {
+            echo attempt >> "$TCP_CALLS"
+            [ "$(wc -l < "$TCP_CALLS")" -gt 2 ] || return 1
+            echo private-tcp-ok
+        }
+        test_d03_resource_rename_moves_the_alias_without_a_build
+        ''',
+        env=os.environ | {"TCP_CALLS": str(calls)},
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert len(calls.read_text().splitlines()) >= 3
