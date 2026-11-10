@@ -1,4 +1,4 @@
-package secretkeys
+package transit
 
 import (
 	"context"
@@ -12,28 +12,28 @@ import (
 )
 
 const (
-	transitLookupSelfPath  = "auth/token/lookup-self"
-	transitRenewSelfPath   = "auth/token/renew-self"
+	lookupSelfPath         = "auth/token/lookup-self"
+	renewSelfPath          = "auth/token/renew-self"
 	shortTokenRenewDivisor = 2
 	rejectionBackoffFactor = 2
 	tokenRefreshSpan       = "transit.refresh_token"
 )
 
 var (
-	ErrTransitRenewal      = errors.New("transit token renewal margin and retry interval must be positive")
-	ErrTransitTokenExpired = errors.New("transit token has expired")
-	ErrTransitNoLease      = errors.New("transit token renewal returned no lease")
-	ErrTransitNotLoggedIn  = errors.New("transit has not logged in yet")
+	ErrRenewal      = errors.New("transit token renewal margin and retry interval must be positive")
+	ErrTokenExpired = errors.New("transit token has expired")
+	ErrNoLease      = errors.New("transit token renewal returned no lease")
+	ErrNotLoggedIn  = errors.New("transit has not logged in yet")
 )
 
-type transitLookupResponse struct {
+type lookupResponse struct {
 	Data struct {
 		TTL       int64 `json:"ttl"`
 		Renewable bool  `json:"renewable"`
 	} `json:"data"`
 }
 
-type transitRenewResponse struct {
+type renewResponse struct {
 	Auth struct {
 		LeaseDuration int64 `json:"lease_duration"`
 		Renewable     bool  `json:"renewable"`
@@ -46,19 +46,19 @@ type tokenLease struct {
 	renewable bool
 }
 
-func (t *Transit) currentToken() string {
+func (t *Client) currentToken() string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.token
 }
 
-func (t *Transit) tokenExpiry() time.Time {
+func (t *Client) tokenExpiry() time.Time {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.expiresAt
 }
 
-func (t *Transit) setTokenLease(lease tokenLease) {
+func (t *Client) setTokenLease(lease tokenLease) {
 	expiry := time.Time{}
 	if lease.ttl > 0 {
 		expiry = t.now().Add(lease.ttl)
@@ -71,25 +71,25 @@ func (t *Transit) setTokenLease(lease tokenLease) {
 	t.expiresAt = expiry
 }
 
-func (t *Transit) checkToken() error {
+func (t *Client) checkToken() error {
 	if t.currentToken() == "" {
-		return ErrTransitNotLoggedIn
+		return ErrNotLoggedIn
 	}
 	expiry := t.tokenExpiry()
 	if expiry.IsZero() || t.now().Before(expiry) {
 		return nil
 	}
-	return fmt.Errorf("%w at %s", ErrTransitTokenExpired, expiry.Format(time.RFC3339))
+	return fmt.Errorf("%w at %s", ErrTokenExpired, expiry.Format(time.RFC3339))
 }
 
-func (t *Transit) renewalDelay(ttl time.Duration) time.Duration {
+func (t *Client) renewalDelay(ttl time.Duration) time.Duration {
 	if ttl > t.renewMargin {
 		return ttl - t.renewMargin
 	}
 	return ttl / shortTokenRenewDivisor
 }
 
-func (t *Transit) tokenRejected() {
+func (t *Client) tokenRejected() {
 	if t.rejected == nil {
 		return
 	}
@@ -99,7 +99,7 @@ func (t *Transit) tokenRejected() {
 	}
 }
 
-func (t *Transit) rejectionBackoff() time.Duration {
+func (t *Client) rejectionBackoff() time.Duration {
 	rejections := t.rejections.Add(1)
 	backoff := t.renewRetry
 	for range rejections - 1 {
@@ -111,7 +111,7 @@ func (t *Transit) rejectionBackoff() time.Duration {
 	return min(backoff, t.renewMargin)
 }
 
-func (t *Transit) drainRejections() {
+func (t *Client) drainRejections() {
 	select {
 	case <-t.rejected:
 	default:
@@ -121,7 +121,7 @@ func (t *Transit) drainRejections() {
 // logIn makes the first token lookup, with token auth, or the first login, with Kubernetes
 // auth, and stores the lease. While Transit is unreachable or answers with a server error it
 // retries every renewRetry until ctx is done; any other failure is returned at once.
-func (t *Transit) logIn(ctx context.Context) (tokenLease, error) {
+func (t *Client) logIn(ctx context.Context) (tokenLease, error) {
 	refresh := t.lookupToken
 	if t.kubernetes != nil {
 		refresh = t.login
@@ -132,21 +132,21 @@ func (t *Transit) logIn(ctx context.Context) (tokenLease, error) {
 			t.setTokenLease(lease)
 			return lease, nil
 		}
-		if !transitUnavailable(err) {
+		if !isUnavailable(err) {
 			return tokenLease{}, err
 		}
 		slog.WarnContext(ctx, "transit is unavailable; logging in again", "error", err, "in", t.renewRetry)
 		if !sleepContext(ctx, t.renewRetry) {
-			return tokenLease{}, fmt.Errorf("%w: %w", ErrTransitUnavailable, err)
+			return tokenLease{}, fmt.Errorf("%w: %w", ErrUnavailable, err)
 		}
 	}
 }
 
-func transitUnavailable(err error) bool {
-	if status, ok := errors.AsType[*transitStatusError](err); ok {
+func isUnavailable(err error) bool {
+	if status, ok := errors.AsType[*statusError](err); ok {
 		return status.code >= http.StatusInternalServerError
 	}
-	return errors.Is(err, ErrTransitRequest)
+	return errors.Is(err, ErrRequest)
 }
 
 // renewToken keeps the token of lease valid until ctx is done. With token auth it renews
@@ -154,7 +154,7 @@ func transitUnavailable(err error) bool {
 // longer be renewed. With Kubernetes auth it logs in again renewMargin before each expiry,
 // or after rejectionBackoff when the server rejects the token. A failed renewal or login is
 // logged and retried every renewRetry.
-func (t *Transit) renewToken(ctx context.Context, lease tokenLease) {
+func (t *Client) renewToken(ctx context.Context, lease tokenLease) {
 	refresh := t.renewTokenOnce
 	if t.kubernetes != nil {
 		refresh = t.login
@@ -177,7 +177,7 @@ func (t *Transit) renewToken(ctx context.Context, lease tokenLease) {
 	}
 }
 
-func (t *Transit) renews(ctx context.Context, lease tokenLease) bool {
+func (t *Client) renews(ctx context.Context, lease tokenLease) bool {
 	if lease.ttl <= 0 {
 		slog.InfoContext(ctx, "transit token has no ttl; not renewing it")
 		return false
@@ -189,7 +189,7 @@ func (t *Transit) renews(ctx context.Context, lease tokenLease) bool {
 	return true
 }
 
-func (t *Transit) waitToRefresh(ctx context.Context, delay time.Duration) bool {
+func (t *Client) waitToRefresh(ctx context.Context, delay time.Duration) bool {
 	timer := time.NewTimer(delay)
 	defer timer.Stop()
 	select {
@@ -225,22 +225,22 @@ func sleepContext(ctx context.Context, delay time.Duration) bool {
 	}
 }
 
-func (t *Transit) lookupToken(ctx context.Context) (tokenLease, error) {
-	var response transitLookupResponse
-	if err := t.do(ctx, http.MethodGet, transitLookupSelfPath, nil, &response); err != nil {
+func (t *Client) lookupToken(ctx context.Context) (tokenLease, error) {
+	var response lookupResponse
+	if err := t.do(ctx, http.MethodGet, lookupSelfPath, nil, &response); err != nil {
 		return tokenLease{}, fmt.Errorf("look up transit token: %w", err)
 	}
 	ttl := time.Duration(response.Data.TTL) * time.Second
 	return tokenLease{ttl: ttl, renewable: response.Data.Renewable}, nil
 }
 
-func (t *Transit) renewTokenOnce(ctx context.Context) (tokenLease, error) {
-	var response transitRenewResponse
-	if err := t.do(ctx, http.MethodPost, transitRenewSelfPath, struct{}{}, &response); err != nil {
+func (t *Client) renewTokenOnce(ctx context.Context) (tokenLease, error) {
+	var response renewResponse
+	if err := t.do(ctx, http.MethodPost, renewSelfPath, struct{}{}, &response); err != nil {
 		return tokenLease{}, fmt.Errorf("renew transit token: %w", err)
 	}
 	if response.Auth.LeaseDuration <= 0 {
-		return tokenLease{}, ErrTransitNoLease
+		return tokenLease{}, ErrNoLease
 	}
 	ttl := time.Duration(response.Auth.LeaseDuration) * time.Second
 	return tokenLease{ttl: ttl, renewable: response.Auth.Renewable}, nil

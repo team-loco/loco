@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
+	"github.com/team-loco/loco/api/pkg/transit"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/tvm"
@@ -158,7 +159,7 @@ var defaultWebhookRetryDelays = []time.Duration{
 
 type RegistryAuthConfig struct {
 	Mode                   string
-	TransitKey             secretkeys.PinnedKey
+	TransitKey             transit.PinnedKey
 	Service                string
 	AccessTokenLifetime    time.Duration
 	PullCredentialLifetime time.Duration
@@ -208,7 +209,8 @@ type APIConfig struct {
 	Webhooks              webhooks.Config
 	InstallWebhooks       []webhooks.InstallWebhook
 	OrgLinks              []service.OrgLink
-	Secrets               secretkeys.TransitConfig
+	Transit               transit.Config
+	Secrets               secretkeys.Config
 	SecretLimits          service.SecretConfig
 	HeartbeatInterval     time.Duration
 	BootstrapTokenHash    []byte
@@ -243,6 +245,7 @@ func newAPIConfig() *APIConfig {
 	signupPolicy := newSignupPolicy()
 	minCLIVersion := newMinCLIVersion()
 	eventsRetention := envconfig.PositiveDuration("EVENTS_RETENTION", defaultEventsRetention)
+	transitConfig := newTransitConfig()
 	secrets := newSecretsConfig()
 	registryAuth := newRegistryAuthConfig(registry, registryHost, secrets.Key, ingestConfig.TransitKey)
 	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
@@ -297,6 +300,7 @@ func newAPIConfig() *APIConfig {
 		Webhooks:              newWebhookConfig(),
 		InstallWebhooks:       installWebhooks,
 		OrgLinks:              orgLinks,
+		Transit:               transitConfig,
 		Secrets:               secrets,
 		SecretLimits:          secretLimits,
 		HeartbeatInterval:     heartbeatInterval,
@@ -376,14 +380,13 @@ func newBootstrapTokenHash() []byte {
 	return service.HashBootstrapToken(token)
 }
 
-func newSecretsConfig() secretkeys.TransitConfig {
-	transit := secretkeys.TransitConfig{
+func newTransitConfig() transit.Config {
+	cfg := transit.Config{
 		Address: envconfig.String("LOCO_SECRETS_TRANSIT_ADDR", ""),
 		Mount:   envconfig.String("LOCO_SECRETS_TRANSIT_MOUNT", defaultSecretsTransitMount),
-		Key:     envconfig.String("LOCO_SECRETS_TRANSIT_KEY", ""),
 		Auth:    envconfig.String("LOCO_SECRETS_TRANSIT_AUTH", ""),
 		Token:   envconfig.String("LOCO_SECRETS_TRANSIT_TOKEN", ""),
-		Kubernetes: secretkeys.TransitKubernetesConfig{
+		Kubernetes: transit.KubernetesConfig{
 			Mount:     envconfig.String("LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT", ""),
 			Role:      envconfig.String("LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE", ""),
 			TokenFile: envconfig.String("LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE", ""),
@@ -399,12 +402,22 @@ func newSecretsConfig() secretkeys.TransitConfig {
 			defaultSecretsTransitMargin,
 		),
 		RenewRetry: envconfig.PositiveDuration("LOCO_SECRETS_TRANSIT_RENEW_RETRY", defaultSecretsTransitRetry),
-		CacheTTL:   envconfig.PositiveDuration("LOCO_SECRETS_TRANSIT_CACHE_TTL", defaultSecretsTransitDEKTTL),
 	}
-	if err := transit.Validate(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
 	}
-	return transit
+	return cfg
+}
+
+func newSecretsConfig() secretkeys.Config {
+	cfg := secretkeys.Config{
+		Key:      envconfig.String("LOCO_SECRETS_TRANSIT_KEY", ""),
+		CacheTTL: envconfig.PositiveDuration("LOCO_SECRETS_TRANSIT_CACHE_TTL", defaultSecretsTransitDEKTTL),
+	}
+	if err := cfg.Validate(); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
+	}
+	return cfg
 }
 
 func newMinCLIVersion() string {
@@ -568,7 +581,7 @@ func newRegistryTokenAuthConfig(
 		panic(fmt.Errorf("%w: %w", errInvalidRegistry, err))
 	}
 	key := envconfig.String("LOCO_REGISTRY_TRANSIT_KEY", "")
-	if err := secretkeys.ValidateKeyName(key); err != nil {
+	if err := transit.ValidateKeyName(key); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidRegistryKey, err))
 	}
 	if key == secretsKey || key == ingestKey {
@@ -596,7 +609,7 @@ func newRegistryTokenAuthConfig(
 	)
 	return RegistryAuthConfig{
 		Mode:                   locoControllerV1.RegistryAuthToken,
-		TransitKey:             secretkeys.PinnedKey{Name: key, Version: int(version)},
+		TransitKey:             transit.PinnedKey{Name: key, Version: int(version)},
 		Service:                tokenService,
 		AccessTokenLifetime:    accessLifetime,
 		PullCredentialLifetime: pullLifetime,
@@ -675,7 +688,7 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 func newIngestConfig() service.IngestConfig {
 	lifetime := envconfig.PositiveDuration("LOCO_INGEST_TOKEN_LIFETIME", defaultIngestTokenLifetime)
 	key := envconfig.String("LOCO_INGEST_TRANSIT_KEY", "")
-	if err := secretkeys.ValidateKeyName(key); err != nil {
+	if err := transit.ValidateKeyName(key); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidIngestKey, err))
 	}
 	return service.IngestConfig{TransitKey: key, TokenLifetime: lifetime}

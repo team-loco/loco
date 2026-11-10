@@ -3,49 +3,44 @@ package secretkeys
 import (
 	"bytes"
 	"context"
-	"encoding/pem"
 	"errors"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/team-loco/loco/api/pkg/tracingtest"
+	"github.com/team-loco/loco/api/pkg/transit"
+	"github.com/team-loco/loco/api/pkg/transit/transittest"
 )
 
 const (
-	otherEnvironmentID  = "0199c3f0-0000-7000-8000-000000000003"
-	testTransitTimeout  = 2 * time.Second
-	shortTransitTimeout = 50 * time.Millisecond
-	testStartupTimeout  = 2 * time.Second
-	testTransitCAFile   = "ca.pem"
-	otherProvider       = "kms"
+	otherEnvironmentID = "0199c3f0-0000-7000-8000-000000000005"
+	otherProvider      = "kms"
+	testTransitTimeout = 2 * time.Second
+	testRenewMargin    = time.Second
+	testRenewRetry     = 20 * time.Millisecond
 )
 
-func transitConfig(address string) TransitConfig {
-	return TransitConfig{
-		Address:        address,
-		Mount:          fakeTransitMount,
-		Key:            fakeTransitKey,
-		Auth:           TransitAuthToken,
-		Token:          fakeTransitToken,
+func newTestClient(t *testing.T, fake *transittest.Fake) *transit.Client {
+	t.Helper()
+	server := fake.Server()
+	client, err := transit.New(t.Context(), transit.Config{
+		Address:        server.URL,
+		Mount:          transittest.Mount,
+		Auth:           transit.AuthToken,
+		Token:          transittest.Token,
 		Timeout:        testTransitTimeout,
-		StartupTimeout: testStartupTimeout,
+		StartupTimeout: testTransitTimeout,
 		RenewMargin:    testRenewMargin,
 		RenewRetry:     testRenewRetry,
-		CacheTTL:       testCacheTTL,
+	})
+	if err != nil {
+		t.Fatalf("new transit client: %v", err)
 	}
+	return client
 }
 
-func newTestTransit(t *testing.T, cfg TransitConfig) *Transit {
+func newTestProvider(t *testing.T, fake *transittest.Fake) transitProvider {
 	t.Helper()
-	transit, err := NewTransit(cfg)
-	if err != nil {
-		t.Fatalf("new transit: %v", err)
-	}
-	return transit
+	return transitProvider{key: newTestClient(t, fake).EncryptionKey(transittest.Key)}
 }
 
 func testDEK(t *testing.T) []byte {
@@ -58,14 +53,10 @@ func testDEK(t *testing.T) []byte {
 }
 
 func TestTransitWrapUnwrapRoundTrip(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
-	ctx := context.Background()
+	provider := newTestProvider(t, transittest.New(t))
 	dek := testDEK(t)
 	aad := DEKAAD(environmentID)
-
-	wrapped, err := transit.Wrap(ctx, dek, aad)
+	wrapped, err := provider.Wrap(context.Background(), dek, aad)
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}
@@ -75,117 +66,30 @@ func TestTransitWrapUnwrapRoundTrip(t *testing.T) {
 	if !bytes.HasPrefix(wrapped.Bytes, []byte("vault:v1:")) {
 		t.Fatalf("wrapped bytes = %q, want the vault:v1: prefix", wrapped.Bytes)
 	}
-	unwrapped, err := transit.Unwrap(ctx, wrapped, aad)
-	if err != nil {
-		t.Fatalf("unwrap: %v", err)
-	}
-	if !bytes.Equal(unwrapped, dek) {
+	if unwrapped := mustUnwrap(t, provider, wrapped, aad); !bytes.Equal(unwrapped, dek) {
 		t.Fatal("unwrapped key differs from the original")
 	}
 }
 
 func TestTransitUnwrapWithAnotherEnvironmentsContextFails(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	provider := newTestProvider(t, transittest.New(t))
 	ctx := context.Background()
-	wrapped, err := transit.Wrap(ctx, testDEK(t), DEKAAD(environmentID))
+	wrapped, err := provider.Wrap(ctx, testDEK(t), DEKAAD(environmentID))
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}
-	_, err = transit.Unwrap(ctx, wrapped, DEKAAD(otherEnvironmentID))
+	_, err = provider.Unwrap(ctx, wrapped, DEKAAD(otherEnvironmentID))
 	if !errors.Is(err, ErrDecrypt) {
 		t.Fatalf("unwrap with another environment's context: err = %v, want ErrDecrypt", err)
 	}
 }
 
-func TestTransitKeyIDFollowsRotation(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
-	ctx := context.Background()
-	aad := DEKAAD(environmentID)
-	dek := testDEK(t)
-	old, err := transit.Wrap(ctx, dek, aad)
-	if err != nil {
-		t.Fatalf("wrap: %v", err)
-	}
-
-	fake.rotate()
-
-	keyID, err := transit.KeyID(ctx)
-	if err != nil {
-		t.Fatalf("key id: %v", err)
-	}
-	if keyID != "v2" {
-		t.Fatalf("key id = %q, want v2", keyID)
-	}
-	rewrapped, err := transit.Wrap(ctx, dek, aad)
-	if err != nil {
-		t.Fatalf("wrap after rotation: %v", err)
-	}
-	if rewrapped.KeyID != keyID {
-		t.Fatalf("wrapped key id = %q, want %q", rewrapped.KeyID, keyID)
-	}
-	unwrapped, err := transit.Unwrap(ctx, old, aad)
-	if err != nil {
-		t.Fatalf("unwrap the key wrapped before rotation: %v", err)
-	}
-	if !bytes.Equal(unwrapped, dek) {
-		t.Fatal("unwrapped key differs from the original")
-	}
-}
-
-func TestTransitRejectsAKeyWithoutDerivation(t *testing.T) {
-	tests := []struct {
-		name    string
-		derived bool
-		keyType string
-	}{
-		{"not derived", false, transitKeyType},
-		{"another key type", true, "chacha20-poly1305"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fake := newFakeTransit(t)
-			fake.derived = tt.derived
-			fake.keyType = tt.keyType
-			server := fake.server()
-			transit := newTestTransit(t, transitConfig(server.URL))
-			_, err := transit.KeyID(context.Background())
-			if !errors.Is(err, ErrTransitKeyType) {
-				t.Fatalf("key id: err = %v, want ErrTransitKeyType", err)
-			}
-			_, err = transit.Wrap(context.Background(), testDEK(t), DEKAAD(environmentID))
-			if !errors.Is(err, ErrTransitKeyType) {
-				t.Fatalf("wrap: err = %v, want ErrTransitKeyType", err)
-			}
-			if calls := fake.count("/v1/transit/encrypt/loco"); calls != 0 {
-				t.Fatalf("encrypt calls = %d, want none with a key that is not derived", calls)
-			}
-		})
-	}
-}
-
-func TestTransitRefusedTokenIsPermissionDenied(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.server()
-	cfg := transitConfig(server.URL)
-	cfg.Token = "s.wrong"
-	transit := newTestTransit(t, cfg)
-	_, err := transit.Wrap(context.Background(), testDEK(t), DEKAAD(environmentID))
-	if !errors.Is(err, ErrTransitPermissionDenied) {
-		t.Fatalf("wrap: err = %v, want ErrTransitPermissionDenied", err)
-	}
-}
-
 func TestTransitUnwrapRejectsMismatchedWrappedKeys(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
+	fake := transittest.New(t)
+	provider := newTestProvider(t, fake)
 	ctx := context.Background()
 	aad := DEKAAD(environmentID)
-	wrapped, err := transit.Wrap(ctx, testDEK(t), aad)
+	wrapped, err := provider.Wrap(ctx, testDEK(t), aad)
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}
@@ -202,155 +106,64 @@ func TestTransitUnwrapRejectsMismatchedWrappedKeys(t *testing.T) {
 		{
 			"key id differs from the prefix",
 			WrappedKey{Provider: ProviderTransit, KeyID: "v7", Bytes: wrapped.Bytes},
-			ErrTransitCiphertext,
-		},
-		{
-			"no vault prefix",
-			WrappedKey{Provider: ProviderTransit, KeyID: "v1", Bytes: []byte("v1:abc")},
-			ErrTransitCiphertext,
+			transit.ErrCiphertext,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := transit.Unwrap(ctx, tt.wrapped, aad)
-			if !errors.Is(err, tt.want) {
+			if _, err := provider.Unwrap(ctx, tt.wrapped, aad); !errors.Is(err, tt.want) {
 				t.Fatalf("unwrap: err = %v, want %v", err, tt.want)
 			}
 		})
 	}
-	if calls := fake.count("/v1/transit/decrypt/loco"); calls != 0 {
+	if calls := fake.Count(transittest.DecryptPath); calls != 0 {
 		t.Fatalf("decrypt calls = %d, want none for a rejected wrapped key", calls)
 	}
 }
 
-func TestTransitRequestTimesOut(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.block = make(chan struct{})
-	t.Cleanup(func() { close(fake.block) })
-	server := fake.server()
-	cfg := transitConfig(server.URL)
-	cfg.Timeout = shortTransitTimeout
-	transit := newTestTransit(t, cfg)
-	start := time.Now()
-	_, err := transit.KeyID(context.Background())
-	if err == nil {
-		t.Fatal("key id: err = nil, want a timeout")
-	}
-	if elapsed := time.Since(start); elapsed > testTransitTimeout {
-		t.Fatalf("key id returned after %v, want about %v", elapsed, shortTransitTimeout)
-	}
-}
-
-func TestTransitVerifiesTLS(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.tlsServer()
-
-	untrusted := newTestTransit(t, transitConfig(server.URL))
-	if _, err := untrusted.KeyID(context.Background()); err == nil {
-		t.Fatal("key id against an untrusted certificate: err = nil, want a TLS error")
-	}
-
-	caFile := filepath.Join(t.TempDir(), testTransitCAFile)
-	block := &pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}
-	if err := os.WriteFile(caFile, pem.EncodeToMemory(block), 0o600); err != nil {
-		t.Fatalf("write ca file: %v", err)
-	}
-	cfg := transitConfig(server.URL)
-	cfg.CAFile = caFile
-	trusted := newTestTransit(t, cfg)
-	if _, err := trusted.KeyID(context.Background()); err != nil {
-		t.Fatalf("key id with the server's CA: %v", err)
-	}
-}
-
-func TestTransitConfigValidate(t *testing.T) {
-	valid := transitConfig("https://bao.loco.test:8200")
-	if err := valid.Validate(); err != nil {
-		t.Fatalf("valid config: %v", err)
-	}
+func TestNewRejectsAMissingOrMistypedKey(t *testing.T) {
 	tests := []struct {
-		name   string
-		mutate func(*TransitConfig)
-		want   error
+		name  string
+		key   string
+		setup func(*transittest.Fake)
+		want  error
 	}{
-		{"no address", func(c *TransitConfig) { c.Address = "" }, ErrTransitAddress},
-		{"address without scheme", func(c *TransitConfig) { c.Address = "bao.loco.test:8200" }, ErrTransitAddress},
-		{"address with a path", func(c *TransitConfig) { c.Address = "https://bao.loco.test/v1" }, ErrTransitAddress},
-		{"no key", func(c *TransitConfig) { c.Key = "" }, ErrTransitKeyName},
-		{"key with a slash", func(c *TransitConfig) { c.Key = "a/b" }, ErrTransitKeyName},
-		{"no mount", func(c *TransitConfig) { c.Mount = "" }, ErrTransitMount},
-		{"mount with dot segments", func(c *TransitConfig) { c.Mount = "transit/../sys" }, ErrTransitMount},
-		{"no auth", func(c *TransitConfig) { c.Auth = "" }, ErrTransitAuth},
-		{"unknown auth", func(c *TransitConfig) { c.Auth = "approle" }, ErrTransitAuth},
-		{"no token", func(c *TransitConfig) { c.Token = "" }, ErrTransitToken},
-		{"token auth with a kubernetes role", func(c *TransitConfig) {
-			c.Kubernetes.Role = fakeKubernetesRole
-		}, ErrTransitToken},
-		{"kubernetes auth with a token", func(c *TransitConfig) {
-			c.Auth = TransitAuthKubernetes
-			c.Kubernetes = fakeKubernetesConfig("/token")
-		}, ErrTransitKubernetes},
-		{"kubernetes auth without a role", func(c *TransitConfig) {
-			*c = kubernetesTransitConfig(c.Address, "/token")
-			c.Kubernetes.Role = ""
-		}, ErrTransitKubernetes},
-		{"kubernetes auth with a dot mount", func(c *TransitConfig) {
-			*c = kubernetesTransitConfig(c.Address, "/token")
-			c.Kubernetes.Mount = "auth/.."
-		}, ErrTransitKubernetes},
-		{"kubernetes auth without a token file", func(c *TransitConfig) {
-			*c = kubernetesTransitConfig(c.Address, "")
-		}, ErrTransitKubernetes},
-		{"no timeout", func(c *TransitConfig) { c.Timeout = 0 }, ErrTransitTimeout},
-		{"no startup timeout", func(c *TransitConfig) { c.StartupTimeout = 0 }, ErrTransitStartupTimeout},
-		{"no renewal margin", func(c *TransitConfig) { c.RenewMargin = 0 }, ErrTransitRenewal},
-		{"no renewal retry", func(c *TransitConfig) { c.RenewRetry = 0 }, ErrTransitRenewal},
-		{"no cache ttl", func(c *TransitConfig) { c.CacheTTL = 0 }, ErrTransitCacheTTL},
+		{"missing key", "missing", func(*transittest.Fake) {}, transit.ErrRequest},
+		{"key without derivation", transittest.Key,
+			func(f *transittest.Fake) { f.SetKeyType("aes256-gcm96", false) }, transit.ErrKeyType},
+		{"key of another type", transittest.Key,
+			func(f *transittest.Fake) { f.SetKeyType("ed25519", true) }, transit.ErrKeyType},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := valid
-			tt.mutate(&cfg)
-			if err := cfg.Validate(); !errors.Is(err, tt.want) {
-				t.Fatalf("validate: err = %v, want %v", err, tt.want)
+			fake := transittest.New(t)
+			tt.setup(fake)
+			client := newTestClient(t, fake)
+			_, err := New(t.Context(), client, Config{Key: tt.key, CacheTTL: testCacheTTL})
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("new: err = %v, want %v", err, tt.want)
 			}
 		})
 	}
 }
 
-func TestNewTransitRejectsAMissingCAFile(t *testing.T) {
-	cfg := transitConfig("https://bao.loco.test:8200")
-	cfg.CAFile = filepath.Join(t.TempDir(), "missing.pem")
-	if _, err := NewTransit(cfg); err == nil || !strings.Contains(err.Error(), "ca file") {
-		t.Fatalf("new transit: err = %v, want a ca file error", err)
-	}
-}
-
-func TestNewSelectsTransit(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.server()
-	keys, err := New(t.Context(), transitConfig(server.URL), fakeSigningKey, nil)
+func TestNewCachesTransitUnwraps(t *testing.T) {
+	fake := transittest.New(t)
+	client := newTestClient(t, fake)
+	provider, err := New(t.Context(), client, Config{Key: transittest.Key, CacheTTL: testCacheTTL})
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
-	if keys.Provider.Name() != ProviderTransit {
-		t.Fatalf("provider = %q, want transit", keys.Provider.Name())
+	if provider.Name() != ProviderTransit {
+		t.Fatalf("provider = %q, want transit", provider.Name())
 	}
-	if keyID, err := keys.Ingest.KeyID(t.Context()); err != nil || keyID != "v1" {
-		t.Fatalf("signer key id = %q, %v", keyID, err)
+	aad := DEKAAD(environmentID)
+	wrapped, err := provider.Wrap(context.Background(), testDEK(t), aad)
+	if err != nil {
+		t.Fatalf("wrap: %v", err)
 	}
-	if keys.Registry != nil || keys.RegistryKeyID != "" || keys.RegistryPublicKey != nil {
-		t.Fatalf("registry signer without a registry key = %+v", keys)
+	mustUnwrap(t, provider, wrapped, aad)
+	if calls := fake.Count(transittest.DecryptPath); calls != 0 {
+		t.Fatalf("decrypt calls = %d, want none for a key the provider wrapped", calls)
 	}
-}
-
-func TestTransitPropagatesTraceContext(t *testing.T) {
-	tracingtest.Record(t)
-	server := tracingtest.NewHeaderServer(t, http.StatusInternalServerError)
-	transit := newTestTransit(t, transitConfig(server.URL))
-	ctx := tracingtest.StartParent(t)
-	if _, err := transit.Wrap(ctx, testDEK(t), DEKAAD(environmentID)); err == nil {
-		t.Fatal("wrap succeeded against a failing server")
-	}
-	tracingtest.AssertContinues(t, server.Traceparent(), ctx)
 }

@@ -23,6 +23,9 @@ func TestSealOpenRoundTripWithAAD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
+	if len(ciphertext) != len("sk_live_123")+Overhead {
+		t.Fatalf("ciphertext is %d bytes, want the plaintext plus %d", len(ciphertext), Overhead)
+	}
 	plaintext, err := Open(dek, nonce, ciphertext, aad)
 	if err != nil {
 		t.Fatalf("open: %v", err)

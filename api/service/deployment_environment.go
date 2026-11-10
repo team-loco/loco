@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -69,7 +70,7 @@ func (s *DeploymentServer) validateSecretBindings(
 	}
 	held := make(map[string]int64, len(sizes))
 	for _, size := range sizes {
-		held[size.Name] = size.CiphertextBytes - secretTagBytes
+		held[size.Name] = size.CiphertextBytes - secretkeys.Overhead
 	}
 	if errs := configplan.CheckSecretBindings(names, held, int64(s.maxSecretBytes)); len(errs) > 0 {
 		return errs[0]

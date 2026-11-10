@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/api/pkg/transit/transittest"
 )
 
 const testCacheTTL = time.Minute
@@ -63,9 +65,7 @@ func (c *testClock) advance(d time.Duration) {
 
 func newTestCache(t *testing.T) (*DEKCache, *countingProvider, *testClock) {
 	t.Helper()
-	fake := newFakeTransit(t)
-	server := fake.server()
-	inner := &countingProvider{Provider: newTestTransit(t, transitConfig(server.URL))}
+	inner := &countingProvider{Provider: newTestProvider(t, transittest.New(t))}
 	clock := &testClock{now: time.Unix(0, 0)}
 	cache := NewDEKCache(inner, testCacheTTL)
 	cache.now = clock.Now
@@ -214,25 +214,5 @@ func TestDEKCacheEvictsExpiredEntriesOfOtherEnvironments(t *testing.T) {
 	}
 	if !bytes.Equal(stale, make([]byte, KeySize)) {
 		t.Fatal("expired entry was not zeroed")
-	}
-}
-
-func TestNewCachesTransitUnwraps(t *testing.T) {
-	fake := newFakeTransit(t)
-	server := fake.server()
-	cfg := transitConfig(server.URL)
-	keys, err := New(t.Context(), cfg, fakeSigningKey, nil)
-	if err != nil {
-		t.Fatalf("new: %v", err)
-	}
-	provider := keys.Provider
-	aad := DEKAAD(environmentID)
-	wrapped, err := provider.Wrap(context.Background(), testDEK(t), aad)
-	if err != nil {
-		t.Fatalf("wrap: %v", err)
-	}
-	mustUnwrap(t, provider, wrapped, aad)
-	if calls := fake.count("/v1/transit/decrypt/loco"); calls != 0 {
-		t.Fatalf("decrypt calls = %d, want none for a key the provider wrapped", calls)
 	}
 }

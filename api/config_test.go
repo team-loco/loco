@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/transit"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
@@ -162,7 +163,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitAddrEnv, testTransitAddr)
 	t.Setenv(transitMountEnv, "")
 	t.Setenv(transitKeyEnv, testTransitKey)
-	t.Setenv(transitMethodEnv, secretkeys.TransitAuthToken)
+	t.Setenv(transitMethodEnv, transit.AuthToken)
 	t.Setenv(transitAuthEnv, testTransitAuth)
 	t.Setenv(transitKubeMount, "")
 	t.Setenv(transitKubeRole, "")
@@ -726,21 +727,24 @@ func TestNewAPIConfigPanicsWithoutTransit(t *testing.T) {
 
 func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	clearAPIConfigEnv(t)
-	got := newAPIConfig().Secrets
-	want := secretkeys.TransitConfig{
+	ac := newAPIConfig()
+	got := ac.Transit
+	want := transit.Config{
 		Address:        testTransitAddr,
 		Mount:          defaultSecretsTransitMount,
-		Key:            testTransitKey,
-		Auth:           secretkeys.TransitAuthToken,
+		Auth:           transit.AuthToken,
 		Token:          testTransitAuth,
 		Timeout:        defaultSecretsTransitTimeout,
 		StartupTimeout: defaultSecretsTransitStartup,
 		RenewMargin:    defaultSecretsTransitMargin,
 		RenewRetry:     defaultSecretsTransitRetry,
-		CacheTTL:       defaultSecretsTransitDEKTTL,
 	}
 	if got != want {
 		t.Errorf("transit config = %+v, want %+v", got, want)
+	}
+	wantSecrets := secretkeys.Config{Key: testTransitKey, CacheTTL: defaultSecretsTransitDEKTTL}
+	if ac.Secrets != wantSecrets {
+		t.Errorf("secrets config = %+v, want %+v", ac.Secrets, wantSecrets)
 	}
 
 	t.Setenv(transitMountEnv, "kms/transit")
@@ -750,29 +754,33 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	t.Setenv(transitMarginEnv, "1m")
 	t.Setenv(transitRetryEnv, "2s")
 	t.Setenv(transitCacheEnv, "30s")
-	got = newAPIConfig().Secrets
+	ac = newAPIConfig()
+	got = ac.Transit
 	want.Mount = "kms/transit"
 	want.CAFile = "/etc/loco/bao-ca.pem"
 	want.Timeout = 3 * time.Second
 	want.StartupTimeout = 45 * time.Second
 	want.RenewMargin = time.Minute
 	want.RenewRetry = 2 * time.Second
-	want.CacheTTL = 30 * time.Second
+	wantSecrets.CacheTTL = 30 * time.Second
 	if got != want {
 		t.Errorf("transit config = %+v, want %+v", got, want)
+	}
+	if ac.Secrets != wantSecrets {
+		t.Errorf("secrets config = %+v, want %+v", ac.Secrets, wantSecrets)
 	}
 }
 
 func TestNewAPIConfigReadsTransitKubernetesAuth(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(transitMethodEnv, secretkeys.TransitAuthKubernetes)
+	t.Setenv(transitMethodEnv, transit.AuthKubernetes)
 	t.Setenv(transitAuthEnv, "")
 	t.Setenv(transitKubeMount, testTransitKube)
 	t.Setenv(transitKubeRole, testTransitRole)
 	t.Setenv(transitKubeJWTFile, testTransitJWT)
-	got := newAPIConfig().Secrets
-	want := secretkeys.TransitKubernetesConfig{Mount: testTransitKube, Role: testTransitRole, TokenFile: testTransitJWT}
-	if got.Auth != secretkeys.TransitAuthKubernetes || got.Token != "" || got.Kubernetes != want {
+	got := newAPIConfig().Transit
+	want := transit.KubernetesConfig{Mount: testTransitKube, Role: testTransitRole, TokenFile: testTransitJWT}
+	if got.Auth != transit.AuthKubernetes || got.Token != "" || got.Kubernetes != want {
 		t.Errorf("transit config = %+v, want kubernetes auth with %+v", got, want)
 	}
 }
@@ -788,48 +796,48 @@ func TestNewAPIConfigPanicsOnPartialTransit(t *testing.T) {
 			map[string]string{
 				transitAddrEnv: "",
 			},
-			secretkeys.ErrTransitAddress,
+			transit.ErrAddress,
 		},
 		{
 			"transit without a token",
 			map[string]string{
 				transitAuthEnv: "",
 			},
-			secretkeys.ErrTransitToken,
+			transit.ErrToken,
 		},
 		{
 			"transit without an auth method",
 			map[string]string{
 				transitMethodEnv: "",
 			},
-			secretkeys.ErrTransitAuth,
+			transit.ErrAuth,
 		},
 		{
 			"kubernetes auth without a role",
 			map[string]string{
-				transitMethodEnv:   secretkeys.TransitAuthKubernetes,
+				transitMethodEnv:   transit.AuthKubernetes,
 				transitAuthEnv:     "",
 				transitKubeMount:   testTransitKube,
 				transitKubeJWTFile: testTransitJWT,
 			},
-			secretkeys.ErrTransitKubernetes,
+			transit.ErrKubernetes,
 		},
 		{
 			"kubernetes auth with a token",
 			map[string]string{
-				transitMethodEnv:   secretkeys.TransitAuthKubernetes,
+				transitMethodEnv:   transit.AuthKubernetes,
 				transitKubeMount:   testTransitKube,
 				transitKubeRole:    testTransitRole,
 				transitKubeJWTFile: testTransitJWT,
 			},
-			secretkeys.ErrTransitKubernetes,
+			transit.ErrKubernetes,
 		},
 		{
 			"transit without a key",
 			map[string]string{
 				transitKeyEnv: "",
 			},
-			secretkeys.ErrTransitKeyName,
+			transit.ErrKeyName,
 		},
 	}
 	for _, tt := range tests {
@@ -1068,7 +1076,7 @@ func TestIngestTokenConfiguration(t *testing.T) {
 	}
 	t.Setenv(ingestLifetimeEnv, "")
 	t.Setenv(ingestKeyEnv, "transit/"+testIngestKey)
-	if err := panicValue(t, func() { newIngestConfig() }); !errors.Is(err, secretkeys.ErrTransitKeyName) {
+	if err := panicValue(t, func() { newIngestConfig() }); !errors.Is(err, transit.ErrKeyName) {
 		t.Fatalf("key name with a slash = %v", err)
 	}
 }
@@ -1101,7 +1109,7 @@ func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
 	t.Setenv(registryServiceEnv, testRegistryService)
 	want := RegistryAuthConfig{
 		Mode:                   locoControllerV1.RegistryAuthToken,
-		TransitKey:             secretkeys.PinnedKey{Name: testRegistryKey, Version: 3},
+		TransitKey:             transit.PinnedKey{Name: testRegistryKey, Version: 3},
 		Service:                testRegistryService,
 		AccessTokenLifetime:    5 * time.Minute,
 		PullCredentialLifetime: 24 * time.Hour,
@@ -1150,7 +1158,7 @@ func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 	}{
 		{"unknown mode", map[string]string{registryAuthEnv: "bearer"}, errInvalidRegistryAuth},
 		{"mode in capitals", map[string]string{registryAuthEnv: "Token"}, errInvalidRegistryAuth},
-		{"token without a key", map[string]string{registryKeyEnv: ""}, secretkeys.ErrTransitKeyName},
+		{"token without a key", map[string]string{registryKeyEnv: ""}, transit.ErrKeyName},
 		{
 			"token with a key path",
 			map[string]string{registryKeyEnv: "transit/" + testRegistryKey},

@@ -384,7 +384,7 @@ test:
 
 transit-conformance:
   pull_request: &transit-conformance
-    - "api/pkg/secretkeys/**"
+    - "api/pkg/transit/**"
     - "tests/conformance/transit/**"
     - "charts/loco-control-plane/values.yaml"
     - "mise-tasks/test/transit-conformance"
