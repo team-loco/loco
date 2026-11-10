@@ -48,7 +48,7 @@ runs:
       env:
         MISE_TOOLS_HASH: ${{ steps.mise-tools.outputs.hash }}
       with:
-        version: 2026.11.2
+        version: 2026.11.5
         cache_save: ${{ github.ref == 'refs/heads/main' }}
         cache_key: "{{cache_key_prefix}}-{{platform}}-{{version}}-{{env.MISE_TOOLS_HASH}}"
 
