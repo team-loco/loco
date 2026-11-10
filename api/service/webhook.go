@@ -27,6 +27,7 @@ const (
 	maxWebhooksPerWorkspace = 10
 	fieldWebhookURL         = "url"
 	fieldWebhookEvents      = "eventTypes"
+	fieldGracePeriod        = "gracePeriodSeconds"
 )
 
 var (
@@ -63,11 +64,16 @@ func (s *WebhookServer) validURL(raw string) bool {
 }
 
 func webhookToProto(w genDb.Webhook) *webhookv1.Webhook {
+	var previousExpires *timestamppb.Timestamp
+	if w.PreviousSecretExpiresAt != nil && w.PreviousSecretExpiresAt.After(time.Now()) {
+		previousExpires = timestamppb.New(*w.PreviousSecretExpiresAt)
+	}
 	return &webhookv1.Webhook{
-		Id:         w.ID.String(),
-		Url:        w.Url,
-		EventTypes: w.EventTypes,
-		CreatedAt:  timestamppb.New(w.CreatedAt),
+		Id:                      w.ID.String(),
+		Url:                     w.Url,
+		EventTypes:              w.EventTypes,
+		CreatedAt:               timestamppb.New(w.CreatedAt),
+		PreviousSecretExpiresAt: previousExpires,
 	}
 }
 
@@ -210,6 +216,50 @@ func (s *WebhookServer) UpdateWebhook(
 		return nil, err
 	}
 	return &webhookv1.UpdateWebhookResponse{Webhook: webhookToProto(row)}, nil
+}
+
+func (s *WebhookServer) RotateWebhookSecret(
+	ctx context.Context,
+	req *webhookv1.RotateWebhookSecretRequest,
+) (*webhookv1.RotateWebhookSecretResponse, error) {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
+	}
+	if err = authorize(ctx, s.authz, actions.ManageWorkspaceWebhooks, workspaceID); err != nil {
+		return nil, err
+	}
+	secret, err := webhooksig.NewSecret()
+	if err != nil {
+		return nil, fmt.Errorf("generate webhook secret: %w", err)
+	}
+	var row genDb.Webhook
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		rotated, rotateErr := qtx.RotateWorkspaceWebhookSecret(ctx, genDb.RotateWorkspaceWebhookSecretParams{
+			ID:           uuid.MustParse(req.GetWebhookId()),
+			WorkspaceID:  workspaceID,
+			Secret:       secret,
+			GraceSeconds: req.GetGracePeriodSeconds(),
+		})
+		if errors.Is(rotateErr, pgx.ErrNoRows) {
+			return ErrWebhookNotFound
+		}
+		if rotateErr != nil {
+			return fmt.Errorf("rotate webhook secret: %w", rotateErr)
+		}
+		row = rotated
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.WebhookSecretRotated,
+			WorkspaceID: new(workspaceID),
+			SubjectType: events.SubjectWebhook,
+			SubjectID:   new(row.ID),
+			Data:        map[string]any{fieldGracePeriod: req.GetGracePeriodSeconds()},
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &webhookv1.RotateWebhookSecretResponse{Webhook: webhookToProto(row), Secret: secret}, nil
 }
 
 func (s *WebhookServer) loadWebhook(

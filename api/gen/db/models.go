@@ -624,14 +624,16 @@ type UserScope struct {
 }
 
 type Webhook struct {
-	ID          uuid.UUID   `json:"id"`
-	Kind        WebhookKind `json:"kind"`
-	WorkspaceID *uuid.UUID  `json:"workspaceId"`
-	Url         string      `json:"url"`
-	Secret      string      `json:"secret"`
-	EventTypes  []string    `json:"eventTypes"`
-	CreatedBy   *uuid.UUID  `json:"createdBy"`
-	CreatedAt   time.Time   `json:"createdAt"`
+	ID                      uuid.UUID   `json:"id"`
+	Kind                    WebhookKind `json:"kind"`
+	WorkspaceID             *uuid.UUID  `json:"workspaceId"`
+	Url                     string      `json:"url"`
+	Secret                  string      `json:"secret"`
+	PreviousSecret          *string     `json:"previousSecret"`
+	PreviousSecretExpiresAt *time.Time  `json:"previousSecretExpiresAt"`
+	EventTypes              []string    `json:"eventTypes"`
+	CreatedBy               *uuid.UUID  `json:"createdBy"`
+	CreatedAt               time.Time   `json:"createdAt"`
 }
 
 type WebhookDelivery struct {

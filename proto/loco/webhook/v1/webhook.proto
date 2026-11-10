@@ -13,6 +13,10 @@ service WebhookService {
   // UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
   rpc UpdateWebhook(UpdateWebhookRequest) returns (UpdateWebhookResponse);
   rpc DeleteWebhook(DeleteWebhookRequest) returns (DeleteWebhookResponse);
+  // RotateWebhookSecret replaces a webhook's signing secret and returns the new one. For
+  // grace_period_seconds, deliveries also carry a signature made with the replaced secret;
+  // rotating again during that window drops the older secret.
+  rpc RotateWebhookSecret(RotateWebhookSecretRequest) returns (RotateWebhookSecretResponse);
   rpc ListWebhookDeliveries(ListWebhookDeliveriesRequest) returns (ListWebhookDeliveriesResponse);
   // RedeliverWebhookDelivery sends a succeeded or failed delivery again with the same Webhook-Id,
   // restarting its retry schedule. A pending delivery is rejected with FAILED_PRECONDITION.
@@ -27,6 +31,8 @@ message Webhook {
   string url = 2;
   repeated string event_types = 3;
   google.protobuf.Timestamp created_at = 4;
+  // Set while deliveries are also signed with the secret the last rotation replaced.
+  google.protobuf.Timestamp previous_secret_expires_at = 5;
 }
 
 message WebhookDelivery {
@@ -92,6 +98,21 @@ message UpdateWebhookRequest {
 
 message UpdateWebhookResponse {
   Webhook webhook = 1;
+}
+
+message RotateWebhookSecretRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string webhook_id = 2 [(buf.validate.field).string.uuid = true];
+  // At most seven days; zero stops signing with the replaced secret at once.
+  int32 grace_period_seconds = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 604800
+  }];
+}
+
+message RotateWebhookSecretResponse {
+  Webhook webhook = 1;
+  string secret = 2;
 }
 
 message DeleteWebhookRequest {

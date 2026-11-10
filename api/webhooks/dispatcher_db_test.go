@@ -368,3 +368,60 @@ func TestOutcomeIsRecordedAfterShutdown(t *testing.T) {
 		t.Fatalf("outcome not recorded, delivery stays leased: %+v", row)
 	}
 }
+
+func TestDeliveriesCarryThePreviousSecretUntilItExpires(t *testing.T) {
+	f := newFixture(t)
+	hook, previous := f.webhook(t, f.workspaceID)
+	current, err := webhooksig.NewSecret()
+	if err != nil {
+		t.Fatalf("secret: %v", err)
+	}
+	type request struct {
+		header http.Header
+		body   []byte
+	}
+	requests := make(chan request, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		body, readErr := io.ReadAll(req.Body)
+		if readErr != nil {
+			t.Errorf("read body: %v", readErr)
+		}
+		requests <- request{header: req.Header.Clone(), body: body}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+	f.setURL(t, hook.ID, srv.URL)
+	d := newDispatcher(f.queries, true)
+	verifies := func(secret string, got request) bool {
+		t.Helper()
+		verifier, verifierErr := standardwebhooks.NewWebhook(secret)
+		if verifierErr != nil {
+			t.Fatalf("verifier: %v", verifierErr)
+		}
+		return verifier.Verify(got.body, got.header) == nil
+	}
+	deliver := func(expiresIn string) request {
+		t.Helper()
+		if _, execErr := f.pool.Exec(t.Context(), `UPDATE webhooks
+			SET secret = $1, previous_secret = $2, previous_secret_expires_at = NOW() + $3::interval
+			WHERE id = $4`, current, previous, expiresIn, hook.ID); execErr != nil {
+			t.Fatalf("rotate: %v", execErr)
+		}
+		f.record(t, f.workspaceID, events.ResourceUpdated)
+		if _, dispatchErr := d.DispatchDue(t.Context()); dispatchErr != nil {
+			t.Fatalf("dispatch: %v", dispatchErr)
+		}
+		return <-requests
+	}
+
+	during := deliver("1 hour")
+	if !verifies(current, during) || !verifies(previous, during) {
+		t.Fatalf("delivery during the grace period = %v, want signatures for both secrets",
+			during.header.Values(standardwebhooks.HeaderWebhookSignature))
+	}
+	after := deliver("-1 second")
+	if !verifies(current, after) || verifies(previous, after) {
+		t.Fatalf("delivery after the grace period = %v, want only the current secret's signature",
+			after.header.Values(standardwebhooks.HeaderWebhookSignature))
+	}
+}

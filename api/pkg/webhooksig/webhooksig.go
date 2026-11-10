@@ -54,11 +54,22 @@ func Sign(secret, id string, timestamp time.Time, body []byte) (string, error) {
 }
 
 // NewSignedRequest builds a JSON POST carrying the Webhook-Id, Webhook-Timestamp and Webhook-Signature headers.
-func NewSignedRequest(ctx context.Context, url, secret, id string, body []byte) (*http.Request, error) {
+// Webhook-Signature holds one space-separated signature per secret, so a receiver holding any of them verifies it.
+func NewSignedRequest(
+	ctx context.Context,
+	url string,
+	secrets []string,
+	id string,
+	body []byte,
+) (*http.Request, error) {
 	now := time.Now()
-	signature, err := Sign(secret, id, now, body)
-	if err != nil {
-		return nil, err
+	signatures := make([]string, len(secrets))
+	for i, secret := range secrets {
+		signature, err := Sign(secret, id, now, body)
+		if err != nil {
+			return nil, err
+		}
+		signatures[i] = signature
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
@@ -67,7 +78,7 @@ func NewSignedRequest(ctx context.Context, url, secret, id string, body []byte) 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(standardwebhooks.HeaderWebhookID, id)
 	req.Header.Set(standardwebhooks.HeaderWebhookTimestamp, strconv.FormatInt(now.Unix(), 10))
-	req.Header.Set(standardwebhooks.HeaderWebhookSignature, signature)
+	req.Header.Set(standardwebhooks.HeaderWebhookSignature, strings.Join(signatures, " "))
 	return req, nil
 }
 

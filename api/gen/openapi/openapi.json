@@ -6220,6 +6220,68 @@
         }
       }
     },
+    "/loco.webhook.v1.WebhookService/RotateWebhookSecret": {
+      "post": {
+        "tags": [
+          "loco.webhook.v1.WebhookService"
+        ],
+        "summary": "RotateWebhookSecret",
+        "description": "RotateWebhookSecret replaces a webhook's signing secret and returns the new one. For\n grace_period_seconds, deliveries also carry a signature made with the replaced secret;\n rotating again during that window drops the older secret.",
+        "operationId": "loco.webhook.v1.WebhookService.RotateWebhookSecret",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.webhook.v1.RotateWebhookSecretRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.webhook.v1.RotateWebhookSecretResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.webhook.v1.WebhookService/SendTestEvent": {
       "post": {
         "tags": [
@@ -13490,6 +13552,46 @@
         "title": "RedeliverWebhookDeliveryResponse",
         "additionalProperties": false
       },
+      "loco.webhook.v1.RotateWebhookSecretRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "webhookId": {
+            "type": "string",
+            "title": "webhook_id",
+            "format": "uuid"
+          },
+          "gracePeriodSeconds": {
+            "type": "integer",
+            "title": "grace_period_seconds",
+            "maximum": 604800,
+            "minimum": 0,
+            "format": "int32",
+            "description": "At most seven days; zero stops signing with the replaced secret at once."
+          }
+        },
+        "title": "RotateWebhookSecretRequest",
+        "additionalProperties": false
+      },
+      "loco.webhook.v1.RotateWebhookSecretResponse": {
+        "type": "object",
+        "properties": {
+          "webhook": {
+            "title": "webhook",
+            "$ref": "#/components/schemas/loco.webhook.v1.Webhook"
+          },
+          "secret": {
+            "type": "string",
+            "title": "secret"
+          }
+        },
+        "title": "RotateWebhookSecretResponse",
+        "additionalProperties": false
+      },
       "loco.webhook.v1.SendTestEventRequest": {
         "type": "object",
         "properties": {
@@ -13577,6 +13679,11 @@
           },
           "createdAt": {
             "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "previousSecretExpiresAt": {
+            "title": "previous_secret_expires_at",
+            "description": "Set while deliveries are also signed with the secret the last rotation replaced.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },

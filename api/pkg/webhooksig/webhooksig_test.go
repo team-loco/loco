@@ -3,6 +3,7 @@ package webhooksig_test
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,7 +34,9 @@ func TestSignedRequestVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("secret: %v", err)
 	}
-	req, err := webhooksig.NewSignedRequest(t.Context(), "https://hook.test/x", secret, "msg_1", []byte(fixedBody))
+	req, err := webhooksig.NewSignedRequest(
+		t.Context(), "https://hook.test/x", []string{secret}, "msg_1", []byte(fixedBody),
+	)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -49,6 +52,31 @@ func TestSignedRequestVerifies(t *testing.T) {
 	}
 	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
 		t.Fatalf("request = %s %v", req.Method, req.Header)
+	}
+}
+
+func TestSignedRequestVerifiesWithEverySecret(t *testing.T) {
+	current, err := webhooksig.NewSecret()
+	if err != nil {
+		t.Fatalf("secret: %v", err)
+	}
+	req, err := webhooksig.NewSignedRequest(
+		t.Context(), "https://hook.test/x", []string{current, fixedSecret}, "msg_1", []byte(fixedBody),
+	)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if got := strings.Fields(req.Header.Get(standardwebhooks.HeaderWebhookSignature)); len(got) != 2 {
+		t.Fatalf("signatures = %q, want one per secret", got)
+	}
+	for _, secret := range []string{current, fixedSecret} {
+		verifier, verifierErr := standardwebhooks.NewWebhook(secret)
+		if verifierErr != nil {
+			t.Fatalf("verifier: %v", verifierErr)
+		}
+		if verifyErr := verifier.Verify([]byte(fixedBody), req.Header); verifyErr != nil {
+			t.Fatalf("verify with %s: %v", secret, verifyErr)
+		}
 	}
 }
 

@@ -45,7 +45,7 @@ func (t *hookTransport) Send(ctx context.Context, msg Message) error {
 	id := uuid.NewString()
 	ctx, cancel := context.WithTimeout(ctx, t.timeout)
 	defer cancel()
-	req, err := webhooksig.NewSignedRequest(ctx, t.url, t.secret, id, body)
+	req, err := webhooksig.NewSignedRequest(ctx, t.url, []string{t.secret}, id, body)
 	if err != nil {
 		return fmt.Errorf("build hook request: %w", err)
 	}
