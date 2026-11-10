@@ -21,7 +21,10 @@ permissions: {}
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Base/head updates in a stack can enqueue two runs for the same head. Let
+  # the active run finish so automatic cancellation cannot fail its always gate.
+  # The concurrency group retains only the newest pending run for the PR.
+  cancel-in-progress: false
 
 jobs:
 
