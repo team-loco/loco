@@ -3,6 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { BellIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 
+import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useEnvironments } from "@/hooks/useEnvironment";
@@ -248,13 +249,7 @@ export function MetricsView() {
 		<>
 			<ViewHeader />
 			<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
-			<section aria-labelledby="ms-compute" className="flex flex-col gap-2.5">
-				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
-					<h2 id="ms-compute" className="m-0 text-[18px] font-normal tracking-[-0.02em]">
-						Compute
-					</h2>
-					<span className="text-[12.5px] text-fg3">% of limit, busiest replica · dashed lines are another region</span>
-				</div>
+			<Section title="Compute" meta="% of limit, busiest replica · dashed lines are another region" card={false}>
 				<div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
 					{cards.map(({ def, result }) => (
 						<section
@@ -312,15 +307,9 @@ export function MetricsView() {
 						</section>
 					))}
 				</div>
-			</section>
+			</Section>
 
-			<section aria-labelledby="ms-traffic" className="flex flex-col gap-2.5">
-				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
-					<h2 id="ms-traffic" className="m-0 text-[18px] font-normal tracking-[-0.02em]">
-						Traffic
-					</h2>
-					<span className="text-[12.5px] text-fg3">measured at the gateway, for resources with a public address</span>
-				</div>
+			<Section title="Traffic" meta="measured at the gateway, for resources with a public address" card={false}>
 				<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
 					{TRAFFIC.map((title) => (
 						<div key={title} className="flex flex-col gap-2 rounded-card bg-panel px-5 py-4">
@@ -332,15 +321,9 @@ export function MetricsView() {
 						</div>
 					))}
 				</div>
-			</section>
+			</Section>
 
-			<section aria-labelledby="ms-break" className="flex flex-col gap-2.5">
-				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
-					<h2 id="ms-break" className="m-0 text-[18px] font-normal tracking-[-0.02em]">
-						By resource and region
-					</h2>
-					<span className="text-[12.5px] text-fg3">latest values · pick a row to focus the charts on it</span>
-				</div>
+			<Section title="By resource and region" meta="latest values · pick a row to focus the charts on it" card={false}>
 				<div className="overflow-x-auto rounded-card bg-panel px-5 pt-1 pb-3">
 					<table className="w-full min-w-[760px] border-collapse text-[12.5px]">
 						<thead>
@@ -421,7 +404,7 @@ export function MetricsView() {
 					Ready replicas over time
 					<SoonTag />
 				</span>
-			</section>
+			</Section>
 		</>
 	);
 }

@@ -364,7 +364,7 @@ export function ResourceTable({
 	);
 
 	return (
-		<Section actions={selection.some ? bulk : toolbar}>
+		<Section cardActions={selection.some ? bulk : toolbar}>
 			<Table className="table-fixed" style={{ minWidth }}>
 				<TableHeader>
 					<TableRow>

@@ -188,37 +188,36 @@ export function Team() {
 				actions={inviteButton}
 			/>
 			<Section
-				actions={
-					<>
-						<ToggleGroup
-							variant="segmented"
-							aria-label="Show"
-							className="max-w-full overflow-x-auto"
-							value={[view]}
-							onValueChange={(v: string[]) => {
-								const next = VIEWS.find((x) => x.key === v[0]);
-								if (next === undefined) return;
-								setView(next.key);
-								paged.reset();
-							}}
-						>
-							{VIEWS.map((v) => (
-								<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
-									{v.label}
-								</ToggleGroupItem>
-							))}
-						</ToggleGroup>
-						<SearchInput
-							value={q}
-							onChange={(e) => {
-								setQ(e.target.value);
-								paged.reset();
-							}}
-							placeholder="Search by name or email"
-							aria-label="Search people"
-							className="w-full sm:ml-auto sm:max-w-[280px]"
-						/>
-					</>
+				filters={
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Show"
+						className="max-w-full overflow-x-auto"
+						value={[view]}
+						onValueChange={(v: string[]) => {
+							const next = VIEWS.find((x) => x.key === v[0]);
+							if (next === undefined) return;
+							setView(next.key);
+							paged.reset();
+						}}
+					>
+						{VIEWS.map((v) => (
+							<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
+								{v.label}
+							</ToggleGroupItem>
+						))}
+					</ToggleGroup>
+				}
+				search={
+					<SearchInput
+						value={q}
+						onChange={(e) => {
+							setQ(e.target.value);
+							paged.reset();
+						}}
+						placeholder="Search by name or email"
+						aria-label="Search people"
+					/>
 				}
 			>
 				{body}

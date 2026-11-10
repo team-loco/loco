@@ -7,7 +7,6 @@ import type { Organization } from "@gen/loco/org/v1/org_pb";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
@@ -94,7 +93,6 @@ export function Organizations() {
 		));
 	};
 
-	const countLabel = isLoading ? null : <Badge tone="count">{orgs.length}</Badge>;
 	const body = renderBody();
 
 	return (
@@ -108,7 +106,9 @@ export function Organizations() {
 					</Button>
 				}
 			/>
-			<Section title={<>Your organizations {countLabel}</>}>{body}</Section>
+			<Section title="Your organizations" count={isLoading ? undefined : orgs.length}>
+				{body}
+			</Section>
 
 			<CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} onSuccess={handleCreateOrgSuccess} />
 			<DeleteOrgDialog

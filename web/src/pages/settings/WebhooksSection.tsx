@@ -62,7 +62,7 @@ export function WebhooksSection({ workspaceId, workspaceName }: { workspaceId: s
 	return (
 		<SettingsSection
 			title="Webhooks"
-			meta={query.data === undefined ? undefined : webhooks.length}
+			count={query.data === undefined ? undefined : webhooks.length}
 			actions={
 				<Button
 					variant="outline"

@@ -395,7 +395,7 @@ export function ResourcesTable({
 	};
 
 	return (
-		<Section title={title} actions={actions}>
+		<Section cardTitle={title} cardActions={actions}>
 			{filters}
 			{isMap ? (
 				visible.length === 0 ? (

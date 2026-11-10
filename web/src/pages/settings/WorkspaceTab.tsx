@@ -140,7 +140,7 @@ export function WorkspaceTab({
 
 	return (
 		<div className="flex flex-col gap-[22px]">
-			<SettingsSection title="General" meta={ws.name}>
+			<SettingsSection title="General" meta={<span className="font-mono">{ws.name}</span>}>
 				<SettingsCard className="flex flex-col gap-4 px-5 py-[18px]">
 					<Field label="Name" error={shownErr}>
 						<Input

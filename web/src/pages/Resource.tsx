@@ -347,7 +347,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						</Section>
 					)}
 					<Section
-						title={
+						cardTitle={
 							<>
 								Traffic
 								<SoonTag />

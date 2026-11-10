@@ -88,8 +88,8 @@ export function RecentDeployments({
 
 	return (
 		<Section
-			title={title}
-			actions={
+			cardTitle={title}
+			cardActions={
 				<>
 					{toolbar}
 					{actions}
