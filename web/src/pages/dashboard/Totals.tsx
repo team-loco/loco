@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
@@ -49,14 +49,13 @@ function SoonCard({ label }: { label: string }) {
 }
 
 function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: string) => string }) {
-	const [open, setOpen] = useState(false);
 	const shown = value.resources.length > TOP + 1 ? value.resources.slice(0, TOP) : value.resources;
 	const rest = value.resources.slice(shown.length);
 	const restCpu = rest.reduce((n, r) => n + r.cpuMilli, 0);
 	const max = shown[0]?.cpuMilli ?? 0;
 
 	return (
-		<Collapsible open={open} onOpenChange={setOpen} className={CARD}>
+		<Collapsible className={CARD}>
 			<CardHead label="Allocated">
 				<span className="font-mono text-[11.5px]">now</span>
 			</CardHead>
@@ -64,11 +63,11 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 			<span className="font-mono text-[11.5px] text-fg3">{formatMemory(value.memMi)} memory</span>
 			{value.resources.length > 0 && (
 				<>
-					<CollapsibleTrigger className="mt-auto flex items-center justify-between gap-2 rounded-sm border-t border-line pt-3 text-[12px] text-fg3 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+					<CollapsibleTrigger className="group mt-auto flex items-center justify-between gap-2 rounded-sm border-t border-line pt-3 text-[12px] text-fg3 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
 						By resource
 						<span className="flex items-center gap-1.5 font-mono text-[11px]">
 							{pluralize(value.resources.length, "resource")}
-							<ChevronDownIcon className={cn("size-3.5 transition-transform", open && "rotate-180")} />
+							<ChevronDownIcon className="size-3.5 transition-transform group-aria-expanded:rotate-180" />
 						</span>
 					</CollapsibleTrigger>
 					<CollapsibleContent render={<ul />} className="m-0 mt-1 flex list-none flex-col p-0">

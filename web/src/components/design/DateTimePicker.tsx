@@ -6,6 +6,7 @@ import "react-day-picker/style.css";
 import { Button } from "@/components/design/Button";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
+import { toLocalInput } from "@/lib/obs-time";
 
 export function DateTimePicker({
 	label,
@@ -39,7 +40,7 @@ export function DateTimePicker({
 						autoFocus
 						required
 						onSelect={(date) => {
-							const nextDay = `${String(date.getFullYear())}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+							const [nextDay = ""] = toLocalInput(date.getTime()).split("T", 1);
 							onChange(`${nextDay}T${time || "00:00"}`);
 							setOpen(false);
 						}}

@@ -32,7 +32,7 @@ if args.state is None:
 state = evidence.load_state(args.state)
 owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
-org = evidence.rpc(state["api_url"], owner["token"], "loco.org.v1.OrgService/ListUserOrgs", {"userId": owner["id"]})["orgs"][0]["id"]
+org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
 resource = state.get("shared_controls_resource")
 if resource is None:
     resource = evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {"workspaceId": workspace, "name": "controls-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
