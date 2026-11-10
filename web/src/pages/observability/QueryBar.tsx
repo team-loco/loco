@@ -92,7 +92,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	}
 	const [open, setOpen] = useState(false);
 	const [now, setNow] = useState(Date.now);
-	const [highlighted, setHighlighted] = useState<Suggestion | undefined>();
+	const highlightedRef = useRef<Suggestion | undefined>(undefined);
 	const anchor = useComboboxAnchor();
 	const [pinnedList, updatePinned] = useStoredJSON(PINNED_KEY, pinnedQueries);
 	const scope = recentKey(orgId, workspaceId, view);
@@ -288,6 +288,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 
 	const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.nativeEvent.isComposing) return;
+		const highlighted = highlightedRef.current;
 		if (e.key === "Enter" && (!open || highlighted === undefined || (cur.trim() === "" && tokens.length > 0))) {
 			e.preventDefault();
 			commit();
@@ -313,7 +314,9 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 			onValueChange={(item) => {
 				item?.apply();
 			}}
-			onItemHighlighted={setHighlighted}
+			onItemHighlighted={(item) => {
+				highlightedRef.current = item;
+			}}
 			open={open}
 			onOpenChange={(next, details) => {
 				if (details.reason !== "item-press") setOpen(next);
@@ -393,7 +396,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 						<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
 					</Button>
 				</div>
-				<ComboboxContent anchor={anchor} className="w-[min(560px,var(--anchor-width))] min-w-0 p-1.5">
+				<ComboboxContent
+					anchor={anchor}
+					className="w-[min(560px,var(--anchor-width))] min-w-0 p-1.5 data-[chips=true]:min-w-0"
+				>
 					<ComboboxList aria-label="Suggestions">
 						{groups
 							.filter((g) => g.items.length > 0)

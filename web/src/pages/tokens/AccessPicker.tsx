@@ -5,6 +5,7 @@ import {
 	Combobox,
 	ComboboxChipsInput,
 	ComboboxContent,
+	ComboboxEmpty,
 	ComboboxItem,
 	ComboboxList,
 } from "@/components/design/Combobox";
@@ -207,7 +208,6 @@ export function AccessPicker({
 					<SearchIcon className="size-3.5 text-fg3" />
 					<ComboboxChipsInput
 						aria-invalid={invalid}
-
 						placeholder="Add a workspace or resource"
 						autoComplete="off"
 						aria-label="Add a workspace or resource"
@@ -240,10 +240,10 @@ export function AccessPicker({
 								</ComboboxItem>
 							);
 						})}
-						{shown.length === 0 && !resourcesLoading && resourcesError === null && (
-							<div className="p-3 text-[12.5px] text-fg3">
+						{!resourcesLoading && resourcesError === null && (
+							<ComboboxEmpty className="p-3 text-[12.5px] text-fg3">
 								{query === "" ? "Nothing left to add." : `Nothing matches “${q.trim()}”.`}
-							</div>
+							</ComboboxEmpty>
 						)}
 						{resourcesError !== null && (
 							<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
