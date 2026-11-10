@@ -56,7 +56,6 @@ interface Suggestion {
 
 interface Group {
 	title: string;
-	action?: ReactNode;
 	items: Suggestion[];
 }
 
@@ -163,6 +162,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		},
 	});
 
+	const visibleRecent = cur.trim() === "" && scope !== null ? shownRecent(recent, recentQuery(view, tokens, text)) : [];
 	const groups: Group[] = [];
 	const vm = VALUE_WORD_RE.exec(cur);
 	const km = KEY_WORD_RE.exec(cur);
@@ -221,23 +221,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 				})),
 			});
 		}
-		const rec = shownRecent(recent, recentQuery(view, tokens, text));
-		if (scope !== null && rec.length > 0) {
+		if (visibleRecent.length > 0) {
 			groups.push({
 				title: "Recent",
-				action: (
-					<Button
-						variant="link"
-						onClick={() => {
-							updateRecent(() => null);
-							focusInput();
-						}}
-						className="h-auto p-0 text-[11.5px] text-fg3"
-					>
-						Clear
-					</Button>
-				),
-				items: rec.map((r) => ({
+				items: visibleRecent.map((r) => ({
 					key: `r:${r.q}`,
 					icon: <HistoryIcon className="size-3.5" />,
 					main: r.q,
@@ -410,7 +397,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 								>
 									<ComboboxLabel className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">
 										{g.title}
-										{g.action}
 									</ComboboxLabel>
 									{g.items.map((s) => (
 										<ComboboxItem key={s.key} value={s} disabled={s.disabled}>
@@ -438,10 +424,22 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 								</ComboboxGroup>
 							))}
 						{noMatches && <div className="p-2.5 text-fg3">No matches</div>}
-						<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
-							<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix
-						</div>
 					</ComboboxList>
+					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
+						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix
+						{visibleRecent.length > 0 && (
+							<Button
+								variant="link"
+								className="ml-auto h-auto p-0 text-[11.5px] text-fg3"
+								onClick={() => {
+									updateRecent(() => null);
+									focusInput();
+								}}
+							>
+								Clear recent searches
+							</Button>
+						)}
+					</div>
 				</ComboboxContent>
 			</div>
 		</Combobox>
