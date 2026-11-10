@@ -298,9 +298,10 @@ func newDeps(
 	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
 	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
-	if err = placementNotifier.Start(ctx, background); err != nil {
+	if err = placementNotifier.Connect(ctx); err != nil {
 		return nil, fmt.Errorf("start placement listener: %w", err)
 	}
+	background.Go(func() { placementNotifier.Run(ctx) })
 
 	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
 	installWebhookClient := webhooks.NewClient(ac.Webhooks, true)

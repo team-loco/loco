@@ -20,6 +20,7 @@ const (
 type Notifier struct {
 	connConfig   *pgx.ConnConfig
 	pollInterval time.Duration
+	conn         *pgx.Conn
 
 	mu          sync.Mutex
 	subscribers map[uuid.UUID]map[*Listener]struct{}
@@ -40,16 +41,20 @@ type Listener struct {
 	wake      chan struct{}
 }
 
-// Start opens the LISTEN connection, failing if it cannot, and runs the dispatch loop under background
-// until ctx is canceled. The loop closes its connection before it finishes, so waiting on background
-// makes shutdown leave no listener open.
-func (n *Notifier) Start(ctx context.Context, background *sync.WaitGroup) error {
+// Connect opens the LISTEN connection that Run dispatches from, failing if it cannot.
+func (n *Notifier) Connect(ctx context.Context) error {
 	conn, err := n.listen(ctx)
 	if err != nil {
 		return err
 	}
-	background.Go(func() { n.run(ctx, conn) })
+	n.conn = conn
 	return nil
+}
+
+// Run dispatches notifications on the connection from Connect until ctx is canceled,
+// and returns only after the connection is closed.
+func (n *Notifier) Run(ctx context.Context) {
+	n.run(ctx, n.conn)
 }
 
 func (n *Notifier) listen(ctx context.Context) (*pgx.Conn, error) {
