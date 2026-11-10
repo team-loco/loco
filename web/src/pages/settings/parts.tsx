@@ -1,6 +1,7 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { Fragment, useId, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
+import { Section } from "@/components/design/Page";
 import { formatMonthDay, formatMonthDayYear, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -27,30 +28,14 @@ export function SettingsCard({
 	);
 }
 
-export function SettingsSection({
-	title,
-	meta,
-	actions,
-	children,
-}: {
+export function SettingsSection(props: {
 	title: string;
+	count?: number | undefined;
 	meta?: ReactNode;
 	actions?: ReactNode;
 	children: ReactNode;
 }) {
-	const id = useId();
-	return (
-		<section aria-labelledby={id} className="flex max-w-[960px] min-w-0 flex-col gap-2.5">
-			<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
-				<h2 id={id} className="m-0 text-[18px] font-normal tracking-[-0.02em]">
-					{title}
-				</h2>
-				{meta !== undefined && <span className="font-mono text-[12.5px] text-fg3">{meta}</span>}
-				{actions !== undefined && <span className="ml-auto self-center">{actions}</span>}
-			</div>
-			{children}
-		</section>
-	);
+	return <Section {...props} card={false} className="max-w-[960px]" />;
 }
 
 export function KeyValues({ items }: { items: readonly (readonly [string, ReactNode])[] }) {

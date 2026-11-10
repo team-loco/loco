@@ -166,46 +166,45 @@ export function Tokens() {
 				actions={newTokenButton}
 			/>
 			<Section
-				actions={
-					<>
-						<ToggleGroup
-							variant="segmented"
-							aria-label="Owner"
-							className="max-w-full overflow-x-auto"
-							value={[ownerKey]}
-							onValueChange={(v: string[]) => {
-								const next = OWNER_KEYS.find((k) => k === v[0]);
-								if (next !== undefined) setOwner(next);
-							}}
-						>
-							{OWNER_KEYS.map((k) => {
-								const o = data.owners[k];
-								const count = o.owner.canList && !o.isLoading ? liveCount(k) : undefined;
-								return (
-									<ToggleGroupItem
-										key={k}
-										value={k}
-										title={o.owner.label}
-										count={count}
-										className="[&_svg]:size-[13px] [&_svg]:text-fg3"
-									>
-										{ownerIcon(k)}
-										{OWNER_TITLE[k]}
-									</ToggleGroupItem>
-								);
-							})}
-						</ToggleGroup>
-						<SearchInput
-							value={q}
-							onChange={(e) => {
-								setQ(e.target.value);
-								paged.reset();
-							}}
-							placeholder="Search by name or access"
-							aria-label="Search tokens"
-							className="w-full sm:ml-auto sm:max-w-[280px]"
-						/>
-					</>
+				filters={
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Owner"
+						className="max-w-full overflow-x-auto"
+						value={[ownerKey]}
+						onValueChange={(v: string[]) => {
+							const next = OWNER_KEYS.find((k) => k === v[0]);
+							if (next !== undefined) setOwner(next);
+						}}
+					>
+						{OWNER_KEYS.map((k) => {
+							const o = data.owners[k];
+							const count = o.owner.canList && !o.isLoading ? liveCount(k) : undefined;
+							return (
+								<ToggleGroupItem
+									key={k}
+									value={k}
+									title={o.owner.label}
+									count={count}
+									className="[&_svg]:size-[13px] [&_svg]:text-fg3"
+								>
+									{ownerIcon(k)}
+									{OWNER_TITLE[k]}
+								</ToggleGroupItem>
+							);
+						})}
+					</ToggleGroup>
+				}
+				search={
+					<SearchInput
+						value={q}
+						onChange={(e) => {
+							setQ(e.target.value);
+							paged.reset();
+						}}
+						placeholder="Search by name or access"
+						aria-label="Search tokens"
+					/>
 				}
 			>
 				{firstRunEmpty && !current.isLoading ? (

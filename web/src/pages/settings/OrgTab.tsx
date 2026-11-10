@@ -208,7 +208,7 @@ export function OrgTab({
 
 			<SettingsSection
 				title="Workspaces"
-				meta={workspaces.length}
+				count={workspaces.length}
 				actions={
 					canWrite ? (
 						newButton

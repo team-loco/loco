@@ -3,6 +3,7 @@ import { RefreshCwIcon } from "lucide-react";
 import { Navigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
+import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -198,15 +199,16 @@ function TraceSession() {
 					A trace ID is 32 lowercase hexadecimal characters.
 				</p>
 			)}
-			<section aria-labelledby="ts-duration" className="flex flex-col gap-2.5">
-				<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
-					<h2 id="ts-duration" className="m-0 flex items-baseline gap-2 text-[18px] font-normal tracking-[-0.02em]">
+			<Section
+				title={
+					<>
 						Duration
 						<SoonTag />
-					</h2>
-					<span className="text-[12.5px] text-fg3">each trace as a dot by start time and duration</span>
-				</div>
-			</section>
+					</>
+				}
+				meta="each trace as a dot by start time and duration"
+				card={false}
+			/>
 			<section aria-label="Trace list" className="flex min-w-0 flex-col rounded-card bg-panel">
 				<div className="flex flex-wrap items-center gap-2 px-5 pt-3 pb-1.5">
 					<span className="text-[13.5px]">
