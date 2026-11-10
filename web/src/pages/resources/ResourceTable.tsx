@@ -15,6 +15,7 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { Button } from "@/components/design/Button";
+import { Checkbox } from "@/components/design/Checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -38,9 +39,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { pagedRows } from "@/lib/paging";
 import { formatCpu, formatMemory } from "@/lib/quantity";
 import { observabilityPath, resourcePath } from "@/lib/routes";
+import { pageSelection, toggleId, togglePage } from "@/lib/selection";
 import { agoLabel, formatMonthDayYear } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
+import { BulkActions } from "./BulkActions";
 import {
 	ALL,
 	cellSummary,
@@ -63,6 +66,7 @@ import {
 } from "./table";
 
 const MENU_WIDTH = 40;
+const CHECK_WIDTH = 36;
 const MIN_WIDTH = 72;
 const MAX_WIDTH = 520;
 const KEY_STEP = 16;
@@ -224,6 +228,7 @@ export function ResourceTable({
 }) {
 	const [params, setParams] = useSearchParams();
 	const [widths, setWidths] = useState<Record<string, number>>({});
+	const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
 	const columns = tableColumns(environments);
 	const state = readTableState(params, columns);
 	const { filter, sort } = state;
@@ -256,7 +261,10 @@ export function ResourceTable({
 		...regionCounts(rows, filter).map((r) => ({ value: r.region, label: r.region, count: r.count })),
 	];
 	const widthOf = (c: Column) => widths[c.key] ?? c.width;
-	const minWidth = shown.reduce((n, c) => n + widthOf(c), MENU_WIDTH);
+	const minWidth = shown.reduce((n, c) => n + widthOf(c), MENU_WIDTH + CHECK_WIDTH);
+	const pageIds = paged.rows.map((r) => r.resource.id);
+	const selection = pageSelection(selected, pageIds);
+	const selectedRows = paged.rows.filter((r) => selected.has(r.resource.id));
 	const hasFilters = filter.query.trim() !== "" || filter.status !== ALL || filter.region !== ALL;
 
 	const toggleSort = (c: Column) => {
@@ -344,11 +352,33 @@ export function ResourceTable({
 		</DropdownMenu>
 	);
 
+	const bulk = (
+		<BulkActions
+			rows={selectedRows}
+			environment={active}
+			onClear={() => {
+				setSelected(new Set());
+			}}
+			onDone={setSelected}
+		/>
+	);
+
 	return (
-		<Section actions={toolbar}>
+		<Section actions={selection.some ? bulk : toolbar}>
 			<Table className="table-fixed" style={{ minWidth }}>
 				<TableHeader>
 					<TableRow>
+						<TableHead style={{ width: CHECK_WIDTH }}>
+							<Checkbox
+								aria-label={selection.all ? "Deselect this page" : "Select this page"}
+								disabled={pageIds.length === 0}
+								checked={selection.all}
+								indeterminate={selection.some && !selection.all}
+								onCheckedChange={() => {
+									setSelected(togglePage(selected, pageIds));
+								}}
+							/>
+						</TableHead>
 						{shown.map((c) => {
 							const on = sort.key === c.key;
 							const label = (
@@ -403,7 +433,7 @@ export function ResourceTable({
 				<TableBody>
 					{paged.rows.length === 0 && (
 						<TableRow>
-							<TableCell colSpan={shown.length + 1} className="h-auto p-0 whitespace-normal">
+							<TableCell colSpan={shown.length + 2} className="h-auto p-0 whitespace-normal">
 								<EmptyState
 									icon={<SearchXIcon />}
 									title="No resources match"
@@ -421,7 +451,16 @@ export function ResourceTable({
 						</TableRow>
 					)}
 					{paged.rows.map((row) => (
-						<TableRow key={row.resource.id}>
+						<TableRow key={row.resource.id} data-state={selected.has(row.resource.id) ? "selected" : undefined}>
+							<TableCell>
+								<Checkbox
+									aria-label={`Select ${row.resource.name}`}
+									checked={selected.has(row.resource.id)}
+									onCheckedChange={() => {
+										setSelected(toggleId(selected, row.resource.id));
+									}}
+								/>
+							</TableCell>
 							{shown.map((c) =>
 								c.kind === "name" ? (
 									<TableCell key={c.key}>

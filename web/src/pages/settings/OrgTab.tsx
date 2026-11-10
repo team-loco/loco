@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
@@ -29,7 +30,6 @@ import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
 
 import { AuditLogTab } from "./AuditLogTab";
-import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
