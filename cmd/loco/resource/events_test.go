@@ -7,15 +7,16 @@ import (
 	"testing"
 	"time"
 
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestWriteEventsJSONPrintsRFC3339Timestamps(t *testing.T) {
 	at := time.Date(2026, time.October, 9, 12, 30, 45, 0, time.UTC)
-	events := []*resourcev1.Event{
-		{Reason: "Scheduled", Message: "assigned to node", Timestamp: timestamppb.New(at)},
-		{Reason: "Pulled", Message: "image pulled", Timestamp: timestamppb.New(at.Add(time.Second))},
+	events := []*eventv1.Event{
+		{Type: "Scheduled", Data: eventData("Service cannot be scheduled"), CreatedAt: timestamppb.New(at)},
+		{Type: "Pulled", Data: eventData("Service recovered"), CreatedAt: timestamppb.New(at.Add(time.Second))},
 	}
 
 	var out bytes.Buffer
@@ -31,26 +32,26 @@ func TestWriteEventsJSONPrintsRFC3339Timestamps(t *testing.T) {
 		t.Fatalf("%d items, want %d\n%s", len(decoded), len(events), out.String())
 	}
 	for i, item := range decoded {
-		stamp, ok := item["timestamp"].(string)
+		stamp, ok := item["createdAt"].(string)
 		if !ok {
-			t.Fatalf("event %d timestamp = %v, want an RFC 3339 string\n%s", i, item["timestamp"], out.String())
+			t.Fatalf("event %d timestamp = %v, want an RFC 3339 string\n%s", i, item["createdAt"], out.String())
 		}
 		parsed, err := time.Parse(time.RFC3339Nano, stamp)
 		if err != nil {
 			t.Fatalf("event %d timestamp %q: %v", i, stamp, err)
 		}
-		if !parsed.Equal(events[i].GetTimestamp().AsTime()) {
-			t.Fatalf("event %d timestamp = %s, want %s", i, parsed, events[i].GetTimestamp().AsTime())
+		if !parsed.Equal(events[i].GetCreatedAt().AsTime()) {
+			t.Fatalf("event %d timestamp = %s, want %s", i, parsed, events[i].GetCreatedAt().AsTime())
 		}
 	}
 }
 
 func TestEventsTableShowsEveryEvent(t *testing.T) {
 	at := time.Date(2026, time.October, 9, 12, 30, 45, 0, time.UTC)
-	events := []*resourcev1.Event{
-		{Reason: "Scheduled", Message: "assigned to node kind-worker", Timestamp: timestamppb.New(at)},
-		{Reason: "Pulled", Message: "image pulled in 1.2s", Timestamp: timestamppb.New(at.Add(time.Second))},
-		{Reason: "Started", Message: "started container app", Timestamp: timestamppb.New(at.Add(2 * time.Second))},
+	events := []*eventv1.Event{
+		{Type: "Scheduled", Data: eventData("Service cannot be scheduled"), CreatedAt: timestamppb.New(at)},
+		{Type: "Pulled", Data: eventData("Service recovered"), CreatedAt: timestamppb.New(at.Add(time.Second))},
+		{Type: "Started", Data: eventData("Service started"), CreatedAt: timestamppb.New(at.Add(2 * time.Second))},
 	}
 
 	var out bytes.Buffer
@@ -59,8 +60,8 @@ func TestEventsTableShowsEveryEvent(t *testing.T) {
 	}
 	view := out.String()
 	for _, event := range events {
-		stamp := event.GetTimestamp().AsTime().Format(time.RFC3339)
-		for _, want := range []string{stamp, event.GetReason(), event.GetMessage()} {
+		stamp := event.GetCreatedAt().AsTime().Format(time.RFC3339)
+		for _, want := range []string{stamp, event.GetType(), event.GetData().GetFields()["message"].GetStringValue()} {
 			if !strings.Contains(view, want) {
 				t.Errorf("table is missing %q:\n%s", want, view)
 			}
@@ -76,4 +77,8 @@ func TestWriteEventsJSONPrintsAnEmptyArray(t *testing.T) {
 	if got := out.String(); got != "[]\n" {
 		t.Fatalf("output = %q, want an empty JSON array", got)
 	}
+}
+
+func eventData(message string) *structpb.Struct {
+	return &structpb.Struct{Fields: map[string]*structpb.Value{"message": structpb.NewStringValue(message)}}
 }

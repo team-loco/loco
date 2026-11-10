@@ -22,7 +22,7 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	server.recordApplied(ctx, f.clusterID, applied(p.ID, 1))
 
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      p.ID.String(),
 		ObservedRevision: 1,
 		Phase:            locoControllerV1.ApplicationPhaseFailed,
@@ -32,7 +32,7 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 		t.Fatalf("deployment status = %s, want failed", status)
 	}
 
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), ObservedRevision: 1, Ready: true, ReadyReplicas: 1, Phase: testPhaseReady,
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
@@ -60,11 +60,11 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	}
 	p := f.placement(t, f.clusterID)
 	server.recordApplied(ctx, f.clusterID, applied(p.ID, 1))
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), ObservedRevision: 1, Phase: "Deploying",
 		Message: "Waiting for replicas to become ready",
 	})
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      p.ID.String(),
 		ObservedRevision: 1,
 		Phase:            locoControllerV1.ApplicationPhaseFailed,
@@ -113,7 +113,7 @@ func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 		t.Fatalf("deployment status = %s, want failed", status)
 	}
 
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), ObservedRevision: 1, Ready: true, ReadyReplicas: 1, Phase: testPhaseReady,
 	})
 	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusFailed {

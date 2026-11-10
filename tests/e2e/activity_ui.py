@@ -94,10 +94,11 @@ with sync_playwright() as playwright:
                         method = url.path.rsplit('/', 1)[-1]
                         assert method.startswith(('Get', 'List', 'WhoAmI', 'Query')), method
                         body = route.request.post_data_json
-                        if method == 'ListEvents' and mode['hold_initial']:
+                        is_activity = method == 'ListEvents' and not body.get('environmentId')
+                        if is_activity and mode['hold_initial']:
                             held.append(route)
                             return
-                        if method == 'ListEvents' and ((mode['fail_older'] and body.get('beforeSeq')) or (mode['fail_initial'] and not body.get('beforeSeq'))):
+                        if is_activity and ((mode['fail_older'] and body.get('beforeSeq')) or (mode['fail_initial'] and not body.get('beforeSeq'))):
                             recorded.append({'method': method, 'body': body, 'status': 503, 'controlledFailure': True})
                             route.fulfill(status=503, json={'code': 'unavailable', 'message': 'Activity is temporarily unavailable'})
                             return
@@ -166,7 +167,7 @@ with sync_playwright() as playwright:
                         panel = page.get_by_role('region', name=title, exact=True)
                     else:
                         assert not any(request['method'] == 'ListEnvironments' for request in recorded)
-                    assert not [request for request in recorded if request['status'] >= 400 and request['method'] != 'ListResourceEvents' and not request.get('controlledFailure')], recorded
+                    assert not [request for request in recorded if request['status'] >= 400 and not request.get('controlledFailure')], recorded
                 page.screenshot(path=out / 'full' / f'{scene}-{phase}-{suffix}.png', full_page=True, animations='disabled')
                 panel.evaluate('(element) => element.scrollIntoView({block: "start", behavior: "instant"})')
                 page.screenshot(path=out / f'{scene}-{phase}-{suffix}.png', clip={'x': 0, 'y': 0, 'width': 390 if narrow else 1440, 'height': 844 if narrow else 700}, animations='disabled')
@@ -192,7 +193,7 @@ with sync_playwright() as playwright:
                         retries = [request for request in recorded if request['method'] == 'ListEvents' and request['status'] == 200 and request['body'].get('beforeSeq')]
                         assert retries[-1]['body']['beforeSeq'] == cursor, retries[-1]
                         expect(panel.get_by_role('button', name='Load more', exact=True)).to_have_count(0)
-                    filtered = [request['body'] for request in recorded if request['method'] == 'ListEvents' and request['body'].get('types')]
+                    filtered = [request['body'] for request in recorded if request['method'] == 'ListEvents' and not request['body'].get('environmentId') and request['body'].get('types')]
                     assert filtered and all('workspace.created' in request['types'] for request in filtered)
                 if user == 'owner' and theme == 'light' and not narrow:
                     page.goto(origin + base + '/resource/' + activity['resourceId'])
@@ -207,7 +208,7 @@ with sync_playwright() as playwright:
                     page.get_by_role('menuitem', name='sibling', exact=False).click()
                     page.keyboard.press('Escape')
                     page.wait_for_url('**/wks/' + activity['siblingId'] + '**')
-                    assert not [request for request in recorded if request['status'] >= 400 and request['method'] != 'ListResourceEvents'], recorded
+                    assert not [request for request in recorded if request['status'] >= 400], recorded
                 assert not errors, errors
                 results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
                 context.close()

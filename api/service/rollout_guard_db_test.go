@@ -33,7 +33,7 @@ func (f *deployFixture) rolloutContext(t *testing.T) context.Context {
 func (f *deployFixture) reportRollout(t *testing.T, phase string, ready bool) {
 	t.Helper()
 	p := f.placement(t, f.clusterID)
-	f.agentServer().recordStatus(t.Context(), f.clusterID, &agentv1.PlacementStatus{
+	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Phase: phase, Ready: ready, ReadyReplicas: 1,
 	})
 }
@@ -100,7 +100,7 @@ func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
 		t.Fatalf("rotation status = %s, want deploying", status)
 	}
 	f.agentServer().
-		recordStatus(t.Context(), f.clusterID, &agentv1.PlacementStatus{
+		recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 			PlacementId:      p.ID.String(),
 			ObservedRevision: p.DesiredRevision - 1,
 			Phase:            testPhaseReady,
@@ -326,7 +326,7 @@ func (f *deployFixture) finishRollouts(t *testing.T) {
 	rows.Close()
 	for _, r := range reports {
 		f.agentServer().
-			recordStatus(t.Context(), r.clusterID, &agentv1.PlacementStatus{
+			recordStatus(t.Context(), r.clusterID, 0, &agentv1.PlacementStatus{
 				PlacementId:      r.placementID.String(),
 				ObservedRevision: r.revision,
 				Phase:            testPhaseReady,

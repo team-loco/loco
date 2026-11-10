@@ -4,61 +4,20 @@ import { tsMs } from "@/lib/time";
 
 export type Severity = "error" | "warning" | "normal";
 
-const ERROR_REASONS = new Set([
-	"BackOff",
-	"CrashLoopBackOff",
-	"OOMKilling",
-	"OOMKilled",
-	"Evicted",
-	"ErrImagePull",
-	"ImagePullBackOff",
-	"InvalidImageName",
-]);
-
+// Public reason strings are owned by k8sapi/v1alpha1/runtime.go.
 const REASON_TITLES: Record<string, string> = {
-	BackOff: "Restarting after crash",
-	CrashLoopBackOff: "Restarting after crash",
-	Unhealthy: "Health check failing",
-	ProbeWarning: "Health check warning",
-	Pulling: "Pulling image",
-	Pulled: "Image pulled",
-	ErrImagePull: "Image pull failed",
-	ImagePullBackOff: "Image pull failed",
-	InvalidImageName: "Invalid image name",
-	Failed: "Container failed",
-	Created: "Container created",
-	Started: "Container started",
-	Killing: "Stopping container",
-	Scheduled: "Replica scheduled",
-	FailedScheduling: "Couldn't schedule replica",
-	SuccessfulCreate: "Replica created",
-	SuccessfulDelete: "Replica removed",
-	FailedCreate: "Couldn't create replica",
-	ScalingReplicaSet: "Scaled",
-	OOMKilling: "Out of memory, replica killed",
-	OOMKilled: "Out of memory, replica killed",
-	Evicted: "Replica evicted",
-	Preempting: "Replica preempted",
-	FailedMount: "Volume mount failed",
-	FailedAttachVolume: "Volume attach failed",
-	NodeNotReady: "Node not ready",
-	SandboxChanged: "Replica sandbox recreated",
-	FailedKillPod: "Couldn't stop replica",
+	crash_looping: "Restarting after crash",
+	out_of_memory: "Out of memory",
+	image_pull_failed: "Image pull failed",
+	unschedulable: "Couldn't schedule service",
+	health_check_failing: "Health check failing",
 };
-
-const WORD_BOUNDARY_RE = /([a-z0-9])([A-Z])/g;
-
 export function eventTitle(reason: string): string {
-	const known = REASON_TITLES[reason];
-	if (known !== undefined) return known;
-	const words = reason.replace(WORD_BOUNDARY_RE, "$1 $2").toLowerCase();
-	return words === "" ? "Event" : words.charAt(0).toUpperCase() + words.slice(1);
+	return REASON_TITLES[reason] ?? (reason === "" ? "Service recovered" : reason.replaceAll("_", " "));
 }
-
 export function severityOf(type: string, reason: string): Severity {
-	if (type.toLowerCase() !== "warning") return "normal";
-	if (ERROR_REASONS.has(reason) || reason.startsWith("Failed")) return "error";
-	return "warning";
+	if (type !== "resource.degraded") return "normal";
+	return reason === "health_check_failing" || reason === "unschedulable" ? "warning" : "error";
 }
 
 export interface SeverityStyle {
@@ -114,8 +73,8 @@ export interface EventGroup {
 export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] {
 	const m = new Map<string, EventGroup>();
 	for (const e of events) {
-		const object = e.podName !== "" ? e.podName : e.resourceName;
-		const key = `${e.resourceId}|${e.reason}|${object}|${e.message}`;
+		const object = e.resourceName;
+		const key = `${e.resourceId}|${e.reason}|${e.placementId}|${object}|${e.message}`;
 		const ts = tsMs(e.timestamp);
 		const g = m.get(key);
 		if (g !== undefined) {

@@ -2,10 +2,10 @@ package resource
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -13,11 +13,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const noEventsMessage = "No events found."
+
+var errInvalidEventLimit = errors.New("limit must be nonnegative")
 
 var eventsTableMargin = lipgloss.NewStyle().Margin(1, 2)
 
@@ -25,7 +28,7 @@ func newEventsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "events <name>",
 		Short: "Show service events",
-		Long: `Display Kubernetes events for a service's deployment.
+		Long: `Display Loco events for a service.
 
 Examples:
   loco resource events myapp
@@ -56,26 +59,43 @@ Examples:
 			}
 			slog.Debug("fetching events", "resource_id", resource.GetId(), "name", name)
 
-			var limitPtr *int32
-			if limit > 0 {
-				limitPtr = &limit
-			}
-
-			eventsReq := &resourcev1.ListResourceEventsRequest{
-				ResourceId: resource.GetId(),
-				Limit:      limitPtr,
-			}
-
-			resp, err := t.Clients.Resource.ListResourceEvents(ctx, eventsReq)
+			workspace, err := t.Clients.Workspace.GetWorkspace(
+				ctx,
+				&workspacev1.GetWorkspaceRequest{WorkspaceId: t.WorkspaceID},
+			)
 			if err != nil {
-				return fmt.Errorf("failed to fetch events: %w", err)
+				return fmt.Errorf("get workspace: %w", err)
+			}
+			request := &eventv1.ListEventsRequest{
+				OrgId:       workspace.GetWorkspace().GetOrgId(),
+				WorkspaceId: t.WorkspaceID,
+				ResourceId:  resource.GetId(),
+				PageSize:    500,
+			}
+			if limit < 0 {
+				return errInvalidEventLimit
+			}
+			var items []*eventv1.Event
+			for {
+				if limit > 0 {
+					request.PageSize = min(500, limit-int32(len(items)))
+				}
+				response, err := t.Clients.Event.ListEvents(ctx, request)
+				if err != nil {
+					return fmt.Errorf("failed to fetch events: %w", err)
+				}
+				items = append(items, response.GetEvents()...)
+				if response.GetNextBeforeSeq() == 0 || (limit > 0 && len(items) >= int(limit)) {
+					break
+				}
+				request.BeforeSeq = response.GetNextBeforeSeq()
 			}
 
 			if output == outputJSON {
-				return writeEventsJSON(cmd.OutOrStdout(), resp.GetEvents())
+				return writeEventsJSON(cmd.OutOrStdout(), items)
 			}
 
-			return renderEventsTable(cmd.OutOrStdout(), resp.GetEvents())
+			return renderEventsTable(cmd.OutOrStdout(), items)
 		},
 	}
 
@@ -88,7 +108,7 @@ Examples:
 	return cmd
 }
 
-func writeEventsJSON(stdout io.Writer, events []*resourcev1.Event) error {
+func writeEventsJSON(stdout io.Writer, events []*eventv1.Event) error {
 	items := make([]json.RawMessage, 0, len(events))
 	for _, event := range events {
 		item, err := protojson.Marshal(event)
@@ -105,7 +125,7 @@ func writeEventsJSON(stdout io.Writer, events []*resourcev1.Event) error {
 	return err
 }
 
-func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) error {
+func renderEventsTable(stdout io.Writer, events []*eventv1.Event) error {
 	if len(events) == 0 {
 		_, err := fmt.Fprintln(stdout, noEventsMessage)
 		return err
@@ -114,9 +134,9 @@ func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) error {
 	rows := make([][]string, 0, len(events))
 	for _, event := range events {
 		rows = append(rows, []string{
-			event.GetTimestamp().AsTime().Format(time.RFC3339),
-			event.GetReason(),
-			simplifyMessage(event.GetMessage()),
+			event.GetCreatedAt().AsTime().Format(time.RFC3339),
+			event.GetType(),
+			event.GetData().GetFields()["message"].GetStringValue(),
 		})
 	}
 	cellStyle := lipgloss.NewStyle().Padding(0, 1)
@@ -129,7 +149,7 @@ func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) error {
 		BorderLeft(false).
 		BorderRight(false).
 		BorderColumn(false).
-		Headers("TIME", "REASON", "MESSAGE").
+		Headers("TIME", "TYPE", "MESSAGE").
 		Rows(rows...).
 		StyleFunc(func(row, _ int) lipgloss.Style {
 			if row == table.HeaderRow {
@@ -139,14 +159,4 @@ func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) error {
 		})
 	_, err := lipgloss.Fprintln(stdout, eventsTableMargin.Render(t.String()))
 	return err
-}
-
-func simplifyMessage(message string) string {
-	if strings.Contains(message, "ImagePullBackOff") {
-		return "Error: ImagePullBackOff"
-	}
-	if strings.Contains(message, "Failed to pull image") {
-		return "Failed to pull image. Please check registry credentials and image path."
-	}
-	return message
 }

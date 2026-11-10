@@ -45,9 +45,6 @@ const (
 	// ResourceServiceGetResourceEnvProcedure is the procedure name of the ResourceService's
 	// GetResourceEnv RPC.
 	ResourceServiceGetResourceEnvProcedure = "/loco.resource.v1.ResourceService/GetResourceEnv"
-	// ResourceServiceListResourceEventsProcedure is the procedure name of the ResourceService's
-	// ListResourceEvents RPC.
-	ResourceServiceListResourceEventsProcedure = "/loco.resource.v1.ResourceService/ListResourceEvents"
 	// ResourceServiceScaleResourceProcedure is the procedure name of the ResourceService's
 	// ScaleResource RPC.
 	ResourceServiceScaleResourceProcedure = "/loco.resource.v1.ResourceService/ScaleResource"
@@ -106,13 +103,6 @@ var (
 			Procedure:  ResourceServiceGetResourceEnvProcedure,
 		}
 	})
-	resourceServiceListResourceEventsSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("ListResourceEvents"),
-			Procedure:  ResourceServiceListResourceEventsProcedure,
-		}
-	})
 	resourceServiceScaleResourceSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -146,9 +136,6 @@ type ResourceServiceClient interface {
 	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
 	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
 	GetResourceEnv(context.Context, *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error)
-	// Events
-	// ListResourceEvents retrieves events for a resource.
-	ListResourceEvents(context.Context, *v1.ListResourceEventsRequest) (*v1.ListResourceEventsResponse, error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
@@ -179,9 +166,6 @@ type ResourceServiceHandler interface {
 	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
 	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
 	GetResourceEnv(context.Context, *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error)
-	// Events
-	// ListResourceEvents retrieves events for a resource.
-	ListResourceEvents(context.Context, *v1.ListResourceEventsRequest) (*v1.ListResourceEventsResponse, error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
@@ -201,7 +185,6 @@ func RegisterResourceServiceHandler(server *connect.Server, svc ResourceServiceH
 		connect.Method{Spec: resourceServiceListWorkspaceResourcesSpec(), Handler: adapter.listWorkspaceResources},
 		connect.Method{Spec: resourceServiceListRegionsSpec(), Handler: adapter.listRegions},
 		connect.Method{Spec: resourceServiceGetResourceEnvSpec(), Handler: adapter.getResourceEnv},
-		connect.Method{Spec: resourceServiceListResourceEventsSpec(), Handler: adapter.listResourceEvents},
 		connect.Method{Spec: resourceServiceScaleResourceSpec(), Handler: adapter.scaleResource},
 		connect.Method{Spec: resourceServiceTransferPartialSpec(), Handler: adapter.transferPartial},
 	)
@@ -236,10 +219,6 @@ func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *v1.List
 
 func (UnimplementedResourceServiceHandler) GetResourceEnv(context.Context, *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.GetResourceEnv is not implemented")
-}
-
-func (UnimplementedResourceServiceHandler) ListResourceEvents(context.Context, *v1.ListResourceEventsRequest) (*v1.ListResourceEventsResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.ListResourceEvents is not implemented")
 }
 
 func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error) {
@@ -305,14 +284,6 @@ func (c *resourceServiceClient) ListRegions(ctx context.Context, req *v1.ListReg
 func (c *resourceServiceClient) GetResourceEnv(ctx context.Context, req *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error) {
 	var res v1.GetResourceEnvResponse
 	if err := c.client.CallUnary(ctx, resourceServiceGetResourceEnvSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *resourceServiceClient) ListResourceEvents(ctx context.Context, req *v1.ListResourceEventsRequest) (*v1.ListResourceEventsResponse, error) {
-	var res v1.ListResourceEventsResponse
-	if err := c.client.CallUnary(ctx, resourceServiceListResourceEventsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -414,18 +385,6 @@ func (h resourceServiceHandler) getResourceEnv(ctx context.Context, _ connect.Sp
 		return err
 	}
 	res, err := h.svc.GetResourceEnv(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h resourceServiceHandler) listResourceEvents(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.ListResourceEventsRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.ListResourceEvents(ctx, &req)
 	if err != nil {
 		return err
 	}

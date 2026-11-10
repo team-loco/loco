@@ -74,6 +74,7 @@ var (
 
 // ApplicationReconciler reconciles an Application object
 type ApplicationReconciler struct {
+	RuntimeRecoveryWindow time.Duration
 	client.Client
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
@@ -191,6 +192,13 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
 	setReplicaCounts(app, dep)
+	if runtimeErr := r.observeRuntimeProblem(
+		ctx,
+		app,
+		dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision],
+	); runtimeErr != nil {
+		return ctrl.Result{}, runtimeErr
+	}
 
 	err = r.ensureService(ctx, app)
 	if err != nil {
@@ -241,6 +249,9 @@ func (r *ApplicationReconciler) reconcileResources(
 	clearDegraded(app)
 	app.Status.DeployedGeneration = app.Generation
 	setPhase(app, locov1alpha1.ApplicationPhaseReady, "Deployment ready")
+	if app.Status.RuntimeReason != "" {
+		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
+	}
 	return ctrl.Result{}, nil
 }
 
@@ -721,7 +732,10 @@ func podTemplate(
 		WithPorts(port).
 		WithResources(resources).
 		WithSecurityContext(containerSecurity)
-	podAnnotations := map[string]string{}
+	podAnnotations := ownerAnnotations(app)
+	if revision, ok := app.PlacementRevision(); ok {
+		podAnnotations[locov1alpha1.KeyPlacementRevision] = strconv.FormatInt(revision, 10)
+	}
 	if envSecret.Mounted {
 		envSecretName := getEnvSecretName(app)
 		secretRef := corev1ac.SecretEnvSource().WithName(envSecretName)
@@ -881,6 +895,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, applicationHandler).
+		Watches(&corev1.Pod{}, applicationHandler).
 		Watches(&corev1.Service{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).

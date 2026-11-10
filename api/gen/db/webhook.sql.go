@@ -173,7 +173,7 @@ func (q *Queries) FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDe
 
 const getWebhookDeliveryPayload = `-- name: GetWebhookDeliveryPayload :one
 SELECT d.id, w.url, w.secret, w.kind,
-       e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.actor_type, e.actor_id,
+       e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id,
        e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at
 FROM webhook_deliveries d
 JOIN webhooks w ON w.id = d.webhook_id
@@ -182,23 +182,25 @@ WHERE d.id = $1
 `
 
 type GetWebhookDeliveryPayloadRow struct {
-	ID          uuid.UUID   `json:"id"`
-	Url         string      `json:"url"`
-	Secret      string      `json:"secret"`
-	Kind        WebhookKind `json:"kind"`
-	Seq         int64       `json:"seq"`
-	EventID     uuid.UUID   `json:"eventId"`
-	Type        string      `json:"type"`
-	OrgID       *uuid.UUID  `json:"orgId"`
-	WorkspaceID *uuid.UUID  `json:"workspaceId"`
-	ActorType   string      `json:"actorType"`
-	ActorID     *uuid.UUID  `json:"actorId"`
-	SubjectType *string     `json:"subjectType"`
-	SubjectID   *uuid.UUID  `json:"subjectId"`
-	RequestID   *string     `json:"requestId"`
-	Traceparent *string     `json:"traceparent"`
-	Data        []byte      `json:"data"`
-	CreatedAt   time.Time   `json:"createdAt"`
+	ID            uuid.UUID   `json:"id"`
+	Url           string      `json:"url"`
+	Secret        string      `json:"secret"`
+	Kind          WebhookKind `json:"kind"`
+	Seq           int64       `json:"seq"`
+	EventID       uuid.UUID   `json:"eventId"`
+	Type          string      `json:"type"`
+	OrgID         *uuid.UUID  `json:"orgId"`
+	WorkspaceID   *uuid.UUID  `json:"workspaceId"`
+	ResourceID    *uuid.UUID  `json:"resourceId"`
+	EnvironmentID *uuid.UUID  `json:"environmentId"`
+	ActorType     string      `json:"actorType"`
+	ActorID       *uuid.UUID  `json:"actorId"`
+	SubjectType   *string     `json:"subjectType"`
+	SubjectID     *uuid.UUID  `json:"subjectId"`
+	RequestID     *string     `json:"requestId"`
+	Traceparent   *string     `json:"traceparent"`
+	Data          []byte      `json:"data"`
+	CreatedAt     time.Time   `json:"createdAt"`
 }
 
 func (q *Queries) GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (GetWebhookDeliveryPayloadRow, error) {
@@ -214,6 +216,8 @@ func (q *Queries) GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (
 		&i.Type,
 		&i.OrgID,
 		&i.WorkspaceID,
+		&i.ResourceID,
+		&i.EnvironmentID,
 		&i.ActorType,
 		&i.ActorID,
 		&i.SubjectType,

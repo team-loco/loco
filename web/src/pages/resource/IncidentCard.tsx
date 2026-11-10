@@ -1,10 +1,9 @@
 import { ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { Event } from "@gen/loco/resource/v1/resource_pb";
+import type { RuntimeEvent as Event } from "@/lib/runtime-events";
 
 import { Button } from "@/components/design/Button";
-import { SoonTag } from "@/components/design/SoonTag";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { HOUR_MS } from "@/lib/obs-time";
 import { agoLabel, formatClock, maybeTsMs } from "@/lib/time";
@@ -16,7 +15,6 @@ import { depTag, startedMs, type RegionProblem, type RegionView } from "./model"
 import { ABSENT, specChanges } from "./spec";
 
 const LOG_LINES = 6;
-const POD_LABEL = "k8s.pod.name";
 const ERROR_LEVEL = "ERROR";
 const NO_LEVELS: string[] = [];
 
@@ -29,39 +27,39 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 	);
 }
 
-function PodLogs({
+function RegionLogs({
 	workspaceId,
 	environmentId,
 	resourceId,
-	pod,
+	region,
 }: {
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
-	pod: string;
+	region: string;
 }) {
 	const logs = useQueryLogs({
 		workspaceId,
 		environmentId,
 		resourceIds: [resourceId],
 		spanMs: HOUR_MS,
-		parsedQuery: { search: "", levels: NO_LEVELS, labels: { [POD_LABEL]: pod } },
+		parsedQuery: { search: "", levels: NO_LEVELS, labels: {}, regions: [region] },
 		limit: LOG_LINES,
 	});
 	const lines = logs.entries.toReversed();
 	return (
 		<div className="flex min-w-0 flex-col gap-1.5">
 			<span className="text-[12px] text-fg3">
-				Last lines from <span className="font-mono">{pod}</span>
+				Last lines in <span className="font-mono">{region}</span>
 			</span>
 			<div
-				aria-label={`Last log lines from ${pod}`}
+				aria-label={`Last log lines in ${region}`}
 				className="flex flex-col rounded-lg bg-background py-2.5 font-mono text-[11.5px] leading-normal ring-1 ring-line"
 			>
 				{logs.isLoading && <span className="px-3 text-fg3">Loading…</span>}
 				{!logs.isLoading && lines.length === 0 && (
 					<span className="px-3 text-fg3">
-						{logs.error !== null ? "Failed to load logs" : "No logs from this replica in the last hour"}
+						{logs.error !== null ? "Failed to load logs" : "No logs in this region in the last hour"}
 					</span>
 				)}
 				{lines.map((l, i) => {
@@ -92,7 +90,6 @@ export function IncidentCard({
 	region,
 	lastGood,
 	events,
-	eventsUnavailable,
 	workspaceId,
 	environmentId,
 	resourceId,
@@ -104,7 +101,6 @@ export function IncidentCard({
 	region: RegionView;
 	lastGood: Deployment | undefined;
 	events: Event[];
-	eventsUnavailable: boolean;
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
@@ -115,7 +111,7 @@ export function IncidentCard({
 	const status = region.status;
 	const current = region.current;
 	const reportedMs = maybeTsMs(status?.reportedAt);
-	const backOff = latestBackOff(events);
+	const backOff = latestBackOff(events, region.name);
 	const changes = current !== undefined && lastGood !== undefined ? specChanges(lastGood, current) : [];
 	const goodMs = lastGood === undefined ? undefined : startedMs(lastGood);
 
@@ -171,11 +167,7 @@ export function IncidentCard({
 						</Fact>
 					)}
 					{problem.message !== "" && <Fact label="Status">{problem.message}</Fact>}
-					{backOff !== undefined && (
-						<Fact label="Last warning">
-							{backOff.reason}: {backOff.message}
-						</Fact>
-					)}
+					{backOff !== undefined && <Fact label="Last warning">{backOff.message}</Fact>}
 					<Fact label="Last good">
 						{lastGood === undefined ? (
 							"No earlier healthy deployment in this region"
@@ -200,19 +192,14 @@ export function IncidentCard({
 					)}
 				</dl>
 				{backOff !== undefined ? (
-					<PodLogs
+					<RegionLogs
 						workspaceId={workspaceId}
 						environmentId={environmentId}
 						resourceId={resourceId}
-						pod={backOff.podName}
+						region={region.name}
 					/>
-				) : eventsUnavailable ? (
-					<span className="flex items-center gap-2 text-[12.5px] text-fg3">
-						Last log lines of the failing replica
-						<SoonTag />
-					</span>
 				) : (
-					<span className="text-[12.5px] text-fg3">No recent BackOff event names a replica to show logs for.</span>
+					<span className="text-[12.5px] text-fg3">No active crash-loop event in this environment.</span>
 				)}
 			</div>
 		</section>

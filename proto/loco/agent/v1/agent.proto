@@ -97,6 +97,8 @@ message PlacementStatus {
   int32 ready_replicas = 4;
   string phase = 5;
   string message = 6;
+  string runtime_reason = 7;
+  string runtime_message = 8;
 }
 
 message SyncResponse {

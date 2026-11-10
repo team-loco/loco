@@ -329,6 +329,10 @@ spec:
               readyReplicas:
                 format: int32
                 type: integer
+              runtimeMessage:
+                type: string
+              runtimeReason:
+                type: string
               startedAt:
                 format: date-time
                 type: string

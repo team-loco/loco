@@ -1,12 +1,15 @@
 package controller
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -199,6 +202,71 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseReady))
 		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
 
+	})
+
+	It("persists public runtime conditions and clears them on recovery", func() {
+		app := isolationTestApplication(stuckWorkspace, "runtime")
+		app.Spec.ServiceSpec.Routing = nil
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		pod := createReplica(app, "runtime-current", testImage)
+		for _, tc := range []struct{ reason, want string }{
+			{reasonCrashLoopBackOff, locov1alpha1.RuntimeCrashLooping},
+			{reasonImagePullBackOff, locov1alpha1.RuntimeImagePullFailed},
+		} {
+			setWaiting(pod, tc.reason, "private replica diagnostics")
+			reconcileStuckApp(r, app)
+			Expect(app.Status.RuntimeReason).To(Equal(tc.want))
+			message, _ := locov1alpha1.RuntimeProblemMessage(tc.want)
+			Expect(app.Status.RuntimeMessage).To(Equal(message))
+		}
+		pod.Status.ContainerStatuses[0].State = corev1.ContainerState{
+			Terminated: &corev1.ContainerStateTerminated{Reason: reasonOOMKilled, ExitCode: 137},
+		}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.RuntimeReason).To(Equal(locov1alpha1.RuntimeOutOfMemory))
+
+		pod.Status.ContainerStatuses = nil
+		pod.Status.Conditions = []corev1.PodCondition{
+			{Type: corev1.PodScheduled, Status: corev1.ConditionFalse, Reason: corev1.PodReasonUnschedulable},
+		}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.RuntimeReason).To(Equal(locov1alpha1.RuntimeUnschedulable))
+
+		// A running container with a completed startup and a failing readiness check.
+		pod.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/runtime-health",
+				Port: intstr.FromInt32(app.Spec.ServiceSpec.Deployment.Port),
+			},
+		}
+		// Pod probes are immutable: create another current replica with the probe.
+		Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+		pod.Name = "runtime-health"
+		pod.ResourceVersion = ""
+		pod.UID = ""
+		pod.Status = corev1.PodStatus{}
+		Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+		started := true
+		pod.Status.ContainerStatuses = []corev1.ContainerStatus{
+			{
+				Name:    pod.Spec.Containers[0].Name,
+				Started: &started,
+				State: corev1.ContainerState{
+					Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(time.Now().Add(-time.Hour))},
+				},
+			},
+		}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.RuntimeReason).To(Equal(locov1alpha1.RuntimeHealthCheckFailing))
+		pod.Status.ContainerStatuses[0].Ready = true
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.RuntimeReason).To(BeEmpty())
+		Expect(app.Status.RuntimeMessage).To(BeEmpty())
 	})
 
 })

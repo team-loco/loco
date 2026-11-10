@@ -41,6 +41,7 @@ type Event struct {
 	ActorEmail    string                 `protobuf:"bytes,13,opt,name=actor_email,json=actorEmail,proto3" json:"actor_email,omitempty"`
 	ActorName     string                 `protobuf:"bytes,14,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
 	ResourceId    string                 `protobuf:"bytes,15,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,16,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -180,6 +181,13 @@ func (x *Event) GetResourceId() string {
 	return ""
 }
 
+func (x *Event) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
 type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -188,6 +196,10 @@ type ListEventsRequest struct {
 	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	ResourceId    string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// Inclusive start and exclusive end of the event creation time range.
+	StartTime     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -262,6 +274,27 @@ func (x *ListEventsRequest) GetResourceId() string {
 		return x.ResourceId
 	}
 	return ""
+}
+
+func (x *ListEventsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *ListEventsRequest) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *ListEventsRequest) GetEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndTime
+	}
+	return nil
 }
 
 type ListEventsResponse struct {
@@ -416,7 +449,7 @@ var File_loco_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdb\x03\n" +
+	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x04\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -440,7 +473,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
 	"actor_name\x18\x0e \x01(\tR\tactorName\x12\x1f\n" +
 	"\vresource_id\x18\x0f \x01(\tR\n" +
-	"resourceId\"\x83\x02\n" +
+	"resourceId\x12%\n" +
+	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xa9\x03\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
@@ -450,7 +484,11 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xf4\x03(\x00R\bpageSize\x12.\n" +
 	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12,\n" +
 	"\vresource_id\x18\x06 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\n" +
-	"resourceId\"j\n" +
+	"resourceId\x122\n" +
+	"\x0eenvironment_id\x18\a \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x129\n" +
+	"\n" +
+	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
+	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\"j\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"6\n" +
@@ -489,17 +527,19 @@ var file_loco_event_v1_event_proto_goTypes = []any{
 var file_loco_event_v1_event_proto_depIdxs = []int32{
 	5, // 0: loco.event.v1.Event.data:type_name -> google.protobuf.Struct
 	6, // 1: loco.event.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	0, // 2: loco.event.v1.ListEventsResponse.events:type_name -> loco.event.v1.Event
-	0, // 3: loco.event.v1.StreamEventsResponse.events:type_name -> loco.event.v1.Event
-	1, // 4: loco.event.v1.EventService.ListEvents:input_type -> loco.event.v1.ListEventsRequest
-	3, // 5: loco.event.v1.EventService.StreamEvents:input_type -> loco.event.v1.StreamEventsRequest
-	2, // 6: loco.event.v1.EventService.ListEvents:output_type -> loco.event.v1.ListEventsResponse
-	4, // 7: loco.event.v1.EventService.StreamEvents:output_type -> loco.event.v1.StreamEventsResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 2: loco.event.v1.ListEventsRequest.start_time:type_name -> google.protobuf.Timestamp
+	6, // 3: loco.event.v1.ListEventsRequest.end_time:type_name -> google.protobuf.Timestamp
+	0, // 4: loco.event.v1.ListEventsResponse.events:type_name -> loco.event.v1.Event
+	0, // 5: loco.event.v1.StreamEventsResponse.events:type_name -> loco.event.v1.Event
+	1, // 6: loco.event.v1.EventService.ListEvents:input_type -> loco.event.v1.ListEventsRequest
+	3, // 7: loco.event.v1.EventService.StreamEvents:input_type -> loco.event.v1.StreamEventsRequest
+	2, // 8: loco.event.v1.EventService.ListEvents:output_type -> loco.event.v1.ListEventsResponse
+	4, // 9: loco.event.v1.EventService.StreamEvents:output_type -> loco.event.v1.StreamEventsResponse
+	8, // [8:10] is the sub-list for method output_type
+	6, // [6:8] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_loco_event_v1_event_proto_init() }

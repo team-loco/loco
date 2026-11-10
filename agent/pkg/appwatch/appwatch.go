@@ -138,6 +138,8 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		ReadyReplicas:    app.Status.ReadyReplicas,
 		Phase:            app.Status.Phase,
 		Message:          app.Status.Message,
+		RuntimeReason:    app.Status.RuntimeReason,
+		RuntimeMessage:   app.Status.RuntimeMessage,
 	})
 }
 

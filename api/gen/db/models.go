@@ -434,21 +434,22 @@ type EnvironmentKey struct {
 }
 
 type Event struct {
-	Seq         int64      `json:"seq"`
-	Txid        uint64     `json:"txid"`
-	ID          uuid.UUID  `json:"id"`
-	Type        string     `json:"type"`
-	OrgID       *uuid.UUID `json:"orgId"`
-	WorkspaceID *uuid.UUID `json:"workspaceId"`
-	ResourceID  *uuid.UUID `json:"resourceId"`
-	ActorType   string     `json:"actorType"`
-	ActorID     *uuid.UUID `json:"actorId"`
-	SubjectType *string    `json:"subjectType"`
-	SubjectID   *uuid.UUID `json:"subjectId"`
-	RequestID   *string    `json:"requestId"`
-	Traceparent *string    `json:"traceparent"`
-	Data        []byte     `json:"data"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	Seq           int64      `json:"seq"`
+	Txid          uint64     `json:"txid"`
+	ID            uuid.UUID  `json:"id"`
+	Type          string     `json:"type"`
+	OrgID         *uuid.UUID `json:"orgId"`
+	WorkspaceID   *uuid.UUID `json:"workspaceId"`
+	ResourceID    *uuid.UUID `json:"resourceId"`
+	EnvironmentID *uuid.UUID `json:"environmentId"`
+	ActorType     string     `json:"actorType"`
+	ActorID       *uuid.UUID `json:"actorId"`
+	SubjectType   *string    `json:"subjectType"`
+	SubjectID     *uuid.UUID `json:"subjectId"`
+	RequestID     *string    `json:"requestId"`
+	Traceparent   *string    `json:"traceparent"`
+	Data          []byte     `json:"data"`
+	CreatedAt     time.Time  `json:"createdAt"`
 }
 
 type Identity struct {
@@ -506,6 +507,8 @@ type Placement struct {
 	ObservedRevision int64      `json:"observedRevision"`
 	Ready            bool       `json:"ready"`
 	ReadyReplicas    int32      `json:"readyReplicas"`
+	RuntimeReason    string     `json:"runtimeReason"`
+	RuntimeMessage   string     `json:"runtimeMessage"`
 	StatusPhase      string     `json:"statusPhase"`
 	StatusMessage    string     `json:"statusMessage"`
 	StatusUpdatedAt  *time.Time `json:"statusUpdatedAt"`

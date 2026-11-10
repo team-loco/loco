@@ -25,23 +25,24 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, createdAt time.Time) (
 }
 
 const insertEvent = `-- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data)
+VALUES ($1, $2, $3, $4, $12, $5, $6, $7, $8, $9, $10, $11)
 RETURNING seq
 `
 
 type InsertEventParams struct {
-	Type        string     `json:"type"`
-	OrgID       *uuid.UUID `json:"orgId"`
-	WorkspaceID *uuid.UUID `json:"workspaceId"`
-	ResourceID  *uuid.UUID `json:"resourceId"`
-	ActorType   string     `json:"actorType"`
-	ActorID     *uuid.UUID `json:"actorId"`
-	SubjectType *string    `json:"subjectType"`
-	SubjectID   *uuid.UUID `json:"subjectId"`
-	RequestID   *string    `json:"requestId"`
-	Traceparent *string    `json:"traceparent"`
-	Data        []byte     `json:"data"`
+	Type          string     `json:"type"`
+	OrgID         *uuid.UUID `json:"orgId"`
+	WorkspaceID   *uuid.UUID `json:"workspaceId"`
+	ResourceID    *uuid.UUID `json:"resourceId"`
+	ActorType     string     `json:"actorType"`
+	ActorID       *uuid.UUID `json:"actorId"`
+	SubjectType   *string    `json:"subjectType"`
+	SubjectID     *uuid.UUID `json:"subjectId"`
+	RequestID     *string    `json:"requestId"`
+	Traceparent   *string    `json:"traceparent"`
+	Data          []byte     `json:"data"`
+	EnvironmentID *uuid.UUID `json:"environmentId"`
 }
 
 func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error) {
@@ -57,6 +58,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 		arg.RequestID,
 		arg.Traceparent,
 		arg.Data,
+		arg.EnvironmentID,
 	)
 	var seq int64
 	err := row.Scan(&seq)
@@ -64,7 +66,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 }
 
 const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, txid, id, type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data, created_at
+SELECT seq, txid, id, type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data, created_at
 FROM events
 WHERE (txid, seq) > ($1::xid8, $2::bigint)
   AND txid < pg_snapshot_xmin(pg_current_snapshot())
@@ -95,6 +97,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 			&i.OrgID,
 			&i.WorkspaceID,
 			&i.ResourceID,
+			&i.EnvironmentID,
 			&i.ActorType,
 			&i.ActorID,
 			&i.SubjectType,
@@ -115,21 +118,27 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 }
 
 const listOrgAuditEvents = `-- name: ListOrgAuditEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
-  AND ($2::bigint IS NULL OR e.seq < $2::bigint)
-  AND (cardinality($3::text[]) = 0 OR e.type = ANY($3::text[]))
+  AND ($2::uuid IS NULL OR e.environment_id = $2)
+  AND ($3::timestamptz IS NULL OR e.created_at >= $3)
+  AND ($4::timestamptz IS NULL OR e.created_at < $4)
+  AND ($5::bigint IS NULL OR e.seq < $5::bigint)
+  AND (cardinality($6::text[]) = 0 OR e.type = ANY($6::text[]))
 ORDER BY e.seq DESC
-LIMIT $4
+LIMIT $7
 `
 
 type ListOrgAuditEventsParams struct {
-	OrgID     *uuid.UUID `json:"orgId"`
-	BeforeSeq *int64     `json:"beforeSeq"`
-	Types     []string   `json:"types"`
-	MaxRows   int32      `json:"maxRows"`
+	OrgID         *uuid.UUID `json:"orgId"`
+	EnvironmentID *uuid.UUID `json:"environmentId"`
+	StartTime     *time.Time `json:"startTime"`
+	EndTime       *time.Time `json:"endTime"`
+	BeforeSeq     *int64     `json:"beforeSeq"`
+	Types         []string   `json:"types"`
+	MaxRows       int32      `json:"maxRows"`
 }
 
 type ListOrgAuditEventsRow struct {
@@ -141,6 +150,9 @@ type ListOrgAuditEventsRow struct {
 func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEventsParams) ([]ListOrgAuditEventsRow, error) {
 	rows, err := q.db.Query(ctx, listOrgAuditEvents,
 		arg.OrgID,
+		arg.EnvironmentID,
+		arg.StartTime,
+		arg.EndTime,
 		arg.BeforeSeq,
 		arg.Types,
 		arg.MaxRows,
@@ -160,6 +172,7 @@ func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEvents
 			&i.Event.OrgID,
 			&i.Event.WorkspaceID,
 			&i.Event.ResourceID,
+			&i.Event.EnvironmentID,
 			&i.Event.ActorType,
 			&i.Event.ActorID,
 			&i.Event.SubjectType,
@@ -182,25 +195,31 @@ func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEvents
 }
 
 const listResourceAuditEvents = `-- name: ListResourceAuditEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
   AND e.workspace_id = $2
   AND e.resource_id = $3
-  AND ($4::bigint IS NULL OR e.seq < $4::bigint)
-  AND (cardinality($5::text[]) = 0 OR e.type = ANY($5::text[]))
+  AND ($4::uuid IS NULL OR e.environment_id = $4)
+  AND ($5::timestamptz IS NULL OR e.created_at >= $5)
+  AND ($6::timestamptz IS NULL OR e.created_at < $6)
+  AND ($7::bigint IS NULL OR e.seq < $7::bigint)
+  AND (cardinality($8::text[]) = 0 OR e.type = ANY($8::text[]))
 ORDER BY e.seq DESC
-LIMIT $6
+LIMIT $9
 `
 
 type ListResourceAuditEventsParams struct {
-	OrgID       *uuid.UUID `json:"orgId"`
-	WorkspaceID *uuid.UUID `json:"workspaceId"`
-	ResourceID  *uuid.UUID `json:"resourceId"`
-	BeforeSeq   *int64     `json:"beforeSeq"`
-	Types       []string   `json:"types"`
-	MaxRows     int32      `json:"maxRows"`
+	OrgID         *uuid.UUID `json:"orgId"`
+	WorkspaceID   *uuid.UUID `json:"workspaceId"`
+	ResourceID    *uuid.UUID `json:"resourceId"`
+	EnvironmentID *uuid.UUID `json:"environmentId"`
+	StartTime     *time.Time `json:"startTime"`
+	EndTime       *time.Time `json:"endTime"`
+	BeforeSeq     *int64     `json:"beforeSeq"`
+	Types         []string   `json:"types"`
+	MaxRows       int32      `json:"maxRows"`
 }
 
 type ListResourceAuditEventsRow struct {
@@ -214,6 +233,9 @@ func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceA
 		arg.OrgID,
 		arg.WorkspaceID,
 		arg.ResourceID,
+		arg.EnvironmentID,
+		arg.StartTime,
+		arg.EndTime,
 		arg.BeforeSeq,
 		arg.Types,
 		arg.MaxRows,
@@ -233,6 +255,7 @@ func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceA
 			&i.Event.OrgID,
 			&i.Event.WorkspaceID,
 			&i.Event.ResourceID,
+			&i.Event.EnvironmentID,
 			&i.Event.ActorType,
 			&i.Event.ActorID,
 			&i.Event.SubjectType,
@@ -255,23 +278,29 @@ func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceA
 }
 
 const listWorkspaceAuditEvents = `-- name: ListWorkspaceAuditEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
   AND e.workspace_id = $2
-  AND ($3::bigint IS NULL OR e.seq < $3::bigint)
-  AND (cardinality($4::text[]) = 0 OR e.type = ANY($4::text[]))
+  AND ($3::uuid IS NULL OR e.environment_id = $3)
+  AND ($4::timestamptz IS NULL OR e.created_at >= $4)
+  AND ($5::timestamptz IS NULL OR e.created_at < $5)
+  AND ($6::bigint IS NULL OR e.seq < $6::bigint)
+  AND (cardinality($7::text[]) = 0 OR e.type = ANY($7::text[]))
 ORDER BY e.seq DESC
-LIMIT $5
+LIMIT $8
 `
 
 type ListWorkspaceAuditEventsParams struct {
-	OrgID       *uuid.UUID `json:"orgId"`
-	WorkspaceID *uuid.UUID `json:"workspaceId"`
-	BeforeSeq   *int64     `json:"beforeSeq"`
-	Types       []string   `json:"types"`
-	MaxRows     int32      `json:"maxRows"`
+	OrgID         *uuid.UUID `json:"orgId"`
+	WorkspaceID   *uuid.UUID `json:"workspaceId"`
+	EnvironmentID *uuid.UUID `json:"environmentId"`
+	StartTime     *time.Time `json:"startTime"`
+	EndTime       *time.Time `json:"endTime"`
+	BeforeSeq     *int64     `json:"beforeSeq"`
+	Types         []string   `json:"types"`
+	MaxRows       int32      `json:"maxRows"`
 }
 
 type ListWorkspaceAuditEventsRow struct {
@@ -284,6 +313,9 @@ func (q *Queries) ListWorkspaceAuditEvents(ctx context.Context, arg ListWorkspac
 	rows, err := q.db.Query(ctx, listWorkspaceAuditEvents,
 		arg.OrgID,
 		arg.WorkspaceID,
+		arg.EnvironmentID,
+		arg.StartTime,
+		arg.EndTime,
 		arg.BeforeSeq,
 		arg.Types,
 		arg.MaxRows,
@@ -303,6 +335,7 @@ func (q *Queries) ListWorkspaceAuditEvents(ctx context.Context, arg ListWorkspac
 			&i.Event.OrgID,
 			&i.Event.WorkspaceID,
 			&i.Event.ResourceID,
+			&i.Event.EnvironmentID,
 			&i.Event.ActorType,
 			&i.Event.ActorID,
 			&i.Event.SubjectType,

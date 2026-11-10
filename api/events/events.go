@@ -44,6 +44,8 @@ const (
 	EnvironmentCreated = "environment.created"
 	EnvironmentUpdated = "environment.updated"
 	EnvironmentDeleted = "environment.deleted"
+	ResourceDegraded   = "resource.degraded"
+	ResourceRecovered  = "resource.recovered"
 	ResourceCreated    = "resource.created"
 	ResourceUpdated    = "resource.updated"
 	ResourceDeleted    = "resource.deleted"
@@ -112,19 +114,22 @@ const (
 	FieldEnvironmentID = "environmentId"
 	FieldNewDEK        = "newDek"
 	FieldReason        = "reason"
+	FieldPlacementID   = "placementId"
+	FieldRegion        = "region"
 	FieldEmail         = "email"
 )
 
 type Event struct {
-	Type        string
-	OrgID       *uuid.UUID
-	WorkspaceID *uuid.UUID
-	ResourceID  *uuid.UUID
-	SubjectType string
-	SubjectID   *uuid.UUID
-	ActorType   string
-	ActorID     *uuid.UUID
-	Data        map[string]any
+	Type          string
+	OrgID         *uuid.UUID
+	WorkspaceID   *uuid.UUID
+	ResourceID    *uuid.UUID
+	EnvironmentID *uuid.UUID
+	SubjectType   string
+	SubjectID     *uuid.UUID
+	ActorType     string
+	ActorID       *uuid.UUID
+	Data          map[string]any
 }
 
 func Record(ctx context.Context, q genDb.Querier, ev Event) error {
@@ -159,14 +164,15 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		return fmt.Errorf("encode event data: %w", err)
 	}
 	params := genDb.InsertEventParams{
-		Type:        ev.Type,
-		OrgID:       ev.OrgID,
-		WorkspaceID: ev.WorkspaceID,
-		ResourceID:  ev.ResourceID,
-		ActorType:   actorType,
-		ActorID:     actorID,
-		SubjectID:   ev.SubjectID,
-		Data:        raw,
+		Type:          ev.Type,
+		OrgID:         ev.OrgID,
+		WorkspaceID:   ev.WorkspaceID,
+		ResourceID:    ev.ResourceID,
+		EnvironmentID: ev.EnvironmentID,
+		ActorType:     actorType,
+		ActorID:       actorID,
+		SubjectID:     ev.SubjectID,
+		Data:          raw,
 	}
 	if ev.SubjectType != "" {
 		subjectType := ev.SubjectType

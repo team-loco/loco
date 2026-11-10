@@ -254,6 +254,8 @@ CREATE TABLE
         observed_revision BIGINT NOT NULL DEFAULT 0,
         ready BOOLEAN NOT NULL DEFAULT false,
         ready_replicas INT NOT NULL DEFAULT 0,
+        runtime_reason TEXT NOT NULL DEFAULT '',
+        runtime_message TEXT NOT NULL DEFAULT '',
         status_phase TEXT NOT NULL DEFAULT '',
         status_message TEXT NOT NULL DEFAULT '',
         status_updated_at TIMESTAMPTZ,

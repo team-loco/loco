@@ -216,6 +216,24 @@ func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 	if got := eventTypes(streamMessage.GetEvents()); len(got) != 1 || got[0] != events.TokenCreated {
 		t.Fatalf("follow-up batch = %v", got)
 	}
+	environmentID := uuid.New()
+	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
+		if recordErr := events.Record(
+			f.owner,
+			f.queries,
+			events.Event{Type: kind, EnvironmentID: &environmentID},
+		); recordErr != nil {
+			t.Fatal(recordErr)
+		}
+		runtimeBatch, batchErr := stream.Receive()
+		if batchErr != nil {
+			t.Fatal(batchErr)
+		}
+		if len(runtimeBatch.GetEvents()) != 1 || runtimeBatch.GetEvents()[0].GetType() != kind ||
+			runtimeBatch.GetEvents()[0].GetEnvironmentId() != environmentID.String() {
+			t.Fatalf("runtime batch = %v", runtimeBatch)
+		}
+	}
 	cancel()
 
 	asSystem.Store(false)

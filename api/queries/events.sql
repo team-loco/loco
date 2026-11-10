@@ -1,6 +1,6 @@
 -- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data)
+VALUES ($1, $2, $3, $4, $12, $5, $6, $7, $8, $9, $10, $11)
 RETURNING seq;
 
 -- name: ListOrgAuditEvents :many
@@ -8,6 +8,9 @@ SELECT sqlc.embed(e), u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = sqlc.arg('org_id')
+  AND (sqlc.narg('environment_id')::uuid IS NULL OR e.environment_id = sqlc.narg('environment_id'))
+  AND (sqlc.narg('start_time')::timestamptz IS NULL OR e.created_at >= sqlc.narg('start_time'))
+  AND (sqlc.narg('end_time')::timestamptz IS NULL OR e.created_at < sqlc.narg('end_time'))
   AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
   AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
 ORDER BY e.seq DESC
@@ -19,6 +22,9 @@ FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = sqlc.arg('org_id')
   AND e.workspace_id = sqlc.arg('workspace_id')
+  AND (sqlc.narg('environment_id')::uuid IS NULL OR e.environment_id = sqlc.narg('environment_id'))
+  AND (sqlc.narg('start_time')::timestamptz IS NULL OR e.created_at >= sqlc.narg('start_time'))
+  AND (sqlc.narg('end_time')::timestamptz IS NULL OR e.created_at < sqlc.narg('end_time'))
   AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
   AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
 ORDER BY e.seq DESC
@@ -31,6 +37,9 @@ LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = sqlc.arg('org_id')
   AND e.workspace_id = sqlc.arg('workspace_id')
   AND e.resource_id = sqlc.arg('resource_id')
+  AND (sqlc.narg('environment_id')::uuid IS NULL OR e.environment_id = sqlc.narg('environment_id'))
+  AND (sqlc.narg('start_time')::timestamptz IS NULL OR e.created_at >= sqlc.narg('start_time'))
+  AND (sqlc.narg('end_time')::timestamptz IS NULL OR e.created_at < sqlc.narg('end_time'))
   AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
   AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
 ORDER BY e.seq DESC

@@ -7,6 +7,7 @@ CREATE TABLE events (
     org_id UUID,
     workspace_id UUID,
     resource_id UUID,
+    environment_id UUID,
     actor_type TEXT NOT NULL,
     actor_id UUID,
     subject_type TEXT,

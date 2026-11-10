@@ -718,6 +718,8 @@ type PlacementStatus struct {
 	ReadyReplicas    int32                  `protobuf:"varint,4,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
 	Phase            string                 `protobuf:"bytes,5,opt,name=phase,proto3" json:"phase,omitempty"`
 	Message          string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	RuntimeReason    string                 `protobuf:"bytes,7,opt,name=runtime_reason,json=runtimeReason,proto3" json:"runtime_reason,omitempty"`
+	RuntimeMessage   string                 `protobuf:"bytes,8,opt,name=runtime_message,json=runtimeMessage,proto3" json:"runtime_message,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -790,6 +792,20 @@ func (x *PlacementStatus) GetPhase() string {
 func (x *PlacementStatus) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *PlacementStatus) GetRuntimeReason() string {
+	if x != nil {
+		return x.RuntimeReason
+	}
+	return ""
+}
+
+func (x *PlacementStatus) GetRuntimeMessage() string {
+	if x != nil {
+		return x.RuntimeMessage
 	}
 	return ""
 }
@@ -1528,14 +1544,16 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xce\x01\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\x9e\x02\n" +
 	"\x0fPlacementStatus\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
 	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12\x14\n" +
 	"\x05ready\x18\x03 \x01(\bR\x05ready\x12%\n" +
 	"\x0eready_replicas\x18\x04 \x01(\x05R\rreadyReplicas\x12\x14\n" +
 	"\x05phase\x18\x05 \x01(\tR\x05phase\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\"\xf7\x01\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\x12%\n" +
+	"\x0eruntime_reason\x18\a \x01(\tR\rruntimeReason\x12'\n" +
+	"\x0fruntime_message\x18\b \x01(\tR\x0eruntimeMessage\"\xf7\x01\n" +
 	"\fSyncResponse\x12,\n" +
 	"\x05apply\x18\x01 \x01(\v2\x14.loco.agent.v1.ApplyH\x00R\x05apply\x12/\n" +
 	"\x06delete\x18\x02 \x01(\v2\x15.loco.agent.v1.DeleteH\x00R\x06delete\x12<\n" +
