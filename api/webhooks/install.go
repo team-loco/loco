@@ -8,10 +8,12 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/advisorylock"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 )
 
@@ -66,7 +68,14 @@ func (h *InstallWebhook) validate() error {
 	return webhooksig.ValidateSecret(h.Secret)
 }
 
-func SyncInstallWebhooks(ctx context.Context, pool *pgxpool.Pool, hooks []InstallWebhook) error {
+// SyncInstallWebhooks makes the install webhooks match hooks, sealing each secret under a fresh
+// data key wrapped by provider. A webhook whose URL stays keeps its id and its deliveries.
+func SyncInstallWebhooks(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	provider secretkeys.Provider,
+	hooks []InstallWebhook,
+) error {
 	urls := make([]string, len(hooks))
 	for i, hook := range hooks {
 		urls[i] = hook.URL
@@ -79,10 +88,32 @@ func SyncInstallWebhooks(ctx context.Context, pool *pgxpool.Pool, hooks []Instal
 		if _, err := q.DeleteInstallWebhooksExcept(ctx, urls); err != nil {
 			return fmt.Errorf("delete install webhooks: %w", err)
 		}
+		existing, err := q.ListInstallWebhookIDs(ctx)
+		if err != nil {
+			return fmt.Errorf("list install webhooks: %w", err)
+		}
+		ids := make(map[string]uuid.UUID, len(existing))
+		for _, row := range existing {
+			ids[row.Url] = row.ID
+		}
 		for _, hook := range hooks {
+			id, ok := ids[hook.URL]
+			if !ok {
+				if id, err = uuid.NewV7(); err != nil {
+					return fmt.Errorf("generate install webhook id: %w", err)
+				}
+			}
+			key, sealed, sealErr := SealSecretWithNewKey(ctx, provider, id, hook.Secret)
+			if sealErr != nil {
+				return fmt.Errorf("install webhook %s: %w", hook.URL, sealErr)
+			}
 			if err := q.UpsertInstallWebhook(ctx, genDb.UpsertInstallWebhookParams{
+				ID:         id,
 				Url:        hook.URL,
-				Secret:     hook.Secret,
+				Provider:   key.Provider,
+				KekID:      key.KeyID,
+				WrappedDek: key.Bytes,
+				Secret:     sealed,
 				EventTypes: hook.EventTypes,
 			}); err != nil {
 				return fmt.Errorf("upsert install webhook %s: %w", hook.URL, err)

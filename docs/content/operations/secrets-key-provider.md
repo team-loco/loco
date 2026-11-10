@@ -1,6 +1,6 @@
 # Secrets key provider
 
-The API wraps the data key that encrypts each environment's secrets with a key in the Transit secrets engine of OpenBao or Vault. It stores secret values and wrapped data keys in PostgreSQL, so a copy of the database reveals nothing without the Transit key.
+The API wraps the data key that encrypts each environment's secrets, and the data key that encrypts each webhook's signing secrets, with a key in the Transit secrets engine of OpenBao or Vault. It stores secret values, webhook signing secrets and wrapped data keys in PostgreSQL, so a copy of the database reveals nothing without the Transit key.
 
 The API refuses to start without a valid transit configuration, and stops at startup unless it can log in to the server and read both of its keys with the types below.
 
@@ -137,9 +137,11 @@ With token auth the API renews its token `LOCO_SECRETS_TRANSIT_RENEW_MARGIN` bef
 
 The API keeps each unwrapped data key in memory for `LOCO_SECRETS_TRANSIT_CACHE_TTL`, so delivering secrets to clusters keeps working through a Transit outage shorter than that. Setting the first secret of an environment, or any secret in an environment whose data key is not cached, fails with `Unavailable` until the server is back. A shorter TTL bounds how long a data key stays in API memory; a longer one rides out longer outages.
 
+Each webhook delivery opens the webhook's signing secrets with its data key, through the same cache. While Transit is unreachable and that key is not cached, the delivery stays pending, uses none of its attempts and is retried after the first `WEBHOOK_RETRY_DELAYS` delay. Creating a webhook fails with `Unavailable`, as does rotating a secret whose data key is not cached, and the API stops at startup when it cannot seal the `INSTALL_WEBHOOKS` secrets.
+
 ### Rotation
 
-`bao write -f transit/keys/loco/rotate` creates a new key version. New data keys are wrapped with it, and data keys wrapped with older versions still unwrap. Call `SecretService.RewrapEnvironmentKeys` to rewrap every environment's data key with the new version. Raise the key's `min_decryption_version` only past versions that no environment key and no retained database backup still uses.
+`bao write -f transit/keys/loco/rotate` creates a new key version. New data keys are wrapped with it, and data keys wrapped with older versions still unwrap. Call `SecretService.RewrapEnvironmentKeys` to rewrap every environment's data key with the new version. A webhook's data key stays wrapped with the version that was current when the webhook was created; each API start wraps the install webhooks' data keys with the latest version. Raise the key's `min_decryption_version` only past versions that no environment key, no webhook key and no retained database backup still uses.
 
 `bao write -f transit/keys/loco-ingest/rotate` rotates the ingest signing key. The API signs new tokens with the latest version and publishes every version from the key's `min_decryption_version` in its JWKS, so tokens signed with older versions keep verifying until the minimum is raised past them. Raise it once the token lifetime has passed since the rotation.
 

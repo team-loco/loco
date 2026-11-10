@@ -33,7 +33,7 @@ func testWebhookQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 	}
 	t.Cleanup(pool.Close)
 	queries := genDb.New(pool)
-	server := NewWebhookServer(pool, queries, false)
+	server := NewWebhookServer(pool, queries, newTestKeyProvider(t, "k1"), false)
 	request := &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID,
 		Url:         receiverURL,

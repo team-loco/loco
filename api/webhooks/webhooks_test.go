@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
@@ -24,11 +23,6 @@ var testConfig = webhooks.Config{
 		24 * time.Hour,
 	},
 	PollInterval: time.Second,
-}
-
-func newDispatcher(queries genDb.Querier, workspacePrivate bool) *webhooks.Dispatcher {
-	workspace := webhooks.NewClient(testConfig, workspacePrivate)
-	return webhooks.NewDispatcher(queries, testConfig, workspace, webhooks.NewClient(testConfig, true))
 }
 
 func TestClientRefusesPrivateNetworks(t *testing.T) {

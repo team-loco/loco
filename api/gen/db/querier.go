@@ -170,6 +170,7 @@ type Querier interface {
 	ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error)
 	ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
+	ListInstallWebhookIDs(ctx context.Context) ([]ListInstallWebhookIDsRow, error)
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
 	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
 	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)
@@ -236,6 +237,7 @@ type Querier interface {
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
+	PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)

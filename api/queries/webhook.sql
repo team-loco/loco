@@ -1,6 +1,10 @@
 -- name: CreateWorkspaceWebhook :one
-INSERT INTO webhooks (kind, workspace_id, url, secret, event_types, created_by)
-VALUES ('workspace', sqlc.arg('workspace_id')::uuid, sqlc.arg('url'), sqlc.arg('secret'), sqlc.arg('event_types'), sqlc.narg('created_by'))
+INSERT INTO webhooks (id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, event_types, created_by)
+VALUES (
+    sqlc.arg('id'), 'workspace', sqlc.arg('workspace_id')::uuid, sqlc.arg('url'),
+    sqlc.arg('provider'), sqlc.arg('kek_id'), sqlc.arg('wrapped_dek'), sqlc.arg('secret'),
+    sqlc.arg('event_types'), sqlc.narg('created_by')
+)
 RETURNING *;
 
 -- name: ListWorkspaceWebhooks :many
@@ -78,7 +82,8 @@ WHERE d.id IN (
 RETURNING d.id, d.attempts;
 
 -- name: GetWebhookDeliveryPayload :one
-SELECT d.id, w.url, w.secret, w.previous_secret, w.previous_secret_expires_at, w.kind,
+SELECT d.id, w.id AS webhook_id, w.url, w.provider, w.kek_id, w.wrapped_dek,
+       w.secret, w.previous_secret, w.previous_secret_expires_at, w.kind,
        e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id,
        e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at
 FROM webhook_deliveries d
@@ -94,14 +99,32 @@ SET status = sqlc.arg('status'),
     delivered_at = sqlc.narg('delivered_at')
 WHERE id = sqlc.arg('id') AND attempts = sqlc.arg('attempts');
 
+-- name: PostponeWebhookDelivery :execrows
+UPDATE webhook_deliveries
+SET attempts = attempts - 1,
+    last_error = sqlc.arg('last_error'),
+    next_attempt_at = sqlc.arg('next_attempt_at')
+WHERE id = sqlc.arg('id') AND attempts = sqlc.arg('attempts');
+
 -- name: LockInstallWebhooks :exec
 SELECT pg_advisory_xact_lock(sqlc.arg(lock_key)::bigint);
 
+-- name: ListInstallWebhookIDs :many
+SELECT id, url FROM webhooks WHERE kind = 'install';
+
 -- name: UpsertInstallWebhook :exec
-INSERT INTO webhooks (kind, url, secret, event_types)
-VALUES ('install', sqlc.arg('url'), sqlc.arg('secret'), sqlc.arg('event_types'))
+INSERT INTO webhooks (id, kind, url, provider, kek_id, wrapped_dek, secret, event_types)
+VALUES (
+    sqlc.arg('id'), 'install', sqlc.arg('url'),
+    sqlc.arg('provider'), sqlc.arg('kek_id'), sqlc.arg('wrapped_dek'), sqlc.arg('secret'),
+    sqlc.arg('event_types')
+)
 ON CONFLICT (url) WHERE kind = 'install'
-DO UPDATE SET secret = EXCLUDED.secret, event_types = EXCLUDED.event_types;
+DO UPDATE SET provider = EXCLUDED.provider,
+              kek_id = EXCLUDED.kek_id,
+              wrapped_dek = EXCLUDED.wrapped_dek,
+              secret = EXCLUDED.secret,
+              event_types = EXCLUDED.event_types;
 
 -- name: DeleteInstallWebhooksExcept :execrows
 DELETE FROM webhooks

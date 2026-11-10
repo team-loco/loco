@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/internal/clip"
@@ -37,11 +38,15 @@ const (
 	deliveryKindAttr      = "loco.webhook.kind"
 	deliveryEventTypeAttr = "loco.event.type"
 	deliveryStatusAttr    = "loco.webhook.status"
+
+	// Stored on a delivery instead of the provider's error, which can name internal hosts.
+	keyUnavailableMessage = "the secret key provider is unavailable; the delivery will be retried"
 )
 
 var (
 	ErrBlockedAddress = errors.New("webhook address is on a private or reserved network")
 	ErrUnknownKind    = errors.New("unknown webhook kind")
+	ErrSecretUnusable = errors.New("the webhook signing secret cannot be opened")
 
 	sharedAddressSpace = netip.MustParsePrefix("100.64.0.0/10")
 )
@@ -51,6 +56,7 @@ type Config struct {
 	RequestTimeout time.Duration
 	ClaimBatch     int32
 	// RetryDelays[n] is the wait after failed attempt n+1; the delivery fails after len(RetryDelays)+1 attempts.
+	// A delivery whose signing secret the key provider cannot open waits RetryDelays[0] without using an attempt.
 	RetryDelays  []time.Duration
 	PollInterval time.Duration
 }
@@ -146,15 +152,22 @@ func payloadFrom(row genDb.GetWebhookDeliveryPayloadRow) Payload {
 
 type Dispatcher struct {
 	queries         genDb.Querier
+	provider        secretkeys.Provider
 	cfg             Config
 	workspaceClient *http.Client
 	installClient   *http.Client
 	now             func() time.Time
 }
 
-func NewDispatcher(queries genDb.Querier, cfg Config, workspaceClient, installClient *http.Client) *Dispatcher {
+func NewDispatcher(
+	queries genDb.Querier,
+	provider secretkeys.Provider,
+	cfg Config,
+	workspaceClient, installClient *http.Client,
+) *Dispatcher {
 	return &Dispatcher{
 		queries:         queries,
+		provider:        provider,
 		cfg:             cfg,
 		workspaceClient: workspaceClient,
 		installClient:   installClient,
@@ -227,7 +240,20 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 			span.AddLink(link)
 		}
 	}
-	sendErr := d.send(ctx, id, row)
+	secrets, err := d.signingSecrets(ctx, row)
+	var sendErr error
+	switch {
+	case err == nil:
+		sendErr = d.send(ctx, id, row, secrets)
+	case errors.Is(err, secretkeys.ErrDecrypt):
+		slog.ErrorContext(ctx, "failed to open a webhook signing secret", "deliveryId", id, "error", err)
+		sendErr = ErrSecretUnusable
+	default:
+		d.postpone(ctx, id, attempt, err)
+		span.SetAttributes(attribute.String(deliveryStatusAttr, StatusPending))
+		tracing.End(span, err)
+		return
+	}
 	params := genDb.FinishWebhookDeliveryParams{ID: id, Attempts: int32(attempt), NextAttemptAt: d.now()}
 	switch {
 	case sendErr == nil:
@@ -258,14 +284,46 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 	tracing.End(span, sendErr)
 }
 
-func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhookDeliveryPayloadRow) error {
+// signingSecrets opens the webhook's current secret and, until it expires, the secret a rotation replaced.
+func (d *Dispatcher) signingSecrets(ctx context.Context, row genDb.GetWebhookDeliveryPayloadRow) ([]string, error) {
+	sealed := [][]byte{row.Secret}
+	if row.PreviousSecret != nil && row.PreviousSecretExpiresAt.After(d.now()) {
+		sealed = append(sealed, row.PreviousSecret)
+	}
+	key := secretkeys.WrappedKey{Provider: row.Provider, KeyID: row.KekID, Bytes: row.WrappedDek}
+	return OpenSecrets(ctx, d.provider, row.WebhookID, key, sealed...)
+}
+
+// postpone gives back the attempt the claim took, so a key provider outage of any length
+// leaves the delivery pending with every retry intact.
+func (d *Dispatcher) postpone(ctx context.Context, id uuid.UUID, attempt int, cause error) {
+	slog.WarnContext(ctx, "webhook signing secret unavailable; postponing the delivery",
+		"deliveryId", id, "attempt", attempt, "error", cause)
+	rows, err := d.queries.PostponeWebhookDelivery(context.WithoutCancel(ctx), genDb.PostponeWebhookDeliveryParams{
+		ID:            id,
+		Attempts:      int32(attempt),
+		LastError:     new(keyUnavailableMessage),
+		NextAttemptAt: d.now().Add(d.cfg.RetryDelays[0]),
+	})
+	switch {
+	case err != nil:
+		slog.ErrorContext(ctx, "failed to postpone webhook delivery", "deliveryId", id, "error", err)
+	case rows == 0:
+		slog.ErrorContext(
+			ctx, "webhook delivery was reclaimed before it was postponed", "deliveryId", id, "attempt", attempt,
+		)
+	}
+}
+
+func (d *Dispatcher) send(
+	ctx context.Context,
+	id uuid.UUID,
+	row genDb.GetWebhookDeliveryPayloadRow,
+	secrets []string,
+) error {
 	body, err := json.Marshal(payloadFrom(row))
 	if err != nil {
 		return fmt.Errorf("encode payload: %w", err)
-	}
-	secrets := []string{row.Secret}
-	if row.PreviousSecret != nil && row.PreviousSecretExpiresAt.After(d.now()) {
-		secrets = append(secrets, *row.PreviousSecret)
 	}
 	req, err := webhooksig.NewSignedRequest(ctx, row.Url, secrets, id.String(), body)
 	if err != nil {

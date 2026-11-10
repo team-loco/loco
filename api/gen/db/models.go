@@ -628,8 +628,11 @@ type Webhook struct {
 	Kind                    WebhookKind `json:"kind"`
 	WorkspaceID             *uuid.UUID  `json:"workspaceId"`
 	Url                     string      `json:"url"`
-	Secret                  string      `json:"secret"`
-	PreviousSecret          *string     `json:"previousSecret"`
+	Provider                string      `json:"provider"`
+	KekID                   string      `json:"kekId"`
+	WrappedDek              []byte      `json:"wrappedDek"`
+	Secret                  []byte      `json:"secret"`
+	PreviousSecret          []byte      `json:"previousSecret"`
 	PreviousSecretExpiresAt *time.Time  `json:"previousSecretExpiresAt"`
 	EventTypes              []string    `json:"eventTypes"`
 	CreatedBy               *uuid.UUID  `json:"createdBy"`

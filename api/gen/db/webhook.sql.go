@@ -69,23 +69,35 @@ func (q *Queries) CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.U
 }
 
 const createWorkspaceWebhook = `-- name: CreateWorkspaceWebhook :one
-INSERT INTO webhooks (kind, workspace_id, url, secret, event_types, created_by)
-VALUES ('workspace', $1::uuid, $2, $3, $4, $5)
-RETURNING id, kind, workspace_id, url, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
+INSERT INTO webhooks (id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, event_types, created_by)
+VALUES (
+    $1, 'workspace', $2::uuid, $3,
+    $4, $5, $6, $7,
+    $8, $9
+)
+RETURNING id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
 `
 
 type CreateWorkspaceWebhookParams struct {
+	ID          uuid.UUID  `json:"id"`
 	WorkspaceID uuid.UUID  `json:"workspaceId"`
 	Url         string     `json:"url"`
-	Secret      string     `json:"secret"`
+	Provider    string     `json:"provider"`
+	KekID       string     `json:"kekId"`
+	WrappedDek  []byte     `json:"wrappedDek"`
+	Secret      []byte     `json:"secret"`
 	EventTypes  []string   `json:"eventTypes"`
 	CreatedBy   *uuid.UUID `json:"createdBy"`
 }
 
 func (q *Queries) CreateWorkspaceWebhook(ctx context.Context, arg CreateWorkspaceWebhookParams) (Webhook, error) {
 	row := q.db.QueryRow(ctx, createWorkspaceWebhook,
+		arg.ID,
 		arg.WorkspaceID,
 		arg.Url,
+		arg.Provider,
+		arg.KekID,
+		arg.WrappedDek,
 		arg.Secret,
 		arg.EventTypes,
 		arg.CreatedBy,
@@ -96,6 +108,9 @@ func (q *Queries) CreateWorkspaceWebhook(ctx context.Context, arg CreateWorkspac
 		&i.Kind,
 		&i.WorkspaceID,
 		&i.Url,
+		&i.Provider,
+		&i.KekID,
+		&i.WrappedDek,
 		&i.Secret,
 		&i.PreviousSecret,
 		&i.PreviousSecretExpiresAt,
@@ -171,7 +186,8 @@ func (q *Queries) FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDe
 }
 
 const getWebhookDeliveryPayload = `-- name: GetWebhookDeliveryPayload :one
-SELECT d.id, w.url, w.secret, w.previous_secret, w.previous_secret_expires_at, w.kind,
+SELECT d.id, w.id AS webhook_id, w.url, w.provider, w.kek_id, w.wrapped_dek,
+       w.secret, w.previous_secret, w.previous_secret_expires_at, w.kind,
        e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id,
        e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at
 FROM webhook_deliveries d
@@ -182,9 +198,13 @@ WHERE d.id = $1
 
 type GetWebhookDeliveryPayloadRow struct {
 	ID                      uuid.UUID   `json:"id"`
+	WebhookID               uuid.UUID   `json:"webhookId"`
 	Url                     string      `json:"url"`
-	Secret                  string      `json:"secret"`
-	PreviousSecret          *string     `json:"previousSecret"`
+	Provider                string      `json:"provider"`
+	KekID                   string      `json:"kekId"`
+	WrappedDek              []byte      `json:"wrappedDek"`
+	Secret                  []byte      `json:"secret"`
+	PreviousSecret          []byte      `json:"previousSecret"`
 	PreviousSecretExpiresAt *time.Time  `json:"previousSecretExpiresAt"`
 	Kind                    WebhookKind `json:"kind"`
 	Seq                     int64       `json:"seq"`
@@ -209,7 +229,11 @@ func (q *Queries) GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (
 	var i GetWebhookDeliveryPayloadRow
 	err := row.Scan(
 		&i.ID,
+		&i.WebhookID,
 		&i.Url,
+		&i.Provider,
+		&i.KekID,
+		&i.WrappedDek,
 		&i.Secret,
 		&i.PreviousSecret,
 		&i.PreviousSecretExpiresAt,
@@ -234,7 +258,7 @@ func (q *Queries) GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (
 }
 
 const getWorkspaceWebhook = `-- name: GetWorkspaceWebhook :one
-SELECT id, kind, workspace_id, url, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
+SELECT id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
 WHERE id = $1 AND kind = 'workspace' AND workspace_id = $2::uuid
 `
 
@@ -251,6 +275,9 @@ func (q *Queries) GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebho
 		&i.Kind,
 		&i.WorkspaceID,
 		&i.Url,
+		&i.Provider,
+		&i.KekID,
+		&i.WrappedDek,
 		&i.Secret,
 		&i.PreviousSecret,
 		&i.PreviousSecretExpiresAt,
@@ -259,6 +286,35 @@ func (q *Queries) GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebho
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listInstallWebhookIDs = `-- name: ListInstallWebhookIDs :many
+SELECT id, url FROM webhooks WHERE kind = 'install'
+`
+
+type ListInstallWebhookIDsRow struct {
+	ID  uuid.UUID `json:"id"`
+	Url string    `json:"url"`
+}
+
+func (q *Queries) ListInstallWebhookIDs(ctx context.Context) ([]ListInstallWebhookIDsRow, error) {
+	rows, err := q.db.Query(ctx, listInstallWebhookIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInstallWebhookIDsRow
+	for rows.Next() {
+		var i ListInstallWebhookIDsRow
+		if err := rows.Scan(&i.ID, &i.Url); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many
@@ -334,7 +390,7 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeli
 }
 
 const listWorkspaceWebhooks = `-- name: ListWorkspaceWebhooks :many
-SELECT id, kind, workspace_id, url, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
+SELECT id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
 WHERE kind = 'workspace' AND workspace_id = $1::uuid
 ORDER BY created_at
 `
@@ -353,6 +409,9 @@ func (q *Queries) ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UU
 			&i.Kind,
 			&i.WorkspaceID,
 			&i.Url,
+			&i.Provider,
+			&i.KekID,
+			&i.WrappedDek,
 			&i.Secret,
 			&i.PreviousSecret,
 			&i.PreviousSecretExpiresAt,
@@ -408,6 +467,34 @@ func (q *Queries) LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.U
 	return id_2, err
 }
 
+const postponeWebhookDelivery = `-- name: PostponeWebhookDelivery :execrows
+UPDATE webhook_deliveries
+SET attempts = attempts - 1,
+    last_error = $1,
+    next_attempt_at = $2
+WHERE id = $3 AND attempts = $4
+`
+
+type PostponeWebhookDeliveryParams struct {
+	LastError     *string   `json:"lastError"`
+	NextAttemptAt time.Time `json:"nextAttemptAt"`
+	ID            uuid.UUID `json:"id"`
+	Attempts      int32     `json:"attempts"`
+}
+
+func (q *Queries) PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, postponeWebhookDelivery,
+		arg.LastError,
+		arg.NextAttemptAt,
+		arg.ID,
+		arg.Attempts,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const requeueWebhookDelivery = `-- name: RequeueWebhookDelivery :exec
 UPDATE webhook_deliveries
 SET status = 'pending', attempts = 0, next_attempt_at = NOW(), delivered_at = NULL, last_error = NULL
@@ -427,12 +514,12 @@ SET previous_secret = CASE WHEN $1::int > 0 THEN secret END,
     END,
     secret = $2
 WHERE id = $3 AND kind = 'workspace' AND workspace_id = $4::uuid
-RETURNING id, kind, workspace_id, url, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
+RETURNING id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
 `
 
 type RotateWorkspaceWebhookSecretParams struct {
 	GraceSeconds int32     `json:"graceSeconds"`
-	Secret       string    `json:"secret"`
+	Secret       []byte    `json:"secret"`
 	ID           uuid.UUID `json:"id"`
 	WorkspaceID  uuid.UUID `json:"workspaceId"`
 }
@@ -450,6 +537,9 @@ func (q *Queries) RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWo
 		&i.Kind,
 		&i.WorkspaceID,
 		&i.Url,
+		&i.Provider,
+		&i.KekID,
+		&i.WrappedDek,
 		&i.Secret,
 		&i.PreviousSecret,
 		&i.PreviousSecretExpiresAt,
@@ -464,7 +554,7 @@ const updateWorkspaceWebhook = `-- name: UpdateWorkspaceWebhook :one
 UPDATE webhooks
 SET url = $1, event_types = $2
 WHERE id = $3 AND kind = 'workspace' AND workspace_id = $4::uuid
-RETURNING id, kind, workspace_id, url, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
+RETURNING id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
 `
 
 type UpdateWorkspaceWebhookParams struct {
@@ -487,6 +577,9 @@ func (q *Queries) UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspac
 		&i.Kind,
 		&i.WorkspaceID,
 		&i.Url,
+		&i.Provider,
+		&i.KekID,
+		&i.WrappedDek,
 		&i.Secret,
 		&i.PreviousSecret,
 		&i.PreviousSecretExpiresAt,
@@ -498,19 +591,39 @@ func (q *Queries) UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspac
 }
 
 const upsertInstallWebhook = `-- name: UpsertInstallWebhook :exec
-INSERT INTO webhooks (kind, url, secret, event_types)
-VALUES ('install', $1, $2, $3)
+INSERT INTO webhooks (id, kind, url, provider, kek_id, wrapped_dek, secret, event_types)
+VALUES (
+    $1, 'install', $2,
+    $3, $4, $5, $6,
+    $7
+)
 ON CONFLICT (url) WHERE kind = 'install'
-DO UPDATE SET secret = EXCLUDED.secret, event_types = EXCLUDED.event_types
+DO UPDATE SET provider = EXCLUDED.provider,
+              kek_id = EXCLUDED.kek_id,
+              wrapped_dek = EXCLUDED.wrapped_dek,
+              secret = EXCLUDED.secret,
+              event_types = EXCLUDED.event_types
 `
 
 type UpsertInstallWebhookParams struct {
-	Url        string   `json:"url"`
-	Secret     string   `json:"secret"`
-	EventTypes []string `json:"eventTypes"`
+	ID         uuid.UUID `json:"id"`
+	Url        string    `json:"url"`
+	Provider   string    `json:"provider"`
+	KekID      string    `json:"kekId"`
+	WrappedDek []byte    `json:"wrappedDek"`
+	Secret     []byte    `json:"secret"`
+	EventTypes []string  `json:"eventTypes"`
 }
 
 func (q *Queries) UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error {
-	_, err := q.db.Exec(ctx, upsertInstallWebhook, arg.Url, arg.Secret, arg.EventTypes)
+	_, err := q.db.Exec(ctx, upsertInstallWebhook,
+		arg.ID,
+		arg.Url,
+		arg.Provider,
+		arg.KekID,
+		arg.WrappedDek,
+		arg.Secret,
+		arg.EventTypes,
+	)
 	return err
 }

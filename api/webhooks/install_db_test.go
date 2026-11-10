@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/team-loco/loco/api/events"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 )
@@ -33,7 +34,10 @@ type installRow struct {
 
 func (f *fixture) installRows(t *testing.T) map[string]installRow {
 	t.Helper()
-	rows, err := f.pool.Query(t.Context(), "SELECT id, url, secret, event_types FROM webhooks WHERE kind = 'install'")
+	rows, err := f.pool.Query(
+		t.Context(),
+		"SELECT id, url, provider, kek_id, wrapped_dek, secret, event_types FROM webhooks WHERE kind = 'install'",
+	)
 	if err != nil {
 		t.Fatalf("install rows: %v", err)
 	}
@@ -41,10 +45,20 @@ func (f *fixture) installRows(t *testing.T) map[string]installRow {
 	out := map[string]installRow{}
 	for rows.Next() {
 		var url string
+		var key secretkeys.WrappedKey
+		var sealed []byte
 		var row installRow
-		if scanErr := rows.Scan(&row.id, &url, &row.secret, &row.eventTypes); scanErr != nil {
+		if scanErr := rows.Scan(
+			&row.id, &url, &key.Provider, &key.KeyID, &key.Bytes, &sealed, &row.eventTypes,
+		); scanErr != nil {
 			t.Fatalf("scan: %v", scanErr)
 		}
+		opened, openErr := webhooks.OpenSecrets(t.Context(), f.provider, row.id, key, sealed)
+		if openErr != nil {
+			t.Fatalf("open install webhook secret: %v", openErr)
+		}
+		assertSealed(t, sealed, opened[0])
+		row.secret = opened[0]
 		out[url] = row
 	}
 	if rows.Err() != nil {
@@ -55,7 +69,7 @@ func (f *fixture) installRows(t *testing.T) map[string]installRow {
 
 func (f *fixture) sync(t *testing.T, hooks ...webhooks.InstallWebhook) {
 	t.Helper()
-	if err := webhooks.SyncInstallWebhooks(t.Context(), f.pool, hooks); err != nil {
+	if err := webhooks.SyncInstallWebhooks(t.Context(), f.pool, f.provider, hooks); err != nil {
 		t.Fatalf("sync: %v", err)
 	}
 }
@@ -184,7 +198,7 @@ func TestSyncInstallWebhooks(t *testing.T) {
 				{URL: installFiltered, Secret: first, EventTypes: []string{}},
 				{URL: installExtra, Secret: second, EventTypes: []string{}},
 			}
-			if err := webhooks.SyncInstallWebhooks(context.Background(), f.pool, hooks); err != nil {
+			if err := webhooks.SyncInstallWebhooks(context.Background(), f.pool, f.provider, hooks); err != nil {
 				t.Errorf("concurrent sync: %v", err)
 			}
 		})
@@ -213,7 +227,7 @@ func TestInstallWebhooksBypassPrivateNetworkGuard(t *testing.T) {
 	f.setURL(t, workspace.ID, r.srv.URL)
 	f.record(t, f.workspaceID, events.ResourceUpdated)
 
-	d := newDispatcher(f.queries, false)
+	d := f.dispatcher(false)
 	if sent, err := d.DispatchDue(t.Context()); err != nil || sent != 2 {
 		t.Fatalf("dispatch = %d, %v", sent, err)
 	}
@@ -233,7 +247,10 @@ func TestInstallWebhooksBypassPrivateNetworkGuard(t *testing.T) {
 
 func TestWebhookKindMatchesOwner(t *testing.T) {
 	f := newFixture(t)
-	secret := newSecret(t)
+	_, sealed, err := webhooks.SealSecretWithNewKey(t.Context(), f.provider, uuid.New(), newSecret(t))
+	if err != nil {
+		t.Fatalf("seal: %v", err)
+	}
 	for name, tc := range map[string]struct {
 		kind      string
 		workspace *uuid.UUID
@@ -243,11 +260,12 @@ func TestWebhookKindMatchesOwner(t *testing.T) {
 	} {
 		_, err := f.pool.Exec(
 			t.Context(),
-			"INSERT INTO webhooks (kind, workspace_id, url, secret) VALUES ($1, $2, $3, $4)",
+			`INSERT INTO webhooks (kind, workspace_id, url, provider, kek_id, wrapped_dek, secret)
+			VALUES ($1, $2, $3, 'transit', 'v1', $4, $4)`,
 			tc.kind,
 			tc.workspace,
 			installExtra,
-			secret,
+			sealed,
 		)
 		var pgErr *pgconn.PgError
 		if !errors.As(err, &pgErr) || pgErr.Code != checkViolation ||
