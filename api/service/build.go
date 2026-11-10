@@ -151,15 +151,19 @@ func (s *BuildServer) CreateBuild(
 	}
 	createErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, err := qtx.CreateBuild(ctx, genDb.CreateBuildParams{
-			ID:              buildID,
-			ResourceID:      resource.ID,
-			SourceType:      buildSourceTypeUpload,
-			SourceKey:       sourceKey,
-			SourceSize:      sourceSize,
-			DockerfilePath:  dockerfilePath,
-			Context:         buildContext,
-			ImageRepository: repository,
-			CreatedBy:       p.Entity.ID,
+			ID:               buildID,
+			ResourceID:       resource.ID,
+			SourceType:       buildSourceTypeUpload,
+			SourceKey:        sourceKey,
+			SourceSize:       sourceSize,
+			DockerfilePath:   dockerfilePath,
+			Context:          buildContext,
+			ImageRepository:  repository,
+			CreatedBy:        p.Entity.ID,
+			GitCommit:        req.GitCommit,
+			GitBranch:        req.GitBranch,
+			GitCommitMessage: req.GitCommitMessage,
+			GitDirty:         req.GitDirty,
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)
 		}
@@ -517,22 +521,26 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 	imageDeletedAt := optionalTimestamp(b.ImageDeletedAt)
 
 	out := &buildv1.Build{
-		Id:              id,
-		ResourceId:      resourceID,
-		Status:          status,
-		SourceType:      b.SourceType,
-		SourceKey:       b.SourceKey,
-		SourceSize:      b.SourceSize,
-		DockerfilePath:  b.DockerfilePath,
-		Context:         b.Context,
-		ImageRepository: b.ImageRepository,
-		ImageDigest:     b.ImageDigest,
-		Message:         b.Message,
-		CreatedBy:       createdBy,
-		CreatedAt:       createdAt,
-		StartedAt:       startedAt,
-		FinishedAt:      finishedAt,
-		ImageDeletedAt:  imageDeletedAt,
+		Id:               id,
+		ResourceId:       resourceID,
+		Status:           status,
+		SourceType:       b.SourceType,
+		SourceKey:        b.SourceKey,
+		SourceSize:       b.SourceSize,
+		DockerfilePath:   b.DockerfilePath,
+		Context:          b.Context,
+		ImageRepository:  b.ImageRepository,
+		ImageDigest:      b.ImageDigest,
+		Message:          b.Message,
+		CreatedBy:        createdBy,
+		CreatedAt:        createdAt,
+		StartedAt:        startedAt,
+		FinishedAt:       finishedAt,
+		ImageDeletedAt:   imageDeletedAt,
+		GitCommit:        b.GitCommit,
+		GitBranch:        b.GitBranch,
+		GitCommitMessage: b.GitCommitMessage,
+		GitDirty:         b.GitDirty,
 	}
 	if b.ClusterID != nil {
 		clusterID := b.ClusterID.String()

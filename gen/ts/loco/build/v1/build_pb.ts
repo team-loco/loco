@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/build/v1/build.proto.
  */
 export const file_loco_build_v1_build: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2J1aWxkL3YxL2J1aWxkLnByb3RvEg1sb2NvLmJ1aWxkLnYxItkECgVCdWlsZBIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRIXCgpjbHVzdGVyX2lkGAMgASgJSACIAQESKgoGc3RhdHVzGAQgASgOMhoubG9jby5idWlsZC52MS5CdWlsZFN0YXR1cxITCgtzb3VyY2VfdHlwZRgFIAEoCRISCgpzb3VyY2Vfa2V5GAYgASgJEhMKC3NvdXJjZV9zaXplGAcgASgDEhcKD2RvY2tlcmZpbGVfcGF0aBgIIAEoCRIYChBpbWFnZV9yZXBvc2l0b3J5GAkgASgJEhkKDGltYWdlX2RpZ2VzdBgKIAEoCUgBiAEBEg8KB21lc3NhZ2UYCyABKAkSEgoKY3JlYXRlZF9ieRgMIAEoCRIuCgpjcmVhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCgpzdGFydGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgCiAEBEjQKC2ZpbmlzaGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEjkKEGltYWdlX2RlbGV0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSASIAQESDwoHY29udGV4dBgRIAEoCUINCgtfY2x1c3Rlcl9pZEIPCg1faW1hZ2VfZGlnZXN0Qg0KC19zdGFydGVkX2F0Qg4KDF9maW5pc2hlZF9hdEITChFfaW1hZ2VfZGVsZXRlZF9hdCITChFCdWlsZHNVbmF2YWlsYWJsZSLLBAoSQ3JlYXRlQnVpbGRSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARLwAQoPZG9ja2VyZmlsZV9wYXRoGAIgASgJQtYBukjSAboBxwEKFWJ1aWxkLmRvY2tlcmZpbGVfcGF0aBJAZG9ja2VyZmlsZV9wYXRoIG11c3QgYmUgYSByZWxhdGl2ZSBwYXRoIGluc2lkZSB0aGUgYnVpbGQgY29udGV4dBpsIXRoaXMuc3RhcnRzV2l0aCgnLycpICYmICF0aGlzLmVuZHNXaXRoKCcvJykgJiYgIXRoaXMuc3BsaXQoJy8nKS5leGlzdHMocCwgcCA9PSAnLi4nIHx8IHAgPT0gJy4nIHx8IHAgPT0gJycpcgUQARiACBIcCgtzb3VyY2Vfc2l6ZRgDIAEoA0IHukgEIgIgABKEAgoHY29udGV4dBgEIAEoCULyAbpI7gG6AeUBCg1idWlsZC5jb250ZXh0EkZjb250ZXh0IG11c3QgYmUgJy4nIG9yIGEgcmVsYXRpdmUgZGlyZWN0b3J5IGluc2lkZSB0aGUgdXBsb2FkZWQgc291cmNlGosBdGhpcyA9PSAnJyB8fCB0aGlzID09ICcuJyB8fCAoIXRoaXMuc3RhcnRzV2l0aCgnLycpICYmICF0aGlzLmVuZHNXaXRoKCcvJykgJiYgIXRoaXMuc3BsaXQoJy8nKS5leGlzdHMocCwgcCA9PSAnLi4nIHx8IHAgPT0gJy4nIHx8IHAgPT0gJycpKXIDGIAIInIKE0NyZWF0ZUJ1aWxkUmVzcG9uc2USEAoIYnVpbGRfaWQYASABKAkSEgoKdXBsb2FkX3VybBgCIAEoCRI1ChF1cGxvYWRfZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLwoRU3RhcnRCdWlsZFJlcXVlc3QSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBIjkKElN0YXJ0QnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQiLQoPR2V0QnVpbGRSZXF1ZXN0EhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASI3ChBHZXRCdWlsZFJlc3BvbnNlEiMKBWJ1aWxkGAEgASgLMhQubG9jby5idWlsZC52MS5CdWlsZCJlChFMaXN0QnVpbGRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiUwoSTGlzdEJ1aWxkc1Jlc3BvbnNlEiQKBmJ1aWxkcxgBIAMoCzIULmxvY28uYnVpbGQudjEuQnVpbGQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIjAKEkNhbmNlbEJ1aWxkUmVxdWVzdBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQEiOgoTQ2FuY2VsQnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQq0AEKC0J1aWxkU3RhdHVzEhwKGEJVSUxEX1NUQVRVU19VTlNQRUNJRklFRBAAEiAKHEJVSUxEX1NUQVRVU19BV0FJVElOR19VUExPQUQQARIXChNCVUlMRF9TVEFUVVNfUVVFVUVEEAISGAoUQlVJTERfU1RBVFVTX1JVTk5JTkcQAxIaChZCVUlMRF9TVEFUVVNfU1VDQ0VFREVEEAQSFwoTQlVJTERfU1RBVFVTX0ZBSUxFRBAFEhkKFUJVSUxEX1NUQVRVU19DQU5DRUxFRBAGMq0DCgxCdWlsZFNlcnZpY2USVAoLQ3JlYXRlQnVpbGQSIS5sb2NvLmJ1aWxkLnYxLkNyZWF0ZUJ1aWxkUmVxdWVzdBoiLmxvY28uYnVpbGQudjEuQ3JlYXRlQnVpbGRSZXNwb25zZRJRCgpTdGFydEJ1aWxkEiAubG9jby5idWlsZC52MS5TdGFydEJ1aWxkUmVxdWVzdBohLmxvY28uYnVpbGQudjEuU3RhcnRCdWlsZFJlc3BvbnNlEksKCEdldEJ1aWxkEh4ubG9jby5idWlsZC52MS5HZXRCdWlsZFJlcXVlc3QaHy5sb2NvLmJ1aWxkLnYxLkdldEJ1aWxkUmVzcG9uc2USUQoKTGlzdEJ1aWxkcxIgLmxvY28uYnVpbGQudjEuTGlzdEJ1aWxkc1JlcXVlc3QaIS5sb2NvLmJ1aWxkLnYxLkxpc3RCdWlsZHNSZXNwb25zZRJUCgtDYW5jZWxCdWlsZBIhLmxvY28uYnVpbGQudjEuQ2FuY2VsQnVpbGRSZXF1ZXN0GiIubG9jby5idWlsZC52MS5DYW5jZWxCdWlsZFJlc3BvbnNlQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYnVpbGQvdjE7YnVpbGR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2J1aWxkL3YxL2J1aWxkLnByb3RvEg1sb2NvLmJ1aWxkLnYxIocGCgVCdWlsZBIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRIXCgpjbHVzdGVyX2lkGAMgASgJSACIAQESKgoGc3RhdHVzGAQgASgOMhoubG9jby5idWlsZC52MS5CdWlsZFN0YXR1cxITCgtzb3VyY2VfdHlwZRgFIAEoCRISCgpzb3VyY2Vfa2V5GAYgASgJEhMKC3NvdXJjZV9zaXplGAcgASgDEhcKD2RvY2tlcmZpbGVfcGF0aBgIIAEoCRIYChBpbWFnZV9yZXBvc2l0b3J5GAkgASgJEhkKDGltYWdlX2RpZ2VzdBgKIAEoCUgBiAEBEg8KB21lc3NhZ2UYCyABKAkSEgoKY3JlYXRlZF9ieRgMIAEoCRIuCgpjcmVhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCgpzdGFydGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgCiAEBEjQKC2ZpbmlzaGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEjkKEGltYWdlX2RlbGV0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSASIAQESDwoHY29udGV4dBgRIAEoCRIXCgpnaXRfY29tbWl0GBIgASgJSAWIAQESFwoKZ2l0X2JyYW5jaBgTIAEoCUgGiAEBEh8KEmdpdF9jb21taXRfbWVzc2FnZRgUIAEoCUgHiAEBEhYKCWdpdF9kaXJ0eRgVIAEoCEgIiAEBQg0KC19jbHVzdGVyX2lkQg8KDV9pbWFnZV9kaWdlc3RCDQoLX3N0YXJ0ZWRfYXRCDgoMX2ZpbmlzaGVkX2F0QhMKEV9pbWFnZV9kZWxldGVkX2F0Qg0KC19naXRfY29tbWl0Qg0KC19naXRfYnJhbmNoQhUKE19naXRfY29tbWl0X21lc3NhZ2VCDAoKX2dpdF9kaXJ0eSITChFCdWlsZHNVbmF2YWlsYWJsZSK1BgoSQ3JlYXRlQnVpbGRSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARLwAQoPZG9ja2VyZmlsZV9wYXRoGAIgASgJQtYBukjSAboBxwEKFWJ1aWxkLmRvY2tlcmZpbGVfcGF0aBJAZG9ja2VyZmlsZV9wYXRoIG11c3QgYmUgYSByZWxhdGl2ZSBwYXRoIGluc2lkZSB0aGUgYnVpbGQgY29udGV4dBpsIXRoaXMuc3RhcnRzV2l0aCgnLycpICYmICF0aGlzLmVuZHNXaXRoKCcvJykgJiYgIXRoaXMuc3BsaXQoJy8nKS5leGlzdHMocCwgcCA9PSAnLi4nIHx8IHAgPT0gJy4nIHx8IHAgPT0gJycpcgUQARiACBIcCgtzb3VyY2Vfc2l6ZRgDIAEoA0IHukgEIgIgABKEAgoHY29udGV4dBgEIAEoCULyAbpI7gG6AeUBCg1idWlsZC5jb250ZXh0EkZjb250ZXh0IG11c3QgYmUgJy4nIG9yIGEgcmVsYXRpdmUgZGlyZWN0b3J5IGluc2lkZSB0aGUgdXBsb2FkZWQgc291cmNlGosBdGhpcyA9PSAnJyB8fCB0aGlzID09ICcuJyB8fCAoIXRoaXMuc3RhcnRzV2l0aCgnLycpICYmICF0aGlzLmVuZHNXaXRoKCcvJykgJiYgIXRoaXMuc3BsaXQoJy8nKS5leGlzdHMocCwgcCA9PSAnLi4nIHx8IHAgPT0gJy4nIHx8IHAgPT0gJycpKXIDGIAIEj0KCmdpdF9jb21taXQYBSABKAlCJLpIIXIfMh1eWzAtOWEtZl17NDB9KFswLTlhLWZdezI0fSk/JEgAiAEBEiMKCmdpdF9icmFuY2gYBiABKAlCCrpIB3IFEAEYgAhIAYgBARIpChJnaXRfY29tbWl0X21lc3NhZ2UYByABKAlCCLpIBXIDGIAgSAKIAQESFgoJZ2l0X2RpcnR5GAggASgISAOIAQFCDQoLX2dpdF9jb21taXRCDQoLX2dpdF9icmFuY2hCFQoTX2dpdF9jb21taXRfbWVzc2FnZUIMCgpfZ2l0X2RpcnR5InIKE0NyZWF0ZUJ1aWxkUmVzcG9uc2USEAoIYnVpbGRfaWQYASABKAkSEgoKdXBsb2FkX3VybBgCIAEoCRI1ChF1cGxvYWRfZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLwoRU3RhcnRCdWlsZFJlcXVlc3QSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBIjkKElN0YXJ0QnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQiLQoPR2V0QnVpbGRSZXF1ZXN0EhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASI3ChBHZXRCdWlsZFJlc3BvbnNlEiMKBWJ1aWxkGAEgASgLMhQubG9jby5idWlsZC52MS5CdWlsZCJlChFMaXN0QnVpbGRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiUwoSTGlzdEJ1aWxkc1Jlc3BvbnNlEiQKBmJ1aWxkcxgBIAMoCzIULmxvY28uYnVpbGQudjEuQnVpbGQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIjAKEkNhbmNlbEJ1aWxkUmVxdWVzdBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQEiOgoTQ2FuY2VsQnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQq0AEKC0J1aWxkU3RhdHVzEhwKGEJVSUxEX1NUQVRVU19VTlNQRUNJRklFRBAAEiAKHEJVSUxEX1NUQVRVU19BV0FJVElOR19VUExPQUQQARIXChNCVUlMRF9TVEFUVVNfUVVFVUVEEAISGAoUQlVJTERfU1RBVFVTX1JVTk5JTkcQAxIaChZCVUlMRF9TVEFUVVNfU1VDQ0VFREVEEAQSFwoTQlVJTERfU1RBVFVTX0ZBSUxFRBAFEhkKFUJVSUxEX1NUQVRVU19DQU5DRUxFRBAGMq0DCgxCdWlsZFNlcnZpY2USVAoLQ3JlYXRlQnVpbGQSIS5sb2NvLmJ1aWxkLnYxLkNyZWF0ZUJ1aWxkUmVxdWVzdBoiLmxvY28uYnVpbGQudjEuQ3JlYXRlQnVpbGRSZXNwb25zZRJRCgpTdGFydEJ1aWxkEiAubG9jby5idWlsZC52MS5TdGFydEJ1aWxkUmVxdWVzdBohLmxvY28uYnVpbGQudjEuU3RhcnRCdWlsZFJlc3BvbnNlEksKCEdldEJ1aWxkEh4ubG9jby5idWlsZC52MS5HZXRCdWlsZFJlcXVlc3QaHy5sb2NvLmJ1aWxkLnYxLkdldEJ1aWxkUmVzcG9uc2USUQoKTGlzdEJ1aWxkcxIgLmxvY28uYnVpbGQudjEuTGlzdEJ1aWxkc1JlcXVlc3QaIS5sb2NvLmJ1aWxkLnYxLkxpc3RCdWlsZHNSZXNwb25zZRJUCgtDYW5jZWxCdWlsZBIhLmxvY28uYnVpbGQudjEuQ2FuY2VsQnVpbGRSZXF1ZXN0GiIubG9jby5idWlsZC52MS5DYW5jZWxCdWlsZFJlc3BvbnNlQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYnVpbGQvdjE7YnVpbGR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.build.v1.Build
@@ -105,6 +105,33 @@ export type Build = Message<"loco.build.v1.Build"> & {
    * @generated from field: string context = 17;
    */
   context: string;
+
+  /**
+   * The git_* fields describe the commit the uploaded source was checked out at; unset when
+   * the CLI packed a directory outside a git work tree or one without commits.
+   *
+   * @generated from field: optional string git_commit = 18;
+   */
+  gitCommit?: string | undefined;
+
+  /**
+   * @generated from field: optional string git_branch = 19;
+   */
+  gitBranch?: string | undefined;
+
+  /**
+   * git_commit_message is the commit's subject line.
+   *
+   * @generated from field: optional string git_commit_message = 20;
+   */
+  gitCommitMessage?: string | undefined;
+
+  /**
+   * git_dirty is true when the working tree differed from the commit, untracked files included.
+   *
+   * @generated from field: optional bool git_dirty = 21;
+   */
+  gitDirty?: boolean | undefined;
 };
 
 /**
@@ -197,6 +224,33 @@ export type BuildJson = {
    * @generated from field: string context = 17;
    */
   context?: string;
+
+  /**
+   * The git_* fields describe the commit the uploaded source was checked out at; unset when
+   * the CLI packed a directory outside a git work tree or one without commits.
+   *
+   * @generated from field: optional string git_commit = 18;
+   */
+  gitCommit?: string;
+
+  /**
+   * @generated from field: optional string git_branch = 19;
+   */
+  gitBranch?: string;
+
+  /**
+   * git_commit_message is the commit's subject line.
+   *
+   * @generated from field: optional string git_commit_message = 20;
+   */
+  gitCommitMessage?: string;
+
+  /**
+   * git_dirty is true when the working tree differed from the commit, untracked files included.
+   *
+   * @generated from field: optional bool git_dirty = 21;
+   */
+  gitDirty?: boolean;
 };
 
 /**
@@ -250,6 +304,28 @@ export type CreateBuildRequest = Message<"loco.build.v1.CreateBuildRequest"> & {
    * @generated from field: string context = 4;
    */
   context: string;
+
+  /**
+   * The git_* fields carry the same values as on Build; branch is unset on a detached HEAD.
+   *
+   * @generated from field: optional string git_commit = 5;
+   */
+  gitCommit?: string | undefined;
+
+  /**
+   * @generated from field: optional string git_branch = 6;
+   */
+  gitBranch?: string | undefined;
+
+  /**
+   * @generated from field: optional string git_commit_message = 7;
+   */
+  gitCommitMessage?: string | undefined;
+
+  /**
+   * @generated from field: optional bool git_dirty = 8;
+   */
+  gitDirty?: boolean | undefined;
 };
 
 /**
@@ -277,6 +353,28 @@ export type CreateBuildRequestJson = {
    * @generated from field: string context = 4;
    */
   context?: string;
+
+  /**
+   * The git_* fields carry the same values as on Build; branch is unset on a detached HEAD.
+   *
+   * @generated from field: optional string git_commit = 5;
+   */
+  gitCommit?: string;
+
+  /**
+   * @generated from field: optional string git_branch = 6;
+   */
+  gitBranch?: string;
+
+  /**
+   * @generated from field: optional string git_commit_message = 7;
+   */
+  gitCommitMessage?: string;
+
+  /**
+   * @generated from field: optional bool git_dirty = 8;
+   */
+  gitDirty?: boolean;
 };
 
 /**

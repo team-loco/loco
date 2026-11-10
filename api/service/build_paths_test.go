@@ -48,3 +48,30 @@ func TestCreateBuildPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateBuildGitCommit(t *testing.T) {
+	cases := map[string]struct {
+		commit string
+		valid  bool
+	}{
+		"sha-1":       {commit: "0123456789abcdef0123456789abcdef01234567", valid: true},
+		"sha-256":     {commit: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", valid: true},
+		"short":       {commit: "0123456"},
+		"uppercase":   {commit: "0123456789ABCDEF0123456789ABCDEF01234567"},
+		"branch name": {commit: "main"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			request := &buildv1.CreateBuildRequest{
+				ResourceId:     "00000000-0000-7000-8000-000000000001",
+				DockerfilePath: testDockerfile,
+				SourceSize:     1,
+				GitCommit:      &tc.commit,
+			}
+			err := protovalidate.Validate(request)
+			if (err == nil) != tc.valid {
+				t.Fatalf("commit=%q valid=%t: %v", tc.commit, tc.valid, err)
+			}
+		})
+	}
+}

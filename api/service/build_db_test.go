@@ -609,3 +609,48 @@ func TestCreateBuildStoresTheContext(t *testing.T) {
 		t.Fatalf("context = %q, want services/web", got)
 	}
 }
+
+func TestCreateBuildStoresTheGitCommit(t *testing.T) {
+	f := newBuildFixture(t)
+
+	withoutGit := f.get(t, f.create(t, 1).GetBuildId())
+	if withoutGit.GitCommit != nil || withoutGit.GitBranch != nil || withoutGit.GitDirty != nil {
+		t.Fatalf("build without git metadata reports commit %v, branch %v, dirty %v",
+			withoutGit.GitCommit, withoutGit.GitBranch, withoutGit.GitDirty)
+	}
+
+	want := &buildv1.CreateBuildRequest{
+		ResourceId:       f.resourceID.String(),
+		DockerfilePath:   testDockerfile,
+		SourceSize:       1,
+		GitCommit:        new("0123456789abcdef0123456789abcdef01234567"),
+		GitBranch:        new("main"),
+		GitCommitMessage: new("Fix the health check"),
+		GitDirty:         new(true),
+	}
+	resp, err := f.server.CreateBuild(f.ctx, want)
+	if err != nil {
+		t.Fatalf("create build: %v", err)
+	}
+	listReq := &buildv1.ListBuildsRequest{ResourceId: f.resourceID.String()}
+	listed, err := f.server.ListBuilds(f.ctx, listReq)
+	if err != nil {
+		t.Fatalf("list builds: %v", err)
+	}
+	listIndex := slices.IndexFunc(listed.GetBuilds(), func(b *buildv1.Build) bool {
+		return b.GetId() == resp.GetBuildId()
+	})
+	if listIndex < 0 {
+		t.Fatalf("list builds did not return build %s", resp.GetBuildId())
+	}
+	for source, got := range map[string]*buildv1.Build{
+		"get":  f.get(t, resp.GetBuildId()),
+		"list": listed.GetBuilds()[listIndex],
+	} {
+		if got.GetGitCommit() != want.GetGitCommit() || got.GetGitBranch() != want.GetGitBranch() ||
+			got.GetGitCommitMessage() != want.GetGitCommitMessage() || got.GitDirty == nil || !got.GetGitDirty() {
+			t.Fatalf("%s returned commit %q, branch %q, message %q, dirty %v; want the request's values",
+				source, got.GetGitCommit(), got.GetGitBranch(), got.GetGitCommitMessage(), got.GitDirty)
+		}
+	}
+}

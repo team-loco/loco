@@ -336,25 +336,29 @@ type ApiToken struct {
 }
 
 type Build struct {
-	ID              uuid.UUID   `json:"id"`
-	ResourceID      uuid.UUID   `json:"resourceId"`
-	ClusterID       *uuid.UUID  `json:"clusterId"`
-	Status          BuildStatus `json:"status"`
-	SourceType      string      `json:"sourceType"`
-	SourceKey       string      `json:"sourceKey"`
-	SourceSize      int64       `json:"sourceSize"`
-	DockerfilePath  string      `json:"dockerfilePath"`
-	Context         string      `json:"context"`
-	ImageRepository string      `json:"imageRepository"`
-	ImageDigest     *string     `json:"imageDigest"`
-	CacheDigest     *string     `json:"cacheDigest"`
-	Message         string      `json:"message"`
-	CreatedBy       uuid.UUID   `json:"createdBy"`
-	CreatedAt       time.Time   `json:"createdAt"`
-	StartedAt       *time.Time  `json:"startedAt"`
-	FinishedAt      *time.Time  `json:"finishedAt"`
-	SourceDeletedAt *time.Time  `json:"sourceDeletedAt"`
-	ImageDeletedAt  *time.Time  `json:"imageDeletedAt"`
+	ID               uuid.UUID   `json:"id"`
+	ResourceID       uuid.UUID   `json:"resourceId"`
+	ClusterID        *uuid.UUID  `json:"clusterId"`
+	Status           BuildStatus `json:"status"`
+	SourceType       string      `json:"sourceType"`
+	SourceKey        string      `json:"sourceKey"`
+	SourceSize       int64       `json:"sourceSize"`
+	DockerfilePath   string      `json:"dockerfilePath"`
+	Context          string      `json:"context"`
+	GitCommit        *string     `json:"gitCommit"`
+	GitBranch        *string     `json:"gitBranch"`
+	GitCommitMessage *string     `json:"gitCommitMessage"`
+	GitDirty         *bool       `json:"gitDirty"`
+	ImageRepository  string      `json:"imageRepository"`
+	ImageDigest      *string     `json:"imageDigest"`
+	CacheDigest      *string     `json:"cacheDigest"`
+	Message          string      `json:"message"`
+	CreatedBy        uuid.UUID   `json:"createdBy"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	StartedAt        *time.Time  `json:"startedAt"`
+	FinishedAt       *time.Time  `json:"finishedAt"`
+	SourceDeletedAt  *time.Time  `json:"sourceDeletedAt"`
+	ImageDeletedAt   *time.Time  `json:"imageDeletedAt"`
 }
 
 type Cluster struct {

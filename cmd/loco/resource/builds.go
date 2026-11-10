@@ -24,6 +24,7 @@ const (
 	defaultBuildListSize = 20
 	finishedLogMargin    = time.Minute
 	imageDeletedSuffix   = " (deleted)"
+	shortCommitLength    = 7
 )
 
 func BuildBuildsCmd() *cobra.Command {
@@ -144,7 +145,7 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 		return err
 	}
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tSTATUS\tCREATED\tDURATION\tIMAGE DIGEST")
+	fmt.Fprintln(w, "ID\tSTATUS\tCOMMIT\tCREATED\tDURATION\tIMAGE DIGEST")
 	for _, build := range builds {
 		created := build.GetCreatedAt().AsTime().UTC().Format(time.RFC3339)
 		duration := sourcebuild.Duration(build)
@@ -161,9 +162,24 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 		status := build.GetStatus()
 		label := sourcebuild.StatusLabel(status)
 		id := build.GetId()
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", id, label, created, duration, digest)
+		commit := shortCommit(build)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, label, commit, created, duration, digest)
 	}
 	return w.Flush()
+}
+
+// shortCommit abbreviates the build's commit and marks a dirty work tree the way
+// git describe --dirty does.
+func shortCommit(build *buildv1.Build) string {
+	commit := build.GetGitCommit()
+	if commit == "" {
+		return "-"
+	}
+	commit = commit[:min(len(commit), shortCommitLength)]
+	if build.GetGitDirty() {
+		commit += "-dirty"
+	}
+	return commit
 }
 
 func newBuildsGetCmd() *cobra.Command {
@@ -201,12 +217,19 @@ func writeBuildDetails(out io.Writer, build *buildv1.Build) error {
 	status := build.GetStatus()
 	sourceSize := build.GetSourceSize()
 	created := build.GetCreatedAt().AsTime().UTC().Format(time.RFC3339)
+	commit := build.GetGitCommit()
+	if commit != "" && build.GetGitDirty() {
+		commit += " (uncommitted changes)"
+	}
 	rows := [][2]string{
 		{"ID", build.GetId()},
 		{"Service", build.GetResourceId()},
 		{"Status", sourcebuild.StatusLabel(status)},
 		{"Message", build.GetMessage()},
 		{"Dockerfile", build.GetDockerfilePath()},
+		{"Commit", commit},
+		{"Branch", build.GetGitBranch()},
+		{"Commit message", build.GetGitCommitMessage()},
 		{"Source size", sourcebuild.FormatBytes(sourceSize)},
 		{"Image", build.GetImageRepository()},
 		{"Image digest", build.GetImageDigest()},

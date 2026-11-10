@@ -103,7 +103,15 @@ type Build struct {
 	FinishedAt      *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=finished_at,json=finishedAt,proto3,oneof" json:"finished_at,omitempty"`
 	ImageDeletedAt  *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=image_deleted_at,json=imageDeletedAt,proto3,oneof" json:"image_deleted_at,omitempty"`
 	// context is the build context directory relative to the uploaded source.
-	Context       string `protobuf:"bytes,17,opt,name=context,proto3" json:"context,omitempty"`
+	Context string `protobuf:"bytes,17,opt,name=context,proto3" json:"context,omitempty"`
+	// The git_* fields describe the commit the uploaded source was checked out at; unset when
+	// the CLI packed a directory outside a git work tree or one without commits.
+	GitCommit *string `protobuf:"bytes,18,opt,name=git_commit,json=gitCommit,proto3,oneof" json:"git_commit,omitempty"`
+	GitBranch *string `protobuf:"bytes,19,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
+	// git_commit_message is the commit's subject line.
+	GitCommitMessage *string `protobuf:"bytes,20,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
+	// git_dirty is true when the working tree differed from the commit, untracked files included.
+	GitDirty      *bool `protobuf:"varint,21,opt,name=git_dirty,json=gitDirty,proto3,oneof" json:"git_dirty,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -257,6 +265,34 @@ func (x *Build) GetContext() string {
 	return ""
 }
 
+func (x *Build) GetGitCommit() string {
+	if x != nil && x.GitCommit != nil {
+		return *x.GitCommit
+	}
+	return ""
+}
+
+func (x *Build) GetGitBranch() string {
+	if x != nil && x.GitBranch != nil {
+		return *x.GitBranch
+	}
+	return ""
+}
+
+func (x *Build) GetGitCommitMessage() string {
+	if x != nil && x.GitCommitMessage != nil {
+		return *x.GitCommitMessage
+	}
+	return ""
+}
+
+func (x *Build) GetGitDirty() bool {
+	if x != nil && x.GitDirty != nil {
+		return *x.GitDirty
+	}
+	return false
+}
+
 type BuildsUnavailable struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -299,9 +335,14 @@ type CreateBuildRequest struct {
 	DockerfilePath string                 `protobuf:"bytes,2,opt,name=dockerfile_path,json=dockerfilePath,proto3" json:"dockerfile_path,omitempty"`
 	SourceSize     int64                  `protobuf:"varint,3,opt,name=source_size,json=sourceSize,proto3" json:"source_size,omitempty"`
 	// context is the build context directory relative to the uploaded source; "." when empty.
-	Context       string `protobuf:"bytes,4,opt,name=context,proto3" json:"context,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Context string `protobuf:"bytes,4,opt,name=context,proto3" json:"context,omitempty"`
+	// The git_* fields carry the same values as on Build; branch is unset on a detached HEAD.
+	GitCommit        *string `protobuf:"bytes,5,opt,name=git_commit,json=gitCommit,proto3,oneof" json:"git_commit,omitempty"`
+	GitBranch        *string `protobuf:"bytes,6,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
+	GitCommitMessage *string `protobuf:"bytes,7,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
+	GitDirty         *bool   `protobuf:"varint,8,opt,name=git_dirty,json=gitDirty,proto3,oneof" json:"git_dirty,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateBuildRequest) Reset() {
@@ -360,6 +401,34 @@ func (x *CreateBuildRequest) GetContext() string {
 		return x.Context
 	}
 	return ""
+}
+
+func (x *CreateBuildRequest) GetGitCommit() string {
+	if x != nil && x.GitCommit != nil {
+		return *x.GitCommit
+	}
+	return ""
+}
+
+func (x *CreateBuildRequest) GetGitBranch() string {
+	if x != nil && x.GitBranch != nil {
+		return *x.GitBranch
+	}
+	return ""
+}
+
+func (x *CreateBuildRequest) GetGitCommitMessage() string {
+	if x != nil && x.GitCommitMessage != nil {
+		return *x.GitCommitMessage
+	}
+	return ""
+}
+
+func (x *CreateBuildRequest) GetGitDirty() bool {
+	if x != nil && x.GitDirty != nil {
+		return *x.GitDirty
+	}
+	return false
 }
 
 type CreateBuildResponse struct {
@@ -802,7 +871,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x06\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\a\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -830,13 +899,24 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\vfinished_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampH\x03R\n" +
 	"finishedAt\x88\x01\x01\x12I\n" +
 	"\x10image_deleted_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampH\x04R\x0eimageDeletedAt\x88\x01\x01\x12\x18\n" +
-	"\acontext\x18\x11 \x01(\tR\acontextB\r\n" +
+	"\acontext\x18\x11 \x01(\tR\acontext\x12\"\n" +
+	"\n" +
+	"git_commit\x18\x12 \x01(\tH\x05R\tgitCommit\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"git_branch\x18\x13 \x01(\tH\x06R\tgitBranch\x88\x01\x01\x121\n" +
+	"\x12git_commit_message\x18\x14 \x01(\tH\aR\x10gitCommitMessage\x88\x01\x01\x12 \n" +
+	"\tgit_dirty\x18\x15 \x01(\bH\bR\bgitDirty\x88\x01\x01B\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +
 	"\f_finished_atB\x13\n" +
-	"\x11_image_deleted_at\"\x13\n" +
-	"\x11BuildsUnavailable\"\xfc\x04\n" +
+	"\x11_image_deleted_atB\r\n" +
+	"\v_git_commitB\r\n" +
+	"\v_git_branchB\x15\n" +
+	"\x13_git_commit_messageB\f\n" +
+	"\n" +
+	"_git_dirty\"\x13\n" +
+	"\x11BuildsUnavailable\"\x98\a\n" +
 	"\x12CreateBuildRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\x80\x02\n" +
@@ -845,7 +925,19 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\vsource_size\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
 	"sourceSize\x12\x8d\x02\n" +
 	"\acontext\x18\x04 \x01(\tB\xf2\x01\xbaH\xee\x01\xba\x01\xe5\x01\n" +
-	"\rbuild.context\x12Fcontext must be '.' or a relative directory inside the uploaded source\x1a\x8b\x01this == '' || this == '.' || (!this.startsWith('/') && !this.endsWith('/') && !this.split('/').exists(p, p == '..' || p == '.' || p == ''))r\x03\x18\x80\bR\acontext\"\x97\x01\n" +
+	"\rbuild.context\x12Fcontext must be '.' or a relative directory inside the uploaded source\x1a\x8b\x01this == '' || this == '.' || (!this.startsWith('/') && !this.endsWith('/') && !this.split('/').exists(p, p == '..' || p == '.' || p == ''))r\x03\x18\x80\bR\acontext\x12H\n" +
+	"\n" +
+	"git_commit\x18\x05 \x01(\tB$\xbaH!r\x1f2\x1d^[0-9a-f]{40}([0-9a-f]{24})?$H\x00R\tgitCommit\x88\x01\x01\x12.\n" +
+	"\n" +
+	"git_branch\x18\x06 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\bH\x01R\tgitBranch\x88\x01\x01\x12;\n" +
+	"\x12git_commit_message\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80 H\x02R\x10gitCommitMessage\x88\x01\x01\x12 \n" +
+	"\tgit_dirty\x18\b \x01(\bH\x03R\bgitDirty\x88\x01\x01B\r\n" +
+	"\v_git_commitB\r\n" +
+	"\v_git_branchB\x15\n" +
+	"\x13_git_commit_messageB\f\n" +
+	"\n" +
+	"_git_dirty\"\x97\x01\n" +
 	"\x13CreateBuildResponse\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12\x1d\n" +
 	"\n" +
@@ -954,6 +1046,7 @@ func file_loco_build_v1_build_proto_init() {
 		return
 	}
 	file_loco_build_v1_build_proto_msgTypes[0].OneofWrappers = []any{}
+	file_loco_build_v1_build_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

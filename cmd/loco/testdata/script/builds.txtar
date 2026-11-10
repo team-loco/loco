@@ -2,10 +2,10 @@
 fakeapi seed app
 
 exec loco builds list app
-stdout '^ID +STATUS +CREATED +DURATION +IMAGE DIGEST$'
+stdout '^ID +STATUS +COMMIT +CREATED +DURATION +IMAGE DIGEST$'
 stdout '^0199b6c4-5d1e-7f00-8000-0000000000b2 +running '
-stdout '^0199b6c4-5d1e-7f00-8000-0000000000b1 +succeeded +2026-10-07T06:00:00Z +42s +sha256:1111[0-9]+$'
-stdout '^0199b6c4-5d1e-7f00-8000-0000000000b0 +succeeded +2026-10-07T05:00:00Z +42s +sha256:0000[0-9]+ \(deleted\)$'
+stdout '^0199b6c4-5d1e-7f00-8000-0000000000b1 +succeeded +- +2026-10-07T06:00:00Z +42s +sha256:1111[0-9]+$'
+stdout '^0199b6c4-5d1e-7f00-8000-0000000000b0 +succeeded +- +2026-10-07T05:00:00Z +42s +sha256:0000[0-9]+ \(deleted\)$'
 
 
 exec loco builds list app --output json

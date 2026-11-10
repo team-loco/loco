@@ -1,0 +1,63 @@
+# loco deploy records the commit the packed directory is checked out at on each build,
+# with the untracked files it packs marking it dirty, and loco builds shows it.
+env GIT_CONFIG_NOSYSTEM=1
+env GIT_AUTHOR_NAME=Loco
+env GIT_AUTHOR_EMAIL=loco@loco.test
+env GIT_COMMITTER_NAME=Loco
+env GIT_COMMITTER_EMAIL=loco@loco.test
+fakeapi resource web
+fakeapi plan plan.json
+cd app
+exec git init -q -b main
+exec git add .
+exec git commit -q -m 'Fix the health check' -m 'The body stays out of the build.'
+cp ../plan.json notes.txt
+exec loco deploy --yes
+stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 succeeded'
+
+exec loco builds get 0199b6c4-5d1e-7f00-8000-000000000001
+stdout '^Commit: +[0-9a-f]{40} \(uncommitted changes\)$'
+stdout '^Branch: +main$'
+stdout '^Commit message: +Fix the health check$'
+! stdout 'The body'
+
+exec loco builds get 0199b6c4-5d1e-7f00-8000-000000000001 -o json
+stdout '"gitDirty":true'
+
+exec loco builds list web
+stdout '^ID +STATUS +COMMIT +CREATED +DURATION +IMAGE DIGEST$'
+stdout '^0199b6c4-5d1e-7f00-8000-000000000001 +succeeded +[0-9a-f]{7}-dirty '
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    port: 8080
+    domains: [web.onloco.test]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- app/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true}
+  ]
+}
