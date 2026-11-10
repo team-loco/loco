@@ -146,6 +146,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SESSION_REFRESH_TOKEN_LIFETIME", "")
 	t.Setenv("LOCO_TOKEN_LAST_USED_INTERVAL", "")
 	t.Setenv("LOCO_TOKEN_CLEANUP_INTERVAL", "")
+	t.Setenv("LOCO_IMAGE_RESOLVE_TIMEOUT", "")
 	t.Setenv("LOCO_RPC_TIMEOUT", "")
 	t.Setenv("LOCO_SHUTDOWN_DRAIN_TIMEOUT", "")
 	t.Setenv("LOCO_PLACEMENT_POLL_INTERVAL", "")
@@ -1215,5 +1216,20 @@ func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 				t.Errorf("panic = %v, want %v", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestImageResolveTimeoutConfiguration(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if got := newAPIConfig().ImageResolveTimeout; got != 15*time.Second {
+		t.Fatalf("default image resolve timeout = %s", got)
+	}
+	t.Setenv("LOCO_IMAGE_RESOLVE_TIMEOUT", "25s")
+	if got := newAPIConfig().ImageResolveTimeout; got != 25*time.Second {
+		t.Fatalf("configured image resolve timeout = %s", got)
+	}
+	t.Setenv("LOCO_IMAGE_RESOLVE_TIMEOUT", "0s")
+	if err := panicValue(t, func() { newAPIConfig() }); !errors.Is(err, envconfig.ErrNotPositive) {
+		t.Fatalf("panic = %v, want positive duration validation", err)
 	}
 }

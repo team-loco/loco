@@ -134,6 +134,7 @@ export LOCO_SOURCE_BUCKET="loco-e2e-sources"
 export LOCO_SOURCE_BUCKET_ACCESS_KEY_ID="loco-e2e"
 export LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY="loco-e2e-secret"
 export LOCO_SOURCE_BUCKET_REGION="us-east-1"
+export E2E_PUBLIC_REGISTRY_ALIAS="${RUN_NAME}-public-image"
 export E2E_REGISTRY_ALIAS="${RUN_NAME}-registry"
 export E2E_REGISTRY_HOST="${E2E_REGISTRY_ALIAS}:5000"
 export E2E_REGISTRY_URL="http://127.0.0.1:${REGISTRY_HOST_PORT}"
@@ -634,6 +635,22 @@ setup_registry() {
     e2e_compose up -d --wait registry s3
     connect_registry
     log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${REGISTRY_HOST_PORT}), source bucket at ${E2E_S3_ENDPOINT}, build egress ${BUILD_PRIVATE_EGRESS}"
+}
+
+setup_public_image() {
+    log_step "Mirroring the public fixture image into the run's anonymous registry..."
+    e2e_compose up -d public-image-registry
+    local port node source_image
+    port=$(compose_host_port public-image-registry 5000)
+    wait_for "the public fixture registry" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${port}/v2/"
+    source_image=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+    E2E_PUBLIC_IMAGE="localhost:${port}/public-image:e2e"
+    go -C "$ROOT_DIR" run ./tools/e2e-mirror-image "$source_image" "$E2E_PUBLIC_IMAGE"
+    for node in $(kind get nodes --name "$KIND_CLUSTER_NAME"); do
+        docker exec "$node" mkdir -p "/etc/containerd/certs.d/localhost:${port}"
+        printf '[host."http://%s:5000"]\n  capabilities = ["pull", "resolve"]\n' "$E2E_PUBLIC_REGISTRY_ALIAS" |
+            docker exec -i "$node" tee "/etc/containerd/certs.d/localhost:${port}/hosts.toml" >/dev/null
+    done
 }
 
 start_token_registry() {
@@ -1177,6 +1194,7 @@ main() {
     setup_clickhouse
     run_migrations
     setup_registry
+    setup_public_image
     load_builder_images
     load_controller_image
     install_worker false
