@@ -41,7 +41,7 @@ export function useEnvironments() {
 		setParams(next);
 	};
 
-	return { environments, active, setActive, isLoading: scopes.isLoading || environmentsLoading };
+	return { environments, active, requested, setActive, isLoading: scopes.isLoading || environmentsLoading };
 }
 
 export function environmentTypeLabel(type: EnvironmentType): string {

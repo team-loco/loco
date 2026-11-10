@@ -293,6 +293,11 @@ with sync_playwright() as playwright:
                     reader_page.on("pageerror", lambda error: errors.append(str(error)))
                     denied = []
                     reader_page.on("response", lambda response: denied.append(response.url) if response.status == 403 else None)
+                    reader_page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
+                    reader_section = reader_page.get_by_role("tab", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
+                    expect(reader_section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
+                    expect(reader_page.get_by_text("Not deployed yet", exact=True)).to_have_count(0)
+                    reader_page.screenshot(path=out / f"resource-reader-{case}.png", animations="disabled")
                     reader_page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production&tab=settings")
                     expect(reader_page.get_by_role("region", name="Variables")).to_be_visible()
                     evidence.settle(reader_page)

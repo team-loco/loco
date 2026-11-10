@@ -78,8 +78,12 @@ export function SettingsView({
 }) {
 	const [current, setCurrent] = useState(focus === "scaling" ? "set-scaling" : "set-image");
 	const [tried, setTried] = useState(false);
-	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: environmentId !== "" });
-	const domainsQuery = useQuery(listPlatformDomains, { environmentId }, { enabled: environmentId !== "" });
+	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: canReadWorkspace && environmentId !== "" });
+	const domainsQuery = useQuery(
+		listPlatformDomains,
+		{ environmentId },
+		{ enabled: canReadWorkspace && environmentId !== "" },
+	);
 	const managed = resource.partial !== undefined;
 	const locked = managed || !canWrite;
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
