@@ -1,6 +1,8 @@
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { workspaceKnown } from "@/lib/not-found";
 import { useAuth } from "@/auth/AuthProvider";
+import { nextPathState } from "@/auth/next";
 import { ClaimedOrgsBanner } from "@/components/ClaimedOrgsBanner";
 import { ErrorCard } from "@/components/ErrorCard";
 import { AppShell } from "@/components/shell/AppShell";
@@ -12,14 +14,15 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { Navigate, useParams } from "react-router";
+import { Navigate, useLocation, useParams } from "react-router";
 
 interface ProtectedLayoutProps {
 	children: ReactNode;
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
-	const { orgId: orgParam } = useParams();
+	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
+	const { pathname, search } = useLocation();
 	const transport = useTransport();
 	const { user, signedOut } = useAuth();
 	const { isPending, error } = useQuery(whoAmI, {}, { enabled: !signedOut });
@@ -36,10 +39,14 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	});
 	const workspaces = workspacesRes?.workspaces ?? [];
 
+	const workspacesSettled = (orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading;
+	const workspaceNotFound =
+		workspacesSettled && workspaceParam !== undefined && !workspaceKnown(workspaceParam, workspaces, scopes.scopes);
+
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
 	if (signedOut || unauthenticated) {
-		return <Navigate to="/login" replace />;
+		return <Navigate to="/login" replace state={nextPathState(pathname + search)} />;
 	}
 
 	if (isPending) {
@@ -54,7 +61,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		<ContextProvider
 			availableOrgs={orgs}
 			availableWorkspaces={workspaces}
-			workspacesSettled={(orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading}
+			workspacesSettled={workspacesSettled}
+			workspaceNotFound={workspaceNotFound}
 		>
 			<AppShell>{children}</AppShell>
 			<ClaimedOrgsBanner />

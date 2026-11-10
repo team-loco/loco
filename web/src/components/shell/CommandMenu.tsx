@@ -12,7 +12,7 @@ import {
 	UserIcon,
 	UserPlusIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createContext, use, useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { Button } from "@/components/design/Button";
@@ -28,7 +28,7 @@ import { useNavSections } from "./nav";
 
 const SHORTCUT_KEY = "k";
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
-const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
+export const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
 
 function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
@@ -139,7 +139,15 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	return items;
 }
 
-export function CommandMenu() {
+const OpenPaletteContext = createContext<(() => void) | null>(null);
+
+export function useOpenPalette(): () => void {
+	const openPalette = use(OpenPaletteContext);
+	if (openPalette === null) throw new Error("useOpenPalette must be used inside CommandPaletteProvider");
+	return openPalette;
+}
+
+export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 	const [open, setOpen] = useState(false);
 	const items = usePaletteItems(open);
 
@@ -156,21 +164,31 @@ export function CommandMenu() {
 	}, []);
 
 	return (
-		<>
-			<Button
-				variant="outline"
-				aria-label="Search and run commands"
-				aria-keyshortcuts="Meta+K Control+K"
-				onClick={() => {
-					setOpen(true);
-				}}
-				className="px-2 text-fg3 hover:text-fg2 md:pr-2 md:pl-2.5"
-			>
-				<SearchIcon aria-hidden />
-				<span className="hidden md:inline">Search</span>
-				<Kbd className="ml-3.5 hidden md:inline-flex">{SHORTCUT_LABEL}</Kbd>
-			</Button>
+		<OpenPaletteContext
+			value={() => {
+				setOpen(true);
+			}}
+		>
+			{children}
 			<CommandPalette open={open} onOpenChange={setOpen} items={items} />
-		</>
+		</OpenPaletteContext>
+	);
+}
+
+export function CommandMenu() {
+	const openPalette = useOpenPalette();
+
+	return (
+		<Button
+			variant="outline"
+			aria-label="Search and run commands"
+			aria-keyshortcuts="Meta+K Control+K"
+			onClick={openPalette}
+			className="px-2 text-fg3 hover:text-fg2 md:pr-2 md:pl-2.5"
+		>
+			<SearchIcon aria-hidden />
+			<span className="hidden md:inline">Search</span>
+			<Kbd className="ml-3.5 hidden md:inline-flex">{SHORTCUT_LABEL}</Kbd>
+		</Button>
 	);
 }
