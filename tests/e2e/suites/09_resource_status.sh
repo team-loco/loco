@@ -198,6 +198,22 @@ test_s05_suspension_stops_pods_and_resume_restores_them() {
     wait_for "the post-resume scaling rollout to finish" 180 status_rollout_is_finished
 }
 
+suite_diagnostics() {
+    [ "$1" -ne 0 ] || return 0
+    if [ -f "$status_dir/crash.out" ]; then
+        cat "$status_dir/crash.out"
+    fi
+    e2e_psql "SELECT r.name, p.desired_revision, p.applied_revision, p.ready, p.ready_replicas, p.status_phase, p.status_message, p.runtime_reason, p.status_updated_at FROM placements p JOIN resources r ON r.id = p.resource_id WHERE r.name = 'e2e-runtime-crash'" || true
+    runtime_event_list || true
+    local resource_id
+    resource_id=$(e2e_psql "SELECT id FROM resources WHERE name = 'e2e-runtime-crash'")
+    if [ -n "$resource_id" ]; then
+        sk -n "$E2E_LOCO_NAMESPACE" get application "resource-${resource_id}" -o json | yq -p json '.status' || true
+        sk -n "$status_namespace" get pods -l "app=resource-${resource_id}" -o json |
+            yq -p json '.items[] | {"name": .metadata.name, "status": .status}' || true
+    fi
+}
+
 runtime_event_list() {
     local resource_id org_id environment_id
     resource_id=$(e2e_psql "SELECT id FROM resources WHERE name = 'e2e-runtime-crash'")
@@ -210,26 +226,29 @@ runtime_event_list() {
 }
 
 runtime_crash_recorded() {
-    test "$(runtime_event_list | yq -p json -r '.events | length')" = 1
+    test "$(runtime_event_list | yq -p json -r '[.events[] | select(.data.reason == "crash_looping")] | length')" = 1
 }
 
 test_s06_crash_loop_records_one_event_across_reconnect() {
     local crash_dir="$status_dir/e2e-runtime-crash"
     mkdir -p "$crash_dir"
     cli_write_image_config "$crash_dir" e2e-runtime-crash "$E2E_PUBLIC_IMAGE" 8080 '[]'
-    yq -i '.services["e2e-runtime-crash"].health = {"path": "/missing-health-check"}' "$crash_dir/loco.yaml"
+    yq -i '.services["e2e-runtime-crash"].health = {"path": "/missing-health-check", "interval": 5, "timeout": 1, "failThreshold": 1}' "$crash_dir/loco.yaml"
     # A failed deployment is expected; the event must come from the running stack.
     (cd "$crash_dir" && loco_cli deploy --yes) >"$status_dir/crash.out" 2>&1 || true
     wait_for "one crash-loop event through ListEvents" 180 runtime_crash_recorded
     assert "The event contains the Loco crash reason" \
-        test "$(runtime_event_list | yq -p json -r '.events[0].data.reason')" = crash_looping
-    local runtime_reconnect_after
+        test "$(runtime_event_list | yq -p json -r '.events[] | select(.data.reason == "crash_looping") | .data.reason')" = crash_looping
+    local runtime_reconnect_after runtime_events_before
+    runtime_events_before=$(runtime_event_list | yq -p json -r '.events | map(.id) | sort | join(",")')
     kill_pid_file "$PID_DIR/agent.pid"
     runtime_reconnect_after=$(e2e_psql "SELECT p.status_updated_at FROM placements p JOIN resources r ON r.id = p.resource_id WHERE r.name = 'e2e-runtime-crash'")
     start_agent
     wait_for "the reconnected agent to report the crashing placement" 120 \
         runtime_replay_reported
-    assert "A replay records no second degradation" runtime_crash_recorded
+    assert "A replay records no second degradation" \
+        test "$(runtime_event_list | yq -p json -r '.events | map(.id) | sort | join(",")')" = "$runtime_events_before"
+    assert "The same crash-loop event remains after replay" runtime_crash_recorded
 }
 
 runtime_replay_reported() {
