@@ -119,7 +119,7 @@ def check_webhooks(page):
     page.get_by_role("button", name=f"Deliveries for {endpoint}", exact=True).click()
     drawer = page.get_by_role("dialog", name=endpoint)
     drawer.get_by_text("build.created", exact=True).wait_for()
-    drawer.get_by_role("button", name="Failing", exact=False).wait_for()
+    drawer.get_by_role("button", name="Failed", exact=True).wait_for()
     page.keyboard.press("Escape")
     drawer.wait_for(state="hidden")
     page.get_by_role("button", name=f"Actions for {endpoint}", exact=True).click()
