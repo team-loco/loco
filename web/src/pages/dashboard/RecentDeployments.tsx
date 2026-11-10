@@ -12,6 +12,7 @@ import { SoonTag } from "@/components/design/SoonTag";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { deploymentImage } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
@@ -24,7 +25,7 @@ import {
 	filterDeployments,
 	withinWindow,
 } from "./deploymentRows";
-import { deploymentImage, startedLabel } from "./format";
+import { startedLabel } from "./format";
 
 const COLUMNS = 7;
 

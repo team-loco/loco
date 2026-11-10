@@ -48,7 +48,7 @@ import { RolloutProgress } from "@/pages/resource/RolloutProgress";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
-import { isInFlight } from "@/pages/dashboard/format";
+import { isInFlight } from "@/lib/deployment-utils";
 
 const READ_LEVEL = 1;
 const WRITE_LEVEL = 2;

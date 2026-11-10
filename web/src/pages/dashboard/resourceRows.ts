@@ -1,6 +1,7 @@
-import { ResourceStatus, ResourceType, type Resource } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
-import { statusRank } from "./format";
+import { primaryDomain, statusRank } from "@/lib/resource-status";
+
 import type { EnvResource } from "./useDashboardData";
 
 export const ALL = "all";
@@ -27,11 +28,6 @@ export interface RowFilter {
 	type: string;
 	region: string;
 	query: string;
-}
-
-export function primaryDomain(resource: Resource): string | null {
-	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
-	return domain?.domain ?? null;
 }
 
 function matchesQuery(item: EnvResource, query: string): boolean {

@@ -9,9 +9,10 @@ import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { pluralize } from "@/lib/format";
 import { servedDomains } from "@/lib/new-resource";
+import { primaryDomain } from "@/lib/resource-status";
 import { cn } from "@/lib/utils";
 
-import { mapLayout, primaryDomain } from "./resourceRows";
+import { mapLayout } from "./resourceRows";
 import type { EnvResource } from "./useDashboardData";
 
 const GATEWAY_X = 196;

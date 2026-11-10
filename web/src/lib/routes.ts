@@ -32,6 +32,19 @@ export function resourcePath(orgId: string, workspaceId: string, resourceId: str
 	return workspacePath(orgId, workspaceId, `resource/${resourceId}`);
 }
 
+export function resourcesPath(orgId: string, workspaceId: string): string {
+	return workspacePath(orgId, workspaceId, "resources");
+}
+
+export function inResourcesSection(pathname: string, orgId: string, workspaceId: string): boolean {
+	const base = workspacePath(orgId, workspaceId);
+	return (
+		pathname === resourcesPath(orgId, workspaceId) ||
+		pathname === `${base}/new` ||
+		pathname.startsWith(`${base}/resource/`)
+	);
+}
+
 export function newResourcePath(orgId: string, workspaceId: string, params: Record<string, string> = {}): string {
 	const search = new URLSearchParams(params).toString();
 	return `${workspacePath(orgId, workspaceId, "new")}${search === "" ? "" : `?${search}`}`;

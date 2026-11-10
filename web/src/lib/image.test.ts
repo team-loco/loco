@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { shortImageRef } from "./image";
+import { imageName, shortImageRef } from "./image";
 
 describe("shortImageRef", () => {
 	test("keeps short image names and human-readable tags", () => {
@@ -20,4 +20,10 @@ describe("shortImageRef", () => {
 		const image = `registry.example.com/recommendation-0199d1c2-0000-7000-8000-000000000001@sha256:${"a".repeat(64)}`;
 		expect(shortImageRef(image)).toBe("recommendation-01…000001@sha256:aaaaaaaaaaaa");
 	});
+});
+
+test("imageName drops the tag and digest but keeps the registry and path", () => {
+	expect(imageName("registry.example.com:5000/team/api:v2.1")).toBe("registry.example.com:5000/team/api");
+	expect(imageName(`ghcr.io/team/api@sha256:${"a".repeat(64)}`)).toBe("ghcr.io/team/api");
+	expect(imageName("nginx")).toBe("nginx");
 });

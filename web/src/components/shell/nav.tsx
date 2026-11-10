@@ -1,5 +1,6 @@
 import {
 	BellIcon,
+	BoxesIcon,
 	ChartLineIcon,
 	KeyRoundIcon,
 	LayoutGridIcon,
@@ -13,7 +14,13 @@ import { useLocation, useSearchParams } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { pageImporters } from "@/lib/lazy-pages";
-import { observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
+import {
+	inResourcesSection,
+	observabilityPath,
+	resourcesPath,
+	workspacePath,
+	type ObservabilityView,
+} from "@/lib/routes";
 
 export interface NavPage {
 	name: string;
@@ -55,10 +62,18 @@ export function useNavSections(): NavSection[] {
 				{
 					name: "Dashboard",
 					icon: <LayoutGridIcon />,
-					keywords: "home resources",
+					keywords: "home overview",
 					to: wsBase !== null ? withEnv(wsBase) : undefined,
-					active: wsBase !== null && (pathname === wsBase || pathname.startsWith(`${wsBase}/resource`)),
+					active: pathname === wsBase,
 					preload: pageImporters.Dashboard,
+				},
+				{
+					name: "Resources",
+					icon: <BoxesIcon />,
+					keywords: "services inventory",
+					to: hasWs ? withEnv(resourcesPath(activeOrgId, activeWorkspaceId)) : undefined,
+					active: hasWs && inResourcesSection(pathname, activeOrgId, activeWorkspaceId),
+					preload: pageImporters.Resources,
 				},
 			],
 		},
