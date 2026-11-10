@@ -125,6 +125,10 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 expect(url).to_have_attribute("aria-invalid", "true")
                 url.fill("https://hooks.invalid/updated")
                 edit.get_by_role("button", name="All events", exact=True).click()
+                page.route("**/" + service + "UpdateWebhook", unavailable)
+                edit.get_by_role("button", name="Save changes", exact=True).click()
+                expect(edit.get_by_text("Could not save the webhook.", exact=True)).to_be_visible()
+                page.unroute("**/" + service + "UpdateWebhook")
                 edit.get_by_role("button", name="Save changes", exact=True).click()
                 expect(edit).not_to_be_visible()
                 updated = call("ListWebhooks")["webhooks"]

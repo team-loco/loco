@@ -182,7 +182,10 @@ function NewWebhookForm({
 				)}
 				{mutation.error !== null && !rejected && (
 					<span className="text-[12.5px] text-bad-fg">
-						{getErrorMessage(mutation.error, "Could not add the webhook")}
+						{getErrorMessage(
+							mutation.error,
+							webhook === undefined ? "Could not add the webhook" : "Could not save the webhook",
+						)}
 					</span>
 				)}
 			</DialogBody>
