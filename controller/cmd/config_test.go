@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"testing"
+	"time"
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -85,5 +86,13 @@ func TestOperatorConfigPanicsOnAnInvalidRegistryAuthMode(t *testing.T) {
 			}()
 			newOperatorConfig()
 		})
+	}
+}
+
+func TestRuntimeRecoveryWindowIsSetAtStartup(t *testing.T) {
+	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
+	config := newOperatorConfig()
+	if config.RuntimeRecoveryWindow != time.Minute {
+		t.Fatalf("recovery window = %s, want one minute", config.RuntimeRecoveryWindow)
 	}
 }

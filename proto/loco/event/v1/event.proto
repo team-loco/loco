@@ -29,6 +29,7 @@ message Event {
   string actor_email = 13;
   string actor_name = 14;
   string resource_id = 15;
+  string environment_id = 16;
 }
 
 message ListEventsRequest {
@@ -47,6 +48,13 @@ message ListEventsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+  string environment_id = 7 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Inclusive start and exclusive end of the event creation time range.
+  google.protobuf.Timestamp start_time = 8;
+  google.protobuf.Timestamp end_time = 9;
 }
 
 message ListEventsResponse {

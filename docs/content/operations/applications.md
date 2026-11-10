@@ -104,7 +104,13 @@ Use application status to find whether a deployment is progressing or ready. `lo
 
 The controller reports a failure when a current replica is unschedulable or Kubernetes reports that the current rollout exceeded its progress deadline. The region's failure message includes scheduling details or directs you to inspect replicas and logs. Reconciliation continues after a failure, so the application can recover when replicas become ready.
 
-The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read events for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
+The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read Loco events for runtime problems, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
+
+`loco resource events <name>` lists Loco events, newest first. Use `--limit 20` to limit the output or `--output json` for event IDs, creation times and structured data. The event history records transitions: `resource.degraded` when a runtime problem changes, and `resource.recovered` when it clears. Repeated reports of the same problem do not add events. A restarted process must run continuously for a minute and be ready before its crash or memory problem clears; brief runs between retries keep the same problem.
+
+Runtime reasons are `crash_looping`, `out_of_memory`, `image_pull_failed`, `unschedulable` and `health_check_failing`. Events include a Loco-written message, placement ID and region in their data, with organization, workspace, resource and environment IDs for filtering. The dashboard's events drawer and warning count use this history; its crash-loop card shows recent logs for the affected resource, environment and region. Kubernetes reasons and replica names are not included in events.
+
+`EventService.ListEvents` filters by environment and by creation time (`start_time` inclusive, `end_time` exclusive), as well as organization, workspace, resource and event type. Runtime events are also delivered by the event stream and matching webhooks.
 
 ```sh
 loco web

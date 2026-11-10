@@ -79,18 +79,19 @@ func uuidString(id *uuid.UUID) string {
 
 func eventToProto(e genDb.Event) *eventv1.Event {
 	out := &eventv1.Event{
-		Seq:         e.Seq,
-		Id:          e.ID.String(),
-		Type:        e.Type,
-		OrgId:       uuidString(e.OrgID),
-		WorkspaceId: uuidString(e.WorkspaceID),
-		ResourceId:  uuidString(e.ResourceID),
-		ActorType:   e.ActorType,
-		ActorId:     uuidString(e.ActorID),
-		SubjectType: derefString(e.SubjectType),
-		SubjectId:   uuidString(e.SubjectID),
-		RequestId:   derefString(e.RequestID),
-		CreatedAt:   timestamppb.New(e.CreatedAt),
+		Seq:           e.Seq,
+		Id:            e.ID.String(),
+		Type:          e.Type,
+		OrgId:         uuidString(e.OrgID),
+		WorkspaceId:   uuidString(e.WorkspaceID),
+		ResourceId:    uuidString(e.ResourceID),
+		EnvironmentId: uuidString(e.EnvironmentID),
+		ActorType:     e.ActorType,
+		ActorId:       uuidString(e.ActorID),
+		SubjectType:   derefString(e.SubjectType),
+		SubjectId:     uuidString(e.SubjectID),
+		RequestId:     derefString(e.RequestID),
+		CreatedAt:     timestamppb.New(e.CreatedAt),
 	}
 	var data map[string]any
 	if err := json.Unmarshal(e.Data, &data); err == nil {
@@ -105,6 +106,10 @@ func (s *EventServer) ListEvents(
 	ctx context.Context,
 	req *eventv1.ListEventsRequest,
 ) (*eventv1.ListEventsResponse, error) {
+	if req.GetStartTime() != nil && req.GetEndTime() != nil &&
+		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "start_time must be before end_time")
+	}
 	workspaceID, err := s.authorizeEventScope(ctx, req)
 	if err != nil {
 		return nil, err
@@ -202,16 +207,32 @@ func (s *EventServer) listAuditEvents(
 	if req.GetBeforeSeq() > 0 {
 		before = new(req.GetBeforeSeq())
 	}
+	var environmentID *uuid.UUID
+	if req.GetEnvironmentId() != "" {
+		id, err := parseID("environment_id", req.GetEnvironmentId())
+		if err != nil {
+			return nil, err
+		}
+		environmentID = &id
+	}
+	var startTime, endTime *time.Time
+	if req.GetStartTime() != nil {
+		startTime = new(req.GetStartTime().AsTime())
+	}
+	if req.GetEndTime() != nil {
+		endTime = new(req.GetEndTime().AsTime())
+	}
 	out := []*eventv1.Event{}
 	if req.GetResourceId() != "" {
 		resourceID := uuid.MustParse(req.GetResourceId())
 		rows, err := s.queries.ListResourceAuditEvents(ctx, genDb.ListResourceAuditEventsParams{
-			OrgID:       &orgID,
-			WorkspaceID: workspaceID,
-			ResourceID:  &resourceID,
-			Types:       types,
-			BeforeSeq:   before,
-			MaxRows:     maxRows,
+			OrgID:         &orgID,
+			WorkspaceID:   workspaceID,
+			ResourceID:    &resourceID,
+			Types:         types,
+			BeforeSeq:     before,
+			MaxRows:       maxRows,
+			EnvironmentID: environmentID, StartTime: startTime, EndTime: endTime,
 		})
 		if err != nil {
 			return nil, err
@@ -223,7 +244,15 @@ func (s *EventServer) listAuditEvents(
 	}
 	if workspaceID != nil {
 		rows, err := s.queries.ListWorkspaceAuditEvents(ctx, genDb.ListWorkspaceAuditEventsParams{
-			OrgID: &orgID, WorkspaceID: workspaceID, Types: types, BeforeSeq: before, MaxRows: maxRows})
+			OrgID:         &orgID,
+			WorkspaceID:   workspaceID,
+			Types:         types,
+			BeforeSeq:     before,
+			MaxRows:       maxRows,
+			EnvironmentID: environmentID,
+			StartTime:     startTime,
+			EndTime:       endTime,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +263,15 @@ func (s *EventServer) listAuditEvents(
 	}
 	rows, err := s.queries.ListOrgAuditEvents(
 		ctx,
-		genDb.ListOrgAuditEventsParams{OrgID: &orgID, Types: types, BeforeSeq: before, MaxRows: maxRows},
+		genDb.ListOrgAuditEventsParams{
+			OrgID:         &orgID,
+			Types:         types,
+			BeforeSeq:     before,
+			MaxRows:       maxRows,
+			EnvironmentID: environmentID,
+			StartTime:     startTime,
+			EndTime:       endTime,
+		},
 	)
 	if err != nil {
 		return nil, err

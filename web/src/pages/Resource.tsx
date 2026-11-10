@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { deleteResource, listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -16,10 +16,12 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
+import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { getErrorMessage, isUnimplemented, toastConnectError } from "@/lib/error-handler";
+import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
+import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
@@ -52,7 +54,6 @@ import { isInFlight } from "@/lib/deployment-utils";
 
 const READ_LEVEL = 1;
 const WRITE_LEVEL = 2;
-const EVENT_LIMIT = 500;
 const EVENTS_REFRESH_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 
@@ -93,11 +94,16 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { resourceLevel, workspaceLevel } = useMyScopes();
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const configQuery = useQuery(getConfig, {});
-	const eventsQuery = useQuery(
-		listResourceEvents,
-		{ resourceId, limit: EVENT_LIMIT },
-		{ enabled: resourceId !== "", refetchInterval: EVENTS_REFRESH_MS },
-	);
+	const eventsQuery = useTanstackQuery({
+		...runtimeEventsOptions(transport, {
+			orgId: activeOrgId ?? "",
+			workspaceId: activeWorkspaceId ?? "",
+			resourceId,
+			environmentId: environmentId ?? "",
+		}),
+		refetchInterval: EVENTS_REFRESH_MS,
+	});
+
 	const canListResources =
 		activeOrgId !== null && activeWorkspaceId !== null && workspaceLevel(activeOrgId, activeWorkspaceId) >= READ_LEVEL;
 	const resourcesQuery = useTanstackQuery({
@@ -142,7 +148,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);
 	const deployed = regions.filter(isDeployed);
 	const currents = deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
-	const events = newestFirst(eventsQuery.data?.events ?? []);
+	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
 	const base = baseline(
 		resource.name,
 		regions,
@@ -310,7 +316,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							region={problemRegion}
 							lastGood={lastGoodDeployment(problemRegion)}
 							events={events}
-							eventsUnavailable={isUnimplemented(eventsQuery.error)}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}

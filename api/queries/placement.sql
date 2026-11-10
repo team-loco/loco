@@ -235,3 +235,15 @@ WHERE resource_id = $1 AND cluster_id = $2 AND removed_at IS NULL;
 SELECT workspace_id, placed_at, removed_at FROM placement_windows
 WHERE cluster_id = $1
 ORDER BY placed_at, id;
+
+-- name: ChangePlacementRuntimeCondition :one
+UPDATE placements
+SET runtime_reason = sqlc.arg(reason), runtime_message = sqlc.arg(message)
+WHERE id = sqlc.arg(id)
+  AND (runtime_reason <> sqlc.arg(reason) OR runtime_message <> sqlc.arg(message))
+RETURNING resource_id, environment_id, region;
+
+-- name: LockClusterSyncGeneration :one
+SELECT sync_generation FROM clusters
+WHERE id = $1 AND removed_at IS NULL
+FOR SHARE;

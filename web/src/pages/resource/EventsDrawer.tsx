@@ -1,13 +1,12 @@
 import { Link } from "react-router";
-import type { Event } from "@gen/loco/resource/v1/resource_pb";
+import type { RuntimeEvent as Event } from "@/lib/runtime-events";
 
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
+import { getErrorMessage } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 import { ActivityPanel } from "@/pages/settings/ActivityPanel";
 
@@ -44,14 +43,6 @@ function EventList({
 			</div>
 		);
 	}
-	if (isUnimplemented(error)) {
-		return (
-			<p className="flex items-center justify-center gap-2 py-10 text-fg3">
-				Kubernetes events for this resource are not recorded yet
-				<SoonTag />
-			</p>
-		);
-	}
 	if (error !== null)
 		return <p className="py-10 text-center text-bad-fg">{getErrorMessage(error, "Failed to load events")}</p>;
 	const shown = warningsOnly ? events.filter(isWarning) : events;
@@ -60,11 +51,11 @@ function EventList({
 	}
 	return (
 		<ol className="m-0 list-none p-0">
-			{shown.map((e, i) => {
+			{shown.map((e) => {
 				const ms = maybeTsMs(e.timestamp);
 				return (
 					<li
-						key={`${String(ms)}-${i.toString()}`}
+						key={e.id}
 						className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-[11px] border-b border-line2 py-2.5 last:border-b-0"
 					>
 						<span className="pt-0.5">
@@ -72,9 +63,10 @@ function EventList({
 							<span className="sr-only">{isWarning(e) ? "Warning" : "Normal"}</span>
 						</span>
 						<span className="flex min-w-0 flex-col gap-0.5">
-							<span className="text-[13.5px]">{e.reason}</span>
+							<span className="text-[13.5px]">
+								{e.reason === "" ? "Service recovered" : e.reason.replaceAll("_", " ")}
+							</span>
 							<span className="text-[12.5px] break-words text-fg2">{e.message}</span>
-							{e.podName !== "" && <span className="truncate font-mono text-[11.5px] text-fg3">{e.podName}</span>}
 						</span>
 						<span
 							className="font-mono text-[11.5px] whitespace-nowrap text-fg3"

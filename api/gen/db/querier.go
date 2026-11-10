@@ -23,6 +23,7 @@ type Querier interface {
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
 	CancelOrgActiveBuilds(ctx context.Context, arg CancelOrgActiveBuildsParams) ([]CancelOrgActiveBuildsRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
+	ChangePlacementRuntimeCondition(ctx context.Context, arg ChangePlacementRuntimeConditionParams) (ChangePlacementRuntimeConditionRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -208,6 +209,7 @@ type Querier interface {
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
+	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error

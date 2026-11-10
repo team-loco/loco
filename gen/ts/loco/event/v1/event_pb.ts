@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file loco/event/v1/event.proto.
  */
 export const file_loco_event_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIs0CCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJIscBChFMaXN0RXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASFwoFdHlwZXMYAyADKAlCCLpIBZIBAhAyEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoABIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABASJTChJMaXN0RXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIXCg9uZXh0X2JlZm9yZV9zZXEYAiABKAMiLgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEAiTAoUU3RyZWFtRXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIOCgZjdXJzb3IYAiABKAkyvAEKDEV2ZW50U2VydmljZRJRCgpMaXN0RXZlbnRzEiAubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVxdWVzdBohLmxvY28uZXZlbnQudjEuTGlzdEV2ZW50c1Jlc3BvbnNlElkKDFN0cmVhbUV2ZW50cxIiLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVxdWVzdBojLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVzcG9uc2UwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2V2ZW50L3YxO2V2ZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIuUCCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJIsoCChFMaXN0RXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASFwoFdHlwZXMYAyADKAlCCLpIBZIBAhAyEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoABIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlMKEkxpc3RFdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50EhcKD25leHRfYmVmb3JlX3NlcRgCIAEoAyIuChNTdHJlYW1FdmVudHNSZXF1ZXN0EhcKBmN1cnNvchgBIAEoCUIHukgEcgIYQCJMChRTdHJlYW1FdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50Eg4KBmN1cnNvchgCIAEoCTK8AQoMRXZlbnRTZXJ2aWNlElEKCkxpc3RFdmVudHMSIC5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXF1ZXN0GiEubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVzcG9uc2USWQoMU3RyZWFtRXZlbnRzEiIubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXF1ZXN0GiMubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXNwb25zZTABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZXZlbnQvdjE7ZXZlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.event.v1.Event
@@ -93,6 +93,11 @@ export type Event = Message<"loco.event.v1.Event"> & {
    * @generated from field: string resource_id = 15;
    */
   resourceId: string;
+
+  /**
+   * @generated from field: string environment_id = 16;
+   */
+  environmentId: string;
 };
 
 /**
@@ -173,6 +178,11 @@ export type EventJson = {
    * @generated from field: string resource_id = 15;
    */
   resourceId?: string;
+
+  /**
+   * @generated from field: string environment_id = 16;
+   */
+  environmentId?: string;
 };
 
 /**
@@ -215,6 +225,23 @@ export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
    * @generated from field: string resource_id = 6;
    */
   resourceId: string;
+
+  /**
+   * @generated from field: string environment_id = 7;
+   */
+  environmentId: string;
+
+  /**
+   * Inclusive start and exclusive end of the event creation time range.
+   *
+   * @generated from field: google.protobuf.Timestamp start_time = 8;
+   */
+  startTime?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp end_time = 9;
+   */
+  endTime?: Timestamp | undefined;
 };
 
 /**
@@ -250,6 +277,23 @@ export type ListEventsRequestJson = {
    * @generated from field: string resource_id = 6;
    */
   resourceId?: string;
+
+  /**
+   * @generated from field: string environment_id = 7;
+   */
+  environmentId?: string;
+
+  /**
+   * Inclusive start and exclusive end of the event creation time range.
+   *
+   * @generated from field: google.protobuf.Timestamp start_time = 8;
+   */
+  startTime?: TimestampJson;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp end_time = 9;
+   */
+  endTime?: TimestampJson;
 };
 
 /**

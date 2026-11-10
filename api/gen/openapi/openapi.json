@@ -4612,68 +4612,6 @@
         }
       }
     },
-    "/loco.resource.v1.ResourceService/ListResourceEvents": {
-      "post": {
-        "tags": [
-          "loco.resource.v1.ResourceService"
-        ],
-        "summary": "ListResourceEvents",
-        "description": "Events\n ListResourceEvents retrieves events for a resource.",
-        "operationId": "loco.resource.v1.ResourceService.ListResourceEvents",
-        "parameters": [
-          {
-            "name": "Connect-Protocol-Version",
-            "in": "header",
-            "description": "Define the version of the Connect protocol",
-            "schema": {
-              "$ref": "#/components/schemas/connect-protocol-version"
-            },
-            "example": 1
-          },
-          {
-            "name": "Connect-Timeout-Ms",
-            "in": "header",
-            "description": "Define the timeout, in ms",
-            "schema": {
-              "$ref": "#/components/schemas/connect-timeout-header"
-            },
-            "example": 1000
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/loco.resource.v1.ListResourceEventsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/connect.error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/loco.resource.v1.ListResourceEventsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/loco.resource.v1.ResourceService/ListWorkspaceResources": {
       "post": {
         "tags": [
@@ -7296,6 +7234,14 @@
           "message": {
             "type": "string",
             "title": "message"
+          },
+          "runtimeReason": {
+            "type": "string",
+            "title": "runtime_reason"
+          },
+          "runtimeMessage": {
+            "type": "string",
+            "title": "runtime_message"
           }
         },
         "title": "PlacementStatus",
@@ -10169,6 +10115,10 @@
           "resourceId": {
             "type": "string",
             "title": "resource_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
           }
         },
         "title": "Event",
@@ -10212,6 +10162,28 @@
             "type": "string",
             "title": "resource_id",
             "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "startTime": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "start_time",
+            "description": "Inclusive start and exclusive end of the event creation time range."
+          },
+          "endTime": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "end_time"
           }
         },
         "title": "ListEventsRequest",
@@ -12127,38 +12099,6 @@
         "additionalProperties": false,
         "description": "EnvironmentStatus is a resource's status in one environment it has an active deployment in."
       },
-      "loco.resource.v1.Event": {
-        "type": "object",
-        "properties": {
-          "timestamp": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/google.protobuf.Timestamp"
-              }
-            ],
-            "title": "timestamp"
-          },
-          "reason": {
-            "type": "string",
-            "title": "reason"
-          },
-          "message": {
-            "type": "string",
-            "title": "message"
-          },
-          "type": {
-            "type": "string",
-            "title": "type"
-          },
-          "podName": {
-            "type": "string",
-            "title": "pod_name"
-          }
-        },
-        "title": "Event",
-        "additionalProperties": false,
-        "description": "Event represents a Kubernetes event related to a resource (e.g., pod created, failed, crash loop)."
-      },
       "loco.resource.v1.GetResourceEnvRequest": {
         "type": "object",
         "properties": {
@@ -12327,45 +12267,6 @@
         "title": "ListRegionsResponse",
         "additionalProperties": false,
         "description": "ListRegionsResponse contains the regions the environment's clusters serve."
-      },
-      "loco.resource.v1.ListResourceEventsRequest": {
-        "type": "object",
-        "properties": {
-          "resourceId": {
-            "type": "string",
-            "title": "resource_id",
-            "format": "uuid"
-          },
-          "limit": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "title": "limit",
-            "maximum": 1000,
-            "minimum": 1,
-            "format": "int32",
-            "description": "max number of events to return"
-          }
-        },
-        "title": "ListResourceEventsRequest",
-        "additionalProperties": false,
-        "description": "ListResourceEventsRequest is the request to retrieve resource events."
-      },
-      "loco.resource.v1.ListResourceEventsResponse": {
-        "type": "object",
-        "properties": {
-          "events": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/loco.resource.v1.Event"
-            },
-            "title": "events"
-          }
-        },
-        "title": "ListResourceEventsResponse",
-        "additionalProperties": false,
-        "description": "ListResourceEventsResponse is the response containing resource events."
       },
       "loco.resource.v1.ListWorkspaceResourcesRequest": {
         "type": "object",

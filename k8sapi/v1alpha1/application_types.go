@@ -216,6 +216,8 @@ type ApplicationStatus struct {
 	Phase               string `json:"phase,omitempty"` // Idle | Deploying | Ready | Failed
 	Message             string `json:"message,omitempty"`
 	ActiveDeploymentRef string `json:"activeDeploymentRef,omitempty"`
+	RuntimeReason       string `json:"runtimeReason,omitempty"`
+	RuntimeMessage      string `json:"runtimeMessage,omitempty"`
 	ReadyReplicas       int32  `json:"readyReplicas,omitzero"`
 	DesiredReplicas     int32  `json:"desiredReplicas,omitzero"`
 

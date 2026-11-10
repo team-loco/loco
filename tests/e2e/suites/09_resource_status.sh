@@ -197,3 +197,41 @@ test_s05_suspension_stops_pods_and_resume_restores_them() {
     assert "Scaling works again after resume" loco_cli resource scale "$status_app" --cpu 175m
     wait_for "the post-resume scaling rollout to finish" 180 status_rollout_is_finished
 }
+
+runtime_event_list() {
+    local resource_id org_id environment_id
+    resource_id=$(e2e_psql "SELECT id FROM resources WHERE name = 'e2e-runtime-crash'")
+    test -n "$resource_id" || return 1
+    org_id=$(status_org_id)
+    environment_id=$(e2e_psql "SELECT environment_id FROM placements WHERE resource_id = '${resource_id}'")
+    curl -sS --fail-with-body "${E2E_API_URL}/loco.event.v1.EventService/ListEvents" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" -H 'Content-Type: application/json' \
+        -d "{\"orgId\":\"${org_id}\",\"workspaceId\":\"${cli_workspace_id}\",\"resourceId\":\"${resource_id}\",\"environmentId\":\"${environment_id}\",\"types\":[\"resource.degraded\"]}"
+}
+
+runtime_crash_recorded() {
+    test "$(runtime_event_list | yq -p json -r '.events | length')" = 1
+}
+
+test_s06_crash_loop_records_one_event_across_reconnect() {
+    local crash_dir="$status_dir/e2e-runtime-crash"
+    mkdir -p "$crash_dir"
+    cli_write_image_config "$crash_dir" e2e-runtime-crash "$E2E_PUBLIC_IMAGE" 8080 '[]'
+    yq -i '.services["e2e-runtime-crash"].health = {"path": "/missing-health-check"}' "$crash_dir/loco.yaml"
+    # A failed deployment is expected; the event must come from the running stack.
+    (cd "$crash_dir" && loco_cli deploy --yes) >"$status_dir/crash.out" 2>&1 || true
+    wait_for "one crash-loop event through ListEvents" 180 runtime_crash_recorded
+    assert "The event contains the Loco crash reason" \
+        test "$(runtime_event_list | yq -p json -r '.events[0].data.reason')" = crash_looping
+    local runtime_reconnect_after
+    kill_pid_file "$PID_DIR/agent.pid"
+    runtime_reconnect_after=$(e2e_psql "SELECT p.status_updated_at FROM placements p JOIN resources r ON r.id = p.resource_id WHERE r.name = 'e2e-runtime-crash'")
+    start_agent
+    wait_for "the reconnected agent to report the crashing placement" 120 \
+        runtime_replay_reported
+    assert "A replay records no second degradation" runtime_crash_recorded
+}
+
+runtime_replay_reported() {
+    test "$(e2e_psql "SELECT p.status_updated_at > '${runtime_reconnect_after}'::timestamptz FROM placements p JOIN resources r ON r.id = p.resource_id WHERE r.name = 'e2e-runtime-crash'")" = t
+}

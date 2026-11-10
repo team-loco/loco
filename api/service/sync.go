@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -61,6 +62,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 		return stream.Send(msg)
 	}
 	session := newSyncSession(s, cluster.ID, send)
+	session.generation = generation
 
 	poll := time.NewTicker(s.notifier.PollInterval())
 	defer poll.Stop()
@@ -147,6 +149,7 @@ func receiveSync(
 }
 
 type syncSession struct {
+	generation    int64
 	server        *AgentServer
 	clusterID     uuid.UUID
 	sendFn        func(*agentv1.SyncResponse) error
@@ -319,7 +322,7 @@ func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) err
 		}
 		return nil
 	case *agentv1.SyncRequest_Status:
-		ss.server.recordStatus(ctx, ss.clusterID, m.Status)
+		ss.server.recordStatus(ctx, ss.clusterID, ss.generation, m.Status)
 		return nil
 	case *agentv1.SyncRequest_BuildStatus:
 		return ss.handleBuildStatus(ctx, m.BuildStatus)
@@ -615,7 +618,12 @@ func (s *AgentServer) recordApplyError(
 	}
 }
 
-func (s *AgentServer) recordStatus(ctx context.Context, clusterID uuid.UUID, status *agentv1.PlacementStatus) {
+func (s *AgentServer) recordStatus(
+	ctx context.Context,
+	clusterID uuid.UUID,
+	generation int64,
+	status *agentv1.PlacementStatus,
+) {
 	placementID, err := uuid.Parse(status.GetPlacementId())
 	if err != nil {
 		slog.WarnContext(ctx, "ignoring status with invalid placement id",
@@ -625,7 +633,22 @@ func (s *AgentServer) recordStatus(ctx context.Context, clusterID uuid.UUID, sta
 		return
 	}
 
+	message, valid := locoControllerV1.RuntimeProblemMessage(status.GetRuntimeReason())
+	if !valid {
+		slog.WarnContext(ctx, "ignoring status with invalid runtime reason", "placement_id", placementID)
+		return
+	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		current, lockErr := qtx.LockClusterSyncGeneration(ctx, clusterID)
+		if errors.Is(lockErr, pgx.ErrNoRows) {
+			return nil
+		}
+		if lockErr != nil {
+			return fmt.Errorf("lock sync generation: %w", lockErr)
+		}
+		if current != generation {
+			return nil
+		}
 		row, updateErr := qtx.UpdatePlacementStatus(ctx, genDb.UpdatePlacementStatusParams{
 			ObservedRevision: status.GetObservedRevision(),
 			Ready:            status.GetReady(),
@@ -640,6 +663,38 @@ func (s *AgentServer) recordStatus(ctx context.Context, clusterID uuid.UUID, sta
 		}
 		if updateErr != nil {
 			return fmt.Errorf("update placement status: %w", updateErr)
+		}
+		// UpdatePlacementStatus locks the placement row until this transaction commits.
+		// Only a report for the desired revision may change the runtime condition.
+		if status.GetObservedRevision() == row.DesiredRevision {
+			changed, changeErr := qtx.ChangePlacementRuntimeCondition(ctx, genDb.ChangePlacementRuntimeConditionParams{
+				ID: placementID, Reason: status.GetRuntimeReason(), Message: message,
+			})
+			if changeErr != nil && !errors.Is(changeErr, pgx.ErrNoRows) {
+				return fmt.Errorf("change runtime condition: %w", changeErr)
+			}
+			if changeErr == nil {
+				kind := events.ResourceDegraded
+				if status.GetRuntimeReason() == "" {
+					kind = events.ResourceRecovered
+				}
+				if recordErr := events.Record(ctx, qtx, events.Event{
+					Type:          kind,
+					ActorType:     events.ActorSystem,
+					ResourceID:    &changed.ResourceID,
+					EnvironmentID: &changed.EnvironmentID,
+					SubjectType:   events.SubjectResource,
+					SubjectID:     &changed.ResourceID,
+					Data: map[string]any{
+						events.FieldReason:      status.GetRuntimeReason(),
+						events.FieldMessage:     message,
+						events.FieldPlacementID: placementID.String(),
+						events.FieldRegion:      changed.Region,
+					},
+				}); recordErr != nil {
+					return recordErr
+				}
+			}
 		}
 		if row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision {
 			return nil

@@ -105,7 +105,7 @@ func (f *resourceStatusFixture) report(t *testing.T, clusterID uuid.UUID, status
 	p := f.placement(t, clusterID)
 	status.PlacementId = p.ID.String()
 	status.ObservedRevision = p.DesiredRevision
-	f.agentServer().recordStatus(context.Background(), clusterID, status)
+	f.agentServer().recordStatus(context.Background(), clusterID, 0, status)
 }
 
 func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replicas int32) {

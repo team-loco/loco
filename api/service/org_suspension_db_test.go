@@ -209,7 +209,7 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 	}
 	running := f.placement(t, f.clusterID)
 	server.recordApplied(ctx, f.clusterID, applied(running.ID, 1))
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: running.ID.String(), ObservedRevision: 1, Ready: true, ReadyReplicas: 1, Phase: testPhaseReady,
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
@@ -236,7 +236,7 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 	if got := f.placement(t, f.clusterID); got.AppliedRevision != 2 {
 		t.Fatalf("applied revision after the stop was acked = %d, want 2", got.AppliedRevision)
 	}
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: running.ID.String(), ObservedRevision: 1, Ready: true, ReadyReplicas: 1, Phase: testPhaseReady,
 	})
 	if got := f.placement(t, f.clusterID); got.Ready || got.ReadyReplicas != 0 {

@@ -68,7 +68,7 @@ export function EventsView() {
 	const nowMs = now.getTime();
 	const { from, to } = resolveWindow(range, nowMs);
 
-	const { events, isLoading, error, unavailable } = useWorkspaceEvents(
+	const { events, isLoading, error } = useWorkspaceEvents(
 		workspaceId,
 		resources.map((r) => r.raw),
 		live ? POLL_MS : undefined,
@@ -78,7 +78,7 @@ export function EventsView() {
 	const inRange = events.filter((e) => {
 		const ts = tsMs(e.timestamp);
 		if (ts < from || ts > to || !visible.has(e.resourceId)) return false;
-		const hay = `${eventTitle(e.reason)} ${e.reason} ${e.message} ${e.podName} ${e.resourceName}`.toLowerCase();
+		const hay = `${eventTitle(e.reason)} ${e.reason} ${e.message} ${e.resourceName}`.toLowerCase();
 		return words.every((w) => hay.includes(w));
 	});
 	const typeTokens = liveTokens("events", tokens, "type");
@@ -138,18 +138,6 @@ export function EventsView() {
 		/>
 	);
 
-	if (!loading && unavailable) {
-		return (
-			<>
-				{header}
-				<ObsHero
-					view="events"
-					title="Events aren't available yet"
-					body="Deploys, restarts, failed health checks and scaling show up here once this installation records them."
-				/>
-			</>
-		);
-	}
 	if (!loading && error === null && inRange.length === 0 && query === "") {
 		return (
 			<>

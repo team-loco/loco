@@ -294,3 +294,26 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 		t.Fatalf("entry = %v, want revision 3 with the env Secret pending", entry)
 	}
 }
+
+func TestRuntimeConditionReportsAndReplaysRecovery(t *testing.T) {
+	w := newWatcher(nil, nil, testNamespace)
+	application := app("resource-a", "p1", "1", "Failed")
+	application.Status.RuntimeReason = locoControllerV1.RuntimeCrashLooping
+	application.Status.RuntimeMessage, _ = locoControllerV1.RuntimeProblemMessage(application.Status.RuntimeReason)
+	var got []*agentv1.PlacementStatus
+	detach := w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
+	w.observe(application)
+	if len(got) != 1 || got[0].GetRuntimeReason() != application.Status.RuntimeReason ||
+		got[0].GetRuntimeMessage() != application.Status.RuntimeMessage {
+		t.Fatalf("reported = %v", got)
+	}
+	detach()
+	application.Status.RuntimeReason = ""
+	application.Status.RuntimeMessage = ""
+	w.observe(application)
+	var replay []*agentv1.PlacementStatus
+	w.Attach(func(status *agentv1.PlacementStatus) { replay = append(replay, status) })
+	if len(replay) != 1 || replay[0].GetRuntimeReason() != "" || replay[0].GetRuntimeMessage() != "" {
+		t.Fatalf("replay = %v", replay)
+	}
+}

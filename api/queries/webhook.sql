@@ -47,7 +47,7 @@ RETURNING d.id, d.attempts;
 
 -- name: GetWebhookDeliveryPayload :one
 SELECT d.id, w.url, w.secret, w.kind,
-       e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.actor_type, e.actor_id,
+       e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.actor_type, e.actor_id,
        e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at
 FROM webhook_deliveries d
 JOIN webhooks w ON w.id = d.webhook_id

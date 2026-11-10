@@ -107,29 +107,33 @@ type Subject struct {
 }
 
 type Payload struct {
-	ID          uuid.UUID       `json:"id"`
-	Type        string          `json:"type"`
-	Seq         int64           `json:"seq"`
-	CreatedAt   time.Time       `json:"createdAt"`
-	OrgID       *uuid.UUID      `json:"orgId,omitempty"`
-	WorkspaceID *uuid.UUID      `json:"workspaceId,omitempty"`
-	Actor       Actor           `json:"actor"`
-	Subject     Subject         `json:"subject"`
-	RequestID   string          `json:"requestId,omitempty"`
-	Data        json.RawMessage `json:"data"`
+	ID            uuid.UUID       `json:"id"`
+	Type          string          `json:"type"`
+	Seq           int64           `json:"seq"`
+	CreatedAt     time.Time       `json:"createdAt"`
+	OrgID         *uuid.UUID      `json:"orgId,omitempty"`
+	WorkspaceID   *uuid.UUID      `json:"workspaceId,omitempty"`
+	ResourceID    *uuid.UUID      `json:"resourceId,omitempty"`
+	EnvironmentID *uuid.UUID      `json:"environmentId,omitempty"`
+	Actor         Actor           `json:"actor"`
+	Subject       Subject         `json:"subject"`
+	RequestID     string          `json:"requestId,omitempty"`
+	Data          json.RawMessage `json:"data"`
 }
 
 func payloadFrom(row genDb.GetWebhookDeliveryPayloadRow) Payload {
 	p := Payload{
-		ID:          row.EventID,
-		Type:        row.Type,
-		Seq:         row.Seq,
-		CreatedAt:   row.CreatedAt,
-		OrgID:       row.OrgID,
-		WorkspaceID: row.WorkspaceID,
-		Actor:       Actor{Type: row.ActorType, ID: row.ActorID},
-		Subject:     Subject{ID: row.SubjectID},
-		Data:        json.RawMessage(row.Data),
+		ID:            row.EventID,
+		Type:          row.Type,
+		Seq:           row.Seq,
+		CreatedAt:     row.CreatedAt,
+		OrgID:         row.OrgID,
+		WorkspaceID:   row.WorkspaceID,
+		ResourceID:    row.ResourceID,
+		EnvironmentID: row.EnvironmentID,
+		Actor:         Actor{Type: row.ActorType, ID: row.ActorID},
+		Subject:       Subject{ID: row.SubjectID},
+		Data:          json.RawMessage(row.Data),
 	}
 	if row.SubjectType != nil {
 		p.Subject.Type = *row.SubjectType

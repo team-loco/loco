@@ -159,17 +159,17 @@ func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 		}
 	}
 
-	server.recordStatus(ctx, f.clusterID, ready(1))
+	server.recordStatus(ctx, f.clusterID, 0, ready(1))
 	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusPending {
 		t.Fatalf("deployment status after an old-revision report = %s, want pending", status)
 	}
 
-	server.recordStatus(ctx, f.clusterID, ready(2))
+	server.recordStatus(ctx, f.clusterID, 0, ready(2))
 	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusRunning {
 		t.Fatalf("deployment status = %s, want running", status)
 	}
 
-	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: 1})
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: 1})
 	if got := f.placement(t, f.clusterID); got.ObservedRevision != 2 || !got.Ready {
 		t.Fatalf("an older report overwrote the status: observed %d ready %v", got.ObservedRevision, got.Ready)
 	}
