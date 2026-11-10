@@ -440,6 +440,10 @@ run = "./mise-tasks/obs/serve"
 description = "Test settings field labels and descriptions in the production browser with isolated API fixtures"
 run = "uv run --frozen --project docs python tests/e2e/settings_labels_ui.py"
 
+[tasks."e2e:webhooks-ui"]
+description = "Test webhook management, server delivery paging and filters in production Chromium"
+run = "uv run --frozen --project docs python tests/e2e/webhooks_ui.py"
+
 [tasks."e2e:webhooks"]
 description = "Send real webhook deliveries from an isolated API and database to a local receiver, verify their signatures, recorded failures, paging, redelivery, test events and secret rotation"
 run = "uv run --frozen --project docs python tests/e2e/webhooks_api.py"

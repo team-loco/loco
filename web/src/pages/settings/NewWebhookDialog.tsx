@@ -1,5 +1,6 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { createWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
+import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
+import { createWebhook, updateWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 import { useRef, useState, type RefObject } from "react";
 
 import { Button } from "@/components/design/Button";
@@ -21,12 +22,14 @@ const GROUPS = webhookEventGroups();
 export function NewWebhookDialog({
 	workspaceId,
 	workspaceName,
+	webhook,
 	open,
 	onClose,
 	onCreated,
 }: {
 	workspaceId: string;
 	workspaceName: string;
+	webhook?: Webhook | undefined;
 	open: boolean;
 	onClose: () => void;
 	onCreated: () => void;
@@ -46,17 +49,25 @@ export function NewWebhookDialog({
 		>
 			{open && (
 				<DialogContent
-					title={secret === null ? `New webhook in ${workspaceName}` : "Signing secret"}
+					title={
+						secret !== null
+							? "Signing secret"
+							: webhook === undefined
+								? `New webhook in ${workspaceName}`
+								: "Edit webhook"
+					}
 					className={secret === null ? "w-[560px]" : undefined}
 					initialFocus={urlRef}
 				>
 					{secret === null ? (
 						<NewWebhookForm
 							workspaceId={workspaceId}
+							webhook={webhook}
 							urlRef={urlRef}
 							onCancel={close}
 							onCreated={(s) => {
-								setSecret(s);
+								if (s === null) close();
+								else setSecret(s);
 								onCreated();
 							}}
 						/>
@@ -71,6 +82,7 @@ export function NewWebhookDialog({
 
 function NewWebhookForm({
 	workspaceId,
+	webhook,
 	urlRef,
 	onCancel,
 	onCreated,
@@ -78,36 +90,45 @@ function NewWebhookForm({
 	workspaceId: string;
 	urlRef: RefObject<HTMLInputElement | null>;
 	onCancel: () => void;
-	onCreated: (secret: string) => void;
+	webhook?: Webhook | undefined;
+	onCreated: (secret: string | null) => void;
 }) {
 	const create = useMutation(createWebhook);
-	const [url, setUrl] = useState("");
-	const [mode, setMode] = useState<Mode>("all");
-	const [types, setTypes] = useState<ReadonlySet<string>>(() => new Set());
+	const update = useMutation(updateWebhook);
+	const mutation = webhook === undefined ? create : update;
+	const [url, setUrl] = useState(webhook?.url ?? "");
+	const [mode, setMode] = useState<Mode>(webhook !== undefined && webhook.eventTypes.length > 0 ? "choose" : "all");
+	const [types, setTypes] = useState<ReadonlySet<string>>(() => new Set(webhook?.eventTypes));
 
 	const target = url.trim();
-	const rejected = isUrlRejection(create.error);
-	const urlError = rejected ? getErrorMessage(create.error) : null;
-	const ok = target !== "" && (mode === "all" || types.size > 0) && !create.isPending;
+	const rejected = isUrlRejection(mutation.error);
+	const urlError = rejected ? getErrorMessage(mutation.error) : null;
+	const ok = target !== "" && (mode === "all" || types.size > 0) && !mutation.isPending;
 
 	const submit = () => {
 		if (!ok) return;
-		create.mutate(
-			{
-				workspaceId,
-				url: target,
-				eventTypes: mode === "all" ? [] : [...types],
-			},
-			{
+		const input = { workspaceId, url: target, eventTypes: mode === "all" ? [] : [...types] };
+		if (webhook !== undefined) {
+			update.mutate(
+				{ ...input, webhookId: webhook.id },
+				{
+					onSuccess: () => {
+						onCreated(null);
+					},
+				},
+			);
+		} else {
+			create.mutate(input, {
 				onSuccess: (res) => {
 					onCreated(res.secret);
 				},
-			},
-		);
+			});
+		}
 	};
 
 	return (
 		<form
+			noValidate
 			className="contents"
 			onSubmit={(e) => {
 				e.preventDefault();
@@ -116,7 +137,9 @@ function NewWebhookForm({
 		>
 			<DialogBody>
 				<p className="m-0 text-[12.5px] text-fg3">
-					Loco signs each request following the Standard Webhooks spec and retries failures for up to a day.
+					{webhook === undefined
+						? "Loco signs each request following the Standard Webhooks spec and retries failures for up to a day."
+						: "Pending retries will use the updated URL."}
 				</p>
 				<Field label="Endpoint URL" error={urlError}>
 					<Input
@@ -129,7 +152,7 @@ function NewWebhookForm({
 						className="h-9 font-mono text-[13.5px]"
 						onChange={(e) => {
 							setUrl(e.target.value);
-							create.reset();
+							mutation.reset();
 						}}
 					/>
 				</Field>
@@ -153,13 +176,13 @@ function NewWebhookForm({
 						selected={types}
 						onChange={(next) => {
 							setTypes(next);
-							create.reset();
+							mutation.reset();
 						}}
 					/>
 				)}
-				{create.error !== null && !rejected && (
+				{mutation.error !== null && !rejected && (
 					<span className="text-[12.5px] text-bad-fg">
-						{getErrorMessage(create.error, "Could not add the webhook")}
+						{getErrorMessage(mutation.error, "Could not add the webhook")}
 					</span>
 				)}
 			</DialogBody>
@@ -168,7 +191,13 @@ function NewWebhookForm({
 					Cancel
 				</Button>
 				<Button type="submit" disabled={!ok}>
-					{create.isPending ? "Creating…" : "Create webhook"}
+					{webhook === undefined
+						? mutation.isPending
+							? "Creating…"
+							: "Create webhook"
+						: mutation.isPending
+							? "Saving…"
+							: "Save changes"}
 				</Button>
 			</DialogFooter>
 		</form>
@@ -237,7 +266,8 @@ function EventPicker({
 	);
 }
 
-function SigningSecret({ secret, onDone }: { secret: string; onDone: () => void }) {
+export function SigningSecret({ secret, onDone }: { secret: string; onDone: () => void }) {
+	const [visible, setVisible] = useState(false);
 	return (
 		<>
 			<DialogBody>
@@ -246,7 +276,23 @@ function SigningSecret({ secret, onDone }: { secret: string; onDone: () => void 
 					<code className="font-mono">webhook-signature</code> header.
 				</p>
 				<div className="flex items-center gap-2.5 rounded-lg bg-panel2 py-2 pr-2 pl-3">
-					<code className="min-w-0 flex-1 font-mono text-[12.5px] [overflow-wrap:anywhere]">{secret}</code>
+					<Input
+						aria-label="Signing secret"
+						type={visible ? "text" : "password"}
+						readOnly
+						autoComplete="off"
+						value={secret}
+						className="min-w-0 flex-1 font-mono"
+					/>
+					<Button
+						variant="ghost"
+						aria-pressed={visible}
+						onClick={() => {
+							setVisible(!visible);
+						}}
+					>
+						{visible ? "Hide" : "Show"}
+					</Button>
 					<CopyButton text={secret} name="Copy signing secret" />
 				</div>
 			</DialogBody>
