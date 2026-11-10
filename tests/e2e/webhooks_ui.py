@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -115,6 +116,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 expect(page.get_by_text("Redelivery queued", exact=True)).to_be_visible()
                 assert any(method == "RedeliverWebhookDelivery" for method, _ in requests)
                 drawer.get_by_role("button", name="Pending", exact=True).click()
+                expect(deliveries.get_by_text(re.compile("^(Pending|Retrying)$")).first).to_be_visible()
                 expect(deliveries.get_by_role("button", name="Redeliver", exact=True)).to_have_count(0)
                 drawer.get_by_role("button", name="Edit webhook", exact=True).click()
                 edit = page.get_by_role("dialog", name="Edit webhook", exact=True)
