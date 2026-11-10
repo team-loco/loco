@@ -457,12 +457,7 @@ postgres_accepts_queries() {
 
 setup_postgres() {
     log_step "Setting up Postgres..."
-    if ! e2e_compose pull --quiet postgres; then
-        log_warn "Pulling the Postgres image failed, retrying once"
-        sleep 5
-        e2e_compose pull --quiet postgres
-    fi
-    e2e_compose up -d --wait postgres
+    e2e_compose up -d --wait --pull never postgres
     local port
     port=$(compose_host_port postgres 5432)
     export E2E_DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@127.0.0.1:${port}/${PG_DB}?sslmode=disable"
@@ -472,8 +467,8 @@ setup_postgres() {
 
 setup_openbao() {
     log_step "Setting up OpenBao..."
-    e2e_compose up -d --wait openbao
-    e2e_compose run --rm openbao-seed >/dev/null
+    e2e_compose up -d --wait --pull never openbao
+    e2e_compose run --pull never --rm openbao-seed >/dev/null
     export E2E_TRANSIT_ADDR="http://127.0.0.1:$(compose_host_port openbao 8200)"
     log_ok "OpenBao ready at ${E2E_TRANSIT_ADDR}"
 }
@@ -624,14 +619,14 @@ setup_registry() {
     fi
     BUILD_PRIVATE_EGRESS=$(LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" mise run --quiet cluster:build-egress)
     if [ "$REGISTRY_AUTH" = token ]; then
-        e2e_compose up -d --wait s3
+        e2e_compose up -d --wait --pull never s3
         start_realm_proxy
         BUILD_PRIVATE_EGRESS=$(PORT="$API_PORT" yq -p json -o json -I 0 \
             '. + ([.[].cidr] | unique | map({"cidr": ., "port": env(PORT)}))' <<<"$BUILD_PRIVATE_EGRESS")
         log_ok "Source bucket at ${E2E_S3_ENDPOINT}, registry token endpoint ${E2E_REGISTRY_REALM}, build egress ${BUILD_PRIVATE_EGRESS}; the registry starts after the API"
         return 0
     fi
-    e2e_compose up -d --wait registry s3
+    e2e_compose up -d --wait --pull never registry s3
     connect_registry
     log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${REGISTRY_HOST_PORT}), source bucket at ${E2E_S3_ENDPOINT}, build egress ${BUILD_PRIVATE_EGRESS}"
 }
@@ -664,7 +659,7 @@ start_token_registry() {
             } | del(.http.accessControl)' \
         "$ROOT_DIR/dev/registry/config.json" >"$E2E_REGISTRY_TOKEN_DIR/config.json"
     chmod a+r "$E2E_REGISTRY_TOKEN_DIR/key.pem" "$E2E_REGISTRY_TOKEN_DIR/config.json"
-    e2e_compose up -d --wait --force-recreate registry
+    e2e_compose up -d --wait --pull never --force-recreate registry
     connect_registry
     log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${REGISTRY_HOST_PORT}) trusts tokens from ${E2E_API_URL} for service ${E2E_REGISTRY_TOKEN_SERVICE}"
 }
@@ -688,6 +683,15 @@ build_all() {
     if [ "$BUILDS_ENABLED" = true ]; then
         build_image "$BUILDER_REPOSITORY" builder/Dockerfile loco-builder
     fi
+}
+
+pull_compose_images() {
+    local references image images=()
+    references=$(e2e_compose config --images postgres openbao registry s3 dex)
+    while IFS= read -r image; do
+        images+=("$image")
+    done <<< "$references"
+    go -C "$ROOT_DIR" run ./tools/pullimage "${images[@]}"
 }
 
 pull_build_images() {
@@ -910,7 +914,7 @@ setup_authentication() {
 
 setup_identity_provider() {
     log_step "Starting fixture identity provider..."
-    e2e_compose up -d --wait dex
+    e2e_compose up -d --wait --pull never dex
     wait_for "Identity provider discovery" "$READY_TIMEOUT" curl -sf "${E2E_AUTH_ISSUER}/.well-known/openid-configuration"
 }
 
@@ -1186,6 +1190,7 @@ main() {
     create_namespace
     build_chart_dependencies
     install_crds
+    pull_compose_images
     setup_postgres
     setup_identity_provider
     setup_openbao

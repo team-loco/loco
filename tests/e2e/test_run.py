@@ -76,31 +76,36 @@ def test_port_check_accepts_the_runs_retained_identity_provider():
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize(("failed_downloads", "succeeds"), [(1, True), (2, False)])
-def test_postgres_setup_survives_one_failed_image_download(failed_downloads, succeeds):
-    # Both pull and up download a missing image; each failure drops one download.
+@pytest.mark.parametrize("pull_fails", [False, True])
+def test_compose_services_use_the_shared_pull_path_before_startup(pull_fails):
     result = run_harness_functions(
         '''
-        failures=$FAILED_DOWNLOADS
-        pulled=false
-        sleep() { :; }
         e2e_compose() {
-            case $1 in pull | up) ;; *) return 0 ;; esac
-            if [ "$pulled" = false ]; then
-                if [ "$failures" -gt 0 ]; then
-                    failures=$((failures - 1))
-                    return 1
-                fi
-                pulled=true
-            fi
+            case $1 in
+                config)
+                    test "$*" = "config --images postgres openbao registry s3 dex" || return 1
+                    printf '%s\\n' registry.test/postgres:tag@sha256:one registry.test/openbao:tag@sha256:two
+                    ;;
+                up) echo "compose started: $*" ;;
+            esac
+        }
+        go() {
+            test "$1" = -C && test "$2" = "$ROOT_DIR" && test "$3" = run && test "$4" = ./tools/pullimage
+            shift 4
+            printf 'shared pull: %s\\n' "$@"
+            test "$PULL_FAILS" = false
         }
         compose_host_port() { echo 5432; }
         wait_for() { :; }
+        pull_compose_images
         setup_postgres
         ''',
-        env=os.environ | {"FAILED_DOWNLOADS": str(failed_downloads)},
+        env=os.environ | {"PULL_FAILS": str(pull_fails).lower()},
     )
-    assert (result.returncode == 0) is succeeds, result.stdout + result.stderr
+    assert (result.returncode == 0) is (not pull_fails), result.stdout + result.stderr
+    assert "shared pull: registry.test/postgres:tag@sha256:one" in result.stdout
+    assert "shared pull: registry.test/openbao:tag@sha256:two" in result.stdout
+    assert ("compose started: up -d --wait --pull never postgres" in result.stdout) is (not pull_fails)
 
 
 def run_fixture_suites(tmp_path, files, *filters):
