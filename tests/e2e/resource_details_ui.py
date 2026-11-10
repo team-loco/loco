@@ -80,7 +80,7 @@ with sync_playwright() as playwright:
                     dialog = page.get_by_role("dialog")
                     expect(dialog).to_be_visible()
                     evidence.settle(page)
-                    geometry = dialog.locator(".overflow-auto").evaluate("e => ({height:e.clientHeight, content:e.scrollHeight, width:e.clientWidth, fullWidth:e.scrollWidth})")
+                    geometry = dialog.locator(".overflow-auto").evaluate("e => ({height:e.clientHeight, content:e.scrollHeight, width:e.clientWidth})")
                     assert geometry["height"] > 0
                     # Long image references scroll within the spec body.
                     assert geometry["width"] <= dialog.bounding_box()["width"], geometry
@@ -94,7 +94,6 @@ with sync_playwright() as playwright:
                     secrets = page.locator("#set-env")
                     expect(secrets.get_by_role("button", name="Environment", exact=True)).to_have_count(0)
                     expect(page.get_by_text("declares which secrets", exact=False)).to_have_count(0)
-                    page.goto(base + "?tab=settings")
                     delete = page.get_by_role("button", name="Delete resource", exact=True)
                     expect(delete).to_be_enabled()
                     delete.click()
