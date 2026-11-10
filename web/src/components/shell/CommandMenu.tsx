@@ -3,6 +3,7 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQuery } from "@tanstack/react-query";
 import {
 	Building2Icon,
+	CornerDownLeftIcon,
 	LayersIcon,
 	MoonIcon,
 	PackageIcon,
@@ -16,11 +17,22 @@ import { createContext, use, useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { Button } from "@/components/design/Button";
-import { CommandPalette, type PaletteItem } from "@/components/design/CommandPalette";
+import {
+	Command,
+	CommandDialog,
+	CommandEmpty,
+	CommandFooter,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+	CommandShortcut,
+} from "@/components/design/Command";
 import { Kbd } from "@/components/design/Kbd";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { scorePaletteItem } from "@/lib/command-palette";
 import { accountSettingsPath, newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
 import { useTheme } from "@/lib/use-theme";
 
@@ -29,6 +41,19 @@ import { useNavSections } from "./nav";
 const SHORTCUT_KEY = "k";
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
 export const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
+const PLACEHOLDER = "Search resources, pages and actions";
+const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces"] as const;
+const BROWSE_LIMIT = 8;
+
+interface PaletteItem {
+	id: string;
+	group: (typeof PALETTE_GROUPS)[number];
+	label: string;
+	keywords?: string;
+	meta?: string | undefined;
+	icon: ReactNode;
+	run: () => void;
+}
 
 function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
@@ -139,6 +164,71 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	return items;
 }
 
+function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClose: () => void }) {
+	const [query, setQuery] = useState("");
+	const browsing = query.trim() === "";
+	const groups = PALETTE_GROUPS.filter((group) => !browsing || group !== "Workspaces").map((group) => {
+		const inGroup = items.filter((item) => item.group === group);
+		return { group, items: browsing ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
+	});
+
+	return (
+		<Command label={PLACEHOLDER} filter={scorePaletteItem}>
+			<CommandInput value={query} onValueChange={setQuery} placeholder={PLACEHOLDER}>
+				<Kbd>esc</Kbd>
+			</CommandInput>
+			<CommandList label="Results">
+				<CommandEmpty>Nothing matches.</CommandEmpty>
+				{groups.map(
+					(g) =>
+						g.items.length > 0 && (
+							<CommandGroup key={g.group} heading={g.group}>
+								{g.items.map((item) => (
+									<CommandItem
+										key={item.id}
+										value={item.id}
+										keywords={[item.label, item.keywords ?? ""]}
+										onSelect={() => {
+											onClose();
+											item.run();
+										}}
+									>
+										<span aria-hidden className="flex w-4 justify-center text-fg3">
+											{item.icon}
+										</span>
+										<span className="truncate">{item.label}</span>
+										<CommandShortcut>
+											{item.meta !== undefined && item.meta !== "" && <span className="truncate">{item.meta}</span>}
+											<CornerDownLeftIcon
+												aria-hidden
+												className="size-3 shrink-0 text-fg4 opacity-0 group-data-selected/command-item:opacity-100"
+											/>
+										</CommandShortcut>
+									</CommandItem>
+								))}
+							</CommandGroup>
+						),
+				)}
+			</CommandList>
+			<CommandFooter>
+				<span className="flex items-center gap-1.5">
+					<Kbd>↑</Kbd>
+					<Kbd>↓</Kbd>
+					to navigate
+				</span>
+				<span className="flex items-center gap-1.5">
+					<Kbd>↵</Kbd>
+					to open
+				</span>
+				<span className="flex items-center gap-1.5">
+					<Kbd>esc</Kbd>
+					to close
+				</span>
+			</CommandFooter>
+		</Command>
+	);
+}
+
 const OpenPaletteContext = createContext<(() => void) | null>(null);
 
 export function useOpenPalette(): () => void {
@@ -170,7 +260,14 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 			}}
 		>
 			{children}
-			<CommandPalette open={open} onOpenChange={setOpen} items={items} />
+			<CommandDialog open={open} onOpenChange={setOpen} title="Command palette" description={PLACEHOLDER}>
+				<PaletteBody
+					items={items}
+					onClose={() => {
+						setOpen(false);
+					}}
+				/>
+			</CommandDialog>
 		</OpenPaletteContext>
 	);
 }
