@@ -883,12 +883,12 @@ setup_authentication() {
     log_step "Authenticating fixture users and creating application scope through the API..."
     "$BIN_DIR/e2e-auth"
     export E2E_USER_ID E2E_ORG_ID E2E_WORKSPACE_ID E2E_ENVIRONMENT_ID E2E_USER_TOKEN E2E_CLUSTER_ADMIN_TOKEN
-    E2E_USER_ID=$(yq -p json '.userId' "$E2E_AUTH_STATE")
-    E2E_ORG_ID=$(yq -p json '.orgId' "$E2E_AUTH_STATE")
-    E2E_WORKSPACE_ID=$(yq -p json '.workspaceId' "$E2E_AUTH_STATE")
-    E2E_ENVIRONMENT_ID=$(yq -p json '.environmentId' "$E2E_AUTH_STATE")
-    E2E_USER_TOKEN=$(yq -p json '.userCredentials.token' "$E2E_AUTH_STATE")
-    E2E_CLUSTER_ADMIN_TOKEN=$(yq -p json '.adminCredentials.token' "$E2E_AUTH_STATE")
+    E2E_USER_ID=$(yq -p json -o yaml '.userId' "$E2E_AUTH_STATE")
+    E2E_ORG_ID=$(yq -p json -o yaml '.orgId' "$E2E_AUTH_STATE")
+    E2E_WORKSPACE_ID=$(yq -p json -o yaml '.workspaceId' "$E2E_AUTH_STATE")
+    E2E_ENVIRONMENT_ID=$(yq -p json -o yaml '.environmentId' "$E2E_AUTH_STATE")
+    E2E_USER_TOKEN=$(yq -p json -o yaml '.userCredentials.token' "$E2E_AUTH_STATE")
+    E2E_CLUSTER_ADMIN_TOKEN=$(yq -p json -o yaml '.adminCredentials.token' "$E2E_AUTH_STATE")
     mkdir -p "$CLUSTER_ADMIN_HOME/.loco"
     yq -p json -o json '.adminCredentials' "$E2E_AUTH_STATE" >"$CLUSTER_ADMIN_HOME/.loco/credentials.json"
     chmod 600 "$CLUSTER_ADMIN_HOME/.loco/credentials.json"
