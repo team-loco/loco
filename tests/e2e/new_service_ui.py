@@ -119,7 +119,8 @@ with sync_playwright() as playwright:
                 subdomain.fill(name)
                 expect(drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)).to_be_visible()
                 expect(drawer.get_by_role("switch", name="Autoscaling")).to_be_disabled()
-                drawer.get_by_role("group", name="Replicas per region").get_by_role("button", name="Increase").click()
+                expect(drawer.get_by_role("button", name="Decrease replicas per region", exact=True)).to_have_count(1)
+                drawer.get_by_role("button", name="Increase replicas per region", exact=True).click()
                 expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
 
                 drawer.get_by_role("button", name="Paste .env", exact=True).click()
