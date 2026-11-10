@@ -1,20 +1,11 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { CalendarIcon } from "lucide-react";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/style.css";
 
 import { Button } from "@/components/design/Button";
+import { Calendar } from "@/components/design/Calendar";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { toLocalInput } from "@/lib/obs-time";
-
-const calendarStyle = {
-	"--rdp-accent-color": "var(--primary)",
-	"--rdp-day-height": "32px",
-	"--rdp-day-width": "32px",
-	"--rdp-day_button-height": "30px",
-	"--rdp-day_button-width": "30px",
-} as CSSProperties;
 
 export function DateTimePicker({
 	label,
@@ -41,7 +32,7 @@ export function DateTimePicker({
 					{day || "Choose date"}
 				</PopoverTrigger>
 				<PopoverContent align="start" className="w-auto max-w-[calc(100vw-24px)] p-2" aria-label={`${label} calendar`}>
-					<DayPicker
+					<Calendar
 						mode="single"
 						selected={selected}
 						{...(selected === undefined ? {} : { defaultMonth: selected })}
@@ -52,8 +43,6 @@ export function DateTimePicker({
 							onChange(`${nextDay}T${time || "00:00"}`);
 							setOpen(false);
 						}}
-						className="m-0 text-[13px]"
-						style={calendarStyle}
 					/>
 				</PopoverContent>
 			</Popover>
