@@ -109,7 +109,7 @@ function RotateSecret({
 	const [hours, setHours] = useState("24");
 	const secret = rotate.data?.secret;
 	const seconds = Number(hours) * 3600;
-	const valid = hours.trim() !== "" && Number.isInteger(seconds) && seconds >= 0 && seconds <= 604800;
+	const valid = hours.trim() !== "" && Number.isInteger(seconds);
 	const close = () => {
 		rotate.reset();
 		onClose();
@@ -141,8 +141,8 @@ function RotateSecret({
 							</p>
 							<Field
 								label="Grace period (hours)"
-								hint="Use 0 to stop signing with the replaced secret immediately, or up to 168 hours."
-								error={valid ? undefined : "Enter a grace period from 0 to 168 hours."}
+								hint="Use 0 to stop signing with the replaced secret immediately."
+								error={valid ? undefined : "Enter hours that come to a whole number of seconds."}
 							>
 								<Input
 									inputMode="decimal"
