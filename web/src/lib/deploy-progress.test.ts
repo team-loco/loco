@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { regionDeploySteps, type RegionProgress } from "./deploy-progress";
+import { regionDeploySteps, runOutcome, type RegionProgress } from "./deploy-progress";
 
 const progress: RegionProgress = {
 	form: {
@@ -72,4 +72,15 @@ test("regionDeploySteps marks every step done once the deployment runs", () => {
 		["Live", "done", "us-east-1"],
 	]);
 	expect(regionDeploySteps(progress)[2]?.meta).toBe("No HTTP health check");
+});
+
+test("runOutcome is failed only once every region failed", () => {
+	const live = regionDeploySteps({ ...progress, phase: DeploymentPhase.RUNNING });
+	const failed = regionDeploySteps({ ...progress, phase: DeploymentPhase.FAILED, message: "image pull backoff" });
+	const rejected = regionDeploySteps({ ...progress, error: "region has no cluster" });
+	const pending = regionDeploySteps({ ...progress, phase: DeploymentPhase.PENDING });
+	expect(runOutcome([failed, rejected])).toBe("failed");
+	expect(runOutcome([live, live])).toBe("live");
+	expect(runOutcome([failed, pending])).toBe("deploying");
+	expect(runOutcome([])).toBe("deploying");
 });

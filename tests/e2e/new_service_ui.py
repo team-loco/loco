@@ -86,6 +86,10 @@ with sync_playwright() as playwright:
                 route.fulfill(json={"deploymentId": str(uuid.uuid4())})
 
             context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment)
+            if theme == "dark":
+                event = json.dumps({"status": "DEPLOYMENT_PHASE_FAILED", "message": "ImagePullBackOff: manifest unknown"}).encode()
+                stream = b"\x00" + len(event).to_bytes(4, "big") + event + b"\x02" + (2).to_bytes(4, "big") + b"{}"
+                context.route("**/loco.deployment.v1.DeploymentService/WatchDeployment", lambda route: route.fulfill(content_type="application/connect+json", body=stream))
             try:
                 page.goto(base + "/resources?env=production")
                 page.get_by_role("button", name="New resource", exact=True).click()
@@ -178,7 +182,11 @@ with sync_playwright() as playwright:
 
                 open_button = drawer.get_by_role("link", name=f"Open {name}", exact=True)
                 expect(open_button).to_be_visible()
-                expect(drawer.get_by_text(f"Deploying {name}", exact=True)).to_be_visible()
+                if theme == "dark":
+                    expect(drawer.get_by_text(f"Couldn't deploy {name}", exact=True)).to_be_visible()
+                    expect(drawer.get_by_text("ImagePullBackOff: manifest unknown", exact=True)).to_be_visible()
+                else:
+                    expect(drawer.get_by_text(f"Deploying {name}", exact=True)).to_be_visible()
                 expect(drawer.get_by_text("Pull image", exact=True)).to_be_visible()
                 expect(drawer.get_by_text("Route traffic", exact=True)).to_be_visible()
                 expect(drawer.get_by_role("button", name="Done", exact=True)).to_be_visible()

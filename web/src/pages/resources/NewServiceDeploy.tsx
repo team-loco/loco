@@ -14,7 +14,7 @@ import { Button } from "@/components/design/Button";
 import { SheetBody, SheetFooter } from "@/components/design/Sheet";
 import { StepList } from "@/components/design/StepList";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
-import { isLive, regionDeploySteps } from "@/lib/deploy-progress";
+import { regionDeploySteps, runOutcome, type RunOutcome } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
 import { apiFieldError, envVars, healthCheckSpec, type ApiFieldError, type NewResourceForm } from "@/lib/new-resource";
 import { resourcePath } from "@/lib/routes";
@@ -178,7 +178,6 @@ function useDeployProgress(run: DeployRun) {
 		const watch = watchFor(r.deploymentId);
 		return {
 			region: r.region,
-			live: isLive(watch.phase),
 			steps: regionDeploySteps({
 				form: run.form,
 				created: run.resourceId !== undefined,
@@ -189,11 +188,12 @@ function useDeployProgress(run: DeployRun) {
 			}),
 		};
 	});
-	return { regions, allLive: regions.length > 0 && regions.every((r) => r.live) };
+	return { regions, outcome: runOutcome(regions.map((r) => r.steps)) };
 }
 
-function progressTitle(run: DeployRun, allLive: boolean): string {
-	if (allLive) return "Live";
+function progressTitle(run: DeployRun, outcome: RunOutcome): string {
+	if (outcome === "live") return "Live";
+	if (outcome === "failed") return `Couldn't deploy ${run.form.name}`;
 	return run.resourceId === undefined ? `Creating ${run.form.name}` : `Deploying ${run.form.name}`;
 }
 
@@ -210,14 +210,14 @@ export function DeployRunView({
 	workspaceId: string;
 	onDone: () => void;
 }) {
-	const { regions, allLive } = useDeployProgress(run);
+	const { regions, outcome } = useDeployProgress(run);
 	const host = `${run.form.subdomain}.${run.form.platformDomain}`;
 	return (
 		<>
 			<SheetBody className="gap-1">
 				<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pt-1">
-					<span className="text-[15px] font-medium">{progressTitle(run, allLive)}</span>
-					{allLive && run.form.isPublic && (
+					<span className="text-[15px] font-medium">{progressTitle(run, outcome)}</span>
+					{outcome === "live" && run.form.isPublic && (
 						<a
 							href={`https://${host}`}
 							target="_blank"

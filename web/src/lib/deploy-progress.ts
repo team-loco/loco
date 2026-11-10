@@ -12,7 +12,7 @@ export interface ProgressStep {
 
 const DEPLOYING_STEPS = 2;
 
-export function isLive(phase: DeploymentPhase | undefined): boolean {
+function isLive(phase: DeploymentPhase | undefined): boolean {
 	return phase === DeploymentPhase.RUNNING || phase === DeploymentPhase.SUCCEEDED;
 }
 
@@ -55,4 +55,13 @@ export function regionDeploySteps(progress: RegionProgress): ProgressStep[] {
 		const state = states[i] ?? "todo";
 		return { label, state, meta: i === current && message !== "" ? message : detail };
 	});
+}
+
+export type RunOutcome = "deploying" | "live" | "failed";
+
+export function runOutcome(regions: readonly (readonly ProgressStep[])[]): RunOutcome {
+	if (regions.length === 0) return "deploying";
+	if (regions.every((steps) => steps.every((s) => s.state === "done"))) return "live";
+	if (regions.every((steps) => steps.some((s) => s.state === "failed"))) return "failed";
+	return "deploying";
 }
