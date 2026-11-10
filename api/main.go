@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
@@ -24,6 +23,7 @@ import (
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect/v2"
 	"connectrpc.com/validate"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -35,6 +35,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
+	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
@@ -145,13 +146,13 @@ func serve(server *http.Server) error {
 }
 
 func main() {
-	failed := false
-	defer func() {
-		if failed {
-			os.Exit(1)
-		}
-	}()
+	if err := run(); err != nil {
+		slog.Error("loco api failed", "error", err)
+		os.Exit(1)
+	}
+}
 
+func run() error {
 	ac := newAPIConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
@@ -160,152 +161,163 @@ func main() {
 
 	tracerProvider, err := startTracing(context.Background(), ac.TracingEnabled, ac.Version)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	defer stopTracing(tracerProvider)
 
 	if err = migrations.Up(context.Background(), ac.Database.URL); err != nil {
-		log.Fatal(err)
+		return err
 	}
-
 	pool, err := db.NewPool(context.Background(), ac.Database)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer pool.Close()
-
-	queries := genDb.New(pool)
-	if syncErr := webhooks.SyncInstallWebhooks(context.Background(), pool, ac.InstallWebhooks); syncErr != nil {
-		log.Fatalf("INSTALL_WEBHOOKS: %v", syncErr)
+	if err = webhooks.SyncInstallWebhooks(context.Background(), pool, ac.InstallWebhooks); err != nil {
+		return fmt.Errorf("INSTALL_WEBHOOKS: %w", err)
 	}
+	appCache, err := newCache(ac.CacheType, ac.CacheAddr)
+	if err != nil {
+		return fmt.Errorf("create cache: %w", err)
+	}
+	defer appCache.Close()
 
-	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	shutdownCtx, beginShutdown := context.WithCancel(context.Background())
-	defer beginShutdown()
+	d, err := newDeps(ctx, ac, pool, appCache)
+	if err != nil {
+		return err
+	}
+	baseServer, authenticatedServer, err := newRPCServers(ctx, ac, d)
+	if err != nil {
+		return err
+	}
+	mux := http.NewServeMux()
+	registerHandlers(mux, baseServer, authenticatedServer, d)
+	mountRPCServers(mux, baseServer, authenticatedServer)
+	mountOpenAPI(mux, ac.Version)
+	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
 	var background sync.WaitGroup
-	background.Go(func() { machine.RunCleanup(shutdownCtx, ac.TokenCleanupInterval) })
+	defer func() {
+		stop()
+		background.Wait()
+	}()
+	startBackground(ctx, &background, ac, d)
 
-	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, ac.RPCTimeout)
-	errorInterceptor := interceptor.NewErrorInterceptor()
-	tracingInterceptor, err := newTracingInterceptor()
-	if err != nil {
-		log.Fatal(err)
+	server := newServer(ac, mux)
+	var pprofServer *http.Server
+	if ac.PprofAddr != "" {
+		pprofServer = newPprofServer(ac.PprofAddr)
+		go func() {
+			slog.Info("starting pprof server", "addr", pprofServer.Addr)
+			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("pprof server error", "error", err)
+			}
+		}()
 	}
-	baseServer := connect.NewServer(tracingInterceptor, errorInterceptor, deadlineInterceptor.Interceptor())
 
-	mux := http.NewServeMux()
+	slog.Info("starting server", "addr", server.Addr)
+	served := make(chan error, 1)
+	go func() { served <- serve(server) }()
+	select {
+	case err := <-served:
+		return err
+	case <-ctx.Done():
+	}
+	slog.InfoContext(ctx, "shutdown signal received", "signal", context.Cause(ctx))
+	shutdownErr := shutdown(server, pprofServer, ac.ShutdownDrainTimeout)
+	return errors.Join(shutdownErr, <-served)
+}
+
+type deps struct {
+	machine           *tvm.VendingMachine
+	queries           *genDb.Queries
+	verifier          *auth.Verifier
+	resolver          *auth.Resolver
+	authorizer        *authz.Authorizer
+	webhookDispatcher *webhooks.Dispatcher
+	// The sweepers are nil when the store they sweep is not configured.
+	sourceSweeper   *sweepers.SourceSweeper
+	imageSweeper    *sweepers.ImageSweeper
+	registrySweeper *sweepers.RegistrySweeper
+
+	config       *service.ConfigServer
+	clusterAdmin *service.ClusterAdminServer
+	bootstrap    *service.BootstrapServer
+	user         *service.UserServer
+	auth         *service.AuthServer
+	event        *service.EventServer
+	webhook      *service.WebhookServer
+	org          *service.OrgServer
+	workspace    *service.WorkspaceServer
+	resource     *service.ResourceServer
+	deployment   *service.DeploymentServer
+	build        *service.BuildServer
+	domain       *service.DomainServer
+	token        *service.TokenServer
+	agent        *service.AgentServer
+	ingest       *service.IngestServer
+	registry     *service.RegistryServer
+	plan         *service.PlanServer
+	environment  *service.EnvironmentServer
+	secret       *service.SecretServer
+	// registryKey is nil unless registry auth runs in token mode.
+	registryKey http.HandlerFunc
+}
+
+func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache cache.Cache) (*deps, error) {
+	queries := genDb.New(pool)
+	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
+
 	authClient := newOutboundHTTPClient()
 	adminFactories := auth.AdminFactories{supabase.AdminType: supabase.NewAdmin}
-	admins, adminsErr := auth.NewAdmins(authClient, ac.AuthIssuers, adminFactories)
-	if adminsErr != nil {
-		log.Fatalf("AUTH_ISSUERS admin: %v", adminsErr)
+	admins, err := auth.NewAdmins(authClient, ac.AuthIssuers, adminFactories)
+	if err != nil {
+		return nil, fmt.Errorf("AUTH_ISSUERS admin: %w", err)
 	}
-	emailVerifiers, emailVerifiersErr := auth.NewEmailVerifiers(ac.AuthIssuers, admins)
-	if emailVerifiersErr != nil {
-		log.Fatalf("AUTH_ISSUERS email verification: %v", emailVerifiersErr)
+	emailVerifiers, err := auth.NewEmailVerifiers(ac.AuthIssuers, admins)
+	if err != nil {
+		return nil, fmt.Errorf("AUTH_ISSUERS email verification: %w", err)
 	}
 	verifier := auth.NewVerifier(authClient, ac.AuthIssuers)
 	emailVerifierOption := auth.WithEmailVerifiers(emailVerifiers)
 	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
-	authenticatedServer := connect.NewServer(
-		tracingInterceptor,
-		errorInterceptor,
-		deadlineInterceptor.Interceptor(),
-		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(pool, queries)).Interceptor(),
-		validate.NewServerInterceptor(),
-	)
-
-	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "Server is healthy.")
-	})
-
-	appCache, err := newCache(ac.CacheType, ac.CacheAddr)
-	if err != nil {
-		log.Fatalf("failed to create cache: %v", err)
-	}
-	defer appCache.Close()
-
 	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
-	if err := placementNotifier.Start(shutdownCtx); err != nil {
-		log.Fatalf("failed to start placement listener: %v", err)
+	if err = placementNotifier.Start(ctx); err != nil {
+		return nil, fmt.Errorf("start placement listener: %w", err)
 	}
 
-	eventServiceHandler := service.NewEventServer(queries)
-	background.Go(func() { events.RunRetention(shutdownCtx, queries, ac.EventsRetention, eventsRetentionInterval) })
-	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
 	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
 	installWebhookClient := webhooks.NewClient(ac.Webhooks, true)
-	webhookDispatcher := webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient)
-	background.Go(func() { webhookDispatcher.Run(shutdownCtx) })
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
-	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
-	orgServiceHandler := service.NewOrgServer(pool, queries, ac.Invitations)
-	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
-	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL)
-	bootstrapServiceHandler := service.NewBootstrapServer(
-		pool, ac.BootstrapTokenHash, verifier, resolver, authServiceHandler,
-	)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
-	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
-	if bucketErr != nil {
-		log.Fatal(bucketErr)
+
+	sourceBucket, err := newSourceBucket(ac.SourceBucket)
+	if err != nil {
+		return nil, err
 	}
 	if ac.RegistryHost == "" {
 		slog.Warn("LOCO_REGISTRY_HOST is not set; builds are disabled")
 	}
+	var sourceSweeper *sweepers.SourceSweeper
 	if sourceBucket != nil {
-		sourceSweeper := sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
-		background.Go(func() { sourceSweeper.Run(shutdownCtx) })
+		sourceSweeper = sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 
-	deploymentServiceHandler := service.NewDeploymentServer(
-		pool,
-		queries,
-		imageResolver,
-		ac.RegistryHost,
-		ac.ServiceDefaults,
-		clusterSilentAfter,
-		ac.SecretLimits.MaxPlacementBytes,
-	)
-	buildServiceHandler := service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
-		RegistryHost:   ac.RegistryHost,
-		RegistryPrefix: ac.RegistryPrefix,
-		SourceMaxBytes: ac.SourceMaxBytes,
-	})
-	domainServiceHandler := service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
-	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	var registryKey *transit.PinnedKey
 	if ac.RegistryAuth.TokenMode() {
 		registryKey = &ac.RegistryAuth.TransitKey
 	}
-	transitKeys, providerErr := newTransitKeys(shutdownCtx, ac.Transit, ac.Secrets, ac.Ingest.TransitKey, registryKey)
-	if providerErr != nil {
-		slog.ErrorContext(shutdownCtx, "failed to verify the transit keys", "error", providerErr)
-		os.Exit(1)
+	transitKeys, err := newTransitKeys(ctx, ac.Transit, ac.Secrets, ac.Ingest.TransitKey, registryKey)
+	if err != nil {
+		return nil, fmt.Errorf("verify the transit keys: %w", err)
 	}
 	secretKeyProvider := transitKeys.Provider
-	agentServiceHandler := service.NewAgentServer(
-		pool,
-		queries,
-		placementNotifier,
-		sourceBucket,
-		secretKeyProvider,
-		ac.HeartbeatInterval,
-		ac.Agent,
-	)
 	clusterAuthenticator := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
-	ingestServiceHandler := service.NewIngestServer(
-		queries,
-		clusterAuthenticator,
-		transitKeys.Ingest,
-		ac.Ingest.TokenLifetime,
-	)
 	registryConfig := service.RegistryConfig{
 		TokenMode:              ac.RegistryAuth.TokenMode(),
 		Service:                ac.RegistryAuth.Service,
@@ -326,71 +338,171 @@ func main() {
 	if ac.RegistryAuth.TokenMode() {
 		registryClientConfig.TokenSource = registryServiceHandler.SignAPIToken
 	}
-	imageRegistry, registryErr := newImageRegistry(registryClientConfig, ac.ImageSweep.Retention)
-	if registryErr != nil {
-		log.Fatal(registryErr)
+	imageRegistry, err := newImageRegistry(registryClientConfig, ac.ImageSweep.Retention)
+	if err != nil {
+		return nil, err
 	}
+	var imageSweeper *sweepers.ImageSweeper
 	if imageRegistry != nil {
-		imageSweeper := sweepers.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
-		background.Go(func() { imageSweeper.Run(shutdownCtx) })
+		imageSweeper = sweepers.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
 	}
-	environmentServiceHandler := service.NewEnvironmentServer(pool, queries)
-	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
-	configServiceHandler := service.NewConfigServer(
-		ac.MinCLIVersion,
-		ac.SchemaURL,
-		ac.ServiceDefaults,
-		ac.AuthIssuers,
-		ac.OrgLinks,
-	)
-
-	configv1connect.RegisterConfigServiceHandler(baseServer, configServiceHandler)
-	clusterv1connect.RegisterClusterAdminServiceHandler(authenticatedServer, clusterAdminServiceHandler)
-	bootstrapv1connect.RegisterBootstrapServiceHandler(baseServer, bootstrapServiceHandler)
-	userv1connect.RegisterUserServiceHandler(authenticatedServer, userServiceHandler)
-	authv1connect.RegisterAuthServiceHandler(authenticatedServer, authServiceHandler)
-	eventv1connect.RegisterEventServiceHandler(authenticatedServer, eventServiceHandler)
-	webhookv1connect.RegisterWebhookServiceHandler(authenticatedServer, webhookServiceHandler)
-	orgv1connect.RegisterOrgServiceHandler(authenticatedServer, orgServiceHandler)
-	workspacev1connect.RegisterWorkspaceServiceHandler(authenticatedServer, workspaceServiceHandler)
-	resourcev1connect.RegisterResourceServiceHandler(authenticatedServer, resourceServiceHandler)
-	deploymentv1connect.RegisterDeploymentServiceHandler(authenticatedServer, deploymentServiceHandler)
-	buildv1connect.RegisterBuildServiceHandler(authenticatedServer, buildServiceHandler)
-	domainv1connect.RegisterDomainServiceHandler(authenticatedServer, domainServiceHandler)
-	tokenv1connect.RegisterTokenServiceHandler(authenticatedServer, tokenServiceHandler)
-	agentv1connect.RegisterAgentServiceHandler(baseServer, agentServiceHandler)
-	ingestv1connect.RegisterIngestServiceHandler(baseServer, ingestServiceHandler)
-	registryv1connect.RegisterRegistryServiceHandler(baseServer, registryServiceHandler)
-	mux.HandleFunc("GET "+ingesttoken.JWKSPath, ingestServiceHandler.JWKS)
+	var registryKeyHandler http.HandlerFunc
+	var registrySweeper *sweepers.RegistrySweeper
 	if registryKey != nil {
-		registryKeyHandler, registryKeyErr := service.NewRegistryKeyHandler(transitKeys.RegistryPublicKey)
-		if registryKeyErr != nil {
-			slog.ErrorContext(shutdownCtx, "failed to encode the registry public key", "error", registryKeyErr)
-			os.Exit(1)
+		registryKeyHandler, err = service.NewRegistryKeyHandler(transitKeys.RegistryPublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("encode the registry public key: %w", err)
 		}
-		mux.HandleFunc("GET "+registrytoken.KeyPath, registryKeyHandler)
-		mux.HandleFunc("GET "+registrytoken.TokenPath, registryServiceHandler.Token)
-		mux.HandleFunc("POST "+registrytoken.TokenPath, registryServiceHandler.Token)
-		registrySweeper := sweepers.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
-		background.Go(func() { registrySweeper.Run(shutdownCtx) })
+		registrySweeper = sweepers.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
 	}
-	planServiceHandler := service.NewPlanServer(
-		pool,
-		queries,
-		imageResolver,
-		ac.RegistryHost,
-		ac.ServiceDefaults,
-		ac.SecretLimits,
-		clusterSilentAfter,
+
+	return &deps{
+		machine:           machine,
+		queries:           queries,
+		verifier:          verifier,
+		resolver:          resolver,
+		authorizer:        authz.New(pool, queries),
+		webhookDispatcher: webhooks.NewDispatcher(queries, ac.Webhooks, workspaceWebhookClient, installWebhookClient),
+		sourceSweeper:     sourceSweeper,
+		imageSweeper:      imageSweeper,
+		registrySweeper:   registrySweeper,
+
+		config: service.NewConfigServer(
+			ac.MinCLIVersion,
+			ac.SchemaURL,
+			ac.ServiceDefaults,
+			ac.AuthIssuers,
+			ac.OrgLinks,
+		),
+		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
+		bootstrap: service.NewBootstrapServer(
+			pool, ac.BootstrapTokenHash, verifier, resolver, authServiceHandler,
+		),
+		user:      service.NewUserServer(pool, queries, machine, admins),
+		auth:      authServiceHandler,
+		event:     service.NewEventServer(queries),
+		webhook:   service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate),
+		org:       service.NewOrgServer(pool, queries, ac.Invitations),
+		workspace: service.NewWorkspaceServer(pool, queries),
+		resource:  service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
+		deployment: service.NewDeploymentServer(
+			pool,
+			queries,
+			imageResolver,
+			ac.RegistryHost,
+			ac.ServiceDefaults,
+			clusterSilentAfter,
+			ac.SecretLimits.MaxPlacementBytes,
+		),
+		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
+			RegistryHost:   ac.RegistryHost,
+			RegistryPrefix: ac.RegistryPrefix,
+			SourceMaxBytes: ac.SourceMaxBytes,
+		}),
+		domain: service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
+		token:  service.NewTokenServer(pool, queries, machine),
+		agent: service.NewAgentServer(
+			pool,
+			queries,
+			placementNotifier,
+			sourceBucket,
+			secretKeyProvider,
+			ac.HeartbeatInterval,
+			ac.Agent,
+		),
+		ingest: service.NewIngestServer(
+			queries,
+			clusterAuthenticator,
+			transitKeys.Ingest,
+			ac.Ingest.TokenLifetime,
+		),
+		registry: registryServiceHandler,
+		plan: service.NewPlanServer(
+			pool,
+			queries,
+			imageResolver,
+			ac.RegistryHost,
+			ac.ServiceDefaults,
+			ac.SecretLimits,
+			clusterSilentAfter,
+		),
+		environment: service.NewEnvironmentServer(pool, queries),
+		secret:      service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits),
+		registryKey: registryKeyHandler,
+	}, nil
+}
+
+func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authenticated *connect.Server, err error) {
+	deadlineInterceptor := interceptor.NewDeadlineInterceptor(ctx, ac.RPCTimeout)
+	errorInterceptor := interceptor.NewErrorInterceptor()
+	tracingInterceptor, err := newTracingInterceptor()
+	if err != nil {
+		return nil, nil, err
+	}
+	base = connect.NewServer(tracingInterceptor, errorInterceptor, deadlineInterceptor.Interceptor())
+	authenticated = connect.NewServer(
+		tracingInterceptor,
+		errorInterceptor,
+		deadlineInterceptor.Interceptor(),
+		interceptor.NewContextInterceptor().Interceptor(),
+		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer).Interceptor(),
+		validate.NewServerInterceptor(),
 	)
-	planv1connect.RegisterPlanServiceHandler(authenticatedServer, planServiceHandler)
-	environmentv1connect.RegisterEnvironmentServiceHandler(authenticatedServer, environmentServiceHandler)
-	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, secretServiceHandler)
+	return base, authenticated, nil
+}
 
-	mountRPCServers(mux, baseServer, authenticatedServer)
-	mountOpenAPI(mux, ac.Version)
-	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
+func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *connect.Server, d *deps) {
+	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "Server is healthy.")
+	})
 
+	configv1connect.RegisterConfigServiceHandler(baseServer, d.config)
+	bootstrapv1connect.RegisterBootstrapServiceHandler(baseServer, d.bootstrap)
+	agentv1connect.RegisterAgentServiceHandler(baseServer, d.agent)
+	ingestv1connect.RegisterIngestServiceHandler(baseServer, d.ingest)
+	registryv1connect.RegisterRegistryServiceHandler(baseServer, d.registry)
+
+	clusterv1connect.RegisterClusterAdminServiceHandler(authenticatedServer, d.clusterAdmin)
+	userv1connect.RegisterUserServiceHandler(authenticatedServer, d.user)
+	authv1connect.RegisterAuthServiceHandler(authenticatedServer, d.auth)
+	eventv1connect.RegisterEventServiceHandler(authenticatedServer, d.event)
+	webhookv1connect.RegisterWebhookServiceHandler(authenticatedServer, d.webhook)
+	orgv1connect.RegisterOrgServiceHandler(authenticatedServer, d.org)
+	workspacev1connect.RegisterWorkspaceServiceHandler(authenticatedServer, d.workspace)
+	resourcev1connect.RegisterResourceServiceHandler(authenticatedServer, d.resource)
+	deploymentv1connect.RegisterDeploymentServiceHandler(authenticatedServer, d.deployment)
+	buildv1connect.RegisterBuildServiceHandler(authenticatedServer, d.build)
+	domainv1connect.RegisterDomainServiceHandler(authenticatedServer, d.domain)
+	tokenv1connect.RegisterTokenServiceHandler(authenticatedServer, d.token)
+	planv1connect.RegisterPlanServiceHandler(authenticatedServer, d.plan)
+	environmentv1connect.RegisterEnvironmentServiceHandler(authenticatedServer, d.environment)
+	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, d.secret)
+
+	mux.HandleFunc("GET "+ingesttoken.JWKSPath, d.ingest.JWKS)
+	if d.registryKey != nil {
+		mux.HandleFunc("GET "+registrytoken.KeyPath, d.registryKey)
+		mux.HandleFunc("GET "+registrytoken.TokenPath, d.registry.Token)
+		mux.HandleFunc("POST "+registrytoken.TokenPath, d.registry.Token)
+	}
+}
+
+func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APIConfig, d *deps) {
+	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval) })
+	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
+	background.Go(func() { d.webhookDispatcher.Run(ctx) })
+	if d.sourceSweeper != nil {
+		background.Go(func() { d.sourceSweeper.Run(ctx) })
+	}
+	if d.imageSweeper != nil {
+		background.Go(func() { d.imageSweeper.Run(ctx) })
+	}
+	if d.registrySweeper != nil {
+		background.Go(func() { d.registrySweeper.Run(ctx) })
+	}
+}
+
+func newServer(ac *APIConfig, mux *http.ServeMux) *http.Server {
 	allowLoopback := ac.Env != envProduction
 	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)
 	tracedMux := withServerTracing(mux)
@@ -402,78 +514,34 @@ func main() {
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
 
-	server := &http.Server{
+	return &http.Server{
 		Addr:              ac.Port,
 		Handler:           muxWCors,
 		Protocols:         protocols,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+}
 
-	var pprofServer *http.Server
-	if ac.PprofAddr != "" {
-		pprofServer = newPprofServer(ac.PprofAddr)
-		go func() {
-			slog.Info("starting pprof server", "addr", pprofServer.Addr)
-			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				slog.Error("pprof server error", "error", err)
-			}
-		}()
-	}
+// shutdown closes the pprof server, then drains server for up to drainTimeout before closing the
+// connections still open.
+func shutdown(server, pprofServer *http.Server, drainTimeout time.Duration) error {
+	ctx := context.Background()
+	drainCtx, cancel := context.WithTimeout(ctx, drainTimeout)
+	defer cancel()
 
-	quit := make(chan error, 1)
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	defer signal.Stop(sigChan)
-
-	go func() {
-		ctx := context.Background()
-
-		sig := <-sigChan
-		slog.InfoContext(ctx, "shutdown signal received", "signal", sig.String())
-
-		beginShutdown()
-
-		drainCtx, cancel := context.WithTimeout(ctx, ac.ShutdownDrainTimeout)
-		defer cancel()
-
-		if pprofServer != nil {
-			if err := pprofServer.Close(); err != nil {
-				slog.WarnContext(ctx, "failed to close pprof server", "error", err)
-			}
+	if pprofServer != nil {
+		if err := pprofServer.Close(); err != nil {
+			slog.WarnContext(ctx, "failed to close pprof server", "error", err)
 		}
-
-		if err := server.Shutdown(drainCtx); err != nil {
-			slog.WarnContext(ctx, "graceful shutdown did not finish, closing remaining connections", "error", err)
-			if closeErr := server.Close(); closeErr != nil {
-				quit <- closeErr
-				return
-			}
-			quit <- nil
-			return
-		}
-
-		slog.InfoContext(ctx, "server shutdown completed gracefully")
-		quit <- nil
-	}()
-
-	slog.Info("starting server", "addr", server.Addr)
-	if err := serve(server); err != nil {
-		slog.Error("server error", "error", err)
-		beginShutdown()
-		background.Wait()
-		stopTracing(tracerProvider)
-		failed = true
-		return
 	}
 
-	quitErr := <-quit
-	background.Wait()
-	stopTracing(tracerProvider)
-	if quitErr != nil {
-		slog.Error("shutdown error", "error", quitErr)
-		failed = true
+	if err := server.Shutdown(drainCtx); err != nil {
+		slog.WarnContext(ctx, "graceful shutdown did not finish, closing remaining connections", "error", err)
+		return server.Close()
 	}
+	slog.InfoContext(ctx, "server shutdown completed gracefully")
+	return nil
 }
 
 func getLoggerHandler(ac *APIConfig) slog.Handler {
@@ -490,18 +558,13 @@ func mountRPCServers(mux *http.ServeMux, baseServer, authenticatedServer *connec
 	grpcreflect.Register(authenticatedServer, grpcreflect.WithNamer(grpcreflect.NamerFunc(func() []string {
 		var names []string
 		seen := map[string]bool{}
-		for spec := range baseServer.Specs() {
-			serviceName, _, _ := strings.Cut(strings.TrimPrefix(spec.Procedure, "/"), "/")
-			if !seen[serviceName] {
-				names = append(names, serviceName)
-				seen[serviceName] = true
-			}
-		}
-		for spec := range authenticatedServer.Specs() {
-			serviceName, _, _ := strings.Cut(strings.TrimPrefix(spec.Procedure, "/"), "/")
-			if !seen[serviceName] {
-				names = append(names, serviceName)
-				seen[serviceName] = true
+		for _, server := range []*connect.Server{baseServer, authenticatedServer} {
+			for spec := range server.Specs() {
+				serviceName, _, _ := strings.Cut(strings.TrimPrefix(spec.Procedure, "/"), "/")
+				if !seen[serviceName] {
+					names = append(names, serviceName)
+					seen[serviceName] = true
+				}
 			}
 		}
 		return names
