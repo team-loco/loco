@@ -194,7 +194,7 @@ function WebhookDetail({
 				)}
 				{loaded.length > 0 && (
 					<Pager
-						label={`${paged.pager.label}${query.hasNextPage ? "+ loaded" : ""}`}
+						label={`${paged.pager.label}${query.hasNextPage ? "+" : ""}`}
 						onPrev={paged.pager.onPrev}
 						onNext={next}
 						className="border-0 px-0 pt-0"

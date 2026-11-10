@@ -71,8 +71,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 if args.before:
                     continue
                 # Reach records beyond the API's old 25-record cutoff.
-                for _ in range(3):
+                for label in ("11–20 of 20+", "21–30 of 30+", "31–31 of 31"):
                     drawer.get_by_role("button", name="Next page", exact=True).click()
+                    expect(drawer.get_by_text(label, exact=True)).to_be_visible()
                 expect(deliveries.locator("li")).to_have_count(1)
                 assert any(method == "ListWebhookDeliveries" and body.get("pageToken") for method, body in requests)
                 drawer.get_by_role("button", name="Failed", exact=True).click()
