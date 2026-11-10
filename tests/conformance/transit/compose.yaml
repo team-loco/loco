@@ -8,7 +8,7 @@ services:
       SKIP_SETCAP: "true"
       BAO_ADDR: http://127.0.0.1:8200
     ports:
-      - "${CONFORMANCE_OPENBAO_PORT:-58200}:8200"
+      - "${CONFORMANCE_OPENBAO_PORT:-28200}:8200"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -24,7 +24,7 @@ services:
       SKIP_SETCAP: "true"
       VAULT_ADDR: http://127.0.0.1:8200
     ports:
-      - "${CONFORMANCE_VAULT_PORT:-58201}:8200"
+      - "${CONFORMANCE_VAULT_PORT:-28201}:8200"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
