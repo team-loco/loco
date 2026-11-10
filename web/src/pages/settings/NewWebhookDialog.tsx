@@ -201,7 +201,7 @@ function EventPicker({
 							aria-label={`${g.label} ${count}`}
 							onPressedChange={(on) => {
 								setOpened(g.label);
-								onChange(setPage(selected, g.types, on));
+								if (on || open === g) onChange(setPage(selected, g.types, on));
 							}}
 						>
 							{g.label}
