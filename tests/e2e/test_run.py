@@ -239,7 +239,6 @@ def test_resource_status_stops_when_crash_deployment_is_not_accepted(tmp_path):
             yq() {{ :; }}
             loco_cli() {{ echo "fixture plan failed"; return 42; }}
             e2e_psql() {{ :; }}
-            runtime_event_list() {{ :; }}
             wait_for() {{ echo "incorrectly waited for an event"; }}
             test_fixture() {{ test_s06_crash_loop_records_one_event_across_reconnect; }}
         '''},
