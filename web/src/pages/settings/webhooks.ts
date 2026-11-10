@@ -8,9 +8,9 @@ import { AUDIT_EVENT_TYPES } from "./auditEvents";
 
 export const DELIVERY_TICKS = 24;
 
-const STATUS_SUCCEEDED = "succeeded";
-const STATUS_FAILED = "failed";
-const STATUS_PENDING = "pending";
+export const STATUS_SUCCEEDED = "succeeded";
+export const STATUS_FAILED = "failed";
+export const STATUS_PENDING = "pending";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;

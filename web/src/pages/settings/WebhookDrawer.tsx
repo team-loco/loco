@@ -18,21 +18,32 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
-import { pageRangeLabel } from "@/lib/paging";
+import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { formatClock, tsMs } from "@/lib/time";
 
 import { WebhookActions } from "./WebhookActions";
 import { formatDay } from "./parts";
-import { deliveryDetail, deliveryLabel, deliveryTick, deliveryWhen, eventsSummary } from "./webhooks";
+import {
+	deliveryDetail,
+	deliveryLabel,
+	deliveryTick,
+	deliveryWhen,
+	eventsSummary,
+	STATUS_FAILED,
+	STATUS_PENDING,
+	STATUS_SUCCEEDED,
+} from "./webhooks";
 
 const PAGE_SIZE = 10;
+const PAGE_SIZES = [PAGE_SIZE];
+const FIRST_PAGE: Paging = { page: 0, size: PAGE_SIZE };
 const SKELETON_ROWS = [0, 1, 2];
 
 const FILTERS = [
 	{ value: "", label: "All" },
-	{ value: "pending", label: "Pending" },
-	{ value: "succeeded", label: "Delivered" },
-	{ value: "failed", label: "Failed" },
+	{ value: STATUS_PENDING, label: "Pending" },
+	{ value: STATUS_SUCCEEDED, label: "Delivered" },
+	{ value: STATUS_FAILED, label: "Failed" },
 ] as const;
 type Filter = (typeof FILTERS)[number]["value"];
 
@@ -72,8 +83,8 @@ function WebhookDetail({
 	workspaceName: string;
 	webhook: Webhook;
 }) {
-	const [view, setView] = useState<{ filter: Filter; page: number }>({ filter: "", page: 0 });
-	const { filter } = view;
+	const [filter, setFilter] = useState<Filter>("");
+	const [paging, setPaging] = useState(FIRST_PAGE);
 	const queryClient = useQueryClient();
 	const query = useInfiniteQuery(
 		listWebhookDeliveries,
@@ -84,9 +95,15 @@ function WebhookDetail({
 			refetchInterval: 15_000,
 		},
 	);
-	const pages = query.data?.pages ?? [];
-	const page = Math.max(0, Math.min(view.page, pages.length - 1));
-	const total = pages.reduce((count, loaded) => count + loaded.deliveries.length, 0);
+	const loaded = query.data?.pages.flatMap((p) => p.deliveries) ?? [];
+	const paged = pagedRows(loaded, paging, setPaging, PAGE_SIZES);
+	const next = nextPage(
+		paged,
+		query.isFetching,
+		query.hasNextPage,
+		async () => !(await query.fetchNextPage()).isError,
+		setPaging,
+	);
 	const refresh = () => {
 		void queryClient.invalidateQueries({
 			queryKey: createConnectQueryKey({ schema: listWebhookDeliveries, cardinality: undefined }),
@@ -104,17 +121,6 @@ function WebhookDetail({
 			toastConnectError(error, "Could not redeliver the event");
 		},
 	});
-	const go = (target: number) => () => {
-		setView({ filter, page: target });
-	};
-	const fetchMore = () => {
-		void query.fetchNextPage().then((result) => {
-			if (result.isSuccess && result.data.pages.length > page + 1) {
-				setView((current) => (current === view ? { filter, page: page + 1 } : current));
-			}
-		});
-	};
-	const next = page + 1 < pages.length ? go(page + 1) : query.hasNextPage ? fetchMore : null;
 	const chips = webhook.eventTypes.length === 0 ? [`Every event in ${workspaceName}`] : webhook.eventTypes;
 
 	return (
@@ -148,7 +154,9 @@ function WebhookDetail({
 						value={[filter]}
 						onValueChange={(v: string[]) => {
 							const selected = FILTERS.find((option) => option.value === v[0]);
-							if (selected !== undefined) setView({ filter: selected.value, page: 0 });
+							if (selected === undefined) return;
+							setFilter(selected.value);
+							setPaging(FIRST_PAGE);
 						}}
 					>
 						{FILTERS.map((f) => (
@@ -159,7 +167,7 @@ function WebhookDetail({
 					</ToggleGroup>
 				</div>
 				<DeliveryList
-					deliveries={pages[page]?.deliveries ?? []}
+					deliveries={paged.rows}
 					isLoading={query.isPending}
 					error={query.isFetchNextPageError ? null : query.error}
 					onRedeliver={(deliveryId) => {
@@ -177,18 +185,18 @@ function WebhookDetail({
 						variant="outline"
 						disabled={query.isFetching}
 						onClick={() => {
-							if (query.isFetchNextPageError) fetchMore();
+							if (query.isFetchNextPageError) next?.();
 							else void query.refetch();
 						}}
 					>
 						Retry deliveries
 					</Button>
 				)}
-				{total > 0 && (
+				{loaded.length > 0 && (
 					<Pager
-						label={`${pageRangeLabel(page, PAGE_SIZE, total)}${query.hasNextPage ? "+ loaded" : ""}`}
-						onPrev={page > 0 ? go(page - 1) : null}
-						onNext={query.isFetching ? null : next}
+						label={`${paged.pager.label}${query.hasNextPage ? "+ loaded" : ""}`}
+						onPrev={paged.pager.onPrev}
+						onNext={next}
 						className="border-0 px-0 pt-0"
 					/>
 				)}
@@ -256,7 +264,7 @@ function DeliveryList({
 								{detail}
 							</span>
 						)}
-						{(d.status === "succeeded" || d.status === "failed") && (
+						{(d.status === STATUS_SUCCEEDED || d.status === STATUS_FAILED) && (
 							<Button
 								className="col-start-2 w-fit"
 								variant="outline"

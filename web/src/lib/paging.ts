@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 
 export function pageSlice<T>(rows: T[], page: number, size: number): { rows: T[]; page: number; pages: number } {
 	const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -78,5 +78,21 @@ export function usePagedRows<T>(
 		reset: () => {
 			setPaging((prev) => ({ ...prev, page: 0 }));
 		},
+	};
+}
+
+export function nextPage(
+	rows: PagedRows<unknown>,
+	isLoading: boolean,
+	hasMore: boolean,
+	loadMore: () => Promise<boolean>,
+	setPaging: Dispatch<SetStateAction<Paging>>,
+): (() => void) | null {
+	if (isLoading) return null;
+	if (rows.pager.onNext !== null || !hasMore) return rows.pager.onNext;
+	return () => {
+		void loadMore().then((loaded) => {
+			if (loaded) setPaging((current) => ({ ...current, page: current.page + 1 }));
+		});
 	};
 }
