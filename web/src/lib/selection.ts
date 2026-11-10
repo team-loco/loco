@@ -1,6 +1,6 @@
 export function pageSelection(selected: ReadonlySet<string>, pageIds: readonly string[]) {
 	const count = pageIds.filter((id) => selected.has(id)).length;
-	return { all: pageIds.length > 0 && count === pageIds.length, some: count > 0 };
+	return { count, all: pageIds.length > 0 && count === pageIds.length, some: count > 0 };
 }
 
 export function toggleId(selected: ReadonlySet<string>, id: string): Set<string> {
@@ -10,12 +10,15 @@ export function toggleId(selected: ReadonlySet<string>, id: string): Set<string>
 	return next;
 }
 
-export function togglePage(selected: ReadonlySet<string>, pageIds: readonly string[]): Set<string> {
+export function setPage(selected: ReadonlySet<string>, pageIds: readonly string[], on: boolean): Set<string> {
 	const next = new Set(selected);
-	const clear = pageSelection(selected, pageIds).all;
 	for (const id of pageIds) {
-		if (clear) next.delete(id);
-		else next.add(id);
+		if (on) next.add(id);
+		else next.delete(id);
 	}
 	return next;
+}
+
+export function togglePage(selected: ReadonlySet<string>, pageIds: readonly string[]): Set<string> {
+	return setPage(selected, pageIds, !pageSelection(selected, pageIds).all);
 }

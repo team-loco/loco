@@ -92,9 +92,13 @@ const GROUPS: readonly { label: string; subjects: readonly string[] }[] = [
 	{ label: "Workspace", subjects: ["workspace", "webhook"] },
 ];
 
-export interface EventGroup {
+interface EventGroup {
 	label: string;
 	types: string[];
+}
+
+export function groupCountLabel(selected: number, total: number): string {
+	return selected === total ? "all" : `${selected.toString()}/${total.toString()}`;
 }
 
 export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES): EventGroup[] {

@@ -12,6 +12,7 @@ import {
 	deliveryWhen,
 	eventsSummary,
 	failingCount,
+	groupCountLabel,
 	isUrlRejection,
 	tickStrip,
 	webhookEventGroups,
@@ -83,6 +84,12 @@ test("summarises event filters", () => {
 	expect(eventsSummary([])).toBe("All events");
 	expect(eventsSummary(["build.failed"])).toBe("1 event");
 	expect(eventsSummary(["build.failed", "build.succeeded"])).toBe("2 events");
+});
+
+test("counts a group's chosen events as all or n/m", () => {
+	expect(groupCountLabel(5, 5)).toBe("all");
+	expect(groupCountLabel(4, 5)).toBe("4/5");
+	expect(groupCountLabel(0, 5)).toBe("0/5");
 });
 
 test("groups workspace events by subject and leaves out organization events", () => {

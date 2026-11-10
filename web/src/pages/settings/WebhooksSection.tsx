@@ -17,6 +17,7 @@ import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { NewWebhookDialog } from "./NewWebhookDialog";
@@ -233,18 +234,19 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 	const ticks = tickStrip(query.data.deliveries);
 	if (ticks.length === 0) return <span className="text-[12px] text-fg3">No deliveries yet</span>;
 	const failing = failingCount(query.data.deliveries.slice(0, DELIVERY_TICKS));
+	const errors = pluralize(failing, "error");
 	return (
 		<span className="flex min-w-0 items-center gap-2.5">
 			<span
 				role="img"
-				aria-label={`${ticks.length.toString()} recent deliveries, ${failing.toString()} failing`}
+				aria-label={`${ticks.length.toString()} recent deliveries, ${errors}`}
 				className="flex items-center gap-0.5"
 			>
 				{ticks.map((t) => (
 					<i key={t.id} title={t.tip} className={cn("block h-4 w-1 rounded-[1.5px]", TICK_CLASS[t.tick])} />
 				))}
 			</span>
-			{failing > 0 && <span className="text-[12px] whitespace-nowrap text-warn-fg">{failing.toString()} failing</span>}
+			{failing > 0 && <span className="text-[12px] whitespace-nowrap text-warn-fg">{errors}</span>}
 		</span>
 	);
 }

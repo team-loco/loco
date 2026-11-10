@@ -22,6 +22,7 @@ import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { CreateScopeDialog } from "@/components/shell/CreateScopeDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
@@ -31,7 +32,6 @@ import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
 
 import { AuditLogTab } from "./AuditLogTab";
-import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
@@ -322,7 +322,7 @@ export function OrgTab({
 				/>
 			)}
 
-			<NewWorkspaceDialog open={newOpen} onOpenChange={setNewOpen} orgId={org.id} />
+			<CreateScopeDialog kind={newOpen ? "workspace" : null} onOpenChange={setNewOpen} />
 			<ConfirmDeleteDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
