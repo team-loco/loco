@@ -23,6 +23,7 @@ UI_HOST = "loco.build"
 DOCS_HOST = "docs.loco.build"
 API_HOST = "api.loco.build"
 VERSION = "sha-test"
+RUNTIME_CONFIG = 'window.locoConfig = {"apiURL":"/api"};\n'
 
 
 def docker(*args):
@@ -58,7 +59,7 @@ def test_rewrites_cover_exactly_the_ui_routes():
         assert rewrite["destination"] == "/index.html"
 
 
-def test_image_serves_the_ui_and_docs():
+def test_image_serves_the_ui_and_docs(tmp_path):
     docker(
         "buildx",
         "build",
@@ -75,7 +76,26 @@ def test_image_serves_the_ui_and_docs():
         f"VERSION={VERSION}",
         ".",
     )
-    container = docker("run", "--rm", "-d", "-p", f"127.0.0.1::{PORT}", IMAGE)
+    runtime_config = tmp_path / "runtime-config.js"
+    runtime_config.write_text(RUNTIME_CONFIG)
+    runtime_config.chmod(0o644)
+    # The pod settings charts/loco-control-plane/templates/ui.yaml runs the
+    # image with: no capabilities, no privilege escalation and its own
+    # runtime-config.js mounted over the image's.
+    container = docker(
+        "run",
+        "--rm",
+        "-d",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "-v",
+        f"{runtime_config}:/public/runtime-config.js:ro",
+        "-p",
+        f"127.0.0.1::{PORT}",
+        IMAGE,
+    )
     try:
         address = docker("port", container, str(PORT)).splitlines()[0]
         url = f"http://{address}"
@@ -97,8 +117,13 @@ def test_image_serves_the_ui_and_docs():
         status, ui, ui_headers = response(url, UI_HOST)
         assert status == 200
         assert '<div id="root">' in ui
+        assert '<script src="/runtime-config.js">' in ui
         assert "Deploy with Loco" not in ui
         assert f'<meta name="loco-version" content="{VERSION}">' in ui
+        status, body, config_headers = response(url + "/runtime-config.js", UI_HOST)
+        assert status == 200
+        assert body == RUNTIME_CONFIG
+        assert config_headers["Cache-Control"] == "no-cache"
         status, body, version_headers = response(url + "/version.json", UI_HOST)
         assert status == 200
         assert json.loads(body) == {"version": VERSION}
