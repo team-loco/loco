@@ -89,6 +89,7 @@ func (s *ClusterAdminServer) CreateCluster(
 		queries := genDb.New(tx)
 		if createErr := queries.CreateCluster(ctx, genDb.CreateClusterParams{
 			Name: req.GetName(), Region: req.GetRegion(), Tier: tier, ID: requestID,
+			ApplicationsEnabled: req.GetApplicationsEnabled(), BuildsAllowed: req.GetBuildsAllowed(),
 		}); createErr != nil {
 			return fmt.Errorf("insert cluster: %w", createErr)
 		}
@@ -164,7 +165,8 @@ func (s *ClusterAdminServer) ListClusters(
 			IsActive: row.IsActive, RemovedAt: optionalTimestamp(row.RemovedAt),
 			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
-			BuildsEnabled: row.BuildsEnabled,
+			BuildsEnabled:       row.BuildsEnabled,
+			ApplicationsEnabled: row.ApplicationsEnabled, BuildsAllowed: row.BuildsAllowed,
 		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)
@@ -264,4 +266,27 @@ func (s *ClusterAdminServer) RestoreCluster(
 		return nil, err
 	}
 	return &clusterv1.RestoreClusterResponse{ClusterId: result.ClusterID.String()}, nil
+}
+
+func (s *ClusterAdminServer) UpdateCluster(
+	ctx context.Context,
+	req *clusterv1.UpdateClusterRequest,
+) (*clusterv1.UpdateClusterResponse, error) {
+	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
+		return nil, err
+	}
+	id, err := uuid.Parse(req.GetClusterId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid cluster ID").WithCause(err)
+	}
+	_, err = s.queries.UpdateClusterCapabilities(ctx, genDb.UpdateClusterCapabilitiesParams{
+		ID: id, ApplicationsEnabled: req.GetApplicationsEnabled(), BuildsAllowed: req.GetBuildsAllowed(),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrClusterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("update cluster capabilities: %w", err)
+	}
+	return &clusterv1.UpdateClusterResponse{ClusterId: id.String()}, nil
 }

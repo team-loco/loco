@@ -468,6 +468,8 @@ type Cluster struct {
 	JoinTokenHash         *string    `json:"joinTokenHash"`
 	JoinTokenExpiresAt    *time.Time `json:"joinTokenExpiresAt"`
 	JoinTokenUsedAt       *time.Time `json:"joinTokenUsedAt"`
+	ApplicationsEnabled   bool       `json:"applicationsEnabled"`
+	BuildsAllowed         bool       `json:"buildsAllowed"`
 	BuildsEnabled         bool       `json:"buildsEnabled"`
 	Tier                  string     `json:"tier"`
 	CreatedAt             time.Time  `json:"createdAt"`

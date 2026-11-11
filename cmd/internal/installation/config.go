@@ -90,14 +90,15 @@ type IssuerRef struct {
 }
 
 type Worker struct {
-	MetricsServer MetricsServer    `json:"metricsServer" yaml:"metricsServer"`
-	Name          string           `json:"name"          yaml:"name"`
-	Kubernetes    KubernetesTarget `json:"kubernetes"    yaml:"kubernetes"`
-	Region        string           `json:"region"        yaml:"region"`
-	Tier          string           `json:"tier"          yaml:"tier"`
-	AppsDomain    string           `json:"appsDomain"    yaml:"appsDomain"`
-	Builds        Builds           `json:"builds"        yaml:"builds"`
-	Certificates  Certificates     `json:"certificates"  yaml:"certificates"`
+	MetricsServer       MetricsServer    `json:"metricsServer"       yaml:"metricsServer"`
+	ApplicationsEnabled bool             `json:"applicationsEnabled" yaml:"applicationsEnabled"`
+	Name                string           `json:"name"                yaml:"name"`
+	Kubernetes          KubernetesTarget `json:"kubernetes"          yaml:"kubernetes"`
+	Region              string           `json:"region"              yaml:"region"`
+	Tier                string           `json:"tier"                yaml:"tier"`
+	AppsDomain          string           `json:"appsDomain"          yaml:"appsDomain"`
+	Builds              Builds           `json:"builds"              yaml:"builds"`
+	Certificates        Certificates     `json:"certificates"        yaml:"certificates"`
 }
 
 // PrivateEgress matches the controller's build-network contract in

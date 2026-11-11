@@ -38,6 +38,13 @@ func (e *enrolledCluster) CreateCluster(
 	return &clusterv1.CreateClusterResponse{ClusterId: "00000000-0000-7000-8000-000000000001"}, nil
 }
 
+func (*enrolledCluster) UpdateCluster(
+	_ context.Context,
+	request *clusterv1.UpdateClusterRequest,
+) (*clusterv1.UpdateClusterResponse, error) {
+	return &clusterv1.UpdateClusterResponse{ClusterId: request.GetClusterId()}, nil
+}
+
 func TestLostWorkerStateUsesCanonicalRegistrationAndRequiresOriginalKey(t *testing.T) {
 	canonical := map[string]string{}
 	original, changed, err := recordWorkerTarget(canonical, testStaging, testClusterUID)

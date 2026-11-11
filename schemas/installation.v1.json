@@ -325,6 +325,7 @@
           "kubernetes",
           "region",
           "tier",
+          "applicationsEnabled",
           "appsDomain",
           "builds",
           "certificates",
@@ -369,6 +370,9 @@
               "staging",
               "production"
             ]
+          },
+          "applicationsEnabled": {
+            "type": "boolean"
           },
           "appsDomain": {
             "type": "string",

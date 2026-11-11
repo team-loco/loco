@@ -101,12 +101,23 @@ func manageCluster(
 }
 
 func lockAssignableCluster(ctx context.Context, qtx *genDb.Queries, id uuid.UUID) error {
-	_, err := qtx.LockAssignableCluster(ctx, id)
+	return lockClusterCapability(ctx, qtx, id, false)
+}
+
+func lockClusterCapability(ctx context.Context, qtx *genDb.Queries, id uuid.UUID, build bool) error {
+	cluster, err := qtx.LockAssignableCluster(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrClusterNotAssignable
 	}
 	if err != nil {
 		return fmt.Errorf("lock assignable cluster: %w", err)
+	}
+	if build {
+		if !cluster.BuildsAllowed || !cluster.BuildsEnabled {
+			return rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster does not accept builds")
+		}
+	} else if !cluster.ApplicationsEnabled {
+		return rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster does not accept applications")
 	}
 	return nil
 }

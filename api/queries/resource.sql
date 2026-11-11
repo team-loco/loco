@@ -81,6 +81,7 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
 FROM clusters
 WHERE tier = sqlc.arg(tier)
   AND is_active = true
+  AND applications_enabled = true
   AND health_status = 'healthy'
   AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC;
@@ -92,6 +93,7 @@ FROM (
     FROM clusters
     WHERE tier = sqlc.arg(tier)
       AND is_active = true
+      AND applications_enabled = true
       AND health_status IN ('healthy', 'degraded')
       AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
     ORDER BY region, (health_status = 'healthy') DESC, is_default DESC, created_at ASC

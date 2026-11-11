@@ -10,6 +10,7 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/cluster/v1;clusterv1"
 
 service ClusterAdminService {
   rpc CreateCluster(CreateClusterRequest) returns (CreateClusterResponse);
+  rpc UpdateCluster(UpdateClusterRequest) returns (UpdateClusterResponse);
   rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
   rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
   rpc PauseCluster(PauseClusterRequest) returns (PauseClusterResponse);
@@ -31,6 +32,8 @@ message Cluster {
   optional string agent_version = 10;
   optional string agent_key_fingerprint = 11;
   bool builds_enabled = 12;
+  bool applications_enabled = 13;
+  bool builds_allowed = 14;
 }
 
 message ClusterWorkload {
@@ -62,6 +65,18 @@ message CreateClusterRequest {
     defined_only: true
     not_in: [0]
   }];
+  bool applications_enabled = 5;
+  bool builds_allowed = 6;
+}
+
+message UpdateClusterRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+  bool applications_enabled = 2;
+  bool builds_allowed = 3;
+}
+
+message UpdateClusterResponse {
+  string cluster_id = 1;
 }
 
 message CreateClusterResponse {

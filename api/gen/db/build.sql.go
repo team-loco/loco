@@ -379,6 +379,7 @@ const getBuildCluster = `-- name: GetBuildCluster :one
 SELECT id FROM clusters
 WHERE is_active = true
   AND builds_enabled = true
+  AND builds_allowed = true
 ORDER BY created_at, id
 LIMIT 1
 `

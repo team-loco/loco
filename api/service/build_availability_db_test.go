@@ -135,6 +135,13 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 
 func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) {
 	f := newBuildFixture(t)
+	if _, err := f.pool.Exec(
+		f.ctx,
+		"UPDATE clusters SET applications_enabled = false, builds_allowed = false WHERE id = $1",
+		f.clusterID,
+	); err != nil {
+		t.Fatal(err)
+	}
 	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval, testAgentConfig())
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
@@ -170,6 +177,18 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 		t.Fatal("builds_enabled stayed true after the agent registered without builds")
 	}
 	register(true)
+	var applications, builds bool
+	capabilitiesQuery := "SELECT applications_enabled, builds_allowed FROM clusters WHERE id = $1"
+	if err := f.pool.QueryRow(f.ctx, capabilitiesQuery, f.clusterID).
+		Scan(&applications, &builds); err != nil {
+		t.Fatal(err)
+	}
+	if applications || builds {
+		t.Fatal("agent registration overwrote operator capabilities")
+	}
+	if _, err := f.queries.GetBuildCluster(f.ctx); err != nil {
+		t.Fatal("other build cluster should remain available", err)
+	}
 	if !buildsEnabled() {
 		t.Fatal("builds_enabled is false after the agent registered with builds")
 	}
@@ -190,6 +209,12 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 			t.Fatal("builds_enabled stayed true after a heartbeat without builds")
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+	if err := f.pool.QueryRow(f.ctx, capabilitiesQuery, f.clusterID).Scan(&applications, &builds); err != nil {
+		t.Fatal(err)
+	}
+	if applications || builds {
+		t.Fatal("heartbeat overwrote operator capabilities")
 	}
 	if err := stream.CloseSend(); err != nil {
 		t.Fatalf("close sync stream: %v", err)

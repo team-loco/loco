@@ -38,6 +38,7 @@ workers:
   kubernetes: {context: fixture, clusterUID: {{ .ClusterUID | quote }}, namespace: loco-staging}
   region: us-east-1
   tier: staging
+  applicationsEnabled: true
   appsDomain: apps.installation.test
   metricsServer: {enabled: true, kubeletInsecureTLS: true}
   builds: {enabled: true, privateEgress: {{ .PrivateEgress | json }}}

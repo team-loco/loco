@@ -1393,6 +1393,67 @@
         }
       }
     },
+    "/loco.cluster.v1.ClusterAdminService/UpdateCluster": {
+      "post": {
+        "tags": [
+          "loco.cluster.v1.ClusterAdminService"
+        ],
+        "summary": "UpdateCluster",
+        "operationId": "loco.cluster.v1.ClusterAdminService.UpdateCluster",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.cluster.v1.UpdateClusterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.cluster.v1.UpdateClusterResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.config.v1.ConfigService/GetConfig": {
       "post": {
         "tags": [
@@ -8619,6 +8680,14 @@
           "buildsEnabled": {
             "type": "boolean",
             "title": "builds_enabled"
+          },
+          "applicationsEnabled": {
+            "type": "boolean",
+            "title": "applications_enabled"
+          },
+          "buildsAllowed": {
+            "type": "boolean",
+            "title": "builds_allowed"
           }
         },
         "title": "Cluster",
@@ -8682,6 +8751,14 @@
             },
             "title": "tier",
             "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
+          },
+          "applicationsEnabled": {
+            "type": "boolean",
+            "title": "applications_enabled"
+          },
+          "buildsAllowed": {
+            "type": "boolean",
+            "title": "builds_allowed"
           }
         },
         "title": "CreateClusterRequest",
@@ -8864,6 +8941,37 @@
           }
         },
         "title": "ResumeClusterResponse",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.UpdateClusterRequest": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id",
+            "format": "uuid"
+          },
+          "applicationsEnabled": {
+            "type": "boolean",
+            "title": "applications_enabled"
+          },
+          "buildsAllowed": {
+            "type": "boolean",
+            "title": "builds_allowed"
+          }
+        },
+        "title": "UpdateClusterRequest",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.UpdateClusterResponse": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id"
+          }
+        },
+        "title": "UpdateClusterResponse",
         "additionalProperties": false
       },
       "loco.config.v1.AuthConfig": {

@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/cluster/v1/cluster.proto.
  */
 export const file_loco_cluster_v1_cluster: GenFile = /*@__PURE__*/
-  fileDesc("Ch1sb2NvL2NsdXN0ZXIvdjEvY2x1c3Rlci5wcm90bxIPbG9jby5jbHVzdGVyLnYxIqUDCgdDbHVzdGVyEgoKAmlkGAEgASgJEhMKC2NsdXN0ZXJfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJEjIKBHRpZXIYBSABKA4yJC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50VHlwZRIRCglpc19hY3RpdmUYBiABKAgSLgoKcmVtb3ZlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoNaGVhbHRoX3N0YXR1cxgIIAEoCUgAiAEBEjIKDmxhc3RfaGVhcnRiZWF0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaCg1hZ2VudF92ZXJzaW9uGAogASgJSAGIAQESIgoVYWdlbnRfa2V5X2ZpbmdlcnByaW50GAsgASgJSAKIAQESFgoOYnVpbGRzX2VuYWJsZWQYDCABKAhCEAoOX2hlYWx0aF9zdGF0dXNCEAoOX2FnZW50X3ZlcnNpb25CGAoWX2FnZW50X2tleV9maW5nZXJwcmludCIrCg9DbHVzdGVyV29ya2xvYWQSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCSJHChBDbHVzdGVyV29ya2xvYWRzEjMKCXdvcmtsb2FkcxgBIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiSgoJSm9pblRva2VuEg0KBXRva2VuGAEgASgJEi4KCmV4cGlyZXNfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIqoBChRDcmVhdGVDbHVzdGVyUmVxdWVzdBIcCgpyZXF1ZXN0X2lkGAQgASgJQgi6SAVyA7ABARIYCgRuYW1lGAEgASgJQgq6SAdyBRABGP8BEhoKBnJlZ2lvbhgCIAEoCUIKukgHcgUQARj/ARI+CgR0aWVyGAMgASgOMiQubG9jby5lbnZpcm9ubWVudC52MS5FbnZpcm9ubWVudFR5cGVCCrpIB4IBBBABIAAiWwoVQ3JlYXRlQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkSLgoKam9pbl90b2tlbhgCIAEoCzIaLmxvY28uY2x1c3Rlci52MS5Kb2luVG9rZW4iNQoVSXNzdWVKb2luVG9rZW5SZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIlwKFklzc3VlSm9pblRva2VuUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCRIuCgpqb2luX3Rva2VuGAIgASgLMhoubG9jby5jbHVzdGVyLnYxLkpvaW5Ub2tlbiIVChNMaXN0Q2x1c3RlcnNSZXF1ZXN0IkIKFExpc3RDbHVzdGVyc1Jlc3BvbnNlEioKCGNsdXN0ZXJzGAEgAygLMhgubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXIiMwoTUGF1c2VDbHVzdGVyUmVxdWVzdBIcCgpjbHVzdGVyX2lkGAEgASgJQgi6SAVyA7ABASIqChRQYXVzZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIjQKFFJlc3VtZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIisKFVJlc3VtZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIkMKFFJlbW92ZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEg0KBWZvcmNlGAIgASgIImAKFVJlbW92ZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjMKCXdvcmtsb2FkcxgCIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiNQoVUmVzdG9yZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIiwKFlJlc3RvcmVDbHVzdGVyUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCTK1BQoTQ2x1c3RlckFkbWluU2VydmljZRJeCg1DcmVhdGVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLkNyZWF0ZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLkNyZWF0ZUNsdXN0ZXJSZXNwb25zZRJhCg5Jc3N1ZUpvaW5Ub2tlbhImLmxvY28uY2x1c3Rlci52MS5Jc3N1ZUpvaW5Ub2tlblJlcXVlc3QaJy5sb2NvLmNsdXN0ZXIudjEuSXNzdWVKb2luVG9rZW5SZXNwb25zZRJbCgxMaXN0Q2x1c3RlcnMSJC5sb2NvLmNsdXN0ZXIudjEuTGlzdENsdXN0ZXJzUmVxdWVzdBolLmxvY28uY2x1c3Rlci52MS5MaXN0Q2x1c3RlcnNSZXNwb25zZRJbCgxQYXVzZUNsdXN0ZXISJC5sb2NvLmNsdXN0ZXIudjEuUGF1c2VDbHVzdGVyUmVxdWVzdBolLmxvY28uY2x1c3Rlci52MS5QYXVzZUNsdXN0ZXJSZXNwb25zZRJeCg1SZXN1bWVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLlJlc3VtZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLlJlc3VtZUNsdXN0ZXJSZXNwb25zZRJeCg1SZW1vdmVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLlJlbW92ZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLlJlbW92ZUNsdXN0ZXJSZXNwb25zZRJhCg5SZXN0b3JlQ2x1c3RlchImLmxvY28uY2x1c3Rlci52MS5SZXN0b3JlQ2x1c3RlclJlcXVlc3QaJy5sb2NvLmNsdXN0ZXIudjEuUmVzdG9yZUNsdXN0ZXJSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NsdXN0ZXIvdjE7Y2x1c3RlcnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_environment_v1_environment]);
+  fileDesc("Ch1sb2NvL2NsdXN0ZXIvdjEvY2x1c3Rlci5wcm90bxIPbG9jby5jbHVzdGVyLnYxItsDCgdDbHVzdGVyEgoKAmlkGAEgASgJEhMKC2NsdXN0ZXJfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJEjIKBHRpZXIYBSABKA4yJC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50VHlwZRIRCglpc19hY3RpdmUYBiABKAgSLgoKcmVtb3ZlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoNaGVhbHRoX3N0YXR1cxgIIAEoCUgAiAEBEjIKDmxhc3RfaGVhcnRiZWF0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaCg1hZ2VudF92ZXJzaW9uGAogASgJSAGIAQESIgoVYWdlbnRfa2V5X2ZpbmdlcnByaW50GAsgASgJSAKIAQESFgoOYnVpbGRzX2VuYWJsZWQYDCABKAgSHAoUYXBwbGljYXRpb25zX2VuYWJsZWQYDSABKAgSFgoOYnVpbGRzX2FsbG93ZWQYDiABKAhCEAoOX2hlYWx0aF9zdGF0dXNCEAoOX2FnZW50X3ZlcnNpb25CGAoWX2FnZW50X2tleV9maW5nZXJwcmludCIrCg9DbHVzdGVyV29ya2xvYWQSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCSJHChBDbHVzdGVyV29ya2xvYWRzEjMKCXdvcmtsb2FkcxgBIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiSgoJSm9pblRva2VuEg0KBXRva2VuGAEgASgJEi4KCmV4cGlyZXNfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIuABChRDcmVhdGVDbHVzdGVyUmVxdWVzdBIcCgpyZXF1ZXN0X2lkGAQgASgJQgi6SAVyA7ABARIYCgRuYW1lGAEgASgJQgq6SAdyBRABGP8BEhoKBnJlZ2lvbhgCIAEoCUIKukgHcgUQARj/ARI+CgR0aWVyGAMgASgOMiQubG9jby5lbnZpcm9ubWVudC52MS5FbnZpcm9ubWVudFR5cGVCCrpIB4IBBBABIAASHAoUYXBwbGljYXRpb25zX2VuYWJsZWQYBSABKAgSFgoOYnVpbGRzX2FsbG93ZWQYBiABKAgiagoUVXBkYXRlQ2x1c3RlclJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESHAoUYXBwbGljYXRpb25zX2VuYWJsZWQYAiABKAgSFgoOYnVpbGRzX2FsbG93ZWQYAyABKAgiKwoVVXBkYXRlQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkiWwoVQ3JlYXRlQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkSLgoKam9pbl90b2tlbhgCIAEoCzIaLmxvY28uY2x1c3Rlci52MS5Kb2luVG9rZW4iNQoVSXNzdWVKb2luVG9rZW5SZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIlwKFklzc3VlSm9pblRva2VuUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCRIuCgpqb2luX3Rva2VuGAIgASgLMhoubG9jby5jbHVzdGVyLnYxLkpvaW5Ub2tlbiIVChNMaXN0Q2x1c3RlcnNSZXF1ZXN0IkIKFExpc3RDbHVzdGVyc1Jlc3BvbnNlEioKCGNsdXN0ZXJzGAEgAygLMhgubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXIiMwoTUGF1c2VDbHVzdGVyUmVxdWVzdBIcCgpjbHVzdGVyX2lkGAEgASgJQgi6SAVyA7ABASIqChRQYXVzZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIjQKFFJlc3VtZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIisKFVJlc3VtZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIkMKFFJlbW92ZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEg0KBWZvcmNlGAIgASgIImAKFVJlbW92ZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjMKCXdvcmtsb2FkcxgCIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiNQoVUmVzdG9yZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIiwKFlJlc3RvcmVDbHVzdGVyUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCTKVBgoTQ2x1c3RlckFkbWluU2VydmljZRJeCg1DcmVhdGVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLkNyZWF0ZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLkNyZWF0ZUNsdXN0ZXJSZXNwb25zZRJeCg1VcGRhdGVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLlVwZGF0ZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLlVwZGF0ZUNsdXN0ZXJSZXNwb25zZRJhCg5Jc3N1ZUpvaW5Ub2tlbhImLmxvY28uY2x1c3Rlci52MS5Jc3N1ZUpvaW5Ub2tlblJlcXVlc3QaJy5sb2NvLmNsdXN0ZXIudjEuSXNzdWVKb2luVG9rZW5SZXNwb25zZRJbCgxMaXN0Q2x1c3RlcnMSJC5sb2NvLmNsdXN0ZXIudjEuTGlzdENsdXN0ZXJzUmVxdWVzdBolLmxvY28uY2x1c3Rlci52MS5MaXN0Q2x1c3RlcnNSZXNwb25zZRJbCgxQYXVzZUNsdXN0ZXISJC5sb2NvLmNsdXN0ZXIudjEuUGF1c2VDbHVzdGVyUmVxdWVzdBolLmxvY28uY2x1c3Rlci52MS5QYXVzZUNsdXN0ZXJSZXNwb25zZRJeCg1SZXN1bWVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLlJlc3VtZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLlJlc3VtZUNsdXN0ZXJSZXNwb25zZRJeCg1SZW1vdmVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLlJlbW92ZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLlJlbW92ZUNsdXN0ZXJSZXNwb25zZRJhCg5SZXN0b3JlQ2x1c3RlchImLmxvY28uY2x1c3Rlci52MS5SZXN0b3JlQ2x1c3RlclJlcXVlc3QaJy5sb2NvLmNsdXN0ZXIudjEuUmVzdG9yZUNsdXN0ZXJSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NsdXN0ZXIvdjE7Y2x1c3RlcnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_environment_v1_environment]);
 
 /**
  * @generated from message loco.cluster.v1.Cluster
@@ -80,6 +80,16 @@ export type Cluster = Message<"loco.cluster.v1.Cluster"> & {
    * @generated from field: bool builds_enabled = 12;
    */
   buildsEnabled: boolean;
+
+  /**
+   * @generated from field: bool applications_enabled = 13;
+   */
+  applicationsEnabled: boolean;
+
+  /**
+   * @generated from field: bool builds_allowed = 14;
+   */
+  buildsAllowed: boolean;
 };
 
 /**
@@ -145,6 +155,16 @@ export type ClusterJson = {
    * @generated from field: bool builds_enabled = 12;
    */
   buildsEnabled?: boolean;
+
+  /**
+   * @generated from field: bool applications_enabled = 13;
+   */
+  applicationsEnabled?: boolean;
+
+  /**
+   * @generated from field: bool builds_allowed = 14;
+   */
+  buildsAllowed?: boolean;
 };
 
 /**
@@ -280,6 +300,16 @@ export type CreateClusterRequest = Message<"loco.cluster.v1.CreateClusterRequest
    * @generated from field: loco.environment.v1.EnvironmentType tier = 3;
    */
   tier: EnvironmentType;
+
+  /**
+   * @generated from field: bool applications_enabled = 5;
+   */
+  applicationsEnabled: boolean;
+
+  /**
+   * @generated from field: bool builds_allowed = 6;
+   */
+  buildsAllowed: boolean;
 };
 
 /**
@@ -307,6 +337,16 @@ export type CreateClusterRequestJson = {
    * @generated from field: loco.environment.v1.EnvironmentType tier = 3;
    */
   tier?: EnvironmentTypeJson;
+
+  /**
+   * @generated from field: bool applications_enabled = 5;
+   */
+  applicationsEnabled?: boolean;
+
+  /**
+   * @generated from field: bool builds_allowed = 6;
+   */
+  buildsAllowed?: boolean;
 };
 
 /**
@@ -315,6 +355,80 @@ export type CreateClusterRequestJson = {
  */
 export const CreateClusterRequestSchema: GenMessage<CreateClusterRequest, {jsonType: CreateClusterRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_cluster_v1_cluster, 4);
+
+/**
+ * @generated from message loco.cluster.v1.UpdateClusterRequest
+ */
+export type UpdateClusterRequest = Message<"loco.cluster.v1.UpdateClusterRequest"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+
+  /**
+   * @generated from field: bool applications_enabled = 2;
+   */
+  applicationsEnabled: boolean;
+
+  /**
+   * @generated from field: bool builds_allowed = 3;
+   */
+  buildsAllowed: boolean;
+};
+
+/**
+ * @generated from message loco.cluster.v1.UpdateClusterRequest
+ */
+export type UpdateClusterRequestJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+
+  /**
+   * @generated from field: bool applications_enabled = 2;
+   */
+  applicationsEnabled?: boolean;
+
+  /**
+   * @generated from field: bool builds_allowed = 3;
+   */
+  buildsAllowed?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.UpdateClusterRequest.
+ * Use `create(UpdateClusterRequestSchema)` to create a new message.
+ */
+export const UpdateClusterRequestSchema: GenMessage<UpdateClusterRequest, {jsonType: UpdateClusterRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 5);
+
+/**
+ * @generated from message loco.cluster.v1.UpdateClusterResponse
+ */
+export type UpdateClusterResponse = Message<"loco.cluster.v1.UpdateClusterResponse"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+};
+
+/**
+ * @generated from message loco.cluster.v1.UpdateClusterResponse
+ */
+export type UpdateClusterResponseJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+};
+
+/**
+ * Describes the message loco.cluster.v1.UpdateClusterResponse.
+ * Use `create(UpdateClusterResponseSchema)` to create a new message.
+ */
+export const UpdateClusterResponseSchema: GenMessage<UpdateClusterResponse, {jsonType: UpdateClusterResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 6);
 
 /**
  * @generated from message loco.cluster.v1.CreateClusterResponse
@@ -351,7 +465,7 @@ export type CreateClusterResponseJson = {
  * Use `create(CreateClusterResponseSchema)` to create a new message.
  */
 export const CreateClusterResponseSchema: GenMessage<CreateClusterResponse, {jsonType: CreateClusterResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 5);
+  messageDesc(file_loco_cluster_v1_cluster, 7);
 
 /**
  * @generated from message loco.cluster.v1.IssueJoinTokenRequest
@@ -378,7 +492,7 @@ export type IssueJoinTokenRequestJson = {
  * Use `create(IssueJoinTokenRequestSchema)` to create a new message.
  */
 export const IssueJoinTokenRequestSchema: GenMessage<IssueJoinTokenRequest, {jsonType: IssueJoinTokenRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 6);
+  messageDesc(file_loco_cluster_v1_cluster, 8);
 
 /**
  * @generated from message loco.cluster.v1.IssueJoinTokenResponse
@@ -415,7 +529,7 @@ export type IssueJoinTokenResponseJson = {
  * Use `create(IssueJoinTokenResponseSchema)` to create a new message.
  */
 export const IssueJoinTokenResponseSchema: GenMessage<IssueJoinTokenResponse, {jsonType: IssueJoinTokenResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 7);
+  messageDesc(file_loco_cluster_v1_cluster, 9);
 
 /**
  * @generated from message loco.cluster.v1.ListClustersRequest
@@ -434,7 +548,7 @@ export type ListClustersRequestJson = {
  * Use `create(ListClustersRequestSchema)` to create a new message.
  */
 export const ListClustersRequestSchema: GenMessage<ListClustersRequest, {jsonType: ListClustersRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 8);
+  messageDesc(file_loco_cluster_v1_cluster, 10);
 
 /**
  * @generated from message loco.cluster.v1.ListClustersResponse
@@ -461,7 +575,7 @@ export type ListClustersResponseJson = {
  * Use `create(ListClustersResponseSchema)` to create a new message.
  */
 export const ListClustersResponseSchema: GenMessage<ListClustersResponse, {jsonType: ListClustersResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 9);
+  messageDesc(file_loco_cluster_v1_cluster, 11);
 
 /**
  * @generated from message loco.cluster.v1.PauseClusterRequest
@@ -488,7 +602,7 @@ export type PauseClusterRequestJson = {
  * Use `create(PauseClusterRequestSchema)` to create a new message.
  */
 export const PauseClusterRequestSchema: GenMessage<PauseClusterRequest, {jsonType: PauseClusterRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 10);
+  messageDesc(file_loco_cluster_v1_cluster, 12);
 
 /**
  * @generated from message loco.cluster.v1.PauseClusterResponse
@@ -515,7 +629,7 @@ export type PauseClusterResponseJson = {
  * Use `create(PauseClusterResponseSchema)` to create a new message.
  */
 export const PauseClusterResponseSchema: GenMessage<PauseClusterResponse, {jsonType: PauseClusterResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 11);
+  messageDesc(file_loco_cluster_v1_cluster, 13);
 
 /**
  * @generated from message loco.cluster.v1.ResumeClusterRequest
@@ -542,7 +656,7 @@ export type ResumeClusterRequestJson = {
  * Use `create(ResumeClusterRequestSchema)` to create a new message.
  */
 export const ResumeClusterRequestSchema: GenMessage<ResumeClusterRequest, {jsonType: ResumeClusterRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 12);
+  messageDesc(file_loco_cluster_v1_cluster, 14);
 
 /**
  * @generated from message loco.cluster.v1.ResumeClusterResponse
@@ -569,7 +683,7 @@ export type ResumeClusterResponseJson = {
  * Use `create(ResumeClusterResponseSchema)` to create a new message.
  */
 export const ResumeClusterResponseSchema: GenMessage<ResumeClusterResponse, {jsonType: ResumeClusterResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 13);
+  messageDesc(file_loco_cluster_v1_cluster, 15);
 
 /**
  * @generated from message loco.cluster.v1.RemoveClusterRequest
@@ -606,7 +720,7 @@ export type RemoveClusterRequestJson = {
  * Use `create(RemoveClusterRequestSchema)` to create a new message.
  */
 export const RemoveClusterRequestSchema: GenMessage<RemoveClusterRequest, {jsonType: RemoveClusterRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 14);
+  messageDesc(file_loco_cluster_v1_cluster, 16);
 
 /**
  * @generated from message loco.cluster.v1.RemoveClusterResponse
@@ -643,7 +757,7 @@ export type RemoveClusterResponseJson = {
  * Use `create(RemoveClusterResponseSchema)` to create a new message.
  */
 export const RemoveClusterResponseSchema: GenMessage<RemoveClusterResponse, {jsonType: RemoveClusterResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 15);
+  messageDesc(file_loco_cluster_v1_cluster, 17);
 
 /**
  * @generated from message loco.cluster.v1.RestoreClusterRequest
@@ -670,7 +784,7 @@ export type RestoreClusterRequestJson = {
  * Use `create(RestoreClusterRequestSchema)` to create a new message.
  */
 export const RestoreClusterRequestSchema: GenMessage<RestoreClusterRequest, {jsonType: RestoreClusterRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 16);
+  messageDesc(file_loco_cluster_v1_cluster, 18);
 
 /**
  * @generated from message loco.cluster.v1.RestoreClusterResponse
@@ -697,7 +811,7 @@ export type RestoreClusterResponseJson = {
  * Use `create(RestoreClusterResponseSchema)` to create a new message.
  */
 export const RestoreClusterResponseSchema: GenMessage<RestoreClusterResponse, {jsonType: RestoreClusterResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 17);
+  messageDesc(file_loco_cluster_v1_cluster, 19);
 
 /**
  * @generated from service loco.cluster.v1.ClusterAdminService
@@ -710,6 +824,14 @@ export const ClusterAdminService: GenService<{
     methodKind: "unary";
     input: typeof CreateClusterRequestSchema;
     output: typeof CreateClusterResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.cluster.v1.ClusterAdminService.UpdateCluster
+   */
+  updateCluster: {
+    methodKind: "unary";
+    input: typeof UpdateClusterRequestSchema;
+    output: typeof UpdateClusterResponseSchema;
   },
   /**
    * @generated from rpc loco.cluster.v1.ClusterAdminService.IssueJoinToken

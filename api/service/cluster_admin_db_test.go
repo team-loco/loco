@@ -90,6 +90,13 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 		t.Fatal(tokenErr)
 	}
 	methods := map[string]func(clusterv1connect.ClusterAdminServiceClient) error{
+		"update": func(client clusterv1connect.ClusterAdminServiceClient) error {
+			_, err := client.UpdateCluster(
+				ctx,
+				&clusterv1.UpdateClusterRequest{ClusterId: clusterID.String(), ApplicationsEnabled: true},
+			)
+			return err
+		},
 		"create": func(client clusterv1connect.ClusterAdminServiceClient) error {
 			_, err := client.CreateCluster(
 				ctx,

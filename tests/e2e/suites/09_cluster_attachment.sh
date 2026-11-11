@@ -129,3 +129,16 @@ test_z20_pause_remove_and_restore() {
     wait_for "Restored cluster heartbeat" "$READY_TIMEOUT" agent_heartbeat_recorded
     assert "Restore reuses cluster identity" test "$(e2e_psql 'SELECT count(*) FROM clusters')" = 1
 }
+
+test_z18_cluster_capabilities_retain_existing_workloads() {
+    local placements
+    placements=$(e2e_psql "SELECT count(*) FROM placements WHERE cluster_id = '${E2E_CLUSTER_ID}'")
+    cluster_admin update "$E2E_CLUSTER_ID" --applications-enabled=false --builds-allowed=true
+    assert "Cluster reports application capability disabled" \
+        test "$(cluster_admin list | yq -p json ".clusters[] | select(.id == \"${E2E_CLUSTER_ID}\") | .applicationsEnabled // false")" = false
+    assert "Build-only update retains placements" \
+        test "$(e2e_psql "SELECT count(*) FROM placements WHERE cluster_id = '${E2E_CLUSTER_ID}'")" = "$placements"
+    (cd "$e2e_app_dir" && assert_fails_with "Application deploy requires a runtime cluster" 'application-enabled' \
+        loco_cli deploy --yes)
+    cluster_admin update "$E2E_CLUSTER_ID" --applications-enabled=true --builds-allowed=true
+}

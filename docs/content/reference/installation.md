@@ -46,6 +46,7 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `workers[].kubernetes` | Existing `context`, pinned `clusterUID` and destination `namespace` |
 | `workers[].region` | Region registered with the API |
 | `workers[].tier` | `staging` or `production` |
+| `workers[].applicationsEnabled` | Whether application planning and placement may use this worker; set false for a build-only worker |
 | `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
 | `workers[].builds.enabled` | Whether this worker runs source builds |
 | `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
@@ -95,7 +96,7 @@ The initial installer requires a cluster-admin context for every target and chec
 
 The control plane installs before API authentication is required. Apply reports the first-administrator checkpoint when bootstrap remains open. Run `locoadm bootstrap --file installation.yaml --email admin@example.com` and sign in through the configured identity provider. The command reads the temporary bootstrap credential from Kubernetes, verifies the expected email through authorization code with PKCE, and stores the normal CLI session and installation URLs locally. It then removes the bootstrap reference from the API deployment, waits for its rollout, and deletes the temporary credential. `--no-browser` prints the sign-in URL; `--timeout` bounds the operation and defaults to 15 minutes. A fresh operator machine can repeat bootstrap by signing in as an existing system administrator to resume cleanup; it cannot create another administrator after bootstrap closes.
 
-Run apply again with the stored system-admin session to attach workers. Worker namespaces created by apply carry the restricted Pod Security policy. Existing worker namespaces must already match that policy; apply does not patch unrelated namespaces. Each worker registration request is persisted before its API call; a retry recovers the same registration. The agent creates and retains its private key through its existing Kubernetes identity store.
+Run apply again with the stored system-admin session to attach workers. Worker namespaces created by apply carry the restricted Pod Security policy. Existing worker namespaces must already match that policy; apply does not patch unrelated namespaces. Each worker registration request is persisted before its API call; a retry recovers the same registration. The agent creates and retains its private key through its existing Kubernetes identity store. Apply sets application capability from `applicationsEnabled` and build permission from `builds.enabled`, including on subsequent applies. Capability changes block new admissions and retain existing workloads.
 
 Generated seal material, the temporary bootstrap credential and ClickHouse user and operator credentials go directly to destination Secrets. The operator's Secret name and username come from the pinned chart. Helm receives references only. Reapply preserves owned secrets and rejects malformed or missing material after credential establishment. It does not rotate keys or credentials. Changing external input credential values requires a separate rotation procedure; apply does not silently replace the API's existing copy.
 
