@@ -265,7 +265,8 @@ export function DraftSheet({
 
 	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
-	const defaults = configQuery.data?.serviceDefaults;
+	const config = configQuery.data;
+	const defaults = config?.serviceDefaults;
 	const header = <DrawerHeader name={draft?.name ?? "Draft"} image={draft?.image ?? ""} state="draft" />;
 	const body = (() => {
 		if (deployment.run !== null) {
@@ -278,7 +279,7 @@ export function DraftSheet({
 				</SheetBody>
 			);
 		}
-		if (defaults === undefined || regionsQuery.data === undefined) {
+		if (config === undefined || defaults === undefined || regionsQuery.data === undefined) {
 			return (
 				<SheetBody>
 					{Array.from({ length: SKELETON_ROWS }, (_, i) => (
@@ -300,12 +301,12 @@ export function DraftSheet({
 		return (
 			<ServiceForm
 				env={env}
-				schemaUrl={configQuery.data?.schemaUrl ?? ""}
+				schemaUrl={config.schemaUrl}
 				regions={regionsQuery.data.regions}
 				platformDomains={domainsQuery.data?.platformDomains ?? []}
 				draft={vars === undefined ? draft : { ...draft, edits: { ...draft.edits, vars } }}
 				defaults={defaults}
-				sizes={sizeOptions(configQuery.data?.sizeLimits)}
+				sizes={sizeOptions(config.sizeLimits)}
 				deployment={deployment}
 				tried={tried}
 				healthOpen={healthOpen}

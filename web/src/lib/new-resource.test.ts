@@ -293,7 +293,10 @@ test("saved autoscaling drafts reload and serialize the same targets", () => {
 	];
 	const [draft] = parseDrafts(JSON.parse(JSON.stringify(saved)));
 	if (draft === undefined) throw new Error("draft missing");
-	const loaded = { ...form, ...draftSizing(draft, { cpu: form.cpu, memory: form.memory, minReplicas: 1 }) };
+	const loaded = {
+		...form,
+		...draftSizing(draft, { cpu: form.cpu, memory: form.memory, minReplicas: 1, cpuTarget: form.cpuTarget }),
+	};
 	expect(firstError(validateForm(loaded, "available", 10))).toBeNull();
 	expect(scalingSpec(loaded)).toMatchObject({
 		minReplicas: 1,

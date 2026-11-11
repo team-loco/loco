@@ -71,6 +71,7 @@ export interface ServiceSizing {
 	cpu: string;
 	memory: string;
 	minReplicas: number;
+	cpuTarget: number;
 }
 
 export function draftSizing(draft: Draft, defaults: ServiceSizing) {
@@ -80,6 +81,6 @@ export function draftSizing(draft: Draft, defaults: ServiceSizing) {
 		memory: draft.edits.memory ?? defaults.memory,
 		replicas,
 		maxReplicas: draft.edits.maxReplicas ?? replicas,
-		cpuTarget: draft.edits.cpuTarget ?? 70,
+		cpuTarget: draft.edits.cpuTarget ?? defaults.cpuTarget,
 	};
 }

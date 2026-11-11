@@ -96,6 +96,24 @@ with sync_playwright() as playwright:
         finally:
             context.close()
 
+        loading = seeded_draft("loading-draft", "registry.example.com/acme/loading:1")
+        context, page, errors = open_page(browser, "owner", drafts=[loading])
+        pending_config = []
+        context.route("**/loco.config.v1.ConfigService/GetConfig", lambda route: pending_config.append(route))
+        try:
+            with page.expect_request("**/loco.config.v1.ConfigService/GetConfig"):
+                page.goto(base + f"/resources?env=production&draft={loading['id']}")
+            drawer = page.get_by_role("dialog", name="loading-draft", exact=True)
+            expect(drawer).to_be_visible()
+            expect(drawer.get_by_role("group", name="Minimum replicas", exact=True)).to_have_count(0)
+            expect(drawer.get_by_text("Use at most 0 replicas per region", exact=True)).to_have_count(0)
+            for route in pending_config:
+                route.continue_()
+            expect(drawer.get_by_role("group", name="Minimum replicas", exact=True)).to_be_visible()
+            assert not errors, errors
+        finally:
+            context.close()
+
         repository = f"shop-{suffix}"
         image = f"registry.example.com/acme/{repository}:1.4.2"
         for theme, narrow, name in (("light", False, repository), ("dark", True, f"{repository}-2")):

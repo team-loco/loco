@@ -290,10 +290,12 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 		for (const [key, value] of vars) lines.push(`      ${scalar(key, FLOW_PLAIN_RE)}: ${JSON.stringify(value)}`);
 	}
 	if (form.regions.length > 0) lines.push("    regions:");
+	const autoscaling =
+		form.maxReplicas === form.replicas ? "" : `, autoscaling: { cpuTarget: ${form.cpuTarget.toString()} }`;
 	for (const region of form.regions) {
 		const sizing = `cpu: ${flow(form.cpu)}, memory: ${flow(form.memory)}`;
 		lines.push(
-			`      ${flow(region)}: { ${sizing}, replicas: { min: ${replicas}, max: ${form.maxReplicas.toString()} }${form.maxReplicas === form.replicas ? "" : `, autoscaling: { cpuTarget: ${form.cpuTarget.toString()} }`} }`,
+			`      ${flow(region)}: { ${sizing}, replicas: { min: ${replicas}, max: ${form.maxReplicas.toString()} }${autoscaling} }`,
 		);
 	}
 	return `${lines.join("\n")}\n`;
