@@ -5,7 +5,7 @@ import { useRef, useState, type RefObject } from "react";
 import { createToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { TokenService } from "@gen/loco/token/v1/token_pb";
 
-import { BASE_URL } from "@/auth/client";
+import { BASE_URL } from "@/auth/connect-transport";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { CopyButton } from "@/components/design/CopyButton";
