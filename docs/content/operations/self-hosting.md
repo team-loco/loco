@@ -96,24 +96,27 @@ Your team supplies DNS records, certificate issuance, persistent storage, backup
 
 ## API admission budgets
 
-The API shares admission counters through PostgreSQL across replicas, including when `CACHE_TYPE=in-memory`. Configure these optional environment variables under the control-plane chart's `api.env`. The API reads them once at startup; every replica must use the same settings.
+The API uses its existing cache backend for request admission and PostgreSQL for build/deployment admission. Configure these optional environment variables under the control-plane chart's `api.env`. The API reads them once at startup; replicas sharing counters must use the same settings and cache.
 
 | Variable | Default | Budget per window |
 | --- | --- | --- |
 | `LOCO_ADMISSION_WINDOW` | `1m` | Positive duration for all budgets |
+| `LOCO_ADMISSION_AGGREGATE_REQUESTS` | `true` with Valkey, `false` with memory | Share request limits across replicas; enabled request budgets require `CACHE_TYPE=valkey` when this is `true` |
 | `LOCO_ADMISSION_GLOBAL_REQUESTS` | `60000` | Requests on the authenticated RPC server, including public login RPCs |
 | `LOCO_ADMISSION_PRINCIPAL_REQUESTS` | `6000` | Requests per authenticated entity type and ID, shared by its tokens |
-| `LOCO_ADMISSION_WORKSPACE_REQUESTS` | `12000` | Requests authorized on a workspace or its resources |
+| `LOCO_ADMISSION_WORKSPACE_REQUESTS` | `12000` | Requests carrying a workspace or a resource, environment, build, deployment or domain in that workspace |
 | `LOCO_ADMISSION_GLOBAL_DEPLOYS` | `600` | Deployment creation, plan apply and scaling requests |
 | `LOCO_ADMISSION_WORKSPACE_DEPLOYS` | `120` | The same operations per workspace |
 | `LOCO_ADMISSION_GLOBAL_BUILDS` | `600` | Build creation requests, before upload URLs are issued |
 | `LOCO_ADMISSION_WORKSPACE_BUILDS` | `120` | Build creation requests per workspace |
 
-A zero budget disables that limit; negative budgets prevent startup. Each key's window begins with its first admitted request and permits the entire configured count as a burst. It resets on the first request after expiry, with no accumulated credit. Two bursts can straddle an expiry. Counters persist across API restarts and reuse the same row on expiry. A plan apply consumes one deployment admission regardless of the number of services or regions; these are request rates, not limits on active rollouts or build jobs. Existing rollout guards still apply.
+A zero budget disables that limit; negative budgets prevent startup. Memory request limits apply per API replica and reset on restart. Aggregate request limits require Valkey; the API refuses to start if aggregate request admission is enabled with memory and any request budget is nonzero. With Valkey, request usage survives API restarts until its TTL expires; cache loss resets request counters. Explicitly setting `LOCO_ADMISSION_AGGREGATE_REQUESTS=false` gives each API instance its own request keys with either backend. Work budgets always aggregate through PostgreSQL and survive API restarts.
 
-Request budgets run after authentication. Workspace and work budgets run after authorization and before image resolution, deployment/build writes or upload URL creation. A rejected request consumes none of the budgets in its admission stage. A workspace or work rejection still consumes the earlier global/principal request allowance. Failed operations retain their admission charge; retries are new requests and existing idempotency behavior is unchanged. A throttled workspace cannot spend another workspace's allowance, but every admitted request shares the global cap.
+Each key's window begins with its first admitted request and permits the entire configured count as a burst. It resets after expiry with no accumulated credit; two bursts can straddle an expiry. The request interceptor resolves the workspace once from the decoded request, checks that the principal has a grant on that workspace, its organization, or one of its resources, then atomically checks and charges all applicable request budgets once. Requests without a workspace reference use only global/principal budgets. Authorization helpers make no admission changes.
 
-Excess requests return Connect `ResourceExhausted`, a `Retry-After` response header in seconds and retry guidance in the message. PostgreSQL failures also reject admission, preserving the caps while the shared counter cannot be checked. Retry after the indicated delay. Agent RPCs (including sync), ingest token and placement-window RPCs, ingest JWKS, registry token/key endpoints, health, configuration discovery and bootstrap are exempt so client request pressure does not stop reconciliation or credential renewal. Observability query limits remain independent.
+Write paths explicitly charge work admission after authorization and before image resolution, deployment/build writes or upload URL creation. A plan apply consumes one work admission regardless of its services or regions. These are request rates, not limits on active rollouts or build jobs; existing rollout guards still apply. A rejected request consumes none of the budgets in its admission stage. A work rejection retains the earlier request charge. Failed operations retain their admission charge, and retries are new requests. A throttled principal/workspace cannot spend another one's allowance, but all admitted requests share the global cap for the configured request scope.
+
+Excess requests return Connect `ResourceExhausted`, a `Retry-After` response header in seconds and retry guidance in the message. Cache failures reject request admission; PostgreSQL failures reject work admission. These fail closed because an unavailable counter cannot enforce its cap. Request counters perform no PostgreSQL writes; resolving a workspace may read ownership once. Agent RPCs (including sync), ingest token and placement-window RPCs, ingest JWKS, registry token/key endpoints, health, configuration discovery and bootstrap remain exempt so client request pressure does not stop reconciliation or credential renewal. Observability query limits remain independent.
 
 ## First system admin
 

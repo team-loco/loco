@@ -28,6 +28,10 @@ import (
 )
 
 const (
+	admissionGlobalRequestsEnv    = "LOCO_ADMISSION_GLOBAL_REQUESTS"
+	admissionPrincipalRequestsEnv = "LOCO_ADMISSION_PRINCIPAL_REQUESTS"
+	admissionWorkspaceRequestsEnv = "LOCO_ADMISSION_WORKSPACE_REQUESTS"
+
 	maxReplicasEnv      = "LOCO_DEFAULT_MAX_REPLICAS"
 	registryHostEnv     = "LOCO_REGISTRY_HOST"
 	registryURLEnv      = "LOCO_REGISTRY_URL"
@@ -91,6 +95,13 @@ var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
 
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
+	for _, name := range []string{
+		"LOCO_ADMISSION_WINDOW", "LOCO_ADMISSION_AGGREGATE_REQUESTS", admissionGlobalRequestsEnv,
+		admissionPrincipalRequestsEnv, admissionWorkspaceRequestsEnv, "LOCO_ADMISSION_GLOBAL_DEPLOYS",
+		"LOCO_ADMISSION_WORKSPACE_DEPLOYS", "LOCO_ADMISSION_GLOBAL_BUILDS", "LOCO_ADMISSION_WORKSPACE_BUILDS",
+	} {
+		t.Setenv(name, "")
+	}
 	t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_TTL", "")
 	t.Setenv("LOCO_AGENT_ASSERTION_MAX_LIFETIME", "")
 	t.Setenv("DATABASE_LISTEN_URL", "")
@@ -1253,10 +1264,11 @@ func TestNewAPIConfigTokenMaximum(t *testing.T) {
 }
 
 func TestAdmissionConfig(t *testing.T) {
+	t.Setenv("LOCO_ADMISSION_AGGREGATE_REQUESTS", "false")
 	names := []string{
-		"LOCO_ADMISSION_GLOBAL_REQUESTS",
-		"LOCO_ADMISSION_PRINCIPAL_REQUESTS",
-		"LOCO_ADMISSION_WORKSPACE_REQUESTS",
+		admissionGlobalRequestsEnv,
+		admissionPrincipalRequestsEnv,
+		admissionWorkspaceRequestsEnv,
 		"LOCO_ADMISSION_GLOBAL_DEPLOYS",
 		"LOCO_ADMISSION_WORKSPACE_DEPLOYS",
 		"LOCO_ADMISSION_GLOBAL_BUILDS",
@@ -1266,7 +1278,7 @@ func TestAdmissionConfig(t *testing.T) {
 		t.Setenv(name, "7")
 	}
 	t.Setenv("LOCO_ADMISSION_WINDOW", "2m")
-	config := newAdmissionConfig()
+	config := newAdmissionConfig(cacheTypeMemory)
 	if config.Window != 2*time.Minute || config.GlobalRequests != 7 || config.PrincipalRequests != 7 ||
 		config.WorkspaceRequests != 7 ||
 		config.GlobalDeploys != 7 ||
@@ -1278,9 +1290,9 @@ func TestAdmissionConfig(t *testing.T) {
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv(name, "0")
-			newAdmissionConfig()
+			newAdmissionConfig(cacheTypeMemory)
 			t.Setenv(name, "-1")
-			if err := panicValue(t, func() { newAdmissionConfig() }); !errors.Is(err, errNegative) {
+			if err := panicValue(t, func() { newAdmissionConfig(cacheTypeMemory) }); !errors.Is(err, errNegative) {
 				t.Fatalf("negative budget: %v", err)
 			}
 		})
@@ -1288,9 +1300,25 @@ func TestAdmissionConfig(t *testing.T) {
 	for _, value := range []string{"0s", "-1s", "invalid"} {
 		t.Run(value, func(t *testing.T) {
 			t.Setenv("LOCO_ADMISSION_WINDOW", value)
-			if err := panicValue(t, func() { newAdmissionConfig() }); err == nil {
+			if err := panicValue(t, func() { newAdmissionConfig(cacheTypeMemory) }); err == nil {
 				t.Fatal("invalid window accepted")
 			}
 		})
 	}
+}
+
+func TestAggregateRequestsRequireValkey(t *testing.T) {
+	t.Setenv("LOCO_ADMISSION_AGGREGATE_REQUESTS", "true")
+	if err := panicValue(t, func() { newAdmissionConfig(cacheTypeMemory) }); !errors.Is(err, errAdmissionCache) {
+		t.Fatalf("aggregate memory: %v", err)
+	}
+	if !newAdmissionConfig(cacheTypeValkey).AggregateRequests {
+		t.Fatal("aggregate setting ignored")
+	}
+	for _, name := range []string{
+		admissionGlobalRequestsEnv, admissionPrincipalRequestsEnv, admissionWorkspaceRequestsEnv,
+	} {
+		t.Setenv(name, "0")
+	}
+	newAdmissionConfig(cacheTypeMemory)
 }

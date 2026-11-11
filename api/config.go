@@ -32,6 +32,7 @@ var (
 	errAPITokenLifetime   = errors.New("LOCO_API_TOKEN_MAX_LIFETIME must be at least one second")
 	errDatabaseURLMissing = errors.New("DATABASE_URL is required")
 	errDatabasePoolSize   = errors.New("DATABASE_MIN_CONNS must not exceed DATABASE_MAX_CONNS")
+	errAdmissionCache     = errors.New("aggregate request admission requires CACHE_TYPE=valkey")
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
@@ -272,7 +273,7 @@ func newAPIConfig() *APIConfig {
 	}
 
 	return &APIConfig{
-		Admission:             newAdmissionConfig(),
+		Admission:             newAdmissionConfig(cacheType),
 		Agent:                 agentConfig,
 		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
@@ -724,8 +725,9 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 	}
 }
 
-func newAdmissionConfig() admission.Config {
-	return admission.Config{
+func newAdmissionConfig(cacheType string) admission.Config {
+	config := admission.Config{
+		AggregateRequests: envconfig.Bool("LOCO_ADMISSION_AGGREGATE_REQUESTS", cacheType == cacheTypeValkey),
 		Window:            envconfig.PositiveDuration("LOCO_ADMISSION_WINDOW", time.Minute),
 		GlobalRequests:    nonNegativeInt32Env("LOCO_ADMISSION_GLOBAL_REQUESTS", 60000),
 		PrincipalRequests: nonNegativeInt32Env("LOCO_ADMISSION_PRINCIPAL_REQUESTS", 6000),
@@ -735,4 +737,9 @@ func newAdmissionConfig() admission.Config {
 		GlobalBuilds:      nonNegativeInt32Env("LOCO_ADMISSION_GLOBAL_BUILDS", 600),
 		WorkspaceBuilds:   nonNegativeInt32Env("LOCO_ADMISSION_WORKSPACE_BUILDS", 120),
 	}
+	if config.AggregateRequests && cacheType != cacheTypeValkey &&
+		(config.GlobalRequests > 0 || config.PrincipalRequests > 0 || config.WorkspaceRequests > 0) {
+		panic(errAdmissionCache)
+	}
+	return config
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -162,6 +163,10 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
+	}
+
+	if admitErr := admission.AdmitWork(ctx, resource.WorkspaceID, admission.Deploy); admitErr != nil {
+		return nil, admitErr
 	}
 
 	// validate that request spec contains a service deployment (for now, only services are supported)

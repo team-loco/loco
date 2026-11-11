@@ -368,7 +368,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		queries, secretKeyProvider, ac.Webhooks, workspaceWebhookClient, installWebhookClient,
 	)
 	return &deps{
-		admission:         admission.New(pool, ac.Admission),
+		admission:         admission.New(pool, appCache, ac.Admission),
 		machine:           machine,
 		queries:           queries,
 		verifier:          verifier,

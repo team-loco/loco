@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -608,6 +609,10 @@ func (s *ResourceServer) ScaleResource(
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
+	}
+
+	if admitErr := admission.AdmitWork(ctx, res.WorkspaceID, admission.Deploy); admitErr != nil {
+		return nil, admitErr
 	}
 
 	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(req.GetEnvironmentId()))

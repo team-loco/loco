@@ -37,15 +37,16 @@ test_a02_deploy_budget_precedes_deployments() {
     e2e_psql "DELETE FROM api_admission WHERE key = 'deploys:global'" >/dev/null
 }
 
-test_a03_control_plane_survives_request_pressure() {
+test_a03_control_plane_survives_work_pressure() {
     admission_pressure_start=$(e2e_psql "SELECT clock_timestamp()")
-    admission_fill requests:global
-    assert "ordinary requests are throttled" admission_rejected loco.resource.v1.ResourceService/ListWorkspaceResources \
-        "{\"workspaceId\":\"$E2E_WORKSPACE_ID\"}"
+    admission_fill builds:global
+    admission_fill deploys:global
+    assert "build work is throttled" admission_rejected loco.build.v1.BuildService/CreateBuild \
+        "{\"resourceId\":\"$admission_resource\",\"sourceSize\":10,\"dockerfilePath\":\"Dockerfile\"}"
     assert "health remains available" curl -fsS "$E2E_API_URL/health"
     assert "ingest keys remain available" curl -fsS "$E2E_API_URL/.well-known/loco-ingest-jwks.json"
-    assert "agent sync continues" wait_for "agent heartbeat under admission pressure" 60 admission_heartbeat
-    e2e_psql "DELETE FROM api_admission WHERE key = 'requests:global'" >/dev/null
+    assert "agent sync continues" wait_for "agent heartbeat under work admission pressure" 60 admission_heartbeat
+    e2e_psql "DELETE FROM api_admission WHERE key IN ('builds:global', 'deploys:global')" >/dev/null
 }
 
 admission_heartbeat() {
@@ -53,5 +54,5 @@ admission_heartbeat() {
 }
 
 suite_diagnostics() {
-    e2e_psql "DELETE FROM api_admission WHERE key IN ('requests:global', 'builds:global', 'deploys:global')" >/dev/null
+    e2e_psql "DELETE FROM api_admission WHERE key IN ('builds:global', 'deploys:global')" >/dev/null
 }

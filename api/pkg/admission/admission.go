@@ -2,10 +2,8 @@ package admission
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -13,15 +11,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
-	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
-	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/api/pkg/cache"
 )
 
 type Config struct {
 	Window            time.Duration
+	AggregateRequests bool
 	GlobalRequests    int32
 	PrincipalRequests int32
 	WorkspaceRequests int32
@@ -32,12 +27,18 @@ type Config struct {
 }
 
 type Limiter struct {
-	pool   *pgxpool.Pool
-	config Config
+	pool          *pgxpool.Pool
+	config        Config
+	cache         cache.Cache
+	requestPrefix string
 }
 
-func New(pool *pgxpool.Pool, config Config) *Limiter {
-	return &Limiter{pool: pool, config: config}
+func New(pool *pgxpool.Pool, backend cache.Cache, config Config) *Limiter {
+	prefix := "{admission}:requests:"
+	if !config.AggregateRequests {
+		prefix += uuid.NewString() + ":"
+	}
+	return &Limiter{pool: pool, cache: backend, config: config, requestPrefix: prefix}
 }
 
 type budget struct {
@@ -45,98 +46,40 @@ type budget struct {
 	limit int32
 }
 
-func (l *Limiter) Interceptor() connect.ServerInterceptor {
-	return func(next connect.ServerFunc) connect.ServerFunc {
-		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
-			budgets := []budget{{key: "requests:global", limit: l.config.GlobalRequests}}
-			if p, ok := reqctx.PrincipalFrom(ctx); ok {
-				budgets = append(
-					budgets,
-					budget{
-						key:   "requests:principal:" + string(p.Entity.Type) + ":" + p.Entity.ID.String(),
-						limit: l.config.PrincipalRequests,
-					},
-				)
-			}
-			if err := l.consume(ctx, budgets); err != nil {
-				return err
-			}
-			return next(l.Context(ctx, spec.Procedure), spec, stream)
-		}
-	}
-}
-
 type contextKey struct{}
 
-type request struct {
-	limiter    *Limiter
-	procedure  string
-	mu         sync.Mutex
-	workspaces map[uuid.UUID]bool
+func (l *Limiter) Context(ctx context.Context) context.Context {
+	return context.WithValue(ctx, contextKey{}, l)
 }
 
-func (l *Limiter) Context(ctx context.Context, procedure string) context.Context {
-	return context.WithValue(
-		ctx,
-		contextKey{},
-		&request{limiter: l, procedure: procedure, workspaces: make(map[uuid.UUID]bool)},
-	)
-}
+type Work string
 
-// Authorize is called only after permission checks, so a caller cannot spend another workspace's budget.
-func Authorize(ctx context.Context, required db.EntityScope) error {
-	r, ok := ctx.Value(contextKey{}).(*request)
+const (
+	Deploy Work = "deploys"
+	Build  Work = "builds"
+)
+
+func AdmitWork(ctx context.Context, workspaceID uuid.UUID, work Work) error {
+	l, ok := ctx.Value(contextKey{}).(*Limiter)
 	if !ok {
 		return nil
 	}
-	config := r.limiter.config
-	var work string
 	var global, workspace int32
-	switch r.procedure {
-	case deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
-		planv1connect.PlanServiceApplyProcedure,
-		resourcev1connect.ResourceServiceScaleResourceProcedure:
-		work, global, workspace = "deploys", config.GlobalDeploys, config.WorkspaceDeploys
-	case buildv1connect.BuildServiceCreateBuildProcedure:
-		work, global, workspace = "builds", config.GlobalBuilds, config.WorkspaceBuilds
-	}
-	if config.WorkspaceRequests == 0 && global == 0 && workspace == 0 {
-		return nil
-	}
-	var workspaceID uuid.UUID
-	switch required.EntityType {
-	case db.EntityTypeWorkspace:
-		workspaceID = required.EntityID
-	case db.EntityTypeResource:
-		owner, err := db.New(r.limiter.pool).GetWorkspaceOrganizationIDByResourceID(ctx, required.EntityID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			// Let the handler preserve its missing-resource response.
-			return nil
-		}
-		if err != nil {
-			return exhausted(ctx, int64(config.Window.Seconds())+1).WithCause(err)
-		}
-		workspaceID = owner.WorkspaceID
+	switch work {
+	case Deploy:
+		global, workspace = l.config.GlobalDeploys, l.config.WorkspaceDeploys
+	case Build:
+		global, workspace = l.config.GlobalBuilds, l.config.WorkspaceBuilds
 	default:
-		return nil
+		panic("invalid admission work kind")
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.workspaces[workspaceID] {
-		return nil
-	}
-	budgets := []budget{{key: "requests:workspace:" + workspaceID.String(), limit: config.WorkspaceRequests}}
-	if work != "" {
-		if len(r.workspaces) == 0 {
-			budgets = append(budgets, budget{key: work + ":global", limit: global})
-		}
-		budgets = append(budgets, budget{key: work + ":workspace:" + workspaceID.String(), limit: workspace})
-	}
-	if err := r.limiter.consume(ctx, budgets); err != nil {
-		return err
-	}
-	r.workspaces[workspaceID] = true
-	return nil
+	return l.consume(
+		ctx,
+		[]budget{
+			{key: string(work) + ":global", limit: global},
+			{key: string(work) + ":workspace:" + workspaceID.String(), limit: workspace},
+		},
+	)
 }
 
 func (l *Limiter) consume(ctx context.Context, budgets []budget) error {

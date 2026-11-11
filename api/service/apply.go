@@ -12,6 +12,7 @@ import (
 
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -39,6 +40,13 @@ func (s *PlanServer) Apply(
 	ctx context.Context,
 	req *planv1.ApplyRequest,
 ) (*planv1.ApplyResponse, error) {
+	env, err := visibleEnvironment(ctx, s.queries, s.authz, uuid.MustParse(req.GetEnvironmentId()), actions.Apply)
+	if err != nil {
+		return nil, err
+	}
+	if admitErr := admission.AdmitWork(ctx, env.WorkspaceID, admission.Deploy); admitErr != nil {
+		return nil, admitErr
+	}
 	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Apply, req.GetProvision())
 	if err != nil {
 		return nil, err

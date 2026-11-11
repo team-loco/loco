@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
@@ -128,6 +129,10 @@ func (s *BuildServer) CreateBuild(
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource %s: %w", resourceID, err)
+	}
+
+	if admitErr := admission.AdmitWork(ctx, resource.WorkspaceID, admission.Build); admitErr != nil {
+		return nil, admitErr
 	}
 
 	buildID, err := uuid.NewV7()

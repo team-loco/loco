@@ -12,7 +12,6 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -31,7 +30,7 @@ func authorizeVisible(
 	}
 	err = authorizer.Check(ctx, p.Scopes, required)
 	if err == nil {
-		return admission.Authorize(ctx, required)
+		return nil
 	}
 	if !accessDenied(err) {
 		return fmt.Errorf("check access: %w", err)

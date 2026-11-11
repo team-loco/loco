@@ -96,6 +96,7 @@ type Querier interface {
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
 	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
+	GetAdmissionTarget(ctx context.Context, arg GetAdmissionTargetParams) (GetAdmissionTargetRow, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context) (uuid.UUID, error)
 	GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bool, error)

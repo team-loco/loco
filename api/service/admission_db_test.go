@@ -14,17 +14,19 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	db "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/pkg/admission"
+	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/reqctx"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
-	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 )
 
 func TestBuildAdmissionAcrossServers(t *testing.T) {
@@ -38,7 +40,7 @@ func TestBuildAdmissionAcrossServers(t *testing.T) {
 		}
 	}
 	for i := range clients {
-		limiter := admission.New(f.pool, config)
+		limiter := admission.New(f.pool, nil, config)
 		rpc := connect.NewServer(interceptor.NewErrorInterceptor(), authenticate, limiter.Interceptor())
 		buildv1connect.RegisterBuildServiceHandler(rpc, f.server)
 		mux := http.NewServeMux()
@@ -95,14 +97,13 @@ func TestDeploymentAdmissionBeforeImageResolution(t *testing.T) {
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 	)
-	limiter := admission.New(f.pool, admission.Config{Window: time.Hour, GlobalDeploys: 1})
-	scope := actions.New(actions.CreateDeployment, f.resourceID)
-	ctx := limiter.Context(f.ctx, deploymentv1connect.DeploymentServiceCreateDeploymentProcedure)
-	if err := admission.Authorize(ctx, scope); err != nil {
+	limiter := admission.New(f.pool, nil, admission.Config{Window: time.Hour, GlobalDeploys: 1})
+	ctx := limiter.Context(f.ctx)
+	if err := admission.AdmitWork(ctx, f.workspaceID(t), admission.Deploy); err != nil {
 		t.Fatal(err)
 	}
 	_, err := server.CreateDeployment(
-		limiter.Context(f.ctx, deploymentv1connect.DeploymentServiceCreateDeploymentProcedure),
+		limiter.Context(f.ctx),
 		&deploymentv1.CreateDeploymentRequest{
 			ResourceId:    f.resourceID.String(),
 			EnvironmentId: f.envID.String(),
@@ -133,17 +134,17 @@ func TestDeploymentAdmissionBeforeImageResolution(t *testing.T) {
 
 func TestUnauthorizedCallerCannotConsumeWorkAdmission(t *testing.T) {
 	f := newBuildFixture(t)
-	limiter := admission.New(f.pool, admission.Config{Window: time.Hour, GlobalBuilds: 1})
+	limiter := admission.New(f.pool, nil, admission.Config{Window: time.Hour, GlobalBuilds: 1})
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{})
 	_, err := f.server.CreateBuild(
-		limiter.Context(ctx, buildv1connect.BuildServiceCreateBuildProcedure),
+		limiter.Context(ctx),
 		&buildv1.CreateBuildRequest{ResourceId: f.resourceID.String()},
 	)
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("authorization changed: %v", err)
 	}
 	_, err = f.server.CreateBuild(
-		limiter.Context(f.ctx, buildv1connect.BuildServiceCreateBuildProcedure),
+		limiter.Context(f.ctx),
 		&buildv1.CreateBuildRequest{ResourceId: f.resourceID.String(), SourceSize: 10},
 	)
 	if err != nil {
@@ -154,21 +155,18 @@ func TestUnauthorizedCallerCannotConsumeWorkAdmission(t *testing.T) {
 func TestApplyAdmissionBeforePlanSideEffects(t *testing.T) {
 	f := newDeployFixture(t)
 	server := newPlanServer(f)
-	limiter := admission.New(f.pool, admission.Config{Window: time.Hour, WorkspaceDeploys: 1})
+	limiter := admission.New(f.pool, nil, admission.Config{Window: time.Hour, WorkspaceDeploys: 1})
 	env, err := f.queries.GetEnvironmentByID(t.Context(), f.envID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	scope := actions.New(actions.Apply, env.WorkspaceID)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []db.EntityScope{scope}})
-	if admitErr := admission.Authorize(
-		limiter.Context(ctx, planv1connect.PlanServiceApplyProcedure),
-		scope,
-	); admitErr != nil {
+	if admitErr := admission.AdmitWork(limiter.Context(ctx), env.WorkspaceID, admission.Deploy); admitErr != nil {
 		t.Fatal(admitErr)
 	}
 	_, err = server.Apply(
-		limiter.Context(ctx, planv1connect.PlanServiceApplyProcedure),
+		limiter.Context(ctx),
 		&planv1.ApplyRequest{File: []byte(planFileHeader + applyFileWorker), EnvironmentId: f.envID.String()},
 	)
 	if connect.CodeOf(err) != connect.CodeResourceExhausted {
@@ -186,23 +184,97 @@ func TestApplyAdmissionBeforePlanSideEffects(t *testing.T) {
 
 func TestAdmissionPreservesMissingResourceResponse(t *testing.T) {
 	f := newBuildFixture(t)
-	limiter := admission.New(f.pool, admission.Config{Window: time.Hour, GlobalBuilds: 1})
+	limiter := admission.New(f.pool, nil, admission.Config{Window: time.Hour, GlobalBuilds: 1})
 	resourceID := uuid.New()
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []db.EntityScope{
 		actions.New(actions.CreateBuild, resourceID),
 	}})
 	_, err := f.server.CreateBuild(
-		limiter.Context(ctx, buildv1connect.BuildServiceCreateBuildProcedure),
+		limiter.Context(ctx),
 		&buildv1.CreateBuildRequest{ResourceId: resourceID.String(), SourceSize: 10},
 	)
 	if !errors.Is(err, ErrResourceNotFound) {
 		t.Fatalf("missing resource: %v", err)
 	}
 	_, err = f.server.CreateBuild(
-		limiter.Context(f.ctx, buildv1connect.BuildServiceCreateBuildProcedure),
+		limiter.Context(f.ctx),
 		&buildv1.CreateBuildRequest{ResourceId: f.resourceID.String(), SourceSize: 10},
 	)
 	if err != nil {
 		t.Fatalf("missing resource consumed the work budget: %v", err)
+	}
+}
+
+type repeatedAuthorizationServer struct {
+	resourcev1connect.UnimplementedResourceServiceHandler
+	fixture *deployFixture
+}
+
+func (s *repeatedAuthorizationServer) ListWorkspaceResources(
+	ctx context.Context,
+	req *resourcev1.ListWorkspaceResourcesRequest,
+) (*resourcev1.ListWorkspaceResourcesResponse, error) {
+	authorizer := authz.New(s.fixture.pool, s.fixture.queries)
+	for range 2 {
+		if err := authorize(ctx, authorizer, actions.ListResources, uuid.MustParse(req.GetWorkspaceId())); err != nil {
+			return nil, err
+		}
+		if err := authorizeVisible(
+			ctx,
+			authorizer,
+			actions.New(actions.GetResource, s.fixture.resourceID),
+			ErrResourceNotFound,
+		); err != nil {
+			return nil, err
+		}
+	}
+	return &resourcev1.ListWorkspaceResourcesResponse{}, nil
+}
+
+func TestRequestAdmissionChargesOnceAcrossAuthorizationDecisions(t *testing.T) {
+	f := newDeployFixture(t)
+	backend, err := cache.NewMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backend.Close()
+	limiter := admission.New(
+		f.pool,
+		backend,
+		admission.Config{Window: time.Hour, GlobalRequests: 2, WorkspaceRequests: 1},
+	)
+	p := reqctx.Principal{Scopes: f.workspaceReadScopes(t)}
+	authenticate := func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			return next(reqctx.WithPrincipal(ctx, p), spec, stream)
+		}
+	}
+	rpc := connect.NewServer(authenticate, limiter.Interceptor())
+	resourcev1connect.RegisterResourceServiceHandler(rpc, &repeatedAuthorizationServer{fixture: f})
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, rpc)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := resourcev1connect.NewResourceServiceClient(
+		connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)),
+	)
+	request := &resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: f.workspaceID(t).String()}
+	if _, err := client.ListWorkspaceResources(t.Context(), request); err != nil {
+		t.Fatalf("repeated authorization spent request capacity: %v", err)
+	}
+	if _, err := client.ListWorkspaceResources(
+		t.Context(),
+		request,
+	); connect.CodeOf(
+		err,
+	) != connect.CodeResourceExhausted {
+		t.Fatalf("second RPC: %v", err)
+	}
+	// Authorization decisions outside an RPC must not consume admission capacity either.
+	ctx := limiter.Context(reqctx.WithPrincipal(t.Context(), p))
+	for range 3 {
+		if err := authorize(ctx, authz.New(f.pool, f.queries), actions.ListResources, f.workspaceID(t)); err != nil {
+			t.Fatalf("pure authorization: %v", err)
+		}
 	}
 }

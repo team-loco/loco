@@ -17,6 +17,7 @@ var ErrNotFound = errors.New("cache: key not found")
 
 // Cache defines the interface for key-value caching operations
 type Cache interface {
+	Admit(ctx context.Context, budgets []Budget, window time.Duration) (time.Duration, error)
 	// Get retrieves a value by key. Returns ErrNotFound if key doesn't exist.
 	Get(ctx context.Context, key string) ([]byte, error)
 
@@ -42,8 +43,10 @@ const (
 )
 
 type MemoryCache struct {
-	mu    sync.Mutex
-	cache *ristretto.Cache[string, []byte]
+	mu             sync.Mutex
+	cache          *ristretto.Cache[string, []byte]
+	counters       map[string]counter
+	counterCleanup time.Time
 }
 
 func NewMemory() (*MemoryCache, error) {
@@ -55,7 +58,7 @@ func NewMemory() (*MemoryCache, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create in-memory cache: %w", err)
 	}
-	return &MemoryCache{cache: c}, nil
+	return &MemoryCache{cache: c, counters: make(map[string]counter)}, nil
 }
 
 func (m *MemoryCache) Get(_ context.Context, key string) ([]byte, error) {

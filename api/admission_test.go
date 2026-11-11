@@ -10,9 +10,11 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db/dbtest"
 	db "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/admission"
+	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -35,8 +37,15 @@ func TestAdmissionExemptsControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	backend, err := cache.NewMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backend.Close()
+	limiter := admission.New(pool, backend, config)
 	d := &deps{
-		admission: admission.New(pool, config),
+		admission: limiter,
+		auth:      service.NewAuthServer(pool, queries, nil, backend, auth.Admins{}, "https://dashboard.test"),
 		config:    service.NewConfigServer("", "", servicedefaults.Defaults{}, nil, nil),
 		agent:     service.NewAgentServer(pool, queries, nil, nil, nil, time.Second, service.AgentConfig{}),
 		ingest: service.NewIngestServer(
@@ -58,9 +67,13 @@ func TestAdmissionExemptsControlPlane(t *testing.T) {
 	server.StartTLS()
 	defer server.Close()
 	client := connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL))
+	if _, firstErr := authv1connect.NewAuthServiceClient(client).
+		StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{}); firstErr != nil {
+		t.Fatal(firstErr)
+	}
 	_, err = authv1connect.NewAuthServiceClient(client).StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if connect.CodeOf(err) != connect.CodeResourceExhausted {
-		t.Fatalf("request admitted during outage: %v", err)
+		t.Fatalf("request admitted past its budget: %v", err)
 	}
 	_, err = configv1connect.NewConfigServiceClient(client).GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {

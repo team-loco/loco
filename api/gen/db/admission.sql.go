@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const consumeAdmission = `-- name: ConsumeAdmission :one
@@ -32,5 +34,43 @@ func (q *Queries) ConsumeAdmission(ctx context.Context, arg ConsumeAdmissionPara
 	row := q.db.QueryRow(ctx, consumeAdmission, arg.Key, arg.WindowSeconds)
 	var i ConsumeAdmissionRow
 	err := row.Scan(&i.Used, &i.RetrySeconds)
+	return i, err
+}
+
+const getAdmissionTarget = `-- name: GetAdmissionTarget :one
+WITH target AS (
+ SELECT workspace_id FROM resources WHERE $2::text = 'resource_id' AND id = $3::uuid
+ UNION ALL
+ SELECT id FROM workspaces WHERE $2::text = 'workspace_id' AND id = $3::uuid
+ UNION ALL
+ SELECT workspace_id FROM environments WHERE $2::text = 'environment_id' AND id = $3::uuid
+ UNION ALL
+ SELECT r.workspace_id FROM builds b JOIN resources r ON r.id = b.resource_id WHERE $2::text = 'build_id' AND b.id = $3::uuid
+ UNION ALL
+ SELECT r.workspace_id FROM deployments d JOIN resources r ON r.id = d.resource_id WHERE $2::text = 'deployment_id' AND d.id = $3::uuid
+ UNION ALL
+ SELECT r.workspace_id FROM resource_domains d JOIN resources r ON r.id = d.resource_id WHERE $2::text = 'domain_id' AND d.id = $3::uuid
+)
+SELECT target.workspace_id, w.org_id, EXISTS (
+ SELECT 1 FROM resources r WHERE r.workspace_id = w.id AND r.id = ANY($1::uuid[])
+) AS resource_grant FROM target JOIN workspaces w ON w.id = target.workspace_id
+`
+
+type GetAdmissionTargetParams struct {
+	ResourceIds []uuid.UUID `json:"resourceIds"`
+	Kind        string      `json:"kind"`
+	ID          uuid.UUID   `json:"id"`
+}
+
+type GetAdmissionTargetRow struct {
+	WorkspaceID   uuid.UUID `json:"workspaceId"`
+	OrgID         uuid.UUID `json:"orgId"`
+	ResourceGrant bool      `json:"resourceGrant"`
+}
+
+func (q *Queries) GetAdmissionTarget(ctx context.Context, arg GetAdmissionTargetParams) (GetAdmissionTargetRow, error) {
+	row := q.db.QueryRow(ctx, getAdmissionTarget, arg.ResourceIds, arg.Kind, arg.ID)
+	var i GetAdmissionTargetRow
+	err := row.Scan(&i.WorkspaceID, &i.OrgID, &i.ResourceGrant)
 	return i, err
 }
