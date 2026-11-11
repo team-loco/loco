@@ -32,6 +32,17 @@ func authorizeSystem(ctx context.Context, authorizer *authz.Authorizer, action a
 	return check(ctx, authorizer, p, actions.NewSystem(action))
 }
 
+// grantedResourceIDs returns the resources the scopes name directly, with any scope.
+func grantedResourceIDs(scopes []genDb.EntityScope) []uuid.UUID {
+	var ids []uuid.UUID
+	for _, scope := range scopes {
+		if scope.EntityType == genDb.EntityTypeResource {
+			ids = append(ids, scope.EntityID)
+		}
+	}
+	return ids
+}
+
 // principalFrom returns the caller the auth interceptor attached to ctx.
 func principalFrom(ctx context.Context) (reqctx.Principal, error) {
 	p, ok := reqctx.PrincipalFrom(ctx)

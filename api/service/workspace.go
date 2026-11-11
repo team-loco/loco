@@ -225,18 +225,11 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	}
 
 	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
-	var resourceIDs []uuid.UUID
-	for _, scope := range p.Scopes {
-		if scope.EntityType == genDb.EntityTypeResource {
-			resourceIDs = append(resourceIDs, scope.EntityID)
-		}
-	}
-
 	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
 		OrgID:         orgID,
 		AllWorkspaces: allWorkspaces,
 		WorkspaceIds:  workspaceIDs,
-		ResourceIds:   resourceIDs,
+		ResourceIds:   grantedResourceIDs(p.Scopes),
 		Limit:         pageSize,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,

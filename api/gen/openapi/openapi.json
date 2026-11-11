@@ -2495,7 +2495,7 @@
           "loco.environment.v1.EnvironmentService"
         ],
         "summary": "ListEnvironments",
-        "description": "ListEnvironments lists all environments in a workspace.",
+        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name and type.",
         "operationId": "loco.environment.v1.EnvironmentService.ListEnvironments",
         "parameters": [
           {

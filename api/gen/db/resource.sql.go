@@ -594,3 +594,22 @@ func (q *Queries) UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpec
 	_, err := q.db.Exec(ctx, updateResourceSpec, arg.ID, arg.Spec)
 	return err
 }
+
+const workspaceHoldsAnyResource = `-- name: WorkspaceHoldsAnyResource :one
+SELECT EXISTS (
+  SELECT 1 FROM resources
+  WHERE workspace_id = $1 AND id = ANY($2::uuid[])
+)
+`
+
+type WorkspaceHoldsAnyResourceParams struct {
+	WorkspaceID uuid.UUID   `json:"workspaceId"`
+	ResourceIds []uuid.UUID `json:"resourceIds"`
+}
+
+func (q *Queries) WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error) {
+	row := q.db.QueryRow(ctx, workspaceHoldsAnyResource, arg.WorkspaceID, arg.ResourceIds)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
