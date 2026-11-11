@@ -21,6 +21,7 @@ service OrgService {
   // ListUserOrgs lists organizations for a user.
   rpc ListUserOrgs(ListUserOrgsRequest) returns (ListUserOrgsResponse);
   rpc ListOrgMembers(ListOrgMembersRequest) returns (ListOrgMembersResponse);
+  rpc SetOrgMemberRole(SetOrgMemberRoleRequest) returns (SetOrgMemberRoleResponse);
   rpc RemoveOrgMember(RemoveOrgMemberRequest) returns (RemoveOrgMemberResponse);
 
   // SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
@@ -114,6 +115,23 @@ message RemoveOrgMemberRequest {
 }
 
 message RemoveOrgMemberResponse {}
+
+enum OrgRole {
+  ORG_ROLE_UNSPECIFIED = 0;
+  ORG_ROLE_ADMIN = 1;
+  ORG_ROLE_MEMBER = 2;
+}
+
+message SetOrgMemberRoleRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+  OrgRole role = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+message SetOrgMemberRoleResponse {}
 
 enum InvitationStatus {
   INVITATION_STATUS_UNSPECIFIED = 0;

@@ -35,6 +35,7 @@ const (
 	MemberAdded          = "member.added"
 	MemberRemoved        = "member.removed"
 	OrgMemberAdded       = "org_member.added"
+	OrgMemberRoleChanged = "org_member.role_changed"
 	OrgMemberRemoved     = "org_member.removed"
 	InvitationCreated    = "invitation.created"
 	InvitationClaimed    = "invitation.claimed"

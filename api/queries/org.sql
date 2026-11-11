@@ -130,3 +130,6 @@ JOIN workspaces w ON w.org_id = o.id
 JOIN resources r ON r.workspace_id = w.id
 WHERE r.id = $1
 FOR SHARE OF o;
+
+-- name: LockOrgForMembership :one
+SELECT id FROM organizations WHERE id = $1 FOR UPDATE;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -35,6 +36,10 @@ var (
 		connect.CodeFailedPrecondition,
 		"you cannot remove yourself from the organization",
 	)
+	errOrgMemberNotFound = rpcerr.NewCoded(connect.CodeNotFound, "organization member not found")
+	errLastOrgAdmin      = rpcerr.NewCoded(connect.CodeFailedPrecondition, "organization must keep at least one admin")
+	errInvalidOrgRole    = rpcerr.NewCoded(connect.CodeInvalidArgument, "role must be Admin or Member")
+
 	errCreateIfMissingForOtherUser = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"create_if_missing requires user_id to be the caller",
@@ -414,6 +419,144 @@ func (s *OrgServer) ListOrgMembers(
 	}, nil
 }
 
+func (s *OrgServer) SetOrgMemberRole(
+	ctx context.Context,
+	req *orgv1.SetOrgMemberRoleRequest,
+) (*orgv1.SetOrgMemberRoleResponse, error) {
+	orgID, err := parseID("org_id", req.GetOrgId())
+	if err != nil {
+		return nil, err
+	}
+	userID, err := parseID("user_id", req.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	var scopes []genDb.Scope
+	switch req.GetRole() {
+	case orgv1.OrgRole_ORG_ROLE_ADMIN:
+		scopes = []genDb.Scope{genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin}
+	case orgv1.OrgRole_ORG_ROLE_MEMBER:
+		scopes = []genDb.Scope{genDb.ScopeMember}
+	default:
+		return nil, errInvalidOrgRole
+	}
+	if err = authorize(ctx, s.authz, actions.SetOrgMemberRole, orgID); err != nil {
+		return nil, err
+	}
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if err = s.lockOrgMembership(ctx, qtx, orgID, actions.SetOrgMemberRole); err != nil {
+			return err
+		}
+		if _, lockErr := qtx.LockUserForMembership(ctx, userID); errors.Is(lockErr, pgx.ErrNoRows) {
+			return errOrgMemberNotFound
+		} else if lockErr != nil {
+			return fmt.Errorf("lock user: %w", lockErr)
+		}
+		member, memberErr := qtx.IsOrgMember(ctx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
+		if memberErr != nil {
+			return fmt.Errorf("check organization membership: %w", memberErr)
+		}
+		if !member {
+			return errOrgMemberNotFound
+		}
+		if req.GetRole() == orgv1.OrgRole_ORG_ROLE_MEMBER {
+			if err = keepOrgAdmin(ctx, qtx, orgID, userID); err != nil {
+				return err
+			}
+		}
+		// Add first so membership never disappears while replacing the organization scopes.
+		for _, scope := range scopes {
+			if err = qtx.AddUserScope(
+				ctx,
+				genDb.AddUserScopeParams{
+					UserID:     userID,
+					EntityType: genDb.EntityTypeOrganization,
+					EntityID:   orgID,
+					Scope:      scope,
+				},
+			); err != nil {
+				return fmt.Errorf("add organization scope: %w", err)
+			}
+		}
+		for _, scope := range []genDb.Scope{genDb.ScopeMember, genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
+			if slices.Contains(scopes, scope) {
+				continue
+			}
+			if err = qtx.RemoveUserScope(
+				ctx,
+				genDb.RemoveUserScopeParams{
+					UserID:     userID,
+					EntityType: genDb.EntityTypeOrganization,
+					EntityID:   orgID,
+					Scope:      scope,
+				},
+			); err != nil {
+				return fmt.Errorf("remove organization scope: %w", err)
+			}
+		}
+		return events.Record(
+			ctx,
+			qtx,
+			events.Event{
+				Type:        events.OrgMemberRoleChanged,
+				OrgID:       new(orgID),
+				SubjectType: events.SubjectUser,
+				SubjectID:   new(userID),
+				Data:        map[string]any{events.FieldScopes: scopes},
+			},
+		)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &orgv1.SetOrgMemberRoleResponse{}, nil
+}
+
+func (s *OrgServer) lockOrgMembership(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	orgID uuid.UUID,
+	action actions.Action,
+) error {
+	// Serialize removals and demotions before counting admins or trusting the caller's scopes.
+	if _, err := qtx.LockOrgForMembership(ctx, orgID); errors.Is(err, pgx.ErrNoRows) {
+		return ErrOrgNotFound
+	} else if err != nil {
+		return fmt.Errorf("lock organization: %w", err)
+	}
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if p.Entity.Type == genDb.EntityTypeUser {
+		fresh, err := authz.New(s.db, qtx).UserScopes(ctx, p.Entity.ID)
+		if err != nil {
+			return fmt.Errorf("reload caller scopes: %w", err)
+		}
+		p.Scopes = fresh
+		return check(ctx, s.authz, p, actions.New(action, orgID))
+	}
+	return nil
+}
+
+func keepOrgAdmin(ctx context.Context, qtx *genDb.Queries, orgID, userID uuid.UUID) error {
+	admins, err := qtx.GetUsersWithScopeOnEntity(
+		ctx,
+		genDb.GetUsersWithScopeOnEntityParams{
+			EntityType: genDb.EntityTypeOrganization,
+			EntityID:   orgID,
+			Scope:      genDb.ScopeAdmin,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("list organization admins: %w", err)
+	}
+	if len(admins) == 1 && admins[0] == userID {
+		return errLastOrgAdmin
+	}
+	return nil
+}
+
 func (s *OrgServer) RemoveOrgMember(
 	ctx context.Context,
 	req *orgv1.RemoveOrgMemberRequest,
@@ -436,6 +579,12 @@ func (s *OrgServer) RemoveOrgMember(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if err = s.lockOrgMembership(ctx, qtx, orgID, actions.RemoveOrgMember); err != nil {
+			return err
+		}
+		if err = keepOrgAdmin(ctx, qtx, orgID, userID); err != nil {
+			return err
+		}
 		_, lockErr := qtx.LockUserForMembership(ctx, userID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return ErrUserNotFound
