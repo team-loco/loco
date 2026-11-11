@@ -27,7 +27,10 @@ func createNamedResource(t *testing.T, f *deployFixture, name string) (*resource
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
+	ctx := reqctx.WithPrincipal(
+		context.Background(),
+		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+	)
 	return server.CreateResource(ctx, &resourcev1.CreateResourceRequest{
 		WorkspaceId: workspaceID.String(),
 		Name:        name,

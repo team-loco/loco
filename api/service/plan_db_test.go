@@ -222,9 +222,10 @@ func (f *deployFixture) runBuild(t *testing.T, resourceName string, buildID uuid
 		`"port":8080,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}`,
 		testRegistryHost, resourceName, testDigest, buildID)
 	insert := `
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active,
+INSERT INTO deployments (actor_type, actor_id, method, resource_id, cluster_id, region, replicas, status, is_active,
                          message, spec, spec_version, environment_id, started_at)
-SELECT id, $3, $2, 1, 'running', true, '', $4, 1, $5, NOW() FROM resources WHERE name = $1`
+SELECT 'user', '00000000-0000-0000-0000-000000000000', 'cli', id, $3, $2, 1, 'running', true, '',
+       $4, 1, $5, NOW() FROM resources WHERE name = $1`
 	args := []any{resourceName, testRegion, f.clusterID, spec, f.envID}
 	if _, err := f.pool.Exec(context.Background(), insert, args...); err != nil {
 		t.Fatalf("run build for %s: %v", resourceName, err)

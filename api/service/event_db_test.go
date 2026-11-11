@@ -44,7 +44,15 @@ func scoped(t *testing.T, q genDb.Querier, userID uuid.UUID) context.Context {
 		t.Fatalf("scopes: %v", err)
 	}
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
-	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
+	return reqctx.WithPrincipal(
+		t.Context(),
+		reqctx.Principal{
+			ActorType: string(genDb.EntityTypeUser),
+			Method:    genDb.DeploymentMethodWeb,
+			Entity:    entity,
+			Scopes:    scopes,
+		},
+	)
 }
 
 func newEventFixture(t *testing.T) *eventFixture {
@@ -419,6 +427,17 @@ type scopeInjector func() []genDb.EntityScope
 
 func (s scopeInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
 	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
-		return next(reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: s()}), spec, stream)
+		return next(
+			reqctx.WithPrincipal(
+				ctx,
+				reqctx.Principal{
+					ActorType: string(genDb.EntityTypeUser),
+					Method:    genDb.DeploymentMethodWeb,
+					Scopes:    s(),
+				},
+			),
+			spec,
+			stream,
+		)
 	}
 }

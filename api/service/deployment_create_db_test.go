@@ -98,7 +98,10 @@ func deployRequest(
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	ctx := reqctx.WithPrincipal(
+		t.Context(),
+		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+	)
 	return server.CreateDeployment(ctx, req)
 }
 

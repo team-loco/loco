@@ -803,11 +803,11 @@ func (f *secretFixture) tokenContext(t *testing.T, entity genDb.Entity, scopes [
 	if err != nil {
 		t.Fatalf("issue %s token: %v", entity.Type, err)
 	}
-	resolved, tokenScopes, err := f.machine.GetToken(t.Context(), token)
+	principal, err := f.machine.GetToken(t.Context(), token)
 	if err != nil {
 		t.Fatalf("resolve %s token: %v", entity.Type, err)
 	}
-	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: resolved, Scopes: tokenScopes})
+	return reqctx.WithPrincipal(t.Context(), principal)
 }
 
 func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {

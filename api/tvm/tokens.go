@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	queries "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/internal/bearer"
 )
 
@@ -23,17 +24,17 @@ import (
 // API tokens (loco_k_...): scopes are the baked-in set from creation and never change.
 //
 // Refresh tokens (loco_r_...) are rejected — they are not valid access credentials.
-func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.Entity, []queries.EntityScope, error) {
+func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.Principal, error) {
 	hash := bearer.Hash(token)
 
 	switch tokenPrefix(token) {
 	case prefixSession:
 		session, err := tvm.queries.GetSessionWithScopesByAccessToken(ctx, hash)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return queries.Entity{}, nil, ErrInvalidExpiredToken
+			return reqctx.Principal{}, ErrInvalidExpiredToken
 		}
 		if err != nil {
-			return queries.Entity{}, nil, fmt.Errorf("get session: %w", err)
+			return reqctx.Principal{}, fmt.Errorf("get session: %w", err)
 		}
 
 		entity := queries.Entity{
@@ -43,20 +44,27 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 
 		var liveScopes []queries.EntityScope
 		if err := json.Unmarshal(session.Scopes, &liveScopes); err != nil {
-			return queries.Entity{}, nil, fmt.Errorf("decode session scopes: %w", err)
+			return reqctx.Principal{}, fmt.Errorf("decode session scopes: %w", err)
 		}
 
 		tvm.touchSessionLastUsed(ctx, session.ID, session.LastUsedAt)
 
-		return entity, liveScopes, nil
+		return reqctx.Principal{
+			Entity:    entity,
+			Scopes:    liveScopes,
+			Token:     token,
+			ActorType: string(queries.EntityTypeUser),
+			ActorID:   session.UserID,
+			Method:    queries.DeploymentMethodCli,
+		}, nil
 
 	case prefixAPIKey:
 		tok, err := tvm.queries.GetAPIToken(ctx, hash)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return queries.Entity{}, nil, ErrInvalidExpiredToken
+			return reqctx.Principal{}, ErrInvalidExpiredToken
 		}
 		if err != nil {
-			return queries.Entity{}, nil, fmt.Errorf("get api token: %w", err)
+			return reqctx.Principal{}, fmt.Errorf("get api token: %w", err)
 		}
 
 		entity := queries.Entity{
@@ -66,10 +74,17 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 
 		tvm.touchAPITokenLastUsed(ctx, tok.ID, tok.LastUsedAt)
 
-		return entity, tok.Scopes, nil
+		return reqctx.Principal{
+			Entity:    entity,
+			Scopes:    tok.Scopes,
+			Token:     token,
+			ActorType: "api_token",
+			ActorID:   tok.ID,
+			Method:    queries.DeploymentMethodApiToken,
+		}, nil
 
 	default:
-		return queries.Entity{}, nil, ErrInvalidExpiredToken
+		return reqctx.Principal{}, ErrInvalidExpiredToken
 	}
 }
 

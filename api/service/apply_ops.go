@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -46,6 +47,7 @@ type applier struct {
 	started         []*planv1.StartedDeployment
 	provisioning    bool
 	silentAfter     time.Duration
+	commit          *deploymentv1.SourceCommit
 }
 
 func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
@@ -272,6 +274,7 @@ func (a *applier) deploy(
 			a.env.Name,
 			a.defaults,
 		)
+		principal, _ := reqctx.PrincipalFrom(ctx)
 		deploymentID, deployErr := createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
 			ResourceID:    res.ID,
 			ClusterID:     cluster.ID,
@@ -284,6 +287,11 @@ func (a *applier) deploy(
 			SpecVersion:   specVersion,
 			EnvironmentID: a.env.ID,
 			SecretNames:   secretNames,
+			ActorType:     principal.ActorType,
+			ActorID:       principal.ActorID,
+			Method:        principal.Method,
+			CommitSha:     sourceCommitSHA(a.commit),
+			CommitDirty:   a.commit.GetDirty(),
 		}, buildSpec)
 		if deployErr != nil {
 			return deployErr

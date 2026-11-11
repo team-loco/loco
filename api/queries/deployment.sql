@@ -1,8 +1,8 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, started_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, started_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
 RETURNING id;
 
 -- name: GetDeploymentByID :one
@@ -12,7 +12,11 @@ SELECT * FROM deployments WHERE id = $1;
 SELECT status, message FROM deployments WHERE id = $1;
 
 -- name: ListDeploymentsForResource :many
-SELECT * FROM deployments d
+SELECT sqlc.embed(d), COALESCE(u.name, t.name, '')::text AS actor_name,
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+FROM deployments d
+LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 WHERE d.resource_id = $1
   AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id')::uuid)
   AND (sqlc.narg('page_token')::text IS NULL
@@ -83,3 +87,11 @@ WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
 SELECT * FROM deployments
 WHERE environment_id = $1 AND is_active = true
 ORDER BY resource_id, created_at DESC;
+
+-- name: GetDeploymentActor :one
+SELECT COALESCE(u.name, t.name, '')::text AS name,
+       COALESCE(u.avatar_url, '')::text AS avatar_url
+FROM deployments d
+LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+WHERE d.id = $1;

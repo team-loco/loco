@@ -117,13 +117,13 @@ func (f *authFixture) assertWorks(t *testing.T, tokens *authv1.CLITokens) {
 	if tokens.GetAccessToken() == "" || tokens.GetRefreshToken() == "" || tokens.GetExpiresIn() != 3600 {
 		t.Fatalf("tokens = %+v", tokens)
 	}
-	entity, _, err := f.machine.GetToken(t.Context(), tokens.GetAccessToken())
+	principal, err := f.machine.GetToken(t.Context(), tokens.GetAccessToken())
 	if err != nil {
 		t.Fatalf("issued access token rejected: %v", err)
 	}
 	want, ok := reqctx.PrincipalFrom(f.webCtx)
-	if !ok || entity.ID != want.Entity.ID {
-		t.Fatalf("token belongs to %s, want %s", entity.ID, want.Entity.ID)
+	if !ok || principal.Entity.ID != want.Entity.ID {
+		t.Fatalf("token belongs to %s, want %s", principal.Entity.ID, want.Entity.ID)
 	}
 }
 
@@ -369,7 +369,7 @@ func TestCLIRefreshChecksIdentity(t *testing.T) {
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("refresh of a disabled identity: %v", err)
 	}
-	if _, _, tokenErr := f.machine.GetToken(t.Context(), current.GetAccessToken()); tokenErr == nil {
+	if _, tokenErr := f.machine.GetToken(t.Context(), current.GetAccessToken()); tokenErr == nil {
 		t.Fatal("access token of a disabled identity still works")
 	}
 

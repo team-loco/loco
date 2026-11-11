@@ -66,7 +66,14 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 		testSecretConfig(),
 		testClusterSilentAfter,
 	)
-	readCtx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
+	readCtx := reqctx.WithPrincipal(
+		context.Background(),
+		reqctx.Principal{
+			ActorType: string(genDb.EntityTypeUser),
+			Method:    genDb.DeploymentMethodWeb,
+			Scopes:    f.workspaceReadScopes(t),
+		},
+	)
 	planned, err := server.Plan(readCtx, &planv1.PlanRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),
@@ -80,7 +87,14 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 	}
 
 	resolver.digest = movedDigest
-	writeCtx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.applyScopes(t)})
+	writeCtx := reqctx.WithPrincipal(
+		context.Background(),
+		reqctx.Principal{
+			ActorType: string(genDb.EntityTypeUser),
+			Method:    genDb.DeploymentMethodWeb,
+			Scopes:    f.applyScopes(t),
+		},
+	)
 	_, err = server.Apply(writeCtx, &planv1.ApplyRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),

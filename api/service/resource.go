@@ -816,6 +816,7 @@ func (s *ResourceServer) planRegionRedeploy(
 		return regionRedeploy{}, err
 	}
 
+	principal, _ := reqctx.PrincipalFrom(ctx)
 	return regionRedeploy{
 		params: genDb.CreateDeploymentParams{
 			ResourceID:    current.ResourceID,
@@ -829,6 +830,11 @@ func (s *ResourceServer) planRegionRedeploy(
 			SpecVersion:   specVersion,
 			EnvironmentID: current.EnvironmentID,
 			SecretNames:   current.SecretNames,
+			ActorType:     principal.ActorType,
+			ActorID:       principal.ActorID,
+			Method:        principal.Method,
+			CommitSha:     current.CommitSha,
+			CommitDirty:   current.CommitDirty,
 		},
 		deploymentSpec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{

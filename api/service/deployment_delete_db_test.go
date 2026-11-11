@@ -25,7 +25,10 @@ func (f *deployFixture) deploymentWriter(t *testing.T) (*DeploymentServer, conte
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	return server, reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	return server, reqctx.WithPrincipal(
+		t.Context(),
+		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+	)
 }
 
 func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {

@@ -59,6 +59,49 @@ func (ns NullBuildStatus) Value() (driver.Value, error) {
 	return string(ns.BuildStatus), nil
 }
 
+type DeploymentMethod string
+
+const (
+	DeploymentMethodApiToken DeploymentMethod = "api_token"
+	DeploymentMethodCli      DeploymentMethod = "cli"
+	DeploymentMethodWeb      DeploymentMethod = "web"
+)
+
+func (e *DeploymentMethod) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DeploymentMethod(s)
+	case string:
+		*e = DeploymentMethod(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DeploymentMethod: %T", src)
+	}
+	return nil
+}
+
+type NullDeploymentMethod struct {
+	DeploymentMethod DeploymentMethod `json:"deploymentMethod"`
+	Valid            bool             `json:"valid"` // Valid is true if DeploymentMethod is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDeploymentMethod) Scan(value interface{}) error {
+	if value == nil {
+		ns.DeploymentMethod, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DeploymentMethod.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDeploymentMethod) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DeploymentMethod), nil
+}
+
 type DeploymentStatus string
 
 const (
@@ -407,6 +450,11 @@ type Deployment struct {
 	EnvironmentID uuid.UUID        `json:"environmentId"`
 	Spec          []byte           `json:"spec"`
 	SpecVersion   int32            `json:"specVersion"`
+	ActorType     string           `json:"actorType"`
+	ActorID       uuid.UUID        `json:"actorId"`
+	Method        DeploymentMethod `json:"method"`
+	CommitSha     *string          `json:"commitSha"`
+	CommitDirty   bool             `json:"commitDirty"`
 	SecretNames   []string         `json:"secretNames"`
 	CreatedAt     time.Time        `json:"createdAt"`
 	StartedAt     time.Time        `json:"startedAt"`

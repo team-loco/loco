@@ -8,6 +8,7 @@ package planv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -110,7 +111,8 @@ type ApplyRequest struct {
 	// before the file is applied. The secrets the provisioned services declare need not be set
 	// yet; every other plan error still refuses the apply. A request sets provision or builds,
 	// not both.
-	Provision     []string `protobuf:"bytes,8,rep,name=provision,proto3" json:"provision,omitempty"`
+	Provision     []string         `protobuf:"bytes,8,rep,name=provision,proto3" json:"provision,omitempty"`
+	Commit        *v1.SourceCommit `protobuf:"bytes,9,opt,name=commit,proto3" json:"commit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -197,6 +199,13 @@ func (x *ApplyRequest) GetBuilds() map[string]string {
 func (x *ApplyRequest) GetProvision() []string {
 	if x != nil {
 		return x.Provision
+	}
+	return nil
+}
+
+func (x *ApplyRequest) GetCommit() *v1.SourceCommit {
+	if x != nil {
+		return x.Commit
 	}
 	return nil
 }
@@ -731,7 +740,7 @@ var File_loco_plan_v1_plan_proto protoreflect.FileDescriptor
 
 const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\"\x9f\x04\n" +
+	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\x1a#loco/deployment/v1/deployment.proto\"\xd9\x04\n" +
 	"\fApplyRequest\x12\x1f\n" +
 	"\x04file\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80@R\x04file\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x1a\n" +
@@ -740,7 +749,8 @@ const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\x0econfirm_import\x18\x05 \x01(\bR\rconfirmImport\x12H\n" +
 	"\x06images\x18\x06 \x03(\v2&.loco.plan.v1.ApplyRequest.ImagesEntryB\b\xbaH\x05\x9a\x01\x02\x10dR\x06images\x12W\n" +
 	"\x06builds\x18\a \x03(\v2&.loco.plan.v1.ApplyRequest.BuildsEntryB\x17\xbaH\x14\x9a\x01\x11\x10d\"\x06r\x04\x10\x01\x18?*\x05r\x03\xb0\x01\x01R\x06builds\x120\n" +
-	"\tprovision\x18\b \x03(\tB\x12\xbaH\x0f\x92\x01\f\x10d\x18\x01\"\x06r\x04\x10\x01\x18?R\tprovision\x1a9\n" +
+	"\tprovision\x18\b \x03(\tB\x12\xbaH\x0f\x92\x01\f\x10d\x18\x01\"\x06r\x04\x10\x01\x18?R\tprovision\x128\n" +
+	"\x06commit\x18\t \x01(\v2 .loco.deployment.v1.SourceCommitR\x06commit\x1a9\n" +
 	"\vImagesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a9\n" +
@@ -831,29 +841,31 @@ var file_loco_plan_v1_plan_proto_goTypes = []any{
 	nil,                       // 11: loco.plan.v1.ApplyRequest.BuildsEntry
 	nil,                       // 12: loco.plan.v1.ApplyRefusal.ImagesEntry
 	nil,                       // 13: loco.plan.v1.PlanResponse.ImagesEntry
+	(*v1.SourceCommit)(nil),   // 14: loco.deployment.v1.SourceCommit
 }
 var file_loco_plan_v1_plan_proto_depIdxs = []int32{
 	10, // 0: loco.plan.v1.ApplyRequest.images:type_name -> loco.plan.v1.ApplyRequest.ImagesEntry
 	11, // 1: loco.plan.v1.ApplyRequest.builds:type_name -> loco.plan.v1.ApplyRequest.BuildsEntry
-	7,  // 2: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	3,  // 3: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
-	9,  // 4: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
-	7,  // 5: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
-	12, // 6: loco.plan.v1.ApplyRefusal.images:type_name -> loco.plan.v1.ApplyRefusal.ImagesEntry
-	7,  // 7: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	9,  // 8: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
-	13, // 9: loco.plan.v1.PlanResponse.images:type_name -> loco.plan.v1.PlanResponse.ImagesEntry
-	0,  // 10: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
-	8,  // 11: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
-	5,  // 12: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
-	1,  // 13: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
-	6,  // 14: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
-	2,  // 15: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
-	14, // [14:16] is the sub-list for method output_type
-	12, // [12:14] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	14, // 2: loco.plan.v1.ApplyRequest.commit:type_name -> loco.deployment.v1.SourceCommit
+	7,  // 3: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	3,  // 4: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
+	9,  // 5: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
+	7,  // 6: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
+	12, // 7: loco.plan.v1.ApplyRefusal.images:type_name -> loco.plan.v1.ApplyRefusal.ImagesEntry
+	7,  // 8: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	9,  // 9: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
+	13, // 10: loco.plan.v1.PlanResponse.images:type_name -> loco.plan.v1.PlanResponse.ImagesEntry
+	0,  // 11: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
+	8,  // 12: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
+	5,  // 13: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
+	1,  // 14: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
+	6,  // 15: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
+	2,  // 16: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
+	15, // [15:17] is the sub-list for method output_type
+	13, // [13:15] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_loco_plan_v1_plan_proto_init() }
