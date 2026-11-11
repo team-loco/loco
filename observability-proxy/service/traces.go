@@ -20,7 +20,7 @@ func (s *ObservabilityService) QueryTraces(
 	if err := guardrails.ValidateTracesRequest(req, s.cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
-	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
 		return nil, err
 	}
 	limit := guardrails.ClampLimit(req.GetLimit(), s.cfg)

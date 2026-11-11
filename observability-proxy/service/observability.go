@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -33,6 +34,7 @@ const (
 	defaultTailLookback   = 2 * time.Second
 	tailHeartbeatInterval = 5 * time.Second
 	tailPollInterval      = 2 * time.Second
+	maxResourceReadChecks = 100
 )
 
 var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityService)(nil)
@@ -61,9 +63,11 @@ func (s *ObservabilityService) Handler() http.Handler {
 	return mux
 }
 
-// authorizeRead checks that the request's bearer token can read the workspace. A refused caller
-// gets PermissionDenied and nothing is logged; only a failed control plane check is an ERROR.
-func (s *ObservabilityService) authorizeRead(ctx context.Context, workspaceID string) error {
+// authorizeRead checks that the request's bearer token can read the workspace or, for a request
+// that names resources, every named resource. Every ClickHouse query also filters on the
+// workspace, so a named resource from another workspace matches no rows. A refused caller gets
+// PermissionDenied and nothing is logged; only a failed control plane check is an ERROR.
+func (s *ObservabilityService) authorizeRead(ctx context.Context, workspaceID string, resourceIDs []string) error {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
 		return rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
@@ -75,6 +79,9 @@ func (s *ObservabilityService) authorizeRead(ctx context.Context, workspaceID st
 		workspaceID,
 		tokenv1.Scope_SCOPE_READ,
 	)
+	if errors.Is(err, auth.ErrPermissionDenied) && len(resourceIDs) > 0 {
+		err = s.checkResourcesRead(ctx, token, resourceIDs)
+	}
 	if errors.Is(err, auth.ErrPermissionDenied) {
 		slog.DebugContext(ctx, "read denied", "error", err)
 		return rpcerr.New(connect.CodePermissionDenied, auth.ErrPermissionDenied)
@@ -82,6 +89,32 @@ func (s *ObservabilityService) authorizeRead(ctx context.Context, workspaceID st
 	if err != nil {
 		slog.ErrorContext(ctx, "permission check failed", "error", err)
 		return rpcerr.New(connect.CodeUnavailable, auth.ErrPermissionCheckUnavailable)
+	}
+	return nil
+}
+
+// checkResourcesRead asks the control plane about each resource in turn, so the cap bounds the
+// calls one request can cause.
+func (s *ObservabilityService) checkResourcesRead(ctx context.Context, token string, resourceIDs []string) error {
+	if len(resourceIDs) > maxResourceReadChecks {
+		return fmt.Errorf(
+			"%w: %d resources named, at most %d",
+			auth.ErrPermissionDenied,
+			len(resourceIDs),
+			maxResourceReadChecks,
+		)
+	}
+	for _, id := range resourceIDs {
+		err := s.validator.CheckPermission(
+			ctx,
+			token,
+			tokenv1.EntityType_ENTITY_TYPE_RESOURCE,
+			id,
+			tokenv1.Scope_SCOPE_READ,
+		)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -94,7 +127,7 @@ func (s *ObservabilityService) QueryLogs(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
-	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
 		return nil, err
 	}
 
@@ -136,7 +169,7 @@ func (s *ObservabilityService) TailLogs(
 		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
-	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
 		return err
 	}
 
@@ -222,7 +255,7 @@ func (s *ObservabilityService) QueryMetrics(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
-	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
 		return nil, err
 	}
 

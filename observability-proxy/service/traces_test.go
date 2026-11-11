@@ -34,14 +34,21 @@ func (p *tracePermissions) CheckPermission(
 	ctx context.Context,
 	req *tokenv1.CheckPermissionRequest,
 ) (*tokenv1.CheckPermissionResponse, error) {
-	if req.GetEntityType() != tokenv1.EntityType_ENTITY_TYPE_WORKSPACE || req.GetScope() != tokenv1.Scope_SCOPE_READ {
+	if req.GetScope() != tokenv1.Scope_SCOPE_READ {
 		p.t.Errorf("wrong permission request: %v", req)
 	}
 	info, _ := connect.CallInfoForServerContext(ctx)
-	allowed := info.RequestHeader().Get("Authorization") == "Bearer workspace-reader" &&
-		req.GetEntityId() == tailTestWorkspace
-	allowed = allowed ||
-		(info.RequestHeader().Get("Authorization") == "Bearer other-reader" && req.GetEntityId() == traceTestOtherWorkspace)
+	authorization := info.RequestHeader().Get("Authorization")
+	var allowed bool
+	switch req.GetEntityType() {
+	case tokenv1.EntityType_ENTITY_TYPE_WORKSPACE:
+		allowed = (authorization == "Bearer workspace-reader" && req.GetEntityId() == tailTestWorkspace) ||
+			(authorization == "Bearer other-reader" && req.GetEntityId() == traceTestOtherWorkspace)
+	case tokenv1.EntityType_ENTITY_TYPE_RESOURCE:
+		allowed = authorization == "Bearer "+resourceTestReader && req.GetEntityId() == counterHTTPResource
+	default:
+		p.t.Errorf("wrong permission request: %v", req)
+	}
 	return &tokenv1.CheckPermissionResponse{Allowed: allowed}, nil
 }
 
@@ -61,7 +68,7 @@ func traceTestClient(
 		t.Fatal(err)
 	}
 	t.Cleanup(validator.Close)
-	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour}
+	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, MaxTailDuration: time.Minute}
 	service := NewObservabilityService(clickhouse, cfg, validator)
 	proxyHTTP := httptest.NewServer(service.Handler())
 	t.Cleanup(proxyHTTP.Close)
@@ -151,7 +158,7 @@ func TestQueryTracesHTTPReadsIsolatedSpans(t *testing.T) {
 		{tailTestWorkspace, "5555555555555555", "2222222222222222", "shipping"},
 		{traceTestOtherWorkspace, "3333333333333333", "", "foreign"},
 	} {
-		attrs := map[string]string{"loco.workspace.id": row.workspace, "loco.resource.id": resourceID}
+		attrs := map[string]string{"loco.workspace.id": row.workspace, counterHTTPResourceAttribute: resourceID}
 		if appendErr := batch.Append(timestamp, traceID, row.span, row.parent, row.service, attrs); appendErr != nil {
 			t.Fatal(appendErr)
 		}

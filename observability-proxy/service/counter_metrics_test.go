@@ -25,6 +25,7 @@ import (
 const (
 	counterHTTPQueryTimeout       = 60 * time.Second
 	counterHTTPWorkspaceAttribute = "loco.workspace.id"
+	counterHTTPResourceAttribute  = "loco.resource.id"
 	counterHTTPMetric             = "demo.payment.transactions"
 	counterHTTPResource           = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 	counterHTTPEnvironment        = "66666666-7777-8888-9999-000000000000"
@@ -206,7 +207,7 @@ func counterPayload(t *testing.T, timestamp time.Time) []byte {
 		attributes := map[string]string{
 			counterHTTPWorkspaceAttribute: row.workspace,
 			"loco.environment.id":         row.environment,
-			"loco.resource.id":            row.resource,
+			counterHTTPResourceAttribute:  row.resource,
 			"loco.region":                 row.region,
 		}
 		for key, value := range attributes {
