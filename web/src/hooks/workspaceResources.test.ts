@@ -188,4 +188,30 @@ describe("complete workspace resources", () => {
 		);
 		expect(options.queryFn).toBe(skipToken);
 	});
+
+	test("skips a granted resource that is gone or no longer readable but fails on other errors", async () => {
+		const failures: Record<string, Code> = { deleted: Code.NotFound, revoked: Code.PermissionDenied };
+		const transport = createRouterTransport((router) => {
+			router.service(ResourceService, {
+				getResource(request) {
+					const id = request.key.case === "resourceId" ? request.key.value : "";
+					const code = id === "broken" ? Code.Unavailable : failures[id];
+					if (code !== undefined) throw new ConnectError(id, code);
+					return { resource: { id, workspaceId: "workspace" } };
+				},
+			});
+		});
+		const client = new QueryClient(clientOptions);
+		try {
+			const response = await client.query(
+				workspaceResourcesOptions(transport, "workspace", ["api", "deleted", "revoked"]),
+			);
+			expect(response.resources.map((r) => r.id)).toEqual(["api"]);
+			expect(
+				await client.query(workspaceResourcesOptions(transport, "workspace", ["api", "broken"])).catch(String),
+			).toContain("broken");
+		} finally {
+			client.clear();
+		}
+	});
 });
