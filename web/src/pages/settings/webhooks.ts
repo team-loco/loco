@@ -8,9 +8,9 @@ import { AUDIT_EVENT_TYPES } from "./auditEvents";
 
 export const DELIVERY_TICKS = 24;
 
-const STATUS_SUCCEEDED = "succeeded";
-const STATUS_FAILED = "failed";
-const STATUS_PENDING = "pending";
+export const STATUS_SUCCEEDED = "succeeded";
+export const STATUS_FAILED = "failed";
+export const STATUS_PENDING = "pending";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
@@ -23,12 +23,8 @@ export function deliveryTick(d: WebhookDelivery): Tick {
 	return "warn";
 }
 
-export function isFailing(d: WebhookDelivery): boolean {
-	return d.status === STATUS_FAILED || (d.status === STATUS_PENDING && d.lastError !== "");
-}
-
-export function failingCount(deliveries: readonly WebhookDelivery[]): number {
-	return deliveries.filter(isFailing).length;
+export function failedCount(deliveries: readonly WebhookDelivery[]): number {
+	return deliveries.filter((d) => d.status === STATUS_FAILED).length;
 }
 
 export function deliveryLabel(d: WebhookDelivery): string {

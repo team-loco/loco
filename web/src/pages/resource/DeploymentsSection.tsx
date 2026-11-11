@@ -1,7 +1,7 @@
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
-import { Fragment, useState, type Dispatch, type SetStateAction } from "react";
+import { Fragment, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { getErrorMessage } from "@/lib/error-handler";
-import { pagedRows, type PagedRows, type Paging } from "@/lib/paging";
+import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
@@ -45,22 +45,6 @@ interface Row {
 	region: RegionView;
 	prev: Deployment | undefined;
 	isCurrent: boolean;
-}
-
-function nextPage(
-	rows: PagedRows<unknown>,
-	isLoading: boolean,
-	hasMore: boolean,
-	loadMore: () => Promise<boolean>,
-	setPaging: Dispatch<SetStateAction<Paging>>,
-): (() => void) | null {
-	if (isLoading) return null;
-	if (rows.pager.onNext !== null || !hasMore) return rows.pager.onNext;
-	return () => {
-		void loadMore().then((loaded) => {
-			if (loaded) setPaging((current) => ({ ...current, page: current.page + 1 }));
-		});
-	};
 }
 
 function timeFact(ms: number | undefined): string {
