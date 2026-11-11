@@ -24,6 +24,7 @@ def chart_value(expression):
 def test_collected_log_severity(tmp_path, source):
     transform = chart_value('.["otel-col-daemon"].config.processors."transform/log_severity"')
     image = chart_value('.["otel-col-daemon"].image')
+    arguments = chart_value('.["otel-col-daemon"].command.extraArgs')
     name = f"loco-log-severity-{uuid.uuid4().hex}"
     cases = [
         ('{"level":"warning","message":"low memory"}', "WARN", 13, {}),
@@ -69,7 +70,7 @@ def test_collected_log_severity(tmp_path, source):
         "docker", "run", "--detach", "--name", name,
         "--user", str(os.getuid()), "--publish", "127.0.0.1::4318",
         "--volume", f"{tmp_path}:/data", f'{image["repository"]}:{image["tag"]}',
-        "--config=/data/config.json",
+        "--config=/data/config.json", *arguments,
     ], check=True, capture_output=True, text=True)
     try:
         port = subprocess.check_output(["docker", "port", name, "4318/tcp"], text=True).strip().rsplit(":", 1)[1]

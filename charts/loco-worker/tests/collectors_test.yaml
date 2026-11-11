@@ -471,3 +471,18 @@ tests:
       - matchRegex:
           path: data.relay
           pattern: 'block_on_overflow: true'
+
+  - it: emits file logs synchronously only on the node collector
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --feature-gates=stanza.synchronousLogEmitter
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --feature-gates=stanza.synchronousLogEmitter
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --feature-gates=stanza.synchronousLogEmitter
+        template: charts/otel-col-cluster/templates/statefulset.yaml

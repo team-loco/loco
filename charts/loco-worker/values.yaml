@@ -370,6 +370,10 @@ otel-col-daemon:
     checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
   namespaceOverride: loco-obs-node
   mode: daemonset
+  command:
+    # Keep file-log checkpoints behind acceptance into the persistent exporter queue.
+    extraArgs:
+      - --feature-gates=stanza.synchronousLogEmitter
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:

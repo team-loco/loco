@@ -721,7 +721,7 @@ test_o10_proxy_isolation() {
     obs_check trace_proxy_isolation check_trace_proxy_isolation
 }
 
-test_o11_writes_the_summary() {
+test_o13_writes_the_summary() {
     {
         printf '## Summary\n\n| Check | Result |\n| --- | --- |\n'
         awk '{ printf "| %s | %s |\n", $1, $2 }' "$obs_results"
@@ -885,7 +885,7 @@ obs_crash_replay() (
         "$pod" "$flush_seconds" "$records" "$marker" >>"$obs_evidence"
 )
 
-test_o10_replays_acknowledged_logs_after_collector_sigkill() {
+test_o12_replays_acknowledged_logs_after_collector_sigkill() {
     obs_crash_replay
     assert "all acknowledged logs survive a collector SIGKILL before batching flushes" true
 }
