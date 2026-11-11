@@ -166,7 +166,7 @@ func (s *DeploymentServer) CreateDeployment(
 	requestedBuild := serviceSpec.GetBuild()
 	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
 	if err != nil {
-		return nil, fmt.Errorf("pin the build source: %w", err)
+		return nil, err
 	}
 	originalSpec := req.GetSpec()
 	requestSpec := proto.CloneOf(originalSpec)

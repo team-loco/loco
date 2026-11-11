@@ -1,4 +1,5 @@
 import argparse
+import base64
 import atexit
 import contextlib
 import importlib.util
@@ -54,6 +55,19 @@ def open_page(browser, user, theme="light", narrow=False, drafts=None):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     return context, page, errors
+
+
+def image_violation(message):
+    def field(number, value):
+        length = len(value)
+        encoded = bytearray()
+        while length > 127:
+            encoded.append((length & 127) | 128)
+            length >>= 7
+        return bytes([number << 3 | 2]) + bytes(encoded) + bytes([length]) + value
+
+    path = b"".join(field(1, field(2, name.encode())) for name in ("spec", "service", "build", "image"))
+    return field(1, field(5, path) + field(3, message.encode()))
 
 
 def stored_drafts(page):
@@ -113,7 +127,8 @@ with sync_playwright() as playwright:
                 order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
                 if theme == "light" and not rejected:
                     rejected.append(route.request.post_data_json)
-                    route.fulfill(status=400, json={"code": "invalid_argument", "message": "invalid request"})
+                    message = f'Image "{image}" was not found. Check the repository and tag or digest.'
+                    route.fulfill(status=400, json={"code": "invalid_argument", "message": message, "details": [{"type": "buf.validate.Violations", "value": base64.b64encode(image_violation(message)).decode()}]})
                     return
                 deployments.append(route.request.post_data_json)
                 route.fulfill(json={"deploymentId": str(uuid.uuid4())})
@@ -336,7 +351,7 @@ with sync_playwright() as playwright:
                     interval.fill("15")
                     expect(drawer.get_by_role("alert")).to_have_count(0)
                     drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-                    expect(drawer.get_by_text(f"Couldn't deploy {image}: Invalid request.", exact=True)).to_be_visible()
+                    expect(drawer.get_by_role("alert")).to_have_text(f'Container image: Image "{image}" was not found. Check the repository and tag or digest.')
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
                     assert stored_drafts(page) == [name], stored_drafts(page)
                     page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")

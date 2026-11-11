@@ -65,6 +65,7 @@ const NETWORK_PUBLIC = "public";
 const NETWORK_INTERNAL = "internal";
 
 const API_FIELD_LABEL: Record<ApiField, string> = {
+	image: "Container image",
 	port: "Port",
 	path: "Health check path",
 	interval: "Health check interval",

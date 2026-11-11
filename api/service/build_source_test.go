@@ -3,10 +3,19 @@ package service
 import (
 	"context"
 	"errors"
+	"net/http"
+
 	"slices"
 	"testing"
 
+	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/team-loco/loco/api/pkg/configplan"
+	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/internal/locofile"
+
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -93,7 +102,7 @@ func TestPinPublicImage(t *testing.T) {
 		{
 			name: "loco registry image",
 			src: &deploymentv1.BuildSource{
-				Type:  "image",
+				Type:  buildSourceTypeImage,
 				Image: "registry.loco.test/builds/ws-1/app@" + testDigest,
 			},
 			resolver: &fakeResolver{digest: testDigest},
@@ -152,5 +161,120 @@ func TestPinBuildSourceRequiresSource(t *testing.T) {
 	_, err := pinBuildSource(ctx, nil, resolver, "", resourceID, nil)
 	if code := connectCode(t, err); code != connect.CodeInvalidArgument {
 		t.Fatalf("code = %v, want invalid argument", code)
+	}
+}
+
+func TestImageErrorsOnWire(t *testing.T) {
+	const deniedMessage = `Access to image "nginx:1.27" was denied. ` +
+		`It may require registry credentials; only public images are supported.`
+	tests := []struct {
+		name       string
+		image      string
+		sourceType string
+		cause      error
+		want       string
+	}{
+		{
+			name:  "not found",
+			cause: &transport.Error{StatusCode: http.StatusNotFound},
+			want:  `Image "nginx:1.27" was not found. Check the repository and tag or digest.`,
+		},
+		{
+			name:  "manifest unknown",
+			cause: &transport.Error{Errors: []transport.Diagnostic{{Code: transport.ManifestUnknownErrorCode}}},
+			want:  `Image "nginx:1.27" was not found. Check the repository and tag or digest.`,
+		},
+		{
+			name:  "unauthorized",
+			cause: &transport.Error{StatusCode: http.StatusUnauthorized},
+			want:  deniedMessage,
+		},
+		{
+			name:  "forbidden",
+			cause: &transport.Error{StatusCode: http.StatusForbidden},
+			want:  deniedMessage,
+		},
+		{
+			name: "registry denial",
+			cause: &transport.Error{
+				Errors: []transport.Diagnostic{
+					{Code: transport.DeniedErrorCode, Message: "secret registry.internal token=password"},
+				},
+			},
+			want: deniedMessage,
+		},
+		{
+			name:  "invalid",
+			image: "https://user:" + t.Name() + "@registry.internal/app",
+			want:  "Invalid image reference. Use a repository with a tag or digest.",
+		},
+		{
+			name:       "unsupported source",
+			sourceType: "unsupported",
+			want:       "Unsupported build type. Use dockerfile or image.",
+		},
+		{
+			name:  "unsupported platform",
+			cause: imageresolver.ErrPlatformUnsupported,
+			want:  `Image "nginx:1.27" has no linux/amd64 variant.`,
+		},
+		{
+			name:  "registry outage",
+			cause: errors.New("registry.internal token=password"),
+			want:  `Could not resolve image "nginx:1.27". The registry may be unavailable; try again.`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			image := testPublicImage
+			if tt.image != "" {
+				image = tt.image
+			}
+			sourceType := buildSourceTypeImage
+			if tt.sourceType != "" {
+				sourceType = tt.sourceType
+			}
+			resolver := &fakeResolver{err: tt.cause}
+			_, err := pinBuildSource(
+				t.Context(),
+				nil,
+				resolver,
+				testRegistryHost,
+				uuid.New(),
+				&deploymentv1.BuildSource{Type: sourceType, Image: image},
+			)
+			public, ok := errors.AsType[*connect.Error](wireError(err))
+			if !ok || public.Code() != connect.CodeInvalidArgument {
+				t.Fatalf("wire error = %v", public)
+			}
+			if public.Message() != tt.want {
+				t.Fatalf("message = %q, want %q", public.Message(), tt.want)
+			}
+			if len(public.Details()) != 1 {
+				t.Fatalf("details = %v", public.Details())
+			}
+			detail, detailErr := connectproto.UnmarshalErrorDetail(public.Details()[0])
+			if detailErr != nil {
+				t.Fatal(detailErr)
+			}
+			violations, ok := detail.(*validate.Violations)
+			if !ok || len(violations.GetViolations()) != 1 {
+				t.Fatalf("detail = %v", detail)
+			}
+			violation := violations.GetViolations()[0]
+			elements := violation.GetField().GetElements()
+			if len(elements) != 4 || elements[3].GetFieldName() != "image" || violation.GetMessage() != tt.want {
+				t.Fatalf("violation = %v", violation)
+			}
+			server := &PlanServer{resolver: resolver, registryHost: testRegistryHost}
+			if sourceType != buildSourceTypeImage {
+				return
+			}
+			images := server.resolveImages(t.Context(), map[string]locofile.Service{"image-service": {Image: image}})
+			planErrors := planErrorsToProto([]configplan.Error{{Err: images[image].Err}})
+			if got := planErrors[0].GetMessage(); got != tt.want {
+				t.Fatalf("plan message = %q", got)
+			}
+		})
 	}
 }

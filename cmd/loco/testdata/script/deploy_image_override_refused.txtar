@@ -5,7 +5,7 @@ stderr 'confirm-destructive'
 ! fakeapi called Apply
 fakeapi plan ../errors.json
 ! exec loco deploy api --image 'invalid image reference' --yes
-stderr 'image could not be resolved'
+stderr 'Image "nginx:missing" was not found. Check the repository and tag or digest.'
 ! fakeapi called Apply
 ! fakeapi called CreateBuild
 ! fakeapi called Upload
@@ -33,4 +33,4 @@ services:
 -- plan.json --
 {"revision":"7","operations":[{"kind":"PLAN_OPERATION_KIND_UPDATE","service":"api","destructive":true,"changes":[{"path":"image","after":"ghcr.io/acme/api:release"}]}]}
 -- errors.json --
-{"revision":"7","errors":[{"service":"api","path":"image","message":"image could not be resolved"}]}
+{"revision":"7","errors":[{"service":"api","path":"image","message":"Image \"nginx:missing\" was not found. Check the repository and tag or digest."}]}
