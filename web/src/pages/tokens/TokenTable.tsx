@@ -18,7 +18,7 @@ import type { AccessChip, EntityTree } from "./model";
 
 const SHOWN_CHIPS = 3;
 const SKELETON_ROWS = [0, 1, 2, 3];
-const COLUMNS = 6;
+const COLUMNS = 7;
 
 function AccessCell({ chips }: { chips: AccessChip[] }) {
 	const rest = chips.length - SHOWN_CHIPS;
@@ -81,6 +81,7 @@ function TokenMenu({
 
 export function TokenTable({
 	tokens,
+	creators,
 	tree,
 	now,
 	isLoading,
@@ -91,6 +92,7 @@ export function TokenTable({
 	onRevoke,
 }: {
 	tokens: Token[];
+	creators: ReadonlyMap<string, string>;
 	tree: EntityTree;
 	now: number;
 	isLoading: boolean;
@@ -101,12 +103,13 @@ export function TokenTable({
 	onRevoke: (token: Token) => void;
 }) {
 	return (
-		<Table className="min-w-[900px] table-fixed">
+		<Table className="min-w-[1050px] table-fixed">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[24%]">Token</TableHead>
 					<TableHead>Access</TableHead>
-					<TableHead className="w-[150px]">Created</TableHead>
+					<TableHead className="w-[150px]">Created by</TableHead>
+					<TableHead className="w-[100px]">Created</TableHead>
 					<TableHead className="w-[110px]">Last used</TableHead>
 					<TableHead className="w-[130px]">Expires</TableHead>
 					<TableHead className="w-10" />
@@ -131,6 +134,9 @@ export function TokenTable({
 							<TableCell>
 								<Skeleton className="h-3.5 w-16" />
 							</TableCell>
+							<TableCell>
+								<Skeleton className="h-3.5 w-20" />
+							</TableCell>
 							<TableCell />
 						</TableRow>
 					))}
@@ -152,6 +158,9 @@ export function TokenTable({
 								</TableCell>
 								<TableCell className="whitespace-normal">
 									<AccessCell chips={accessChips(tree, t)} />
+								</TableCell>
+								<TableCell className="truncate text-[12px] text-fg2" title={t.createdBy}>
+									{t.createdBy === "" ? "Unknown" : (creators.get(t.createdBy) ?? "") || t.createdBy}
 								</TableCell>
 								<TableCell className="font-mono text-[11.5px] text-fg3">
 									{created === undefined ? null : relAgo(created, now)}

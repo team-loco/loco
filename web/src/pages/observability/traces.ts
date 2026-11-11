@@ -1,4 +1,5 @@
-import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import type { TraceSpan, TraceSpanEvent } from "@gen/loco/observability/v1/observability_pb";
 
 const NANOS_PER_SECOND = 1_000_000_000n;
 const NANOS_PER_MS = 1_000_000n;
@@ -6,8 +7,17 @@ const NANOS_PER_MICROSECOND = 1_000n;
 
 export const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/;
 
+function timestampNanos(ts: Timestamp | undefined): bigint {
+	return (ts?.seconds ?? 0n) * NANOS_PER_SECOND + BigInt(ts?.nanos ?? 0);
+}
+
 export function spanStart(span: TraceSpan): bigint {
-	return (span.startTime?.seconds ?? 0n) * NANOS_PER_SECOND + BigInt(span.startTime?.nanos ?? 0);
+	return timestampNanos(span.startTime);
+}
+
+export function eventOffsetLabel(span: TraceSpan, event: TraceSpanEvent): string | null {
+	if (event.timestamp === undefined) return null;
+	return `+${durationLabel(timestampNanos(event.timestamp) - spanStart(span))}`;
 }
 
 export function durationLabel(nanos: bigint): string {

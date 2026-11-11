@@ -28,6 +28,7 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
+import { SpanEvents } from "./SpanEvents";
 import { useObs } from "./context";
 import { failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo, type Zoom } from "./flame";
 import { fmtTs } from "./format";
@@ -413,12 +414,7 @@ export function TraceDrawer({
 									{selected.statusMessage}
 								</pre>
 							)}
-							{spanError(selected) && (
-								<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-									Stack traces from span events
-									<SoonTag />
-								</span>
-							)}
+							<SpanEvents span={selected} />
 							<section aria-label="Span attributes" className="flex flex-col gap-3.5">
 								{groupAttributes(selected, trace, resourceById.get(selected.resourceId)?.name).map((g) => (
 									<div key={g.title} className="flex flex-col">

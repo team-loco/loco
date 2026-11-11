@@ -28,6 +28,7 @@ import { heldLevel, matchesQuery, OWNER_KEYS, OWNER_TITLE, tokenGrants, tokenSta
 import type { Level, OwnerKey } from "./tokens/model";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { TokenTable } from "./tokens/TokenTable";
+import { useTokenCreators } from "./tokens/useTokenCreators";
 import { useTokenData } from "./tokens/useTokenData";
 import type { Owner } from "./tokens/useTokenData";
 
@@ -67,6 +68,7 @@ export function Tokens() {
 
 	const current = data.owners[ownerKey];
 	const { owner, tokens } = current;
+	const creators = useTokenCreators(owner);
 	const query = q.trim().toLowerCase();
 	const rows = tokens
 		.filter((t) => matchesQuery(data.tree, t, query))
@@ -220,6 +222,7 @@ export function Tokens() {
 					<>
 						<TokenTable
 							tokens={paged.rows}
+							creators={creators}
 							tree={data.tree}
 							now={now}
 							isLoading={current.isLoading}
