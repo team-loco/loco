@@ -44,6 +44,11 @@ SETTLE_TIMEOUT_MS = 10000
 LOG_TAIL_LINES = 40
 DISCOVERY_PATH = "/dex/.well-known/openid-configuration"
 USER_SCOPES = ("read", "write", "admin")
+RUNTIME_CONFIG_PATH = "/runtime-config.js"
+# Set by `mise run test:ui`: a checkout whose api/bin/loco-api and web/dist are
+# already built, and the address of one OpenBao that every suite shares.
+PREBUILT_ENV = "UI_EVIDENCE_PREBUILT"
+OPENBAO_ENV = "UI_EVIDENCE_OPENBAO"
 
 RPC_CREATE_ORG = "loco.org.v1.OrgService/CreateOrg"
 RPC_CREATE_WORKSPACE = "loco.workspace.v1.WorkspaceService/CreateWorkspace"
@@ -381,18 +386,37 @@ def seed(state, scenario):
     return users, workspaces, notes
 
 
+def repo_root():
+    return Path(run(["git", "rev-parse", "--show-toplevel"], capture=True).strip())
+
+
+def cmd_build(args):
+    build(repo_root(), dict(os.environ))
+
+
+def cmd_openbao(args):
+    print(start_openbao(repo_root(), args.project, dict(os.environ)))
+
+
 def cmd_up(args):
-    repo = Path(run(["git", "rev-parse", "--show-toplevel"], capture=True).strip())
+    repo = repo_root()
     scenario = json.loads(Path(args.scenario).read_text())
     run_id = f"{args.name}-{secrets.token_hex(4)}"
     root = BASE_DIR / run_id
     root.mkdir(parents=True)
     state_path = root / "state.json"
-    worktree = root / "src"
-    state = {"id": run_id, "name": args.name, "ref": args.ref, "root": str(root), "worktree": str(worktree), "pids": []}
+    prebuilt = os.environ.get(PREBUILT_ENV)
+    openbao = os.environ.get(OPENBAO_ENV)
+    state = {"id": run_id, "name": args.name, "ref": args.ref, "root": str(root), "pids": []}
+    if prebuilt:
+        worktree = Path(prebuilt)
+    else:
+        worktree = root / "src"
+        state["worktree"] = str(worktree)
     write_json(state_path, state)
     try:
-        run(["git", "-C", str(repo), "worktree", "add", "--detach", str(worktree), args.ref])
+        if not prebuilt:
+            run(["git", "-C", str(repo), "worktree", "add", "--detach", str(worktree), args.ref])
         state["commit"] = run(["git", "-C", str(worktree), "rev-parse", "HEAD"], capture=True).strip()
         db_port = free_port()
         api_port = free_port({db_port})
@@ -407,13 +431,9 @@ def cmd_up(args):
         write_json(state_path, state)
 
         env = dict(os.environ)
-        run(["mise", "trust", "--quiet", str(worktree / "mise.toml")])
-        run(["mise", "exec", "--", "bun", "install", "--frozen-lockfile"], cwd=worktree, env=env)
-        run(["mise", "exec", "--", "go", "build", "-o", "./bin/loco-api", "."], cwd=worktree / "api", env=env)
-        web_env = dict(env, PUBLIC_API_URL=state["api_url"])
-        run(["mise", "exec", "--", "bun", "run", "build"], cwd=worktree / "web", env=web_env)
+        if not prebuilt:
+            build(worktree, env)
         dist = worktree / "web" / "dist"
-        write_json(dist / DISCOVERY_PATH.lstrip("/"), discovery_document(f"{state['ui_url']}/dex"))
 
         image = compose_postgres_image((worktree / "dev" / "compose.yaml").read_text())
         container = f"{LABEL}-{run_id}"
@@ -435,15 +455,20 @@ def cmd_up(args):
                 raise EvidenceError("postgres did not become ready")
             time.sleep(0.5)
 
-        state["compose"] = container
-        write_json(state_path, state)
         dev_env = read_api_env((worktree / "dev" / "api.env").read_text())
-        dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = start_openbao(worktree, container, env)
+        if not openbao:
+            state["compose"] = container
+            write_json(state_path, state)
+            openbao = start_openbao(worktree, container, env)
+        dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = openbao
         api_log = root / "api.log"
         api_cmd = [str(worktree / "api" / "bin" / "loco-api")]
         state["pids"].append(spawn(api_cmd, worktree, dict(env, **api_env(dev_env, db_port, api_port, ui_port)), api_log))
         ui_log = root / "ui.log"
-        ui_cmd = [sys.executable, str(Path(__file__).resolve()), "serve-ui", "--root", str(dist), "--port", str(ui_port)]
+        ui_cmd = [
+            sys.executable, str(Path(__file__).resolve()), "serve-ui",
+            "--root", str(dist), "--port", str(ui_port), "--api-url", state["api_url"],
+        ]
         state["pids"].append(spawn(ui_cmd, worktree, env, ui_log))
         write_json(state_path, state)
         wait_http(f"{state['api_url']}/health", api_log)
@@ -460,13 +485,48 @@ def cmd_up(args):
     print(state_path)
 
 
+def build(checkout, env):
+    run(["mise", "trust", "--quiet", str(checkout / "mise.toml")])
+    run(["mise", "exec", "--", "bun", "install", "--frozen-lockfile"], cwd=checkout, env=env)
+    run(["mise", "exec", "--", "go", "build", "-o", "./bin/loco-api", "."], cwd=checkout / "api", env=env)
+    # The API address reaches the UI through runtime-config.js, as the chart
+    # serves it in production, so one build serves every API.
+    run(["mise", "exec", "--", "bun", "run", "build"], cwd=checkout / "web", env=env)
+
+
+def runtime_config(api_url):
+    return f"window.locoConfig = {json.dumps({'apiURL': api_url})};\n"
+
+
 class UIHandler(http.server.SimpleHTTPRequestHandler):
+    """Serve web/dist like the UI image: the discovery document and runtime config
+    this run's addresses need, then files, then index.html for app routes."""
+
+    def __init__(self, *args, api_url, **kwargs):
+        self.api_url = api_url
+        super().__init__(*args, **kwargs)
+
+    def do_GET(self):
+        path = self.path.split("?", 1)[0]
+        if path == DISCOVERY_PATH:
+            host, port = self.server.server_address[:2]
+            return self.send_body("application/json", json.dumps(discovery_document(f"http://{host}:{port}/dex")))
+        if path == RUNTIME_CONFIG_PATH:
+            return self.send_body("text/javascript", runtime_config(self.api_url))
+        return super().do_GET()
+
+    def send_body(self, content_type, text):
+        body = text.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def send_head(self):
         path = self.path.split("?", 1)[0]
         target = Path(self.directory) / path.lstrip("/")
-        if path == DISCOVERY_PATH:
-            self.extensions_map = {"": "application/json"}
-        elif path == "/" or not target.is_file():
+        if path == "/" or not target.is_file():
             self.path = "/index.html"
         return super().send_head()
 
@@ -479,7 +539,7 @@ class UIServer(http.server.ThreadingHTTPServer):
 
 
 def cmd_serve_ui(args):
-    handler = lambda *a, **kw: UIHandler(*a, directory=args.root, **kw)
+    handler = lambda *a, **kw: UIHandler(*a, directory=args.root, api_url=args.api_url, **kw)
     with UIServer((HOST, args.port), handler) as server:
         server.serve_forever()
 
@@ -623,10 +683,10 @@ def stop_state(state):
         subprocess.run(["docker", "rm", "-f", "-v", state["container"]], capture_output=True)
     if state.get("compose"):
         stop_compose(state["compose"])
-    worktree = Path(state["worktree"])
-    if worktree.exists():
-        repo = run(["git", "-C", str(worktree), "rev-parse", "--path-format=absolute", "--git-common-dir"], capture=True)
-        run(["git", "--git-dir", repo.strip(), "worktree", "remove", "--force", str(worktree)])
+    worktree = state.get("worktree")
+    if worktree and Path(worktree).exists():
+        repo = run(["git", "-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"], capture=True)
+        run(["git", "--git-dir", repo.strip(), "worktree", "remove", "--force", worktree])
     shutil.rmtree(state["root"], ignore_errors=True)
     log(f"stopped {state['id']}")
 
@@ -673,7 +733,13 @@ def main():
     serve = sub.add_parser("serve-ui")
     serve.add_argument("--root", required=True)
     serve.add_argument("--port", required=True, type=int)
+    serve.add_argument("--api-url", required=True)
     serve.set_defaults(func=cmd_serve_ui)
+    prebuild = sub.add_parser("build", help=f"build the API and UI in this checkout for ${PREBUILT_ENV}")
+    prebuild.set_defaults(func=cmd_build)
+    bao = sub.add_parser("openbao", help=f"start one seeded OpenBao for ${OPENBAO_ENV} and print its address")
+    bao.add_argument("--project", required=True)
+    bao.set_defaults(func=cmd_openbao)
     args = parser.parse_args()
     try:
         args.func(args)

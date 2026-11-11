@@ -8,17 +8,14 @@ permissions:
 
 jobs:
 
-  build:
-    name: Web Build
+  checks:
+    name: Web Checks
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The browser suites build the API.
       - uses: ./.github/actions/setup-tools
-        with:
-          go-cache: web
 
       # Install from the repository root: web and gen/ts are bun workspaces, and
       # the UI imports generated TypeScript from gen/ts.
@@ -41,6 +38,26 @@ jobs:
       - name: Test install script
         run: mise run test:install
 
+  # Each shard builds the API and UI once and runs its suites one after another;
+  # suites running side by side on one runner miss their timing bounds.
+  browser:
+    name: Web Browser ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: web
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
       - name: Read the Playwright version
         id: playwright
         run: echo "version=$(uv run --frozen --project docs python -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
@@ -62,19 +79,20 @@ jobs:
       - name: Install browser
         run: uv run --frozen --project docs playwright install --with-deps chromium
 
-      - name: Test screenshot readiness in Chromium
+      - name: Test screenshot readiness and the UI server
+        if: matrix.shard == 1
         run: uv run --frozen --project docs pytest .agents/skills/ui-evidence/scripts/test_evidence.py
 
-      # Each suite starts its own API, database and UI; a failing suite does not
-      # stop the rest.
       - name: Test the dashboard suites
         timeout-minutes: 30
-        run: mise run test:ui
+        env:
+          SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: mise run test:ui --shard "$SHARD"
 
       - name: Upload dashboard suite evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ui-evidence
+          name: ui-evidence-${{ matrix.shard }}
           path: tests/ui/out
           if-no-files-found: warn
