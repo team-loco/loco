@@ -43,14 +43,10 @@ export const ALLOWS: Record<NodeKind, string[]> = {
 
 export function expiryOptions(maxSeconds: bigint): number[] {
 	const maximum = Number(maxSeconds);
-	return [
-		...new Set(
-			[1, 7, 30]
-				.map((days) => (days * DAY_MS) / 1000)
-				.filter((seconds) => seconds < maximum)
-				.concat(maximum),
-		),
-	];
+	return [1, 7, 30]
+		.map((days) => (days * DAY_MS) / 1000)
+		.filter((seconds) => seconds < maximum)
+		.concat(maximum);
 }
 
 export interface EntityNode {
