@@ -13,7 +13,6 @@ repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Check organization role changes in the production UI")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
-parser.add_argument("--out", default=str(repo / "tests/ui/out/org-roles"))
 args = parser.parse_args()
 os.chdir(repo)
 spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
@@ -46,7 +45,7 @@ with sync_playwright() as p:
         owner_role.click()
         page.get_by_role("menuitem", name="Member", exact=True).click()
         page.get_by_role("button", name="Change role", exact=True).click()
-        page.get_by_text("organization must keep at least one admin", exact=True).wait_for()
+        page.get_by_text("Organization must keep at least one admin.", exact=True).wait_for()
         expect(page.get_by_role("alertdialog")).to_be_visible()
         page.get_by_role("button", name="Cancel", exact=True).click()
         member_role.focus()
@@ -62,6 +61,21 @@ with sync_playwright() as p:
         page.get_by_role("menuitem", name="Member", exact=True).click()
         page.get_by_role("button", name="Change role", exact=True).click()
         expect(member_role).to_have_text("Member")
+        member_role.click()
+        page.get_by_role("menuitem", name="Admin", exact=True).click()
+        page.get_by_role("button", name="Change role", exact=True).click()
+        expect(member_role).to_have_text("Admin")
+        owner_role.click()
+        page.get_by_role("menuitem", name="Member", exact=True).click()
+        page.get_by_role("button", name="Change role", exact=True).click()
+        expect(owner_role).to_have_text("Member")
+        expect(owner_role).to_be_disabled()
+        expect(member_role).to_be_disabled()
+        member_token = state["users"]["member"]["token"]
+        for user, role in (("owner", "ORG_ROLE_ADMIN"), ("member", "ORG_ROLE_MEMBER")):
+            evidence.rpc(state["api_url"], member_token, "loco.org.v1.OrgService/SetOrgMemberRole", {
+                "orgId": org["id"], "userId": state["users"][user]["id"], "role": role,
+            })
         context.close()
     context = browser.new_context(viewport=evidence.NARROW)
     member = state["users"]["member"]
