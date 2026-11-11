@@ -156,6 +156,12 @@ export E2E_AWS_CLI_IMAGE
 source "$SCRIPT_DIR/lib.sh"
 source "$SCRIPT_DIR/cli.sh"
 
+KIND_NODE_IMAGE=$(yq -r ".${E2E_KUBERNETES_VERSION:-newest}" "$ROOT_DIR/agent/pkg/cluster/kubernetes.json")
+if [[ $KIND_NODE_IMAGE == null ]]; then
+    log_error "E2E_KUBERNETES_VERSION must be oldest or newest"
+    exit 1
+fi
+
 # Parse flags
 NO_TEARDOWN=false
 SKIP_BUILD=false
@@ -414,19 +420,19 @@ setup_dirs() {
 }
 
 create_cluster() {
-    local image
-    image=$(yq -r ".${E2E_KUBERNETES_VERSION:-newest}" "$ROOT_DIR/agent/pkg/cluster/kubernetes.json")
-    if [[ $image == null ]]; then
-        log_error "E2E_KUBERNETES_VERSION must be oldest or newest"
-        return 1
-    fi
-    kind create cluster --image "$image" --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
+    kind create cluster --image "$KIND_NODE_IMAGE" --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
 }
 
 setup_kind() {
     log_step "Setting up Kind cluster ${KIND_CLUSTER_NAME}..."
     CLUSTER_REUSED=false
     if cluster_exists; then
+        local retained_image
+        retained_image=$(docker inspect --format '{{.Config.Image}}' "${KIND_CLUSTER_NAME}-control-plane")
+        if [[ $retained_image != "$KIND_NODE_IMAGE" ]]; then
+            log_error "Retained cluster uses $retained_image, expected $KIND_NODE_IMAGE; run E2E_RUN_ID=$RUN_ID mise run e2e:teardown before changing Kubernetes versions"
+            return 1
+        fi
         kind get kubeconfig --name "$KIND_CLUSTER_NAME" >"$KUBECONFIG_FILE"
         if kube cluster-info >/dev/null 2>&1; then
             CLUSTER_REUSED=true
