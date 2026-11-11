@@ -105,8 +105,23 @@ func TestInstallationInputsSelectOnlyInstallationE2E(t *testing.T) {
 		"dev/compose.cloud-provider-kind.yaml",
 		"dev/dex.yaml",
 		"examples/installation/installation.yaml",
-		"web/src/App.tsx",
 		"web/Dockerfile",
+		"web/sws.toml",
+	} {
+		t.Run(path, func(t *testing.T) {
+			selected := selectWorkflows(filters, "pull_request", []string{path})
+			assert.True(t, selected["e2e-installation"])
+			assert.False(t, selected["e2e"])
+		})
+	}
+}
+
+func TestUIImageContentSkipsInstallationE2E(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for _, path := range []string{
+		"web/src/App.tsx",
+		"web/public/runtime-config.js",
 		"gen/ts/package.json",
 		"bun.lock",
 		"docs/content/reference/installation.md",
@@ -115,8 +130,8 @@ func TestInstallationInputsSelectOnlyInstallationE2E(t *testing.T) {
 	} {
 		t.Run(path, func(t *testing.T) {
 			selected := selectWorkflows(filters, "pull_request", []string{path})
-			assert.True(t, selected["e2e-installation"])
-			assert.False(t, selected["e2e"])
+			assert.False(t, selected["e2e-installation"])
+			assert.True(t, selected["docs"], "Documentation Container Tests serve the UI image")
 		})
 	}
 }
