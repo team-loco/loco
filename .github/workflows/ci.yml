@@ -20,10 +20,11 @@ on:
 permissions: {}
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  group: ci-${{ github.event.pull_request.number || github.run_id }}-${{ github.event.pull_request.head.sha || github.sha }}
   # Base/head updates in a stack can enqueue two runs for the same head. Let
   # the active run finish so automatic cancellation cannot fail its always gate.
-  # The concurrency group retains only the newest pending run for the PR.
+  # The concurrency group retains only the newest pending run for the head.
+  # Runs for an older head of the PR are cancelled by the changes job instead.
   cancel-in-progress: false
 
 jobs:
@@ -32,6 +33,7 @@ jobs:
     name: Changes
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: read
     outputs:
       auth-conformance: ${{ steps.select.outputs.auth-conformance }}
@@ -54,6 +56,28 @@ jobs:
       web: ${{ steps.select.outputs.web }}
       workflows: ${{ steps.select.outputs.workflows }}
     steps:
+      # Protection reads only the newest head's CI Gate, so a run for a head the
+      # PR has replaced is wasted runner time. Only older runs are cancelled: a
+      # run for a replaced head that starts late must not cancel the newer one.
+      # A fork's token cannot cancel runs.
+      - name: Cancel runs for heads this pull request replaced
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          gh api --method GET --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f event=pull_request -f branch="$BRANCH" -F per_page=100 \
+            --jq ".workflow_runs[] | select(.status != \"completed\" and .head_sha != \"$HEAD\" and .run_number < $RUN_NUMBER) | .id" |
+            while read -r id; do
+              echo "Cancelling run $id"
+              # A run can complete between the listing and the cancel.
+              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$id/cancel" ||
+                echo "::warning::Could not cancel run $id"
+            done
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
