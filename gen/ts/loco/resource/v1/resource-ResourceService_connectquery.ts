@@ -63,6 +63,8 @@ export const getResourceEnv = ResourceService.method.getResourceEnv;
 export const scaleResource = ResourceService.method.scaleResource;
 
 /**
+ * RestartResource rolls the current replicas without creating a new deployment.
+ *
  * @generated from rpc loco.resource.v1.ResourceService.RestartResource
  */
 export const restartResource = ResourceService.method.restartResource;

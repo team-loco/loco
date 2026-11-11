@@ -1759,6 +1759,8 @@ export const TransferPartialResponseSchema: GenMessage<TransferPartialResponse, 
   messageDesc(file_loco_resource_v1_resource, 33);
 
 /**
+ * RestartResourceRequest targets one environment; omitting region restarts every region.
+ *
  * @generated from message loco.resource.v1.RestartResourceRequest
  */
 export type RestartResourceRequest = Message<"loco.resource.v1.RestartResourceRequest"> & {
@@ -1779,6 +1781,8 @@ export type RestartResourceRequest = Message<"loco.resource.v1.RestartResourceRe
 };
 
 /**
+ * RestartResourceRequest targets one environment; omitting region restarts every region.
+ *
  * @generated from message loco.resource.v1.RestartResourceRequest
  */
 export type RestartResourceRequestJson = {
@@ -1806,12 +1810,16 @@ export const RestartResourceRequestSchema: GenMessage<RestartResourceRequest, {j
   messageDesc(file_loco_resource_v1_resource, 34);
 
 /**
+ * RestartResourceResponse is the response after scheduling a rolling restart.
+ *
  * @generated from message loco.resource.v1.RestartResourceResponse
  */
 export type RestartResourceResponse = Message<"loco.resource.v1.RestartResourceResponse"> & {
 };
 
 /**
+ * RestartResourceResponse is the response after scheduling a rolling restart.
+ *
  * @generated from message loco.resource.v1.RestartResourceResponse
  */
 export type RestartResourceResponseJson = {
@@ -2024,6 +2032,8 @@ export const ResourceService: GenService<{
     output: typeof ScaleResourceResponseSchema;
   },
   /**
+   * RestartResource rolls the current replicas without creating a new deployment.
+   *
    * @generated from rpc loco.resource.v1.ResourceService.RestartResource
    */
   restartResource: {

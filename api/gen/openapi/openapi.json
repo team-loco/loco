@@ -4680,6 +4680,7 @@
           "loco.resource.v1.ResourceService"
         ],
         "summary": "RestartResource",
+        "description": "RestartResource rolls the current replicas without creating a new deployment.",
         "operationId": "loco.resource.v1.ResourceService.RestartResource",
         "parameters": [
           {
@@ -12462,12 +12463,14 @@
           }
         },
         "title": "RestartResourceRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "RestartResourceRequest targets one environment; omitting region restarts every region."
       },
       "loco.resource.v1.RestartResourceResponse": {
         "type": "object",
         "title": "RestartResourceResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "RestartResourceResponse is the response after scheduling a rolling restart."
       },
       "loco.resource.v1.RoutingConfig": {
         "type": "object",

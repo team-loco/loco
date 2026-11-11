@@ -2231,6 +2231,7 @@ func (*TransferPartialResponse) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{33}
 }
 
+// RestartResourceRequest targets one environment; omitting region restarts every region.
 type RestartResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
@@ -2291,6 +2292,7 @@ func (x *RestartResourceRequest) GetRegion() string {
 	return ""
 }
 
+// RestartResourceResponse is the response after scheduling a rolling restart.
 type RestartResourceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields

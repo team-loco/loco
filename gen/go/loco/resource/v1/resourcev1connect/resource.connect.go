@@ -149,6 +149,7 @@ type ResourceServiceClient interface {
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
+	// RestartResource rolls the current replicas without creating a new deployment.
 	RestartResource(context.Context, *v1.RestartResourceRequest) (*v1.RestartResourceResponse, error)
 	// TransferPartial moves a resource to another partial.
 	TransferPartial(context.Context, *v1.TransferPartialRequest) (*v1.TransferPartialResponse, error)
@@ -180,6 +181,7 @@ type ResourceServiceHandler interface {
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
+	// RestartResource rolls the current replicas without creating a new deployment.
 	RestartResource(context.Context, *v1.RestartResourceRequest) (*v1.RestartResourceResponse, error)
 	// TransferPartial moves a resource to another partial.
 	TransferPartial(context.Context, *v1.TransferPartialRequest) (*v1.TransferPartialResponse, error)
