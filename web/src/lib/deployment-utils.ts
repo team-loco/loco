@@ -34,3 +34,13 @@ export function isInFlight(phase: DeploymentPhase): boolean {
 			return false;
 	}
 }
+
+export function deploymentOrigin(d: Deployment): string {
+	const actor = d.actorType === "user" ? `@${d.actorName || d.actorId}` : d.actorName || "Deleted token";
+	const methods: Record<string, string> = { cli: "loco deploy", web: "Dashboard", api_token: "API token" };
+	const parts = [actor, methods[d.method]];
+	if (d.commit !== undefined) {
+		parts.push(`${d.commit.sha.slice(0, 7)}${d.commit.dirty ? " (uncommitted changes)" : ""}`);
+	}
+	return parts.join(" · ");
+}

@@ -25,6 +25,7 @@ function deployment(id: string, regionName: string, replicas = 2): Deployment {
 		region: regionName,
 		replicas,
 		isActive: true,
+		commit: { sha: "a".repeat(40), dirty: true },
 		status: DeploymentPhase.RUNNING,
 		spec: create(DeploymentSpecSchema, {
 			spec: {
@@ -61,6 +62,12 @@ function plan(draft: SettingsDraft) {
 }
 
 describe("planSave", () => {
+	test("preserves the source commit for sizing changes and clears it for another image", () => {
+		expect(plan({ cpu: "1" }).deploy[0]?.commit).toEqual(regions[0]?.current?.commit);
+		expect(plan({ cpu: "1", image: IMAGE }).deploy[0]?.commit).toEqual(regions[0]?.current?.commit);
+		expect(plan({ image: "example.test/another:release" }).deploy[0]?.commit).toBeUndefined();
+	});
+
 	test("does nothing for an empty draft", () => {
 		expect(plan({})).toEqual({ deploy: [], retire: [] });
 	});

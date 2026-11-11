@@ -11,7 +11,7 @@ import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { SoonTag } from "@/components/design/SoonTag";
+import { DeploymentOrigin } from "@/components/design/DeploymentOrigin";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
@@ -259,19 +259,14 @@ export function DeploymentsSection({
 				</div>
 				<TabsContent value="deploys" className="pt-1.5">
 					<div aria-busy={isLoadingMore}>
-						<Table className="min-w-[860px]">
+						<Table className="min-w-[1080px]">
 							<TableHeader>
 								<TableRow>
 									<TableHead className="w-6" />
 									<TableHead className="w-[130px]">Status</TableHead>
 									<TableHead className="w-[170px]">Version</TableHead>
 									{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
-									<TableHead className="w-[130px]">
-										<span className="flex items-center gap-2">
-											Deployed by
-											<SoonTag />
-										</span>
-									</TableHead>
+									<TableHead className="w-[360px]">Deployed by</TableHead>
 									<TableHead>Message</TableHead>
 									<TableHead className="w-[72px] text-right">Took</TableHead>
 									<TableHead className="w-[100px] text-right">When</TableHead>
@@ -332,7 +327,9 @@ export function DeploymentsSection({
 											{multiRegion && (
 												<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
 											)}
-											<TableCell className="text-fg4">—</TableCell>
+											<TableCell>
+												<DeploymentOrigin deployment={dep} />
+											</TableCell>
 											<TableCell className="max-w-0 truncate text-fg2" title={dep.message}>
 												{dep.message}
 											</TableCell>

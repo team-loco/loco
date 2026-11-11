@@ -5,6 +5,7 @@ import {
 	HealthCheckConfigSchema,
 	type DeploymentSpec,
 	type HealthCheckConfig,
+	type SourceCommit,
 } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
@@ -213,6 +214,7 @@ function applyDraft(
 }
 
 interface RegionDeploy {
+	commit: SourceCommit | undefined;
 	region: string;
 	spec: DeploymentSpec;
 	added: boolean;
@@ -241,13 +243,23 @@ export function planSave(regions: RegionView[], draft: SettingsDraft, base: Base
 			const replicas = requested === current.replicas ? undefined : requested;
 			const spec = applyDraft(current.spec, replicas, draft, base);
 			if (redeployAll || !equals(DeploymentSpecSchema, spec, current.spec)) {
-				plan.deploy.push({ region: region.name, spec, added: false });
+				plan.deploy.push({
+					region: region.name,
+					spec,
+					added: false,
+					commit: draft.image === undefined || draft.image.trim() === base.image ? current.commit : undefined,
+				});
 			}
 			continue;
 		}
 		if (!on || template?.spec === undefined) continue;
 		const replicas = draft.replicas?.[region.name] ?? template.replicas;
-		plan.deploy.push({ region: region.name, spec: applyDraft(template.spec, replicas, draft, base), added: true });
+		plan.deploy.push({
+			region: region.name,
+			spec: applyDraft(template.spec, replicas, draft, base),
+			added: true,
+			commit: draft.image === undefined || draft.image.trim() === base.image ? template.commit : undefined,
+		});
 	}
 	return plan;
 }

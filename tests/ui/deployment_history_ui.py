@@ -108,6 +108,7 @@ def fixture():
         started = "NULL" if status == "awaiting_upload" else f"NOW()-INTERVAL '{minutes} minutes'"
         finished = f"NOW()-INTERVAL '{minutes} minutes'+INTERVAL '108 seconds'" if status in ("succeeded", "failed", "canceled") else "NULL"
         sql.append(f"INSERT INTO builds (id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});")
+    sql.append(f"UPDATE deployments SET commit_sha='{'7c41e9a'.ljust(40, '0')}', commit_dirty=true WHERE id='{release_ids[0]}';")
     evidence.psql(state["container"], "BEGIN;" + "\n".join(sql) + "COMMIT;")
     data = {"resource": resource, "edge": edge, "production": production, "staging": staging, "releases": release_ids, "staging_release": staging_release, "builds": builds}
     state["deployment_history"] = data
@@ -169,6 +170,7 @@ with sync_playwright() as playwright:
                     section = page.get_by_role("tab", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
                     expect(section.get_by_text("1–10 of 200+", exact=True)).to_be_visible()
                     expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
+                    expect(section.get_by_text("@Olivia Owner · loco deploy · 7c41e9a (uncommitted changes)", exact=True)).to_be_visible()
                     expect(section.get_by_role("columnheader", name="Region", exact=True)).to_be_visible()
                     expect(page.get_by_role("button", name="Redeploy", exact=True)).to_be_enabled()
                     page.get_by_role("button", name="More actions", exact=True).click()
