@@ -41,6 +41,16 @@ if resource is None:
     resource = evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {"workspaceId": workspace, "name": "controls-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
     state["shared_controls_resource"] = resource
     evidence.write_json(Path(args.state), state)
+sorted_resources = state.get("controls_resources")
+if sorted_resources is None:
+    sorted_resources = [
+        evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {
+            "workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE",
+            "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": cpu, "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}},
+        })["resourceId"] for name, cpu in (("controls-alpha", "100m"), ("controls-zeta", "200m"))
+    ]
+    state["controls_resources"] = sorted_resources
+    evidence.write_json(Path(args.state), state)
 base = f"/org/{org}/wks/{workspace}"
 
 
@@ -187,20 +197,57 @@ def access_picker(page, suffix):
     search.focus()
     expect(search).to_have_attribute("aria-expanded", "true")
     search.fill("controls-")
-    expect(page.get_by_text("controls-pilot", exact=True)).to_be_visible()
+    expect(page.get_by_text("controls-zeta", exact=True)).to_be_visible()
     dialog.screenshot(path=str(out / f"token-permissions-{suffix}.png"), animations="disabled")
     expect(search).to_have_attribute("aria-activedescendant", re.compile(r".+"))
     page.locator(f'[id={json.dumps(search.get_attribute("aria-activedescendant"))}]').hover()
     page.mouse.move(0, 0)
     expect(search).not_to_have_attribute("aria-activedescendant", re.compile(r".+"))
     search.press("Enter")
-    expect(page.get_by_role("group", name="Level for controls-pilot")).to_be_visible()
+    expect(page.get_by_role("group", name=re.compile(r"^Level for controls-"))).to_have_count(1)
     expect(search).to_have_value("")
     search.fill("no matching scope")
     expect(page.get_by_text("Nothing matches “no matching scope”.")).to_be_visible()
     search.press("Escape")
     expect(search).to_have_attribute("aria-expanded", "false")
     expect(dialog).to_be_visible()
+
+
+def first_click_sorts_descending(table, label, first):
+    button = table.page.get_by_role("button", name=label, exact=True)
+    header = table.get_by_role("columnheader").filter(has=button)
+    header.get_by_role("button", name=label, exact=True).press("Enter")
+    expect(header).to_have_attribute("aria-sort", "descending")
+    expect(table.locator("th[aria-sort]")).to_have_count(1)
+    expect(table.get_by_role("row").nth(1)).to_contain_text(first)
+
+
+def resources(page, suffix):
+    for route in ("/resources", ""):
+        page.goto(state["ui_url"] + base + route + "?env=production")
+        table = page.get_by_role("table").filter(has=page.get_by_role("columnheader", name="Resource", exact=True)).first
+        header = table.get_by_role("columnheader", name="Resource", exact=True)
+        name = header.get_by_role("button", name="Resource", exact=True)
+        name.press("Enter")
+        expect(table.locator('th[aria-sort="ascending"]')).to_have_count(1)
+        expect(header).to_have_attribute("aria-sort", "ascending")
+        expect(table.get_by_role("row").nth(1)).to_contain_text("controls-alpha")
+        name.press("Enter")
+        expect(header).to_have_attribute("aria-sort", "descending")
+        expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
+        if route:
+            page.reload()
+            expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
+            table.locator("..").screenshot(path=str(out / f"resource-sorting-{suffix}.png"), animations="disabled")
+            name.press("Enter")
+            expect(table.get_by_role("row").nth(1)).to_contain_text("controls-alpha")
+            first_click_sorts_descending(table, "Size", "controls-zeta")
+            table.get_by_role("button", name="Columns", exact=True).click()
+            created = page.get_by_role("menuitemcheckbox", name="Created")
+            created.click()
+            expect(created).to_have_attribute("aria-checked", "true")
+            page.keyboard.press("Escape")
+            first_click_sorts_descending(table, "Created", "controls-zeta")
 
 
 def metrics(page, suffix):
@@ -312,7 +359,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker):
+                        for check in (log_levels, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})
