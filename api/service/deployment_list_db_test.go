@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect/v2"
+	"buf.build/go/protovalidate"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/google/uuid"
@@ -241,28 +241,27 @@ func TestListDeploymentsWorkspaceEnvironment(t *testing.T) {
 	}
 }
 
-func TestListDeploymentsRejectsInvalidScopeAndWindow(t *testing.T) {
-	f := newDeployFixture(t)
-	server := NewDeploymentServer(
-		f.pool,
-		f.queries,
-		nil,
-		"",
-		testServiceDefaults(),
-		testClusterSilentAfter,
-		testMaxPlacementBytes,
-	)
-	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{})
+func TestListDeploymentsScopeAndWindowValidation(t *testing.T) {
+	id := uuid.NewString()
 	for _, request := range []*deploymentv1.ListDeploymentsRequest{
 		{},
-		{WorkspaceId: uuid.NewString()},
-		{ResourceId: f.resourceID.String(), WorkspaceId: uuid.NewString(), EnvironmentId: f.envID.String()},
+		{WorkspaceId: id},
+		{ResourceId: id, WorkspaceId: id, EnvironmentId: id},
 		{ResourceId: "bad-resource-id"},
-		{ResourceId: f.resourceID.String(), Since: timestamppb.Now(), Until: timestamppb.New(time.Time{})},
+		{ResourceId: id, Since: timestamppb.Now(), Until: timestamppb.New(time.Time{})},
 	} {
-		_, err := server.ListDeployments(ctx, request)
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("%v: %v", request, err)
+		if err := protovalidate.Validate(request); err == nil {
+			t.Fatalf("accepted invalid request: %v", request)
+		}
+	}
+	for _, request := range []*deploymentv1.ListDeploymentsRequest{
+		{ResourceId: id},
+		{ResourceId: id, EnvironmentId: id},
+		{WorkspaceId: id, EnvironmentId: id},
+		{WorkspaceId: id, EnvironmentId: id, Since: timestamppb.New(time.Time{}), Until: timestamppb.Now()},
+	} {
+		if err := protovalidate.Validate(request); err != nil {
+			t.Fatal(err)
 		}
 	}
 }

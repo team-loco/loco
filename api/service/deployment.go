@@ -58,7 +58,7 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 	if d.CommitSha != nil {
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
 	}
-	deployment := &deploymentv1.Deployment{
+	return &deploymentv1.Deployment{
 		Id:            d.ID.String(),
 		ResourceId:    d.ResourceID.String(),
 		EnvironmentId: d.EnvironmentID.String(),
@@ -78,9 +78,7 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 		ActorId:       d.ActorID.String(),
 		Method:        parseDeploymentMethod(d.Method),
 		Commit:        commit,
-	}
-
-	return deployment, nil
+	}, nil
 }
 
 // DeploymentServer implements the DeploymentService gRPC server
@@ -396,12 +394,6 @@ func (s *DeploymentServer) ListDeployments(
 		}
 		*field.target = &id
 	}
-	if (resourceID == nil) == (workspaceID == nil) || (workspaceID != nil && environmentID == nil) {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			"provide resource_id or workspace_id with environment_id",
-		)
-	}
 	var since, until *time.Time
 	if req.GetSince() != nil {
 		if err = req.GetSince().CheckValid(); err != nil {
@@ -416,9 +408,6 @@ func (s *DeploymentServer) ListDeployments(
 		}
 		value := req.GetUntil().AsTime()
 		until = &value
-	}
-	if since != nil && until != nil && !since.Before(*until) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, "since must precede until")
 	}
 	var systemRead bool
 	var organizationIDs, workspaceIDs, resourceIDs []uuid.UUID
