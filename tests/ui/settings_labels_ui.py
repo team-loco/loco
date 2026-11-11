@@ -14,7 +14,7 @@ repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Check settings field names, focus and descriptions in the production UI")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
-parser.add_argument("--out", default=str(repo / "tests/e2e/out/settings-labels"))
+parser.add_argument("--out", default=str(repo / "tests/ui/out/settings-labels"))
 args = parser.parse_args()
 os.chdir(repo)
 spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
@@ -23,7 +23,7 @@ spec.loader.exec_module(evidence)
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="settings-labels", scenario=str(repo / "tests/e2e/fixtures/settings-labels/scenario.json")))
+        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="settings-labels", scenario=str(repo / "tests/ui/fixtures/settings-labels/scenario.json")))
     args.state = output.getvalue().strip().splitlines()[-1]
     print("Preview state:", args.state, flush=True)
     if not args.keep:

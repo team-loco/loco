@@ -18,7 +18,7 @@ repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Test the not-found page for signed-in and signed-out visitors against an isolated API")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
-parser.add_argument("--out", default=str(repo / "tests/e2e/out/not-found"))
+parser.add_argument("--out", default=str(repo / "tests/ui/out/not-found"))
 args = parser.parse_args()
 os.chdir(repo)
 module_spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
@@ -29,7 +29,7 @@ out.mkdir(parents=True, exist_ok=True)
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="not-found", scenario=str(repo / "tests/e2e/fixtures/deployment-history/scenario.json")))
+        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="not-found", scenario=str(repo / "tests/ui/fixtures/deployment-history/scenario.json")))
     args.state = output.getvalue().strip().splitlines()[-1]
     if not args.keep:
         atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))

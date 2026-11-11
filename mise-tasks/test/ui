@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#MISE description="Run the dashboard suites in tests/ui, each against its own throwaway API, database and production UI build: every *_ui.py (Chromium) and *_api.py file, or the named suites. --shard i/N runs every Nth suite starting at the ith: test:ui [suite...] [--shard i/N]"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+suites=()
+shard=
+while [[ $# -gt 0 ]]; do
+	case $1 in
+	--shard)
+		shard=${2-}
+		shift 2 || {
+			echo "usage: mise run test:ui [suite...] [--shard i/N]" >&2
+			exit 2
+		}
+		;;
+	*)
+		suites+=("$1")
+		shift
+		;;
+	esac
+done
+if [[ ${#suites[@]} -eq 0 ]]; then
+	while IFS= read -r file; do
+		suites+=("$(basename "$file" .py)")
+	done < <(ls tests/ui/*_ui.py tests/ui/*_api.py | sort)
+fi
+if [[ -n $shard ]]; then
+	if [[ ! $shard =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || ((BASH_REMATCH[1] > BASH_REMATCH[2])); then
+		echo "--shard takes i/N with 1 <= i <= N, got '$shard'" >&2
+		exit 2
+	fi
+	index=${BASH_REMATCH[1]} count=${BASH_REMATCH[2]}
+	selected=()
+	for i in "${!suites[@]}"; do
+		if ((i % count == index - 1)); then
+			selected+=("${suites[$i]}")
+		fi
+	done
+	suites=(${selected[@]+"${selected[@]}"})
+fi
+
+# Run every selected suite even after a failure, so one run reports them all.
+failed=()
+for suite in ${suites[@]+"${suites[@]}"}; do
+	if [[ ! -f tests/ui/$suite.py ]]; then
+		echo "No suite tests/ui/$suite.py" >&2
+		exit 2
+	fi
+	echo "::group::$suite"
+	start=$SECONDS
+	if uv run --frozen --project docs python "tests/ui/$suite.py"; then
+		echo "$suite passed in $((SECONDS - start))s"
+	else
+		echo "$suite failed in $((SECONDS - start))s" >&2
+		failed+=("$suite")
+	fi
+	echo "::endgroup::"
+done
+if [[ ${#failed[@]} -gt 0 ]]; then
+	echo "Failed suites: ${failed[*]}" >&2
+	exit 1
+fi

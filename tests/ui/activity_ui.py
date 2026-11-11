@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser(description='Exercise scoped audit Activity wit
 parser.add_argument('--state')
 parser.add_argument('--ui-root')
 parser.add_argument('--keep', action='store_true')
-parser.add_argument('--out', default=str(repo / 'tests/e2e/out/activity-ui'))
+parser.add_argument('--out', default=str(repo / 'tests/ui/out/activity-ui'))
 args = parser.parse_args()
 os.chdir(repo)
 spec = importlib.util.spec_from_file_location('evidence', repo / '.agents/skills/ui-evidence/scripts/evidence.py')
@@ -29,7 +29,7 @@ spec.loader.exec_module(evidence)
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref='HEAD', name='after', scenario=str(repo / 'tests/e2e/fixtures/activity/scenario.json')))
+        evidence.cmd_up(argparse.Namespace(ref='HEAD', name='after', scenario=str(repo / 'tests/ui/fixtures/activity/scenario.json')))
     args.state = output.getvalue().strip().splitlines()[-1]
     if not args.keep:
         atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))

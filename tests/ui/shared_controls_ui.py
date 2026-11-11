@@ -18,7 +18,7 @@ parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 parser.add_argument("--capture-only", action="store_true")
 parser.add_argument("--label", default="after")
-parser.add_argument("--out", default=str(repo / "tests/e2e/out/shared-controls"))
+parser.add_argument("--out", default=str(repo / "tests/ui/out/shared-controls"))
 args = parser.parse_args()
 os.chdir(repo)
 spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
@@ -27,7 +27,7 @@ spec.loader.exec_module(evidence)
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="shared-controls", scenario=str(repo / "tests/e2e/fixtures/settings-labels/scenario.json")))
+        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="shared-controls", scenario=str(repo / "tests/ui/fixtures/settings-labels/scenario.json")))
     args.state = output.getvalue().strip().splitlines()[-1]
     print("Preview state:", args.state, flush=True)
     if not args.keep:

@@ -142,6 +142,29 @@ func TestSuiteInputsSelectBothE2EWorkflows(t *testing.T) {
 	}
 }
 
+func TestDashboardSuitesSelectOnlyWeb(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for _, path := range []string{
+		"tests/ui/new_service_ui.py",
+		"tests/ui/not_found_ui.py",
+		"tests/ui/resource_details_ui.py",
+		"tests/ui/shared_controls_ui.py",
+		"tests/ui/webhooks_ui.py",
+		"tests/ui/webhooks_api.py",
+		"tests/ui/activity_fixture.py",
+		"tests/ui/fixtures/deployment-history/scenario.json",
+		"mise-tasks/test/ui",
+	} {
+		t.Run(path, func(t *testing.T) {
+			selected := selectWorkflows(filters, "pull_request", []string{path})
+			assert.True(t, selected["web"])
+			assert.False(t, selected["e2e"])
+			assert.False(t, selected["e2e-installation"])
+		})
+	}
+}
+
 func TestKindSuiteInputsSkipInstallationE2E(t *testing.T) {
 	filters, err := loadFilters("../../.github/ci-paths.yml")
 	require.NoError(t, err)
@@ -155,6 +178,7 @@ func TestKindSuiteInputsSkipInstallationE2E(t *testing.T) {
 			selected := selectWorkflows(filters, "pull_request", []string{path})
 			assert.True(t, selected["e2e"])
 			assert.False(t, selected["e2e-installation"])
+			assert.False(t, selected["web"])
 		})
 	}
 }

@@ -17,7 +17,7 @@ repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Exercise deployment history against an isolated production API and database")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
-parser.add_argument("--out", default=str(repo / "tests/e2e/out/deployment-history"))
+parser.add_argument("--out", default=str(repo / "tests/ui/out/deployment-history"))
 args = parser.parse_args()
 os.chdir(repo)
 spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
@@ -43,7 +43,7 @@ started = time.monotonic()
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="deployment-history", scenario=str(repo / "tests/e2e/fixtures/deployment-history/scenario.json")))
+        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="deployment-history", scenario=str(repo / "tests/ui/fixtures/deployment-history/scenario.json")))
     args.state = output.getvalue().strip().splitlines()[-1]
     print("Preview state:", args.state, flush=True)
     if not args.keep:
