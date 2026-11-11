@@ -47,7 +47,7 @@ Use `--org` and `--workspace` to override the corresponding environment variable
 
 ## API token lifetime
 
-The API limits token lifetimes with `LOCO_API_TOKEN_MAX_LIFETIME`, a Go duration of at least one second, defaulting to `8760h` (365 days). `ConfigService.GetConfig` exposes the limit as `api_token_max_lifetime_seconds`. The dashboard offers expiry choices up to that limit. `loco token create` uses the server maximum when `--expires` is omitted and rejects durations outside the permitted range. Use `--expires 7d` to request a shorter lifetime.
+The API limits token lifetimes with `LOCO_API_TOKEN_MAX_LIFETIME`, a Go duration of at least one second, defaulting to `8760h` (365 days). `ConfigService.GetConfig` exposes the limit as `api_token_max_lifetime_seconds`. The dashboard offers expiry choices up to that limit. The dashboard and `loco token create` default to 30 days, capped at the server maximum when it is shorter. The CLI rejects explicit `--expires` durations outside the permitted range. Use `--expires 7d` to request a shorter lifetime.
 
 ## Suspend an organization
 

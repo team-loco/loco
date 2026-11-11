@@ -91,12 +91,9 @@ Tokens can be scoped to different entity types:
 			if err != nil {
 				return fmt.Errorf("failed to get expires flag: %w", err)
 			}
-			var expiresSec int64
-			if expiresStr != "" {
-				expiresSec, err = parseDuration(expiresStr)
-				if err != nil {
-					return err
-				}
+			expiresSec, err := parseDuration(expiresStr)
+			if err != nil {
+				return err
 			}
 			config, err := target.Clients.Config.GetConfig(ctx, &configv1.GetConfigRequest{})
 			if err != nil {
@@ -104,7 +101,7 @@ Tokens can be scoped to different entity types:
 			}
 			maximum := config.GetApiTokenMaxLifetimeSeconds()
 			if !cmd.Flags().Changed("expires") {
-				expiresSec = maximum
+				expiresSec = min(expiresSec, maximum)
 			}
 			if expiresSec <= 0 || expiresSec > maximum {
 				return fmt.Errorf("token expiration must be between 1 and %d seconds", maximum)
@@ -136,7 +133,7 @@ Tokens can be scoped to different entity types:
 
 	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().StringSlice("scope", []string{"read"}, "Token scopes: read, write, admin")
-	cmd.Flags().String("expires", "", "Token expiration (e.g., 1d, 7d; defaults to the server maximum)")
+	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d; default capped at the server maximum)")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
 	cmd.Flags().String("entity-id", "", "Entity ID (required for non-user entity types)")
 

@@ -5,7 +5,7 @@ import { TokenSchema } from "@gen/loco/token/v1/token_pb";
 
 import { DAY_MS } from "@/lib/time";
 
-import { allowsFor, expiryOptions, expiresLabel, tokenStatus } from "./model";
+import { allowsFor, defaultExpirySeconds, expiryOptions, expiresLabel, tokenStatus } from "./model";
 
 const NOW = Date.UTC(2026, 10, 8);
 
@@ -50,4 +50,12 @@ describe("token expiry options", () => {
 		expect(expiryOptions(BigInt(30 * day))).toEqual([day, 7 * day, 30 * day]);
 		expect(expiryOptions(90n)).toEqual([90]);
 	});
+});
+
+test("default token expiry is thirty days capped at the configured maximum", () => {
+	const day = DAY_MS / 1000;
+	expect(defaultExpirySeconds(BigInt(365 * day))).toBe(30 * day);
+	expect(defaultExpirySeconds(BigInt(30 * day))).toBe(30 * day);
+	expect(defaultExpirySeconds(BigInt(2 * day))).toBe(2 * day);
+	expect(defaultExpirySeconds(90n)).toBe(90);
 });

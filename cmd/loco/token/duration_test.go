@@ -71,7 +71,7 @@ func TestTokenCreateRejectsInvalidDurationBeforeRPC(t *testing.T) {
 					testTokenName,
 					testEntityTypeFlag,
 					testWorkspaceEntity,
-					"--entity-id",
+					testEntityIDFlag,
 					testEntityID,
 					"--expires",
 					duration,

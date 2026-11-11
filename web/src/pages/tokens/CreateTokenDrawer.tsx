@@ -22,7 +22,7 @@ import { DAY_MS, formatMonthDayYear } from "@/lib/time";
 import { AccessPicker } from "./AccessPicker";
 import type { AccessItem } from "./AccessPicker";
 import { ownerIcon } from "./icons";
-import { allowsFor, expiryOptions, grantsToScopes, OWNER_KEYS, OWNER_TITLE } from "./model";
+import { allowsFor, defaultExpirySeconds, expiryOptions, grantsToScopes, OWNER_KEYS, OWNER_TITLE } from "./model";
 import type { EntityNode, Level, OwnerKey } from "./model";
 import type { TokenData } from "./useTokenData";
 
@@ -135,7 +135,7 @@ function CreateForm({
 	const [ownerKey, setOwnerKey] = useState(draft.owner);
 	const [name, setName] = useState(draft.name);
 	const options = expiryOptions(maximum);
-	const [selected, setSelected] = useState(Number(maximum));
+	const [selected, setSelected] = useState(() => defaultExpirySeconds(maximum));
 	const seconds = Math.min(selected, Number(maximum));
 	const [items, setItems] = useState<AccessItem[]>(draft.items);
 	const [tried, setTried] = useState(false);
