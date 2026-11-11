@@ -53,8 +53,9 @@ func TestClusterAdminHTTPRequiresSystemAdminForEveryMethod(t *testing.T) {
 	a, ctx := f.api, t.Context()
 	a.machine.Cfg.MaxAPITokenDuration = time.Hour
 	var clusterID uuid.UUID
-	if err := a.pool.QueryRow(ctx, `INSERT INTO clusters (name, region, provider, is_active, is_default)
-VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
+	if err := a.pool.QueryRow(ctx, `INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider,
+    is_active, is_default)
+VALUES (true, true, 'admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 		Scan(&clusterID); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +94,7 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 		"update": func(client clusterv1connect.ClusterAdminServiceClient) error {
 			_, err := client.UpdateCluster(
 				ctx,
-				&clusterv1.UpdateClusterRequest{ClusterId: clusterID.String(), ApplicationsEnabled: true},
+				&clusterv1.UpdateClusterRequest{ClusterId: clusterID.String(), ApplicationsAllowed: true},
 			)
 			return err
 		},

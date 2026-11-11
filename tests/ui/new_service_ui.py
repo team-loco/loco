@@ -36,9 +36,9 @@ org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id
 suffix = uuid.uuid4().hex[:6]
 platform_domain = "apps.e2e.test"
 evidence.psql(state["container"], f"""UPDATE clusters SET is_active=false WHERE provider='fixture';
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
-VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
-('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}');""")
+INSERT INTO clusters(applications_allowed, builds_allowed, id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
+VALUES(true, true, '{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
+(true, true, '{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}');""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = evidence.psql(state["container"], f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';")
 replica_limit = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]["maxReplicas"]

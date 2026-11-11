@@ -79,7 +79,7 @@ func VerifySource(
 			worker = candidate
 		}
 	}
-	if worker.Name == "" || !worker.Builds.Enabled {
+	if worker.Name == "" || !worker.Builds.Allowed {
 		return Status{}, errVerificationTarget
 	}
 	clients := rpc.ForHost(config.ControlPlane.APIURL, token)

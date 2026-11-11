@@ -59,8 +59,9 @@ func (f *deployFixture) setClusterDomains(t *testing.T, clusterID uuid.UUID, dom
 func (f *deployFixture) addRegionCluster(t *testing.T, domains ...string) {
 	t.Helper()
 	insert := `
-INSERT INTO clusters (name, region, provider, is_active, is_default, health_status, last_heartbeat, domains)
-VALUES ($1, $2, 'kind', true, true, 'healthy', NOW(), $3)`
+INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider,
+    is_active, is_default, health_status, last_heartbeat, domains)
+VALUES (true, true, $1, $2, 'kind', true, true, 'healthy', NOW(), $3)`
 	served := append([]string{}, domains...)
 	if _, err := f.pool.Exec(
 		context.Background(),

@@ -32,8 +32,8 @@ func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
 	const canary = "credential-canary-do-not-print"
 	valid := string(example(t))
 	tests := map[string]string{
-		"missing boolean": strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: {}", 1),
-		"null object":     strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: null", 1),
+		"missing boolean": strings.Replace(valid, "builds: {allowed: true, privateEgress: []}", "builds: {}", 1),
+		"null object":     strings.Replace(valid, "builds: {allowed: true, privateEgress: []}", "builds: null", 1),
 		"wrong scalar":    strings.Replace(valid, "clientId: loco", "clientId: 123", 1),
 		"bootstrap remote": strings.Replace(
 			valid,
@@ -132,8 +132,8 @@ func TestEmptyWorkersAndDisabledBuilds(t *testing.T) {
 		[]byte(
 			strings.Replace(
 				valid,
-				"builds: {enabled: true, privateEgress: []}",
-				"builds: {enabled: false, privateEgress: []}",
+				"builds: {allowed: true, privateEgress: []}",
+				"builds: {allowed: false, privateEgress: []}",
 				1,
 			),
 		),

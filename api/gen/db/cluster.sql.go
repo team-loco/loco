@@ -13,7 +13,7 @@ import (
 )
 
 const createCluster = `-- name: CreateCluster :exec
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id, applications_enabled, builds_allowed)
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id, applications_allowed, builds_allowed)
 VALUES ($1, $2, $3, 'kubernetes', true, false,
         $4, $5, $6)
 ON CONFLICT (id) DO NOTHING
@@ -24,7 +24,7 @@ type CreateClusterParams struct {
 	Region              string    `json:"region"`
 	Tier                string    `json:"tier"`
 	ID                  uuid.UUID `json:"id"`
-	ApplicationsEnabled bool      `json:"applicationsEnabled"`
+	ApplicationsAllowed bool      `json:"applicationsAllowed"`
 	BuildsAllowed       bool      `json:"buildsAllowed"`
 }
 
@@ -34,7 +34,7 @@ func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) er
 		arg.Region,
 		arg.Tier,
 		arg.ID,
-		arg.ApplicationsEnabled,
+		arg.ApplicationsAllowed,
 		arg.BuildsAllowed,
 	)
 	return err
@@ -168,7 +168,7 @@ func (q *Queries) GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnro
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, builds_enabled, applications_enabled, builds_allowed
+       last_heartbeat, agent_version, agent_public_key, builds_enabled, applications_allowed, builds_allowed
 FROM clusters ORDER BY created_at, id
 `
 
@@ -185,7 +185,7 @@ type ListAdminClustersRow struct {
 	AgentVersion        *string    `json:"agentVersion"`
 	AgentPublicKey      []byte     `json:"agentPublicKey"`
 	BuildsEnabled       bool       `json:"buildsEnabled"`
-	ApplicationsEnabled bool       `json:"applicationsEnabled"`
+	ApplicationsAllowed bool       `json:"applicationsAllowed"`
 	BuildsAllowed       bool       `json:"buildsAllowed"`
 }
 
@@ -211,7 +211,7 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.AgentVersion,
 			&i.AgentPublicKey,
 			&i.BuildsEnabled,
-			&i.ApplicationsEnabled,
+			&i.ApplicationsAllowed,
 			&i.BuildsAllowed,
 		); err != nil {
 			return nil, err
@@ -300,13 +300,13 @@ func (q *Queries) ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID)
 }
 
 const lockAssignableCluster = `-- name: LockAssignableCluster :one
-SELECT id, applications_enabled, builds_allowed, builds_enabled FROM clusters
+SELECT id, applications_allowed, builds_allowed, builds_enabled FROM clusters
 WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE
 `
 
 type LockAssignableClusterRow struct {
 	ID                  uuid.UUID `json:"id"`
-	ApplicationsEnabled bool      `json:"applicationsEnabled"`
+	ApplicationsAllowed bool      `json:"applicationsAllowed"`
 	BuildsAllowed       bool      `json:"buildsAllowed"`
 	BuildsEnabled       bool      `json:"buildsEnabled"`
 }
@@ -316,7 +316,7 @@ func (q *Queries) LockAssignableCluster(ctx context.Context, id uuid.UUID) (Lock
 	var i LockAssignableClusterRow
 	err := row.Scan(
 		&i.ID,
-		&i.ApplicationsEnabled,
+		&i.ApplicationsAllowed,
 		&i.BuildsAllowed,
 		&i.BuildsEnabled,
 	)
@@ -464,20 +464,20 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 
 const updateClusterCapabilities = `-- name: UpdateClusterCapabilities :one
 UPDATE clusters
-SET applications_enabled = $1,
+SET applications_allowed = $1,
     builds_allowed = $2, updated_at = NOW()
 WHERE id = $3 AND removed_at IS NULL
 RETURNING id
 `
 
 type UpdateClusterCapabilitiesParams struct {
-	ApplicationsEnabled bool      `json:"applicationsEnabled"`
+	ApplicationsAllowed bool      `json:"applicationsAllowed"`
 	BuildsAllowed       bool      `json:"buildsAllowed"`
 	ID                  uuid.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateClusterCapabilities(ctx context.Context, arg UpdateClusterCapabilitiesParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateClusterCapabilities, arg.ApplicationsEnabled, arg.BuildsAllowed, arg.ID)
+	row := q.db.QueryRow(ctx, updateClusterCapabilities, arg.ApplicationsAllowed, arg.BuildsAllowed, arg.ID)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

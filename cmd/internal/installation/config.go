@@ -91,7 +91,7 @@ type IssuerRef struct {
 
 type Worker struct {
 	MetricsServer       MetricsServer    `json:"metricsServer"       yaml:"metricsServer"`
-	ApplicationsEnabled bool             `json:"applicationsEnabled" yaml:"applicationsEnabled"`
+	ApplicationsAllowed bool             `json:"applicationsAllowed" yaml:"applicationsAllowed"`
 	Name                string           `json:"name"                yaml:"name"`
 	Kubernetes          KubernetesTarget `json:"kubernetes"          yaml:"kubernetes"`
 	Region              string           `json:"region"              yaml:"region"`
@@ -110,7 +110,7 @@ type PrivateEgress struct {
 
 type Builds struct {
 	PrivateEgress []PrivateEgress `json:"privateEgress" yaml:"privateEgress"`
-	Enabled       bool            `json:"enabled"       yaml:"enabled"`
+	Allowed       bool            `json:"allowed"       yaml:"allowed"`
 }
 
 type MetricsServer struct {

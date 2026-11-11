@@ -8681,9 +8681,9 @@
             "type": "boolean",
             "title": "builds_enabled"
           },
-          "applicationsEnabled": {
+          "applicationsAllowed": {
             "type": "boolean",
-            "title": "applications_enabled"
+            "title": "applications_allowed"
           },
           "buildsAllowed": {
             "type": "boolean",
@@ -8752,9 +8752,9 @@
             "title": "tier",
             "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
           },
-          "applicationsEnabled": {
+          "applicationsAllowed": {
             "type": "boolean",
-            "title": "applications_enabled"
+            "title": "applications_allowed"
           },
           "buildsAllowed": {
             "type": "boolean",
@@ -8951,9 +8951,9 @@
             "title": "cluster_id",
             "format": "uuid"
           },
-          "applicationsEnabled": {
+          "applicationsAllowed": {
             "type": "boolean",
-            "title": "applications_enabled"
+            "title": "applications_allowed"
           },
           "buildsAllowed": {
             "type": "boolean",

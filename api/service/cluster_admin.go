@@ -89,7 +89,7 @@ func (s *ClusterAdminServer) CreateCluster(
 		queries := genDb.New(tx)
 		if createErr := queries.CreateCluster(ctx, genDb.CreateClusterParams{
 			Name: req.GetName(), Region: req.GetRegion(), Tier: tier, ID: requestID,
-			ApplicationsEnabled: req.GetApplicationsEnabled(), BuildsAllowed: req.GetBuildsAllowed(),
+			ApplicationsAllowed: req.GetApplicationsAllowed(), BuildsAllowed: req.GetBuildsAllowed(),
 		}); createErr != nil {
 			return fmt.Errorf("insert cluster: %w", createErr)
 		}
@@ -166,7 +166,7 @@ func (s *ClusterAdminServer) ListClusters(
 			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
 			BuildsEnabled:       row.BuildsEnabled,
-			ApplicationsEnabled: row.ApplicationsEnabled, BuildsAllowed: row.BuildsAllowed,
+			ApplicationsAllowed: row.ApplicationsAllowed, BuildsAllowed: row.BuildsAllowed,
 		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)
@@ -280,7 +280,7 @@ func (s *ClusterAdminServer) UpdateCluster(
 		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid cluster ID").WithCause(err)
 	}
 	_, err = s.queries.UpdateClusterCapabilities(ctx, genDb.UpdateClusterCapabilitiesParams{
-		ID: id, ApplicationsEnabled: req.GetApplicationsEnabled(), BuildsAllowed: req.GetBuildsAllowed(),
+		ID: id, ApplicationsAllowed: req.GetApplicationsAllowed(), BuildsAllowed: req.GetBuildsAllowed(),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrClusterNotFound

@@ -16,7 +16,7 @@ const missedHeartbeats = 3
 
 var errNoActiveCluster = rpcerr.NewCoded(
 	connect.CodeFailedPrecondition,
-	"no healthy application-enabled cluster for the region and environment type",
+	"no healthy cluster accepting applications for the region and environment type",
 )
 
 func ClusterSilentAfter(heartbeatInterval time.Duration) time.Duration {

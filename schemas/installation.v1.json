@@ -325,7 +325,7 @@
           "kubernetes",
           "region",
           "tier",
-          "applicationsEnabled",
+          "applicationsAllowed",
           "appsDomain",
           "builds",
           "certificates",
@@ -371,7 +371,7 @@
               "production"
             ]
           },
-          "applicationsEnabled": {
+          "applicationsAllowed": {
             "type": "boolean"
           },
           "appsDomain": {
@@ -382,11 +382,11 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "enabled",
+              "allowed",
               "privateEgress"
             ],
             "properties": {
-              "enabled": {
+              "allowed": {
                 "type": "boolean"
               },
               "privateEgress": {

@@ -29,9 +29,14 @@ var (
 	ErrClusterHasWorkloads = errors.New(
 		"cluster has workloads; move or stop them before removal, or use --force for a lost cluster",
 	)
-	ErrInvalidClusterOperation = errors.New("cluster operation must be pause, resume, remove or restore")
-	ErrClusterNotAssignable    = rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster is paused or removed")
-	ErrClusterNotEnrollable    = errors.New(
+	ErrInvalidClusterOperation       = errors.New("cluster operation must be pause, resume, remove or restore")
+	ErrClusterNotAssignable          = rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster is paused or removed")
+	errClusterBuildsNotAllowed       = rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster does not accept builds")
+	errClusterApplicationsNotAllowed = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"cluster does not accept applications",
+	)
+	ErrClusterNotEnrollable = errors.New(
 		"cluster does not exist or is removed; restore it before issuing a join token",
 	)
 )
@@ -110,10 +115,10 @@ func lockAssignableCluster(ctx context.Context, qtx *genDb.Queries, id uuid.UUID
 	}
 	if build {
 		if !cluster.BuildsAllowed || !cluster.BuildsEnabled {
-			return rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster does not accept builds")
+			return errClusterBuildsNotAllowed
 		}
-	} else if !cluster.ApplicationsEnabled {
-		return rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster does not accept applications")
+	} else if !cluster.ApplicationsAllowed {
+		return errClusterApplicationsNotAllowed
 	}
 	return nil
 }

@@ -47,9 +47,9 @@ workers:
       namespace: loco-system
     region: us-east-1
     tier: staging
-    applicationsEnabled: true
+    applicationsAllowed: true
     appsDomain: staging.apps.example.com
     metricsServer: {enabled: true, kubeletInsecureTLS: false}
-    builds: {enabled: true, privateEgress: []}
+    builds: {allowed: true, privateEgress: []}
     certificates:
       issuerRef: {name: example-issuer, kind: ClusterIssuer}

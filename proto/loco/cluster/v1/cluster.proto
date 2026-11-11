@@ -32,7 +32,7 @@ message Cluster {
   optional string agent_version = 10;
   optional string agent_key_fingerprint = 11;
   bool builds_enabled = 12;
-  bool applications_enabled = 13;
+  bool applications_allowed = 13;
   bool builds_allowed = 14;
 }
 
@@ -65,13 +65,13 @@ message CreateClusterRequest {
     defined_only: true
     not_in: [0]
   }];
-  bool applications_enabled = 5;
+  bool applications_allowed = 5;
   bool builds_allowed = 6;
 }
 
 message UpdateClusterRequest {
   string cluster_id = 1 [(buf.validate.field).string.uuid = true];
-  bool applications_enabled = 2;
+  bool applications_allowed = 2;
   bool builds_allowed = 3;
 }
 

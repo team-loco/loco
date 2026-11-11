@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -22,7 +23,7 @@ func TestClusterCapabilitiesSeparateBuildsAndApplications(t *testing.T) {
 	update := func(id uuid.UUID, applications, builds bool) {
 		t.Helper()
 		_, err := admin.UpdateCluster(systemAdminContext(t), &clusterv1.UpdateClusterRequest{
-			ClusterId: id.String(), ApplicationsEnabled: applications, BuildsAllowed: builds,
+			ClusterId: id.String(), ApplicationsAllowed: applications, BuildsAllowed: builds,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -71,12 +72,12 @@ func TestClusterCapabilitiesSeparateBuildsAndApplications(t *testing.T) {
 	update(f.otherCluster, false, false)
 	_, err = createDeployment(t, f.deployFixture, sameRegionSpec)
 	requireCode(t, err, connect.CodeFailedPrecondition, "no runtime cluster")
-	if !strings.Contains(err.Error(), "application-enabled") {
+	if !strings.Contains(err.Error(), "accepting applications") {
 		t.Fatal(err)
 	}
 	planned, err = plan(t, f.deployFixture, planFileHeader+planFileNew, f.workspaceReadScopes(t))
 	if err != nil || len(planned.GetErrors()) == 0 ||
-		!strings.Contains(planned.GetErrors()[0].GetMessage(), "application-enabled") {
+		!strings.Contains(planned.GetErrors()[0].GetMessage(), "accepting applications") {
 		t.Fatalf("plan = %v, err = %v", planned, err)
 	}
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusPending {
@@ -101,7 +102,7 @@ func TestClusterRegistrationStoresCapabilities(t *testing.T) {
 	request := &clusterv1.CreateClusterRequest{
 		RequestId: uuid.NewString(), Name: "builds", Region: testRegion,
 		Tier:                environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
-		ApplicationsEnabled: false, BuildsAllowed: true,
+		ApplicationsAllowed: false, BuildsAllowed: true,
 	}
 	created, err := e.admin.CreateCluster(ctx, request)
 	if err != nil {
@@ -115,10 +116,31 @@ func TestClusterRegistrationStoresCapabilities(t *testing.T) {
 		if cluster.GetId() != created.GetClusterId() {
 			continue
 		}
-		if cluster.GetApplicationsEnabled() || !cluster.GetBuildsAllowed() || cluster.GetBuildsEnabled() {
+		if cluster.GetApplicationsAllowed() || !cluster.GetBuildsAllowed() || cluster.GetBuildsEnabled() {
 			t.Fatal(cluster)
 		}
 		return
 	}
 	t.Fatal("registered cluster missing from list")
+}
+
+func TestClusterCapabilitiesMustBeExplicit(t *testing.T) {
+	f := newDeployFixture(t)
+	for _, column := range []string{"applications_allowed", "builds_allowed"} {
+		t.Run(column, func(t *testing.T) {
+			supplied := "builds_allowed"
+			if column == supplied {
+				supplied = "applications_allowed"
+			}
+			_, err := f.pool.Exec(
+				t.Context(),
+				"INSERT INTO clusters (name, region, provider, is_active, is_default, "+supplied+") "+
+					"VALUES ('missing-capability', 'east', 'kind', true, false, true)",
+			)
+			var databaseError *pgconn.PgError
+			if !errors.As(err, &databaseError) || databaseError.Code != "23502" || databaseError.ColumnName != column {
+				t.Fatalf("missing %s: %v", column, err)
+			}
+		})
+	}
 }

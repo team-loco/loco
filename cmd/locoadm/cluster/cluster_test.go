@@ -211,7 +211,7 @@ func TestClusterCreateAndJoinTokenPrintTheToken(t *testing.T) {
 		}
 		if args[0] == clusterCreate &&
 			(fake.created.GetName() != testName || fake.created.GetRegion() != testRegion ||
-				fake.created.GetTier() != testTier || !fake.created.GetApplicationsEnabled() || !fake.created.GetBuildsAllowed()) {
+				fake.created.GetTier() != testTier || !fake.created.GetApplicationsAllowed() || !fake.created.GetBuildsAllowed()) {
 			t.Fatalf("created %v", fake.created)
 		}
 	}
@@ -285,15 +285,15 @@ func TestClusterCapabilityFlags(t *testing.T) {
 			if method == clusterCreate {
 				args = append([]string{}, createArgs...)
 			}
-			cmd.SetArgs(append(args, "--applications-enabled=false", "--builds-allowed=true"))
+			cmd.SetArgs(append(args, "--applications-allowed=false", "--builds-allowed=true"))
 			if err := cmd.Execute(); err != nil {
 				t.Fatal(err)
 			}
 			if method == clusterCreate {
-				if fake.created.GetApplicationsEnabled() || !fake.created.GetBuildsAllowed() {
+				if fake.created.GetApplicationsAllowed() || !fake.created.GetBuildsAllowed() {
 					t.Fatal(fake.created)
 				}
-			} else if fake.updated.GetApplicationsEnabled() || !fake.updated.GetBuildsAllowed() {
+			} else if fake.updated.GetApplicationsAllowed() || !fake.updated.GetBuildsAllowed() {
 				t.Fatal(fake.updated)
 			}
 		})

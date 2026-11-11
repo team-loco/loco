@@ -50,8 +50,8 @@ func newResourceStatusFixture(t *testing.T) *resourceStatusFixture {
 	f.setStagingTier(t, f.stagingCluster)
 	row := f.pool.QueryRow(ctx, `
 WITH c AS (
-    INSERT INTO clusters (name, region, provider, is_active, is_default)
-    VALUES ('c3', $1, 'kind', true, true) RETURNING id
+    INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider, is_active, is_default)
+    VALUES (true, true, 'c3', $1, 'kind', true, true) RETURNING id
 )
 SELECT c.id FROM c`, statusSecondRegion)
 	if err := row.Scan(&f.regionCluster); err != nil {

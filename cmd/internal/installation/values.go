@@ -106,7 +106,7 @@ agent:
 controller:
   image: {{with image .Manifest "controller"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
 builds:
-  enabled: {{.Worker.Builds.Enabled}}
+  enabled: {{.Worker.Builds.Allowed}}
   builderImage: {{with image .Manifest "builder"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
   privateEgress:{{if .Worker.Builds.PrivateEgress}}
 {{range .Worker.Builds.PrivateEgress}}    - cidr: {{quote .CIDR}}

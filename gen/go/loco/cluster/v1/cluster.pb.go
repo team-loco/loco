@@ -38,7 +38,7 @@ type Cluster struct {
 	AgentVersion        *string                `protobuf:"bytes,10,opt,name=agent_version,json=agentVersion,proto3,oneof" json:"agent_version,omitempty"`
 	AgentKeyFingerprint *string                `protobuf:"bytes,11,opt,name=agent_key_fingerprint,json=agentKeyFingerprint,proto3,oneof" json:"agent_key_fingerprint,omitempty"`
 	BuildsEnabled       bool                   `protobuf:"varint,12,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
-	ApplicationsEnabled bool                   `protobuf:"varint,13,opt,name=applications_enabled,json=applicationsEnabled,proto3" json:"applications_enabled,omitempty"`
+	ApplicationsAllowed bool                   `protobuf:"varint,13,opt,name=applications_allowed,json=applicationsAllowed,proto3" json:"applications_allowed,omitempty"`
 	BuildsAllowed       bool                   `protobuf:"varint,14,opt,name=builds_allowed,json=buildsAllowed,proto3" json:"builds_allowed,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -158,9 +158,9 @@ func (x *Cluster) GetBuildsEnabled() bool {
 	return false
 }
 
-func (x *Cluster) GetApplicationsEnabled() bool {
+func (x *Cluster) GetApplicationsAllowed() bool {
 	if x != nil {
-		return x.ApplicationsEnabled
+		return x.ApplicationsAllowed
 	}
 	return false
 }
@@ -327,7 +327,7 @@ type CreateClusterRequest struct {
 	Name                string             `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Region              string             `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
 	Tier                v1.EnvironmentType `protobuf:"varint,3,opt,name=tier,proto3,enum=loco.environment.v1.EnvironmentType" json:"tier,omitempty"`
-	ApplicationsEnabled bool               `protobuf:"varint,5,opt,name=applications_enabled,json=applicationsEnabled,proto3" json:"applications_enabled,omitempty"`
+	ApplicationsAllowed bool               `protobuf:"varint,5,opt,name=applications_allowed,json=applicationsAllowed,proto3" json:"applications_allowed,omitempty"`
 	BuildsAllowed       bool               `protobuf:"varint,6,opt,name=builds_allowed,json=buildsAllowed,proto3" json:"builds_allowed,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -391,9 +391,9 @@ func (x *CreateClusterRequest) GetTier() v1.EnvironmentType {
 	return v1.EnvironmentType(0)
 }
 
-func (x *CreateClusterRequest) GetApplicationsEnabled() bool {
+func (x *CreateClusterRequest) GetApplicationsAllowed() bool {
 	if x != nil {
-		return x.ApplicationsEnabled
+		return x.ApplicationsAllowed
 	}
 	return false
 }
@@ -408,7 +408,7 @@ func (x *CreateClusterRequest) GetBuildsAllowed() bool {
 type UpdateClusterRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	ClusterId           string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	ApplicationsEnabled bool                   `protobuf:"varint,2,opt,name=applications_enabled,json=applicationsEnabled,proto3" json:"applications_enabled,omitempty"`
+	ApplicationsAllowed bool                   `protobuf:"varint,2,opt,name=applications_allowed,json=applicationsAllowed,proto3" json:"applications_allowed,omitempty"`
 	BuildsAllowed       bool                   `protobuf:"varint,3,opt,name=builds_allowed,json=buildsAllowed,proto3" json:"builds_allowed,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -451,9 +451,9 @@ func (x *UpdateClusterRequest) GetClusterId() string {
 	return ""
 }
 
-func (x *UpdateClusterRequest) GetApplicationsEnabled() bool {
+func (x *UpdateClusterRequest) GetApplicationsAllowed() bool {
 	if x != nil {
-		return x.ApplicationsEnabled
+		return x.ApplicationsAllowed
 	}
 	return false
 }
@@ -1126,7 +1126,7 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	" \x01(\tH\x01R\fagentVersion\x88\x01\x01\x127\n" +
 	"\x15agent_key_fingerprint\x18\v \x01(\tH\x02R\x13agentKeyFingerprint\x88\x01\x01\x12%\n" +
 	"\x0ebuilds_enabled\x18\f \x01(\bR\rbuildsEnabled\x121\n" +
-	"\x14applications_enabled\x18\r \x01(\bR\x13applicationsEnabled\x12%\n" +
+	"\x14applications_allowed\x18\r \x01(\bR\x13applicationsAllowed\x12%\n" +
 	"\x0ebuilds_allowed\x18\x0e \x01(\bR\rbuildsAllowedB\x10\n" +
 	"\x0e_health_statusB\x10\n" +
 	"\x0e_agent_versionB\x18\n" +
@@ -1149,12 +1149,12 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x06region\x12D\n" +
 	"\x04tier\x18\x03 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04tier\x121\n" +
-	"\x14applications_enabled\x18\x05 \x01(\bR\x13applicationsEnabled\x12%\n" +
+	"\x14applications_allowed\x18\x05 \x01(\bR\x13applicationsAllowed\x12%\n" +
 	"\x0ebuilds_allowed\x18\x06 \x01(\bR\rbuildsAllowed\"\x99\x01\n" +
 	"\x14UpdateClusterRequest\x12'\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x121\n" +
-	"\x14applications_enabled\x18\x02 \x01(\bR\x13applicationsEnabled\x12%\n" +
+	"\x14applications_allowed\x18\x02 \x01(\bR\x13applicationsAllowed\x12%\n" +
 	"\x0ebuilds_allowed\x18\x03 \x01(\bR\rbuildsAllowed\"6\n" +
 	"\x15UpdateClusterResponse\x12\x1d\n" +
 	"\n" +

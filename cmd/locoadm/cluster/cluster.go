@@ -21,7 +21,7 @@ import (
 
 const (
 	clusterUpdate    = "update"
-	flagApplications = "applications-enabled"
+	flagApplications = "applications-allowed"
 	flagBuilds       = "builds-allowed"
 	clusterCreate    = "create"
 	clusterJoinToken = "join-token"
@@ -108,7 +108,7 @@ func operations() []operation {
 					return nil, err
 				}
 				return client.UpdateCluster(cmd.Context(), &clusterv1.UpdateClusterRequest{
-					ClusterId: args[0], ApplicationsEnabled: applications, BuildsAllowed: builds,
+					ClusterId: args[0], ApplicationsAllowed: applications, BuildsAllowed: builds,
 				})
 			},
 		},
@@ -210,7 +210,7 @@ func createCluster(
 	}
 	return client.CreateCluster(cmd.Context(), &clusterv1.CreateClusterRequest{
 		RequestId: uuid.NewString(), Name: name, Region: region, Tier: tier,
-		ApplicationsEnabled: applications, BuildsAllowed: builds,
+		ApplicationsAllowed: applications, BuildsAllowed: builds,
 	})
 }
 

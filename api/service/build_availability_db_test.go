@@ -137,7 +137,7 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 	f := newBuildFixture(t)
 	if _, err := f.pool.Exec(
 		f.ctx,
-		"UPDATE clusters SET applications_enabled = false, builds_allowed = false WHERE id = $1",
+		"UPDATE clusters SET applications_allowed = false, builds_allowed = false WHERE id = $1",
 		f.clusterID,
 	); err != nil {
 		t.Fatal(err)
@@ -178,7 +178,7 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 	}
 	register(true)
 	var applications, builds bool
-	capabilitiesQuery := "SELECT applications_enabled, builds_allowed FROM clusters WHERE id = $1"
+	capabilitiesQuery := "SELECT applications_allowed, builds_allowed FROM clusters WHERE id = $1"
 	if err := f.pool.QueryRow(f.ctx, capabilitiesQuery, f.clusterID).
 		Scan(&applications, &builds); err != nil {
 		t.Fatal(err)

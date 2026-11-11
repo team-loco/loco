@@ -136,7 +136,7 @@ func (k *Kubernetes) applyWorker(
 		ctx,
 		&clusterv1.CreateClusterRequest{
 			Name:                worker.Name,
-			ApplicationsEnabled: worker.ApplicationsEnabled, BuildsAllowed: worker.Builds.Enabled,
+			ApplicationsAllowed: worker.ApplicationsAllowed, BuildsAllowed: worker.Builds.Allowed,
 			Region:    worker.Region,
 			Tier:      tier,
 			RequestId: state.Data["requestID"],
@@ -147,8 +147,8 @@ func (k *Kubernetes) applyWorker(
 	}
 	if _, updateErr := client.UpdateCluster(ctx, &clusterv1.UpdateClusterRequest{
 		ClusterId:           created.GetClusterId(),
-		ApplicationsEnabled: worker.ApplicationsEnabled,
-		BuildsAllowed:       worker.Builds.Enabled,
+		ApplicationsAllowed: worker.ApplicationsAllowed,
+		BuildsAllowed:       worker.Builds.Allowed,
 	}); updateErr != nil {
 		return errWorkerRegistration
 	}
@@ -255,9 +255,9 @@ func (k *Kubernetes) workerReady(ctx context.Context, cluster *clusterv1.Cluster
 	}
 	ready := cluster.GetIsActive() && cluster.GetLastHeartbeat() != nil &&
 		time.Since(cluster.GetLastHeartbeat().AsTime()) < workerHeartbeatMaxAge &&
-		cluster.GetBuildsEnabled() == worker.Builds.Enabled &&
-		cluster.GetBuildsAllowed() == worker.Builds.Enabled &&
-		cluster.GetApplicationsEnabled() == worker.ApplicationsEnabled
+		cluster.GetBuildsEnabled() == worker.Builds.Allowed &&
+		cluster.GetBuildsAllowed() == worker.Builds.Allowed &&
+		cluster.GetApplicationsAllowed() == worker.ApplicationsAllowed
 	return ready, nil
 }
 

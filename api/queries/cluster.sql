@@ -37,9 +37,9 @@ SET gateway_hostname = $2, updated_at = NOW()
 WHERE id = $1;
 
 -- name: CreateCluster :exec
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id, applications_enabled, builds_allowed)
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id, applications_allowed, builds_allowed)
 VALUES (sqlc.arg(name), sqlc.arg(region), sqlc.arg(tier), 'kubernetes', true, false,
-        sqlc.arg(id), sqlc.arg(applications_enabled), sqlc.arg(builds_allowed))
+        sqlc.arg(id), sqlc.arg(applications_allowed), sqlc.arg(builds_allowed))
 ON CONFLICT (id) DO NOTHING;
 
 -- name: LockClusterRegistration :one
@@ -81,14 +81,14 @@ ON CONFLICT (cluster_id, jti) DO NOTHING;
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, builds_enabled, applications_enabled, builds_allowed
+       last_heartbeat, agent_version, agent_public_key, builds_enabled, applications_allowed, builds_allowed
 FROM clusters ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one
 SELECT id, is_active, removed_at FROM clusters WHERE id = $1 FOR UPDATE;
 
 -- name: LockAssignableCluster :one
-SELECT id, applications_enabled, builds_allowed, builds_enabled FROM clusters
+SELECT id, applications_allowed, builds_allowed, builds_enabled FROM clusters
 WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE;
 
 -- name: UpdateClusterLifecycle :exec
@@ -122,7 +122,7 @@ ORDER BY region, name;
 
 -- name: UpdateClusterCapabilities :one
 UPDATE clusters
-SET applications_enabled = sqlc.arg(applications_enabled),
+SET applications_allowed = sqlc.arg(applications_allowed),
     builds_allowed = sqlc.arg(builds_allowed), updated_at = NOW()
 WHERE id = sqlc.arg(id) AND removed_at IS NULL
 RETURNING id;
