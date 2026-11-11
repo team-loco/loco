@@ -85,6 +85,31 @@ def log_levels(page, suffix):
     page.screenshot(path=str(out / f"log-levels-{suffix}.png"))
 
 
+def live_focus(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    live = page.get_by_role("button", name=re.compile(r"^(Live|Starting…)"))
+    expect(live).to_have_attribute("aria-pressed", "false")
+    # Hold the latest-logs request so the button stays in its pending state.
+    held = []
+    page.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: held.append(route))
+    live.focus()
+    page.keyboard.press("Enter")
+    expect(live).to_have_text("Starting…")
+    expect(live).to_have_attribute("aria-busy", "true")
+    page.keyboard.press("Enter")
+    # Chromium moves focus off a disabled button on its next rendering update, not at once.
+    page.wait_for_timeout(100)
+    expect(live).to_be_focused()
+    assert len(held) == 1, len(held)
+    # fallback() to the context mock fails with "Route is already handled", so answer here.
+    held[0].fulfill(json={"entries": [], "totalMatched": "0"})
+    page.unroute("**/loco.observability.v1.ObservabilityProxyService/QueryLogs")
+    expect(live).to_have_attribute("aria-pressed", "true")
+    expect(live).to_be_focused()
+    page.keyboard.press("Enter")
+    expect(live).to_have_attribute("aria-pressed", "false")
+
+
 def time_presets(page, suffix):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
@@ -359,7 +384,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
+                        for check in (log_levels, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})

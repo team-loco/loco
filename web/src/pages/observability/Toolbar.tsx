@@ -205,9 +205,13 @@ export function LiveButton({
 			variant="button"
 			pressed={on}
 			aria-busy={pending}
-			disabled={disabled || pending}
+			disabled={disabled}
 			title={title}
-			onPressedChange={onToggle}
+			onPressedChange={() => {
+				// Disabling the button while a tail starts would drop its keyboard focus.
+				if (pending) return;
+				onToggle();
+			}}
 			className={cn("h-8", on && "border-[color-mix(in_oklab,var(--ok)_40%,transparent)] text-ok-fg")}
 		>
 			{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon className="fill-current" />}
