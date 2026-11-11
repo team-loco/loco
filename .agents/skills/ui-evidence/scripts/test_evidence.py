@@ -1,3 +1,5 @@
+import json
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Event, Thread
 
@@ -63,5 +65,27 @@ def test_capture_waits_for_selector_with_open_stream(tmp_path):
             assert target.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
         finally:
             stop.set()
+            server.shutdown()
+            thread.join()
+
+
+def test_serve_ui_serves_this_runs_addresses_from_a_shared_build(tmp_path):
+    (tmp_path / "index.html").write_text("app")
+    (tmp_path / "runtime-config.js").write_text("window.locoConfig = {};\n")
+    handler = lambda *a, **kw: evidence.UIHandler(*a, directory=str(tmp_path), api_url="http://127.0.0.1:9", **kw)
+    with evidence.UIServer(("127.0.0.1", 0), handler) as server:
+        thread = Thread(target=server.serve_forever)
+        thread.start()
+        try:
+            origin = f"http://127.0.0.1:{server.server_port}"
+            fetch = lambda path: urllib.request.urlopen(origin + path, timeout=5)
+            with fetch("/runtime-config.js") as response:
+                assert response.headers["Content-Type"] == "text/javascript"
+                assert response.read() == b'window.locoConfig = {"apiURL": "http://127.0.0.1:9"};\n'
+            with fetch(evidence.DISCOVERY_PATH) as response:
+                assert json.loads(response.read())["issuer"] == origin + "/dex"
+            with fetch("/org/a/wks/b") as response:
+                assert response.read() == b"app"
+        finally:
             server.shutdown()
             thread.join()

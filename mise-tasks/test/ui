@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run the dashboard suites in tests/ui, each against its own throwaway API, database and production UI build: every *_ui.py (Chromium) and *_api.py file, or the named suites. --shard i/N runs every Nth suite starting at the ith: test:ui [suite...] [--shard i/N]"
+#MISE description="Build the API and production UI of this checkout once, start one OpenBao, then run the dashboard suites in tests/ui, each with its own API process, database and seed: every *_ui.py (Chromium) and *_api.py file, or the named suites. --shard i/N runs every Nth suite starting at the ith: test:ui [suite...] [--shard i/N]"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -41,13 +41,27 @@ if [[ -n $shard ]]; then
 	suites=(${selected[@]+"${selected[@]}"})
 fi
 
-# Run every selected suite even after a failure, so one run reports them all.
-failed=()
 for suite in ${suites[@]+"${suites[@]}"}; do
 	if [[ ! -f tests/ui/$suite.py ]]; then
 		echo "No suite tests/ui/$suite.py" >&2
 		exit 2
 	fi
+done
+
+evidence=(uv run --frozen --project docs python .agents/skills/ui-evidence/scripts/evidence.py)
+start=$SECONDS
+"${evidence[@]}" build
+# The suites share one OpenBao. It holds only the seeded transit keys; each API
+# keeps what it encrypts or signs with them in its own database.
+openbao=loco-ui-evidence-openbao-$$
+trap 'docker compose -p "$openbao" down -v --remove-orphans >/dev/null 2>&1' EXIT
+UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao --project "$openbao" | tail -n 1)
+export UI_EVIDENCE_OPENBAO
+echo "Built the API and UI and started OpenBao in $((SECONDS - start))s"
+
+# Run every selected suite even after a failure, so one run reports them all.
+failed=()
+for suite in ${suites[@]+"${suites[@]}"}; do
 	echo "::group::$suite"
 	start=$SECONDS
 	if uv run --frozen --project docs python "tests/ui/$suite.py"; then
