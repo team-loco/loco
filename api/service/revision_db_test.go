@@ -27,10 +27,7 @@ func getEnvironment(t *testing.T, f *deployFixture) *environmentv1.Environment {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeRead},
 	}
-	ctx := reqctx.WithPrincipal(
-		context.Background(),
-		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
-	)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	req := &environmentv1.GetEnvironmentRequest{EnvironmentId: f.envID.String()}
 	resp, err := server.GetEnvironment(ctx, req)
 	if err != nil {
@@ -93,10 +90,7 @@ func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.Update
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},
 	}
-	ctx := reqctx.WithPrincipal(
-		context.Background(),
-		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
-	)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	req.EnvironmentId = f.envID.String()
 	if _, err := server.UpdateEnvironment(ctx, req); err != nil {
 		t.Fatalf("update environment: %v", err)

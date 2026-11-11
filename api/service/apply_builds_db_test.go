@@ -184,14 +184,7 @@ func applyProvision(
 		t.Fatalf("plan before apply: %v", err)
 	}
 	server := newPlanServer(f)
-	ctx := reqctx.WithPrincipal(
-		context.Background(),
-		reqctx.Principal{
-			ActorType: string(genDb.EntityTypeUser),
-			Method:    genDb.DeploymentMethodWeb,
-			Scopes:    f.adminScopes(t),
-		},
-	)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.adminScopes(t)})
 	req := &planv1.ApplyRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),

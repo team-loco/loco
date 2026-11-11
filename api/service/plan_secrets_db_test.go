@@ -162,14 +162,7 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 	limits.MaxPlacementBytes = testMaxValue
 	server := NewPlanServer(f.pool, f.queries, &fakeResolver{digest: testDigest}, testRegistryHost,
 		testServiceDefaults(), limits, testClusterSilentAfter)
-	ctx := reqctx.WithPrincipal(
-		context.Background(),
-		reqctx.Principal{
-			ActorType: string(genDb.EntityTypeUser),
-			Method:    genDb.DeploymentMethodWeb,
-			Scopes:    f.workspaceReadScopes(t),
-		},
-	)
+	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	resp, err := server.Plan(ctx, &planv1.PlanRequest{
 		File: []byte(file), EnvironmentId: f.envID.String(),
 	})
