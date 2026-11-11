@@ -16,7 +16,7 @@
 {{- fail "global.platformTelemetry.platformOnly requires platformTelemetry.enabled" -}}
 {{- end -}}
 {{- $queueStorage := "file_storage/exporter" -}}
-{{- $exporter := dict "endpoint" (required "global.exporter.endpoint is required" $export.endpoint) "headers" $export.headers "sending_queue" (dict "enabled" true "storage" $queueStorage "num_consumers" $export.queue.num_consumers "queue_size" $export.queue.queue_size "block_on_overflow" $export.queue.block_on_overflow "wait_for_result" $export.queue.wait_for_result "batch" $export.queue.batch) "retry_on_failure" (merge (dict "enabled" true) $export.retry) -}}
+{{- $exporter := dict "endpoint" (required "global.exporter.endpoint is required" $export.endpoint) "headers" $export.headers "sending_queue" (dict "enabled" true "storage" $queueStorage "num_consumers" $export.queue.num_consumers "queue_size" $export.queue.queue_size "block_on_overflow" $export.queue.block_on_overflow "wait_for_result" false "batch" $export.queue.batch) "retry_on_failure" (merge (dict "enabled" true) $export.retry) -}}
 {{- $extensions := dict $queueStorage (dict "directory" $export.queue.directory) -}}
 {{- if $export.ingestToken.enabled -}}
 {{- $authenticator := "bearertokenauth/exporter" -}}

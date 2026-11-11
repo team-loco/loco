@@ -61,7 +61,7 @@ def test_exporters_queue_on_file_storage_with_the_configured_settings(worker_rel
     for collector, config in worker_relays.items():
         (exporter,) = config["exporters"].values()
         assert exporter["sending_queue"] == {
-            "enabled": True, "storage": "file_storage/exporter", **queue
+            "enabled": True, "storage": "file_storage/exporter", "wait_for_result": False, **queue
         }, collector
         assert config["extensions"]["file_storage/exporter"] == {
             "directory": settings["queue"]["directory"]

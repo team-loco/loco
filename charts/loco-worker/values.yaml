@@ -54,7 +54,6 @@ global:
       num_consumers: 2
       queue_size: 5000
       block_on_overflow: true
-      wait_for_result: false
       # Match the node collector's latency and item threshold after persisting each request.
       # @schema additionalProperties: false
       batch:
