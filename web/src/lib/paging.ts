@@ -12,6 +12,20 @@ export function pageRangeLabel(page: number, size: number, total: number): strin
 	return `${first.toString()}–${last.toString()} of ${total.toString()}`;
 }
 
+// Compares against the smallest size, not the chosen one, so a short list shown at a larger
+// size keeps the control to switch back.
+export function pagerVisible({
+	total,
+	pageSizes,
+	hasMore,
+}: {
+	total: number;
+	pageSizes: readonly number[];
+	hasMore: boolean;
+}): boolean {
+	return hasMore || total > Math.min(...pageSizes);
+}
+
 export interface Paging {
 	page: number;
 	size: number;
@@ -21,9 +35,10 @@ export interface PagedRows<T> {
 	rows: T[];
 	pager: {
 		label: string;
-		pageSizes?: readonly number[];
-		pageSize?: number;
-		onPageSize?: (size: number) => void;
+		total: number;
+		pageSizes: readonly number[];
+		pageSize: number;
+		onPageSize: (size: number) => void;
 		onPrev: (() => void) | null;
 		onNext: (() => void) | null;
 	};
@@ -42,21 +57,16 @@ export function pagedRows<T>(
 	const go = (target: number) => () => {
 		setPaging({ page: target, size });
 	};
-	const sizeControls =
-		sizes.length > 1
-			? {
-					pageSizes: sizes,
-					pageSize: size,
-					onPageSize: (next: number) => {
-						setPaging({ page: 0, size: next });
-					},
-				}
-			: {};
 	return {
 		rows,
 		pager: {
 			label: all.length > 0 ? pageRangeLabel(page, size, all.length) : empty,
-			...sizeControls,
+			total: all.length,
+			pageSizes: sizes,
+			pageSize: size,
+			onPageSize: (next: number) => {
+				setPaging({ page: 0, size: next });
+			},
 			onPrev: page > 0 ? go(page - 1) : null,
 			onNext: page < pages - 1 ? go(page + 1) : null,
 		},

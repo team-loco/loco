@@ -199,14 +199,12 @@ function WebhookDetail({
 						Retry deliveries
 					</Button>
 				)}
-				{loaded.length > 0 && (
-					<Pager
-						label={`${paged.pager.label}${query.hasNextPage ? "+" : ""}`}
-						onPrev={paged.pager.onPrev}
-						onNext={next}
-						className="border-0 px-0 pt-0"
-					/>
-				)}
+				<Pager
+					{...paged.pager}
+					label={`${paged.pager.label}${query.hasNextPage ? "+" : ""}`}
+					onNext={next}
+					className="border-0 px-0 pt-0"
+				/>
 				{query.isFetchNextPageError && (
 					<p role="alert" className="m-0 text-bad-fg">
 						{getErrorMessage(query.error, "Could not load more deliveries")}

@@ -122,7 +122,7 @@ assert data["releases"][-1] not in [row["id"] for row in first_page["deployments
 older = rpc("deployment", "ListDeployments", {"resourceId": data["resource"], "environmentId": data["production"], "pageSize": 200, "pageToken": first_page["nextPageToken"]})
 assert len(older["deployments"]) == 21 and not older.get("nextPageToken")
 assert rpc("deployment", "GetDeployment", {"deploymentId": data["releases"][-1]})["deployment"]["spec"]["service"]["build"]["image"].endswith("release-221")
-org_id = evidence.rpc(state["api_url"], owner, "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]})["orgs"][0]["id"]
+org_id = next(org["id"] for org in evidence.rpc(state["api_url"], owner, "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]})["orgs"] if org["name"] == "acme")
 base = f"/org/{org_id}/wks/{workspace_id}"
 results = []
 with sync_playwright() as playwright:
@@ -200,11 +200,12 @@ with sync_playwright() as playwright:
                     environment_switcher.click()
                     page.get_by_role("menuitem", name="staging staging", exact=True).click()
                     expect(page).to_have_url(re.compile(r"[?&]env=staging"))
-                    expect(section.get_by_text("1–1 of 1", exact=True)).to_be_visible()
                     expect(section.get_by_text("Staging current", exact=True)).to_be_visible()
+                    # One deployment fits the smallest page size, so the pager is gone.
+                    expect(section.get_by_text("1–1 of 1", exact=True)).to_have_count(0)
                     assert not section.get_by_text("Pilot release 221", exact=True).count()
                     assert any(request["method"] == "ListDeployments" and request["body"].get("environmentId") == data["staging"] and not request["body"].get("pageToken") for request in requests)
-                    expect(next_button).to_be_disabled()
+                    expect(next_button).to_have_count(0)
                     assert any(request["method"] == "GetDeployment" and request["body"]["deploymentId"] == data["staging_release"] for request in requests)
                     page.screenshot(path=out / f"staging-{case}.png", animations="disabled")
                     environment_switcher.click()

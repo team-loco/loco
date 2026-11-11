@@ -203,6 +203,11 @@ with sync_playwright() as playwright:
                                     name.focus()
                                     page.keyboard.press("Tab")
                                     assert description.evaluate("node => node === document.activeElement")
+                            if tab == "org":
+                                workspaces = page.get_by_role("region", name="Workspaces", exact=True)
+                                expect(workspaces.get_by_role("link", name="shared", exact=True)).to_be_visible()
+                                # The list fits the smallest page size, so it has no pager.
+                                expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
                             if tab == "ws" and user == "owner" and theme == "light" and not narrow:
                                 check_webhooks(page)
                                 check_create_dialogs(page)

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { pagerVisible } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 
 function PagerButton({
@@ -30,6 +31,7 @@ function PagerButton({
 
 function Pager({
 	label,
+	total,
 	pageSizes,
 	pageSize,
 	onPageSize,
@@ -44,7 +46,8 @@ function Pager({
 	className,
 }: {
 	label: ReactNode;
-	pageSizes?: readonly number[] | undefined;
+	total: number;
+	pageSizes: readonly number[];
 	pageSize?: number | undefined;
 	onPageSize?: ((size: number) => void) | undefined;
 	prevLabel?: string | undefined;
@@ -57,7 +60,9 @@ function Pager({
 	onLast?: (() => void) | null | undefined;
 	className?: string | undefined;
 }) {
-	const sizes = pageSizes !== undefined && pageSize !== undefined && onPageSize !== undefined;
+	// A server list can have newer pages to go back to even when the loaded rows fit one page.
+	if (!pagerVisible({ total, pageSizes, hasMore: onPrev !== null || onNext !== null })) return null;
+	const sizes = pageSizes.length > 1 && pageSize !== undefined && onPageSize !== undefined;
 	return (
 		<div
 			className={cn(

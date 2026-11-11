@@ -264,20 +264,15 @@ export function DataTablePager<T extends RowData>({
 }) {
 	const { pageIndex, pageSize } = table.state.pagination;
 	const total = table.getRowCount();
-	const sizeControls =
-		pageSizes.length > 1
-			? {
-					pageSizes,
-					pageSize,
-					onPageSize: (size: number) => {
-						table.setPagination({ pageIndex: 0, pageSize: size });
-					},
-				}
-			: {};
 	return (
 		<Pager
 			label={total > 0 ? pageRangeLabel(pageIndex, pageSize, total) : empty}
-			{...sizeControls}
+			total={total}
+			pageSizes={pageSizes}
+			pageSize={pageSize}
+			onPageSize={(size) => {
+				table.setPagination({ pageIndex: 0, pageSize: size });
+			}}
 			onFirst={table.getCanPreviousPage() ? table.firstPage : null}
 			onPrev={table.getCanPreviousPage() ? table.previousPage : null}
 			onNext={table.getCanNextPage() ? table.nextPage : null}
