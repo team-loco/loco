@@ -22,7 +22,7 @@ func Maximum() time.Duration {
 	return maximum
 }
 
-func Parse(value string) (time.Duration, error) {
+func parse(value string) (time.Duration, error) {
 	if daysText, ok := strings.CutSuffix(value, "d"); ok {
 		days, err := strconv.ParseInt(daysText, 10, 64)
 		if err != nil || days <= 0 || days > int64(time.Duration(1<<63-1)/(24*time.Hour)) {
@@ -41,7 +41,7 @@ func Resolve(value string, maximum time.Duration) (time.Duration, error) {
 	if value == "" {
 		return maximum, nil
 	}
-	duration, err := Parse(value)
+	duration, err := parse(value)
 	if err != nil {
 		return 0, err
 	}

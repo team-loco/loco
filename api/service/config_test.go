@@ -13,6 +13,7 @@ import (
 
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
+	defaults.LogRetention = 48 * time.Hour
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
 	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour)
 	req := &configv1.GetConfigRequest{}
@@ -27,12 +28,8 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	if got.GetCpuTarget() != defaults.CPUTarget {
 		t.Fatalf("CPU target = %d, want %d", got.GetCpuTarget(), defaults.CPUTarget)
 	}
-	if got.GetObservability().GetLogging().GetRetentionPeriod() != defaults.LogRetention {
-		t.Fatalf(
-			"log retention = %q, want %q",
-			got.GetObservability().GetLogging().GetRetentionPeriod(),
-			defaults.LogRetention,
-		)
+	if got.GetObservability().GetLogging().GetRetentionPeriod() != "2d" {
+		t.Fatalf("log retention = %q, want 2d", got.GetObservability().GetLogging().GetRetentionPeriod())
 	}
 	if got.GetCpu() != defaults.CPU || got.GetMemory() != defaults.Memory {
 		t.Errorf("cpu %q, memory %q, want %q and %q", got.GetCpu(), got.GetMemory(), defaults.CPU, defaults.Memory)

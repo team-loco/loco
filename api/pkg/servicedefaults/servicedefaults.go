@@ -3,6 +3,7 @@ package servicedefaults
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -41,7 +42,7 @@ type Defaults struct {
 	DeployRetryDelay         int32
 	MetricsPort              int32
 	MetricsPath              string
-	LogRetention             string
+	LogRetention             time.Duration
 }
 
 // Resources is what a deployment runs with in one region.
@@ -158,10 +159,6 @@ func FirstSet[T comparable](values ...T) T {
 }
 
 func (d Defaults) ValidateLogRetention(value string) error {
-	maximum, err := logretention.Parse(d.LogRetention)
-	if err != nil {
-		return err
-	}
-	_, err = logretention.Resolve(value, maximum)
+	_, err := logretention.Resolve(value, d.LogRetention)
 	return err
 }

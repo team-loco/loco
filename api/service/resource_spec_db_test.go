@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -74,7 +75,7 @@ func TestCreateResourceEnforcesLogRetentionMaximum(t *testing.T) {
 	}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	defaults := testServiceDefaults()
-	defaults.LogRetention = "2d"
+	defaults.LogRetention = 48 * time.Hour
 	server := NewResourceServer(f.pool, f.queries, defaults, testClusterSilentAfter)
 	for _, period := range []string{"3d", "-1h", "0s", "1.5s", "bad", "1d"} {
 		spec := &resourcev1.ResourceSpec{

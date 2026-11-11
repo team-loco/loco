@@ -9,6 +9,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/logretention"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -79,7 +80,7 @@ func (s *ConfigServer) GetConfig(
 			Observability: &resourcev1.ObservabilityConfig{
 				Logging: &resourcev1.LoggingConfig{
 					Enabled:         true,
-					RetentionPeriod: s.defaults.LogRetention,
+					RetentionPeriod: logretention.Format(s.defaults.LogRetention),
 					Structured:      false,
 				},
 				Metrics: &resourcev1.MetricsConfig{

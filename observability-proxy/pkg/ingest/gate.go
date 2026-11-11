@@ -62,11 +62,10 @@ type window struct {
 }
 
 type clusterPlacements struct {
-	mu         sync.Mutex
-	windows    []window
-	retentions map[string]time.Duration
-	revoked    bool
-	fetchedAt  time.Time
+	mu        sync.Mutex
+	snapshot  *placementSnapshot
+	revoked   bool
+	fetchedAt time.Time
 }
 
 func NewGate(cfg GateConfig) *Gate {
@@ -91,12 +90,11 @@ func (g *Gate) Admit(ctx context.Context, authorization string) (*Admission, err
 		return nil, err
 	}
 	return &Admission{
-		gate:       g,
-		cluster:    cluster,
-		token:      token,
-		ClusterID:  claims.ClusterID,
-		windows:    snapshot.windows,
-		retentions: snapshot.retentions,
+		gate:      g,
+		cluster:   cluster,
+		token:     token,
+		ClusterID: claims.ClusterID,
+		snapshot:  snapshot,
 	}, nil
 }
 
@@ -189,7 +187,7 @@ func (c *clusterPlacements) load(
 	if c.revoked {
 		return nil, ErrClusterRevoked
 	}
-	return &placementSnapshot{windows: c.windows, retentions: c.retentions}, nil
+	return c.snapshot, nil
 }
 
 func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) error {
@@ -198,7 +196,7 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	resp, err := g.placements.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
 	if err != nil && connect.CodeOf(err) == connect.CodePermissionDenied {
 		c.revoked = true
-		c.windows = nil
+		c.snapshot = nil
 		c.fetchedAt = time.Now()
 		return nil
 	}
@@ -224,8 +222,7 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 		}
 		policies[policy.GetWorkspaceId()+"/"+policy.GetResourceId()] = min(retention, g.cfg.LogsTTL)
 	}
-	c.retentions = policies
-	c.windows = windows
+	c.snapshot = &placementSnapshot{windows: windows, retentions: policies}
 	c.revoked = false
 	c.fetchedAt = time.Now()
 	return nil
@@ -237,8 +234,7 @@ type Admission struct {
 	gate            *Gate
 	cluster         *clusterPlacements
 	token           string
-	windows         []window
-	retentions      map[string]time.Duration
+	snapshot        *placementSnapshot
 	refetched       bool
 	policyRefetched bool
 }
@@ -269,7 +265,7 @@ func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time)
 func (a *Admission) match(workspaceID string, at time.Time) verdict {
 	skew := a.gate.cfg.ClockSkew
 	result := rejectNotPlaced
-	for _, w := range a.windows {
+	for _, w := range a.snapshot.windows {
 		if w.workspaceID != workspaceID {
 			continue
 		}
@@ -296,8 +292,7 @@ func (a *Admission) refresh(ctx context.Context, maxAge time.Duration) error {
 	if err != nil {
 		return err
 	}
-	a.windows = snapshot.windows
-	a.retentions = snapshot.retentions
+	a.snapshot = snapshot
 	return nil
 }
 
@@ -306,7 +301,7 @@ func (a *Admission) logRetention(ctx context.Context, workspaceID, resourceID st
 		return a.gate.cfg.LogsTTL, true, nil
 	}
 	key := workspaceID + "/" + resourceID
-	retention, found := a.retentions[key]
+	retention, found := a.snapshot.retentions[key]
 	if found || a.policyRefetched {
 		return retention, found, nil
 	}
@@ -314,6 +309,6 @@ func (a *Admission) logRetention(ctx context.Context, workspaceID, resourceID st
 	if err := a.refresh(ctx, 0); err != nil {
 		return 0, false, err
 	}
-	retention, found = a.retentions[key]
+	retention, found = a.snapshot.retentions[key]
 	return retention, found, nil
 }

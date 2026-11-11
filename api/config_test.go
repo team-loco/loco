@@ -232,7 +232,7 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 		DeployRetryDelay:         defaultDeployRetryDelay,
 		MetricsPort:              defaultMetricsPort,
 		MetricsPath:              defaultMetricsPath,
-		LogRetention:             logretention.Format(logretention.Maximum()),
+		LogRetention:             logretention.Maximum(),
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -531,7 +531,7 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		DeployRetryDelay:         60,
 		MetricsPort:              defaultMetricsPort,
 		MetricsPath:              defaultMetricsPath,
-		LogRetention:             logretention.Format(logretention.Maximum()),
+		LogRetention:             logretention.Maximum(),
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -1165,8 +1165,8 @@ func TestNewAPIConfigTokenMaximum(t *testing.T) {
 func TestServiceDefaultsAdvertiseInstallationLogRetention(t *testing.T) {
 	t.Setenv("CLICKHOUSE_LOGS_TTL", "72h")
 	defaults := newServiceDefaults()
-	if defaults.LogRetention != "3d" {
-		t.Fatalf("advertised retention = %q", defaults.LogRetention)
+	if defaults.LogRetention != 72*time.Hour {
+		t.Fatalf("configured retention = %v", defaults.LogRetention)
 	}
 	if err := defaults.ValidateLogRetention("4d"); err == nil {
 		t.Fatal("accepted retention above installation maximum")
