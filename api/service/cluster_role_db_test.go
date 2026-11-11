@@ -78,7 +78,8 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 
 	f.setRole(t, f.clusterID, genDb.ClusterRoleApps)
 	f.setRole(t, f.otherCluster, genDb.ClusterRoleApps)
-	if _, lookupErr := f.queries.GetBuildCluster(t.Context()); !errors.Is(lookupErr, pgx.ErrNoRows) {
+	heardSince := time.Now().Add(-testClusterSilentAfter)
+	if _, lookupErr := f.queries.GetBuildCluster(t.Context(), heardSince); !errors.Is(lookupErr, pgx.ErrNoRows) {
 		t.Fatalf("build cluster among apps clusters: %v", lookupErr)
 	}
 }

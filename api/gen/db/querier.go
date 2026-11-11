@@ -96,7 +96,7 @@ type Querier interface {
 	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
-	GetBuildCluster(ctx context.Context) (uuid.UUID, error)
+	GetBuildCluster(ctx context.Context, heardSince time.Time) (uuid.UUID, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClusterRole(ctx context.Context, id uuid.UUID) (ClusterRole, error)

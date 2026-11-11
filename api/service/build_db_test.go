@@ -156,6 +156,7 @@ type buildFixture struct {
 func newBuildFixture(t *testing.T) *buildFixture {
 	t.Helper()
 	f := newDeployFixture(t)
+	f.markClustersHealthy(t)
 	ctx := context.Background()
 
 	if _, err := f.pool.Exec(
@@ -168,9 +169,10 @@ func newBuildFixture(t *testing.T) *buildFixture {
 
 	bucket := newFakeBucket()
 	server := NewBuildServer(f.pool, f.queries, bucket, BuildConfig{
-		RegistryHost:   testRegistryHost,
-		RegistryPrefix: "builds",
-		SourceMaxBytes: 1024,
+		ClusterSilentAfter: testClusterSilentAfter,
+		RegistryHost:       testRegistryHost,
+		RegistryPrefix:     "builds",
+		SourceMaxBytes:     1024,
 	})
 
 	scopes := []genDb.EntityScope{

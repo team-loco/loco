@@ -406,9 +406,10 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 			ac.SecretLimits.MaxPlacementBytes,
 		),
 		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
-			RegistryHost:   ac.RegistryHost,
-			RegistryPrefix: ac.RegistryPrefix,
-			SourceMaxBytes: ac.SourceMaxBytes,
+			ClusterSilentAfter: clusterSilentAfter,
+			RegistryHost:       ac.RegistryHost,
+			RegistryPrefix:     ac.RegistryPrefix,
+			SourceMaxBytes:     ac.SourceMaxBytes,
 		}),
 		domain: service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
 		token:  service.NewTokenServer(pool, queries, machine),

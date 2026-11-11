@@ -379,12 +379,14 @@ const getBuildCluster = `-- name: GetBuildCluster :one
 SELECT id FROM clusters
 WHERE is_active = true
   AND role IN ('builds', 'all')
+  AND health_status = 'healthy'
+  AND last_heartbeat >= $1::timestamptz
 ORDER BY created_at, id
 LIMIT 1
 `
 
-func (q *Queries) GetBuildCluster(ctx context.Context) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getBuildCluster)
+func (q *Queries) GetBuildCluster(ctx context.Context, heardSince time.Time) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getBuildCluster, heardSince)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
