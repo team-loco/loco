@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/design/Spinner";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -7,7 +8,6 @@ import {
 	CircleAlertIcon,
 	CopyIcon,
 	EllipsisIcon,
-	RefreshCwIcon,
 	ScrollTextIcon,
 	XIcon,
 	ZoomOutIcon,
@@ -341,7 +341,7 @@ export function TraceDrawer({
 				<SheetBody className="gap-4">
 					{loading && (
 						<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
-							<RefreshCwIcon className="size-4 animate-spin motion-reduce:animate-none" />
+							<Spinner className="size-4" />
 							Loading spans…
 						</div>
 					)}

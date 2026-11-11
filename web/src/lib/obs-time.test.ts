@@ -6,6 +6,7 @@ import {
 	checkCustomRange,
 	formatSpan,
 	HOUR_MS,
+	joinLocalInput,
 	MINUTE_MS,
 	parseSpan,
 	presetsWithin,
@@ -98,5 +99,10 @@ describe("moving the time range", () => {
 	test("metric steps keep about sixty points and never go below a minute", () => {
 		expect(stepSeconds(15 * MINUTE_MS)).toBe(60);
 		expect(stepSeconds(DAY_MS)).toBe(1440);
+	});
+
+	test("a time without a date stays empty", () => {
+		expect(joinLocalInput("", "12:00")).toBe("");
+		expect(joinLocalInput("2026-11-08", "12:00")).toBe("2026-11-08T12:00");
 	});
 });

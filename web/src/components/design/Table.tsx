@@ -1,6 +1,6 @@
 import {
 	Table as TableBase,
-	TableBody,
+	TableBody as TableBodyBase,
 	TableCell as TableCellBase,
 	TableHead as TableHeadBase,
 	TableHeader as TableHeaderBase,
@@ -20,6 +20,11 @@ function Table({ className, flush = false, ...props }: React.ComponentProps<type
 
 function TableHeader({ className, ...props }: React.ComponentProps<typeof TableHeaderBase>) {
 	return <TableHeaderBase className={cn("[&_tr]:border-line2 [&_tr]:hover:bg-transparent", className)} {...props} />;
+}
+
+// Expandable history rows render one tbody per row; the stock last-row rule would drop every separator.
+function TableBody({ className, ...props }: React.ComponentProps<typeof TableBodyBase>) {
+	return <TableBodyBase className={cn("not-last:[&_tr:last-child]:border-b", className)} {...props} />;
 }
 
 function TableRow({ className, ...props }: React.ComponentProps<typeof TableRowBase>) {

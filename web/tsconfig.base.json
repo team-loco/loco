@@ -26,6 +26,8 @@
 		"allowUnusedLabels": false,
 
 		"paths": {
+			// CLI-added ui/ files import "cn"; resolve it to our theme-aware cn.
+			"cn": ["./src/lib/utils.ts"],
 			"@gen/*": ["../gen/ts/*"],
 			"@/*": ["./src/*"]
 		}

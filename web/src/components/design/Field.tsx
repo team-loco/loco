@@ -1,8 +1,11 @@
 import { createContext, useId, type ReactNode } from "react";
 
+import { Field as FieldBase, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
-export const FieldMessageContext = createContext<string | undefined>(undefined);
+export const FieldControlContext = createContext<
+	{ id: string; describedBy: string | undefined; invalid: boolean } | undefined
+>(undefined);
 
 export function Field({
 	label,
@@ -17,20 +20,29 @@ export function Field({
 	className?: string;
 	children: ReactNode;
 }) {
+	const id = useId();
 	const messageId = useId();
 	const failed = error !== undefined && error !== null && error !== false;
 	const message = failed ? error : hint;
 	return (
-		<div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-			<label className="flex min-w-0 flex-col gap-1.5">
-				<span className="text-[13px] font-medium text-foreground">{label}</span>
-				<FieldMessageContext value={message === undefined ? undefined : messageId}>{children}</FieldMessageContext>
-			</label>
-			{message !== undefined && (
-				<span id={messageId} className={cn("text-[12.5px]", failed ? "text-bad-fg" : "text-fg3")}>
-					{message}
-				</span>
+		<FieldBase className={cn("min-w-0 gap-1.5", className)}>
+			<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
+				{label}
+			</FieldLabel>
+			<FieldControlContext value={{ id, describedBy: message == null ? undefined : messageId, invalid: failed }}>
+				{children}
+			</FieldControlContext>
+			{failed ? (
+				<FieldError id={messageId} role={undefined} className="text-[12.5px] text-bad-fg">
+					{error}
+				</FieldError>
+			) : (
+				hint != null && (
+					<FieldDescription id={messageId} className="m-0 text-[12.5px] text-fg3">
+						{hint}
+					</FieldDescription>
+				)
 			)}
-		</div>
+		</FieldBase>
 	);
 }

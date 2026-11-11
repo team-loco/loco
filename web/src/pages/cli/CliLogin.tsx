@@ -1,5 +1,5 @@
+import { Spinner } from "@/components/design/Spinner";
 import { useMutation } from "@connectrpc/connect-query";
-import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -90,7 +90,7 @@ export function CliLogin() {
 								void authorize().catch(() => undefined);
 							}}
 						>
-							{approve.isPending && <Loader2 className="size-4 animate-spin" />}
+							{approve.isPending && <Spinner className="size-4" />}
 							Authorize
 						</Button>
 						<Button variant="outline" size="xl" className="w-full" disabled={approve.isPending} onClick={cancel}>

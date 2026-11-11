@@ -1,11 +1,12 @@
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Badge } from "@/components/design/Badge";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/design/Collapsible";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
@@ -284,79 +285,81 @@ export function DeploymentsSection({
 										</TableCell>
 									</TableRow>
 								)}
-								{deployRows.rows.map((row) => {
-									const { dep, isCurrent } = row;
-									const expanded = open === dep.id;
-									const took = tookMs(dep);
-									const created = maybeTsMs(dep.createdAt);
-									const toggle = () => {
-										setOpen(expanded ? null : dep.id);
-									};
-									return (
-										<Fragment key={dep.id}>
-											<TableRow
-												className={cn("cursor-pointer hover:bg-panel2", expanded && "border-b-0")}
-												onClick={toggle}
-											>
-												<TableCell>
-													<Button
-														variant="ghost"
-														size="icon-xs"
-														aria-expanded={expanded}
-														aria-label={`${expanded ? "Hide" : "Show"} details for ${shortId(dep.id)}`}
-														onClick={(e) => {
-															e.stopPropagation();
-															toggle();
-														}}
-													>
-														<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
-													</Button>
-												</TableCell>
-												<TableCell>
-													<DeploymentPhaseBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />
-												</TableCell>
-												<TableCell>
-													<span className="flex items-center gap-2">
-														<span className="truncate font-mono text-[12.5px]" title={depTag(dep)}>
-															{depTag(dep)}
-														</span>
-														{isCurrent && <Badge tone="pill">current</Badge>}
-													</span>
-												</TableCell>
-												{multiRegion && (
-													<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
-												)}
-												<TableCell className="text-fg4">—</TableCell>
-												<TableCell className="max-w-0 truncate text-fg2" title={dep.message}>
-													{dep.message}
-												</TableCell>
-												<TableCell className="text-right font-mono text-[12px] text-fg2">
-													{took === undefined ? "—" : formatDuration(took)}
-												</TableCell>
-												<TableCell
-													className="text-right font-mono text-[12px] text-fg2"
-													title={created === undefined ? undefined : formatFullTime(created)}
-												>
-													{created === undefined ? "—" : agoLabel(created, nowMs)}
-												</TableCell>
-											</TableRow>
-											{expanded && (
-												<TableRow>
-													<TableCell colSpan={columns} className="h-auto p-0 whitespace-normal">
-														<Detail
-															row={row}
-															logsHref={logsHref}
-															onRollback={onRollback}
-															onViewSpec={onViewSpec}
-															onOpenBuild={goBuild}
-														/>
-													</TableCell>
-												</TableRow>
-											)}
-										</Fragment>
-									);
-								})}
 							</TableBody>
+							{deployRows.rows.map((row) => {
+								const { dep, isCurrent } = row;
+								const expanded = open === dep.id;
+								const took = tookMs(dep);
+								const created = maybeTsMs(dep.createdAt);
+								const toggle = () => {
+									setOpen(expanded ? null : dep.id);
+								};
+								return (
+									<Collapsible
+										key={dep.id}
+										open={expanded}
+										onOpenChange={(next) => {
+											setOpen(next ? dep.id : null);
+										}}
+										render={<TableBody />}
+									>
+										<TableRow
+											className={cn("cursor-pointer hover:bg-panel2", expanded && "border-b-0")}
+											onClick={toggle}
+										>
+											<TableCell>
+												<CollapsibleTrigger
+													render={<Button variant="ghost" size="icon-xs" />}
+													aria-label={`${expanded ? "Hide" : "Show"} details for ${shortId(dep.id)}`}
+													onClick={(e) => {
+														e.stopPropagation();
+													}}
+												>
+													<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
+												</CollapsibleTrigger>
+											</TableCell>
+											<TableCell>
+												<DeploymentPhaseBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />
+											</TableCell>
+											<TableCell>
+												<span className="flex items-center gap-2">
+													<span className="truncate font-mono text-[12.5px]" title={depTag(dep)}>
+														{depTag(dep)}
+													</span>
+													{isCurrent && <Badge tone="pill">current</Badge>}
+												</span>
+											</TableCell>
+											{multiRegion && (
+												<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
+											)}
+											<TableCell className="text-fg4">—</TableCell>
+											<TableCell className="max-w-0 truncate text-fg2" title={dep.message}>
+												{dep.message}
+											</TableCell>
+											<TableCell className="text-right font-mono text-[12px] text-fg2">
+												{took === undefined ? "—" : formatDuration(took)}
+											</TableCell>
+											<TableCell
+												className="text-right font-mono text-[12px] text-fg2"
+												title={created === undefined ? undefined : formatFullTime(created)}
+											>
+												{created === undefined ? "—" : agoLabel(created, nowMs)}
+											</TableCell>
+										</TableRow>
+										<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
+											<TableCell colSpan={columns} className="h-auto p-0 whitespace-normal">
+												<Detail
+													row={row}
+													logsHref={logsHref}
+													onRollback={onRollback}
+													onViewSpec={onViewSpec}
+													onOpenBuild={goBuild}
+												/>
+											</TableCell>
+										</CollapsibleContent>
+									</Collapsible>
+								);
+							})}
 						</Table>
 					</div>
 					<Pager

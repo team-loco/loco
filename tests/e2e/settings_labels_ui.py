@@ -180,7 +180,7 @@ with sync_playwright() as playwright:
                                 assert name.is_disabled()
                             else:
                                 original = name.input_value()
-                                name.locator("xpath=ancestor::label[1]").get_by_text("Name", exact=True).click()
+                                page.locator(f'label[for={json.dumps(name.get_attribute("id"))}]').click()
                                 assert name.evaluate("node => node === document.activeElement")
                                 name.fill("")
                                 page.get_by_text("Name required", exact=True).wait_for()
@@ -198,7 +198,7 @@ with sync_playwright() as playwright:
                                 if user == "member":
                                     assert description.is_disabled()
                                 else:
-                                    description.locator("xpath=ancestor::label[1]").get_by_text("Description", exact=True).click()
+                                    page.locator(f'label[for={json.dumps(description.get_attribute("id"))}]').click()
                                     assert description.evaluate("node => node === document.activeElement")
                                     name.focus()
                                     page.keyboard.press("Tab")

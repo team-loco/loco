@@ -1,4 +1,5 @@
-import { CircleCheckIcon, CircleIcon, CircleXIcon, LoaderCircleIcon } from "lucide-react";
+import { Spinner } from "@/components/design/Spinner";
+import { CircleCheckIcon, CircleIcon, CircleXIcon } from "lucide-react";
 
 import type { StepState } from "@/lib/deploy-progress";
 import { cn } from "@/lib/utils";
@@ -8,7 +9,7 @@ function StepIcon({ state }: { state: StepState }) {
 		case "done":
 			return <CircleCheckIcon className="size-4 text-ok-fg" />;
 		case "active":
-			return <LoaderCircleIcon className="size-4 animate-spin text-info-fg" />;
+			return <Spinner className="size-4 text-info-fg" />;
 		case "failed":
 			return <CircleXIcon className="size-4 text-bad-fg" />;
 		case "todo":

@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/design/Spinner";
 
 import { useSignIn } from "@/auth/SignIn";
 import { Button } from "@/components/design/Button";
@@ -28,7 +28,7 @@ export function SignInCard({
 					void signIn(next, loginHint);
 				}}
 			>
-				{redirecting && <Loader2 className="size-4 animate-spin" />}
+				{redirecting && <Spinner className="size-4" />}
 				<span className="min-w-0 truncate">{loginHint === null ? "Continue" : `Continue as ${loginHint}`}</span>
 			</Button>
 		</AuthCard>
