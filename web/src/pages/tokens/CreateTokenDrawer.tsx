@@ -1,8 +1,9 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useMutation } from "@connectrpc/connect-query";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { CheckIcon } from "lucide-react";
 import { useRef, useState, type RefObject } from "react";
 import { createToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { TokenService } from "@gen/loco/token/v1/token_pb";
 
 import { BASE_URL } from "@/auth/connect-transport";
@@ -21,8 +22,8 @@ import { DAY_MS, formatMonthDayYear } from "@/lib/time";
 import { AccessPicker } from "./AccessPicker";
 import type { AccessItem } from "./AccessPicker";
 import { ownerIcon } from "./icons";
-import { allowsFor, EXPIRY_DAYS, grantsToScopes, OWNER_KEYS, OWNER_TITLE } from "./model";
-import type { EntityNode, ExpiryDays, Level, OwnerKey } from "./model";
+import { allowsFor, expiryOptions, grantsToScopes, OWNER_KEYS, OWNER_TITLE } from "./model";
+import type { EntityNode, Level, OwnerKey } from "./model";
 import type { TokenData } from "./useTokenData";
 
 export interface CreateDraft {
@@ -32,7 +33,6 @@ export interface CreateDraft {
 }
 
 const NAME_MAX = 100;
-const DEFAULT_EXPIRY: ExpiryDays = 30;
 const MS_PER_SECOND = 1000;
 
 function apiExample(): string {
@@ -58,6 +58,7 @@ export function CreateTokenDrawer({
 }) {
 	const [secret, setSecret] = useState<{ name: string; value: string } | null>(null);
 	const nameRef = useRef<HTMLInputElement>(null);
+	const config = useQuery(getConfig, {}, { enabled: draft !== null });
 	return (
 		<Sheet
 			open={draft !== null}
@@ -82,9 +83,10 @@ export function CreateTokenDrawer({
 						}}
 					/>
 				)}
-				{secret === null && draft !== null && (
+				{secret === null && draft !== null && config.data !== undefined && (
 					<CreateForm
 						nameRef={nameRef}
+						maximum={config.data.apiTokenMaxLifetimeSeconds}
 						draft={draft}
 						data={data}
 						now={now}
@@ -95,12 +97,26 @@ export function CreateTokenDrawer({
 						}}
 					/>
 				)}
+				{secret === null && draft !== null && config.isPending && <SheetBody>Loading token settings…</SheetBody>}
+				{secret === null && draft !== null && config.isError && (
+					<SheetBody>
+						<p role="alert">{getErrorMessage(config.error, "Failed to load token settings")}</p>
+						<Button
+							onClick={() => {
+								void config.refetch();
+							}}
+						>
+							Retry
+						</Button>
+					</SheetBody>
+				)}
 			</SheetContent>
 		</Sheet>
 	);
 }
 
 function CreateForm({
+	maximum,
 	nameRef,
 	draft,
 	data,
@@ -108,6 +124,7 @@ function CreateForm({
 	onCancel,
 	onCreated,
 }: {
+	maximum: bigint;
 	nameRef: RefObject<HTMLInputElement | null>;
 	draft: CreateDraft;
 	data: TokenData;
@@ -117,7 +134,9 @@ function CreateForm({
 }) {
 	const [ownerKey, setOwnerKey] = useState(draft.owner);
 	const [name, setName] = useState(draft.name);
-	const [days, setDays] = useState<ExpiryDays>(DEFAULT_EXPIRY);
+	const options = expiryOptions(maximum);
+	const [selected, setSelected] = useState(Number(maximum));
+	const seconds = Math.min(selected, Number(maximum));
 	const [items, setItems] = useState<AccessItem[]>(draft.items);
 	const [tried, setTried] = useState(false);
 	const [nameTaken, setNameTaken] = useState<string | null>(null);
@@ -146,7 +165,7 @@ function CreateForm({
 				entityType: owner.entityType,
 				entityId: owner.id,
 				scopes: grantsToScopes(resolved),
-				expiresInSec: BigInt((days * DAY_MS) / MS_PER_SECOND),
+				expiresInSec: BigInt(seconds),
 			});
 			onCreated(ownerKey, trimmed, res.token);
 		} catch (err) {
@@ -220,19 +239,21 @@ function CreateForm({
 						variant="segmented"
 						aria-label="Expiry"
 						className="w-max"
-						value={[days.toString()]}
+						value={[seconds.toString()]}
 						onValueChange={(v: string[]) => {
-							const next = EXPIRY_DAYS.find((d) => d.toString() === v[0]);
-							if (next !== undefined) setDays(next);
+							const next = options.find((d) => d.toString() === v[0]);
+							if (next !== undefined) setSelected(next);
 						}}
 					>
-						{EXPIRY_DAYS.map((d) => (
+						{options.map((d) => (
 							<ToggleGroupItem key={d} value={d.toString()}>
-								{pluralize(d, "day")}
+								{(d * MS_PER_SECOND) % DAY_MS === 0
+									? pluralize((d * MS_PER_SECOND) / DAY_MS, "day")
+									: pluralize(d, "second")}
 							</ToggleGroupItem>
 						))}
 					</ToggleGroup>
-					<span className="text-[12.5px] text-fg3">Expires {formatMonthDayYear(now + days * DAY_MS)}</span>
+					<span className="text-[12.5px] text-fg3">Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND)}</span>
 				</div>
 				<div className="flex flex-col gap-1.5">
 					<span className="text-[13px] font-medium">Permissions</span>

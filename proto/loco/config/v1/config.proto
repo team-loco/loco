@@ -20,6 +20,7 @@ message GetConfigResponse {
   AuthConfig auth = 3;
   string schema_url = 4;
   repeated OrgLink org_links = 5;
+  int64 api_token_max_lifetime_seconds = 6;
 }
 
 message OrgLink {

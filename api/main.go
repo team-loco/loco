@@ -383,6 +383,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 			ac.ServiceDefaults,
 			ac.AuthIssuers,
 			ac.OrgLinks,
+			ac.Tokens.MaxAPITokenDuration,
 		),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
 		bootstrap: service.NewBootstrapServer(

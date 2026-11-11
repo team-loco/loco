@@ -202,7 +202,7 @@ export type CreateTokenRequest = Message<"loco.token.v1.CreateTokenRequest"> & {
   scopes: EntityScope[];
 
   /**
-   * Expiration duration in seconds (max: 2592000 = 30 days)
+   * Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
    *
    * @generated from field: int64 expires_in_sec = 5;
    */
@@ -244,7 +244,7 @@ export type CreateTokenRequestJson = {
   scopes?: EntityScopeJson[];
 
   /**
-   * Expiration duration in seconds (max: 2592000 = 30 days)
+   * Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
    *
    * @generated from field: int64 expires_in_sec = 5;
    */

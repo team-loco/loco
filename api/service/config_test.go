@@ -3,6 +3,7 @@ package service
 import (
 	"slices"
 	"testing"
+	"time"
 
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 )
@@ -10,11 +11,14 @@ import (
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
-	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil)
+	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
+	}
+	if resp.GetApiTokenMaxLifetimeSeconds() != int64((42*time.Hour)/time.Second) {
+		t.Errorf("API token maximum = %d, want 42 hours", resp.GetApiTokenMaxLifetimeSeconds())
 	}
 	got := resp.GetServiceDefaults()
 	if got.GetCpu() != defaults.CPU || got.GetMemory() != defaults.Memory {
@@ -63,7 +67,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 		{Label: "Support", URL: "https://support.example.com/orgs/{orgId}"},
 		{Label: "Status", URL: "https://status.example.com"},
 	}
-	server := NewConfigServer("", "", testServiceDefaults(), nil, links)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, links, time.Hour)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {

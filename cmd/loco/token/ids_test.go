@@ -14,6 +14,8 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -21,6 +23,7 @@ import (
 )
 
 const (
+	testEntityTypeFlag  = "--entity-type"
 	testWorkspaceEntity = "workspace"
 	testEntityID        = "00000000-0000-7000-8000-000000000001"
 	testCurrentUserID   = "00000000-0000-7000-8000-000000000002"
@@ -32,6 +35,7 @@ const (
 )
 
 type tokenIDsServer struct {
+	configv1connect.UnimplementedConfigServiceHandler
 	tokenv1connect.UnimplementedTokenServiceHandler
 	userv1connect.UnimplementedUserServiceHandler
 	t           *testing.T
@@ -101,6 +105,7 @@ func tokenIDCommand(t *testing.T, fake *tokenIDsServer, action string) *cobra.Co
 	t.Setenv(keychain.StoreEnvVar, "file")
 	fake.credential = rand.Text()
 	server := connect.NewServer()
+	configv1connect.RegisterConfigServiceHandler(server, fake)
 	tokenv1connect.RegisterTokenServiceHandler(server, fake)
 	userv1connect.RegisterUserServiceHandler(server, fake)
 	mux := http.NewServeMux()
@@ -163,7 +168,7 @@ func TestTokenCommandsUseUUIDs(t *testing.T) {
 					args = append(args, "--yes")
 				}
 				if entity.explicit {
-					args = append(args, "--entity-type", entity.name, "--entity-id", entity.id)
+					args = append(args, testEntityTypeFlag, entity.name, "--entity-id", entity.id)
 				}
 				cmd.SetArgs(args)
 				if err := cmd.Execute(); err != nil {
@@ -191,7 +196,7 @@ func TestTokenCommandsRequireNonUserEntityID(t *testing.T) {
 			cmd := tokenIDCommand(t, fake, action)
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
-			args := []string{"--entity-type", testWorkspaceEntity}
+			args := []string{testEntityTypeFlag, testWorkspaceEntity}
 			if action != testListAction {
 				args = append(args, testTokenName)
 			}
@@ -205,6 +210,34 @@ func TestTokenCommandsRequireNonUserEntityID(t *testing.T) {
 			}
 			if fake.calls != 0 || fake.whoAmICalls != 0 {
 				t.Fatal("missing entity ID made an RPC")
+			}
+		})
+	}
+}
+
+func (*tokenIDsServer) GetConfig(context.Context, *configv1.GetConfigRequest) (*configv1.GetConfigResponse, error) {
+	return &configv1.GetConfigResponse{ApiTokenMaxLifetimeSeconds: testTokenLifetime}, nil
+}
+func TestTokenCreateUsesConfiguredLifetime(t *testing.T) {
+	for _, expiry := range []string{"", "61s", "0s", "-1s"} {
+		t.Run(expiry, func(t *testing.T) {
+			fake := &tokenIDsServer{t: t, entityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, entityID: testEntityID}
+			cmd := tokenIDCommand(t, fake, testCreateAction)
+			args := []string{testTokenName, testEntityTypeFlag, testWorkspaceEntity, "--entity-id", testEntityID}
+			if expiry != "" {
+				args = append(args, "--expires", expiry)
+			}
+			cmd.SetArgs(args)
+			err := cmd.Execute()
+			if expiry == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if fake.calls != 1 {
+					t.Fatalf("create calls = %d, want 1", fake.calls)
+				}
+			} else if err == nil || fake.calls != 0 {
+				t.Fatalf("invalid expiry: err=%v, create calls=%d", err, fake.calls)
 			}
 		})
 	}

@@ -307,7 +307,7 @@ type CreateTokenRequest struct {
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"` // Entity type the token is for
 	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`                                      // Entity ID the token is for
 	Scopes        []*EntityScope         `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`                                                          // Scopes to grant to the token
-	ExpiresInSec  int64                  `protobuf:"varint,5,opt,name=expires_in_sec,json=expiresInSec,proto3" json:"expires_in_sec,omitempty"`                       // Expiration duration in seconds (max: 2592000 = 30 days)
+	ExpiresInSec  int64                  `protobuf:"varint,5,opt,name=expires_in_sec,json=expiresInSec,proto3" json:"expires_in_sec,omitempty"`                       // Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

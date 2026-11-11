@@ -5,7 +5,7 @@ import { TokenSchema } from "@gen/loco/token/v1/token_pb";
 
 import { DAY_MS } from "@/lib/time";
 
-import { allowsFor, expiresLabel, tokenStatus } from "./model";
+import { allowsFor, expiryOptions, expiresLabel, tokenStatus } from "./model";
 
 const NOW = Date.UTC(2026, 10, 8);
 
@@ -39,5 +39,15 @@ describe("allows list", () => {
 			"View status, logs, events and deployments (selected resources)",
 			"Deploy, scale, restart, edit variables and domains (selected resources)",
 		]);
+	});
+});
+
+describe("token expiry options", () => {
+	test("includes the configured maximum and only shorter presets", () => {
+		const day = DAY_MS / 1000;
+		expect(expiryOptions(BigInt(365 * day))).toEqual([day, 7 * day, 30 * day, 365 * day]);
+		expect(expiryOptions(BigInt(2 * day))).toEqual([day, 2 * day]);
+		expect(expiryOptions(BigInt(30 * day))).toEqual([day, 7 * day, 30 * day]);
+		expect(expiryOptions(90n)).toEqual([90]);
 	});
 });

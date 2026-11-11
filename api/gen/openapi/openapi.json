@@ -8685,6 +8685,11 @@
               "$ref": "#/components/schemas/loco.config.v1.OrgLink"
             },
             "title": "org_links"
+          },
+          "apiTokenMaxLifetimeSeconds": {
+            "type": "string",
+            "title": "api_token_max_lifetime_seconds",
+            "format": "int64"
           }
         },
         "title": "GetConfigResponse",
@@ -12860,7 +12865,7 @@
             "type": "string",
             "title": "expires_in_sec",
             "format": "int64",
-            "description": "Expiration duration in seconds (max: 2592000 = 30 days)\nint64.gte = 1\n"
+            "description": "Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds\nint64.gte = 1\n"
           }
         },
         "title": "CreateTokenRequest",

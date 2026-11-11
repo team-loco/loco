@@ -79,7 +79,7 @@ message CreateTokenRequest {
   }]; // Entity type the token is for
   string entity_id = 3 [(buf.validate.field).string.uuid = true]; // Entity ID the token is for
   repeated EntityScope scopes = 4 [(buf.validate.field).repeated.min_items = 1]; // Scopes to grant to the token
-  int64 expires_in_sec = 5 [(buf.validate.field).int64.gte = 1]; // Expiration duration in seconds (max: 2592000 = 30 days)
+  int64 expires_in_sec = 5 [(buf.validate.field).int64.gte = 1]; // Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
 }
 
 // CreateTokenResponse contains the newly created token string and metadata.

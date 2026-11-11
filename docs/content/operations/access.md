@@ -45,6 +45,10 @@ loco deploy --yes
 
 Use `--org` and `--workspace` to override the corresponding environment variables, and `--env` to choose an environment by name or ID. A `--host` flag must match `LOCO_HOST` so a token cannot follow a host override. A set `LOCO_TOKEN` takes precedence over saved credentials. An empty value fails. Unset the variable to use the local session. If the API rejects an expired or revoked token, replace the CI secret with a valid token and rerun the command.
 
+## API token lifetime
+
+The API limits token lifetimes with `LOCO_API_TOKEN_MAX_LIFETIME`, a Go duration of at least one second, defaulting to `8760h` (365 days). `ConfigService.GetConfig` exposes the limit as `api_token_max_lifetime_seconds`. The dashboard offers expiry choices up to that limit. `loco token create` uses the server maximum when `--expires` is omitted and rejects durations outside the permitted range. Use `--expires 7d` to request a shorter lifetime.
+
 ## Suspend an organization
 
 An installation's operator can stop everything an organization runs without deleting any of it, for abuse, non-payment or a legal hold. `OrgService.SuspendOrg` takes the organization ID and a reason, and `OrgService.ResumeOrg` lifts the suspension. Both require `system:admin`; organization admins cannot call them.

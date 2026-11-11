@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/configplan"
@@ -12,11 +13,12 @@ import (
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
-	minCLIVersion string
-	schemaURL     string
-	defaults      servicedefaults.Defaults
-	auth          *configv1.AuthConfig
-	orgLinks      []*configv1.OrgLink
+	minCLIVersion       string
+	apiTokenMaxLifetime time.Duration
+	schemaURL           string
+	defaults            servicedefaults.Defaults
+	auth                *configv1.AuthConfig
+	orgLinks            []*configv1.OrgLink
 }
 
 func NewConfigServer(
@@ -24,21 +26,20 @@ func NewConfigServer(
 	defaults servicedefaults.Defaults,
 	issuers []auth.IssuerConfig,
 	orgLinks []OrgLink,
+	apiTokenMaxLifetime time.Duration,
 ) *ConfigServer {
-	s := &ConfigServer{
-		minCLIVersion: minCLIVersion,
-		schemaURL:     schemaURL,
-		defaults:      defaults,
-		orgLinks:      orgLinksProto(orgLinks),
-	}
+	var authConfig *configv1.AuthConfig
 	if ic, ok := auth.WebIssuer(issuers); ok {
-		s.auth = &configv1.AuthConfig{
-			Issuer:   ic.Issuer,
-			ClientId: ic.Web.ClientID,
-			Scopes:   ic.Web.Scopes,
-		}
+		authConfig = &configv1.AuthConfig{Issuer: ic.Issuer, ClientId: ic.Web.ClientID, Scopes: ic.Web.Scopes}
 	}
-	return s
+	return &ConfigServer{
+		minCLIVersion:       minCLIVersion,
+		schemaURL:           schemaURL,
+		defaults:            defaults,
+		orgLinks:            orgLinksProto(orgLinks),
+		auth:                authConfig,
+		apiTokenMaxLifetime: apiTokenMaxLifetime,
+	}
 }
 
 func (s *ConfigServer) GetConfig(
@@ -47,10 +48,11 @@ func (s *ConfigServer) GetConfig(
 ) (*configv1.GetConfigResponse, error) {
 	health := configplan.Health(s.defaults.Health())
 	return &configv1.GetConfigResponse{
-		MinCliVersion: s.minCLIVersion,
-		SchemaUrl:     s.schemaURL,
-		Auth:          s.auth,
-		OrgLinks:      s.orgLinks,
+		MinCliVersion:              s.minCLIVersion,
+		ApiTokenMaxLifetimeSeconds: int64(s.apiTokenMaxLifetime / time.Second),
+		SchemaUrl:                  s.schemaURL,
+		Auth:                       s.auth,
+		OrgLinks:                   s.orgLinks,
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{
 				Port:        s.defaults.Port,
