@@ -1,6 +1,6 @@
 module github.com/team-loco/loco/tests/e2e/fixtures/otel-app
 
-go 1.27.3
+go 1.27.4
 
 require (
 	go.opentelemetry.io/otel v1.47.0
