@@ -7,7 +7,6 @@ import { ResourceAccess } from "@/components/ResourceAccess";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
@@ -50,7 +49,6 @@ export function Dashboard() {
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
 	const heading = <h1 className="sr-only">Dashboard</h1>;
-	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
 
 	if (data.error !== null) {
 		return (
@@ -65,7 +63,7 @@ export function Dashboard() {
 		);
 	}
 
-	if (grants !== undefined && grants !== "workspace") {
+	if (data.scoped) {
 		return (
 			<Page>
 				{heading}

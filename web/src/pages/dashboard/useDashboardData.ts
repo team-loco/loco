@@ -43,11 +43,11 @@ function regionReplicas(resource: Resource, environment: EnvironmentStatus | und
 
 export function useDashboardData(orgId: string | null, workspaceId: string | null, env: Environment | undefined) {
 	const { resources, deployments, isLoading, error } = useWorkspaceDeployments(orgId, workspaceId);
-	const readsWorkspace = useMyScopes().resourceGrants(orgId ?? "", workspaceId ?? "") === "workspace";
+	const grants = useMyScopes().resourceGrants(orgId ?? "", workspaceId ?? "");
 	const regionsQuery = useQuery(
 		listRegions,
 		{ environmentId: env?.id ?? "" },
-		{ enabled: env !== undefined && readsWorkspace },
+		{ enabled: env !== undefined && grants === "workspace" },
 	);
 
 	const envId = env?.id ?? "";
@@ -80,6 +80,7 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 
 	return {
 		resources,
+		scoped: grants !== undefined && grants !== "workspace",
 		envResources,
 		envDeployments,
 		regions: regionInfos,
