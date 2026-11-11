@@ -262,11 +262,13 @@ SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, 
 FROM workspaces w
 JOIN organizations o ON o.id = w.org_id
 WHERE w.org_id = $1
-  AND ($3::bool OR w.id = ANY($4::uuid[]))
-  AND ($5::text IS NULL
+  AND ($3::bool
+       OR w.id = ANY($4::uuid[])
+       OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY($5::uuid[])))
+  AND ($6::text IS NULL
        OR (w.created_at, w.id) < (
-         $6::timestamptz,
-         $5::uuid
+         $7::timestamptz,
+         $6::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2
@@ -277,6 +279,7 @@ type ListWorkspacesInOrgParams struct {
 	Limit         int32       `json:"limit"`
 	AllWorkspaces bool        `json:"allWorkspaces"`
 	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
 	PageToken     *string     `json:"pageToken"`
 	PageCreatedAt *time.Time  `json:"pageCreatedAt"`
 }
@@ -298,6 +301,7 @@ func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInO
 		arg.Limit,
 		arg.AllWorkspaces,
 		arg.WorkspaceIds,
+		arg.ResourceIds,
 		arg.PageToken,
 		arg.PageCreatedAt,
 	)

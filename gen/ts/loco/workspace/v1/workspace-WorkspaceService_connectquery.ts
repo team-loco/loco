@@ -40,7 +40,8 @@ export const deleteWorkspace = WorkspaceService.method.deleteWorkspace;
 export const listUserWorkspaces = WorkspaceService.method.listUserWorkspaces;
 
 /**
- * ListOrgWorkspaces lists all workspaces in an organization.
+ * ListOrgWorkspaces lists the organization's workspaces the caller can read. It also lists each
+ * workspace that holds a resource the caller has a grant on, with only id, org_id, org_name and name.
  *
  * @generated from rpc loco.workspace.v1.WorkspaceService.ListOrgWorkspaces
  */

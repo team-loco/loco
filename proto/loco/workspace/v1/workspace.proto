@@ -20,7 +20,8 @@ service WorkspaceService {
 
   // ListUserWorkspaces lists all workspaces for a user.
   rpc ListUserWorkspaces(ListUserWorkspacesRequest) returns (ListUserWorkspacesResponse);
-  // ListOrgWorkspaces lists all workspaces in an organization.
+  // ListOrgWorkspaces lists the organization's workspaces the caller can read. It also lists each
+  // workspace that holds a resource the caller has a grant on, with only id, org_id, org_name and name.
   rpc ListOrgWorkspaces(ListOrgWorkspacesRequest) returns (ListOrgWorkspacesResponse);
 
   // CreateMember adds a user to a workspace with a specified role.

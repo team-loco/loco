@@ -6722,7 +6722,7 @@
           "loco.workspace.v1.WorkspaceService"
         ],
         "summary": "ListOrgWorkspaces",
-        "description": "ListOrgWorkspaces lists all workspaces in an organization.",
+        "description": "ListOrgWorkspaces lists the organization's workspaces the caller can read. It also lists each\n workspace that holds a resource the caller has a grant on, with only id, org_id, org_name and name.",
         "operationId": "loco.workspace.v1.WorkspaceService.ListOrgWorkspaces",
         "parameters": [
           {
