@@ -22,6 +22,7 @@ import {
 	apiFieldError,
 	deploymentVariables,
 	healthCheckSpec,
+	scalingSpec,
 	type ApiFieldError,
 	type NewResourceForm,
 } from "@/lib/new-resource";
@@ -73,7 +74,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		};
 		setRun(start);
 		const port = Number(form.port);
-		const replicas = { cpu: form.cpu, memory: form.memory, minReplicas: form.replicas };
+		const replicas = scalingSpec(form);
 		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
 		const health = healthCheck === undefined ? {} : { healthCheck };
 		try {
@@ -104,9 +105,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 								idleTimeout: defaults.routing?.idleTimeout ?? 0,
 							},
 							...(defaults.observability !== undefined ? { observability: defaults.observability } : {}),
-							regions: Object.fromEntries(
-								form.regions.map((r) => [r, { enabled: true, ...replicas, maxReplicas: form.replicas }]),
-							),
+							regions: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])),
 							...health,
 						},
 					},
@@ -145,7 +144,6 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 									value: {
 										build: { type: "image", image },
 										...replicas,
-										maxReplicas: form.replicas,
 										env: envMap,
 										port,
 										...health,

@@ -6,6 +6,7 @@ import {
 	DeploymentSpecSchema,
 	HealthCheckConfigSchema,
 	ServiceDeploymentSpecSchema,
+	ScalersSchema,
 	type Deployment,
 } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -119,6 +120,24 @@ describe("planSave", () => {
 	test("redeploys every region when the resource goes private", () => {
 		expect(plan({ isPublic: false }).deploy.map((d) => d.region)).toEqual([EAST, WEST]);
 	});
+});
+
+test("settings preserve autoscaling on sizing edits and disable it on fixed replica edits", () => {
+	const current = deployment("autoscaled", EAST);
+	const svc = getServiceSpec(current);
+	if (svc === undefined) throw new Error("service missing");
+	svc.scalers = create(ScalersSchema, { enabled: true, cpuTarget: 70 });
+	svc.maxReplicas = 5;
+	const views = [region(EAST, current)];
+	const original = baseline("shop", "", views, true, undefined);
+	const sized = planSave(views, { cpu: "500m" }, original);
+	const sizedService = getServiceSpec(create(DeploymentSchema, { spec: sized.deploy[0]?.spec }));
+	expect(sizedService?.scalers?.enabled).toBe(true);
+	const fixed = planSave(views, { replicas: { [EAST]: 3 } }, original);
+	const fixedService = getServiceSpec(create(DeploymentSchema, { spec: fixed.deploy[0]?.spec }));
+	expect(fixedService?.minReplicas).toBe(3);
+	expect(fixedService?.maxReplicas).toBe(3);
+	expect(fixedService?.scalers?.enabled).toBe(false);
 });
 
 describe("changeCount", () => {

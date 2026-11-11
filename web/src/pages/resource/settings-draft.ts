@@ -3,6 +3,7 @@ import {
 	BuildSourceSchema,
 	DeploymentSpecSchema,
 	HealthCheckConfigSchema,
+	ScalersSchema,
 	type DeploymentSpec,
 	type HealthCheckConfig,
 	type SourceCommit,
@@ -213,6 +214,7 @@ function applyDraft(
 	if (replicas !== undefined) {
 		svc.minReplicas = replicas;
 		svc.maxReplicas = replicas;
+		svc.scalers = create(ScalersSchema, { enabled: false });
 	}
 	return next;
 }

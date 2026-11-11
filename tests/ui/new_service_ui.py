@@ -205,10 +205,14 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_text("Use at most 63 characters", exact=True)).to_be_visible()
                 subdomain.fill(name)
                 expect(drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)).to_be_visible()
-                expect(drawer.get_by_role("switch", name="Autoscaling")).to_be_disabled()
-                expect(drawer.get_by_role("button", name="Decrease replicas per region", exact=True)).to_have_count(1)
-                drawer.get_by_role("button", name="Increase replicas per region", exact=True).click()
-                expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+                expect(drawer.get_by_role("button", name="Decrease minimum replicas", exact=True)).to_be_disabled()
+                drawer.get_by_role("button", name="Increase minimum replicas", exact=True).click()
+                if theme == "dark":
+                    drawer.get_by_role("button", name="Increase maximum replicas", exact=True).click()
+                    expect(drawer.get_by_text("Scales per region based on CPU utilization.", exact=True)).to_be_visible()
+                    expect(drawer.get_by_role("group", name="CPU target (%)", exact=True)).to_contain_text("70")
+                else:
+                    expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
                 cpu = drawer.get_by_role("slider", name="CPU", exact=True)
                 memory = drawer.get_by_role("slider", name="Memory", exact=True)
                 expect(cpu).to_have_attribute("max", "4")
@@ -319,7 +323,7 @@ with sync_playwright() as playwright:
                 expect(page).to_have_url(DRAFT_URL)
                 expect(secret_switch).to_be_checked()
                 expect(secret_value).to_have_value("")
-                expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+                expect(drawer.get_by_text("Scales per region based on CPU utilization." if theme == "dark" else "Runs exactly 2 per region.", exact=True)).to_be_visible()
                 expect(memory).to_have_attribute("aria-valuetext", "1 GiB")
                 expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
                 expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value("info")
@@ -421,7 +425,8 @@ with sync_playwright() as playwright:
                 assert [(d["resourceId"], d["region"]) for d in deployments] == [(resource, "us-east-1")], deployments
                 spec = deployments[0]["spec"]["service"]
                 assert spec["build"]["image"] == pinned_image, spec
-                assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
+                assert spec["minReplicas"] == 2 and spec["maxReplicas"] == (3 if theme == "dark" else 2), spec
+                assert spec["scalers"] == ({"enabled": True, "cpuTarget": 70} if theme == "dark" else {}), spec
                 assert spec["cpu"] == "500m" and spec["memory"] == "1Gi", spec
                 assert spec["env"] == {"LOG_LEVEL": "info"}, spec
                 assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}

@@ -35,6 +35,8 @@ export interface NewResourceForm {
 	cpu: string;
 	memory: string;
 	replicas: number;
+	maxReplicas: number;
+	cpuTarget: number;
 	isPublic: boolean;
 	subdomain: string;
 	platformDomain: string;
@@ -47,6 +49,7 @@ export interface FormErrors {
 	regions: string | null;
 	subdomain: string | null;
 	env: string | null;
+	scaling: string | null;
 }
 
 export type ApiField = "image" | "port" | "path" | "interval" | "timeout" | "failAfter" | "cpu" | "memory" | "replicas";
@@ -146,11 +149,34 @@ export function validateForm(form: NewResourceForm, availability: DomainCheck["s
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
 		subdomain: subdomainError(form, availability),
 		env: envError(form.vars),
+		scaling: scalingError(form),
+	};
+}
+
+function scalingError(form: NewResourceForm): string | null {
+	if (!Number.isInteger(form.replicas) || form.replicas < 1) return "Minimum replicas must be a positive whole number";
+	if (!Number.isInteger(form.maxReplicas) || form.maxReplicas < form.replicas)
+		return "Maximum replicas must be at least the minimum";
+	if (
+		form.replicas !== form.maxReplicas &&
+		(!Number.isInteger(form.cpuTarget) || form.cpuTarget < 1 || form.cpuTarget > 100)
+	)
+		return "CPU target must be between 1 and 100%";
+	return null;
+}
+
+export function scalingSpec(form: NewResourceForm) {
+	return {
+		cpu: form.cpu,
+		memory: form.memory,
+		minReplicas: form.replicas,
+		maxReplicas: form.maxReplicas,
+		scalers: form.replicas === form.maxReplicas ? { enabled: false } : { enabled: true, cpuTarget: form.cpuTarget },
 	};
 }
 
 export function firstError(errors: FormErrors): string | null {
-	const ordered: (string | null)[] = [errors.regions, errors.subdomain, errors.env];
+	const ordered: (string | null)[] = [errors.regions, errors.subdomain, errors.env, errors.scaling];
 	return ordered.find((e) => e !== null) ?? null;
 }
 
@@ -261,7 +287,9 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 	if (form.regions.length > 0) lines.push("    regions:");
 	for (const region of form.regions) {
 		const sizing = `cpu: ${flow(form.cpu)}, memory: ${flow(form.memory)}`;
-		lines.push(`      ${flow(region)}: { ${sizing}, replicas: { min: ${replicas}, max: ${replicas} } }`);
+		lines.push(
+			`      ${flow(region)}: { ${sizing}, replicas: { min: ${replicas}, max: ${form.maxReplicas.toString()} }${form.maxReplicas === form.replicas ? "" : `, autoscaling: { cpuTarget: ${form.cpuTarget.toString()} }`} }`,
+		);
 	}
 	return `${lines.join("\n")}\n`;
 }

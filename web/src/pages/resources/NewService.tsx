@@ -439,6 +439,8 @@ function ServiceForm({
 		cpu: size.cpu,
 		memory: size.memory,
 		replicas: size.replicas,
+		maxReplicas: size.maxReplicas,
+		cpuTarget: size.cpuTarget,
 		isPublic: draftIsPublic(draft),
 		subdomain: edits.subdomain ?? slug(name),
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
@@ -582,30 +584,52 @@ function ServiceForm({
 					</div>
 				</DrawerSection>
 
-				<DrawerSection
-					title="Scaling"
-					actions={
-						<span className="flex items-center gap-2.5 text-[13px] text-fg3">
-							Autoscaling <SoonTag />
-							<Switch disabled checked={false} aria-label="Autoscaling" />
-						</span>
-					}
-				>
-					<div className="flex flex-col gap-1.5">
-						<span className="text-[13px] font-medium">Replicas per region</span>
-						<Stepper
-							label="Replicas per region"
-							value={form.replicas}
-							min={sizes.replicas?.min ?? form.replicas}
-							max={sizes.replicas?.max ?? form.replicas}
-							onChange={(replicas) => {
-								set({ replicas });
-							}}
-						/>
-						<span className={apiError("replicas") === null ? "text-[12.5px] text-fg3" : "text-[12.5px] text-bad-fg"}>
-							{apiError("replicas") ?? `Runs exactly ${form.replicas.toString()} per region.`}
-						</span>
+				<DrawerSection title="Scaling">
+					<div className="grid grid-cols-2 gap-4">
+						<Field label="Minimum replicas">
+							<Stepper
+								label="Minimum replicas"
+								value={form.replicas}
+								min={sizes.replicas?.min ?? form.replicas}
+								max={sizes.replicas?.max ?? form.replicas}
+								onChange={(replicas) => {
+									set({ replicas, maxReplicas: Math.max(replicas, form.maxReplicas) });
+								}}
+							/>
+						</Field>
+						<Field label="Maximum replicas">
+							<Stepper
+								label="Maximum replicas"
+								value={form.maxReplicas}
+								min={form.replicas}
+								max={sizes.replicas?.max ?? form.maxReplicas}
+								onChange={(maxReplicas) => {
+									set({ maxReplicas });
+								}}
+							/>
+						</Field>
+						{form.maxReplicas !== form.replicas && (
+							<Field label="CPU target (%)">
+								<Stepper
+									label="CPU target (%)"
+									value={form.cpuTarget}
+									min={1}
+									max={100}
+									onChange={(cpuTarget) => {
+										set({ cpuTarget });
+									}}
+								/>
+							</Field>
+						)}
 					</div>
+					<p className="mt-2 text-[12.5px] text-fg3">
+						{form.maxReplicas === form.replicas
+							? `Runs exactly ${form.replicas.toString()} per region.`
+							: "Scales per region based on CPU utilization."}
+					</p>
+					{(errors.scaling ?? apiError("replicas")) !== null && (
+						<p className="text-[12.5px] text-bad-fg">{errors.scaling ?? apiError("replicas")}</p>
+					)}
 				</DrawerSection>
 
 				<DrawerSection

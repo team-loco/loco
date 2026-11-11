@@ -5,12 +5,15 @@ import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details
 import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
 import { PlatformDomainSchema } from "@gen/loco/domain/v1/domain_pb";
 
+import { draftSizing, parseDrafts } from "./drafts";
+
 import {
 	apiFieldError,
 	deploymentVariables,
 	envError,
 	firstError,
 	healthCheckSpec,
+	scalingSpec,
 	healthSummary,
 	imageError,
 	looksSecret,
@@ -32,6 +35,8 @@ const form: NewResourceForm = {
 	cpu: "250m",
 	memory: "512Mi",
 	replicas: 2,
+	maxReplicas: 2,
+	cpuTarget: 70,
 	isPublic: true,
 	subdomain: "web",
 	platformDomain: "example.com",
@@ -248,4 +253,51 @@ test("apiFieldError maps nested BadRequest fields with the same names as validat
 		},
 	]);
 	expect(apiFieldError(err)).toEqual({ field: "interval", message: "Must be positive" });
+});
+
+test("form scaling sends fixed replicas or CPU autoscaling", () => {
+	expect(scalingSpec(form)).toEqual({
+		cpu: "250m",
+		memory: "512Mi",
+		minReplicas: 2,
+		maxReplicas: 2,
+		scalers: { enabled: false },
+	});
+	const autoscaled = { ...form, maxReplicas: 5 };
+	expect(firstError(validateForm(autoscaled, "available"))).toBeNull();
+	expect(scalingSpec(autoscaled)).toEqual({
+		cpu: "250m",
+		memory: "512Mi",
+		minReplicas: 2,
+		maxReplicas: 5,
+		scalers: { enabled: true, cpuTarget: 70 },
+	});
+	const yaml = Bun.YAML.parse(locoYaml({ schemaUrl: "", form: autoscaled }));
+	expect(yaml).toMatchObject({
+		services: { web: { regions: { "us-east-1": { replicas: { min: 2, max: 5 }, autoscaling: { cpuTarget: 70 } } } } },
+	});
+	for (const patch of [{ replicas: 0 }, { maxReplicas: 1 }, { cpuTarget: 0 }, { cpuTarget: 101 }, { cpuTarget: 1.5 }]) {
+		expect(validateForm({ ...autoscaled, ...patch }, "available").scaling).not.toBeNull();
+	}
+});
+
+test("saved autoscaling drafts reload and serialize the same targets", () => {
+	const saved = [
+		{
+			id: "saved",
+			name: "web",
+			image: form.image,
+			createdMs: 1,
+			edits: { replicas: 1, maxReplicas: 3, cpuTarget: 65 },
+		},
+	];
+	const [draft] = parseDrafts(JSON.parse(JSON.stringify(saved)));
+	if (draft === undefined) throw new Error("draft missing");
+	const loaded = { ...form, ...draftSizing(draft, { cpu: form.cpu, memory: form.memory, minReplicas: 1 }) };
+	expect(firstError(validateForm(loaded, "available"))).toBeNull();
+	expect(scalingSpec(loaded)).toMatchObject({
+		minReplicas: 1,
+		maxReplicas: 3,
+		scalers: { enabled: true, cpuTarget: 65 },
+	});
 });
