@@ -234,6 +234,12 @@ func TestListDeploymentsWorkspaceEnvironment(t *testing.T) {
 	if len(page.GetDeployments()) != 0 {
 		t.Fatal("unrelated workspace grant exposes deployments")
 	}
+	resourcePage := f.listDeployments(t, &deploymentv1.ListDeploymentsRequest{ResourceId: hiddenResource.String()},
+		genDb.EntityScope{EntityType: genDb.EntityTypeResource, EntityID: hiddenResource, Scope: genDb.ScopeWrite})
+	if len(resourcePage.GetDeployments()) != 0 {
+		t.Fatal("unreadable resource exposes deployments")
+	}
+
 	request.WorkspaceId = uuid.NewString()
 	page = f.listDeployments(t, request, grants...)
 	if len(page.GetDeployments()) != 0 {

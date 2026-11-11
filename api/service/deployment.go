@@ -367,6 +367,7 @@ func (s *DeploymentServer) GetDeployment(
 	}, nil
 }
 
+// ListDeployments lists deployments the caller can read for a resource or workspace environment.
 func (s *DeploymentServer) ListDeployments(
 	ctx context.Context,
 	req *deploymentv1.ListDeploymentsRequest,
@@ -409,33 +410,32 @@ func (s *DeploymentServer) ListDeployments(
 		value := req.GetUntil().AsTime()
 		until = &value
 	}
-	var systemRead bool
-	var organizationIDs, workspaceIDs, resourceIDs []uuid.UUID
-	for _, scope := range p.Scopes {
-		if scope.Scope != genDb.ScopeRead {
-			continue
-		}
-		switch scope.EntityType {
-		case genDb.EntityTypeSystem:
-			systemRead = true
-		case genDb.EntityTypeOrganization:
-			organizationIDs = append(organizationIDs, scope.EntityID)
-		case genDb.EntityTypeWorkspace:
-			workspaceIDs = append(workspaceIDs, scope.EntityID)
-		case genDb.EntityTypeResource:
-			resourceIDs = append(resourceIDs, scope.EntityID)
-		}
-	}
+	readable := s.authz.ReadableEntities(p.Scopes)
 	pageSize := normalizePageSize(req.GetPageSize())
 	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
 	if cursorErr != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
-	rows, err := s.queries.ListDeployments(ctx, genDb.ListDeploymentsParams{
-		ResourceID: resourceID, WorkspaceID: workspaceID, EnvironmentID: environmentID,
-		SystemRead: systemRead, OrganizationIds: organizationIDs, WorkspaceIds: workspaceIDs, ResourceIds: resourceIDs,
-		Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
-	})
+	var rows []genDb.ListEnvironmentDeploymentsRow
+	if resourceID != nil {
+		resourceRows, listErr := s.queries.ListResourceDeployments(ctx, genDb.ListResourceDeploymentsParams{
+			ResourceID: *resourceID, EnvironmentID: environmentID,
+			SystemRead: readable.System, OrganizationIds: readable.Organizations,
+			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
+			Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+		})
+		err = listErr
+		for _, row := range resourceRows {
+			rows = append(rows, genDb.ListEnvironmentDeploymentsRow(row))
+		}
+	} else {
+		rows, err = s.queries.ListEnvironmentDeployments(ctx, genDb.ListEnvironmentDeploymentsParams{
+			WorkspaceID: *workspaceID, EnvironmentID: *environmentID,
+			SystemRead: readable.System, OrganizationIds: readable.Organizations,
+			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
+			Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list deployments: %w", err)
 	}
@@ -449,7 +449,7 @@ func (s *DeploymentServer) ListDeployments(
 		deployment.ActorAvatarUrl = row.ActorAvatarUrl
 		deployments = append(deployments, deployment)
 	}
-	token := nextPageToken(rows, pageSize, func(row genDb.ListDeploymentsRow) (uuid.UUID, time.Time) {
+	token := nextPageToken(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {
 		return row.Deployment.ID, row.Deployment.CreatedAt
 	})
 	return &deploymentv1.ListDeploymentsResponse{Deployments: deployments, NextPageToken: token}, nil

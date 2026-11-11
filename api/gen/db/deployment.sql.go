@@ -337,7 +337,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 	return items, nil
 }
 
-const listDeployments = `-- name: ListDeployments :many
+const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
@@ -346,28 +346,26 @@ JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
-WHERE ($1::uuid IS NULL OR d.resource_id = $1)
-  AND ($2::uuid IS NULL OR r.workspace_id = $2)
-  AND ($3::uuid IS NULL OR d.environment_id = $3)
-  AND ($4::bool
-       OR w.org_id = ANY($5::uuid[])
-       OR w.id = ANY($6::uuid[])
-       OR r.id = ANY($7::uuid[]))
-  AND ($8::timestamptz IS NULL OR d.created_at >= $8)
-  AND ($9::timestamptz IS NULL OR d.created_at < $9)
-  AND ($10::text IS NULL
+WHERE r.workspace_id = $1
+  AND d.environment_id = $2
+  AND ($3::bool
+       OR w.org_id = ANY($4::uuid[])
+       OR w.id = ANY($5::uuid[])
+       OR r.id = ANY($6::uuid[]))
+  AND ($7::timestamptz IS NULL OR d.created_at >= $7)
+  AND ($8::timestamptz IS NULL OR d.created_at < $8)
+  AND ($9::text IS NULL
        OR (d.created_at, d.id) < (
-         $11::timestamptz,
-         $10::uuid
+         $10::timestamptz,
+         $9::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $12
+LIMIT $11
 `
 
-type ListDeploymentsParams struct {
-	ResourceID      *uuid.UUID  `json:"resourceId"`
-	WorkspaceID     *uuid.UUID  `json:"workspaceId"`
-	EnvironmentID   *uuid.UUID  `json:"environmentId"`
+type ListEnvironmentDeploymentsParams struct {
+	WorkspaceID     uuid.UUID   `json:"workspaceId"`
+	EnvironmentID   uuid.UUID   `json:"environmentId"`
 	SystemRead      bool        `json:"systemRead"`
 	OrganizationIds []uuid.UUID `json:"organizationIds"`
 	WorkspaceIds    []uuid.UUID `json:"workspaceIds"`
@@ -379,16 +377,15 @@ type ListDeploymentsParams struct {
 	PageSize        int32       `json:"pageSize"`
 }
 
-type ListDeploymentsRow struct {
+type ListEnvironmentDeploymentsRow struct {
 	Deployment     Deployment   `json:"deployment"`
 	ResourceType   ResourceType `json:"resourceType"`
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
 }
 
-func (q *Queries) ListDeployments(ctx context.Context, arg ListDeploymentsParams) ([]ListDeploymentsRow, error) {
-	rows, err := q.db.Query(ctx, listDeployments,
-		arg.ResourceID,
+func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error) {
+	rows, err := q.db.Query(ctx, listEnvironmentDeployments,
 		arg.WorkspaceID,
 		arg.EnvironmentID,
 		arg.SystemRead,
@@ -405,9 +402,113 @@ func (q *Queries) ListDeployments(ctx context.Context, arg ListDeploymentsParams
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListDeploymentsRow
+	var items []ListEnvironmentDeploymentsRow
 	for rows.Next() {
-		var i ListDeploymentsRow
+		var i ListEnvironmentDeploymentsRow
+		if err := rows.Scan(
+			&i.Deployment.ID,
+			&i.Deployment.ResourceID,
+			&i.Deployment.ClusterID,
+			&i.Deployment.Region,
+			&i.Deployment.Replicas,
+			&i.Deployment.Status,
+			&i.Deployment.IsActive,
+			&i.Deployment.Message,
+			&i.Deployment.EnvironmentID,
+			&i.Deployment.Spec,
+			&i.Deployment.SpecVersion,
+			&i.Deployment.ActorType,
+			&i.Deployment.ActorID,
+			&i.Deployment.Method,
+			&i.Deployment.CommitSha,
+			&i.Deployment.CommitDirty,
+			&i.Deployment.SecretNames,
+			&i.Deployment.CreatedAt,
+			&i.Deployment.StartedAt,
+			&i.Deployment.CompletedAt,
+			&i.Deployment.UpdatedAt,
+			&i.ResourceType,
+			&i.ActorName,
+			&i.ActorAvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResourceDeployments = `-- name: ListResourceDeployments :many
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+       COALESCE(u.name, t.name, '')::text AS actor_name,
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
+LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+WHERE d.resource_id = $1
+  AND ($2::uuid IS NULL OR d.environment_id = $2)
+  AND ($3::bool
+       OR w.org_id = ANY($4::uuid[])
+       OR w.id = ANY($5::uuid[])
+       OR r.id = ANY($6::uuid[]))
+  AND ($7::timestamptz IS NULL OR d.created_at >= $7)
+  AND ($8::timestamptz IS NULL OR d.created_at < $8)
+  AND ($9::text IS NULL
+       OR (d.created_at, d.id) < (
+         $10::timestamptz,
+         $9::uuid
+       ))
+ORDER BY d.created_at DESC, d.id DESC
+LIMIT $11
+`
+
+type ListResourceDeploymentsParams struct {
+	ResourceID      uuid.UUID   `json:"resourceId"`
+	EnvironmentID   *uuid.UUID  `json:"environmentId"`
+	SystemRead      bool        `json:"systemRead"`
+	OrganizationIds []uuid.UUID `json:"organizationIds"`
+	WorkspaceIds    []uuid.UUID `json:"workspaceIds"`
+	ResourceIds     []uuid.UUID `json:"resourceIds"`
+	Since           *time.Time  `json:"since"`
+	Until           *time.Time  `json:"until"`
+	PageToken       *string     `json:"pageToken"`
+	PageCreatedAt   *time.Time  `json:"pageCreatedAt"`
+	PageSize        int32       `json:"pageSize"`
+}
+
+type ListResourceDeploymentsRow struct {
+	Deployment     Deployment   `json:"deployment"`
+	ResourceType   ResourceType `json:"resourceType"`
+	ActorName      string       `json:"actorName"`
+	ActorAvatarUrl string       `json:"actorAvatarUrl"`
+}
+
+func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceDeploymentsParams) ([]ListResourceDeploymentsRow, error) {
+	rows, err := q.db.Query(ctx, listResourceDeployments,
+		arg.ResourceID,
+		arg.EnvironmentID,
+		arg.SystemRead,
+		arg.OrganizationIds,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.Since,
+		arg.Until,
+		arg.PageToken,
+		arg.PageCreatedAt,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListResourceDeploymentsRow
+	for rows.Next() {
+		var i ListResourceDeploymentsRow
 		if err := rows.Scan(
 			&i.Deployment.ID,
 			&i.Deployment.ResourceID,
