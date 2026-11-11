@@ -27,6 +27,7 @@ type Defaults struct {
 	Memory                   string
 	MinReplicas              int32
 	MaxReplicas              int32
+	CPUTarget                int32
 	PathPrefix               string
 	IdleTimeout              int32
 	Port                     int32
@@ -105,8 +106,9 @@ func (d Defaults) Validate() error {
 		return err
 	}
 	resources := locoControllerV1.ResourcesSpec{
-		CPU:    d.CPU,
-		Memory: d.Memory,
+		CPU:     d.CPU,
+		Memory:  d.Memory,
+		Scalers: locoControllerV1.ScalersSpec{Enabled: true, CPUTarget: d.CPUTarget},
 		Replicas: locoControllerV1.ReplicasSpec{
 			Min: d.MinReplicas,
 			Max: d.MaxReplicas,

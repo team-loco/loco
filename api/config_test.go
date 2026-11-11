@@ -96,6 +96,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE", "")
+	t.Setenv("LOCO_DEFAULT_CPU_TARGET", "")
 	t.Setenv("LOCO_DEFAULT_CPU", "")
 	t.Setenv("LOCO_DEFAULT_MEMORY", "")
 	t.Setenv("LOCO_DEFAULT_MIN_REPLICAS", "")
@@ -217,6 +218,7 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 		Memory:                   defaultServiceMemory,
 		MinReplicas:              defaultServiceMinReplicas,
 		MaxReplicas:              defaultServiceMaxReplicas,
+		CPUTarget:                defaultServiceCPUTarget,
 		PathPrefix:               defaultServicePathPrefix,
 		IdleTimeout:              defaultServiceIdleTimeout,
 		Port:                     defaultServicePort,
@@ -494,6 +496,7 @@ func TestTokenModeImageRegistryNeedsNoCredentials(t *testing.T) {
 
 func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_DEFAULT_CPU_TARGET", "65")
 	t.Setenv("LOCO_DEFAULT_CPU", "250m")
 	t.Setenv("LOCO_DEFAULT_MEMORY", "512Mi")
 	t.Setenv("LOCO_DEFAULT_MIN_REPLICAS", "2")
@@ -511,6 +514,7 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	ac := newAPIConfig()
 	want := servicedefaults.Defaults{
 		CPU:                      "250m",
+		CPUTarget:                65,
 		Memory:                   "512Mi",
 		MinReplicas:              2,
 		MaxReplicas:              4,

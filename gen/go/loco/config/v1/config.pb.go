@@ -366,6 +366,7 @@ type DefaultServiceConfig struct {
 	Observability           *v1.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
 	DeployAttempts          int32                   `protobuf:"varint,8,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
 	DeployRetryDelaySeconds int32                   `protobuf:"varint,9,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
+	CpuTarget               int32                   `protobuf:"varint,10,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -463,6 +464,13 @@ func (x *DefaultServiceConfig) GetDeployRetryDelaySeconds() int32 {
 	return 0
 }
 
+func (x *DefaultServiceConfig) GetCpuTarget() int32 {
+	if x != nil {
+		return x.CpuTarget
+	}
+	return 0
+}
+
 var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_loco_config_v1_config_proto_rawDesc = "" +
@@ -494,7 +502,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xbe\x03\n" +
+	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xdd\x03\n" +
 	"\x14DefaultServiceConfig\x129\n" +
 	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
@@ -504,7 +512,10 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12K\n" +
 	"\robservability\x18\a \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
 	"\x0fdeploy_attempts\x18\b \x01(\x05R\x0edeployAttempts\x12;\n" +
-	"\x1adeploy_retry_delay_seconds\x18\t \x01(\x05R\x17deployRetryDelaySeconds2a\n" +
+	"\x1adeploy_retry_delay_seconds\x18\t \x01(\x05R\x17deployRetryDelaySeconds\x12\x1d\n" +
+	"\n" +
+	"cpu_target\x18\n" +
+	" \x01(\x05R\tcpuTarget2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 

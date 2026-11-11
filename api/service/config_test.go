@@ -24,6 +24,9 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		t.Errorf("API token maximum = %d, want 42 hours", resp.GetApiTokenMaxLifetimeSeconds())
 	}
 	got := resp.GetServiceDefaults()
+	if got.GetCpuTarget() != defaults.CPUTarget {
+		t.Fatalf("CPU target = %d, want %d", got.GetCpuTarget(), defaults.CPUTarget)
+	}
 	if got.GetCpu() != defaults.CPU || got.GetMemory() != defaults.Memory {
 		t.Errorf("cpu %q, memory %q, want %q and %q", got.GetCpu(), got.GetMemory(), defaults.CPU, defaults.Memory)
 	}

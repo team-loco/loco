@@ -8932,6 +8932,11 @@
             "type": "integer",
             "title": "deploy_retry_delay_seconds",
             "format": "int32"
+          },
+          "cpuTarget": {
+            "type": "integer",
+            "title": "cpu_target",
+            "format": "int32"
           }
         },
         "title": "DefaultServiceConfig",
