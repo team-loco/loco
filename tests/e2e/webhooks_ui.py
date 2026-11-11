@@ -80,6 +80,8 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 page.screenshot(path=out / f"webhooks-{suffix}.png", animations="disabled")
                 if args.before:
                     continue
+                all_filter = drawer.get_by_role("button", name="All", exact=True)
+                expect(all_filter).to_have_attribute("aria-pressed", "true")
                 # Reach records beyond the API's old 25-record cutoff.
                 # Slow pages keep the loading state visible long enough to catch a disabled, unfocused button.
                 page.route("**/" + service + "ListWebhookDeliveries", slow)
@@ -127,6 +129,13 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
                 drawer.get_by_role("button", name="Pending", exact=True).click()
                 expect(deliveries.get_by_text(re.compile("^(Pending|Retrying)$")).first).to_be_visible()
                 expect(deliveries.get_by_role("button", name="Redeliver", exact=True)).to_have_count(0)
+                all_filter.focus()
+                page.keyboard.press("Enter")
+                expect(all_filter).to_have_attribute("aria-pressed", "true")
+                expect(drawer.get_by_role("button", name="Pending", exact=True)).to_have_attribute("aria-pressed", "false")
+                expect(deliveries.locator("li")).to_have_count(10)
+                expect(deliveries).to_contain_text("Delivered")
+                expect(deliveries).to_contain_text("Failed")
                 drawer.get_by_role("button", name="Edit webhook", exact=True).click()
                 edit = page.get_by_role("dialog", name="Edit webhook", exact=True)
                 url = edit.get_by_role("textbox", name="Endpoint URL", exact=True)
