@@ -104,7 +104,7 @@ with sync_playwright() as playwright:
             with page.expect_request("**/loco.config.v1.ConfigService/GetConfig"):
                 page.goto(base + f"/resources?env=production&draft={loading['id']}")
             drawer = page.get_by_role("dialog", name="loading-draft", exact=True)
-            expect(drawer).to_be_visible()
+            expect(page.get_by_role("status")).to_be_visible()
             expect(drawer.get_by_role("group", name="Minimum replicas", exact=True)).to_have_count(0)
             expect(drawer.get_by_text("Use at most 0 replicas per region", exact=True)).to_have_count(0)
             for route in pending_config:
