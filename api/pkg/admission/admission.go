@@ -2,6 +2,7 @@ package admission
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -68,11 +69,10 @@ func (l *Limiter) Interceptor() connect.ServerInterceptor {
 type contextKey struct{}
 
 type request struct {
-	limiter     *Limiter
-	procedure   string
-	mu          sync.Mutex
-	workCharged bool
-	workspaces  map[uuid.UUID]bool
+	limiter    *Limiter
+	procedure  string
+	mu         sync.Mutex
+	workspaces map[uuid.UUID]bool
 }
 
 func (l *Limiter) Context(ctx context.Context, procedure string) context.Context {
@@ -90,9 +90,17 @@ func Authorize(ctx context.Context, required db.EntityScope) error {
 		return nil
 	}
 	config := r.limiter.config
-	if config.WorkspaceRequests == 0 && config.GlobalDeploys == 0 && config.WorkspaceDeploys == 0 &&
-		config.GlobalBuilds == 0 &&
-		config.WorkspaceBuilds == 0 {
+	var work string
+	var global, workspace int32
+	switch r.procedure {
+	case deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
+		planv1connect.PlanServiceApplyProcedure,
+		resourcev1connect.ResourceServiceScaleResourceProcedure:
+		work, global, workspace = "deploys", config.GlobalDeploys, config.WorkspaceDeploys
+	case buildv1connect.BuildServiceCreateBuildProcedure:
+		work, global, workspace = "builds", config.GlobalBuilds, config.WorkspaceBuilds
+	}
+	if config.WorkspaceRequests == 0 && global == 0 && workspace == 0 {
 		return nil
 	}
 	var workspaceID uuid.UUID
@@ -101,8 +109,12 @@ func Authorize(ctx context.Context, required db.EntityScope) error {
 		workspaceID = required.EntityID
 	case db.EntityTypeResource:
 		owner, err := db.New(r.limiter.pool).GetWorkspaceOrganizationIDByResourceID(ctx, required.EntityID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Let the handler preserve its missing-resource response.
+			return nil
+		}
 		if err != nil {
-			return exhausted(ctx, int64(r.limiter.config.Window.Seconds())+1).WithCause(err)
+			return exhausted(ctx, int64(config.Window.Seconds())+1).WithCause(err)
 		}
 		workspaceID = owner.WorkspaceID
 	default:
@@ -114,31 +126,16 @@ func Authorize(ctx context.Context, required db.EntityScope) error {
 		return nil
 	}
 	budgets := []budget{{key: "requests:workspace:" + workspaceID.String(), limit: config.WorkspaceRequests}}
-	switch r.procedure {
-	case deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
-		planv1connect.PlanServiceApplyProcedure,
-		resourcev1connect.ResourceServiceScaleResourceProcedure:
-		if !r.workCharged {
-			budgets = append(budgets, budget{key: "deploys:global", limit: config.GlobalDeploys})
+	if work != "" {
+		if len(r.workspaces) == 0 {
+			budgets = append(budgets, budget{key: work + ":global", limit: global})
 		}
-		budgets = append(
-			budgets,
-			budget{key: "deploys:workspace:" + workspaceID.String(), limit: config.WorkspaceDeploys},
-		)
-	case buildv1connect.BuildServiceCreateBuildProcedure:
-		if !r.workCharged {
-			budgets = append(budgets, budget{key: "builds:global", limit: config.GlobalBuilds})
-		}
-		budgets = append(
-			budgets,
-			budget{key: "builds:workspace:" + workspaceID.String(), limit: config.WorkspaceBuilds},
-		)
+		budgets = append(budgets, budget{key: work + ":workspace:" + workspaceID.String(), limit: workspace})
 	}
 	if err := r.limiter.consume(ctx, budgets); err != nil {
 		return err
 	}
 	r.workspaces[workspaceID] = true
-	r.workCharged = true
 	return nil
 }
 

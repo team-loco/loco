@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/authz/actions"
 	db "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
@@ -179,5 +181,28 @@ func TestApplyAdmissionBeforePlanSideEffects(t *testing.T) {
 	}
 	if resources != 1 || deployments != 0 {
 		t.Fatalf("resources=%d deployments=%d", resources, deployments)
+	}
+}
+
+func TestAdmissionPreservesMissingResourceResponse(t *testing.T) {
+	f := newBuildFixture(t)
+	limiter := admission.New(f.pool, admission.Config{Window: time.Hour, GlobalBuilds: 1})
+	resourceID := uuid.New()
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []db.EntityScope{
+		actions.New(actions.CreateBuild, resourceID),
+	}})
+	_, err := f.server.CreateBuild(
+		limiter.Context(ctx, buildv1connect.BuildServiceCreateBuildProcedure),
+		&buildv1.CreateBuildRequest{ResourceId: resourceID.String(), SourceSize: 10},
+	)
+	if !errors.Is(err, ErrResourceNotFound) {
+		t.Fatalf("missing resource: %v", err)
+	}
+	_, err = f.server.CreateBuild(
+		limiter.Context(f.ctx, buildv1connect.BuildServiceCreateBuildProcedure),
+		&buildv1.CreateBuildRequest{ResourceId: f.resourceID.String(), SourceSize: 10},
+	)
+	if err != nil {
+		t.Fatalf("missing resource consumed the work budget: %v", err)
 	}
 }

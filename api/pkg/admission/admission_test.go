@@ -95,36 +95,45 @@ func TestPrincipalIsolationAndWindowExpiry(t *testing.T) {
 
 func TestWorkspaceIsolationAndAtomicWorkBudgets(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	l := New(pool, Config{Window: time.Hour, WorkspaceRequests: 2, GlobalBuilds: 2, WorkspaceBuilds: 1})
-	neighbor, caller := uuid.New(), uuid.New()
-	admit := func(id uuid.UUID) error {
-		ctx := l.Context(t.Context(), "/loco.build.v1.BuildService/CreateBuild")
-		scope := db.EntityScope{EntityType: db.EntityTypeWorkspace, EntityID: id}
-		if err := Authorize(ctx, scope); err != nil {
-			return err
-		}
-		return Authorize(ctx, scope)
-	}
-	if err := admit(neighbor); err != nil {
-		t.Fatal(err)
-	}
-	for range 10 {
-		assertExhausted(t, admit(neighbor))
-	}
-	if err := admit(caller); err != nil {
-		t.Fatalf("throttled neighbor affected caller: %v", err)
-	}
-	var used int64
-	key := "requests:workspace:" + neighbor.String()
-	if err := pool.QueryRow(t.Context(), "SELECT used FROM api_admission WHERE key = $1", key).
-		Scan(&used); err != nil {
-		t.Fatal(err)
-	}
-	if used != 1 {
-		t.Fatalf("rejected work consumed workspace requests: %d", used)
+	for _, test := range []struct {
+		name   string
+		config Config
+	}{
+		{name: "requests", config: Config{Window: time.Hour, WorkspaceRequests: 1}},
+		{name: "builds", config: Config{Window: time.Hour, WorkspaceRequests: 2, GlobalBuilds: 2, WorkspaceBuilds: 1}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			l := New(pool, test.config)
+			neighbor, caller := uuid.New(), uuid.New()
+			admit := func(id uuid.UUID) error {
+				ctx := l.Context(t.Context(), "/loco.build.v1.BuildService/CreateBuild")
+				scope := db.EntityScope{EntityType: db.EntityTypeWorkspace, EntityID: id}
+				if err := Authorize(ctx, scope); err != nil {
+					return err
+				}
+				return Authorize(ctx, scope)
+			}
+			if err := admit(neighbor); err != nil {
+				t.Fatal(err)
+			}
+			for range 10 {
+				assertExhausted(t, admit(neighbor))
+			}
+			if err := admit(caller); err != nil {
+				t.Fatalf("throttled neighbor affected caller: %v", err)
+			}
+			var used int64
+			key := "requests:workspace:" + neighbor.String()
+			if err := pool.QueryRow(t.Context(), "SELECT used FROM api_admission WHERE key = $1", key).
+				Scan(&used); err != nil {
+				t.Fatal(err)
+			}
+			if used != 1 {
+				t.Fatalf("rejected work consumed workspace requests: %d", used)
+			}
+		})
 	}
 }
-
 func TestStoreOutageAndDisabledBudgets(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
 	l := New(pool, Config{Window: time.Minute, GlobalRequests: 1})
@@ -137,7 +146,7 @@ func TestStoreOutageAndDisabledBudgets(t *testing.T) {
 	if errors.Unwrap(err) == nil {
 		t.Fatal("lost store error")
 	}
-	disabled := New(pool, Config{Window: time.Minute})
+	disabled := New(pool, Config{Window: time.Minute, GlobalBuilds: 1})
 	if err := Authorize(
 		disabled.Context(t.Context(), ""),
 		db.EntityScope{EntityType: db.EntityTypeResource, EntityID: uuid.New()},
