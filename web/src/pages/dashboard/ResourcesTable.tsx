@@ -255,7 +255,7 @@ function MenuCell({ item }: { item: DashboardItem }) {
 	return <DashboardRowMenu resource={item.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />;
 }
 
-const COLUMNS: DataColumn<DashboardItem>[] = [
+export const COLUMNS: DataColumn<DashboardItem>[] = [
 	{
 		id: "status",
 		header: "Status",

@@ -94,14 +94,18 @@ function matchesType(item: DashboardItem, type: string): boolean {
 	return TYPE_FILTERS.some((o) => o.value === type && o.type === itemType(item));
 }
 
+// The sorted row model falls back to input order on ties, in either direction,
+// so returning rows in name order makes every tie sort by name ascending.
 export function filterRows<T extends DashboardItem>(items: T[], filter: RowFilter): T[] {
-	return items.filter(
-		(item) =>
-			matchesStatus(item, filter.status) &&
-			matchesType(item, filter.type) &&
-			(filter.region === ALL || item.regions.some((g) => g.region === filter.region)) &&
-			matchesQuery(item, filter.query),
-	);
+	return items
+		.filter(
+			(item) =>
+				matchesStatus(item, filter.status) &&
+				matchesType(item, filter.type) &&
+				(filter.region === ALL || item.regions.some((g) => g.region === filter.region)) &&
+				matchesQuery(item, filter.query),
+		)
+		.toSorted((a, b) => itemName(a).localeCompare(itemName(b)));
 }
 
 export function viewAllSearch(envName: string, filter: RowFilter): string {
