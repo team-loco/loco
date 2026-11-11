@@ -63,7 +63,7 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 			.filter((d) => d.resourceId === resource.id)
 			.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
-		const neverDeployed = resource.environmentStatuses.length === 0;
+		const neverDeployed = mine.length === 0 && resource.environmentStatuses.length === 0;
 		if (mine.length === 0 && !neverDeployed) return;
 		const environment = environmentStatus(resource, envId);
 		const regions = regionReplicas(resource, environment);
