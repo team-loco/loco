@@ -77,58 +77,55 @@ func TestTraceSummaries(t *testing.T) {
 
 func TestTraceSummaryPages(t *testing.T) {
 	f, base := newTraceSummaryFixture(t)
-	t.Run("pages contain complete traces and preserve total past end", func(t *testing.T) {
-		req := proto.CloneOf(base)
-		var ids []string
-		for offset := range 4 {
-			req.Summary.Offset = int32(offset)
-			got := queryTraceSummaries(t, f, req, 1)
-			if got.GetTotalCount() != 3 {
-				t.Fatalf("count: %v", got)
-			}
-			if offset == 3 {
-				if len(got.GetSummaries()) != 0 {
-					t.Fatal("expected empty page past end")
-				}
-				continue
-			}
-			if len(got.GetSummaries()) != 1 {
-				t.Fatalf("page: %v", got)
-			}
-			ids = append(ids, got.GetSummaries()[0].GetTraceId())
-			if offset == 2 && got.GetSummaries()[0].GetSpanCount() != 2 {
-				t.Fatal("split trace")
-			}
+	req := proto.CloneOf(base)
+	var ids []string
+	for offset := range 4 {
+		req.Summary.Offset = int32(offset)
+		got := queryTraceSummaries(t, f, req, 1)
+		if got.GetTotalCount() != 3 {
+			t.Fatalf("count: %v", got)
 		}
-		if slices.Equal(ids[:2], ids[1:]) || ids[0] == ids[2] {
-			t.Fatalf("repeated page: %v", ids)
+		if offset == 3 {
+			if len(got.GetSummaries()) != 0 {
+				t.Fatal("expected empty page past end")
+			}
+			continue
 		}
-	})
+		if len(got.GetSummaries()) != 1 {
+			t.Fatalf("page: %v", got)
+		}
+		ids = append(ids, got.GetSummaries()[0].GetTraceId())
+		if offset == 2 && got.GetSummaries()[0].GetSpanCount() != 2 {
+			t.Fatal("split trace")
+		}
+	}
+	want := []string{fmt.Sprintf("%032x", 2), fmt.Sprintf("%032x", 3), fmt.Sprintf("%032x", 1)}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("trace pages = %v, want %v", ids, want)
+	}
 }
 
 func TestTraceSummaryTenancy(t *testing.T) {
 	f, base := newTraceSummaryFixture(t)
-	t.Run("tenancy precedes aggregation", func(t *testing.T) {
-		req := proto.CloneOf(base)
-		req.ResourceIds = []string{testWorkerResourceID}
-		got := queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
-		if len(got) != 1 || got[0].GetRootSpanName() != "child operation" || got[0].GetSpanCount() != 1 ||
-			got[0].GetDurationNanos() != uint64(3*time.Second) {
-			t.Fatalf("resource scope: %v", got)
-		}
-		req.ResourceIds = nil
-		req.WorkspaceId = testOtherWorkspaceID
-		got = queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
-		if len(got) != 1 || got[0].GetRootSpanName() != "foreign workspace" || got[0].GetSpanCount() != 1 {
-			t.Fatalf("workspace scope: %v", got)
-		}
-		req.WorkspaceId = testWorkspaceID
-		req.EnvironmentId = testOtherEnvironmentID
-		got = queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
-		if len(got) != 1 || got[0].GetRootSpanName() != "separate environment" || got[0].GetSpanCount() != 1 {
-			t.Fatalf("environment scope: %v", got)
-		}
-	})
+	req := proto.CloneOf(base)
+	req.ResourceIds = []string{testWorkerResourceID}
+	got := queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
+	if len(got) != 1 || got[0].GetRootSpanName() != "child operation" || got[0].GetSpanCount() != 1 ||
+		got[0].GetDurationNanos() != uint64(3*time.Second) {
+		t.Fatalf("resource scope: %v", got)
+	}
+	req.ResourceIds = nil
+	req.WorkspaceId = testOtherWorkspaceID
+	got = queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
+	if len(got) != 1 || got[0].GetRootSpanName() != "foreign workspace" || got[0].GetSpanCount() != 1 {
+		t.Fatalf("workspace scope: %v", got)
+	}
+	req.WorkspaceId = testWorkspaceID
+	req.EnvironmentId = testOtherEnvironmentID
+	got = queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
+	if len(got) != 1 || got[0].GetRootSpanName() != "separate environment" || got[0].GetSpanCount() != 1 {
+		t.Fatalf("environment scope: %v", got)
+	}
 }
 
 func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.QueryTracesRequest) {
