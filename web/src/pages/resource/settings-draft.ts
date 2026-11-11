@@ -302,7 +302,11 @@ export function planSave(regions: RegionView[], draft: SettingsDraft, base: Base
 }
 
 function sameScaling(a: Scaling | undefined, b: Scaling | undefined): boolean {
-	return a?.replicas === b?.replicas && a?.maxReplicas === b?.maxReplicas && a?.cpuTarget === b?.cpuTarget;
+	return (
+		a?.replicas === b?.replicas &&
+		a?.maxReplicas === b?.maxReplicas &&
+		(a?.replicas === a?.maxReplicas || a?.cpuTarget === b?.cpuTarget)
+	);
 }
 
 export function savedScaling(draft: SettingsDraft, savedRegions: string[]): SettingsDraft {

@@ -96,7 +96,7 @@ with sync_playwright() as playwright:
                             for _ in range(2):
                                 section.get_by_role("button", name=f"Increase maximum replicas in {region}", exact=True).click()
                             section.get_by_role("button", name=f"Decrease cPU target (%) in {region}", exact=True).click()
-                    section.scroll_into_view_if_needed()
+                    section.evaluate("node => node.scrollIntoView({block: 'start'})")
                     evidence.settle(page, wait_for_network=False)
                     page.wait_for_function("dark => document.documentElement.classList.contains('dark') === dark", arg=theme == "dark")
                     section.screenshot(path=out / f"settings-scaling-{side}-{case}.png", animations="disabled")
@@ -151,6 +151,10 @@ with sync_playwright() as playwright:
                     fixed = calls[0]["spec"]["service"]
                     assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
                     assert fixed["scalers"] == {}, fixed
+                    section.get_by_role("button", name=f"Increase maximum replicas in {regions[0]}", exact=True).click()
+                    section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
+                    section.get_by_role("button", name=f"Decrease maximum replicas in {regions[0]}", exact=True).click()
+                    expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
                     assert not errors, errors
                 except BaseException:
                     page.screenshot(path=out / f"failure-{side}-{case}.png", animations="disabled")
@@ -159,4 +163,4 @@ with sync_playwright() as playwright:
                     context.close()
     finally:
         browser.close()
-print("PASS: Settings scaling and all-failed, mixed-success and successful-save recovery")
+print("PASS: Settings scaling before screenshots" if args.before else "PASS: Settings scaling and all-failed, mixed-success and successful-save recovery")

@@ -182,6 +182,12 @@ describe("validateDraft", () => {
 	});
 });
 
+test("returning to fixed bounds discards an inactive CPU target edit", () => {
+	const draft = { scaling: { [EAST]: scaling(2, 2, defaults.cpuTarget + 1) } };
+	expect(changeCount(draft, base)).toBe(0);
+	expect(plan(draft)).toEqual({ deploy: [], retire: [] });
+});
+
 test("settings send enabled, changed and disabled autoscaling through the shared request builder", () => {
 	for (const value of [scaling(1, 5, 60), scaling(2, 4, 80), scaling(3)]) {
 		const result = plan({ scaling: { [EAST]: value } });
