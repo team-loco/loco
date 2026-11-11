@@ -1,3 +1,4 @@
+import { TraceSummarySort } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { Navigate } from "react-router";
@@ -10,10 +11,11 @@ import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useQueryTraces } from "@/hooks/useQueryTraces";
+import { useTraceSummaries } from "@/hooks/useTraceSummaries";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow } from "@/lib/obs-time";
-import { pagedRows } from "@/lib/paging";
+import { pageRangeLabel } from "@/lib/paging";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -26,16 +28,11 @@ import { PAGE_SIZES, readPaging } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
 import { traceServiceLabel } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
-import { TRACE_ID_PATTERN, durationLabel, spanError, summarizeTraces, uniqueSpans, type TraceSummary } from "./traces";
+import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, uniqueSpans } from "./traces";
 
 const DEFAULT_PAGE_SIZE = 25;
-const NANOS_PER_MS = 1_000_000n;
 const PERCENT = 100n;
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
-
-function statusOf(trace: TraceSummary): string {
-	return trace.errors > 0 ? "error" : "ok";
-}
 
 export function TracesView() {
 	const { range } = useObs();
@@ -69,14 +66,26 @@ function TraceSession() {
 	const visible = filteredResources("traces", resources, tokens);
 	const filterReady = !resourceFilter || (!resourcesLoading && visible.length > 0);
 	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
-	const browse = useQueryTraces({
+	const paging = readPaging(params, DEFAULT_PAGE_SIZE);
+	const statusTokens = liveTokens("traces", tokens, "status");
+	const statuses = ["error", "ok"].filter((status) => passes([status], statusTokens));
+	const statusReady = statuses.length > 0;
+	const sort = params.get("sort") === "duration" ? TraceSummarySort.DURATION : TraceSummarySort.START_TIME;
+	const browse = useTraceSummaries({
 		workspaceId,
 		environmentId,
 		resourceIds: resourceFilter ? visible.map((r) => r.id) : (scopedResourceIds ?? []),
 		traceId: validLookup ? lookup : "",
 		start: bounds.from,
 		end: bounds.to,
-		enabled: filterReady && scopeReady && validLookup,
+		limit: paging.size,
+		summary: {
+			offset: paging.page * paging.size,
+			rootNameTerms: text.split(" ").filter(Boolean),
+			status: statuses.length === 1 ? (statuses[0] ?? "") : "",
+			sort,
+		},
+		enabled: filterReady && scopeReady && validLookup && statusReady,
 	});
 	const openId = params.get("trace") ?? "";
 	const detail = useQueryTraces({
@@ -89,28 +98,14 @@ function TraceSession() {
 		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId) && scopeReady,
 	});
 
-	const spans = uniqueSpans(browse.data?.pages.flatMap((r) => r.spans) ?? []);
-	const words = text.toLowerCase().split(" ").filter(Boolean);
-	const statusTokens = liveTokens("traces", tokens, "status");
-	const named = summarizeTraces(spans).filter((t) =>
-		words.every((w) => t.spans.some((s) => s.name.toLowerCase().includes(w))),
-	);
-	const traces = named
-		.filter((t) => passes([statusOf(t)], statusTokens))
-		.toSorted((a, b) => (a.start > b.start ? -1 : 1));
-	const errorCount = named.filter((t) => t.errors > 0).length;
+	const traces = filterReady && scopeReady && validLookup && statusReady ? (browse.data?.summaries ?? []) : [];
+	const total = filterReady && scopeReady && validLookup && statusReady ? Number(browse.data?.totalCount ?? 0n) : 0;
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
-	const paging = readPaging(params, DEFAULT_PAGE_SIZE);
-	const paged = pagedRows(
-		traces,
-		paging,
-		(next) => {
-			setPaging(next, DEFAULT_PAGE_SIZE);
-		},
-		PAGE_SIZES,
-		"0",
-	);
-	const maxDuration = traces.reduce((max, t) => (t.duration > max ? t.duration : max), 1n);
+	const go = (page: number) => () => {
+		setPaging({ page, size: paging.size }, DEFAULT_PAGE_SIZE);
+	};
+	const pages = Math.max(1, Math.ceil(total / paging.size));
+	const maxDuration = traces.reduce((max, t) => (t.durationNanos > max ? t.durationNanos : max), 1n);
 	const loading = environmentLoading || browse.isLoading || ((resourceFilter || !scopeReady) && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.pages.flatMap((r) => r.spans) ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
@@ -132,10 +127,10 @@ function TraceSession() {
 		if (key === "resource") return resources.map((r) => [r.name, 0]);
 		if (key === "status")
 			return [
-				["error", errorCount],
-				["ok", named.length - errorCount],
+				["error", 0],
+				["ok", 0],
 			];
-		if (key === "trace") return traces.slice(0, paging.page + 1).map((t) => [t.id, t.spans.length]);
+		if (key === "trace") return traces.map((t) => [t.traceId, Number(t.spanCount)]);
 		return [];
 	};
 
@@ -147,9 +142,7 @@ function TraceSession() {
 
 	const header = (
 		<ViewHeader
-			count={
-				loading || browse.error !== null ? undefined : `${formatCount(traces.length)}${browse.hasNextPage ? "+" : ""}`
-			}
+			count={loading || browse.error !== null ? undefined : formatCount(total)}
 			actions={
 				<Button
 					variant="outline"
@@ -180,7 +173,7 @@ function TraceSession() {
 			</>
 		);
 	}
-	if (!loading && browse.error === null && spans.length === 0 && query === "") {
+	if (!loading && browse.error === null && total === 0 && query === "") {
 		return (
 			<>
 				{header}
@@ -224,24 +217,49 @@ function TraceSession() {
 							setQuery(v[0] === "errors" ? [...rest, ERROR_TOKEN] : rest, text);
 						}}
 					>
-						<ToggleGroupItem value="all" count={formatCount(named.length)}>
-							All
-						</ToggleGroupItem>
-						<ToggleGroupItem value="errors" count={formatCount(errorCount)}>
-							Errors
-						</ToggleGroupItem>
+						<ToggleGroupItem value="all">All</ToggleGroupItem>
+						<ToggleGroupItem value="errors">Errors</ToggleGroupItem>
 					</ToggleGroup>
 				</div>
 				<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
 					<table className="w-full min-w-[720px] border-collapse text-[12.5px]">
 						<thead>
 							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">
-								<th className="px-3 font-normal">When</th>
+								<th
+									className="px-3 font-normal"
+									aria-sort={sort === TraceSummarySort.START_TIME ? "descending" : "none"}
+								>
+									<button
+										type="button"
+										onClick={() => {
+											const next = new URLSearchParams(params);
+											next.delete("sort");
+											next.delete("page");
+											setParams(next);
+										}}
+									>
+										When
+									</button>
+								</th>
 								<th className="px-3 font-normal">Resource</th>
 								<th className="px-3 font-normal">Root span</th>
 								<th className="px-3 font-normal">Status</th>
-								<th className="px-3 text-right font-normal" title="From the first span's start to the last span's end">
-									Observed duration
+								<th
+									className="px-3 text-right font-normal"
+									aria-sort={sort === TraceSummarySort.DURATION ? "descending" : "none"}
+									title="From the first span's start to the last span's end"
+								>
+									<button
+										type="button"
+										onClick={() => {
+											const next = new URLSearchParams(params);
+											next.set("sort", "duration");
+											next.delete("page");
+											setParams(next);
+										}}
+									>
+										Observed duration
+									</button>
 								</th>
 								<th className="px-3 text-right font-normal">Spans</th>
 							</tr>
@@ -256,13 +274,13 @@ function TraceSession() {
 									</tr>
 								))}
 							{!loading &&
-								paged.rows.map((t) => {
-									const failed = t.errors > 0;
-									const startMs = Number(t.start / NANOS_PER_MS);
-									const on = t.id === openId;
+								traces.map((t) => {
+									const failed = t.status === "error";
+									const startMs = Number(t.startTime?.seconds ?? 0n) * 1000 + (t.startTime?.nanos ?? 0) / 1_000_000;
+									const on = t.traceId === openId;
 									return (
 										<tr
-											key={t.id}
+											key={t.traceId}
 											className={cn(
 												"h-[38px] border-b border-line last:border-b-0 hover:bg-panel2",
 												on && "bg-background",
@@ -271,38 +289,38 @@ function TraceSession() {
 											<td className="px-3 font-mono whitespace-nowrap text-fg3">
 												{crossesDay ? fmtTs(startMs) : formatClock(startMs)}
 											</td>
-											<td className="px-3">{traceServiceLabel(t.root, resourceById.get(t.root.resourceId)?.name)}</td>
+											<td className="px-3">{traceServiceLabel(t, resourceById.get(t.resourceId)?.name)}</td>
 											<td className="max-w-[360px] px-3">
 												<button
 													type="button"
-													aria-label={`Open trace ${t.root.name || t.id}`}
+													aria-label={`Open trace ${t.rootSpanName || t.traceId}`}
 													onClick={() => {
-														open(t.id);
+														open(t.traceId);
 													}}
 													className="block w-full truncate rounded-sm text-left font-mono text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 												>
-													{t.root.name || "Unnamed span"}
+													{t.rootSpanName || "Unnamed span"}
 												</button>
 											</td>
 											<td className={cn("px-3 font-mono", failed ? "text-bad-fg" : "text-fg3")}>
-												{failed ? `error · ${String(t.errors)}` : "ok"}
+												{failed ? "error" : "ok"}
 											</td>
 											<td className="px-3">
 												<span className="flex items-center justify-end gap-2">
 													<span className="h-1 w-20 overflow-hidden rounded-[2px] bg-line2 max-sm:hidden">
 														<span
 															className={cn("block h-full rounded-[2px]", failed ? "bg-err" : "bg-fg3")}
-															style={{ width: `${String(Number((t.duration * PERCENT) / maxDuration))}%` }}
+															style={{ width: `${String(Number((t.durationNanos * PERCENT) / maxDuration))}%` }}
 														/>
 													</span>
 													<span className={cn("font-mono", failed ? "text-bad-fg" : "text-foreground")}>
-														{durationLabel(t.duration)}
+														{durationLabel(t.durationNanos)}
 													</span>
 												</span>
 											</td>
 											<td className="relative px-3 text-right font-mono text-fg3">
-												{t.spans.length}
-												{t.spans.some(spanError) && <span className="sr-only">, with errors</span>}
+												{String(t.spanCount)}
+												{failed && <span className="sr-only">, with errors</span>}
 											</td>
 										</tr>
 									);
@@ -328,22 +346,19 @@ function TraceSession() {
 						/>
 					)}
 				</div>
-				{browse.hasNextPage && (
-					<div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-2 text-[12px] text-fg3">
-						<span>Partial results. Counts and durations reflect the loaded spans.</span>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={browse.isFetchingNextPage}
-							onClick={() => {
-								void browse.fetchNextPage();
-							}}
-						>
-							{browse.isFetchingNextPage ? "Loading…" : "Load more spans"}
-						</Button>
-					</div>
-				)}
-				<Pager {...paged.pager} {...paged.ends} />
+				<Pager
+					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}
+					total={total}
+					pageSizes={PAGE_SIZES}
+					pageSize={paging.size}
+					onPageSize={(size) => {
+						setPaging({ page: 0, size }, DEFAULT_PAGE_SIZE);
+					}}
+					onFirst={!loading && paging.page > 0 ? go(0) : null}
+					onPrev={!loading && paging.page > 0 ? go(paging.page - 1) : null}
+					onNext={!loading && paging.page < pages - 1 ? go(paging.page + 1) : null}
+					onLast={!loading && paging.page < pages - 1 ? go(pages - 1) : null}
+				/>
 			</section>
 			{openId !== "" && (
 				<TraceDrawer

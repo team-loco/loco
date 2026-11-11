@@ -59,7 +59,7 @@ export const FIELDS: FieldDef[] = [
 		planned: [],
 	},
 	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: false, planned: [] },
-	{ key: "status", label: "Span status", views: ["traces"], negate: ["traces"], single: false, planned: ["logs"] },
+	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: false, planned: ["logs"] },
 	{ key: "trace", label: "Trace ID", views: ["traces"], negate: [], single: true, planned: ["logs"] },
 	{ key: "method", label: "HTTP method", views: [], negate: [], single: false, planned: ["logs"] },
 	{ key: "path", label: "Request path", views: [], negate: [], single: false, planned: ["logs"] },

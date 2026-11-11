@@ -9,7 +9,7 @@ export function traceServiceColor(name: string): string {
 	return `var(--series-${String(value)})`;
 }
 
-export function traceServiceLabel(span: TraceSpan, resourceName?: string): string {
+export function traceServiceLabel(span: Pick<TraceSpan, "serviceName" | "resourceId">, resourceName?: string): string {
 	if (resourceName !== undefined && span.serviceName === `resource-${span.resourceId}`) return resourceName;
 	return span.serviceName || "Unknown service";
 }

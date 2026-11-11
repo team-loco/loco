@@ -65,6 +65,21 @@ def handle(route):
     if mode[0] == 'many':
         route.fulfill(json={'spans': spans + [dict(spans[5],spanId=f'{index + 256:016x}') for index in range(100)]})
         return
+    if 'summary' in body:
+        summary = body['summary']
+        others = [dict(spans[index], traceId=f'{index + 100:032x}', parentSpanId='', name=name, durationNanos=str(duration * 1000000)) for index, (name, duration) in enumerate([('GET /api/products', 18), ('GetRecommendations', 132), ('GetProduct', 9), ('GET /cart', 42), ('Convert · USD → EUR', 12), ('GetQuote', 86)])]
+        summaries = [{'traceId': trace, 'rootSpanName': spans[0]['name'], 'serviceName': spans[0]['serviceName'], 'startTime': spans[0]['startTime'], 'durationNanos': '427600000', 'status': 'error', 'spanCount': str(len(spans))}]
+        summaries += [{'traceId': row['traceId'], 'rootSpanName': row['name'], 'serviceName': row['serviceName'], 'startTime': row['startTime'], 'durationNanos': row['durationNanos'], 'status': 'ok', 'spanCount': '1'} for row in others]
+        if mode[0] == 'paged':
+            summaries += [dict(summaries[1], traceId=f'{index + 1000:032x}', rootSpanName=f'Paged trace {index}') for index in range(60)]
+        if body.get('traceId'):
+            summaries = [row for row in summaries if row['traceId'] == body['traceId']]
+        summaries = [row for row in summaries if all(term.lower() in row['rootSpanName'].lower() for term in summary.get('rootNameTerms', [])) and (not summary.get('status') or row['status'] == summary['status'])]
+        if summary.get('sort') == 'TRACE_SUMMARY_SORT_DURATION':
+            summaries.sort(key=lambda row: (-int(row['durationNanos']), row['traceId']))
+        offset = summary.get('offset', 0)
+        route.fulfill(json={'totalCount': str(len(summaries)), 'summaries': summaries[offset:offset + body['limit']]})
+        return
     if body.get('traceId'):
         route.fulfill(json={'spans': spans[7:] if body.get('cursor') else spans[:7], 'nextCursor': '' if body.get('cursor') else 'next-opaque-span-page'})
     else:
@@ -196,6 +211,40 @@ with sync_playwright() as p:
                 evidence.settle(page)
                 open_trace.wait_for()
             context.close()
+    mode[0] = 'paged'
+    context = browser.new_context(viewport=evidence.DESKTOP)
+    auth = json.dumps({'idToken': state['users']['owner']['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS})
+    context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
+    context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces', handle)
+    page = context.new_page()
+    page.goto(state['ui_url'] + base)
+    evidence.settle(page)
+    assert recorded[-1].get('summary') is not None
+    expect(page.get_by_text('1–25 of 67', exact=True)).to_be_visible()
+    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(25)
+    page.get_by_role('button', name='Next page', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1]['summary']['offset'] == 25
+    expect(page.get_by_text('26–50 of 67', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Last page', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1]['summary']['offset'] == 50
+    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(17)
+    expect(page.get_by_text('51–67 of 67', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Observed duration', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1]['summary'].get('offset', 0) == 0
+    assert recorded[-1]['summary']['sort'] == 'TRACE_SUMMARY_SORT_DURATION'
+    page.get_by_role('button', name='Errors', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1]['summary']['status'] == 'error'
+    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(1)
+    page.goto(state['ui_url'] + base + '&q=products')
+    evidence.settle(page)
+    assert recorded[-1]['summary']['rootNameTerms'] == ['products']
+    expect(page.get_by_role('button', name='Open trace GET /api/products', exact=True)).to_be_visible()
+    context.close()
+    mode[0] = 'normal'
     environments = evidence.rpc(state['api_url'], state['users']['owner']['token'], 'loco.environment.v1.EnvironmentService/ListEnvironments', {'workspaceId': workspace_id})['environments']
     staging = next((environment['id'] for environment in environments if environment['name'] == 'staging'), None)
     if staging is None:
