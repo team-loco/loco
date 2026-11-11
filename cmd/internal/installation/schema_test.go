@@ -34,20 +34,30 @@ func TestSchemaMatchesConfiguration(t *testing.T) {
 
 func checkSchema(t *testing.T, typ reflect.Type, document schema) {
 	t.Helper()
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
 	switch typ.Kind() {
 	case reflect.Struct:
 		if document.Type != "object" || document.AdditionalProperties == nil || *document.AdditionalProperties ||
-			len(document.Properties) != typ.NumField() ||
-			len(document.Required) != typ.NumField() {
+			len(document.Properties) != typ.NumField() {
 			t.Fatalf("schema diverges from %s", typ)
 		}
+		required := 0
 		for field := range typ.Fields() {
 			name := field.Tag.Get("json")
 			property, ok := document.Properties[name]
-			if !ok || !slices.Contains(document.Required, name) {
-				t.Fatalf("schema missing required %s.%s", typ, name)
+			optional := field.Type.Kind() == reflect.Pointer
+			if !ok || slices.Contains(document.Required, name) == optional {
+				t.Fatalf("schema optionality differs for %s.%s", typ, name)
+			}
+			if !optional {
+				required++
 			}
 			checkSchema(t, field.Type, property)
+		}
+		if len(document.Required) != required {
+			t.Fatalf("schema required fields diverge from %s", typ)
 		}
 	case reflect.Slice:
 		if document.Type != "array" || document.Items == nil {

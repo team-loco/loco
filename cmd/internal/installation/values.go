@@ -11,7 +11,11 @@ import (
 const schemeHTTP = "http"
 const schemeHTTPS = "https"
 
-var valuesFunctions = template.FuncMap{"quote": strconv.Quote, "image": imageValues}
+var valuesFunctions = template.FuncMap{
+	"quote":     strconv.Quote,
+	"image":     imageValues,
+	"derefBool": func(value *bool) bool { return *value },
+}
 var controlPlaneTemplate = template.Must(template.New("control-plane").Funcs(valuesFunctions).Parse(`
 api:
   image: {{with image .Manifest "api"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
@@ -97,7 +101,10 @@ func controlPlaneValues(config Config, manifest Manifest, completed bool) ([]byt
 }
 
 var workerTemplate = template.Must(template.New("worker").Funcs(valuesFunctions).Parse(`
-agent:
+{{with .Worker.MetricsServer}}{{if or .Enabled .KubeletInsecureTLS}}metrics-server:
+{{if .Enabled}}  enabled: {{.Enabled}}
+{{end}}{{if .KubeletInsecureTLS}}  args: {{if derefBool .KubeletInsecureTLS}}["--kubelet-insecure-tls"]{{else}}[]{{end}}
+{{end}}{{end}}{{end}}agent:
   image: {{with image .Manifest "agent"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
   joinToken: {existingSecret: loco-worker-enrollment}
 controller:

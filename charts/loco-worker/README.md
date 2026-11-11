@@ -5,7 +5,7 @@
 ## Resource metrics
 
 The chart installs metrics-server for application autoscaling; set `metrics-server.enabled: false` when the cluster already serves `metrics.k8s.io`.
-If kubelet serving certificates are not signed by the cluster CA, configure CA-signed certificates or explicitly set `metrics-server.args: ["--kubelet-insecure-tls"]` to disable kubelet certificate verification.
+If kubelet serving certificates are not signed by the cluster CA, configure CA-signed certificates or explicitly set `metrics-server.args: ["--kubelet-insecure-tls"]` (installation spec: [`workers[].metricsServer.kubeletInsecureTLS: true`](../../docs/content/reference/installation.md)) to disable kubelet certificate verification.
 An unavailable metrics APIService can block API discovery and namespace deletion, so restore metrics-server readiness before tearing down workspaces.
 
 ## Gateway certificates

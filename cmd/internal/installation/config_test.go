@@ -239,3 +239,28 @@ func TestConfigurationVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkerMetricsServerOptions(t *testing.T) {
+	for _, options := range []string{
+		"{}", "{enabled: false}", "{enabled: true}",
+		"{kubeletInsecureTLS: true}", "{kubeletInsecureTLS: false}", "{enabled: false, kubeletInsecureTLS: true}",
+	} {
+		t.Run(options, func(t *testing.T) {
+			data := strings.Replace(string(example(t)), "    builds:", "    metricsServer: "+options+"\n    builds:", 1)
+			if _, err := Parse([]byte(data)); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	for _, options := range []string{
+		"null", "false", "{enabled: null}", "{enabled: 'false'}", "{enabled: 1}",
+		"{kubeletInsecureTLS: null}", "{kubeletInsecureTLS: 'true'}", "{unknown: true}", "{enabled: true, enabled: false}",
+	} {
+		t.Run(options, func(t *testing.T) {
+			data := strings.Replace(string(example(t)), "    builds:", "    metricsServer: "+options+"\n    builds:", 1)
+			if _, err := Parse([]byte(data)); err == nil {
+				t.Fatal("invalid metrics-server options accepted")
+			}
+		})
+	}
+}

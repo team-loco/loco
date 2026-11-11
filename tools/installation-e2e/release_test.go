@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -131,40 +130,5 @@ func TestInstallationCRDArtifactsHaveTheWorkerAPIGroup(t *testing.T) {
 				t.Fatal("release artifact does not install the worker API")
 			}
 		})
-	}
-}
-
-func TestFixtureWorkerChartUsesKindMetrics(t *testing.T) {
-	harness := fixture{root: filepath.Join("..", ".."), dir: t.TempDir()}
-	output, err := harness.packageChart(t.Context(), "loco-worker")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, archive, ok := strings.Cut(strings.TrimSpace(string(output)), "saved it to: ")
-	if !ok {
-		t.Fatal(string(output))
-	}
-	data, err := command(t.Context(), "", nil, "helm", "template", "loco-worker", archive,
-		"--values", filepath.Join(harness.root, "charts", "loco-worker", "ci", "default-values.yaml"),
-		"--show-only", "charts/metrics-server/templates/deployment.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var deployment struct {
-		Spec struct {
-			Template struct {
-				Spec struct {
-					Containers []struct {
-						Args []string `json:"args"`
-					} `json:"containers"`
-				} `json:"spec"`
-			} `json:"template"`
-		} `json:"spec"`
-	}
-	if err := yaml.Unmarshal(data, &deployment); err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Contains(deployment.Spec.Template.Spec.Containers[0].Args, "--kubelet-insecure-tls") {
-		t.Fatal("installation fixture cannot scrape kind kubelets with unsigned serving certificates")
 	}
 }

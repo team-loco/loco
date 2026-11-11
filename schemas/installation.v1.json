@@ -439,6 +439,18 @@
                 }
               }
             }
+          },
+          "metricsServer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "kubeletInsecureTLS": {
+                "type": "boolean"
+              }
+            }
           }
         }
       }

@@ -2,6 +2,7 @@ package installation
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -81,5 +82,50 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	}
 	if workerChart.Global.Region != canary {
 		t.Fatal("worker region changed during rendering")
+	}
+}
+
+func TestWorkerMetricsServerValues(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		options string
+		want    string
+	}{
+		{name: "omitted"},
+		{name: "empty", options: "{}"},
+		{name: "disabled", options: "{enabled: false}", want: "enabled: false"},
+		{name: "enabled", options: "{enabled: true}", want: "enabled: true"},
+		{name: "insecure", options: "{kubeletInsecureTLS: true}", want: "args: [--kubelet-insecure-tls]"},
+		{name: "secure", options: "{kubeletInsecureTLS: false}", want: "args: []"},
+		{
+			name: "both", options: "{enabled: true, kubeletInsecureTLS: true}",
+			want: "enabled: true\nargs: [--kubelet-insecure-tls]",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			data := string(example(t))
+			if tt.options != "" {
+				data = strings.Replace(data, "    builds:", "    metricsServer: "+tt.options+"\n    builds:", 1)
+			}
+			config, err := Parse([]byte(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			rendered, err := workerValues(*config, config.Workers[0], releaseFixture())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var values map[string]any
+			if err := yaml.Unmarshal(rendered, &values); err != nil {
+				t.Fatal(err)
+			}
+			var want any
+			if err := yaml.Unmarshal([]byte(tt.want), &want); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(values["metrics-server"], want) {
+				t.Fatalf("metrics-server values = %#v, want %#v", values["metrics-server"], want)
+			}
+		})
 	}
 }
