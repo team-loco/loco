@@ -131,7 +131,8 @@ type WorkspaceServiceClient interface {
 	DeleteWorkspace(context.Context, *v1.DeleteWorkspaceRequest) (*v1.DeleteWorkspaceResponse, error)
 	// ListUserWorkspaces lists all workspaces for a user.
 	ListUserWorkspaces(context.Context, *v1.ListUserWorkspacesRequest) (*v1.ListUserWorkspacesResponse, error)
-	// ListOrgWorkspaces lists all workspaces in an organization.
+	// ListOrgWorkspaces lists the organization's workspaces the caller can read. It also lists each
+	// workspace that holds a resource the caller has a grant on, with only id, org_id, org_name and name.
 	ListOrgWorkspaces(context.Context, *v1.ListOrgWorkspacesRequest) (*v1.ListOrgWorkspacesResponse, error)
 	// CreateMember adds a user to a workspace with a specified role.
 	CreateMember(context.Context, *v1.CreateMemberRequest) (*v1.CreateMemberResponse, error)
@@ -159,7 +160,8 @@ type WorkspaceServiceHandler interface {
 	DeleteWorkspace(context.Context, *v1.DeleteWorkspaceRequest) (*v1.DeleteWorkspaceResponse, error)
 	// ListUserWorkspaces lists all workspaces for a user.
 	ListUserWorkspaces(context.Context, *v1.ListUserWorkspacesRequest) (*v1.ListUserWorkspacesResponse, error)
-	// ListOrgWorkspaces lists all workspaces in an organization.
+	// ListOrgWorkspaces lists the organization's workspaces the caller can read. It also lists each
+	// workspace that holds a resource the caller has a grant on, with only id, org_id, org_name and name.
 	ListOrgWorkspaces(context.Context, *v1.ListOrgWorkspacesRequest) (*v1.ListOrgWorkspacesResponse, error)
 	// CreateMember adds a user to a workspace with a specified role.
 	CreateMember(context.Context, *v1.CreateMemberRequest) (*v1.CreateMemberResponse, error)

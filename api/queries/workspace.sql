@@ -36,7 +36,9 @@ SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, 
 FROM workspaces w
 JOIN organizations o ON o.id = w.org_id
 WHERE w.org_id = $1
-  AND (sqlc.arg('all_workspaces')::bool OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
+  AND (sqlc.arg('all_workspaces')::bool
+       OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+       OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY(sqlc.arg('resource_ids')::uuid[])))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
          sqlc.narg('page_created_at')::timestamptz,

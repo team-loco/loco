@@ -431,6 +431,56 @@ func TestWorkspaceOnlyMemberSeesOnlyTheirWorkspace(t *testing.T) {
 	}
 }
 
+func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
+	o := newMembershipOrg(t)
+	member := o.api.signUp(t, "member")
+	o.addOrgMember(t, member)
+	ctx := t.Context()
+	_, err := o.owner.clients.Workspace.UpdateWorkspace(ctx, &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId: o.shared, Description: new("private notes"),
+	})
+	if err != nil {
+		t.Fatalf("describe workspace: %v", err)
+	}
+	resourceID, err := o.api.queries.CreateResource(ctx, genDb.CreateResourceParams{
+		WorkspaceID: uuid.MustParse(o.shared), Name: "api", Slug: "api",
+		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
+	})
+	if err != nil {
+		t.Fatalf("create resource: %v", err)
+	}
+	if err := o.api.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+		UserID: member.id, EntityType: genDb.EntityTypeResource, EntityID: resourceID, Scope: genDb.ScopeRead,
+	}); err != nil {
+		t.Fatalf("grant resource: %v", err)
+	}
+
+	list := func() []*workspacev1.Workspace {
+		t.Helper()
+		listed, err := member.clients.Workspace.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
+			OrgId: o.orgID,
+		})
+		if err != nil {
+			t.Fatalf("list org workspaces: %v", err)
+		}
+		return listed.GetWorkspaces()
+	}
+	workspaces := list()
+	if got := workspaceNames(workspaces); !slices.Equal(got, []string{membershipSharedPath}) {
+		t.Fatalf("resource reader org workspaces = %v", got)
+	}
+	shared := workspaces[0]
+	if shared.GetId() != o.shared || shared.GetOrgId() != o.orgID || shared.GetDescription() != "" ||
+		shared.GetCreatedBy() != "" || shared.GetCreatedAt() != nil || shared.GetUpdatedAt() != nil {
+		t.Fatalf("resource reader got workspace details: %+v", shared)
+	}
+
+	o.grantWorkspace(t, member, o.shared)
+	if shared = list()[0]; shared.GetDescription() != "private notes" || shared.GetCreatedBy() != o.owner.id.String() {
+		t.Fatalf("workspace reader got %+v, want the full workspace", shared)
+	}
+}
+
 func TestOrgReaderSeesEveryWorkspaceInTheOrg(t *testing.T) {
 	o := newMembershipOrg(t)
 	_, err := o.api.pool.Exec(t.Context(), `

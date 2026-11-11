@@ -225,11 +225,18 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	}
 
 	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
+	var resourceIDs []uuid.UUID
+	for _, scope := range p.Scopes {
+		if scope.EntityType == genDb.EntityTypeResource {
+			resourceIDs = append(resourceIDs, scope.EntityID)
+		}
+	}
 
 	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
 		OrgID:         orgID,
 		AllWorkspaces: allWorkspaces,
 		WorkspaceIds:  workspaceIDs,
+		ResourceIds:   resourceIDs,
 		Limit:         pageSize,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
@@ -240,7 +247,18 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 
 	var workspaces []*workspacev1.Workspace
 	for _, ws := range workspaceList {
-		workspaces = append(workspaces, workspaceToProto(genDb.GetWorkspaceByIDQueryRow(ws)))
+		if allWorkspaces || slices.Contains(workspaceIDs, ws.ID) {
+			workspaces = append(workspaces, workspaceToProto(genDb.GetWorkspaceByIDQueryRow(ws)))
+			continue
+		}
+		// A caller who reads only resources in this workspace sees what names it, not the
+		// workspace's own details.
+		workspaces = append(workspaces, &workspacev1.Workspace{
+			Id:      ws.ID.String(),
+			OrgId:   ws.OrgID.String(),
+			OrgName: ws.OrgName,
+			Name:    ws.Name,
+		})
 	}
 
 	token := nextPageToken(
