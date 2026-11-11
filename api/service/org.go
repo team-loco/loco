@@ -464,35 +464,17 @@ func (s *OrgServer) SetOrgMemberRole(
 				return err
 			}
 		}
-		// Add first so membership never disappears while replacing the organization scopes.
-		for _, scope := range scopes {
-			if err = qtx.AddUserScope(
-				ctx,
-				genDb.AddUserScopeParams{
-					UserID:     userID,
-					EntityType: genDb.EntityTypeOrganization,
-					EntityID:   orgID,
-					Scope:      scope,
-				},
-			); err != nil {
-				return fmt.Errorf("add organization scope: %w", err)
+		var add, remove []genDb.EntityScope
+		for _, scope := range []genDb.Scope{genDb.ScopeMember, genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
+			grant := genDb.EntityScope{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: scope}
+			if slices.Contains(scopes, scope) {
+				add = append(add, grant)
+			} else {
+				remove = append(remove, grant)
 			}
 		}
-		for _, scope := range []genDb.Scope{genDb.ScopeMember, genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
-			if slices.Contains(scopes, scope) {
-				continue
-			}
-			if err = qtx.RemoveUserScope(
-				ctx,
-				genDb.RemoveUserScopeParams{
-					UserID:     userID,
-					EntityType: genDb.EntityTypeOrganization,
-					EntityID:   orgID,
-					Scope:      scope,
-				},
-			); err != nil {
-				return fmt.Errorf("remove organization scope: %w", err)
-			}
+		if err = authz.ApplyRoles(ctx, qtx, userID, add, remove); err != nil {
+			return err
 		}
 		return events.Record(
 			ctx,

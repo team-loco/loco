@@ -4,12 +4,14 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 func TestSetOrgMemberRole(t *testing.T) {
@@ -56,6 +58,26 @@ func TestSetOrgMemberRole(t *testing.T) {
 		err,
 	) != connect.CodeFailedPrecondition {
 		t.Fatalf("last admin self-demotion: %v", err)
+	}
+	o.api.machine.Cfg.MaxAPITokenDuration = membershipSessionDuration
+	orgID := uuid.MustParse(o.orgID)
+	adminToken, _, tokenErr := o.api.machine.Issue(ctx, "org-admin", o.owner.id,
+		genDb.Entity{Type: genDb.EntityTypeOrganization, ID: orgID},
+		[]genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeAdmin}},
+		membershipSessionDuration,
+	)
+	if tokenErr != nil {
+		t.Fatal(tokenErr)
+	}
+	orgAdmin := membershipUser{clients: rpc.ForHost(o.api.url, adminToken)}
+	if err := set(
+		orgAdmin,
+		o.owner.id.String(),
+		orgv1.OrgRole_ORG_ROLE_MEMBER,
+	); codeOf(
+		err,
+	) != connect.CodeFailedPrecondition {
+		t.Fatalf("last admin demotion by organization token: %v", err)
 	}
 	if err := set(o.owner, member.id.String(), orgv1.OrgRole_ORG_ROLE_ADMIN); err != nil {
 		t.Fatal(err)
@@ -153,11 +175,12 @@ func TestSetOrgMemberRoleSerializesAdminChanges(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			var wg sync.WaitGroup
+			t.Cleanup(wg.Wait)
 			rollbackOnCleanup(t, tx)
 			if _, err = genDb.New(tx).LockOrgForMembership(ctx, uuid.MustParse(o.orgID)); err != nil {
 				t.Fatal(err)
 			}
-			var wg sync.WaitGroup
 			results := make([]error, 2)
 			for i, user := range []membershipUser{o.owner, other} {
 				wg.Go(func() {
@@ -181,6 +204,23 @@ func TestSetOrgMemberRoleSerializesAdminChanges(t *testing.T) {
 						)
 					}
 				})
+			}
+			deadline := time.Now().Add(lockTimeout)
+			var waiting int
+			for waiting < len(results) && time.Now().Before(deadline) {
+				err = o.api.pool.QueryRow(ctx,
+					`SELECT count(*) FROM pg_stat_activity
+WHERE datname=current_database() AND wait_event_type='Lock'`,
+				).Scan(&waiting)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if waiting < len(results) {
+					time.Sleep(lockPollInterval)
+				}
+			}
+			if waiting != len(results) {
+				t.Fatalf("%d requests waited on the organization lock, want %d", waiting, len(results))
 			}
 			if err = tx.Commit(ctx); err != nil {
 				t.Fatal(err)
