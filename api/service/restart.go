@@ -48,7 +48,7 @@ func (s *ResourceServer) RestartResource(
 		return nil, ErrEnvironmentNotFound
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockOrganization(ctx, qtx, res.WorkspaceID); lockErr != nil {
+		if lockErr := ensureOrganizationActive(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
@@ -84,7 +84,7 @@ func (s *ResourceServer) RestartResource(
 			data[events.FieldRegion] = req.GetRegion()
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type: events.ResourceRestarted, WorkspaceID: &res.WorkspaceID,
+			Type: events.ResourceRestarted, WorkspaceID: &res.WorkspaceID, EnvironmentID: &environmentID,
 			SubjectType: events.SubjectResource, SubjectID: &resourceID, Data: data,
 		})
 	})

@@ -318,6 +318,7 @@ func TestDeploymentsAreRejectedWhileSuspended(t *testing.T) {
 	_, err := createDeployment(t, f, sameRegionSpec)
 	wantSuspendedError(t, err)
 	wantSuspendedError(t, scaleResource(t, f, 2))
+	wantSuspendedError(t, restartResource(t, f, f.envID, "", genDb.ScopeWrite))
 	_, err = f.deploy(t.Context(), staticSpec)
 	wantSuspendedError(t, err)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 1 {

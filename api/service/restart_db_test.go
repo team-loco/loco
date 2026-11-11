@@ -97,13 +97,15 @@ func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *te
 				}
 			}
 			var eventEnvironment string
-			eventQuery := `SELECT data->>$2 FROM events WHERE type = $1`
+			var indexedEnvironment uuid.UUID
+			eventQuery := `SELECT environment_id, data->>$2 FROM events WHERE type = $1`
 			row := f.pool.QueryRow(t.Context(), eventQuery, events.ResourceRestarted, events.FieldEnvironmentID)
-			if err := row.Scan(&eventEnvironment); err != nil {
+			if err := row.Scan(&indexedEnvironment, &eventEnvironment); err != nil {
 				t.Fatal(err)
 			}
-			if eventEnvironment != f.envID.String() {
-				t.Fatalf("restart event environment = %s", eventEnvironment)
+			if indexedEnvironment != f.envID || eventEnvironment != f.envID.String() {
+				t.Fatalf("restart event environment = %s (indexed %s), want %s",
+					eventEnvironment, indexedEnvironment, f.envID)
 			}
 			wantCode(t, restartResource(t, f, f.envID, region, genDb.ScopeWrite), connect.CodeFailedPrecondition)
 			f.finishRollouts(t)
