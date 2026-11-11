@@ -1,0 +1,36 @@
+name: Kubernetes Compatibility
+
+on:
+  schedule:
+    - cron: '23 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: Kubernetes (${{ matrix.endpoint }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        endpoint: [oldest, newest]
+    env:
+      E2E_RUN_ID: compatibility
+      E2E_KUBERNETES_VERSION: ${{ matrix.endpoint }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: e2e
+      - name: Install and test deployment, networking, secrets and deletion
+        run: ./tests/e2e/run.sh --registry-token config_apply discovery registry_token
+      - name: Upload compatibility diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kubernetes-${{ matrix.endpoint }}
+          path: tests/e2e/runs/compatibility/logs
+          if-no-files-found: warn

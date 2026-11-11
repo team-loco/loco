@@ -414,7 +414,13 @@ setup_dirs() {
 }
 
 create_cluster() {
-    kind create cluster --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
+    local image
+    image=$(yq -r ".${E2E_KUBERNETES_VERSION:-newest}" "$ROOT_DIR/agent/pkg/cluster/kubernetes.json")
+    if [[ $image == null ]]; then
+        log_error "E2E_KUBERNETES_VERSION must be oldest or newest"
+        return 1
+    fi
+    kind create cluster --image "$image" --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
 }
 
 setup_kind() {

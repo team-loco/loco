@@ -1,3 +1,4 @@
+import json
 import os
 import shlex
 import subprocess
@@ -308,3 +309,25 @@ def test_api_restart_check_rejects_a_restart_for_another_reason(tmp_path):
 
 def test_api_restart_check_ignores_pods_that_never_restarted(tmp_path):
     assert check_api_restarts(tmp_path, "", restarts="0").returncode == 0
+
+
+@pytest.mark.parametrize("endpoint", ["oldest", "newest"])
+def test_cluster_creation_uses_the_selected_pinned_image(endpoint):
+    images = json.loads((RUNNER.parents[2] / "agent/pkg/cluster/kubernetes.json").read_text())
+    result = run_harness_functions(
+        'kind() { printf "%s\\n" "$@"; }; create_cluster',
+        env=os.environ | {"E2E_KUBERNETES_VERSION": endpoint},
+    )
+    assert result.returncode == 0, result.stderr
+    arguments = result.stdout.splitlines()
+    assert arguments[arguments.index("--image") + 1] == images[endpoint]
+
+
+def test_cluster_creation_defaults_to_newest():
+    images = json.loads((RUNNER.parents[2] / "agent/pkg/cluster/kubernetes.json").read_text())
+    result = run_harness_functions(
+        'kind() { printf "%s\\n" "$@"; }; create_cluster',
+        env={key: value for key, value in os.environ.items() if key != "E2E_KUBERNETES_VERSION"},
+    )
+    assert result.returncode == 0, result.stderr
+    assert images["newest"] in result.stdout.splitlines()

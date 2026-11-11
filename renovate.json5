@@ -233,6 +233,14 @@
   customManagers: [
     {
       customType: "regex",
+      description: "Keep Kubernetes endpoint images on their declared minors; changing the range requires a support-policy review",
+      managerFilePatterns: ["/^agent/pkg/cluster/kubernetes\\.json$/"],
+      matchStrings: ['"(?:oldest|newest)": "(?<depName>kindest/node):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]+)"'],
+      datasourceTemplate: "docker",
+      versioningTemplate: "regex:^v(?<compatibility>\\d+\\.\\d+)\\.(?<patch>\\d+)$",
+    },
+    {
+      customType: "regex",
       description: "The API docs load Scalar from the CDN without bundling it. Renovate cannot recompute the script's integrity hash, so lint:sri fails the update until mise run fix:sri refreshes it",
       managerFilePatterns: ["/^api/docs\\.html$/"],
       matchStrings: ["https://cdn\\.jsdelivr\\.net/npm/(?<depName>@scalar/api-reference)@(?<currentValue>[^/]+)/"],

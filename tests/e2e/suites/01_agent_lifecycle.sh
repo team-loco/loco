@@ -66,7 +66,7 @@ test_loco_namespace_exists() {
 
 source "$E2E_ROOT_DIR/tests/e2e/cli.sh"
 
-e2e_app="e2e-agent-app"
+e2e_app="1e2e-agent-app"
 e2e_app_image="$E2E_PUBLIC_IMAGE"
 e2e_app_dir="$E2E_BUILD_WORK_DIR/agent-lifecycle"
 cli_home="$e2e_app_dir/home"
