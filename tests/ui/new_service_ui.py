@@ -99,7 +99,7 @@ with sync_playwright() as playwright:
         loading = seeded_draft("loading-draft", "registry.example.com/acme/loading:1")
         context, page, errors = open_page(browser, "owner", drafts=[loading])
         pending_config = []
-        context.route("**/loco.config.v1.ConfigService/GetConfig", lambda route: pending_config.append(route))
+        context.route("**/loco.config.v1.ConfigService/GetConfig", lambda route: pending_config.append(route), times=1)
         try:
             with page.expect_request("**/loco.config.v1.ConfigService/GetConfig"):
                 page.goto(base + f"/resources?env=production&draft={loading['id']}")
