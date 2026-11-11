@@ -12,6 +12,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/team-loco/loco/controller/internal/managed"
@@ -119,37 +120,6 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	}
 }
 
-type createApplicationDuringCleanup struct {
-	client.Client
-	create func() error
-}
-
-func (c createApplicationDuringCleanup) List(
-	ctx context.Context,
-	list client.ObjectList,
-	opts ...client.ListOption,
-) error {
-	if err := c.Client.List(ctx, list, opts...); err != nil {
-		return err
-	}
-	if _, ok := list.(*locov1alpha1.ApplicationList); ok {
-		return c.create()
-	}
-	return nil
-}
-
-func (c createApplicationDuringCleanup) Patch(
-	ctx context.Context,
-	obj client.Object,
-	patch client.Patch,
-	opts ...client.PatchOption,
-) error {
-	if err := c.create(); err != nil {
-		return err
-	}
-	return c.Client.Patch(ctx, obj, patch, opts...)
-}
-
 func TestApplicationCreatedDuringCleanupKeepsWorkspaceInfrastructure(t *testing.T) {
 	ctx := context.Background()
 	app := workspaceApp("old", "1")
@@ -184,7 +154,25 @@ func TestApplicationCreatedDuringCleanupKeepsWorkspaceInfrastructure(t *testing.
 		}
 		return nil
 	}
-	interleaved := createApplicationDuringCleanup{Client: base, create: create}
+	interleaved := interceptor.NewClient(base, interceptor.Funcs{
+		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			if err := c.List(ctx, list, opts...); err != nil {
+				return err
+			}
+			if _, ok := list.(*locov1alpha1.ApplicationList); ok {
+				return create()
+			}
+			return nil
+		},
+		Patch: func(
+			ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption,
+		) error {
+			if err := create(); err != nil {
+				return err
+			}
+			return c.Patch(ctx, obj, patch, opts...)
+		},
+	})
 	r := &ApplicationReconciler{
 		Client:                   interleaved,
 		APIReader:                interleaved,

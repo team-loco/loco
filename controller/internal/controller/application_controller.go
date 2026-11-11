@@ -90,7 +90,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/finalizers,verbs=update
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete

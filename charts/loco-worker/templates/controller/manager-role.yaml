@@ -7,11 +7,8 @@ rules:
         - ""
       resources:
         - namespaces
-        - secrets
-        - services
       verbs:
         - create
-        - delete
         - get
         - list
         - patch
@@ -25,6 +22,19 @@ rules:
       verbs:
         - get
         - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - secrets
+        - services
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
         - watch
     - apiGroups:
         - ""
