@@ -222,7 +222,8 @@ config_autoscaler_matches() {
         .spec.minReplicas == 1 and .spec.maxReplicas == 2 and
         .spec.scaleTargetRef.name == $name and
         .spec.metrics[0].resource.target.averageUtilization == $target and
-        .metadata.ownerReferences[0].kind == "Deployment"' <<<"$hpa" >/dev/null
+        .metadata.ownerReferences[0].kind == "Deployment" and
+        any(.status.conditions[]?; .type == "ScalingActive" and .status == "True")' <<<"$hpa" >/dev/null
 }
 
 config_autoscaler_absent() {
@@ -245,14 +246,14 @@ test_g06_scaling_targets_reach_the_worker() {
         config_show autoscale
         return 1
     fi
-    wait_for "the controller to create the HPA" 60 config_autoscaler_matches 70
+    wait_for "the HPA to read resource metrics" 120 config_autoscaler_matches 70
     wait_for "the autoscaled deployment to finish" 60 config_deployment_running
     config_edit ".services.${config_cache}.regions.us-east-1.autoscaling.cpuTarget = 60"
     if ! assert "apply changes the target" config_run autoscale_update infra apply --env "$config_env" --yes; then
         config_show autoscale_update
         return 1
     fi
-    wait_for "the controller to update the HPA" 60 config_autoscaler_matches 60
+    wait_for "the HPA to read metrics with the updated target" 120 config_autoscaler_matches 60
     wait_for "the target update to finish" 60 config_deployment_running
     config_edit "del(.services.${config_cache}.regions.us-east-1.autoscaling)"
     if ! assert "apply disables autoscaling" config_run autoscale_disable infra apply --env "$config_env" --yes; then

@@ -25,3 +25,7 @@ builds:
     pullPolicy: Never
   buildkitImage:
     pullPolicy: Never
+
+metrics-server:
+  args:
+    - --kubelet-insecure-tls

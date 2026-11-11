@@ -1,4 +1,7 @@
 dependencies:
+- name: metrics-server
+  repository: https://kubernetes-sigs.github.io/metrics-server/
+  version: 3.14.0
 - name: gateway-helm
   repository: oci://docker.io/envoyproxy
   version: 1.10.0
@@ -11,5 +14,5 @@ dependencies:
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   version: 0.178.2
-digest: sha256:0ddc96614cac98d838a40fd5a9ce6a1b3fba1336049ac51a278ad22a0be00e2c
-generated: "2026-11-09T23:08:38.625590987Z"
+digest: sha256:502e901fff8a9d8b3798487ceebe19c71b9167af27d1dcd5d4a4f184d937daba
+generated: "2026-11-11T10:03:31.972324-08:00"

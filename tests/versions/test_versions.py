@@ -1,3 +1,4 @@
+import re
 import subprocess
 import tempfile
 import tomllib
@@ -6,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _check(tag, bunfig=None):
+def _check(tag, bunfig=None, metrics_tag=None):
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         (root / "docs").mkdir()
@@ -14,6 +15,11 @@ def _check(tag, bunfig=None):
         (root / "charts/loco-control-plane/values.yaml").write_text(
             (ROOT / "charts/loco-control-plane/values.yaml").read_text()
         )
+        (root / "charts/loco-worker").mkdir(parents=True)
+        worker = (ROOT / "charts/loco-worker/values.yaml").read_text()
+        if metrics_tag is not None:
+            worker = re.sub(r"(metrics-server:\n(?:.*\n)*?    tag: )[^\n]+", lambda m: m[1] + metrics_tag, worker, count=1)
+        (root / "charts/loco-worker/values.yaml").write_text(worker)
         (root / "mise.toml").write_text((ROOT / "mise.toml").read_text())
         (root / "renovate.json5").write_text((ROOT / "renovate.json5").read_text())
         (root / "bunfig.toml").write_text(bunfig or (ROOT / "bunfig.toml").read_text())
@@ -63,3 +69,11 @@ def test_renovate_waits_as_long_as_bunfig():
     result = _check(pinned, '[install]\nminimumReleaseAge = "1 hour"\n')
     assert result.returncode != 0
     assert "but bunfig.toml sets 1 hour" in result.stdout
+
+
+def test_metrics_server_image_requires_a_digest():
+    pinned = tomllib.loads((ROOT / "mise.toml").read_text())["tools"]["go"]
+    result = _check(pinned, metrics_tag="unpinned")
+    assert result.returncode != 0
+    assert "charts/loco-worker/values.yaml" in result.stdout
+    assert "not pinned by tag and digest" in result.stdout

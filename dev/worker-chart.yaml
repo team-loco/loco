@@ -48,3 +48,7 @@ registry:
 builds:
   pushSecretName: loco-registry-push
   insecureRegistry: true
+
+metrics-server:
+  args:
+    - --kubelet-insecure-tls
