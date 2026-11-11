@@ -12,6 +12,14 @@ type CustomHandler struct {
 	slog.Handler
 }
 
+func (l CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return CustomHandler{Handler: l.Handler.WithAttrs(attrs)}
+}
+
+func (l CustomHandler) WithGroup(name string) slog.Handler {
+	return CustomHandler{Handler: l.Handler.WithGroup(name)}
+}
+
 func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 	if spanContext := trace.SpanContextFromContext(ctx); spanContext.IsValid() {
 		r.AddAttrs(
