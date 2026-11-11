@@ -62,7 +62,19 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 }
 
 export function LogsView() {
-	const { workspaceId, resources, resourceById, range, setRange, tokens, text, setQuery, params, setParam } = useObs();
+	const {
+		workspaceId,
+		resources,
+		scopedResourceIds,
+		resourceById,
+		range,
+		setRange,
+		tokens,
+		text,
+		setQuery,
+		params,
+		setParam,
+	} = useObs();
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = environment?.id ?? "";
 	const mobile = useIsMobile();
@@ -75,7 +87,7 @@ export function LogsView() {
 	const [windowEnd, setWindowEnd] = useState(Date.now);
 	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
-	const backend = buildBackendQuery(tokens, text, resources);
+	const backend = buildBackendQuery(tokens, text, resources, scopedResourceIds);
 	const spanMs = windowSpan(range);
 	const queryKey = JSON.stringify([
 		workspaceId,

@@ -47,6 +47,7 @@ function TraceSession() {
 		workspaceId,
 		resources,
 		resourcesLoading,
+		scopedResourceIds,
 		resourceById,
 		range,
 		tokens,
@@ -67,24 +68,25 @@ function TraceSession() {
 	const resourceFilter = liveTokens("traces", tokens, "resource").length > 0;
 	const visible = filteredResources("traces", resources, tokens);
 	const filterReady = !resourceFilter || (!resourcesLoading && visible.length > 0);
+	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
 	const browse = useQueryTraces({
 		workspaceId,
 		environmentId,
-		resourceIds: resourceFilter ? visible.map((r) => r.id) : [],
+		resourceIds: resourceFilter ? visible.map((r) => r.id) : (scopedResourceIds ?? []),
 		traceId: validLookup ? lookup : "",
 		start: bounds.from,
 		end: bounds.to,
-		enabled: filterReady && validLookup,
+		enabled: filterReady && scopeReady && validLookup,
 	});
 	const openId = params.get("trace") ?? "";
 	const detail = useQueryTraces({
 		workspaceId,
 		environmentId,
-		resourceIds: [],
+		resourceIds: scopedResourceIds ?? [],
 		traceId: openId,
 		start: bounds.from,
 		end: bounds.to,
-		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId),
+		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId) && scopeReady,
 	});
 
 	const spans = uniqueSpans(browse.data?.pages.flatMap((r) => r.spans) ?? []);
@@ -109,7 +111,7 @@ function TraceSession() {
 		"0",
 	);
 	const maxDuration = traces.reduce((max, t) => (t.duration > max ? t.duration : max), 1n);
-	const loading = environmentLoading || browse.isLoading || (resourceFilter && resourcesLoading);
+	const loading = environmentLoading || browse.isLoading || ((resourceFilter || !scopeReady) && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.pages.flatMap((r) => r.spans) ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
 	const query = queryStr(tokens, text);
