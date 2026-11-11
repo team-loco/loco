@@ -37,9 +37,11 @@ var (
 		"you cannot remove yourself from the organization",
 	)
 	errOrgMemberNotFound = rpcerr.NewCoded(connect.CodeNotFound, "organization member not found")
-	errLastOrgAdmin      = rpcerr.NewCoded(connect.CodeFailedPrecondition, "organization must keep at least one admin")
-	errInvalidOrgRole    = rpcerr.NewCoded(connect.CodeInvalidArgument, "role must be Admin or Member")
-
+	errLastOrgAdmin      = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"organization must keep at least one admin",
+	)
+	errInvalidOrgRole              = rpcerr.NewCoded(connect.CodeInvalidArgument, "role must be Admin or Member")
 	errCreateIfMissingForOtherUser = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"create_if_missing requires user_id to be the caller",
