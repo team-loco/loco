@@ -144,16 +144,21 @@ export function imageError(image: string): string | null {
 	return IMAGE_RE.test(trimmed) ? null : "Use registry/repository:tag";
 }
 
-export function validateForm(form: NewResourceForm, availability: DomainCheck["state"]): FormErrors {
+export function validateForm(
+	form: NewResourceForm,
+	availability: DomainCheck["state"],
+	replicaLimit: number,
+): FormErrors {
 	return {
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
 		subdomain: subdomainError(form, availability),
 		env: envError(form.vars),
-		scaling: scalingError(form),
+		scaling: scalingError(form, replicaLimit),
 	};
 }
 
-function scalingError(form: NewResourceForm): string | null {
+function scalingError(form: NewResourceForm, replicaLimit: number): string | null {
+	if (form.maxReplicas > replicaLimit) return `Use at most ${replicaLimit.toString()} replicas per region`;
 	if (!Number.isInteger(form.replicas) || form.replicas < 1) return "Minimum replicas must be a positive whole number";
 	if (!Number.isInteger(form.maxReplicas) || form.maxReplicas < form.replicas)
 		return "Maximum replicas must be at least the minimum";

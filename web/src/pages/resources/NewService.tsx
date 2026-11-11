@@ -449,7 +449,7 @@ function ServiceForm({
 		health: edits.health ?? defaultHealth(defaults),
 	};
 	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.platformDomain, []);
-	const errors = validateForm(form, check.state);
+	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const shown = (e: string | null, field: keyof NewResourceForm) => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);
 	const subdomainError =

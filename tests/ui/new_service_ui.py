@@ -41,6 +41,7 @@ VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'
 ('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}');""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = evidence.psql(state["container"], f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';")
+replica_limit = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]["maxReplicas"]
 drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
 DRAFT_URL = re.compile(r"/resources\?env=production&draft=[0-9a-f-]+$")
 
@@ -211,6 +212,11 @@ with sync_playwright() as playwright:
                     drawer.get_by_role("button", name="Increase maximum replicas", exact=True).click()
                     expect(drawer.get_by_text("Scales per region based on CPU utilization.", exact=True)).to_be_visible()
                     expect(drawer.get_by_role("group", name="CPU target (%)", exact=True)).to_contain_text("70")
+                    for _ in range(replica_limit - 3):
+                        drawer.get_by_role("button", name="Increase maximum replicas", exact=True).click()
+                    expect(drawer.get_by_role("button", name="Increase maximum replicas", exact=True)).to_be_disabled()
+                    for _ in range(replica_limit - 3):
+                        drawer.get_by_role("button", name="Decrease maximum replicas", exact=True).click()
                 else:
                     expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
                 cpu = drawer.get_by_role("slider", name="CPU", exact=True)
