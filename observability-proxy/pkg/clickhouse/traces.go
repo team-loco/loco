@@ -19,25 +19,7 @@ func buildTracesQuery(
 	limit int32,
 	queryTimeout time.Duration,
 ) (string, []any, error) {
-	where := []string{
-		workspaceColumn + " = ?",
-		"Timestamp >= fromUnixTimestamp64Nano(?)",
-		"Timestamp <= fromUnixTimestamp64Nano(?)",
-	}
-	args := []any{req.GetWorkspaceId(), req.GetStartTime().AsTime().UnixNano(), req.GetEndTime().AsTime().UnixNano()}
-	if len(req.GetResourceIds()) > 0 {
-		clause, values := inFilter(resourceColumn, req.GetResourceIds())
-		where = append(where, clause)
-		args = append(args, values...)
-	}
-	if req.GetEnvironmentId() != "" {
-		where = append(where, environmentColumn+" = ?")
-		args = append(args, req.GetEnvironmentId())
-	}
-	if req.GetTraceId() != "" {
-		where = append(where, "TraceId = ?")
-		args = append(args, req.GetTraceId())
-	}
+	where, args := traceScope(req)
 	if req.GetCursor() != "" {
 		position, err := decodePartPosition(req.GetCursor())
 		if err != nil {
@@ -57,11 +39,37 @@ func buildTracesQuery(
 	return fmt.Sprintf("%s SETTINGS max_execution_time = %d", query, int(queryTimeout.Seconds())), args, nil
 }
 
+func traceScope(req *observabilityv1.QueryTracesRequest) ([]string, []any) {
+	where := []string{
+		workspaceColumn + " = ?",
+		"Timestamp >= fromUnixTimestamp64Nano(?)",
+		"Timestamp <= fromUnixTimestamp64Nano(?)",
+	}
+	args := []any{req.GetWorkspaceId(), req.GetStartTime().AsTime().UnixNano(), req.GetEndTime().AsTime().UnixNano()}
+	if len(req.GetResourceIds()) > 0 {
+		clause, values := inFilter(resourceColumn, req.GetResourceIds())
+		where = append(where, clause)
+		args = append(args, values...)
+	}
+	if req.GetEnvironmentId() != "" {
+		where = append(where, environmentColumn+" = ?")
+		args = append(args, req.GetEnvironmentId())
+	}
+	if req.GetTraceId() != "" {
+		where = append(where, "TraceId = ?")
+		args = append(args, req.GetTraceId())
+	}
+	return where, args
+}
+
 func (c *Client) QueryTraces(
 	ctx context.Context,
 	req *observabilityv1.QueryTracesRequest,
 	limit int32,
 ) (*observabilityv1.QueryTracesResponse, error) {
+	if req.GetSummary() != nil {
+		return c.queryTraceSummaries(ctx, req, limit)
+	}
 	query, args, err := buildTracesQuery(req, limit, c.queryTimeout)
 	if err != nil {
 		return nil, err

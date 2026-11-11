@@ -472,6 +472,28 @@ check_ingress_trace() {
         }' <<<"$rows"
 }
 
+check_trace_summary() {
+    local body output response status count spans
+    body=$(obs_trace_body "$obs_workspace_id")
+    body=$(yq -p json -o json '.summary = {} | .limit = 1' <<<"$body")
+    output=$(obs_trace_call "$obs_workspace_token" "$body") || return 1
+    response=$(sed '$d' <<<"$output")
+    status=$(tail -n 1 <<<"$output")
+    test "$status" = "$obs_http_ok" || return 1
+    count=$(yq -p json -r '.summaries | length' <<<"$response")
+    spans=$(yq -p json -r '.summaries[0].spanCount // "0"' <<<"$response")
+    ev_command "QueryTraces summarizes the known trace before paging" \
+        "curl -X POST ${obs_query_traces} -H 'Authorization: Bearer <workspace token>' -d '${body}'" \
+        "$response"
+    test "$count" = 1 && test "$spans" -gt 1 &&
+        test "$(yq -p json -r '.totalCount' <<<"$response")" = 1 &&
+        test "$(yq -p json -r '.summaries[0].traceId' <<<"$response")" = "$obs_trace_id"
+}
+
+test_o04_trace_summary() {
+    obs_check trace_summary check_trace_summary
+}
+
 test_o04_ingress_trace() {
     obs_check ingress_trace check_ingress_trace
 }

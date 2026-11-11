@@ -270,17 +270,64 @@ message QueryTracesRequest {
     lte: 10000
   }];
   string cursor = 8;
+  TraceSummaryQuery summary = 9;
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
     expression: "this.start_time <= this.end_time"
   };
+  option (buf.validate.message).cel = {
+    id: "summary.no_span_cursor"
+    message: "summary paging uses offset instead of cursor"
+    expression: "!has(this.summary) || this.cursor == ''"
+  };
 }
 
 message QueryTracesResponse {
   repeated TraceSpan spans = 1;
   string next_cursor = 2;
+  repeated TraceSummary summaries = 3;
+  uint64 total_count = 4;
+}
+
+// Summaries describe spans visible within the request scope and time window.
+// A missing root uses the earliest visible span for its name and service.
+message TraceSummaryQuery {
+  optional uint64 min_duration_nanos = 1;
+  optional uint64 max_duration_nanos = 2;
+  string status = 3 [
+    (buf.validate.field).string.in = "",
+    (buf.validate.field).string.in = "ok",
+    (buf.validate.field).string.in = "error"
+  ];
+  repeated string root_name_terms = 4;
+  TraceSummarySort sort = 5 [(buf.validate.field).enum.defined_only = true];
+  bool ascending = 6;
+  int32 offset = 7 [(buf.validate.field).int32.gte = 0];
+
+  option (buf.validate.message).cel = {
+    id: "duration.min_lte_max"
+    message: "min_duration_nanos must be less than or equal to max_duration_nanos"
+    expression: "!has(this.min_duration_nanos) || !has(this.max_duration_nanos) || this.min_duration_nanos <= this.max_duration_nanos"
+  };
+}
+
+enum TraceSummarySort {
+  TRACE_SUMMARY_SORT_UNSPECIFIED = 0;
+  TRACE_SUMMARY_SORT_START_TIME = 1;
+  TRACE_SUMMARY_SORT_DURATION = 2;
+}
+
+message TraceSummary {
+  string trace_id = 1;
+  string root_span_name = 2;
+  string service_name = 3;
+  string resource_id = 4;
+  google.protobuf.Timestamp start_time = 5;
+  uint64 duration_nanos = 6;
+  string status = 7;
+  uint64 span_count = 8;
 }
 
 message TraceSpan {

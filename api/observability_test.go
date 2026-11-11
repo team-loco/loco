@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -193,5 +194,77 @@ func TestRegionalGatewayConfiguration(t *testing.T) {
 			}()
 			parseObservabilityProxyURL(raw)
 		})
+	}
+}
+
+func (*gatewayTelemetry) QueryTraces(
+	ctx context.Context,
+	req *observabilityv1.QueryTracesRequest,
+) (*observabilityv1.QueryTracesResponse, error) {
+	if err := gatewayPermission(ctx, req.GetWorkspaceId()); err != nil {
+		return nil, err
+	}
+	return &observabilityv1.QueryTracesResponse{
+		TotalCount: 42,
+		Summaries: []*observabilityv1.TraceSummary{{
+			TraceId: req.GetTraceId(), RootSpanName: strings.Join(req.GetSummary().GetRootNameTerms(), " "),
+			ServiceName: req.GetEnvironmentId(), ResourceId: req.GetResourceIds()[0],
+			StartTime: req.GetStartTime(), DurationNanos: req.GetSummary().GetMinDurationNanos(),
+			Status: req.GetSummary().GetStatus(), SpanCount: uint64(req.GetSummary().GetOffset()),
+		}},
+	}, nil
+}
+
+func TestTraceSummaryPassthrough(t *testing.T) {
+	rpcServer := connect.NewServer()
+	observabilityv1connect.RegisterObservabilityProxyServiceHandler(rpcServer, &gatewayTelemetry{})
+	upstreamMux := http.NewServeMux()
+	connecthttp.Mount(upstreamMux, rpcServer)
+	upstream := httptest.NewServer(upstreamMux)
+	t.Cleanup(upstream.Close)
+	mux := http.NewServeMux()
+	mountObservabilityProxy(mux, parseObservabilityProxyURL(upstream.URL))
+	gateway := httptest.NewServer(mux)
+	t.Cleanup(gateway.Close)
+	ctx := t.Context()
+	req := &observabilityv1.QueryTracesRequest{
+		WorkspaceId: gatewayWorkspace, ResourceIds: []string{"resource"}, EnvironmentId: "environment",
+		TraceId: "0123456789abcdef0123456789abcdef", StartTime: timestamppb.Now(), EndTime: timestamppb.Now(),
+		Limit: 1, Summary: &observabilityv1.TraceSummaryQuery{
+			MinDurationNanos: proto.Uint64(
+				9007199254740993,
+			),
+			Status:        "error",
+			RootNameTerms: []string{"GET", "/cart"},
+			Offset:        7,
+		},
+	}
+	clients := rpc.NewHTTPClients(gateway.Client(), gateway.URL, "reader")
+	response, err := clients.ObservabilityProxy.QueryTraces(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.GetTotalCount() != 42 || len(response.GetSummaries()) != 1 {
+		t.Fatalf("response: %v", response)
+	}
+	summary := response.GetSummaries()[0]
+	if summary.GetTraceId() != req.GetTraceId() || summary.GetRootSpanName() != "GET /cart" ||
+		summary.GetServiceName() != req.GetEnvironmentId() || summary.GetResourceId() != req.GetResourceIds()[0] ||
+		!proto.Equal(
+			summary.GetStartTime(),
+			req.GetStartTime(),
+		) || summary.GetDurationNanos() != req.GetSummary().GetMinDurationNanos() ||
+		summary.GetStatus() != "error" || summary.GetSpanCount() != 7 {
+		t.Fatalf("lost summary fields: %v", summary)
+	}
+	for _, token := range []string{"", "wrong-reader"} {
+		_, err := rpc.NewHTTPClients(gateway.Client(), gateway.URL, token).ObservabilityProxy.QueryTraces(ctx, req)
+		want := connect.CodePermissionDenied
+		if token == "" {
+			want = connect.CodeUnauthenticated
+		}
+		if connect.CodeOf(err) != want {
+			t.Fatalf("token %q: %v", token, err)
+		}
 	}
 }

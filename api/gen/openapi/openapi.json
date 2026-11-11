@@ -10593,6 +10593,10 @@
           "cursor": {
             "type": "string",
             "title": "cursor"
+          },
+          "summary": {
+            "title": "summary",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceSummaryQuery"
           }
         },
         "title": "QueryTracesRequest",
@@ -10601,7 +10605,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "time_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "summary.no_span_cursor // summary paging uses offset instead of cursor\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryTracesResponse": {
         "type": "object",
@@ -10616,6 +10620,18 @@
           "nextCursor": {
             "type": "string",
             "title": "next_cursor"
+          },
+          "summaries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.TraceSummary"
+            },
+            "title": "summaries"
+          },
+          "totalCount": {
+            "type": "string",
+            "title": "total_count",
+            "format": "int64"
           }
         },
         "title": "QueryTracesResponse",
@@ -10833,6 +10849,110 @@
         },
         "title": "TraceSpanEvent",
         "additionalProperties": false
+      },
+      "loco.observability.v1.TraceSummary": {
+        "type": "object",
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "title": "trace_id"
+          },
+          "rootSpanName": {
+            "type": "string",
+            "title": "root_span_name"
+          },
+          "serviceName": {
+            "type": "string",
+            "title": "service_name"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "durationNanos": {
+            "type": "string",
+            "title": "duration_nanos",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "title": "status"
+          },
+          "spanCount": {
+            "type": "string",
+            "title": "span_count",
+            "format": "int64"
+          }
+        },
+        "title": "TraceSummary",
+        "additionalProperties": false
+      },
+      "loco.observability.v1.TraceSummaryQuery": {
+        "type": "object",
+        "properties": {
+          "minDurationNanos": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "min_duration_nanos",
+            "format": "int64"
+          },
+          "maxDurationNanos": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "max_duration_nanos",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "title": "status",
+            "enum": [
+              "",
+              "ok",
+              "error"
+            ]
+          },
+          "rootNameTerms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "root_name_terms"
+          },
+          "sort": {
+            "title": "sort",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceSummarySort"
+          },
+          "ascending": {
+            "type": "boolean",
+            "title": "ascending"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "offset",
+            "minimum": 0,
+            "format": "int32"
+          }
+        },
+        "title": "TraceSummaryQuery",
+        "additionalProperties": false,
+        "description": "Summaries describe spans visible within the request scope and time window.\n A missing root uses the earliest visible span for its name and service.\nduration.min_lte_max // min_duration_nanos must be less than or equal to max_duration_nanos\n"
+      },
+      "loco.observability.v1.TraceSummarySort": {
+        "type": "string",
+        "title": "TraceSummarySort",
+        "enum": [
+          "TRACE_SUMMARY_SORT_UNSPECIFIED",
+          "TRACE_SUMMARY_SORT_START_TIME",
+          "TRACE_SUMMARY_SORT_DURATION"
+        ]
       },
       "loco.org.v1.CreateOrgRequest": {
         "type": "object",

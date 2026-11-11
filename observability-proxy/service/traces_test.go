@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -241,6 +242,41 @@ func TestQueryTracesHTTPReadsIsolatedSpans(t *testing.T) {
 			slices.Sort(got)
 			if !slices.Equal(got, tc.want) {
 				t.Errorf("spans = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTraceSummaryValidation(t *testing.T) {
+	client := traceTestClient(t, nil)
+	for _, tc := range []struct {
+		name   string
+		change func(*observabilityv1.QueryTracesRequest)
+	}{
+		{"negative offset", func(r *observabilityv1.QueryTracesRequest) { r.Summary.Offset = -1 }},
+		{"invalid sort", func(r *observabilityv1.QueryTracesRequest) {
+			r.Summary.Sort = observabilityv1.TraceSummarySort(99)
+		}},
+		{"invalid status", func(r *observabilityv1.QueryTracesRequest) { r.Summary.Status = "invalid-status" }},
+		{"inverted duration", func(r *observabilityv1.QueryTracesRequest) {
+			r.Summary.MinDurationNanos = proto.Uint64(2)
+			r.Summary.MaxDurationNanos = proto.Uint64(1)
+		}},
+		{"span cursor", func(r *observabilityv1.QueryTracesRequest) { r.Cursor = "opaque" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, info := connect.NewClientContext(t.Context())
+			info.RequestHeader().Set("Authorization", "Bearer "+traceTestReader)
+			req := &observabilityv1.QueryTracesRequest{
+				WorkspaceId: tailTestWorkspace,
+				StartTime:   timestamppb.New(time.Now().Add(-time.Minute)),
+				EndTime:     timestamppb.Now(),
+				Summary:     &observabilityv1.TraceSummaryQuery{},
+			}
+			tc.change(req)
+			_, err := client.QueryTraces(ctx, req)
+			if connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("error: %v", err)
 			}
 		})
 	}
