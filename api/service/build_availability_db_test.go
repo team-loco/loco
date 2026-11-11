@@ -207,7 +207,6 @@ func TestBuildSelectionRequiresHealthyRecentHeartbeats(t *testing.T) {
 	} {
 		t.Run(invalid, func(t *testing.T) {
 			f := newBuildFixture(t)
-			f.markClustersHealthy(t)
 			invalidate := func(id uuid.UUID) {
 				t.Helper()
 				args := []any{id}

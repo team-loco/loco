@@ -22,7 +22,6 @@ func (f *buildFixture) setRole(t *testing.T, id uuid.UUID, role genDb.ClusterRol
 
 func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 	f := newBuildFixture(t)
-	f.markClustersHealthy(t)
 	f.setRole(t, f.clusterID, genDb.ClusterRoleBuilds)
 	f.setRole(t, f.otherCluster, genDb.ClusterRoleApps)
 	buildRegionQuery := "UPDATE clusters SET region = 'builds-region' WHERE id = $1"
