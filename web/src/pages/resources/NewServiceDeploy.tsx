@@ -8,6 +8,7 @@ import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
+import { SecretService } from "@gen/loco/secret/v1/secret_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -17,7 +18,13 @@ import { StepList } from "@/components/design/StepList";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { regionDeploySteps, runOutcome, type RunOutcome } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
-import { apiFieldError, envVars, healthCheckSpec, type ApiFieldError, type NewResourceForm } from "@/lib/new-resource";
+import {
+	apiFieldError,
+	deploymentVariables,
+	healthCheckSpec,
+	type ApiFieldError,
+	type NewResourceForm,
+} from "@/lib/new-resource";
 import { resourcePath } from "@/lib/routes";
 
 interface RegionRun {
@@ -27,7 +34,7 @@ interface RegionRun {
 }
 
 interface DeployRun {
-	form: NewResourceForm;
+	form: Omit<NewResourceForm, "vars">;
 	resourceId: string | undefined;
 	deploying: boolean;
 	regions: RegionRun[];
@@ -53,9 +60,13 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		}
 	};
 
-	const attempt = async (form: NewResourceForm, defaults: DefaultServiceConfig): Promise<DeployError | null> => {
+	const attempt = async (
+		form: NewResourceForm,
+		defaults: DefaultServiceConfig,
+	): Promise<{ error: DeployError | null; deployed: boolean }> => {
+		const { vars, ...summary } = form;
 		const start: DeployRun = {
-			form,
+			form: summary,
 			resourceId: undefined,
 			deploying: true,
 			regions: form.regions.map((region) => ({ region, deploymentId: undefined, error: null })),
@@ -100,14 +111,32 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			});
 			setRun({ ...start, resourceId });
 			const deployments = createClient(DeploymentService, transport);
-			const envMap = Object.fromEntries(envVars(form.vars));
+			const { env: envMap, secrets } = deploymentVariables(vars);
+			const secretNames = Object.keys(secrets);
+			let secretsError: unknown = undefined;
+			if (secretNames.length > 0) {
+				try {
+					await createClient(SecretService, transport).setSecrets({
+						resourceId,
+						environmentId: env.id,
+						values: secrets,
+					});
+				} catch (error) {
+					secretsError = error;
+				}
+			}
 			const regions = await Promise.all(
 				form.regions.map(async (region): Promise<RegionRun & { cause: unknown }> => {
+					if (secretsError !== undefined) {
+						const error = getErrorMessage(secretsError, "Couldn't store the secrets");
+						return { region, deploymentId: undefined, error, cause: secretsError };
+					}
 					try {
 						const res = await deployments.createDeployment({
 							resourceId,
 							region,
 							environmentId: env.id,
+							secretBindings: { names: secretNames },
 							spec: {
 								spec: {
 									case: "service",
@@ -141,24 +170,25 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 				(await removed(resourceId))
 			) {
 				return {
-					message: `Couldn't deploy ${form.image.trim()}: ${first.error}`,
-					field: apiFieldError(first.cause),
+					error: { message: `Couldn't deploy ${form.image.trim()}: ${first.error}`, field: apiFieldError(first.cause) },
+					deployed: false,
 				};
 			}
 			setRun({ ...start, resourceId, deploying: false, regions });
-			return null;
+			return { error: null, deployed: regions.some((r) => r.deploymentId !== undefined) };
 		} catch (err) {
-			return { message: getErrorMessage(err, "Couldn't create the resource"), field: apiFieldError(err) };
+			const error = { message: getErrorMessage(err, "Couldn't create the resource"), field: apiFieldError(err) };
+			return { error, deployed: false };
 		}
 	};
 
 	const deploy = async (form: NewResourceForm, defaults: DefaultServiceConfig) => {
 		setDeployError(null);
-		const error = await attempt(form, defaults);
-		if (error !== null) setRun(null);
-		setDeployError(error);
+		const result = await attempt(form, defaults);
+		if (result.error !== null) setRun(null);
+		setDeployError(result.error);
 		void queryClient.invalidateQueries();
-		return error;
+		return result;
 	};
 
 	return {

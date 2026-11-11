@@ -37,7 +37,8 @@ suffix = uuid.uuid4().hex[:6]
 platform_domain = "apps.e2e.test"
 evidence.psql(state["container"], f"""UPDATE clusters SET is_active=false WHERE provider='fixture';
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
-VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}');""")
+VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
+('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}');""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = evidence.psql(state["container"], f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';")
 drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
@@ -98,8 +99,18 @@ with sync_playwright() as playwright:
             context, page, errors = open_page(browser, "owner", theme, narrow)
             deployments = []
             rejected = []
+            writes = []
+            order = []
+
+            def record_secret_write(route):
+                writes.append(route.request.post_data_json)
+                order.append(("SetSecrets", route.request.post_data_json["resourceId"]))
+                route.continue_()
+
+            context.route("**/loco.secret.v1.SecretService/SetSecrets", record_secret_write)
 
             def create_deployment(route):
+                order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
                 if theme == "light" and not rejected:
                     rejected.append(route.request.post_data_json)
                     route.fulfill(status=400, json={"code": "invalid_argument", "message": "invalid request"})
@@ -157,7 +168,17 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_text(image, exact=True)).to_be_visible()
                 expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
                 assert stored_drafts(page) == [name], stored_drafts(page)
-                expect(drawer.get_by_role("button", name="us-east-1")).to_have_attribute("aria-pressed", "true")
+                expect(drawer.get_by_role("button", name="us-east-1", exact=True)).to_have_attribute("aria-pressed", "true")
+                degraded = drawer.get_by_role("button", name="eu-west-1 degraded", exact=True).get_by_text("degraded", exact=True)
+                expect(degraded).to_have_class(re.compile(r"\bbg-warn-bg\b"))
+                drawer.get_by_role("button", name=f"Platform domain: {platform_domain}", exact=True).click()
+                domain_option = page.get_by_role("menuitemradio", name=re.compile(rf"^{re.escape(platform_domain)}"))
+                expect(domain_option.get_by_text("us-east-1", exact=True)).to_be_visible()
+                expect(domain_option.get_by_text("healthy", exact=True)).to_have_count(0)
+                expect(domain_option.get_by_text("eu-west-1", exact=True)).to_have_count(0)
+                evidence.settle(page)
+                page.screenshot(path=out / f"region-health-{case}.png", animations="disabled")
+                page.keyboard.press("Escape")
                 expect(drawer.get_by_role("button", name="Public", exact=True)).to_have_attribute("aria-pressed", "true")
                 subdomain = drawer.get_by_role("textbox", name="Subdomain")
                 expect(subdomain).to_have_value(name)
@@ -184,6 +205,50 @@ with sync_playwright() as playwright:
                 expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value("info")
                 expect(variables.get_by_role("listitem").first.get_by_label("Looks like a secret")).to_have_count(1)
                 expect(variables.get_by_role("listitem").nth(1).get_by_label("Looks like a secret")).to_have_count(0)
+                secret_switch = variables.get_by_role("switch", name="Store STRIPE_API_KEY as secret", exact=True)
+                secret_switch.click()
+                secret_value = variables.get_by_label("Value of STRIPE_API_KEY", exact=True)
+                expect(secret_value).to_have_attribute("type", "password")
+                expect(secret_value).to_have_value("sk_test")
+                assert "sk_test" not in page.evaluate(f"localStorage.getItem({json.dumps(drafts_key)})")
+                # A storage update from another tab must not be masked by the in-memory secret.
+                page.evaluate("""key => {
+                    const drafts = JSON.parse(localStorage.getItem(key));
+                    const row = drafts[0].edits.vars.find(row => row.key === "LOG_LEVEL");
+                    row.value = "debug";
+                    localStorage.setItem(key, JSON.stringify(drafts));
+                    dispatchEvent(new StorageEvent("storage", {key}));
+                }""", drafts_key)
+                log_level = variables.get_by_label("Value of LOG_LEVEL", exact=True)
+                expect(log_level).to_have_value("debug")
+                expect(secret_value).to_have_value("sk_test")
+                log_level.fill("info")
+                # A draft that cannot be saved reports it once, not on every keystroke.
+                save_failed = page.get_by_text("Couldn't save changes to this draft", exact=True)
+                for _ in range(2):
+                    page.evaluate("""key => {
+                        window.realSetItem = Storage.prototype.setItem;
+                        Storage.prototype.setItem = function (name, value) {
+                            if (name === key) throw new DOMException("full", "QuotaExceededError");
+                            return window.realSetItem.call(this, name, value);
+                        };
+                    }""", drafts_key)
+                    log_level.press_sequentially("abc")
+                    page.wait_for_timeout(500)
+                    expect(save_failed).to_have_count(1)
+                    expect(log_level).to_have_value("info")
+                    page.evaluate("() => { Storage.prototype.setItem = window.realSetItem; }")
+                    # A successful save shows the next failure again.
+                    log_level.press_sequentially("x")
+                    expect(log_level).to_have_value("infox")
+                    log_level.fill("info")
+                    expect(save_failed).to_have_count(0, timeout=10_000)
+                drawer.get_by_text("loco.yaml", exact=True).first.click()
+                expect(drawer.get_by_text("secrets: [STRIPE_API_KEY]", exact=False)).to_be_visible()
+                assert "sk_test" not in drawer.inner_text()
+                drawer.get_by_text("loco.yaml", exact=True).first.click()
+                secret_value.scroll_into_view_if_needed()
+                page.screenshot(path=out / f"secret-marked-{case}.png", animations="disabled")
                 drawer.get_by_role("button", name="Add", exact=True).click()
                 expect(names.nth(2)).to_be_focused()
                 names.nth(2).fill("EXTRA")
@@ -211,6 +276,8 @@ with sync_playwright() as playwright:
 
                 page.reload()
                 expect(page).to_have_url(DRAFT_URL)
+                expect(secret_switch).to_be_checked()
+                expect(secret_value).to_have_value("")
                 expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
                 expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
                 expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value("info")
@@ -244,6 +311,8 @@ with sync_playwright() as playwright:
                 page.keyboard.press("Enter")
                 expect(page).to_have_url(DRAFT_URL)
                 health.click()
+                expect(secret_value).to_have_value("")
+                secret_value.fill("sk_test")
                 timeout = "5" if theme == "light" else "4"
                 expect(drawer.get_by_role("textbox", name="Timeout, sec")).to_have_value(timeout)
                 drawer.get_by_role("textbox", name="Timeout, sec").fill("4")
@@ -262,6 +331,23 @@ with sync_playwright() as playwright:
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
                     assert stored_drafts(page) == [name], stored_drafts(page)
                     page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")
+                    # When SetSecrets fails and the cleanup delete fails too, nothing deployed and the draft stays.
+                    unavailable = lambda route: route.fulfill(status=503, json={"code": "unavailable"})
+                    page.route("**/loco.secret.v1.SecretService/SetSecrets", unavailable)
+                    page.route("**/loco.resource.v1.ResourceService/DeleteResource", unavailable)
+                    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+                    expect(drawer.get_by_text("Couldn't store the secrets.", exact=True)).to_be_visible()
+                    assert not deployments, deployments
+                    assert stored_drafts(page) == [name], stored_drafts(page)
+                    page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
+                    page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
+                    orphan = evidence.psql(state["container"], f"SELECT id FROM resources WHERE name='{name}';")
+                    evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan})
+                    drawer.get_by_role("button", name="Done", exact=True).click()
+                    expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+                    draft_row(page, name).get_by_role("link", name=name, exact=True).click()
+                    expect(page).to_have_url(DRAFT_URL)
+                    secret_value.fill("sk_test")
                 drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
                 open_button = drawer.get_by_role("link", name=f"Open {name}", exact=True)
@@ -286,7 +372,12 @@ with sync_playwright() as playwright:
                 spec = deployments[0]["spec"]["service"]
                 assert spec["build"]["image"] == image, spec
                 assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
-                assert spec["env"] == {"STRIPE_API_KEY": "sk_test", "LOG_LEVEL": "info"}, spec
+                assert spec["env"] == {"LOG_LEVEL": "info"}, spec
+                assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
+                assert writes[-1] == {"resourceId": resource, "environmentId": production, "values": {"STRIPE_API_KEY": "sk_test"}}
+                assert [call for call in order if call[1] == resource] == [("SetSecrets", resource), ("CreateDeployment", resource)], order
+                names = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.secret.v1.SecretService/ListSecrets", {"resourceId": resource, "environmentId": production})
+                assert [secret["name"] for secret in names["secrets"]] == ["STRIPE_API_KEY"]
                 check = spec["healthCheck"]
                 assert (check["path"], check["intervalSeconds"], check["timeoutSeconds"], check["failureThreshold"]) == (health_path, 15, 4, 6), check
                 domain = evidence.psql(state["container"], f"SELECT subdomain_label || '.' || platform_domain FROM resource_domains WHERE resource_id='{resource}';")

@@ -6,6 +6,7 @@ import { PlatformDomainSchema } from "@gen/loco/domain/v1/domain_pb";
 
 import {
 	apiFieldError,
+	deploymentVariables,
 	envError,
 	firstError,
 	healthCheckSpec,
@@ -208,4 +209,14 @@ test("imageError asks for an image reference before the drawer opens", () => {
 	expect(imageError("  ")).toBe("Enter an image");
 	expect(imageError("Not An Image")).toBe("Use registry/repository:tag");
 	expect(imageError(" ghcr.io/acme/web:1.4.2 ")).toBeNull();
+});
+
+test("marked values only go to the secret write and the YAML names their bindings", () => {
+	const vars = [row("LOG_LEVEL", "info"), { ...row("API_KEY", "private-test-value"), secret: true }];
+	expect(deploymentVariables(vars)).toEqual({ env: { LOG_LEVEL: "info" }, secrets: { API_KEY: "private-test-value" } });
+	expect(envError([{ ...row("api_key", "value"), secret: true }])).toBeNull();
+	const yaml = locoYaml({ schemaUrl: "", form: { ...form, vars } });
+	expect(yaml).toContain("secrets: [API_KEY]");
+	expect(yaml).toContain('LOG_LEVEL: "info"');
+	expect(yaml).not.toContain("private-test-value");
 });

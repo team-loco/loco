@@ -9,6 +9,7 @@ import {
 	setPrimaryResourceDomain,
 	updateResourceDomain,
 } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { DomainType, type PlatformDomain, type ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
 
 import { Badge } from "@/components/design/Badge";
@@ -205,6 +206,7 @@ function AddDomainForm({
 	resourceName,
 	own,
 	options,
+	regions,
 	running,
 	locked,
 	describedBy,
@@ -214,6 +216,7 @@ function AddDomainForm({
 	resourceName: string;
 	own: readonly string[];
 	options: PlatformDomain[];
+	regions: readonly RegionInfo[];
 	running: readonly string[];
 	locked: boolean;
 	describedBy: string | undefined;
@@ -256,6 +259,7 @@ function AddDomainForm({
 				subdomain={subdomain}
 				platformDomain={platformDomain}
 				options={served}
+				regions={regions}
 				check={check}
 				owner={resourceName}
 				placeholder={slug(resourceName)}
@@ -286,12 +290,14 @@ export function NetworkingSection({
 	resourceId,
 	domains,
 	platformDomains,
+	regions,
 	served,
 	onDomainsChanged,
 }: SectionProps & {
 	resourceId: string;
 	domains: ResourceDomain[];
 	platformDomains: PlatformDomain[];
+	regions: readonly RegionInfo[];
 	served: string[];
 	onDomainsChanged: () => void;
 }) {
@@ -347,6 +353,7 @@ export function NetworkingSection({
 						subdomain={subdomain}
 						platformDomain={platformDomain}
 						options={platformDomains.filter((d) => served.includes(d.domain))}
+						regions={regions}
 						check={check}
 						owner={base.name}
 						onSubdomainChange={(next) => {
@@ -382,6 +389,7 @@ export function NetworkingSection({
 							resourceName={base.name}
 							own={own}
 							options={platformDomains}
+							regions={regions}
 							running={running}
 							locked={locked}
 							describedBy={describedBy}

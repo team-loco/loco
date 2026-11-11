@@ -91,3 +91,16 @@ test("drafts rank after deploying and before healthy", () => {
 	expect(DRAFT_RANK).toBeGreaterThan(statusRank(ResourceStatus.DEPLOYING));
 	expect(DRAFT_RANK).toBeLessThan(statusRank(ResourceStatus.HEALTHY));
 });
+
+test("draft persistence keeps secret names without secret values", () => {
+	const [edited] = editDraft([draft("a")], "a", {
+		vars: [
+			{ id: "1", key: "API_KEY", value: "private-test-value", secret: true },
+			{ id: "2", key: "LOG_LEVEL", value: "info" },
+		],
+	});
+	expect(edited?.edits.vars).toEqual([
+		{ id: "1", key: "API_KEY", value: "", secret: true },
+		{ id: "2", key: "LOG_LEVEL", value: "info" },
+	]);
+});

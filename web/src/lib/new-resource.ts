@@ -16,6 +16,7 @@ export interface EnvRow {
 	id: string;
 	key: string;
 	value: string;
+	secret?: boolean;
 }
 
 export interface HealthForm {
@@ -81,6 +82,13 @@ function isBlank(row: EnvRow): boolean {
 
 export function envVars(rows: EnvRow[]): [string, string][] {
 	return rows.filter((r) => !isBlank(r)).map((r) => [r.key.trim(), r.value]);
+}
+
+export function deploymentVariables(rows: EnvRow[]) {
+	return {
+		env: Object.fromEntries(envVars(rows.filter((row) => !row.secret))),
+		secrets: Object.fromEntries(envVars(rows.filter((row) => row.secret))),
+	};
 }
 
 export function envError(rows: EnvRow[]): string | null {
@@ -235,7 +243,9 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 	];
 	if (form.health.path !== "") lines.push(healthYaml(form.health, flow));
 	if (form.isPublic) lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
-	const vars = envVars(form.vars);
+	const vars = envVars(form.vars.filter((row) => !row.secret));
+	const secrets = form.vars.filter((row) => row.secret && row.key.trim() !== "").map((row) => row.key.trim());
+	if (secrets.length > 0) lines.push(`    secrets: [${secrets.map(flow).join(", ")}]`);
 	if (vars.length > 0) {
 		lines.push("    env:");
 		for (const [key, value] of vars) lines.push(`      ${scalar(key, FLOW_PLAIN_RE)}: ${JSON.stringify(value)}`);

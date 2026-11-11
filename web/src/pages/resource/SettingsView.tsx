@@ -166,6 +166,7 @@ export function SettingsView({
 						resourceId={resource.id}
 						domains={resource.domains}
 						platformDomains={domainsQuery.data?.platformDomains ?? []}
+						regions={regionsQuery.data?.regions ?? []}
 						served={served}
 						onDomainsChanged={() => {
 							onSaved({ tone: "info", title: "Domain updated", message: "It takes effect on the next deployment." });

@@ -13,7 +13,7 @@ import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_conn
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
-import { Badge } from "@/components/design/Badge";
+import { RegionHealth } from "@/components/design/RegionHealth";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
@@ -57,7 +57,6 @@ import {
 import { slug } from "@/lib/slug";
 import { DeployRunView, DrawerHeader, useServiceDeploy, type DeployError } from "@/pages/resources/NewServiceDeploy";
 
-const HEALTHY = "healthy";
 const MIN_REPLICAS = 1;
 const SKELETON_ROWS = 6;
 const NON_DIGITS_RE = /\D/g;
@@ -254,6 +253,8 @@ export function DraftSheet({
 	const [tried, setTried] = useState(false);
 	const [healthOpen, setHealthOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
+	const [secretValues, setSecretValues] = useState<ReadonlyMap<string, string>>(() => new Map());
+	const [saveFailed, setSaveFailed] = useState(false);
 	const close = () => {
 		const next = new URLSearchParams(params);
 		next.delete(DRAFT_PARAM);
@@ -293,13 +294,14 @@ export function DraftSheet({
 				</SheetBody>
 			);
 		}
+		const vars = draft.edits.vars?.map((row) => (row.secret ? { ...row, value: secretValues.get(row.id) ?? "" } : row));
 		return (
 			<ServiceForm
 				env={env}
 				schemaUrl={configQuery.data?.schemaUrl ?? ""}
 				regions={regionsQuery.data.regions}
 				platformDomains={domainsQuery.data?.platformDomains ?? []}
-				draft={draft}
+				draft={vars === undefined ? draft : { ...draft, edits: { ...draft.edits, vars } }}
 				defaults={defaults}
 				deployment={deployment}
 				tried={tried}
@@ -311,9 +313,18 @@ export function DraftSheet({
 				onHealthOpen={setHealthOpen}
 				onEdit={(edits) => {
 					deployment.clearError();
-					store.edit(draft.id, edits);
+					if (!store.edit(draft.id, edits)) {
+						if (!saveFailed) toast.error("Couldn't save changes to this draft");
+						setSaveFailed(true);
+						return;
+					}
+					setSaveFailed(false);
+					if (edits.vars !== undefined) {
+						setSecretValues(new Map(edits.vars.filter((row) => row.secret).map((row) => [row.id, row.value])));
+					}
 				}}
 				onDeployed={() => {
+					setSecretValues(new Map());
 					store.discard(draft.id);
 				}}
 				onDiscard={() => {
@@ -449,12 +460,12 @@ function ServiceForm({
 				e.preventDefault();
 				onTry();
 				if (blocker !== null) return;
-				void deploy(form, defaults).then((err) => {
-					if (err === null) {
+				void deploy(form, defaults).then(({ error, deployed }) => {
+					if (deployed) {
 						onDeployed();
 						return;
 					}
-					const field = err.field?.field;
+					const field = error?.field?.field;
 					if (field !== undefined && HEALTH_FIELDS.has(field)) onHealthOpen(true);
 				});
 			}}
@@ -475,7 +486,7 @@ function ServiceForm({
 							multiple
 							variant="outline"
 							aria-label="Regions"
-							className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3"
+							className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2"
 							value={selected}
 							onValueChange={(v: string[]) => {
 								set({ regions: v });
@@ -488,11 +499,7 @@ function ServiceForm({
 									className="h-[38px] w-full min-w-0 gap-1.5 rounded-lg border-line2 px-3 font-mono text-[12.5px] font-normal text-fg3 hover:bg-transparent hover:text-foreground aria-pressed:border-foreground aria-pressed:bg-raise aria-pressed:text-foreground aria-pressed:ring-1 aria-pressed:ring-foreground aria-pressed:ring-inset"
 								>
 									<span className="truncate">{r.region}</span>
-									{r.healthStatus !== "" && r.healthStatus !== HEALTHY && (
-										<Badge size="sm" tone="warn">
-											{r.healthStatus}
-										</Badge>
-									)}
+									<RegionHealth region={r} />
 								</ToggleGroupItem>
 							))}
 						</ToggleGroup>
@@ -531,6 +538,7 @@ function ServiceForm({
 									subdomain={form.subdomain}
 									platformDomain={form.platformDomain}
 									options={platformDomains.filter((d) => served.includes(d.domain))}
+									regions={regions}
 									check={check}
 									placeholder={slug(name)}
 									onSubdomainChange={(subdomain) => {
@@ -783,7 +791,7 @@ function EnvSection({
 						return (
 							<li
 								key={r.id}
-								className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] items-center border-b border-line last:border-b-0"
+								className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]"
 							>
 								<span className="flex min-w-0 items-center border-r border-line">
 									<Input
@@ -803,6 +811,7 @@ function EnvSection({
 									)}
 								</span>
 								<Input
+									type={r.secret ? "password" : "text"}
 									value={r.value}
 									placeholder="value"
 									aria-label={`Value of ${label}`}
@@ -813,6 +822,16 @@ function EnvSection({
 										update(r.id, { value: e.target.value });
 									}}
 								/>
+								<span className="flex items-center gap-2 px-2">
+									<Switch
+										aria-label={`Store ${label} as secret`}
+										checked={r.secret ?? false}
+										onCheckedChange={(secret) => {
+											update(r.id, { secret });
+										}}
+									/>
+									<span className="text-[11.5px] text-fg3">Secret</span>
+								</span>
 								<Button
 									type="button"
 									variant="ghost"
@@ -831,15 +850,10 @@ function EnvSection({
 				</ul>
 			)}
 			{error !== null && <span className="text-[12.5px] text-bad-fg">{error}</span>}
-			<div className="flex items-center justify-between gap-4">
-				<span className="flex flex-col gap-0.5">
-					<span className="flex items-center gap-2 text-[13px] font-medium text-fg3">
-						Secret <SoonTag />
-					</span>
-					<span className="text-[12.5px] text-fg3">Store a variable as a secret instead of plain text.</span>
-				</span>
-				<Switch disabled checked={false} aria-label="Secret" />
-			</div>
+			<p className="m-0 text-[12.5px] text-fg3">
+				Mark each sensitive value as Secret. Secret values stay in this drawer until you deploy; re-enter them after
+				closing or reloading it.
+			</p>
 		</DrawerSection>
 	);
 }

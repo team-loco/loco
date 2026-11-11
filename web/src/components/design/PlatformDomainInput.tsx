@@ -1,6 +1,7 @@
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
+import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -11,6 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
+import { RegionHealth } from "@/components/design/RegionHealth";
 import { getErrorMessage } from "@/lib/error-handler";
 import { MAX_SUBDOMAIN_LENGTH, type DomainCheck } from "@/lib/platform-domain";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,7 @@ export function PlatformDomainInput({
 	subdomain,
 	platformDomain,
 	options,
+	regions,
 	check,
 	owner = "this resource",
 	placeholder,
@@ -52,6 +55,7 @@ export function PlatformDomainInput({
 	subdomain: string;
 	platformDomain: string;
 	options: PlatformDomain[];
+	regions: readonly RegionInfo[];
 	check: DomainCheck;
 	owner?: string;
 	placeholder?: string;
@@ -107,8 +111,15 @@ export function PlatformDomainInput({
 										<DropdownMenuRadioItem key={d.domain} value={d.domain}>
 											<span className="flex flex-col gap-px">
 												<span className="font-mono text-[12.5px]">{d.domain}</span>
-												<span className="font-mono text-[11px] text-fg3">
-													{d.regions.length === 0 ? "no regions" : d.regions.join(", ")}
+												<span className="flex flex-col gap-1 font-mono text-[11px] text-fg3">
+													{d.regions.length === 0
+														? "no regions"
+														: d.regions.map((name) => (
+																<span key={name} className="flex items-center gap-2">
+																	{name}
+																	<RegionHealth region={regions.find((region) => region.region === name)} />
+																</span>
+															))}
 												</span>
 											</span>
 										</DropdownMenuRadioItem>
