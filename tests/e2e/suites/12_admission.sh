@@ -5,8 +5,13 @@ if [ "${E2E_BUILDS_ENABLED:-true}" = false ]; then
 fi
 
 test_a00_create_resource() {
-    admission_resource=$(e2e_api loco.resource.v1.ResourceService/CreateResource \
-        "{\"workspaceId\":\"$E2E_WORKSPACE_ID\",\"name\":\"admission-probe\",\"type\":\"RESOURCE_TYPE_SERVICE\",\"spec\":{\"service\":{\"routing\":{\"port\":8080}}}}" | yq -p json -r .resourceId)
+    local response
+    if ! response=$(e2e_api loco.resource.v1.ResourceService/CreateResource \
+        "{\"workspaceId\":\"$E2E_WORKSPACE_ID\",\"name\":\"admission-probe\",\"type\":\"RESOURCE_TYPE_SERVICE\",\"spec\":{\"service\":{\"routing\":{\"port\":8080},\"regions\":{\"us-east-1\":{\"enabled\":true}}}}}"); then
+        printf '%s\n' "$response" >&2
+        return 1
+    fi
+    admission_resource=$(printf '%s' "$response" | yq -p json -e -r .resourceId)
 }
 
 admission_fill() {
@@ -17,8 +22,10 @@ admission_rejected() {
     local method=$1 body=$2 response
     response=$(curl -sS -X POST "$E2E_API_URL/$method" \
         -H "Authorization: Bearer $E2E_USER_TOKEN" -H 'Content-Type: application/json' -d "$body")
-    test "$(printf '%s' "$response" | yq -p json -r .code)" = resource_exhausted
-    [[ "$response" == *"retry after"* ]]
+    if [ "$(printf '%s' "$response" | yq -p json -r .code)" != resource_exhausted ] || [[ "$response" != *"retry after"* ]]; then
+        printf '%s\n' "$response" >&2
+        return 1
+    fi
 }
 
 test_a01_build_budget_precedes_uploads() {
@@ -32,7 +39,7 @@ test_a01_build_budget_precedes_uploads() {
 test_a02_deploy_budget_precedes_deployments() {
     admission_fill deploys:global
     assert "deploy admission returns retry guidance" admission_rejected loco.deployment.v1.DeploymentService/CreateDeployment \
-        "{\"resourceId\":\"$admission_resource\",\"environmentId\":\"$E2E_ENVIRONMENT_ID\",\"region\":\"us-east-1\",\"spec\":{\"service\":{\"build\":{\"type\":\"image\",\"image\":\"$E2E_PUBLIC_IMAGE\"}}}}"
+        "{\"resourceId\":\"$admission_resource\",\"environmentId\":\"$E2E_ENVIRONMENT_ID\",\"region\":\"us-east-1\",\"spec\":{\"service\":{\"port\":8080,\"build\":{\"type\":\"image\",\"image\":\"$E2E_PUBLIC_IMAGE\"}}}}"
     assert "rejected deployments create no row" test "$(e2e_psql "SELECT count(*) FROM deployments WHERE resource_id = '$admission_resource'")" -eq 0
     e2e_psql "DELETE FROM api_admission WHERE key = 'deploys:global'" >/dev/null
 }
