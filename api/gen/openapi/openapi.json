@@ -9614,7 +9614,7 @@
         },
         "title": "Scalers",
         "additionalProperties": false,
-        "description": "Scalers defines autoscaling configuration.\nscalers.autoscaling_supported // autoscaling is not supported yet\n"
+        "description": "Scalers defines autoscaling configuration.\nscalers.target_required // enabled autoscaling needs a CPU or memory target between 1 and 100\n"
       },
       "loco.deployment.v1.ServiceDeploymentSpec": {
         "type": "object",

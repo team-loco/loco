@@ -7,13 +7,25 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-func TestProtocolRejectsEnabledAutoscaling(t *testing.T) {
-	scalers := &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
-	if err := protovalidate.Validate(scalers); err == nil {
-		t.Fatal("enabled autoscaling passed protocol validation")
-	}
-	scalers.Enabled = false
-	if err := protovalidate.Validate(scalers); err != nil {
-		t.Fatalf("disabled autoscaling rejected: %v", err)
+func TestProtocolAutoscaling(t *testing.T) {
+	for name, tc := range map[string]struct {
+		scalers *deploymentv1.Scalers
+		valid   bool
+	}{
+		"cpu":         {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}, true},
+		"memory":      {&deploymentv1.Scalers{Enabled: true, MemoryTarget: new(int32(80))}, true},
+		"both":        {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(1)), MemoryTarget: new(int32(100))}, true},
+		"no target":   {&deploymentv1.Scalers{Enabled: true}, false},
+		"zero target": {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(0))}, false},
+		"negative":    {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(-1))}, false},
+		"above 100":   {&deploymentv1.Scalers{Enabled: true, MemoryTarget: new(int32(101))}, false},
+		"disabled":    {&deploymentv1.Scalers{CpuTarget: new(int32(0))}, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := protovalidate.Validate(tc.scalers)
+			if (err == nil) != tc.valid {
+				t.Fatalf("validation = %v, want valid %v", err, tc.valid)
+			}
+		})
 	}
 }

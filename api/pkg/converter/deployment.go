@@ -190,20 +190,15 @@ func ProtoToRoutingSpec(
 }
 
 func ProtoToResourcesSpec(service *deploymentv1.ServiceDeploymentSpec) *locoControllerV1.ResourcesSpec {
-	resources := &locoControllerV1.ResourcesSpec{
-		CPU:    service.GetCpu(),
-		Memory: service.GetMemory(),
-		Replicas: locoControllerV1.ReplicasSpec{
-			Min: service.GetMinReplicas(),
-			Max: service.GetMaxReplicas(),
-		},
-	}
-	if scalers := service.GetScalers(); scalers != nil {
-		resources.Scalers = locoControllerV1.ScalersSpec{
+	scalers := service.GetScalers()
+	return &locoControllerV1.ResourcesSpec{
+		CPU:      service.GetCpu(),
+		Memory:   service.GetMemory(),
+		Replicas: locoControllerV1.ReplicasSpec{Min: service.GetMinReplicas(), Max: service.GetMaxReplicas()},
+		Scalers: locoControllerV1.ScalersSpec{
 			Enabled:      scalers.GetEnabled(),
 			CPUTarget:    scalers.GetCpuTarget(),
 			MemoryTarget: scalers.GetMemoryTarget(),
-		}
+		},
 	}
-	return resources
 }
