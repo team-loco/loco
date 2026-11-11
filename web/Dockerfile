@@ -68,3 +68,4 @@ EXPOSE 8080
 USER 65532:65532
 
 CMD ["--config-file", "/etc/sws.toml"]
+# throwaway
