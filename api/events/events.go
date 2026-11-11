@@ -50,6 +50,7 @@ const (
 	ResourceUpdated      = "resource.updated"
 	ResourceDeleted      = "resource.deleted"
 	ResourceScaled       = "resource.scaled"
+	ResourceRestarted    = "resource.restarted"
 	ResourcePartial      = "resource.partial_transferred"
 	DeploymentCreated    = "deployment.created"
 	DeploymentDeleted    = "deployment.deleted"

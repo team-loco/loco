@@ -48,6 +48,9 @@ const (
 	// ResourceServiceScaleResourceProcedure is the procedure name of the ResourceService's
 	// ScaleResource RPC.
 	ResourceServiceScaleResourceProcedure = "/loco.resource.v1.ResourceService/ScaleResource"
+	// ResourceServiceRestartResourceProcedure is the procedure name of the ResourceService's
+	// RestartResource RPC.
+	ResourceServiceRestartResourceProcedure = "/loco.resource.v1.ResourceService/RestartResource"
 	// ResourceServiceTransferPartialProcedure is the procedure name of the ResourceService's
 	// TransferPartial RPC.
 	ResourceServiceTransferPartialProcedure = "/loco.resource.v1.ResourceService/TransferPartial"
@@ -110,6 +113,13 @@ var (
 			Procedure:  ResourceServiceScaleResourceProcedure,
 		}
 	})
+	resourceServiceRestartResourceSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("RestartResource"),
+			Procedure:  ResourceServiceRestartResourceProcedure,
+		}
+	})
 	resourceServiceTransferPartialSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -139,6 +149,7 @@ type ResourceServiceClient interface {
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
+	RestartResource(context.Context, *v1.RestartResourceRequest) (*v1.RestartResourceResponse, error)
 	// TransferPartial moves a resource to another partial.
 	TransferPartial(context.Context, *v1.TransferPartialRequest) (*v1.TransferPartialResponse, error)
 }
@@ -169,6 +180,7 @@ type ResourceServiceHandler interface {
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
+	RestartResource(context.Context, *v1.RestartResourceRequest) (*v1.RestartResourceResponse, error)
 	// TransferPartial moves a resource to another partial.
 	TransferPartial(context.Context, *v1.TransferPartialRequest) (*v1.TransferPartialResponse, error)
 }
@@ -186,6 +198,7 @@ func RegisterResourceServiceHandler(server *connect.Server, svc ResourceServiceH
 		connect.Method{Spec: resourceServiceListRegionsSpec(), Handler: adapter.listRegions},
 		connect.Method{Spec: resourceServiceGetResourceEnvSpec(), Handler: adapter.getResourceEnv},
 		connect.Method{Spec: resourceServiceScaleResourceSpec(), Handler: adapter.scaleResource},
+		connect.Method{Spec: resourceServiceRestartResourceSpec(), Handler: adapter.restartResource},
 		connect.Method{Spec: resourceServiceTransferPartialSpec(), Handler: adapter.transferPartial},
 	)
 }
@@ -223,6 +236,10 @@ func (UnimplementedResourceServiceHandler) GetResourceEnv(context.Context, *v1.G
 
 func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.ScaleResource is not implemented")
+}
+
+func (UnimplementedResourceServiceHandler) RestartResource(context.Context, *v1.RestartResourceRequest) (*v1.RestartResourceResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.RestartResource is not implemented")
 }
 
 func (UnimplementedResourceServiceHandler) TransferPartial(context.Context, *v1.TransferPartialRequest) (*v1.TransferPartialResponse, error) {
@@ -292,6 +309,14 @@ func (c *resourceServiceClient) GetResourceEnv(ctx context.Context, req *v1.GetR
 func (c *resourceServiceClient) ScaleResource(ctx context.Context, req *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error) {
 	var res v1.ScaleResourceResponse
 	if err := c.client.CallUnary(ctx, resourceServiceScaleResourceSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *resourceServiceClient) RestartResource(ctx context.Context, req *v1.RestartResourceRequest) (*v1.RestartResourceResponse, error) {
+	var res v1.RestartResourceResponse
+	if err := c.client.CallUnary(ctx, resourceServiceRestartResourceSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -397,6 +422,18 @@ func (h resourceServiceHandler) scaleResource(ctx context.Context, _ connect.Spe
 		return err
 	}
 	res, err := h.svc.ScaleResource(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h resourceServiceHandler) restartResource(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RestartResourceRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RestartResource(ctx, &req)
 	if err != nil {
 		return err
 	}

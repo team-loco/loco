@@ -4674,6 +4674,67 @@
         }
       }
     },
+    "/loco.resource.v1.ResourceService/RestartResource": {
+      "post": {
+        "tags": [
+          "loco.resource.v1.ResourceService"
+        ],
+        "summary": "RestartResource",
+        "operationId": "loco.resource.v1.ResourceService.RestartResource",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.resource.v1.RestartResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.resource.v1.RestartResourceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.resource.v1.ResourceService/ScaleResource": {
       "post": {
         "tags": [
@@ -12377,6 +12438,36 @@
           "RESOURCE_TYPE_BLOB"
         ],
         "description": "ResourceType categorizes the type of resource being deployed."
+      },
+      "loco.resource.v1.RestartResourceRequest": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "region",
+            "minLength": 1
+          }
+        },
+        "title": "RestartResourceRequest",
+        "additionalProperties": false
+      },
+      "loco.resource.v1.RestartResourceResponse": {
+        "type": "object",
+        "title": "RestartResourceResponse",
+        "additionalProperties": false
       },
       "loco.resource.v1.RoutingConfig": {
         "type": "object",
