@@ -60,6 +60,8 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.addEnvironment(args[1])
 		api.mu.Unlock()
+	case "restarted":
+		checkRestarted(ts, api, neg, args)
 	case "scaled":
 		checkScaled(ts, api, neg, args)
 	case "built":
@@ -319,6 +321,29 @@ func checkPartial(ts *testscript.TestScript, api *fakeAPI, neg bool, args []stri
 		return
 	}
 	ts.Fatalf("fakeapi: no resource named %s", args[1])
+}
+
+func checkRestarted(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) != 4 {
+		ts.Fatalf("usage: fakeapi restarted <service> <environment> <region>")
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	resourceID, ok := api.platform.resourceID(args[1])
+	if !ok {
+		ts.Fatalf("fakeapi: no resource named %s", args[1])
+	}
+	environmentID, ok := api.platform.environmentID(args[2])
+	if !ok {
+		ts.Fatalf("fakeapi: no environment named %s", args[2])
+	}
+	for _, restart := range api.platform.restarts {
+		if restart.GetResourceId() == resourceID && restart.GetEnvironmentId() == environmentID &&
+			restart.GetRegion() == args[3] {
+			return
+		}
+	}
+	ts.Fatalf("fakeapi: no matching restart: %v", api.platform.restarts)
 }
 
 func checkScaled(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {

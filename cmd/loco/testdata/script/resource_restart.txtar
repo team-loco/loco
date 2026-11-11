@@ -1,0 +1,36 @@
+fakeapi resource web
+
+exec loco resource restart web
+stdout 'Restarting service web in production'
+fakeapi restarted web production ''
+
+fakeapi environment staging
+! exec loco resource restart web
+stderr '(?i)the workspace has several environments \(production, staging\); pick one with --env'
+
+exec loco resource restart web --env staging --region us-east-1
+stdout 'Restarting service web in staging'
+fakeapi restarted web staging us-east-1
+
+env LOCO_ENV=production
+exec loco resource restart web
+fakeapi restarted web production ''
+
+exec loco resource restart web --env staging
+fakeapi restarted web staging ''
+
+! exec loco resource restart web --env qa
+stderr '(?i)environment "qa" not found; the workspace has production, staging'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"

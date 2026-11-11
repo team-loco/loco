@@ -88,6 +88,7 @@ type fakePlatform struct {
 	noPlatformDomain  bool
 	secrets           map[fakeSecretKey]fakeSecret
 	revision          int64
+	restarts          []*resourcev1.RestartResourceRequest
 	scales            []*resourcev1.ScaleResourceRequest
 }
 
@@ -351,6 +352,24 @@ func (s *fakeResourceService) ScaleResource(
 	}
 	f.platform.scales = append(f.platform.scales, req)
 	return &resourcev1.ScaleResourceResponse{}, nil
+}
+
+func (s *fakeResourceService) RestartResource(
+	ctx context.Context,
+	req *resourcev1.RestartResourceRequest,
+) (*resourcev1.RestartResourceResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	f := s.api
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: resourcev1connect.ResourceServiceRestartResourceProcedure},
+		info.RequestHeader(),
+	); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.platform.restarts = append(f.platform.restarts, req)
+	return &resourcev1.RestartResourceResponse{}, nil
 }
 
 type fakeDomainService struct {

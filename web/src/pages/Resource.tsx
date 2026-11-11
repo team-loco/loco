@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { deleteResource, restartResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { Dialog } from "@/components/design/Dialog";
@@ -123,6 +123,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const [draft, setDraft] = useState<SettingsDraft>({});
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
+	const restart = useMutation(restartResource);
 
 	const view = parseView(params.get("tab"));
 	const setView = (next: View) => {
@@ -204,6 +205,17 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		return failures;
 	};
 
+	const handleRestart = async () => {
+		if (environmentId === undefined) return;
+		try {
+			await restart.mutateAsync({ resourceId, environmentId });
+			toast.success(`Restarting ${resource.name}`);
+			refresh();
+		} catch (err) {
+			toastConnectError(err, "Failed to restart replicas");
+		}
+	};
+
 	const handleRedeploy = async () => {
 		setRedeploying(true);
 		const failures = await redeployFrom(currents);
@@ -272,6 +284,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				isSettings={view !== "overview"}
 				dirty={dirty}
 				redeploying={redeploying}
+				restarting={restart.isPending}
+				onRestart={() => void handleRestart()}
 				canWrite={canWrite}
 				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
