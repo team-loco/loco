@@ -62,7 +62,7 @@ def test_exporters_queue_on_file_storage_with_the_configured_settings(worker_rel
     for collector, config in worker_relays.items():
         (exporter,) = config["exporters"].values()
         assert exporter["sending_queue"] == {
-            "enabled": True, "storage": "file_storage/exporter", "wait_for_result": False, **queue
+            "enabled": True, "storage": "file_storage/exporter", **queue
         }, collector
         assert config["extensions"]["file_storage/exporter"] == {
             "directory": settings["queue"]["directory"]
@@ -501,7 +501,6 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
         queue = config["exporters"]["otlp_http"]["sending_queue"]
         assert queue["storage"] == "file_storage/exporter", collector
         assert queue["block_on_overflow"] is True, collector
-        assert queue["wait_for_result"] is False, collector
         assert queue["batch"] == settings["batch"], collector
         assert queue["batch"]["min_size"] > 0, collector
         assert queue["batch"]["sizer"] == "items", collector

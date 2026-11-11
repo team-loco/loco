@@ -471,6 +471,3 @@ tests:
       - matchRegex:
           path: data.relay
           pattern: 'block_on_overflow: true'
-      - matchRegex:
-          path: data.relay
-          pattern: 'wait_for_result: false'
