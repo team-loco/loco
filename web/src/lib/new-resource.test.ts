@@ -257,8 +257,6 @@ test("apiFieldError maps nested BadRequest fields with the same names as validat
 
 test("form scaling sends fixed replicas or CPU autoscaling", () => {
 	expect(scalingSpec(form)).toEqual({
-		cpu: "250m",
-		memory: "512Mi",
 		minReplicas: 2,
 		maxReplicas: 2,
 		scalers: { enabled: false },
@@ -266,8 +264,6 @@ test("form scaling sends fixed replicas or CPU autoscaling", () => {
 	const autoscaled = { ...form, maxReplicas: 5 };
 	expect(firstError(validateForm(autoscaled, "available", 10))).toBeNull();
 	expect(scalingSpec(autoscaled)).toEqual({
-		cpu: "250m",
-		memory: "512Mi",
 		minReplicas: 2,
 		maxReplicas: 5,
 		scalers: { enabled: true, cpuTarget: 70 },

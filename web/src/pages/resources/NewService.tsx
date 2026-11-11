@@ -28,7 +28,7 @@ import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
-import { Stepper } from "@/components/design/Stepper";
+import { ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -586,51 +586,12 @@ function ServiceForm({
 				</DrawerSection>
 
 				<DrawerSection title="Scaling">
-					<div className="grid grid-cols-2 gap-4">
-						<Field label="Minimum replicas">
-							<Stepper
-								label="Minimum replicas"
-								value={form.replicas}
-								min={sizes.replicas?.min ?? form.replicas}
-								max={sizes.replicas?.max ?? form.replicas}
-								onChange={(replicas) => {
-									set({ replicas, maxReplicas: Math.max(replicas, form.maxReplicas) });
-								}}
-							/>
-						</Field>
-						<Field label="Maximum replicas">
-							<Stepper
-								label="Maximum replicas"
-								value={form.maxReplicas}
-								min={form.replicas}
-								max={sizes.replicas?.max ?? form.maxReplicas}
-								onChange={(maxReplicas) => {
-									set({ maxReplicas });
-								}}
-							/>
-						</Field>
-						{form.maxReplicas !== form.replicas && (
-							<Field label="CPU target (%)">
-								<Stepper
-									label="CPU target (%)"
-									value={form.cpuTarget}
-									min={1}
-									max={100}
-									onChange={(cpuTarget) => {
-										set({ cpuTarget });
-									}}
-								/>
-							</Field>
-						)}
-					</div>
-					<p className="mt-2 text-[12.5px] text-fg3">
-						{form.maxReplicas === form.replicas
-							? `Runs exactly ${form.replicas.toString()} per region.`
-							: "Scales per region based on CPU utilization."}
-					</p>
-					{(errors.scaling ?? apiError("replicas")) !== null && (
-						<p className="text-[12.5px] text-bad-fg">{errors.scaling ?? apiError("replicas")}</p>
-					)}
+					<ScalingFields
+						value={form}
+						replicaRange={sizes.replicas}
+						onChange={set}
+						error={errors.scaling ?? apiError("replicas")}
+					/>
 				</DrawerSection>
 
 				<DrawerSection

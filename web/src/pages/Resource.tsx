@@ -134,7 +134,17 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setParams(p, { replace: true });
 	};
 
-	if (isLoading) return <ResourceSkeleton />;
+	if (isLoading || configQuery.isPending) return <ResourceSkeleton />;
+	if (configQuery.error !== null)
+		return (
+			<Page>
+				<EmptyState title="Couldn't load service defaults">
+					{getErrorMessage(configQuery.error, "Failed to load service defaults")}
+				</EmptyState>
+			</Page>
+		);
+	const defaults = configQuery.data.serviceDefaults;
+	if (defaults === undefined) return <ResourceSkeleton />;
 
 	if (error !== null) {
 		if (resourceMissing(error, canListResources)) notFound();
@@ -151,13 +161,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const deployed = regions.filter(isDeployed);
 	const currents = deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
 	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
-	const base = baseline(
-		resource.name,
-		resource.description ?? "",
-		regions,
-		resource.domains.length > 0,
-		configQuery.data?.serviceDefaults?.healthCheck,
-	);
+	const base = baseline(resource.name, resource.description ?? "", regions, resource.domains.length > 0, defaults);
 	const dirty = changeCount(draft, base) > 0;
 	const level =
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;

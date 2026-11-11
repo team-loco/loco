@@ -74,7 +74,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		};
 		setRun(start);
 		const port = Number(form.port);
-		const replicas = scalingSpec(form);
+		const replicas = { cpu: form.cpu.trim(), memory: form.memory.trim(), ...scalingSpec(form) };
 		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
 		const health = healthCheck === undefined ? {} : { healthCheck };
 		try {

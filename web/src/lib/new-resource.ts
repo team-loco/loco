@@ -157,7 +157,9 @@ export function validateForm(
 	};
 }
 
-function scalingError(form: NewResourceForm, replicaLimit: number): string | null {
+export type Scaling = Pick<NewResourceForm, "replicas" | "maxReplicas" | "cpuTarget">;
+
+export function scalingError(form: Scaling, replicaLimit: number): string | null {
 	if (form.maxReplicas > replicaLimit) return `Use at most ${replicaLimit.toString()} replicas per region`;
 	if (!Number.isInteger(form.replicas) || form.replicas < 1) return "Minimum replicas must be a positive whole number";
 	if (!Number.isInteger(form.maxReplicas) || form.maxReplicas < form.replicas)
@@ -170,10 +172,8 @@ function scalingError(form: NewResourceForm, replicaLimit: number): string | nul
 	return null;
 }
 
-export function scalingSpec(form: NewResourceForm) {
+export function scalingSpec(form: Scaling) {
 	return {
-		cpu: form.cpu,
-		memory: form.memory,
 		minReplicas: form.replicas,
 		maxReplicas: form.maxReplicas,
 		scalers: form.replicas === form.maxReplicas ? { enabled: false } : { enabled: true, cpuTarget: form.cpuTarget },
