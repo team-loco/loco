@@ -232,16 +232,34 @@ config_autoscaler_absent() {
         get hpa "resource-${id}" --ignore-not-found -o name)"
 }
 
+config_deployment_running() {
+    test "$(e2e_psql "SELECT count(*) FROM deployments d JOIN resources r ON r.id=d.resource_id
+        WHERE r.name='${config_cache}' AND d.is_active AND d.status='running'")" -eq 1
+}
+
 test_g06_scaling_targets_reach_the_worker() {
+    wait_for "the preceding replica change to finish" 60 config_deployment_running
     config_edit ".services.${config_cache}.regions.us-east-1.autoscaling.cpuTarget = 70"
-    assert "apply enables autoscaling" config_run autoscale infra apply --env "$config_env" --yes || return 1
+    if ! assert "apply enables autoscaling" config_run autoscale infra apply --env "$config_env" --yes; then
+        config_show autoscale
+        return 1
+    fi
     wait_for "the controller to create the HPA" 60 config_autoscaler_matches 70
+    wait_for "the autoscaled deployment to finish" 60 config_deployment_running
     config_edit ".services.${config_cache}.regions.us-east-1.autoscaling.cpuTarget = 60"
-    assert "apply changes the target" config_run autoscale_update infra apply --env "$config_env" --yes || return 1
+    if ! assert "apply changes the target" config_run autoscale_update infra apply --env "$config_env" --yes; then
+        config_show autoscale_update
+        return 1
+    fi
     wait_for "the controller to update the HPA" 60 config_autoscaler_matches 60
+    wait_for "the target update to finish" 60 config_deployment_running
     config_edit "del(.services.${config_cache}.regions.us-east-1.autoscaling)"
-    assert "apply disables autoscaling" config_run autoscale_disable infra apply --env "$config_env" --yes || return 1
+    if ! assert "apply disables autoscaling" config_run autoscale_disable infra apply --env "$config_env" --yes; then
+        config_show autoscale_disable
+        return 1
+    fi
     wait_for "the controller to remove the HPA" 60 config_autoscaler_absent
+    wait_for "the fixed deployment to finish" 60 config_deployment_running
 }
 
 test_g07_removing_a_service_deletes_it() {
