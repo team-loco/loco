@@ -36,6 +36,7 @@ service DeploymentService {
   rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
   // DeleteDeployment deletes/inactivates a deployment.
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
+  // ResolveImage returns the digest-pinned image reference.
   rpc ResolveImage(ResolveImageRequest) returns (ResolveImageResponse);
 }
 

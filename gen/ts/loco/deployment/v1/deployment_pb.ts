@@ -1542,6 +1542,8 @@ export const DeploymentService: GenService<{
     output: typeof DeleteDeploymentResponseSchema;
   },
   /**
+   * ResolveImage returns the digest-pinned image reference.
+   *
    * @generated from rpc loco.deployment.v1.DeploymentService.ResolveImage
    */
   resolveImage: {

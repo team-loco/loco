@@ -101,6 +101,7 @@ type DeploymentServiceClient interface {
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest) (DeploymentServiceWatchDeploymentClientStream, error)
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
+	// ResolveImage returns the digest-pinned image reference.
 	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
 
@@ -144,6 +145,7 @@ type DeploymentServiceHandler interface {
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
+	// ResolveImage returns the digest-pinned image reference.
 	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
 

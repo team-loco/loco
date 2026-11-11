@@ -18,7 +18,7 @@ const (
 	requiredArchitecture = "amd64"
 )
 
-var ErrPlatformUnsupported = errors.New("image has no linux/amd64 variant")
+var ErrPlatformUnsupported = errors.New("image has no " + requiredOS + "/" + requiredArchitecture + " variant")
 
 type Resolver struct {
 	timeout   time.Duration

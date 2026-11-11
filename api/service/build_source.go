@@ -72,7 +72,8 @@ func pinBuildSource(
 		return pinPublicImage(ctx, resolver, registryHost, src)
 	default:
 		unsupported := fmt.Errorf("unsupported build type %q: use \"dockerfile\" or \"image\"", sourceType)
-		return nil, imageFieldError("Unsupported build type. Use dockerfile or image.", unsupported)
+		return nil, connect.NewError(connect.CodeInvalidArgument, "Unsupported build type. Use dockerfile or image.").
+			WithCause(unsupported)
 	}
 }
 
@@ -191,7 +192,7 @@ func imageFieldError(message string, cause error) *connect.Error {
 
 func imageResolutionMessage(image string, err error) string {
 	if errors.Is(err, imageresolver.ErrPlatformUnsupported) {
-		return fmt.Sprintf("Image %q has no linux/amd64 variant.", image)
+		return fmt.Sprintf("Cannot deploy image %q: %s.", image, imageresolver.ErrPlatformUnsupported)
 	}
 	registryErr, ok := errors.AsType[*transport.Error](err)
 	if ok {

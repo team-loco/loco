@@ -1708,6 +1708,7 @@
           "loco.deployment.v1.DeploymentService"
         ],
         "summary": "ResolveImage",
+        "description": "ResolveImage returns the digest-pinned image reference.",
         "operationId": "loco.deployment.v1.DeploymentService.ResolveImage",
         "parameters": [
           {

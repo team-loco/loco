@@ -218,7 +218,7 @@ func TestImageErrorsOnWire(t *testing.T) {
 		{
 			name:  "unsupported platform",
 			cause: imageresolver.ErrPlatformUnsupported,
-			want:  `Image "nginx:1.27" has no linux/amd64 variant.`,
+			want:  `Cannot deploy image "nginx:1.27": image has no linux/amd64 variant.`,
 		},
 		{
 			name:  "registry outage",
@@ -263,6 +263,12 @@ func TestImageErrorsOnWire(t *testing.T) {
 			if public.Message() != tt.want {
 				t.Fatalf("message = %q, want %q", public.Message(), tt.want)
 			}
+			if sourceType != buildSourceTypeImage {
+				if len(public.Details()) != 0 {
+					t.Fatalf("unsupported build details = %v", public.Details())
+				}
+				return
+			}
 			if len(public.Details()) != 1 {
 				t.Fatalf("details = %v", public.Details())
 			}
@@ -280,9 +286,6 @@ func TestImageErrorsOnWire(t *testing.T) {
 				t.Fatalf("violation = %v", violation)
 			}
 			planner := &PlanServer{resolver: resolver, registryHost: testRegistryHost}
-			if sourceType != buildSourceTypeImage {
-				return
-			}
 			images := planner.resolveImages(t.Context(), map[string]locofile.Service{"image-service": {Image: image}})
 			planErrors := planErrorsToProto([]configplan.Error{{Err: images[image].Err}})
 			if got := planErrors[0].GetMessage(); got != tt.want {
