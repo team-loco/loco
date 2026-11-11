@@ -4,24 +4,23 @@ import (
 	"context"
 	"errors"
 	"net/http"
-
 	"slices"
 	"testing"
 
 	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/uuid"
+
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
 	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/internal/locofile"
-
-	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connectproto"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"github.com/team-loco/loco/internal/locofile"
 )
 
 const (

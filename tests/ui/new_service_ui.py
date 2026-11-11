@@ -1,5 +1,4 @@
 import argparse
-import base64
 import atexit
 import contextlib
 import importlib.util
@@ -57,19 +56,6 @@ def open_page(browser, user, theme="light", narrow=False, drafts=None):
     return context, page, errors
 
 
-def image_violation(message):
-    def field(number, value):
-        length = len(value)
-        encoded = bytearray()
-        while length > 127:
-            encoded.append((length & 127) | 128)
-            length >>= 7
-        return bytes([number << 3 | 2]) + bytes(encoded) + bytes([length]) + value
-
-    path = b"".join(field(1, field(2, name.encode())) for name in ("image",))
-    return field(1, field(5, path) + field(3, message.encode()))
-
-
 def stored_drafts(page):
     raw = page.evaluate(f"localStorage.getItem({json.dumps(drafts_key)})")
     return [] if raw is None else [d["name"] for d in json.loads(raw)]
@@ -120,14 +106,20 @@ with sync_playwright() as playwright:
                 resolutions.append(route.request.post_data_json)
                 if theme == "light" and len(resolutions) == 2:
                     rejected.append(route.request.post_data_json)
-                    message = f'Image "{image}" was not found. Check the repository and tag or digest.'
-                    route.fulfill(status=400, json={"code": "invalid_argument", "message": message, "details": [{"type": "buf.validate.Violations", "value": base64.b64encode(image_violation(message)).decode()}]})
+                    route.continue_(post_data=json.dumps({**route.request.post_data_json, "image": "UPPER/Case::bad"}))
                     return
                 route.fulfill(json={"image": pinned_image})
 
             context.route("**/loco.deployment.v1.DeploymentService/ResolveImage", resolve_image)
             writes = []
             order = []
+            creations = []
+
+            def record_resource_create(route):
+                creations.append(route.request.post_data_json)
+                route.continue_()
+
+            context.route("**/loco.resource.v1.ResourceService/CreateResource", record_resource_create)
 
             def record_secret_write(route):
                 writes.append(route.request.post_data_json)
@@ -358,8 +350,10 @@ with sync_playwright() as playwright:
                     page.screenshot(path=out / f"invalid-{case}.png", animations="disabled")
                     interval.fill("15")
                     expect(drawer.get_by_role("alert")).to_have_count(0)
+                    creations_before = len(creations)
                     drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-                    expect(drawer.get_by_role("alert")).to_have_text(f'Container image: Image "{image}" was not found. Check the repository and tag or digest.')
+                    expect(drawer.get_by_role("alert")).to_have_text("Container image: Invalid image reference. Use a repository with a tag or digest.")
+                    assert len(creations) == creations_before, creations
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
                     assert stored_drafts(page) == [name], stored_drafts(page)
                     assert not order, order
