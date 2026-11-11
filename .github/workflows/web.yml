@@ -15,7 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The browser suites build the API.
       - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: web
 
       # Install from the repository root: web and gen/ts are bun workspaces, and
       # the UI imports generated TypeScript from gen/ts.
@@ -38,6 +41,24 @@ jobs:
       - name: Test install script
         run: mise run test:install
 
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(uv run --frozen --project docs python -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
+
+      # Saved only on main, the one ref whose caches pull requests can restore.
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Installs the system libraries even when the browser came from the cache.
       - name: Install browser
         run: uv run --frozen --project docs playwright install --with-deps chromium
 
