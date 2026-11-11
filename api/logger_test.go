@@ -80,7 +80,7 @@ func TestDerivedLoggerPreservesContext(t *testing.T) {
 		{
 			name: "WithGroupAndWith",
 			derive: func(l *slog.Logger) *slog.Logger {
-				return l.WithGroup("worker").With("component", "test")
+				return l.With("outer", "test").WithGroup("worker").With("component", "test")
 			},
 			group: "worker",
 		},
@@ -95,19 +95,22 @@ func TestDerivedLoggerPreservesContext(t *testing.T) {
 			if err := json.Unmarshal(buf.Bytes(), &line); err != nil {
 				t.Fatal(err)
 			}
-			if tt.group != "" {
-				group, ok := line[tt.group].(map[string]any)
-				if !ok {
-					t.Fatalf("group %q missing: %v", tt.group, line)
-				}
-				line = group
-			}
 			request, ok := line["request"].(map[string]any)
 			if !ok || request["requestId"] != testRequestID {
 				t.Errorf("request group = %v, want requestId %s", line["request"], testRequestID)
 			}
 			if line["trace_id"] != testTraceID || line["span_id"] != testParentSpan {
 				t.Errorf("trace fields = %v, want trace_id %s and span_id %s", line, testTraceID, testParentSpan)
+			}
+			if tt.name == "WithGroupAndWith" && line["outer"] != "test" {
+				t.Errorf("outer = %v, want test", line["outer"])
+			}
+			if tt.group != "" {
+				group, ok := line[tt.group].(map[string]any)
+				if !ok {
+					t.Fatalf("group %q missing: %v", tt.group, line)
+				}
+				line = group
 			}
 			if tt.name != "WithGroup" && line["component"] != "test" {
 				t.Errorf("component = %v, want test", line["component"])
