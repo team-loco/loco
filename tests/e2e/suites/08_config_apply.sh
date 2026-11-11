@@ -226,10 +226,11 @@ config_autoscaler_matches() {
 }
 
 config_autoscaler_absent() {
-    local id
+    local id hpa
     id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")
-    test -z "$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
-        get hpa "resource-${id}" --ignore-not-found -o name)"
+    hpa=$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
+        get hpa "resource-${id}" --ignore-not-found -o name) || return 1
+    test -z "$hpa"
 }
 
 config_deployment_running() {
