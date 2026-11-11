@@ -9,3 +9,4 @@ if (rootElement) {
 		onCaughtError: logCaughtError,
 	}).render(<App />);
 }
+// throwaway
