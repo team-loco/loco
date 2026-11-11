@@ -6,19 +6,17 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-
 	"strings"
 
 	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-
 	"connectrpc.com/connect/v2"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/team-loco/loco/api/pkg/imageresolver"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/imageresolver"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -171,6 +169,7 @@ func pinPublicImage(
 
 	digest, err := resolver.Resolve(ctx, ref)
 	if err != nil {
+		slog.WarnContext(ctx, "failed to resolve image", "image", image, "error", err)
 		return nil, imageFieldError(imageResolutionMessage(image, err), err)
 	}
 
@@ -182,10 +181,7 @@ func pinPublicImage(
 }
 
 func imageFieldError(message string, cause error) *connect.Error {
-	elements := make([]*validate.FieldPathElement, 0, 4)
-	for _, field := range []string{"spec", "service", "build", "image"} {
-		elements = append(elements, &validate.FieldPathElement{FieldName: new(field)})
-	}
+	elements := []*validate.FieldPathElement{{FieldName: new("image")}}
 	return withDetail(connect.NewError(connect.CodeInvalidArgument, message).WithCause(cause), &validate.Violations{
 		Violations: []*validate.Violation{
 			{Field: &validate.FieldPath{Elements: elements}, Message: new(message)},

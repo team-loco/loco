@@ -1702,6 +1702,67 @@
         }
       }
     },
+    "/loco.deployment.v1.DeploymentService/ResolveImage": {
+      "post": {
+        "tags": [
+          "loco.deployment.v1.DeploymentService"
+        ],
+        "summary": "ResolveImage",
+        "operationId": "loco.deployment.v1.DeploymentService.ResolveImage",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.deployment.v1.ResolveImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.deployment.v1.ResolveImageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.deployment.v1.DeploymentService/WatchDeployment": {
       "post": {
         "tags": [
@@ -9153,6 +9214,34 @@
         "title": "QueueDeploymentSpec",
         "additionalProperties": false,
         "description": "QueueDeploymentSpec is the spec of the corresponding resource type."
+      },
+      "loco.deployment.v1.ResolveImageRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "image": {
+            "type": "string",
+            "title": "image",
+            "minLength": 1
+          }
+        },
+        "title": "ResolveImageRequest",
+        "additionalProperties": false
+      },
+      "loco.deployment.v1.ResolveImageResponse": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string",
+            "title": "image"
+          }
+        },
+        "title": "ResolveImageResponse",
+        "additionalProperties": false
       },
       "loco.deployment.v1.ResourceSpec": {
         "type": "object",

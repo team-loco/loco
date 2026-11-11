@@ -31,3 +31,8 @@ export const listDeployments = DeploymentService.method.listDeployments;
  * @generated from rpc loco.deployment.v1.DeploymentService.DeleteDeployment
  */
 export const deleteDeployment = DeploymentService.method.deleteDeployment;
+
+/**
+ * @generated from rpc loco.deployment.v1.DeploymentService.ResolveImage
+ */
+export const resolveImage = DeploymentService.method.resolveImage;

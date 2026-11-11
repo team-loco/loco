@@ -10,8 +10,11 @@ import (
 
 	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/team-loco/loco/api/authz"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/internal/locofile"
 
 	"connectrpc.com/connect/v2"
@@ -235,14 +238,25 @@ func TestImageErrorsOnWire(t *testing.T) {
 				sourceType = tt.sourceType
 			}
 			resolver := &fakeResolver{err: tt.cause}
-			_, err := pinBuildSource(
-				t.Context(),
-				nil,
-				resolver,
-				testRegistryHost,
-				uuid.New(),
-				&deploymentv1.BuildSource{Type: sourceType, Image: image},
+			workspaceID := uuid.New()
+			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{{
+				EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite,
+			}}})
+			server := &DeploymentServer{resolver: resolver, registryHost: testRegistryHost, authz: authz.New(nil, nil)}
+			_, err := server.ResolveImage(
+				ctx,
+				&deploymentv1.ResolveImageRequest{WorkspaceId: workspaceID.String(), Image: image},
 			)
+			if sourceType != buildSourceTypeImage {
+				_, err = pinBuildSource(
+					ctx,
+					nil,
+					resolver,
+					testRegistryHost,
+					uuid.New(),
+					&deploymentv1.BuildSource{Type: sourceType, Image: image},
+				)
+			}
 			public, ok := errors.AsType[*connect.Error](wireError(err))
 			if !ok || public.Code() != connect.CodeInvalidArgument {
 				t.Fatalf("wire error = %v", public)
@@ -263,18 +277,41 @@ func TestImageErrorsOnWire(t *testing.T) {
 			}
 			violation := violations.GetViolations()[0]
 			elements := violation.GetField().GetElements()
-			if len(elements) != 4 || elements[3].GetFieldName() != "image" || violation.GetMessage() != tt.want {
+			if len(elements) != 1 || elements[0].GetFieldName() != "image" || violation.GetMessage() != tt.want {
 				t.Fatalf("violation = %v", violation)
 			}
-			server := &PlanServer{resolver: resolver, registryHost: testRegistryHost}
+			planner := &PlanServer{resolver: resolver, registryHost: testRegistryHost}
 			if sourceType != buildSourceTypeImage {
 				return
 			}
-			images := server.resolveImages(t.Context(), map[string]locofile.Service{"image-service": {Image: image}})
+			images := planner.resolveImages(t.Context(), map[string]locofile.Service{"image-service": {Image: image}})
 			planErrors := planErrorsToProto([]configplan.Error{{Err: images[image].Err}})
 			if got := planErrors[0].GetMessage(); got != tt.want {
 				t.Fatalf("plan message = %q", got)
 			}
 		})
+	}
+}
+
+func TestResolveImage(t *testing.T) {
+	workspaceID := uuid.New()
+	resolver := &fakeResolver{digest: testDigest}
+	server := &DeploymentServer{resolver: resolver, authz: authz.New(nil, nil)}
+	req := &deploymentv1.ResolveImageRequest{WorkspaceId: workspaceID.String(), Image: testPublicImage}
+	if _, err := server.ResolveImage(t.Context(), req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated resolve: %v", err)
+	}
+	if len(resolver.calls) != 0 {
+		t.Fatal("resolved before authorization")
+	}
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{{
+		EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite,
+	}}})
+	result, err := server.ResolveImage(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "index.docker.io/library/nginx@" + testDigest; result.GetImage() != want {
+		t.Fatalf("image = %q, want %q", result.GetImage(), want)
 	}
 }

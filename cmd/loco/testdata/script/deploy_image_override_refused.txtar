@@ -4,7 +4,7 @@ cd app
 stderr 'confirm-destructive'
 ! fakeapi called Apply
 fakeapi plan ../errors.json
-! exec loco deploy api --image 'invalid image reference' --yes
+! exec loco deploy api --image nginx:missing --yes
 stderr 'Image "nginx:missing" was not found. Check the repository and tag or digest.'
 ! fakeapi called Apply
 ! fakeapi called CreateBuild

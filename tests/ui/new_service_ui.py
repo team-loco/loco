@@ -66,7 +66,7 @@ def image_violation(message):
             length >>= 7
         return bytes([number << 3 | 2]) + bytes(encoded) + bytes([length]) + value
 
-    path = b"".join(field(1, field(2, name.encode())) for name in ("spec", "service", "build", "image"))
+    path = b"".join(field(1, field(2, name.encode())) for name in ("image",))
     return field(1, field(5, path) + field(3, message.encode()))
 
 
@@ -113,6 +113,19 @@ with sync_playwright() as playwright:
             context, page, errors = open_page(browser, "owner", theme, narrow)
             deployments = []
             rejected = []
+            resolutions = []
+            pinned_image = f"registry.example.com/acme/{repository}@sha256:" + "a" * 64
+
+            def resolve_image(route):
+                resolutions.append(route.request.post_data_json)
+                if theme == "light" and len(resolutions) == 2:
+                    rejected.append(route.request.post_data_json)
+                    message = f'Image "{image}" was not found. Check the repository and tag or digest.'
+                    route.fulfill(status=400, json={"code": "invalid_argument", "message": message, "details": [{"type": "buf.validate.Violations", "value": base64.b64encode(image_violation(message)).decode()}]})
+                    return
+                route.fulfill(json={"image": pinned_image})
+
+            context.route("**/loco.deployment.v1.DeploymentService/ResolveImage", resolve_image)
             writes = []
             order = []
 
@@ -125,11 +138,6 @@ with sync_playwright() as playwright:
 
             def create_deployment(route):
                 order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
-                if theme == "light" and not rejected:
-                    rejected.append(route.request.post_data_json)
-                    message = f'Image "{image}" was not found. Check the repository and tag or digest.'
-                    route.fulfill(status=400, json={"code": "invalid_argument", "message": message, "details": [{"type": "buf.validate.Violations", "value": base64.b64encode(image_violation(message)).decode()}]})
-                    return
                 deployments.append(route.request.post_data_json)
                 route.fulfill(json={"deploymentId": str(uuid.uuid4())})
 
@@ -354,6 +362,7 @@ with sync_playwright() as playwright:
                     expect(drawer.get_by_role("alert")).to_have_text(f'Container image: Image "{image}" was not found. Check the repository and tag or digest.')
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
                     assert stored_drafts(page) == [name], stored_drafts(page)
+                    assert not order, order
                     page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")
                     # When SetSecrets fails and the cleanup delete fails too, nothing deployed and the draft stays.
                     unavailable = lambda route: route.fulfill(status=503, json={"code": "unavailable"})
@@ -394,7 +403,7 @@ with sync_playwright() as playwright:
                 assert evidence.psql(state["container"], f"SELECT name FROM resources WHERE id='{resource}';") == name
                 assert [(d["resourceId"], d["region"]) for d in deployments] == [(resource, "us-east-1")], deployments
                 spec = deployments[0]["spec"]["service"]
-                assert spec["build"]["image"] == image, spec
+                assert spec["build"]["image"] == pinned_image, spec
                 assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
                 assert spec["env"] == {"LOG_LEVEL": "info"}, spec
                 assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
