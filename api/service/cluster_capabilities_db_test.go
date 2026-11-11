@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -29,7 +30,18 @@ func TestClusterCapabilitiesSeparateBuildsAndApplications(t *testing.T) {
 	}
 	update(f.clusterID, false, true)
 	update(f.otherCluster, true, false)
-	clusters, err := eligibleClusters(t.Context(), f.queries, "production", testClusterSilentAfter)
+	buildRegionQuery := "UPDATE clusters SET region = 'builds-region' WHERE id = $1"
+	if _, err := f.pool.Exec(t.Context(), buildRegionQuery, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	regions, err := f.queries.ListClusterRegions(t.Context(), genDb.ListClusterRegionsParams{
+		Tier: environmentTypeProduction, HeardSince: time.Now().Add(-testClusterSilentAfter),
+	})
+	if err != nil || len(regions) != 1 || regions[0].Region != testRegion {
+		t.Fatalf("application regions = %v, err = %v", regions, err)
+	}
+
+	clusters, err := eligibleClusters(t.Context(), f.queries, environmentTypeProduction, testClusterSilentAfter)
 	if err != nil || len(clusters) != 1 || clusters[0].ID != f.otherCluster {
 		t.Fatalf("application clusters = %v, err = %v", clusters, err)
 	}
@@ -47,10 +59,7 @@ func TestClusterCapabilitiesSeparateBuildsAndApplications(t *testing.T) {
 	if err != nil || stored.ClusterID == nil || *stored.ClusterID != f.clusterID {
 		t.Fatalf("build = %v, err = %v", stored, err)
 	}
-	err = withTx(t.Context(), f.pool, func(q *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(t.Context(), q, f.paramsFor(f.clusterID), staticSpec)
-		return deployErr
-	})
+	_, err = f.deploy(t.Context(), staticSpec)
 	requireCode(t, err, connect.CodeFailedPrecondition, "direct placement on build-only cluster")
 	if !strings.Contains(err.Error(), "does not accept applications") {
 		t.Fatal(err)
@@ -72,6 +81,9 @@ func TestClusterCapabilitiesSeparateBuildsAndApplications(t *testing.T) {
 	}
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusPending {
 		t.Fatalf("existing deployment changed: %s", status)
+	}
+	if placement := f.placement(t, f.otherCluster); placement.DesiredDeleted {
+		t.Fatal("capability change deleted existing placement")
 	}
 	update(f.clusterID, false, false)
 	if _, lookupErr := f.queries.GetBuildCluster(t.Context()); !errors.Is(lookupErr, pgx.ErrNoRows) {

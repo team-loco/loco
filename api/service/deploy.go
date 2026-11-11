@@ -33,7 +33,7 @@ func createDeploymentWithCleanup(
 	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}
-	if assignErr := lockAssignableCluster(ctx, qtx, params.ClusterID); assignErr != nil {
+	if assignErr := lockAssignableCluster(ctx, qtx, params.ClusterID, false); assignErr != nil {
 		return uuid.UUID{}, assignErr
 	}
 	if heldErr := checkClusterEnvironment(ctx, qtx, params); heldErr != nil {

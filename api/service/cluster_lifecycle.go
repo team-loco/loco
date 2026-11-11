@@ -100,11 +100,7 @@ func manageCluster(
 	return result, err
 }
 
-func lockAssignableCluster(ctx context.Context, qtx *genDb.Queries, id uuid.UUID) error {
-	return lockClusterCapability(ctx, qtx, id, false)
-}
-
-func lockClusterCapability(ctx context.Context, qtx *genDb.Queries, id uuid.UUID, build bool) error {
+func lockAssignableCluster(ctx context.Context, qtx *genDb.Queries, id uuid.UUID, build bool) error {
 	cluster, err := qtx.LockAssignableCluster(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrClusterNotAssignable

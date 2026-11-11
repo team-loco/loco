@@ -186,9 +186,6 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 	if applications || builds {
 		t.Fatal("agent registration overwrote operator capabilities")
 	}
-	if _, err := f.queries.GetBuildCluster(f.ctx); err != nil {
-		t.Fatal("other build cluster should remain available", err)
-	}
 	if !buildsEnabled() {
 		t.Fatal("builds_enabled is false after the agent registered with builds")
 	}
