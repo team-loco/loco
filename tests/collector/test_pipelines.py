@@ -1,7 +1,7 @@
 import json
 import re
-import ssl
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -485,8 +485,8 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
     service_account.mkdir()
     (service_account / "token").write_text("test-token")
     (service_account / "namespace").write_text("default")
-    ca = ssl.create_default_context().get_ca_certs(binary_form=True)[0]
-    (service_account / "ca.crt").write_text(ssl.DER_cert_to_PEM_cert(ca))
+    ca = Path(__file__).parent / "fixtures/ca.crt"
+    (service_account / "ca.crt").write_bytes(ca.read_bytes())
     overrides = {}
     if platform_only is not None:
         overrides = {
