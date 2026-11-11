@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description="Exercise webhook management and se
 parser.add_argument("--state")
 parser.add_argument("--before", action="store_true")
 parser.add_argument("--keep", action="store_true")
-parser.add_argument("--out", default=str(repo / "tests/e2e/out/webhooks-ui"))
+parser.add_argument("--out", default=str(repo / "tests/ui/out/webhooks-ui"))
 args = parser.parse_args()
 os.chdir(repo)
 spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
@@ -25,7 +25,7 @@ spec.loader.exec_module(evidence)
 if args.state is None:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="webhooks-ui", scenario=str(repo / "tests/e2e/fixtures/webhooks/scenario.json")))
+        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="webhooks-ui", scenario=str(repo / "tests/ui/fixtures/webhooks/scenario.json")))
     args.state = output.getvalue().strip().splitlines()[-1]
     print("Preview state:", args.state, flush=True)
     if not args.keep:

@@ -65,110 +65,16 @@ jobs:
       - name: Test screenshot readiness in Chromium
         run: uv run --frozen --project docs pytest .agents/skills/ui-evidence/scripts/test_evidence.py
 
-      - name: Test trace viewer in Chromium
-        run: mise run e2e:trace-ui
+      # Each suite starts its own API, database and UI; a failing suite does not
+      # stop the rest.
+      - name: Test the dashboard suites
+        timeout-minutes: 30
+        run: mise run test:ui
 
-      - name: Test scoped Activity in Chromium
-        run: mise run e2e:activity-ui
-
-      - name: Upload Activity browser evidence
+      - name: Upload dashboard suite evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: activity-ui-evidence
-          path: tests/e2e/out/activity-ui
-          if-no-files-found: warn
-
-      - name: Upload trace viewer browser evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: trace-ui-evidence
-          path: tests/e2e/out/trace-ui
-          if-no-files-found: warn
-
-      - name: Test settings field labels in Chromium
-        run: mise run e2e:settings-labels
-
-      - name: Upload settings field evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: settings-field-evidence
-          path: tests/e2e/out/settings-labels
-          if-no-files-found: warn
-
-      - name: Test webhook management in Chromium
-        run: mise run e2e:webhooks-ui
-
-      - name: Upload webhook browser evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: webhooks-ui-evidence
-          path: tests/e2e/out/webhooks-ui
-          if-no-files-found: warn
-
-      - name: Test webhook deliveries
-        run: mise run e2e:webhooks
-
-      - name: Test deployment history in Chromium
-        timeout-minutes: 15
-        run: mise run e2e:deployment-history
-
-      - name: Upload deployment-history browser evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: deployment-history-evidence
-          path: tests/e2e/out/deployment-history
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Test the not-found page in Chromium
-        timeout-minutes: 15
-        run: mise run e2e:not-found
-
-      - name: Upload not-found browser evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: not-found-evidence
-          path: tests/e2e/out/not-found
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Test new service flow in Chromium
-        timeout-minutes: 15
-        run: mise run e2e:new-service
-
-      - name: Upload new service browser evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: new-service-evidence
-          path: tests/e2e/out/new-service
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Test shared controls in Chromium
-        run: mise run e2e:shared-controls
-
-      - name: Upload shared controls browser evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: shared-controls-evidence
-          path: tests/e2e/out/shared-controls
-          if-no-files-found: warn
-
-      - name: Test resource details and runtime events in Chromium
-        run: mise run e2e:resource-details
-
-      - name: Upload resource detail evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: resource-details-evidence
-          path: tests/e2e/out/resource-details
+          name: ui-evidence
+          path: tests/ui/out
           if-no-files-found: warn

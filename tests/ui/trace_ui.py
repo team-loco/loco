@@ -16,7 +16,7 @@ repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description='Exercise the production trace viewer with fixture trace responses')
 parser.add_argument('--state')
 parser.add_argument('--keep', action='store_true')
-parser.add_argument('--out', default=str(repo / 'tests/e2e/out/trace-ui'))
+parser.add_argument('--out', default=str(repo / 'tests/ui/out/trace-ui'))
 args = parser.parse_args()
 os.chdir(repo)
 spec = importlib.util.spec_from_file_location('evidence', repo / '.agents/skills/ui-evidence/scripts/evidence.py')

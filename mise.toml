@@ -436,46 +436,6 @@ description = "Run a local ClickHouse container and serve the observability prox
 env = { _.source = "dev/stack.sh" }
 run = "./mise-tasks/obs/serve"
 
-[tasks."e2e:settings-labels"]
-description = "Test settings field labels and descriptions in the production browser with isolated API fixtures"
-run = "uv run --frozen --project docs python tests/e2e/settings_labels_ui.py"
-
-[tasks."e2e:webhooks-ui"]
-description = "Test webhook management, server delivery paging and filters in production Chromium"
-run = "uv run --frozen --project docs python tests/e2e/webhooks_ui.py"
-
-[tasks."e2e:webhooks"]
-description = "Send real webhook deliveries from an isolated API and database to a local receiver, verify their signatures, recorded failures, paging, redelivery, test events and secret rotation"
-run = "uv run --frozen --project docs python tests/e2e/webhooks_api.py"
-
-[tasks."e2e:deployment-history"]
-description = "Test production deployment history, environment switching and scoped controls with an isolated API and database"
-run = "uv run --frozen --project docs python tests/e2e/deployment_history_ui.py"
-
-[tasks."e2e:new-service"]
-description = "Test creating and deploying a service from the resources page with an isolated API and database"
-run = "uv run --frozen --project docs python tests/e2e/new_service_ui.py"
-
-[tasks."e2e:not-found"]
-description = "Test the not-found page for signed-in and signed-out visitors with an isolated API and database"
-run = "uv run --frozen --project docs python tests/e2e/not_found_ui.py"
-
-[tasks."e2e:resource-details"]
-description = "Test resource image copy, spec geometry, scoped secrets and managed deletion"
-run = "uv run --frozen --project docs python tests/e2e/resource_details_ui.py"
-
-[tasks."e2e:activity-ui"]
-description = "Test scoped audit Activity with real limited-user API permissions and production Chromium"
-run = "uv run --frozen --project docs python tests/e2e/activity_ui.py"
-
-[tasks."e2e:trace-ui"]
-description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
-run = "uv run --frozen --project docs python tests/e2e/trace_ui.py"
-
-[tasks."e2e:shared-controls"]
-description = "Test compact shared controls, segmented selection and settings navigation in the production browser"
-run = "uv run --frozen --project docs python tests/e2e/shared_controls_ui.py"
-
 [tasks."e2e:cluster-metrics"]
 description = "Verify configurable Kubernetes platform telemetry in an isolated kind cluster"
 depends = ["helm:deps"]
