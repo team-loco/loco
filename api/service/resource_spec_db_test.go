@@ -60,3 +60,45 @@ func TestCreateResourceRejectsNonServiceType(t *testing.T) {
 	_, err := server.CreateResource(ctx, req)
 	wantCode(t, err, connect.CodeInvalidArgument)
 }
+
+func TestCreateResourceEnforcesLogRetentionMaximum(t *testing.T) {
+	f := newDeployFixture(t)
+	var workspaceID uuid.UUID
+	if err := f.pool.QueryRow(t.Context(), `SELECT workspace_id FROM resources WHERE id = $1`, f.resourceID).
+		Scan(&workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	scopes := []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
+	}
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	defaults := testServiceDefaults()
+	defaults.LogRetention = "2d"
+	server := NewResourceServer(f.pool, f.queries, defaults, testClusterSilentAfter)
+	for _, period := range []string{"3d", "-1h", "0s", "1.5s", "bad", "1d"} {
+		spec := &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Service{
+				Service: &resourcev1.ServiceSpec{
+					Observability: &resourcev1.ObservabilityConfig{
+						Logging: &resourcev1.LoggingConfig{RetentionPeriod: period},
+					},
+				},
+			},
+		}
+		req := &resourcev1.CreateResourceRequest{
+			WorkspaceId: workspaceID.String(),
+			Name:        "retention-fixture",
+			Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+			Spec:        spec,
+		}
+		_, err := server.CreateResource(ctx, req)
+		if period == "1d" {
+			if err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		wantCode(t, err, connect.CodeInvalidArgument)
+	}
+}

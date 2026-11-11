@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/envconfig"
+	"github.com/team-loco/loco/internal/logretention"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"golang.org/x/mod/semver"
 )
@@ -82,7 +83,6 @@ const (
 	defaultDeployRetryDelay   = int32(5 * time.Minute / time.Second)
 	defaultMetricsPort        = 9090
 	defaultMetricsPath        = "/metrics"
-	defaultLogRetention       = "7d"
 	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
 
 	defaultRegistryScheme            = "https://"
@@ -524,7 +524,7 @@ func newServiceDefaults() servicedefaults.Defaults {
 		DeployRetryDelay:         positiveInt32Env("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", defaultDeployRetryDelay),
 		MetricsPort:              defaultMetricsPort,
 		MetricsPath:              defaultMetricsPath,
-		LogRetention:             defaultLogRetention,
+		LogRetention:             logretention.Format(logretention.Maximum()),
 	}
 	if err := defaults.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))

@@ -288,7 +288,7 @@ func TestTTLsFromConfigLandOnTables(t *testing.T) {
 		t.Fatalf("Up: %v", err)
 	}
 	want := map[string]string{
-		logsTable:         "TTL toDateTime(Timestamp) + toIntervalDay(3)",
+		logsTable:         "TTL toDateTime(Timestamp) + toIntervalSecond(RetentionSeconds)",
 		tracesTable:       "TTL toDateTime(Timestamp) + toIntervalHour(36)",
 		traceLookupTable:  "TTL toDateTime(End) + toIntervalHour(36)",
 		gaugeTable:        metricsTTLExpr,
@@ -311,8 +311,12 @@ func TestTTLsFromConfigLandOnTables(t *testing.T) {
 		if !strings.Contains(engine, ttl) {
 			t.Errorf("%s engine %q does not contain %q", table, engine, ttl)
 		}
-		if !strings.Contains(engine, "ttl_only_drop_parts = 1") {
-			t.Errorf("%s engine %q does not drop whole parts on expiry", table, engine)
+		setting := "ttl_only_drop_parts = 1"
+		if table == logsTable {
+			setting = "ttl_only_drop_parts = 0"
+		}
+		if !strings.Contains(engine, setting) {
+			t.Errorf("%s engine %q does not contain %q", table, engine, setting)
 		}
 	}
 }
@@ -743,5 +747,67 @@ func TestInsertOnlyUserPopulatesTraceLookup(t *testing.T) {
 	}
 	if lookups != 1 {
 		t.Errorf("trace lookups = %d, want 1", lookups)
+	}
+}
+
+func TestLogRowsExpireByResourceRetention(t *testing.T) {
+	db := newTestDatabase(t)
+	if err := Up(t.Context(), db.cfg); err != nil {
+		t.Fatal(err)
+	}
+	table := db.cfg.Database + ".otel_logs"
+	if err := db.admin.Exec(t.Context(), "SYSTEM STOP TTL MERGES "+table); err != nil {
+		t.Fatal(err)
+	}
+	batch, err := db.admin.PrepareBatch(t.Context(), "INSERT INTO "+table+" (Timestamp, Body, ResourceAttributes)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := time.Now().Add(-10 * time.Second)
+	for _, row := range []struct{ id, seconds string }{{"short", "1"}, {"long", "3600"}} {
+		attrs := tenantResource()
+		attrs["loco.resource.id"] = row.id
+		attrs["loco.log.retention.seconds"] = row.seconds
+		if err = batch.Append(at, row.id, attrs); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = batch.Send(); err != nil {
+		t.Fatal(err)
+	}
+	var before uint64
+	if err = db.admin.QueryRow(t.Context(), "SELECT count() FROM "+table).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	if before != 2 {
+		t.Fatalf("before expiry = %d rows, want 2", before)
+	}
+	if err = db.admin.Exec(t.Context(), "SYSTEM START TTL MERGES "+table); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.admin.Exec(
+		t.Context(),
+		"ALTER TABLE "+table+" MATERIALIZE TTL SETTINGS mutations_sync = 2",
+	); err != nil {
+		t.Fatal(err)
+	}
+	var remaining []string
+	rows, err := db.admin.Query(t.Context(), "SELECT ResourceId FROM "+table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		remaining = append(remaining, id)
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(remaining, []string{"long"}) {
+		t.Fatalf("after expiry = %v, want only long-retention resource", remaining)
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/converter"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
@@ -118,7 +119,26 @@ func (s *IngestServer) ListPlacementWindows(
 		}
 		windows = append(windows, window)
 	}
-	return &ingestv1.ListPlacementWindowsResponse{Windows: windows}, nil
+	resources, err := s.queries.ListClusterLogRetentions(ctx, clusterID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+	}
+	policies := make([]*ingestv1.ResourceLogRetention, 0, len(resources))
+	for _, resource := range resources {
+		spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+		}
+		policies = append(
+			policies,
+			&ingestv1.ResourceLogRetention{
+				WorkspaceId:     resource.WorkspaceID.String(),
+				ResourceId:      resource.ID.String(),
+				RetentionPeriod: spec.GetService().GetObservability().GetLogging().GetRetentionPeriod(),
+			},
+		)
+	}
+	return &ingestv1.ListPlacementWindowsResponse{Windows: windows, LogRetentions: policies}, nil
 }
 
 func (s *IngestServer) JWKS(w http.ResponseWriter, r *http.Request) {

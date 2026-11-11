@@ -6,6 +6,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/team-loco/loco/internal/logretention"
+
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -52,6 +54,7 @@ func testServiceDefaults() servicedefaults.Defaults {
 		DeployAttempts:           testDeployAttempts,
 		DeployRetryDelay:         testDeployRetryDelay,
 		MetricsPath:              testMetricsPath,
+		LogRetention:             logretention.Maximum().String(),
 	}
 }
 

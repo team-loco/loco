@@ -27,6 +27,13 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	if got.GetCpuTarget() != defaults.CPUTarget {
 		t.Fatalf("CPU target = %d, want %d", got.GetCpuTarget(), defaults.CPUTarget)
 	}
+	if got.GetObservability().GetLogging().GetRetentionPeriod() != defaults.LogRetention {
+		t.Fatalf(
+			"log retention = %q, want %q",
+			got.GetObservability().GetLogging().GetRetentionPeriod(),
+			defaults.LogRetention,
+		)
+	}
 	if got.GetCpu() != defaults.CPU || got.GetMemory() != defaults.Memory {
 		t.Errorf("cpu %q, memory %q, want %q and %q", got.GetCpu(), got.GetMemory(), defaults.CPU, defaults.Memory)
 	}

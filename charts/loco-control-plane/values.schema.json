@@ -277,6 +277,9 @@
           },
           "additionalProperties": false
         },
+        "logsTTL": {
+          "type": "string"
+        },
         "query": {
           "type": "object",
           "properties": {

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -15,14 +16,17 @@ import (
 )
 
 const (
-	workspaceAttribute     = "loco.workspace.id"
-	clusterAttribute       = "loco.cluster.id"
-	rejectionMessagePrefix = "rejected records outside a placement on this cluster: "
-	rejectionSeparator     = ", "
-	rejectionCountSep      = "="
+	workspaceAttribute             = "loco.workspace.id"
+	clusterAttribute               = "loco.cluster.id"
+	resourceAttribute              = "loco.resource.id"
+	logRetentionAttribute          = "loco.log.retention.seconds"
+	rejectUnknownResource  verdict = "unknown_log_resource"
+	rejectionMessagePrefix         = "rejected records outside an authorized resource or workspace: "
+	rejectionSeparator             = ", "
+	rejectionCountSep              = "="
 
 	rejectedRecordsMetric = "loco_ingest_rejected_records_total"
-	rejectedRecordsHelp   = "Telemetry records dropped because their workspace had no placement on the sending cluster."
+	rejectedRecordsHelp   = "Telemetry records dropped for an unauthorized resource or workspace."
 	clusterLabel          = "cluster"
 	reasonLabel           = "reason"
 )
@@ -98,6 +102,20 @@ func (f *tenancyFilter) stamp(resource pcommon.Resource) {
 func (f *tenancyFilter) logs(logs plog.Logs) {
 	logs.ResourceLogs().RemoveIf(func(resourceLogs plog.ResourceLogs) bool {
 		resource := resourceLogs.Resource()
+		workspace, _ := resource.Attributes().Get(workspaceAttribute)
+		id, _ := resource.Attributes().Get(resourceAttribute)
+		retention, found, err := f.admission.logRetention(f.ctx, workspace.Str(), id.Str())
+		if err != nil {
+			f.err = err
+			return false
+		}
+		if !found {
+			for i := range resourceLogs.ScopeLogs().Len() {
+				f.counts[rejectUnknownResource] += int64(resourceLogs.ScopeLogs().At(i).LogRecords().Len())
+			}
+			return true
+		}
+		resource.Attributes().PutInt(logRetentionAttribute, int64(retention/time.Second))
 		resourceLogs.ScopeLogs().RemoveIf(func(scopeLogs plog.ScopeLogs) bool {
 			scopeLogs.LogRecords().RemoveIf(func(record plog.LogRecord) bool {
 				timestamp := record.Timestamp()

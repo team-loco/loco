@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/envconfig"
+	"github.com/team-loco/loco/internal/logretention"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -231,7 +232,7 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 		DeployRetryDelay:         defaultDeployRetryDelay,
 		MetricsPort:              defaultMetricsPort,
 		MetricsPath:              defaultMetricsPath,
-		LogRetention:             defaultLogRetention,
+		LogRetention:             logretention.Format(logretention.Maximum()),
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -530,7 +531,7 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		DeployRetryDelay:         60,
 		MetricsPort:              defaultMetricsPort,
 		MetricsPath:              defaultMetricsPath,
-		LogRetention:             defaultLogRetention,
+		LogRetention:             logretention.Format(logretention.Maximum()),
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -1159,4 +1160,18 @@ func TestNewAPIConfigTokenMaximum(t *testing.T) {
 		}
 	}()
 	newAPIConfig()
+}
+
+func TestServiceDefaultsAdvertiseInstallationLogRetention(t *testing.T) {
+	t.Setenv("CLICKHOUSE_LOGS_TTL", "72h")
+	defaults := newServiceDefaults()
+	if defaults.LogRetention != "3d" {
+		t.Fatalf("advertised retention = %q", defaults.LogRetention)
+	}
+	if err := defaults.ValidateLogRetention("4d"); err == nil {
+		t.Fatal("accepted retention above installation maximum")
+	}
+	if err := defaults.ValidateLogRetention("2d"); err != nil {
+		t.Fatal(err)
+	}
 }

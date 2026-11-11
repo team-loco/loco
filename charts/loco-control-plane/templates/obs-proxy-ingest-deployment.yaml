@@ -37,6 +37,8 @@ spec:
               drop:
                 - ALL
           env:
+            - name: CLICKHOUSE_LOGS_TTL
+              value: {{ .Values.obsProxy.logsTTL | quote }}
             - name: QUERY_ENABLED
               value: "false"
             - name: INGEST_ENABLED

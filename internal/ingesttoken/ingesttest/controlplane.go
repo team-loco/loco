@@ -26,10 +26,11 @@ const (
 )
 
 type State struct {
-	Keys    []Signer
-	Windows []*ingestv1.PlacementWindow
-	Revoked bool
-	Outage  bool
+	Keys          []Signer
+	Windows       []*ingestv1.PlacementWindow
+	LogRetentions []*ingestv1.ResourceLogRetention
+	Revoked       bool
+	Outage        bool
 }
 
 type ControlPlane struct {
@@ -129,5 +130,5 @@ func (c *ControlPlane) ListPlacementWindows(
 	if c.state.Revoked {
 		return nil, connect.NewError(connect.CodePermissionDenied, revoked)
 	}
-	return &ingestv1.ListPlacementWindowsResponse{Windows: c.state.Windows}, nil
+	return &ingestv1.ListPlacementWindowsResponse{Windows: c.state.Windows, LogRetentions: c.state.LogRetentions}, nil
 }

@@ -289,6 +289,7 @@ func TestLoadReadsIngestAuthSettings(t *testing.T) {
 		PlacementTTL:        defaultIngestPlacementCacheTTL,
 		RefetchInterval:     defaultIngestPlacementRefetch,
 		ClockSkew:           defaultIngestClockSkew,
+		LogsTTL:             cfg.LogsTTL,
 	}
 	if gate != wantGate {
 		t.Fatalf("IngestGate() = %+v, want %+v", gate, wantGate)

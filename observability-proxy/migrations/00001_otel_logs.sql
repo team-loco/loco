@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_logs
     `ScopeAttributes` Map(LowCardinality(String), String) CODEC(ZSTD(3)),
     `LogAttributes` Map(LowCardinality(String), String) CODEC(ZSTD(3)),
     `EventName` String CODEC(ZSTD(3)),
+    `RetentionSeconds` UInt64 MATERIALIZED toUInt64(if(mapContains(ResourceAttributes, 'loco.log.retention.seconds'), ResourceAttributes['loco.log.retention.seconds'], '${LOGS_TTL_SECONDS}')) CODEC(ZSTD(3)),
     `OrganizationId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.organization.id'] CODEC(ZSTD(3)),
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
@@ -38,5 +39,5 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_logs
 ENGINE = MergeTree
 PARTITION BY toDate(Timestamp)
 ORDER BY (WorkspaceId, ResourceId, toStartOfFiveMinutes(Timestamp), Timestamp)
-TTL toDateTime(Timestamp) + ${LOGS_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1, enable_block_number_column = 1, enable_block_offset_column = 1;
+TTL toDateTime(Timestamp) + toIntervalSecond(RetentionSeconds)
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0, enable_block_number_column = 1, enable_block_offset_column = 1;

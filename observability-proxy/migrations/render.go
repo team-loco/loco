@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"regexp"
+	"strconv"
 	"testing/fstest"
 	"time"
 )
@@ -44,10 +45,10 @@ func substitute(content []byte, values map[string]string) ([]byte, error) {
 
 func render(cfg Config) (fs.FS, error) {
 	values := map[string]string{
-		"DATABASE":    cfg.Database,
-		"LOGS_TTL":    interval(cfg.LogsTTL),
-		"TRACES_TTL":  interval(cfg.TracesTTL),
-		"METRICS_TTL": interval(cfg.MetricsTTL),
+		"DATABASE":         cfg.Database,
+		"LOGS_TTL_SECONDS": strconv.FormatInt(int64(cfg.LogsTTL/time.Second), 10),
+		"TRACES_TTL":       interval(cfg.TracesTTL),
+		"METRICS_TTL":      interval(cfg.MetricsTTL),
 	}
 	names, err := fs.Glob(files, "*.sql")
 	if err != nil {

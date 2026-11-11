@@ -147,8 +147,9 @@ func (*ListPlacementWindowsRequest) Descriptor() ([]byte, []int) {
 }
 
 type ListPlacementWindowsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Windows       []*PlacementWindow     `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Windows       []*PlacementWindow      `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	LogRetentions []*ResourceLogRetention `protobuf:"bytes,2,rep,name=log_retentions,json=logRetentions,proto3" json:"log_retentions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,6 +187,13 @@ func (*ListPlacementWindowsResponse) Descriptor() ([]byte, []int) {
 func (x *ListPlacementWindowsResponse) GetWindows() []*PlacementWindow {
 	if x != nil {
 		return x.Windows
+	}
+	return nil
+}
+
+func (x *ListPlacementWindowsResponse) GetLogRetentions() []*ResourceLogRetention {
+	if x != nil {
+		return x.LogRetentions
 	}
 	return nil
 }
@@ -252,6 +260,66 @@ func (x *PlacementWindow) GetRemovedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type ResourceLogRetention struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId     string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId      string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	RetentionPeriod string                 `protobuf:"bytes,3,opt,name=retention_period,json=retentionPeriod,proto3" json:"retention_period,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ResourceLogRetention) Reset() {
+	*x = ResourceLogRetention{}
+	mi := &file_loco_ingest_v1_ingest_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceLogRetention) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceLogRetention) ProtoMessage() {}
+
+func (x *ResourceLogRetention) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_ingest_v1_ingest_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceLogRetention.ProtoReflect.Descriptor instead.
+func (*ResourceLogRetention) Descriptor() ([]byte, []int) {
+	return file_loco_ingest_v1_ingest_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ResourceLogRetention) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ResourceLogRetention) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *ResourceLogRetention) GetRetentionPeriod() string {
+	if x != nil {
+		return x.RetentionPeriod
+	}
+	return ""
+}
+
 var File_loco_ingest_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_loco_ingest_v1_ingest_proto_rawDesc = "" +
@@ -262,14 +330,20 @@ const file_loco_ingest_v1_ingest_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x129\n" +
 	"\n" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x1d\n" +
-	"\x1bListPlacementWindowsRequest\"Y\n" +
+	"\x1bListPlacementWindowsRequest\"\xa6\x01\n" +
 	"\x1cListPlacementWindowsResponse\x129\n" +
-	"\awindows\x18\x01 \x03(\v2\x1f.loco.ingest.v1.PlacementWindowR\awindows\"\xa8\x01\n" +
+	"\awindows\x18\x01 \x03(\v2\x1f.loco.ingest.v1.PlacementWindowR\awindows\x12K\n" +
+	"\x0elog_retentions\x18\x02 \x03(\v2$.loco.ingest.v1.ResourceLogRetentionR\rlogRetentions\"\xa8\x01\n" +
 	"\x0fPlacementWindow\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x127\n" +
 	"\tplaced_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bplacedAt\x129\n" +
 	"\n" +
-	"removed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt2\xd7\x01\n" +
+	"removed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"\x85\x01\n" +
+	"\x14ResourceLogRetention\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1f\n" +
+	"\vresource_id\x18\x02 \x01(\tR\n" +
+	"resourceId\x12)\n" +
+	"\x10retention_period\x18\x03 \x01(\tR\x0fretentionPeriod2\xd7\x01\n" +
 	"\rIngestService\x12S\n" +
 	"\n" +
 	"IssueToken\x12!.loco.ingest.v1.IssueTokenRequest\x1a\".loco.ingest.v1.IssueTokenResponse\x12q\n" +
@@ -287,29 +361,31 @@ func file_loco_ingest_v1_ingest_proto_rawDescGZIP() []byte {
 	return file_loco_ingest_v1_ingest_proto_rawDescData
 }
 
-var file_loco_ingest_v1_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_loco_ingest_v1_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_loco_ingest_v1_ingest_proto_goTypes = []any{
 	(*IssueTokenRequest)(nil),            // 0: loco.ingest.v1.IssueTokenRequest
 	(*IssueTokenResponse)(nil),           // 1: loco.ingest.v1.IssueTokenResponse
 	(*ListPlacementWindowsRequest)(nil),  // 2: loco.ingest.v1.ListPlacementWindowsRequest
 	(*ListPlacementWindowsResponse)(nil), // 3: loco.ingest.v1.ListPlacementWindowsResponse
 	(*PlacementWindow)(nil),              // 4: loco.ingest.v1.PlacementWindow
-	(*timestamppb.Timestamp)(nil),        // 5: google.protobuf.Timestamp
+	(*ResourceLogRetention)(nil),         // 5: loco.ingest.v1.ResourceLogRetention
+	(*timestamppb.Timestamp)(nil),        // 6: google.protobuf.Timestamp
 }
 var file_loco_ingest_v1_ingest_proto_depIdxs = []int32{
-	5, // 0: loco.ingest.v1.IssueTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
+	6, // 0: loco.ingest.v1.IssueTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
 	4, // 1: loco.ingest.v1.ListPlacementWindowsResponse.windows:type_name -> loco.ingest.v1.PlacementWindow
-	5, // 2: loco.ingest.v1.PlacementWindow.placed_at:type_name -> google.protobuf.Timestamp
-	5, // 3: loco.ingest.v1.PlacementWindow.removed_at:type_name -> google.protobuf.Timestamp
-	0, // 4: loco.ingest.v1.IngestService.IssueToken:input_type -> loco.ingest.v1.IssueTokenRequest
-	2, // 5: loco.ingest.v1.IngestService.ListPlacementWindows:input_type -> loco.ingest.v1.ListPlacementWindowsRequest
-	1, // 6: loco.ingest.v1.IngestService.IssueToken:output_type -> loco.ingest.v1.IssueTokenResponse
-	3, // 7: loco.ingest.v1.IngestService.ListPlacementWindows:output_type -> loco.ingest.v1.ListPlacementWindowsResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 2: loco.ingest.v1.ListPlacementWindowsResponse.log_retentions:type_name -> loco.ingest.v1.ResourceLogRetention
+	6, // 3: loco.ingest.v1.PlacementWindow.placed_at:type_name -> google.protobuf.Timestamp
+	6, // 4: loco.ingest.v1.PlacementWindow.removed_at:type_name -> google.protobuf.Timestamp
+	0, // 5: loco.ingest.v1.IngestService.IssueToken:input_type -> loco.ingest.v1.IssueTokenRequest
+	2, // 6: loco.ingest.v1.IngestService.ListPlacementWindows:input_type -> loco.ingest.v1.ListPlacementWindowsRequest
+	1, // 7: loco.ingest.v1.IngestService.IssueToken:output_type -> loco.ingest.v1.IssueTokenResponse
+	3, // 8: loco.ingest.v1.IngestService.ListPlacementWindows:output_type -> loco.ingest.v1.ListPlacementWindowsResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_loco_ingest_v1_ingest_proto_init() }
@@ -323,7 +399,7 @@ func file_loco_ingest_v1_ingest_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_ingest_v1_ingest_proto_rawDesc), len(file_loco_ingest_v1_ingest_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

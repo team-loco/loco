@@ -10635,6 +10635,13 @@
               "$ref": "#/components/schemas/loco.ingest.v1.PlacementWindow"
             },
             "title": "windows"
+          },
+          "logRetentions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.ingest.v1.ResourceLogRetention"
+            },
+            "title": "log_retentions"
           }
         },
         "title": "ListPlacementWindowsResponse",
@@ -10659,6 +10666,25 @@
         "title": "PlacementWindow",
         "additionalProperties": false,
         "description": "PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;\n removed_at is unset while the placement exists."
+      },
+      "loco.ingest.v1.ResourceLogRetention": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "retentionPeriod": {
+            "type": "string",
+            "title": "retention_period"
+          }
+        },
+        "title": "ResourceLogRetention",
+        "additionalProperties": false
       },
       "loco.observability.v1.GetTraceRequest": {
         "type": "object",

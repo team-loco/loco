@@ -270,6 +270,11 @@ func buildApplicationSpec(
 	case genDb.ResourceTypeService:
 		appSpec.Type = "SERVICE"
 		resourceService := resourceSpec.GetService()
+		if err := defaults.ValidateLogRetention(
+			resourceService.GetObservability().GetLogging().GetRetentionPeriod(),
+		); err != nil {
+			return nil, &invalidSpecError{err: err}
+		}
 		if _, ok := resourceService.GetRegions()[region]; !ok {
 			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in service spec", region)}
 		}

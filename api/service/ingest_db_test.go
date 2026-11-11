@@ -326,3 +326,41 @@ func TestIngestKeysUnavailableWhileTheSignerIs(t *testing.T) {
 		t.Fatalf("JWKS while the signer is unavailable = %d", recorder.Code)
 	}
 }
+
+func TestIngestReturnsResourceRetentionPolicies(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(
+		t.Context(),
+		`UPDATE resources SET spec = '{"observability":{"logging":{"retentionPeriod":"1s"}}}' WHERE id = $1`,
+		f.resourceID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	key := newIngestKey(t, testCurrentIngestKey)
+	client := ingestClient(newIngestServer(f, signingWith(key)))
+	token := signedIngestToken(t, key, f.clusterID, time.Now())
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+token)
+	response, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	policies := response.GetLogRetentions()
+	if len(policies) != 1 || policies[0].GetResourceId() != f.resourceID.String() ||
+		policies[0].GetRetentionPeriod() != "1s" {
+		t.Fatalf("policies = %v", policies)
+	}
+	if deleteErr := f.queries.DeleteResource(t.Context(), f.resourceID); deleteErr != nil {
+		t.Fatal(deleteErr)
+	}
+	response, err = client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetLogRetentions()) != 0 || len(response.GetWindows()) != 1 {
+		t.Fatalf("after deletion = %v", response)
+	}
+}

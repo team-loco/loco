@@ -269,3 +269,11 @@ WITH restarted AS (
     WHERE deployments.id = restarted.deployment_id AND deployments.is_active
 )
 SELECT cluster_id FROM restarted;
+
+-- name: ListClusterLogRetentions :many
+SELECT r.id, r.workspace_id, r.spec, r.type FROM resources r
+WHERE EXISTS (
+ SELECT 1 FROM placement_windows w
+ WHERE w.workspace_id = r.workspace_id AND w.cluster_id = $1
+)
+ORDER BY r.id;

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/internal/envconfig"
+	"github.com/team-loco/loco/internal/logretention"
 	"github.com/team-loco/loco/observability-proxy/pkg/ingest"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
@@ -91,7 +92,7 @@ func Load() *Config {
 		CORSAllowedOrigins: originsEnv("CORS_ALLOWED_ORIGINS"),
 		ClickHouseDB:       requiredIdentifierEnv("CLICKHOUSE_DB"),
 
-		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL", defaultRetention),
+		LogsTTL:                logretention.Maximum(),
 		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL", defaultRetention),
 		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL", defaultRetention),
 		MigrationRetryBudget:   envconfig.PositiveDuration("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
@@ -164,6 +165,7 @@ func (c *Config) IngestGate() ingest.GateConfig {
 		PlacementTTL:        c.IngestPlacementCacheTTL,
 		RefetchInterval:     c.IngestPlacementRefetch,
 		ClockSkew:           c.IngestClockSkew,
+		LogsTTL:             c.LogsTTL,
 	}
 }
 
