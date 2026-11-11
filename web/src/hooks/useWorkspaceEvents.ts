@@ -6,7 +6,7 @@ import { runtimeEvent, type RuntimeEvent } from "@/lib/runtime-events";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { tsMs } from "@/lib/time";
 
 export interface WorkspaceEventWithResource extends RuntimeEvent {
@@ -20,8 +20,8 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 	const { activeOrgId } = useOrgWorkspace();
 	const { active } = useEnvironments();
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery({
-		...workspaceResourcesOptions(transport, workspaceId),
-		enabled: !!workspaceId && resourceFilter === undefined,
+		...useWorkspaceResourcesOptions(activeOrgId ?? "", workspaceId),
+		enabled: !!workspaceId && activeOrgId !== null && resourceFilter === undefined,
 	});
 
 	const resources = resourceFilter ?? resourcesData?.resources ?? [];

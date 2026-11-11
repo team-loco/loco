@@ -12,7 +12,7 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/Dro
 import { RowMenu } from "@/components/design/RowMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { NEEDS_ADMIN, scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { workspaceResourcesKey } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 
 export function ResourceRowMenu({
@@ -37,7 +37,7 @@ export function ResourceRowMenu({
 	const confirmDelete = async () => {
 		try {
 			await deleteMutation.mutateAsync({ resourceId: resource.id });
-			await queryClient.invalidateQueries({ queryKey: workspaceResourcesOptions(transport, workspaceId).queryKey });
+			await queryClient.invalidateQueries({ queryKey: workspaceResourcesKey(transport, workspaceId) });
 			toast.success(`${resource.name} deleted`);
 			setConfirmOpen(false);
 		} catch (err) {

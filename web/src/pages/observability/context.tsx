@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import type { Paging } from "@/lib/paging";
 import type { ObservabilityView } from "@/lib/routes";
@@ -42,6 +43,8 @@ interface ObsContextValue {
 	params: URLSearchParams;
 	resources: ObsResource[];
 	resourcesLoading: boolean;
+	/** IDs every query must name because the user reads only these resources, or null when it may query the whole workspace. */
+	scopedResourceIds: string[] | null;
 	resourceByName: Map<string, ObsResource>;
 	resourceById: Map<string, ObsResource>;
 	maxMs: number;
@@ -75,8 +78,9 @@ export function ObsProvider({
 }) {
 	const transport = useTransport();
 	const [params, setParams] = useSearchParams();
+	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
-		workspaceResourcesOptions(transport, workspaceId),
+		workspaceResourcesOptions(transport, workspaceId, grants),
 	);
 
 	const maxMs = maxSpanFor(view);
@@ -93,6 +97,7 @@ export function ObsProvider({
 	}));
 	const resourceByName = new Map(resources.map((r) => [r.name, r]));
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
+	const scopedResourceIds = grants === "workspace" ? null : resources.map((r) => r.id);
 
 	const commit = (next: URLSearchParams, replace = false) => {
 		setParams(next, { replace });
@@ -143,6 +148,7 @@ export function ObsProvider({
 		params,
 		resources,
 		resourcesLoading,
+		scopedResourceIds,
 		resourceByName,
 		resourceById,
 		maxMs,

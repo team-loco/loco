@@ -47,7 +47,7 @@ export function EnvironmentsSection({
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 	const envsQuery = useQuery(listEnvironments, { workspaceId });
-	const resourcesQuery = useTanstackQuery(workspaceResourcesOptions(transport, workspaceId));
+	const resourcesQuery = useTanstackQuery(workspaceResourcesOptions(transport, workspaceId, "workspace"));
 	const remove = useMutation(deleteEnvironment);
 	const [creating, setCreating] = useState(false);
 	const [deleting, setDeleting] = useState<Environment | null>(null);

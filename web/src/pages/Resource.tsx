@@ -109,7 +109,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		activeWorkspaceId !== null &&
 		workspaceLevel(activeOrgId, activeWorkspaceId) >= scopeLevel(Scope.READ);
 	const resourcesQuery = useTanstackQuery({
-		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
+		...workspaceResourcesOptions(transport, activeWorkspaceId ?? "", "workspace"),
 		enabled: canListResources,
 	});
 

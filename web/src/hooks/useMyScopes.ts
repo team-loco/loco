@@ -4,6 +4,9 @@ import { EntityType, Scope, type EntityScope } from "@gen/loco/token/v1/token_pb
 
 export type AccessLevel = 0 | 1 | 2 | 3;
 
+/** "workspace" for a caller who reads the whole workspace, else the IDs of the resources its grants name. */
+export type ResourceGrants = "workspace" | readonly string[];
+
 export const LEVEL_LABEL: Record<AccessLevel, string> = { 0: "None", 1: "Read", 2: "Write", 3: "Admin" };
 export const LEVEL_TEXT: Record<AccessLevel, string> = {
 	0: "text-fg3",
@@ -76,6 +79,13 @@ export function useMyScopes({ enabled = true }: { enabled?: boolean } = {}) {
 					(s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId)),
 		);
 
+	const resourceGrants = (orgId: string, workspaceId: string): ResourceGrants | undefined => {
+		if (isLoading) return undefined;
+		if (workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.READ)) return "workspace";
+		const ids = scopes.filter((s) => s.entityType === EntityType.RESOURCE && scopeLevel(s.scope) > 0);
+		return [...new Set(ids.map((s) => s.entityId))];
+	};
+
 	return {
 		isLoading,
 		scopes,
@@ -83,6 +93,7 @@ export function useMyScopes({ enabled = true }: { enabled?: boolean } = {}) {
 		workspaceLevel,
 		resourceLevel,
 		holds,
+		resourceGrants,
 		orgMember: (orgId: string) => hasOrganizationMembership(scopes, orgId),
 	};
 }

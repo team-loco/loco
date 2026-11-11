@@ -4,7 +4,7 @@ import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { isInFlight } from "@/lib/deployment-utils";
 
 const POLL_MS = 5000;
@@ -15,11 +15,11 @@ function rollingOut(resource: Resource): boolean {
 	return resource.environmentStatuses.some((e) => e.regions.some((r) => isInFlight(r.deploymentStatus)));
 }
 
-export function useWorkspaceDeployments(workspaceId: string | null) {
+export function useWorkspaceDeployments(orgId: string | null, workspaceId: string | null) {
 	const transport = useTransport();
 	const resourcesQuery = useQuery({
-		...workspaceResourcesOptions(transport, workspaceId ?? ""),
-		enabled: workspaceId !== null,
+		...useWorkspaceResourcesOptions(orgId ?? "", workspaceId ?? ""),
+		enabled: orgId !== null && workspaceId !== null,
 		refetchInterval: (q) => {
 			const list = q.state.data?.resources ?? [];
 			return list.some(rollingOut) ? POLL_MS : IDLE_POLL_MS;

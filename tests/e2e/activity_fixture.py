@@ -20,7 +20,7 @@ def prepare_activity(evidence, state):
     other_workspace = call('loco.workspace.v1.WorkspaceService/CreateWorkspace', {'orgId': other, 'name': 'internal'})['workspaceId']
     scopes = [(state['users'][name]['id'], 'member', 'organization', other) for name in ('workspace_admin', 'resource_reader')]
     scopes.extend((state['users']['workspace_admin']['id'], scope, 'workspace', workspace) for scope in ('read', 'write', 'admin'))
-    scopes.append((state['users']['resource_reader']['id'], 'read', 'resource', resource))
+    scopes.extend((state['users'][name]['id'], 'read', 'resource', resource) for name in ('resource_reader', 'scoped'))
     values = ','.join('(' + ','.join(evidence.sql_literal(value) for value in row) + ')' for row in scopes)
     evidence.psql(state['container'], 'INSERT INTO user_scopes(user_id,scope,entity_type,entity_id) VALUES ' + values + ';')
     for index in range(53):

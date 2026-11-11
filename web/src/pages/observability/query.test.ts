@@ -23,7 +23,7 @@ import { toRows } from "./rows";
 describe("regional telemetry filters", () => {
 	test("filters recorded regions without requiring current resources or backend discovery", () => {
 		const { tokens, text } = parseQuery("@region:US-* @region:eu-west-1 -@region:us-west-* timeout");
-		const query = buildBackendQuery(tokens, text, []);
+		const query = buildBackendQuery(tokens, text, [], null);
 		expect(query).toEqual({
 			parsed: {
 				search: "timeout",
@@ -38,9 +38,9 @@ describe("regional telemetry filters", () => {
 		});
 	});
 	test("keeps unfiltered workspace history available without active resources", () => {
-		expect(buildBackendQuery([], "", []).impossible).toBe(false);
+		expect(buildBackendQuery([], "", [], null).impossible).toBe(false);
 		const { tokens } = parseQuery("@resource:missing");
-		expect(buildBackendQuery(tokens, "", []).impossible).toBe(true);
+		expect(buildBackendQuery(tokens, "", [], null).impossible).toBe(true);
 	});
 	test("attributes each row to the recorded region and preserves unknown resources", () => {
 		const entries = ["us-east-1", "eu-west-1", ""].map((region) =>
@@ -63,20 +63,20 @@ describe("log severity filters", () => {
 		const row = toRows([entry], new Map())[0];
 		expect(row?.label).toBe("INFO");
 		const { tokens, text } = parseQuery("@level:info unstructured stdout");
-		const query = buildBackendQuery(tokens, text, []);
+		const query = buildBackendQuery(tokens, text, [], null);
 		expect(query.parsed.levels).toContain(entry.severity);
 		expect(query.parsed.search).toBe(entry.body);
 	});
 
 	test("keeps debug lines when the level filter asks for them", () => {
 		const { tokens } = parseQuery("@level:debug");
-		expect(buildBackendQuery(tokens, "", []).parsed.levels).toContain("DEBUG");
+		expect(buildBackendQuery(tokens, "", [], null).parsed.levels).toContain("DEBUG");
 	});
 
 	test("keeps unclassified records out of other levels and excluded INFO", () => {
 		for (const filter of ["@level:error", "@level:warn", "@level:debug", "-@level:info"]) {
 			const { tokens, text } = parseQuery(filter);
-			expect(buildBackendQuery(tokens, text, []).parsed.levels).not.toContain("");
+			expect(buildBackendQuery(tokens, text, [], null).parsed.levels).not.toContain("");
 		}
 	});
 });
@@ -124,7 +124,7 @@ describe("build log filters", () => {
 	test("filters on the build ID label across environments", () => {
 		const { tokens, text } = parseQuery("@resource:api @build:b-123");
 		const raw = create(ResourceSchema, { id: "r1", name: "api" });
-		const query = buildBackendQuery(tokens, text, [{ id: "r1", name: "api", color: "", regions: [], raw }]);
+		const query = buildBackendQuery(tokens, text, [{ id: "r1", name: "api", color: "", regions: [], raw }], null);
 		expect(query.parsed.labels).toEqual({ [BUILD_ID_LABEL]: "b-123" });
 		expect(query.resourceIds).toEqual(["r1"]);
 		expect(query.allEnvironments).toBe(true);
@@ -134,7 +134,7 @@ describe("build log filters", () => {
 		const { tokens } = parseQuery("@build:a @build:b -@build:c");
 		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, false]);
 		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([false, false, false]);
-		expect(buildBackendQuery(tokens, "", []).parsed.labels).toEqual({ [BUILD_ID_LABEL]: "a" });
+		expect(buildBackendQuery(tokens, "", [], null).parsed.labels).toEqual({ [BUILD_ID_LABEL]: "a" });
 	});
 });
 
@@ -185,5 +185,20 @@ describe("recent queries", () => {
 		expect(agoShort(NOW - 5 * MIN, NOW)).toBe("5m");
 		expect(agoShort(NOW - 3 * 60 * MIN, NOW)).toBe("3h");
 		expect(agoShort(NOW - 2 * 1440 * MIN, NOW)).toBe("2d");
+	});
+});
+
+describe("resource-scoped queries", () => {
+	const raw = create(ResourceSchema, { id: "r1", name: "api" });
+	const api = { id: "r1", name: "api", color: "", regions: [], raw };
+
+	test("names the readable resources when the query names none", () => {
+		const query = buildBackendQuery([], "", [api], ["r1"]);
+		expect(query.resourceIds).toEqual(["r1"]);
+		expect(query.impossible).toBe(false);
+	});
+
+	test("skips the query until a readable resource is known", () => {
+		expect(buildBackendQuery([], "", [], []).impossible).toBe(true);
 	});
 });

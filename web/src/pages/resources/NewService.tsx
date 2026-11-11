@@ -1,4 +1,4 @@
-import { useQuery as useRpcQuery, useTransport } from "@connectrpc/connect-query";
+import { useQuery as useRpcQuery } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
@@ -34,7 +34,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { useDrafts } from "@/hooks/useDrafts";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { parseDotEnv } from "@/lib/dotenv";
 import { draftIsPublic, draftRegions, draftSizing, type Draft, type DraftEdits } from "@/lib/drafts";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -76,9 +76,8 @@ const API_FIELD_LABEL: Record<ApiField, string> = {
 };
 const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeout", "failAfter"]);
 
-function useTakenNames(workspaceId: string): Map<string, string> {
-	const transport = useTransport();
-	const resourcesQuery = useQuery(workspaceResourcesOptions(transport, workspaceId));
+function useTakenNames(orgId: string, workspaceId: string): Map<string, string> {
+	const resourcesQuery = useQuery(useWorkspaceResourcesOptions(orgId, workspaceId));
 	return new Map((resourcesQuery.data?.resources ?? []).map((r) => [r.slug, r.name]));
 }
 
@@ -98,7 +97,7 @@ export function NewService({
 	const store = useDrafts(orgId, workspaceId, env?.id);
 	const [image, setImage] = useState("");
 	const [editedName, setEditedName] = useState<string | null>(null);
-	const taken = useTakenNames(workspaceId);
+	const taken = useTakenNames(orgId, workspaceId);
 	const name = editedName ?? nameFromImage(image, new Set([...taken.keys(), ...store.drafts.map((d) => slug(d.name))]));
 	return (
 		<Dialog
@@ -246,7 +245,7 @@ export function DraftSheet({
 }) {
 	const [params, setParams] = useSearchParams();
 	const store = useDrafts(orgId, workspaceId, env.id);
-	const taken = useTakenNames(workspaceId);
+	const taken = useTakenNames(orgId, workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
 	const regionsQuery = useRpcQuery(listRegions, { environmentId: env.id });
 	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });

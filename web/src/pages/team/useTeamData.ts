@@ -5,6 +5,7 @@ import { useQueries, useQuery as useTanstackQuery, useQueryClient } from "@tanst
 
 import { invitationsOptions, orgMembersOptions, workspaceMembersOptions } from "@/hooks/completeMembers";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
+import { useMyScopes } from "@/hooks/useMyScopes";
 
 import { parseScopeName, type Member, type ScopeName, type WorkspaceAccess } from "./model";
 
@@ -16,12 +17,14 @@ export function useTeamData(orgId: string) {
 	const invitationsQuery = useTanstackQuery(invitationsOptions(transport, orgId));
 	const wsQuery = useTanstackQuery(orgWorkspacesOptions(transport, orgId));
 	const workspaces = wsQuery.data?.workspaces ?? [];
+	const myScopes = useMyScopes();
+	const readable = myScopes.isLoading ? [] : workspaces.filter((w) => myScopes.workspaceLevel(orgId, w.id) >= 1);
 	const memberQueries = useQueries({
-		queries: workspaces.map((w) => workspaceMembersOptions(transport, w.id)),
+		queries: readable.map((w) => workspaceMembersOptions(transport, w.id)),
 	});
 
 	const access = new Map<string, WorkspaceAccess[]>();
-	workspaces.forEach((w, i) => {
+	readable.forEach((w, i) => {
 		for (const m of memberQueries[i]?.data?.members ?? []) {
 			const scopes = m.scopes.map(parseScopeName).filter((s): s is ScopeName => s !== null);
 			if (scopes.length === 0) continue;
@@ -42,7 +45,7 @@ export function useTeamData(orgId: string) {
 		invitations: invitationsQuery.data?.invitations ?? [],
 		workspaces,
 		isLoading: orgQuery.isLoading || membersQuery.isLoading || invitationsQuery.isLoading,
-		accessLoading: wsQuery.isLoading || memberQueries.some((q) => q.isLoading),
+		accessLoading: wsQuery.isLoading || myScopes.isLoading || memberQueries.some((q) => q.isLoading),
 		error: orgQuery.error ?? membersQuery.error,
 		invalidateInvitations: async () => {
 			const queryKey = createConnectQueryKey({ schema: listInvitations, cardinality: "finite" });

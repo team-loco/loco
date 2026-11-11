@@ -15,7 +15,7 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { workspaceResourcesKey } from "@/hooks/workspaceResources";
 import { getErrorMessage } from "@/lib/error-handler";
 
 import {
@@ -156,7 +156,7 @@ export function BulkActions({
 
 	const finish = async (result: FanOutResult<ResourceRow>, verb: string, failVerb: string) => {
 		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: workspaceResourcesOptions(transport, workspaceId).queryKey }),
+			queryClient.invalidateQueries({ queryKey: workspaceResourcesKey(transport, workspaceId) }),
 			queryClient.invalidateQueries({
 				queryKey: createConnectQueryKey({ schema: listDeployments, cardinality: "finite" }),
 			}),

@@ -203,7 +203,12 @@ export interface BackendQuery {
 	impossible: boolean;
 }
 
-export function buildBackendQuery(tokens: Token[], text: string, resources: ObsResource[]): BackendQuery {
+export function buildBackendQuery(
+	tokens: Token[],
+	text: string,
+	resources: ObsResource[],
+	scopedResourceIds: string[] | null,
+): BackendQuery {
 	const byKey = (k: FieldKey) => liveTokens("logs", tokens, k);
 
 	const levelSet = narrow(LEVELS, byKey("level"));
@@ -212,7 +217,8 @@ export function buildBackendQuery(tokens: Token[], text: string, resources: ObsR
 	const resourceNames = resources.map((r) => r.name);
 	const resNames = narrow(resourceNames, byKey("resource"));
 	const resSet = resNames === null ? null : new Set(resNames);
-	const resourceIds = resSet === null ? [] : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
+	const resourceIds =
+		resSet === null ? (scopedResourceIds ?? []) : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
 
 	const labels: Record<string, string> = {};
 	const replica = byKey("replica")[0];
@@ -220,7 +226,8 @@ export function buildBackendQuery(tokens: Token[], text: string, resources: ObsR
 	const build = byKey("build")[0];
 	if (build !== undefined) labels[BUILD_ID_LABEL] = build.value;
 
-	const impossible = levelSet?.length === 0 || resNames?.length === 0;
+	const impossible =
+		levelSet?.length === 0 || resNames?.length === 0 || (scopedResourceIds !== null && resourceIds.length === 0);
 
 	return {
 		parsed: {

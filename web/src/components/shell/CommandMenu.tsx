@@ -1,4 +1,3 @@
-import { useTransport } from "@connectrpc/connect-query";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -31,7 +30,7 @@ import {
 import { Kbd } from "@/components/design/Kbd";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { scorePaletteItem } from "@/lib/command-palette";
 import { accountSettingsPath, newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
 import { useTheme } from "@/lib/use-theme";
@@ -59,14 +58,13 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
 	const { pathname, search } = useLocation();
 	const [params] = useSearchParams();
-	const transport = useTransport();
 	const { theme, toggle } = useTheme();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
 	const navPages = useNavSections().flatMap((section) => section.pages);
 	const scopes = useMyScopes();
 	const resources = useQuery({
-		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
-		enabled: open && activeWorkspaceId !== null,
+		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
+		enabled: open && activeOrgId !== null && activeWorkspaceId !== null,
 	});
 
 	const env = params.get("env");

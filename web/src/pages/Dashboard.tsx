@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
+import { ResourceAccess } from "@/components/ResourceAccess";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
@@ -36,7 +37,7 @@ function DashboardSkeleton() {
 export function Dashboard() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
-	const data = useDashboardData(activeWorkspaceId, active);
+	const data = useDashboardData(activeOrgId, activeWorkspaceId, active);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
 	const [params] = useSearchParams();
 
@@ -58,6 +59,19 @@ export function Dashboard() {
 						{getErrorMessage(data.error, "Failed to load resources")}
 					</EmptyState>
 				</Section>
+			</Page>
+		);
+	}
+
+	if (data.scoped) {
+		return (
+			<Page>
+				{heading}
+				{data.isLoading ? (
+					<DashboardSkeleton />
+				) : (
+					<ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={data.resources} />
+				)}
 			</Page>
 		);
 	}

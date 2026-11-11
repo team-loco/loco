@@ -13,8 +13,10 @@ import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { orgMembersOptions } from "@/hooks/completeMembers";
+import { ResourceAccess } from "@/components/ResourceAccess";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage } from "@/lib/error-handler";
 import { settingsPath, type SettingsScope } from "@/lib/routes";
 
@@ -53,12 +55,11 @@ export function Settings() {
 	const transport = useTransport();
 	const scopes = useMyScopes();
 	const canReadOrg = !scopes.isLoading && scopes.orgMember(orgId);
+	const readsWorkspace = (id: string) => !scopes.isLoading && scopes.workspaceLevel(orgId, id) >= 1;
 	const workspaceQuery = useQuery(
 		getWorkspace,
 		{ workspaceId },
-		{
-			enabled: workspaceId !== "" && !scopes.isLoading && scopes.workspaceLevel(orgId, workspaceId) >= 1,
-		},
+		{ enabled: workspaceId !== "" && readsWorkspace(workspaceId) },
 	);
 	const orgQuery = useQuery(getOrg, { orgId }, { enabled: orgId !== "" && canReadOrg });
 	const wsQuery = useTanstackQuery({
@@ -73,7 +74,9 @@ export function Settings() {
 	const workspaces = wsQuery.data?.workspaces ?? [];
 	const users = (membersQuery.data?.members ?? []).flatMap((m) => (m.user ? [m.user] : []));
 	const currentWs = workspaceQuery.data?.workspace ?? workspaces.find((w) => w.id === workspaceId);
-	const workspaceIds = canReadOrg ? workspaces.map((w) => w.id) : currentWs ? [currentWs.id] : [];
+	const workspaceIds = (canReadOrg ? workspaces.map((w) => w.id) : currentWs ? [currentWs.id] : []).filter(
+		readsWorkspace,
+	);
 	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
 	const scope = requested === "org" && !canReadOrg ? "workspace" : requested;
 
@@ -145,7 +148,10 @@ export function Settings() {
 			{((scopes.isLoading && scope !== "account") || (scope === "org" && orgError === null && !org)) && (
 				<SettingsSkeleton />
 			)}
-			{!scopes.isLoading && scope === "workspace" && (
+			{!scopes.isLoading && scope === "workspace" && !readsWorkspace(workspaceId) && (
+				<GrantedResources orgId={orgId} workspaceId={workspaceId} />
+			)}
+			{!scopes.isLoading && scope === "workspace" && readsWorkspace(workspaceId) && (
 				<WorkspaceTab
 					key={workspaceId}
 					orgId={orgId}
@@ -207,6 +213,12 @@ export function Settings() {
 			/>
 		</Page>
 	);
+}
+
+function GrantedResources({ orgId, workspaceId }: { orgId: string; workspaceId: string }) {
+	const { data, isLoading } = useTanstackQuery(useWorkspaceResourcesOptions(orgId, workspaceId));
+	if (isLoading) return <SettingsSkeleton />;
+	return <ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={data?.resources ?? []} />;
 }
 
 export function PersonalSettings() {
