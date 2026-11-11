@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -227,6 +226,10 @@ func (a *applier) deploy(
 	state configplan.State,
 	regions []string,
 ) error {
+	principal, err := principalFrom(ctx)
+	if err != nil {
+		return err
+	}
 	build, err := a.currentBuild(ctx, qtx, res, state)
 	if err != nil {
 		return err
@@ -274,7 +277,6 @@ func (a *applier) deploy(
 			a.env.Name,
 			a.defaults,
 		)
-		principal, _ := reqctx.PrincipalFrom(ctx)
 		deploymentID, deployErr := createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
 			ResourceID:    res.ID,
 			ClusterID:     cluster.ID,

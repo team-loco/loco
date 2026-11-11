@@ -53,7 +53,7 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.P
 			Entity:    entity,
 			Scopes:    liveScopes,
 			Token:     token,
-			ActorType: string(queries.EntityTypeUser),
+			ActorType: queries.DeploymentActorTypeUser,
 			ActorID:   session.UserID,
 			Method:    queries.DeploymentMethodCli,
 		}, nil
@@ -78,7 +78,7 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.P
 			Entity:    entity,
 			Scopes:    tok.Scopes,
 			Token:     token,
-			ActorType: "api_token",
+			ActorType: queries.DeploymentActorTypeApiToken,
 			ActorID:   tok.ID,
 			Method:    queries.DeploymentMethodApiToken,
 		}, nil

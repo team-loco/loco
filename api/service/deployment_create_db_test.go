@@ -100,7 +100,7 @@ func deployRequest(
 	}
 	ctx := reqctx.WithPrincipal(
 		t.Context(),
-		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: scopes},
 	)
 	return server.CreateDeployment(ctx, req)
 }

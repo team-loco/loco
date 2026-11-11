@@ -27,7 +27,7 @@ type Request struct {
 type Principal struct {
 	Entity    genDb.Entity
 	Scopes    []genDb.EntityScope
-	ActorType string
+	ActorType genDb.DeploymentActorType
 	ActorID   uuid.UUID
 	Method    genDb.DeploymentMethod
 	Token     string

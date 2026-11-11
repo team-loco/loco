@@ -30,7 +30,7 @@ func (f *deployFixture) rolloutContext(t *testing.T) context.Context {
 	return reqctx.WithPrincipal(
 		t.Context(),
 		reqctx.Principal{
-			ActorType: string(genDb.EntityTypeUser),
+			ActorType: genDb.DeploymentActorTypeUser,
 			Method:    genDb.DeploymentMethodWeb,
 			Entity:    entity,
 			Scopes:    scopes,

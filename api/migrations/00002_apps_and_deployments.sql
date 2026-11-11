@@ -198,6 +198,8 @@ CREATE UNIQUE INDEX uniq_platform_subdomain ON resource_domains (platform_domain
 WHERE
     domain_source = 'platform_provided';
 
+CREATE TYPE deployment_actor_type AS ENUM ('user', 'api_token');
+
 CREATE TYPE deployment_method AS ENUM ('api_token', 'cli', 'web');
 
 -- Deployments table (immutable, single-region)
@@ -214,7 +216,7 @@ CREATE TABLE
         environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
-        actor_type TEXT NOT NULL,
+        actor_type deployment_actor_type NOT NULL,
         actor_id UUID NOT NULL,
         method deployment_method NOT NULL,
         commit_sha TEXT,
@@ -395,6 +397,7 @@ DROP TABLE IF EXISTS placement_windows;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TYPE IF EXISTS deployment_method;
+DROP TYPE IF EXISTS deployment_actor_type;
 DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS secrets;
 DROP TABLE IF EXISTS resources;

@@ -247,7 +247,7 @@ func (f *deployFixture) secretWriterContext(t *testing.T) context.Context {
 	return reqctx.WithPrincipal(
 		ctx,
 		reqctx.Principal{
-			ActorType: string(genDb.EntityTypeUser),
+			ActorType: genDb.DeploymentActorTypeUser,
 			Method:    genDb.DeploymentMethodWeb,
 			Entity:    entity,
 			Scopes:    f.applyScopes(t),

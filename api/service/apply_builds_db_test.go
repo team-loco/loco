@@ -25,7 +25,7 @@ func applyBuilds(t *testing.T, f *deployFixture, file string, builds map[string]
 	ctx := reqctx.WithPrincipal(
 		context.Background(),
 		reqctx.Principal{
-			ActorType: string(genDb.EntityTypeUser),
+			ActorType: genDb.DeploymentActorTypeUser,
 			Method:    genDb.DeploymentMethodWeb,
 			Scopes:    f.adminScopes(t),
 		},

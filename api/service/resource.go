@@ -801,6 +801,10 @@ func (s *ResourceServer) planRegionRedeploy(
 	replicas int32,
 	message string,
 ) (regionRedeploy, error) {
+	principal, err := principalFrom(ctx)
+	if err != nil {
+		return regionRedeploy{}, err
+	}
 	specJSON, err := deploymentSpecJSON(serviceDeploymentSpec)
 	if err != nil {
 		return regionRedeploy{}, err
@@ -816,7 +820,6 @@ func (s *ResourceServer) planRegionRedeploy(
 		return regionRedeploy{}, err
 	}
 
-	principal, _ := reqctx.PrincipalFrom(ctx)
 	return regionRedeploy{
 		params: genDb.CreateDeploymentParams{
 			ResourceID:    current.ResourceID,

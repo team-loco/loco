@@ -51,22 +51,22 @@ RETURNING id
 `
 
 type CreateDeploymentParams struct {
-	ResourceID    uuid.UUID        `json:"resourceId"`
-	ClusterID     uuid.UUID        `json:"clusterId"`
-	Region        string           `json:"region"`
-	Replicas      int32            `json:"replicas"`
-	Status        DeploymentStatus `json:"status"`
-	IsActive      bool             `json:"isActive"`
-	Message       string           `json:"message"`
-	Spec          []byte           `json:"spec"`
-	SpecVersion   int32            `json:"specVersion"`
-	EnvironmentID uuid.UUID        `json:"environmentId"`
-	SecretNames   []string         `json:"secretNames"`
-	ActorType     string           `json:"actorType"`
-	ActorID       uuid.UUID        `json:"actorId"`
-	Method        DeploymentMethod `json:"method"`
-	CommitSha     *string          `json:"commitSha"`
-	CommitDirty   bool             `json:"commitDirty"`
+	ResourceID    uuid.UUID           `json:"resourceId"`
+	ClusterID     uuid.UUID           `json:"clusterId"`
+	Region        string              `json:"region"`
+	Replicas      int32               `json:"replicas"`
+	Status        DeploymentStatus    `json:"status"`
+	IsActive      bool                `json:"isActive"`
+	Message       string              `json:"message"`
+	Spec          []byte              `json:"spec"`
+	SpecVersion   int32               `json:"specVersion"`
+	EnvironmentID uuid.UUID           `json:"environmentId"`
+	SecretNames   []string            `json:"secretNames"`
+	ActorType     DeploymentActorType `json:"actorType"`
+	ActorID       uuid.UUID           `json:"actorId"`
+	Method        DeploymentMethod    `json:"method"`
+	CommitSha     *string             `json:"commitSha"`
+	CommitDirty   bool                `json:"commitDirty"`
 }
 
 // Deployment queries

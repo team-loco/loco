@@ -25,7 +25,7 @@ func scaleResourceIn(t *testing.T, f *deployFixture, environmentID uuid.UUID, re
 	}
 	ctx := reqctx.WithPrincipal(
 		context.Background(),
-		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: scopes},
 	)
 	req := &resourcev1.ScaleResourceRequest{
 		ResourceId:    f.resourceID.String(),

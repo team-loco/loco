@@ -9126,8 +9126,8 @@
             "title": "environment_id"
           },
           "actorType": {
-            "type": "string",
-            "title": "actor_type"
+            "title": "actor_type",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentActorType"
           },
           "actorId": {
             "type": "string",
@@ -9142,8 +9142,8 @@
             "title": "actor_avatar_url"
           },
           "method": {
-            "type": "string",
-            "title": "method"
+            "title": "method",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentMethod"
           },
           "commit": {
             "title": "commit",
@@ -9153,6 +9153,25 @@
         "title": "Deployment",
         "additionalProperties": false,
         "description": "Deployment represents a resource deployment (immutable, single-region)."
+      },
+      "loco.deployment.v1.DeploymentActorType": {
+        "type": "string",
+        "title": "DeploymentActorType",
+        "enum": [
+          "DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED",
+          "DEPLOYMENT_ACTOR_TYPE_USER",
+          "DEPLOYMENT_ACTOR_TYPE_API_TOKEN"
+        ]
+      },
+      "loco.deployment.v1.DeploymentMethod": {
+        "type": "string",
+        "title": "DeploymentMethod",
+        "enum": [
+          "DEPLOYMENT_METHOD_UNSPECIFIED",
+          "DEPLOYMENT_METHOD_API_TOKEN",
+          "DEPLOYMENT_METHOD_CLI",
+          "DEPLOYMENT_METHOD_WEB"
+        ]
       },
       "loco.deployment.v1.DeploymentPhase": {
         "type": "string",

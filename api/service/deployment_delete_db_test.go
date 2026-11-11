@@ -27,7 +27,7 @@ func (f *deployFixture) deploymentWriter(t *testing.T) (*DeploymentServer, conte
 	}
 	return server, reqctx.WithPrincipal(
 		t.Context(),
-		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: scopes},
 	)
 }
 

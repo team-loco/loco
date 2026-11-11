@@ -33,7 +33,7 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	}
 	ctx := reqctx.WithPrincipal(
 		t.Context(),
-		reqctx.Principal{ActorType: string(genDb.EntityTypeUser), Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: scopes},
 	)
 	release := sync.OnceFunc(f.holdResourceLock(t))
 	t.Cleanup(release)

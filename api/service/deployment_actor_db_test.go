@@ -218,12 +218,12 @@ func assertDeploymentActor(
 		t.Fatal(err)
 	}
 	got := listed.GetDeployments()[0]
-	actorType := string(genDb.EntityTypeUser)
+	actorType := deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_USER
 	if method == genDb.DeploymentMethodApiToken {
-		actorType = "api_token"
+		actorType = deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_API_TOKEN
 	}
 	if got.GetId() != id || got.GetActorId() != actorID.String() || got.GetActorType() != actorType ||
-		got.GetMethod() != string(method) ||
+		got.GetMethod().String() != "DEPLOYMENT_METHOD_"+strings.ToUpper(string(method)) ||
 		!proto.Equal(got.GetCommit(), commit) {
 		t.Fatalf("deployment = %v, want actor %s/%s method %s commit %v", got, actorType, actorID, method, commit)
 	}

@@ -20,7 +20,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -75,9 +74,9 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 		SpecVersion:   d.SpecVersion,
 		Message:       d.Message,
 		Spec:          spec,
-		ActorType:     d.ActorType,
+		ActorType:     parseDeploymentActorType(d.ActorType),
 		ActorId:       d.ActorID.String(),
-		Method:        string(d.Method),
+		Method:        parseDeploymentMethod(d.Method),
 		Commit:        commit,
 	}
 
@@ -142,6 +141,11 @@ func (s *DeploymentServer) CreateDeployment(
 	ctx context.Context,
 	req *deploymentv1.CreateDeploymentRequest,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
+	principal, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	resourceID, err := parseID("resource_id", req.GetResourceId())
 	if err != nil {
 		return nil, err
@@ -277,7 +281,6 @@ func (s *DeploymentServer) CreateDeployment(
 			s.defaults,
 		)
 
-		principal, _ := reqctx.PrincipalFrom(ctx)
 		var txErr error
 		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
 			ResourceID:    resourceID,
@@ -615,4 +618,28 @@ func sourceCommitSHA(commit *deploymentv1.SourceCommit) *string {
 		return nil
 	}
 	return new(commit.GetSha())
+}
+
+func parseDeploymentActorType(actor genDb.DeploymentActorType) deploymentv1.DeploymentActorType {
+	switch actor {
+	case genDb.DeploymentActorTypeUser:
+		return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_USER
+	case genDb.DeploymentActorTypeApiToken:
+		return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_API_TOKEN
+	default:
+		return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED
+	}
+}
+
+func parseDeploymentMethod(method genDb.DeploymentMethod) deploymentv1.DeploymentMethod {
+	switch method {
+	case genDb.DeploymentMethodApiToken:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_API_TOKEN
+	case genDb.DeploymentMethodCli:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_CLI
+	case genDb.DeploymentMethodWeb:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_WEB
+	default:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_UNSPECIFIED
+	}
 }

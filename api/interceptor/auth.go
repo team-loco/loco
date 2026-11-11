@@ -130,7 +130,7 @@ func (i *authInterceptor) authenticateProviderToken(
 		Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID},
 		Scopes:    scopes,
 		Token:     token,
-		ActorType: string(genDb.EntityTypeUser),
+		ActorType: genDb.DeploymentActorTypeUser,
 		ActorID:   user.ID,
 		Method:    genDb.DeploymentMethodWeb,
 	})

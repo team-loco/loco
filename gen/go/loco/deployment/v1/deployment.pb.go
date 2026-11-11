@@ -91,6 +91,107 @@ func (DeploymentPhase) EnumDescriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{0}
 }
 
+type DeploymentActorType int32
+
+const (
+	DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED DeploymentActorType = 0
+	DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_USER        DeploymentActorType = 1
+	DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_API_TOKEN   DeploymentActorType = 2
+)
+
+// Enum value maps for DeploymentActorType.
+var (
+	DeploymentActorType_name = map[int32]string{
+		0: "DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED",
+		1: "DEPLOYMENT_ACTOR_TYPE_USER",
+		2: "DEPLOYMENT_ACTOR_TYPE_API_TOKEN",
+	}
+	DeploymentActorType_value = map[string]int32{
+		"DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED": 0,
+		"DEPLOYMENT_ACTOR_TYPE_USER":        1,
+		"DEPLOYMENT_ACTOR_TYPE_API_TOKEN":   2,
+	}
+)
+
+func (x DeploymentActorType) Enum() *DeploymentActorType {
+	p := new(DeploymentActorType)
+	*p = x
+	return p
+}
+
+func (x DeploymentActorType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DeploymentActorType) Descriptor() protoreflect.EnumDescriptor {
+	return file_loco_deployment_v1_deployment_proto_enumTypes[1].Descriptor()
+}
+
+func (DeploymentActorType) Type() protoreflect.EnumType {
+	return &file_loco_deployment_v1_deployment_proto_enumTypes[1]
+}
+
+func (x DeploymentActorType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DeploymentActorType.Descriptor instead.
+func (DeploymentActorType) EnumDescriptor() ([]byte, []int) {
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{1}
+}
+
+type DeploymentMethod int32
+
+const (
+	DeploymentMethod_DEPLOYMENT_METHOD_UNSPECIFIED DeploymentMethod = 0
+	DeploymentMethod_DEPLOYMENT_METHOD_API_TOKEN   DeploymentMethod = 1
+	DeploymentMethod_DEPLOYMENT_METHOD_CLI         DeploymentMethod = 2
+	DeploymentMethod_DEPLOYMENT_METHOD_WEB         DeploymentMethod = 3
+)
+
+// Enum value maps for DeploymentMethod.
+var (
+	DeploymentMethod_name = map[int32]string{
+		0: "DEPLOYMENT_METHOD_UNSPECIFIED",
+		1: "DEPLOYMENT_METHOD_API_TOKEN",
+		2: "DEPLOYMENT_METHOD_CLI",
+		3: "DEPLOYMENT_METHOD_WEB",
+	}
+	DeploymentMethod_value = map[string]int32{
+		"DEPLOYMENT_METHOD_UNSPECIFIED": 0,
+		"DEPLOYMENT_METHOD_API_TOKEN":   1,
+		"DEPLOYMENT_METHOD_CLI":         2,
+		"DEPLOYMENT_METHOD_WEB":         3,
+	}
+)
+
+func (x DeploymentMethod) Enum() *DeploymentMethod {
+	p := new(DeploymentMethod)
+	*p = x
+	return p
+}
+
+func (x DeploymentMethod) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DeploymentMethod) Descriptor() protoreflect.EnumDescriptor {
+	return file_loco_deployment_v1_deployment_proto_enumTypes[2].Descriptor()
+}
+
+func (DeploymentMethod) Type() protoreflect.EnumType {
+	return &file_loco_deployment_v1_deployment_proto_enumTypes[2]
+}
+
+func (x DeploymentMethod) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DeploymentMethod.Descriptor instead.
+func (DeploymentMethod) EnumDescriptor() ([]byte, []int) {
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{2}
+}
+
 // Port defines a network port configuration.
 type Port struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -838,11 +939,11 @@ type Deployment struct {
 	SpecVersion    int32                  `protobuf:"varint,13,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	Spec           *DeploymentSpec        `protobuf:"bytes,14,opt,name=spec,proto3" json:"spec,omitempty"`
 	EnvironmentId  string                 `protobuf:"bytes,15,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	ActorType      string                 `protobuf:"bytes,16,opt,name=actor_type,json=actorType,proto3" json:"actor_type,omitempty"`
+	ActorType      DeploymentActorType    `protobuf:"varint,16,opt,name=actor_type,json=actorType,proto3,enum=loco.deployment.v1.DeploymentActorType" json:"actor_type,omitempty"`
 	ActorId        string                 `protobuf:"bytes,17,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	ActorName      string                 `protobuf:"bytes,18,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
 	ActorAvatarUrl string                 `protobuf:"bytes,19,opt,name=actor_avatar_url,json=actorAvatarUrl,proto3" json:"actor_avatar_url,omitempty"`
-	Method         string                 `protobuf:"bytes,20,opt,name=method,proto3" json:"method,omitempty"`
+	Method         DeploymentMethod       `protobuf:"varint,20,opt,name=method,proto3,enum=loco.deployment.v1.DeploymentMethod" json:"method,omitempty"`
 	Commit         *SourceCommit          `protobuf:"bytes,21,opt,name=commit,proto3" json:"commit,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -983,11 +1084,11 @@ func (x *Deployment) GetEnvironmentId() string {
 	return ""
 }
 
-func (x *Deployment) GetActorType() string {
+func (x *Deployment) GetActorType() DeploymentActorType {
 	if x != nil {
 		return x.ActorType
 	}
-	return ""
+	return DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED
 }
 
 func (x *Deployment) GetActorId() string {
@@ -1011,11 +1112,11 @@ func (x *Deployment) GetActorAvatarUrl() string {
 	return ""
 }
 
-func (x *Deployment) GetMethod() string {
+func (x *Deployment) GetMethod() DeploymentMethod {
 	if x != nil {
 		return x.Method
 	}
-	return ""
+	return DeploymentMethod_DEPLOYMENT_METHOD_UNSPECIFIED
 }
 
 func (x *Deployment) GetCommit() *SourceCommit {
@@ -1904,7 +2005,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
 	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
 	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\xf5\x06\n" +
+	"\x04spec\"\xc4\a\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
@@ -1927,14 +2028,14 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
 	"\fspec_version\x18\r \x01(\x05R\vspecVersion\x126\n" +
 	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\x12%\n" +
-	"\x0eenvironment_id\x18\x0f \x01(\tR\renvironmentId\x12\x1d\n" +
+	"\x0eenvironment_id\x18\x0f \x01(\tR\renvironmentId\x12F\n" +
 	"\n" +
-	"actor_type\x18\x10 \x01(\tR\tactorType\x12\x19\n" +
+	"actor_type\x18\x10 \x01(\x0e2'.loco.deployment.v1.DeploymentActorTypeR\tactorType\x12\x19\n" +
 	"\bactor_id\x18\x11 \x01(\tR\aactorId\x12\x1d\n" +
 	"\n" +
 	"actor_name\x18\x12 \x01(\tR\tactorName\x12(\n" +
-	"\x10actor_avatar_url\x18\x13 \x01(\tR\x0eactorAvatarUrl\x12\x16\n" +
-	"\x06method\x18\x14 \x01(\tR\x06method\x128\n" +
+	"\x10actor_avatar_url\x18\x13 \x01(\tR\x0eactorAvatarUrl\x12<\n" +
+	"\x06method\x18\x14 \x01(\x0e2$.loco.deployment.v1.DeploymentMethodR\x06method\x128\n" +
 	"\x06commit\x18\x15 \x01(\v2 .loco.deployment.v1.SourceCommitR\x06commitB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_at\"\xe7\x02\n" +
@@ -1998,7 +2099,16 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x18DEPLOYMENT_PHASE_RUNNING\x10\x03\x12\x1e\n" +
 	"\x1aDEPLOYMENT_PHASE_SUCCEEDED\x10\x04\x12\x1b\n" +
 	"\x17DEPLOYMENT_PHASE_FAILED\x10\x05\x12\x1d\n" +
-	"\x19DEPLOYMENT_PHASE_CANCELED\x10\x062\x94\x05\n" +
+	"\x19DEPLOYMENT_PHASE_CANCELED\x10\x06*\x81\x01\n" +
+	"\x13DeploymentActorType\x12%\n" +
+	"!DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aDEPLOYMENT_ACTOR_TYPE_USER\x10\x01\x12#\n" +
+	"\x1fDEPLOYMENT_ACTOR_TYPE_API_TOKEN\x10\x02*\x8c\x01\n" +
+	"\x10DeploymentMethod\x12!\n" +
+	"\x1dDEPLOYMENT_METHOD_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bDEPLOYMENT_METHOD_API_TOKEN\x10\x01\x12\x19\n" +
+	"\x15DEPLOYMENT_METHOD_CLI\x10\x02\x12\x19\n" +
+	"\x15DEPLOYMENT_METHOD_WEB\x10\x032\x94\x05\n" +
 	"\x11DeploymentService\x12m\n" +
 	"\x10CreateDeployment\x12+.loco.deployment.v1.CreateDeploymentRequest\x1a,.loco.deployment.v1.CreateDeploymentResponse\x12d\n" +
 	"\rGetDeployment\x12(.loco.deployment.v1.GetDeploymentRequest\x1a).loco.deployment.v1.GetDeploymentResponse\x12j\n" +
@@ -2019,83 +2129,87 @@ func file_loco_deployment_v1_deployment_proto_rawDescGZIP() []byte {
 	return file_loco_deployment_v1_deployment_proto_rawDescData
 }
 
-var file_loco_deployment_v1_deployment_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_loco_deployment_v1_deployment_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_loco_deployment_v1_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_loco_deployment_v1_deployment_proto_goTypes = []any{
 	(DeploymentPhase)(0),             // 0: loco.deployment.v1.DeploymentPhase
-	(*Port)(nil),                     // 1: loco.deployment.v1.Port
-	(*ResourceSpec)(nil),             // 2: loco.deployment.v1.ResourceSpec
-	(*HealthCheckConfig)(nil),        // 3: loco.deployment.v1.HealthCheckConfig
-	(*Scalers)(nil),                  // 4: loco.deployment.v1.Scalers
-	(*BuildSource)(nil),              // 5: loco.deployment.v1.BuildSource
-	(*ServiceDeploymentSpec)(nil),    // 6: loco.deployment.v1.ServiceDeploymentSpec
-	(*ServiceRouting)(nil),           // 7: loco.deployment.v1.ServiceRouting
-	(*DatabaseDeploymentSpec)(nil),   // 8: loco.deployment.v1.DatabaseDeploymentSpec
-	(*CacheDeploymentSpec)(nil),      // 9: loco.deployment.v1.CacheDeploymentSpec
-	(*QueueDeploymentSpec)(nil),      // 10: loco.deployment.v1.QueueDeploymentSpec
-	(*DeploymentSpec)(nil),           // 11: loco.deployment.v1.DeploymentSpec
-	(*Deployment)(nil),               // 12: loco.deployment.v1.Deployment
-	(*CreateDeploymentRequest)(nil),  // 13: loco.deployment.v1.CreateDeploymentRequest
-	(*DeploymentSecretBindings)(nil), // 14: loco.deployment.v1.DeploymentSecretBindings
-	(*CreateDeploymentResponse)(nil), // 15: loco.deployment.v1.CreateDeploymentResponse
-	(*GetDeploymentRequest)(nil),     // 16: loco.deployment.v1.GetDeploymentRequest
-	(*GetDeploymentResponse)(nil),    // 17: loco.deployment.v1.GetDeploymentResponse
-	(*ListDeploymentsRequest)(nil),   // 18: loco.deployment.v1.ListDeploymentsRequest
-	(*ListDeploymentsResponse)(nil),  // 19: loco.deployment.v1.ListDeploymentsResponse
-	(*WatchDeploymentRequest)(nil),   // 20: loco.deployment.v1.WatchDeploymentRequest
-	(*WatchDeploymentResponse)(nil),  // 21: loco.deployment.v1.WatchDeploymentResponse
-	(*DeleteDeploymentRequest)(nil),  // 22: loco.deployment.v1.DeleteDeploymentRequest
-	(*DeleteDeploymentResponse)(nil), // 23: loco.deployment.v1.DeleteDeploymentResponse
-	(*MetricsEndpoint)(nil),          // 24: loco.deployment.v1.MetricsEndpoint
-	(*ResolveImageRequest)(nil),      // 25: loco.deployment.v1.ResolveImageRequest
-	(*ResolveImageResponse)(nil),     // 26: loco.deployment.v1.ResolveImageResponse
-	(*SourceCommit)(nil),             // 27: loco.deployment.v1.SourceCommit
-	nil,                              // 28: loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
-	(*timestamppb.Timestamp)(nil),    // 29: google.protobuf.Timestamp
+	(DeploymentActorType)(0),         // 1: loco.deployment.v1.DeploymentActorType
+	(DeploymentMethod)(0),            // 2: loco.deployment.v1.DeploymentMethod
+	(*Port)(nil),                     // 3: loco.deployment.v1.Port
+	(*ResourceSpec)(nil),             // 4: loco.deployment.v1.ResourceSpec
+	(*HealthCheckConfig)(nil),        // 5: loco.deployment.v1.HealthCheckConfig
+	(*Scalers)(nil),                  // 6: loco.deployment.v1.Scalers
+	(*BuildSource)(nil),              // 7: loco.deployment.v1.BuildSource
+	(*ServiceDeploymentSpec)(nil),    // 8: loco.deployment.v1.ServiceDeploymentSpec
+	(*ServiceRouting)(nil),           // 9: loco.deployment.v1.ServiceRouting
+	(*DatabaseDeploymentSpec)(nil),   // 10: loco.deployment.v1.DatabaseDeploymentSpec
+	(*CacheDeploymentSpec)(nil),      // 11: loco.deployment.v1.CacheDeploymentSpec
+	(*QueueDeploymentSpec)(nil),      // 12: loco.deployment.v1.QueueDeploymentSpec
+	(*DeploymentSpec)(nil),           // 13: loco.deployment.v1.DeploymentSpec
+	(*Deployment)(nil),               // 14: loco.deployment.v1.Deployment
+	(*CreateDeploymentRequest)(nil),  // 15: loco.deployment.v1.CreateDeploymentRequest
+	(*DeploymentSecretBindings)(nil), // 16: loco.deployment.v1.DeploymentSecretBindings
+	(*CreateDeploymentResponse)(nil), // 17: loco.deployment.v1.CreateDeploymentResponse
+	(*GetDeploymentRequest)(nil),     // 18: loco.deployment.v1.GetDeploymentRequest
+	(*GetDeploymentResponse)(nil),    // 19: loco.deployment.v1.GetDeploymentResponse
+	(*ListDeploymentsRequest)(nil),   // 20: loco.deployment.v1.ListDeploymentsRequest
+	(*ListDeploymentsResponse)(nil),  // 21: loco.deployment.v1.ListDeploymentsResponse
+	(*WatchDeploymentRequest)(nil),   // 22: loco.deployment.v1.WatchDeploymentRequest
+	(*WatchDeploymentResponse)(nil),  // 23: loco.deployment.v1.WatchDeploymentResponse
+	(*DeleteDeploymentRequest)(nil),  // 24: loco.deployment.v1.DeleteDeploymentRequest
+	(*DeleteDeploymentResponse)(nil), // 25: loco.deployment.v1.DeleteDeploymentResponse
+	(*MetricsEndpoint)(nil),          // 26: loco.deployment.v1.MetricsEndpoint
+	(*ResolveImageRequest)(nil),      // 27: loco.deployment.v1.ResolveImageRequest
+	(*ResolveImageResponse)(nil),     // 28: loco.deployment.v1.ResolveImageResponse
+	(*SourceCommit)(nil),             // 29: loco.deployment.v1.SourceCommit
+	nil,                              // 30: loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
+	(*timestamppb.Timestamp)(nil),    // 31: google.protobuf.Timestamp
 }
 var file_loco_deployment_v1_deployment_proto_depIdxs = []int32{
-	5,  // 0: loco.deployment.v1.ServiceDeploymentSpec.build:type_name -> loco.deployment.v1.BuildSource
-	3,  // 1: loco.deployment.v1.ServiceDeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	4,  // 2: loco.deployment.v1.ServiceDeploymentSpec.scalers:type_name -> loco.deployment.v1.Scalers
-	28, // 3: loco.deployment.v1.ServiceDeploymentSpec.env:type_name -> loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
-	7,  // 4: loco.deployment.v1.ServiceDeploymentSpec.routing:type_name -> loco.deployment.v1.ServiceRouting
-	24, // 5: loco.deployment.v1.ServiceDeploymentSpec.metrics:type_name -> loco.deployment.v1.MetricsEndpoint
-	6,  // 6: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
-	8,  // 7: loco.deployment.v1.DeploymentSpec.database:type_name -> loco.deployment.v1.DatabaseDeploymentSpec
-	9,  // 8: loco.deployment.v1.DeploymentSpec.cache:type_name -> loco.deployment.v1.CacheDeploymentSpec
-	10, // 9: loco.deployment.v1.DeploymentSpec.queue:type_name -> loco.deployment.v1.QueueDeploymentSpec
+	7,  // 0: loco.deployment.v1.ServiceDeploymentSpec.build:type_name -> loco.deployment.v1.BuildSource
+	5,  // 1: loco.deployment.v1.ServiceDeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	6,  // 2: loco.deployment.v1.ServiceDeploymentSpec.scalers:type_name -> loco.deployment.v1.Scalers
+	30, // 3: loco.deployment.v1.ServiceDeploymentSpec.env:type_name -> loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
+	9,  // 4: loco.deployment.v1.ServiceDeploymentSpec.routing:type_name -> loco.deployment.v1.ServiceRouting
+	26, // 5: loco.deployment.v1.ServiceDeploymentSpec.metrics:type_name -> loco.deployment.v1.MetricsEndpoint
+	8,  // 6: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
+	10, // 7: loco.deployment.v1.DeploymentSpec.database:type_name -> loco.deployment.v1.DatabaseDeploymentSpec
+	11, // 8: loco.deployment.v1.DeploymentSpec.cache:type_name -> loco.deployment.v1.CacheDeploymentSpec
+	12, // 9: loco.deployment.v1.DeploymentSpec.queue:type_name -> loco.deployment.v1.QueueDeploymentSpec
 	0,  // 10: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentPhase
-	29, // 11: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
-	29, // 12: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
-	29, // 13: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
-	29, // 14: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 15: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	27, // 16: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
-	11, // 17: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	14, // 18: loco.deployment.v1.CreateDeploymentRequest.secret_bindings:type_name -> loco.deployment.v1.DeploymentSecretBindings
-	27, // 19: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
-	5,  // 20: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
-	12, // 21: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	12, // 22: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	0,  // 23: loco.deployment.v1.WatchDeploymentResponse.status:type_name -> loco.deployment.v1.DeploymentPhase
-	29, // 24: loco.deployment.v1.WatchDeploymentResponse.timestamp:type_name -> google.protobuf.Timestamp
-	13, // 25: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
-	16, // 26: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
-	18, // 27: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
-	20, // 28: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
-	22, // 29: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
-	25, // 30: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
-	15, // 31: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
-	17, // 32: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
-	19, // 33: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
-	21, // 34: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
-	23, // 35: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
-	26, // 36: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
-	31, // [31:37] is the sub-list for method output_type
-	25, // [25:31] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	31, // 11: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
+	31, // 12: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
+	31, // 13: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
+	31, // 14: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 15: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
+	1,  // 16: loco.deployment.v1.Deployment.actor_type:type_name -> loco.deployment.v1.DeploymentActorType
+	2,  // 17: loco.deployment.v1.Deployment.method:type_name -> loco.deployment.v1.DeploymentMethod
+	29, // 18: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
+	13, // 19: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
+	16, // 20: loco.deployment.v1.CreateDeploymentRequest.secret_bindings:type_name -> loco.deployment.v1.DeploymentSecretBindings
+	29, // 21: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
+	7,  // 22: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
+	14, // 23: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	14, // 24: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
+	0,  // 25: loco.deployment.v1.WatchDeploymentResponse.status:type_name -> loco.deployment.v1.DeploymentPhase
+	31, // 26: loco.deployment.v1.WatchDeploymentResponse.timestamp:type_name -> google.protobuf.Timestamp
+	15, // 27: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
+	18, // 28: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
+	20, // 29: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
+	22, // 30: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
+	24, // 31: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
+	27, // 32: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
+	17, // 33: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
+	19, // 34: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
+	21, // 35: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
+	23, // 36: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
+	25, // 37: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
+	28, // 38: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
+	33, // [33:39] is the sub-list for method output_type
+	27, // [27:33] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_loco_deployment_v1_deployment_proto_init() }
@@ -2119,7 +2233,7 @@ func file_loco_deployment_v1_deployment_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_deployment_v1_deployment_proto_rawDesc), len(file_loco_deployment_v1_deployment_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      3,
 			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
