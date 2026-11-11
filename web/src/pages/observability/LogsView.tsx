@@ -447,6 +447,7 @@ export function LogsView() {
 										? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""} loaded`
 										: "0"
 								}
+								total={rows.length}
 								pageSizes={PAGE_SIZES}
 								pageSize={size}
 								onPageSize={(n) => {

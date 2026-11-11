@@ -399,10 +399,10 @@ export function DeploymentsSection({
 						/>
 					</div>
 					<Pager
+						{...buildRows.pager}
 						label={`${buildRows.pager.label}${builds.hasMore ? "+" : ""}`}
 						prevLabel="Newer builds"
 						nextLabel="Older builds"
-						onPrev={buildRows.pager.onPrev}
 						onNext={nextPage(buildRows, builds.isLoadingMore, builds.hasMore, builds.loadMore, setBuildPaging)}
 					/>
 					{builds.error !== null && (

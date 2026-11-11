@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { nextPage, pagedRows, type Paging } from "./paging";
+import { nextPage, pagedRows, pagerVisible, type Paging } from "./paging";
 
 const ROWS = Array.from({ length: 7 }, (_, i) => i);
 const SIZES = [3, 6];
@@ -43,13 +43,22 @@ describe("pagedRows", () => {
 		first.result.ends.onLast?.();
 		expect(first.moves).toEqual([{ page: 2, size: 3 }]);
 		const middle = paged({ page: 1, size: 3 });
-		middle.result.pager.onPageSize?.(6);
+		middle.result.pager.onPageSize(6);
 		expect(middle.moves).toEqual([{ page: 0, size: 6 }]);
 	});
+});
 
-	test("offers no size choice for a single page size", () => {
-		const result = pagedRows(ROWS, { page: 0, size: 3 }, () => undefined, [3]);
-		expect(result.pager.pageSizes).toBeUndefined();
+describe("pagerVisible", () => {
+	const sizes = [25, 50, 100];
+
+	test.each([
+		["one row", 1, false, false],
+		["exactly the smallest page size", 25, false, false],
+		["one row over the smallest page size", 26, false, true],
+		["rows within a larger chosen size", 30, false, true],
+		["more server pages", 1, true, true],
+	])("%s", (_, total, hasMore, visible) => {
+		expect(pagerVisible({ total, pageSizes: sizes, hasMore })).toBe(visible);
 	});
 });
 
