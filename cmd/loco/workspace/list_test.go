@@ -17,14 +17,11 @@ import (
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
 
 const (
-	testListUserID     = "00000000-0000-7000-8000-000000000003"
 	testFirstWorkspace = "first"
 	listUnavailable    = "workspace listing unavailable"
 )
@@ -33,20 +30,11 @@ type workspacePage func(ctx context.Context, cursor string) ([]*workspacev1.Work
 
 type workspaceListServer struct {
 	workspacev1connect.UnimplementedWorkspaceServiceHandler
-	userv1connect.UnimplementedUserServiceHandler
 	t           *testing.T
 	orgID       string
 	page        workspacePage
 	mu          sync.Mutex
-	whoCalls    int
 	listCursors []string
-}
-
-func (s *workspaceListServer) WhoAmI(context.Context, *userv1.WhoAmIRequest) (*userv1.WhoAmIResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.whoCalls++
-	return &userv1.WhoAmIResponse{User: &userv1.User{Id: testListUserID}}, nil
 }
 
 func (s *workspaceListServer) ListOrgWorkspaces(
@@ -94,7 +82,6 @@ func runWorkspaceList(
 	fake := &workspaceListServer{t: t, orgID: orgID, page: page}
 	server := connect.NewServer()
 	workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
-	userv1connect.RegisterUserServiceHandler(server, fake)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	endpoint := httptest.NewServer(mux)
@@ -153,9 +140,6 @@ func TestListWorkspacesFollowsOpaquePages(t *testing.T) {
 			}
 			if len(fake.listCursors) != 3 {
 				t.Fatalf("requested %d pages, want 3", len(fake.listCursors))
-			}
-			if fake.whoCalls != 0 {
-				t.Fatalf("WhoAmI calls = %d, want 0", fake.whoCalls)
 			}
 			if orgID == "" {
 				id, resolveErr := resolveListedWorkspace(t)
