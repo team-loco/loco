@@ -213,6 +213,37 @@ test_g06_replicas_change_is_one_update() {
     assert "the plan is clean after the update" config_out_contains scale_clean "No changes"
 }
 
+config_autoscaler_matches() {
+    local id hpa
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")
+    hpa=$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
+        get hpa "resource-${id}" -o json) || return 1
+    jq -e --arg name "resource-${id}" --argjson target "$1" '
+        .spec.minReplicas == 1 and .spec.maxReplicas == 2 and
+        .spec.scaleTargetRef.name == $name and
+        .spec.metrics[0].resource.target.averageUtilization == $target and
+        .metadata.ownerReferences[0].kind == "Deployment"' <<<"$hpa" >/dev/null
+}
+
+config_autoscaler_absent() {
+    local id
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")
+    test -z "$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
+        get hpa "resource-${id}" --ignore-not-found -o name)"
+}
+
+test_g06_scaling_targets_reach_the_worker() {
+    config_edit ".services.${config_cache}.regions.us-east-1.autoscaling.cpuTarget = 70"
+    assert "apply enables autoscaling" config_run autoscale infra apply --env "$config_env" --yes || return 1
+    wait_for "the controller to create the HPA" 60 config_autoscaler_matches 70
+    config_edit ".services.${config_cache}.regions.us-east-1.autoscaling.cpuTarget = 60"
+    assert "apply changes the target" config_run autoscale_update infra apply --env "$config_env" --yes || return 1
+    wait_for "the controller to update the HPA" 60 config_autoscaler_matches 60
+    config_edit "del(.services.${config_cache}.regions.us-east-1.autoscaling)"
+    assert "apply disables autoscaling" config_run autoscale_disable infra apply --env "$config_env" --yes || return 1
+    wait_for "the controller to remove the HPA" 60 config_autoscaler_absent
+}
+
 test_g07_removing_a_service_deletes_it() {
     local id
     id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")

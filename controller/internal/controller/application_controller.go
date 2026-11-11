@@ -27,6 +27,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -93,6 +94,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
+// +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
@@ -191,6 +193,9 @@ func (r *ApplicationReconciler) reconcileResources(
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
+	if err = r.ensureAutoscaler(ctx, app, dep); err != nil {
+		return ctrl.Result{}, err
+	}
 	setReplicaCounts(app, dep)
 	if runtimeErr := r.observeRuntimeProblem(
 		ctx,
@@ -224,7 +229,7 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}
 
-	replicas := app.Spec.ServiceSpec.Resources.Replicas.Min
+	replicas := app.Status.DesiredReplicas
 	if !deploymentReady(dep, replicas) {
 		if failure, found := deploymentFailure(dep); found {
 			setDegraded(app, failure)
@@ -349,6 +354,7 @@ func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov
 		&networkingv1.NetworkPolicy{Name: gatewayPolicyName, Namespace: namespace},
 		&networkingv1.NetworkPolicy{Name: getMetricsPolicyName(app), Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
+		&autoscalingv2.HorizontalPodAutoscaler{Name: name, Namespace: namespace},
 		&appsv1.Deployment{Name: name, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
@@ -641,7 +647,6 @@ func desiredDeployment(
 		return nil, err
 	}
 
-	replicas := app.Spec.ServiceSpec.Resources.Replicas.Min
 	selectorLabels := map[string]string{labelApp: name}
 	selector := metav1ac.LabelSelector().WithMatchLabels(selectorLabels)
 	surge := intstr.FromString("25%")
@@ -650,10 +655,13 @@ func desiredDeployment(
 		WithType(appsv1.RollingUpdateDeploymentStrategyType).
 		WithRollingUpdate(rollingUpdate)
 	deploymentSpec := appsv1ac.DeploymentSpec().
-		WithReplicas(replicas).
 		WithSelector(selector).
 		WithStrategy(strategy).
 		WithTemplate(template)
+
+	if !app.Spec.ServiceSpec.Resources.Scalers.Enabled {
+		deploymentSpec.WithReplicas(app.Spec.ServiceSpec.Resources.Replicas.Min)
+	}
 
 	labels := workloadLabels(app)
 	annotations := ownerAnnotations(app)
@@ -856,6 +864,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, applicationHandler).
+		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
 		Watches(&corev1.Pod{}, applicationHandler).
 		Watches(&corev1.Service{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).

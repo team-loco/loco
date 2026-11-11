@@ -29,3 +29,19 @@ func TestProtocolAutoscaling(t *testing.T) {
 		})
 	}
 }
+
+func TestProtocolAutoscalingReplicaBounds(t *testing.T) {
+	for name, bounds := range map[string][2]int32{"valid": {1, 3}, "zero min": {0, 3}, "max below min": {3, 2}} {
+		t.Run(name, func(t *testing.T) {
+			service := &deploymentv1.ServiceDeploymentSpec{
+				Build: &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}, Port: 8080,
+				MinReplicas: &bounds[0], MaxReplicas: &bounds[1],
+				Scalers: &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))},
+			}
+			err := protovalidate.Validate(service)
+			if (err == nil) != (name == "valid") {
+				t.Fatalf("validation = %v", err)
+			}
+		})
+	}
+}
