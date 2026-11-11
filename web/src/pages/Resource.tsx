@@ -18,7 +18,7 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
 import { environmentStatus } from "@/lib/resource-status";
@@ -109,7 +109,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		activeWorkspaceId !== null &&
 		workspaceLevel(activeOrgId, activeWorkspaceId) >= scopeLevel(Scope.READ);
 	const resourcesQuery = useTanstackQuery({
-		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
+		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
 		enabled: canListResources,
 	});
 

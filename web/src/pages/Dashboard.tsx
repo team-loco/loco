@@ -3,9 +3,11 @@ import { Link, useSearchParams } from "react-router";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
+import { ResourceAccess } from "@/components/ResourceAccess";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
@@ -36,7 +38,7 @@ function DashboardSkeleton() {
 export function Dashboard() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
-	const data = useDashboardData(activeWorkspaceId, active);
+	const data = useDashboardData(activeOrgId, activeWorkspaceId, active);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
 	const [params] = useSearchParams();
 
@@ -48,6 +50,7 @@ export function Dashboard() {
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
 	const heading = <h1 className="sr-only">Dashboard</h1>;
+	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
 
 	if (data.error !== null) {
 		return (
@@ -58,6 +61,19 @@ export function Dashboard() {
 						{getErrorMessage(data.error, "Failed to load resources")}
 					</EmptyState>
 				</Section>
+			</Page>
+		);
+	}
+
+	if (grants !== undefined && grants !== "workspace") {
+		return (
+			<Page>
+				{heading}
+				{data.isLoading ? (
+					<DashboardSkeleton />
+				) : (
+					<ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={data.resources} />
+				)}
 			</Page>
 		);
 	}

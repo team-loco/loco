@@ -9,6 +9,7 @@ import {
 } from "@gen/loco/resource/v1/resource_pb";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
 import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
@@ -40,9 +41,14 @@ function regionReplicas(resource: Resource, environment: EnvironmentStatus | und
 	});
 }
 
-export function useDashboardData(workspaceId: string | null, env: Environment | undefined) {
-	const { resources, deployments, isLoading, error } = useWorkspaceDeployments(workspaceId);
-	const regionsQuery = useQuery(listRegions, { environmentId: env?.id ?? "" }, { enabled: env !== undefined });
+export function useDashboardData(orgId: string | null, workspaceId: string | null, env: Environment | undefined) {
+	const { resources, deployments, isLoading, error } = useWorkspaceDeployments(orgId, workspaceId);
+	const readsWorkspace = useMyScopes().resourceGrants(orgId ?? "", workspaceId ?? "") === "workspace";
+	const regionsQuery = useQuery(
+		listRegions,
+		{ environmentId: env?.id ?? "" },
+		{ enabled: env !== undefined && readsWorkspace },
+	);
 
 	const envId = env?.id ?? "";
 	const envResources: EnvResource[] = [];
@@ -73,6 +79,7 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 	const regionInfos: RegionInfo[] = regionsQuery.data?.regions ?? [];
 
 	return {
+		resources,
 		envResources,
 		envDeployments,
 		regions: regionInfos,

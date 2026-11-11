@@ -6,6 +6,7 @@ import type { Token } from "@gen/loco/token/v1/token_pb";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 
 import { buildHeld, holds, nodeKey, withScopeEntities } from "./model";
@@ -105,8 +106,11 @@ export function useTokenData(): TokenData {
 	const scopesQuery = useQuery(getScopes, {});
 	const orgWorkspaces = workspaces.filter((w) => w.orgId === activeOrgId);
 
+	const { resourceGrants } = useMyScopes();
 	const resourceQueries = useQueries({
-		queries: orgWorkspaces.map((w) => workspaceResourcesOptions(transport, w.id)),
+		queries: orgWorkspaces.map((w) =>
+			workspaceResourcesOptions(transport, w.id, resourceGrants(activeOrgId ?? "", w.id)),
+		),
 	});
 	const resources = resourceQueries.flatMap((q) => q.data?.resources ?? []);
 	const resourcesLoading = resourceQueries.some((q) => q.isPending || q.isFetching);

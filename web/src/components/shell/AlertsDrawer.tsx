@@ -1,4 +1,3 @@
-import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { BellIcon, ScrollTextIcon } from "lucide-react";
 import { useState } from "react";
@@ -11,7 +10,7 @@ import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel } from "@/lib/time";
@@ -64,13 +63,12 @@ function AlertCard({
 
 export function AlertsDrawer() {
 	const [open, setOpen] = useState(false);
-	const transport = useTransport();
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
 	const resources = useQuery({
-		...workspaceResourcesOptions(transport, activeWorkspaceId ?? ""),
-		enabled: activeWorkspaceId !== null && active !== undefined,
+		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
+		enabled: activeOrgId !== null && activeWorkspaceId !== null && active !== undefined,
 	});
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;

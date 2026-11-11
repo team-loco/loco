@@ -42,7 +42,7 @@ function ViewToggle() {
 export function Resources() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, isLoading: envsLoading } = useEnvironments();
-	const data = useWorkspaceDeployments(activeWorkspaceId);
+	const data = useWorkspaceDeployments(activeOrgId, activeWorkspaceId);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
 	const [params, setParams] = useSearchParams();
 	const orgId = activeOrgId ?? "";

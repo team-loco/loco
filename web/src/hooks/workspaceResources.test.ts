@@ -2,14 +2,14 @@ import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
 import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { createConnectQueryKey, createQueryOptions } from "@connectrpc/connect-query";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, skipToken } from "@tanstack/react-query";
 import {
 	ListWorkspaceResourcesResponseSchema,
 	ResourceService,
 	type ListWorkspaceResourcesRequest,
 } from "@gen/loco/resource/v1/resource_pb";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
-import { workspaceResourcesOptions } from "./workspaceResources";
+import { workspaceResourcesKey, workspaceResourcesOptions } from "./workspaceResources";
 
 const clientOptions = { defaultOptions: { queries: { retry: false } } };
 
@@ -34,7 +34,7 @@ describe("complete workspace resources", () => {
 		});
 		const client = new QueryClient(clientOptions);
 		try {
-			const response = await client.query(workspaceResourcesOptions(transport, "workspace"));
+			const response = await client.query(workspaceResourcesOptions(transport, "workspace", "workspace"));
 			expect(response.resources).toHaveLength(201);
 			expect(response.resources.at(-1)?.id).toBe("resource-201");
 			expect(response.nextPageToken).toBe("");
@@ -59,7 +59,7 @@ describe("complete workspace resources", () => {
 			});
 		});
 		const client = new QueryClient(clientOptions);
-		const options = workspaceResourcesOptions(transport, "workspace");
+		const options = workspaceResourcesOptions(transport, "workspace", "workspace");
 		try {
 			expect(await client.query(options).catch(String)).toContain("Resource list unavailable");
 			const partial = client.getQueryData(options.queryKey);
@@ -85,9 +85,9 @@ describe("complete workspace resources", () => {
 		});
 		const client = new QueryClient(clientOptions);
 		try {
-			expect(await client.query(workspaceResourcesOptions(transport, "workspace")).catch(String)).toContain(
-				"complete list",
-			);
+			expect(
+				await client.query(workspaceResourcesOptions(transport, "workspace", "workspace")).catch(String),
+			).toContain("complete list");
 		} finally {
 			client.clear();
 		}
@@ -95,17 +95,18 @@ describe("complete workspace resources", () => {
 
 	test("separates complete lists from first pages and retains RPC invalidation", async () => {
 		const transport = createRouterTransport(() => {});
-		const options = workspaceResourcesOptions(transport, "workspace");
+		const options = workspaceResourcesOptions(transport, "workspace", "workspace");
 		const firstPage = createQueryOptions(
 			listWorkspaceResources,
 			{ workspaceId: "workspace", pageSize: 200 },
 			{ transport },
 		);
 		expect(options.queryKey).not.toEqual(firstPage.queryKey);
-		expect(options.queryKey).not.toEqual(workspaceResourcesOptions(transport, "other").queryKey);
+		expect(options.queryKey).not.toEqual(workspaceResourcesOptions(transport, "other", "workspace").queryKey);
 		expect(options.queryKey).not.toEqual(
 			workspaceResourcesOptions(
 				createRouterTransport(() => {}),
+				"workspace",
 				"workspace",
 			).queryKey,
 		);
@@ -136,10 +137,11 @@ describe("complete workspace resources", () => {
 				},
 			});
 		});
-		const options = workspaceResourcesOptions(transport, "workspace");
+		const options = workspaceResourcesOptions(transport, "workspace", "workspace");
+		if (typeof options.queryFn !== "function") throw new Error("query is skipped");
 		expect(
 			await Promise.resolve(
-				options.queryFn!({
+				options.queryFn({
 					signal: controller.signal,
 					queryKey: options.queryKey,
 					client: new QueryClient(),
@@ -148,5 +150,42 @@ describe("complete workspace resources", () => {
 			).catch(String),
 		).toContain("canceled");
 		expect(calls).toBe(1);
+	});
+
+	test("fetches each granted resource for a caller who cannot read the workspace", async () => {
+		const requested: string[] = [];
+		const transport = createRouterTransport((router) => {
+			router.service(ResourceService, {
+				listWorkspaceResources() {
+					throw new ConnectError("denied", Code.PermissionDenied);
+				},
+				getResource(request) {
+					const id = request.key.case === "resourceId" ? request.key.value : "";
+					requested.push(id);
+					return { resource: { id, workspaceId: id === "elsewhere" ? "other" : "workspace" } };
+				},
+			});
+		});
+		const client = new QueryClient(clientOptions);
+		try {
+			const options = workspaceResourcesOptions(transport, "workspace", ["api", "elsewhere", "web"]);
+			const response = await client.query(options);
+			expect(response.resources.map((r) => r.id)).toEqual(["api", "web"]);
+			expect(requested).toEqual(["api", "elsewhere", "web"]);
+			await client.invalidateQueries({ queryKey: workspaceResourcesKey(transport, "workspace") });
+			expect(client.getQueryState(options.queryKey)?.isInvalidated).toBe(true);
+			expect(options.queryKey).not.toEqual(workspaceResourcesOptions(transport, "workspace", "workspace").queryKey);
+		} finally {
+			client.clear();
+		}
+	});
+
+	test("waits until the grants are known", () => {
+		const options = workspaceResourcesOptions(
+			createRouterTransport(() => {}),
+			"workspace",
+			undefined,
+		);
+		expect(options.queryFn).toBe(skipToken);
 	});
 });

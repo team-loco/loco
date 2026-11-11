@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import type { Paging } from "@/lib/paging";
 import type { ObservabilityView } from "@/lib/routes";
@@ -75,8 +76,9 @@ export function ObsProvider({
 }) {
 	const transport = useTransport();
 	const [params, setParams] = useSearchParams();
+	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
-		workspaceResourcesOptions(transport, workspaceId),
+		workspaceResourcesOptions(transport, workspaceId, grants),
 	);
 
 	const maxMs = maxSpanFor(view);
