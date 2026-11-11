@@ -1,7 +1,8 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { resendInvitation } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import type { Invitation } from "@gen/loco/org/v1/org_pb";
+import { resendInvitation, setOrgMemberRole } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
+import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
@@ -18,11 +20,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { userLabel } from "@/lib/user";
 import { usePagedRows } from "@/lib/paging";
 
 import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
-import { buildRows, invitationBadge, VIEWS, type Member, type ScopeName, type View } from "./team/model";
+import { buildRows, invitationBadge, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
 import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
@@ -42,6 +45,9 @@ export function Team() {
 	const data = useTeamData(orgId);
 	const now = useNow(NOW_TICK_MS).getTime();
 	const resend = useMutation(resendInvitation);
+	const changeRole = useMutation(setOrgMemberRole);
+	const queryClient = useQueryClient();
+	const [roleChange, setRoleChange] = useState<{ userId: string; name: string; role: Role } | null>(null);
 	const [view, setView] = useState<View>("all");
 	const [q, setQ] = useState("");
 	const [accessId, setAccessId] = useState<string | null>(null);
@@ -81,6 +87,22 @@ export function Team() {
 			toastConnectError(err, "Failed to resend the invitation");
 		} finally {
 			await data.invalidateInvitations();
+		}
+	};
+
+	const doChangeRole = async () => {
+		if (roleChange === null) return;
+		try {
+			await changeRole.mutateAsync({
+				orgId,
+				userId: roleChange.userId,
+				role: roleChange.role === "Admin" ? OrgRole.ADMIN : OrgRole.MEMBER,
+			});
+			setRoleChange(null);
+			toast("Organization role updated");
+			await queryClient.invalidateQueries();
+		} catch (err) {
+			toastConnectError(err, "Failed to change the organization role");
 		}
 	};
 
@@ -137,6 +159,10 @@ export function Team() {
 						meId,
 						orgName,
 						canManageInvitations: canInvite,
+						onRole: (member, role) => {
+							const target = member.member.user;
+							if (target !== undefined) setRoleChange({ userId: target.id, name: userLabel(target), role });
+						},
 						onAccess: (m: Member) => {
 							setAccessId(m.member.user?.id ?? null);
 						},
@@ -242,6 +268,24 @@ export function Team() {
 					setAccessId(null);
 				}}
 				onChanged={data.invalidateAccess}
+			/>
+			<ConfirmDialog
+				open={roleChange !== null}
+				title={`Change ${roleChange?.name ?? "member"} to ${roleChange?.role ?? "Member"}?`}
+				description={
+					roleChange?.role === "Admin"
+						? "Admins can manage the organization and every workspace, invite members and change roles."
+						: "Members keep their explicit workspace grants and lose organization admin access."
+				}
+				confirmLabel="Change role"
+				pendingLabel="Changing…"
+				pending={changeRole.isPending}
+				onConfirm={() => {
+					void doChangeRole();
+				}}
+				onClose={() => {
+					setRoleChange(null);
+				}}
 			/>
 			<RevokeInvitationDialog
 				invitation={revoking}

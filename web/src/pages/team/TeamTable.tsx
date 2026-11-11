@@ -5,7 +5,14 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuTrigger,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+} from "@/components/design/DropdownMenu";
 import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -16,7 +23,7 @@ import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 
 import { MemberAvatar } from "./MemberAvatar";
-import { invitationBadge, levelOf, roleOf, untilLabel, type Member, type TeamRow } from "./model";
+import { invitationBadge, levelOf, roleOf, untilLabel, type Member, type Role, type TeamRow } from "./model";
 
 const SKELETON_ROWS = [0, 1, 2, 3];
 const COLUMNS = 7;
@@ -26,6 +33,7 @@ export interface RowActions {
 	orgName: string;
 	canManageInvitations: boolean;
 	onAccess: (member: Member) => void;
+	onRole: (member: Member, role: Role) => void;
 	onCopyLink: (invitation: Invitation) => void;
 	onResend: (invitation: Invitation) => void;
 	onRevoke: (invitation: Invitation) => void;
@@ -73,18 +81,38 @@ function MemberRow({
 				</Badge>
 			</TableCell>
 			<TableCell>
-				<Button
-					variant="ghost"
-					size="xs"
-					disabled
-					aria-haspopup="menu"
-					title="Changing roles is coming soon"
-					className="-ml-2 gap-1 text-[13px] text-foreground disabled:opacity-100"
-				>
-					{role}
-					<ChevronDownIcon className="text-fg4" />
-					<SoonTag />
-				</Button>
+				<DropdownMenu>
+					<DropdownMenuTrigger
+						render={
+							<Button
+								variant="ghost"
+								size="xs"
+								disabled={!actions.canManageInvitations}
+								aria-label={`Change role for ${name}`}
+								title={actions.canManageInvitations ? undefined : "Only organization admins can change roles"}
+								className="-ml-2 gap-1 text-[13px] text-foreground disabled:opacity-100"
+							/>
+						}
+					>
+						{role}
+						<ChevronDownIcon className="text-fg4" />
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start">
+						<DropdownMenuGroup>
+							{(["Admin", "Member"] as const).map((next) => (
+								<DropdownMenuItem
+									key={next}
+									disabled={next === role}
+									onClick={() => {
+										actions.onRole(member, next);
+									}}
+								>
+									{next}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuGroup>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</TableCell>
 			<TableCell className="whitespace-normal">
 				{member.workspaces.length === 0 && accessLoading && <Skeleton className="h-5 w-32" />}
