@@ -37,6 +37,19 @@ tests:
           path: spec.configuration.users["loco_reader/password"].valueFrom.secretKeyRef
           value: {name: loco-clickhouse-reader, key: password}
 
+  - it: keeps the ingest user's inserts out of the query log
+    template: charts/clickhouse/templates/chi.yaml
+    asserts:
+      - equal:
+          path: spec.configuration.users["loco_ingest/profile"]
+          value: loco_ingest
+      - equal:
+          path: spec.configuration.profiles["loco_ingest/log_queries"]
+          value: "0"
+      - equal:
+          path: spec.configuration.profiles["loco_ingest/profile"]
+          value: default
+
   - it: wires each proxy role to the user its grant needs
     asserts:
       - contains:
