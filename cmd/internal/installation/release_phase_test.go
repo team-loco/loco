@@ -116,7 +116,10 @@ func TestResumedPhasesRejectReleaseChangedWhileAcquiringLock(t *testing.T) {
 				controlPlane.Kubernetes = target
 				config := Config{
 					Name: testInstallation, ControlPlane: controlPlane,
-					Workers: []Worker{{Name: testStaging, Kubernetes: target}},
+					Workers: []Worker{{
+						Name: testStaging, Kubernetes: target,
+						MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+					}},
 				}
 				ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 				defer cancel()

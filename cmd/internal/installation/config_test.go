@@ -241,25 +241,34 @@ func TestConfigurationVersion(t *testing.T) {
 }
 
 func TestWorkerMetricsServerOptions(t *testing.T) {
-	for _, options := range []string{
-		"{}", "{enabled: false}", "{enabled: true}",
-		"{kubeletInsecureTLS: true}", "{kubeletInsecureTLS: false}", "{enabled: false, kubeletInsecureTLS: true}",
+	for _, tt := range []struct {
+		options string
+		valid   bool
+	}{
+		{options: "{enabled: true, kubeletInsecureTLS: false}", valid: true},
+		{options: "{enabled: false, kubeletInsecureTLS: false}", valid: true},
+		{options: "{enabled: true, kubeletInsecureTLS: true}", valid: true},
+		{options: "{enabled: false, kubeletInsecureTLS: true}", valid: true},
+		{options: ""}, {options: "{}"}, {options: "null"}, {options: "false"},
+		{options: "{enabled: true}"}, {options: "{kubeletInsecureTLS: false}"},
+		{options: "{enabled: null, kubeletInsecureTLS: false}"},
+		{options: "{enabled: 'false', kubeletInsecureTLS: false}"},
+		{options: "{enabled: 1, kubeletInsecureTLS: false}"},
+		{options: "{enabled: true, kubeletInsecureTLS: null}"},
+		{options: "{enabled: true, kubeletInsecureTLS: 'true'}"},
+		{options: "{enabled: true, kubeletInsecureTLS: false, unknown: true}"},
+		{options: "{enabled: true, enabled: false, kubeletInsecureTLS: false}"},
 	} {
-		t.Run(options, func(t *testing.T) {
-			data := strings.Replace(string(example(t)), "    builds:", "    metricsServer: "+options+"\n    builds:", 1)
-			if _, err := Parse([]byte(data)); err != nil {
-				t.Fatal(err)
+		t.Run(tt.options, func(t *testing.T) {
+			line := ""
+			if tt.options != "" {
+				line = "    metricsServer: " + tt.options + "\n"
 			}
-		})
-	}
-	for _, options := range []string{
-		"null", "false", "{enabled: null}", "{enabled: 'false'}", "{enabled: 1}",
-		"{kubeletInsecureTLS: null}", "{kubeletInsecureTLS: 'true'}", "{unknown: true}", "{enabled: true, enabled: false}",
-	} {
-		t.Run(options, func(t *testing.T) {
-			data := strings.Replace(string(example(t)), "    builds:", "    metricsServer: "+options+"\n    builds:", 1)
-			if _, err := Parse([]byte(data)); err == nil {
-				t.Fatal("invalid metrics-server options accepted")
+			data := strings.Replace(string(example(t)),
+				"    metricsServer: {enabled: true, kubeletInsecureTLS: false}\n", line, 1)
+			_, err := Parse([]byte(data))
+			if (err == nil) != tt.valid {
+				t.Fatalf("valid = %t, error = %v", tt.valid, err)
 			}
 		})
 	}

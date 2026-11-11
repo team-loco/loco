@@ -31,6 +31,7 @@ func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
 		Version int `json:"version"`
 		Workers []struct {
 			MetricsServer struct {
+				Enabled            bool `json:"enabled"`
 				KubeletInsecureTLS bool `json:"kubeletInsecureTLS"`
 			} `json:"metricsServer"`
 		} `json:"workers"`
@@ -41,7 +42,8 @@ func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
 	if installation.Version != 1 {
 		t.Fatalf("fixture version = %d, want integer 1", installation.Version)
 	}
-	if len(installation.Workers) != 1 || !installation.Workers[0].MetricsServer.KubeletInsecureTLS {
+	if len(installation.Workers) != 1 || !installation.Workers[0].MetricsServer.Enabled ||
+		!installation.Workers[0].MetricsServer.KubeletInsecureTLS {
 		t.Fatal("kind worker must opt into unsigned kubelet serving certificates")
 	}
 }

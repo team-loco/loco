@@ -92,7 +92,10 @@ func TestLostWorkerStateUsesCanonicalRegistrationAndRequiresOriginalKey(t *testi
 	err = kube.applyWorker(
 		t.Context(),
 		Config{ControlPlane: ControlPlane{APIURL: api.URL}},
-		Worker{Name: testStaging, Region: "us-east-1", Tier: testStaging},
+		Worker{
+			Name: testStaging, Region: "us-east-1", Tier: testStaging,
+			MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+		},
 		releaseArtifacts{},
 		replacement,
 		"control-plane-id",

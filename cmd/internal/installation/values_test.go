@@ -57,9 +57,10 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		t.Fatal("API and dashboard must use the configured OIDC client")
 	}
 	worker := Worker{
-		Region:     canary,
-		AppsDomain: "apps.example.com",
-		Builds:     Builds{PrivateEgress: []PrivateEgress{{CIDR: "10.0.0.1/32", Port: 443}}},
+		MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+		Region:        canary,
+		AppsDomain:    "apps.example.com",
+		Builds:        Builds{PrivateEgress: []PrivateEgress{{CIDR: "10.0.0.1/32", Port: 443}}},
 	}
 	rendered, err := workerValues(config, worker, releaseFixture())
 	if err != nil {
@@ -87,31 +88,26 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 
 func TestWorkerMetricsServerValues(t *testing.T) {
 	for _, tt := range []struct {
-		name    string
-		options string
-		want    string
+		name string
+		spec MetricsServer
+		want string
 	}{
-		{name: "omitted"},
-		{name: "empty", options: "{}"},
-		{name: "disabled", options: "{enabled: false}", want: "enabled: false"},
-		{name: "enabled", options: "{enabled: true}", want: "enabled: true"},
-		{name: "insecure", options: "{kubeletInsecureTLS: true}", want: "args: [--kubelet-insecure-tls]"},
-		{name: "secure", options: "{kubeletInsecureTLS: false}", want: "args: []"},
-		{
-			name: "both", options: "{enabled: true, kubeletInsecureTLS: true}",
-			want: "enabled: true\nargs: [--kubelet-insecure-tls]",
-		},
+		{name: "disabled secure", spec: MetricsServer{Enabled: false, KubeletInsecureTLS: false},
+			want: "enabled: false\nargs: []"},
+		{name: "enabled secure", spec: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+			want: "enabled: true\nargs: []"},
+		{name: "enabled insecure", spec: MetricsServer{Enabled: true, KubeletInsecureTLS: true},
+			want: "enabled: true\nargs: [--kubelet-insecure-tls]"},
+		{name: "disabled insecure", spec: MetricsServer{Enabled: false, KubeletInsecureTLS: true},
+			want: "enabled: false\nargs: [--kubelet-insecure-tls]"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			data := string(example(t))
-			if tt.options != "" {
-				data = strings.Replace(data, "    builds:", "    metricsServer: "+tt.options+"\n    builds:", 1)
-			}
-			config, err := Parse([]byte(data))
+			config, err := Parse(example(t))
 			if err != nil {
 				t.Fatal(err)
 			}
-			rendered, err := workerValues(*config, config.Workers[0], releaseFixture())
+			worker := Worker{MetricsServer: tt.spec}
+			rendered, err := workerValues(*config, worker, releaseFixture())
 			if err != nil {
 				t.Fatal(err)
 			}

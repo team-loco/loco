@@ -90,7 +90,7 @@ type IssuerRef struct {
 }
 
 type Worker struct {
-	MetricsServer *MetricsServer   `json:"metricsServer" yaml:"metricsServer"`
+	MetricsServer MetricsServer    `json:"metricsServer" yaml:"metricsServer"`
 	Name          string           `json:"name"          yaml:"name"`
 	Kubernetes    KubernetesTarget `json:"kubernetes"    yaml:"kubernetes"`
 	Region        string           `json:"region"        yaml:"region"`
@@ -113,6 +113,6 @@ type Builds struct {
 }
 
 type MetricsServer struct {
-	Enabled            *bool `json:"enabled"            yaml:"enabled"`
-	KubeletInsecureTLS *bool `json:"kubeletInsecureTLS" yaml:"kubeletInsecureTLS"`
+	Enabled            bool `json:"enabled"            yaml:"enabled"`
+	KubeletInsecureTLS bool `json:"kubeletInsecureTLS" yaml:"kubeletInsecureTLS"`
 }

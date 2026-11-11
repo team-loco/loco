@@ -48,6 +48,7 @@ workers:
     region: us-east-1
     tier: staging
     appsDomain: staging.apps.example.com
+    metricsServer: {enabled: true, kubeletInsecureTLS: false}
     builds: {enabled: true, privateEgress: []}
     certificates:
       issuerRef: {name: example-issuer, kind: ClusterIssuer}

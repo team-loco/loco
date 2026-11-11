@@ -17,7 +17,7 @@ locoadm verify --file installation.yaml --worker staging-us --environment ENVIRO
 
 `validate`, `verify` and `recovery export` default to `installation.yaml`; `plan`, `apply`, `status` and `bootstrap` require `--file`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
-Fields below are required except `workers[].metricsServer` and its settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
+Every field below is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
 
 | Field | Value |
 | --- | --- |
@@ -49,11 +49,9 @@ Fields below are required except `workers[].metricsServer` and its settings. `wo
 | `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
 | `workers[].builds.enabled` | Whether this worker runs source builds |
 | `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
-| `workers[].metricsServer.enabled` | Optional boolean; `false` uses an existing `metrics.k8s.io` provider instead of installing metrics-server |
-| `workers[].metricsServer.kubeletInsecureTLS` | Optional boolean; `true` skips kubelet certificate verification for clusters without CA-signed kubelet serving certificates |
+| `workers[].metricsServer.enabled` | `false` uses an existing `metrics.k8s.io` provider instead of installing metrics-server |
+| `workers[].metricsServer.kubeletInsecureTLS` | `true` skips kubelet certificate verification for clusters without CA-signed kubelet serving certificates |
 | `workers[].certificates.issuerRef` | Existing issuer's `name` and `kind` |
-
-Omitted metrics-server settings use the worker chart defaults: enabled with kubelet certificate verification.
 
 URLs use HTTP or HTTPS and contain no user information, query string or fragment. Use HTTPS for public services. HTTP permits isolated local fixtures. Domains contain lowercase DNS labels. Input Secret names resolve in the control-plane context and namespace; certificate issuer references resolve at their declared target.
 

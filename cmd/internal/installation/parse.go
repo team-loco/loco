@@ -145,9 +145,6 @@ func validate(cfg Config) error {
 }
 
 func shape(raw any, typ reflect.Type, path string) error {
-	if typ.Kind() == reflect.Pointer {
-		typ = typ.Elem()
-	}
 	switch typ.Kind() {
 	case reflect.Struct:
 		object, ok := raw.(map[any]any)
@@ -162,9 +159,6 @@ func shape(raw any, typ reflect.Type, path string) error {
 			}
 			value, exists := object[name]
 			if !exists {
-				if definition.Type.Kind() == reflect.Pointer {
-					continue
-				}
 				return fmt.Errorf("%s: %w", next, errRequired)
 			}
 			if err := shape(value, definition.Type, next); err != nil {
