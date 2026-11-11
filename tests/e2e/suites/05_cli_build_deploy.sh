@@ -100,6 +100,10 @@ test_c05_cli_deploys_without_loco_yaml() {
 
 cli_secret_matches() {
     local expected=$1 id value
+    # The pod can start before the agent reports rollout completion to the API.
+    test "$(loco_cli resource status e2e-cli-secret --output json |
+        yq -p json -r '.resource.environmentStatuses[] | select(.environmentName == "production") | .regions[].deploymentStatus')" \
+        = DEPLOYMENT_PHASE_RUNNING || return 1
     id=$(e2e_psql "SELECT id FROM resources WHERE name = 'e2e-cli-secret' AND workspace_id = '${cli_workspace_id}'")
     value=$(kubectl --context "$cli_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
         exec "deployment/resource-${id}" -- printenv E2E_SECRET) || return 1
@@ -130,6 +134,8 @@ cli_deploy_secret() {
 test_c07_cli_rotates_a_secret() {
     assert "loco env set rotates the secret" \
         loco_cli env set --service e2e-cli-secret --env production E2E_SECRET=e2e-secret-rotated
+    assert "the secret rotation rollout finishes before redeploying" \
+        wait_for "the rotated secret and API rollout completion" 120 cli_secret_matches e2e-secret-rotated
     assert "loco deploy reapplies the service after rotation" cli_deploy_secret
     assert "the running pod receives the rotated secret through Transit" \
         wait_for "the rotated secret in the pod" 120 cli_secret_matches e2e-secret-rotated
