@@ -18,11 +18,9 @@ import (
 )
 
 const (
-	buildCommand      = "loco-obs-proxy"
-	compression       = "lz4"
-	dialTimeoutParam  = "dial_timeout"
-	logQueriesParam   = "log_queries"
-	logQueriesDisable = "0"
+	buildCommand     = "loco-obs-proxy"
+	compression      = "lz4"
+	dialTimeoutParam = "dial_timeout"
 )
 
 var errExporterConfig = errors.New("clickhouse exporter returned an unexpected config type")
@@ -60,7 +58,6 @@ func exporterConfig(factory exporter.Factory, cfg Config) (*clickhouseexporter.C
 	exporterCfg.Compress = compression
 	exporterCfg.ConnectionParams = map[string]string{
 		dialTimeoutParam: cfg.DialTimeout.String(),
-		logQueriesParam:  logQueriesDisable,
 	}
 	exporterCfg.TimeoutSettings.Timeout = cfg.Timeout
 	exporterCfg.QueueSettings = configoptional.None[exporterhelper.QueueBatchConfig]()

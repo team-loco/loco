@@ -594,3 +594,48 @@ func TestWaitForSchemaBlocksUntilMigrated(t *testing.T) {
 		t.Fatalf("WaitForSchema after migrations = %v", err)
 	}
 }
+
+func TestIngestWorksWhenTheServerLocksLogQueries(t *testing.T) {
+	f := newIngestFixture(t)
+	user := f.database + "_writer"
+	profile := f.database + "_profile"
+	t.Cleanup(func() {
+		if err := f.admin.Exec(context.Background(), "DROP SETTINGS PROFILE IF EXISTS "+profile); err != nil {
+			t.Errorf("drop %s: %v", profile, err)
+		}
+	})
+	for _, statement := range []string{
+		"CREATE SETTINGS PROFILE " + profile + " SETTINGS log_queries = 1 READONLY",
+		"ALTER USER " + user + " SETTINGS PROFILE '" + profile + "'",
+	} {
+		if err := f.admin.Exec(t.Context(), statement); err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+	}
+
+	f.migrate(t)
+	writer := f.writer(t)
+	ctx, cancel := context.WithTimeout(t.Context(), testIngestTimeout)
+	defer cancel()
+	if err := WaitForSchema(ctx, f.ingestConn(t), f.database, writer.Tables(), testWaitInterval); err != nil {
+		t.Fatalf("WaitForSchema: %v", err)
+	}
+	if err := writer.Start(t.Context()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := writer.Shutdown(context.Background()); err != nil {
+			t.Errorf("Shutdown: %v", err)
+		}
+	})
+	if err := writer.Consumers().Logs.ConsumeLogs(t.Context(), testLogs(time.Now().UTC())); err != nil {
+		t.Fatalf("ConsumeLogs: %v", err)
+	}
+	var rows uint64
+	if err := f.admin.QueryRow(t.Context(), "SELECT count() FROM "+f.database+".otel_logs").Scan(&rows); err != nil {
+		t.Fatalf("count logs: %v", err)
+	}
+	if rows != 1 {
+		t.Fatalf("otel_logs rows = %d, want 1", rows)
+	}
+}
