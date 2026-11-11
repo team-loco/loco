@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
@@ -63,8 +64,11 @@ func (s *workspaceListServer) ListUserWorkspaces(
 	ctx context.Context,
 	req *workspacev1.ListUserWorkspacesRequest,
 ) (*workspacev1.ListUserWorkspacesResponse, error) {
-	if s.orgID != "" || req.GetUserId() != testListUserID {
+	if s.orgID != "" || req.GetUserId() != "" {
 		s.t.Errorf("wrong user scope: %q", req.GetUserId())
+	}
+	if req.GetPageSize() != 0 {
+		s.t.Errorf("page size = %d, want API default", req.GetPageSize())
 	}
 	rows, next, err := s.next(ctx, req.GetPageToken())
 	return &workspacev1.ListUserWorkspacesResponse{Workspaces: rows, NextPageToken: next}, err
@@ -133,7 +137,7 @@ func TestListWorkspacesFollowsOpaquePages(t *testing.T) {
 					case "opaque/cursor":
 						return nil, "empty-page/cursor", nil
 					case "empty-page/cursor":
-						return []*workspacev1.Workspace{{Id: "last", Name: "Two"}}, "", nil
+						return []*workspacev1.Workspace{{Id: "last", Name: "Two", OrgId: testOrgID}}, "", nil
 					default:
 						t.Errorf("unexpected cursor %q", cursor)
 						return nil, "", nil
@@ -150,15 +154,33 @@ func TestListWorkspacesFollowsOpaquePages(t *testing.T) {
 			if len(fake.listCursors) != 3 {
 				t.Fatalf("requested %d pages, want 3", len(fake.listCursors))
 			}
-			expectedWho := 0
-			if orgID == "" {
-				expectedWho = 1
+			if fake.whoCalls != 0 {
+				t.Fatalf("WhoAmI calls = %d, want 0", fake.whoCalls)
 			}
-			if fake.whoCalls != expectedWho {
-				t.Fatalf("WhoAmI calls = %d, want %d", fake.whoCalls, expectedWho)
+			if orgID == "" {
+				id, resolveErr := resolveListedWorkspace(t)
+				if resolveErr != nil || id != "last" {
+					t.Fatalf("resolve listed workspace: id=%q error=%v", id, resolveErr)
+				}
+				if len(fake.listCursors) != 6 {
+					t.Fatalf("list and resolve requested %d pages, want 6", len(fake.listCursors))
+				}
 			}
 		})
 	}
+}
+
+func resolveListedWorkspace(t *testing.T) (string, error) {
+	t.Helper()
+	cmd := buildListCmd()
+	target, err := cmdutil.ResolveLogin(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Flags().String("org", testOrgID, "")
+	cmd.Flags().String("workspace", "Two", "")
+	load := func() (*session.SessionConfig, error) { return session.NewSessionConfig(), nil }
+	return cmdutil.ResolveWorkspaceID(t.Context(), cmd, load, target.Clients.Workspace)
 }
 
 func TestListWorkspacesRejectsPartialResults(t *testing.T) {
@@ -197,6 +219,12 @@ func TestListWorkspacesRejectsRepeatedPages(t *testing.T) {
 			)
 			if !errors.Is(err, cmdutil.ErrRepeatedPageToken) || output != "" || len(fake.listCursors) != 2 {
 				t.Fatalf("repeated page: output=%q error=%v calls=%d", output, err, len(fake.listCursors))
+			}
+			if orgID == "" {
+				_, resolveErr := resolveListedWorkspace(t)
+				if !errors.Is(resolveErr, cmdutil.ErrRepeatedPageToken) || len(fake.listCursors) != 4 {
+					t.Fatalf("resolve repeated page: error=%v calls=%d", resolveErr, len(fake.listCursors))
+				}
 			}
 		})
 	}

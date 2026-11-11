@@ -212,3 +212,21 @@ func TestResolveWorkspaceIDUsesTheSavedOrgID(t *testing.T) {
 		t.Fatalf("workspace id = %q, want ws-1 in the saved org-1", id)
 	}
 }
+
+func TestResolveWorkspaceIDUsesCachedSelection(t *testing.T) {
+	t.Setenv("LOCO_ORG", "")
+	t.Setenv("LOCO_WORKSPACE", "")
+	cfg := session.NewSessionConfig()
+	cfg.Scopes[session.DefaultScope] = &session.Scope{
+		Organization: session.SimpleOrg{ID: testFirstOrgID, Name: testOrgName},
+		Workspace:    session.SimpleWorkspace{ID: testFirstWorkspaceID, Name: testWorkspaceName},
+	}
+	load := func() (*session.SessionConfig, error) { return cfg, nil }
+	cmd := &cobra.Command{}
+	cmd.Flags().String("org", "", "")
+	cmd.Flags().String("workspace", "", "")
+	id, err := ResolveWorkspaceID(t.Context(), cmd, load, nil)
+	if err != nil || id != testFirstWorkspaceID {
+		t.Fatalf("cached selection: id=%q error=%v", id, err)
+	}
+}
