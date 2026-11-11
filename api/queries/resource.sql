@@ -136,3 +136,9 @@ SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.sp
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC;
+
+-- name: WorkspaceHoldsAnyResource :one
+SELECT EXISTS (
+  SELECT 1 FROM resources
+  WHERE workspace_id = $1 AND id = ANY(sqlc.arg('resource_ids')::uuid[])
+);

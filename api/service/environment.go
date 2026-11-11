@@ -127,8 +127,26 @@ func (s *EnvironmentServer) ListEnvironments(
 	if err != nil {
 		return nil, err
 	}
-	if err = authorize(ctx, s.authz, actions.ListEnvironments, workspaceID); err != nil {
+	p, err := principalFrom(ctx)
+	if err != nil {
 		return nil, err
+	}
+	readErr := check(ctx, s.authz, p, actions.New(actions.ListEnvironments, workspaceID))
+	if readErr != nil {
+		resourceIDs := grantedResourceIDs(p.Scopes)
+		if connect.CodeOf(readErr) != connect.CodePermissionDenied || len(resourceIDs) == 0 {
+			return nil, readErr
+		}
+		holds, holdsErr := s.queries.WorkspaceHoldsAnyResource(ctx, genDb.WorkspaceHoldsAnyResourceParams{
+			WorkspaceID: workspaceID,
+			ResourceIds: resourceIDs,
+		})
+		if holdsErr != nil {
+			return nil, fmt.Errorf("check resource grants: %w", holdsErr)
+		}
+		if !holds {
+			return nil, readErr
+		}
 	}
 
 	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
@@ -138,7 +156,18 @@ func (s *EnvironmentServer) ListEnvironments(
 
 	var protoEnvs []*environmentv1.Environment
 	for _, env := range envs {
-		protoEnvs = append(protoEnvs, dbEnvToProto(env))
+		if readErr == nil {
+			protoEnvs = append(protoEnvs, dbEnvToProto(env))
+			continue
+		}
+		// A caller who reads only resources in this workspace needs the environments to scope
+		// those resources' deployments and telemetry, not their details.
+		protoEnvs = append(protoEnvs, &environmentv1.Environment{
+			Id:          env.ID.String(),
+			WorkspaceId: env.WorkspaceID.String(),
+			Name:        env.Name,
+			Type:        stringToProtoEnvType(env.EnvironmentType),
+		})
 	}
 
 	return &environmentv1.ListEnvironmentsResponse{

@@ -550,7 +550,9 @@ export const EnvironmentService: GenService<{
     output: typeof GetEnvironmentResponseSchema;
   },
   /**
-   * ListEnvironments lists all environments in a workspace.
+   * ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
+   * but has a grant on one of its resources gets each environment with only id, workspace_id,
+   * name and type.
    *
    * @generated from rpc loco.environment.v1.EnvironmentService.ListEnvironments
    */
