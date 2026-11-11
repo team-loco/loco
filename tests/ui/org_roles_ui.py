@@ -38,7 +38,12 @@ with sync_playwright() as p:
         auth = {"idToken": owner["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
         context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)}, JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)}, {json.dumps(theme)});")
         page = context.new_page()
+        requests = []
+        page.on("request", lambda request: requests.append(request.url))
         page.goto(path)
+        page.wait_for_load_state("networkidle")
+        invitations_before = sum(url.endswith("/ListInvitations") for url in requests)
+        scopes_before = sum(url.endswith("/GetScopes") for url in requests)
         member_role = page.get_by_role("button", name="Change role for Max Member", exact=True)
         owner_role = page.get_by_role("button", name="Change role for Olivia Owner", exact=True)
         expect(member_role).to_have_text("Member")
@@ -65,12 +70,15 @@ with sync_playwright() as p:
         page.get_by_role("menuitem", name="Admin", exact=True).click()
         page.get_by_role("button", name="Change role", exact=True).click()
         expect(member_role).to_have_text("Admin")
+        assert sum(url.endswith("/GetScopes") for url in requests) == scopes_before
         owner_role.click()
         page.get_by_role("menuitem", name="Member", exact=True).click()
         page.get_by_role("button", name="Change role", exact=True).click()
         expect(owner_role).to_have_text("Member")
         expect(owner_role).to_be_disabled()
         expect(member_role).to_be_disabled()
+        assert sum(url.endswith("/GetScopes") for url in requests) > scopes_before
+        assert sum(url.endswith("/ListInvitations") for url in requests) == invitations_before
         member_token = state["users"]["member"]["token"]
         for user, role in (("owner", "ORG_ROLE_ADMIN"), ("member", "ORG_ROLE_MEMBER")):
             evidence.rpc(state["api_url"], member_token, "loco.org.v1.OrgService/SetOrgMemberRole", {

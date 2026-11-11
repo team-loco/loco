@@ -32,6 +32,7 @@ export interface RowActions {
 	meId: string;
 	orgName: string;
 	canManageInvitations: boolean;
+	canChangeRoles: boolean;
 	onAccess: (member: Member) => void;
 	onRole: (member: Member, role: Role) => void;
 	onCopyLink: (invitation: Invitation) => void;
@@ -87,9 +88,9 @@ function MemberRow({
 							<Button
 								variant="ghost"
 								size="xs"
-								disabled={!actions.canManageInvitations}
+								disabled={!actions.canChangeRoles}
 								aria-label={`Change role for ${name}`}
-								title={actions.canManageInvitations ? undefined : "Only organization admins can change roles"}
+								title={actions.canChangeRoles ? undefined : "Only organization admins can change roles"}
 								className="-ml-2 gap-1 text-[13px] text-foreground disabled:opacity-100"
 							/>
 						}

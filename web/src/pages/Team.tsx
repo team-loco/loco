@@ -2,7 +2,6 @@ import { useMutation } from "@connectrpc/connect-query";
 import { resendInvitation, setOrgMemberRole } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
@@ -46,7 +45,6 @@ export function Team() {
 	const now = useNow(NOW_TICK_MS).getTime();
 	const resend = useMutation(resendInvitation);
 	const changeRole = useMutation(setOrgMemberRole);
-	const queryClient = useQueryClient();
 	const [roleChange, setRoleChange] = useState<{ userId: string; name: string; role: Role } | null>(null);
 	const [view, setView] = useState<View>("all");
 	const [q, setQ] = useState("");
@@ -54,6 +52,7 @@ export function Team() {
 	const [revoking, setRevoking] = useState<Invitation | null>(null);
 
 	const canInvite = scopes.holds(orgId, "", Scope.ADMIN);
+	const canChangeRoles = scopes.holds(orgId, "", Scope.ADMIN);
 	const orgName = data.org?.name ?? "";
 	const inviteOpen = canInvite && params.get("invite") === "1";
 	const rows = buildRows(data.members, data.invitations, view, q, meId);
@@ -100,7 +99,7 @@ export function Team() {
 			});
 			setRoleChange(null);
 			toast("Organization role updated");
-			await queryClient.invalidateQueries();
+			await data.invalidateRoles(roleChange.userId === meId);
 		} catch (err) {
 			toastConnectError(err, "Failed to change the organization role");
 		}
@@ -159,6 +158,7 @@ export function Team() {
 						meId,
 						orgName,
 						canManageInvitations: canInvite,
+						canChangeRoles,
 						onRole: (member, role) => {
 							const target = member.member.user;
 							if (target !== undefined) setRoleChange({ userId: target.id, name: userLabel(target), role });
