@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -516,7 +517,7 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
             for argument in ("--tmpfs", extension["directory"])
         ]
         result = subprocess.run([
-            "docker", "run", "--rm", *storage_mounts,
+            "docker", "run", "--rm", "--user", str(os.getuid()), *storage_mounts,
             "--env", "MY_POD_IP=127.0.0.1", "--env", "OTEL_K8S_NODE_NAME=test-node",
             "--env", "OTEL_K8S_NODE_IP=127.0.0.1",
             "--env", "KUBERNETES_SERVICE_HOST=127.0.0.1", "--env", "KUBERNETES_SERVICE_PORT=443",
