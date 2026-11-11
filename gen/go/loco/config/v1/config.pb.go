@@ -67,6 +67,7 @@ type GetConfigResponse struct {
 	SchemaUrl                  string                 `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
 	OrgLinks                   []*OrgLink             `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
 	ApiTokenMaxLifetimeSeconds int64                  `protobuf:"varint,6,opt,name=api_token_max_lifetime_seconds,json=apiTokenMaxLifetimeSeconds,proto3" json:"api_token_max_lifetime_seconds,omitempty"`
+	SizeLimits                 *SizeLimits            `protobuf:"bytes,7,opt,name=size_limits,json=sizeLimits,proto3" json:"size_limits,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -143,6 +144,99 @@ func (x *GetConfigResponse) GetApiTokenMaxLifetimeSeconds() int64 {
 	return 0
 }
 
+func (x *GetConfigResponse) GetSizeLimits() *SizeLimits {
+	if x != nil {
+		return x.SizeLimits
+	}
+	return nil
+}
+
+// SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must
+// fall within; requests outside them are rejected.
+type SizeLimits struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	MinCpuMillis   int32                  `protobuf:"varint,1,opt,name=min_cpu_millis,json=minCpuMillis,proto3" json:"min_cpu_millis,omitempty"`
+	MaxCpuMillis   int32                  `protobuf:"varint,2,opt,name=max_cpu_millis,json=maxCpuMillis,proto3" json:"max_cpu_millis,omitempty"`
+	MinMemoryBytes int64                  `protobuf:"varint,3,opt,name=min_memory_bytes,json=minMemoryBytes,proto3" json:"min_memory_bytes,omitempty"`
+	MaxMemoryBytes int64                  `protobuf:"varint,4,opt,name=max_memory_bytes,json=maxMemoryBytes,proto3" json:"max_memory_bytes,omitempty"`
+	MinReplicas    int32                  `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
+	MaxReplicas    int32                  `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SizeLimits) Reset() {
+	*x = SizeLimits{}
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SizeLimits) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SizeLimits) ProtoMessage() {}
+
+func (x *SizeLimits) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SizeLimits.ProtoReflect.Descriptor instead.
+func (*SizeLimits) Descriptor() ([]byte, []int) {
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SizeLimits) GetMinCpuMillis() int32 {
+	if x != nil {
+		return x.MinCpuMillis
+	}
+	return 0
+}
+
+func (x *SizeLimits) GetMaxCpuMillis() int32 {
+	if x != nil {
+		return x.MaxCpuMillis
+	}
+	return 0
+}
+
+func (x *SizeLimits) GetMinMemoryBytes() int64 {
+	if x != nil {
+		return x.MinMemoryBytes
+	}
+	return 0
+}
+
+func (x *SizeLimits) GetMaxMemoryBytes() int64 {
+	if x != nil {
+		return x.MaxMemoryBytes
+	}
+	return 0
+}
+
+func (x *SizeLimits) GetMinReplicas() int32 {
+	if x != nil {
+		return x.MinReplicas
+	}
+	return 0
+}
+
+func (x *SizeLimits) GetMaxReplicas() int32 {
+	if x != nil {
+		return x.MaxReplicas
+	}
+	return 0
+}
+
 type OrgLink struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Label         string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
@@ -153,7 +247,7 @@ type OrgLink struct {
 
 func (x *OrgLink) Reset() {
 	*x = OrgLink{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	mi := &file_loco_config_v1_config_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -165,7 +259,7 @@ func (x *OrgLink) String() string {
 func (*OrgLink) ProtoMessage() {}
 
 func (x *OrgLink) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	mi := &file_loco_config_v1_config_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -178,7 +272,7 @@ func (x *OrgLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrgLink.ProtoReflect.Descriptor instead.
 func (*OrgLink) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *OrgLink) GetLabel() string {
@@ -206,7 +300,7 @@ type AuthConfig struct {
 
 func (x *AuthConfig) Reset() {
 	*x = AuthConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[3]
+	mi := &file_loco_config_v1_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -218,7 +312,7 @@ func (x *AuthConfig) String() string {
 func (*AuthConfig) ProtoMessage() {}
 
 func (x *AuthConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[3]
+	mi := &file_loco_config_v1_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +325,7 @@ func (x *AuthConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthConfig.ProtoReflect.Descriptor instead.
 func (*AuthConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{3}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AuthConfig) GetIssuer() string {
@@ -278,7 +372,7 @@ type DefaultServiceConfig struct {
 
 func (x *DefaultServiceConfig) Reset() {
 	*x = DefaultServiceConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[4]
+	mi := &file_loco_config_v1_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -290,7 +384,7 @@ func (x *DefaultServiceConfig) String() string {
 func (*DefaultServiceConfig) ProtoMessage() {}
 
 func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[4]
+	mi := &file_loco_config_v1_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -303,7 +397,7 @@ func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefaultServiceConfig.ProtoReflect.Descriptor instead.
 func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{4}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DefaultServiceConfig) GetRouting() *v1.RoutingConfig {
@@ -374,7 +468,7 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\xd5\x02\n" +
+	"\x10GetConfigRequest\"\x92\x03\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
@@ -382,7 +476,17 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"schema_url\x18\x04 \x01(\tR\tschemaUrl\x124\n" +
 	"\torg_links\x18\x05 \x03(\v2\x17.loco.config.v1.OrgLinkR\borgLinks\x12B\n" +
-	"\x1eapi_token_max_lifetime_seconds\x18\x06 \x01(\x03R\x1aapiTokenMaxLifetimeSeconds\"1\n" +
+	"\x1eapi_token_max_lifetime_seconds\x18\x06 \x01(\x03R\x1aapiTokenMaxLifetimeSeconds\x12;\n" +
+	"\vsize_limits\x18\a \x01(\v2\x1a.loco.config.v1.SizeLimitsR\n" +
+	"sizeLimits\"\xf2\x01\n" +
+	"\n" +
+	"SizeLimits\x12$\n" +
+	"\x0emin_cpu_millis\x18\x01 \x01(\x05R\fminCpuMillis\x12$\n" +
+	"\x0emax_cpu_millis\x18\x02 \x01(\x05R\fmaxCpuMillis\x12(\n" +
+	"\x10min_memory_bytes\x18\x03 \x01(\x03R\x0eminMemoryBytes\x12(\n" +
+	"\x10max_memory_bytes\x18\x04 \x01(\x03R\x0emaxMemoryBytes\x12!\n" +
+	"\fmin_replicas\x18\x05 \x01(\x05R\vminReplicas\x12!\n" +
+	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\"1\n" +
 	"\aOrgLink\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\"Y\n" +
@@ -416,31 +520,33 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_loco_config_v1_config_proto_rawDescData
 }
 
-var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_loco_config_v1_config_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
 	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
-	(*OrgLink)(nil),                // 2: loco.config.v1.OrgLink
-	(*AuthConfig)(nil),             // 3: loco.config.v1.AuthConfig
-	(*DefaultServiceConfig)(nil),   // 4: loco.config.v1.DefaultServiceConfig
-	(*v1.RoutingConfig)(nil),       // 5: loco.resource.v1.RoutingConfig
-	(*v11.HealthCheckConfig)(nil),  // 6: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil), // 7: loco.resource.v1.ObservabilityConfig
+	(*SizeLimits)(nil),             // 2: loco.config.v1.SizeLimits
+	(*OrgLink)(nil),                // 3: loco.config.v1.OrgLink
+	(*AuthConfig)(nil),             // 4: loco.config.v1.AuthConfig
+	(*DefaultServiceConfig)(nil),   // 5: loco.config.v1.DefaultServiceConfig
+	(*v1.RoutingConfig)(nil),       // 6: loco.resource.v1.RoutingConfig
+	(*v11.HealthCheckConfig)(nil),  // 7: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil), // 8: loco.resource.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
-	4, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
-	3, // 1: loco.config.v1.GetConfigResponse.auth:type_name -> loco.config.v1.AuthConfig
-	2, // 2: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
-	5, // 3: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
-	6, // 4: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	7, // 5: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
-	0, // 6: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1, // 7: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	5, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
+	4, // 1: loco.config.v1.GetConfigResponse.auth:type_name -> loco.config.v1.AuthConfig
+	3, // 2: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
+	2, // 3: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
+	6, // 4: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
+	7, // 5: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	8, // 6: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
+	0, // 7: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1, // 8: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }
@@ -454,7 +560,7 @@ func file_loco_config_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_config_v1_config_proto_rawDesc), len(file_loco_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

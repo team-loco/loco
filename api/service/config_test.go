@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
@@ -79,5 +82,45 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 	}
 	if !slices.Equal(got, links) {
 		t.Errorf("org links = %+v, want %+v", got, links)
+	}
+}
+
+func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
+	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour)
+	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	limits := resp.GetSizeLimits()
+	size := func(cpuMillis, memoryBytes int64, minReplicas, maxReplicas int32) locoControllerV1.ResourcesSpec {
+		return locoControllerV1.ResourcesSpec{
+			CPU:      resource.NewMilliQuantity(cpuMillis, resource.DecimalSI).String(),
+			Memory:   resource.NewQuantity(memoryBytes, resource.BinarySI).String(),
+			Replicas: locoControllerV1.ReplicasSpec{Min: minReplicas, Max: maxReplicas},
+		}
+	}
+	minCPU, maxCPU := int64(limits.GetMinCpuMillis()), int64(limits.GetMaxCpuMillis())
+	minMemory, maxMemory := limits.GetMinMemoryBytes(), limits.GetMaxMemoryBytes()
+	minReplicas, maxReplicas := limits.GetMinReplicas(), limits.GetMaxReplicas()
+
+	for name, spec := range map[string]locoControllerV1.ResourcesSpec{
+		"minimums": size(minCPU, minMemory, minReplicas, minReplicas),
+		"maximums": size(maxCPU, maxMemory, maxReplicas, maxReplicas),
+	} {
+		if err := spec.Validate(); err != nil {
+			t.Errorf("%s: %+v rejected: %v", name, spec, err)
+		}
+	}
+	for name, spec := range map[string]locoControllerV1.ResourcesSpec{
+		"cpu below":      size(minCPU-1, minMemory, minReplicas, minReplicas),
+		"cpu above":      size(maxCPU+1, minMemory, minReplicas, minReplicas),
+		"memory below":   size(minCPU, minMemory-1, minReplicas, minReplicas),
+		"memory above":   size(minCPU, maxMemory+1, minReplicas, minReplicas),
+		"replicas below": size(minCPU, minMemory, minReplicas-1, minReplicas),
+		"replicas above": size(minCPU, minMemory, minReplicas, maxReplicas+1),
+	} {
+		if err := spec.Validate(); err == nil {
+			t.Errorf("%s: %+v accepted", name, spec)
+		}
 	}
 }

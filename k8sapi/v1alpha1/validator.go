@@ -38,12 +38,18 @@ var (
 	errEnvSecretRevision      = errors.New("envSecretRef.revision must be positive")
 )
 
+// Size limits a ResourcesSpec must fall within. The API's GetConfig reports them so
+// clients can offer only sizes that validate.
 const (
-	minCPUMillis           = 100
-	maxCPUMillis           = 2000
-	minMemory              = 32 * 1024 * 1024
-	maxMemory              = 4 * 1024 * 1024 * 1024
-	maxReplicas            = 10
+	MinCPUMillis   = 100
+	MaxCPUMillis   = 2000
+	MinMemoryBytes = 32 * 1024 * 1024
+	MaxMemoryBytes = 4 * 1024 * 1024 * 1024
+	MinReplicas    = 1
+	MaxReplicas    = 10
+)
+
+const (
 	minServicePort         = 1024
 	maxServicePort         = 65535
 	maxEnvVars             = 100
@@ -212,14 +218,14 @@ func validateCPUQuantity(cpu string) error {
 		return fmt.Errorf("invalid CPU format: %s", cpu)
 	}
 
-	minCPU := resource.NewMilliQuantity(minCPUMillis, resource.DecimalSI)
-	maxCPU := resource.NewMilliQuantity(maxCPUMillis, resource.DecimalSI)
+	minCPU := resource.NewMilliQuantity(MinCPUMillis, resource.DecimalSI)
+	maxCPU := resource.NewMilliQuantity(MaxCPUMillis, resource.DecimalSI)
 
 	if qty.Cmp(*minCPU) < 0 {
-		return fmt.Errorf("CPU %s is below minimum (%dm)", cpu, minCPUMillis)
+		return fmt.Errorf("CPU %s is below minimum (%dm)", cpu, MinCPUMillis)
 	}
 	if qty.Cmp(*maxCPU) > 0 {
-		return fmt.Errorf("CPU %s exceeds maximum (%dm)", cpu, maxCPUMillis)
+		return fmt.Errorf("CPU %s exceeds maximum (%dm)", cpu, MaxCPUMillis)
 	}
 
 	return nil
@@ -232,8 +238,8 @@ func validateMemoryQuantity(memory string) error {
 		return fmt.Errorf("invalid memory format: %s", memory)
 	}
 
-	minMem := resource.NewQuantity(minMemory, resource.BinarySI)
-	maxMem := resource.NewQuantity(maxMemory, resource.BinarySI)
+	minMem := resource.NewQuantity(MinMemoryBytes, resource.BinarySI)
+	maxMem := resource.NewQuantity(MaxMemoryBytes, resource.BinarySI)
 
 	if qty.Cmp(*minMem) < 0 {
 		return fmt.Errorf("memory %s is below minimum (%s)", memory, minMem)
@@ -307,11 +313,11 @@ func (spec *ResourcesSpec) Validate() error {
 	}
 
 	// Replicas validation
-	if spec.Replicas.Min < 1 {
-		return fmt.Errorf("replicas.min must be at least 1, got %d", spec.Replicas.Min)
+	if spec.Replicas.Min < MinReplicas {
+		return fmt.Errorf("replicas.min must be at least %d, got %d", MinReplicas, spec.Replicas.Min)
 	}
-	if spec.Replicas.Max > maxReplicas {
-		return fmt.Errorf("replicas.max cannot exceed %d, got %d", maxReplicas, spec.Replicas.Max)
+	if spec.Replicas.Max > MaxReplicas {
+		return fmt.Errorf("replicas.max cannot exceed %d, got %d", MaxReplicas, spec.Replicas.Max)
 	}
 	if spec.Replicas.Max < spec.Replicas.Min {
 		return fmt.Errorf("replicas.max (%d) must be >= replicas.min (%d)", spec.Replicas.Max, spec.Replicas.Min)

@@ -9,6 +9,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
@@ -53,6 +54,14 @@ func (s *ConfigServer) GetConfig(
 		SchemaUrl:                  s.schemaURL,
 		Auth:                       s.auth,
 		OrgLinks:                   s.orgLinks,
+		SizeLimits: &configv1.SizeLimits{
+			MinCpuMillis:   locoControllerV1.MinCPUMillis,
+			MaxCpuMillis:   locoControllerV1.MaxCPUMillis,
+			MinMemoryBytes: locoControllerV1.MinMemoryBytes,
+			MaxMemoryBytes: locoControllerV1.MaxMemoryBytes,
+			MinReplicas:    locoControllerV1.MinReplicas,
+			MaxReplicas:    locoControllerV1.MaxReplicas,
+		},
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{
 				Port:        s.defaults.Port,
