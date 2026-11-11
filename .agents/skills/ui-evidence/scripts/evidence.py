@@ -45,9 +45,8 @@ LOG_TAIL_LINES = 40
 DISCOVERY_PATH = "/dex/.well-known/openid-configuration"
 USER_SCOPES = ("read", "write", "admin")
 RUNTIME_CONFIG_PATH = "/runtime-config.js"
-# Set by `mise run test:ui`: a checkout whose api/bin/loco-api and web/dist are
-# already built, and the address of one OpenBao that every suite shares.
-PREBUILT_ENV = "UI_EVIDENCE_PREBUILT"
+# Set by `mise run test:ui` to the OpenBao every suite shares, after it built
+# api/bin/loco-api and web/dist in this checkout.
 OPENBAO_ENV = "UI_EVIDENCE_OPENBAO"
 
 RPC_CREATE_ORG = "loco.org.v1.OrgService/CreateOrg"
@@ -405,17 +404,16 @@ def cmd_up(args):
     root = BASE_DIR / run_id
     root.mkdir(parents=True)
     state_path = root / "state.json"
-    prebuilt = os.environ.get(PREBUILT_ENV)
     openbao = os.environ.get(OPENBAO_ENV)
     state = {"id": run_id, "name": args.name, "ref": args.ref, "root": str(root), "pids": []}
-    if prebuilt:
-        worktree = Path(prebuilt)
+    if openbao:
+        worktree = repo
     else:
         worktree = root / "src"
         state["worktree"] = str(worktree)
     write_json(state_path, state)
     try:
-        if not prebuilt:
+        if not openbao:
             run(["git", "-C", str(repo), "worktree", "add", "--detach", str(worktree), args.ref])
         state["commit"] = run(["git", "-C", str(worktree), "rev-parse", "HEAD"], capture=True).strip()
         db_port = free_port()
@@ -431,7 +429,7 @@ def cmd_up(args):
         write_json(state_path, state)
 
         env = dict(os.environ)
-        if not prebuilt:
+        if not openbao:
             build(worktree, env)
         dist = worktree / "web" / "dist"
 
@@ -735,7 +733,7 @@ def main():
     serve.add_argument("--port", required=True, type=int)
     serve.add_argument("--api-url", required=True)
     serve.set_defaults(func=cmd_serve_ui)
-    prebuild = sub.add_parser("build", help=f"build the API and UI in this checkout for ${PREBUILT_ENV}")
+    prebuild = sub.add_parser("build", help="build the API and UI in this checkout")
     prebuild.set_defaults(func=cmd_build)
     bao = sub.add_parser("openbao", help=f"start one seeded OpenBao for ${OPENBAO_ENV} and print its address")
     bao.add_argument("--project", required=True)

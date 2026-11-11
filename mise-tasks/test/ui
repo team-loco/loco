@@ -56,7 +56,7 @@ start=$SECONDS
 openbao=loco-ui-evidence-openbao-$$
 trap 'docker compose -p "$openbao" down -v --remove-orphans >/dev/null 2>&1' EXIT
 UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao --project "$openbao" | tail -n 1)
-export UI_EVIDENCE_OPENBAO UI_EVIDENCE_PREBUILT=$root
+export UI_EVIDENCE_OPENBAO
 echo "Built the API and UI and started OpenBao in $((SECONDS - start))s"
 
 # Run every selected suite even after a failure, so one run reports them all.

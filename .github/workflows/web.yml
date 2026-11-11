@@ -55,9 +55,6 @@ jobs:
         with:
           go-cache: web
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
       - name: Read the Playwright version
         id: playwright
         run: echo "version=$(uv run --frozen --project docs python -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
