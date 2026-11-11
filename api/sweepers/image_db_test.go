@@ -292,7 +292,7 @@ func (f *imageSweepFixture) activeDeployment(t *testing.T, image string) uuid.UU
 	err := f.pool.QueryRow(f.ctx, `
 INSERT INTO deployments (actor_type, actor_id, method, resource_id, cluster_id, region, replicas, status,
                          is_active, message, spec, spec_version, environment_id, started_at)
-VALUES ('user', '00000000-0000-0000-0000-000000000000', 'cli',
+VALUES ('user', (SELECT created_by FROM environments WHERE id = $4), 'cli',
         $1, $2, 'us-east-1', 1, 'running', true, '', $3, 1, $4, NOW())
 RETURNING id`, f.resourceID, f.clusterID, []byte(spec), f.envID).Scan(&id)
 	if err != nil {

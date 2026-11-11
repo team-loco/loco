@@ -224,7 +224,7 @@ func (f *deployFixture) runBuild(t *testing.T, resourceName string, buildID uuid
 	insert := `
 INSERT INTO deployments (actor_type, actor_id, method, resource_id, cluster_id, region, replicas, status, is_active,
                          message, spec, spec_version, environment_id, started_at)
-SELECT 'user', '00000000-0000-0000-0000-000000000000', 'cli', id, $3, $2, 1, 'running', true, '',
+SELECT 'user', (SELECT created_by FROM environments WHERE id = $5), 'cli', id, $3, $2, 1, 'running', true, '',
        $4, 1, $5, NOW() FROM resources WHERE name = $1`
 	args := []any{resourceName, testRegion, f.clusterID, spec, f.envID}
 	if _, err := f.pool.Exec(context.Background(), insert, args...); err != nil {
