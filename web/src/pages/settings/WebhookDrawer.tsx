@@ -39,8 +39,10 @@ const PAGE_SIZES = [PAGE_SIZE];
 const FIRST_PAGE: Paging = { page: 0, size: PAGE_SIZE };
 const SKELETON_ROWS = [0, 1, 2];
 
+// Base UI's Toggle swaps an empty value for a generated id, so All needs a real one.
+const ALL = "all";
 const FILTERS = [
-	{ value: "", label: "All" },
+	{ value: ALL, label: "All" },
 	{ value: STATUS_PENDING, label: "Pending" },
 	{ value: STATUS_SUCCEEDED, label: "Delivered" },
 	{ value: STATUS_FAILED, label: "Failed" },
@@ -83,12 +85,12 @@ function WebhookDetail({
 	workspaceName: string;
 	webhook: Webhook;
 }) {
-	const [filter, setFilter] = useState<Filter>("");
+	const [filter, setFilter] = useState<Filter>(ALL);
 	const [paging, setPaging] = useState(FIRST_PAGE);
 	const queryClient = useQueryClient();
 	const query = useInfiniteQuery(
 		listWebhookDeliveries,
-		{ workspaceId, webhookId: webhook.id, status: filter, pageSize: PAGE_SIZE, pageToken: "" },
+		{ workspaceId, webhookId: webhook.id, status: filter === ALL ? "" : filter, pageSize: PAGE_SIZE, pageToken: "" },
 		{
 			pageParamKey: "pageToken",
 			getNextPageParam: (last) => last.nextPageToken || undefined,
@@ -180,7 +182,7 @@ function WebhookDetail({
 					}}
 					redelivering={redeliver.isPending}
 					empty={
-						filter === ""
+						filter === ALL
 							? "No deliveries yet. Events appear here as they are sent."
 							: "No deliveries with this status."
 					}
