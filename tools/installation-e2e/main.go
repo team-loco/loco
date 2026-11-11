@@ -45,6 +45,7 @@ func run() error {
 	client := options.Bool("client", false, "Run operator acceptance inside the fixture pod")
 	keep := options.Bool("no-teardown", false, "Keep this suite's kind cluster for inspection")
 	skip := options.Bool("skip-build", false, "Reuse this suite's built images and binaries")
+	ciCache := options.Bool("ci-cache", false, "Reuse the platform image layers CI caches on main")
 	timeout := options.Duration("timeout", hostTimeout, "Maximum duration of host setup and acceptance")
 	if checkErr := options.Parse(os.Args[1:]); checkErr != nil {
 		return errSuiteOptions
@@ -72,7 +73,7 @@ func run() error {
 	if _, checkErr := os.Stat(filepath.Join(root, "mise.toml")); checkErr != nil {
 		return errSuiteDirectory
 	}
-	fixture, err := newFixture(root, *skip)
+	fixture, err := newFixture(root, *skip, *ciCache)
 	if err != nil {
 		return err
 	}

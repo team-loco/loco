@@ -52,14 +52,14 @@ const (
 
 type fixture struct {
 	root, dir, name, kubeconfig, registryURL string
-	skip                                     bool
+	skip, ciCache                            bool
 	forward                                  *exec.Cmd
 	cloudManaged                             bool
 	platform                                 string
 	dockerPluginDirs                         []string
 }
 
-func newFixture(root string, skip bool) (*fixture, error) {
+func newFixture(root string, skip, ciCache bool) (*fixture, error) {
 	digest := sha256.Sum256([]byte(root))
 	name := "loco-installation-" + hex.EncodeToString(digest[:4])
 	directory := filepath.Join(root, "tests", "e2e", "runs", name)
@@ -72,6 +72,7 @@ func newFixture(root string, skip bool) (*fixture, error) {
 		name:       name,
 		kubeconfig: filepath.Join(directory, "kubeconfig"),
 		skip:       skip,
+		ciCache:    ciCache,
 	}, nil
 }
 

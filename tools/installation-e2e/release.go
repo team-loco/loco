@@ -59,9 +59,9 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 			"http://",
 		) + "/platform/images/" + component.name + ":" + fixtureVersion
 		if !f.skip {
-			if checkErr := dockerBuild(
+			if checkErr := f.dockerBuild(
 				ctx,
-				f.root,
+				component.name,
 				"--platform", f.platform,
 				"--build-arg",
 				"VERSION="+fixtureVersion,
@@ -356,9 +356,9 @@ CMD ["sleep", "infinity"]
 		if writeErr := os.WriteFile(path+".dockerignore", contextRules, 0600); writeErr != nil {
 			return "", writeErr
 		}
-		if checkErr := dockerBuild(
+		if checkErr := f.dockerBuild(
 			ctx,
-			f.root,
+			"",
 			"--platform", f.platform,
 			"--build-arg",
 			"VERSION="+fixtureVersion,
@@ -387,11 +387,22 @@ CMD ["sleep", "infinity"]
 	return tag, nil
 }
 
-func dockerBuild(ctx context.Context, dir string, args ...string) error {
+// dockerBuild builds from the repository root. With ciCache, a non-empty
+// scope imports the layers build.yml caches on main for the image of that name;
+// the operator image has no scope because nothing caches it. The CI builder
+// keeps results to itself, so every build loads its image into Docker for the
+// push or kind load that follows.
+func (f *fixture) dockerBuild(ctx context.Context, scope string, args ...string) error {
 	// source builds precede installation secrets; stream their diagnostics to CI.
-	buildArgs := append([]string{"build", "--progress=plain"}, args...)
-	cmd := exec.CommandContext(ctx, "docker", buildArgs...)
-	cmd.Dir = dir
+	buildArgs := []string{"build", "--progress=plain"}
+	if f.ciCache {
+		buildArgs = append(buildArgs, "--load")
+		if scope != "" {
+			buildArgs = append(buildArgs, "--cache-from", "type=gha,scope="+scope)
+		}
+	}
+	cmd := exec.CommandContext(ctx, "docker", append(buildArgs, args...)...)
+	cmd.Dir = f.root
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

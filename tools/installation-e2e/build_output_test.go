@@ -48,3 +48,38 @@ func TestFailedOperatorBuildStreamsDiagnostics(t *testing.T) {
 		}
 	}
 }
+
+func TestCICacheImportsPlatformLayersAndLoadsEveryImage(t *testing.T) {
+	bin := t.TempDir()
+	argv := filepath.Join(t.TempDir(), "argv")
+	docker := "#!/bin/sh\nprintf '%s\\n' \"$*\" > \"$ARGV\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "docker"), []byte(docker), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("ARGV", argv)
+	for _, tc := range []struct {
+		name    string
+		ciCache bool
+		scope   string
+		want    string
+	}{
+		{"local platform image", false, "api", "build --progress=plain -t x ."},
+		{"CI platform image", true, "api", "build --progress=plain --load --cache-from type=gha,scope=api -t x ."},
+		{"CI operator image", true, "", "build --progress=plain --load -t x ."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := fixture{root: t.TempDir(), ciCache: tc.ciCache}
+			if err := f.dockerBuild(t.Context(), tc.scope, "-t", "x", "."); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(argv)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.TrimSpace(string(data)); got != tc.want {
+				t.Errorf("docker %s, want docker %s", got, tc.want)
+			}
+		})
+	}
+}
