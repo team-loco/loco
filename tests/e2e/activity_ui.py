@@ -1,6 +1,7 @@
 import argparse
 import atexit
 import contextlib
+import datetime
 import http.server
 import importlib.util
 import io
@@ -64,6 +65,106 @@ out.mkdir(parents=True, exist_ok=True)
 base = f"/org/{activity['orgId']}/wks/{activity['workspaceId']}"
 phase = 'after'
 results = []
+def check_scoped_user(browser, theme):
+    """A member whose only grant is read on one resource sees it on every page without a refused request."""
+    rid = activity['resourceId']
+    owner = state['users']['owner']['token']
+    environments = evidence.rpc(state['api_url'], owner, 'loco.environment.v1.EnvironmentService/ListEnvironments', {'workspaceId': activity['workspaceId']})['environments']
+    production = next(e['id'] for e in environments if e['type'] == 'ENVIRONMENT_TYPE_PRODUCTION')
+    minute_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1)
+    stamp = minute_ago.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    telemetry = {
+        'QueryLogs': {'entries': [{'timestamp': stamp, 'severity': 'INFO', 'body': 'checkout order placed', 'resourceId': rid, 'resourceAttributes': {'loco.region': 'us-east-1', 'k8s.pod.name': 'checkout-7d9f-x2k4p'}}]},
+        'QueryTraces': {'spans': [{'traceId': '0af7651916cd43dd8448eb211c80319c', 'spanId': 'b7ad6b7169203331', 'parentSpanId': '', 'name': 'POST /api/checkout', 'kind': 'Server', 'serviceName': 'checkout', 'startTime': stamp, 'durationNanos': '12000000', 'statusCode': 'Ok', 'resourceId': rid, 'workspaceId': activity['workspaceId']}]},
+        'QueryMetrics': {'series': [{'resourceId': rid, 'points': [{'timestamp': stamp, 'value': 0.25}]}]},
+    }
+    back_off = {'seq': '1', 'id': '01a1c8b3-0000-7000-8000-00000000b0ff', 'type': 'resource.degraded', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'environmentId': production, 'createdAt': stamp, 'data': {'reason': 'crash_looping', 'message': 'Back-off restarting failed container', 'placementId': 'checkout-us-east-1', 'region': 'us-east-1'}}
+    down = {'environmentId': production, 'environmentName': 'production', 'status': 'RESOURCE_STATUS_UNAVAILABLE', 'regions': [{'region': 'us-east-1', 'status': 'RESOURCE_STATUS_UNAVAILABLE', 'desiredReplicas': 1, 'message': 'Back-off restarting failed container'}]}
+    pages = [
+        ('dashboard', base, lambda page: expect(page.get_by_role('list', name='Your resources').get_by_role('link', name='checkout', exact=True)).to_be_visible()),
+        ('resources', base + '/resources', lambda page: expect(page.get_by_role('link', name='checkout', exact=True).first).to_be_visible()),
+        ('resource', base + '/resource/' + rid, lambda page: expect(page.get_by_label('Last log lines in us-east-1')).to_contain_text('checkout order placed')),
+        ('logs', base + '/observability?view=logs', lambda page: expect(page.get_by_text('checkout order placed').first).to_be_visible()),
+        ('metrics', base + '/observability?view=metrics', lambda page: expect(page.get_by_role('heading', name='Metrics')).to_be_visible()),
+        ('traces', base + '/observability?view=traces', lambda page: expect(page.get_by_text('POST /api/checkout').first).to_be_visible()),
+        ('events', base + '/observability?view=events', lambda page: expect(page.get_by_text('Back-off restarting failed container').first).to_be_visible()),
+        ('settings', base + '/settings?scope=workspace', lambda page: expect(page.get_by_text('You have access to 1 resource in this workspace', exact=True)).to_be_visible()),
+        ('team', f"/org/{activity['orgId']}/team", lambda page: expect(page.get_by_role('heading', name='Team')).to_be_visible()),
+        ('tokens', '/tokens', lambda page: expect(page.get_by_role('heading', name='Tokens')).to_be_visible()),
+        ('sibling', f"/org/{activity['orgId']}/wks/{activity['siblingId']}", lambda page: expect(page.get_by_text('You have access to 0 resources in this workspace', exact=True)).to_be_visible()),
+    ]
+    checked = []
+    for scene, path, visible in pages:
+        context = browser.new_context(viewport={'width': 1440, 'height': 1000}, color_scheme=theme)
+        auth = {'idToken': state['users']['scoped']['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS}
+        context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});')
+        recorded = []
+
+        def route_request(route):
+            url = urllib.parse.urlparse(route.request.url)
+            if url.path == '/runtime-config.js':
+                route.fulfill(content_type='application/javascript', body='window.locoConfig=' + json.dumps({'apiURL': origin}) + ';')
+                return
+            if url.path == '/dex/.well-known/openid-configuration':
+                route.fulfill(json=evidence.discovery_document(origin + '/dex'))
+                return
+            if not url.path.startswith('/loco.'):
+                route.continue_()
+                return
+            method = url.path.rsplit('/', 1)[-1]
+            body = route.request.post_data_json
+            if method in telemetry:
+                # The proxy serves a caller without workspace read only for resources it names and reads.
+                named = body.get('resourceIds') or []
+                status = 200 if named and set(named) == {rid} and body.get('environmentId') == production else 403
+                recorded.append({'method': method, 'body': body, 'status': status})
+                if status == 200:
+                    route.fulfill(json=telemetry[method])
+                else:
+                    route.fulfill(status=403, json={'code': 'permission_denied', 'message': 'permission denied'})
+                return
+            response = route.fetch(url=state['api_url'] + url.path)
+            recorded.append({'method': method, 'body': body, 'status': response.status})
+            if method == 'GetConfig':
+                config = response.json()
+                config['auth']['issuer'] = origin + '/dex'
+                route.fulfill(response=response, json=config)
+            elif method == 'ListEvents' and scene in ('resource', 'events') and body.get('environmentId') and response.status == 200:
+                # The cluster reports crash loops as runtime events; this resource never ran.
+                listed = response.json()
+                listed['events'] = [back_off, *listed.get('events', [])]
+                route.fulfill(response=response, json=listed)
+            elif method == 'GetResource' and scene == 'resource' and response.status == 200:
+                resource = response.json()
+                resource['resource']['environmentStatuses'] = [down]
+                route.fulfill(response=response, json=resource)
+            else:
+                route.fulfill(response=response)
+
+        context.route('**/*', route_request)
+        page = context.new_page()
+        errors = []
+        page.on('console', lambda message: message.type == 'error' and errors.append(message.text))
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.goto(origin + path)
+        visible(page)
+        evidence.settle(page)
+        refused = [request for request in recorded if request['status'] >= 400]
+        assert not refused, (scene, refused)
+        assert not errors, (scene, errors)
+        if scene in ('logs', 'metrics', 'traces', 'resource'):
+            queries = [request for request in recorded if request['method'] in telemetry]
+            assert queries and all(request['status'] == 200 for request in queries), (scene, queries)
+        if scene == 'events':
+            assert any(request['method'] == 'ListEvents' and request['body'].get('resourceId') == rid and request['status'] == 200 for request in recorded), recorded
+        if scene == 'dashboard':
+            assert 'shared' in page.locator('nav[aria-label=breadcrumb]').inner_text()
+        page.screenshot(path=out / f'scoped-{scene}-{phase}-{theme}.png', full_page=True, animations='disabled')
+        checked.append({'scene': scene, 'theme': theme, 'requests': recorded})
+        context.close()
+    return checked
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     for theme in ('light', 'dark'):
@@ -168,7 +269,7 @@ with sync_playwright() as playwright:
                             expect(page.get_by_role('list', name='Activity')).to_be_visible()
                         panel = page.get_by_role('region', name=title, exact=True)
                     else:
-                        assert not any(request['method'] == 'ListEnvironments' for request in recorded)
+                        assert any(request['method'] == 'ListEnvironments' and request['status'] == 200 for request in recorded)
                     assert not [request for request in recorded if request['status'] >= 400 and not request.get('controlledFailure')], recorded
                 page.screenshot(path=out / 'full' / f'{scene}-{phase}-{suffix}.png', full_page=True, animations='disabled')
                 panel.evaluate('(element) => element.scrollIntoView({block: "start", behavior: "instant"})')
@@ -214,6 +315,7 @@ with sync_playwright() as playwright:
                 assert not errors, errors
                 results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
                 context.close()
+    scoped = [case for theme in ('light', 'dark') for case in check_scoped_user(browser, theme)]
     browser.close()
-(out / 'results.json').write_text(json.dumps({'access': access, 'browser': results}, indent=2))
+(out / 'results.json').write_text(json.dumps({'access': access, 'browser': results, 'scoped': scoped}, indent=2))
 print(f'{phase}: scoped Activity API access and {len(results)} production-browser cases passed', flush=True)
