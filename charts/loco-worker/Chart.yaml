@@ -2,7 +2,7 @@ apiVersion: v2
 name: loco-worker
 description: "Loco worker cluster: agent, controllers, Envoy Gateway and OpenTelemetry collectors"
 type: application
-version: 0.3.7
+version: 0.3.8
 dependencies:
     - name: gateway-helm
       version: 1.10.0
@@ -10,17 +10,17 @@ dependencies:
       condition: gateway-helm.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-      version: 0.178.2
+      version: 0.178.3
       alias: otel-col-daemon
       condition: otel-col-daemon.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-      version: 0.178.2
+      version: 0.178.3
       alias: otel-col-deploy
       condition: otel-col-deploy.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-      version: 0.178.2
+      version: 0.178.3
       alias: otel-col-cluster
       condition: otel-col-cluster.enabled
 maintainers:
