@@ -1,3 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { useTable, type ColumnSort } from "@tanstack/react-table";
+import { dataTableFeatures, sortOptions, type DataTableInstance } from "@/components/design/DataTable";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { describe, expect, test } from "bun:test";
@@ -6,6 +10,8 @@ import { EnvironmentSchema } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceSchema, ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import type { Draft } from "@/lib/drafts";
+
+import { resourceColumns } from "./columns";
 
 import {
 	ALL,
@@ -16,21 +22,42 @@ import {
 	isDraftRow,
 	linkEnvironment,
 	NOT_DEPLOYED,
+	nameOrder,
 	readTableState,
 	regionCounts,
 	replicasLabel,
-	sortRows,
 	statusCounts,
-	tableColumns,
 	writeTableState,
 	type Filter,
 	type ListRow,
 } from "./table";
 
+function withTable<R>(rows: ListRow[], sorting: ColumnSort, read: (table: DataTableInstance<ListRow>) => R): R {
+	let result: R | undefined;
+	function Rows() {
+		const table = useTable({
+			...sortOptions,
+			features: dataTableFeatures,
+			columns,
+			data: nameOrder(rows),
+			state: { sorting: [sorting], pagination: { pageIndex: 0, pageSize: Math.max(1, rows.length) } },
+		});
+		result = read(table);
+		return null;
+	}
+	renderToStaticMarkup(createElement(Rows));
+	if (result === undefined) throw new Error("table did not render");
+	return result;
+}
+
+function sortRows(rows: ListRow[], sorting: ColumnSort): ListRow[] {
+	return withTable(rows, sorting, (table) => table.getRowModel().rows.map((row) => row.original));
+}
+
 const prod = create(EnvironmentSchema, { id: "e-prod", name: "production" });
 const staging = create(EnvironmentSchema, { id: "e-stg", name: "staging" });
 const envs = [prod, staging];
-const columns = tableColumns(envs);
+const columns = resourceColumns(envs);
 
 interface RegionSeed {
 	region: string;
@@ -236,20 +263,46 @@ describe("sortRows", () => {
 	);
 
 	test("an environment column puts problems first and undeployed resources last", () => {
-		expect(names(sortRows(rows, { key: "env-production", dir: "asc" }, columns))).toEqual([
-			"c-down",
-			"b-healthy",
-			"a-missing",
-		]);
+		expect(names(sortRows(rows, { id: "env-production", desc: false }))).toEqual(["c-down", "b-healthy", "a-missing"]);
 	});
 
 	test("size and created sort numerically in either direction", () => {
-		expect(names(sortRows(rows, { key: "size", dir: "desc" }, columns))).toEqual(["b-healthy", "c-down", "a-missing"]);
-		expect(names(sortRows(rows, { key: "created", dir: "asc" }, columns))).toEqual([
-			"b-healthy",
-			"c-down",
-			"a-missing",
-		]);
+		expect(names(sortRows(rows, { id: "size", desc: true }))).toEqual(["b-healthy", "c-down", "a-missing"]);
+		expect(names(sortRows(rows, { id: "created", desc: false }))).toEqual(["b-healthy", "c-down", "a-missing"]);
+	});
+
+	test("size and created sort descending on the first click and every other column ascending", () => {
+		const first = withTable(rows, { id: "name", desc: false }, (table) =>
+			table
+				.getAllLeafColumns()
+				.filter((column) => column.getCanSort())
+				.map((column) => [column.id, column.getFirstSortDir()]),
+		);
+		expect(Object.fromEntries(first)).toEqual({
+			name: "asc",
+			"env-production": "asc",
+			"env-staging": "asc",
+			size: "desc",
+			created: "desc",
+		});
+	});
+
+	test("ties sort by name ascending in either direction, with only the chosen column sorted", () => {
+		const tied = buildRows(
+			[resource("c"), resource("a"), resource("b", [], { cpu: "2" })],
+			[[], [], []],
+			envs,
+			undefined,
+		);
+		expect(names(sortRows(tied, { id: "size", desc: true }))).toEqual(["b", "a", "c"]);
+		expect(names(sortRows(tied, { id: "size", desc: false }))).toEqual(["a", "c", "b"]);
+		const sorted = withTable(tied, { id: "size", desc: true }, (table) =>
+			table
+				.getAllLeafColumns()
+				.filter((column) => column.getIsSorted() !== false)
+				.map((column) => column.id),
+		);
+		expect(sorted).toEqual(["size"]);
 	});
 });
 
@@ -281,7 +334,7 @@ describe("draft rows", () => {
 	});
 
 	test("sort between deploying and healthy in their environment's column", () => {
-		expect(names(sortRows(rows, { key: "env-production", dir: "asc" }, columns))).toEqual([
+		expect(names(sortRows(rows, { id: "env-production", desc: false }))).toEqual([
 			"rolling",
 			"api",
 			"web",
@@ -291,7 +344,7 @@ describe("draft rows", () => {
 	});
 
 	test("sort with the undeployed in another environment's column", () => {
-		expect(names(sortRows(rows, { key: "env-staging", dir: "asc" }, columns))).toEqual([
+		expect(names(sortRows(rows, { id: "env-staging", desc: false }))).toEqual([
 			"api",
 			"healthy",
 			"missing",
@@ -327,11 +380,22 @@ describe("linkEnvironment", () => {
 });
 
 describe("URL state", () => {
+	const shown = {
+		"env-production": true,
+		"env-staging": true,
+		size: true,
+		replicas: false,
+		cost: true,
+		address: false,
+		image: false,
+		created: false,
+	};
+
 	test("defaults leave the URL alone and keep unrelated params", () => {
 		const params = new URLSearchParams("env=staging");
 		const state = readTableState(params, columns);
-		expect(state.sort).toEqual({ key: "env-production", dir: "asc" });
-		expect(state.visible).toEqual(["env-production", "env-staging", "size", "cost"]);
+		expect(state.sorting).toEqual({ id: "env-production", desc: false });
+		expect(state.visibility).toEqual(shown);
 		expect(writeTableState(params, state, columns).toString()).toBe("env=staging");
 	});
 
@@ -339,12 +403,13 @@ describe("URL state", () => {
 		const params = new URLSearchParams();
 		const state = {
 			filter: { query: "api", status: "degraded", region: "us-east-1" },
-			sort: { key: "created", dir: "desc" as const },
+			sorting: { id: "created", desc: true },
 			page: 2,
 			size: 50,
-			visible: ["env-staging", "image"],
+			visibility: { ...shown, "env-production": false, size: false, cost: false, image: true },
 		};
 		const written = writeTableState(params, state, columns);
+		expect(written.get("cols")).toBe("env-staging,image");
 		expect(readTableState(written, columns)).toEqual(state);
 	});
 
@@ -354,13 +419,14 @@ describe("URL state", () => {
 			columns,
 		);
 		expect(state.filter.status).toBe(ALL);
-		expect(state.sort.key).toBe("env-production");
+		expect(state.sorting.id).toBe("env-production");
 		expect(state.size).toBe(25);
 		expect(state.page).toBe(0);
-		expect(state.visible).toEqual(["size"]);
+		expect(Object.entries(state.visibility).filter(([, on]) => on)).toEqual([["size", true]]);
 	});
 
 	test("an empty column list hides every optional column", () => {
-		expect(readTableState(new URLSearchParams("cols="), columns).visible).toEqual([]);
+		const { visibility } = readTableState(new URLSearchParams("cols="), columns);
+		expect(Object.values(visibility).some((on) => on)).toBe(false);
 	});
 });

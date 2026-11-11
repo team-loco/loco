@@ -1,3 +1,4 @@
+import type { ColumnSort, ColumnVisibilityState } from "@tanstack/react-table";
 import type { Deployment, ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -54,7 +55,7 @@ export function isDraftRow(row: ListRow): row is DraftRow {
 	return "draft" in row;
 }
 
-function rowName(row: ListRow): string {
+export function rowName(row: ListRow): string {
 	return isDraftRow(row) ? row.draft.name : row.resource.name;
 }
 
@@ -147,95 +148,20 @@ export function replicasLabel(row: ListRow): string | null {
 	return min === max ? min.toString() : `${min.toString()}–${max.toString()}`;
 }
 
-export type ColumnKind = "name" | "env" | "size" | "replicas" | "cost" | "address" | "image" | "created";
-
-export interface Column {
-	key: string;
-	kind: ColumnKind;
-	label: string;
-	width: number;
-	sortable: boolean;
-	shown: boolean;
-	environment?: Environment;
-}
-
-const ENV_PREFIX = "env-";
-const NAME_WIDTH = 180;
-const ENV_WIDTH = 172;
-
-const FIXED: Omit<Column, "key">[] = [
-	{ kind: "size", label: "Size", width: 160, sortable: true, shown: true },
-	{ kind: "replicas", label: "Replicas", width: 92, sortable: false, shown: false },
-	{ kind: "cost", label: "Est. cost", width: 110, sortable: false, shown: true },
-	{ kind: "address", label: "Address", width: 170, sortable: false, shown: false },
-	{ kind: "image", label: "Image", width: 200, sortable: false, shown: false },
-	{ kind: "created", label: "Created", width: 150, sortable: true, shown: false },
-];
-
-export function tableColumns(environments: Environment[]): Column[] {
-	return [
-		{ key: "name", kind: "name", label: "Resource", width: NAME_WIDTH, sortable: true, shown: true },
-		...environments.map((environment) => ({
-			key: `${ENV_PREFIX}${environment.name}`,
-			kind: "env" as const,
-			label: environment.name,
-			width: ENV_WIDTH,
-			sortable: true,
-			shown: true,
-			environment,
-		})),
-		...FIXED.map((c) => ({ ...c, key: c.kind })),
-	];
-}
-
-export type SortDir = "asc" | "desc";
-
-export interface Sort {
-	key: string;
-	dir: SortDir;
-}
+export const ENV_PREFIX = "env-";
 
 const NO_CELL_RANK = statusRank(ResourceStatus.HEALTHY) + 1;
 
-function envRank(row: ListRow, environmentId: string): number {
+export function envRank(row: ListRow, environmentId: string): number {
 	if (isDraftRow(row)) return row.environmentId === environmentId ? DRAFT_RANK : NO_CELL_RANK;
 	const cell = row.cells.get(environmentId);
 	return cell === undefined ? NO_CELL_RANK : statusRank(cell.status);
 }
 
-function primaryOrder(column: Column, a: ListRow, b: ListRow): number {
-	switch (column.kind) {
-		case "name":
-			return rowName(a).localeCompare(rowName(b));
-		case "env": {
-			const id = column.environment?.id ?? "";
-			const rank = (r: ListRow) => envRank(r, id);
-			return rank(a) - rank(b);
-		}
-		case "size":
-			return a.cpuMilli - b.cpuMilli || a.memMi - b.memMi;
-		case "created":
-			return a.createdMs - b.createdMs;
-		case "replicas":
-			return 0;
-		case "cost":
-			return 0;
-		case "address":
-			return 0;
-		case "image":
-			return 0;
-	}
-}
-
-export function sortRows<T extends ListRow>(rows: T[], sort: Sort, columns: Column[]): T[] {
-	const column = columns.find((c) => c.key === sort.key);
-	if (column === undefined) return rows;
-	const sign = sort.dir === "asc" ? 1 : -1;
-	return rows.toSorted((a, b) => sign * primaryOrder(column, a, b) || rowName(a).localeCompare(rowName(b)));
-}
-
-export function firstDir(column: Column): SortDir {
-	return column.kind === "size" || column.kind === "created" ? "desc" : "asc";
+// The sorted row model falls back to input order on ties, in either direction,
+// so feeding rows in name order makes every tie sort by name ascending.
+export function nameOrder<T extends ListRow>(rows: T[]): T[] {
+	return rows.toSorted((a, b) => rowName(a).localeCompare(rowName(b)));
 }
 
 export interface Filter {
@@ -296,12 +222,19 @@ export function linkEnvironment(row: ResourceRow, environments: Environment[], a
 	return environments.find((e) => row.cells.has(e.id)) ?? active;
 }
 
+export interface TableColumn {
+	id: string;
+	enableSorting?: boolean;
+	enableHiding?: boolean;
+	meta?: { defaultHidden?: boolean };
+}
+
 export interface TableState {
 	filter: Filter;
-	sort: Sort;
+	sorting: ColumnSort;
 	page: number;
 	size: number;
-	visible: string[];
+	visibility: ColumnVisibilityState;
 }
 
 const PARAM = {
@@ -316,23 +249,38 @@ const PARAM = {
 const SORT_SEPARATOR = ".";
 const COLS_SEPARATOR = ",";
 
-function defaultSort(columns: Column[]): Sort {
-	return { key: columns.find((c) => c.kind === "env")?.key ?? "name", dir: "asc" };
+function defaultSort(columns: readonly TableColumn[]): ColumnSort {
+	return { id: columns.find((c) => c.id.startsWith(ENV_PREFIX))?.id ?? "name", desc: false };
 }
 
-function defaultVisible(columns: Column[]): string[] {
-	return columns.filter((c) => c.kind !== "name" && c.shown).map((c) => c.key);
+function hideable(columns: readonly TableColumn[]): TableColumn[] {
+	return columns.filter((c) => c.enableHiding !== false);
 }
 
-function parseSort(raw: string | null, columns: Column[]): Sort {
+function visibleIds(columns: readonly TableColumn[], visibility: ColumnVisibilityState): string {
+	return hideable(columns)
+		.filter((c) => visibility[c.id] !== false)
+		.map((c) => c.id)
+		.join(COLS_SEPARATOR);
+}
+
+function defaultVisibility(columns: readonly TableColumn[]): ColumnVisibilityState {
+	return Object.fromEntries(hideable(columns).map((c) => [c.id, c.meta?.defaultHidden !== true]));
+}
+
+function parseSort(raw: string | null, columns: readonly TableColumn[]): ColumnSort {
 	const at = raw?.lastIndexOf(SORT_SEPARATOR) ?? -1;
 	if (raw === null || at === -1) return defaultSort(columns);
-	const key = raw.slice(0, at);
+	const id = raw.slice(0, at);
 	const dir = raw.slice(at + 1);
-	if (!columns.some((c) => c.key === key && c.sortable) || (dir !== "asc" && dir !== "desc")) {
+	if (!columns.some((c) => c.id === id && c.enableSorting !== false) || (dir !== "asc" && dir !== "desc")) {
 		return defaultSort(columns);
 	}
-	return { key, dir };
+	return { id, desc: dir === "desc" };
+}
+
+function sortParam(sort: ColumnSort): string {
+	return `${sort.id}${SORT_SEPARATOR}${sort.desc ? "desc" : "asc"}`;
 }
 
 function positiveInt(raw: string | null): number | undefined {
@@ -340,7 +288,7 @@ function positiveInt(raw: string | null): number | undefined {
 	return Number.isInteger(n) && n > 0 ? n : undefined;
 }
 
-export function readTableState(params: URLSearchParams, columns: Column[]): TableState {
+export function readTableState(params: URLSearchParams, columns: readonly TableColumn[]): TableState {
 	const status = params.get(PARAM.status) ?? ALL;
 	const size = positiveInt(params.get(PARAM.size));
 	const cols = params.get(PARAM.cols);
@@ -351,13 +299,13 @@ export function readTableState(params: URLSearchParams, columns: Column[]): Tabl
 			status: STATUS_FILTERS.some((f) => f.value === status) ? status : ALL,
 			region: params.get(PARAM.region) ?? ALL,
 		},
-		sort: parseSort(params.get(PARAM.sort), columns),
+		sorting: parseSort(params.get(PARAM.sort), columns),
 		page: (positiveInt(params.get(PARAM.page)) ?? 1) - 1,
 		size: PAGE_SIZES.find((s) => s === size) ?? PAGE_SIZES[0],
-		visible:
+		visibility:
 			wanted === null
-				? defaultVisible(columns)
-				: columns.filter((c) => c.kind !== "name" && wanted.has(c.key)).map((c) => c.key),
+				? defaultVisibility(columns)
+				: Object.fromEntries(hideable(columns).map((c) => [c.id, wanted.has(c.id)])),
 	};
 }
 
@@ -374,15 +322,18 @@ export function writeFilter(params: URLSearchParams, filter: Filter): URLSearchP
 	return next;
 }
 
-export function writeTableState(params: URLSearchParams, state: TableState, columns: Column[]): URLSearchParams {
+export function writeTableState(
+	params: URLSearchParams,
+	state: TableState,
+	columns: readonly TableColumn[],
+): URLSearchParams {
 	const next = writeFilter(params, state.filter);
 	const put = (key: string, value: string, fallback: string) => {
 		putParam(next, key, value, fallback);
 	};
-	const sort = defaultSort(columns);
-	put(PARAM.sort, `${state.sort.key}${SORT_SEPARATOR}${state.sort.dir}`, `${sort.key}${SORT_SEPARATOR}${sort.dir}`);
+	put(PARAM.sort, sortParam(state.sorting), sortParam(defaultSort(columns)));
 	put(PARAM.page, String(state.page + 1), "1");
 	put(PARAM.size, String(state.size), String(PAGE_SIZES[0]));
-	put(PARAM.cols, state.visible.join(COLS_SEPARATOR), defaultVisible(columns).join(COLS_SEPARATOR));
+	put(PARAM.cols, visibleIds(columns, state.visibility), visibleIds(columns, defaultVisibility(columns)));
 	return next;
 }

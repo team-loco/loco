@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { pageSelection, setPage, toggleId, togglePage } from "./selection";
+import { pageSelection, setPage, toggleId } from "./selection";
 
 describe("selection", () => {
 	test("counts only rows on the page", () => {
@@ -20,11 +20,5 @@ describe("selection", () => {
 	test("setPage adds or removes every row on the page and keeps the rest", () => {
 		expect([...setPage(new Set(["a", "z"]), ["a", "b"], true)].toSorted()).toEqual(["a", "b", "z"]);
 		expect([...setPage(new Set(["a", "z"]), ["a", "b"], false)]).toEqual(["z"]);
-	});
-
-	test("togglePage selects a partly selected page and clears a full one", () => {
-		const full = togglePage(new Set(["a"]), ["a", "b"]);
-		expect([...full].toSorted()).toEqual(["a", "b"]);
-		expect([...togglePage(new Set(["a", "b", "z"]), ["a", "b"])]).toEqual(["z"]);
 	});
 });

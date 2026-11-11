@@ -18,7 +18,3 @@ export function setPage(selected: ReadonlySet<string>, pageIds: readonly string[
 	}
 	return next;
 }
-
-export function togglePage(selected: ReadonlySet<string>, pageIds: readonly string[]): Set<string> {
-	return setPage(selected, pageIds, !pageSelection(selected, pageIds).all);
-}
