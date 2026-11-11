@@ -148,8 +148,6 @@ export function validateDraft(draft: SettingsDraft, base: Baseline, served: stri
 	const errors: DraftErrors = {};
 	if (draft.name !== undefined && next.name.trim() === "") errors.name = "Enter a name";
 	if (draft.image !== undefined && !IMAGE_RE.test(next.image.trim())) errors.image = "Use registry/repository:tag";
-	if (draft.cpu !== undefined && next.cpu.trim() === "") errors.cpu = "Enter a CPU amount";
-	if (draft.memory !== undefined && next.memory.trim() === "") errors.memory = "Enter a memory amount";
 	if (draft.port !== undefined && !positive(next.port)) errors.port = "Enter a port number";
 	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
 	if (draft.healthInterval !== undefined && !positive(next.healthInterval))
@@ -202,8 +200,8 @@ function applyDraft(
 	if (draft.image !== undefined && want.image.trim() !== (svc.build?.image ?? "")) {
 		svc.build = create(BuildSourceSchema, { type: IMAGE_BUILD, image: want.image.trim() });
 	}
-	if (draft.cpu !== undefined) svc.cpu = want.cpu.trim();
-	if (draft.memory !== undefined) svc.memory = want.memory.trim();
+	if (draft.cpu !== undefined) svc.cpu = want.cpu;
+	if (draft.memory !== undefined) svc.memory = want.memory;
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
 	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
 	if (replicas !== undefined) {

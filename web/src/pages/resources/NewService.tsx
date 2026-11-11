@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
+import { SegmentedChoice } from "@/components/design/SegmentedChoice";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter } from "@/components/design/Sheet";
@@ -55,10 +56,10 @@ import {
 	type HealthForm,
 	type NewResourceForm,
 } from "@/lib/new-resource";
+import { sizeOptions, type SizeOptions } from "@/lib/sizing";
 import { slug } from "@/lib/slug";
 import { DeployRunView, DrawerHeader, useServiceDeploy, type DeployError } from "@/pages/resources/NewServiceDeploy";
 
-const MIN_REPLICAS = 1;
 const SKELETON_ROWS = 6;
 const NON_DIGITS_RE = /\D/g;
 const NETWORK_PUBLIC = "public";
@@ -304,6 +305,7 @@ export function DraftSheet({
 				platformDomains={domainsQuery.data?.platformDomains ?? []}
 				draft={vars === undefined ? draft : { ...draft, edits: { ...draft.edits, vars } }}
 				defaults={defaults}
+				sizes={sizeOptions(configQuery.data?.sizeLimits)}
 				deployment={deployment}
 				tried={tried}
 				healthOpen={healthOpen}
@@ -392,6 +394,7 @@ function ServiceForm({
 	env,
 	draft,
 	defaults,
+	sizes,
 	schemaUrl,
 	regions,
 	platformDomains,
@@ -408,6 +411,7 @@ function ServiceForm({
 	env: Environment;
 	draft: Draft;
 	defaults: DefaultServiceConfig;
+	sizes: SizeOptions;
 	schemaUrl: string;
 	regions: RegionInfo[];
 	platformDomains: PlatformDomain[];
@@ -580,8 +584,8 @@ function ServiceForm({
 						<Stepper
 							label="Replicas per region"
 							value={form.replicas}
-							min={MIN_REPLICAS}
-							max={Number.POSITIVE_INFINITY}
+							min={sizes.replicas?.min ?? form.replicas}
+							max={sizes.replicas?.max ?? form.replicas}
 							onChange={(replicas) => {
 								set({ replicas });
 							}}
@@ -605,24 +609,24 @@ function ServiceForm({
 						</span>
 					}
 				>
-					<div className="grid grid-cols-2 gap-x-4 gap-y-3">
-						<Field label="CPU" error={shown(errors.cpu, "cpu") ?? apiError("cpu")}>
-							<Input
+					<div className="flex flex-col gap-3">
+						<Field label="CPU" error={apiError("cpu")}>
+							<SegmentedChoice
+								label="CPU"
+								options={sizes.cpu}
 								value={form.cpu}
-								className="font-mono"
-								aria-invalid={(shown(errors.cpu, "cpu") ?? apiError("cpu")) !== null}
-								onChange={(e) => {
-									set({ cpu: e.target.value });
+								onChange={(cpu) => {
+									set({ cpu });
 								}}
 							/>
 						</Field>
-						<Field label="Memory" error={shown(errors.memory, "memory") ?? apiError("memory")}>
-							<Input
+						<Field label="Memory" error={apiError("memory")}>
+							<SegmentedChoice
+								label="Memory"
+								options={sizes.memory}
 								value={form.memory}
-								className="font-mono"
-								aria-invalid={(shown(errors.memory, "memory") ?? apiError("memory")) !== null}
-								onChange={(e) => {
-									set({ memory: e.target.value });
+								onChange={(memory) => {
+									set({ memory });
 								}}
 							/>
 						</Field>

@@ -206,6 +206,12 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_role("button", name="Decrease replicas per region", exact=True)).to_have_count(1)
                 drawer.get_by_role("button", name="Increase replicas per region", exact=True).click()
                 expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+                cpu = drawer.get_by_role("group", name="CPU", exact=True)
+                memory = drawer.get_by_role("group", name="Memory", exact=True)
+                expect(cpu.get_by_role("button")).to_have_text(["0.1 vCPU", "0.25 vCPU", "0.5 vCPU", "1 vCPU", "2 vCPU"])
+                expect(memory.get_by_role("button")).to_have_text(["128 MiB", "256 MiB", "512 MiB", "1 GiB", "2 GiB", "4 GiB"])
+                cpu.get_by_role("button", name="0.5 vCPU", exact=True).click()
+                memory.get_by_role("button", name="1 GiB", exact=True).click()
 
                 drawer.get_by_role("button", name="Paste .env", exact=True).click()
                 paste = drawer.get_by_role("textbox", name="Paste .env")
@@ -303,6 +309,7 @@ with sync_playwright() as playwright:
                 expect(secret_switch).to_be_checked()
                 expect(secret_value).to_have_value("")
                 expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+                expect(memory.get_by_role("button", name="1 GiB", exact=True)).to_have_attribute("aria-pressed", "true")
                 expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
                 expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value("info")
                 expect(health).to_contain_text(f"{health_path} · every 15s")
@@ -402,6 +409,7 @@ with sync_playwright() as playwright:
                 spec = deployments[0]["spec"]["service"]
                 assert spec["build"]["image"] == pinned_image, spec
                 assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
+                assert spec["cpu"] == "500m" and spec["memory"] == "1Gi", spec
                 assert spec["env"] == {"LOG_LEVEL": "info"}, spec
                 assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
                 assert writes[-1] == {"resourceId": resource, "environmentId": production, "values": {"STRIPE_API_KEY": "sk_test"}}

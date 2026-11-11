@@ -1,6 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { ArrowLeftIcon } from "lucide-react";
 import { useState } from "react";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -12,6 +13,7 @@ import { SaveBar } from "@/components/design/SaveBar";
 import { NEEDS_ADMIN } from "@/hooks/useMyScopes";
 import { servedDomains } from "@/lib/new-resource";
 import { configuredRegions } from "@/lib/resource-regions";
+import { sizeOptions } from "@/lib/sizing";
 import { cn } from "@/lib/utils";
 
 import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
@@ -87,6 +89,8 @@ export function SettingsView({
 		{ environmentId },
 		{ enabled: canReadWorkspace && environmentId !== "" },
 	);
+	const configQuery = useQuery(getConfig, {});
+	const sizes = sizeOptions(configQuery.data?.sizeLimits);
 	const managed = resource.partial !== undefined;
 	const locked = managed || !canWrite;
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
@@ -150,8 +154,13 @@ export function SettingsView({
 				</nav>
 				<div className="flex min-w-0 flex-col">
 					<ImageSection {...props} />
-					<ScalingSection {...props} regions={regions} sectionRef={focus === "scaling" ? scrollToSection : undefined} />
-					<SizeSection {...props} />
+					<ScalingSection
+						{...props}
+						sizes={sizes}
+						regions={regions}
+						sectionRef={focus === "scaling" ? scrollToSection : undefined}
+					/>
+					<SizeSection {...props} sizes={sizes} />
 					<VariablesSection
 						resourceId={resource.id}
 						workspaceId={resource.workspaceId}

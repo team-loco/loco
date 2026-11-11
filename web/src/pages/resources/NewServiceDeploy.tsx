@@ -73,7 +73,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		};
 		setRun(start);
 		const port = Number(form.port);
-		const replicas = { cpu: form.cpu.trim(), memory: form.memory.trim(), minReplicas: form.replicas };
+		const replicas = { cpu: form.cpu, memory: form.memory, minReplicas: form.replicas };
 		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
 		const health = healthCheck === undefined ? {} : { healthCheck };
 		try {

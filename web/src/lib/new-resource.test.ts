@@ -107,11 +107,8 @@ test("validateForm leaves port and health check numbers to the API", () => {
 });
 
 test("firstError reports the first blocking field in form order", () => {
-	const errors = validateForm(
-		{ ...form, regions: [], cpu: " ", memory: "", subdomain: "Bad_Sub", vars: [row("KEY", "")] },
-		"empty",
-	);
-	expect([errors.regions, errors.subdomain, errors.cpu, errors.memory, errors.env].every((e) => e !== null)).toBe(true);
+	const errors = validateForm({ ...form, regions: [], subdomain: "Bad_Sub", vars: [row("KEY", "")] }, "empty");
+	expect([errors.regions, errors.subdomain, errors.env].every((e) => e !== null)).toBe(true);
 	expect(firstError(errors)).toBe("Choose at least one region");
 	expect(validateForm({ ...form, platformDomain: "" }, "empty").subdomain).toBe(
 		"No platform domain is served in every selected region",
