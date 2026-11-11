@@ -281,6 +281,11 @@ clickhouse:
         </{{ . }}>
         {{- end }}
       </clickhouse>
+    # Every OTLP batch is an insert; logging each one would grow system.query_log with ingest volume.
+    profiles:
+      loco_ingest:
+        profile: default
+        log_queries: "0"
     # keep the database in these grants in sync with clickhouse.clickhouse.database above
     users:
       - name: loco_migrator
@@ -291,6 +296,7 @@ clickhouse:
         password_secret_name: loco-clickhouse-ingest
         grants:
           - "GRANT INSERT, SHOW COLUMNS ON loco_obs.*"
+        profile: loco_ingest
       - name: loco_reader
         password_secret_name: loco-clickhouse-reader
         grants:

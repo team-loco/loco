@@ -100,14 +100,21 @@ go run ./tools/pullimage "$clickhouse_image" "$collector_image"
 yq '.spec.configuration.files["config.d/extra_config.xml"]' <<<"$chi" >"$workdir/extra_config.xml"
 
 users=$(yq '.spec.configuration.users | keys | .[] | split("/") | .[0]' <<<"$chi" | sort -u | grep -vx default)
+profiles=$(yq '.spec.configuration.profiles // {} | keys | .[] | split("/") | .[0]' <<<"$chi" | sort -u)
 {
-	echo "<clickhouse><users>"
+	echo "<clickhouse><profiles>"
+	for profile in $profiles; do
+		echo "<$profile>"
+		PROFILE="$profile" yq '.spec.configuration.profiles | to_entries | .[] | select(.key | test("^" + strenv(PROFILE) + "/")) | (.key | sub("^[^/]+/"; "")) as $name | "<" + $name + ">" + .value + "</" + $name + ">"' <<<"$chi"
+		echo "</$profile>"
+	done
+	echo "</profiles><users>"
 	for user in $users; do
 		secret=$(yq ".spec.configuration.users[\"$user/password\"].valueFrom.secretKeyRef.name" <<<"$chi")
 		echo "<$user>"
 		echo "<password>$(secret_value "$secret" password)</password>"
 		echo "<networks><ip>$(yq ".spec.configuration.users[\"$user/networks/ip\"]" <<<"$chi")</ip></networks>"
-		echo "<profile>default</profile><quota>default</quota>"
+		echo "<profile>$(yq ".spec.configuration.users[\"$user/profile\"] // \"default\"" <<<"$chi")</profile><quota>default</quota>"
 		echo "<access_management>$(yq ".spec.configuration.users[\"$user/access_management\"]" <<<"$chi")</access_management>"
 		echo "<grants>"
 		yq ".spec.configuration.users[\"$user/grants/query\"][] | \"<query>\" + . + \"</query>\"" <<<"$chi"

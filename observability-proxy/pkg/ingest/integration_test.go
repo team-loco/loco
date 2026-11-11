@@ -289,7 +289,9 @@ func (f *ingestFixture) startedWriter(t *testing.T) *Writer {
 	t.Helper()
 	f.migrate(t)
 	writer := f.writer(t)
-	if err := WaitForSchema(t.Context(), f.ingestConn(t), f.database, writer.Tables(), testWaitInterval); err != nil {
+	ctx, cancel := context.WithTimeout(t.Context(), testIngestTimeout)
+	defer cancel()
+	if err := WaitForSchema(ctx, f.ingestConn(t), f.database, writer.Tables(), testWaitInterval); err != nil {
 		t.Fatalf("WaitForSchema: %v", err)
 	}
 	if err := writer.Start(t.Context()); err != nil {
@@ -592,5 +594,17 @@ func TestWaitForSchemaBlocksUntilMigrated(t *testing.T) {
 	f.migrate(t)
 	if err := WaitForSchema(t.Context(), conn, f.database, writer.Tables(), testWaitInterval); err != nil {
 		t.Fatalf("WaitForSchema after migrations = %v", err)
+	}
+}
+
+func TestIngestWorksWhenTheServerLocksLogQueries(t *testing.T) {
+	f := newIngestFixture(t)
+	lock := "ALTER USER " + f.database + "_writer SETTINGS log_queries = 1 READONLY"
+	if err := f.admin.Exec(t.Context(), lock); err != nil {
+		t.Fatalf("%s: %v", lock, err)
+	}
+	writer := f.startedWriter(t)
+	if err := writer.Consumers().Logs.ConsumeLogs(t.Context(), testLogs(time.Now().UTC())); err != nil {
+		t.Fatalf("ConsumeLogs: %v", err)
 	}
 }
