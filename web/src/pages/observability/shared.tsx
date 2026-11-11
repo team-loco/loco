@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XIcon } from "lucide-react";
 
+import { HistogramSlider } from "@/components/design/Slider";
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
 import type { Paging } from "@/lib/paging";
@@ -35,90 +36,84 @@ export function VolumeBars({
 	onPick: (index: number) => void;
 }) {
 	const [active, setActive] = useState<number | null>(null);
+	const labelId = useId();
 	const max = Math.max(1, ...buckets.map((b) => b.segments.reduce((a, s) => a + s.value, 0)));
 	const last = buckets.length - 1;
 	const current = active === null ? null : Math.min(active, last);
 	const move = (to: number) => {
 		setActive(Math.max(0, Math.min(last, to)));
 	};
-	const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-		const at = current ?? last;
-		switch (e.key) {
-			case "ArrowLeft": {
-				e.preventDefault();
-				move(current === null ? last : at - 1);
-				return;
-			}
-			case "ArrowRight": {
-				e.preventDefault();
-				move(current === null ? 0 : at + 1);
-				return;
-			}
-			case "Home": {
-				e.preventDefault();
-				move(0);
-				return;
-			}
-			case "End": {
-				e.preventDefault();
-				move(last);
-				return;
-			}
-			case "Enter": {
-				e.preventDefault();
-				if (current !== null) onPick(current);
-				return;
-			}
-			default:
-				return;
-		}
-	};
-	const bucketAt = (e: React.MouseEvent<HTMLDivElement>) => {
+
+	const bucketAt = (e: React.MouseEvent<HTMLElement>) => {
 		const rect = e.currentTarget.getBoundingClientRect();
 		return Math.floor(((e.clientX - rect.left) / rect.width) * buckets.length);
 	};
 	return (
 		<div
-			role="slider"
-			tabIndex={0}
-			aria-label={label}
-			aria-valuemin={0}
-			aria-valuemax={last}
-			aria-valuenow={current ?? last}
-			aria-valuetext={buckets[current ?? last]?.label ?? ""}
 			title={current === null ? undefined : buckets[current]?.label}
-			onKeyDown={onKeyDown}
-			onBlur={() => {
-				setActive(null);
-			}}
-			onMouseMove={(e) => {
-				move(bucketAt(e));
-			}}
-			onMouseLeave={() => {
-				setActive(null);
-			}}
-			onClick={(e) => {
-				onPick(Math.max(0, Math.min(last, bucketAt(e))));
-			}}
-			className="flex h-[72px] cursor-pointer items-end gap-0.5 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-panel focus-visible:outline-none"
+			className="relative h-[72px] cursor-pointer rounded-sm"
 		>
-			{buckets.map((b, i) => (
-				<div
-					key={String(i)}
-					className={cn(
-						"flex h-full min-w-0.5 flex-1 flex-col-reverse overflow-hidden rounded-t-[2px]",
-						current === i && "bg-panel2 brightness-90",
-					)}
-				>
-					{b.segments.map((s, j) => (
-						<span
-							key={String(j)}
-							className="block w-full shrink-0"
-							style={{ height: `${String((s.value / max) * 100)}%`, background: s.color }}
-						/>
-					))}
-				</div>
-			))}
+			<div className="pointer-events-none absolute inset-0 flex items-end gap-0.5">
+				{buckets.map((b, i) => (
+					<div
+						key={String(i)}
+						className={cn(
+							"flex h-full min-w-0.5 flex-1 flex-col-reverse overflow-hidden rounded-t-[2px]",
+							current === i && "bg-panel2 brightness-90",
+						)}
+					>
+						{b.segments.map((s, j) => (
+							<span
+								key={String(j)}
+								className="block w-full shrink-0"
+								style={{ height: `${String((s.value / max) * 100)}%`, background: s.color }}
+							/>
+						))}
+					</div>
+				))}
+			</div>
+			<span id={labelId} className="sr-only">
+				{label}
+			</span>
+			<span aria-live="polite" className="sr-only">
+				{current === null ? "" : buckets[current]?.label}
+			</span>
+			<HistogramSlider
+				aria-labelledby={labelId}
+				value={[current ?? Math.max(0, last)]}
+				min={0}
+				max={Math.max(0, last)}
+				disabled={buckets.length === 0}
+				onBlur={() => {
+					setActive(null);
+				}}
+				onMouseMove={(e) => {
+					move(bucketAt(e));
+				}}
+				onMouseLeave={() => {
+					setActive(null);
+				}}
+				onClick={(e) => {
+					onPick(Math.max(0, Math.min(last, bucketAt(e))));
+				}}
+				onKeyDownCapture={(e) => {
+					// From rest the thumb sits on the last bar; the first arrow starts at either end.
+					if (current === null && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+						e.preventDefault();
+						move(e.key === "ArrowRight" ? 0 : last);
+					}
+				}}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" && current !== null) {
+						e.preventDefault();
+						onPick(current);
+					}
+				}}
+				onValueChange={(value) => {
+					move([value].flat()[0] ?? last);
+				}}
+				className="absolute inset-0"
+			/>
 		</div>
 	);
 }

@@ -1,6 +1,14 @@
 import { SearchIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import {
+	Combobox,
+	ComboboxChipsInput,
+	ComboboxContent,
+	ComboboxEmpty,
+	ComboboxItem,
+	ComboboxList,
+} from "@/components/design/Combobox";
 import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -43,6 +51,8 @@ export function AccessPicker({
 }) {
 	const [q, setQ] = useState("");
 	const [focus, setFocus] = useState(false);
+	const highlightedRef = useRef<EntityNode | undefined>(undefined);
+	const anchorRef = useRef<HTMLDivElement>(null);
 	const levelByKey = new Map(items.map((x) => [x.key, x.level]));
 	const query = q.trim().toLowerCase();
 
@@ -168,104 +178,100 @@ export function AccessPicker({
 	});
 
 	return (
-		<div
-			className={cn(
-				"relative rounded-lg border bg-raise",
-				focus ? "border-fg4" : invalid ? "border-bad-fg" : "border-line2",
-			)}
+		<Combobox
+			items={shown}
+			filter={null}
+			itemToStringLabel={(node: EntityNode) => node.label}
+			value={null}
+			inputValue={q}
+			onInputValueChange={(value, details) => {
+				if (details.reason === "input-change") setQ(value);
+			}}
+			onValueChange={(node) => {
+				if (node !== null) add(node);
+			}}
+			open={focus}
+			onOpenChange={setFocus}
+			onItemHighlighted={(node) => {
+				highlightedRef.current = node;
+			}}
+			autoHighlight
 		>
-			{items.length === 0 && <div className="border-b border-line p-3 text-[12.5px] text-fg3">No permissions yet.</div>}
-			{rows}
-			<div className="flex h-[38px] items-center gap-2 px-3">
-				<SearchIcon className="size-3.5 text-fg3" />
-				<input
-					value={q}
-					onChange={(e) => {
-						setQ(e.target.value);
-						setFocus(true);
-					}}
-					onFocus={() => {
-						setFocus(true);
-					}}
-					onClick={() => {
-						setFocus(true);
-					}}
-					onBlur={() => {
-						setFocus(false);
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Escape" && focus) {
-							e.stopPropagation();
+			<div
+				ref={anchorRef}
+				className={cn(
+					"relative rounded-lg border bg-raise",
+					focus ? "border-fg4" : invalid ? "border-bad-fg" : "border-line2",
+				)}
+			>
+				{items.length === 0 && (
+					<div className="border-b border-line p-3 text-[12.5px] text-fg3">No permissions yet.</div>
+				)}
+				{rows}
+				<div className="flex h-[38px] items-center gap-2 px-3">
+					<SearchIcon className="size-3.5 text-fg3" />
+					<ComboboxChipsInput
+						onFocus={() => {
+							setFocus(true);
+						}}
+						onKeyDown={(e) => {
+							if (e.key !== "Enter" || highlightedRef.current !== undefined) return;
 							e.preventDefault();
-							setFocus(false);
-						} else if (e.key === "Enter") {
-							e.preventDefault();
+							e.preventBaseUIHandler();
 							const first = shown.find((n) => heldLevel(held, tree, n.key) > 0);
 							if (first !== undefined) add(first);
-						}
-					}}
-					placeholder="Add a workspace or resource"
-					autoComplete="off"
-					aria-label="Add a workspace or resource"
-					className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-fg4"
-				/>
-			</div>
-			{focus && (
-				<div
-					role="presentation"
-					onMouseDown={(e) => {
-						e.preventDefault();
-					}}
-					className="absolute inset-x-[-1px] top-[calc(100%+4px)] z-10 max-h-[320px] overflow-y-auto rounded-lg border border-line2 bg-popover p-1 shadow-popover"
-				>
-					{shown.map((n) => {
-						const lvl = heldLevel(held, tree, n.key);
-						const disabled = lvl === 0;
-						const covered = n.kind === "res" && coveredBy(n, 1) !== null;
-						return (
-							<button
-								key={n.key}
-								type="button"
-								disabled={disabled}
-								title={disabled ? `You have no access to ${n.label}` : undefined}
-								onClick={() => {
-									add(n);
-								}}
-								className={cn(
-									"flex h-8 w-full items-center gap-2.5 rounded-[5px] px-2 text-left text-foreground hover:bg-panel dark:hover:bg-panel2",
-									disabled && "opacity-45",
-									covered && "opacity-50",
-								)}
-							>
-								<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
-								<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
-								<span className="text-[11.5px] whitespace-nowrap text-fg3">
-									{disabled ? "No access" : resultNote(n)}
-								</span>
-							</button>
-						);
-					})}
-					{shown.length === 0 && !resourcesLoading && resourcesError === null && (
-						<div className="p-3 text-[12.5px] text-fg3">
-							{query === "" ? "Nothing left to add." : `Nothing matches “${q.trim()}”.`}
-						</div>
-					)}
-					{resourcesError !== null && (
-						<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
-							<span className="text-bad-fg">{getErrorMessage(resourcesError, "Failed to load resources")}</span>
-							<Button type="button" variant="outline" size="sm" disabled={resourcesLoading} onClick={retryResources}>
-								Retry
-							</Button>
-						</div>
-					)}
-					{resourcesLoading && <div className="px-2.5 py-1.5 text-sm text-fg3">Loading resources…</div>}
-					{pool.length > shown.length && (
-						<div className="px-2.5 py-1.5 text-[11.5px] text-fg3">
-							{(pool.length - shown.length).toString()} more, keep typing
-						</div>
-					)}
+						}}
+						aria-invalid={invalid}
+						placeholder="Add a workspace or resource"
+						autoComplete="off"
+						aria-label="Add a workspace or resource"
+						className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-fg4"
+					/>
 				</div>
-			)}
-		</div>
+				<ComboboxContent anchor={anchorRef}>
+					<ComboboxList>
+						{shown.map((n) => {
+							const lvl = heldLevel(held, tree, n.key);
+							const disabled = lvl === 0;
+							const covered = n.kind === "res" && coveredBy(n, 1) !== null;
+							return (
+								<ComboboxItem
+									key={n.key}
+									value={n}
+									disabled={disabled}
+									title={disabled ? `You have no access to ${n.label}` : undefined}
+									className={cn(disabled && "opacity-45", covered && "opacity-50")}
+								>
+									<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
+									<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
+									<span className="text-[11.5px] whitespace-nowrap text-fg3">
+										{disabled ? "No access" : resultNote(n)}
+									</span>
+								</ComboboxItem>
+							);
+						})}
+						{!resourcesLoading && resourcesError === null && (
+							<ComboboxEmpty className="p-3 text-[12.5px] text-fg3">
+								{query === "" ? "Nothing left to add." : `Nothing matches “${q.trim()}”.`}
+							</ComboboxEmpty>
+						)}
+						{resourcesError !== null && (
+							<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
+								<span className="text-bad-fg">{getErrorMessage(resourcesError, "Failed to load resources")}</span>
+								<Button type="button" variant="outline" size="sm" disabled={resourcesLoading} onClick={retryResources}>
+									Retry
+								</Button>
+							</div>
+						)}
+						{resourcesLoading && <div className="px-2.5 py-1.5 text-sm text-fg3">Loading resources…</div>}
+						{pool.length > shown.length && (
+							<div className="px-2.5 py-1.5 text-[11.5px] text-fg3">
+								{(pool.length - shown.length).toString()} more, keep typing
+							</div>
+						)}
+					</ComboboxList>
+				</ComboboxContent>
+			</div>
+		</Combobox>
 	);
 }

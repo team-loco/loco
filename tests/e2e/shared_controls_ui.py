@@ -108,6 +108,101 @@ def calendar(page, suffix):
     expect(date_trigger).not_to_have_text(before)
 
 
+def query_enter(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
+    search = page.locator('input[aria-label="Search and filter"]')
+    search.click()
+    suggestions = page.get_by_role("listbox", name="Suggestions")
+    expect(suggestions).to_be_visible()
+    search.press("Enter")
+    expect(suggestions).not_to_be_visible()
+    expect(search).to_have_value("")
+    assert query_param(page) == "@level:warn", query_param(page)
+    search.press_sequentially("checkout ")
+    expect(suggestions).to_be_visible()
+    search.press("Enter")
+    expect(suggestions).not_to_be_visible()
+    expect(page).to_have_url(re.compile(r"checkout"))
+    assert query_param(page) == "@level:warn checkout", query_param(page)
+
+
+def query_suggestions(page, suffix):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    search = page.locator('input[aria-label="Search and filter"]')
+    search.fill("@lev")
+    expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
+    suggestions = page.get_by_role("listbox", name="Suggestions")
+    suggestions.locator("..").screenshot(path=str(out / f"log-query-{suffix}.png"), animations="disabled")
+    expect(search).to_have_attribute("aria-expanded", "true")
+    search.press("Enter")
+    expect(search).to_have_value("@level:")
+    search.fill("@level:warn")
+    search.press("Tab")
+    expect(search).to_have_value("")
+    search.fill("@zz")
+    expect(page.get_by_text("No matches", exact=True)).to_be_visible()
+    search.press("Escape")
+    expect(search).to_have_attribute("aria-expanded", "false")
+
+
+def volume(page, suffix):
+    end = int(datetime.now(UTC).timestamp() * 1000)
+    page.goto(state["ui_url"] + base + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}")
+    slider = page.get_by_role("slider", name=re.compile(r"^Log volume"))
+    expect(slider).to_be_visible()
+    expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
+    area = page.get_by_role("region", name="Log volume").locator('[data-slot="slider"]').locator("..")
+    bars = area.locator("> div").first.locator("> div")
+    count = bars.count()
+    box = area.bounding_box()
+    target = count - 5
+    point = {"x": box["width"] * (target + 0.1) / count, "y": box["height"] / 2}
+    area.hover(position=point)
+    expect(area).to_have_attribute("title", re.compile(r"loaded"))
+    expect(bars.nth(target)).to_have_class(re.compile(r"bg-panel2"))
+    area.click(position=point)
+    expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
+    clicked = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0]
+    page.goto(state["ui_url"] + base + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}")
+    slider.focus()
+    page.keyboard.press("ArrowRight")
+    expect(slider).to_have_attribute("aria-valuenow", "0")
+    page.keyboard.press("End")
+    expect(slider).to_have_attribute("aria-valuenow", str(count - 1))
+    expect(slider).to_have_attribute("max", str(count - 1))
+    page.keyboard.press("Home")
+    for _ in range(target):
+        page.keyboard.press("ArrowRight")
+    expect(slider).to_have_attribute("aria-valuenow", str(target))
+    page.keyboard.press("Enter")
+    expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
+    assert urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0] == clicked
+
+
+def access_picker(page, suffix):
+    page.goto(state["ui_url"] + "/tokens")
+    page.get_by_role("button", name="New token", exact=True).first.click()
+    dialog = page.get_by_role("dialog")
+    search = page.locator('input[aria-label="Add a workspace or resource"]')
+    search.focus()
+    expect(search).to_have_attribute("aria-expanded", "true")
+    search.fill("controls-")
+    expect(page.get_by_text("controls-pilot", exact=True)).to_be_visible()
+    dialog.screenshot(path=str(out / f"token-permissions-{suffix}.png"), animations="disabled")
+    expect(search).to_have_attribute("aria-activedescendant", re.compile(r".+"))
+    page.locator(f'[id={json.dumps(search.get_attribute("aria-activedescendant"))}]').hover()
+    page.mouse.move(0, 0)
+    expect(search).not_to_have_attribute("aria-activedescendant", re.compile(r".+"))
+    search.press("Enter")
+    expect(page.get_by_role("group", name="Level for controls-pilot")).to_be_visible()
+    expect(search).to_have_value("")
+    search.fill("no matching scope")
+    expect(page.get_by_text("Nothing matches “no matching scope”.")).to_be_visible()
+    search.press("Escape")
+    expect(search).to_have_attribute("aria-expanded", "false")
+    expect(dialog).to_be_visible()
+
+
 def metrics(page, suffix):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
     chart = page.locator('[aria-label="CPU over time"]')
@@ -217,7 +312,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, time_presets, calendar, metrics):
+                        for check in (log_levels, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})

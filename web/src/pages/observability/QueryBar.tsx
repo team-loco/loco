@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { HistoryIcon, SearchIcon, StarIcon, TagIcon, XIcon } from "lucide-react";
 
+import {
+	Combobox,
+	ComboboxChipsInput,
+	ComboboxContent,
+	ComboboxList,
+	ComboboxItem,
+	ComboboxGroup,
+	ComboboxLabel,
+	ComboboxEmpty,
+	useComboboxAnchor,
+} from "@/components/design/Combobox";
 import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -46,7 +57,6 @@ interface Suggestion {
 
 interface Group {
 	title: string;
-	action?: ReactNode;
 	items: Suggestion[];
 }
 
@@ -55,7 +65,6 @@ const KEY_WORD_RE = /^(-?)@(\w*)$/;
 const COMPLETED_TOKEN_RE = /(^|\s)(-?)@(\w+):(\S+)\s$/;
 const MAX_VALUES = 10;
 const MAX_PINNED = 10;
-const BLUR_CLOSE_MS = 120;
 const RECENT_SAVE_MS = 1500;
 
 export type ValueCounts = (key: FieldKey) => [string, number][];
@@ -83,12 +92,12 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	}
 	const [open, setOpen] = useState(false);
 	const [now, setNow] = useState(Date.now);
-	const [hi, setHi] = useState(0);
+	const highlightedRef = useRef<Suggestion | undefined>(undefined);
+	const anchor = useComboboxAnchor();
 	const [pinnedList, updatePinned] = useStoredJSON(PINNED_KEY, pinnedQueries);
 	const scope = recentKey(orgId, workspaceId, view);
 	const [recent, updateRecent] = useStoredJSON(scope, recentQueries);
 	const inputRef = useRef<HTMLInputElement>(null);
-	const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const appliedRecent = recentQuery(view, tokens, applied);
 	useEffect(() => {
@@ -113,7 +122,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const setTokens = (next: Token[], nextText = text) => {
 		setText(nextText);
 		setQuery(next, applied);
-		setHi(0);
 	};
 
 	const addToken = (t: Token) => {
@@ -150,12 +158,12 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 			const w = text.split(" ");
 			w.pop();
 			setText([...w, `${neg ? "-" : ""}@${def.key}:`].join(" "));
-			setHi(0);
 			setOpen(true);
 			focusInput();
 		},
 	});
 
+	const visibleRecent = cur.trim() === "" && scope !== null ? shownRecent(recent, recentQuery(view, tokens, text)) : [];
 	const groups: Group[] = [];
 	const vm = VALUE_WORD_RE.exec(cur);
 	const km = KEY_WORD_RE.exec(cur);
@@ -214,24 +222,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 				})),
 			});
 		}
-		const rec = shownRecent(recent, recentQuery(view, tokens, text));
-		if (scope !== null && rec.length > 0) {
+		if (visibleRecent.length > 0) {
 			groups.push({
 				title: "Recent",
-				action: (
-					<Button
-						variant="link"
-						onClick={() => {
-							updateRecent(() => null);
-							setHi(0);
-							focusInput();
-						}}
-						className="h-auto p-0 text-[11.5px] text-fg3"
-					>
-						Clear
-					</Button>
-				),
-				items: rec.map((r) => ({
+				items: visibleRecent.map((r) => ({
 					key: `r:${r.q}`,
 					icon: <HistoryIcon className="size-3.5" />,
 					main: r.q,
@@ -262,13 +256,8 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		if (ks.length > 0) groups.push({ title: "Attributes", items: ks.map((f) => keyItem(f, false)) });
 	}
 
-	const flat = groups.flatMap((g) => g.items).filter((s) => s.disabled !== true);
-	const hiIdx = Math.min(hi, Math.max(0, flat.length - 1));
-	const highlighted = flat[hiIdx];
 	const curQuery = queryStr(tokens, text);
 	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
-	const showMenu = open && (groups.some((g) => g.items.length > 0) || cur !== "");
-	const noMatches = open && flat.length === 0 && cur !== "";
 
 	const onChange = (v: string) => {
 		const m = COMPLETED_TOKEN_RE.exec(v);
@@ -280,181 +269,139 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 			return;
 		}
 		setText(v);
-		setHi(0);
 		setOpen(true);
 	};
 
-	const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		switch (e.key) {
-			case "ArrowDown": {
-				e.preventDefault();
-				setHi(Math.min(flat.length - 1, hiIdx + 1));
-				setOpen(true);
-				return;
-			}
-			case "ArrowUp": {
-				e.preventDefault();
-				setHi(Math.max(0, hiIdx - 1));
-				return;
-			}
-			case "Enter": {
-				e.preventDefault();
-				const typingWord = cur.trim() !== "";
-				const emptyQuery = text.trim() === "" && tokens.length === 0;
-				if (open && highlighted !== undefined && (typingWord || emptyQuery)) highlighted.apply();
-				else commit();
-				return;
-			}
-			case "Tab": {
-				if (open && highlighted !== undefined && cur.trim() !== "") {
-					e.preventDefault();
-					highlighted.apply();
-				}
-				return;
-			}
-			case "Escape": {
-				setOpen(false);
-				return;
-			}
-			case "Backspace": {
-				if (text === "" && tokens.length > 0) setTokens(tokens.slice(0, -1));
-				return;
-			}
-			default:
-				return;
+	const onKeyDown: NonNullable<React.ComponentProps<typeof ComboboxChipsInput>["onKeyDown"]> = (e) => {
+		if (e.nativeEvent.isComposing) return;
+		const highlighted = highlightedRef.current;
+		const typingWord = cur.trim() !== "";
+		const emptyQuery = text.trim() === "" && tokens.length === 0;
+		if (e.key === "Enter" && !(open && highlighted !== undefined && (typingWord || emptyQuery))) {
+			e.preventDefault();
+			e.preventBaseUIHandler();
+			commit();
+		} else if (e.key === "Tab" && open && highlighted !== undefined && cur.trim() !== "") {
+			e.preventDefault();
+			highlighted.apply();
+		} else if (e.key === "Backspace" && text === "" && tokens.length > 0) {
+			setTokens(tokens.slice(0, -1));
 		}
 	};
 
-	let n = 0;
 	return (
-		<div
-			className="relative min-w-0"
-			onBlur={(e) => {
-				if (e.currentTarget.contains(e.relatedTarget)) return;
-				blurTimerRef.current = setTimeout(() => {
-					setOpen(false);
-				}, BLUR_CLOSE_MS);
+		<Combobox
+			items={groups.flatMap((group) => group.items)}
+			filter={null}
+			value={null}
+			inputValue={text}
+			itemToStringLabel={(item: Suggestion) => item.main}
+			autoHighlight
+			onInputValueChange={(value, details) => {
+				if (details.reason === "input-change") onChange(value);
+			}}
+			onValueChange={(item) => {
+				item?.apply();
+			}}
+			onItemHighlighted={(item) => {
+				highlightedRef.current = item;
+			}}
+			open={open}
+			onOpenChange={(next, details) => {
+				if (details.reason !== "item-press") setOpen(next);
 			}}
 		>
-			<div
-				role="presentation"
-				onClick={focusInput}
-				className="flex min-h-[42px] cursor-text flex-wrap items-center gap-1.5 rounded-lg border border-line2 bg-raise py-[5px] pr-1.5 pl-3 focus-within:border-fg3 focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--fg)_7%,transparent)]"
-			>
-				<SearchIcon className="mr-0.5 size-3.5 shrink-0 text-fg3" />
-				{tokens.map((t, i) => (
-					<TokenChip
-						key={`${String(i)}-${t.key}-${t.value}`}
-						token={t}
-						reason={support[i]?.ok === true ? null : (support[i]?.reason ?? null)}
-						color={t.key === "resource" ? resourceByName.get(t.value)?.color : undefined}
-						onFlip={() => {
-							setTokens(tokens.map((x, j) => (j === i ? { ...x, neg: !x.neg } : x)));
+			<div ref={anchor} className="relative min-w-0">
+				<div
+					role="presentation"
+					onClick={focusInput}
+					className="flex min-h-[42px] cursor-text flex-wrap items-center gap-1.5 rounded-lg border border-line2 bg-raise py-[5px] pr-1.5 pl-3 focus-within:border-fg3 focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--fg)_7%,transparent)]"
+				>
+					<SearchIcon className="mr-0.5 size-3.5 shrink-0 text-fg3" />
+					{tokens.map((t, i) => (
+						<TokenChip
+							key={`${String(i)}-${t.key}-${t.value}`}
+							token={t}
+							reason={support[i]?.ok === true ? null : (support[i]?.reason ?? null)}
+							color={t.key === "resource" ? resourceByName.get(t.value)?.color : undefined}
+							onFlip={() => {
+								setTokens(tokens.map((x, j) => (j === i ? { ...x, neg: !x.neg } : x)));
+							}}
+							onRemove={() => {
+								setTokens(tokens.filter((_, j) => j !== i));
+							}}
+						/>
+					))}
+					<ComboboxChipsInput
+						ref={inputRef}
+						onKeyDown={onKeyDown}
+						onFocus={() => {
+							setNow(Date.now());
+							setOpen(true);
 						}}
-						onRemove={() => {
-							setTokens(tokens.filter((_, j) => j !== i));
-						}}
+						placeholder={tokens.length > 0 ? "" : placeholder(view)}
+						aria-label="Search and filter"
+						aria-describedby={textIgnored ? "omni-text-ignored" : undefined}
+						autoComplete="off"
+						spellCheck={false}
+						className={cn(
+							"h-[30px] min-w-[200px] flex-1 border-0 bg-transparent font-mono text-[12.5px] text-foreground outline-none placeholder:font-sans placeholder:text-[13px] placeholder:text-fg4",
+							textIgnored && "text-fg3 line-through",
+						)}
 					/>
-				))}
-				<input
-					ref={inputRef}
-					value={text}
-					onChange={(e) => {
-						onChange(e.target.value);
-					}}
-					onKeyDown={onKeyDown}
-					onFocus={() => {
-						if (blurTimerRef.current !== null) clearTimeout(blurTimerRef.current);
-						setNow(Date.now());
-						setOpen(true);
-					}}
-					placeholder={tokens.length > 0 ? "" : placeholder(view)}
-					aria-label="Search and filter"
-					aria-describedby={textIgnored ? "omni-text-ignored" : undefined}
-					autoComplete="off"
-					spellCheck={false}
-					className={cn(
-						"h-[30px] min-w-[200px] flex-1 border-0 bg-transparent font-mono text-[12.5px] text-foreground outline-none placeholder:font-sans placeholder:text-[13px] placeholder:text-fg4",
-						textIgnored && "text-fg3 line-through",
+					{textIgnored && (
+						<span id="omni-text-ignored" className="text-[12px] text-fg3">
+							Text search doesn&apos;t filter {view}
+						</span>
 					)}
-				/>
-				{textIgnored && (
-					<span id="omni-text-ignored" className="text-[12px] text-fg3">
-						Text search doesn&apos;t filter {view}
-					</span>
-				)}
-				{curQuery !== "" && (
+					{curQuery !== "" && (
+						<Button
+							variant="link"
+							onClick={(e) => {
+								e.stopPropagation();
+								setText("");
+								setQuery([], "");
+								focusInput();
+							}}
+							className="px-1 text-[12px] text-fg3"
+						>
+							Clear
+						</Button>
+					)}
 					<Button
-						variant="link"
+						variant="ghost"
+						size="icon-xs"
+						aria-label={pinned ? "Unpin search" : "Pin search"}
+						title={pinned ? "Unpin search" : "Pin search"}
+						disabled={curQuery === ""}
 						onClick={(e) => {
 							e.stopPropagation();
-							setText("");
-							setQuery([], "");
-							focusInput();
+							updatePinned((list) =>
+								pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
+							);
 						}}
-						className="px-1 text-[12px] text-fg3"
+						className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
 					>
-						Clear
+						<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
 					</Button>
-				)}
-				<Button
-					variant="ghost"
-					size="icon-xs"
-					aria-label={pinned ? "Unpin search" : "Pin search"}
-					title={pinned ? "Unpin search" : "Pin search"}
-					disabled={curQuery === ""}
-					onClick={(e) => {
-						e.stopPropagation();
-						updatePinned((list) =>
-							pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
-						);
-					}}
-					className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
+				</div>
+				<ComboboxContent
+					anchor={anchor}
+					className="w-[min(560px,var(--anchor-width))] min-w-0 p-1.5 data-[chips=true]:min-w-0"
 				>
-					<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
-				</Button>
-			</div>
-			{showMenu && (
-				<div
-					role="listbox"
-					aria-label="Suggestions"
-					tabIndex={-1}
-					onMouseDown={(e) => {
-						e.preventDefault();
-					}}
-					className="absolute top-[calc(100%+6px)] left-0 z-50 flex max-h-[400px] w-[min(560px,100%)] flex-col overflow-y-auto rounded-card border border-line bg-popover p-1.5 shadow-popover dark:border-line2"
-				>
-					{groups
-						.filter((g) => g.items.length > 0)
-						.map((g, gi) => (
-							<div key={g.title} className={cn("flex flex-col", gi > 0 && "mt-1 border-t border-line pt-1")}>
-								<div className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">
-									{g.title}
-									{g.action}
-								</div>
-								{g.items.map((s) => {
-									const idx = s.disabled === true ? -1 : n++;
-									const active = idx === hiIdx && idx >= 0;
-									return (
-										<div
-											key={s.key}
-											role="option"
-											tabIndex={-1}
-											aria-selected={active}
-											aria-disabled={s.disabled === true}
-											onMouseDown={(e) => {
-												e.preventDefault();
-												if (s.disabled !== true) s.apply();
-											}}
-											onMouseEnter={() => {
-												if (idx >= 0 && hi !== idx) setHi(idx);
-											}}
-											className={cn(
-												"flex h-8 items-center gap-2.5 rounded-sm px-2 text-[12.5px]",
-												s.disabled === true ? "text-fg4" : "text-foreground",
-												active && "bg-panel",
-											)}
-										>
+					<ComboboxList aria-label="Suggestions">
+						{groups
+							.filter((g) => g.items.length > 0)
+							.map((g, gi) => (
+								<ComboboxGroup
+									key={g.title}
+									className={cn("flex flex-col", gi > 0 && "mt-1 border-t border-line pt-1")}
+								>
+									<ComboboxLabel className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">
+										{g.title}
+									</ComboboxLabel>
+									{g.items.map((s) => (
+										<ComboboxItem key={s.key} value={s} disabled={s.disabled}>
 											<span className="flex text-fg3">{s.icon}</span>
 											<span className="min-w-0 flex-1 truncate font-mono">{s.main}</span>
 											<span className="text-[12px] whitespace-nowrap text-fg3">{s.hint}</span>
@@ -464,11 +411,8 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 													variant="ghost"
 													size="icon-xs"
 													aria-label={`Unpin ${s.main}`}
-													onMouseDown={(e) => {
-														e.preventDefault();
+													onClick={(e) => {
 														e.stopPropagation();
-													}}
-													onClick={() => {
 														s.remove?.();
 														focusInput();
 													}}
@@ -477,18 +421,30 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 													<XIcon className="size-[11px]" />
 												</Button>
 											)}
-										</div>
-									);
-								})}
-							</div>
-						))}
-					{noMatches && <div className="p-2.5 text-fg3">No matches</div>}
+										</ComboboxItem>
+									))}
+								</ComboboxGroup>
+							))}
+						<ComboboxEmpty className="p-2.5 text-fg3">No matches</ComboboxEmpty>
+					</ComboboxList>
 					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
 						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix
+						{visibleRecent.length > 0 && (
+							<Button
+								variant="link"
+								className="ml-auto h-auto p-0 text-[11.5px] text-fg3"
+								onClick={() => {
+									updateRecent(() => null);
+									focusInput();
+								}}
+							>
+								Clear recent searches
+							</Button>
+						)}
 					</div>
-				</div>
-			)}
-		</div>
+				</ComboboxContent>
+			</div>
+		</Combobox>
 	);
 }
 
