@@ -193,6 +193,20 @@ with sync_playwright() as playwright:
             page.goto(ui + f"/org/{org}/team")
             expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+
+            # The owner is the new org's only member and it has no invitations.
+            page.goto(ui + f"/org/{other_org}/team")
+            owner_row = page.get_by_role("row").filter(has_text=state["users"]["owner"]["email"])
+            expect(owner_row).to_be_visible()
+            for view in ("All", "Members"):
+                expect(page.get_by_role("button", name=re.compile(rf"^{view}\s*1$"))).to_be_visible()
+            expect(page.get_by_role("row")).to_have_count(2)
+            prompt = page.get_by_role("region", name="It's just you so far")
+            expect(prompt).to_be_visible()
+            expect(prompt.get_by_role("button", name="Invite", exact=True)).to_be_visible()
+            expect(prompt.get_by_role("link", name="Read the docs")).to_be_visible()
+            page.get_by_role("button", name=re.compile(r"^Invitations")).click()
+            expect(page.get_by_text("No invitations", exact=True)).to_be_visible()
             assert not errors, errors
             cases.append("owner-other-org")
         except BaseException:
