@@ -14,22 +14,24 @@ import (
 	"syscall"
 	"time"
 
+	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/internal/clusterassertion"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 )
 
 const (
-	defaultLifetime    = time.Hour
-	assertionLifetime  = time.Minute
-	workspaceSeparator = ","
+	defaultLifetime   = time.Hour
+	assertionLifetime = time.Minute
+	resourceSeparator = ","
 )
 
 var (
-	errMissingFlags      = errors.New("-key and -cluster are required")
-	errMissingWorkspaces = errors.New("-serve requires -workspaces")
-	errMissingCluster    = errors.New("-agent-key requires -cluster or -public-key")
-	errPublicKey         = errors.New("agent key has no Ed25519 public key")
+	errMissingFlags     = errors.New("-key and -cluster are required")
+	errMissingResources = errors.New("-serve requires -resources")
+	errInvalidResource  = errors.New("resource must be workspace/resource")
+	errMissingCluster   = errors.New("-agent-key requires -cluster or -public-key")
+	errPublicKey        = errors.New("agent key has no Ed25519 public key")
 )
 
 func agentAssertion(agentKey, clusterID string, now time.Time) (string, error) {
@@ -67,9 +69,17 @@ func mint(ctx context.Context, keyFile, clusterID string, now time.Time, lifetim
 	return token, err
 }
 
-func serve(ctx context.Context, keyFile, addr, workspaces string, placedAt time.Time) error {
-	if workspaces == "" {
-		return errMissingWorkspaces
+func serve(ctx context.Context, keyFile, addr, resources string, placedAt time.Time) error {
+	if resources == "" {
+		return errMissingResources
+	}
+	var policies []*ingestv1.ResourceLogRetention
+	for resource := range strings.SplitSeq(resources, resourceSeparator) {
+		workspaceID, resourceID, ok := strings.Cut(resource, "/")
+		if !ok || workspaceID == "" || resourceID == "" {
+			return fmt.Errorf("%w: %q", errInvalidResource, resource)
+		}
+		policies = append(policies, &ingestv1.ResourceLogRetention{WorkspaceId: workspaceID, ResourceId: resourceID})
 	}
 	signer, err := ingesttest.ReadSigner(keyFile)
 	if err != nil {
@@ -82,9 +92,10 @@ func serve(ctx context.Context, keyFile, addr, workspaces string, placedAt time.
 	}
 	controlPlane := ingesttest.Serve(listener, []ingesttest.Signer{signer})
 	defer controlPlane.Close()
-	for workspace := range strings.SplitSeq(workspaces, workspaceSeparator) {
-		controlPlane.Place(workspace, placedAt, time.Time{})
+	for _, policy := range policies {
+		controlPlane.Place(policy.GetWorkspaceId(), placedAt, time.Time{})
 	}
+	controlPlane.Update(func(state *ingesttest.State) { state.LogRetentions = policies })
 	<-ctx.Done()
 	return nil
 }
@@ -95,10 +106,10 @@ func main() {
 	lifetime := flag.Duration("lifetime", defaultLifetime, "token lifetime")
 	serveUsage := "serve a fake control plane with the keys' JWKS on this address instead of printing a token"
 	addr := flag.String("serve", "", serveUsage)
-	workspaces := flag.String(
-		"workspaces",
+	resources := flag.String(
+		"resources",
 		"",
-		"comma-separated workspace IDs the fake control plane reports as placed",
+		"comma-separated workspace/resource pairs the fake control plane authorizes with default log retention",
 	)
 	agentKey := flag.String(
 		"agent-key",
@@ -125,7 +136,7 @@ func main() {
 		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 		defer stop()
 		placedAt := time.Unix(0, 0)
-		if err := serve(ctx, *keyFile, *addr, *workspaces, placedAt); err != nil {
+		if err := serve(ctx, *keyFile, *addr, *resources, placedAt); err != nil {
 			log.Fatal(err)
 		}
 		return

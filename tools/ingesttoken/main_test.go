@@ -46,9 +46,20 @@ func TestMintSignsWithTheKeyFile(t *testing.T) {
 	}
 }
 
-func TestServeRequiresWorkspaces(t *testing.T) {
-	if err := serve(t.Context(), writeKey(t), "127.0.0.1:0", "", time.Now()); !errors.Is(err, errMissingWorkspaces) {
-		t.Fatalf("serve without workspaces = %v", err)
+func TestServeRequiresResourceIdentities(t *testing.T) {
+	for _, test := range []struct {
+		resources string
+		want      error
+	}{
+		{"", errMissingResources},
+		{"workspace", errInvalidResource},
+		{"workspace/", errInvalidResource},
+		{"/resource", errInvalidResource},
+	} {
+		err := serve(t.Context(), writeKey(t), "127.0.0.1:0", test.resources, time.Now())
+		if !errors.Is(err, test.want) {
+			t.Fatalf("serve(%q) = %v, want %v", test.resources, err, test.want)
+		}
 	}
 }
 

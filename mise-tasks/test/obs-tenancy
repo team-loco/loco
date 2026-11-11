@@ -26,7 +26,7 @@ route_cluster=httproute/$workspace_prefix$route_workspace/resource-$route_resour
 # keep in sync with loco-worker.gateway in charts/loco-worker/templates/_helpers.tpl
 gateway_name=eg
 gateway_namespace=$namespace
-start_control_plane "$pod_workspace" "$route_workspace"
+start_control_plane "$pod_workspace/$pod_resource" "$route_workspace/$route_resource"
 
 test_config() {
 	LABEL_PREFIX="$label_prefix" yq '
