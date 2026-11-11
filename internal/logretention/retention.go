@@ -6,20 +6,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/team-loco/loco/internal/envconfig"
 )
 
-const defaultMaximum = 365 * 24 * time.Hour
+const DefaultMaximum = 365 * 24 * time.Hour
 
 var ErrInvalid = errors.New("log retention must be positive whole seconds and no greater than the installation maximum")
 
-func Maximum() time.Duration {
-	maximum := envconfig.PositiveDuration("CLICKHOUSE_LOGS_TTL", defaultMaximum)
-	if maximum%time.Second != 0 {
-		panic(ErrInvalid)
+func ValidateMaximum(maximum time.Duration) error {
+	if maximum <= 0 || maximum%time.Second != 0 {
+		return ErrInvalid
 	}
-	return maximum
+	return nil
 }
 
 func parse(value string) (time.Duration, error) {

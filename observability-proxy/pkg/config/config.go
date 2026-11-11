@@ -92,7 +92,7 @@ func Load() *Config {
 		CORSAllowedOrigins: originsEnv("CORS_ALLOWED_ORIGINS"),
 		ClickHouseDB:       requiredIdentifierEnv("CLICKHOUSE_DB"),
 
-		LogsTTL:                logretention.Maximum(),
+		LogsTTL:                envconfig.PositiveDuration("CLICKHOUSE_LOGS_TTL", logretention.DefaultMaximum),
 		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL", defaultRetention),
 		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL", defaultRetention),
 		MigrationRetryBudget:   envconfig.PositiveDuration("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
@@ -128,6 +128,9 @@ func Load() *Config {
 		),
 		IngestClockSkew:  envconfig.PositiveDuration("INGEST_CLOCK_SKEW", defaultIngestClockSkew),
 		IngestRetryAfter: ttlEnv("INGEST_RETRY_AFTER", defaultIngestRetryAfter),
+	}
+	if err := logretention.ValidateMaximum(cfg.LogsTTL); err != nil {
+		panic(err)
 	}
 	if !cfg.QueryEnabled && !cfg.IngestEnabled {
 		panic(errNoRole)

@@ -334,9 +334,15 @@ func TestIngestReturnsResourceRetentionPolicies(t *testing.T) {
 	}
 	if _, err := f.pool.Exec(
 		t.Context(),
-		`UPDATE resources SET spec = '{"observability":{"logging":{"retentionPeriod":"1s"}}}' WHERE id = $1`,
+		`UPDATE resources SET spec = '{"regions":7,"observability":{"logging":{"retentionPeriod":"1s"}}}' WHERE id = $1`,
 		f.resourceID,
 	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(t.Context(), `
+ INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
+ SELECT workspace_id, 'db-retention', 'db-retention', 'database', '', '{}', 1
+ FROM resources WHERE id = $1`, f.resourceID); err != nil {
 		t.Fatal(err)
 	}
 	key := newIngestKey(t, testCurrentIngestKey)

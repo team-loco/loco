@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/internal/logretention"
 	"github.com/team-loco/loco/observability-proxy/pkg/ingest"
 )
 
@@ -105,7 +106,7 @@ func TestLoadDefaultsOptionalSettings(t *testing.T) {
 	cfg := Load()
 
 	durations := map[string][2]time.Duration{
-		"LogsTTL":                {cfg.LogsTTL, defaultRetention},
+		"LogsTTL":                {cfg.LogsTTL, logretention.DefaultMaximum},
 		"TracesTTL":              {cfg.TracesTTL, defaultRetention},
 		"MetricsTTL":             {cfg.MetricsTTL, defaultRetention},
 		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, defaultMigrationRetryBudget},

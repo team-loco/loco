@@ -524,7 +524,10 @@ func newServiceDefaults() servicedefaults.Defaults {
 		DeployRetryDelay:         positiveInt32Env("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", defaultDeployRetryDelay),
 		MetricsPort:              defaultMetricsPort,
 		MetricsPath:              defaultMetricsPath,
-		LogRetention:             logretention.Maximum(),
+		LogRetention:             envconfig.PositiveDuration("CLICKHOUSE_LOGS_TTL", logretention.DefaultMaximum),
+	}
+	if err := logretention.ValidateMaximum(defaults.LogRetention); err != nil {
+		panic(err)
 	}
 	if err := defaults.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))

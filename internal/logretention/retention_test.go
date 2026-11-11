@@ -26,24 +26,15 @@ func TestResolve(t *testing.T) {
 	}
 }
 
-func TestMaximum(t *testing.T) {
-	t.Setenv("CLICKHOUSE_LOGS_TTL", "")
-	if got := Maximum(); got != 365*24*time.Hour {
-		t.Fatalf("default = %v", got)
+func TestValidateMaximum(t *testing.T) {
+	for _, maximum := range []time.Duration{DefaultMaximum, time.Second, 48 * time.Hour} {
+		if err := ValidateMaximum(maximum); err != nil {
+			t.Fatalf("ValidateMaximum(%v): %v", maximum, err)
+		}
 	}
-	t.Setenv("CLICKHOUSE_LOGS_TTL", "48h")
-	if got := Maximum(); got != 48*time.Hour {
-		t.Fatalf("configured = %v", got)
-	}
-	for _, value := range []string{"0s", "-1h", "1.5s", "bad"} {
-		t.Run(value, func(t *testing.T) {
-			t.Setenv("CLICKHOUSE_LOGS_TTL", value)
-			defer func() {
-				if recover() == nil {
-					t.Fatal("expected invalid startup configuration to panic")
-				}
-			}()
-			Maximum()
-		})
+	for _, maximum := range []time.Duration{0, -time.Hour, 1500 * time.Millisecond} {
+		if err := ValidateMaximum(maximum); err == nil {
+			t.Errorf("ValidateMaximum(%v) succeeded", maximum)
+		}
 	}
 }

@@ -54,7 +54,7 @@ func testServiceDefaults() servicedefaults.Defaults {
 		DeployAttempts:           testDeployAttempts,
 		DeployRetryDelay:         testDeployRetryDelay,
 		MetricsPath:              testMetricsPath,
-		LogRetention:             logretention.Maximum(),
+		LogRetention:             logretention.DefaultMaximum,
 	}
 }
 

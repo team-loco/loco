@@ -271,8 +271,10 @@ WITH restarted AS (
 SELECT cluster_id FROM restarted;
 
 -- name: ListClusterLogRetentions :many
-SELECT r.id, r.workspace_id, r.spec, r.type FROM resources r
-WHERE EXISTS (
+SELECT r.id, r.workspace_id,
+       COALESCE(r.spec #>> '{observability,logging,retentionPeriod}', '')::text AS retention_period
+FROM resources r
+WHERE r.type = 'service' AND EXISTS (
  SELECT 1 FROM placement_windows w
  WHERE w.workspace_id = r.workspace_id AND w.cluster_id = $1
 )
