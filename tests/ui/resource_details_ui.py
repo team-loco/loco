@@ -94,6 +94,7 @@ with sync_playwright() as playwright:
                     more.click()
                     restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)
                     expect(restart).to_be_enabled()
+                    evidence.settle(page, wait_for_network=False)
                     page.screenshot(path=out / f"restart-{case}.png", animations="disabled")
                     with page.expect_response(lambda response: response.url.endswith("/RestartResource")) as restarted:
                         restart.click()
