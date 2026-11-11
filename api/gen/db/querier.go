@@ -31,6 +31,7 @@ type Querier interface {
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
 	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
 	CloseSystemBootstrap(ctx context.Context, bootstrappedBy *uuid.UUID) (int64, error)
+	ConsumeAdmission(ctx context.Context, arg ConsumeAdmissionParams) (ConsumeAdmissionRow, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	CountSecrets(ctx context.Context, arg CountSecretsParams) (int64, error)
 	CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) (int64, error)

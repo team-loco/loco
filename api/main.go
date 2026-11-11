@@ -35,6 +35,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
+	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
@@ -91,7 +92,7 @@ func isLoopbackOrigin(origin string) bool {
 }
 
 func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) http.Handler {
-	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id")
+	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id", "Retry-After")
 	opts := cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   connectcors.AllowedMethods(),
@@ -234,6 +235,7 @@ func run() error {
 }
 
 type deps struct {
+	admission         *admission.Limiter
 	machine           *tvm.VendingMachine
 	queries           *genDb.Queries
 	verifier          *auth.Verifier
@@ -366,6 +368,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		queries, secretKeyProvider, ac.Webhooks, workspaceWebhookClient, installWebhookClient,
 	)
 	return &deps{
+		admission:         admission.New(pool, ac.Admission),
 		machine:           machine,
 		queries:           queries,
 		verifier:          verifier,
@@ -450,6 +453,7 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 	if err != nil {
 		return nil, nil, err
 	}
+	// Agent sync, ingest token/placement RPCs and discovery must survive client admission pressure.
 	base = connect.NewServer(tracingInterceptor, errorInterceptor, deadlineInterceptor.Interceptor())
 	authenticated = connect.NewServer(
 		tracingInterceptor,
@@ -457,6 +461,7 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 		deadlineInterceptor.Interceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
 		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer).Interceptor(),
+		d.admission.Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	return base, authenticated, nil

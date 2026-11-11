@@ -448,3 +448,7 @@ run = "go run ./tools/installation-e2e"
 [tasks."test:e2e-installation-runner"]
 description = "Test installation fixture failure handling and real IdP form driving without a cluster"
 run = "go test ./tools/installation-e2e"
+
+[tasks."e2e:admission"]
+description = "Test API request, build and deployment admission and required control-plane traffic; takes the e2e flags"
+run = "./tests/e2e/run.sh admission"

@@ -71,8 +71,8 @@ jobs:
           - name: Cluster Attachment E2E
             args: --builds-disabled cluster_attachment
             timeout: 45
-          - name: Config E2E
-            args: config_apply
+          - name: Config and Admission E2E
+            args: config_apply admission
             timeout: 45
           - name: Private Discovery E2E
             args: discovery

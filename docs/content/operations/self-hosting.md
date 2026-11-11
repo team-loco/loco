@@ -94,6 +94,27 @@ The proxy serializes its migrations through a KeeperMap table, so the ClickHouse
 
 Your team supplies DNS records, certificate issuance, persistent storage, backups, and capacity. Keep credentials separate across installations and environments. Use [architecture](../reference/architecture.md) to identify the control-plane and regional boundaries.
 
+## API admission budgets
+
+The API shares admission counters through PostgreSQL across replicas, including when `CACHE_TYPE=in-memory`. Configure these optional environment variables under the control-plane chart's `api.env`. The API reads them once at startup; every replica must use the same settings.
+
+| Variable | Default | Budget per window |
+| --- | --- | --- |
+| `LOCO_ADMISSION_WINDOW` | `1m` | Positive duration for all budgets |
+| `LOCO_ADMISSION_GLOBAL_REQUESTS` | `60000` | Requests on the authenticated RPC server, including public login RPCs |
+| `LOCO_ADMISSION_PRINCIPAL_REQUESTS` | `6000` | Requests per authenticated entity type and ID, shared by its tokens |
+| `LOCO_ADMISSION_WORKSPACE_REQUESTS` | `12000` | Requests authorized on a workspace or its resources |
+| `LOCO_ADMISSION_GLOBAL_DEPLOYS` | `600` | Deployment creation, plan apply and scaling requests |
+| `LOCO_ADMISSION_WORKSPACE_DEPLOYS` | `120` | The same operations per workspace |
+| `LOCO_ADMISSION_GLOBAL_BUILDS` | `600` | Build creation requests, before upload URLs are issued |
+| `LOCO_ADMISSION_WORKSPACE_BUILDS` | `120` | Build creation requests per workspace |
+
+A zero budget disables that limit; negative budgets prevent startup. Each key's window begins with its first admitted request and permits the entire configured count as a burst. It resets on the first request after expiry, with no accumulated credit. Two bursts can straddle an expiry. Counters persist across API restarts and reuse the same row on expiry. A plan apply consumes one deployment admission regardless of the number of services or regions; these are request rates, not limits on active rollouts or build jobs. Existing rollout guards still apply.
+
+Request budgets run after authentication. Workspace and work budgets run after authorization and before image resolution, deployment/build writes or upload URL creation. A rejected request consumes none of the budgets in its admission stage. A workspace or work rejection still consumes the earlier global/principal request allowance. Failed operations retain their admission charge; retries are new requests and existing idempotency behavior is unchanged. A throttled workspace cannot spend another workspace's allowance, but every admitted request shares the global cap.
+
+Excess requests return Connect `ResourceExhausted`, a `Retry-After` response header in seconds and retry guidance in the message. PostgreSQL failures also reject admission, preserving the caps while the shared counter cannot be checked. Retry after the indicated delay. Agent RPCs (including sync), ingest token and placement-window RPCs, ingest JWKS, registry token/key endpoints, health, configuration discovery and bootstrap are exempt so client request pressure does not stop reconciliation or credential renewal. Observability query limits remain independent.
+
 ## First system admin
 
 Operator commands in `locoadm` require the `system:admin` grant. `BootstrapService.Bootstrap` requires both the installation's bootstrap token and an identity-provider JWT in the Authorization header. The API verifies the issuer, signature, audience, expiry and verified email before resolving or creating the first administrator, including when ordinary signup is closed. It returns a normal CLI session.

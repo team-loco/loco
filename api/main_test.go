@@ -65,6 +65,9 @@ func TestWithCORSExposedHeaders(t *testing.T) {
 	if !strings.Contains(exposed, "x-loco-request-id") {
 		t.Errorf("exposed headers %q missing x-loco-request-id", exposed)
 	}
+	if !strings.Contains(exposed, "retry-after") {
+		t.Errorf("exposed headers %q missing Retry-After", exposed)
+	}
 	if strings.Contains(exposed, "server-timing") {
 		t.Errorf("exposed headers %q include server-timing", exposed)
 	}

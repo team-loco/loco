@@ -10,6 +10,7 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/api/reqctx"
 )
 
@@ -56,7 +57,7 @@ func principalFrom(ctx context.Context) (reqctx.Principal, error) {
 func check(ctx context.Context, authorizer *authz.Authorizer, p reqctx.Principal, required genDb.EntityScope) error {
 	err := authorizer.Check(ctx, p.Scopes, required)
 	if err == nil {
-		return nil
+		return admission.Authorize(ctx, required)
 	}
 	if accessDenied(err) {
 		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)

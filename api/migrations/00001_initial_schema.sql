@@ -65,7 +65,14 @@ CREATE INDEX IF NOT EXISTS idx_workspaces_org_id_created_at ON workspaces (org_i
 
 CREATE INDEX IF NOT EXISTS idx_workspaces_created_at_id_desc ON workspaces (created_at DESC, id DESC);
 
+CREATE TABLE api_admission (
+    key TEXT PRIMARY KEY,
+    used BIGINT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
 -- +goose Down
+DROP TABLE api_admission;
 DROP TABLE IF EXISTS workspaces;
 DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS identities;

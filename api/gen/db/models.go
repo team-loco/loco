@@ -407,6 +407,12 @@ func (ns NullWebhookKind) Value() (driver.Value, error) {
 	return string(ns.WebhookKind), nil
 }
 
+type ApiAdmission struct {
+	Key       string    `json:"key"`
+	Used      int64     `json:"used"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
 type ApiToken struct {
 	ID         uuid.UUID     `json:"id"`
 	TokenHash  string        `json:"tokenHash"`

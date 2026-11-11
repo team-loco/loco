@@ -1251,3 +1251,46 @@ func TestNewAPIConfigTokenMaximum(t *testing.T) {
 	}()
 	newAPIConfig()
 }
+
+func TestAdmissionConfig(t *testing.T) {
+	names := []string{
+		"LOCO_ADMISSION_GLOBAL_REQUESTS",
+		"LOCO_ADMISSION_PRINCIPAL_REQUESTS",
+		"LOCO_ADMISSION_WORKSPACE_REQUESTS",
+		"LOCO_ADMISSION_GLOBAL_DEPLOYS",
+		"LOCO_ADMISSION_WORKSPACE_DEPLOYS",
+		"LOCO_ADMISSION_GLOBAL_BUILDS",
+		"LOCO_ADMISSION_WORKSPACE_BUILDS",
+	}
+	for _, name := range names {
+		t.Setenv(name, "7")
+	}
+	t.Setenv("LOCO_ADMISSION_WINDOW", "2m")
+	config := newAdmissionConfig()
+	if config.Window != 2*time.Minute || config.GlobalRequests != 7 || config.PrincipalRequests != 7 ||
+		config.WorkspaceRequests != 7 ||
+		config.GlobalDeploys != 7 ||
+		config.WorkspaceDeploys != 7 ||
+		config.GlobalBuilds != 7 ||
+		config.WorkspaceBuilds != 7 {
+		t.Fatalf("config: %+v", config)
+	}
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(name, "0")
+			newAdmissionConfig()
+			t.Setenv(name, "-1")
+			if err := panicValue(t, func() { newAdmissionConfig() }); !errors.Is(err, errNegative) {
+				t.Fatalf("negative budget: %v", err)
+			}
+		})
+	}
+	for _, value := range []string{"0s", "-1s", "invalid"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("LOCO_ADMISSION_WINDOW", value)
+			if err := panicValue(t, func() { newAdmissionConfig() }); err == nil {
+				t.Fatal("invalid window accepted")
+			}
+		})
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db"
 	"github.com/team-loco/loco/api/mail"
+	"github.com/team-loco/loco/api/pkg/admission"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -178,6 +179,7 @@ func (c RegistryAuthConfig) TokenMode() bool {
 }
 
 type APIConfig struct {
+	Admission             admission.Config
 	ObservabilityProxyURL *url.URL
 	Agent                 service.AgentConfig
 	Ingest                IngestConfig
@@ -270,6 +272,7 @@ func newAPIConfig() *APIConfig {
 	}
 
 	return &APIConfig{
+		Admission:             newAdmissionConfig(),
 		Agent:                 agentConfig,
 		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
@@ -718,5 +721,18 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 		JoinTokenTTL:         joinTokenTTL,
 		DeployAttempts:       defaults.DeployAttempts,
 		DeployRetryDelay:     defaults.DeployRetryDelay,
+	}
+}
+
+func newAdmissionConfig() admission.Config {
+	return admission.Config{
+		Window:            envconfig.PositiveDuration("LOCO_ADMISSION_WINDOW", time.Minute),
+		GlobalRequests:    nonNegativeInt32Env("LOCO_ADMISSION_GLOBAL_REQUESTS", 60000),
+		PrincipalRequests: nonNegativeInt32Env("LOCO_ADMISSION_PRINCIPAL_REQUESTS", 6000),
+		WorkspaceRequests: nonNegativeInt32Env("LOCO_ADMISSION_WORKSPACE_REQUESTS", 12000),
+		GlobalDeploys:     nonNegativeInt32Env("LOCO_ADMISSION_GLOBAL_DEPLOYS", 600),
+		WorkspaceDeploys:  nonNegativeInt32Env("LOCO_ADMISSION_WORKSPACE_DEPLOYS", 120),
+		GlobalBuilds:      nonNegativeInt32Env("LOCO_ADMISSION_GLOBAL_BUILDS", 600),
+		WorkspaceBuilds:   nonNegativeInt32Env("LOCO_ADMISSION_WORKSPACE_BUILDS", 120),
 	}
 }
