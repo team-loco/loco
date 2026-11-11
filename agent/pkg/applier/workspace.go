@@ -11,18 +11,6 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-func (a *Applier) workspaceNamespaces(ctx context.Context) ([]corev1.Namespace, error) {
-	namespaces := &corev1.NamespaceList{}
-	selector := client.MatchingLabels{
-		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		locolabels.LabelLocoApp:   "true",
-	}
-	if err := a.client.List(ctx, namespaces, selector, client.HasLabels{locolabels.LabelWorkspaceID}); err != nil {
-		return nil, fmt.Errorf("list workspace namespaces: %w", err)
-	}
-	return namespaces.Items, nil
-}
-
 func (a *Applier) WorkspaceIDs(ctx context.Context) ([]string, error) {
 	namespaces, err := a.workspaceNamespaces(ctx)
 	if err != nil {
@@ -62,4 +50,16 @@ func (a *Applier) DeleteWorkspace(ctx context.Context, workspaceID string) error
 		}
 	}
 	return nil
+}
+
+func (a *Applier) workspaceNamespaces(ctx context.Context) ([]corev1.Namespace, error) {
+	namespaces := &corev1.NamespaceList{}
+	selector := client.MatchingLabels{
+		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
+		locolabels.LabelLocoApp:   "true",
+	}
+	if err := a.client.List(ctx, namespaces, selector, client.HasLabels{locolabels.LabelWorkspaceID}); err != nil {
+		return nil, fmt.Errorf("list workspace namespaces: %w", err)
+	}
+	return namespaces.Items, nil
 }
