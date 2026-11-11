@@ -85,7 +85,7 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 	}
 	artifacts := map[string]string{}
 	for _, name := range []string{"loco-control-plane", "loco-worker"} {
-		output, err := command(ctx, f.root, nil, "helm", "package", "charts/"+name, "--destination", f.dir)
+		output, err := f.packageChart(ctx, name)
 		if err != nil {
 			return nil, "", err
 		}
@@ -398,4 +398,29 @@ func dockerBuild(ctx context.Context, dir string, args ...string) error {
 		return fmt.Errorf("docker build failed: %w", err)
 	}
 	return nil
+}
+
+func (f *fixture) packageChart(ctx context.Context, name string) ([]byte, error) {
+	chart := "charts/" + name
+	if name == "loco-worker" {
+		directory, err := os.MkdirTemp(f.dir, "worker-chart-")
+		if err != nil {
+			return nil, err
+		}
+		defer os.RemoveAll(directory)
+		if copyErr := os.CopyFS(directory, os.DirFS(filepath.Join(f.root, chart))); copyErr != nil {
+			return nil, copyErr
+		}
+		values := filepath.Join(directory, "values.yaml")
+		data, err := command(ctx, f.root, nil, "yq", "eval-all",
+			". as $item ireduce ({}; . * $item)", values, "dev/kind-worker-values.yaml")
+		if err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(values, data, 0600); err != nil {
+			return nil, err
+		}
+		chart = directory
+	}
+	return command(ctx, f.root, nil, "helm", "package", chart, "--destination", f.dir)
 }
