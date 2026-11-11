@@ -16,6 +16,7 @@ import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
+import { deploymentImage } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
@@ -29,7 +30,7 @@ import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type Reg
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
 
-const BASE_COLUMNS = 7;
+const BASE_COLUMNS = 6;
 const DEFAULT_PAGE_SIZE = 10;
 const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
@@ -72,6 +73,8 @@ function Detail({
 	return (
 		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-8">
 			<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
+				<dt className="text-fg3">Image</dt>
+				<dd className="m-0 break-all font-mono">{deploymentImage(dep)}</dd>
 				<dt className="text-fg3">Created</dt>
 				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt))}</dd>
 				<dt className="text-fg3">Started</dt>
@@ -259,14 +262,13 @@ export function DeploymentsSection({
 				</div>
 				<TabsContent value="deploys" className="pt-1.5">
 					<div aria-busy={isLoadingMore}>
-						<Table className="min-w-[1080px]">
+						<Table className="min-w-[960px] table-fixed">
 							<TableHeader>
 								<TableRow>
 									<TableHead className="w-6" />
 									<TableHead className="w-[130px]">Status</TableHead>
-									<TableHead className="w-[170px]">Version</TableHead>
+									<TableHead className="w-[400px]">Deployment</TableHead>
 									{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
-									<TableHead className="w-[360px]">Deployed by</TableHead>
 									<TableHead>Message</TableHead>
 									<TableHead className="w-[72px] text-right">Took</TableHead>
 									<TableHead className="w-[100px] text-right">When</TableHead>
@@ -318,18 +320,13 @@ export function DeploymentsSection({
 											</TableCell>
 											<TableCell>
 												<span className="flex items-center gap-2">
-													<span className="truncate font-mono text-[12.5px]" title={depTag(dep)}>
-														{depTag(dep)}
-													</span>
+													<DeploymentOrigin deployment={dep} />
 													{isCurrent && <Badge tone="pill">current</Badge>}
 												</span>
 											</TableCell>
 											{multiRegion && (
 												<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
 											)}
-											<TableCell>
-												<DeploymentOrigin deployment={dep} />
-											</TableCell>
 											<TableCell className="max-w-0 truncate text-fg2" title={dep.message}>
 												{dep.message}
 											</TableCell>

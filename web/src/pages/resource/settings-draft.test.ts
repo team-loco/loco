@@ -62,6 +62,17 @@ function plan(draft: SettingsDraft) {
 }
 
 describe("planSave", () => {
+	test("changing one region's image clears its own source commit", () => {
+		const first = deployment("one", EAST);
+		const second = deployment("two", WEST);
+		getServiceSpec(second)!.build!.image = "example.test/other:release";
+		const mixed = [region(EAST, first), region(WEST, second)];
+		const result = planSave(mixed, { image: IMAGE }, baseline("shop", mixed, true, undefined));
+		expect(result.deploy).toHaveLength(1);
+		expect(result.deploy[0]?.region).toBe(WEST);
+		expect(result.deploy[0]?.commit).toBeUndefined();
+	});
+
 	test("preserves the source commit for sizing changes and clears it for another image", () => {
 		expect(plan({ cpu: "1" }).deploy[0]?.commit).toEqual(regions[0]?.current?.commit);
 		expect(plan({ cpu: "1", image: IMAGE }).deploy[0]?.commit).toEqual(regions[0]?.current?.commit);

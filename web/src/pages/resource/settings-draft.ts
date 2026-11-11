@@ -247,7 +247,10 @@ export function planSave(regions: RegionView[], draft: SettingsDraft, base: Base
 					region: region.name,
 					spec,
 					added: false,
-					commit: draft.image === undefined || draft.image.trim() === base.image ? current.commit : undefined,
+					commit:
+						draft.image === undefined || draft.image.trim() === getServiceSpec(current)?.build?.image
+							? current.commit
+							: undefined,
 				});
 			}
 			continue;
@@ -258,7 +261,10 @@ export function planSave(regions: RegionView[], draft: SettingsDraft, base: Base
 			region: region.name,
 			spec: applyDraft(template.spec, replicas, draft, base),
 			added: true,
-			commit: draft.image === undefined || draft.image.trim() === base.image ? template.commit : undefined,
+			commit:
+				draft.image === undefined || draft.image.trim() === getServiceSpec(template)?.build?.image
+					? template.commit
+					: undefined,
 		});
 	}
 	return plan;
