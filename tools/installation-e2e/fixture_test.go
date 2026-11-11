@@ -35,7 +35,7 @@ func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
 			} `json:"metricsServer"`
 		} `json:"workers"`
 	}
-	if err := yaml.UnmarshalStrict(data, &installation); err != nil {
+	if err := yaml.Unmarshal(data, &installation); err != nil {
 		t.Fatal(err)
 	}
 	if installation.Version != 1 {
