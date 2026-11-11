@@ -60,6 +60,16 @@ test_s01_deploy_reports_healthy() {
     assert_contains "The table view shows the environment as healthy" "Healthy" \
         loco_cli resource status "$status_app"
 
+    local environment_id deployments
+    environment_id=$(e2e_psql "SELECT DISTINCT d.environment_id FROM deployments d JOIN resources r ON r.id = d.resource_id WHERE r.workspace_id = '${cli_workspace_id}' AND r.name = '${status_app}'")
+    deployments=$(curl -sS --fail-with-body "${E2E_API_URL}/loco.deployment.v1.DeploymentService/ListDeployments" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" -H 'Content-Type: application/json' \
+        -d "{\"workspaceId\":\"${cli_workspace_id}\",\"environmentId\":\"${environment_id}\"}")
+    assert "The environment deployment list includes the running resource" \
+        test "$(printf '%s' "$deployments" | yq -p json -r '.deployments | length')" -ge 1
+    assert "The environment deployment list contains only the selected environment" \
+        test "$(printf '%s' "$deployments" | yq -p json -r '[.deployments[].environmentId] | unique | join(",")')" = "$environment_id"
+
     mv "$cli_home/.loco/config.yaml" "$status_dir/config.yaml"
     assert_contains "A workspace-only member resolves the workspace by name without a cached scope" "Healthy" \
         loco_cli resource status "$status_app" --org e2e-test-org --workspace e2e-test-workspace

@@ -369,73 +369,101 @@ func (s *DeploymentServer) GetDeployment(
 	}, nil
 }
 
-// ListDeployments lists deployments for a resource
 func (s *DeploymentServer) ListDeployments(
 	ctx context.Context,
 	req *deploymentv1.ListDeploymentsRequest,
 ) (*deploymentv1.ListDeploymentsResponse, error) {
-	resourceID, err := parseID("resource_id", req.GetResourceId())
+	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err = authorize(ctx, s.authz, actions.ListDeployments, resourceID); err != nil {
-		return nil, err
+	var resourceID, workspaceID, environmentID *uuid.UUID
+	for _, field := range []struct {
+		name   string
+		value  string
+		target **uuid.UUID
+	}{
+		{"resource_id", req.GetResourceId(), &resourceID},
+		{"workspace_id", req.GetWorkspaceId(), &workspaceID},
+		{"environment_id", req.GetEnvironmentId(), &environmentID},
+	} {
+		if field.value == "" {
+			continue
+		}
+		id, parseErr := parseID(field.name, field.value)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		*field.target = &id
 	}
-
-	resource, err := s.queries.GetResourceByID(ctx, resourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrResourceNotFound
+	if (resourceID == nil) == (workspaceID == nil) || (workspaceID != nil && environmentID == nil) {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			"provide resource_id or workspace_id with environment_id",
+		)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("get resource: %w", err)
+	var since, until *time.Time
+	if req.GetSince() != nil {
+		if err = req.GetSince().CheckValid(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid since").WithCause(err)
+		}
+		value := req.GetSince().AsTime()
+		since = &value
 	}
-
+	if req.GetUntil() != nil {
+		if err = req.GetUntil().CheckValid(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid until").WithCause(err)
+		}
+		value := req.GetUntil().AsTime()
+		until = &value
+	}
+	if since != nil && until != nil && !since.Before(*until) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "since must precede until")
+	}
+	var systemRead bool
+	var organizationIDs, workspaceIDs, resourceIDs []uuid.UUID
+	for _, scope := range p.Scopes {
+		if scope.Scope != genDb.ScopeRead {
+			continue
+		}
+		switch scope.EntityType {
+		case genDb.EntityTypeSystem:
+			systemRead = true
+		case genDb.EntityTypeOrganization:
+			organizationIDs = append(organizationIDs, scope.EntityID)
+		case genDb.EntityTypeWorkspace:
+			workspaceIDs = append(workspaceIDs, scope.EntityID)
+		case genDb.EntityTypeResource:
+			resourceIDs = append(resourceIDs, scope.EntityID)
+		}
+	}
 	pageSize := normalizePageSize(req.GetPageSize())
-
 	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
 	if cursorErr != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
-
-	var environmentID *uuid.UUID
-	if req.GetEnvironmentId() != "" {
-		id := uuid.MustParse(req.GetEnvironmentId())
-		environmentID = &id
-	}
-
-	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID:    resourceID,
-		Limit:         pageSize,
-		EnvironmentID: environmentID,
-		PageToken:     cursor.ID,
-		PageCreatedAt: cursor.CreatedAt,
+	rows, err := s.queries.ListDeployments(ctx, genDb.ListDeploymentsParams{
+		ResourceID: resourceID, WorkspaceID: workspaceID, EnvironmentID: environmentID,
+		SystemRead: systemRead, OrganizationIds: organizationIDs, WorkspaceIds: workspaceIDs, ResourceIds: resourceIDs,
+		Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list deployments: %w", err)
 	}
-
 	var deployments []*deploymentv1.Deployment
-	for _, d := range deploymentList {
-		deployment, err := deploymentToProto(d.Deployment, resource.Type)
+	for _, row := range rows {
+		deployment, err := deploymentToProto(row.Deployment, row.ResourceType)
 		if err != nil {
 			return nil, err
 		}
-		deployment.ActorName = d.ActorName
-		deployment.ActorAvatarUrl = d.ActorAvatarUrl
+		deployment.ActorName = row.ActorName
+		deployment.ActorAvatarUrl = row.ActorAvatarUrl
 		deployments = append(deployments, deployment)
 	}
-
-	token := nextPageToken(
-		deploymentList,
-		pageSize,
-		func(d genDb.ListDeploymentsForResourceRow) (uuid.UUID, time.Time) {
-			return d.Deployment.ID, d.Deployment.CreatedAt
-		},
-	)
-	return &deploymentv1.ListDeploymentsResponse{
-		Deployments:   deployments,
-		NextPageToken: token,
-	}, nil
+	token := nextPageToken(rows, pageSize, func(row genDb.ListDeploymentsRow) (uuid.UUID, time.Time) {
+		return row.Deployment.ID, row.Deployment.CreatedAt
+	})
+	return &deploymentv1.ListDeploymentsResponse{Deployments: deployments, NextPageToken: token}, nil
 }
 
 // DeleteDeployment takes a deployment out of service and removes its Application.

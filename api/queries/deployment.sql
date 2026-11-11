@@ -11,21 +11,31 @@ SELECT * FROM deployments WHERE id = $1;
 -- name: GetDeploymentStatus :one
 SELECT status, message FROM deployments WHERE id = $1;
 
--- name: ListDeploymentsForResource :many
-SELECT sqlc.embed(d), COALESCE(u.name, t.name, '')::text AS actor_name,
+-- name: ListDeployments :many
+SELECT sqlc.embed(d), r.type AS resource_type,
+       COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
-WHERE d.resource_id = $1
-  AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id')::uuid)
+WHERE (sqlc.narg('resource_id')::uuid IS NULL OR d.resource_id = sqlc.narg('resource_id'))
+  AND (sqlc.narg('workspace_id')::uuid IS NULL OR r.workspace_id = sqlc.narg('workspace_id'))
+  AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id'))
+  AND (sqlc.arg('system_read')::bool
+       OR w.org_id = ANY(sqlc.arg('organization_ids')::uuid[])
+       OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+       OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
+  AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
+  AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
          sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $2;
+LIMIT sqlc.arg('page_size');
 
 -- name: MarkPreviousDeploymentsNotActive :exec
 UPDATE deployments

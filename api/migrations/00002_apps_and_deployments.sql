@@ -240,7 +240,7 @@ CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_a
 
 CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deployments (resource_id, created_at DESC, id DESC);
 
-CREATE INDEX idx_deployments_environment_id ON deployments (environment_id);
+CREATE INDEX idx_deployments_environment_created_id_desc ON deployments (environment_id, created_at DESC, id DESC);
 
 CREATE TABLE
     placements (

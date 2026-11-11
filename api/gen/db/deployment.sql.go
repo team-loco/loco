@@ -337,52 +337,77 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 	return items, nil
 }
 
-const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.created_at, d.started_at, d.completed_at, d.updated_at, COALESCE(u.name, t.name, '')::text AS actor_name,
+const listDeployments = `-- name: ListDeployments :many
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+       COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
-WHERE d.resource_id = $1
-  AND ($3::uuid IS NULL OR d.environment_id = $3::uuid)
-  AND ($4::text IS NULL
+WHERE ($1::uuid IS NULL OR d.resource_id = $1)
+  AND ($2::uuid IS NULL OR r.workspace_id = $2)
+  AND ($3::uuid IS NULL OR d.environment_id = $3)
+  AND ($4::bool
+       OR w.org_id = ANY($5::uuid[])
+       OR w.id = ANY($6::uuid[])
+       OR r.id = ANY($7::uuid[]))
+  AND ($8::timestamptz IS NULL OR d.created_at >= $8)
+  AND ($9::timestamptz IS NULL OR d.created_at < $9)
+  AND ($10::text IS NULL
        OR (d.created_at, d.id) < (
-         $5::timestamptz,
-         $4::uuid
+         $11::timestamptz,
+         $10::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $2
+LIMIT $12
 `
 
-type ListDeploymentsForResourceParams struct {
-	ResourceID    uuid.UUID  `json:"resourceId"`
-	Limit         int32      `json:"limit"`
-	EnvironmentID *uuid.UUID `json:"environmentId"`
-	PageToken     *string    `json:"pageToken"`
-	PageCreatedAt *time.Time `json:"pageCreatedAt"`
+type ListDeploymentsParams struct {
+	ResourceID      *uuid.UUID  `json:"resourceId"`
+	WorkspaceID     *uuid.UUID  `json:"workspaceId"`
+	EnvironmentID   *uuid.UUID  `json:"environmentId"`
+	SystemRead      bool        `json:"systemRead"`
+	OrganizationIds []uuid.UUID `json:"organizationIds"`
+	WorkspaceIds    []uuid.UUID `json:"workspaceIds"`
+	ResourceIds     []uuid.UUID `json:"resourceIds"`
+	Since           *time.Time  `json:"since"`
+	Until           *time.Time  `json:"until"`
+	PageToken       *string     `json:"pageToken"`
+	PageCreatedAt   *time.Time  `json:"pageCreatedAt"`
+	PageSize        int32       `json:"pageSize"`
 }
 
-type ListDeploymentsForResourceRow struct {
-	Deployment     Deployment `json:"deployment"`
-	ActorName      string     `json:"actorName"`
-	ActorAvatarUrl string     `json:"actorAvatarUrl"`
+type ListDeploymentsRow struct {
+	Deployment     Deployment   `json:"deployment"`
+	ResourceType   ResourceType `json:"resourceType"`
+	ActorName      string       `json:"actorName"`
+	ActorAvatarUrl string       `json:"actorAvatarUrl"`
 }
 
-func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]ListDeploymentsForResourceRow, error) {
-	rows, err := q.db.Query(ctx, listDeploymentsForResource,
+func (q *Queries) ListDeployments(ctx context.Context, arg ListDeploymentsParams) ([]ListDeploymentsRow, error) {
+	rows, err := q.db.Query(ctx, listDeployments,
 		arg.ResourceID,
-		arg.Limit,
+		arg.WorkspaceID,
 		arg.EnvironmentID,
+		arg.SystemRead,
+		arg.OrganizationIds,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.Since,
+		arg.Until,
 		arg.PageToken,
 		arg.PageCreatedAt,
+		arg.PageSize,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListDeploymentsForResourceRow
+	var items []ListDeploymentsRow
 	for rows.Next() {
-		var i ListDeploymentsForResourceRow
+		var i ListDeploymentsRow
 		if err := rows.Scan(
 			&i.Deployment.ID,
 			&i.Deployment.ResourceID,
@@ -405,6 +430,7 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 			&i.Deployment.StartedAt,
 			&i.Deployment.CompletedAt,
 			&i.Deployment.UpdatedAt,
+			&i.ResourceType,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
 		); err != nil {
