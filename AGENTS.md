@@ -49,6 +49,7 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 - **`internal/`**: Shared Go packages, including `loco.yaml` parsing and validation, RPC clients, authentication and session helpers. CLI-only packages live in `cmd/internal/`.
 - **`charts/`**: Helm charts for the control plane and worker clusters.
 - **`tests/e2e/`**: End-to-end suites that build and exercise Loco on kind clusters.
+- **`tests/ui/`**: Dashboard suites that each start a throwaway API, database and production UI build and drive it with Playwright; `mise run test:ui` runs them.
 - **`tools/`**, **`mise-tasks/`**: Go development/release tools and mise task scripts for builds, generation, checks and local environments.
 - **`docs/content/`**, **`schemas/`**: User documentation and editor JSON Schemas, including `loco.yaml`.
 
