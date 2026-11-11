@@ -634,6 +634,40 @@ func TestOrderingKeysLeadWithWorkspace(t *testing.T) {
 	}
 }
 
+func TestColumnCodecsUseZSTD3(t *testing.T) {
+	db := newTestDatabase(t)
+	if err := Up(t.Context(), db.cfg); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	rows, err := db.admin.Query(
+		t.Context(),
+		"SELECT table, name, compression_codec FROM system.columns "+
+			"WHERE database = ? AND table LIKE 'otel\\_%' AND compression_codec != ''",
+		db.cfg.Database,
+	)
+	if err != nil {
+		t.Fatalf("list column codecs: %v", err)
+	}
+	defer rows.Close()
+	columns := 0
+	for rows.Next() {
+		var table, name, codec string
+		if err := rows.Scan(&table, &name, &codec); err != nil {
+			t.Fatalf("scan column codec: %v", err)
+		}
+		columns++
+		if !strings.HasSuffix(codec, "ZSTD(3))") {
+			t.Errorf("%s.%s codec %q does not end with ZSTD(3)", table, name, codec)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("list column codecs: %v", err)
+	}
+	if columns == 0 {
+		t.Fatal("no otel column declares a codec")
+	}
+}
+
 func sourceVersions() ([]int64, error) {
 	names, err := fs.Glob(files, "*.sql")
 	if err != nil {
