@@ -65,7 +65,7 @@ jobs:
             build_args: |
               DOCS_ENVIRONMENT=staging
               PUBLIC_API_URL=https://api.staging.loco.build
-              PUBLIC_APP_ENV=PRODUCTION
+              PUBLIC_APP_ENV=STAGING
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-${{ matrix.image }}

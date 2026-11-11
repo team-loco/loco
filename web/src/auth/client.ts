@@ -1,15 +1,10 @@
 import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
 import { ConfigService } from "@gen/loco/config/v1/config_pb";
-import { PUBLIC_API_URL } from "loco:env";
 
-import { resolveAPIURL } from "./api-url";
+import { transport } from "./connect-transport";
 import { createAuthClient, type AuthClient } from "./oidc";
 
-export const BASE_URL = resolveAPIURL(window.locoConfig?.apiURL, PUBLIC_API_URL, window.location.origin);
-
 async function loadAuthClient(): Promise<AuthClient> {
-	const transport = createConnectTransport({ baseUrl: BASE_URL, useBinaryFormat: false });
 	const { auth } = await createClient(ConfigService, transport).getConfig({});
 	if (auth === undefined) throw new Error("This Loco server has no identity provider configured");
 	return await createAuthClient({ issuer: auth.issuer, clientId: auth.clientId, scopes: auth.scopes });

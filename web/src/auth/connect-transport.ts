@@ -1,19 +1,20 @@
 import { isMessage } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { ConfigService } from "@gen/loco/config/v1/config_pb";
 import { WhoAmIResponseSchema } from "@gen/loco/user/v1/user_pb";
-import { PUBLIC_APP_ENV } from "loco:env";
-import { nonEmpty } from "@/lib/utils";
+import { PUBLIC_API_URL, PUBLIC_APP_ENV } from "loco:env";
 
-import { authClient, BASE_URL } from "./client";
+import { resolveAPIURL } from "./api-url";
+import { authClient } from "./client";
 import { setClaimedOrgs } from "./claimed";
 
-const APP_ENV = nonEmpty(PUBLIC_APP_ENV, "DEVELOPMENT");
+export const BASE_URL = resolveAPIURL(window.locoConfig?.apiURL, PUBLIC_API_URL, window.location.origin);
 
 export const createTransport = (baseUrl: string = BASE_URL) => {
 	return createConnectTransport({
 		baseUrl,
-		useBinaryFormat: APP_ENV === "PRODUCTION",
+		useBinaryFormat: PUBLIC_APP_ENV === "PRODUCTION",
 		interceptors: [
 			(next) => async (req) => {
 				const res = await next(req);
@@ -25,7 +26,7 @@ export const createTransport = (baseUrl: string = BASE_URL) => {
 				return res;
 			},
 			(next) => async (req) => {
-				if (req.url.includes("/ConfigService/")) return await next(req);
+				if (req.service.typeName === ConfigService.typeName) return await next(req);
 				const client = await authClient();
 				const token = await client.getAccessToken();
 				if (token !== null) req.header.set("Authorization", `Bearer ${token}`);
