@@ -1,6 +1,6 @@
 import { queryOptions, skipToken } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
-import { createClient, type Transport } from "@connectrpc/connect";
+import { Code, ConnectError, createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { ListWorkspaceResourcesResponseSchema, ResourceService } from "@gen/loco/resource/v1/resource_pb";
@@ -47,10 +47,19 @@ export function workspaceResourcesOptions(
 	const listGranted =
 		(ids: readonly string[]) =>
 		async ({ signal }: { signal: AbortSignal }) => {
-			const responses = await Promise.all(
-				ids.map(async (id) => await client.getResource({ key: { case: "resourceId", value: id } }, { signal })),
+			const fetched = await Promise.all(
+				ids.map(async (id) => {
+					try {
+						return (await client.getResource({ key: { case: "resourceId", value: id } }, { signal })).resource;
+					} catch (error) {
+						// A grant can outlive its resource or its access; the other grants still list.
+						if (error instanceof ConnectError && (error.code === Code.NotFound || error.code === Code.PermissionDenied))
+							return undefined;
+						throw error;
+					}
+				}),
 			);
-			const resources = responses.flatMap((r) => (r.resource?.workspaceId === workspaceId ? [r.resource] : []));
+			const resources = fetched.flatMap((r) => (r?.workspaceId === workspaceId ? [r] : []));
 			return create(ListWorkspaceResourcesResponseSchema, { resources });
 		};
 	const prefix = workspaceResourcesKey(transport, workspaceId);
