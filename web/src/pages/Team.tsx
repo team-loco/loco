@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
@@ -25,7 +24,6 @@ import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
 import { buildRows, invitationBadge, VIEWS, type Member, type ScopeName, type View } from "./team/model";
 import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
-import { TeamArt } from "./team/TeamArt";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
 import { WorkspaceAccessDialog } from "./team/WorkspaceAccessDialog";
@@ -127,24 +125,6 @@ export function Team() {
 		if (data.error !== null) {
 			return <div className="py-7 text-center text-fg3">{getErrorMessage(data.error, "Failed to load members")}</div>;
 		}
-		if (justYou && q.trim() === "") {
-			return (
-				<EmptyHero
-					art={<TeamArt />}
-					title="It's just you so far"
-					subtitle={`Invite teammates by email. They join ${orgName} as members the first time they sign in.`}
-					className="rounded-none border-t border-line2"
-				>
-					<span className="flex flex-wrap justify-center gap-2">
-						{inviteButton}
-						<Button variant="outline" render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}>
-							Read the docs
-							<ExternalLinkIcon className="text-fg3" />
-						</Button>
-					</span>
-				</EmptyHero>
-			);
-		}
 		return (
 			<>
 				<TeamTable
@@ -171,7 +151,28 @@ export function Team() {
 						onRevoke: setRevoking,
 					}}
 				/>
-				<Pager {...paged.pager} />
+				{justYou && q.trim() === "" ? (
+					<section
+						aria-labelledby="team-invite-prompt"
+						className="flex flex-col items-center gap-2 border-t border-line2 px-6 py-8 text-center"
+					>
+						<h2 id="team-invite-prompt" className="m-0 text-xl font-normal tracking-[-0.02em]">
+							It's just you so far
+						</h2>
+						<p className="m-0 max-w-[34em] leading-[1.55] text-fg3">
+							Invite teammates by email. They join {orgName} as members the first time they sign in.
+						</p>
+						<span className="mt-1 flex flex-wrap justify-center gap-2">
+							{inviteButton}
+							<Button variant="outline" render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}>
+								Read the docs
+								<ExternalLinkIcon className="text-fg3" />
+							</Button>
+						</span>
+					</section>
+				) : (
+					<Pager {...paged.pager} />
+				)}
 			</>
 		);
 	})();
