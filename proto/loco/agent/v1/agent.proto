@@ -50,6 +50,7 @@ message SyncRequest {
 message Inventory {
   repeated InventoryEntry entries = 1;
   repeated InventoryBuild builds = 2;
+  repeated string workspace_ids = 3 [(buf.validate.field).repeated.items.string.uuid = true];
 }
 
 message InventoryEntry {
@@ -107,6 +108,7 @@ message SyncResponse {
     Delete delete = 2;
     StartBuild start_build = 3;
     CancelBuild cancel_build = 4;
+    string delete_workspace = 5 [(buf.validate.field).string.uuid = true];
   }
 }
 

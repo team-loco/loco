@@ -18,6 +18,13 @@ templates:
   - templates/builds/namespace.yaml
   - templates/builds/agent-rbac.yaml
 tests:
+  - it: can inventory and delete workspace namespaces
+    asserts:
+      - contains:
+          path: rules
+          content: {apiGroups: [""], resources: [namespaces], verbs: [get, list, delete]}
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: ClusterRole}
   - it: reads the app domains, Gateway and Certificate the chart renders
     asserts:
       - contains:

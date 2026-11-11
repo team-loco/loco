@@ -141,7 +141,7 @@ func createBuildPod(job *batchv1.Job, status corev1.PodStatus) *corev1.Pod {
 	labels := map[string]string{
 		labelJobControllerUID:     string(job.UID),
 		labelJobName:              job.Name,
-		locolabels.LabelManagedBy: managed.ManagedByValue,
+		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
 		managed.LabelComponent:    componentBuild,
 	}
 	pod := &corev1.Pod{
@@ -246,7 +246,7 @@ var _ = Describe("Build reconcile", Ordered, func() {
 			locolabels.LabelWorkspaceID:    testBuildWorkspace,
 			locolabels.LabelResourceID:     "res-1",
 			locolabels.LabelBuildID:        "shape",
-			locolabels.LabelManagedBy:      managed.ManagedByValue,
+			locolabels.LabelManagedBy:      locolabels.ControllerManagedBy,
 		}
 		for key, value := range wantLabels {
 			Expect(job.Labels).To(HaveKeyWithValue(key, value))

@@ -57,8 +57,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["namespaces"]
-    resourceNames: ["kube-system"]
-    verbs: ["get"]
+    verbs: ["get", "list", "delete"]
   - apiGroups: [""]
     resources: ["nodes", "pods"]
     verbs: ["list"]

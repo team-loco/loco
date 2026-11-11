@@ -137,7 +137,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
 		Expect(imageSecret.Data).To(Equal(pullSecret.Data))
-		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelManagedBy, managed.ManagedByValue))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelManagedBy, locolabels.ControllerManagedBy))
 		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, app.Spec.WorkspaceID))
 		Expect(imageSecret.Annotations).NotTo(HaveKey(locolabels.AnnotationApplicationName))
 		sa := &corev1.ServiceAccount{}
@@ -520,7 +520,7 @@ var _ = Describe("Application reconcile", func() {
 		err = k8sClient.Get(ctx, appKey, app)
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
-	It("deletes the workspace namespace of the last Application only when the controller manages it", func() {
+	It("retains the workspace namespace after the last Application is deleted", func() {
 		cases := map[string]map[string]string{
 			"ws-ns-unmanaged": nil,
 			"ws-ns-managed":   managed.Labels(),
@@ -554,11 +554,7 @@ var _ = Describe("Application reconcile", func() {
 
 			ns := &corev1.Namespace{}
 			Expect(k8sClient.Get(ctx, nsKey, ns)).To(Succeed())
-			if labels == nil {
-				Expect(ns.DeletionTimestamp).To(BeNil(), "%s was deleted without being managed", nsKey.Name)
-			} else {
-				Expect(ns.DeletionTimestamp).NotTo(BeNil(), "%s was kept although managed", nsKey.Name)
-			}
+			Expect(ns.DeletionTimestamp).To(BeNil())
 		}
 	})
 	It("refuses a status patch built from a stale copy", func() {

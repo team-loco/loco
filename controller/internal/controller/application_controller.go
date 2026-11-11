@@ -309,7 +309,6 @@ func (r *ApplicationReconciler) ensureFinalizer(ctx context.Context, app *locov1
 	return nil
 }
 
-// handleDeletion deletes the app's objects and namespace, and removes the finalizer
 func (r *ApplicationReconciler) handleDeletion(
 	ctx context.Context,
 	app *locov1alpha1.Application,
@@ -319,9 +318,6 @@ func (r *ApplicationReconciler) handleDeletion(
 	}
 
 	if err := r.deleteAppObjects(ctx, app); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := r.deleteNamespaceIfUnused(ctx, app); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -366,44 +362,6 @@ func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov
 	return nil
 }
 
-func (r *ApplicationReconciler) deleteNamespaceIfUnused(
-	ctx context.Context,
-	app *locov1alpha1.Application,
-) error {
-	var apps locov1alpha1.ApplicationList
-	reader := r.APIReader
-	if err := reader.List(ctx, &apps, client.InNamespace(app.Namespace)); err != nil {
-		return fmt.Errorf("list applications: %w", err)
-	}
-	for i := range apps.Items {
-		other := &apps.Items[i]
-		if other.Name == app.Name || other.DeletionTimestamp != nil {
-			continue
-		}
-		if other.Spec.WorkspaceID == app.Spec.WorkspaceID {
-			return nil
-		}
-	}
-
-	namespace := r.workspaceNamespace(app)
-	ns := &corev1.Namespace{}
-	if err := reader.Get(ctx, client.ObjectKey{Name: namespace}, ns); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("get namespace %s: %w", namespace, err)
-	}
-	if ns.Labels[locolabels.LabelManagedBy] != managed.ManagedByValue {
-		slog.InfoContext(ctx, "namespace not managed by the controller, leaving it", "namespace", namespace)
-		return nil
-	}
-	if err := r.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("delete namespace %s: %w", namespace, err)
-	}
-	slog.InfoContext(ctx, "namespace deleted", "namespace", namespace)
-	return nil
-}
-
 func (r *ApplicationReconciler) workspaceNamespace(app *locov1alpha1.Application) string {
 	return r.WorkspaceNamespacePrefix + app.Spec.WorkspaceID
 }
@@ -428,7 +386,7 @@ func managedLabels(app *locov1alpha1.Application) map[string]string {
 	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
 	return map[string]string{
 		labelApp:                  name,
-		locolabels.LabelManagedBy: managed.ManagedByValue,
+		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
 	}
 }
 

@@ -52,7 +52,7 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 		}
 	}
 	podSet := labels.Set{
-		locolabels.LabelManagedBy: managed.ManagedByValue,
+		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
 		managed.LabelComponent:    componentApplication,
 	}
 	podSelector := labels.SelectorFromSet(podSet)

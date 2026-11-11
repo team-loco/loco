@@ -7387,6 +7387,14 @@
               "$ref": "#/components/schemas/loco.agent.v1.InventoryBuild"
             },
             "title": "builds"
+          },
+          "workspaceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "workspace_ids"
           }
         },
         "title": "Inventory",
@@ -7674,42 +7682,66 @@
       "loco.agent.v1.SyncResponse": {
         "type": "object",
         "not": {
-          "anyOf": [
+          "allOf": [
             {
-              "required": [
-                "apply",
-                "delete"
+              "anyOf": [
+                {
+                  "required": [
+                    "apply"
+                  ]
+                },
+                {
+                  "required": [
+                    "delete"
+                  ]
+                },
+                {
+                  "required": [
+                    "startBuild"
+                  ]
+                },
+                {
+                  "required": [
+                    "cancelBuild"
+                  ]
+                },
+                {
+                  "required": [
+                    "deleteWorkspace"
+                  ]
+                }
               ]
             },
             {
-              "required": [
-                "apply",
-                "startBuild"
-              ]
-            },
-            {
-              "required": [
-                "apply",
-                "cancelBuild"
-              ]
-            },
-            {
-              "required": [
-                "delete",
-                "startBuild"
-              ]
-            },
-            {
-              "required": [
-                "delete",
-                "cancelBuild"
-              ]
-            },
-            {
-              "required": [
-                "startBuild",
-                "cancelBuild"
-              ]
+              "not": {
+                "oneOf": [
+                  {
+                    "required": [
+                      "apply"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "delete"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "startBuild"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "cancelBuild"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "deleteWorkspace"
+                    ]
+                  }
+                ]
+              }
             }
           ]
         },
@@ -7729,11 +7761,16 @@
           "cancelBuild": {
             "title": "cancel_build",
             "$ref": "#/components/schemas/loco.agent.v1.CancelBuild"
+          },
+          "deleteWorkspace": {
+            "type": "string",
+            "title": "delete_workspace",
+            "format": "uuid"
           }
         },
         "title": "SyncResponse",
         "additionalProperties": false,
-        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild` may be set."
+        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild`, `deleteWorkspace` may be set."
       },
       "loco.auth.v1.ApproveCLILoginRequest": {
         "type": "object",
