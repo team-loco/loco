@@ -309,6 +309,8 @@ func (r *ApplicationReconciler) ensureFinalizer(ctx context.Context, app *locov1
 	return nil
 }
 
+// handleDeletion deletes the app's own objects and removes its finalizer. Shared workspace
+// infrastructure stays until workspace teardown so cleanup cannot race with another app's creation.
 func (r *ApplicationReconciler) handleDeletion(
 	ctx context.Context,
 	app *locov1alpha1.Application,

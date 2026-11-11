@@ -57,13 +57,7 @@ func TestWorkspaceTeardownWaitsForApplicationFinalizersAndConverges(t *testing.T
 			t.Fatal(err)
 		}
 	}
-	if err = a.client.Get(
-		ctx,
-		client.ObjectKeyFromObject(namespace),
-		&corev1.Namespace{},
-	); !apierrors.IsNotFound(
-		err,
-	) {
+	if err = a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{}); !apierrors.IsNotFound(err) {
 		t.Fatalf("workspace namespace remains: %v", err)
 	}
 	for _, ns := range []*corev1.Namespace{other, unmanaged} {
