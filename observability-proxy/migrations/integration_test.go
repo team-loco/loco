@@ -290,7 +290,7 @@ func TestTTLsFromConfigLandOnTables(t *testing.T) {
 	want := map[string]string{
 		logsTable:         "TTL toDateTime(Timestamp) + toIntervalDay(3)",
 		tracesTable:       "TTL toDateTime(Timestamp) + toIntervalHour(36)",
-		traceLookupTable:  "TTL toDateTime(Start) + toIntervalHour(36)",
+		traceLookupTable:  "TTL toDateTime(End) + toIntervalHour(36)",
 		gaugeTable:        metricsTTLExpr,
 		sumTable:          metricsTTLExpr,
 		histogramTable:    metricsTTLExpr,

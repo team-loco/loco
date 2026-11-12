@@ -351,17 +351,19 @@ func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
 		t.Fatalf("QueryLogs = %v, want the ingested record", entries)
 	}
 
-	traces, err := reader.QueryTraces(t.Context(), &observabilityv1.QueryTracesRequest{
-		WorkspaceId: testWorkspaceID,
-		StartTime:   timestamppb.New(start),
-		EndTime:     timestamppb.New(end),
-	}, testQueryLimit)
+	traces, err := reader.GetTrace(
+		t.Context(),
+		&observabilityv1.GetTraceRequest{
+			Scope:   &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+			TraceId: testTraceID.String(),
+		},
+	)
 	if err != nil {
-		t.Fatalf("QueryTraces: %v", err)
+		t.Fatalf("GetTrace: %v", err)
 	}
 	spans := traces.GetSpans()
 	if len(spans) != 1 || spans[0].GetName() != testSpanName || spans[0].GetTraceId() != testTraceID.String() {
-		t.Fatalf("QueryTraces = %v, want the ingested span", spans)
+		t.Fatalf("GetTrace = %v, want the ingested span", spans)
 	}
 
 	series, err := reader.QueryMetrics(t.Context(), &observabilityv1.QueryMetricsRequest{
@@ -510,16 +512,18 @@ func TestClusterLevelRowsStayOutOfTenantQueries(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("QueryLogs returned %d entries, want only the workspace's record", len(entries))
 	}
-	traceResult, err := reader.QueryTraces(t.Context(), &observabilityv1.QueryTracesRequest{
-		WorkspaceId: testWorkspaceID,
-		StartTime:   timestamppb.New(start),
-		EndTime:     timestamppb.New(end),
-	}, testQueryLimit)
+	traceResult, err := reader.GetTrace(
+		t.Context(),
+		&observabilityv1.GetTraceRequest{
+			Scope:   &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+			TraceId: testTraceID.String(),
+		},
+	)
 	if err != nil {
-		t.Fatalf("QueryTraces: %v", err)
+		t.Fatalf("GetTrace: %v", err)
 	}
 	if len(traceResult.GetSpans()) != 1 {
-		t.Fatalf("QueryTraces returned %d spans, want only the workspace's span", len(traceResult.GetSpans()))
+		t.Fatalf("GetTrace returned %d spans, want only the workspace's span", len(traceResult.GetSpans()))
 	}
 	series, err := reader.QueryMetrics(t.Context(), &observabilityv1.QueryMetricsRequest{
 		WorkspaceId:     testWorkspaceID,

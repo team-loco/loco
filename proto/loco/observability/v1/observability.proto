@@ -18,6 +18,8 @@ service ObservabilityProxyService {
   // QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
   rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
 
+  rpc ListTraces(ListTracesRequest) returns (ListTracesResponse);
+  rpc GetTrace(GetTraceRequest) returns (GetTraceResponse);
   rpc QueryTraces(QueryTracesRequest) returns (QueryTracesResponse);
 }
 
@@ -281,6 +283,88 @@ message QueryTracesRequest {
 message QueryTracesResponse {
   repeated TraceSpan spans = 1;
   string next_cursor = 2;
+}
+
+message TraceScope {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
+  string environment_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+message ListTracesRequest {
+  TraceScope scope = 1 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp start_time = 2 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp end_time = 3 [(buf.validate.field).required = true];
+  string trace_id = 4 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.pattern = "^[0-9a-f]{32}$",
+    (buf.validate.field).string.not_in = "00000000000000000000000000000000"
+  ];
+  int32 limit = 5 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10000
+  }];
+  optional uint64 min_duration_nanos = 6;
+  optional uint64 max_duration_nanos = 7;
+  TraceStatus status = 8 [(buf.validate.field).enum.defined_only = true];
+  repeated string root_name_terms = 9;
+  TraceSummarySort sort = 10 [(buf.validate.field).enum.defined_only = true];
+  bool ascending = 11;
+  int32 offset = 12 [(buf.validate.field).int32.gte = 0];
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "this.start_time <= this.end_time"
+  };
+  option (buf.validate.message).cel = {
+    id: "duration.min_lte_max"
+    message: "min_duration_nanos must be less than or equal to max_duration_nanos"
+    expression: "!has(this.min_duration_nanos) || !has(this.max_duration_nanos) || this.min_duration_nanos <= this.max_duration_nanos"
+  };
+}
+
+message ListTracesResponse {
+  repeated TraceSummary summaries = 1;
+  uint64 total_count = 2;
+}
+
+message GetTraceRequest {
+  TraceScope scope = 1 [(buf.validate.field).required = true];
+  string trace_id = 2 [
+    (buf.validate.field).string.pattern = "^[0-9a-f]{32}$",
+    (buf.validate.field).string.not_in = "00000000000000000000000000000000"
+  ];
+}
+
+message GetTraceResponse {
+  repeated TraceSpan spans = 1;
+}
+
+enum TraceSummarySort {
+  TRACE_SUMMARY_SORT_UNSPECIFIED = 0;
+  TRACE_SUMMARY_SORT_START_TIME = 1;
+  TRACE_SUMMARY_SORT_DURATION = 2;
+}
+
+enum TraceStatus {
+  TRACE_STATUS_UNSPECIFIED = 0;
+  TRACE_STATUS_OK = 1;
+  TRACE_STATUS_ERROR = 2;
+}
+
+message TraceSummary {
+  string trace_id = 1;
+  string root_span_name = 2;
+  string service_name = 3;
+  string resource_id = 4;
+  google.protobuf.Timestamp start_time = 5;
+  uint64 duration_nanos = 6;
+  TraceStatus status = 7;
+  uint64 span_count = 8;
 }
 
 message TraceSpan {

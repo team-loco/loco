@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -76,172 +77,151 @@ func traceTestClient(
 	return observabilityv1connect.NewObservabilityProxyServiceClient(connect.NewClient(transport))
 }
 
-func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
-	cases := []struct {
-		name, token, workspace, cursor string
-		missingTime                    bool
-		code                           connect.Code
+func TestTraceSummaryValidation(t *testing.T) {
+	client := traceTestClient(t, nil)
+	for _, tc := range []struct {
+		name   string
+		change func(*observabilityv1.ListTracesRequest)
 	}{
-		{name: "missing token", workspace: tailTestWorkspace, code: connect.CodeUnauthenticated},
-		{name: "unknown token", token: "unknown", workspace: tailTestWorkspace, code: connect.CodePermissionDenied},
-		{
-			name:      "other workspace",
-			token:     traceTestReader,
-			workspace: traceTestOtherWorkspace,
-			code:      connect.CodePermissionDenied,
-		},
-		{name: "empty workspace", token: traceTestReader, code: connect.CodeInvalidArgument},
-		{
-			name:        "missing time",
-			token:       "workspace-reader",
-			workspace:   tailTestWorkspace,
-			missingTime: true,
-			code:        connect.CodeInvalidArgument,
-		},
-		{
-			name:      "invalid cursor",
-			token:     traceTestReader,
-			workspace: tailTestWorkspace,
-			cursor:    "invalid!",
-			code:      connect.CodeInvalidArgument,
-		},
-		{
-			name:      "authorized storage failure",
-			token:     traceTestReader,
-			workspace: tailTestWorkspace,
-			code:      connect.CodeInternal,
-		},
-	}
-	for _, tc := range cases {
+		{"negative offset", func(r *observabilityv1.ListTracesRequest) { r.Offset = -1 }},
+		{"invalid sort", func(r *observabilityv1.ListTracesRequest) {
+			r.Sort = observabilityv1.TraceSummarySort(99)
+		}},
+		{"invalid status", func(r *observabilityv1.ListTracesRequest) {
+			r.Status = observabilityv1.TraceStatus(99)
+		}},
+		{"inverted duration", func(r *observabilityv1.ListTracesRequest) {
+			r.MinDurationNanos = proto.Uint64(2)
+			r.MaxDurationNanos = proto.Uint64(1)
+		}},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			client := traceTestClient(t, unavailableClickHouse(t))
-			now := time.Now()
-			req := &observabilityv1.QueryTracesRequest{
-				WorkspaceId: tc.workspace,
-				StartTime:   timestamppb.New(now.Add(-time.Minute)),
-				EndTime:     timestamppb.New(now),
-				Cursor:      tc.cursor,
-			}
-			if tc.missingTime {
-				req.StartTime = nil
-			}
 			ctx, info := connect.NewClientContext(t.Context())
-			if tc.token != "" {
-				info.RequestHeader().Set("Authorization", "Bearer "+tc.token)
+			info.RequestHeader().Set("Authorization", "Bearer "+traceTestReader)
+			req := &observabilityv1.ListTracesRequest{
+				Scope:     &observabilityv1.TraceScope{WorkspaceId: tailTestWorkspace},
+				StartTime: timestamppb.New(time.Now().Add(-time.Minute)),
+				EndTime:   timestamppb.Now(),
 			}
-			_, err := client.QueryTraces(ctx, req)
-			if connect.CodeOf(err) != tc.code {
-				t.Fatalf("error = %v, want %v", err, tc.code)
-			}
-			if tc.code == connect.CodeInternal && err.Error() != "internal: query failed" {
-				t.Errorf("private diagnostic exposed: %v", err)
+			tc.change(req)
+			_, err := client.ListTraces(ctx, req)
+			if connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("error: %v", err)
 			}
 		})
 	}
 }
 
-func TestQueryTracesHTTPReadsIsolatedSpans(t *testing.T) {
+func TestTraceRPCAuthenticationAndErrors(t *testing.T) {
+	client := traceTestClient(t, unavailableClickHouse(t))
+	for _, tc := range []struct {
+		name, token, workspace string
+		code                   connect.Code
+	}{
+		{"missing token", "", tailTestWorkspace, connect.CodeUnauthenticated},
+		{"wrong token", "wrong", tailTestWorkspace, connect.CodePermissionDenied},
+		{"wrong workspace", traceTestReader, traceTestOtherWorkspace, connect.CodePermissionDenied},
+		{"empty workspace", traceTestReader, "", connect.CodeInvalidArgument},
+		{"storage failure", traceTestReader, tailTestWorkspace, connect.CodeInternal},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, info := connect.NewClientContext(t.Context())
+			if tc.token != "" {
+				info.RequestHeader().Set("Authorization", "Bearer "+tc.token)
+			}
+			scope := &observabilityv1.TraceScope{WorkspaceId: tc.workspace}
+			now := time.Now()
+			_, err := client.ListTraces(
+				ctx,
+				&observabilityv1.ListTracesRequest{
+					Scope:     scope,
+					StartTime: timestamppb.New(now.Add(-time.Minute)),
+					EndTime:   timestamppb.New(now),
+				},
+			)
+			if connect.CodeOf(err) != tc.code {
+				t.Fatalf("ListTraces: %v", err)
+			}
+			_, err = client.GetTrace(
+				ctx,
+				&observabilityv1.GetTraceRequest{Scope: scope, TraceId: "0123456789abcdef0123456789abcdef"},
+			)
+			if connect.CodeOf(err) != tc.code {
+				t.Fatalf("GetTrace: %v", err)
+			}
+			if tc.code == connect.CodeInternal && err.Error() != "internal: query failed" {
+				t.Fatalf("private diagnostic: %v", err)
+			}
+		})
+	}
+}
+
+func TestGetTraceRequiresTraceID(t *testing.T) {
+	client := traceTestClient(t, nil)
+	for _, id := range []string{"", "abcd", "00000000000000000000000000000000", "0123456789ABCDEF0123456789ABCDEF"} {
+		ctx, info := connect.NewClientContext(t.Context())
+		info.RequestHeader().Set("Authorization", "Bearer "+traceTestReader)
+		_, err := client.GetTrace(
+			ctx,
+			&observabilityv1.GetTraceRequest{
+				Scope:   &observabilityv1.TraceScope{WorkspaceId: tailTestWorkspace},
+				TraceId: id,
+			},
+		)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("trace %q: %v", id, err)
+		}
+	}
+}
+
+func TestTraceHTTPReadsWholeTrace(t *testing.T) {
 	ch := newTestClickHouse(t)
-	timestamp := time.Now().UTC().Add(-time.Minute)
-	const traceID = "0123456789abcdef0123456789abcdef"
-	const resourceID = "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb"
+	const id = "0123456789abcdef0123456789abcdef"
+	now := time.Now().Add(-time.Minute)
 	batch, prepareErr := ch.Conn().
-		PrepareBatch(t.Context(), "INSERT INTO otel_traces "+
-			"(Timestamp, TraceId, SpanId, ParentSpanId, ServiceName, ResourceAttributes)")
+		PrepareBatch(t.Context(), "INSERT INTO otel_traces (Timestamp,TraceId,SpanId,ResourceAttributes)")
 	if prepareErr != nil {
 		t.Fatal(prepareErr)
 	}
-	for _, row := range []struct{ workspace, span, parent, service string }{
-		{tailTestWorkspace, "1111111111111111", "", "frontend"},
-		{tailTestWorkspace, "2222222222222222", "1111111111111111", "checkout"},
-		{tailTestWorkspace, "4444444444444444", "2222222222222222", "payment"},
-		{tailTestWorkspace, "5555555555555555", "2222222222222222", "shipping"},
-		{traceTestOtherWorkspace, "3333333333333333", "", "foreign"},
-	} {
-		attrs := map[string]string{"loco.workspace.id": row.workspace, counterHTTPResourceAttribute: resourceID}
-		if appendErr := batch.Append(timestamp, traceID, row.span, row.parent, row.service, attrs); appendErr != nil {
-			t.Fatal(appendErr)
+	for _, workspace := range []string{tailTestWorkspace, traceTestOtherWorkspace} {
+		for i := range 4 {
+			if err := batch.Append(
+				now,
+				id,
+				fmt.Sprintf("%016x", i+1),
+				map[string]string{"loco.workspace.id": workspace},
+			); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
-	if sendErr := batch.Send(); sendErr != nil {
-		t.Fatal(sendErr)
+	if err := batch.Send(); err != nil {
+		t.Fatal(err)
 	}
 	client := traceTestClient(t, ch)
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+traceTestReader)
-	clamped := &observabilityv1.QueryTracesRequest{
-		WorkspaceId: tailTestWorkspace,
-		StartTime:   timestamppb.New(timestamp),
-		EndTime:     timestamppb.New(timestamp),
-		TraceId:     traceID,
-		Limit:       100,
+	scope := &observabilityv1.TraceScope{WorkspaceId: tailTestWorkspace}
+	trace, err := client.GetTrace(ctx, &observabilityv1.GetTraceRequest{Scope: scope, TraceId: id})
+	if err != nil {
+		t.Fatal(err)
 	}
-	page, queryErr := client.QueryTraces(ctx, clamped)
-	if queryErr != nil {
-		t.Fatal(queryErr)
+	if len(trace.GetSpans()) != 4 {
+		t.Fatalf("GetTrace truncated to list limit: %v", trace)
 	}
-	if len(page.GetSpans()) != 2 || page.GetNextCursor() == "" {
-		t.Fatalf("configured maximum ignored: %v", page)
+	list, err := client.ListTraces(
+		ctx,
+		&observabilityv1.ListTracesRequest{
+			Scope:     scope,
+			StartTime: timestamppb.New(now),
+			EndTime:   timestamppb.New(now),
+			Limit:     1,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
-	clamped.Limit = 0
-	page, queryErr = client.QueryTraces(ctx, clamped)
-	if queryErr != nil {
-		t.Fatal(queryErr)
-	}
-	if len(page.GetSpans()) != 1 || page.GetNextCursor() == "" {
-		t.Fatalf("configured default ignored: %v", page)
-	}
-	for _, tc := range []struct {
-		workspace, token string
-		want             []string
-	}{
-		{tailTestWorkspace, traceTestReader, []string{
-			"1111111111111111", "2222222222222222", "4444444444444444", "5555555555555555",
-		}},
-		{traceTestOtherWorkspace, "other-reader", []string{"3333333333333333"}},
-	} {
-		t.Run(tc.workspace, func(t *testing.T) {
-			req := &observabilityv1.QueryTracesRequest{
-				WorkspaceId: tc.workspace,
-				StartTime:   timestamppb.New(timestamp),
-				EndTime:     timestamppb.New(timestamp),
-				TraceId:     traceID,
-				Limit:       1,
-			}
-			var got []string
-			for range len(tc.want) + 1 {
-				ctx, info := connect.NewClientContext(t.Context())
-				info.RequestHeader().Set("Authorization", "Bearer "+tc.token)
-				response, queryErr := client.QueryTraces(ctx, req)
-				if queryErr != nil {
-					t.Fatal(queryErr)
-				}
-				if len(response.GetSpans()) > 1 {
-					t.Fatal("limit ignored")
-				}
-				for _, span := range response.GetSpans() {
-					got = append(got, span.GetSpanId())
-					if span.GetWorkspaceId() != tc.workspace || span.GetResourceId() != resourceID {
-						t.Errorf("wrong attribution: %v", span)
-					}
-					wantParents := map[string]string{
-						"2222222222222222": "1111111111111111",
-						"4444444444444444": "2222222222222222",
-						"5555555555555555": "2222222222222222",
-					}
-					if parent, ok := wantParents[span.GetSpanId()]; ok && span.GetParentSpanId() != parent {
-						t.Errorf("lost parent: %v", span)
-					}
-				}
-				if response.GetNextCursor() == "" {
-					break
-				}
-				req.Cursor = response.GetNextCursor()
-			}
-			slices.Sort(got)
-			if !slices.Equal(got, tc.want) {
-				t.Errorf("spans = %v, want %v", got, tc.want)
-			}
-		})
+	if list.GetTotalCount() != 1 || len(list.GetSummaries()) != 1 || list.GetSummaries()[0].GetSpanCount() != 4 {
+		t.Fatalf("ListTraces: %v", list)
 	}
 }

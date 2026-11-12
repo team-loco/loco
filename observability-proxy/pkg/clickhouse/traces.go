@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -12,71 +11,45 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
-var ErrInvalidTraceCursor = errors.New("invalid trace cursor")
-
-func buildTracesQuery(
-	req *observabilityv1.QueryTracesRequest,
-	limit int32,
-	queryTimeout time.Duration,
-) (string, []any, error) {
-	where := []string{
-		workspaceColumn + " = ?",
-		"Timestamp >= fromUnixTimestamp64Nano(?)",
-		"Timestamp <= fromUnixTimestamp64Nano(?)",
-	}
-	args := []any{req.GetWorkspaceId(), req.GetStartTime().AsTime().UnixNano(), req.GetEndTime().AsTime().UnixNano()}
-	if len(req.GetResourceIds()) > 0 {
-		clause, values := inFilter(resourceColumn, req.GetResourceIds())
+func traceScope(scope *observabilityv1.TraceScope) ([]string, []any) {
+	where := []string{workspaceColumn + " = ?"}
+	args := []any{scope.GetWorkspaceId()}
+	if len(scope.GetResourceIds()) > 0 {
+		clause, values := inFilter(resourceColumn, scope.GetResourceIds())
 		where = append(where, clause)
 		args = append(args, values...)
 	}
-	if req.GetEnvironmentId() != "" {
+	if scope.GetEnvironmentId() != "" {
 		where = append(where, environmentColumn+" = ?")
-		args = append(args, req.GetEnvironmentId())
+		args = append(args, scope.GetEnvironmentId())
 	}
-	if req.GetTraceId() != "" {
-		where = append(where, "TraceId = ?")
-		args = append(args, req.GetTraceId())
-	}
-	if req.GetCursor() != "" {
-		position, err := decodePartPosition(req.GetCursor())
-		if err != nil {
-			return "", nil, ErrInvalidTraceCursor
-		}
-		where = append(where, partPositionColumns+" > (fromUnixTimestamp64Nano(?), ?, ?)")
-		args = append(args, position.timestamp.UnixNano(), position.blockNumber, position.blockOffset)
-	}
-	args = append(args, limit+pageLookahead)
-	query := "SELECT Timestamp, TraceId, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, " +
-		"Duration, StatusCode, StatusMessage, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes, " +
-		"SpanAttributes, ScopeName, ScopeVersion, Events.Timestamp, Events.Name, Events.Attributes, " +
-		"_block_number, _block_offset FROM otel_traces WHERE " + strings.Join(
-		where,
-		" AND ",
-	) + " ORDER BY Timestamp ASC, _block_number ASC, _block_offset ASC LIMIT ?"
-	return fmt.Sprintf("%s SETTINGS max_execution_time = %d", query, int(queryTimeout.Seconds())), args, nil
+	return where, args
 }
 
-func (c *Client) QueryTraces(
+func (c *Client) GetTrace(
 	ctx context.Context,
-	req *observabilityv1.QueryTracesRequest,
-	limit int32,
-) (*observabilityv1.QueryTracesResponse, error) {
-	query, args, err := buildTracesQuery(req, limit, c.queryTimeout)
-	if err != nil {
-		return nil, err
+	req *observabilityv1.GetTraceRequest,
+) (*observabilityv1.GetTraceResponse, error) {
+	lookup, query, args := buildGetTraceQueries(req, c.queryTimeout)
+	var count uint64
+	var start, end time.Time
+	if err := c.conn.QueryRow(ctx, lookup, args...).Scan(&count, &start, &end); err != nil {
+		return nil, fmt.Errorf("look up trace timestamps: %w", err)
 	}
+	if count == 0 {
+		return &observabilityv1.GetTraceResponse{}, nil
+	}
+	// The lookup stores whole seconds, so include the fractional part of its final second.
+	args = append(args, start.UnixNano(), end.Add(time.Second).UnixNano())
 	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse trace query: %w", err)
 	}
 	defer rows.Close()
-	response := &observabilityv1.QueryTracesResponse{}
-	var last partPosition
+	response := &observabilityv1.GetTraceResponse{}
 	for rows.Next() {
 		span := &observabilityv1.TraceSpan{}
 		var timestamp time.Time
-		var position partPosition
 		var eventTimes []time.Time
 		var eventNames []string
 		var eventAttributes []map[string]string
@@ -101,25 +74,33 @@ func (c *Client) QueryTraces(
 			&eventTimes,
 			&eventNames,
 			&eventAttributes,
-			&position.blockNumber,
-			&position.blockOffset,
 		); err != nil {
 			return nil, fmt.Errorf("scan trace span: %w", err)
-		}
-		if int32(len(response.GetSpans())) == limit {
-			response.NextCursor = last.encode()
-			break
 		}
 		span.StartTime = timestamppb.New(timestamp)
 		span.Events = spanEvents(eventTimes, eventNames, eventAttributes)
 		response.Spans = append(response.Spans, span)
-		position.timestamp = timestamp
-		last = position
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("trace rows iteration: %w", err)
 	}
 	return response, nil
+}
+
+func buildGetTraceQueries(req *observabilityv1.GetTraceRequest, timeout time.Duration) (string, string, []any) {
+	where, args := traceScope(req.GetScope())
+	where = append(where, "TraceId = ?")
+	args = append(args, req.GetTraceId())
+	predicates := strings.Join(where, " AND ")
+	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(timeout.Seconds()))
+	lookup := "SELECT count(), min(Start), max(End) FROM otel_traces_trace_id_ts WHERE " + predicates + settings
+	query := "SELECT Timestamp, TraceId, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, " +
+		"Duration, StatusCode, StatusMessage, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes, " +
+		"SpanAttributes, ScopeName, ScopeVersion, Events.Timestamp, Events.Name, Events.Attributes " +
+		"FROM otel_traces WHERE " + predicates +
+		" AND Timestamp >= fromUnixTimestamp64Nano(?) AND Timestamp < fromUnixTimestamp64Nano(?)" +
+		" ORDER BY Timestamp ASC, SpanId ASC" + settings
+	return lookup, query, args
 }
 
 // spanEvents zips the Events nested columns, whose arrays ClickHouse keeps equal in length.

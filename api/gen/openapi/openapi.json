@@ -3026,6 +3026,128 @@
         }
       }
     },
+    "/loco.observability.v1.ObservabilityProxyService/GetTrace": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityProxyService"
+        ],
+        "summary": "GetTrace",
+        "operationId": "loco.observability.v1.ObservabilityProxyService.GetTrace",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.GetTraceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.GetTraceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.observability.v1.ObservabilityProxyService/ListTraces": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityProxyService"
+        ],
+        "summary": "ListTraces",
+        "operationId": "loco.observability.v1.ObservabilityProxyService.ListTraces",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.ListTracesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.ListTracesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.observability.v1.ObservabilityProxyService/QueryLogs": {
       "post": {
         "tags": [
@@ -10517,6 +10639,45 @@
         "additionalProperties": false,
         "description": "PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;\n removed_at is unset while the placement exists."
       },
+      "loco.observability.v1.GetTraceRequest": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "title": "scope",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceScope"
+          },
+          "traceId": {
+            "type": "string",
+            "not": {
+              "type": "string",
+              "enum": [
+                "00000000000000000000000000000000"
+              ]
+            },
+            "title": "trace_id",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "title": "GetTraceRequest",
+        "required": [
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "loco.observability.v1.GetTraceResponse": {
+        "type": "object",
+        "properties": {
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.TraceSpan"
+            },
+            "title": "spans"
+          }
+        },
+        "title": "GetTraceResponse",
+        "additionalProperties": false
+      },
       "loco.observability.v1.Heartbeat": {
         "type": "object",
         "properties": {
@@ -10529,6 +10690,109 @@
         "title": "Heartbeat",
         "additionalProperties": false,
         "description": "Heartbeat indicates the stream is still active (no new logs yet)."
+      },
+      "loco.observability.v1.ListTracesRequest": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "title": "scope",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceScope"
+          },
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endTime": {
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "traceId": {
+            "type": "string",
+            "not": {
+              "type": "string",
+              "enum": [
+                "00000000000000000000000000000000"
+              ]
+            },
+            "title": "trace_id",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "limit",
+            "maximum": 10000,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "minDurationNanos": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "min_duration_nanos",
+            "format": "int64"
+          },
+          "maxDurationNanos": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "max_duration_nanos",
+            "format": "int64"
+          },
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceStatus"
+          },
+          "rootNameTerms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "root_name_terms"
+          },
+          "sort": {
+            "title": "sort",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceSummarySort"
+          },
+          "ascending": {
+            "type": "boolean",
+            "title": "ascending"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "offset",
+            "minimum": 0,
+            "format": "int32"
+          }
+        },
+        "title": "ListTracesRequest",
+        "required": [
+          "scope",
+          "startTime",
+          "endTime"
+        ],
+        "additionalProperties": false,
+        "description": "duration.min_lte_max // min_duration_nanos must be less than or equal to max_duration_nanos\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+      },
+      "loco.observability.v1.ListTracesResponse": {
+        "type": "object",
+        "properties": {
+          "summaries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.TraceSummary"
+            },
+            "title": "summaries"
+          },
+          "totalCount": {
+            "type": "string",
+            "title": "total_count",
+            "format": "int64"
+          }
+        },
+        "title": "ListTracesResponse",
+        "additionalProperties": false
       },
       "loco.observability.v1.LogEntry": {
         "type": "object",
@@ -11038,6 +11302,31 @@
         "additionalProperties": false,
         "description": "TailLogsResponse is a server-streamed event (log entry or heartbeat).\n\nAt most one of `entry`, `heartbeat` may be set."
       },
+      "loco.observability.v1.TraceScope": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          }
+        },
+        "title": "TraceScope",
+        "additionalProperties": false
+      },
       "loco.observability.v1.TraceSpan": {
         "type": "object",
         "properties": {
@@ -11152,6 +11441,65 @@
         },
         "title": "TraceSpanEvent",
         "additionalProperties": false
+      },
+      "loco.observability.v1.TraceStatus": {
+        "type": "string",
+        "title": "TraceStatus",
+        "enum": [
+          "TRACE_STATUS_UNSPECIFIED",
+          "TRACE_STATUS_OK",
+          "TRACE_STATUS_ERROR"
+        ]
+      },
+      "loco.observability.v1.TraceSummary": {
+        "type": "object",
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "title": "trace_id"
+          },
+          "rootSpanName": {
+            "type": "string",
+            "title": "root_span_name"
+          },
+          "serviceName": {
+            "type": "string",
+            "title": "service_name"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "durationNanos": {
+            "type": "string",
+            "title": "duration_nanos",
+            "format": "int64"
+          },
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceStatus"
+          },
+          "spanCount": {
+            "type": "string",
+            "title": "span_count",
+            "format": "int64"
+          }
+        },
+        "title": "TraceSummary",
+        "additionalProperties": false
+      },
+      "loco.observability.v1.TraceSummarySort": {
+        "type": "string",
+        "title": "TraceSummarySort",
+        "enum": [
+          "TRACE_SUMMARY_SORT_UNSPECIFIED",
+          "TRACE_SUMMARY_SORT_START_TIME",
+          "TRACE_SUMMARY_SORT_DURATION"
+        ]
       },
       "loco.org.v1.CreateOrgRequest": {
         "type": "object",

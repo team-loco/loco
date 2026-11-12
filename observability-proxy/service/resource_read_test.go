@@ -46,10 +46,21 @@ func readCalls() map[string]readCall {
 			_, err := client.QueryMetrics(ctx, req)
 			return err
 		},
-		"QueryTraces": func(ctx context.Context, client proxyClient, ids []string) error {
+
+		"GetTrace": func(ctx context.Context, client proxyClient, ids []string) error {
+			_, err := client.GetTrace(
+				ctx,
+				&observabilityv1.GetTraceRequest{
+					Scope:   &observabilityv1.TraceScope{WorkspaceId: tailTestWorkspace, ResourceIds: ids},
+					TraceId: "0123456789abcdef0123456789abcdef",
+				},
+			)
+			return err
+		},
+		"ListTraces": func(ctx context.Context, client proxyClient, ids []string) error {
 			now := time.Now()
-			_, err := client.QueryTraces(ctx, &observabilityv1.QueryTracesRequest{
-				WorkspaceId: tailTestWorkspace, ResourceIds: ids,
+			_, err := client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
+				Scope:     &observabilityv1.TraceScope{WorkspaceId: tailTestWorkspace, ResourceIds: ids},
 				StartTime: timestamppb.New(now.Add(-time.Minute)), EndTime: timestamppb.New(now),
 			})
 			return err

@@ -34,6 +34,12 @@ const (
 	// ObservabilityProxyServiceQueryMetricsProcedure is the procedure name of the
 	// ObservabilityProxyService's QueryMetrics RPC.
 	ObservabilityProxyServiceQueryMetricsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
+	// ObservabilityProxyServiceListTracesProcedure is the procedure name of the
+	// ObservabilityProxyService's ListTraces RPC.
+	ObservabilityProxyServiceListTracesProcedure = "/loco.observability.v1.ObservabilityProxyService/ListTraces"
+	// ObservabilityProxyServiceGetTraceProcedure is the procedure name of the
+	// ObservabilityProxyService's GetTrace RPC.
+	ObservabilityProxyServiceGetTraceProcedure = "/loco.observability.v1.ObservabilityProxyService/GetTrace"
 	// ObservabilityProxyServiceQueryTracesProcedure is the procedure name of the
 	// ObservabilityProxyService's QueryTraces RPC.
 	ObservabilityProxyServiceQueryTracesProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryTraces"
@@ -61,6 +67,20 @@ var (
 			Procedure:  ObservabilityProxyServiceQueryMetricsProcedure,
 		}
 	})
+	observabilityProxyServiceListTracesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("ListTraces"),
+			Procedure:  ObservabilityProxyServiceListTracesProcedure,
+		}
+	})
+	observabilityProxyServiceGetTraceSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("GetTrace"),
+			Procedure:  ObservabilityProxyServiceGetTraceProcedure,
+		}
+	})
 	observabilityProxyServiceQueryTracesSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -79,6 +99,8 @@ type ObservabilityProxyServiceClient interface {
 	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error)
 	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
+	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
+	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
 	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
 }
 
@@ -119,6 +141,8 @@ type ObservabilityProxyServiceHandler interface {
 	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error
 	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
+	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
+	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
 	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
 }
 
@@ -130,6 +154,8 @@ func RegisterObservabilityProxyServiceHandler(server *connect.Server, svc Observ
 		connect.Method{Spec: observabilityProxyServiceQueryLogsSpec(), Handler: adapter.queryLogs},
 		connect.Method{Spec: observabilityProxyServiceTailLogsSpec(), Handler: adapter.tailLogs},
 		connect.Method{Spec: observabilityProxyServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
+		connect.Method{Spec: observabilityProxyServiceListTracesSpec(), Handler: adapter.listTraces},
+		connect.Method{Spec: observabilityProxyServiceGetTraceSpec(), Handler: adapter.getTrace},
 		connect.Method{Spec: observabilityProxyServiceQueryTracesSpec(), Handler: adapter.queryTraces},
 	)
 }
@@ -165,6 +191,14 @@ func (UnimplementedObservabilityProxyServiceHandler) QueryMetrics(context.Contex
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryMetrics is not implemented")
 }
 
+func (UnimplementedObservabilityProxyServiceHandler) ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.ListTraces is not implemented")
+}
+
+func (UnimplementedObservabilityProxyServiceHandler) GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.GetTrace is not implemented")
+}
+
 func (UnimplementedObservabilityProxyServiceHandler) QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryTraces is not implemented")
 }
@@ -192,6 +226,22 @@ func (c *observabilityProxyServiceClient) TailLogs(ctx context.Context, req *v1.
 func (c *observabilityProxyServiceClient) QueryMetrics(ctx context.Context, req *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
 	var res v1.QueryMetricsResponse
 	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryMetricsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityProxyServiceClient) ListTraces(ctx context.Context, req *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
+	var res v1.ListTracesResponse
+	if err := c.client.CallUnary(ctx, observabilityProxyServiceListTracesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityProxyServiceClient) GetTrace(ctx context.Context, req *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
+	var res v1.GetTraceResponse
+	if err := c.client.CallUnary(ctx, observabilityProxyServiceGetTraceSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -235,6 +285,30 @@ func (h observabilityProxyServiceHandler) queryMetrics(ctx context.Context, _ co
 		return err
 	}
 	res, err := h.svc.QueryMetrics(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityProxyServiceHandler) listTraces(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListTracesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListTraces(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityProxyServiceHandler) getTrace(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetTraceRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetTrace(ctx, &req)
 	if err != nil {
 		return err
 	}
