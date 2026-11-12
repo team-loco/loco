@@ -49,7 +49,7 @@ COPY docs/scripts ./scripts
 COPY docs/content ./content
 COPY docs/overrides ./overrides
 COPY web/public/favicon.svg /app/web/public/favicon.svg
-COPY web/src/components/design/logo-strokes.ts /app/web/src/components/design/logo-strokes.ts
+COPY web/public/logo.svg /app/web/public/logo.svg
 COPY web/sws.toml /app/web/sws.toml
 ARG DOCS_ENVIRONMENT=production
 RUN uv run --frozen --no-dev python scripts/build.py build "$DOCS_ENVIRONMENT" \

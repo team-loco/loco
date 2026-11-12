@@ -1,6 +1,5 @@
 import argparse
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
@@ -17,18 +16,9 @@ def prepare_brand_assets():
     assets = DOCS / 'content' / 'assets'
     web = DOCS.parent / 'web'
     shutil.copyfile(web / 'public' / 'favicon.svg', assets / 'favicon.svg')
-    source = (web / 'src' / 'components' / 'design' / 'logo-strokes.ts').read_text()
-    viewbox = re.search(r'LOGO_VIEWBOX = "([^"]+)"', source)
-    strokes = re.findall(r'\["([^"]+)", ([\d.]+)\]', source)
-    assert viewbox is not None, 'web logo has no viewbox'
-    assert strokes, 'web logo has no strokes'
-    svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{viewbox.group(1)}" role="img"><title>Loco</title>'
-    svg += '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">'
-    svg += ''.join(f'<path d="{path}" stroke-width="{width}"/>' for path, width in strokes)
-    svg += '</g></svg>\n'
     partials = DOCS / 'overrides' / 'partials'
     partials.mkdir(parents=True, exist_ok=True)
-    (partials / 'logo.html').write_text(svg)
+    shutil.copyfile(web / 'public' / 'logo.svg', partials / 'logo.html')
 
 
 def main():
