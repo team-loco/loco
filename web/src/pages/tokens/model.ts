@@ -112,21 +112,6 @@ export function kindOf(entityType: EntityType): NodeKind {
 	}
 }
 
-export function kindLabel(kind: NodeKind): string {
-	switch (kind) {
-		case "org":
-			return "Organization";
-		case "ws":
-			return "Workspace";
-		case "res":
-			return "Resource";
-		case "user":
-			return "User";
-		case "system":
-			return "System";
-	}
-}
-
 function levelScope(level: Level): Scope {
 	switch (level) {
 		case 1:

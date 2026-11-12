@@ -3,11 +3,12 @@ import type { ReactNode } from "react";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
-import { LEVEL_LABEL, LEVEL_TEXT } from "@/hooks/useMyScopes";
+import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -24,16 +25,7 @@ function AccessCell({ chips }: { chips: AccessChip[] }) {
 		<div className="flex min-w-0 flex-wrap gap-1">
 			{accessByLevel(chips).map((g) => {
 				const names = g.nodes.map((n) => n.label).join(", ");
-				return (
-					<span
-						key={g.level}
-						title={`${LEVEL_LABEL[g.level]} ${names}`}
-						className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md bg-panel2 px-2 text-[12px] whitespace-nowrap text-fg2"
-					>
-						<span className={cn("font-medium", LEVEL_TEXT[g.level])}>{LEVEL_LABEL[g.level]}</span>
-						<span className="truncate font-mono text-[11.5px]">{names}</span>
-					</span>
-				);
+				return <LevelChip key={g.level} level={g.level} name={names} title={`${LEVEL_LABEL[g.level]} ${names}`} />;
 			})}
 		</div>
 	);
