@@ -257,7 +257,9 @@ func TestTraceSummaryValidation(t *testing.T) {
 		{"invalid sort", func(r *observabilityv1.QueryTracesRequest) {
 			r.Summary.Sort = observabilityv1.TraceSummarySort(99)
 		}},
-		{"invalid status", func(r *observabilityv1.QueryTracesRequest) { r.Summary.Status = "invalid-status" }},
+		{"invalid status", func(r *observabilityv1.QueryTracesRequest) {
+			r.Summary.Status = observabilityv1.TraceStatus(99)
+		}},
 		{"inverted duration", func(r *observabilityv1.QueryTracesRequest) {
 			r.Summary.MinDurationNanos = proto.Uint64(2)
 			r.Summary.MaxDurationNanos = proto.Uint64(1)

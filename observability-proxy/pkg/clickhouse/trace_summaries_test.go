@@ -23,7 +23,7 @@ func TestTraceSummaries(t *testing.T) {
 	if root.GetTraceId() != fmt.Sprintf("%032x", 1) || root.GetRootSpanName() != "GET /cart" ||
 		root.GetServiceName() != summaryService || root.GetResourceId() != testResourceID ||
 		!root.GetStartTime().AsTime().Equal(start) || root.GetDurationNanos() != uint64(4*time.Second) ||
-		root.GetStatus() != "error" || root.GetSpanCount() != 2 {
+		root.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_ERROR || root.GetSpanCount() != 2 {
 		t.Fatalf("incorrect summary: %v", root)
 	}
 	for _, tc := range []struct {
@@ -37,8 +37,12 @@ func TestTraceSummaries(t *testing.T) {
 		{"maximum duration", func(r *observabilityv1.QueryTracesRequest) {
 			r.Summary.MaxDurationNanos = proto.Uint64(uint64(time.Second))
 		}, []int{2, 3}},
-		{"error in child", func(r *observabilityv1.QueryTracesRequest) { r.Summary.Status = "error" }, []int{1}},
-		{"ok", func(r *observabilityv1.QueryTracesRequest) { r.Summary.Status = "ok" }, []int{2, 3}},
+		{"error in child", func(r *observabilityv1.QueryTracesRequest) {
+			r.Summary.Status = observabilityv1.TraceStatus_TRACE_STATUS_ERROR
+		}, []int{1}},
+		{"ok", func(r *observabilityv1.QueryTracesRequest) {
+			r.Summary.Status = observabilityv1.TraceStatus_TRACE_STATUS_OK
+		}, []int{2, 3}},
 		{"root name terms", func(r *observabilityv1.QueryTracesRequest) {
 			r.Summary.RootNameTerms = []string{"get", "/CART"}
 		}, []int{1}},
@@ -148,7 +152,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.Query
 			"root",
 			"child operation",
 			"worker",
-			"STATUS_CODE_ERROR",
+			"Error",
 			testWorkspaceID,
 			testEnvironmentID,
 			testWorkerResourceID,

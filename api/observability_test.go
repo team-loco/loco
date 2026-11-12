@@ -234,7 +234,7 @@ func TestTraceSummaryPassthrough(t *testing.T) {
 			MinDurationNanos: proto.Uint64(
 				9007199254740993,
 			),
-			Status:        "error",
+			Status:        observabilityv1.TraceStatus_TRACE_STATUS_ERROR,
 			RootNameTerms: []string{"GET", "/cart"},
 			Offset:        7,
 		},
@@ -254,7 +254,7 @@ func TestTraceSummaryPassthrough(t *testing.T) {
 			summary.GetStartTime(),
 			req.GetStartTime(),
 		) || summary.GetDurationNanos() != req.GetSummary().GetMinDurationNanos() ||
-		summary.GetStatus() != "error" || summary.GetSpanCount() != 7 {
+		summary.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_ERROR || summary.GetSpanCount() != 7 {
 		t.Fatalf("lost summary fields: %v", summary)
 	}
 	for _, token := range []string{"", "wrong-reader"} {

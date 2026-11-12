@@ -10850,6 +10850,15 @@
         "title": "TraceSpanEvent",
         "additionalProperties": false
       },
+      "loco.observability.v1.TraceStatus": {
+        "type": "string",
+        "title": "TraceStatus",
+        "enum": [
+          "TRACE_STATUS_UNSPECIFIED",
+          "TRACE_STATUS_OK",
+          "TRACE_STATUS_ERROR"
+        ]
+      },
       "loco.observability.v1.TraceSummary": {
         "type": "object",
         "properties": {
@@ -10879,8 +10888,8 @@
             "format": "int64"
           },
           "status": {
-            "type": "string",
-            "title": "status"
+            "title": "status",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceStatus"
           },
           "spanCount": {
             "type": "string",
@@ -10911,13 +10920,8 @@
             "format": "int64"
           },
           "status": {
-            "type": "string",
             "title": "status",
-            "enum": [
-              "",
-              "ok",
-              "error"
-            ]
+            "$ref": "#/components/schemas/loco.observability.v1.TraceStatus"
           },
           "rootNameTerms": {
             "type": "array",
