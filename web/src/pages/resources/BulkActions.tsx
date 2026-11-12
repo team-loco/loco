@@ -1,8 +1,9 @@
-import { createConnectQueryKey, useMutation, useTransport } from "@connectrpc/connect-query";
+import { createConnectQueryKey, useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2Icon, TrendingUpIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { deleteResource, scaleResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -13,12 +14,15 @@ import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { SegmentedChoice } from "@/components/design/SegmentedChoice";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesKey } from "@/hooks/workspaceResources";
 import { getErrorMessage } from "@/lib/error-handler";
+import { sizeOptions } from "@/lib/sizing";
 
 import {
+	currentSetup,
 	deleteText,
 	fanOut,
 	fanOutSummary,
@@ -28,12 +32,12 @@ import {
 	scaleNote,
 	scaleTargets,
 	type FanOutResult,
+	type ScaleChange,
 	type ScaleForm,
 } from "./bulk";
 import type { ResourceRow } from "./table";
 
 const BLANK_FORM: ScaleForm = { replicas: "", cpu: "", memory: "" };
-const KEEP = "Keep current";
 
 function plural(n: number): string {
 	return `${n.toString()} resource${n === 1 ? "" : "s"}`;
@@ -59,12 +63,17 @@ function ScaleDialogContent({
 	rows: ResourceRow[];
 	environment: Environment;
 	pending: boolean;
-	onScale: (targets: ResourceRow[], form: ScaleForm) => void;
+	onScale: (targets: ResourceRow[], change: ScaleChange) => void;
 }) {
 	const [form, setForm] = useState(BLANK_FORM);
+	const { data: config } = useQuery(getConfig, {});
+	const sizes = sizeOptions(config?.sizeLimits);
 	const { targets, skipped } = scaleTargets(rows, environment.id);
-	const replicas = replicasError(form);
-	const blocked = pending || targets.length === 0 || scaleChange(form) === null;
+	const current = currentSetup(targets);
+	const range = sizes.replicas;
+	const replicasProblem = range === null ? undefined : replicasError(form.replicas, range);
+	const change = range === null ? null : scaleChange(form, range);
+	const blocked = pending || targets.length === 0 || change === null;
 	const set = (patch: Partial<ScaleForm>) => {
 		setForm({ ...form, ...patch });
 	};
@@ -75,39 +84,64 @@ function ScaleDialogContent({
 				className="contents"
 				onSubmit={(e) => {
 					e.preventDefault();
-					if (!blocked) onScale(targets, form);
+					if (!blocked) onScale(targets, change);
 				}}
 			>
 				<DialogBody className="gap-4">
-					<Field label="Replicas per region" error={replicas}>
+					<dl className="m-0 grid grid-cols-1 gap-1.5 rounded-md bg-panel px-3 py-2.5 sm:grid-cols-3 sm:gap-3">
+						{(
+							[
+								["Current replicas", current.replicas],
+								["Current CPU", current.cpu],
+								["Current memory", current.memory],
+							] as const
+						).map(([term, value]) => (
+							<div
+								key={term}
+								className="flex min-w-0 items-baseline justify-between gap-3 sm:flex-col sm:justify-start sm:gap-0.5"
+							>
+								<dt className="text-[12px] text-fg3">{term}</dt>
+								<dd className="m-0 text-[13px] font-medium break-words tabular-nums">{value}</dd>
+							</div>
+						))}
+					</dl>
+					<Field
+						label="Replicas per region"
+						error={replicasProblem}
+						// A blank hint holds the line the range and any error use, so nothing moves once limits load.
+						hint={range === null ? "\u00a0" : `${range.min.toString()} to ${range.max.toString()}`}
+					>
 						<Input
 							inputMode="numeric"
 							className="font-mono"
-							placeholder={KEEP}
+							placeholder="Unchanged"
+							disabled={range === null}
 							value={form.replicas}
-							aria-invalid={replicas !== undefined}
+							aria-invalid={replicasProblem !== undefined}
 							onChange={(e) => {
 								set({ replicas: e.target.value });
 							}}
 						/>
 					</Field>
-					<Field label="CPU per replica" hint="Cores, like 250m or 1">
-						<Input
-							className="font-mono"
-							placeholder={KEEP}
+					<Field label="CPU per replica">
+						<SegmentedChoice
+							clearable
+							label="CPU per replica"
+							options={sizes.cpu}
 							value={form.cpu}
-							onChange={(e) => {
-								set({ cpu: e.target.value });
+							onChange={(cpu) => {
+								set({ cpu });
 							}}
 						/>
 					</Field>
-					<Field label="Memory per replica" hint="Like 512Mi or 1Gi">
-						<Input
-							className="font-mono"
-							placeholder={KEEP}
+					<Field label="Memory per replica">
+						<SegmentedChoice
+							clearable
+							label="Memory per replica"
+							options={sizes.memory}
 							value={form.memory}
-							onChange={(e) => {
-								set({ memory: e.target.value });
+							onChange={(memory) => {
+								set({ memory });
 							}}
 						/>
 					</Field>
@@ -167,9 +201,8 @@ export function BulkActions({
 		setOpen(null);
 	};
 
-	const runScale = async (targets: ResourceRow[], form: ScaleForm) => {
-		const change = scaleChange(form);
-		if (environment === undefined || change === null) return;
+	const runScale = async (targets: ResourceRow[], change: ScaleChange) => {
+		if (environment === undefined) return;
 		setPending(true);
 		const result = await fanOut(
 			targets,
@@ -223,7 +256,7 @@ export function BulkActions({
 						rows={rows}
 						environment={environment}
 						pending={pending}
-						onScale={(targets, form) => void runScale(targets, form)}
+						onScale={(targets, change) => void runScale(targets, change)}
 					/>
 				)}
 			</Dialog>

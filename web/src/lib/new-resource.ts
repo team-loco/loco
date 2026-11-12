@@ -45,8 +45,6 @@ export interface NewResourceForm {
 export interface FormErrors {
 	regions: string | null;
 	subdomain: string | null;
-	cpu: string | null;
-	memory: string | null;
 	env: string | null;
 }
 
@@ -146,14 +144,12 @@ export function validateForm(form: NewResourceForm, availability: DomainCheck["s
 	return {
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
 		subdomain: subdomainError(form, availability),
-		cpu: form.cpu.trim() === "" ? "Enter a CPU amount" : null,
-		memory: form.memory.trim() === "" ? "Enter a memory amount" : null,
 		env: envError(form.vars),
 	};
 }
 
 export function firstError(errors: FormErrors): string | null {
-	const ordered: (string | null)[] = [errors.regions, errors.subdomain, errors.cpu, errors.memory, errors.env];
+	const ordered: (string | null)[] = [errors.regions, errors.subdomain, errors.env];
 	return ordered.find((e) => e !== null) ?? null;
 }
 
@@ -263,7 +259,7 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 	}
 	if (form.regions.length > 0) lines.push("    regions:");
 	for (const region of form.regions) {
-		const sizing = `cpu: ${flow(form.cpu.trim())}, memory: ${flow(form.memory.trim())}`;
+		const sizing = `cpu: ${flow(form.cpu)}, memory: ${flow(form.memory)}`;
 		lines.push(`      ${flow(region)}: { ${sizing}, replicas: { min: ${replicas}, max: ${replicas} } }`);
 	}
 	return `${lines.join("\n")}\n`;

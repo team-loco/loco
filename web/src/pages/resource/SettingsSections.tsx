@@ -4,10 +4,12 @@ import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { RegionHealth } from "@/components/design/RegionHealth";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { SegmentedChoice } from "@/components/design/SegmentedChoice";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Stepper } from "@/components/design/Stepper";
 import { Switch } from "@/components/design/Switch";
+import type { SizeOptions } from "@/lib/sizing";
 import { slug } from "@/lib/slug";
 
 import type { RegionView } from "./model";
@@ -89,9 +91,14 @@ export function ScalingSection({
 	base,
 	locked,
 	onChange,
+	sizes,
 	regions,
 	sectionRef,
-}: SectionProps & { regions: RegionView[]; sectionRef: ((node: HTMLElement | null) => void) | undefined }) {
+}: SectionProps & {
+	sizes: SizeOptions;
+	regions: RegionView[];
+	sectionRef: ((node: HTMLElement | null) => void) | undefined;
+}) {
 	const names = Object.keys(base.replicas);
 	return (
 		<SettingsBlock
@@ -109,21 +116,24 @@ export function ScalingSection({
 		>
 			{names.length === 0 && <span className="text-fg3">Scaling is available once the resource is deployed.</span>}
 			<div className="flex flex-wrap gap-x-8 gap-y-4">
-				{names.map((name) => (
-					<div key={name} className="flex flex-col gap-1.5">
-						<span className="font-mono text-[12.5px] text-fg2">{name}</span>
-						<Stepper
-							label={`Replicas in ${name}`}
-							value={draft.replicas?.[name] ?? base.replicas[name] ?? 1}
-							min={1}
-							max={Number.POSITIVE_INFINITY}
-							disabled={locked}
-							onChange={(n) => {
-								onChange({ replicas: { ...draft.replicas, [name]: n } });
-							}}
-						/>
-					</div>
-				))}
+				{names.map((name) => {
+					const value = draft.replicas?.[name] ?? base.replicas[name] ?? 1;
+					return (
+						<div key={name} className="flex flex-col gap-1.5">
+							<span className="font-mono text-[12.5px] text-fg2">{name}</span>
+							<Stepper
+								label={`Replicas in ${name}`}
+								value={value}
+								min={sizes.replicas?.min ?? value}
+								max={sizes.replicas?.max ?? value}
+								disabled={locked}
+								onChange={(n) => {
+									onChange({ replicas: { ...draft.replicas, [name]: n } });
+								}}
+							/>
+						</div>
+					);
+				})}
 			</div>
 			{regions.length > names.length && (
 				<span className="text-[12.5px] text-fg3">
@@ -134,31 +144,38 @@ export function ScalingSection({
 	);
 }
 
-export function SizeSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
+export function SizeSection({
+	draft,
+	base,
+	locked,
+	describedBy,
+	onChange,
+	sizes,
+}: SectionProps & { sizes: SizeOptions }) {
 	return (
 		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
-			<div className={grid2}>
-				<Field label="CPU" error={errors.cpu} hint="Cores, like 250m or 1">
-					<Input
-						className="font-mono"
+			<div className="flex flex-col gap-3.5">
+				<Field label="CPU">
+					<SegmentedChoice
+						label="CPU"
+						options={sizes.cpu}
 						value={draft.cpu ?? base.cpu}
 						disabled={locked}
-						aria-describedby={describedBy}
-						aria-invalid={errors.cpu !== undefined}
-						onChange={(e) => {
-							onChange({ cpu: e.target.value });
+						describedBy={describedBy}
+						onChange={(cpu) => {
+							onChange({ cpu });
 						}}
 					/>
 				</Field>
-				<Field label="Memory" error={errors.memory} hint="Like 512Mi or 1Gi">
-					<Input
-						className="font-mono"
+				<Field label="Memory">
+					<SegmentedChoice
+						label="Memory"
+						options={sizes.memory}
 						value={draft.memory ?? base.memory}
 						disabled={locked}
-						aria-describedby={describedBy}
-						aria-invalid={errors.memory !== undefined}
-						onChange={(e) => {
-							onChange({ memory: e.target.value });
+						describedBy={describedBy}
+						onChange={(memory) => {
+							onChange({ memory });
 						}}
 					/>
 				</Field>

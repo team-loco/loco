@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { ResourceSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import {
+	currentSetup,
 	deleteText,
 	fanOut,
 	fanOutSummary,
@@ -54,18 +55,42 @@ describe("fanOut", () => {
 });
 
 describe("scale form", () => {
-	test("blank fields keep the current values", () => {
-		expect(scaleChange(blank)).toBeNull();
-		expect(scaleChange({ ...blank, cpu: " 500m " })).toEqual({ cpu: "500m" });
-		expect(scaleChange({ replicas: "3", cpu: "", memory: "1Gi" })).toEqual({ replicas: 3, memory: "1Gi" });
+	const range = { min: 1, max: 10 };
+
+	test("sends only the settings that were picked", () => {
+		expect(scaleChange(blank, range)).toBeNull();
+		expect(scaleChange({ ...blank, cpu: "500m" }, range)).toEqual({ cpu: "500m" });
+		expect(scaleChange({ replicas: " 3 ", cpu: "", memory: "1Gi" }, range)).toEqual({ replicas: 3, memory: "1Gi" });
 	});
 
-	test("rejects replicas that are not a whole number", () => {
-		for (const replicas of ["1.5", "-2", "two"]) {
-			expect(replicasError({ ...blank, replicas })).toBeDefined();
-			expect(scaleChange({ ...blank, replicas, cpu: "1" })).toBeNull();
+	test("rejects replica counts that are not whole numbers inside the range", () => {
+		for (const replicas of ["0", "11", "1.5", "-2", "two"]) {
+			expect(replicasError(replicas, range)).toBe("Enter 1 to 10");
+			expect(scaleChange({ ...blank, replicas, cpu: "1" }, range)).toBeNull();
 		}
-		expect(replicasError({ ...blank, replicas: "2" })).toBeUndefined();
+		expect(replicasError("", range)).toBeUndefined();
+		expect(replicasError("10", range)).toBeUndefined();
+	});
+
+	test("current setup shows one value when targets agree and a range when they differ", () => {
+		const sized = (cpuMilli: number, memMi: number, min: number, max: number) => ({
+			...row("r", ["prod"]),
+			cpuMilli,
+			memMi,
+			replicas: { min, max },
+		});
+		expect(currentSetup([sized(500, 512, 2, 2), sized(500, 512, 2, 2)])).toEqual({
+			replicas: "2",
+			cpu: "0.5 vCPU",
+			memory: "512 MiB",
+		});
+		expect(currentSetup([sized(250, 256, 1, 1), sized(1000, 2048, 3, 3)])).toEqual({
+			replicas: "1–3",
+			cpu: "0.25–1 vCPU",
+			memory: "256 MiB–2 GiB",
+		});
+		expect(currentSetup([sized(250, 256, 1, 1), sized(500, 512, 1, 1)]).memory).toBe("256–512 MiB");
+		expect(currentSetup([row("a", ["prod"])])).toEqual({ replicas: "—", cpu: "—", memory: "—" });
 	});
 
 	test("targets only resources deployed to the environment", () => {

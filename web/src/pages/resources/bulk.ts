@@ -1,3 +1,6 @@
+import { formatCpu, formatMemory } from "@/lib/quantity";
+import type { ReplicaRange } from "@/lib/sizing";
+
 import type { ResourceRow } from "./table";
 
 const LISTED_NAMES = 6;
@@ -35,22 +38,58 @@ export interface ScaleChange {
 	memory?: string;
 }
 
-export function replicasError(form: ScaleForm): string | undefined {
-	const text = form.replicas.trim();
+const WHOLE_RE = /^\d+$/;
+
+export function replicasError(replicas: string, range: ReplicaRange): string | undefined {
+	const text = replicas.trim();
 	if (text === "") return undefined;
-	return /^\d+$/.test(text) ? undefined : "Enter a whole number";
+	const n = Number(text);
+	if (WHOLE_RE.test(text) && n >= range.min && n <= range.max) return undefined;
+	return `Enter ${range.min.toString()} to ${range.max.toString()}`;
 }
 
-export function scaleChange(form: ScaleForm): ScaleChange | null {
-	if (replicasError(form) !== undefined) return null;
+export function scaleChange(form: ScaleForm, range: ReplicaRange): ScaleChange | null {
+	if (replicasError(form.replicas, range) !== undefined) return null;
 	const change: ScaleChange = {};
 	const replicas = form.replicas.trim();
-	const cpu = form.cpu.trim();
-	const memory = form.memory.trim();
 	if (replicas !== "") change.replicas = Number(replicas);
-	if (cpu !== "") change.cpu = cpu;
-	if (memory !== "") change.memory = memory;
+	if (form.cpu !== "") change.cpu = form.cpu;
+	if (form.memory !== "") change.memory = form.memory;
 	return Object.keys(change).length === 0 ? null : change;
+}
+
+export interface CurrentSetup {
+	replicas: string;
+	cpu: string;
+	memory: string;
+}
+
+const UNKNOWN = "—";
+
+// Shows one value when every target agrees and the lowest to highest otherwise.
+export function currentSetup(targets: readonly ResourceRow[]): CurrentSetup {
+	const replicas = targets.flatMap((r) => (r.replicas === null ? [] : [r.replicas.min, r.replicas.max]));
+	return {
+		replicas: span(replicas, (n) => n.toString()),
+		cpu: span(
+			targets.map((r) => r.cpuMilli).filter((n) => n > 0),
+			formatCpu,
+		),
+		memory: span(
+			targets.map((r) => r.memMi).filter((n) => n > 0),
+			formatMemory,
+		),
+	};
+}
+
+function span(values: number[], format: (n: number) => string): string {
+	if (values.length === 0) return UNKNOWN;
+	const low = Math.min(...values);
+	const high = Math.max(...values);
+	if (low === high) return format(low);
+	const [lowNumber, unit] = format(low).split(" ");
+	const top = format(high);
+	return unit !== undefined && top.endsWith(` ${unit}`) ? `${lowNumber}–${top}` : `${format(low)}–${top}`;
 }
 
 export function scaleTargets(rows: readonly ResourceRow[], environmentId: string) {
