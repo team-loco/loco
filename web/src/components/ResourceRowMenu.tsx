@@ -7,7 +7,7 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
-import { ConfirmDialog } from "@/components/design/ConfirmDialog";
+import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -62,18 +62,16 @@ export function ResourceRowMenu({
 					Delete
 				</DropdownMenuItem>
 			</RowMenu>
-			<ConfirmDialog
+			<ConfirmDeleteDialog
 				open={confirmOpen}
+				onOpenChange={setConfirmOpen}
 				title={`Delete ${resource.name}?`}
-				description="This removes the resource, its deployments in every environment, and its domains. It cannot be undone."
-				confirmLabel="Delete resource"
-				pendingLabel="Deleting…"
+				text="Deployments, domains and variables are removed in every environment. This can't be undone."
+				target={resource.name}
+				confirmLabel="Delete"
 				pending={deleteMutation.isPending}
 				onConfirm={() => {
 					void confirmDelete();
-				}}
-				onClose={() => {
-					setConfirmOpen(false);
 				}}
 			/>
 		</>

@@ -12,7 +12,7 @@ import {
 
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { needsAttention } from "@/lib/alerts";
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { environmentStatus } from "@/lib/resource-status";
 import { maybeTsMs, tsMs } from "@/lib/time";
@@ -35,6 +35,7 @@ export interface RegionView {
 export type ModalState =
 	| { kind: "spec"; deploymentId: string; compareId: string | null }
 	| { kind: "rollback"; target: Deployment; current: Deployment | undefined }
+	| { kind: "redeploy" }
 	| { kind: "delete" };
 
 export interface Notice {
@@ -126,6 +127,16 @@ export function lastGoodDeployment(region: RegionView): Deployment | undefined {
 	return region.history.find(
 		(d) => canRollBackTo(d, region) && (d.status === DeploymentPhase.RUNNING || d.status === DeploymentPhase.SUCCEEDED),
 	);
+}
+
+export function problemRegionOf(regions: RegionView[]): RegionView | undefined {
+	return regions.find(
+		(r) => (r.current === undefined || !isInFlight(r.current.status)) && regionProblem(r) !== undefined,
+	);
+}
+
+export function focusRegion(regions: RegionView[]): RegionView | undefined {
+	return problemRegionOf(regions) ?? regions.find(isDeployed);
 }
 
 export function previousDeployment(region: RegionView, dep: Deployment): Deployment | undefined {
