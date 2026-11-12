@@ -141,7 +141,7 @@ function TraceSession({
 		offset: 0,
 		status: countStatus,
 		sort: TraceSummarySort.START_TIME,
-		enabled: ready,
+		enabled: ready && !(statusReady && status === countStatus),
 	});
 	const allCount = useListTraces(countOf(TraceStatus.UNSPECIFIED));
 	const errorCount = useListTraces(countOf(TraceStatus.ERROR));
@@ -162,8 +162,10 @@ function TraceSession({
 		nanos: t.durationNanos,
 		error: t.status === TraceStatus.ERROR,
 	}));
-	const countLabel = (data: { totalCount: bigint } | undefined) =>
-		ready && data !== undefined ? formatCount(Number(data.totalCount)) : undefined;
+	const countLabel = (countStatus: TraceStatus, data: { totalCount: bigint } | undefined) => {
+		const counted = statusReady && status === countStatus ? browse.data : data;
+		return ready && counted !== undefined ? formatCount(Number(counted.totalCount)) : undefined;
+	};
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
 	const go = (page: number) => () => {
 		setPaging({ page, size: paging.size }, DEFAULT_PAGE_SIZE);
@@ -333,10 +335,10 @@ function TraceSession({
 							setQuery(v[0] === "errors" ? [...rest, ERROR_TOKEN] : rest, text);
 						}}
 					>
-						<ToggleGroupItem value="all" count={countLabel(allCount.data)}>
+						<ToggleGroupItem value="all" count={countLabel(TraceStatus.UNSPECIFIED, allCount.data)}>
 							All
 						</ToggleGroupItem>
-						<ToggleGroupItem value="errors" count={countLabel(errorCount.data)}>
+						<ToggleGroupItem value="errors" count={countLabel(TraceStatus.ERROR, errorCount.data)}>
 							Errors
 						</ToggleGroupItem>
 					</ToggleGroup>
