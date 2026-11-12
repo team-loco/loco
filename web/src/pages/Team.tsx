@@ -1,5 +1,5 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { resendInvitation, setOrgMemberRole } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { removeOrgMember, resendInvitation, setOrgMemberRole } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
@@ -45,6 +45,8 @@ export function Team() {
 	const now = useNow(NOW_TICK_MS).getTime();
 	const resend = useMutation(resendInvitation);
 	const changeRole = useMutation(setOrgMemberRole);
+	const remove = useMutation(removeOrgMember);
+	const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null);
 	const [roleChange, setRoleChange] = useState<{ userId: string; name: string; role: Role } | null>(null);
 	const [view, setView] = useState<View>("all");
 	const [q, setQ] = useState("");
@@ -101,6 +103,18 @@ export function Team() {
 			await data.invalidateRoles(roleChange.userId === meId);
 		} catch (err) {
 			toastConnectError(err, "Failed to change the organization role");
+		}
+	};
+
+	const doRemove = async () => {
+		if (removing === null) return;
+		try {
+			await remove.mutateAsync({ orgId, userId: removing.userId });
+			setRemoving(null);
+			toast(`Removed ${removing.name} from ${orgName}`);
+			await Promise.all([data.invalidateRoles(false), data.invalidateAccess()]);
+		} catch (err) {
+			toastConnectError(err, "Failed to remove the member");
 		}
 	};
 
@@ -161,6 +175,10 @@ export function Team() {
 						onRole: (member, role) => {
 							const target = member.member.user;
 							if (target !== undefined) setRoleChange({ userId: target.id, name: userLabel(target), role });
+						},
+						onRemove: (member) => {
+							const target = member.member.user;
+							if (target !== undefined) setRemoving({ userId: target.id, name: userLabel(target) });
 						},
 						onAccess: (m: Member) => {
 							setAccessId(m.member.user?.id ?? null);
@@ -284,6 +302,20 @@ export function Team() {
 				}}
 				onClose={() => {
 					setRoleChange(null);
+				}}
+			/>
+			<ConfirmDialog
+				open={removing !== null}
+				title={`Remove ${removing?.name ?? "member"} from ${orgName}?`}
+				description={`${removing?.name ?? "They"} loses access to ${orgName} and its workspaces right away.`}
+				confirmLabel="Remove"
+				pendingLabel="Removing…"
+				pending={remove.isPending}
+				onConfirm={() => {
+					void doRemove();
+				}}
+				onClose={() => {
+					setRemoving(null);
 				}}
 			/>
 			<RevokeInvitationDialog

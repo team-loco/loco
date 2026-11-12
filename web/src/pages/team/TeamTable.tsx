@@ -34,6 +34,7 @@ export interface RowActions {
 	canChangeRoles: boolean;
 	onAccess: (member: Member) => void;
 	onRole: (member: Member, role: Role) => void;
+	onRemove: (member: Member) => void;
 	onCopyLink: (invitation: Invitation) => void;
 	onResend: (invitation: Invitation) => void;
 	onRevoke: (invitation: Invitation) => void;
@@ -56,6 +57,13 @@ function MemberRow({
 	const isMe = user?.id === actions.meId;
 	const name = user === undefined ? "" : userLabel(user);
 	const role = roleOf(member.member.scopes);
+	const granted = member.workspaces.toSorted(
+		(a, b) => levelOf(b.scopes) - levelOf(a.scopes) || a.name.localeCompare(b.name),
+	);
+	const first = granted[0];
+	const openAccess = () => {
+		actions.onAccess(member);
+	};
 	return (
 		<TableRow>
 			<TableCell>
@@ -114,15 +122,33 @@ function MemberRow({
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</TableCell>
-			<TableCell className="whitespace-normal">
-				{member.workspaces.length === 0 && accessLoading && <Skeleton className="h-5 w-32" />}
-				{member.workspaces.length === 0 && !accessLoading && <Dash />}
-				{member.workspaces.length > 0 && (
-					<span className="flex min-w-0 flex-wrap gap-1">
-						{member.workspaces.map((w) => {
-							const level = levelOf(w.scopes);
-							return <LevelChip key={w.id} level={level} name={w.name} nameFirst />;
-						})}
+			<TableCell>
+				{role === "Admin" && (
+					<span title="All workspaces · Admin">
+						<LevelChip level={3} name="All workspaces" nameFirst />
+					</span>
+				)}
+				{role === "Member" && first === undefined && accessLoading && <Skeleton className="h-5 w-32" />}
+				{role === "Member" && first === undefined && !accessLoading && (
+					<Button variant="outline" size="xs" disabled={isMe} onClick={openAccess} className="text-fg3">
+						No access
+					</Button>
+				)}
+				{role === "Member" && first !== undefined && (
+					<span className="flex min-w-0 items-center gap-1">
+						<LevelChip level={levelOf(first.scopes)} name={first.name} nameFirst />
+						{granted.length > 1 && (
+							<Button
+								variant="outline"
+								size="xs"
+								disabled={isMe}
+								onClick={openAccess}
+								aria-label={`All workspace access for ${name}`}
+								className="shrink-0 font-mono text-[11.5px] text-fg2"
+							>
+								+{(granted.length - 1).toLocaleString()} more
+							</Button>
+						)}
 					</span>
 				)}
 			</TableCell>
@@ -135,21 +161,27 @@ function MemberRow({
 			<TableCell className="text-right">
 				{!isMe && (
 					<RowMenu label={`Actions for ${name}`} title={name}>
-						<DropdownMenuGroup>
-							<DropdownMenuItem
-								onClick={() => {
-									actions.onAccess(member);
-								}}
-							>
-								<LayersIcon />
-								Workspace access
-							</DropdownMenuItem>
-						</DropdownMenuGroup>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem variant="destructive" disabled>
+						{role === "Member" && (
+							<>
+								<DropdownMenuGroup>
+									<DropdownMenuItem onClick={openAccess}>
+										<LayersIcon />
+										Workspace access
+									</DropdownMenuItem>
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+							</>
+						)}
+						<DropdownMenuItem
+							variant="destructive"
+							disabled={!actions.canChangeRoles}
+							title={actions.canChangeRoles ? undefined : "Only organization admins can remove members"}
+							onClick={() => {
+								actions.onRemove(member);
+							}}
+						>
 							<UserMinusIcon />
-							<span className="flex-1">Remove from {actions.orgName}</span>
-							<SoonTag />
+							Remove from {actions.orgName}
 						</DropdownMenuItem>
 					</RowMenu>
 				)}
