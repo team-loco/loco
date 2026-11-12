@@ -1,4 +1,10 @@
-import { DeploymentPhase, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentActorType,
+	DeploymentMethod,
+	DeploymentPhase,
+	type Deployment,
+	type ServiceDeploymentSpec,
+} from "@gen/loco/deployment/v1/deployment_pb";
 
 export function getServiceSpec(deployment: Deployment): ServiceDeploymentSpec | undefined {
 	if (!deployment.spec?.spec) {
@@ -33,4 +39,20 @@ export function isInFlight(phase: DeploymentPhase): boolean {
 		case DeploymentPhase.CANCELED:
 			return false;
 	}
+}
+
+export function deploymentOrigin(d: Deployment): string {
+	const actor =
+		d.actorType === DeploymentActorType.USER ? `@${d.actorName || d.actorId}` : d.actorName || "Deleted token";
+	const methods: Record<DeploymentMethod, string> = {
+		[DeploymentMethod.UNSPECIFIED]: "Unknown method",
+		[DeploymentMethod.CLI]: "loco deploy",
+		[DeploymentMethod.WEB]: "Dashboard",
+		[DeploymentMethod.API_TOKEN]: "API token",
+	};
+	const parts = [actor, methods[d.method]];
+	if (d.commit !== undefined) {
+		parts.push(`${d.commit.sha.slice(0, 7)}${d.commit.dirty ? " (uncommitted changes)" : ""}`);
+	}
+	return parts.join(" · ");
 }

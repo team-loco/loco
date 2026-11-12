@@ -124,7 +124,8 @@ export function useSaveSettings({
 			const ok = await attempt(
 				d.region,
 				[],
-				async () => await deploy.mutateAsync({ resourceId, region: d.region, spec: d.spec, environmentId }),
+				async () =>
+					await deploy.mutateAsync({ resourceId, region: d.region, spec: d.spec, environmentId, commit: d.commit }),
 			);
 			specSaved &&= ok;
 		}

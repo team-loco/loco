@@ -196,7 +196,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		for (const d of deps) {
 			if (d.spec === undefined) continue;
 			try {
-				await deploy.mutateAsync({ resourceId, region: d.region, spec: d.spec, environmentId: d.environmentId });
+				await deploy.mutateAsync({
+					resourceId,
+					region: d.region,
+					spec: d.spec,
+					environmentId: d.environmentId,
+					commit: d.commit,
+				});
 			} catch (err) {
 				failures.push(`${d.region}: ${getErrorMessage(err, "Failed to create deployment")}`);
 			}

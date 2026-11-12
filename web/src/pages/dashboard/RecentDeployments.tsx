@@ -7,12 +7,10 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
-import { SoonTag } from "@/components/design/SoonTag";
+import { DeploymentOrigin } from "@/components/design/DeploymentOrigin";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { deploymentImage } from "@/lib/deployment-utils";
-import { imageVersion } from "@/lib/image";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 
@@ -26,7 +24,7 @@ import {
 } from "./deploymentRows";
 import { startedLabel } from "./format";
 
-const COLUMNS = 7;
+const COLUMNS = 6;
 
 export function RecentDeployments({
 	deployments,
@@ -84,19 +82,13 @@ export function RecentDeployments({
 			{recent.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
-				<Table className="min-w-[900px] table-fixed">
+				<Table className="min-w-[1000px] table-fixed">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[120px]">Status</TableHead>
 							<TableHead className="w-[180px]">Resource</TableHead>
 							<TableHead className="w-[110px]">Region</TableHead>
-							<TableHead className="w-[140px]">Image</TableHead>
-							<TableHead className="w-[130px]">
-								<span className="flex items-center gap-2">
-									Deployed by
-									<SoonTag />
-								</span>
-							</TableHead>
+							<TableHead className="w-[400px]">Deployment</TableHead>
 							<TableHead>Message</TableHead>
 							<TableHead className="w-[100px] text-right">When</TableHead>
 						</TableRow>
@@ -129,8 +121,9 @@ export function RecentDeployments({
 										</Link>
 									</TableCell>
 									<TableCell className="truncate font-mono text-[12px] text-fg2">{d.region}</TableCell>
-									<TableCell className="truncate font-mono text-[12px]">{imageVersion(deploymentImage(d))}</TableCell>
-									<TableCell className="text-fg4">—</TableCell>
+									<TableCell>
+										<DeploymentOrigin deployment={d} />
+									</TableCell>
 									<TableCell className="truncate text-fg2" title={d.message}>
 										{d.message}
 									</TableCell>
