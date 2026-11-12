@@ -26,7 +26,7 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 		Issuer: issuer.URL(), JWKSURL: issuer.URL() + "/keys", Audience: "authenticated",
 		Claims: auth.ClaimPaths{Subject: "sub", Email: "email", EmailVerified: "email_verified"},
 	}})
-	policy := auth.SignupPolicy{Mode: auth.SignupOpen}
+	policy := auth.SignupPolicy{}
 	resolver := auth.NewResolver(f.pool, policy)
 	identity := auth.Identity{Issuer: issuer.URL(), Subject: "reader", Email: "test@example.com", EmailVerified: true}
 	user, _, err := resolver.Resolve(t.Context(), identity)

@@ -69,21 +69,35 @@ func TestParseIssuersRequiresAudience(t *testing.T) {
 }
 
 func TestSignupPolicy(t *testing.T) {
-	open, err := ParseSignupPolicy("")
-	if err != nil {
-		t.Fatalf("parse open: %v", err)
-	}
-	if checkErr := open.Check(); checkErr != nil {
-		t.Errorf("open rejected: %v", checkErr)
-	}
-
-	closed, err := ParseSignupPolicy("closed")
-	if err != nil {
-		t.Fatalf("parse closed: %v", err)
-	}
-	var rejectedErr *SignupRejectedError
-	if checkErr := closed.Check(); !errors.As(checkErr, &rejectedErr) {
-		t.Errorf("closed allowed a signup: %v", checkErr)
+	for _, tc := range []struct {
+		mode   string
+		closed bool
+	}{
+		{mode: ""},
+		{mode: "open"},
+		{mode: " open "},
+		{mode: "closed", closed: true},
+		{mode: " closed ", closed: true},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			policy, err := ParseSignupPolicy(tc.mode)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if policy.Closed != tc.closed {
+				t.Fatalf("closed = %v, want %v", policy.Closed, tc.closed)
+			}
+			err = policy.Check()
+			if !tc.closed {
+				if err != nil {
+					t.Fatalf("open rejected: %v", err)
+				}
+				return
+			}
+			if _, ok := errors.AsType[*SignupRejectedError](err); !ok {
+				t.Fatalf("closed allowed a signup: %v", err)
+			}
+		})
 	}
 
 	if _, err := ParseSignupPolicy("invite-only-typo"); err == nil {

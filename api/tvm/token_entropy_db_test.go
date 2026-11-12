@@ -49,7 +49,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	})
 	ctx := t.Context()
 
-	resolver := auth.NewResolver(pool, auth.SignupPolicy{Mode: auth.SignupOpen})
+	resolver := auth.NewResolver(pool, auth.SignupPolicy{})
 	user, _, err := resolver.Resolve(ctx, auth.Identity{
 		Issuer: "https://issuer.test", Subject: "entropy", Email: "entropy@example.com", EmailVerified: true,
 	})
@@ -128,7 +128,7 @@ func TestIssueRejectsADuplicateTokenName(t *testing.T) {
 	machine := tvm.NewVendingMachine(pool, q, tvm.Config{MaxAPITokenDuration: time.Hour})
 	ctx := t.Context()
 
-	resolver := auth.NewResolver(pool, auth.SignupPolicy{Mode: auth.SignupOpen})
+	resolver := auth.NewResolver(pool, auth.SignupPolicy{})
 	user, _, err := resolver.Resolve(ctx, auth.Identity{
 		Issuer: "https://issuer.test", Subject: "dupe", Email: "dupe@example.com", EmailVerified: true,
 	})

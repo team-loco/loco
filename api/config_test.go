@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/mail/mailtest"
 	"github.com/team-loco/loco/api/pkg/registryclient"
@@ -275,8 +274,8 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	if len(ac.InstallWebhooks) != 0 || len(ac.AuthIssuers) != 0 {
 		t.Errorf("install webhooks = %v, issuers = %v, want none", ac.InstallWebhooks, ac.AuthIssuers)
 	}
-	if ac.SignupPolicy.Mode != auth.SignupOpen {
-		t.Errorf("signup mode = %q, want %q", ac.SignupPolicy.Mode, auth.SignupOpen)
+	if ac.SignupPolicy.Closed {
+		t.Errorf("signup policy = %+v, want open", ac.SignupPolicy)
 	}
 	wantSecrets := service.SecretConfig{
 		MaxValueBytes:     defaultSecretMaxValueBytes,
@@ -396,7 +395,7 @@ func TestNewAPIConfigResolvesAdminTokens(t *testing.T) {
 	if got := ac.AuthIssuers[0].Admin.Token; got != testAdminToken {
 		t.Errorf("admin token = %q, want %q", got, testAdminToken)
 	}
-	if ac.SignupPolicy.Mode != auth.SignupClosed {
+	if !ac.SignupPolicy.Closed {
 		t.Errorf("signup policy = %+v", ac.SignupPolicy)
 	}
 }

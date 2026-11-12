@@ -5,13 +5,6 @@ import (
 	"strings"
 )
 
-type SignupMode string
-
-const (
-	SignupOpen   SignupMode = "open"
-	SignupClosed SignupMode = "closed"
-)
-
 type SignupRejectedError struct {
 	Message string
 }
@@ -37,30 +30,20 @@ var (
 )
 
 type SignupPolicy struct {
-	Mode SignupMode
+	Closed bool
 }
 
 func ParseSignupPolicy(mode string) (SignupPolicy, error) {
-	signupMode := SignupMode(strings.TrimSpace(mode))
-	if signupMode == "" {
-		signupMode = SignupOpen
+	mode = strings.TrimSpace(mode)
+	if mode != "" && mode != "open" && mode != "closed" {
+		return SignupPolicy{}, fmt.Errorf("unknown signup mode %q", mode)
 	}
-	p := SignupPolicy{Mode: signupMode}
-	switch p.Mode {
-	case SignupOpen, SignupClosed:
-		return p, nil
-	default:
-		return SignupPolicy{}, fmt.Errorf("unknown signup mode %q", p.Mode)
-	}
+	return SignupPolicy{Closed: mode == "closed"}, nil
 }
 
 func (p SignupPolicy) Check() error {
-	switch p.Mode {
-	case SignupOpen:
-		return nil
-	case SignupClosed:
+	if p.Closed {
 		return rejected("Sign-ups are closed on this installation. Only existing accounts can sign in.")
-	default:
-		return rejected("Sign-ups are not configured.")
 	}
+	return nil
 }
