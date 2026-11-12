@@ -55,7 +55,7 @@ function region(name: string, current: Deployment | undefined): RegionView {
 }
 
 const regions = [region(EAST, deployment("east", EAST)), region(WEST, deployment("west", WEST, 3))];
-const base = baseline("shop", regions, true, undefined);
+const base = baseline("shop", "", regions, true, undefined);
 
 function plan(draft: SettingsDraft) {
 	return planSave(regions, draft, base);
@@ -67,7 +67,7 @@ describe("planSave", () => {
 		const second = deployment("two", WEST);
 		getServiceSpec(second)!.build!.image = "example.test/other:release";
 		const mixed = [region(EAST, first), region(WEST, second)];
-		const result = planSave(mixed, { image: IMAGE }, baseline("shop", mixed, true, undefined));
+		const result = planSave(mixed, { image: IMAGE }, baseline("shop", "", mixed, true, undefined));
 		expect(result.deploy).toHaveLength(1);
 		expect(result.deploy[0]?.region).toBe(WEST);
 		expect(result.deploy[0]?.commit).toBeUndefined();
@@ -110,7 +110,7 @@ describe("planSave", () => {
 
 	test("retires a region switched off and adds one switched on from the first region's spec", () => {
 		const withSpare = [...regions, region("ap-south-1", undefined)];
-		const spareBase = baseline("shop", withSpare, true, undefined);
+		const spareBase = baseline("shop", "", withSpare, true, undefined);
 		const result = planSave(withSpare, { regions: { [WEST]: false, "ap-south-1": true } }, spareBase);
 		expect(result.retire).toEqual([{ region: WEST, deploymentId: "west" }]);
 		expect(result.deploy.map((d) => [d.region, d.added])).toEqual([["ap-south-1", true]]);
@@ -144,7 +144,7 @@ describe("validateDraft", () => {
 	});
 
 	test("needs a served platform domain and a valid subdomain to go public", () => {
-		const privateBase = baseline("shop", regions, false, undefined);
+		const privateBase = baseline("shop", "", regions, false, undefined);
 		expect(
 			validateDraft({ isPublic: true, subdomain: "Shop!", platformDomain: "other.dev" }, privateBase, SERVED),
 		).toEqual({

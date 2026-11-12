@@ -45,10 +45,15 @@ function compactImagePart(part: string, limit: number): string {
 	return `${part.slice(0, limit - SHORT_SUFFIX_LENGTH - 1)}…${part.slice(-SHORT_SUFFIX_LENGTH)}`;
 }
 
-export function shortImageRef(image: string): string {
+export function shortImageParts(image: string): { repository: string; version: string } {
 	const { repository, tag, digest } = parseImage(image);
 	const shortRepository = compactImagePart(repository, SHORT_REPOSITORY_LENGTH);
-	if (tag !== "") return `${shortRepository}:${compactImagePart(tag, SHORT_TAG_LENGTH)}`;
-	if (digest !== "") return `${shortRepository}@${shortDigest(digest)}`;
-	return shortRepository;
+	if (tag !== "") return { repository: shortRepository, version: `:${compactImagePart(tag, SHORT_TAG_LENGTH)}` };
+	if (digest !== "") return { repository: shortRepository, version: `@${shortDigest(digest)}` };
+	return { repository: shortRepository, version: "" };
+}
+
+export function shortImageRef(image: string): string {
+	const { repository, version } = shortImageParts(image);
+	return repository + version;
 }

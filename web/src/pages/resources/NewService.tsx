@@ -434,6 +434,7 @@ function ServiceForm({
 	const form: NewResourceForm = {
 		image,
 		name,
+		description: edits.description ?? "",
 		regions: selected,
 		cpu: size.cpu,
 		memory: size.memory,
@@ -483,6 +484,17 @@ function ServiceForm({
 						</Notice>
 					</div>
 				)}
+				<div>
+					<Field label="Description" hint="Optional. Shown under the name in lists.">
+						<Input
+							value={form.description}
+							placeholder="What this service does"
+							onChange={(e) => {
+								set({ description: e.target.value });
+							}}
+						/>
+					</Field>
+				</div>
 				<DrawerSection title="Regions">
 					{regions.length === 0 ? (
 						<span className="text-[13px] text-fg3">No cluster serves {env.name} yet.</span>

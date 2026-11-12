@@ -21,6 +21,7 @@ const WHOLE = /^\d+$/;
 
 export interface SettingsDraft {
 	name?: string;
+	description?: string;
 	image?: string;
 	replicas?: Record<string, number>;
 	cpu?: string;
@@ -40,6 +41,7 @@ export interface SettingsDraft {
 
 export interface Baseline {
 	name: string;
+	description: string;
 	image: string;
 	cpu: string;
 	memory: string;
@@ -63,6 +65,7 @@ function templateRegion(regions: RegionView[]): RegionView | undefined {
 
 export function baseline(
 	name: string,
+	description: string,
 	regions: RegionView[],
 	isPublic: boolean,
 	defaultHealth: HealthCheckConfig | undefined,
@@ -73,6 +76,7 @@ export function baseline(
 	const deployed = deployedRegions(regions);
 	return {
 		name,
+		description,
 		image: svc?.build?.image ?? "",
 		cpu: svc?.cpu ?? "",
 		memory: svc?.memory ?? "",
@@ -90,6 +94,7 @@ export function baseline(
 export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 	return {
 		name: draft.name ?? base.name,
+		description: draft.description ?? base.description,
 		image: draft.image ?? base.image,
 		cpu: draft.cpu ?? base.cpu,
 		memory: draft.memory ?? base.memory,
@@ -106,6 +111,7 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 
 const SCALAR_KEYS = [
 	"name",
+	"description",
 	"image",
 	"cpu",
 	"memory",

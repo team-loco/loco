@@ -385,6 +385,7 @@ with sync_playwright() as playwright:
                     draft_row(page, name).get_by_role("link", name=name, exact=True).click()
                     expect(page).to_have_url(DRAFT_URL)
                     secret_value.fill("sk_test")
+                drawer.get_by_role("textbox", name="Description").fill("Takes checkout payments")
                 drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
                 open_button = drawer.get_by_role("link", name=f"Open {name}", exact=True)
@@ -405,6 +406,7 @@ with sync_playwright() as playwright:
                 expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+$"))
                 resource = page.url.rsplit("/", 1)[-1]
                 assert evidence.psql(state["container"], f"SELECT name FROM resources WHERE id='{resource}';") == name
+                assert evidence.psql(state["container"], f"SELECT description FROM resources WHERE id='{resource}';") == "Takes checkout payments"
                 assert [(d["resourceId"], d["region"]) for d in deployments] == [(resource, "us-east-1")], deployments
                 spec = deployments[0]["spec"]["service"]
                 assert spec["build"]["image"] == pinned_image, spec

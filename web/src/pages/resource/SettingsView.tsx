@@ -188,7 +188,7 @@ export function SettingsView({
 						available={regionsQuery.data?.regions ?? []}
 						inSpec={configuredRegions(resource)}
 					/>
-					<GeneralSection {...props} description={resource.description ?? ""} />
+					<GeneralSection {...props} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
 							title={`Delete ${resource.name}`}

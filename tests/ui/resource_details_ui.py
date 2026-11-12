@@ -47,7 +47,7 @@ cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
 image = f"registry.example.com/recommendation-{resource}:{deployment}"
 runtime = json.dumps({"build": {"type": "image", "image": image}, "cpu": "500m", "memory": "512Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080, "healthCheck": {"path": "/health", "initialDelaySeconds": 5, "intervalSeconds": 10, "timeoutSeconds": 2, "failureThreshold": 3}})
 evidence.psql(state["container"], f"""BEGIN;
-UPDATE resources SET partial='recommendation' WHERE id='{resource}';
+UPDATE resources SET partial='recommendation', description='Ranks products for each shopper' WHERE id='{resource}';
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','resource-details','us-east-1','fixture',true,false,'healthy',NOW());
 INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',1,'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{}}',true,1,'Ready',NOW());
@@ -86,6 +86,10 @@ with sync_playwright() as playwright:
                     image_label = page.get_by_title(image, exact=True)
                     expect(image_label).to_be_visible()
                     assert len(image_label.inner_text()) < len(image)
+                    expect(page.get_by_text(re.compile(r"^deployed .+ by @Olivia Owner$"))).to_be_visible()
+                    page.get_by_role("button", name="Switch resource", exact=True).click()
+                    expect(page.get_by_role("menuitem", name=re.compile(rf"^{name}")).get_by_text("Ranks products for each shopper", exact=True)).to_be_visible()
+                    page.keyboard.press("Escape")
                     more = page.get_by_role("button", name="More actions", exact=True)
                     more.click()
                     page.get_by_role("menuitem", name="Copy image reference", exact=True).click()

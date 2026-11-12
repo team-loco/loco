@@ -30,6 +30,7 @@ export interface HealthForm {
 export interface NewResourceForm {
 	image: string;
 	name: string;
+	description: string;
 	regions: string[];
 	cpu: string;
 	memory: string;
