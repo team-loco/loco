@@ -1,20 +1,19 @@
 import { TraceStatus, TraceSummarySort } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
-import { RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon, ZoomOutIcon } from "lucide-react";
 import { Navigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useGetTrace } from "@/hooks/useGetTrace";
 import { useListTraces } from "@/hooks/useListTraces";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
-import { resolveWindow } from "@/lib/obs-time";
+import { resolveWindow, writeWindow, type TimeWindow } from "@/lib/obs-time";
 import { pageRangeLabel } from "@/lib/paging";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -22,24 +21,56 @@ import { cn } from "@/lib/utils";
 import { filteredResources, useObs } from "./context";
 import { fmtTs } from "./format";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
-import { liveTokens, passes, queryStr, sameToken, type FieldKey } from "./query";
+import {
+	durationBounds,
+	liveTokens,
+	passes,
+	queryStr,
+	sameToken,
+	writeQuery,
+	type FieldKey,
+	type Token,
+} from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES, readPaging } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
+import { TraceScatter, type ScatterZoom } from "./TraceScatter";
+import { TraceSetup } from "./TraceSetup";
 import { traceServiceLabel } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
-import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, uniqueSpans } from "./traces";
+import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, timestampMs, uniqueSpans } from "./traces";
 
 const DEFAULT_PAGE_SIZE = 25;
 const PERCENT = 100n;
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
+// The chart plots the newest traces up to this many; the API caps a page at 10,000.
+const SCATTER_LIMIT = 2000;
+const COUNT_LIMIT = 1;
+const DURATION_DIGITS = 3;
+
+interface ZoomState {
+	range: TimeWindow;
+	durations: Token[];
+}
 
 export function TracesView() {
 	const { range } = useObs();
-	return <TraceSession key={JSON.stringify(range)} />;
+	// Lives above the session, which remounts when a zoom changes the range.
+	const [zoomPrev, setZoomPrev] = useState<ZoomState | null>(null);
+	return <TraceSession key={JSON.stringify(range)} zoomPrev={zoomPrev} setZoomPrev={setZoomPrev} />;
 }
 
-function TraceSession() {
+function durationToken(op: ">=" | "<=", ms: number): Token {
+	return { neg: false, key: "duration", value: `${op}${String(Number(ms.toPrecision(DURATION_DIGITS)))}` };
+}
+
+function TraceSession({
+	zoomPrev,
+	setZoomPrev,
+}: {
+	zoomPrev: ZoomState | null;
+	setZoomPrev: (zoom: ZoomState | null) => void;
+}) {
 	const {
 		workspaceId,
 		resources,
@@ -70,22 +101,50 @@ function TraceSession() {
 	const statusTokens = liveTokens("traces", tokens, "status");
 	const statuses = ["error", "ok"].filter((status) => passes([status], statusTokens));
 	const statusReady = statuses.length > 0;
+	const duration = durationBounds(tokens);
 	const sort = params.get("sort") === "duration" ? TraceSummarySort.DURATION : TraceSummarySort.START_TIME;
-	const browse = useListTraces({
+	const ascending = params.get("dir") === "asc";
+	const ready = filterReady && scopeReady && validLookup && duration !== null;
+	const filters = {
 		workspaceId,
 		environmentId,
 		resourceIds: resourceFilter ? visible.map((r) => r.id) : (scopedResourceIds ?? []),
 		traceId: validLookup ? lookup : "",
 		start: bounds.from,
 		end: bounds.to,
+		rootNameTerms: text.split(" ").filter(Boolean),
+		...(duration?.minNanos !== undefined && { minDurationNanos: duration.minNanos }),
+		...(duration?.maxNanos !== undefined && { maxDurationNanos: duration.maxNanos }),
+	};
+	const status =
+		statuses.length === 1 ? (statuses[0] === "error" ? TraceStatus.ERROR : TraceStatus.OK) : TraceStatus.UNSPECIFIED;
+	const browse = useListTraces({
+		...filters,
 		limit: paging.size,
 		offset: paging.page * paging.size,
-		rootNameTerms: text.split(" ").filter(Boolean),
-		status:
-			statuses.length === 1 ? (statuses[0] === "error" ? TraceStatus.ERROR : TraceStatus.OK) : TraceStatus.UNSPECIFIED,
+		status,
 		sort,
-		enabled: filterReady && scopeReady && validLookup && statusReady,
+		ascending,
+		enabled: ready && statusReady,
 	});
+	const scatter = useListTraces({
+		...filters,
+		limit: SCATTER_LIMIT,
+		offset: 0,
+		status,
+		sort: TraceSummarySort.START_TIME,
+		enabled: ready && statusReady,
+	});
+	const countOf = (countStatus: TraceStatus) => ({
+		...filters,
+		limit: COUNT_LIMIT,
+		offset: 0,
+		status: countStatus,
+		sort: TraceSummarySort.START_TIME,
+		enabled: ready && !(statusReady && status === countStatus),
+	});
+	const allCount = useListTraces(countOf(TraceStatus.UNSPECIFIED));
+	const errorCount = useListTraces(countOf(TraceStatus.ERROR));
 	const openId = params.get("trace") ?? "";
 	const detail = useGetTrace({
 		workspaceId,
@@ -95,8 +154,18 @@ function TraceSession() {
 		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId) && scopeReady,
 	});
 
-	const traces = filterReady && scopeReady && validLookup && statusReady ? (browse.data?.summaries ?? []) : [];
-	const total = filterReady && scopeReady && validLookup && statusReady ? Number(browse.data?.totalCount ?? 0n) : 0;
+	const traces = ready && statusReady ? (browse.data?.summaries ?? []) : [];
+	const total = ready && statusReady ? Number(browse.data?.totalCount ?? 0n) : 0;
+	const points = (ready && statusReady ? (scatter.data?.summaries ?? []) : []).map((t) => ({
+		id: t.traceId,
+		t: timestampMs(t.startTime),
+		nanos: t.durationNanos,
+		error: t.status === TraceStatus.ERROR,
+	}));
+	const countLabel = (countStatus: TraceStatus, data: { totalCount: bigint } | undefined) => {
+		const counted = statusReady && status === countStatus ? browse.data : data;
+		return ready && counted !== undefined ? formatCount(Number(counted.totalCount)) : undefined;
+	};
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
 	const go = (page: number) => () => {
 		setPaging({ page, size: paging.size }, DEFAULT_PAGE_SIZE);
@@ -128,8 +197,46 @@ function TraceSession() {
 				["ok", 0],
 			];
 		if (key === "trace") return traces.map((t) => [t.traceId, Number(t.spanCount)]);
+		if (key === "duration")
+			return [
+				[">100", 0],
+				[">500", 0],
+				[">1s", 0],
+			];
 		return [];
 	};
+
+	const zoom = (z: ScatterZoom) => {
+		setZoomPrev(zoomPrev ?? { range, durations: tokens.filter((t) => t.key === "duration") });
+		const rest = tokens.filter((t) => t.key !== "duration");
+		const next = writeQuery(
+			writeWindow(params, { kind: "absolute", from: z.from, to: z.to }),
+			[...rest, durationToken(">=", z.minMs), durationToken("<=", z.maxMs)],
+			text,
+		);
+		next.delete("page");
+		setParams(next);
+	};
+	const resetZoom = () => {
+		if (zoomPrev === null) return;
+		const rest = tokens.filter((t) => t.key !== "duration");
+		const next = writeQuery(writeWindow(params, zoomPrev.range), [...rest, ...zoomPrev.durations], text);
+		next.delete("page");
+		setZoomPrev(null);
+		setParams(next);
+	};
+	const sortBy = (column: TraceSummarySort) => {
+		const next = new URLSearchParams(params);
+		const flip = column === sort && !ascending;
+		if (column === TraceSummarySort.DURATION) next.set("sort", "duration");
+		else next.delete("sort");
+		if (flip) next.set("dir", "asc");
+		else next.delete("dir");
+		next.delete("page");
+		setParams(next);
+	};
+	const sortState = (column: TraceSummarySort) => (sort !== column ? "none" : ascending ? "ascending" : "descending");
+	const sortArrow = (column: TraceSummarySort) => (sort !== column ? "" : ascending ? " ↑" : " ↓");
 
 	if (openId !== "" && active !== undefined && params.get("env") === null) {
 		const pinned = new URLSearchParams(params);
@@ -178,10 +285,12 @@ function TraceSession() {
 				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="traces"
-					title="No traces in this range"
-					body="Every replica is already pointed at a trace collector. Add an OpenTelemetry SDK to your app and its traces show up here."
+					title="Send your first trace"
+					body="Loco already collects traces. Add an OpenTelemetry SDK to your app and your traces will show up here."
 					action={<WidenRangeButton />}
-				/>
+				>
+					<TraceSetup />
+				</ObsHero>
 			</>
 		);
 	}
@@ -195,15 +304,26 @@ function TraceSession() {
 					A trace ID is 32 lowercase hexadecimal characters.
 				</p>
 			)}
+			{duration === null && (
+				<p role="alert" className="m-0 text-[12.5px] text-bad-fg">
+					A duration filter compares in milliseconds, like @duration:&gt;500, or with a unit, like @duration:&lt;2s.
+				</p>
+			)}
 			<Section
-				title={
-					<>
-						Duration
-						<SoonTag />
-					</>
+				title="Duration"
+				actions={
+					zoomPrev !== null && (
+						<Button variant="ghost" size="sm" onClick={resetZoom}>
+							<ZoomOutIcon />
+							Reset zoom
+						</Button>
+					)
 				}
-				card={false}
-			/>
+			>
+				<div className="px-5 pt-3.5 pb-2.5">
+					<TraceScatter points={points} from={bounds.from} to={bounds.to} selectedId={openId} onZoom={zoom} />
+				</div>
+			</Section>
 			<section aria-label="Trace list" className="flex min-w-0 flex-col rounded-card bg-panel">
 				<div className="flex flex-wrap items-center gap-2 px-5 pt-3 pb-1.5">
 					<ToggleGroup
@@ -215,28 +335,26 @@ function TraceSession() {
 							setQuery(v[0] === "errors" ? [...rest, ERROR_TOKEN] : rest, text);
 						}}
 					>
-						<ToggleGroupItem value="all">All</ToggleGroupItem>
-						<ToggleGroupItem value="errors">Errors</ToggleGroupItem>
+						<ToggleGroupItem value="all" count={countLabel(TraceStatus.UNSPECIFIED, allCount.data)}>
+							All
+						</ToggleGroupItem>
+						<ToggleGroupItem value="errors" count={countLabel(TraceStatus.ERROR, errorCount.data)}>
+							Errors
+						</ToggleGroupItem>
 					</ToggleGroup>
 				</div>
 				<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
 					<table className="w-full min-w-[720px] border-collapse text-[12.5px]">
 						<thead>
 							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">
-								<th
-									className="px-3 font-normal"
-									aria-sort={sort === TraceSummarySort.START_TIME ? "descending" : "none"}
-								>
+								<th className="px-3 font-normal" aria-sort={sortState(TraceSummarySort.START_TIME)}>
 									<button
 										type="button"
 										onClick={() => {
-											const next = new URLSearchParams(params);
-											next.delete("sort");
-											next.delete("page");
-											setParams(next);
+											sortBy(TraceSummarySort.START_TIME);
 										}}
 									>
-										When
+										When{sortArrow(TraceSummarySort.START_TIME)}
 									</button>
 								</th>
 								<th className="px-3 font-normal">Resource</th>
@@ -244,19 +362,16 @@ function TraceSession() {
 								<th className="px-3 font-normal">Status</th>
 								<th
 									className="px-3 text-right font-normal"
-									aria-sort={sort === TraceSummarySort.DURATION ? "descending" : "none"}
+									aria-sort={sortState(TraceSummarySort.DURATION)}
 									title="From the first span's start to the last span's end"
 								>
 									<button
 										type="button"
 										onClick={() => {
-											const next = new URLSearchParams(params);
-											next.set("sort", "duration");
-											next.delete("page");
-											setParams(next);
+											sortBy(TraceSummarySort.DURATION);
 										}}
 									>
-										Observed duration
+										Duration{sortArrow(TraceSummarySort.DURATION)}
 									</button>
 								</th>
 								<th className="px-3 text-right font-normal">Spans</th>
@@ -274,7 +389,7 @@ function TraceSession() {
 							{!loading &&
 								traces.map((t) => {
 									const failed = t.status === TraceStatus.ERROR;
-									const startMs = Number(t.startTime?.seconds ?? 0n) * 1000 + (t.startTime?.nanos ?? 0) / 1_000_000;
+									const startMs = timestampMs(t.startTime);
 									const on = t.traceId === openId;
 									return (
 										<tr
@@ -339,9 +454,7 @@ function TraceSession() {
 						</div>
 					)}
 					{!loading && browse.error === null && traces.length === 0 && (
-						<NoMatches
-							title={filterReady ? "No traces match these filters" : "The filtered resources aren't in this workspace"}
-						/>
+						<NoMatches title={filterReady ? "No requests match." : "The filtered resources aren't in this workspace"} />
 					)}
 				</div>
 				<Pager

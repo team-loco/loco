@@ -8,6 +8,7 @@ import {
 	agoShort,
 	BUILD_ID_LABEL,
 	buildBackendQuery,
+	durationBounds,
 	parseQuery,
 	readQuery,
 	recentKey,
@@ -200,5 +201,23 @@ describe("resource-scoped queries", () => {
 
 	test("skips the query until a readable resource is known", () => {
 		expect(buildBackendQuery([], "", [], []).impossible).toBe(true);
+	});
+});
+
+describe("trace duration filters", () => {
+	test("reads milliseconds by default and other units when given", () => {
+		expect(durationBounds(parseQuery("@duration:>500").tokens)).toEqual({ minNanos: 500_000_000n });
+		expect(durationBounds(parseQuery("@duration:<1.5s").tokens)).toEqual({ maxNanos: 1_500_000_000n });
+		expect(durationBounds(parseQuery("@duration:>=250us").tokens)).toEqual({ minNanos: 250_000n });
+	});
+	test("keeps the tightest bound on each side", () => {
+		const { tokens } = parseQuery("@duration:>100 @duration:>200 @duration:<900 @duration:<2s");
+		expect(durationBounds(tokens)).toEqual({ minNanos: 200_000_000n, maxNanos: 900_000_000n });
+	});
+	test("rejects a value without a comparison", () => {
+		expect(durationBounds(parseQuery("@duration:500").tokens)).toBeNull();
+	});
+	test("applies only to traces", () => {
+		expect(tokenSupport("logs", parseQuery("@duration:>500").tokens)[0]?.ok).toBe(false);
 	});
 });
