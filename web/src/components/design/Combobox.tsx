@@ -33,7 +33,7 @@ export function ComboboxItem({ className, ...props }: React.ComponentProps<typeo
 	return (
 		<ItemBase
 			className={cn(
-				"min-h-8 gap-2.5 rounded-sm px-2 text-[12.5px] text-foreground data-highlighted:bg-panel data-highlighted:text-foreground dark:data-highlighted:bg-panel2 data-disabled:text-fg4",
+				"cursor-pointer data-disabled:pointer-events-auto data-disabled:cursor-not-allowed min-h-8 gap-2.5 rounded-sm px-2 text-[12.5px] text-foreground data-highlighted:bg-panel data-highlighted:text-foreground dark:data-highlighted:bg-panel2 data-disabled:text-fg4",
 				className,
 			)}
 			{...props}

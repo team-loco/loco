@@ -66,7 +66,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
 	return (
 		<CommandItemBase
 			className={cn(
-				"h-9 gap-2.5 rounded-[7px]! px-2.5 py-0 text-[13.5px] text-foreground data-selected:bg-panel dark:data-selected:bg-panel2 [&_svg:not([class*='size-'])]:size-[15px]",
+				"cursor-pointer data-[disabled=true]:pointer-events-auto data-[disabled=true]:cursor-not-allowed h-9 gap-2.5 rounded-[7px]! px-2.5 py-0 text-[13.5px] text-foreground data-selected:bg-panel dark:data-selected:bg-panel2 [&_svg:not([class*='size-'])]:size-[15px]",
 				className,
 			)}
 			{...props}

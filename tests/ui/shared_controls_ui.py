@@ -247,6 +247,26 @@ def first_click_sorts_descending(table, label, first):
     expect(table.get_by_role("row").nth(1)).to_contain_text(first)
 
 
+def dropdown_cursors(page, suffix):
+    page.goto(state["ui_url"] + base + "/resources?env=production")
+    trigger = page.get_by_role("button", name="New resource", exact=True)
+    trigger.hover()
+    if not args.capture_only:
+        expect(trigger).to_have_css("cursor", "pointer")
+    trigger.click()
+    menu = page.get_by_role("menu")
+    enabled = menu.get_by_role("menuitem", name="Service", exact=True)
+    disabled = menu.get_by_role("menuitem", name=re.compile(r"^Database"))
+    enabled.hover()
+    menu.screenshot(path=str(out / f"dropdown-cursors-{suffix}.png"), animations="disabled")
+    if not args.capture_only:
+        expect(enabled).to_have_css("cursor", "pointer")
+        disabled.hover()
+        expect(disabled).to_be_disabled()
+        expect(disabled).to_have_css("cursor", "not-allowed")
+    page.keyboard.press("Escape")
+
+
 def resources(page, suffix):
     for route in ("/resources", ""):
         page.goto(state["ui_url"] + base + route + "?env=production")
@@ -318,6 +338,7 @@ with sync_playwright() as playwright:
                         assert page.get_by_role("button", name="Redeploy", exact=True).bounding_box()["height"] == 32
                     suffix = f"{args.label}-{theme}{'-narrow' if narrow else ''}"
                     page.screenshot(path=str(out / f"resource-controls-{suffix}.png"), full_page=True)
+                    dropdown_cursors(page, suffix)
                     page.goto(state["ui_url"] + base + "/settings?scope=workspace")
                     group = page.get_by_role("group", name="Settings for", exact=True)
                     workspace_button = group.get_by_role("button", name="Workspace", exact=True)
