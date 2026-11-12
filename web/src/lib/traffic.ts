@@ -3,7 +3,11 @@ import { maybeTsMs } from "@/lib/time";
 
 export const TRAFFIC_METRICS = [
 	{ metricName: "cluster.upstream_rq_total", aggregation: "rate" },
-	{ metricName: "cluster.upstream_rq_xx", aggregation: "rate", attributes: { "envoy.response_code_class": "5" } },
+	{
+		metricName: "cluster.upstream_rq_xx",
+		aggregation: "rate",
+		attributes: { "envoy.response_code_class": "5" },
+	},
 	{ metricName: "cluster.upstream_cx_rx_bytes_total", aggregation: "rate" },
 	{ metricName: "cluster.upstream_rq_time", aggregation: "p95" },
 ] as const;
@@ -17,13 +21,13 @@ export interface TrafficPoint {
 	latency?: number;
 }
 
-export function trafficPoints(metrics: MetricSeries[][]): TrafficPoint[] {
+export function trafficPoints(metrics: (MetricSeries[] | undefined)[]): TrafficPoint[] {
 	const points = new Map<string, TrafficPoint>();
 	const fields = ["requests", "errors", "bytes", "latency"] as const;
 	metrics.forEach((series, index) => {
 		const field = fields[index];
 		if (field === undefined) return;
-		for (const s of series) {
+		for (const s of series ?? []) {
 			for (const p of s.points) {
 				const time = maybeTsMs(p.timestamp);
 				if (time === undefined) continue;
@@ -34,6 +38,11 @@ export function trafficPoints(metrics: MetricSeries[][]): TrafficPoint[] {
 			}
 		}
 	});
+	if (metrics[1] !== undefined) {
+		for (const point of points.values()) {
+			if (point.requests !== undefined && point.errors === undefined) point.errors = 0;
+		}
+	}
 	return [...points.values()].toSorted((a, b) => a.time - b.time);
 }
 

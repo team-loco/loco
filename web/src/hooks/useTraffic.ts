@@ -16,7 +16,7 @@ export function useTraffic(options: {
 		queries: TRAFFIC_METRICS.map((metric) => metricsQueryOptions(transport, { ...options, ...metric })),
 	});
 	return {
-		points: trafficPoints(results.map((result) => result.data ?? [])),
+		points: trafficPoints(results.map((result) => result.data)),
 		isLoading: results.some((result) => result.isLoading),
 		error: results.find((result) => result.error !== null)?.error ?? null,
 	};

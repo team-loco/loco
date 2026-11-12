@@ -27,6 +27,16 @@ describe("gateway traffic", () => {
 		});
 		expect(errorShare(latestTraffic(points))).toBe(7.5);
 	});
+	it("treats an unused response class as zero only after its query resolves", () => {
+		const requests = [
+			create(MetricSeriesSchema, {
+				resourceId: "a",
+				points: [{ timestamp: msToTimestamp(60_000), value: 10 }],
+			}),
+		];
+		expect(errorShare(latestTraffic(trafficPoints([requests, undefined])))).toBeUndefined();
+		expect(errorShare(latestTraffic(trafficPoints([requests, []])))).toBe(0);
+	});
 	it("keeps missing samples distinct from recorded zero and avoids summing stale buckets", () => {
 		expect(latestTraffic([])).toBeUndefined();
 		expect(errorShare(undefined)).toBeUndefined();
