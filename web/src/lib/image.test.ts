@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { imageName, shortImageRef } from "./image";
+import { imageName, joinImage, shortImageRef, splitImage } from "./image";
 
 describe("shortImageRef", () => {
 	test("keeps short image names and human-readable tags", () => {
@@ -26,4 +26,28 @@ test("imageName drops the tag and digest but keeps the registry and path", () =>
 	expect(imageName("registry.example.com:5000/team/api:v2.1")).toBe("registry.example.com:5000/team/api");
 	expect(imageName(`ghcr.io/team/api@sha256:${"a".repeat(64)}`)).toBe("ghcr.io/team/api");
 	expect(imageName("nginx")).toBe("nginx");
+});
+
+describe("splitImage and joinImage", () => {
+	const digest = `sha256:${"a".repeat(64)}`;
+	const forms = [
+		"ghcr.io/acme/web",
+		"ghcr.io/acme/web:1.4.2",
+		`ghcr.io/acme/web@${digest}`,
+		`registry.example.com:5000/acme/web:1.4.2@${digest}`,
+	];
+
+	test("round-trips every reference form", () => {
+		for (const image of forms) {
+			const { repository, reference } = splitImage(image);
+			expect(joinImage(repository, reference)).toBe(image);
+		}
+	});
+
+	test("editing the repository keeps the tag and digest", () => {
+		for (const image of forms) {
+			const { repository, reference } = splitImage(image);
+			expect(joinImage("ghcr.io/acme/shop", reference)).toBe(image.replace(repository, "ghcr.io/acme/shop"));
+		}
+	});
 });

@@ -22,7 +22,7 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
-import { SegmentedChoice } from "@/components/design/SegmentedChoice";
+import { StepSlider } from "@/components/design/StepSlider";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter } from "@/components/design/Sheet";
@@ -613,9 +613,6 @@ function ServiceForm({
 					actions={
 						<span className="flex items-center gap-4 text-[12.5px] text-fg3">
 							<span className="flex items-center gap-1.5">
-								Sliders <SoonTag />
-							</span>
-							<span className="flex items-center gap-1.5">
 								Cost <SoonTag />
 							</span>
 						</span>
@@ -623,7 +620,7 @@ function ServiceForm({
 				>
 					<div className="flex flex-col gap-3">
 						<Field label="CPU" error={apiError("cpu")}>
-							<SegmentedChoice
+							<StepSlider
 								label="CPU"
 								options={sizes.cpu}
 								value={form.cpu}
@@ -633,7 +630,7 @@ function ServiceForm({
 							/>
 						</Field>
 						<Field label="Memory" error={apiError("memory")}>
-							<SegmentedChoice
+							<StepSlider
 								label="Memory"
 								options={sizes.memory}
 								value={form.memory}
