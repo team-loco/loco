@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
@@ -72,30 +71,20 @@ func buildListCmd() *cobra.Command {
 }
 
 func listWorkspaces(ctx context.Context, clients *rpc.Clients, orgID string) ([]*workspacev1.Workspace, error) {
-	var userID string
+	var workspaces []*workspacev1.Workspace
+	var err error
 	if orgID == "" {
-		who, err := clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
-		if err != nil {
-			return nil, fmt.Errorf("failed to get current user: %w", err)
-		}
-		userID = who.GetUser().GetId()
-	}
-	workspaces, err := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
-		if orgID != "" {
+		workspaces, err = cmdutil.ListUserWorkspaces(ctx, clients.Workspace)
+	} else {
+		workspaces, err = cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
 			request := &workspacev1.ListOrgWorkspacesRequest{OrgId: orgID, PageToken: token}
-			response, err := clients.Workspace.ListOrgWorkspaces(ctx, request)
-			if err != nil {
-				return nil, "", err
+			response, listErr := clients.Workspace.ListOrgWorkspaces(ctx, request)
+			if listErr != nil {
+				return nil, "", listErr
 			}
 			return response.GetWorkspaces(), response.GetNextPageToken(), nil
-		}
-		request := &workspacev1.ListUserWorkspacesRequest{UserId: userID, PageToken: token}
-		response, err := clients.Workspace.ListUserWorkspaces(ctx, request)
-		if err != nil {
-			return nil, "", err
-		}
-		return response.GetWorkspaces(), response.GetNextPageToken(), nil
-	})
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to list workspaces: %w", err)
 	}

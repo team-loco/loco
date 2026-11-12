@@ -38,15 +38,12 @@ func Paginate[T any](fetch func(token string) ([]T, string, error)) ([]T, error)
 	}
 }
 
-const workspacePageSize = 100
-
 func ListUserWorkspaces(
 	ctx context.Context,
 	workspaces workspacev1connect.WorkspaceServiceClient,
 ) ([]*workspacev1.Workspace, error) {
 	return Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
 		resp, err := workspaces.ListUserWorkspaces(ctx, &workspacev1.ListUserWorkspacesRequest{
-			PageSize:  workspacePageSize,
 			PageToken: token,
 		})
 		if err != nil {
