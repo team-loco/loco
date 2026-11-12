@@ -1,4 +1,4 @@
-import { TraceStatus, TraceSummarySort } from "@gen/loco/observability/v1/observability_pb";
+import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
 import { RefreshCwIcon, ZoomOutIcon } from "lucide-react";
 import { Navigate } from "react-router";
@@ -18,8 +18,10 @@ import { pageRangeLabel } from "@/lib/paging";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
+import { readWidths, writeWidths, type ColumnKey, type ColumnWidths } from "./columns";
 import { filteredResources, useObs } from "./context";
 import { fmtTs } from "./format";
+import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import {
 	durationBounds,
@@ -41,12 +43,39 @@ import { ViewHeader } from "./ViewHeader";
 import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, timestampMs, uniqueSpans } from "./traces";
 
 const DEFAULT_PAGE_SIZE = 25;
-const PERCENT = 100n;
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 // The chart plots the newest traces up to this many; the API caps a page at 10,000.
 const SCATTER_LIMIT = 2000;
 const COUNT_LIMIT = 1;
 const DURATION_DIGITS = 3;
+
+const TRACE_COLUMNS: { key: ColumnKey; label: string; sort?: TraceSummarySort; right?: boolean; title?: string }[] = [
+	{ key: "when", label: "When", sort: TraceSummarySort.START_TIME },
+	{ key: "resource", label: "Resource" },
+	{ key: "span", label: "Root span" },
+	{ key: "status", label: "Status" },
+	{
+		key: "duration",
+		label: "Duration",
+		sort: TraceSummarySort.DURATION,
+		right: true,
+		title: "From the first span's start to the last span's end",
+	},
+	{ key: "spans", label: "Spans", right: true },
+];
+const TRACE_WIDTHS: Record<ColumnKey, number> = {
+	when: 150,
+	resource: 110,
+	span: 260,
+	status: 80,
+	duration: 100,
+	spans: 70,
+};
+const SKELETON_ROWS = 8;
+
+function traceColumnWidth(key: ColumnKey, widths: ColumnWidths): number {
+	return widths[key] ?? TRACE_WIDTHS[key] ?? 0;
+}
 
 interface ZoomState {
 	range: TimeWindow;
@@ -171,7 +200,6 @@ function TraceSession({
 		setPaging({ page, size: paging.size }, DEFAULT_PAGE_SIZE);
 	};
 	const pages = Math.max(1, Math.ceil(total / paging.size));
-	const maxDuration = traces.reduce((max, t) => (t.durationNanos > max ? t.durationNanos : max), 1n);
 	const loading = environmentLoading || browse.isLoading || ((resourceFilter || !scopeReady) && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
@@ -235,8 +263,8 @@ function TraceSession({
 		next.delete("page");
 		setParams(next);
 	};
-	const sortState = (column: TraceSummarySort) => (sort !== column ? "none" : ascending ? "ascending" : "descending");
-	const sortArrow = (column: TraceSummarySort) => (sort !== column ? "" : ascending ? " ↑" : " ↓");
+	const sortDir = (column: TraceSummarySort) => (sort !== column ? undefined : ascending ? "ascending" : "descending");
+	const widths = readWidths(params.get("widths"));
 
 	if (openId !== "" && active !== undefined && params.get("env") === null) {
 		const pinned = new URLSearchParams(params);
@@ -344,102 +372,20 @@ function TraceSession({
 					</ToggleGroup>
 				</div>
 				<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
-					<table className="w-full min-w-[720px] border-collapse text-[12.5px]">
-						<thead>
-							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">
-								<th className="px-3 font-normal" aria-sort={sortState(TraceSummarySort.START_TIME)}>
-									<button
-										type="button"
-										onClick={() => {
-											sortBy(TraceSummarySort.START_TIME);
-										}}
-									>
-										When{sortArrow(TraceSummarySort.START_TIME)}
-									</button>
-								</th>
-								<th className="px-3 font-normal">Resource</th>
-								<th className="px-3 font-normal">Root span</th>
-								<th className="px-3 font-normal">Status</th>
-								<th
-									className="px-3 text-right font-normal"
-									aria-sort={sortState(TraceSummarySort.DURATION)}
-									title="From the first span's start to the last span's end"
-								>
-									<button
-										type="button"
-										onClick={() => {
-											sortBy(TraceSummarySort.DURATION);
-										}}
-									>
-										Duration{sortArrow(TraceSummarySort.DURATION)}
-									</button>
-								</th>
-								<th className="px-3 text-right font-normal">Spans</th>
-							</tr>
-						</thead>
-						<tbody>
-							{loading &&
-								Array.from({ length: 8 }, (_, i) => (
-									<tr key={String(i)} className="h-[38px]">
-										<td colSpan={6} className="px-3">
-											<Skeleton className="h-3 w-full" />
-										</td>
-									</tr>
-								))}
-							{!loading &&
-								traces.map((t) => {
-									const failed = t.status === TraceStatus.ERROR;
-									const startMs = timestampMs(t.startTime);
-									const on = t.traceId === openId;
-									return (
-										<tr
-											key={t.traceId}
-											className={cn(
-												"h-[38px] border-b border-line last:border-b-0 hover:bg-panel2",
-												on && "bg-background",
-											)}
-										>
-											<td className="px-3 font-mono whitespace-nowrap text-fg3">
-												{crossesDay ? fmtTs(startMs) : formatClock(startMs)}
-											</td>
-											<td className="px-3">{traceServiceLabel(t, resourceById.get(t.resourceId)?.name)}</td>
-											<td className="max-w-[360px] px-3">
-												<button
-													type="button"
-													aria-label={`Open trace ${t.rootSpanName || t.traceId}`}
-													onClick={() => {
-														open(t.traceId);
-													}}
-													className="block w-full truncate rounded-sm text-left font-mono text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-												>
-													{t.rootSpanName || "Unnamed span"}
-												</button>
-											</td>
-											<td className={cn("px-3 font-mono", failed ? "text-bad-fg" : "text-fg3")}>
-												{failed ? "error" : "ok"}
-											</td>
-											<td className="px-3">
-												<span className="flex items-center justify-end gap-2">
-													<span className="h-1 w-20 overflow-hidden rounded-[2px] bg-line2 max-sm:hidden">
-														<span
-															className={cn("block h-full rounded-[2px]", failed ? "bg-err" : "bg-fg3")}
-															style={{ width: `${String(Number((t.durationNanos * PERCENT) / maxDuration))}%` }}
-														/>
-													</span>
-													<span className={cn("font-mono", failed ? "text-bad-fg" : "text-foreground")}>
-														{durationLabel(t.durationNanos)}
-													</span>
-												</span>
-											</td>
-											<td className="relative px-3 text-right font-mono text-fg3">
-												{String(t.spanCount)}
-												{failed && <span className="sr-only">, with errors</span>}
-											</td>
-										</tr>
-									);
-								})}
-						</tbody>
-					</table>
+					<TraceList
+						traces={traces}
+						loading={loading}
+						openId={openId}
+						crossesDay={crossesDay}
+						resourceName={(t) => traceServiceLabel(t, resourceById.get(t.resourceId)?.name)}
+						onOpen={open}
+						widths={widths}
+						onWidths={(next) => {
+							setParam("widths", writeWidths(next), true);
+						}}
+						sortDir={sortDir}
+						onSort={sortBy}
+					/>
 					{!loading && browse.error !== null && (
 						<div role="alert" className="flex flex-wrap items-center justify-between gap-3 px-3 py-6">
 							<span className="text-bad-fg">{getErrorMessage(browse.error, "Failed to load traces")}</span>
@@ -484,5 +430,108 @@ function TraceSession({
 				/>
 			)}
 		</>
+	);
+}
+
+function TraceList({
+	traces,
+	loading,
+	openId,
+	crossesDay,
+	resourceName,
+	onOpen,
+	widths,
+	onWidths,
+	sortDir,
+	onSort,
+}: {
+	traces: TraceSummary[];
+	loading: boolean;
+	openId: string;
+	crossesDay: boolean;
+	resourceName: (t: TraceSummary) => string;
+	onOpen: (id: string) => void;
+	widths: ColumnWidths;
+	onWidths: (next: ColumnWidths) => void;
+	sortDir: (column: TraceSummarySort) => "ascending" | "descending" | undefined;
+	onSort: (column: TraceSummarySort) => void;
+}) {
+	const { live, handle } = useResizableColumns(widths, onWidths, traceColumnWidth);
+	const grid = [...TRACE_COLUMNS.map((c) => `${String(traceColumnWidth(c.key, live))}px`), "minmax(0,1fr)"].join(" ");
+	return (
+		<div className="w-max min-w-full">
+			<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
+				{TRACE_COLUMNS.map((c) => (
+					<span
+						key={c.key}
+						title={c.title}
+						className={cn("relative flex min-w-0 items-center px-3", c.right === true && "justify-end")}
+					>
+						{c.sort === undefined ? (
+							<span className="truncate">{c.label}</span>
+						) : (
+							<button
+								type="button"
+								onClick={() => {
+									if (c.sort !== undefined) onSort(c.sort);
+								}}
+								className="truncate rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+							>
+								{c.label}
+								{sortDir(c.sort) !== undefined && (
+									<>
+										<span aria-hidden>{sortDir(c.sort) === "ascending" ? " ↑" : " ↓"}</span>
+										<span className="sr-only">, sorted {sortDir(c.sort)}</span>
+									</>
+								)}
+							</button>
+						)}
+						{handle(c.key, c.label)}
+					</span>
+				))}
+				<span />
+			</div>
+			<div className="flex flex-col gap-0.5 pt-1">
+				{loading &&
+					Array.from({ length: SKELETON_ROWS }, (_, i) => (
+						<div key={String(i)} className="flex h-[34px] items-center px-3">
+							<Skeleton className="h-3 w-full" />
+						</div>
+					))}
+				{!loading &&
+					traces.map((t, i) => {
+						const failed = t.status === TraceStatus.ERROR;
+						const startMs = timestampMs(t.startTime);
+						const name = t.rootSpanName || "Unnamed span";
+						return (
+							<button
+								key={t.traceId}
+								type="button"
+								aria-label={`Open trace ${t.rootSpanName || t.traceId}`}
+								aria-pressed={t.traceId === openId}
+								onClick={() => {
+									onOpen(t.traceId);
+								}}
+								className={listRowClass(i, t.traceId === openId)}
+								style={{ gridTemplateColumns: grid }}
+							>
+								<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
+									{crossesDay ? fmtTs(startMs) : formatClock(startMs)}
+								</span>
+								<span className="truncate px-3 text-[12.5px]">{resourceName(t)}</span>
+								<span className="truncate px-3 font-mono text-foreground">{name}</span>
+								<span className={cn("truncate px-3 font-mono", failed ? "text-bad-fg" : "text-fg3")}>
+									{failed ? "error" : "ok"}
+								</span>
+								<span className={cn("truncate px-3 text-right font-mono", failed ? "text-bad-fg" : "text-foreground")}>
+									{durationLabel(t.durationNanos)}
+								</span>
+								<span className="truncate px-3 text-right font-mono text-fg3">{String(t.spanCount)}</span>
+								<span />
+							</button>
+						);
+					})}
+			</div>
+		</div>
 	);
 }
