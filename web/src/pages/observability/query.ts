@@ -32,7 +32,7 @@ export function levelOf(severity: string): Level {
 }
 
 export type FieldKey =
-	"resource" | "level" | "replica" | "build" | "region" | "type" | "status" | "trace" | "method" | "path";
+	"resource" | "level" | "replica" | "build" | "region" | "type" | "status" | "trace" | "duration" | "method" | "path";
 
 export interface FieldDef {
 	key: FieldKey;
@@ -61,6 +61,7 @@ export const FIELDS: FieldDef[] = [
 	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: false, planned: [] },
 	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: false, planned: ["logs"] },
 	{ key: "trace", label: "Trace ID", views: ["traces"], negate: [], single: true, planned: ["logs"] },
+	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: false, planned: [] },
 	{ key: "method", label: "HTTP method", views: [], negate: [], single: false, planned: ["logs"] },
 	{ key: "path", label: "Request path", views: [], negate: [], single: false, planned: ["logs"] },
 ];
@@ -194,6 +195,30 @@ export function passes(values: string[], tokens: Token[]): boolean {
 		(pos.length === 0 || pos.some((t) => values.some((v) => matches(v, t.value)))) &&
 		!neg.some((t) => values.some((v) => matches(v, t.value)))
 	);
+}
+
+const DURATION_RE = /^(>=?|<=?)(\d+(?:\.\d+)?)(us|µs|ms|s)?$/;
+const NANOS_PER_UNIT: Record<string, number> = { us: 1e3, µs: 1e3, ms: 1e6, s: 1e9 };
+
+export interface DurationBounds {
+	minNanos?: bigint;
+	maxNanos?: bigint;
+}
+
+/** Reads @duration:>500 style tokens (milliseconds unless a unit is given) into bounds, or null when one is malformed. */
+export function durationBounds(tokens: Token[]): DurationBounds | null {
+	const bounds: DurationBounds = {};
+	for (const t of liveTokens("traces", tokens, "duration")) {
+		const m = DURATION_RE.exec(t.value.toLowerCase());
+		if (m === null) return null;
+		const nanos = BigInt(Math.round(Number(m[2]) * (NANOS_PER_UNIT[m[3] ?? "ms"] ?? 0)));
+		if (m[1]?.startsWith(">") === true) {
+			if (bounds.minNanos === undefined || nanos > bounds.minNanos) bounds.minNanos = nanos;
+		} else if (bounds.maxNanos === undefined || nanos < bounds.maxNanos) {
+			bounds.maxNanos = nanos;
+		}
+	}
+	return bounds;
 }
 
 export interface BackendQuery {

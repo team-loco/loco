@@ -53,6 +53,9 @@ spans[10]['events'] = [
 recorded = []
 mode = ['normal']
 
+def last_page_request():
+    return next(row for row in reversed(recorded) if 'startTime' in row and row.get('limit') in (25, 50, 100))
+
 def handle(route):
     body = route.request.post_data_json
     recorded.append(body)
@@ -75,8 +78,9 @@ def handle(route):
         if body.get('traceId'):
             summaries = [row for row in summaries if row['traceId'] == body['traceId']]
         summaries = [row for row in summaries if all(term.lower() in row['rootSpanName'].lower() for term in summary.get('rootNameTerms', [])) and (not summary.get('status') or row['status'] == summary['status'])]
+        summaries = [row for row in summaries if int(summary.get('minDurationNanos', 0)) <= int(row['durationNanos']) <= int(summary.get('maxDurationNanos', 10**18))]
         if summary.get('sort') == 'TRACE_SUMMARY_SORT_DURATION':
-            summaries.sort(key=lambda row: (-int(row['durationNanos']), row['traceId']))
+            summaries.sort(key=lambda row: (-int(row['durationNanos']), row['traceId']), reverse=bool(summary.get('ascending')))
         offset = summary.get('offset', 0)
         route.fulfill(json={'totalCount': str(len(summaries)), 'summaries': summaries[offset:offset + body['limit']]})
         return
@@ -185,7 +189,10 @@ with sync_playwright() as p:
                 mode[0] = 'empty'
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 evidence.settle(page)
-                page.get_by_text('No traces in this range', exact=True).wait_for()
+                page.get_by_text('Send your first trace', exact=True).wait_for()
+                expect(page.get_by_text('OTEL_EXPORTER_OTLP_ENDPOINT is already set on every replica', exact=True)).to_be_visible()
+                page.get_by_role('tab', name='Python', exact=True).click()
+                expect(page.get_by_text('opentelemetry-instrument python app.py', exact=False)).to_be_visible()
                 page.screenshot(path=out / f'trace-empty-after-{suffix}.png', full_page=True, animations='disabled')
                 mode[0] = 'error'
                 page.get_by_role('button', name='Refresh', exact=True).click()
@@ -213,29 +220,66 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(state['ui_url'] + base)
     evidence.settle(page)
-    assert recorded[-1].get('limit') == 25
+    assert last_page_request().get('limit') == 25
     expect(page.get_by_text('1–25 of 67', exact=True)).to_be_visible()
     expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(25)
     page.get_by_role('button', name='Next page', exact=True).click()
     evidence.settle(page)
-    assert recorded[-1]['offset'] == 25
+    assert last_page_request()['offset'] == 25
     expect(page.get_by_text('26–50 of 67', exact=True)).to_be_visible()
     page.get_by_role('button', name='Last page', exact=True).click()
     evidence.settle(page)
-    assert recorded[-1]['offset'] == 50
+    assert last_page_request()['offset'] == 50
     expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(17)
     expect(page.get_by_text('51–67 of 67', exact=True)).to_be_visible()
-    page.get_by_role('button', name='Observed duration', exact=True).click()
+    expect(page.get_by_role('button', name=re.compile(r'^All\s*67$'))).to_be_visible()
+    expect(page.get_by_role('button', name=re.compile(r'^Errors\s*1$'))).to_be_visible()
+    page.get_by_role('button', name='Duration', exact=True).click()
     evidence.settle(page)
-    assert recorded[-1].get('offset', 0) == 0
-    assert recorded[-1]['sort'] == 'TRACE_SUMMARY_SORT_DURATION'
-    page.get_by_role('button', name='Errors', exact=True).click()
+    assert last_page_request().get('offset', 0) == 0
+    assert last_page_request()['sort'] == 'TRACE_SUMMARY_SORT_DURATION'
+    assert not last_page_request().get('ascending')
+    page.get_by_role('button', name='Duration ↓', exact=True).click()
     evidence.settle(page)
-    assert recorded[-1]['status'] == 'TRACE_STATUS_ERROR'
+    assert last_page_request()['ascending'] is True
+    expect(page.get_by_role('region', name='Trace list').locator('tbody tr').first).to_contain_text('GetProduct')
+    page.get_by_role('button', name=re.compile(r'^Errors')).click()
+    evidence.settle(page)
+    assert last_page_request()['status'] == 'TRACE_STATUS_ERROR'
     expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(1)
+    page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:>100'))
+    evidence.settle(page)
+    assert last_page_request()['minDurationNanos'] == '100000000'
+    expect(page.get_by_role('heading', level=1)).to_have_text(re.compile(r'^Traces\s*2$'))
+    page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:100'))
+    evidence.settle(page)
+    expect(page.get_by_role('alert')).to_contain_text('A duration filter compares in milliseconds')
+    page.goto(state['ui_url'] + base)
+    evidence.settle(page)
+    chart = page.get_by_role('img', name=re.compile(r'^Duration of \d+ traces'))
+    box = chart.bounding_box()
+    page.mouse.move(box['x'] + 2, box['y'] + 2)
+    page.mouse.down()
+    page.mouse.move(box['x'] + box['width'] - 2, box['y'] + box['height'] * 0.8, steps=5)
+    page.mouse.up()
+    evidence.settle(page)
+    zoomed = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)
+    assert 'from' in zoomed and 'to' in zoomed, page.url
+    assert '@duration:>=' in zoomed['q'][0] and '@duration:<=' in zoomed['q'][0], zoomed
+    # The zoom's request can land after the page settles, so wait for it.
+    for _ in range(50):
+        if 'minDurationNanos' in last_page_request() and 'maxDurationNanos' in last_page_request():
+            break
+        page.wait_for_timeout(100)
+    assert 'minDurationNanos' in last_page_request() and 'maxDurationNanos' in last_page_request()
+    page.get_by_role('button', name='Reset zoom', exact=True).click()
+    evidence.settle(page)
+    assert '@duration' not in urllib.parse.unquote(page.url)
+    assert 'from=' not in page.url
+    expect(page.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
     page.goto(state['ui_url'] + base + '&q=products')
     evidence.settle(page)
-    assert recorded[-1]['rootNameTerms'] == ['products']
+    assert last_page_request()['rootNameTerms'] == ['products']
     expect(page.get_by_role('button', name='Open trace GET /api/products', exact=True)).to_be_visible()
     context.close()
     mode[0] = 'normal'

@@ -98,14 +98,17 @@ export function ObsHero({
 	title,
 	body,
 	action,
+	children,
 }: {
 	view: ObservabilityView;
 	title: ReactNode;
 	body: ReactNode;
 	action?: ReactNode;
+	children?: ReactNode;
 }) {
 	return (
 		<EmptyHero art={<ObsArt view={view} />} title={title} subtitle={body}>
+			{children}
 			<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 				{action}
 				<Button variant="outline" render={<a href={DOCS_PATH} target="_blank" rel="noreferrer" />}>

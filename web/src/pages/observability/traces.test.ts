@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanEventSchema, TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import { axisLabel, durationLabel, eventOffsetLabel, spanTree, summarizeTraces, uniqueSpans } from "./traces";
+import {
+	axisLabel,
+	durationLabel,
+	durationScale,
+	eventOffsetLabel,
+	spanTree,
+	summarizeTraces,
+	uniqueSpans,
+} from "./traces";
 
 const span = (id: string, parent = "", nanos = 0) =>
 	create(TraceSpanSchema, {
@@ -61,5 +69,17 @@ describe("trace timing and hierarchy", () => {
 		expect(trace?.duration).toBe(250n);
 		expect(trace?.errors).toBe(1);
 		expect(trace?.services).toBe(2);
+	});
+});
+
+describe("trace duration scale", () => {
+	test("labels whole decades inside the range", () => {
+		expect(durationScale([20, 40]).ticks.map((t) => t.label)).toEqual(["10 ms", "100 ms"]);
+		expect(durationScale([3, 2500]).ticks.map((t) => t.label)).toEqual(["10 ms", "100 ms", "1 s"]);
+	});
+	test("maps a position back to the duration drawn there", () => {
+		const scale = durationScale([5, 900]);
+		expect(scale.msAt(scale.yOf(250))).toBeCloseTo(250);
+		expect(scale.yOf(5)).toBe(1);
 	});
 });
