@@ -36,6 +36,8 @@ service DeploymentService {
   rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
   // DeleteDeployment deletes/inactivates a deployment.
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
+  // ResolveImage returns the digest-pinned image reference.
+  rpc ResolveImage(ResolveImageRequest) returns (ResolveImageResponse);
 }
 
 // Port defines a network port configuration.
@@ -255,4 +257,13 @@ message MetricsEndpoint {
     message: "enabled metrics require a port between 1024 and 65535 and an absolute path"
     expression: "!this.enabled || (this.port >= 1024 && this.port <= 65535 && this.path.startsWith('/') && !this.path.startsWith('//') && !this.path.contains('?') && !this.path.contains('#') && !this.path.contains('\\r') && !this.path.contains('\\n'))"
   };
+}
+
+message ResolveImageRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string image = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ResolveImageResponse {
+  string image = 1;
 }

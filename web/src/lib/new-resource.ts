@@ -49,7 +49,7 @@ export interface FormErrors {
 	env: string | null;
 }
 
-export type ApiField = "port" | "path" | "interval" | "timeout" | "failAfter" | "cpu" | "memory" | "replicas";
+export type ApiField = "image" | "port" | "path" | "interval" | "timeout" | "failAfter" | "cpu" | "memory" | "replicas";
 
 export interface ApiFieldError {
 	field: ApiField;
@@ -172,6 +172,7 @@ export function healthCheckSpec(health: HealthForm, initialDelaySeconds: number)
 }
 
 const VIOLATION_FIELDS: Partial<Record<string, ApiField>> = {
+	image: "image",
 	port: "port",
 	path: "path",
 	interval_seconds: "interval",

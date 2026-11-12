@@ -220,3 +220,28 @@ test("marked values only go to the secret write and the YAML names their binding
 	expect(yaml).toContain('LOG_LEVEL: "info"');
 	expect(yaml).not.toContain("private-test-value");
 });
+
+test("apiFieldError maps image resolution failures", () => {
+	const message = 'Image "nginx:missing" was not found. Check the repository and tag or digest.';
+	const err = new ConnectError(message, Code.InvalidArgument, undefined, [
+		{
+			desc: ViolationsSchema,
+			value: create(ViolationsSchema, {
+				violations: [
+					{
+						message,
+						field: {
+							elements: [
+								{ fieldName: "spec" },
+								{ fieldName: "service" },
+								{ fieldName: "build" },
+								{ fieldName: "image" },
+							],
+						},
+					},
+				],
+			}),
+		},
+	]);
+	expect(apiFieldError(err)).toEqual({ field: "image", message });
+});

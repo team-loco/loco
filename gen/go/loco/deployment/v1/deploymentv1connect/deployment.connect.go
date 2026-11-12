@@ -39,6 +39,9 @@ const (
 	// DeploymentServiceDeleteDeploymentProcedure is the procedure name of the DeploymentService's
 	// DeleteDeployment RPC.
 	DeploymentServiceDeleteDeploymentProcedure = "/loco.deployment.v1.DeploymentService/DeleteDeployment"
+	// DeploymentServiceResolveImageProcedure is the procedure name of the DeploymentService's
+	// ResolveImage RPC.
+	DeploymentServiceResolveImageProcedure = "/loco.deployment.v1.DeploymentService/ResolveImage"
 )
 
 var (
@@ -77,6 +80,13 @@ var (
 			Procedure:  DeploymentServiceDeleteDeploymentProcedure,
 		}
 	})
+	deploymentServiceResolveImageSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_deployment_v1_deployment_proto.Services().ByName("DeploymentService").Methods().ByName("ResolveImage"),
+			Procedure:  DeploymentServiceResolveImageProcedure,
+		}
+	})
 )
 
 // DeploymentServiceClient is a client for the loco.deployment.v1.DeploymentService service.
@@ -91,6 +101,8 @@ type DeploymentServiceClient interface {
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest) (DeploymentServiceWatchDeploymentClientStream, error)
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
+	// ResolveImage returns the digest-pinned image reference.
+	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
 
 // NewDeploymentServiceClient constructs a client for the loco.deployment.v1.DeploymentService
@@ -133,6 +145,8 @@ type DeploymentServiceHandler interface {
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
+	// ResolveImage returns the digest-pinned image reference.
+	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
 
 // RegisterDeploymentServiceHandler registers svc as the loco.deployment.v1.DeploymentService
@@ -145,6 +159,7 @@ func RegisterDeploymentServiceHandler(server *connect.Server, svc DeploymentServ
 		connect.Method{Spec: deploymentServiceListDeploymentsSpec(), Handler: adapter.listDeployments},
 		connect.Method{Spec: deploymentServiceWatchDeploymentSpec(), Handler: adapter.watchDeployment},
 		connect.Method{Spec: deploymentServiceDeleteDeploymentSpec(), Handler: adapter.deleteDeployment},
+		connect.Method{Spec: deploymentServiceResolveImageSpec(), Handler: adapter.resolveImage},
 	)
 }
 
@@ -187,6 +202,10 @@ func (UnimplementedDeploymentServiceHandler) DeleteDeployment(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.DeleteDeployment is not implemented")
 }
 
+func (UnimplementedDeploymentServiceHandler) ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.ResolveImage is not implemented")
+}
+
 type deploymentServiceClient struct {
 	client *connect.Client
 }
@@ -226,6 +245,14 @@ func (c *deploymentServiceClient) WatchDeployment(ctx context.Context, req *v1.W
 func (c *deploymentServiceClient) DeleteDeployment(ctx context.Context, req *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error) {
 	var res v1.DeleteDeploymentResponse
 	if err := c.client.CallUnary(ctx, deploymentServiceDeleteDeploymentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *deploymentServiceClient) ResolveImage(ctx context.Context, req *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error) {
+	var res v1.ResolveImageResponse
+	if err := c.client.CallUnary(ctx, deploymentServiceResolveImageSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -283,6 +310,18 @@ func (h deploymentServiceHandler) deleteDeployment(ctx context.Context, _ connec
 		return err
 	}
 	res, err := h.svc.DeleteDeployment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h deploymentServiceHandler) resolveImage(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ResolveImageRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ResolveImage(ctx, &req)
 	if err != nil {
 		return err
 	}

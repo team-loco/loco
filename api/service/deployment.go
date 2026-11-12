@@ -111,6 +111,25 @@ func NewDeploymentServer(
 	}
 }
 
+func (s *DeploymentServer) ResolveImage(
+	ctx context.Context,
+	req *deploymentv1.ResolveImageRequest,
+) (*deploymentv1.ResolveImageResponse, error) {
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
+	}
+	if err = authorize(ctx, s.authz, actions.CreateResource, workspaceID); err != nil {
+		return nil, err
+	}
+	source := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: req.GetImage()}
+	pinned, err := pinPublicImage(ctx, s.resolver, s.registryHost, source)
+	if err != nil {
+		return nil, err
+	}
+	return &deploymentv1.ResolveImageResponse{Image: pinned.GetImage()}, nil
+}
+
 // CreateDeployment creates a new deployment
 func (s *DeploymentServer) CreateDeployment(
 	ctx context.Context,
@@ -166,7 +185,7 @@ func (s *DeploymentServer) CreateDeployment(
 	requestedBuild := serviceSpec.GetBuild()
 	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
 	if err != nil {
-		return nil, fmt.Errorf("pin the build source: %w", err)
+		return nil, err
 	}
 	originalSpec := req.GetSpec()
 	requestSpec := proto.CloneOf(originalSpec)

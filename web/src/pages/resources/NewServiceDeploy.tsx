@@ -77,6 +77,8 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
 		const health = healthCheck === undefined ? {} : { healthCheck };
 		try {
+			const deployments = createClient(DeploymentService, transport);
+			const { image } = await deployments.resolveImage({ workspaceId, image: form.image.trim() });
 			const { resourceId } = await createClient(ResourceService, transport).createResource({
 				workspaceId,
 				name: form.name,
@@ -110,7 +112,6 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 				},
 			});
 			setRun({ ...start, resourceId });
-			const deployments = createClient(DeploymentService, transport);
 			const { env: envMap, secrets } = deploymentVariables(vars);
 			const secretNames = Object.keys(secrets);
 			let secretsError: unknown = undefined;
@@ -141,7 +142,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 								spec: {
 									case: "service",
 									value: {
-										build: { type: "image", image: form.image.trim() },
+										build: { type: "image", image },
 										...replicas,
 										maxReplicas: form.replicas,
 										env: envMap,

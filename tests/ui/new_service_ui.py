@@ -99,8 +99,27 @@ with sync_playwright() as playwright:
             context, page, errors = open_page(browser, "owner", theme, narrow)
             deployments = []
             rejected = []
+            resolutions = []
+            pinned_image = f"registry.example.com/acme/{repository}@sha256:" + "a" * 64
+
+            def resolve_image(route):
+                resolutions.append(route.request.post_data_json)
+                if theme == "light" and len(resolutions) == 2:
+                    rejected.append(route.request.post_data_json)
+                    route.continue_(post_data=json.dumps({**route.request.post_data_json, "image": "UPPER/Case::bad"}))
+                    return
+                route.fulfill(json={"image": pinned_image})
+
+            context.route("**/loco.deployment.v1.DeploymentService/ResolveImage", resolve_image)
             writes = []
             order = []
+            creations = []
+
+            def record_resource_create(route):
+                creations.append(route.request.post_data_json)
+                route.continue_()
+
+            context.route("**/loco.resource.v1.ResourceService/CreateResource", record_resource_create)
 
             def record_secret_write(route):
                 writes.append(route.request.post_data_json)
@@ -111,10 +130,6 @@ with sync_playwright() as playwright:
 
             def create_deployment(route):
                 order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
-                if theme == "light" and not rejected:
-                    rejected.append(route.request.post_data_json)
-                    route.fulfill(status=400, json={"code": "invalid_argument", "message": "invalid request"})
-                    return
                 deployments.append(route.request.post_data_json)
                 route.fulfill(json={"deploymentId": str(uuid.uuid4())})
 
@@ -335,10 +350,13 @@ with sync_playwright() as playwright:
                     page.screenshot(path=out / f"invalid-{case}.png", animations="disabled")
                     interval.fill("15")
                     expect(drawer.get_by_role("alert")).to_have_count(0)
+                    creations_before = len(creations)
                     drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-                    expect(drawer.get_by_text(f"Couldn't deploy {image}: Invalid request.", exact=True)).to_be_visible()
+                    expect(drawer.get_by_role("alert")).to_have_text("Container image: Invalid image reference. Use a repository with a tag or digest.")
+                    assert len(creations) == creations_before, creations
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
                     assert stored_drafts(page) == [name], stored_drafts(page)
+                    assert not order, order
                     page.screenshot(path=out / f"rejected-{case}.png", animations="disabled")
                     # When SetSecrets fails and the cleanup delete fails too, nothing deployed and the draft stays.
                     unavailable = lambda route: route.fulfill(status=503, json={"code": "unavailable"})
@@ -379,7 +397,7 @@ with sync_playwright() as playwright:
                 assert evidence.psql(state["container"], f"SELECT name FROM resources WHERE id='{resource}';") == name
                 assert [(d["resourceId"], d["region"]) for d in deployments] == [(resource, "us-east-1")], deployments
                 spec = deployments[0]["spec"]["service"]
-                assert spec["build"]["image"] == image, spec
+                assert spec["build"]["image"] == pinned_image, spec
                 assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
                 assert spec["env"] == {"LOG_LEVEL": "info"}, spec
                 assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
