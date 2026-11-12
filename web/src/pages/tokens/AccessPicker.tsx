@@ -36,7 +36,6 @@ export function AccessPicker({
 	resourcesLoading,
 	resourcesError,
 	retryResources,
-	invalid,
 	onChange,
 }: {
 	tree: EntityTree;
@@ -46,7 +45,6 @@ export function AccessPicker({
 	resourcesLoading: boolean;
 	resourcesError: unknown;
 	retryResources: () => void;
-	invalid: boolean;
 	onChange: (items: AccessItem[]) => void;
 }) {
 	const [q, setQ] = useState("");
@@ -197,13 +195,7 @@ export function AccessPicker({
 			}}
 			autoHighlight
 		>
-			<div
-				ref={anchorRef}
-				className={cn(
-					"relative rounded-lg border bg-raise",
-					focus ? "border-fg4" : invalid ? "border-bad-fg" : "border-line2",
-				)}
-			>
+			<div ref={anchorRef} className={cn("relative rounded-lg border bg-raise", focus ? "border-fg4" : "border-line2")}>
 				{items.length === 0 && (
 					<div className="border-b border-line p-3 text-[12.5px] text-fg3">No permissions yet.</div>
 				)}
@@ -221,7 +213,6 @@ export function AccessPicker({
 							const first = shown.find((n) => heldLevel(held, tree, n.key) > 0);
 							if (first !== undefined) add(first);
 						}}
-						aria-invalid={invalid}
 						placeholder="Add a workspace or resource"
 						autoComplete="off"
 						aria-label="Add a workspace or resource"

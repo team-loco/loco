@@ -10,6 +10,7 @@ import { BASE_URL } from "@/auth/connect-transport";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { CopyButton } from "@/components/design/CopyButton";
+import { DateTimePicker } from "@/components/design/DateTimePicker";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
@@ -17,12 +18,23 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
+import { toLocalInput } from "@/lib/obs-time";
 import { DAY_MS, formatMonthDayYear } from "@/lib/time";
 
 import { AccessPicker } from "./AccessPicker";
 import type { AccessItem } from "./AccessPicker";
 import { ownerIcon } from "./icons";
-import { allowsFor, defaultExpirySeconds, expiryOptions, grantsToScopes, OWNER_KEYS, OWNER_TITLE } from "./model";
+import {
+	allowsFor,
+	customExpiryError,
+	defaultExpirySeconds,
+	expiryOptions,
+	grantsToScopes,
+	OWNER_KEYS,
+	OWNER_TITLE,
+	sanitizeTokenName,
+	TOKEN_NAME_RE,
+} from "./model";
 import type { EntityNode, Level, OwnerKey } from "./model";
 import type { TokenData } from "./useTokenData";
 
@@ -34,6 +46,9 @@ export interface CreateDraft {
 
 const NAME_MAX = 100;
 const MS_PER_SECOND = 1000;
+const CUSTOM = "custom";
+const SECRET_PREVIEW = 12;
+const CUSTOM_DEFAULT_MS = 3 * DAY_MS;
 
 function apiExample(): string {
 	return [
@@ -133,19 +148,29 @@ function CreateForm({
 	onCreated: (owner: OwnerKey, name: string, secret: string) => void;
 }) {
 	const [ownerKey, setOwnerKey] = useState(draft.owner);
-	const [name, setName] = useState(draft.name);
+	const [name, setName] = useState(() => sanitizeTokenName(draft.name));
 	const options = expiryOptions(maximum);
-	const [selected, setSelected] = useState(() => defaultExpirySeconds(maximum));
-	const seconds = Math.min(selected, Number(maximum));
+	const [selected, setSelected] = useState<number | typeof CUSTOM>(() => defaultExpirySeconds(maximum));
+	const [customAt, setCustomAt] = useState(() => toLocalInput(now + CUSTOM_DEFAULT_MS));
+	const customMs = new Date(customAt).getTime();
+	const expiryErr = selected === CUSTOM ? customExpiryError(customMs, now, maximum) : null;
+	const seconds =
+		selected === CUSTOM ? Math.round((customMs - now) / MS_PER_SECOND) : Math.min(selected, Number(maximum));
 	const [items, setItems] = useState<AccessItem[]>(draft.items);
-	const [tried, setTried] = useState(false);
 	const [nameTaken, setNameTaken] = useState<string | null>(null);
 	const mutation = useMutation(createToken);
 	const owner = data.owners[ownerKey].owner;
 
-	const trimmed = name.trim();
-	const nameErr = nameTaken ?? (tried && trimmed === "" ? "Enter a name" : null);
-	const accessErr = tried && items.length === 0 ? "Add at least one workspace or resource" : null;
+	const nameErr =
+		nameTaken ??
+		(name === ""
+			? null
+			: !TOKEN_NAME_RE.test(name)
+				? "Use at least 2 characters: a–z, 0–9 and dashes."
+				: data.owners[ownerKey].tokens.some((t) => t.name === name)
+					? "A token with this name already exists."
+					: null);
+	const valid = name !== "" && nameErr === null && items.length > 0 && expiryErr === null;
 	const resolved: { node: EntityNode; level: Level }[] = items.flatMap((it) => {
 		const node = data.tree.nodes.get(it.key);
 		return node === undefined ? [] : [{ node, level: it.level }];
@@ -154,20 +179,16 @@ function CreateForm({
 	const createHint = owner.canCreate ? undefined : `You need write access to ${owner.label} to create tokens`;
 
 	const submit = async () => {
-		if (mutation.isPending || owner.id === null) return;
-		if (trimmed === "" || items.length === 0) {
-			setTried(true);
-			return;
-		}
+		if (mutation.isPending || owner.id === null || !valid) return;
 		try {
 			const res = await mutation.mutateAsync({
-				name: trimmed,
+				name,
 				entityType: owner.entityType,
 				entityId: owner.id,
 				scopes: grantsToScopes(resolved),
 				expiresInSec: BigInt(seconds),
 			});
-			onCreated(ownerKey, trimmed, res.token);
+			onCreated(ownerKey, name, res.token);
 		} catch (err) {
 			if (err instanceof ConnectError && err.code === Code.AlreadyExists) {
 				setNameTaken(getErrorMessage(err));
@@ -196,7 +217,7 @@ function CreateForm({
 						aria-invalid={nameErr !== null}
 						className="font-mono"
 						onChange={(e) => {
-							setName(e.target.value);
+							setName(sanitizeTokenName(e.target.value));
 							setNameTaken(null);
 						}}
 					/>
@@ -239,8 +260,12 @@ function CreateForm({
 						variant="segmented"
 						aria-label="Expiry"
 						className="w-max"
-						value={[seconds.toString()]}
+						value={[selected === CUSTOM ? CUSTOM : seconds.toString()]}
 						onValueChange={(v: string[]) => {
+							if (v[0] === CUSTOM) {
+								setSelected(CUSTOM);
+								return;
+							}
 							const next = options.find((d) => d.toString() === v[0]);
 							if (next !== undefined) setSelected(next);
 						}}
@@ -252,8 +277,14 @@ function CreateForm({
 									: pluralize(d, "second")}
 							</ToggleGroupItem>
 						))}
+						<ToggleGroupItem value={CUSTOM}>Custom</ToggleGroupItem>
 					</ToggleGroup>
-					<span className="text-[12.5px] text-fg3">Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND)}</span>
+					{selected === CUSTOM && <DateTimePicker label="Expires at" value={customAt} onChange={setCustomAt} />}
+					{expiryErr === null ? (
+						<span className="text-[12.5px] text-fg3">Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND)}</span>
+					) : (
+						<span className="text-[12.5px] text-bad-fg">{expiryErr}</span>
+					)}
 				</div>
 				<div className="flex flex-col gap-1.5">
 					<span className="text-[13px] font-medium">Permissions</span>
@@ -266,10 +297,8 @@ function CreateForm({
 						resourcesLoading={data.resourcesLoading}
 						resourcesError={data.resourcesError}
 						retryResources={data.retryResources}
-						invalid={accessErr !== null}
 						onChange={setItems}
 					/>
-					{accessErr !== null && <span className="text-[12.5px] text-bad-fg">{accessErr}</span>}
 					<span className="text-[12.5px] text-fg3">You can only grant access you hold yourself.</span>
 					{allows.length > 0 && (
 						<ul className="m-0 mt-1.5 flex list-none flex-col gap-1.5 p-0">
@@ -287,7 +316,7 @@ function CreateForm({
 				<Button type="button" variant="outline" onClick={onCancel}>
 					Cancel
 				</Button>
-				<Button type="submit" disabled={mutation.isPending || !owner.canCreate} title={createHint}>
+				<Button type="submit" disabled={mutation.isPending || !owner.canCreate || !valid} title={createHint}>
 					{mutation.isPending ? "Creating…" : "Create token"}
 				</Button>
 			</SheetFooter>
@@ -317,11 +346,15 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 						With the token in <span className="font-mono">LOCO_TOKEN</span>, this lists the scopes it holds.
 					</span>
 				</div>
-				<p className="m-0 text-[13px] text-fg2">
-					To deploy from CI with a workspace write grant, save the token as <code>LOCO_TOKEN</code> and set{" "}
-					<code>LOCO_HOST</code> to the API URL. Run <code>loco deploy --yes</code> with <code>--org</code>,{" "}
-					<code>--workspace</code> (the workspace ID), and <code>--env</code>.
-				</p>
+				<div className="flex flex-col gap-1.5">
+					<span className="text-[13px] font-medium">Use it from CI</span>
+					<CodeBlock>{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy`}</CodeBlock>
+					<span className="text-[12.5px] text-fg3">
+						Save the token as a CI secret named <code>LOCO_TOKEN</code> and set <code>LOCO_HOST</code> to the API URL.
+						Run <code>loco deploy --yes</code> with <code>--org</code>, <code>--workspace</code> (the workspace ID), and{" "}
+						<code>--env</code>. Deploying needs a workspace write grant.
+					</span>
+				</div>
 			</SheetBody>
 			<SheetFooter>
 				<Button onClick={onDone}>Done</Button>

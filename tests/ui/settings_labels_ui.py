@@ -149,6 +149,16 @@ def check_create_dialogs(page):
             page.get_by_role("dialog", name="New workspace in acme", exact=True).get_by_text("A workspace is a project inside acme.", exact=False).wait_for()
         page.keyboard.press("Escape")
         expect(opener).to_be_focused()
+    page.goto(state["ui_url"] + "/tokens?new=1")
+    drawer = page.get_by_role("dialog", name="New token", exact=True)
+    name = drawer.get_by_role("textbox", name="Name", exact=True)
+    name.fill("CI Deploy")
+    expect(name).to_have_value("ci-deploy")
+    expect(drawer.get_by_role("button", name="Create token", exact=True)).to_be_disabled()
+    drawer.get_by_role("button", name="Custom", exact=True).click()
+    expect(drawer.get_by_role("button", name="Expires at date", exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page).not_to_have_url(re.compile(r"new=1"))
 
 
 with sync_playwright() as playwright:
