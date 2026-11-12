@@ -49,7 +49,11 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
-func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*deploymentv1.Deployment, error) {
+func deploymentToProto(
+	d genDb.Deployment,
+	resourceType genDb.ResourceType,
+	actorName, actorAvatarURL string,
+) (*deploymentv1.Deployment, error) {
 	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
@@ -59,25 +63,27 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
 	}
 	return &deploymentv1.Deployment{
-		Id:            d.ID.String(),
-		ResourceId:    d.ResourceID.String(),
-		EnvironmentId: d.EnvironmentID.String(),
-		ClusterId:     d.ClusterID.String(),
-		Region:        d.Region,
-		Replicas:      d.Replicas,
-		Status:        parseDeploymentPhase(d.Status),
-		IsActive:      d.IsActive,
-		CreatedAt:     timestamppb.New(d.CreatedAt),
-		UpdatedAt:     timestamppb.New(d.UpdatedAt),
-		StartedAt:     timestamppb.New(d.StartedAt),
-		CompletedAt:   optionalTimestamp(d.CompletedAt),
-		SpecVersion:   d.SpecVersion,
-		Message:       d.Message,
-		Spec:          spec,
-		ActorType:     parseDeploymentActorType(d.ActorType),
-		ActorId:       d.ActorID.String(),
-		Method:        parseDeploymentMethod(d.Method),
-		Commit:        commit,
+		Id:             d.ID.String(),
+		ResourceId:     d.ResourceID.String(),
+		EnvironmentId:  d.EnvironmentID.String(),
+		ClusterId:      d.ClusterID.String(),
+		Region:         d.Region,
+		Replicas:       d.Replicas,
+		Status:         parseDeploymentPhase(d.Status),
+		IsActive:       d.IsActive,
+		CreatedAt:      timestamppb.New(d.CreatedAt),
+		UpdatedAt:      timestamppb.New(d.UpdatedAt),
+		StartedAt:      timestamppb.New(d.StartedAt),
+		CompletedAt:    optionalTimestamp(d.CompletedAt),
+		SpecVersion:    d.SpecVersion,
+		Message:        d.Message,
+		Spec:           spec,
+		ActorType:      parseDeploymentActorType(d.ActorType),
+		ActorId:        d.ActorID.String(),
+		ActorName:      actorName,
+		ActorAvatarUrl: actorAvatarURL,
+		Method:         parseDeploymentMethod(d.Method),
+		Commit:         commit,
 	}, nil
 }
 
@@ -351,17 +357,14 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
-	deployment, err := deploymentToProto(deploymentData, resource.Type)
-	if err != nil {
-		return nil, err
-	}
-
 	actor, err := s.queries.GetDeploymentActor(ctx, deploymentID)
 	if err != nil {
 		return nil, fmt.Errorf("get deployment actor: %w", err)
 	}
-	deployment.ActorName = actor.Name
-	deployment.ActorAvatarUrl = actor.AvatarUrl
+	deployment, err := deploymentToProto(deploymentData, resource.Type, actor.Name, actor.AvatarUrl)
+	if err != nil {
+		return nil, err
+	}
 	return &deploymentv1.GetDeploymentResponse{
 		Deployment: deployment,
 	}, nil
@@ -441,12 +444,10 @@ func (s *DeploymentServer) ListDeployments(
 	}
 	var deployments []*deploymentv1.Deployment
 	for _, row := range rows {
-		deployment, err := deploymentToProto(row.Deployment, row.ResourceType)
+		deployment, err := deploymentToProto(row.Deployment, row.ResourceType, row.ActorName, row.ActorAvatarUrl)
 		if err != nil {
 			return nil, err
 		}
-		deployment.ActorName = row.ActorName
-		deployment.ActorAvatarUrl = row.ActorAvatarUrl
 		deployments = append(deployments, deployment)
 	}
 	token := nextPageToken(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {
