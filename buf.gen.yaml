@@ -1,4 +1,6 @@
 version: v2
+inputs:
+  - directory: .
 managed:
   enabled: false
 plugins:

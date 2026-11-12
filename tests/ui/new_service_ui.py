@@ -351,7 +351,10 @@ with sync_playwright() as playwright:
                     interval.fill("15")
                     expect(drawer.get_by_role("alert")).to_have_count(0)
                     creations_before = len(creations)
-                    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+                    with page.expect_response(lambda response: response.url.endswith("/loco.deployment.v1.DeploymentService/ResolveImage")) as resolution:
+                        drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+                    details = resolution.value.json()["details"]
+                    assert [detail["type"] for detail in details] == ["google.rpc.BadRequest", "google.rpc.ErrorInfo"], details
                     expect(drawer.get_by_role("alert")).to_have_text("Container image: Invalid image reference. Use a repository with a tag or digest.")
                     assert len(creations) == creations_before, creations
                     assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"

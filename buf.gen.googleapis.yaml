@@ -1,0 +1,13 @@
+# Inputs apply to all plugins; keep these TS details separate because Go uses genproto.
+version: v2
+inputs:
+  - module: buf.build/googleapis/googleapis
+    paths: [google/rpc/error_details.proto]
+    types: [google.rpc.BadRequest, google.rpc.ErrorInfo]
+plugins:
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: ./gen/ts
+    include_imports: true
+    opt:
+      - target=ts
+      - json_types=true

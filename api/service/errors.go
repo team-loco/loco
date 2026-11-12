@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectproto"
 	"github.com/jackc/pgx/v5/pgconn"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -41,6 +42,24 @@ func withDetail(err *connect.Error, msg proto.Message) *connect.Error {
 		return err
 	}
 	return err.WithDetail(detail)
+}
+
+const (
+	buildErrorDomain               = "loco.build"
+	imageNotFoundReason            = "IMAGE_NOT_FOUND"
+	imageAccessDeniedReason        = "IMAGE_ACCESS_DENIED"
+	imageReferenceInvalidReason    = "IMAGE_REFERENCE_INVALID"
+	imagePlatformUnsupportedReason = "IMAGE_PLATFORM_UNSUPPORTED"
+)
+
+func fieldError(code connect.Code, field, message, reason string) *connect.Error {
+	err := withDetail(connect.NewError(code, message), &errdetails.BadRequest{
+		FieldViolations: []*errdetails.BadRequest_FieldViolation{{Field: field, Description: message}},
+	})
+	if reason != "" {
+		return withDetail(err, &errdetails.ErrorInfo{Reason: reason, Domain: buildErrorDomain})
+	}
+	return err
 }
 
 // Unique constraints whose violation is a client error. Postgres names an inline UNIQUE

@@ -89,7 +89,7 @@ run = "for m in $(git ls-files -- '*go.mod' ':!:gen/**' | xargs -n1 dirname); do
 
 [tasks.gen]
 description = "Generate Go, TypeScript and OpenAPI from the protos, and Go from the SQL queries"
-run = ["buf generate", "cd api && sqlc generate"]
+run = ["buf generate", "buf generate --template buf.gen.googleapis.yaml", "cd api && sqlc generate"]
 
 [tasks."controller:gen"]
 description = "Generate the controller's CRDs, RBAC and deepcopy code, and sync the chart's RBAC copies"

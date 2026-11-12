@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
@@ -159,7 +158,10 @@ func pinPublicImage(
 	ref, err := name.ParseReference(image)
 	if err != nil {
 		invalid := fmt.Errorf("invalid image reference %q: %w", image, err)
-		return nil, imageFieldError("Invalid image reference. Use a repository with a tag or digest.", invalid)
+		return nil, fieldError(
+			connect.CodeInvalidArgument, "image",
+			"Invalid image reference. Use a repository with a tag or digest.", imageReferenceInvalidReason,
+		).WithCause(invalid)
 	}
 
 	repository := ref.Context()
@@ -171,7 +173,8 @@ func pinPublicImage(
 	digest, err := resolver.Resolve(ctx, ref)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to resolve image", "image", image, "error", err)
-		return nil, imageFieldError(imageResolutionMessage(image, err), err)
+		message, reason := imageResolutionFailure(image, err)
+		return nil, fieldError(connect.CodeInvalidArgument, "image", message, reason).WithCause(err)
 	}
 
 	pinned := repository.Name() + "@" + digest
@@ -181,18 +184,11 @@ func pinPublicImage(
 	}, nil
 }
 
-func imageFieldError(message string, cause error) *connect.Error {
-	elements := []*validate.FieldPathElement{{FieldName: new("image")}}
-	return withDetail(connect.NewError(connect.CodeInvalidArgument, message).WithCause(cause), &validate.Violations{
-		Violations: []*validate.Violation{
-			{Field: &validate.FieldPath{Elements: elements}, Message: new(message)},
-		},
-	})
-}
-
-func imageResolutionMessage(image string, err error) string {
+func imageResolutionFailure(image string, err error) (message, reason string) {
 	if errors.Is(err, imageresolver.ErrPlatformUnsupported) {
-		return fmt.Sprintf("Cannot deploy image %q: %s.", image, imageresolver.ErrPlatformUnsupported)
+		return fmt.Sprintf(
+			"Cannot deploy image %q: %s.", image, imageresolver.ErrPlatformUnsupported,
+		), imagePlatformUnsupportedReason
 	}
 	registryErr, ok := errors.AsType[*transport.Error](err)
 	if ok {
@@ -210,11 +206,14 @@ func imageResolutionMessage(image string, err error) string {
 			return fmt.Sprintf(
 				"Access to image %q was denied. It may require registry credentials; only public images are supported.",
 				image,
-			)
+			), imageAccessDeniedReason
 		}
 		if missing {
-			return fmt.Sprintf("Image %q was not found. Check the repository and tag or digest.", image)
+			return fmt.Sprintf(
+				"Image %q was not found. Check the repository and tag or digest.",
+				image,
+			), imageNotFoundReason
 		}
 	}
-	return fmt.Sprintf("Could not resolve image %q. The registry may be unavailable; try again.", image)
+	return fmt.Sprintf("Could not resolve image %q. The registry may be unavailable; try again.", image), ""
 }
