@@ -82,26 +82,22 @@ export function eventsSummary(types: readonly string[]): string {
 
 const RUNTIME_ALERTS: ReadonlySet<string> = new Set(["resource.degraded", "resource.recovered"]);
 
-function isRuntimeAlert(type: string): boolean {
-	return RUNTIME_ALERTS.has(type);
-}
-
-function bySubject(...subjects: string[]): (type: string) => boolean {
-	return (type) => !isRuntimeAlert(type) && subjects.includes(type.slice(0, type.indexOf(".")));
-}
-
-const GROUPS: readonly { label: string; match: (type: string) => boolean }[] = [
-	{ label: "Runtime alerts", match: isRuntimeAlert },
-	{ label: "Deployments", match: bySubject("deployment") },
-	{ label: "Builds", match: bySubject("build") },
-	{ label: "Resources", match: bySubject("resource") },
-	{ label: "Domains", match: bySubject("domain") },
-	{ label: "Environments", match: bySubject("environment") },
-	{ label: "Secrets", match: bySubject("secret") },
-	{ label: "Members", match: bySubject("member") },
-	{ label: "Tokens", match: bySubject("token") },
-	{ label: "Workspace", match: bySubject("workspace", "webhook") },
+const GROUPS: readonly { label: string; subjects: readonly string[] }[] = [
+	{ label: "Runtime alerts", subjects: ["runtime"] },
+	{ label: "Deployments", subjects: ["deployment"] },
+	{ label: "Builds", subjects: ["build"] },
+	{ label: "Resources", subjects: ["resource"] },
+	{ label: "Domains", subjects: ["domain"] },
+	{ label: "Environments", subjects: ["environment"] },
+	{ label: "Secrets", subjects: ["secret"] },
+	{ label: "Members", subjects: ["member"] },
+	{ label: "Tokens", subjects: ["token"] },
+	{ label: "Workspace", subjects: ["workspace", "webhook"] },
 ];
+
+function subjectOf(type: string): string {
+	return RUNTIME_ALERTS.has(type) ? "runtime" : type.slice(0, type.indexOf("."));
+}
 
 interface EventGroup {
 	label: string;
@@ -115,6 +111,6 @@ export function groupCountLabel(selected: number, total: number): string {
 export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES): EventGroup[] {
 	return GROUPS.map((g) => ({
 		label: g.label,
-		types: types.filter(g.match),
+		types: types.filter((t) => g.subjects.includes(subjectOf(t))),
 	})).filter((g) => g.types.length > 0);
 }
