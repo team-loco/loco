@@ -807,6 +807,7 @@ otel-col-deploy:
               - set(cache["cluster"], attributes["upstream_cluster"])
               - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/{{ regexQuoteMeta .Values.global.workspaceNamespacePrefix }}(?P<workspace>[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
               - &setWorkspace set(attributes["loco.workspace.id"], cache["workspace"]) where cache["workspace"] != nil
+              - &setNamespace set(attributes["k8s.namespace.name"], Concat(["{{ .Values.global.workspaceNamespacePrefix }}", cache["workspace"]], "")) where cache["workspace"] != nil
               - &setResource set(attributes["loco.resource.id"], cache["resource"]) where cache["resource"] != nil
         log_statements:
           - context: log
@@ -818,6 +819,7 @@ otel-col-deploy:
               - *parseRoute
               - *setWorkspace
               - *setResource
+              - *setNamespace
         metric_statements:
           - context: datapoint
             statements: *dropRecordTenancy
@@ -828,10 +830,26 @@ otel-col-deploy:
               - *parseRoute
               - *setWorkspace
               - *setResource
+              - *setNamespace
+      k8s_attributes/route_namespace:
+        passthrough: false
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.name
+              - from: resource_attribute
+                name: k8s.namespace.name
+        extract:
+          metadata: []
+          labels:
+            - from: namespace
+              key: loco.io/environment-id
+              tag_name: loco.environment.id
       groupbyattrs/tenancy:
         keys:
           - loco.workspace.id
           - loco.resource.id
+          - k8s.namespace.name
     receivers:
       otlp:
         protocols:
@@ -843,13 +861,13 @@ otel-col-deploy:
       pipelines:
         logs:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, k8s_attributes/route_namespace, resource/region]
         metrics:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, k8s_attributes/route_namespace, resource/region]
         traces:
           receivers: [otlp, jaeger, zipkin]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, k8s_attributes/route_namespace, resource/region]
 
 # @schema skipProperties
 otel-col-cluster:

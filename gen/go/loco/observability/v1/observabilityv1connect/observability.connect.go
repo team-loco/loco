@@ -87,7 +87,7 @@ type ObservabilityProxyServiceClient interface {
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error)
-	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
+	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
@@ -128,7 +128,7 @@ type ObservabilityProxyServiceHandler interface {
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error
-	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
+	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)

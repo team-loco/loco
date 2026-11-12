@@ -15,7 +15,7 @@ service ObservabilityProxyService {
   // TailLogs streams live log entries as they arrive (server-push, polling-based).
   rpc TailLogs(TailLogsRequest) returns (stream TailLogsResponse);
 
-  // QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
+  // Counter rates and histogram quantiles are calculated before combining source streams.
   rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
 
   rpc ListTraces(ListTracesRequest) returns (ListTracesResponse);
@@ -203,15 +203,14 @@ message QueryMetricsRequest {
   // Aggregation window in seconds (e.g., 60 for 1-minute buckets).
   int32 interval_seconds = 6 [(buf.validate.field).int32.gte = 1];
 
-  // Aggregation function ("avg", "sum", "min", "max", "p50", "p95", "p99").
+  // Aggregation function ("avg", "sum", "min", "max", "p50", "p95", "p99", "rate").
   string aggregation = 7 [(buf.validate.field).cel = {
     id: "aggregation.valid_values"
-    message: "aggregation must be one of: avg, sum, min, max, p50, p95, p99"
-    expression: "this in ['avg', 'sum', 'min', 'max', 'p50', 'p95', 'p99']"
+    message: "aggregation must be one of: avg, sum, min, max, p50, p95, p99, rate"
+    expression: "this in ['avg', 'sum', 'min', 'max', 'p50', 'p95', 'p99', 'rate']"
   }];
 
-  // Environment ID to filter by. Empty means every environment. Envoy gateway metrics
-  // carry no environment, so a request that names one leaves them out.
+  // Empty environment selects every environment in the workspace.
   string environment_id = 8 [
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
@@ -220,6 +219,8 @@ message QueryMetricsRequest {
   // Region to filter by, matching the loco.region attribute each cluster's collectors stamp
   // on its telemetry. Empty means every region.
   string region = 9;
+
+  map<string, string> attributes = 10;
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"

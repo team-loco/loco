@@ -3216,7 +3216,7 @@
           "loco.observability.v1.ObservabilityProxyService"
         ],
         "summary": "QueryMetrics",
-        "description": "QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.",
+        "description": "Counter rates and histogram quantiles are calculated before combining source streams.",
         "operationId": "loco.observability.v1.ObservabilityProxyService.QueryMetrics",
         "parameters": [
           {
@@ -11080,18 +11080,26 @@
           "aggregation": {
             "type": "string",
             "title": "aggregation",
-            "description": "Aggregation function (\"avg\", \"sum\", \"min\", \"max\", \"p50\", \"p95\", \"p99\").\naggregation.valid_values // aggregation must be one of: avg, sum, min, max, p50, p95, p99\n"
+            "description": "Aggregation function (\"avg\", \"sum\", \"min\", \"max\", \"p50\", \"p95\", \"p99\", \"rate\").\naggregation.valid_values // aggregation must be one of: avg, sum, min, max, p50, p95, p99, rate\n"
           },
           "environmentId": {
             "type": "string",
             "title": "environment_id",
             "format": "uuid",
-            "description": "Environment ID to filter by. Empty means every environment. Envoy gateway metrics\n carry no environment, so a request that names one leaves them out."
+            "description": "Empty environment selects every environment in the workspace."
           },
           "region": {
             "type": "string",
             "title": "region",
             "description": "Region to filter by, matching the loco.region attribute each cluster's collectors stamp\n on its telemetry. Empty means every region."
+          },
+          "attributes": {
+            "type": "object",
+            "title": "attributes",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
           }
         },
         "title": "QueryMetricsRequest",
