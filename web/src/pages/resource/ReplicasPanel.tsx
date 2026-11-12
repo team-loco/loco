@@ -9,9 +9,10 @@ import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getServiceSpec } from "@/lib/deployment-utils";
+import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
-import { METRIC_RANGES, type MetricRange } from "./metric";
+import { METRIC_RANGES, sharedLimit, type MetricRange } from "./metric";
 import { MetricChart } from "./MetricChart";
 import { isDeployed, type RegionView } from "./model";
 import { replicaLine } from "./replicas";
@@ -97,6 +98,11 @@ export function ReplicasPanel({
 	const region = selected ?? "";
 	const target = { workspaceId, environmentId, resourceId, region, range };
 	const cpu = useMetricBand({ ...target, metricName: CPU_METRIC });
+	const charted = deployed.filter((r) => selected === null || r.name === selected);
+	const specs = charted.map((r) => (r.current === undefined ? undefined : getServiceSpec(r.current)));
+	const cpuLimit = sharedLimit(specs.map((spec) => parseCpuMilli(spec?.cpu ?? "")));
+	const memoryLimit = sharedLimit(specs.map((spec) => parseMemMi(spec?.memory ?? "")));
+	const replicas = charted.reduce((n, r) => n + (r.status?.desiredReplicas ?? 0), 0);
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
 
 	return (
@@ -168,6 +174,9 @@ export function ReplicasPanel({
 					from={cpu.from}
 					to={cpu.to}
 					markers={markers}
+					limit={cpuLimit}
+					format={formatCpu}
+					replicas={replicas}
 				/>
 				<MetricChart
 					title={selected === null ? "Memory" : `Memory · ${selected}`}
@@ -177,6 +186,9 @@ export function ReplicasPanel({
 					from={memory.from}
 					to={memory.to}
 					markers={markers}
+					limit={memoryLimit}
+					format={formatMemory}
+					replicas={replicas}
 				/>
 			</div>
 		</Section>

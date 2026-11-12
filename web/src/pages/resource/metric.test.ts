@@ -4,7 +4,7 @@ import { MetricPointSchema, MetricSeriesSchema } from "@gen/loco/observability/v
 
 import { msToTimestamp } from "@/lib/time";
 
-import { latestBand, mergeBand, percentPoints } from "./metric";
+import { mergeBand, percentPoints, scaleBand, sharedLimit, usageSummary } from "./metric";
 
 const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
 const STAGING_ID = "0199d1c2-0000-7000-8000-000000000003";
@@ -40,6 +40,17 @@ describe("mergeBand", () => {
 			{ time: 1, median: 20, band: [10, 40] },
 			{ time: 2, median: 25, band: null },
 		]);
-		expect(latestBand(band)).toEqual({ min: undefined, median: 25, max: undefined });
+		expect(usageSummary(band)).toEqual({ average: 22.5, highest: 40 });
+		expect(scaleBand(band, 500)).toEqual([
+			{ time: 1, median: 100, band: [50, 200] },
+			{ time: 2, median: 125, band: null },
+		]);
 	});
+});
+
+test("uses absolute units only when every charted region has the same size", () => {
+	expect(sharedLimit([500, 500])).toBe(500);
+	expect(sharedLimit([500, 1000])).toBeUndefined();
+	expect(sharedLimit([500, 0])).toBeUndefined();
+	expect(sharedLimit([])).toBeUndefined();
 });

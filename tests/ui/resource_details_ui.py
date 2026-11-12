@@ -1,6 +1,7 @@
 import argparse
 import atexit
 import contextlib
+import datetime
 import importlib.util
 import io
 import json
@@ -56,6 +57,16 @@ VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','ag
 UPDATE placements SET ready=false,ready_replicas=0,status_phase='Failed',status_message='The pod restarted' WHERE resource_id='{resource}';
 COMMIT;""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
+USAGE = {"min": 0.5, "p50": 0.6, "max": 0.9}
+STAMP = datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()
+
+
+def metrics(route):
+    body = route.request.post_data_json
+    value = USAGE[body["aggregation"]] if "cpu" in body["metricName"] else 0.25
+    route.fulfill(json={"series": [{"resourceId": resource, "points": [{"timestamp": STAMP, "value": value}]}]})
+
+
 results = []
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
@@ -66,6 +77,7 @@ with sync_playwright() as playwright:
                 context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme, permissions=["clipboard-read", "clipboard-write"])
                 auth = {"idToken": owner["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
                 context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
+                context.route("**/loco.observability.v1.ObservabilityProxyService/QueryMetrics", metrics)
                 page = context.new_page()
                 errors = []
                 page.on("pageerror", lambda error: errors.append(str(error)))
@@ -74,6 +86,10 @@ with sync_playwright() as playwright:
                     expect(page.get_by_text("Last warning", exact=True)).to_be_visible()
                     expect(page.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
                     page.screenshot(path=out / f"incident-{case}.png", animations="disabled")
+                    expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
+                    expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
+                    expect(page.get_by_label("Above 85% of the limit")).to_have_count(1)
+                    expect(page.get_by_text("band shows lowest to highest of 1 replica", exact=True).first).to_be_visible()
                     page.get_by_role("button", name=re.compile(r"^Events")).click()
                     runtime_events = page.get_by_role("dialog", name="Events", exact=True)
                     expect(runtime_events.get_by_text("crash looping", exact=True)).to_be_visible()
