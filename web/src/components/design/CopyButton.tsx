@@ -6,7 +6,17 @@ import { Button } from "./Button";
 
 const COPY_KEY = "copy";
 
-export function CopyButton({ text, label = "Copy", name }: { text: string; label?: string; name?: string }) {
+export function CopyButton({
+	text,
+	label = "Copy",
+	name,
+	toastText,
+}: {
+	text: string;
+	label?: string;
+	name?: string;
+	toastText?: string;
+}) {
 	const [copied, copy] = useCopy();
 	return (
 		<Button
@@ -14,7 +24,7 @@ export function CopyButton({ text, label = "Copy", name }: { text: string; label
 			size="sm"
 			aria-label={copied === null ? name : "Copied"}
 			onClick={() => {
-				copy(COPY_KEY, text);
+				copy(COPY_KEY, text, toastText);
 			}}
 		>
 			{copied === null ? <CopyIcon /> : <CheckIcon className="text-ok-fg" />}

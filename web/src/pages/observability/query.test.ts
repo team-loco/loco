@@ -10,6 +10,7 @@ import {
 	buildBackendQuery,
 	durationBounds,
 	parseQuery,
+	pinnedKey,
 	readQuery,
 	recentKey,
 	recentQuery,
@@ -167,11 +168,22 @@ describe("recent queries", () => {
 		]);
 	});
 
-	test("keeps eight and shows five, leaving out the current query", () => {
+	test("keeps eight and shows five, leaving out the current and pinned queries", () => {
 		let list: RecentQuery[] = [];
 		for (let i = 0; i < 10; i++) list = addRecent(list, `q${String(i)}`, i);
 		expect(list.map((r) => r.q)).toEqual(["q9", "q8", "q7", "q6", "q5", "q4", "q3", "q2"]);
-		expect(shownRecent(list, "q8").map((r) => r.q)).toEqual(["q9", "q7", "q6", "q5", "q4"]);
+		expect(shownRecent(list, "q8", []).map((r) => r.q)).toEqual(["q9", "q7", "q6", "q5", "q4"]);
+		expect(shownRecent(list, "q8", ["q9", "q6"]).map((r) => r.q)).toEqual(["q7", "q5", "q4", "q3", "q2"]);
+	});
+
+	test("keeps pinned searches per organization, workspace and view", () => {
+		const keys = [
+			pinnedKey("o1", "w1", "logs"),
+			pinnedKey("o1", "w1", "events"),
+			pinnedKey("o1", "w2", "logs"),
+			pinnedKey("o2", "w1", "logs"),
+		];
+		expect(new Set(keys).size).toBe(keys.length);
 	});
 
 	test("saves only the parts of a query that apply to the view", () => {

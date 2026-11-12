@@ -322,7 +322,7 @@ export function TraceDrawer({
 							<DropdownMenuContent align="end" className="w-[250px]">
 								<DropdownMenuItem
 									onClick={() => {
-										copy("trace", traceId);
+										copy("trace", traceId, "Copied trace ID");
 									}}
 								>
 									<CopyIcon />

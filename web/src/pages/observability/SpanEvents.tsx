@@ -38,7 +38,7 @@ export function SpanEvents({ span }: { span: TraceSpan }) {
 								<div className="mt-2 min-w-0">
 									<div className="flex items-center justify-between gap-2 text-[12px] text-fg3">
 										Stack trace
-										<CopyButton text={stack} name="Copy stack trace" />
+										<CopyButton text={stack} name="Copy stack trace" toastText="Copied stack trace" />
 									</div>
 									<pre className="m-0 max-h-[360px] overflow-auto rounded-sm bg-panel p-2 font-mono text-[12px] whitespace-pre-wrap [overflow-wrap:anywhere]">
 										{stack}

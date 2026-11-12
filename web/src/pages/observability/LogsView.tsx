@@ -25,7 +25,7 @@ import { fmtTs } from "./format";
 import { LogDetail } from "./LogDetail";
 import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
-import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { coversWholeRange, CopyCommand, NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { buildBackendQuery, LEVELS, queryStr, sameToken, type FieldKey, type Level, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
@@ -69,6 +69,7 @@ export function LogsView() {
 		resources,
 		scopedResourceIds,
 		resourceById,
+		maxMs,
 		range,
 		setRange,
 		tokens,
@@ -370,16 +371,27 @@ export function LogsView() {
 	return (
 		<>
 			{header}
-			<QueryBar valueCounts={valueCounts} />
 			{firstRun ? (
 				<ObsHero
 					view="logs"
-					title={anchor === null ? `No logs in the ${windowLabel(range).toLowerCase()}` : "No logs around this time"}
-					body="Anything your resources print to stdout or stderr shows up here, searchable."
-					action={<WidenRangeButton />}
+					title={
+						anchor !== null
+							? "No logs around this time"
+							: coversWholeRange(range, maxMs)
+								? "No logs collected"
+								: `No logs in the ${windowLabel(range).toLowerCase()}`
+					}
+					body="Anything your resources write to stdout or stderr lands here."
+					action={
+						<>
+							<CopyCommand command={`loco resource logs ${resources[0]?.name ?? "<name>"} --follow`} />
+							<WidenRangeButton />
+						</>
+					}
 				/>
 			) : (
 				<>
+					<QueryBar valueCounts={valueCounts} />
 					<section aria-label="Log volume" className="flex flex-col gap-2.5 rounded-card bg-panel px-5 pt-4 pb-3.5">
 						<ToggleGroup
 							multiple

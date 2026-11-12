@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { HistoryIcon, SearchIcon, StarIcon, TagIcon, XIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import {
 	Combobox,
@@ -28,7 +29,7 @@ import {
 	isFieldKey,
 	levelOf,
 	parseQuery,
-	PINNED_KEY,
+	pinnedKey,
 	pinnedQueries,
 	queryStr,
 	recentKey,
@@ -52,18 +53,21 @@ interface Suggestion {
 	hint: string;
 	disabled?: boolean;
 	apply: () => void;
-	remove?: () => void;
+	remove?: { label: string; run: () => void };
 }
 
 interface Group {
 	title: string;
 	items: Suggestion[];
+	clear?: { label: string; run: () => void };
 }
 
 const VALUE_WORD_RE = /^(-?)@(\w+):(.*)$/;
 const KEY_WORD_RE = /^(-?)@(\w*)$/;
 const COMPLETED_TOKEN_RE = /(^|\s)(-?)@(\w+):(\S+)\s$/;
 const MAX_VALUES = 10;
+const MAX_TEXT_VALUES = 3;
+const TEXT_VALUE_KEYS = new Set<FieldKey>(["resource", "level", "region"]);
 const MAX_PINNED = 10;
 const RECENT_SAVE_MS = 1500;
 
@@ -72,13 +76,22 @@ export type ValueCounts = (key: FieldKey) => [string, number][];
 function placeholder(view: string): string {
 	switch (view) {
 		case "logs":
-			return "Search messages, or type @ to filter by resource, level, replica…";
-		case "traces":
-			return "Search root span names, or type @ to filter by resource, status, trace…";
-		case "events":
-			return "Search events, or type @ to filter by resource or type";
+			return "Search messages, or type @ to filter by resource, level, region…";
+		case "metrics":
+			return "Type @resource to filter";
 		default:
-			return "Type @ to filter by resource or region";
+			return "Search, or type @resource to filter";
+	}
+}
+
+function searchLabel(view: string, text: string): string {
+	switch (view) {
+		case "traces":
+			return `Search root span names for “${text}”`;
+		case "events":
+			return `Search events for “${text}”`;
+		default:
+			return `Search messages for “${text}”`;
 	}
 }
 
@@ -94,7 +107,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const [now, setNow] = useState(Date.now);
 	const highlightedRef = useRef<Suggestion | undefined>(undefined);
 	const anchor = useComboboxAnchor();
-	const [pinnedList, updatePinned] = useStoredJSON(PINNED_KEY, pinnedQueries);
+	const [pinnedList, updatePinned] = useStoredJSON(pinnedKey(orgId, workspaceId, view), pinnedQueries);
 	const scope = recentKey(orgId, workspaceId, view);
 	const [recent, updateRecent] = useStoredJSON(scope, recentQueries);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -163,7 +176,29 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		},
 	});
 
-	const visibleRecent = cur.trim() === "" && scope !== null ? shownRecent(recent, recentQuery(view, tokens, text)) : [];
+	const valueItem = (key: FieldKey, v: string, c: number, neg: boolean): Suggestion => {
+		const res = resourceByName.get(v);
+		const icon =
+			key === "level" ? (
+				<span className={cn("size-2 rounded-full", levelStyle(levelOf(v)).dot)} />
+			) : key === "resource" && res !== undefined ? (
+				<Dot size={8} color={res.color} />
+			) : (
+				<TagIcon className="size-3.5" />
+			);
+		return {
+			key: `v:${key}:${v}`,
+			icon,
+			main: `${neg ? "-" : ""}@${key}:${v}`,
+			hint: c > 0 ? formatCount(c) : "",
+			apply: () => {
+				addToken({ neg, key, value: v });
+			},
+		};
+	};
+
+	const visibleRecent =
+		cur.trim() === "" && scope !== null ? shownRecent(recent, recentQuery(view, tokens, text), pinnedList) : [];
 	const groups: Group[] = [];
 	const vm = VALUE_WORD_RE.exec(cur);
 	const km = KEY_WORD_RE.exec(cur);
@@ -179,26 +214,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					.slice(0, MAX_VALUES)
 			: [];
 		const typed: [string, number][] = part !== "" && !vals.some(([v]) => v.toLowerCase() === pref) ? [[part, 0]] : [];
-		const items: Suggestion[] = [...typed, ...vals].map(([v, c]) => {
-			const res = resourceByName.get(v);
-			const icon =
-				vmKey === "level" ? (
-					<span className={cn("size-2 rounded-full", levelStyle(levelOf(v)).dot)} />
-				) : vmKey === "resource" && res !== undefined ? (
-					<Dot size={8} color={res.color} />
-				) : (
-					<TagIcon className="size-3.5" />
-				);
-			return {
-				key: `v:${v}`,
-				icon,
-				main: `${neg ? "-" : ""}@${vmKey}:${v}`,
-				hint: c > 0 ? formatCount(c) : "",
-				apply: () => {
-					addToken({ neg, key: vmKey, value: v });
-				},
-			};
-		});
+		const items = [...typed, ...vals].map(([v, c]) => valueItem(vmKey, v, c, neg));
 		groups.push({ title: `@${vmKey} values`, items });
 	} else if (km) {
 		const neg = km[1] === "-";
@@ -216,8 +232,11 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					apply: () => {
 						loadQuery(q);
 					},
-					remove: () => {
-						updatePinned((list) => list.filter((x) => x !== q));
+					remove: {
+						label: `Unpin ${q}`,
+						run: () => {
+							updatePinned((list) => list.filter((x) => x !== q));
+						},
 					},
 				})),
 			});
@@ -225,6 +244,12 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		if (visibleRecent.length > 0) {
 			groups.push({
 				title: "Recent",
+				clear: {
+					label: "Clear recent searches",
+					run: () => {
+						updateRecent(() => null);
+					},
+				},
 				items: visibleRecent.map((r) => ({
 					key: `r:${r.q}`,
 					icon: <HistoryIcon className="size-3.5" />,
@@ -232,6 +257,12 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					hint: agoShort(r.ts, now),
 					apply: () => {
 						loadQuery(r.q);
+					},
+					remove: {
+						label: `Remove ${r.q}`,
+						run: () => {
+							updateRecent((list) => list.filter((x) => x.q !== r.q));
+						},
 					},
 				})),
 			});
@@ -245,13 +276,23 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					{
 						key: "search",
 						icon: <SearchIcon className="size-3.5" />,
-						main: `“${text.trim()}”`,
+						main: searchLabel(view, text.trim()),
 						hint: "enter",
 						apply: commit,
 					},
 				],
 			});
 		}
+		const word = cur.toLowerCase();
+		const values = fields
+			.filter((f) => TEXT_VALUE_KEYS.has(f.key) && f.views.includes(view))
+			.flatMap((f) =>
+				valueCounts(f.key)
+					.filter(([v]) => v.toLowerCase().includes(word))
+					.slice(0, MAX_TEXT_VALUES)
+					.map(([v, c]) => valueItem(f.key, v, c, false)),
+			);
+		if (values.length > 0) groups.push({ title: "Values", items: values });
 		const ks = fields.filter((f) => f.key.startsWith(cur.toLowerCase()));
 		if (ks.length > 0) groups.push({ title: "Attributes", items: ks.map((f) => keyItem(f, false)) });
 	}
@@ -368,22 +409,24 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 							Clear
 						</Button>
 					)}
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						aria-label={pinned ? "Unpin search" : "Pin search"}
-						title={pinned ? "Unpin search" : "Pin search"}
-						disabled={curQuery === ""}
-						onClick={(e) => {
-							e.stopPropagation();
-							updatePinned((list) =>
-								pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
-							);
-						}}
-						className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
-					>
-						<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
-					</Button>
+					{curQuery !== "" && (
+						<Button
+							variant="ghost"
+							size="icon-xs"
+							aria-label={pinned ? "Unpin search" : "Pin search"}
+							title={pinned ? "Unpin search" : "Pin search"}
+							onClick={(e) => {
+								e.stopPropagation();
+								updatePinned((list) =>
+									pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
+								);
+								toast.success(pinned ? "Unpinned" : "Pinned");
+							}}
+							className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
+						>
+							<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
+						</Button>
+					)}
 				</div>
 				<ComboboxContent
 					anchor={anchor}
@@ -397,9 +440,22 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 									key={g.title}
 									className={cn("flex flex-col", gi > 0 && "mt-1 border-t border-line pt-1")}
 								>
-									<ComboboxLabel className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">
-										{g.title}
-									</ComboboxLabel>
+									<div className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">
+										<ComboboxLabel className="p-0 text-[11.5px] text-fg3">{g.title}</ComboboxLabel>
+										{g.clear !== undefined && (
+											<Button
+												variant="link"
+												aria-label={g.clear.label}
+												className="h-auto p-0 text-[11.5px] text-fg3"
+												onClick={() => {
+													g.clear?.run();
+													focusInput();
+												}}
+											>
+												Clear
+											</Button>
+										)}
+									</div>
 									{g.items.map((s) => (
 										<ComboboxItem key={s.key} value={s} disabled={s.disabled}>
 											<span className="flex text-fg3">{s.icon}</span>
@@ -410,10 +466,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 												<Button
 													variant="ghost"
 													size="icon-xs"
-													aria-label={`Unpin ${s.main}`}
+													aria-label={s.remove.label}
 													onClick={(e) => {
 														e.stopPropagation();
-														s.remove?.();
+														s.remove?.run();
 														focusInput();
 													}}
 													className="size-[22px] text-fg4 hover:text-foreground"
@@ -429,18 +485,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					</ComboboxList>
 					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
 						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix
-						{visibleRecent.length > 0 && (
-							<Button
-								variant="link"
-								className="ml-auto h-auto p-0 text-[11.5px] text-fg3"
-								onClick={() => {
-									updateRecent(() => null);
-									focusInput();
-								}}
-							>
-								Clear recent searches
-							</Button>
-						)}
 					</div>
 				</ComboboxContent>
 			</div>
