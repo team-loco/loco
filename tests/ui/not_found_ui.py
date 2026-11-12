@@ -228,6 +228,9 @@ with sync_playwright() as playwright:
             page.goto(base)
             expect(page).to_have_url(base)
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+            page.get_by_role("button", name=re.compile(re.escape(state["users"]["member"]["email"]))).click()
+            page.get_by_role("menuitem", name="Sign out", exact=True).click()
+            expect(page).to_have_url(ui + "/")
             assert not errors, errors
             cases.append("member")
         except BaseException:
