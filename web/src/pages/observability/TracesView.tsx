@@ -150,6 +150,7 @@ function TraceSession() {
 					onClick={() => {
 						setFrozenEnd(Date.now());
 						setParam("page", null, true);
+						if (detail.isEnabled) void detail.refetch();
 					}}
 				>
 					<RefreshCwIcon className={cn(browse.isFetching && "animate-spin motion-reduce:animate-none")} />

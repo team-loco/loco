@@ -25,7 +25,6 @@ export function getTraceQueryOptions(transport: Transport, options: GetTraceOpti
 		queryFn: async ({ signal }: { signal: AbortSignal }) =>
 			await createClient(ObservabilityProxyService, transport).getTrace(input, { signal }),
 		enabled: enabled && options.workspaceId !== "" && options.environmentId !== "" && traceId !== "",
-		staleTime: Infinity,
 	};
 }
 
