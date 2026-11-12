@@ -46,7 +46,7 @@ func TestAdmissionExemptsControlPlane(t *testing.T) {
 	d := &deps{
 		admission: limiter,
 		auth:      service.NewAuthServer(pool, queries, nil, backend, auth.Admins{}, "https://dashboard.test"),
-		config:    service.NewConfigServer("", "", servicedefaults.Defaults{}, nil, nil),
+		config:    service.NewConfigServer("", "", servicedefaults.Defaults{}, nil, nil, defaultAPITokenMaxLifetime),
 		agent:     service.NewAgentServer(pool, queries, nil, nil, nil, time.Second, service.AgentConfig{}),
 		ingest: service.NewIngestServer(
 			queries,

@@ -9,6 +9,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/admission"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -37,6 +38,10 @@ func (s *ResourceServer) RestartResource(
 	if res.Type != genDb.ResourceTypeService {
 		return nil, errOnlyServiceResources
 	}
+	if admitErr := admission.AdmitWork(ctx, res.WorkspaceID, admission.Deploy); admitErr != nil {
+		return nil, admitErr
+	}
+
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrEnvironmentNotFound

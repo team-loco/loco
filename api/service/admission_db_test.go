@@ -24,6 +24,7 @@ import (
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
@@ -276,5 +277,101 @@ func TestRequestAdmissionChargesOnceAcrossAuthorizationDecisions(t *testing.T) {
 		if err := authorize(ctx, authz.New(f.pool, f.queries), actions.ListResources, f.workspaceID(t)); err != nil {
 			t.Fatalf("pure authorization: %v", err)
 		}
+	}
+}
+
+func TestRestartResourceConsumesDeployAdmission(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	limiter := admission.New(f.pool, nil, admission.Config{Window: time.Hour, GlobalDeploys: 1})
+	ctx := limiter.Context(reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []db.EntityScope{
+		actions.New(actions.RestartResource, f.resourceID),
+	}}))
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	req := &resourcev1.RestartResourceRequest{ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String()}
+	if _, err := server.RestartResource(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	key := db.GetPlacementForResourceClusterParams{ResourceID: f.resourceID, ClusterID: f.clusterID}
+	before, err := f.queries.GetPlacementForResourceCluster(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, restartErr := server.RestartResource(ctx, req); connect.CodeOf(restartErr) != connect.CodeResourceExhausted {
+		t.Fatalf("second restart: %v", restartErr)
+	}
+	after, err := f.queries.GetPlacementForResourceCluster(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.DesiredRevision != before.DesiredRevision {
+		t.Fatal("rejected restart changed placement revision")
+	}
+	for _, deployment := range f.activeDeployments(t, f.envID) {
+		if deployment.Status != db.DeploymentStatusRunning {
+			t.Fatalf("rejected restart changed deployment status: %s", deployment.Status)
+		}
+	}
+	if events := f.count(
+		t,
+		"SELECT count(*) FROM events WHERE subject_id = $1 AND type = 'resource.restarted'",
+	); events != 1 {
+		t.Fatalf("restart events: %d", events)
+	}
+}
+
+func TestResolveImageUsesOnlyRequestAdmission(t *testing.T) {
+	f := newDeployFixture(t)
+	backend, err := cache.NewMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backend.Close()
+	limiter := admission.New(
+		f.pool,
+		backend,
+		admission.Config{Window: time.Hour, WorkspaceRequests: 1, GlobalDeploys: 1},
+	)
+	if err := admission.AdmitWork(limiter.Context(t.Context()), f.workspaceID(t), admission.Deploy); err != nil {
+		t.Fatal(err)
+	}
+	p := reqctx.Principal{Scopes: []db.EntityScope{actions.New(actions.CreateResource, f.workspaceID(t))}}
+	authenticate := func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			return next(reqctx.WithPrincipal(ctx, p), spec, stream)
+		}
+	}
+	resolver := &fakeResolver{digest: testDigest}
+	service := NewDeploymentServer(
+		f.pool,
+		f.queries,
+		resolver,
+		testRegistryHost,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		testMaxPlacementBytes,
+	)
+	rpc := connect.NewServer(authenticate, limiter.Interceptor())
+	deploymentv1connect.RegisterDeploymentServiceHandler(rpc, service)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, rpc)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := deploymentv1connect.NewDeploymentServiceClient(
+		connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)),
+	)
+	req := &deploymentv1.ResolveImageRequest{WorkspaceId: f.workspaceID(t).String(), Image: testPublicImage}
+	if _, err := client.ResolveImage(t.Context(), req); err != nil {
+		t.Fatalf("preview consumed deploy admission: %v", err)
+	}
+	if _, err := client.ResolveImage(t.Context(), req); connect.CodeOf(err) != connect.CodeResourceExhausted {
+		t.Fatalf("preview escaped request admission: %v", err)
+	}
+	if len(resolver.calls) != 1 {
+		t.Fatalf("resolved images: %v", resolver.calls)
 	}
 }
