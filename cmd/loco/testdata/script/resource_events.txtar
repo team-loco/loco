@@ -1,0 +1,37 @@
+fakeapi seed app
+
+exec loco resource events app --output json
+stdout 'event-5'
+stdout 'event-1'
+fakeapi event-page-sizes '[0 0 0]'
+
+exec loco resource events app --output json --limit 3
+stdout 'event-5'
+stdout 'event-3'
+! stdout 'event-2'
+fakeapi event-page-sizes '[0 0 0 0 0]'
+
+exec loco resource events app --output json --limit 1
+stdout 'event-5'
+! stdout 'event-4'
+fakeapi event-page-sizes '[0 0 0 0 0 0]'
+
+exec loco resource events app --output json --limit 1001
+stdout 'event-1'
+fakeapi event-page-sizes '[0 0 0 0 0 0 0 0 0]'
+
+! exec loco resource events app --limit -1
+stderr '(?i)limit must be nonnegative'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"

@@ -70,16 +70,12 @@ Examples:
 				OrgId:       workspace.GetWorkspace().GetOrgId(),
 				WorkspaceId: t.WorkspaceID,
 				ResourceId:  resource.GetId(),
-				PageSize:    500,
 			}
 			if limit < 0 {
 				return errInvalidEventLimit
 			}
 			var items []*eventv1.Event
 			for {
-				if limit > 0 {
-					request.PageSize = min(500, limit-int32(len(items)))
-				}
 				response, err := t.Clients.Event.ListEvents(ctx, request)
 				if err != nil {
 					return fmt.Errorf("failed to fetch events: %w", err)
@@ -89,6 +85,10 @@ Examples:
 					break
 				}
 				request.BeforeSeq = response.GetNextBeforeSeq()
+			}
+
+			if limit > 0 && len(items) > int(limit) {
+				items = items[:limit]
 			}
 
 			if output == outputJSON {

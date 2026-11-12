@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"slices"
 	"strconv"
 	"time"
@@ -18,6 +19,14 @@ const waitTimeout = 15 * time.Second
 
 func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
 	switch args[0] {
+	case "event-page-sizes":
+		requireArgs(ts, neg, args, 2, "fakeapi event-page-sizes <sizes>")
+		api.mu.Lock()
+		got := fmt.Sprint(api.platform.eventPageSizes)
+		api.mu.Unlock()
+		if got != args[1] {
+			ts.Fatalf("event page sizes = %s, want %s", got, args[1])
+		}
 	case "build-outcome":
 		requireArgs(ts, neg, args, 2, "fakeapi build-outcome <succeeded|failed|running>")
 		api.mu.Lock()

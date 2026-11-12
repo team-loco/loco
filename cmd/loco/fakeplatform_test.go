@@ -25,6 +25,8 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
+	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
+	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -79,6 +81,7 @@ type fakePlatform struct {
 	buildsUnavailable string
 	uploads           map[string]fakeUpload
 	logQueries        []*observabilityv1.QueryLogsRequest
+	eventPageSizes    []int32
 	plan              *planv1.PlanResponse
 	planned           [][]byte
 	applies           []*planv1.ApplyRequest
@@ -111,6 +114,7 @@ func newFakePlatform() *fakePlatform {
 
 func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	server := connect.NewServer()
+	eventv1connect.RegisterEventServiceHandler(server, &fakeEventService{api: f})
 	resourcev1connect.RegisterResourceServiceHandler(server, &fakeResourceService{api: f})
 	domainv1connect.RegisterDomainServiceHandler(server, &fakeDomainService{api: f})
 	environmentv1connect.RegisterEnvironmentServiceHandler(server, &fakeEnvironmentService{api: f})
@@ -682,4 +686,35 @@ func (s *fakeProxyService) TailLogs(
 	}
 	<-ctx.Done()
 	return nil
+}
+
+type fakeEventService struct {
+	eventv1connect.UnimplementedEventServiceHandler
+	api *fakeAPI
+}
+
+func (s *fakeEventService) ListEvents(
+	_ context.Context,
+	req *eventv1.ListEventsRequest,
+) (*eventv1.ListEventsResponse, error) {
+	s.api.mu.Lock()
+	defer s.api.mu.Unlock()
+	s.api.platform.eventPageSizes = append(s.api.platform.eventPageSizes, req.GetPageSize())
+	before := int64(6)
+	if req.GetBeforeSeq() > 0 {
+		before = req.GetBeforeSeq()
+	}
+	size := 2
+	if req.GetPageSize() > 0 {
+		size = min(size, int(req.GetPageSize()))
+	}
+	var events []*eventv1.Event
+	for seq := before - 1; seq > 0 && len(events) < size; seq-- {
+		events = append(events, &eventv1.Event{Seq: seq, Type: fmt.Sprintf("event-%d", seq)})
+	}
+	next := int64(0)
+	if last := events[len(events)-1].GetSeq(); last > 1 {
+		next = last
+	}
+	return &eventv1.ListEventsResponse{Events: events, NextBeforeSeq: next}, nil
 }
