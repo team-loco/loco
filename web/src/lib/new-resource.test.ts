@@ -5,12 +5,15 @@ import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details
 import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
 import { PlatformDomainSchema } from "@gen/loco/domain/v1/domain_pb";
 
+import { draftSizing, parseDrafts } from "./drafts";
+
 import {
 	apiFieldError,
 	deploymentVariables,
 	envError,
 	firstError,
 	healthCheckSpec,
+	scalingSpec,
 	healthSummary,
 	imageError,
 	looksSecret,
@@ -32,6 +35,8 @@ const form: NewResourceForm = {
 	cpu: "250m",
 	memory: "512Mi",
 	replicas: 2,
+	maxReplicas: 2,
+	cpuTarget: 70,
 	isPublic: true,
 	subdomain: "web",
 	platformDomain: "example.com",
@@ -89,7 +94,7 @@ test("mergeEnv replaces pasted keys in place, appends new ones and drops blank r
 });
 
 test("validateForm accepts a complete form", () => {
-	expect(firstError(validateForm(form, "available"))).toBeNull();
+	expect(firstError(validateForm(form, "available", 10))).toBeNull();
 });
 
 test("nameError follows the API's name rules", () => {
@@ -104,18 +109,18 @@ test("nameError follows the API's name rules", () => {
 
 test("validateForm leaves port and health check numbers to the API", () => {
 	const loose = { ...form, port: "", health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
-	expect(firstError(validateForm(loose, "available"))).toBeNull();
+	expect(firstError(validateForm(loose, "available", 10))).toBeNull();
 });
 
 test("firstError reports the first blocking field in form order", () => {
-	const errors = validateForm({ ...form, regions: [], subdomain: "Bad_Sub", vars: [row("KEY", "")] }, "empty");
+	const errors = validateForm({ ...form, regions: [], subdomain: "Bad_Sub", vars: [row("KEY", "")] }, "empty", 10);
 	expect([errors.regions, errors.subdomain, errors.env].every((e) => e !== null)).toBe(true);
 	expect(firstError(errors)).toBe("Choose at least one region");
-	expect(validateForm({ ...form, platformDomain: "" }, "empty").subdomain).toBe(
+	expect(validateForm({ ...form, platformDomain: "" }, "empty", 10).subdomain).toBe(
 		"No platform domain is served in every selected region",
 	);
-	expect(validateForm(form, "taken").subdomain).toBe("web.example.com is taken");
-	expect(validateForm({ ...form, isPublic: false, platformDomain: "" }, "taken").subdomain).toBeNull();
+	expect(validateForm(form, "taken", 10).subdomain).toBe("web.example.com is taken");
+	expect(validateForm({ ...form, isPublic: false, platformDomain: "" }, "taken", 10).subdomain).toBeNull();
 });
 
 test("healthCheckSpec sends the fields the user set, or no check without a path", () => {
@@ -248,4 +253,55 @@ test("apiFieldError maps nested BadRequest fields with the same names as validat
 		},
 	]);
 	expect(apiFieldError(err)).toEqual({ field: "interval", message: "Must be positive" });
+});
+
+test("form scaling sends fixed replicas or CPU autoscaling", () => {
+	expect(scalingSpec(form)).toEqual({
+		minReplicas: 2,
+		maxReplicas: 2,
+		scalers: { enabled: false },
+	});
+	const autoscaled = { ...form, maxReplicas: 5 };
+	expect(firstError(validateForm(autoscaled, "available", 10))).toBeNull();
+	expect(scalingSpec(autoscaled)).toEqual({
+		minReplicas: 2,
+		maxReplicas: 5,
+		scalers: { enabled: true, cpuTarget: 70 },
+	});
+	const yaml = Bun.YAML.parse(locoYaml({ schemaUrl: "", form: autoscaled }));
+	expect(yaml).toMatchObject({
+		services: { web: { regions: { "us-east-1": { replicas: { min: 2, max: 5 }, autoscaling: { cpuTarget: 70 } } } } },
+	});
+	for (const patch of [{ replicas: 0 }, { maxReplicas: 1 }, { cpuTarget: 0 }, { cpuTarget: 101 }, { cpuTarget: 1.5 }]) {
+		expect(validateForm({ ...autoscaled, ...patch }, "available", 10).scaling).not.toBeNull();
+	}
+});
+
+test("saved autoscaling drafts reload and serialize the same targets", () => {
+	const saved = [
+		{
+			id: "saved",
+			name: "web",
+			image: form.image,
+			createdMs: 1,
+			edits: { replicas: 1, maxReplicas: 3, cpuTarget: 65 },
+		},
+	];
+	const [draft] = parseDrafts(JSON.parse(JSON.stringify(saved)));
+	if (draft === undefined) throw new Error("draft missing");
+	const loaded = {
+		...form,
+		...draftSizing(draft, { cpu: form.cpu, memory: form.memory, minReplicas: 1, cpuTarget: form.cpuTarget }),
+	};
+	expect(firstError(validateForm(loaded, "available", 10))).toBeNull();
+	expect(scalingSpec(loaded)).toMatchObject({
+		minReplicas: 1,
+		maxReplicas: 3,
+		scalers: { enabled: true, cpuTarget: 65 },
+	});
+});
+
+test("draft validation follows the replica limit returned by the API", () => {
+	expect(validateForm({ ...form, maxReplicas: 4 }, "available", 3).scaling).toBe("Use at most 3 replicas per region");
+	expect(validateForm({ ...form, maxReplicas: 4 }, "available", 4).scaling).toBeNull();
 });

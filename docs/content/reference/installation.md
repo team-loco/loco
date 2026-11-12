@@ -49,6 +49,8 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
 | `workers[].builds.enabled` | Whether this worker runs source builds |
 | `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
+| `workers[].metricsServer.enabled` | `false` uses an existing `metrics.k8s.io` provider instead of installing metrics-server |
+| `workers[].metricsServer.kubeletInsecureTLS` | `true` skips kubelet certificate verification for clusters without CA-signed kubelet serving certificates |
 | `workers[].certificates.issuerRef` | Existing issuer's `name` and `kind` |
 
 URLs use HTTP or HTTPS and contain no user information, query string or fragment. Use HTTPS for public services. HTTP permits isolated local fixtures. Domains contain lowercase DNS labels. Input Secret names resolve in the control-plane context and namespace; certificate issuer references resolve at their declared target.

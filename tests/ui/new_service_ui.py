@@ -41,6 +41,7 @@ VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'
 ('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}');""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = evidence.psql(state["container"], f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';")
+replica_limit = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]["maxReplicas"]
 drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
 DRAFT_URL = re.compile(r"/resources\?env=production&draft=[0-9a-f-]+$")
 
@@ -92,6 +93,24 @@ with sync_playwright() as playwright:
         except BaseException:
             page.screenshot(path=out / "failure-member.png", animations="disabled")
             raise
+        finally:
+            context.close()
+
+        loading = seeded_draft("loading-draft", "registry.example.com/acme/loading:1")
+        context, page, errors = open_page(browser, "owner", drafts=[loading])
+        pending_config = []
+        context.route("**/loco.config.v1.ConfigService/GetConfig", lambda route: pending_config.append(route), times=1)
+        try:
+            with page.expect_request("**/loco.config.v1.ConfigService/GetConfig"):
+                page.goto(base + f"/resources?env=production&draft={loading['id']}")
+            drawer = page.get_by_role("dialog", name="loading-draft", exact=True)
+            expect(page.get_by_role("status")).to_be_visible()
+            expect(drawer.get_by_role("group", name="Minimum replicas", exact=True)).to_have_count(0)
+            expect(drawer.get_by_text("Use at most 0 replicas per region", exact=True)).to_have_count(0)
+            for route in pending_config:
+                route.continue_()
+            expect(drawer.get_by_role("group", name="Minimum replicas", exact=True)).to_be_visible()
+            assert not errors, errors
         finally:
             context.close()
 
@@ -205,10 +224,19 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_text("Use at most 63 characters", exact=True)).to_be_visible()
                 subdomain.fill(name)
                 expect(drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)).to_be_visible()
-                expect(drawer.get_by_role("switch", name="Autoscaling")).to_be_disabled()
-                expect(drawer.get_by_role("button", name="Decrease replicas per region", exact=True)).to_have_count(1)
-                drawer.get_by_role("button", name="Increase replicas per region", exact=True).click()
-                expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+                expect(drawer.get_by_role("button", name="Decrease minimum replicas", exact=True)).to_be_disabled()
+                drawer.get_by_role("button", name="Increase minimum replicas", exact=True).click()
+                if theme == "dark":
+                    drawer.get_by_role("button", name="Increase maximum replicas", exact=True).click()
+                    expect(drawer.get_by_text("Scales per region based on CPU utilization.", exact=True)).to_be_visible()
+                    expect(drawer.get_by_role("group", name="CPU target (%)", exact=True)).to_contain_text("70")
+                    for _ in range(replica_limit - 3):
+                        drawer.get_by_role("button", name="Increase maximum replicas", exact=True).click()
+                    expect(drawer.get_by_role("button", name="Increase maximum replicas", exact=True)).to_be_disabled()
+                    for _ in range(replica_limit - 3):
+                        drawer.get_by_role("button", name="Decrease maximum replicas", exact=True).click()
+                else:
+                    expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
                 cpu = drawer.get_by_role("slider", name="CPU", exact=True)
                 memory = drawer.get_by_role("slider", name="Memory", exact=True)
                 expect(cpu).to_have_attribute("max", "4")
@@ -319,7 +347,7 @@ with sync_playwright() as playwright:
                 expect(page).to_have_url(DRAFT_URL)
                 expect(secret_switch).to_be_checked()
                 expect(secret_value).to_have_value("")
-                expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+                expect(drawer.get_by_text("Scales per region based on CPU utilization." if theme == "dark" else "Runs exactly 2 per region.", exact=True)).to_be_visible()
                 expect(memory).to_have_attribute("aria-valuetext", "1 GiB")
                 expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
                 expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value("info")
@@ -421,7 +449,8 @@ with sync_playwright() as playwright:
                 assert [(d["resourceId"], d["region"]) for d in deployments] == [(resource, "us-east-1")], deployments
                 spec = deployments[0]["spec"]["service"]
                 assert spec["build"]["image"] == pinned_image, spec
-                assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
+                assert spec["minReplicas"] == 2 and spec["maxReplicas"] == (3 if theme == "dark" else 2), spec
+                assert spec["scalers"] == ({"enabled": True, "cpuTarget": 70} if theme == "dark" else {}), spec
                 assert spec["cpu"] == "500m" and spec["memory"] == "1Gi", spec
                 assert spec["env"] == {"LOG_LEVEL": "info"}, spec
                 assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}

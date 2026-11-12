@@ -23,6 +23,7 @@ retry() {
 
 retry helm repo add altinity https://helm.altinity.com
 retry helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-retry helm repo update altinity open-telemetry
+retry helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+retry helm repo update altinity open-telemetry metrics-server
 retry helm dependency build --skip-refresh ./charts/loco-worker
 retry helm dependency build --skip-refresh ./charts/loco-control-plane

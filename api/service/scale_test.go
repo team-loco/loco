@@ -34,8 +34,8 @@ func TestApplyScaleSetsTheReplicasTheControllerReads(t *testing.T) {
 	lower := int32(2)
 	spec = scaledSpec(1, 5)
 	applyScale(&resourcev1.ScaleResourceRequest{Replicas: &lower}, spec, 1)
-	if spec.GetMinReplicas() != lower || spec.GetMaxReplicas() != 5 {
-		t.Errorf("spec replicas %d-%d, want %d-5", spec.GetMinReplicas(), spec.GetMaxReplicas(), lower)
+	if spec.GetMinReplicas() != lower || spec.GetMaxReplicas() != lower {
+		t.Errorf("spec replicas %d-%d, want %d-%d", spec.GetMinReplicas(), spec.GetMaxReplicas(), lower, lower)
 	}
 }
 
@@ -77,5 +77,23 @@ func TestScaleResourceRequestNeedsAnEnvironment(t *testing.T) {
 	}
 	if err := protovalidate.Validate(valid); err != nil {
 		t.Fatalf("a request naming an environment failed validation: %v", err)
+	}
+}
+
+func TestManualScaleDisablesAutoscaling(t *testing.T) {
+	spec := scaledSpec(1, 5)
+	spec.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
+	cpu := "500m"
+	applyScale(&resourcev1.ScaleResourceRequest{Cpu: &cpu}, spec, 3)
+	if !spec.GetScalers().GetEnabled() {
+		t.Fatal("CPU-only change disabled autoscaling")
+	}
+	request := &resourcev1.ScaleResourceRequest{Replicas: new(int32(3))}
+	if !scaleChangesDeployment(request, spec, 3) {
+		t.Fatal("fixed scale at the live count must disable autoscaling")
+	}
+	applyScale(request, spec, 3)
+	if spec.GetScalers().GetEnabled() || spec.GetMinReplicas() != 3 || spec.GetMaxReplicas() != 3 {
+		t.Fatalf("fixed scale = %v", spec)
 	}
 }

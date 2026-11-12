@@ -85,7 +85,8 @@ func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
 		},
 		Workers: []Worker{
 			{
-				Name: testStaging,
+				MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+				Name:          testStaging,
 				Kubernetes: KubernetesTarget{
 					ClusterUID: testClusterUID,
 					Context:    testFixture,

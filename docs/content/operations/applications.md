@@ -13,7 +13,7 @@ loco resource events --help
 
 ## Scale
 
-`loco resource scale` changes a service's replicas, CPU or memory in one environment and rolls out a new deployment in each region the service runs in there. `--env` or `LOCO_ENV` selects the environment; a workspace with a single environment uses it, and a workspace with several fails without one. Other environments keep their deployments. The dashboard's Settings tab scales the environment selected in the breadcrumb.
+`loco resource scale` changes a service's replicas, CPU or memory in one environment and rolls out a new deployment in each region the service runs in there. `--env` or `LOCO_ENV` selects the environment; a workspace with a single environment uses it, and a workspace with several fails without one. Other environments keep their deployments. `--replicas` sets a fixed replica count and disables autoscaling; changing only CPU or memory preserves autoscaling. Configure autoscaling per region in [loco.yaml](../deployment/loco-yaml.md). The dashboard's Settings tab scales the environment selected in the breadcrumb.
 
 ```sh
 loco resource scale web --env production --replicas 3

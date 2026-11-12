@@ -97,6 +97,9 @@ func controlPlaneValues(config Config, manifest Manifest, completed bool) ([]byt
 }
 
 var workerTemplate = template.Must(template.New("worker").Funcs(valuesFunctions).Parse(`
+metrics-server:
+  enabled: {{.Worker.MetricsServer.Enabled}}
+  args: {{if .Worker.MetricsServer.KubeletInsecureTLS}}["--kubelet-insecure-tls"]{{else}}[]{{end}}
 agent:
   image: {{with image .Manifest "agent"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
   joinToken: {existingSecret: loco-worker-enrollment}

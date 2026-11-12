@@ -344,16 +344,19 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 	}
 }
 
-func TestCreateDeploymentRejectsEnabledAutoscaling(t *testing.T) {
+func TestCreateDeploymentAcceptsEnabledAutoscaling(t *testing.T) {
 	f := newDeployFixture(t)
 	service := imageService()
+	service.MinReplicas = new(int32(1))
+	service.MaxReplicas = new(int32(3))
 	service.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
 	_, err := createDeploymentWith(t, f, sameRegionSpec, service)
-	wantCode(t, err, connect.CodeInvalidArgument)
-	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
-		t.Fatalf("created %d deployments despite unsupported autoscaling", n)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if n := f.count(t, `SELECT count(*) FROM placements WHERE resource_id = $1`); n != 0 {
-		t.Fatalf("created %d placements despite unsupported autoscaling", n)
+	resources := desiredPayload(t, f).AppSpec.ServiceSpec.Resources
+	if !resources.Scalers.Enabled || resources.Scalers.CPUTarget != 70 || resources.Replicas.Min != 1 ||
+		resources.Replicas.Max != 3 {
+		t.Fatalf("CRD resources = %+v", resources)
 	}
 }

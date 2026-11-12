@@ -55,6 +55,7 @@ done < <(git ls-files '.github/workflows/*.yml')
 
 pinned charts/loco-control-plane/values.yaml "$(yq '.openbao.image' charts/loco-control-plane/values.yaml)"
 pinned charts/loco-control-plane/values.yaml "$(yq '.openbao.curlImage' charts/loco-control-plane/values.yaml)"
+pinned charts/loco-worker/values.yaml "$(yq ' .["metrics-server"].image | .repository + ":" + .tag' charts/loco-worker/values.yaml)"
 check golang "$(yq -p toml -oy '.tools.go' mise.toml)"
 check oven/bun "$(yq -p toml -oy '.tools.bun' mise.toml)"
 check ghcr.io/astral-sh/uv "$(yq -p toml -oy '.tools.uv' mise.toml)"

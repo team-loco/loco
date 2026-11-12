@@ -6,8 +6,7 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { StepSlider } from "@/components/design/StepSlider";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
-import { SoonTag } from "@/components/design/SoonTag";
-import { Stepper } from "@/components/design/Stepper";
+import { ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, splitImage } from "@/lib/image";
 import type { SizeOptions } from "@/lib/sizing";
@@ -109,6 +108,7 @@ export function ImageSection({ draft, base, errors, locked, describedBy, onChang
 export function ScalingSection({
 	draft,
 	base,
+	errors,
 	locked,
 	onChange,
 	sizes,
@@ -119,45 +119,35 @@ export function ScalingSection({
 	regions: RegionView[];
 	sectionRef: ((node: HTMLElement | null) => void) | undefined;
 }) {
-	const names = Object.keys(base.replicas);
+	const names = Object.keys(base.scaling);
 	return (
 		<SettingsBlock
 			id="set-scaling"
 			sectionRef={sectionRef}
 			title="Scaling"
-			hint="A fixed number of replicas in each region."
-			actions={
-				<span className="flex items-center gap-2 text-[13px] text-fg3">
-					Autoscaling
-					<SoonTag />
-					<Switch disabled checked={false} aria-label="Autoscaling" />
-				</span>
-			}
+			hint="Set equal bounds for fixed replicas or a range for CPU autoscaling."
 		>
 			{names.length === 0 && <span className="text-fg3">Scaling is available once the resource is deployed.</span>}
-			<div className="flex flex-wrap gap-x-8 gap-y-4">
-				{names.map((name) => {
-					const value = draft.replicas?.[name] ?? base.replicas[name] ?? 1;
-					return (
-						<div key={name} className="flex flex-col gap-1.5">
-							<span className="font-mono text-[12.5px] text-fg2">{name}</span>
-							<Stepper
-								label={`Replicas in ${name}`}
-								value={value}
-								min={sizes.replicas?.min ?? value}
-								max={sizes.replicas?.max ?? value}
-								disabled={locked}
-								onChange={(n) => {
-									onChange({ replicas: { ...draft.replicas, [name]: n } });
-								}}
-							/>
-						</div>
-					);
-				})}
+			<div className="flex flex-col gap-5">
+				{Object.entries(base.scaling).map(([name, value]) => (
+					<div key={name} className="flex flex-col gap-1.5">
+						<span className="font-mono text-[12.5px] text-fg2">{name}</span>
+						<ScalingFields
+							value={draft.scaling?.[name] ?? value}
+							region={name}
+							replicaRange={sizes.replicas}
+							disabled={locked}
+							error={errors[`scaling.${name}`] ?? null}
+							onChange={(scaling) => {
+								onChange({ scaling: { ...draft.scaling, [name]: scaling } });
+							}}
+						/>
+					</div>
+				))}
 			</div>
 			{regions.length > names.length && (
 				<span className="text-[12.5px] text-fg3">
-					Regions added below start with the replicas of {names[0] ?? "the first region"}.
+					Regions added below start with the scaling of {names[0] ?? "the first region"}.
 				</span>
 			)}
 		</SettingsBlock>

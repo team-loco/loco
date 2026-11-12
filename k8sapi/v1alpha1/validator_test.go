@@ -121,19 +121,33 @@ func TestDockerImagePattern(t *testing.T) {
 	}
 }
 
-func TestEnabledAutoscalingIsRejected(t *testing.T) {
-	resources := ResourcesSpec{
-		CPU:      "250m",
-		Memory:   "128Mi",
-		Replicas: ReplicasSpec{Min: 1, Max: 2},
-		Scalers:  ScalersSpec{Enabled: true, CPUTarget: 70},
-	}
-	if err := resources.Validate(); !errors.Is(err, ErrAutoscalingUnsupported) {
-		t.Fatalf("enabled autoscaling error = %v, want unsupported", err)
-	}
-	resources.Scalers.Enabled = false
-	if err := resources.Validate(); err != nil {
-		t.Fatalf("disabled autoscaling rejected: %v", err)
+func TestAutoscalingValidation(t *testing.T) {
+	for name, tc := range map[string]struct {
+		min, max, cpu, memory int32
+		enabled, valid        bool
+	}{
+		"cpu":           {1, 3, 70, 0, true, true},
+		"memory":        {1, 3, 0, 80, true, true},
+		"both":          {1, 3, 1, 100, true, true},
+		"no target":     {1, 3, 0, 0, true, false},
+		"negative":      {1, 3, -1, 80, true, false},
+		"above 100":     {1, 3, 70, 101, true, false},
+		"zero min":      {0, 3, 70, 0, true, false},
+		"max below min": {3, 2, 70, 0, true, false},
+		"disabled":      {1, 3, 0, 0, false, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			resources := ResourcesSpec{
+				CPU:      "250m",
+				Memory:   "128Mi",
+				Replicas: ReplicasSpec{Min: tc.min, Max: tc.max},
+				Scalers:  ScalersSpec{Enabled: tc.enabled, CPUTarget: tc.cpu, MemoryTarget: tc.memory},
+			}
+			err := resources.Validate()
+			if (err == nil) != tc.valid {
+				t.Fatalf("validation = %v, want valid %v", err, tc.valid)
+			}
+		})
 	}
 }
 

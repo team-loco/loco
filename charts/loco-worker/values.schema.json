@@ -781,6 +781,9 @@
       },
       "additionalProperties": false
     },
+    "metrics-server": {
+      "type": "object"
+    },
     "otel-col-cluster": {
       "type": "object"
     },

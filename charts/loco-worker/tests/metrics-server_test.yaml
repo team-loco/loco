@@ -1,0 +1,60 @@
+suite: resource metrics API
+templates: ["**/*"]
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+tests:
+  - it: installs a pinned metrics server with secure kubelet verification by default
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: '^registry.k8s.io/metrics-server/metrics-server:v[0-9.]+@sha256:[a-f0-9]{64}$'
+        template: charts/metrics-server/templates/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --kubelet-insecure-tls
+        template: charts/metrics-server/templates/deployment.yaml
+      - equal:
+          path: spec.group
+          value: metrics.k8s.io
+        template: charts/metrics-server/templates/apiservice.yaml
+      - equal:
+          path: spec.service.namespace
+          value: loco-system
+        template: charts/metrics-server/templates/apiservice.yaml
+
+  - it: admits aggregated API requests through the namespace ingress policy on the configured port
+    set:
+      metrics-server.containerPort: 10443
+    asserts:
+      - equal:
+          path: spec.ingress[0].ports[0].port
+          value: 10443
+        template: templates/network-policies.yaml
+        documentSelector: {path: metadata.name, value: allow-metrics-server-ingress}
+      - equal:
+          path: spec.podSelector.matchLabels
+          value: {app.kubernetes.io/name: metrics-server, app.kubernetes.io/instance: loco-worker}
+        template: templates/network-policies.yaml
+        documentSelector: {path: metadata.name, value: allow-metrics-server-ingress}
+
+  - it: leaves an existing metrics API untouched when disabled
+    set:
+      metrics-server.enabled: false
+    asserts:
+      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-metrics-server, namespace: loco-system, any: true}
+        not: true
+      - containsDocument: {kind: APIService, apiVersion: apiregistration.k8s.io/v1, name: v1beta1.metrics.k8s.io, any: true}
+        not: true
+      - containsDocument: {kind: NetworkPolicy, apiVersion: networking.k8s.io/v1, name: allow-metrics-server-ingress, namespace: loco-system, any: true}
+        not: true
+
+  - it: permits unsigned kubelet certificates only in the kind fixture
+    values: [../../../dev/kind-worker-values.yaml]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --kubelet-insecure-tls
+        template: charts/metrics-server/templates/deployment.yaml

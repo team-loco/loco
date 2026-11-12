@@ -27,12 +27,24 @@ func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var installation map[string]any
-	if err := yaml.UnmarshalStrict(data, &installation); err != nil {
+	var installation struct {
+		Version int `json:"version"`
+		Workers []struct {
+			MetricsServer struct {
+				Enabled            bool `json:"enabled"`
+				KubeletInsecureTLS bool `json:"kubeletInsecureTLS"`
+			} `json:"metricsServer"`
+		} `json:"workers"`
+	}
+	if err := yaml.Unmarshal(data, &installation); err != nil {
 		t.Fatal(err)
 	}
-	if installation["version"] != float64(1) {
-		t.Fatalf("fixture version = %#v, want integer 1", installation["version"])
+	if installation.Version != 1 {
+		t.Fatalf("fixture version = %d, want integer 1", installation.Version)
+	}
+	if len(installation.Workers) != 1 || !installation.Workers[0].MetricsServer.Enabled ||
+		!installation.Workers[0].MetricsServer.KubeletInsecureTLS {
+		t.Fatal("kind worker must opt into unsigned kubelet serving certificates")
 	}
 }
 

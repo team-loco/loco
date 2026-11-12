@@ -307,7 +307,7 @@ describe("sortRows", () => {
 });
 
 describe("draft rows", () => {
-	const sizing = { cpu: "500m", memory: "1Gi", minReplicas: 1 };
+	const sizing = { cpu: "500m", memory: "1Gi", minReplicas: 1, cpuTarget: 65 };
 	const resources = buildRows(
 		[
 			resource("healthy", [

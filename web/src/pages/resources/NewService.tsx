@@ -28,7 +28,7 @@ import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
-import { Stepper } from "@/components/design/Stepper";
+import { ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -265,7 +265,8 @@ export function DraftSheet({
 
 	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
-	const defaults = configQuery.data?.serviceDefaults;
+	const config = configQuery.data;
+	const defaults = config?.serviceDefaults;
 	const header = <DrawerHeader name={draft?.name ?? "Draft"} image={draft?.image ?? ""} state="draft" />;
 	const body = (() => {
 		if (deployment.run !== null) {
@@ -278,7 +279,7 @@ export function DraftSheet({
 				</SheetBody>
 			);
 		}
-		if (defaults === undefined || regionsQuery.data === undefined) {
+		if (config === undefined || defaults === undefined || regionsQuery.data === undefined) {
 			return (
 				<SheetBody>
 					{Array.from({ length: SKELETON_ROWS }, (_, i) => (
@@ -300,12 +301,12 @@ export function DraftSheet({
 		return (
 			<ServiceForm
 				env={env}
-				schemaUrl={configQuery.data?.schemaUrl ?? ""}
+				schemaUrl={config.schemaUrl}
 				regions={regionsQuery.data.regions}
 				platformDomains={domainsQuery.data?.platformDomains ?? []}
 				draft={vars === undefined ? draft : { ...draft, edits: { ...draft.edits, vars } }}
 				defaults={defaults}
-				sizes={sizeOptions(configQuery.data?.sizeLimits)}
+				sizes={sizeOptions(config.sizeLimits)}
 				deployment={deployment}
 				tried={tried}
 				healthOpen={healthOpen}
@@ -439,6 +440,8 @@ function ServiceForm({
 		cpu: size.cpu,
 		memory: size.memory,
 		replicas: size.replicas,
+		maxReplicas: size.maxReplicas,
+		cpuTarget: size.cpuTarget,
 		isPublic: draftIsPublic(draft),
 		subdomain: edits.subdomain ?? slug(name),
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
@@ -447,7 +450,7 @@ function ServiceForm({
 		health: edits.health ?? defaultHealth(defaults),
 	};
 	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.platformDomain, []);
-	const errors = validateForm(form, check.state);
+	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const shown = (e: string | null, field: keyof NewResourceForm) => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);
 	const subdomainError =
@@ -582,30 +585,13 @@ function ServiceForm({
 					</div>
 				</DrawerSection>
 
-				<DrawerSection
-					title="Scaling"
-					actions={
-						<span className="flex items-center gap-2.5 text-[13px] text-fg3">
-							Autoscaling <SoonTag />
-							<Switch disabled checked={false} aria-label="Autoscaling" />
-						</span>
-					}
-				>
-					<div className="flex flex-col gap-1.5">
-						<span className="text-[13px] font-medium">Replicas per region</span>
-						<Stepper
-							label="Replicas per region"
-							value={form.replicas}
-							min={sizes.replicas?.min ?? form.replicas}
-							max={sizes.replicas?.max ?? form.replicas}
-							onChange={(replicas) => {
-								set({ replicas });
-							}}
-						/>
-						<span className={apiError("replicas") === null ? "text-[12.5px] text-fg3" : "text-[12.5px] text-bad-fg"}>
-							{apiError("replicas") ?? `Runs exactly ${form.replicas.toString()} per region.`}
-						</span>
-					</div>
+				<DrawerSection title="Scaling">
+					<ScalingFields
+						value={form}
+						replicaRange={sizes.replicas}
+						onChange={set}
+						error={errors.scaling ?? apiError("replicas")}
+					/>
 				</DrawerSection>
 
 				<DrawerSection

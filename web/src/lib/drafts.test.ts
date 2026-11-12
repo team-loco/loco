@@ -72,12 +72,20 @@ describe("draft placement", () => {
 	});
 
 	test("sizing comes from the draft's edits, then the service defaults", () => {
-		const defaults = { cpu: "500m", memory: "1Gi", minReplicas: 1 };
-		expect(draftSizing(draft("a"), defaults)).toEqual({ cpu: "500m", memory: "1Gi", replicas: 1 });
+		const defaults = { cpu: "500m", memory: "1Gi", minReplicas: 1, cpuTarget: 65 };
+		expect(draftSizing(draft("a"), defaults)).toEqual({
+			cpu: "500m",
+			memory: "1Gi",
+			replicas: 1,
+			maxReplicas: 1,
+			cpuTarget: 65,
+		});
 		expect(draftSizing({ ...draft("a"), edits: { cpu: "2", replicas: 3 } }, defaults)).toEqual({
 			cpu: "2",
 			memory: "1Gi",
 			replicas: 3,
+			maxReplicas: 3,
+			cpuTarget: 65,
 		});
 	});
 

@@ -28,6 +28,10 @@
   },
   packageRules: [
     {
+      groupName: "metrics-server",
+      matchPackageNames: ["metrics-server", "registry.k8s.io/metrics-server/metrics-server"],
+    },
+    {
       description: "The jdx/mise regex manager below moves the constraints.mise value with the CI mise version; Renovate's own tool-constraint update duplicates it with a v prefix",
       matchDepTypes: ["tool-constraint"],
       enabled: false,

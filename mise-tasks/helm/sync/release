@@ -21,6 +21,7 @@ cert-manager)
 	;;
 loco-worker)
 	install=(./charts/loco-worker --namespace loco-system
+		--values dev/kind-worker-values.yaml
 		--values dev/worker-chart.yaml
 		--set-string "secrets.cloudflareToken=${CLOUDFLARE_TOKEN:-}"
 		--set-string "agent.joinToken.value=${LOCO_JOIN_TOKEN:-}"

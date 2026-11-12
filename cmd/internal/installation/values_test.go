@@ -2,6 +2,7 @@ package installation
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -56,9 +57,10 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		t.Fatal("API and dashboard must use the configured OIDC client")
 	}
 	worker := Worker{
-		Region:     canary,
-		AppsDomain: "apps.example.com",
-		Builds:     Builds{PrivateEgress: []PrivateEgress{{CIDR: "10.0.0.1/32", Port: 443}}},
+		MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+		Region:        canary,
+		AppsDomain:    "apps.example.com",
+		Builds:        Builds{PrivateEgress: []PrivateEgress{{CIDR: "10.0.0.1/32", Port: 443}}},
 	}
 	rendered, err := workerValues(config, worker, releaseFixture())
 	if err != nil {
@@ -81,5 +83,45 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	}
 	if workerChart.Global.Region != canary {
 		t.Fatal("worker region changed during rendering")
+	}
+}
+
+func TestWorkerMetricsServerValues(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		spec MetricsServer
+		want string
+	}{
+		{name: "disabled secure", spec: MetricsServer{Enabled: false, KubeletInsecureTLS: false},
+			want: "enabled: false\nargs: []"},
+		{name: "enabled secure", spec: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+			want: "enabled: true\nargs: []"},
+		{name: "enabled insecure", spec: MetricsServer{Enabled: true, KubeletInsecureTLS: true},
+			want: "enabled: true\nargs: [--kubelet-insecure-tls]"},
+		{name: "disabled insecure", spec: MetricsServer{Enabled: false, KubeletInsecureTLS: true},
+			want: "enabled: false\nargs: [--kubelet-insecure-tls]"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := Parse(example(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			worker := Worker{MetricsServer: tt.spec}
+			rendered, err := workerValues(*config, worker, releaseFixture())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var values map[string]any
+			if err := yaml.Unmarshal(rendered, &values); err != nil {
+				t.Fatal(err)
+			}
+			var want any
+			if err := yaml.Unmarshal([]byte(tt.want), &want); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(values["metrics-server"], want) {
+				t.Fatalf("metrics-server values = %#v, want %#v", values["metrics-server"], want)
+			}
+		})
 	}
 }

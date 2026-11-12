@@ -10,6 +10,7 @@ import (
 func validDefaults() Defaults {
 	return Defaults{
 		CPU:                 "100m",
+		CPUTarget:           65,
 		Memory:              "256Mi",
 		MinReplicas:         1,
 		MaxReplicas:         2,
@@ -36,6 +37,8 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		change func(*Defaults)
 		want   error
 	}{
+		"zero CPU target":              {func(d *Defaults) { d.CPUTarget = 0 }, errInvalidResources},
+		"high CPU target":              {func(d *Defaults) { d.CPUTarget = 101 }, errInvalidResources},
 		"unparsable cpu":               {func(d *Defaults) { d.CPU = "lots" }, ErrInvalidCPU},
 		"zero cpu":                     {func(d *Defaults) { d.CPU = "0" }, errInvalidResources},
 		"cpu below the controller min": {func(d *Defaults) { d.CPU = "50m" }, errInvalidResources},

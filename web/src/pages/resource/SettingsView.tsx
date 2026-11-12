@@ -97,7 +97,7 @@ export function SettingsView({
 	const want = resolved(draft, base);
 	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
 	const served = servedDomains(domainsQuery.data?.platformDomains ?? [], onRegions);
-	const errors = validateDraft(draft, base, served);
+	const errors = validateDraft(draft, base, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const errorCount = Object.keys(errors).length;
 	const count = changeCount(draft, base);
 	const plan = planSave(regions, draft, base);

@@ -12,6 +12,8 @@ const progress: RegionProgress = {
 		cpu: "250m",
 		memory: "512Mi",
 		replicas: 2,
+		maxReplicas: 2,
+		cpuTarget: 70,
 		isPublic: false,
 		subdomain: "",
 		platformDomain: "",

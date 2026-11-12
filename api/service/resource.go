@@ -938,7 +938,7 @@ func scaleChangesDeployment(
 		return true
 	}
 
-	return r.GetReplicas() != 0 && r.GetReplicas() != currentReplicas
+	return r.GetReplicas() != 0 && (r.GetReplicas() != currentReplicas || spec.GetScalers().GetEnabled())
 }
 
 func applyScale(
@@ -957,9 +957,8 @@ func applyScale(
 		return currentReplicas
 	}
 	spec.MinReplicas = &replicas
-	if spec.GetMaxReplicas() < replicas {
-		spec.MaxReplicas = &replicas
-	}
+	spec.MaxReplicas = &replicas
+	spec.Scalers = &deploymentv1.Scalers{}
 	return replicas
 }
 

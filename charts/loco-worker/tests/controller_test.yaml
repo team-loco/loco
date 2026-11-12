@@ -151,3 +151,13 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "registry.pullSecretName applies only to registry.auth static; token mode copies the agent's Secrets"
+
+  - it: grants the Application controller access to horizontal pod autoscalers
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [autoscaling]
+            resources: [horizontalpodautoscalers]
+            verbs: [create, delete, get, list, patch, update, watch]
+        template: templates/controller/manager-role.yaml

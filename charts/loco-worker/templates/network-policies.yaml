@@ -56,3 +56,23 @@ spec:
     - ports:
         - protocol: TCP
           port: 9443
+
+{{- if (index .Values "metrics-server").enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-metrics-server-ingress
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: metrics-server
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: {{ (index .Values "metrics-server").containerPort }}
+{{- end }}

@@ -213,6 +213,57 @@ test_g06_replicas_change_is_one_update() {
     assert "the plan is clean after the update" config_out_contains scale_clean "No changes"
 }
 
+config_autoscaler_matches() {
+    local id hpa
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")
+    hpa=$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
+        get hpa "resource-${id}" -o json) || return 1
+    jq -e --arg name "resource-${id}" --argjson target "$1" '
+        .spec.minReplicas == 1 and .spec.maxReplicas == 2 and
+        .spec.scaleTargetRef.name == $name and
+        .spec.metrics[0].resource.target.averageUtilization == $target and
+        .metadata.ownerReferences[0].kind == "Deployment" and
+        any(.status.conditions[]?; .type == "ScalingActive" and .status == "True")' <<<"$hpa" >/dev/null
+}
+
+config_autoscaler_absent() {
+    local id hpa
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")
+    hpa=$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
+        get hpa "resource-${id}" --ignore-not-found -o name) || return 1
+    test -z "$hpa"
+}
+
+config_deployment_running() {
+    test "$(e2e_psql "SELECT count(*) FROM deployments d JOIN resources r ON r.id=d.resource_id
+        WHERE r.name='${config_cache}' AND d.is_active AND d.status='running'")" -eq 1
+}
+
+test_g06_scaling_targets_reach_the_worker() {
+    wait_for "the preceding replica change to finish" 60 config_deployment_running
+    config_edit ".services.${config_cache}.regions.us-east-1.autoscaling.cpuTarget = 70"
+    if ! assert "apply enables autoscaling" config_run autoscale infra apply --env "$config_env" --yes; then
+        config_show autoscale
+        return 1
+    fi
+    wait_for "the HPA to read resource metrics" 120 config_autoscaler_matches 70
+    wait_for "the autoscaled deployment to finish" 60 config_deployment_running
+    config_edit ".services.${config_cache}.regions.us-east-1.autoscaling.cpuTarget = 60"
+    if ! assert "apply changes the target" config_run autoscale_update infra apply --env "$config_env" --yes; then
+        config_show autoscale_update
+        return 1
+    fi
+    wait_for "the HPA to read metrics with the updated target" 120 config_autoscaler_matches 60
+    wait_for "the target update to finish" 60 config_deployment_running
+    config_edit "del(.services.${config_cache}.regions.us-east-1.autoscaling)"
+    if ! assert "apply disables autoscaling" config_run autoscale_disable infra apply --env "$config_env" --yes; then
+        config_show autoscale_disable
+        return 1
+    fi
+    wait_for "the controller to remove the HPA" 60 config_autoscaler_absent
+    wait_for "the fixed deployment to finish" 60 config_deployment_running
+}
+
 test_g07_removing_a_service_deletes_it() {
     local id
     id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")

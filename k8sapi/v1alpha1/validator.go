@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	ErrAutoscalingUnsupported = errors.New("autoscaling is not supported yet")
+	errAutoscalingTarget      = errors.New("enabled autoscaling needs a CPU or memory target between 1 and 100")
 	errResourceIDMissing      = errors.New("resourceId must be set")
 	errWorkspaceIDMissing     = errors.New("workspaceId must be set")
 	errTypeMissing            = errors.New("type must be set")
@@ -324,7 +324,10 @@ func (spec *ResourcesSpec) Validate() error {
 	}
 
 	if spec.Scalers.Enabled {
-		return ErrAutoscalingUnsupported
+		cpu, memory := spec.Scalers.CPUTarget, spec.Scalers.MemoryTarget
+		if cpu < 0 || cpu > 100 || memory < 0 || memory > 100 || (cpu == 0 && memory == 0) {
+			return errAutoscalingTarget
+		}
 	}
 	return nil
 }

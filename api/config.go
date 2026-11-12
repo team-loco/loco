@@ -69,6 +69,7 @@ const (
 	defaultServiceMemory      = "256Mi"
 	defaultServiceMinReplicas = 1
 	defaultServiceMaxReplicas = 1
+	defaultServiceCPUTarget   = 70
 	defaultServicePathPrefix  = "/"
 	defaultServiceIdleTimeout = 60
 	defaultServicePort        = 8000
@@ -510,6 +511,7 @@ func newServiceDefaults() servicedefaults.Defaults {
 		Memory:                   envconfig.String("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
 		MinReplicas:              envconfig.Int32("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
 		MaxReplicas:              envconfig.Int32("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
+		CPUTarget:                envconfig.Int32("LOCO_DEFAULT_CPU_TARGET", defaultServiceCPUTarget),
 		PathPrefix:               envconfig.String("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
 		IdleTimeout:              envconfig.Int32("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
 		Port:                     envconfig.Int32("LOCO_DEFAULT_PORT", defaultServicePort),

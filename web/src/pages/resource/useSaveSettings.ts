@@ -10,11 +10,11 @@ import { deleteSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretServ
 import { getErrorMessage } from "@/lib/error-handler";
 
 import type { Notice, RegionView } from "./model";
-import { domainsChange, planSave, type Baseline, type SettingsDraft } from "./settings-draft";
+import { domainsChange, planSave, savedScaling, type Baseline, type SettingsDraft } from "./settings-draft";
 
 const SPEC_KEYS = [
 	"image",
-	"replicas",
+	"scaling",
 	"cpu",
 	"memory",
 	"port",
@@ -128,9 +128,11 @@ export function useSaveSettings({
 
 		const plan = planSave(regions, domainsSaved ? draft : omit(draft, DOMAIN_KEYS), base);
 		let specSaved = true;
+		const savedRegions: string[] = [];
 		for (const r of plan.retire) {
 			const ok = await attempt(r.region, [], async () => await retire.mutateAsync({ deploymentId: r.deploymentId }));
 			specSaved &&= ok;
+			if (ok) savedRegions.push(r.region);
 		}
 		for (const d of plan.deploy) {
 			const ok = await attempt(
@@ -140,7 +142,9 @@ export function useSaveSettings({
 					await deploy.mutateAsync({ resourceId, region: d.region, spec: d.spec, environmentId, commit: d.commit }),
 			);
 			specSaved &&= ok;
+			if (ok) savedRegions.push(d.region);
 		}
+		next = savedScaling(next, savedRegions);
 		if (specSaved) next = omit(next, SPEC_KEYS);
 
 		setSaving(false);
@@ -148,7 +152,10 @@ export function useSaveSettings({
 			onDone(next, {
 				tone: "bad",
 				title: `Some changes to ${resource.name} were not saved`,
-				message: failures.join(" · "),
+				message: [
+					...failures,
+					...(savedRegions.length > 0 ? [`Saved changes in ${savedRegions.join(", ")}.`] : []),
+				].join(" · "),
 			});
 			return;
 		}

@@ -64,9 +64,9 @@ message HealthCheckConfig {
 // Scalers defines autoscaling configuration.
 message Scalers {
   option (buf.validate.message).cel = {
-    id: "scalers.autoscaling_supported"
-    message: "autoscaling is not supported yet"
-    expression: "!this.enabled"
+    id: "scalers.target_required"
+    message: "enabled autoscaling needs a CPU or memory target between 1 and 100"
+    expression: "!this.enabled || (has(this.cpu_target) && this.cpu_target > 0) || (has(this.memory_target) && this.memory_target > 0)"
   };
 
   bool enabled = 1; // enable autoscaling

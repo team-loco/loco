@@ -327,7 +327,8 @@
           "tier",
           "appsDomain",
           "builds",
-          "certificates"
+          "certificates",
+          "metricsServer"
         ],
         "properties": {
           "name": {
@@ -439,6 +440,22 @@
                 }
               }
             }
+          },
+          "metricsServer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "kubeletInsecureTLS": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled",
+              "kubeletInsecureTLS"
+            ]
           }
         }
       }

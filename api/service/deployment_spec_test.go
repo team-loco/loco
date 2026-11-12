@@ -37,6 +37,7 @@ const (
 func testServiceDefaults() servicedefaults.Defaults {
 	return servicedefaults.Defaults{
 		CPU:                      testDefaultCPU,
+		CPUTarget:                65,
 		Memory:                   testDefaultMemory,
 		MinReplicas:              2,
 		MaxReplicas:              3,

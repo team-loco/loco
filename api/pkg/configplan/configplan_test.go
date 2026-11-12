@@ -9,7 +9,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/internal/locofile"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -660,17 +659,13 @@ func TestOperationsAreSortedByServiceName(t *testing.T) {
 	}
 }
 
-func TestPlanRejectsEnabledAutoscaling(t *testing.T) {
+func TestPlanAcceptsEnabledAutoscaling(t *testing.T) {
 	service := fileService()
 	region := service.Regions[testRegion]
 	region.Autoscaling = &locofile.Autoscaling{CPUTarget: new(int32(70))}
 	service.Regions[testRegion] = region
-	planErr := onlyError(
-		t,
-		compute(t, input(map[string]locofile.Service{webService: service})),
-		locoControllerV1.ErrAutoscalingUnsupported,
-	)
-	if planErr.Path != testRegionPath {
-		t.Fatalf("error path = %q, want %q", planErr.Path, testRegionPath)
+	plan := compute(t, input(map[string]locofile.Service{webService: service}))
+	if len(plan.Errors) != 0 {
+		t.Fatalf("plan errors: %v", plan.Errors)
 	}
 }

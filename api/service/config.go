@@ -73,6 +73,7 @@ func (s *ConfigServer) GetConfig(
 			Memory:                  s.defaults.Memory,
 			MinReplicas:             s.defaults.MinReplicas,
 			MaxReplicas:             s.defaults.MaxReplicas,
+			CpuTarget:               s.defaults.CPUTarget,
 			DeployAttempts:          s.defaults.DeployAttempts,
 			DeployRetryDelaySeconds: s.defaults.DeployRetryDelay,
 			Observability: &resourcev1.ObservabilityConfig{

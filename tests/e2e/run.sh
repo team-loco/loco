@@ -787,6 +787,7 @@ install_worker() {
         --kubeconfig "$KUBECONFIG_FILE" \
         --kube-context "$KUBE_CONTEXT" \
         --namespace "$LOCO_NAMESPACE" \
+        --values "$ROOT_DIR/dev/kind-worker-values.yaml" \
         --values "$WORKER_E2E_VALUES" \
         --set "global.domain.apps={${PLATFORM_DOMAIN}}" \
         --set "certManager.existingTLSSecret=${GATEWAY_TLS_SECRET}" \

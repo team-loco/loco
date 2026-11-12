@@ -39,6 +39,7 @@ workers:
   region: us-east-1
   tier: staging
   appsDomain: apps.installation.test
+  metricsServer: {enabled: true, kubeletInsecureTLS: true}
   builds: {enabled: true, privateEgress: {{ .PrivateEgress | json }}}
   certificates:
     issuerRef: {name: installation-ca, kind: ClusterIssuer}
