@@ -3,11 +3,11 @@ import { authClient } from "@/auth/client";
 
 import { AuthStep, type AuthStepRun } from "./AuthStep";
 
-const completeSignIn: AuthStepRun = async (transport) => {
+const completeSignIn: AuthStepRun = async (transport, queryClient) => {
 	const client = await authClient();
 	await client.completeSignIn(new URL(window.location.href));
 	try {
-		return await landingPath(transport);
+		return await landingPath(transport, queryClient);
 	} catch (err) {
 		await client.signOut();
 		throw err;
