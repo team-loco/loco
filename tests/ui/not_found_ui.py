@@ -257,6 +257,12 @@ with sync_playwright() as playwright:
             expect(page).to_have_url(ui + "/")
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
 
+            page.goto(ui + "/auth/callback?error=access_denied")
+            expect(page).to_have_url(ui + "/login")
+            expect(page.get_by_role("heading", name="Sign in to loco", exact=True)).to_be_visible()
+            expect(page.get_by_role("link", name="loco home", exact=True)).to_have_attribute("href", "/")
+            expect(page.locator("aside canvas")).to_be_visible()
+
             deep = f"/org/{org}/wks/{shared}/no-such-tab?env=production"
             fake_idp(context, "owner")
             page.goto(ui + deep)
