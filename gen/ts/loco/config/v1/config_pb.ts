@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi/gEKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAyIlCgdPcmdMaW5rEg0KBWxhYmVsGAEgASgJEgsKA3VybBgCIAEoCSI/CgpBdXRoQ29uZmlnEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDgoGc2NvcGVzGAMgASgJIskCChREZWZhdWx0U2VydmljZUNvbmZpZxIwCgdyb3V0aW5nGAEgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgCIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYAyABKAkSDgoGbWVtb3J5GAQgASgJEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUSPAoNb2JzZXJ2YWJpbGl0eRgHIAEoCzIlLmxvY28ucmVzb3VyY2UudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZxIXCg9kZXBsb3lfYXR0ZW1wdHMYCCABKAUSIgoaZGVwbG95X3JldHJ5X2RlbGF5X3NlY29uZHMYCSABKAUyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QirwIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkiPwoKQXV0aENvbmZpZxIOCgZpc3N1ZXIYASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg4KBnNjb3BlcxgDIAEoCSLJAgoURGVmYXVsdFNlcnZpY2VDb25maWcSMAoHcm91dGluZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI7CgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAMgASgJEg4KBm1lbW9yeRgEIAEoCRIUCgxtaW5fcmVwbGljYXMYBSABKAUSFAoMbWF4X3JlcGxpY2FzGAYgASgFEjwKDW9ic2VydmFiaWxpdHkYByABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPZGVwbG95X2F0dGVtcHRzGAggASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAkgASgFMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -68,6 +68,11 @@ export type GetConfigResponse = Message<"loco.config.v1.GetConfigResponse"> & {
    * @generated from field: int64 api_token_max_lifetime_seconds = 6;
    */
   apiTokenMaxLifetimeSeconds: bigint;
+
+  /**
+   * @generated from field: loco.config.v1.SizeLimits size_limits = 7;
+   */
+  sizeLimits?: SizeLimits | undefined;
 };
 
 /**
@@ -103,6 +108,11 @@ export type GetConfigResponseJson = {
    * @generated from field: int64 api_token_max_lifetime_seconds = 6;
    */
   apiTokenMaxLifetimeSeconds?: string;
+
+  /**
+   * @generated from field: loco.config.v1.SizeLimits size_limits = 7;
+   */
+  sizeLimits?: SizeLimitsJson;
 };
 
 /**
@@ -111,6 +121,89 @@ export type GetConfigResponseJson = {
  */
 export const GetConfigResponseSchema: GenMessage<GetConfigResponse, {jsonType: GetConfigResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_config_v1_config, 1);
+
+/**
+ * SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must
+ * fall within; requests outside them are rejected.
+ *
+ * @generated from message loco.config.v1.SizeLimits
+ */
+export type SizeLimits = Message<"loco.config.v1.SizeLimits"> & {
+  /**
+   * @generated from field: int32 min_cpu_millis = 1;
+   */
+  minCpuMillis: number;
+
+  /**
+   * @generated from field: int32 max_cpu_millis = 2;
+   */
+  maxCpuMillis: number;
+
+  /**
+   * @generated from field: int64 min_memory_bytes = 3;
+   */
+  minMemoryBytes: bigint;
+
+  /**
+   * @generated from field: int64 max_memory_bytes = 4;
+   */
+  maxMemoryBytes: bigint;
+
+  /**
+   * @generated from field: int32 min_replicas = 5;
+   */
+  minReplicas: number;
+
+  /**
+   * @generated from field: int32 max_replicas = 6;
+   */
+  maxReplicas: number;
+};
+
+/**
+ * SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must
+ * fall within; requests outside them are rejected.
+ *
+ * @generated from message loco.config.v1.SizeLimits
+ */
+export type SizeLimitsJson = {
+  /**
+   * @generated from field: int32 min_cpu_millis = 1;
+   */
+  minCpuMillis?: number;
+
+  /**
+   * @generated from field: int32 max_cpu_millis = 2;
+   */
+  maxCpuMillis?: number;
+
+  /**
+   * @generated from field: int64 min_memory_bytes = 3;
+   */
+  minMemoryBytes?: string;
+
+  /**
+   * @generated from field: int64 max_memory_bytes = 4;
+   */
+  maxMemoryBytes?: string;
+
+  /**
+   * @generated from field: int32 min_replicas = 5;
+   */
+  minReplicas?: number;
+
+  /**
+   * @generated from field: int32 max_replicas = 6;
+   */
+  maxReplicas?: number;
+};
+
+/**
+ * Describes the message loco.config.v1.SizeLimits.
+ * Use `create(SizeLimitsSchema)` to create a new message.
+ */
+export const SizeLimitsSchema: GenMessage<SizeLimits, {jsonType: SizeLimitsJson}> = /*@__PURE__*/
+  messageDesc(file_loco_config_v1_config, 2);
 
 /**
  * @generated from message loco.config.v1.OrgLink
@@ -147,7 +240,7 @@ export type OrgLinkJson = {
  * Use `create(OrgLinkSchema)` to create a new message.
  */
 export const OrgLinkSchema: GenMessage<OrgLink, {jsonType: OrgLinkJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 2);
+  messageDesc(file_loco_config_v1_config, 3);
 
 /**
  * @generated from message loco.config.v1.AuthConfig
@@ -194,7 +287,7 @@ export type AuthConfigJson = {
  * Use `create(AuthConfigSchema)` to create a new message.
  */
 export const AuthConfigSchema: GenMessage<AuthConfig, {jsonType: AuthConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 3);
+  messageDesc(file_loco_config_v1_config, 4);
 
 /**
  * DefaultServiceConfig contains default values for service deployments.
@@ -331,7 +424,7 @@ export type DefaultServiceConfigJson = {
  * Use `create(DefaultServiceConfigSchema)` to create a new message.
  */
 export const DefaultServiceConfigSchema: GenMessage<DefaultServiceConfig, {jsonType: DefaultServiceConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 4);
+  messageDesc(file_loco_config_v1_config, 5);
 
 /**
  * ConfigService provides static configuration values. Clients can query this to show safe defaults.

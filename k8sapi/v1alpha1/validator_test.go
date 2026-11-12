@@ -14,29 +14,29 @@ func TestResourcesSpecValidate(t *testing.T) {
 		return ResourcesSpec{
 			CPU:      resource.NewMilliQuantity(cpuMillis, resource.DecimalSI).String(),
 			Memory:   resource.NewQuantity(memory, resource.BinarySI).String(),
-			Replicas: ReplicasSpec{Min: 1, Max: maxReplicas},
+			Replicas: ReplicasSpec{Min: MinReplicas, Max: maxReplicas},
 		}
 	}
 	for name, resources := range map[string]ResourcesSpec{
-		"minimums": at(minCPUMillis, minMemory, 1),
-		"maximums": at(maxCPUMillis, maxMemory, maxReplicas),
+		"minimums": at(MinCPUMillis, MinMemoryBytes, 1),
+		"maximums": at(MaxCPUMillis, MaxMemoryBytes, MaxReplicas),
 	} {
 		if err := resources.Validate(); err != nil {
 			t.Fatalf("%s rejected: %v", name, err)
 		}
 	}
-	cpuMin, cpuMax := strconv.Itoa(minCPUMillis)+"m", strconv.Itoa(maxCPUMillis)+"m"
-	memMin := resource.NewQuantity(minMemory, resource.BinarySI).String()
-	memMax := resource.NewQuantity(maxMemory, resource.BinarySI).String()
+	cpuMin, cpuMax := strconv.Itoa(MinCPUMillis)+"m", strconv.Itoa(MaxCPUMillis)+"m"
+	memMin := resource.NewQuantity(MinMemoryBytes, resource.BinarySI).String()
+	memMax := resource.NewQuantity(MaxMemoryBytes, resource.BinarySI).String()
 	invalid := map[string]struct {
 		resources ResourcesSpec
 		limit     string
 	}{
-		"cpu below minimum":    {at(minCPUMillis-1, minMemory, 1), cpuMin},
-		"cpu above maximum":    {at(maxCPUMillis+1, minMemory, 1), cpuMax},
-		"memory below minimum": {at(minCPUMillis, minMemory-1, 1), memMin},
-		"memory above maximum": {at(minCPUMillis, maxMemory+1, 1), memMax},
-		"max above maximum":    {at(minCPUMillis, minMemory, maxReplicas+1), strconv.Itoa(maxReplicas)},
+		"cpu below minimum":    {at(MinCPUMillis-1, MinMemoryBytes, 1), cpuMin},
+		"cpu above maximum":    {at(MaxCPUMillis+1, MinMemoryBytes, 1), cpuMax},
+		"memory below minimum": {at(MinCPUMillis, MinMemoryBytes-1, 1), memMin},
+		"memory above maximum": {at(MinCPUMillis, MaxMemoryBytes+1, 1), memMax},
+		"max above maximum":    {at(MinCPUMillis, MinMemoryBytes, MaxReplicas+1), strconv.Itoa(MaxReplicas)},
 	}
 	for name, tc := range invalid {
 		t.Run(name, func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestResourcesSpecValidate(t *testing.T) {
 			}
 		})
 	}
-	valid := at(minCPUMillis, minMemory, maxReplicas)
+	valid := at(MinCPUMillis, MinMemoryBytes, MaxReplicas)
 	for name, change := range map[string]func(*ResourcesSpec){
 		"zero min replicas": func(r *ResourcesSpec) { r.Replicas.Min = 0 },
 		"max below min":     func(r *ResourcesSpec) { r.Replicas = ReplicasSpec{Min: 3, Max: 2} },

@@ -8973,6 +8973,10 @@
             "type": "string",
             "title": "api_token_max_lifetime_seconds",
             "format": "int64"
+          },
+          "sizeLimits": {
+            "title": "size_limits",
+            "$ref": "#/components/schemas/loco.config.v1.SizeLimits"
           }
         },
         "title": "GetConfigResponse",
@@ -8992,6 +8996,44 @@
         },
         "title": "OrgLink",
         "additionalProperties": false
+      },
+      "loco.config.v1.SizeLimits": {
+        "type": "object",
+        "properties": {
+          "minCpuMillis": {
+            "type": "integer",
+            "title": "min_cpu_millis",
+            "format": "int32"
+          },
+          "maxCpuMillis": {
+            "type": "integer",
+            "title": "max_cpu_millis",
+            "format": "int32"
+          },
+          "minMemoryBytes": {
+            "type": "string",
+            "title": "min_memory_bytes",
+            "format": "int64"
+          },
+          "maxMemoryBytes": {
+            "type": "string",
+            "title": "max_memory_bytes",
+            "format": "int64"
+          },
+          "minReplicas": {
+            "type": "integer",
+            "title": "min_replicas",
+            "format": "int32"
+          },
+          "maxReplicas": {
+            "type": "integer",
+            "title": "max_replicas",
+            "format": "int32"
+          }
+        },
+        "title": "SizeLimits",
+        "additionalProperties": false,
+        "description": "SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must\n fall within; requests outside them are rejected."
       },
       "loco.deployment.v1.BuildSource": {
         "type": "object",
