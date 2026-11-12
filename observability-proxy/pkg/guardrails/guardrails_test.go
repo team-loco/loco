@@ -168,7 +168,10 @@ func TestValidateListTracesRequest(t *testing.T) {
 			name:   "uppercase trace",
 			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "0123456789ABCDEF0123456789ABCDEF" },
 		},
-		{name: "zero trace", change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = zeroTraceID }},
+		{
+			name:   "zero trace",
+			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "00000000000000000000000000000000" },
+		},
 		{name: "negative limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = -1 }},
 		{name: "excessive limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = testTraceLimit + 1 }},
 	}

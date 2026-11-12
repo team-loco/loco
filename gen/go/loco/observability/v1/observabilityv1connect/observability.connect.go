@@ -40,9 +40,6 @@ const (
 	// ObservabilityProxyServiceGetTraceProcedure is the procedure name of the
 	// ObservabilityProxyService's GetTrace RPC.
 	ObservabilityProxyServiceGetTraceProcedure = "/loco.observability.v1.ObservabilityProxyService/GetTrace"
-	// ObservabilityProxyServiceQueryTracesProcedure is the procedure name of the
-	// ObservabilityProxyService's QueryTraces RPC.
-	ObservabilityProxyServiceQueryTracesProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryTraces"
 )
 
 var (
@@ -81,13 +78,6 @@ var (
 			Procedure:  ObservabilityProxyServiceGetTraceProcedure,
 		}
 	})
-	observabilityProxyServiceQueryTracesSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("QueryTraces"),
-			Procedure:  ObservabilityProxyServiceQueryTracesProcedure,
-		}
-	})
 )
 
 // ObservabilityProxyServiceClient is a client for the
@@ -101,7 +91,6 @@ type ObservabilityProxyServiceClient interface {
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
-	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
 }
 
 // NewObservabilityProxyServiceClient constructs a client for the
@@ -143,7 +132,6 @@ type ObservabilityProxyServiceHandler interface {
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
-	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
 }
 
 // RegisterObservabilityProxyServiceHandler registers svc as the
@@ -156,7 +144,6 @@ func RegisterObservabilityProxyServiceHandler(server *connect.Server, svc Observ
 		connect.Method{Spec: observabilityProxyServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
 		connect.Method{Spec: observabilityProxyServiceListTracesSpec(), Handler: adapter.listTraces},
 		connect.Method{Spec: observabilityProxyServiceGetTraceSpec(), Handler: adapter.getTrace},
-		connect.Method{Spec: observabilityProxyServiceQueryTracesSpec(), Handler: adapter.queryTraces},
 	)
 }
 
@@ -199,10 +186,6 @@ func (UnimplementedObservabilityProxyServiceHandler) GetTrace(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.GetTrace is not implemented")
 }
 
-func (UnimplementedObservabilityProxyServiceHandler) QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryTraces is not implemented")
-}
-
 type observabilityProxyServiceClient struct {
 	client *connect.Client
 }
@@ -242,14 +225,6 @@ func (c *observabilityProxyServiceClient) ListTraces(ctx context.Context, req *v
 func (c *observabilityProxyServiceClient) GetTrace(ctx context.Context, req *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
 	var res v1.GetTraceResponse
 	if err := c.client.CallUnary(ctx, observabilityProxyServiceGetTraceSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *observabilityProxyServiceClient) QueryTraces(ctx context.Context, req *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error) {
-	var res v1.QueryTracesResponse
-	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryTracesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -309,18 +284,6 @@ func (h observabilityProxyServiceHandler) getTrace(ctx context.Context, _ connec
 		return err
 	}
 	res, err := h.svc.GetTrace(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h observabilityProxyServiceHandler) queryTraces(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.QueryTracesRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.QueryTraces(ctx, &req)
 	if err != nil {
 		return err
 	}

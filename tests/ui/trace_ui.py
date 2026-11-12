@@ -62,14 +62,25 @@ def handle(route):
     if mode[0] == 'empty':
         route.fulfill(json={'spans': []})
         return
-    if mode[0] == 'many':
+    if mode[0] == 'many' and not route.request.url.endswith('/ListTraces'):
         route.fulfill(json={'spans': spans + [dict(spans[5],spanId=f'{index + 256:016x}') for index in range(100)]})
         return
-    if body.get('traceId'):
-        route.fulfill(json={'spans': spans[7:] if body.get('cursor') else spans[:7], 'nextCursor': '' if body.get('cursor') else 'next-opaque-span-page'})
-    else:
+    if route.request.url.endswith('/ListTraces'):
+        summary = body
         others = [dict(spans[index], traceId=f'{index + 100:032x}', parentSpanId='', name=name, durationNanos=str(duration * 1000000)) for index, (name, duration) in enumerate([('GET /api/products', 18), ('GetRecommendations', 132), ('GetProduct', 9), ('GET /cart', 42), ('Convert · USD → EUR', 12), ('GetQuote', 86)])]
-        route.fulfill(json={'spans': spans + others})
+        summaries = [{'traceId': trace, 'rootSpanName': spans[0]['name'], 'serviceName': spans[0]['serviceName'], 'startTime': spans[0]['startTime'], 'durationNanos': '427600000', 'status': 'TRACE_STATUS_ERROR', 'spanCount': str(len(spans))}]
+        summaries += [{'traceId': row['traceId'], 'rootSpanName': row['name'], 'serviceName': row['serviceName'], 'startTime': row['startTime'], 'durationNanos': row['durationNanos'], 'status': 'TRACE_STATUS_OK', 'spanCount': '1'} for row in others]
+        if mode[0] == 'paged':
+            summaries += [dict(summaries[1], traceId=f'{index + 1000:032x}', rootSpanName=f'Paged trace {index}') for index in range(60)]
+        if body.get('traceId'):
+            summaries = [row for row in summaries if row['traceId'] == body['traceId']]
+        summaries = [row for row in summaries if all(term.lower() in row['rootSpanName'].lower() for term in summary.get('rootNameTerms', [])) and (not summary.get('status') or row['status'] == summary['status'])]
+        if summary.get('sort') == 'TRACE_SUMMARY_SORT_DURATION':
+            summaries.sort(key=lambda row: (-int(row['durationNanos']), row['traceId']))
+        offset = summary.get('offset', 0)
+        route.fulfill(json={'totalCount': str(len(summaries)), 'summaries': summaries[offset:offset + body['limit']]})
+        return
+    route.fulfill(json={'spans': spans})
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with sync_playwright() as p:
@@ -81,7 +92,7 @@ with sync_playwright() as p:
             context = browser.new_context(permissions=['clipboard-read', 'clipboard-write'], viewport=evidence.NARROW if narrow else evidence.DESKTOP, device_scale_factor=2, color_scheme=theme)
             auth = json.dumps({'idToken': state['users']['owner']['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS})
             context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});')
-            context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces', handle)
+            context.route('**/loco.observability.v1.ObservabilityProxyService/*Trace*', handle)
             page = context.new_page()
             errors = []
             page.on('pageerror', lambda err: errors.append(str(err)))
@@ -94,17 +105,12 @@ with sync_playwright() as p:
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
             open_trace.click()
             drawer = page.get_by_role('dialog', name=root_name)
-            drawer.get_by_text('More spans exist than were loaded', exact=False).wait_for()
             assert 'trace=' + trace in page.url
             evidence.settle(page)
             assert drawer.evaluate('(element) => element.contains(document.activeElement)')
             if not narrow:
-                page.screenshot(path=out / f'trace-partial-after-{suffix}.png', full_page=True, animations='disabled')
+                page.screenshot(path=out / f'trace-open-after-{suffix}.png', full_page=True, animations='disabled')
             flame = drawer.get_by_role('region', name='Flame graph')
-            assert flame.get_by_role('button').count() == 7
-            drawer.get_by_role('button', name='Load more spans').click()
-            evidence.settle(page)
-            expect(drawer.get_by_text('More spans exist than were loaded', exact=False)).to_have_count(0)
             expect(flame.get_by_role('button')).to_have_count(len(spans))
             flame.get_by_role('button', name=failing).click()
             evidence.settle(page)
@@ -133,10 +139,18 @@ with sync_playwright() as p:
             assert not errors, errors
             if not narrow and theme == 'light':
                 previous_url = page.url
-                previous_request = dict(recorded[-1])
+                previous_request = dict(next(row for row in reversed(recorded) if "startTime" in row))
                 page.keyboard.press('Escape')
                 expect(drawer).to_have_count(0)
                 assert 'trace=' not in page.url
+                spans.append(dict(spans[5], spanId='0000000000000f01', name='Late exported span'))
+                open_trace.click()
+                evidence.settle(page)
+                expect(flame.get_by_role('button')).to_have_count(len(spans))
+                expect(flame.get_by_role('button', name=re.compile('Late exported span'))).to_have_count(1)
+                drawer.get_by_role('button', name='Close', exact=True).click()
+                expect(drawer).to_have_count(0)
+                spans.pop()
                 page.get_by_role('button', name='Past hour', exact=True).click()
                 page.get_by_role('group', name='Presets').get_by_role('button', name='Past 15 minutes', exact=False).click()
                 evidence.settle(page)
@@ -146,14 +160,12 @@ with sync_playwright() as p:
                 assert 'range=15m' not in page.url
                 page.goto(previous_url)
                 evidence.settle(page)
-                drawer.get_by_role('button', name='Load more spans').click()
-                evidence.settle(page)
                 expect(flame.get_by_role('button', name=failing)).to_have_attribute('aria-pressed', 'true')
                 drawer.get_by_role('button', name='Close', exact=True).click()
                 expect(drawer).to_have_count(0)
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 evidence.settle(page)
-                assert recorded[-1]['startTime'] != previous_request['startTime']
+                assert next(row for row in reversed(recorded) if 'startTime' in row)['startTime'] != previous_request['startTime']
                 page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
                 evidence.settle(page)
                 expect(page.get_by_role('alert')).to_have_text('A trace ID is 32 lowercase hexadecimal characters.')
@@ -163,10 +175,7 @@ with sync_playwright() as p:
                 expect(open_trace).to_be_visible()
                 page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=ffffffffffffffff')
                 evidence.settle(page)
-                drawer.get_by_text('The selected span has not loaded.', exact=False).wait_for()
-                drawer.get_by_role('button', name='Load more spans').click()
-                evidence.settle(page)
-                drawer.get_by_text('The selected span is unavailable in this time range.', exact=True).wait_for()
+                drawer.get_by_text('The selected span is unavailable.', exact=True).wait_for()
                 drawer.get_by_role('button', name='Close', exact=True).click()
                 expect(drawer).to_have_count(0)
             if drawer.count():
@@ -196,6 +205,40 @@ with sync_playwright() as p:
                 evidence.settle(page)
                 open_trace.wait_for()
             context.close()
+    mode[0] = 'paged'
+    context = browser.new_context(viewport=evidence.DESKTOP)
+    auth = json.dumps({'idToken': state['users']['owner']['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS})
+    context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
+    context.route('**/loco.observability.v1.ObservabilityProxyService/*Trace*', handle)
+    page = context.new_page()
+    page.goto(state['ui_url'] + base)
+    evidence.settle(page)
+    assert recorded[-1].get('limit') == 25
+    expect(page.get_by_text('1–25 of 67', exact=True)).to_be_visible()
+    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(25)
+    page.get_by_role('button', name='Next page', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1]['offset'] == 25
+    expect(page.get_by_text('26–50 of 67', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Last page', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1]['offset'] == 50
+    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(17)
+    expect(page.get_by_text('51–67 of 67', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Observed duration', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1].get('offset', 0) == 0
+    assert recorded[-1]['sort'] == 'TRACE_SUMMARY_SORT_DURATION'
+    page.get_by_role('button', name='Errors', exact=True).click()
+    evidence.settle(page)
+    assert recorded[-1]['status'] == 'TRACE_STATUS_ERROR'
+    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(1)
+    page.goto(state['ui_url'] + base + '&q=products')
+    evidence.settle(page)
+    assert recorded[-1]['rootNameTerms'] == ['products']
+    expect(page.get_by_role('button', name='Open trace GET /api/products', exact=True)).to_be_visible()
+    context.close()
+    mode[0] = 'normal'
     environments = evidence.rpc(state['api_url'], state['users']['owner']['token'], 'loco.environment.v1.EnvironmentService/ListEnvironments', {'workspaceId': workspace_id})['environments']
     staging = next((environment['id'] for environment in environments if environment['name'] == 'staging'), None)
     if staging is None:
@@ -203,28 +246,28 @@ with sync_playwright() as p:
     context = browser.new_context()
     auth = json.dumps({'idToken':state['users']['owner']['token'],'refreshToken':None,'expiresAt':evidence.SESSION_EXPIRY_MS})
     context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});localStorage.setItem({json.dumps("loco:env:v1:"+workspace_id)},"staging");')
-    context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces',handle)
+    context.route('**/loco.observability.v1.ObservabilityProxyService/*Trace*',handle)
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace)
     evidence.settle(page)
     shared_url = page.url
     assert 'env=staging' in shared_url
-    assert recorded[-1]['environmentId'] == staging
+    assert recorded[-1]['scope']['environmentId'] == staging
     context.close()
     context = browser.new_context()
     context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
-    context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces',handle)
+    context.route('**/loco.observability.v1.ObservabilityProxyService/*Trace*',handle)
     page = context.new_page()
     page.goto(shared_url)
     evidence.settle(page)
-    assert recorded[-1]['environmentId'] == staging
+    assert recorded[-1]['scope']['environmentId'] == staging
     context.close()
     raw_service = 'resource-' + workspace_id
     spans[0]['serviceName'] = raw_service
     spans[0]['resourceAttributes']['service.name'] = raw_service
     context = browser.new_context(viewport=evidence.NARROW)
     context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
-    context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces',handle)
+    context.route('**/loco.observability.v1.ObservabilityProxyService/*Trace*',handle)
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=' + spans[0]['spanId'])
     evidence.settle(page)
@@ -234,7 +277,7 @@ with sync_playwright() as p:
     mode[0] = 'many'
     context = browser.new_context(viewport=evidence.DESKTOP)
     context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
-    context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces',handle)
+    context.route('**/loco.observability.v1.ObservabilityProxyService/*Trace*',handle)
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace)
     evidence.settle(page)
@@ -245,7 +288,7 @@ with sync_playwright() as p:
     mode[0] = 'normal'
     context = browser.new_context(viewport=evidence.DESKTOP)
     context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
-    context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces', handle)
+    context.route('**/loco.observability.v1.ObservabilityProxyService/*Trace*', handle)
     page = context.new_page()
     search = page.get_by_role('combobox', name='Search and filter')
     suggestions = page.get_by_role('listbox', name='Suggestions')
@@ -275,10 +318,6 @@ with sync_playwright() as p:
     expect(recent).to_have_count(0)
     context.close()
     browser.close()
-assert all((row.get('environmentId') for row in recorded))
-assert all((not row.get('resourceIds') for row in recorded if row.get('traceId')))
-for index, row in enumerate(recorded):
-    if row.get('cursor'):
-        previous = recorded[index - 1]
-        assert row['startTime'] == previous['startTime'] and row['endTime'] == previous['endTime']
-print('PASS browser trace list, drawer span paging, span selection and attributes, trace ID validation, frozen bounds, recent queries per view, and production UI light/dark desktop/390px; trace responses use explicit browser fixtures.')
+assert all((row.get('scope', {}).get('environmentId') for row in recorded))
+assert all((not row.get('scope', {}).get('resourceIds') for row in recorded if row.get('traceId')))
+print('PASS browser trace list, complete drawer spans, span selection and attributes, trace ID validation, frozen bounds, recent queries per view, and production UI light/dark desktop/390px; trace responses use explicit browser fixtures.')

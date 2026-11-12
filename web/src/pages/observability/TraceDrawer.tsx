@@ -238,9 +238,6 @@ export function TraceDrawer({
 	trace,
 	loading,
 	error,
-	incomplete,
-	loadingMore,
-	onLoadMore,
 	onRetry,
 	onClose,
 }: {
@@ -248,9 +245,6 @@ export function TraceDrawer({
 	trace: TraceSummary | undefined;
 	loading: boolean;
 	error: Error | null;
-	incomplete: boolean;
-	loadingMore: boolean;
-	onLoadMore: () => void;
 	onRetry: () => void;
 	onClose: () => void;
 }) {
@@ -354,25 +348,15 @@ export function TraceDrawer({
 						</div>
 					)}
 					{!loading && error === null && trace === undefined && (
-						<p className="py-6 text-fg3">No spans for this trace in the selected time range.</p>
+						<p className="py-6 text-fg3">No spans for this trace.</p>
 					)}
 					{trace !== undefined && selected !== undefined && (
 						<>
 							<FlameGraph trace={trace} selected={selected} onSelect={select} label={label} />
 							{missing && (
 								<p role="status" className="m-0 text-[12.5px] text-fg2">
-									{incomplete
-										? "The selected span has not loaded. Load more spans to find it."
-										: "The selected span is unavailable in this time range."}
+									The selected span is unavailable.
 								</p>
-							)}
-							{incomplete && (
-								<div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-fg3">
-									<span>More spans exist than were loaded. Durations and shares reflect the loaded spans.</span>
-									<Button variant="outline" size="sm" disabled={loadingMore} onClick={onLoadMore}>
-										{loadingMore ? "Loading…" : "Load more spans"}
-									</Button>
-								</div>
 							)}
 							<section className="flex min-w-0 items-center gap-2.5" aria-label="Selected span">
 								<h3 className="m-0 min-w-0 truncate font-mono text-[14px] font-medium">
