@@ -39,6 +39,24 @@ var operations = []operation{
 
 func BuildUserCmd() *cobra.Command {
 	user := &cobra.Command{Use: "user", Short: "Manage users (requires system admin)"}
+	user.PersistentFlags().String("host", "", "API host URL")
+	user.AddCommand(&cobra.Command{
+		Use:   "invite <email>",
+		Short: "Let a user sign in with a verified email address",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			login, err := auth.ResolveLogin(cmd)
+			if err != nil {
+				return err
+			}
+			response, err := login.Clients.User.CreateUser(cmd.Context(), &userv1.CreateUserRequest{Email: args[0]})
+			if err != nil {
+				return fmt.Errorf("unable to invite %s: %w", args[0], err)
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "User %s: invited\n", response.GetUser().GetEmail())
+			return err
+		},
+	})
 	for _, op := range operations {
 		command := &cobra.Command{
 			Use:   op.name + " <email>",
@@ -60,7 +78,6 @@ func BuildUserCmd() *cobra.Command {
 				return err
 			},
 		}
-		command.Flags().String("host", "", "API host URL")
 		user.AddCommand(command)
 	}
 	return user

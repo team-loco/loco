@@ -2,6 +2,10 @@
 
 An organization holds workspaces, and a user works in a workspace only after they accept an invitation to its organization and an organization admin grants them that workspace.
 
+## Closed installations
+
+With `AUTH_SIGNUP_MODE=closed`, a system admin runs `locoadm user invite <email>` (or `UserService.CreateUser`) to pre-create an account. The email is lowercased, and an existing account with that email is refused. Give the user the installation's dashboard URL: their first sign-in must present that verified email address to link their identity. This command sends no email and creates no organization; the user creates an organization through the usual onboarding flow or joins one through an organization invitation.
+
 ## Organization roles
 
 A user holds one or more scopes on an organization:

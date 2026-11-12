@@ -15,6 +15,7 @@ loco config --help
 | `locoadm validate --file installation.yaml` | Validate the unreleased [installation file](installation.md) contract |
 | `locoadm plan`, `locoadm apply`, `locoadm status` | Plan, install and inspect the installation selected by `--file` |
 | `locoadm bootstrap --file installation.yaml --email admin@example.com` | Create the first administrator through the installation's identity provider and save its CLI session |
+| `locoadm user invite <email>` | Pre-create a user account for a [closed installation](../operations/access.md#closed-installations) |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
 | `locoadm recovery export` | Encrypt seal material and individual recovery shares for separate custodians |
 | `loco login`, `loco logout`, `loco whoami` | Sign in to a Loco instance, sign out, show the signed-in user |

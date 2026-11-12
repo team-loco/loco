@@ -23,6 +23,7 @@ type fakeUsers struct {
 	t        *testing.T
 	session  string
 	requests []*userv1.SetUserStatusRequest
+	invites  []*userv1.CreateUserRequest
 }
 
 func (f *fakeUsers) SetUserStatus(
@@ -92,5 +93,37 @@ func TestSuspendAndReinstateSendTheEmailAndStatus(t *testing.T) {
 				t.Fatalf("requests = %v", fake.requests)
 			}
 		})
+	}
+}
+
+func (f *fakeUsers) CreateUser(ctx context.Context, req *userv1.CreateUserRequest) (*userv1.CreateUserResponse, error) {
+	info, ok := connect.CallInfoForServerContext(ctx)
+	if !ok || info.RequestHeader().Get("Authorization") != "Bearer "+f.session {
+		f.t.Error("CLI did not send the signed-in session")
+	}
+	f.invites = append(f.invites, req)
+	return &userv1.CreateUserResponse{User: &userv1.User{Email: targetEmail}}, nil
+}
+
+func TestInviteSendsTheEmail(t *testing.T) {
+	fake := &fakeUsers{}
+	output := runUserCmd(t, fake, "invite", targetEmail)
+	if output != "User "+targetEmail+": invited\n" {
+		t.Fatalf("output = %q", output)
+	}
+	if len(fake.invites) != 1 || fake.invites[0].GetEmail() != targetEmail {
+		t.Fatalf("invites = %v", fake.invites)
+	}
+}
+
+func TestInviteRequiresOneEmail(t *testing.T) {
+	for _, args := range [][]string{{"invite"}, {"invite", targetEmail, targetEmail}} {
+		cmd := BuildUserCmd()
+		cmd.SetArgs(args)
+		cmd.SetOut(new(bytes.Buffer))
+		cmd.SetErr(new(bytes.Buffer))
+		if err := cmd.Execute(); err == nil {
+			t.Fatalf("accepted args %v", args)
+		}
 	}
 }
