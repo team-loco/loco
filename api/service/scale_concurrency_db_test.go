@@ -31,7 +31,10 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	ctx := reqctx.WithPrincipal(
+		t.Context(),
+		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+	)
 	release := sync.OnceFunc(f.holdResourceLock(t))
 	t.Cleanup(release)
 	type createResult struct {

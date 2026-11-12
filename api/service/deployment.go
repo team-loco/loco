@@ -50,6 +50,14 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 }
 
 func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*deploymentv1.Deployment, error) {
+	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
+	if err != nil {
+		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
+	}
+	var commit *deploymentv1.SourceCommit
+	if d.CommitSha != nil {
+		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
+	}
 	deployment := &deploymentv1.Deployment{
 		Id:            d.ID.String(),
 		ResourceId:    d.ResourceID.String(),
@@ -61,18 +69,16 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 		IsActive:      d.IsActive,
 		CreatedAt:     timestamppb.New(d.CreatedAt),
 		UpdatedAt:     timestamppb.New(d.UpdatedAt),
+		StartedAt:     timestamppb.New(d.StartedAt),
+		CompletedAt:   optionalTimestamp(d.CompletedAt),
 		SpecVersion:   d.SpecVersion,
 		Message:       d.Message,
+		Spec:          spec,
+		ActorType:     parseDeploymentActorType(d.ActorType),
+		ActorId:       d.ActorID.String(),
+		Method:        parseDeploymentMethod(d.Method),
+		Commit:        commit,
 	}
-
-	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
-	if err != nil {
-		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
-	}
-	deployment.Spec = spec
-
-	deployment.StartedAt = timestamppb.New(d.StartedAt)
-	deployment.CompletedAt = optionalTimestamp(d.CompletedAt)
 
 	return deployment, nil
 }
@@ -135,6 +141,11 @@ func (s *DeploymentServer) CreateDeployment(
 	ctx context.Context,
 	req *deploymentv1.CreateDeploymentRequest,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
+	principal, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	resourceID, err := parseID("resource_id", req.GetResourceId())
 	if err != nil {
 		return nil, err
@@ -283,6 +294,11 @@ func (s *DeploymentServer) CreateDeployment(
 			SpecVersion:   specVersion,
 			EnvironmentID: environmentID,
 			SecretNames:   secretNames,
+			ActorType:     principal.ActorType,
+			ActorID:       principal.ActorID,
+			Method:        principal.Method,
+			CommitSha:     sourceCommitSHA(req.GetCommit()),
+			CommitDirty:   req.GetCommit().GetDirty(),
 		}, buildSpec)
 		if txErr != nil {
 			return txErr
@@ -342,6 +358,12 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, err
 	}
 
+	actor, err := s.queries.GetDeploymentActor(ctx, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("get deployment actor: %w", err)
+	}
+	deployment.ActorName = actor.Name
+	deployment.ActorAvatarUrl = actor.AvatarUrl
 	return &deploymentv1.GetDeploymentResponse{
 		Deployment: deployment,
 	}, nil
@@ -394,16 +416,22 @@ func (s *DeploymentServer) ListDeployments(
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
-		deployment, err := deploymentToProto(d, resource.Type)
+		deployment, err := deploymentToProto(d.Deployment, resource.Type)
 		if err != nil {
 			return nil, err
 		}
+		deployment.ActorName = d.ActorName
+		deployment.ActorAvatarUrl = d.ActorAvatarUrl
 		deployments = append(deployments, deployment)
 	}
 
-	token := nextPageToken(deploymentList, pageSize, func(d genDb.Deployment) (uuid.UUID, time.Time) {
-		return d.ID, d.CreatedAt
-	})
+	token := nextPageToken(
+		deploymentList,
+		pageSize,
+		func(d genDb.ListDeploymentsForResourceRow) (uuid.UUID, time.Time) {
+			return d.Deployment.ID, d.Deployment.CreatedAt
+		},
+	)
 	return &deploymentv1.ListDeploymentsResponse{
 		Deployments:   deployments,
 		NextPageToken: token,
@@ -583,4 +611,35 @@ func optionalTimestamp(ts *time.Time) *timestamppb.Timestamp {
 		return nil
 	}
 	return timestamppb.New(*ts)
+}
+
+func sourceCommitSHA(commit *deploymentv1.SourceCommit) *string {
+	if commit == nil {
+		return nil
+	}
+	return new(commit.GetSha())
+}
+
+func parseDeploymentActorType(actor genDb.DeploymentActorType) deploymentv1.DeploymentActorType {
+	switch actor {
+	case genDb.DeploymentActorTypeUser:
+		return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_USER
+	case genDb.DeploymentActorTypeApiToken:
+		return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_API_TOKEN
+	default:
+		return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED
+	}
+}
+
+func parseDeploymentMethod(method genDb.DeploymentMethod) deploymentv1.DeploymentMethod {
+	switch method {
+	case genDb.DeploymentMethodApiToken:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_API_TOKEN
+	case genDb.DeploymentMethodCli:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_CLI
+	case genDb.DeploymentMethodWeb:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_WEB
+	default:
+		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_UNSPECIFIED
+	}
 }

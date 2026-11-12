@@ -7,9 +7,13 @@ import (
 	"io"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/team-loco/loco/cmd/internal/gitsource"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
@@ -39,6 +43,7 @@ type applyRequest struct {
 	confirm   confirmations
 	builds    map[string]string
 	provision []string
+	commit    gitsource.Commit
 }
 
 type confirmations struct {
@@ -115,12 +120,17 @@ func runApply(cmd *cobra.Command, path string) error {
 		return askErr
 	}
 
+	commit, err := gitsource.Read(ctx, filepath.Dir(path))
+	if err != nil {
+		return err
+	}
 	applied, err := requestApply(ctx, applyRequest{
 		target:   t,
 		file:     data,
 		revision: plan.GetRevision(),
 		images:   plan.GetImages(),
 		confirm:  confirm,
+		commit:   commit,
 	})
 	if err != nil {
 		return err
@@ -154,6 +164,10 @@ func requestApply(ctx context.Context, apply applyRequest) (*planv1.ApplyRespons
 	ctx, cancel := context.WithTimeout(ctx, applyTimeout)
 	defer cancel()
 
+	var commit *deploymentv1.SourceCommit
+	if apply.commit.SHA != "" {
+		commit = &deploymentv1.SourceCommit{Sha: apply.commit.SHA, Dirty: apply.commit.Dirty}
+	}
 	req := &planv1.ApplyRequest{
 		File:               apply.file,
 		EnvironmentId:      apply.target.Environment.GetId(),
@@ -163,6 +177,7 @@ func requestApply(ctx context.Context, apply applyRequest) (*planv1.ApplyRespons
 		Images:             apply.images,
 		Builds:             apply.builds,
 		Provision:          apply.provision,
+		Commit:             commit,
 	}
 
 	resp, err := apply.target.Clients.Plan.Apply(ctx, req)

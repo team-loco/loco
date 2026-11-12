@@ -8992,6 +8992,10 @@
             "title": "secret_bindings",
             "description": "Omit to keep the active deployment's secret bindings in the target environment and region.",
             "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSecretBindings"
+          },
+          "commit": {
+            "title": "commit",
+            "$ref": "#/components/schemas/loco.deployment.v1.SourceCommit"
           }
         },
         "title": "CreateDeploymentRequest",
@@ -9120,11 +9124,54 @@
           "environmentId": {
             "type": "string",
             "title": "environment_id"
+          },
+          "actorType": {
+            "title": "actor_type",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentActorType"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "actor_id"
+          },
+          "actorName": {
+            "type": "string",
+            "title": "actor_name"
+          },
+          "actorAvatarUrl": {
+            "type": "string",
+            "title": "actor_avatar_url"
+          },
+          "method": {
+            "title": "method",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentMethod"
+          },
+          "commit": {
+            "title": "commit",
+            "$ref": "#/components/schemas/loco.deployment.v1.SourceCommit"
           }
         },
         "title": "Deployment",
         "additionalProperties": false,
         "description": "Deployment represents a resource deployment (immutable, single-region)."
+      },
+      "loco.deployment.v1.DeploymentActorType": {
+        "type": "string",
+        "title": "DeploymentActorType",
+        "enum": [
+          "DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED",
+          "DEPLOYMENT_ACTOR_TYPE_USER",
+          "DEPLOYMENT_ACTOR_TYPE_API_TOKEN"
+        ]
+      },
+      "loco.deployment.v1.DeploymentMethod": {
+        "type": "string",
+        "title": "DeploymentMethod",
+        "enum": [
+          "DEPLOYMENT_METHOD_UNSPECIFIED",
+          "DEPLOYMENT_METHOD_API_TOKEN",
+          "DEPLOYMENT_METHOD_CLI",
+          "DEPLOYMENT_METHOD_WEB"
+        ]
       },
       "loco.deployment.v1.DeploymentPhase": {
         "type": "string",
@@ -9607,6 +9654,23 @@
         "title": "ServiceRouting",
         "additionalProperties": false,
         "description": "ServiceRouting is the HTTP routing of one environment's deployment of a service."
+      },
+      "loco.deployment.v1.SourceCommit": {
+        "type": "object",
+        "properties": {
+          "sha": {
+            "type": "string",
+            "title": "sha",
+            "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+          },
+          "dirty": {
+            "type": "boolean",
+            "title": "dirty"
+          }
+        },
+        "title": "SourceCommit",
+        "additionalProperties": false,
+        "description": "SourceCommit is client-reported metadata, not a verified source identity."
       },
       "loco.deployment.v1.WatchDeploymentRequest": {
         "type": "object",
@@ -11753,6 +11817,10 @@
             "maxItems": 100,
             "uniqueItems": true,
             "description": "provision names services the plan creates. When it is set, the apply creates only those\n services' resources, without deployments, and performs no other operation of the plan, so\n a source service can be built, and a service that declares secrets can have them set,\n before the file is applied. The secrets the provisioned services declare need not be set\n yet; every other plan error still refuses the apply. A request sets provision or builds,\n not both."
+          },
+          "commit": {
+            "title": "commit",
+            "$ref": "#/components/schemas/loco.deployment.v1.SourceCommit"
           }
         },
         "title": "ApplyRequest",

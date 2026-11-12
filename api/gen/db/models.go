@@ -59,6 +59,91 @@ func (ns NullBuildStatus) Value() (driver.Value, error) {
 	return string(ns.BuildStatus), nil
 }
 
+type DeploymentActorType string
+
+const (
+	DeploymentActorTypeUser     DeploymentActorType = "user"
+	DeploymentActorTypeApiToken DeploymentActorType = "api_token"
+)
+
+func (e *DeploymentActorType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DeploymentActorType(s)
+	case string:
+		*e = DeploymentActorType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DeploymentActorType: %T", src)
+	}
+	return nil
+}
+
+type NullDeploymentActorType struct {
+	DeploymentActorType DeploymentActorType `json:"deploymentActorType"`
+	Valid               bool                `json:"valid"` // Valid is true if DeploymentActorType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDeploymentActorType) Scan(value interface{}) error {
+	if value == nil {
+		ns.DeploymentActorType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DeploymentActorType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDeploymentActorType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DeploymentActorType), nil
+}
+
+type DeploymentMethod string
+
+const (
+	DeploymentMethodApiToken DeploymentMethod = "api_token"
+	DeploymentMethodCli      DeploymentMethod = "cli"
+	DeploymentMethodWeb      DeploymentMethod = "web"
+)
+
+func (e *DeploymentMethod) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DeploymentMethod(s)
+	case string:
+		*e = DeploymentMethod(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DeploymentMethod: %T", src)
+	}
+	return nil
+}
+
+type NullDeploymentMethod struct {
+	DeploymentMethod DeploymentMethod `json:"deploymentMethod"`
+	Valid            bool             `json:"valid"` // Valid is true if DeploymentMethod is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDeploymentMethod) Scan(value interface{}) error {
+	if value == nil {
+		ns.DeploymentMethod, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DeploymentMethod.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDeploymentMethod) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DeploymentMethod), nil
+}
+
 type DeploymentStatus string
 
 const (
@@ -396,22 +481,27 @@ type ClusterAssertion struct {
 }
 
 type Deployment struct {
-	ID            uuid.UUID        `json:"id"`
-	ResourceID    uuid.UUID        `json:"resourceId"`
-	ClusterID     uuid.UUID        `json:"clusterId"`
-	Region        string           `json:"region"`
-	Replicas      int32            `json:"replicas"`
-	Status        DeploymentStatus `json:"status"`
-	IsActive      bool             `json:"isActive"`
-	Message       string           `json:"message"`
-	EnvironmentID uuid.UUID        `json:"environmentId"`
-	Spec          []byte           `json:"spec"`
-	SpecVersion   int32            `json:"specVersion"`
-	SecretNames   []string         `json:"secretNames"`
-	CreatedAt     time.Time        `json:"createdAt"`
-	StartedAt     time.Time        `json:"startedAt"`
-	CompletedAt   *time.Time       `json:"completedAt"`
-	UpdatedAt     time.Time        `json:"updatedAt"`
+	ID            uuid.UUID           `json:"id"`
+	ResourceID    uuid.UUID           `json:"resourceId"`
+	ClusterID     uuid.UUID           `json:"clusterId"`
+	Region        string              `json:"region"`
+	Replicas      int32               `json:"replicas"`
+	Status        DeploymentStatus    `json:"status"`
+	IsActive      bool                `json:"isActive"`
+	Message       string              `json:"message"`
+	EnvironmentID uuid.UUID           `json:"environmentId"`
+	Spec          []byte              `json:"spec"`
+	SpecVersion   int32               `json:"specVersion"`
+	ActorType     DeploymentActorType `json:"actorType"`
+	ActorID       uuid.UUID           `json:"actorId"`
+	Method        DeploymentMethod    `json:"method"`
+	CommitSha     *string             `json:"commitSha"`
+	CommitDirty   bool                `json:"commitDirty"`
+	SecretNames   []string            `json:"secretNames"`
+	CreatedAt     time.Time           `json:"createdAt"`
+	StartedAt     time.Time           `json:"startedAt"`
+	CompletedAt   *time.Time          `json:"completedAt"`
+	UpdatedAt     time.Time           `json:"updatedAt"`
 }
 
 type Environment struct {

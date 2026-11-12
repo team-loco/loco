@@ -280,12 +280,12 @@ func testConfig() tvm.Config {
 func TestSessionCarriesLiveUserScopes(t *testing.T) {
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
 	access, _ := session(t, machine, user3UUID)
-	entity, scopes, err := machine.GetToken(t.Context(), access)
+	principal, err := machine.GetToken(t.Context(), access)
 	if err != nil {
 		t.Fatalf("get token: %v", err)
 	}
-	if entity.Type != queries.EntityTypeUser || entity.ID != user3UUID {
-		t.Fatalf("entity = %+v", entity)
+	if principal.Entity.Type != queries.EntityTypeUser || principal.Entity.ID != user3UUID {
+		t.Fatalf("entity = %+v", principal.Entity)
 	}
 	want := queries.EntityScope{
 		EntityType: queries.EntityTypeOrganization,
@@ -293,13 +293,13 @@ func TestSessionCarriesLiveUserScopes(t *testing.T) {
 		Scope:      queries.ScopeWrite,
 	}
 	found := false
-	for _, s := range scopes {
+	for _, s := range principal.Scopes {
 		if s == want {
 			found = true
 		}
 	}
-	if !found || len(scopes) != 5 {
-		t.Fatalf("scopes = %+v", scopes)
+	if !found || len(principal.Scopes) != 5 {
+		t.Fatalf("scopes = %+v", principal.Scopes)
 	}
 }
 
@@ -354,7 +354,7 @@ func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(pool, queries.New(pool), tvm.Config{})
 	for _, token := range []string{"loco_s_unknown", "loco_k_unknown"} {
-		if _, _, err := machine.GetToken(t.Context(), token); err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		if _, err := machine.GetToken(t.Context(), token); err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
 			t.Errorf("GetToken(%s) on a closed pool: got %v, want the database error", token, err)
 		}
 	}

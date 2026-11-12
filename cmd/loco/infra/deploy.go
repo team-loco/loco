@@ -142,9 +142,12 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return err
 	}
 	var archive *sourcepack.Archive
-	var commit gitsource.Commit
+	dir := filepath.Dir(filePath)
+	commit, err := gitsource.Read(ctx, dir)
+	if err != nil {
+		return err
+	}
 	if len(targets) > 0 {
-		dir := filepath.Dir(filePath)
 		archive, err = packTargets(dir, targets, os.Stdout)
 		if err != nil {
 			return err
@@ -154,10 +157,6 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 				fmt.Fprintf(os.Stdout, "Could not remove %s: %v\n", archive.Path, removeErr)
 			}
 		}()
-		commit, err = gitsource.Read(ctx, dir)
-		if err != nil {
-			return err
-		}
 	}
 	if proceed, askErr := cmdutil.Confirm(cmd, "Deploy?"); !proceed {
 		return askErr
@@ -194,6 +193,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		images:   plan.GetImages(),
 		confirm:  confirm,
 		builds:   builds,
+		commit:   commit,
 	})
 	if err != nil {
 		return err

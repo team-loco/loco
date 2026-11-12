@@ -42,6 +42,32 @@ func TestRead(t *testing.T) {
 		}
 	})
 
+	for _, state := range []string{"untracked", "modified", "staged"} {
+		t.Run(state, func(t *testing.T) {
+			path := filepath.Join(dir, "changes.txt")
+			if state != "untracked" {
+				path = filepath.Join(subdir, "main.go")
+			}
+			writeFile(t, path, "changed\n")
+			if state == "staged" {
+				runGit(t, dir, "add", ".")
+			}
+			got := read(t, subdir)
+			if got.SHA != sha || !got.Dirty {
+				t.Fatalf("Read = %+v, want HEAD and dirty", got)
+			}
+			runGit(t, dir, "reset", "--hard", "HEAD")
+			runGit(t, dir, "clean", "-fd")
+		})
+	}
+	t.Run("ignored files", func(t *testing.T) {
+		writeFile(t, filepath.Join(dir, ".git", "info", "exclude"), "ignored.txt\n")
+		writeFile(t, filepath.Join(dir, "ignored.txt"), "ignored\n")
+		if got := read(t, dir); got.Dirty {
+			t.Fatalf("ignored file made checkout dirty: %+v", got)
+		}
+	})
+
 	t.Run("git not installed", func(t *testing.T) {
 		t.Setenv("PATH", t.TempDir())
 		if got := read(t, dir); got != (Commit{}) {

@@ -5,6 +5,8 @@ package reqctx
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -23,9 +25,12 @@ type Request struct {
 
 // Principal is the caller the auth interceptor authenticated.
 type Principal struct {
-	Entity genDb.Entity
-	Scopes []genDb.EntityScope
-	Token  string
+	Entity    genDb.Entity
+	Scopes    []genDb.EntityScope
+	ActorType genDb.DeploymentActorType
+	ActorID   uuid.UUID
+	Method    genDb.DeploymentMethod
+	Token     string
 }
 
 func WithRequest(ctx context.Context, r Request) context.Context {

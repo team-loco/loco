@@ -90,6 +90,18 @@ services:
     regions:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
 YAML
+    git -C "$config_repo" init -q
+    git -C "$config_repo" add .
+    git -C "$config_repo" -c user.name='Loco test' -c user.email=test@loco.test commit -qm 'Initial app'
+}
+
+config_deployment_origin() {
+    local resource=$1 dirty=$2 sha
+    sha=$(git -C "$config_repo" rev-parse HEAD)
+    test "$(e2e_psql "SELECT count(*) FROM deployments d JOIN resources r ON r.id = d.resource_id
+        WHERE r.name = '${resource}' AND d.is_active AND d.actor_type = 'user'
+          AND d.actor_id = '${cli_user_id}' AND d.method = 'cli'
+          AND d.commit_sha = '${sha}' AND d.commit_dirty = ${dirty}")" -eq 1
 }
 
 test_g01_validate_accepts_the_file() {
@@ -119,6 +131,7 @@ test_g03_apply_creates_the_image_service() {
     fi
     assert "the image service has a resource" config_resource_count "$config_cache" 1
     assert "the image service starts a deployment" config_out_contains apply "Started deployment .* for ${config_cache}"
+    assert "image apply records the CLI caller and clean HEAD" config_deployment_origin "$config_cache" false
     wait_for "the image service to be Ready" 120 cli_application_is_ready "$config_cache"
     config_run plan_after_apply infra plan --env "$config_env" || true
     assert "the source service still needs a deploy" config_out_contains plan_after_apply "needs deploy"
@@ -127,11 +140,13 @@ test_g03_apply_creates_the_image_service() {
 test_g04_deploy_builds_and_applies() {
     local rc=0 started
     started=$(date +%s)
+    touch "$config_repo/uncommitted.txt"
     config_run deploy deploy --env "$config_env" --yes || rc=$?
     if ! assert "loco deploy builds and applies (exit ${rc}, $(($(date +%s) - started))s)" test "$rc" -eq 0; then
         config_show deploy
         return 1
     fi
+    assert "source deploy records HEAD and uncommitted changes" config_deployment_origin "$config_web" true
     assert "deploy built the source service from its context" config_out_contains deploy "Building ${config_web} from deploy/Dockerfile in services/web"
     assert "deploy followed the build" config_out_contains deploy "succeeded in"
     assert "deploy prints the public URL" config_out_contains deploy "${config_web}: https://${config_web}.e2e.test.local"

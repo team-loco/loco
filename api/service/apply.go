@@ -87,6 +87,7 @@ func (s *PlanServer) Apply(
 		defaults:        s.defaults,
 		provisioning:    len(req.GetProvision()) > 0,
 		silentAfter:     s.silentAfter,
+		commit:          req.GetCommit(),
 	}
 	var revision int64
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {

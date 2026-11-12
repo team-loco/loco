@@ -27,7 +27,15 @@ func (f *deployFixture) rolloutContext(t *testing.T) context.Context {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
-	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
+	return reqctx.WithPrincipal(
+		t.Context(),
+		reqctx.Principal{
+			ActorType: genDb.DeploymentActorTypeUser,
+			Method:    genDb.DeploymentMethodWeb,
+			Entity:    entity,
+			Scopes:    scopes,
+		},
+	)
 }
 
 func (f *deployFixture) reportRollout(t *testing.T, phase string, ready bool) {

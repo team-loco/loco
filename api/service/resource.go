@@ -801,6 +801,10 @@ func (s *ResourceServer) planRegionRedeploy(
 	replicas int32,
 	message string,
 ) (regionRedeploy, error) {
+	principal, err := principalFrom(ctx)
+	if err != nil {
+		return regionRedeploy{}, err
+	}
 	specJSON, err := deploymentSpecJSON(serviceDeploymentSpec)
 	if err != nil {
 		return regionRedeploy{}, err
@@ -829,6 +833,11 @@ func (s *ResourceServer) planRegionRedeploy(
 			SpecVersion:   specVersion,
 			EnvironmentID: current.EnvironmentID,
 			SecretNames:   current.SecretNames,
+			ActorType:     principal.ActorType,
+			ActorID:       principal.ActorID,
+			Method:        principal.Method,
+			CommitSha:     current.CommitSha,
+			CommitDirty:   current.CommitDirty,
 		},
 		deploymentSpec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{

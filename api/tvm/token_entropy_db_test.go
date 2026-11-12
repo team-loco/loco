@@ -106,13 +106,13 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 		t.Fatalf("plaintext tokens stored = %d, err %v", plaintextRows, scanErr)
 	}
 
-	sessionEntity, _, err := machine.GetToken(ctx, access)
-	if err != nil || sessionEntity.ID != user.ID {
-		t.Fatalf("session lookup = %v, %v", sessionEntity, err)
+	sessionPrincipal, err := machine.GetToken(ctx, access)
+	if err != nil || sessionPrincipal.Entity.ID != user.ID {
+		t.Fatalf("session lookup = %v, %v", sessionPrincipal.Entity, err)
 	}
-	apiEntity, _, err := machine.GetToken(ctx, apiToken)
-	if err != nil || apiEntity.ID != user.ID {
-		t.Fatalf("api token lookup = %v, %v", apiEntity, err)
+	apiPrincipal, err := machine.GetToken(ctx, apiToken)
+	if err != nil || apiPrincipal.Entity.ID != user.ID {
+		t.Fatalf("api token lookup = %v, %v", apiPrincipal.Entity, err)
 	}
 	newAccess, newRefresh, err := machine.Refresh(ctx, refresh)
 	if err != nil {

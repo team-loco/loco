@@ -106,6 +106,8 @@ SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e`)
 
 func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentParams {
 	return genDb.CreateDeploymentParams{
+		ActorType:     genDb.DeploymentActorTypeUser,
+		Method:        genDb.DeploymentMethodCli,
 		ResourceID:    f.resourceID,
 		ClusterID:     clusterID,
 		Region:        "us-east-1",

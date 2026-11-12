@@ -74,7 +74,7 @@ func (i *authInterceptor) authenticate(
 		return i.authenticateProviderToken(ctx, procedure, token)
 	}
 
-	entity, scopes, err := i.machine.GetToken(ctx, token)
+	principal, err := i.machine.GetToken(ctx, token)
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
@@ -82,19 +82,15 @@ func (i *authInterceptor) authenticate(
 		return nil, fmt.Errorf("get token: %w", err)
 	}
 
-	c := reqctx.WithPrincipal(ctx, reqctx.Principal{
-		Entity: genDb.Entity{Type: entity.Type, ID: entity.ID},
-		Scopes: scopes,
-		Token:  token,
-	})
+	c := reqctx.WithPrincipal(ctx, principal)
 
 	slog.DebugContext(
 		c,
 		"claims validated; populating ctx",
 		"entityId",
-		entity.ID.String(),
+		principal.Entity.ID.String(),
 		"entityType",
-		entity.Type,
+		principal.Entity.Type,
 	)
 
 	return c, nil
@@ -131,9 +127,12 @@ func (i *authInterceptor) authenticateProviderToken(
 	}
 
 	c := reqctx.WithPrincipal(ctx, reqctx.Principal{
-		Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID},
-		Scopes: scopes,
-		Token:  token,
+		Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID},
+		Scopes:    scopes,
+		Token:     token,
+		ActorType: genDb.DeploymentActorTypeUser,
+		ActorID:   user.ID,
+		Method:    genDb.DeploymentMethodWeb,
 	})
 	return auth.WithLogin(c, auth.Login{Identity: identity, ClaimedOrgs: claimed}), nil
 }

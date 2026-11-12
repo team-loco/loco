@@ -151,6 +151,19 @@ message DeploymentSpec {
   }
 }
 
+enum DeploymentActorType {
+  DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED = 0;
+  DEPLOYMENT_ACTOR_TYPE_USER = 1;
+  DEPLOYMENT_ACTOR_TYPE_API_TOKEN = 2;
+}
+
+enum DeploymentMethod {
+  DEPLOYMENT_METHOD_UNSPECIFIED = 0;
+  DEPLOYMENT_METHOD_API_TOKEN = 1;
+  DEPLOYMENT_METHOD_CLI = 2;
+  DEPLOYMENT_METHOD_WEB = 3;
+}
+
 // Deployment represents a resource deployment (immutable, single-region).
 message Deployment {
   string id = 1;
@@ -168,6 +181,12 @@ message Deployment {
   int32 spec_version = 13;
   DeploymentSpec spec = 14;
   string environment_id = 15;
+  DeploymentActorType actor_type = 16;
+  string actor_id = 17;
+  string actor_name = 18;
+  string actor_avatar_url = 19;
+  DeploymentMethod method = 20;
+  SourceCommit commit = 21;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
@@ -178,6 +197,7 @@ message CreateDeploymentRequest {
   string environment_id = 5 [(buf.validate.field).string.uuid = true];
   // Omit to keep the active deployment's secret bindings in the target environment and region.
   DeploymentSecretBindings secret_bindings = 6;
+  SourceCommit commit = 7;
 }
 
 // DeploymentSecretBindings selects secrets already stored for the resource in the target environment.
@@ -266,4 +286,10 @@ message ResolveImageRequest {
 
 message ResolveImageResponse {
   string image = 1;
+}
+
+// SourceCommit is client-reported metadata, not a verified source identity.
+message SourceCommit {
+  string sha = 1 [(buf.validate.field).string.pattern = "^([0-9a-f]{40}|[0-9a-f]{64})$"];
+  bool dirty = 2;
 }

@@ -46,6 +46,7 @@ type applier struct {
 	started         []*planv1.StartedDeployment
 	provisioning    bool
 	silentAfter     time.Duration
+	commit          *deploymentv1.SourceCommit
 }
 
 func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
@@ -225,6 +226,10 @@ func (a *applier) deploy(
 	state configplan.State,
 	regions []string,
 ) error {
+	principal, err := principalFrom(ctx)
+	if err != nil {
+		return err
+	}
 	build, err := a.currentBuild(ctx, qtx, res, state)
 	if err != nil {
 		return err
@@ -284,6 +289,11 @@ func (a *applier) deploy(
 			SpecVersion:   specVersion,
 			EnvironmentID: a.env.ID,
 			SecretNames:   secretNames,
+			ActorType:     principal.ActorType,
+			ActorID:       principal.ActorID,
+			Method:        principal.Method,
+			CommitSha:     sourceCommitSHA(a.commit),
+			CommitDirty:   a.commit.GetDirty(),
 		}, buildSpec)
 		if deployErr != nil {
 			return deployErr

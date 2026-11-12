@@ -12,7 +12,8 @@ import (
 // Commit is the commit a directory is checked out at. The zero Commit means the directory
 // is not inside a git work tree, the work tree has no commits, or git is not installed.
 type Commit struct {
-	SHA string
+	SHA   string
+	Dirty bool
 	// Branch is empty on a detached HEAD.
 	Branch string
 	// Message is the commit's subject line.
@@ -41,7 +42,11 @@ func Read(ctx context.Context, dir string) (Commit, error) {
 	if err != nil {
 		return Commit{}, err
 	}
-	return Commit{SHA: sha, Branch: strings.TrimSuffix(branch, "\n"), Message: subject}, nil
+	status, err := git(ctx, dir, "status", "--porcelain", "--untracked-files=normal")
+	if err != nil {
+		return Commit{}, err
+	}
+	return Commit{SHA: sha, Branch: strings.TrimSuffix(branch, "\n"), Message: subject, Dirty: status != ""}, nil
 }
 
 func git(ctx context.Context, dir string, args ...string) (string, error) {

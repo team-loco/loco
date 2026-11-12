@@ -244,7 +244,15 @@ func (f *deployFixture) secretWriterContext(t *testing.T) context.Context {
 		t.Fatalf("user: %v", err)
 	}
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
-	return reqctx.WithPrincipal(ctx, reqctx.Principal{Entity: entity, Scopes: f.applyScopes(t)})
+	return reqctx.WithPrincipal(
+		ctx,
+		reqctx.Principal{
+			ActorType: genDb.DeploymentActorTypeUser,
+			Method:    genDb.DeploymentMethodWeb,
+			Entity:    entity,
+			Scopes:    f.applyScopes(t),
+		},
+	)
 }
 
 func racingSecretWrites() []racingSecretWrite {

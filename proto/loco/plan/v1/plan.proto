@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.plan.v1;
 
 import "buf/validate/validate.proto";
+import "loco/deployment/v1/deployment.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/plan/v1;planv1";
 
@@ -70,6 +71,7 @@ message ApplyRequest {
       }
     }
   }];
+  loco.deployment.v1.SourceCommit commit = 9;
 }
 
 message ApplyResponse {
