@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { create } from "@bufbuild/protobuf";
+import { create, toBinary } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
+import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
 import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
 import { PlatformDomainSchema } from "@gen/loco/domain/v1/domain_pb";
 
@@ -222,20 +222,22 @@ test("marked values only go to the secret write and the YAML names their binding
 	expect(yaml).not.toContain("private-test-value");
 });
 
-test("apiFieldError maps image resolution failures", () => {
+test("apiFieldError decodes image resolution details", () => {
 	const message = 'Image "nginx:missing" was not found. Check the repository and tag or digest.';
-	const err = new ConnectError(message, Code.InvalidArgument, undefined, [
-		{
-			desc: BadRequestSchema,
-			value: create(BadRequestSchema, {
-				fieldViolations: [
-					{ field: "unknown", description: "skip this field" },
-					{ field: "image", description: message },
-				],
-			}),
-		},
-	]);
+	const violations = create(BadRequestSchema, {
+		fieldViolations: [
+			{ field: "unknown", description: "skip this field" },
+			{ field: "image", description: message },
+		],
+	});
+	const info = create(ErrorInfoSchema, { reason: "IMAGE_NOT_FOUND", domain: "loco.build" });
+	const err = new ConnectError(message, Code.InvalidArgument);
+	err.details.push(
+		{ type: BadRequestSchema.typeName, value: toBinary(BadRequestSchema, violations) },
+		{ type: ErrorInfoSchema.typeName, value: toBinary(ErrorInfoSchema, info) },
+	);
 	expect(apiFieldError(err)).toEqual({ field: "image", message });
+	expect(err.findDetails(ErrorInfoSchema)).toEqual([info]);
 });
 
 test("apiFieldError maps nested BadRequest fields with the same names as validation fields", () => {
