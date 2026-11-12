@@ -7,7 +7,7 @@ import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 export const ORG_STORAGE_KEY = "loco:active-org:v1";
-const WORKSPACE_STORAGE_KEY = "loco:active-workspace:v1";
+export const WORKSPACE_STORAGE_KEY = "loco:active-workspace:v1";
 
 interface OrgWorkspaceContextType {
 	activeOrgId: string | null;

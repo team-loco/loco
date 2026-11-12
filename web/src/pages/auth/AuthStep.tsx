@@ -1,6 +1,6 @@
 import type { Transport } from "@connectrpc/connect";
 import { useTransport } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
 
@@ -11,7 +11,7 @@ import { signInErrorState } from "./sign-in-error";
 
 type Outcome = { kind: "pending" } | { kind: "done"; to: string } | { kind: "failed"; message: string };
 
-export type AuthStepRun = (transport: Transport) => Promise<string>;
+export type AuthStepRun = (transport: Transport, queryClient: QueryClient) => Promise<string>;
 
 const started = new Set<string>();
 
@@ -23,9 +23,10 @@ export function AuthStep({ id, run, fallbackError }: { id: string; run: AuthStep
 	useEffect(() => {
 		if (started.has(id)) return;
 		started.add(id);
-		run(transport)
-			.then(async (to) => {
-				await queryClient.invalidateQueries();
+		queryClient
+			.invalidateQueries()
+			.then(async () => await run(transport, queryClient))
+			.then((to) => {
 				setOutcome({ kind: "done", to });
 			})
 			.catch((err: unknown) => {
