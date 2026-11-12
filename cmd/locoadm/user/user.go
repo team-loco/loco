@@ -14,7 +14,6 @@ const (
 	userReinstate = "reinstate"
 )
 
-// operation is one user subcommand: the status it sets and the words it prints.
 type operation struct {
 	name   string
 	short  string
