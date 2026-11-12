@@ -16,6 +16,7 @@ async function startSignIn(next: string | null, loginHint: string | null): Promi
 
 export function useSignIn() {
 	const [redirecting, setRedirecting] = useState(false);
+	const [failed, setFailed] = useState(false);
 
 	const signIn = async (next: string | null, loginHint: string | null) => {
 		setRedirecting(true);
@@ -24,8 +25,9 @@ export function useSignIn() {
 		} catch (err) {
 			toastConnectError(err, SIGN_IN_FAILED);
 			setRedirecting(false);
+			setFailed(true);
 		}
 	};
 
-	return { signIn, redirecting };
+	return { signIn, redirecting, failed };
 }
