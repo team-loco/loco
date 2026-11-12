@@ -32,7 +32,7 @@ function podName(entry: LogEntry): string {
 	return entry.resourceAttributes["k8s.pod.name"] ?? "";
 }
 
-function replicaOf(pod: string): string {
+export function replicaOf(pod: string): string {
 	const parts = pod.split("-");
 	return parts.length > 1 ? (parts.at(-1) ?? pod) : pod;
 }

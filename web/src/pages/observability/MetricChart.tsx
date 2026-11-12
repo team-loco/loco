@@ -74,7 +74,9 @@ function MetricEvents({
 							<DropdownMenuItem
 								key={`${String(marker.t)}-${marker.label}`}
 								onClick={() => {
-									actions(marker.t)[0]?.run();
+									actions(marker.t)
+										.find((a) => a.key === "logs")
+										?.run();
 								}}
 								className="h-auto items-start py-2"
 							>
@@ -210,6 +212,8 @@ export function MetricChart({
 				<DropdownMenuTrigger nativeButton={false} render={<div />} aria-label={`${title} over time`}>
 					<ChartContainer config={config} className="aspect-auto w-full cursor-pointer" style={{ height }}>
 						<LineChart
+							syncId="metrics"
+							syncMethod="value"
 							data={data}
 							margin={{ top: 6, right: to - from >= DAY_MS ? WIDE_MARGIN : MARGIN, bottom: 0, left: 0 }}
 							onClick={(state) => {
@@ -253,13 +257,20 @@ export function MetricChart({
 									label={{ value: limit.label, position: "insideTopLeft", fill: "var(--color-bad-fg)", fontSize: 10 }}
 								/>
 							)}
-							{markers.map((m) => (
+							{markers.map((m, i) => (
 								<ReferenceLine
 									key={`${String(m.t)}-${m.label}`}
 									x={m.t}
 									stroke={m.color}
 									strokeDasharray="3 3"
 									strokeOpacity={0.8}
+									// Alternate rows so labels of nearby deploys don't overlap.
+									label={{
+										value: m.label,
+										position: i % 2 === 0 ? "insideTopLeft" : "insideBottomLeft",
+										fill: m.color,
+										fontSize: 10,
+									}}
 								/>
 							))}
 							{pin !== null && <ReferenceLine x={pin.t} stroke="var(--fg3)" />}
