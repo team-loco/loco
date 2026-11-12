@@ -103,9 +103,6 @@ func createWorkspaceInTx(
 		return uuid.Nil, err
 	}
 	wsID, err := qtx.CreateWorkspace(ctx, params)
-	if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
-		return uuid.Nil, ErrOrgNotFound
-	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("insert workspace: %w", err)
 	}

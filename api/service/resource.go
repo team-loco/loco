@@ -165,9 +165,6 @@ func (s *ResourceServer) CreateResource(
 		}
 		var createErr error
 		resourceID, createErr = qtx.CreateResource(ctx, params)
-		if pgForeignKeyConstraint(createErr) == pgResourceWorkspaceReference {
-			return ErrWorkspaceNotFound
-		}
 		if isUniqueViolation(createErr, pgResourceNameUnique) {
 			return ErrResourceNameNotUnique
 		}

@@ -86,9 +86,7 @@ func isDomainTaken(err error) bool {
 }
 
 const (
-	pgResourceWorkspaceReference = "resources_workspace_id_fkey"
-	pgWorkspaceOrgReference      = "workspaces_org_id_fkey"
-	pgWorkspaceScopeReference    = "user_scopes_workspace_ref_fkey"
+	pgWorkspaceScopeReference = "user_scopes_workspace_ref_fkey"
 )
 
 func pgForeignKeyConstraint(err error) string {
