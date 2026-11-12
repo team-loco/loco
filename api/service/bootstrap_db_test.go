@@ -51,7 +51,7 @@ func bootstrapHTTP(t *testing.T, a *membershipAPI, issuer *authtest.Issuer, hash
 		t.Fatal(err)
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
-	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Mode: auth.SignupClosed})
+	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Closed: true})
 	server := connect.NewServer(interceptor.NewErrorInterceptor())
 	sessions := NewAuthServer(a.pool, a.queries, a.machine, nil, auth.Admins{}, "")
 	bootstrapv1connect.RegisterBootstrapServiceHandler(
@@ -147,7 +147,7 @@ func TestBootstrapFreshClosedInstallation(t *testing.T) {
 	if _, err = clusters.ListClusters(t.Context(), &clusterv1.ListClustersRequest{}); err != nil {
 		t.Fatalf("session cannot administer clusters: %v", err)
 	}
-	closed := auth.NewResolver(f.api.pool, auth.SignupPolicy{Mode: auth.SignupClosed})
+	closed := auth.NewResolver(f.api.pool, auth.SignupPolicy{Closed: true})
 	if _, _, err = closed.Resolve(
 		t.Context(),
 		auth.Identity{Issuer: f.issuer.URL(), Subject: "blocked", Email: "blocked@example.com", EmailVerified: true},

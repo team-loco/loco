@@ -90,7 +90,7 @@ func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journey
 	if err != nil {
 		t.Fatalf("AUTH_ISSUERS: %v", err)
 	}
-	policy, err := auth.ParseSignupPolicy(mode, "")
+	policy, err := auth.ParseSignupPolicy(mode)
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -112,7 +112,7 @@ func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journey
 	httpServer := httptest.NewServer(mux)
 	t.Cleanup(httpServer.Close)
 
-	openPolicy, err := auth.ParseSignupPolicy(signupModeOpen, "")
+	openPolicy, err := auth.ParseSignupPolicy(signupModeOpen)
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -142,7 +142,7 @@ func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journey
 
 func (a *journeyAPI) existingAccount(t *testing.T, email string) {
 	t.Helper()
-	openPolicy, err := auth.ParseSignupPolicy(signupModeOpen, "")
+	openPolicy, err := auth.ParseSignupPolicy(signupModeOpen)
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}

@@ -19,7 +19,7 @@ import (
 
 func open(t *testing.T) SignupPolicy {
 	t.Helper()
-	p, err := ParseSignupPolicy("open", "")
+	p, err := ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestResolveDoesNotLinkIntoAccountWithUnverifiedIdentity(t *testing.T) {
 
 func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	policy, err := ParseSignupPolicy("domains", "acme.test")
+	policy, err := ParseSignupPolicy("closed")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -174,10 +174,6 @@ func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 	if _, err := q.GetUserByEmail(t.Context(), "dev@evil.test"); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("rejected user stored: %v", err)
 	}
-
-	if _, _, err := r.Resolve(t.Context(), identity("s2", "dev@acme.test", true)); err != nil {
-		t.Fatalf("allowed domain: %v", err)
-	}
 }
 
 func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
@@ -186,7 +182,7 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 	if _, _, err := openResolver.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	closed, err := ParseSignupPolicy("closed", "")
+	closed, err := ParseSignupPolicy("closed")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -498,7 +494,7 @@ func newInvitationFixture(t *testing.T) *invitationFixture {
 
 func (f *invitationFixture) resolver(t *testing.T, mode string) *Resolver {
 	t.Helper()
-	policy, err := ParseSignupPolicy(mode, "")
+	policy, err := ParseSignupPolicy(mode)
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}

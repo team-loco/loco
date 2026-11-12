@@ -865,8 +865,7 @@ start_api() {
     fi
 
     AUTH_ISSUERS="[{\"issuer\":\"${E2E_AUTH_ISSUER}\",\"audience\":\"loco-e2e\",\"emailVerification\":\"claim\"}]" \
-    AUTH_SIGNUP_MODE=domains \
-    AUTH_SIGNUP_DOMAINS=test.local \
+    AUTH_SIGNUP_MODE=open \
     LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     CACHE_TYPE=in-memory \

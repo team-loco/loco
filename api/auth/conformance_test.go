@@ -302,7 +302,7 @@ func TestProviderConformance(t *testing.T) {
 				t.Fatalf("email verifiers: %v", err)
 			}
 			verifier := auth.NewVerifier(http.DefaultClient, issuers)
-			policy, err := auth.ParseSignupPolicy("open", "")
+			policy, err := auth.ParseSignupPolicy("open")
 			if err != nil {
 				t.Fatalf("policy: %v", err)
 			}

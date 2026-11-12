@@ -56,7 +56,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
 	})
-	policy, err := auth.ParseSignupPolicy("open", "")
+	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
