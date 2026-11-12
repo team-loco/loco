@@ -6,7 +6,9 @@ import {
 	ComboboxChipsInput,
 	ComboboxContent,
 	ComboboxEmpty,
+	ComboboxGroup,
 	ComboboxItem,
+	ComboboxLabel,
 	ComboboxList,
 } from "@/components/design/Combobox";
 import { Button } from "@/components/design/Button";
@@ -17,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 
 import { ALLOWS, heldLevel, LEVELS } from "./model";
-import type { EntityNode, EntityTree, HeldScopes, Level } from "./model";
+import type { EntityNode, EntityTree, HeldScopes, Level, NodeKind } from "./model";
 import { kindIcon } from "./icons";
 
 export interface AccessItem {
@@ -27,6 +29,12 @@ export interface AccessItem {
 
 const KIND_RANK = { user: 0, org: 1, ws: 2, res: 3, system: 4 } as const;
 const MAX_RESULTS = 40;
+const GROUPS: { label: string; kinds: NodeKind[] }[] = [
+	{ label: "Account", kinds: ["user"] },
+	{ label: "Organization", kinds: ["org"] },
+	{ label: "Workspaces", kinds: ["ws"] },
+	{ label: "Resources", kinds: ["res"] },
+];
 
 export function AccessPicker({
 	tree,
@@ -36,6 +44,7 @@ export function AccessPicker({
 	resourcesLoading,
 	resourcesError,
 	retryResources,
+	scope,
 	onChange,
 }: {
 	tree: EntityTree;
@@ -45,6 +54,7 @@ export function AccessPicker({
 	resourcesLoading: boolean;
 	resourcesError: unknown;
 	retryResources: () => void;
+	scope: EntityNode | null;
 	onChange: (items: AccessItem[]) => void;
 }) {
 	const [q, setQ] = useState("");
@@ -66,18 +76,44 @@ export function AccessPicker({
 		return null;
 	};
 
+	const within = (node: EntityNode): boolean => {
+		if (scope === null) return true;
+		for (let cur: EntityNode | undefined = node; cur !== undefined;) {
+			if (cur.key === scope.key) return true;
+			cur = cur.parent === null ? undefined : tree.nodes.get(cur.parent);
+		}
+		return false;
+	};
+	const slash = query.indexOf("/");
+	const matches = (n: EntityNode): boolean => {
+		if (query === "") return true;
+		if (slash === -1) return n.label.toLowerCase().includes(query);
+		const parent = n.parent === null ? undefined : tree.nodes.get(n.parent);
+		return (
+			n.kind === "res" &&
+			parent !== undefined &&
+			parent.label.toLowerCase().includes(query.slice(0, slash)) &&
+			n.label.toLowerCase().includes(query.slice(slash + 1))
+		);
+	};
 	const pool = tree.order
-		.filter((n) => n.kind !== "system" && (allowUser || n.kind !== "user"))
-		.filter((n) => !levelByKey.has(n.key) && (query === "" || n.label.toLowerCase().includes(query)))
+		.filter((n) => n.kind !== "system" && (allowUser || n.kind !== "user") && within(n))
+		.filter((n) => !levelByKey.has(n.key) && matches(n))
 		.toSorted((a, b) => {
-			if (query !== "") {
-				const sa = a.label.toLowerCase().startsWith(query) ? 0 : 1;
-				const sb = b.label.toLowerCase().startsWith(query) ? 0 : 1;
-				if (sa !== sb) return sa - sb;
-			}
-			return KIND_RANK[a.kind] - KIND_RANK[b.kind];
+			const kind = KIND_RANK[a.kind] - KIND_RANK[b.kind];
+			if (kind !== 0 || query === "") return kind;
+			const sa = a.label.toLowerCase().startsWith(query) ? 0 : 1;
+			const sb = b.label.toLowerCase().startsWith(query) ? 0 : 1;
+			return sa - sb;
 		});
 	const shown = pool.slice(0, MAX_RESULTS);
+	const groups = GROUPS.map((g) => ({ ...g, nodes: shown.filter((n) => g.kinds.includes(n.kind)) })).filter(
+		(g) => g.nodes.length > 0,
+	);
+	const placeholder =
+		scope?.kind === "ws"
+			? `Add ${scope.label} or one of its resources`
+			: "Add a workspace or resource, e.g. workspace/resource";
 
 	const add = (node: EntityNode) => {
 		const lvl = heldLevel(held, tree, node.key);
@@ -213,7 +249,7 @@ export function AccessPicker({
 							const first = shown.find((n) => heldLevel(held, tree, n.key) > 0);
 							if (first !== undefined) add(first);
 						}}
-						placeholder="Add a workspace or resource"
+						placeholder={placeholder}
 						autoComplete="off"
 						aria-label="Add a workspace or resource"
 						className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-fg4"
@@ -221,26 +257,31 @@ export function AccessPicker({
 				</div>
 				<ComboboxContent anchor={anchorRef}>
 					<ComboboxList>
-						{shown.map((n) => {
-							const lvl = heldLevel(held, tree, n.key);
-							const disabled = lvl === 0;
-							const covered = n.kind === "res" && coveredBy(n, 1) !== null;
-							return (
-								<ComboboxItem
-									key={n.key}
-									value={n}
-									disabled={disabled}
-									title={disabled ? `You have no access to ${n.label}` : undefined}
-									className={cn(disabled && "opacity-45", covered && "opacity-50")}
-								>
-									<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
-									<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
-									<span className="text-[11.5px] whitespace-nowrap text-fg3">
-										{disabled ? "No access" : resultNote(n)}
-									</span>
-								</ComboboxItem>
-							);
-						})}
+						{groups.map((g) => (
+							<ComboboxGroup key={g.label}>
+								<ComboboxLabel className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">{g.label}</ComboboxLabel>
+								{g.nodes.map((n) => {
+									const lvl = heldLevel(held, tree, n.key);
+									const disabled = lvl === 0;
+									const covered = n.kind === "res" && coveredBy(n, 1) !== null;
+									return (
+										<ComboboxItem
+											key={n.key}
+											value={n}
+											disabled={disabled}
+											title={disabled ? `You have no access to ${n.label}` : undefined}
+											className={cn(disabled && "opacity-45", covered && "opacity-50")}
+										>
+											<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
+											<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
+											<span className="text-[11.5px] whitespace-nowrap text-fg3">
+												{disabled ? "No access" : resultNote(n)}
+											</span>
+										</ComboboxItem>
+									);
+								})}
+							</ComboboxGroup>
+						))}
 						{!resourcesLoading && resourcesError === null && (
 							<ComboboxEmpty className="p-3 text-[12.5px] text-fg3">
 								{query === "" ? "Nothing left to add." : `Nothing matches “${q.trim()}”.`}

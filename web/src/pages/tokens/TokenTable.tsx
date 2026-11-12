@@ -3,51 +3,53 @@ import type { ReactNode } from "react";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
-import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { LEVEL_LABEL, LEVEL_TEXT } from "@/hooks/useMyScopes";
 import { maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { accessChips, expiresLabel, kindLabel, lastUsedLabel, relAgo, tokenStatus } from "./model";
-import type { AccessChip, EntityTree } from "./model";
+import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
-const SHOWN_CHIPS = 3;
+import { accessByLevel, accessChips, expiresLabel, lastUsedLabel, relAgo, tokenStatus } from "./model";
+import type { AccessChip, Creator, EntityTree } from "./model";
+
 const SKELETON_ROWS = [0, 1, 2, 3];
-const COLUMNS = 7;
+const COLUMNS = 6;
 
 function AccessCell({ chips }: { chips: AccessChip[] }) {
-	const rest = chips.length - SHOWN_CHIPS;
 	return (
 		<div className="flex min-w-0 flex-wrap gap-1">
-			{chips.slice(0, SHOWN_CHIPS).map((c) => (
-				<LevelChip key={c.key} level={c.level} name={c.node.label} />
-			))}
-			{rest > 0 && (
-				<Tooltip>
-					<TooltipTrigger
-						render={<button type="button" aria-label={`Show all ${chips.length.toString()} grants`} />}
-						className="inline-flex h-6 items-center rounded-md bg-panel2 px-2 font-mono text-[11.5px] text-fg2 hover:text-foreground"
+			{accessByLevel(chips).map((g) => {
+				const names = g.nodes.map((n) => n.label).join(", ");
+				return (
+					<span
+						key={g.level}
+						title={`${LEVEL_LABEL[g.level]} ${names}`}
+						className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md bg-panel2 px-2 text-[12px] whitespace-nowrap text-fg2"
 					>
-						+{rest}
-					</TooltipTrigger>
-					<TooltipContent className="flex max-w-[360px] flex-col gap-1 py-2">
-						{chips.map((c) => (
-							<span key={c.key} className="flex gap-2">
-								<span className={cn("w-11 shrink-0 font-medium", LEVEL_TEXT[c.level])}>{LEVEL_LABEL[c.level]}</span>
-								<span className="truncate">
-									{c.node.label} <span className="text-fg3">{kindLabel(c.node.kind).toLowerCase()}</span>
-								</span>
-							</span>
-						))}
-					</TooltipContent>
-				</Tooltip>
-			)}
+						<span className={cn("font-medium", LEVEL_TEXT[g.level])}>{LEVEL_LABEL[g.level]}</span>
+						<span className="truncate font-mono text-[11.5px]">{names}</span>
+					</span>
+				);
+			})}
 		</div>
+	);
+}
+
+function CreatorCell({ token, creator, now }: { token: Token; creator: Creator | undefined; now: number }) {
+	const created = maybeTsMs(token.createdAt);
+	const name = token.createdBy === "" ? "Unknown" : (creator?.name ?? "") || token.createdBy;
+	return (
+		<span className="flex min-w-0 items-center gap-2.5" title={token.createdBy}>
+			<MemberAvatar name={name} email="" avatarUrl={creator?.avatarUrl ?? ""} className="size-[22px] shrink-0" />
+			<span className="flex min-w-0 flex-col gap-px">
+				<span className="truncate text-[13px] text-foreground">{name}</span>
+				{created !== undefined && <span className="font-mono text-[11px] text-fg3">{relAgo(created, now)}</span>}
+			</span>
+		</span>
 	);
 }
 
@@ -92,7 +94,7 @@ export function TokenTable({
 	onRevoke,
 }: {
 	tokens: Token[];
-	creators: ReadonlyMap<string, string>;
+	creators: ReadonlyMap<string, Creator>;
 	tree: EntityTree;
 	now: number;
 	isLoading: boolean;
@@ -108,8 +110,7 @@ export function TokenTable({
 				<TableRow>
 					<TableHead className="w-[24%]">Token</TableHead>
 					<TableHead>Access</TableHead>
-					<TableHead className="w-[150px]">Created by</TableHead>
-					<TableHead className="w-[100px]">Created</TableHead>
+					<TableHead className="w-[190px]">Created by</TableHead>
 					<TableHead className="w-[110px]">Last used</TableHead>
 					<TableHead className="w-[130px]">Expires</TableHead>
 					<TableHead className="w-10" />
@@ -126,10 +127,7 @@ export function TokenTable({
 								<Skeleton className="h-5 w-48" />
 							</TableCell>
 							<TableCell>
-								<Skeleton className="h-3.5 w-20" />
-							</TableCell>
-							<TableCell>
-								<Skeleton className="h-3.5 w-16" />
+								<Skeleton className="h-3.5 w-24" />
 							</TableCell>
 							<TableCell>
 								<Skeleton className="h-3.5 w-16" />
@@ -150,7 +148,6 @@ export function TokenTable({
 				{!isLoading &&
 					tokens.map((t) => {
 						const status = tokenStatus(t, now);
-						const created = maybeTsMs(t.createdAt);
 						return (
 							<TableRow key={t.name} className={cn(status === "expired" && "opacity-65")}>
 								<TableCell className="truncate font-mono text-[13px]" title={t.name}>
@@ -159,11 +156,8 @@ export function TokenTable({
 								<TableCell className="whitespace-normal">
 									<AccessCell chips={accessChips(tree, t)} />
 								</TableCell>
-								<TableCell className="truncate text-[12px] text-fg2" title={t.createdBy}>
-									{t.createdBy === "" ? "Unknown" : (creators.get(t.createdBy) ?? "") || t.createdBy}
-								</TableCell>
-								<TableCell className="font-mono text-[11.5px] text-fg3">
-									{created === undefined ? null : relAgo(created, now)}
+								<TableCell>
+									<CreatorCell token={t} creator={creators.get(t.createdBy)} now={now} />
 								</TableCell>
 								<TableCell
 									className={cn("font-mono text-[12px]", t.lastUsedAt === undefined ? "text-fg3" : "text-fg2")}

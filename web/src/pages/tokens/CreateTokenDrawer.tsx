@@ -30,6 +30,7 @@ import {
 	defaultExpirySeconds,
 	expiryOptions,
 	grantsToScopes,
+	nodeKey,
 	OWNER_KEYS,
 	OWNER_TITLE,
 	sanitizeTokenName,
@@ -297,6 +298,11 @@ function CreateForm({
 						resourcesLoading={data.resourcesLoading}
 						resourcesError={data.resourcesError}
 						retryResources={data.retryResources}
+						scope={
+							owner.id === null || ownerKey === "personal"
+								? null
+								: (data.tree.nodes.get(nodeKey(owner.entityType, owner.id)) ?? null)
+						}
 						onChange={setItems}
 					/>
 					<span className="text-[12.5px] text-fg3">You can only grant access you hold yourself.</span>
