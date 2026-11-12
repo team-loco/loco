@@ -111,7 +111,10 @@ message GetBuildResponse {
 
 message ListBuildsRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  int32 page_size = 2 [(buf.validate.field).int32.gte = 0];
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
   string page_token = 3;
 }
 

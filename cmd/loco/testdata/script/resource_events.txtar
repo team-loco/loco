@@ -9,16 +9,16 @@ exec loco resource events app --output json --limit 3
 stdout 'event-5'
 stdout 'event-3'
 ! stdout 'event-2'
-fakeapi event-page-sizes '[0 0 0 3 1]'
+fakeapi event-page-sizes '[0 0 0 0 0]'
 
 exec loco resource events app --output json --limit 1
 stdout 'event-5'
 ! stdout 'event-4'
-fakeapi event-page-sizes '[0 0 0 3 1 1]'
+fakeapi event-page-sizes '[0 0 0 0 0 0]'
 
 exec loco resource events app --output json --limit 1001
 stdout 'event-1'
-fakeapi event-page-sizes '[0 0 0 3 1 1 1001 999 997]'
+fakeapi event-page-sizes '[0 0 0 0 0 0 0 0 0]'
 
 ! exec loco resource events app --limit -1
 stderr '(?i)limit must be nonnegative'

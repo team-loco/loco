@@ -8446,6 +8446,7 @@
           "pageSize": {
             "type": "integer",
             "title": "page_size",
+            "maximum": 200,
             "minimum": 0,
             "format": "int32"
           },
@@ -10312,6 +10313,7 @@
           "pageSize": {
             "type": "integer",
             "title": "page_size",
+            "maximum": 500,
             "minimum": 0,
             "format": "int32"
           },

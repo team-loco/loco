@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	finishedLogMargin  = time.Minute
-	imageDeletedSuffix = " (deleted)"
-	shortCommitLength  = 7
+	defaultBuildListSize = 20
+	finishedLogMargin    = time.Minute
+	imageDeletedSuffix   = " (deleted)"
+	shortCommitLength    = 7
 )
 
 func BuildBuildsCmd() *cobra.Command {
@@ -99,7 +100,7 @@ Examples:
 	}
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().Int32("limit", 0, "Maximum number of builds to show (0 = all)")
+	cmd.Flags().Int32("limit", defaultBuildListSize, "Number of builds to show (up to 200)")
 	cmd.Flags().StringP("output", "o", outputText, "Output format (text, json)")
 	return cmd
 }
@@ -113,8 +114,8 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 	if err != nil {
 		return fmt.Errorf("error reading limit flag: %w", err)
 	}
-	if limit < 0 {
-		return errors.New("--limit must be nonnegative")
+	if limit < 1 || limit > 200 {
+		return errors.New("--limit must be between 1 and 200")
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 	defer stop()
@@ -127,30 +128,17 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 		return err
 	}
 
-	var fetched int32
-	builds, err := cmdutil.Paginate(func(token string) ([]*buildv1.Build, string, error) {
-		var size int32
-		if limit > 0 {
-			size = limit - fetched
-		}
-		req := &buildv1.ListBuildsRequest{ResourceId: resource.GetId(), PageSize: size, PageToken: token}
-		resp, listErr := t.Clients.Build.ListBuilds(ctx, req)
-		if listErr != nil {
-			return nil, "", listErr
-		}
-		fetched += int32(len(resp.GetBuilds()))
-		next := resp.GetNextPageToken()
-		if limit > 0 && fetched >= limit {
-			next = ""
-		}
-		return resp.GetBuilds(), next, nil
-	})
+	resourceID := resource.GetId()
+	req := &buildv1.ListBuildsRequest{ResourceId: resourceID, PageSize: limit}
+
+	resp, err := t.Clients.Build.ListBuilds(ctx, req)
 	if err != nil {
 		return fmt.Errorf("list builds: %w", err)
 	}
+	builds := resp.GetBuilds()
 
 	if output == outputJSON {
-		return writeJSON(cmd.OutOrStdout(), &buildv1.ListBuildsResponse{Builds: builds})
+		return writeJSON(cmd.OutOrStdout(), resp)
 	}
 	if len(builds) == 0 {
 		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s has no builds.\n", name)

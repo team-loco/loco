@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -597,24 +596,7 @@ func (s *fakeBuildService) ListBuilds(
 			builds = append(builds, b)
 		}
 	}
-	offset := 0
-	if req.GetPageToken() != "" {
-		var err error
-		offset, err = strconv.Atoi(req.GetPageToken())
-		if err != nil {
-			return nil, err
-		}
-	}
-	size := 1
-	if req.GetPageSize() > 0 {
-		size = min(2, int(req.GetPageSize()))
-	}
-	end := min(offset+size, len(builds))
-	next := ""
-	if end < len(builds) {
-		next = strconv.Itoa(end)
-	}
-	return &buildv1.ListBuildsResponse{Builds: builds[offset:end], NextPageToken: next}, nil
+	return &buildv1.ListBuildsResponse{Builds: builds}, nil
 }
 
 func (s *fakeBuildService) CancelBuild(

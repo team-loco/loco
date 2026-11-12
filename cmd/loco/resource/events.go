@@ -76,9 +76,6 @@ Examples:
 			}
 			var items []*eventv1.Event
 			for {
-				if limit > 0 {
-					request.PageSize = limit - int32(len(items))
-				}
 				response, err := t.Clients.Event.ListEvents(ctx, request)
 				if err != nil {
 					return fmt.Errorf("failed to fetch events: %w", err)
@@ -88,6 +85,10 @@ Examples:
 					break
 				}
 				request.BeforeSeq = response.GetNextBeforeSeq()
+			}
+
+			if limit > 0 && len(items) > int(limit) {
+				items = items[:limit]
 			}
 
 			if output == outputJSON {
