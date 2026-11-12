@@ -37,7 +37,7 @@ func buildInviteCmd() *cobra.Command {
 				return fmt.Errorf("unable to invite %s: %w", args[0], err)
 			}
 			invitation := resp.GetInvitation()
-			fmt.Fprintf(cmd.OutOrStdout(), "Invited %s: %s\n", invitation.GetEmail(), statusText(invitation))
+			fmt.Fprintf(cmd.OutOrStdout(), "Invited %s\n", invitation.GetEmail())
 			fmt.Fprintf(cmd.OutOrStdout(), "Link: %s\n", invitation.GetLink())
 			return nil
 		},

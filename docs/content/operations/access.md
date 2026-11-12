@@ -21,6 +21,8 @@ A user holds one or more scopes on an organization:
 
 A user joins an organization only by accepting an invitation. An organization admin invites an email address with `loco org invite <email>` (`OrgService.InviteOrgMember`), and the user becomes a `member` the next time they sign in with that verified email address. `loco org invitations` lists pending invitations and `loco org revoke-invite <id>` revokes one.
 
+The dashboard and CLI return a sign-in link for the inviter to copy and share. Core sends no email. Installations that want invitation email consume the [`invitation.created` and `invitation.resent` webhook events](webhooks.md#invitation-events). Resending extends the invitation expiry and records a new event.
+
 `OrgService.RemoveOrgMember` removes a member, naming the user by the ID `UserService.WhoAmI` returns for them. `OrgService.ListOrgMembers` lists each member with their organization scopes. Removing a member also removes every workspace and resource grant they hold in that organization.
 
 ## Grant a workspace

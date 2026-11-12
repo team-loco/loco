@@ -60,16 +60,6 @@ SET expires_at = $2
 WHERE id = $1 AND claimed_at IS NULL AND revoked_at IS NULL
 RETURNING *;
 
--- name: SetInvitationDelivered :exec
-UPDATE invitations
-SET delivered_at = NOW(), delivery_error = NULL
-WHERE id = $1;
-
--- name: SetInvitationDeliveryError :exec
-UPDATE invitations
-SET delivery_error = $2, delivered_at = NULL
-WHERE id = $1;
-
 -- name: GetInvitationClaimDetails :one
 SELECT o.name AS org_name, COALESCE(NULLIF(u.name, ''), u.email)::text AS inviter_name
 FROM invitations i

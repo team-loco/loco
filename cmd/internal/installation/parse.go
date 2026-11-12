@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/mail"
 	"net/netip"
 	"net/url"
 	"os"
@@ -110,9 +109,6 @@ func validate(cfg Config) error {
 	}
 	if !registryEndpoint(cp.Registry.Endpoint) {
 		return field("controlPlane.registry.endpoint")
-	}
-	if _, err := mail.ParseAddress(cp.Email.From); err != nil {
-		return field("controlPlane.email.from")
 	}
 	if err := certificate(cp.Certificates, "controlPlane.certificates"); err != nil {
 		return err

@@ -133,14 +133,6 @@ message SetOrgMemberRoleRequest {
 
 message SetOrgMemberRoleResponse {}
 
-enum InvitationStatus {
-  INVITATION_STATUS_UNSPECIFIED = 0;
-  INVITATION_STATUS_EMAILED = 1;
-  INVITATION_STATUS_FAILED = 2;
-  INVITATION_STATUS_NO_TRANSPORT = 3;
-  INVITATION_STATUS_EXPIRED = 4;
-}
-
 message Invitation {
   string id = 1;
   string org_id = 2;
@@ -148,9 +140,7 @@ message Invitation {
   User invited_by = 4;
   google.protobuf.Timestamp created_at = 5;
   google.protobuf.Timestamp expires_at = 6;
-  InvitationStatus status = 7;
-  string delivery_error = 8;
-  string link = 9;
+  string link = 7;
 }
 
 message InviteOrgMemberRequest {

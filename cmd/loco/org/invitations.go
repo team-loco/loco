@@ -50,14 +50,13 @@ func buildInvitationsCmd() *cobra.Command {
 			}
 
 			table := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, invitationTablePadding, ' ', 0)
-			fmt.Fprintln(table, "ID\tEMAIL\tINVITED BY\tEXPIRES\tSTATUS")
+			fmt.Fprintln(table, "ID\tEMAIL\tINVITED BY\tEXPIRES")
 			for _, invitation := range invitations {
-				fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n",
+				fmt.Fprintf(table, "%s\t%s\t%s\t%s\n",
 					invitation.GetId(),
 					invitation.GetEmail(),
 					invitation.GetInvitedBy().GetEmail(),
 					invitation.GetExpiresAt().AsTime().Local().Format(invitationTimeLayout),
-					statusText(invitation),
 				)
 			}
 			return table.Flush()

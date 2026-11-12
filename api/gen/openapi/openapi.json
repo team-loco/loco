@@ -11468,14 +11468,6 @@
             "title": "expires_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
-          "status": {
-            "title": "status",
-            "$ref": "#/components/schemas/loco.org.v1.InvitationStatus"
-          },
-          "deliveryError": {
-            "type": "string",
-            "title": "delivery_error"
-          },
           "link": {
             "type": "string",
             "title": "link"
@@ -11483,17 +11475,6 @@
         },
         "title": "Invitation",
         "additionalProperties": false
-      },
-      "loco.org.v1.InvitationStatus": {
-        "type": "string",
-        "title": "InvitationStatus",
-        "enum": [
-          "INVITATION_STATUS_UNSPECIFIED",
-          "INVITATION_STATUS_EMAILED",
-          "INVITATION_STATUS_FAILED",
-          "INVITATION_STATUS_NO_TRANSPORT",
-          "INVITATION_STATUS_EXPIRED"
-        ]
       },
       "loco.org.v1.InviteOrgMemberRequest": {
         "type": "object",

@@ -37,7 +37,6 @@ type ControlPlane struct {
 	Auth          Auth             `json:"auth"          yaml:"auth"`
 	SourceBucket  Bucket           `json:"sourceBucket"  yaml:"sourceBucket"`
 	Registry      Registry         `json:"registry"      yaml:"registry"`
-	Email         Email            `json:"email"         yaml:"email"`
 	OpenBao       OpenBao          `json:"openbao"       yaml:"openbao"`
 	Observability Observability    `json:"observability" yaml:"observability"`
 	Certificates  Certificates     `json:"certificates"  yaml:"certificates"`
@@ -64,11 +63,6 @@ type Bucket struct {
 type Registry struct {
 	Endpoint             string    `json:"endpoint"             yaml:"endpoint"`
 	CredentialsSecretRef SecretRef `json:"credentialsSecretRef" yaml:"credentialsSecretRef"`
-}
-
-type Email struct {
-	From               string       `json:"from"               yaml:"from"`
-	TransportSecretRef SecretKeyRef `json:"transportSecretRef" yaml:"transportSecretRef"`
 }
 
 type OpenBao struct {

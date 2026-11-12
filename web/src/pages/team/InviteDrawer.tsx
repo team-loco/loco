@@ -12,7 +12,7 @@ import { Textarea } from "@/components/design/Textarea";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import { invitationBadge, inviteFailure, needsSharedLink, parseEmails, type InviteOutcome } from "./model";
+import { inviteFailure, parseEmails, type InviteOutcome } from "./model";
 
 const TEXTAREA_ROWS = 3;
 
@@ -159,31 +159,21 @@ function InviteForm({
 
 function OutcomeRow({ outcome }: { outcome: InviteOutcome }) {
 	const invitation = outcome.kind === "invited" ? outcome.invitation : undefined;
-	const badge = invitation === undefined ? undefined : invitationBadge(invitation.status);
-	const link = invitation !== undefined && needsSharedLink(invitation.status) ? invitation.link : null;
-	const detail = (() => {
-		switch (outcome.kind) {
-			case "invited":
-				return outcome.invitation.deliveryError;
-			case "exists":
-				return outcome.message;
-			case "failed":
-				return outcome.message;
-		}
-	})();
+	const link = invitation?.link;
+	const detail = outcome.kind === "invited" ? "" : outcome.message;
 	return (
 		<li className="flex items-start gap-2.5 rounded-lg bg-panel px-3 py-2.5">
 			<span className="mt-0.5">
-				{outcome.kind === "invited" && <StatusGlyph glyph={badge?.tone === "bad" ? "warn" : "ok"} />}
+				{outcome.kind === "invited" && <StatusGlyph glyph="ok" />}
 				{outcome.kind === "exists" && <StatusGlyph glyph="off" />}
 				{outcome.kind === "failed" && <StatusGlyph glyph="err" />}
 			</span>
 			<span className="flex min-w-0 flex-1 flex-col gap-1">
 				<span className="flex flex-wrap items-center gap-2">
 					<span className="truncate font-mono text-[12.5px]">{outcome.email}</span>
-					{badge !== undefined && (
-						<Badge size="sm" tone={badge.tone}>
-							{badge.label}
+					{invitation !== undefined && (
+						<Badge size="sm" tone="info">
+							Invited
 						</Badge>
 					)}
 					{outcome.kind === "exists" && (
@@ -200,7 +190,7 @@ function OutcomeRow({ outcome }: { outcome: InviteOutcome }) {
 				{detail !== "" && (
 					<span className={cn("text-[12.5px]", outcome.kind === "exists" ? "text-fg3" : "text-bad-fg")}>{detail}</span>
 				)}
-				{link !== null && (
+				{link !== undefined && (
 					<span className="flex items-center gap-2">
 						<span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-fg3">{link}</span>
 						<CopyButton text={link} label="Copy link" />

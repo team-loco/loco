@@ -36,8 +36,6 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `controlPlane.sourceBucket` | Source storage: `endpoint`, `region`, `bucket`, `credentialsSecretRef.name` |
 | `controlPlane.registry.endpoint` | HTTP or HTTPS registry origin, optionally with a port; no non-root path |
 | `controlPlane.registry.credentialsSecretRef.name` | Registry input Secret name |
-| `controlPlane.email.from` | Sender email address, optionally with a display name |
-| `controlPlane.email.transportSecretRef` | Mail transport input Secret's `name` and `key` |
 | `controlPlane.openbao.managed` | `true`; external OpenBao is unsupported |
 | `controlPlane.openbao.seal.type` | `static` |
 | `controlPlane.openbao.snapshots` | Backup storage: `endpoint`, `region`, `bucket`, `credentialsSecretRef.name` |
@@ -57,7 +55,7 @@ URLs use HTTP or HTTPS and contain no user information, query string or fragment
 
 Register one public OIDC client for authorization code with PKCE. Allow the dashboard's `webURL` origin followed by `/auth/callback` and the configured `bootstrapRedirectURI`. Dashboard and operator sign-in both send this client's ID token to the API, which validates its audience against `clientId`.
 
-Store credential values in Kubernetes Secrets populated by an operator or external secret manager. The installation file accepts references only: no database password, SMTP transport, registry credential, token or arbitrary Helm values. Generated installation credentials belong in destination Secrets, outside this file. Authorized cluster administrators can still read those Secrets; avoiding routine display does not remove that trust boundary.
+Store credential values in Kubernetes Secrets populated by an operator or external secret manager. The installation file accepts references only: no database password, registry credential, token or arbitrary Helm values. Generated installation credentials belong in destination Secrets, outside this file. Authorized cluster administrators can still read those Secrets; avoiding routine display does not remove that trust boundary.
 
 Builds deny private-network access by default. For a private registry or source bucket, list only the destination CIDRs and TCP ports builds need. CIDRs must be masked and canonical, ports range from 1 through 65535, and duplicate pairs fail validation. These entries match the worker controller's `privateEgress` contract; broader ranges are an explicit operator choice. DNS resolution does not create allowances automatically. With Kubernetes Services, account for the destinations your CNI evaluates after Service address translation.
 
@@ -82,10 +80,8 @@ Create these external input Secrets in the control-plane namespace before applyi
 | `database.secretRef` | The declared key, containing the PostgreSQL URL |
 | `sourceBucket.credentialsSecretRef` | `access-key-id`, `secret-access-key` |
 | `registry.credentialsSecretRef` | `api-username`, `api-password`, `push-username`, `push-password`, `pull-username`, `pull-password` |
-| `email.transportSecretRef` | The declared transport URL key; HTTP(S) also requires `hook-secret` in the same Secret |
 | `openbao.snapshots.credentialsSecretRef` | `access-key-id`, `secret-access-key` |
 
-For HTTP(S) email transports, `hook-secret` contains `whsec_` followed by standard base64 encoding of exactly 32 bytes. Plan reports missing or invalid signing credentials as blocked, and apply rejects them before creating installation state or credentials. SMTP uses only the transport URL.
 
 The initial installation contract uses static registry credentials. Token-based registry signing is outside this file contract.
 
@@ -136,6 +132,6 @@ Supply one distinct age X25519 public recipient per recovery share, in share ord
 | Recovery shares | Chart setup's `loco-control-plane-openbao-init` Secret | One encrypted file per custodian |
 | Bootstrap token | Temporary installation-owned Secret | Removed after bootstrap; excluded |
 | Agent private keys | Each worker agent's identity store | Excluded |
-| Database, storage, registry and mail credentials | Operator-managed input Secrets | Excluded |
+| Database, storage, registry credentials | Operator-managed input Secrets | Excluded |
 
 Export retains the source Secrets and records `recoveryExported` only after encrypted files are written and synced. That marker confirms export, not successful restoration. Keep source material until a separate restoration exercise succeeds. The export does not include PostgreSQL data, OpenBao snapshots, persistent volumes or external-service backups; retain those through their own backup procedures. This command does not implement restore.

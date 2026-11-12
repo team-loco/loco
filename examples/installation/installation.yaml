@@ -25,9 +25,6 @@ controlPlane:
   registry:
     endpoint: https://registry.example.com
     credentialsSecretRef: {name: loco-registry}
-  email:
-    from: Loco <loco@example.com>
-    transportSecretRef: {name: loco-mail, key: transport}
   openbao:
     managed: true
     seal:

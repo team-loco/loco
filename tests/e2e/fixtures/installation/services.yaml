@@ -44,8 +44,6 @@ stringData:
   push-password: loco-dev-builder
   pull-username: nodes
   pull-password: loco-dev-nodes
-  email-transport: http://mail.installation-fixtures.svc.cluster.local:8081
-  hook-secret: whsec_aW5zdGFsbGF0aW9uLW1haWwtaG9vay1jYW5hcnktMDE=
 {{ range .Services }}
 ---
 apiVersion: apps/v1

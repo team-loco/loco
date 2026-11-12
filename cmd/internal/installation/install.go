@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,15 +19,11 @@ import (
 )
 
 const (
-	envDatabaseURL      = "DATABASE_URL"
-	envSourceAccess     = "LOCO_SOURCE_BUCKET_ACCESS_KEY_ID"
-	envSourceSecret     = "LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"
-	envRegistryUser     = "LOCO_REGISTRY_USERNAME"
-	envRegistryPassword = "LOCO_REGISTRY_PASSWORD"
-	envEmailHookSecret  = "EMAIL_HOOK_SECRET" //nolint:gosec // Environment variable name, not a credential.
-	emailHookSecretKey  = "hook-secret"
-	// standard Webhooks wire format, also checked by api/webhooks.decodeSecret.
-	emailHookSecretBytes    = 32
+	envDatabaseURL          = "DATABASE_URL"
+	envSourceAccess         = "LOCO_SOURCE_BUCKET_ACCESS_KEY_ID"
+	envSourceSecret         = "LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"
+	envRegistryUser         = "LOCO_REGISTRY_USERNAME"
+	envRegistryPassword     = "LOCO_REGISTRY_PASSWORD"
 	sealKeyBytes            = 32
 	secretKeyField          = "key"
 	secretPasswordField     = "password"
@@ -46,8 +41,6 @@ const (
 )
 
 var errInputMissing = errors.New("required input Secret or key is missing")
-var errEmailTransport = errors.New("email transport input is invalid")
-var errEmailHookSecret = errors.New("HTTP email transport requires a valid hook-secret in its input Secret")
 
 var errRecoveryRequired = errors.New(
 	"generated credentials are missing beside an existing control plane; restore the original Secret",
@@ -307,7 +300,6 @@ func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]by
 		{cp.Registry.CredentialsSecretRef.Name, "push-password", "push-password"},
 		{cp.Registry.CredentialsSecretRef.Name, "pull-username", "pull-username"},
 		{cp.Registry.CredentialsSecretRef.Name, "pull-password", "pull-password"},
-		{cp.Email.TransportSecretRef.Name, cp.Email.TransportSecretRef.Key, "email-transport"},
 		{cp.OpenBao.Snapshots.CredentialsSecretRef.Name, "access-key-id", "snapshot-access"},
 		{cp.OpenBao.Snapshots.CredentialsSecretRef.Name, "secret-access-key", "snapshot-secret"},
 	} {
@@ -329,26 +321,6 @@ func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]by
 		}
 		output[item.env] = value
 	}
-	transport, err := url.Parse(string(output["email-transport"]))
-	if err != nil || transport.Hostname() == "" {
-		return nil, errEmailTransport
-	}
-	if transport.Scheme == "smtp" {
-		if transport.Port() == "" {
-			return nil, errEmailTransport
-		}
-		return output, nil
-	}
-	if transport.Scheme != schemeHTTP && transport.Scheme != schemeHTTPS {
-		return nil, errEmailTransport
-	}
-	hook := secrets[cp.Email.TransportSecretRef.Name].Data[emailHookSecretKey]
-	encoded, prefixed := strings.CutPrefix(string(hook), "whsec_")
-	decoded, decodeErr := base64.StdEncoding.DecodeString(encoded)
-	if !prefixed || decodeErr != nil || len(decoded) != emailHookSecretBytes {
-		return nil, errEmailHookSecret
-	}
-	output[envEmailHookSecret] = hook
 	return output, nil
 }
 
@@ -398,9 +370,6 @@ func (k *Kubernetes) ensureCredentials(
 		return errSecretInvalid
 	}
 	apiKeys := []string{envDatabaseURL, envSourceAccess, envSourceSecret, envRegistryUser, envRegistryPassword}
-	if _, hook := inputs[envEmailHookSecret]; hook {
-		apiKeys = append(apiKeys, envEmailHookSecret)
-	}
 	apiData := map[string][]byte{}
 	for _, key := range apiKeys {
 		apiData[key] = inputs[key]

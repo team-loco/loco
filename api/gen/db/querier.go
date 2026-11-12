@@ -262,8 +262,6 @@ type Querier interface {
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
-	SetInvitationDelivered(ctx context.Context, id uuid.UUID) error
-	SetInvitationDeliveryError(ctx context.Context, arg SetInvitationDeliveryErrorParams) error
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error

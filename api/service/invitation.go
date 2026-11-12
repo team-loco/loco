@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	netmail "net/mail"
 	"net/url"
 	"strings"
@@ -18,15 +17,8 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/mail"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
-)
-
-const (
-	maxDeliveryErrorLength = 500
-	deliveryRecordTimeout  = 5 * time.Second
 )
 
 var (
@@ -49,9 +41,8 @@ var (
 )
 
 type InvitationConfig struct {
-	Transport mail.Transport
-	TTL       time.Duration
-	WebURL    string
+	TTL    time.Duration
+	WebURL string
 }
 
 func (c InvitationConfig) link(email string) string {
@@ -82,7 +73,7 @@ func (s *OrgServer) InviteOrgMember(
 	}
 	email := strings.ToLower(address.Address)
 
-	var invitation genDb.Invitation
+	var result *orgv1.Invitation
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		isMember, memberErr := qtx.IsOrgMemberEmail(ctx, genDb.IsOrgMemberEmailParams{OrgID: orgID, Email: email})
 		if memberErr != nil {
@@ -106,23 +97,14 @@ func (s *OrgServer) InviteOrgMember(
 		if createErr != nil {
 			return fmt.Errorf("insert invitation: %w", createErr)
 		}
-		invitation = created
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.InvitationCreated,
-			OrgID:       new(orgID),
-			SubjectType: events.SubjectInvitation,
-			SubjectID:   new(created.ID),
-			Data:        map[string]any{events.FieldEmail: email},
-		})
+		var recordErr error
+		result, recordErr = s.recordInvitationEvent(ctx, qtx, created, events.InvitationCreated)
+		return recordErr
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := s.deliverInvitation(ctx, invitation)
-	if err != nil {
-		return nil, err
-	}
 	return &orgv1.InviteOrgMemberResponse{Invitation: result}, nil
 }
 
@@ -228,17 +210,21 @@ func (s *OrgServer) ResendInvitation(
 	if err != nil {
 		return nil, err
 	}
-	extended, err := s.queries.ExtendInvitation(ctx, genDb.ExtendInvitationParams{
-		ID:        invitation.ID,
-		ExpiresAt: time.Now().Add(s.invitations.TTL),
+	var result *orgv1.Invitation
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		extended, extendErr := qtx.ExtendInvitation(ctx, genDb.ExtendInvitationParams{
+			ID: invitation.ID, ExpiresAt: time.Now().Add(s.invitations.TTL),
+		})
+		if errors.Is(extendErr, pgx.ErrNoRows) {
+			return ErrInvitationNotOpen
+		}
+		if extendErr != nil {
+			return fmt.Errorf("extend invitation: %w", extendErr)
+		}
+		var recordErr error
+		result, recordErr = s.recordInvitationEvent(ctx, qtx, extended, events.InvitationResent)
+		return recordErr
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrInvitationNotOpen
-	}
-	if err != nil {
-		return nil, fmt.Errorf("extend invitation: %w", err)
-	}
-	result, err := s.deliverInvitation(ctx, extended)
 	if err != nil {
 		return nil, err
 	}
@@ -264,46 +250,35 @@ func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, 
 	return invitation, nil
 }
 
-func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invitation) (*orgv1.Invitation, error) {
-	org, err := s.queries.GetOrgByID(ctx, invitation.OrgID)
+func (s *OrgServer) recordInvitationEvent(
+	ctx context.Context, qtx *genDb.Queries, invitation genDb.Invitation, eventType string,
+) (*orgv1.Invitation, error) {
+	org, err := qtx.GetOrgByID(ctx, invitation.OrgID)
 	if err != nil {
 		return nil, fmt.Errorf("get invitation organization: %w", err)
 	}
-	inviter, err := s.queries.GetUserByID(ctx, invitation.InvitedBy)
+	inviter, err := qtx.GetUserByID(ctx, invitation.InvitedBy)
 	if err != nil {
 		return nil, fmt.Errorf("get inviter: %w", err)
 	}
-	message := mail.NewInvitationMessage(mail.InvitationEvent{
-		Invitation: mail.InvitationInfo{
-			ID: invitation.ID, OrgID: invitation.OrgID, Email: invitation.Email, ExpiresAt: invitation.ExpiresAt,
+	result := s.invitationProto(invitation, inviter)
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        eventType,
+		OrgID:       new(invitation.OrgID),
+		SubjectType: events.SubjectInvitation,
+		SubjectID:   new(invitation.ID),
+		Data: map[string]any{
+			events.FieldEmail:        invitation.Email,
+			events.FieldOrgName:      org.Name,
+			events.FieldInviterName:  derefString(inviter.Name),
+			events.FieldInviterEmail: inviter.Email,
+			events.FieldExpiresAt:    invitation.ExpiresAt.UTC().Format(time.RFC3339),
+			events.FieldLink:         result.GetLink(),
 		},
-		Org:     mail.OrgInfo{ID: org.ID, Name: org.Name},
-		Inviter: mail.InviterInfo{ID: inviter.ID, Email: inviter.Email, Name: derefString(inviter.Name)},
-		Link:    s.invitations.link(invitation.Email),
-	})
-	sendErr := s.invitations.Transport.Send(ctx, message)
-	detached := context.WithoutCancel(ctx)
-	recordCtx, cancel := context.WithTimeout(detached, deliveryRecordTimeout)
-	defer cancel()
-	switch {
-	case errors.Is(sendErr, mail.ErrNoTransport):
-	case sendErr != nil:
-		slog.ErrorContext(ctx, "failed to deliver invitation", "invitationId", invitation.ID, "error", sendErr)
-		text := clip.Bytes(sendErr.Error(), maxDeliveryErrorLength)
-		err = s.queries.SetInvitationDeliveryError(recordCtx, genDb.SetInvitationDeliveryErrorParams{
-			ID: invitation.ID, DeliveryError: &text,
-		})
-	default:
-		err = s.queries.SetInvitationDelivered(recordCtx, invitation.ID)
+	}); err != nil {
+		return nil, err
 	}
-	if err != nil {
-		return nil, fmt.Errorf("record delivery of invitation %s: %w", invitation.ID, err)
-	}
-	stored, err := s.queries.GetInvitation(recordCtx, invitation.ID)
-	if err != nil {
-		return nil, fmt.Errorf("reload invitation %s: %w", invitation.ID, err)
-	}
-	return s.invitationProto(stored, inviter), nil
+	return result, nil
 }
 
 func (s *OrgServer) invitationProto(invitation genDb.Invitation, inviter genDb.User) *orgv1.Invitation {
@@ -315,22 +290,8 @@ func (s *OrgServer) invitationProto(invitation genDb.Invitation, inviter genDb.U
 			Id: inviter.ID.String(), Email: inviter.Email, Name: derefString(inviter.Name),
 			AvatarUrl: derefString(inviter.AvatarUrl),
 		},
-		CreatedAt:     timestamppb.New(invitation.CreatedAt),
-		ExpiresAt:     timestamppb.New(invitation.ExpiresAt),
-		Status:        invitationStatus(invitation),
-		DeliveryError: derefString(invitation.DeliveryError),
-		Link:          s.invitations.link(invitation.Email),
+		CreatedAt: timestamppb.New(invitation.CreatedAt),
+		ExpiresAt: timestamppb.New(invitation.ExpiresAt),
+		Link:      s.invitations.link(invitation.Email),
 	}
-}
-
-func invitationStatus(invitation genDb.Invitation) orgv1.InvitationStatus {
-	switch {
-	case !invitation.ExpiresAt.After(time.Now()):
-		return orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED
-	case invitation.DeliveredAt != nil:
-		return orgv1.InvitationStatus_INVITATION_STATUS_EMAILED
-	case invitation.DeliveryError != nil:
-		return orgv1.InvitationStatus_INVITATION_STATUS_FAILED
-	}
-	return orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT
 }

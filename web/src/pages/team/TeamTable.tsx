@@ -1,5 +1,4 @@
 import type { Invitation } from "@gen/loco/org/v1/org_pb";
-import { InvitationStatus } from "@gen/loco/org/v1/org_pb";
 import { ChevronDownIcon, CopyIcon, LayersIcon, RotateCwIcon, Trash2Icon, UserMinusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -23,7 +22,7 @@ import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 
 import { MemberAvatar } from "./MemberAvatar";
-import { invitationBadge, levelOf, roleOf, untilLabel, type Member, type Role, type TeamRow } from "./model";
+import { levelOf, roleOf, untilLabel, type Member, type Role, type TeamRow } from "./model";
 
 const SKELETON_ROWS = [0, 1, 2, 3];
 const COLUMNS = 7;
@@ -160,10 +159,9 @@ function MemberRow({
 }
 
 function InvitationRow({ invitation, now, actions }: { invitation: Invitation; now: number; actions: RowActions }) {
-	const badge = invitationBadge(invitation.status);
 	const inviter = invitation.invitedBy;
 	const sent = agoLabel(tsMs(invitation.createdAt), now);
-	const expired = invitation.status === InvitationStatus.EXPIRED;
+	const expired = tsMs(invitation.expiresAt) <= now;
 	const expires = tsMs(invitation.expiresAt);
 	const manageTitle = actions.canManageInvitations ? undefined : "Only organization admins can change invitations";
 	return (
@@ -181,14 +179,9 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 			</TableCell>
 			<TableCell className="whitespace-normal">
 				<span className="flex flex-col items-start gap-1">
-					<Badge size="sm" tone={badge.tone}>
-						{badge.label}
+					<Badge size="sm" tone={expired ? "muted" : "info"}>
+						{expired ? "Expired" : "Invited"}
 					</Badge>
-					{invitation.status === InvitationStatus.FAILED && invitation.deliveryError !== "" && (
-						<span className="line-clamp-2 text-[11.5px] text-bad-fg" title={invitation.deliveryError}>
-							{invitation.deliveryError}
-						</span>
-					)}
 				</span>
 			</TableCell>
 			<TableCell className="text-fg3">Member</TableCell>

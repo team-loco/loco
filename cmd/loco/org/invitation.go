@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -28,21 +27,4 @@ func resolveOrgID(cmd *cobra.Command, clients *rpc.Clients) (string, error) {
 		return "", err
 	}
 	return org.GetId(), nil
-}
-
-func statusText(invitation *orgv1.Invitation) string {
-	switch invitation.GetStatus() {
-	case orgv1.InvitationStatus_INVITATION_STATUS_EMAILED:
-		return "emailed"
-	case orgv1.InvitationStatus_INVITATION_STATUS_FAILED:
-		return "email failed: " + invitation.GetDeliveryError()
-	case orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT:
-		return "no email transport configured"
-	case orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED:
-		return "expired"
-	case orgv1.InvitationStatus_INVITATION_STATUS_UNSPECIFIED:
-		return "unknown"
-	default:
-		return "unknown"
-	}
 }

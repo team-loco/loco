@@ -349,7 +349,7 @@ func (a *leakAudit) collectSecrets(secrets []auditSecret) error {
 				continue
 			}
 			a.add(value)
-			if key == "email-transport" || key == "database-url" || key == "DATABASE_URL" || key == "url" {
+			if key == "database-url" || key == "DATABASE_URL" || key == "url" {
 				endpoint, parseErr := url.Parse(string(value))
 				if parseErr != nil {
 					return errAuditCredentialURL
@@ -440,6 +440,5 @@ func sensitiveSecretField(key string) bool {
 			return true
 		}
 	}
-	return normalized == "url" || normalized == "database-url" || normalized == ".dockerconfigjson" ||
-		normalized == "email-transport"
+	return normalized == "url" || normalized == "database-url" || normalized == ".dockerconfigjson"
 }
