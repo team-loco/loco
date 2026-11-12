@@ -58,9 +58,13 @@ def stamp(delta):
     return (datetime.now(UTC) - delta).isoformat().replace("+00:00", "Z")
 
 
+telemetry_points = []
+
+
 def mock_telemetry(context):
     logs = [{"timestamp": stamp(timedelta(seconds=i * 13 + 1)), "severity": ("INFO", "WARN", "ERROR", "DEBUG")[i % 4], "body": f"Request completed ({i + 1})", "resourceId": resource, "resourceAttributes": {"cloud.region": "us-east-1"}} for i in range(18)]
     points = [{"timestamp": stamp(timedelta(minutes=minute)), "value": value} for minute, value in ((50, 0.25), (30, 0.55), (10, 0.35))]
+    telemetry_points[:] = points
     context.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: route.fulfill(json={"entries": logs, "totalMatched": str(len(logs))}))
     context.route("**/loco.observability.v1.ObservabilityProxyService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
@@ -337,12 +341,30 @@ def resources(page, suffix):
 
 
 def metrics(page, suffix):
+    environments = evidence.rpc(state["api_url"], owner["token"], "loco.environment.v1.EnvironmentService/ListEnvironments", {"workspaceId": workspace})["environments"]
+    production = next(e["id"] for e in environments if e["name"] == "production")
+    # One deploy at each metric point, so a click on any point offers one.
+    deploys = [{"id": f"01a1c8b3-0000-7000-8000-0000000de90{i}", "resourceId": resource, "region": "us-east-1", "environmentId": production, "createdAt": point["timestamp"], "spec": {"service": {"build": {"image": "ghcr.io/acme/pilot:1.27"}}}} for i, point in enumerate(telemetry_points)]
+    page.route("**/loco.deployment.v1.DeploymentService/ListDeployments", lambda route: route.fulfill(json={"deployments": deploys if route.request.post_data_json.get("resourceId") == resource else []}))
     page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
     chart = page.locator('[aria-label="CPU over time"]')
+    expect(chart.locator(".recharts-line")).to_be_visible()
+    expect(chart.get_by_text("controls-pilot 1.27").first).to_be_visible()
+    memory = page.locator('[aria-label="Memory over time"]')
+    chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
+    expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
+    by_region = page.get_by_role("region", name="By resource and region")
+    expect(by_region.get_by_role("columnheader", name="CPU ↓")).to_have_attribute("aria-sort", "descending")
+    by_region.get_by_role("button", name="Resource", exact=True).click()
+    expect(by_region.get_by_role("columnheader", name="Resource ↑")).to_have_attribute("aria-sort", "ascending")
+    by_region.get_by_role("row").filter(has_text="controls-alpha").get_by_role("cell").nth(1).click()
+    expect(page).to_have_url(re.compile(r"resource%3Acontrols-alpha"))
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
     expect(chart.locator(".recharts-line")).to_be_visible()
     chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})
     menu = page.get_by_role("menu", name=re.compile(r"^Around"))
     expect(menu).to_be_visible()
+    expect(menu.get_by_role("menuitem", name=re.compile(r"^Deploy 1\.27")).first).to_be_visible()
     menu.screenshot(path=str(out / f"metric-menu-{suffix}.png"), animations="disabled")
     first, second = menu.get_by_role("menuitem").nth(0), menu.get_by_role("menuitem").nth(1)
     first.focus()
@@ -356,6 +378,7 @@ def metrics(page, suffix):
     page.get_by_role("button", name="Earlier", exact=True).click()
     expect(menu).not_to_be_visible()
     expect(page).to_have_url(re.compile(r"[?&]from="))
+    page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
 
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)

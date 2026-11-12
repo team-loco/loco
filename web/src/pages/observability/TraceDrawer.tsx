@@ -32,6 +32,7 @@ import { SpanEvents } from "./SpanEvents";
 import { useObs } from "./context";
 import { failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo, type Zoom } from "./flame";
 import { fmtTs } from "./format";
+import { replicaOf } from "./rows";
 import { traceServiceColor, traceServiceLabel } from "./trace-service";
 import { axisLabel, durationLabel, spanError, spanStart, type TraceSummary } from "./traces";
 
@@ -43,6 +44,11 @@ const MIN_BLOCK = 0.0025;
 const PERCENT = 100;
 const NANOS_PER_MS = 1_000_000n;
 const TICK_SCALE = 1_000_000;
+const SERVER_ERROR = 500;
+
+function rootStatusCode(span: TraceSpan): string {
+	return span.spanAttributes["http.response.status_code"] ?? span.spanAttributes["http.status_code"] ?? "";
+}
 
 const NAMESPACE_TITLES: Record<string, string> = {
 	http: "HTTP",
@@ -258,6 +264,8 @@ export function TraceDrawer({
 	const resource = trace === undefined ? undefined : resourceById.get(trace.root.resourceId);
 	const cause = trace !== undefined && selected !== undefined ? failingSpan(trace, selected) : undefined;
 	const failed = trace !== undefined && trace.errors > 0;
+	const code = trace === undefined ? "" : rootStatusCode(trace.root);
+	const rootPod = trace?.root.resourceAttributes["k8s.pod.name"] ?? "";
 	const select = (span: TraceSpan) => {
 		setParam("span", span.spanId, true);
 	};
@@ -276,8 +284,12 @@ export function TraceDrawer({
 								{trace === undefined || trace.root.name === "" ? "Trace" : trace.root.name}
 							</SheetTitle>
 							{trace !== undefined && (
-								<Badge tone={failed ? "bad" : "muted"} className="font-mono">
-									{failed ? "Error" : "OK"}
+								<Badge
+									tone={failed || Number(code) >= SERVER_ERROR ? "bad" : "muted"}
+									className="font-mono"
+									title={code === "" ? undefined : "HTTP status of the root span"}
+								>
+									{code !== "" ? code : failed ? "Error" : "OK"}
 								</Badge>
 							)}
 							{trace !== undefined && (
@@ -291,9 +303,13 @@ export function TraceDrawer({
 								? traceId
 								: [
 										label(trace.root),
+										rootPod === "" ? "" : replicaOf(rootPod),
+										trace.root.resourceAttributes["loco.region"] ?? "",
 										fmtTs(Number(trace.start / NANOS_PER_MS), true),
-										`${String(trace.spans.length)} loaded ${trace.spans.length === 1 ? "span" : "spans"}`,
-									].join(" · ")}
+										`${String(trace.spans.length)} ${trace.spans.length === 1 ? "span" : "spans"}`,
+									]
+										.filter((part) => part !== "")
+										.join(" · ")}
 						</SheetDescription>
 					</div>
 					<div className="flex shrink-0 items-center gap-1">
@@ -399,33 +415,35 @@ export function TraceDrawer({
 								</pre>
 							)}
 							<SpanEvents span={selected} />
-							<section aria-label="Span attributes" className="flex flex-col gap-3.5">
-								{groupAttributes(selected, trace, resourceById.get(selected.resourceId)?.name).map((g) => (
-									<div key={g.title} className="flex flex-col">
-										<span className="pb-1 text-[12.5px] text-fg3">{g.title}</span>
-										<dl className="m-0">
-											{g.rows.map(([k, v]) => (
-												<div
-													key={k}
-													className="grid grid-cols-[150px_minmax(0,1fr)] gap-2.5 border-b border-line py-1.5 text-[12px] last:border-b-0"
-												>
-													<dt className="truncate font-mono text-fg3" title={k}>
-														{k}
-													</dt>
-													<dd className="m-0 font-mono break-all text-foreground">{v}</dd>
-												</div>
-											))}
-										</dl>
-									</div>
-								))}
-							</section>
-							<section aria-label="Logs in this trace" className="flex flex-col gap-1.5">
-								<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
-									Logs in this trace
-									<SoonTag />
-								</span>
-								<p className="m-0 text-[12px] text-fg3">Log queries can't filter by trace ID yet.</p>
-							</section>
+							<div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+								<section aria-label="Span attributes" className="flex min-w-0 flex-col gap-3.5">
+									{groupAttributes(selected, trace, resourceById.get(selected.resourceId)?.name).map((g) => (
+										<div key={g.title} className="flex flex-col">
+											<span className="pb-1 text-[12.5px] text-fg3">{g.title}</span>
+											<dl className="m-0">
+												{g.rows.map(([k, v]) => (
+													<div
+														key={k}
+														className="grid grid-cols-[150px_minmax(0,1fr)] gap-2.5 border-b border-line py-1.5 text-[12px] last:border-b-0"
+													>
+														<dt className="truncate font-mono text-fg3" title={k}>
+															{k}
+														</dt>
+														<dd className="m-0 font-mono break-all text-foreground">{v}</dd>
+													</div>
+												))}
+											</dl>
+										</div>
+									))}
+								</section>
+								<section aria-label="Logs in this trace" className="flex flex-col gap-1.5">
+									<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
+										Logs in this trace
+										<SoonTag />
+									</span>
+									<p className="m-0 text-[12px] text-fg3">Log queries can't filter by trace ID yet.</p>
+								</section>
+							</div>
 						</>
 					)}
 				</SheetBody>

@@ -1,7 +1,9 @@
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { BellIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
+import { BellIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -10,11 +12,14 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
+import { deploymentImage } from "@/lib/deployment-utils";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
+import { imageVersion } from "@/lib/image";
 import { aroundWindow, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { logAnchor } from "@/lib/log-history";
+import { resourcePath } from "@/lib/routes";
 import { formatHourMinute, tsMs } from "@/lib/time";
-import { cn, formatShortId } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs, type ObsResource } from "./context";
 import { MetricChart, type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
@@ -38,6 +43,17 @@ const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
 const DEPLOYS_PER_RESOURCE = 20;
 const WARN_PERCENT = 85;
+// A click this close to a deploy line, as a share of the range, offers that deploy.
+const DEPLOY_PICK_SHARE = 0.02;
+
+type SortKey = "resource" | "region" | "replicas" | "cpu" | "mem";
+
+interface DeployMarker extends ChartMarker {
+	tag: string;
+	resourceId: string;
+	resourceName: string;
+	region: string;
+}
 
 interface Placement {
 	key: string;
@@ -126,20 +142,30 @@ function useComputeSeries(def: MetricDef, rows: Placement[], spanMs: number, end
 	};
 }
 
-function useDeployMarkers(visible: ObsResource[], from: number, to: number): ChartMarker[] {
+function useDeployMarkers(visible: ObsResource[], environmentId: string, from: number, to: number): DeployMarker[] {
 	const transport = useTransport();
 	const queries = useQueries({
 		queries: visible.map((r) =>
 			createQueryOptions(listDeployments, { resourceId: r.id, pageSize: DEPLOYS_PER_RESOURCE }, { transport }),
 		),
 	});
-	const markers: ChartMarker[] = [];
+	const markers: DeployMarker[] = [];
 	visible.forEach((r, i) => {
 		for (const d of queries[i]?.data?.deployments ?? []) {
 			const t = tsMs(d.startedAt ?? d.createdAt);
-			if (t < from || t > to) continue;
-			const label = `${r.name} · ${formatShortId(d.id)}`;
-			markers.push({ t, label, title: `Deployed ${label}`, color: r.color });
+			if (t < from || t > to || d.environmentId !== environmentId) continue;
+			const tag = imageVersion(deploymentImage(d));
+			const label = `${r.name} ${tag}`;
+			markers.push({
+				t,
+				label,
+				title: `Deployed ${label} in ${d.region}`,
+				color: r.color,
+				tag,
+				resourceId: r.id,
+				resourceName: r.name,
+				region: d.region,
+			});
 		}
 	});
 	return markers;
@@ -161,7 +187,9 @@ function Meter({ value }: { value: number | undefined }) {
 }
 
 export function MetricsView() {
-	const { resources, resourcesLoading, tokens, range, params, goTo, setQuery, text } = useObs();
+	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, params, goTo, setQuery, text } = useObs();
+	const navigate = useNavigate();
+	const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "cpu", desc: true });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const now = useNow(NOW_TICK_MS);
 	const { from, to } = resolveWindow(range, now.getTime());
@@ -171,7 +199,7 @@ export function MetricsView() {
 	const rows = placements(visible, environment?.id ?? "", liveTokens("metrics", tokens, "region"));
 	const cpu = useComputeSeries(CPU, rows, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, spanMs, endMs);
-	const deployMarkers = useDeployMarkers(visible, from, to);
+	const deployMarkers = useDeployMarkers(visible, environment?.id ?? "", from, to);
 	const focusTs = logAnchor(params.get("at"));
 	const markers: ChartMarker[] = [
 		...deployMarkers,
@@ -181,7 +209,17 @@ export function MetricsView() {
 	];
 	const actions = (t: number): PinAction[] => {
 		const around = aroundWindow(t, Date.now());
+		const near = deployMarkers.filter((m) => Math.abs(m.t - t) <= (to - from) * DEPLOY_PICK_SHARE);
 		return [
+			...near.map((m) => ({
+				key: `deploy-${m.resourceId}-${String(m.t)}`,
+				icon: <RocketIcon />,
+				label: `Deploy ${m.tag}`,
+				sub: `${m.resourceName} · ${m.region} · ${formatHourMinute(m.t)}`,
+				run: () => {
+					void navigate(resourcePath(orgId, workspaceId, m.resourceId));
+				},
+			})),
 			{
 				key: "logs",
 				icon: <ScrollTextIcon />,
@@ -239,6 +277,54 @@ export function MetricsView() {
 			</>
 		);
 	}
+
+	const sortValue = (p: Placement): string | number => {
+		switch (sort.key) {
+			case "resource":
+				return p.resource.name;
+			case "region":
+				return p.region;
+			case "replicas":
+				return p.ready ?? -1;
+			case "cpu":
+				return cpu.latest.get(p.key) ?? -1;
+			case "mem":
+				return mem.latest.get(p.key) ?? -1;
+		}
+	};
+	const sortedRows = rows.toSorted((a, b) => {
+		const x = sortValue(a);
+		const y = sortValue(b);
+		const order = typeof x === "string" && typeof y === "string" ? x.localeCompare(y) : Number(x) - Number(y);
+		return sort.desc ? -order : order;
+	});
+	const header = (key: SortKey, label: string, className?: string) => (
+		<th
+			className={cn("px-3 font-normal", className)}
+			aria-sort={sort.key !== key ? "none" : sort.desc ? "descending" : "ascending"}
+		>
+			<button
+				type="button"
+				onClick={() => {
+					setSort({ key, desc: sort.key === key ? !sort.desc : key !== "resource" && key !== "region" });
+				}}
+				className="rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+			>
+				{label}
+				{sort.key === key && (sort.desc ? " ↓" : " ↑")}
+			</button>
+		</th>
+	);
+	const focusRow = (p: Placement) => {
+		setQuery(
+			[
+				...tokens.filter((t) => t.key !== "resource" && t.key !== "region"),
+				{ neg: false, key: "resource", value: p.resource.name },
+				{ neg: false, key: "region", value: p.region },
+			],
+			text,
+		);
+	};
 
 	const cards = [
 		{ def: CPU, result: cpu },
@@ -328,11 +414,11 @@ export function MetricsView() {
 					<table className="w-full min-w-[760px] border-collapse text-[12.5px]">
 						<thead>
 							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">
-								<th className="px-3 font-normal">Resource</th>
-								<th className="px-3 font-normal">Region</th>
-								<th className="px-3 font-normal">Replicas</th>
-								<th className="w-[170px] px-3 font-normal">CPU</th>
-								<th className="w-[170px] px-3 font-normal">Memory</th>
+								{header("resource", "Resource")}
+								{header("region", "Region")}
+								{header("replicas", "Replicas")}
+								{header("cpu", "CPU", "w-[170px]")}
+								{header("mem", "Memory", "w-[170px]")}
 								<th className="px-3 font-normal">
 									<span className="flex items-center gap-1.5">
 										Requests <SoonTag />
@@ -358,22 +444,22 @@ export function MetricsView() {
 									</td>
 								</tr>
 							)}
-							{rows.map((p) => {
+							{sortedRows.map((p) => {
 								const short = p.ready !== null && p.desired !== null && p.ready < p.desired;
 								return (
-									<tr key={p.key} className="h-[38px] border-b border-line last:border-b-0 hover:bg-panel2">
+									<tr
+										key={p.key}
+										onClick={() => {
+											focusRow(p);
+										}}
+										className="h-[38px] border-b border-line last:border-b-0 hover:bg-panel2"
+									>
 										<td className="px-3">
 											<button
 												type="button"
-												onClick={() => {
-													setQuery(
-														[
-															...tokens.filter((t) => t.key !== "resource" && t.key !== "region"),
-															{ neg: false, key: "resource", value: p.resource.name },
-															{ neg: false, key: "region", value: p.region },
-														],
-														text,
-													);
+												onClick={(event) => {
+													event.stopPropagation();
+													focusRow(p);
 												}}
 												className="flex items-center gap-1.5 rounded-sm text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 											>
