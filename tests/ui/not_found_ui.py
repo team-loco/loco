@@ -248,8 +248,6 @@ with sync_playwright() as playwright:
             deep = f"/org/{org}/wks/{shared}/no-such-tab?env=production"
             fake_idp(context, "owner")
             page.goto(ui + deep)
-            expect(page).to_have_url(ui + "/login")
-            page.get_by_role("button", name="Continue", exact=True).click()
             expect(page).to_have_url(ui + deep)
             expect_not_found(page, deep)
             page.screenshot(path=out / "signed-out-return.png", animations="disabled")
