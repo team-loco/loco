@@ -15,17 +15,19 @@ async function startSignIn(next: string | null, loginHint: string | null): Promi
 }
 
 export function useSignIn() {
-	const [status, setStatus] = useState<"idle" | "redirecting" | "failed">("idle");
+	const [redirecting, setRedirecting] = useState(false);
+	const [failed, setFailed] = useState(false);
 
 	const signIn = async (next: string | null, loginHint: string | null) => {
-		setStatus("redirecting");
+		setRedirecting(true);
 		try {
 			await startSignIn(next, loginHint);
 		} catch (err) {
 			toastConnectError(err, SIGN_IN_FAILED);
-			setStatus("failed");
+			setRedirecting(false);
+			setFailed(true);
 		}
 	};
 
-	return { signIn, redirecting: status === "redirecting", failed: status === "failed" };
+	return { signIn, redirecting, failed };
 }

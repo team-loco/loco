@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { Spinner } from "@/components/design/Spinner";
 
@@ -22,15 +22,12 @@ export function SignInCard({
 	const { signIn, redirecting, failed } = useSignIn();
 	const automatic = error === null && !failed;
 	const startedRef = useRef(false);
-	const startAutomatically = useEffectEvent(() => {
-		void signIn(next, loginHint);
-	});
 
 	useEffect(() => {
 		if (!automatic || startedRef.current) return;
 		startedRef.current = true;
-		startAutomatically();
-	}, [automatic]);
+		void signIn(next, loginHint);
+	}, [automatic, signIn, next, loginHint]);
 
 	if (automatic) return <AppLoading />;
 
