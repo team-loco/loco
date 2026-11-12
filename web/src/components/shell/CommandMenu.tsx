@@ -2,13 +2,18 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQuery } from "@tanstack/react-query";
 import {
 	Building2Icon,
+	ChartLineIcon,
 	CornerDownLeftIcon,
+	KeyRoundIcon,
 	LayersIcon,
-	PackageIcon,
+	PaletteIcon,
 	PlusIcon,
+	ScrollTextIcon,
 	SearchIcon,
+	Settings2Icon,
 	UserIcon,
 	UserPlusIcon,
+	WaypointsIcon,
 } from "lucide-react";
 import { createContext, use, useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
@@ -26,13 +31,25 @@ import {
 	CommandShortcut,
 } from "@/components/design/Command";
 import { Kbd } from "@/components/design/Kbd";
+import { resourceStatusStyle } from "@/components/design/StatusBadge";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ModeIcon } from "@/components/design/ThemePreview";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { scorePaletteItem } from "@/lib/command-palette";
-import { accountSettingsPath, newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
-import { modes, nextMode } from "@/lib/theme";
+import { environmentStatus } from "@/lib/resource-status";
+import {
+	accountSettingsPath,
+	newResourcePath,
+	observabilityPath,
+	orgSettingsPath,
+	resourcePath,
+	switchWorkspacePath,
+	type ObservabilityView,
+} from "@/lib/routes";
+import { colorThemes, modes } from "@/lib/theme";
 import { useTheme } from "@/lib/use-theme";
 
 import { useNavSections } from "./nav";
@@ -41,7 +58,7 @@ const SHORTCUT_KEY = "k";
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
 export const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
 const PLACEHOLDER = "Search resources, pages and actions";
-const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces"] as const;
+const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces", "Appearance"] as const;
 const BROWSE_LIMIT = 8;
 
 interface PaletteItem {
@@ -52,13 +69,22 @@ interface PaletteItem {
 	meta?: string | undefined;
 	icon: ReactNode;
 	run: () => void;
+	// Shown only once the person types, so browsing lists each resource once.
+	searchOnly?: boolean;
 }
+
+const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode }[] = [
+	{ view: "logs", label: "Logs", icon: <ScrollTextIcon /> },
+	{ view: "metrics", label: "Metrics", icon: <ChartLineIcon /> },
+	{ view: "traces", label: "Traces", icon: <WaypointsIcon /> },
+];
 
 function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
 	const { pathname, search } = useLocation();
 	const [params] = useSearchParams();
-	const { mode, toggle } = useTheme();
+	const { mode, setMode, color, setColor } = useTheme();
+	const { active: activeEnv } = useEnvironments();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
 	const navPages = useNavSections().flatMap((section) => section.pages);
 	const scopes = useMyScopes();
@@ -92,39 +118,61 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				label: r.name,
 				keywords: `${r.slug} ${r.description ?? ""}`,
 				meta: r.description,
-				icon: <PackageIcon />,
+				icon: <StatusGlyph glyph={resourceStatusStyle(environmentStatus(r, activeEnv?.id)?.status).glyph} />,
 				run: go(resourcePath(orgId, workspaceId, r.id)),
 			});
+			for (const v of RESOURCE_VIEWS) {
+				items.push({
+					id: `resource-${r.id}-${v.view}`,
+					group: "Resources",
+					label: `${v.label} for ${r.name}`,
+					keywords: `${v.view} ${r.slug}`,
+					icon: v.icon,
+					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: r.name })),
+					searchOnly: true,
+				});
+			}
 		}
 	}
 
 	items.push({
-		id: "action-theme",
+		id: "action-new-token",
 		group: "Actions",
-		label: `Switch to ${modes.find((m) => m.id === nextMode(mode))?.name.toLowerCase() ?? ""} mode`,
-		keywords: "theme appearance toggle",
-		icon: <ModeIcon mode={nextMode(mode)} />,
-		run: toggle,
+		label: "New token",
+		keywords: "create api ci key",
+		icon: <KeyRoundIcon />,
+		run: go("/tokens?new=1"),
 	});
+	if (activeOrgId !== null && scopes.holds(activeOrgId, "", Scope.ADMIN)) {
+		items.push({
+			id: "action-invite",
+			group: "Actions",
+			label: "Invite people",
+			keywords: "team member email add",
+			icon: <UserPlusIcon />,
+			run: go(`/org/${activeOrgId}/team?invite=1`),
+		});
+	}
 	for (const page of navPages) {
 		if (page.to === undefined) continue;
+		const label = page.name === "Settings" ? "Workspace settings" : page.name;
 		items.push({
-			id: `page-${page.name.toLowerCase()}`,
+			id: `page-${label.toLowerCase()}`,
 			group: "Pages",
-			label: page.name,
+			label,
 			keywords: page.keywords,
 			icon: page.icon,
 			run: go(page.to),
 		});
 	}
-	if (activeOrgId !== null && scopes.holds(activeOrgId, "", Scope.ADMIN)) {
+	if (activeOrgId !== null) {
 		items.push({
-			id: "action-invite",
-			group: "Actions",
-			label: "Invite member",
-			keywords: "team people email add",
-			icon: <UserPlusIcon />,
-			run: go(`/org/${activeOrgId}/team?invite=1`),
+			id: "page-organization-settings",
+			group: "Pages",
+			label: "Organization settings",
+			keywords: "org members billing",
+			icon: <Settings2Icon />,
+			run: go(orgSettingsPath(activeOrgId, activeWorkspaceId)),
 		});
 	}
 	items.push(
@@ -159,6 +207,33 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		});
 	}
 
+	for (const m of modes) {
+		items.push({
+			id: `mode-${m.id}`,
+			group: "Appearance",
+			label: `${m.name} mode`,
+			keywords: `appearance theme mode${m.id === "system" ? " auto os" : ""}`,
+			meta: mode === m.id ? "current" : undefined,
+			icon: <ModeIcon mode={m.id} />,
+			run: () => {
+				setMode(m.id);
+			},
+		});
+	}
+	for (const t of colorThemes) {
+		items.push({
+			id: `color-${t.id}`,
+			group: "Appearance",
+			label: `${t.name} theme`,
+			keywords: "appearance color colour theme",
+			meta: color === t.id ? "current" : undefined,
+			icon: <PaletteIcon />,
+			run: () => {
+				setColor(t.id);
+			},
+		});
+	}
+
 	return items;
 }
 
@@ -166,8 +241,8 @@ function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClos
 	const [query, setQuery] = useState("");
 	const browsing = query.trim() === "";
 	const groups = PALETTE_GROUPS.filter((group) => !browsing || group !== "Workspaces").map((group) => {
-		const inGroup = items.filter((item) => item.group === group);
-		return { group, items: browsing ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
+		const inGroup = items.filter((item) => item.group === group && !(browsing && item.searchOnly === true));
+		return { group, items: browsing && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
 	});
 
 	return (

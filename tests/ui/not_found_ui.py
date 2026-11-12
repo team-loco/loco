@@ -152,7 +152,8 @@ with sync_playwright() as playwright:
                 expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
                 expect(palette.get_by_role("option", name="New resource")).to_have_attribute("aria-selected", "true")
                 page.keyboard.press("ArrowDown")
-                expect(palette.get_by_role("option", name=re.compile(r"^Switch to (dark|light|system) mode$"))).to_have_attribute("aria-selected", "true")
+                expect(palette.get_by_role("option", name="New token")).to_have_attribute("aria-selected", "true")
+                expect(results.get_by_role("group", name="Appearance").get_by_role("option")).to_have_count(9)
                 query.fill("no such command")
                 expect(palette.get_by_text("Nothing matches.", exact=True)).to_be_visible()
                 query.fill("sibling")
@@ -172,6 +173,11 @@ with sync_playwright() as playwright:
                     page.keyboard.press("Escape")
                     expect(palette).to_have_count(0)
                     expect(nav_link).to_be_focused()
+
+                top_search.click()
+                query.fill("dark mode")
+                page.keyboard.press("Enter")
+                expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
 
                 unknown = f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}"
                 page.goto(ui + unknown)
