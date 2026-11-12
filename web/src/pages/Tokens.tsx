@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon, SearchXIcon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { usePagedRows } from "@/lib/paging";
 import { tsMs } from "@/lib/time";
 
+import { DOCS_URL } from "./splash/links";
 import { CreateTokenDrawer } from "./tokens/CreateTokenDrawer";
 import type { CreateDraft } from "./tokens/CreateTokenDrawer";
 import { ownerIcon } from "./tokens/icons";
@@ -35,26 +36,50 @@ import type { Owner } from "./tokens/useTokenData";
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
 const NEW_PARAM = "new";
+const TOKEN_DOCS = `${DOCS_URL}/operations/access/#deploy-from-ci-with-an-api-token`;
 
 function parseOwner(value: string | null): OwnerKey {
 	return OWNER_KEYS.find((k) => k === value) ?? "workspace";
 }
 
-function firstRun(owner: Owner): { title: string; body: string } {
+function firstRun(owner: Owner): { title: string; body: string; snippet: string[] } {
 	switch (owner.key) {
 		case "org":
 			return {
 				title: "No organization tokens yet",
 				body: `Organization tokens belong to ${owner.label}, so automation keeps working when people leave.`,
+				snippet: ["# provisioning and org-wide automation", "export LOCO_TOKEN=…", "loco workspace list"],
 			};
 		case "workspace":
 			return {
 				title: "No workspace tokens yet",
 				body: `Workspace tokens let CI deploy to ${owner.label}, or to just a few of its resources.`,
+				snippet: [
+					"# .github/workflows/deploy.yml",
+					"- run: loco deploy --env production",
+					"  env:",
+					"    LOCO_TOKEN: ${{ secrets.LOCO_TOKEN }}",
+				],
 			};
 		case "personal":
-			return { title: "No personal tokens yet", body: "Personal tokens act as you, for scripts on your own machine." };
+			return {
+				title: "No personal tokens yet",
+				body: "Personal tokens act as you, for scripts on your own machine.",
+				snippet: ["# ~/.zshrc", "export LOCO_TOKEN=…", "loco resource logs web --follow"],
+			};
 	}
+}
+
+function SnippetArt({ lines }: { lines: string[] }) {
+	return (
+		<pre className="m-0 w-[min(420px,100%)] overflow-x-auto rounded-[10px] border border-line2 bg-background px-3.5 py-3 text-left font-mono text-[12px] leading-[1.7]">
+			{lines.map((line) => (
+				<div key={line} className={line.startsWith("#") ? "text-fg3" : "text-foreground"}>
+					{line}
+				</div>
+			))}
+		</pre>
+	);
 }
 
 export function Tokens() {
@@ -72,7 +97,7 @@ export function Tokens() {
 	const creators = useTokenCreators(owner);
 	const query = q.trim().toLowerCase();
 	const rows = tokens
-		.filter((t) => matchesQuery(data.tree, t, query))
+		.filter((t) => matchesQuery(data.tree, t, query, creators.get(t.createdBy)?.name))
 		.toSorted((a, b) => {
 			const ea = tokenStatus(a, now) === "expired" ? 1 : 0;
 			const eb = tokenStatus(b, now) === "expired" ? 1 : 0;
@@ -209,19 +234,34 @@ export function Tokens() {
 							setQ(e.target.value);
 							paged.reset();
 						}}
-						placeholder="Search by name or access"
+						onClear={() => {
+							setQ("");
+							paged.reset();
+						}}
+						placeholder="Search by name, creator or access"
 						aria-label="Search tokens"
 					/>
 				}
 			>
 				{firstRunEmpty && !current.isLoading ? (
 					<EmptyHero
-						art={<LockArt />}
+						art={
+							<div className="flex w-full flex-col items-center gap-5">
+								<LockArt />
+								<SnippetArt lines={intro.snippet} />
+							</div>
+						}
 						title={intro.title}
 						subtitle={intro.body}
 						className="rounded-none border-t border-line2"
 					>
-						{newTokenButton}
+						<span className="flex flex-wrap justify-center gap-2">
+							{newTokenButton}
+							<Button variant="outline" render={<a href={TOKEN_DOCS} target="_blank" rel="noopener noreferrer" />}>
+								Read the docs
+								<ExternalLinkIcon className="text-fg3" />
+							</Button>
+						</span>
 					</EmptyHero>
 				) : (
 					<>

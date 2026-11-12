@@ -112,21 +112,6 @@ export function kindOf(entityType: EntityType): NodeKind {
 	}
 }
 
-export function kindLabel(kind: NodeKind): string {
-	switch (kind) {
-		case "org":
-			return "Organization";
-		case "ws":
-			return "Workspace";
-		case "res":
-			return "Resource";
-		case "user":
-			return "User";
-		case "system":
-			return "System";
-	}
-}
-
 function levelScope(level: Level): Scope {
 	switch (level) {
 		case 1:
@@ -239,6 +224,23 @@ export interface AccessChip {
 	node: EntityNode;
 }
 
+export interface Creator {
+	name: string;
+	avatarUrl: string;
+}
+
+export interface LevelGroup {
+	level: Level;
+	nodes: EntityNode[];
+}
+
+export function accessByLevel(chips: readonly AccessChip[]): LevelGroup[] {
+	return ([3, 2, 1] as const).flatMap((level) => {
+		const nodes = chips.filter((c) => c.level === level).map((c) => c.node);
+		return nodes.length === 0 ? [] : [{ level, nodes }];
+	});
+}
+
 export function accessChips(tree: EntityTree, token: Token): AccessChip[] {
 	const grants = tokenGrants(token);
 	return sortKeys(tree, [...grants.keys()])
@@ -296,9 +298,9 @@ export function lastUsedLabel(token: Token, now: number): string {
 	return used === undefined ? "never" : relAgo(used, now);
 }
 
-export function matchesQuery(tree: EntityTree, token: Token, q: string): boolean {
+export function matchesQuery(tree: EntityTree, token: Token, q: string, creator = ""): boolean {
 	if (q === "") return true;
-	if (token.name.toLowerCase().includes(q)) return true;
+	if (token.name.toLowerCase().includes(q) || creator.toLowerCase().includes(q)) return true;
 	for (const s of token.scopes) {
 		const node = tree.nodes.get(nodeKey(s.entityType, s.entityId));
 		if (node?.label.toLowerCase().includes(q) === true) return true;

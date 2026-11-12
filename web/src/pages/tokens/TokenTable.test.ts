@@ -19,8 +19,8 @@ test("token creator uses a member name, preserves an unresolved ID and marks abs
 				create(TokenSchema, { name: "unlabelled", createdBy: "unlabelled-member-id" }),
 			],
 			creators: new Map([
-				["member-id", "Olivia Owner"],
-				["unlabelled-member-id", ""],
+				["member-id", { name: "Olivia Owner", avatarUrl: "" }],
+				["unlabelled-member-id", { name: "", avatarUrl: "" }],
 			]),
 			tree: { nodes: new Map(), order: [], childCount: new Map() },
 			now: 0,

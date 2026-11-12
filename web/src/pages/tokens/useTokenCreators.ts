@@ -5,9 +5,10 @@ import { useAuth } from "@/auth/AuthProvider";
 import { orgMembersOptions, workspaceMembersOptions } from "@/hooks/completeMembers";
 import { userLabel } from "@/lib/user";
 
+import type { Creator } from "./model";
 import type { Owner } from "./useTokenData";
 
-export function useTokenCreators(owner: Owner): ReadonlyMap<string, string> {
+export function useTokenCreators(owner: Owner): ReadonlyMap<string, Creator> {
 	const transport = useTransport();
 	const { user } = useAuth();
 	const org = useQuery({
@@ -18,13 +19,18 @@ export function useTokenCreators(owner: Owner): ReadonlyMap<string, string> {
 		...workspaceMembersOptions(transport, owner.id ?? ""),
 		enabled: owner.key === "workspace" && owner.canList,
 	});
-	const names = new Map<string, string>();
+	const creators = new Map<string, Creator>();
 	for (const member of org.data?.members ?? []) {
-		if (member.user !== undefined) names.set(member.user.id, userLabel(member.user));
+		if (member.user !== undefined) {
+			creators.set(member.user.id, { name: userLabel(member.user), avatarUrl: member.user.avatarUrl });
+		}
 	}
 	for (const member of workspace.data?.members ?? []) {
-		names.set(member.userId, userLabel({ name: member.userName, email: member.userEmail }));
+		creators.set(member.userId, {
+			name: userLabel({ name: member.userName, email: member.userEmail }),
+			avatarUrl: member.userAvatarUrl,
+		});
 	}
-	if (user !== null) names.set(user.id, userLabel(user));
-	return names;
+	if (user !== null) creators.set(user.id, { name: userLabel(user), avatarUrl: user.avatarUrl });
+	return creators;
 }
