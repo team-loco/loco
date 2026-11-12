@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	netmail "net/mail"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -49,6 +51,41 @@ func NewUserServer(
 	admins auth.Admins,
 ) *UserServer {
 	return &UserServer{db: db, queries: queries, tvm: vendingMachine, admins: admins, authz: authz.New(db, queries)}
+}
+
+func (s *UserServer) CreateUser(
+	ctx context.Context,
+	req *userv1.CreateUserRequest,
+) (*userv1.CreateUserResponse, error) {
+	if err := authorizeSystem(ctx, s.authz, actions.CreateUser); err != nil {
+		return nil, err
+	}
+	address, err := netmail.ParseAddress(req.GetEmail())
+	if err != nil || address.Name != "" || address.Address != req.GetEmail() {
+		return nil, ErrInvalidInviteEmail
+	}
+	email := strings.ToLower(address.Address)
+	var user genDb.User
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var createErr error
+		user, createErr = auth.CreateUser(ctx, qtx, genDb.CreateUserParams{Email: email})
+		if isUniqueViolation(createErr, "users_email_key") {
+			return rpcerr.NewCoded(connect.CodeAlreadyExists, "a user with that email already exists")
+		}
+		if createErr != nil {
+			return fmt.Errorf("create user: %w", createErr)
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.UserCreated,
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(user.ID),
+			Data:        map[string]any{events.FieldEmail: email},
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &userv1.CreateUserResponse{User: dbUserToProto(user)}, nil
 }
 
 // GetUser retrieves a user by ID or email

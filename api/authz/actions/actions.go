@@ -244,6 +244,10 @@ var (
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeRead,
 	}
+	CreateUser = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
 	// SetUserStatus requires system:admin.
 	SetUserStatus = Action{
 		entityType: db.EntityTypeSystem,

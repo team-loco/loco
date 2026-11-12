@@ -31,10 +31,11 @@ const (
 )
 
 var (
-	errProvider            = errors.New("fixture identity provider sign-in failed")
-	errMode                = errors.New("unknown authentication fixture mode")
-	errUnexpectedBootstrap = errors.New("bootstrap unexpectedly succeeded")
-	errEnvironmentMissing  = errors.New("new workspace has no production environment")
+	errProvider              = errors.New("fixture identity provider sign-in failed")
+	errMode                  = errors.New("unknown authentication fixture mode")
+	errUnexpectedBootstrap   = errors.New("bootstrap unexpectedly succeeded")
+	errUnexpectedInvitedUser = errors.New("invited sign-in resolved another user")
+	errEnvironmentMissing    = errors.New("new workspace has no production environment")
 )
 
 type config struct{ api, issuer, bootstrapToken, state string }
@@ -76,6 +77,9 @@ func main() {
 }
 
 func run(ctx context.Context, cfg config, mode string) error {
+	if mode == "invite" {
+		return inviteUser(ctx, cfg)
+	}
 	proof, err := providerLogin(ctx, cfg.issuer, "loco-admin@test.local")
 	if err != nil {
 		return err
@@ -153,6 +157,37 @@ func run(ctx context.Context, cfg config, mode string) error {
 		return fmt.Errorf("write fixture state: %w", err)
 	}
 	return nil
+}
+
+func inviteUser(ctx context.Context, cfg config) error {
+	data, err := os.ReadFile(cfg.state)
+	if err != nil {
+		return fmt.Errorf("read fixture state: %w", err)
+	}
+	var saved state
+	if decodeErr := json.Unmarshal(data, &saved); decodeErr != nil {
+		return fmt.Errorf("decode fixture state: %w", decodeErr)
+	}
+	admin := rpc.ForHost(cfg.api, saved.AdminCredentials.Token)
+	const email = "invited@test.local"
+	created, err := admin.User.CreateUser(ctx, &userv1.CreateUserRequest{Email: email})
+	if err != nil {
+		return fmt.Errorf("invite user: %w", err)
+	}
+	proof, err := providerLogin(ctx, cfg.issuer, email)
+	if err != nil {
+		return err
+	}
+	user := rpc.ForHost(cfg.api, proof)
+	me, err := user.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
+	if err != nil {
+		return fmt.Errorf("invited sign-in: %w", err)
+	}
+	if me.GetUser().GetId() != created.GetUser().GetId() {
+		return errUnexpectedInvitedUser
+	}
+	_, err = user.Org.CreateOrg(ctx, &orgv1.CreateOrgRequest{Name: new("invited-org")})
+	return err
 }
 
 func providerLogin(ctx context.Context, issuer, email string) (string, error) {

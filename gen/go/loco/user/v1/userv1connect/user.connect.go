@@ -24,6 +24,8 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// UserServiceCreateUserProcedure is the procedure name of the UserService's CreateUser RPC.
+	UserServiceCreateUserProcedure = "/loco.user.v1.UserService/CreateUser"
 	// UserServiceGetUserProcedure is the procedure name of the UserService's GetUser RPC.
 	UserServiceGetUserProcedure = "/loco.user.v1.UserService/GetUser"
 	// UserServiceWhoAmIProcedure is the procedure name of the UserService's WhoAmI RPC.
@@ -41,6 +43,13 @@ const (
 )
 
 var (
+	userServiceCreateUserSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods().ByName("CreateUser"),
+			Procedure:  UserServiceCreateUserProcedure,
+		}
+	})
 	userServiceGetUserSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -94,6 +103,7 @@ var (
 
 // UserServiceClient is a client for the loco.user.v1.UserService service.
 type UserServiceClient interface {
+	CreateUser(context.Context, *v1.CreateUserRequest) (*v1.CreateUserResponse, error)
 	// GetUser retrieves a user by ID or email.
 	GetUser(context.Context, *v1.GetUserRequest) (*v1.GetUserResponse, error)
 	// WhoAmI retrieves the current authenticated user.
@@ -118,6 +128,7 @@ func NewUserServiceClient(client *connect.Client) UserServiceClient {
 
 // UserServiceHandler is an implementation of the loco.user.v1.UserService service.
 type UserServiceHandler interface {
+	CreateUser(context.Context, *v1.CreateUserRequest) (*v1.CreateUserResponse, error)
 	// GetUser retrieves a user by ID or email.
 	GetUser(context.Context, *v1.GetUserRequest) (*v1.GetUserResponse, error)
 	// WhoAmI retrieves the current authenticated user.
@@ -139,6 +150,7 @@ type UserServiceHandler interface {
 func RegisterUserServiceHandler(server *connect.Server, svc UserServiceHandler) {
 	adapter := userServiceHandler{svc: svc}
 	server.Register(
+		connect.Method{Spec: userServiceCreateUserSpec(), Handler: adapter.createUser},
 		connect.Method{Spec: userServiceGetUserSpec(), Handler: adapter.getUser},
 		connect.Method{Spec: userServiceWhoAmISpec(), Handler: adapter.whoAmI},
 		connect.Method{Spec: userServiceUpdateUserSpec(), Handler: adapter.updateUser},
@@ -151,6 +163,10 @@ func RegisterUserServiceHandler(server *connect.Server, svc UserServiceHandler) 
 
 // UnimplementedUserServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedUserServiceHandler struct{}
+
+func (UnimplementedUserServiceHandler) CreateUser(context.Context, *v1.CreateUserRequest) (*v1.CreateUserResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.CreateUser is not implemented")
+}
 
 func (UnimplementedUserServiceHandler) GetUser(context.Context, *v1.GetUserRequest) (*v1.GetUserResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.GetUser is not implemented")
@@ -182,6 +198,14 @@ func (UnimplementedUserServiceHandler) SetUserStatus(context.Context, *v1.SetUse
 
 type userServiceClient struct {
 	client *connect.Client
+}
+
+func (c *userServiceClient) CreateUser(ctx context.Context, req *v1.CreateUserRequest) (*v1.CreateUserResponse, error) {
+	var res v1.CreateUserResponse
+	if err := c.client.CallUnary(ctx, userServiceCreateUserSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *userServiceClient) GetUser(ctx context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
@@ -241,6 +265,18 @@ func (c *userServiceClient) SetUserStatus(ctx context.Context, req *v1.SetUserSt
 }
 
 type userServiceHandler struct{ svc UserServiceHandler }
+
+func (h userServiceHandler) createUser(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CreateUserRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreateUser(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
 
 func (h userServiceHandler) getUser(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.GetUserRequest

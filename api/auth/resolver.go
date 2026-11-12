@@ -327,7 +327,9 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		if policyErr := r.policy.Check(id); policyErr != nil {
 			return genDb.User{}, nil, policyErr
 		}
-		user, err = createUser(ctx, qtx, id)
+		user, err = CreateUser(ctx, qtx, genDb.CreateUserParams{
+			Email: id.Email, Name: nullableString(id.Name), AvatarUrl: nullableString(id.AvatarURL),
+		})
 		if err != nil {
 			return genDb.User{}, nil, err
 		}
@@ -379,12 +381,8 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	return user, claimed, nil
 }
 
-func createUser(ctx context.Context, qtx *genDb.Queries, id Identity) (genDb.User, error) {
-	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
-		Email:     id.Email,
-		Name:      nullableString(id.Name),
-		AvatarUrl: nullableString(id.AvatarURL),
-	})
+func CreateUser(ctx context.Context, qtx *genDb.Queries, params genDb.CreateUserParams) (genDb.User, error) {
+	user, err := qtx.CreateUser(ctx, params)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return genDb.User{}, err

@@ -5665,6 +5665,67 @@
         }
       }
     },
+    "/loco.user.v1.UserService/CreateUser": {
+      "post": {
+        "tags": [
+          "loco.user.v1.UserService"
+        ],
+        "summary": "CreateUser",
+        "operationId": "loco.user.v1.UserService.CreateUser",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.user.v1.CreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.user.v1.CreateUserResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.user.v1.UserService/DeleteUser": {
       "post": {
         "tags": [
@@ -13543,6 +13604,29 @@
         "title": "ClaimedOrg",
         "additionalProperties": false,
         "description": "ClaimedOrg is an organization the user joined through an invitation."
+      },
+      "loco.user.v1.CreateUserRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "email",
+            "format": "email"
+          }
+        },
+        "title": "CreateUserRequest",
+        "additionalProperties": false
+      },
+      "loco.user.v1.CreateUserResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "title": "user",
+            "$ref": "#/components/schemas/loco.user.v1.User"
+          }
+        },
+        "title": "CreateUserResponse",
+        "additionalProperties": false
       },
       "loco.user.v1.DeleteUserRequest": {
         "type": "object",

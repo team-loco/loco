@@ -52,7 +52,9 @@ func (r *Resolver) BootstrapUser(
 		return genDb.User{}, genDb.Identity{}, fmt.Errorf("look up bootstrap email: %w", err)
 	}
 	id.EmailVerified = true
-	user, err := createUser(ctx, queries, id)
+	user, err := CreateUser(ctx, queries, genDb.CreateUserParams{
+		Email: id.Email, Name: nullableString(id.Name), AvatarUrl: nullableString(id.AvatarURL),
+	})
 	if err != nil {
 		return genDb.User{}, genDb.Identity{}, err
 	}

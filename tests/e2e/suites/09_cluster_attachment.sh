@@ -129,3 +129,10 @@ test_z20_pause_remove_and_restore() {
     wait_for "Restored cluster heartbeat" "$READY_TIMEOUT" agent_heartbeat_recorded
     assert "Restore reuses cluster identity" test "$(e2e_psql 'SELECT count(*) FROM clusters')" = 1
 }
+
+test_z11_closed_installation_admits_invited_user() {
+    AUTH_SIGNUP_MODE=closed start_api_replica
+    assert "Invited user signs in and creates an organization under closed signup" \
+        env E2E_API_URL="http://127.0.0.1:${API_REPLICA_PORT}" "$E2E_BIN_DIR/e2e-auth" invite
+    kill_pid_file "$PID_DIR/api-replica/api.pid"
+}

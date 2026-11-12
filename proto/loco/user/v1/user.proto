@@ -9,6 +9,7 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/user/v1;userv1";
 
 // UserService manages user accounts and operations.
 service UserService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   // GetUser retrieves a user by ID or email.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // WhoAmI retrieves the current authenticated user.
@@ -134,3 +135,11 @@ message LogoutRequest {}
 
 // LogoutResponse is the response after logging out.
 message LogoutResponse {}
+
+message CreateUserRequest {
+  string email = 1 [(buf.validate.field).string.email = true];
+}
+
+message CreateUserResponse {
+  User user = 1;
+}

@@ -868,3 +868,34 @@ func TestDuplicateOpenInvitationIsRejected(t *testing.T) {
 	f.invite(t, orgID, inviteeEmail, invitationTTL)
 	f.invite(t, f.org(t, "other"), inviteeEmail, invitationTTL)
 }
+
+func TestResolveFirstIdentityForPrecreatedUser(t *testing.T) {
+	for _, mode := range []SignupMode{SignupClosed, SignupOpen, SignupDomains} {
+		t.Run(string(mode), func(t *testing.T) {
+			pool := dbtest.NewPool(t)
+			q := genDb.New(pool)
+			user, err := q.CreateUser(t.Context(), genDb.CreateUserParams{Email: inviteeEmail})
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := NewResolver(pool, SignupPolicy{Mode: mode, Domains: []string{"other.test"}})
+			id := identity(inviteeSubject, inviteeEmail, false)
+			if _, _, resolveErr := r.Resolve(t.Context(), id); !errors.Is(resolveErr, ErrEmailUnverified) {
+				t.Fatalf("unverified sign-in: %v", resolveErr)
+			}
+			identities, err := q.ListIdentitiesForUser(t.Context(), user.ID)
+			if err != nil || len(identities) != 0 {
+				t.Fatalf("identities after rejected sign-in = %v, %v", identities, err)
+			}
+			id.EmailVerified = true
+			resolved, _, err := r.Resolve(t.Context(), id)
+			if err != nil || resolved.ID != user.ID {
+				t.Fatalf("verified sign-in = %v, %v", resolved, err)
+			}
+			linked, err := q.GetIdentity(t.Context(), genDb.GetIdentityParams{Issuer: id.Issuer, Subject: id.Subject})
+			if err != nil || linked.UserID != user.ID || !linked.EmailVerified {
+				t.Fatalf("linked identity = %v, %v", linked, err)
+			}
+		})
+	}
+}
