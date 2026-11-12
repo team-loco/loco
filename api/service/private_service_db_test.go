@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -22,7 +23,7 @@ const (
 
 func createNamedResource(t *testing.T, f *deployFixture, name string) (*resourcev1.CreateResourceResponse, error) {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	workspaceID := f.workspaceID(t)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},

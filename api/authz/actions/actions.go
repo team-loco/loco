@@ -383,6 +383,16 @@ var (
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeAdmin,
 	}
+	// GetOrgLimits requires organization:member.
+	GetOrgLimits = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeMember,
+	}
+	// SetOrgLimits requires system:admin.
+	SetOrgLimits = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
 
 	// ListUserOrgs requires user:read (to list orgs for a specific user).
 	ListUserOrgs = Action{

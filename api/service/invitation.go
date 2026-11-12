@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -85,6 +86,9 @@ func (s *OrgServer) InviteOrgMember(
 		if revokeErr := revokeExpiredInvitations(ctx, qtx, orgID, email); revokeErr != nil {
 			return revokeErr
 		}
+		if limitErr := s.checkInvitationLimits(ctx, qtx, orgID); limitErr != nil {
+			return limitErr
+		}
 		created, createErr := qtx.CreateInvitation(ctx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
@@ -106,6 +110,32 @@ func (s *OrgServer) InviteOrgMember(
 	}
 
 	return &orgv1.InviteOrgMemberResponse{Invitation: result}, nil
+}
+
+// checkInvitationLimits refuses an invitation when the organization's open invitations or its
+// members are at their limit, since the claim of one more could not add a member.
+func (s *OrgServer) checkInvitationLimits(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID) error {
+	if _, err := qtx.LockOrgForMembership(ctx, orgID); errors.Is(err, pgx.ErrNoRows) {
+		return ErrOrgNotFound
+	} else if err != nil {
+		return fmt.Errorf("lock organization: %w", err)
+	}
+	effective, err := limits.ForOrg(ctx, qtx, s.counts, orgID)
+	if err != nil {
+		return err
+	}
+	open, err := qtx.CountOpenOrgInvitations(ctx, orgID)
+	if err != nil {
+		return fmt.Errorf("count invitations: %w", err)
+	}
+	if err = limits.InvitationsPerOrg.Check(effective, open, 1); err != nil {
+		return err
+	}
+	members, err := qtx.CountOrgMembers(ctx, orgID)
+	if err != nil {
+		return fmt.Errorf("count members: %w", err)
+	}
+	return limits.MembersPerOrg.Check(effective, members, 1)
 }
 
 func revokeExpiredInvitations(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID, email string) error {

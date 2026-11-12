@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -137,7 +138,7 @@ func (f *resourceStatusFixture) failed(t *testing.T, clusterID uuid.UUID, replic
 }
 
 func (f *resourceStatusFixture) server() *ResourceServer {
-	return NewResourceServer(f.pool, f.queries, testServiceDefaults(), f.silentAfter)
+	return NewResourceServer(f.pool, f.queries, testServiceDefaults(), f.silentAfter, limits.Defaults())
 }
 
 func (f *resourceStatusFixture) statuses(t *testing.T) []*resourcev1.EnvironmentStatus {

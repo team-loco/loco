@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 )
@@ -36,7 +37,7 @@ func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
 	scoped := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
-	server := NewDomainServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewDomainServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	f.serveDomains(t, testDomainPlatform)
 	return &domainClient{server: server, ctx: scoped, f: f}
 }

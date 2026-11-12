@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/reqctx"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -86,6 +87,7 @@ func newPlanServer(f *deployFixture) *PlanServer {
 		testServiceDefaults(),
 		testSecretConfig(),
 		testClusterSilentAfter,
+		limits.Defaults(),
 	)
 }
 

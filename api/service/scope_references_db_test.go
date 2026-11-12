@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -208,7 +209,7 @@ func TestWorkspaceMembershipRejectsDeletedWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewWorkspaceServer(f.pool, f.queries)
+	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	created, err := server.CreateWorkspace(
 		f.owner,
 		&workspacev1.CreateWorkspaceRequest{OrgId: f.orgID, Name: "workspace"},

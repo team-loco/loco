@@ -16,7 +16,9 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -39,11 +41,17 @@ type TokenServer struct {
 	queries genDb.Querier
 	authz   *authz.Authorizer
 	tvm     *tvm.VendingMachine
+	counts  *configv1.CountLimits
 }
 
 // NewTokenServer creates a new TokenServer instance
-func NewTokenServer(db *pgxpool.Pool, queries genDb.Querier, vendingMachine *tvm.VendingMachine) *TokenServer {
-	return &TokenServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(db, queries)}
+func NewTokenServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	vendingMachine *tvm.VendingMachine,
+	counts *configv1.CountLimits,
+) *TokenServer {
+	return &TokenServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(db, queries), counts: counts}
 }
 
 // CreateToken issues a new API token for a specific entity with defined scopes
@@ -107,6 +115,9 @@ func (s *TokenServer) CreateToken(
 	var token string
 	var tokenData genDb.CreateAPITokenRow
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if limitErr := s.checkTokenLimit(ctx, qtx, targetEntity); limitErr != nil {
+			return limitErr
+		}
 		var issueErr error
 		token, tokenData, issueErr = s.tvm.WithQueries(qtx).
 			Issue(ctx, req.GetName(), p.Entity.ID, targetEntity, dbScopes, duration)
@@ -149,6 +160,40 @@ func (s *TokenServer) CreateToken(
 			tokenData.LastUsedAt,
 		),
 	}, nil
+}
+
+// checkTokenLimit serializes token creation for the owner and refuses one more past the limit
+// of the owner's organization; a user or system owner has the install default.
+func (s *TokenServer) checkTokenLimit(ctx context.Context, qtx *genDb.Queries, owner genDb.Entity) error {
+	if err := qtx.LockTokenOwner(ctx, owner.ID); err != nil {
+		return fmt.Errorf("lock token owner: %w", err)
+	}
+	existing, err := qtx.CountEntityAPITokens(ctx, genDb.CountEntityAPITokensParams{
+		EntityType: owner.Type,
+		EntityID:   owner.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("count tokens: %w", err)
+	}
+	switch owner.Type {
+	case genDb.EntityTypeOrganization:
+		return checkOrgLimit(ctx, qtx, s.counts, limits.TokensPerEntity, owner.ID, existing, 1)
+	case genDb.EntityTypeWorkspace:
+		orgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(ctx, owner.ID)
+		if errors.Is(orgErr, pgx.ErrNoRows) {
+			return ErrWorkspaceNotFound
+		}
+		if orgErr != nil {
+			return fmt.Errorf("get workspace organization: %w", orgErr)
+		}
+		return checkOrgLimit(ctx, qtx, s.counts, limits.TokensPerEntity, orgID, existing, 1)
+	case genDb.EntityTypeResource:
+		return checkResourceLimit(ctx, qtx, s.counts, limits.TokensPerEntity, owner.ID, existing, 1)
+	case genDb.EntityTypeUser, genDb.EntityTypeSystem:
+		return limits.TokensPerEntity.Check(s.counts, existing, 1)
+	default:
+		panic(fmt.Errorf("%w: %s", errUnknownEntityType, owner.Type))
+	}
 }
 
 // ListTokens lists all API tokens associated with an entity

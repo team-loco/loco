@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -26,7 +27,7 @@ func TestGetResourceFailsOnCorruptSpec(t *testing.T) {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 	}
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
 	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: f.resourceID.String()},
@@ -47,7 +48,7 @@ func TestCreateResourceRejectsNonServiceType(t *testing.T) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 	}
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
 	service := &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{}}
 	spec := &resourcev1.ResourceSpec{Spec: service}

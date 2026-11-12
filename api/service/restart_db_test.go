@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -15,7 +16,7 @@ import (
 
 func restartResource(t *testing.T, f *deployFixture, environmentID uuid.UUID, region string, scope genDb.Scope) error {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: scope},
 	}})

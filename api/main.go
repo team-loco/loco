@@ -286,7 +286,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 	}
 	verifier := auth.NewVerifier(authClient, ac.AuthIssuers)
 	emailVerifierOption := auth.WithEmailVerifiers(emailVerifiers)
-	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
+	resolver := auth.NewResolver(pool, ac.SignupPolicy, ac.CountLimits, emailVerifierOption)
 
 	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
 	if err = placementNotifier.Connect(ctx); err != nil {
@@ -384,18 +384,23 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 			ac.AuthIssuers,
 			ac.OrgLinks,
 			ac.Tokens.MaxAPITokenDuration,
+			ac.CountLimits,
 		),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
 		bootstrap: service.NewBootstrapServer(
 			pool, ac.BootstrapTokenHash, verifier, resolver, authServiceHandler,
 		),
-		user:      service.NewUserServer(pool, queries, machine, admins),
-		auth:      authServiceHandler,
-		event:     service.NewEventServer(queries),
-		webhook:   service.NewWebhookServer(pool, queries, secretKeyProvider, ac.WebhooksAllowPrivate),
-		org:       service.NewOrgServer(pool, queries, ac.Invitations),
-		workspace: service.NewWorkspaceServer(pool, queries),
-		resource:  service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
+		user:  service.NewUserServer(pool, queries, machine, admins),
+		auth:  authServiceHandler,
+		event: service.NewEventServer(queries),
+		webhook: service.NewWebhookServer(
+			pool, queries, secretKeyProvider, ac.WebhooksAllowPrivate, ac.CountLimits,
+		),
+		org:       service.NewOrgServer(pool, queries, ac.Invitations, ac.CountLimits),
+		workspace: service.NewWorkspaceServer(pool, queries, ac.CountLimits),
+		resource: service.NewResourceServer(
+			pool, queries, ac.ServiceDefaults, clusterSilentAfter, ac.CountLimits,
+		),
 		deployment: service.NewDeploymentServer(
 			pool,
 			queries,
@@ -411,8 +416,8 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 			RegistryPrefix:     ac.RegistryPrefix,
 			SourceMaxBytes:     ac.SourceMaxBytes,
 		}),
-		domain: service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter),
-		token:  service.NewTokenServer(pool, queries, machine),
+		domain: service.NewDomainServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter, ac.CountLimits),
+		token:  service.NewTokenServer(pool, queries, machine, ac.CountLimits),
 		agent: service.NewAgentServer(
 			pool,
 			queries,
@@ -437,9 +442,12 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 			ac.ServiceDefaults,
 			ac.SecretLimits,
 			clusterSilentAfter,
+			ac.CountLimits,
 		),
-		environment: service.NewEnvironmentServer(pool, queries),
-		secret:      service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits),
+		environment: service.NewEnvironmentServer(pool, queries, ac.CountLimits),
+		secret: service.NewSecretServer(
+			pool, queries, secretKeyProvider, ac.SecretLimits, ac.CountLimits,
+		),
 		registryKey: registryKeyHandler,
 	}, nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -20,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/envconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -124,7 +126,6 @@ const (
 	defaultWebhookPollInterval = 2 * time.Second
 
 	defaultSecretMaxValueBytes     = 64 * 1024
-	defaultSecretMaxPerService     = 256
 	defaultSecretMaxPlacementBytes = 768 * 1024
 	defaultSecretLockTimeout       = 10 * time.Second
 
@@ -219,6 +220,7 @@ type APIConfig struct {
 	Transit               transit.Config
 	Secrets               secretkeys.Config
 	SecretLimits          service.SecretConfig
+	CountLimits           *configv1.CountLimits
 	HeartbeatInterval     time.Duration
 	BootstrapTokenHash    []byte
 	TracingEnabled        bool
@@ -263,7 +265,6 @@ func newAPIConfig() *APIConfig {
 	invitations := newInvitationConfig(webURL)
 	secretLimits := service.SecretConfig{
 		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),
-		MaxPerService:     positiveInt32Env("LOCO_SECRETS_MAX_PER_SERVICE", defaultSecretMaxPerService),
 		MaxPlacementBytes: positiveInt32Env("LOCO_SECRETS_MAX_PLACEMENT_BYTES", defaultSecretMaxPlacementBytes),
 		LockTimeout:       envconfig.PositiveDuration("LOCO_SECRETS_LOCK_TIMEOUT", defaultSecretLockTimeout),
 	}
@@ -311,10 +312,20 @@ func newAPIConfig() *APIConfig {
 		Transit:               transitConfig,
 		Secrets:               secrets,
 		SecretLimits:          secretLimits,
+		CountLimits:           newCountLimits(),
 		HeartbeatInterval:     heartbeatInterval,
 		BootstrapTokenHash:    bootstrapTokenHash,
 		TracingEnabled:        tracingEnabled,
 	}
+}
+
+// newCountLimits reads each count limit's environment variable over its built-in default.
+func newCountLimits() *configv1.CountLimits {
+	counts := limits.Defaults()
+	for _, limit := range limits.All {
+		limit.Set(counts, positiveInt32Env(limit.Env, limit.Get(counts)))
+	}
+	return counts
 }
 
 func newDatabaseConfig() db.Config {

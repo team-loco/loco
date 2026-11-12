@@ -45,6 +45,10 @@ const (
 	OrgServiceSuspendOrgProcedure = "/loco.org.v1.OrgService/SuspendOrg"
 	// OrgServiceResumeOrgProcedure is the procedure name of the OrgService's ResumeOrg RPC.
 	OrgServiceResumeOrgProcedure = "/loco.org.v1.OrgService/ResumeOrg"
+	// OrgServiceGetOrgLimitsProcedure is the procedure name of the OrgService's GetOrgLimits RPC.
+	OrgServiceGetOrgLimitsProcedure = "/loco.org.v1.OrgService/GetOrgLimits"
+	// OrgServiceSetOrgLimitsProcedure is the procedure name of the OrgService's SetOrgLimits RPC.
+	OrgServiceSetOrgLimitsProcedure = "/loco.org.v1.OrgService/SetOrgLimits"
 	// OrgServiceInviteOrgMemberProcedure is the procedure name of the OrgService's InviteOrgMember RPC.
 	OrgServiceInviteOrgMemberProcedure = "/loco.org.v1.OrgService/InviteOrgMember"
 	// OrgServiceListInvitationsProcedure is the procedure name of the OrgService's ListInvitations RPC.
@@ -128,6 +132,20 @@ var (
 			Procedure:  OrgServiceResumeOrgProcedure,
 		}
 	})
+	orgServiceGetOrgLimitsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("GetOrgLimits"),
+			Procedure:  OrgServiceGetOrgLimitsProcedure,
+		}
+	})
+	orgServiceSetOrgLimitsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("SetOrgLimits"),
+			Procedure:  OrgServiceSetOrgLimitsProcedure,
+		}
+	})
 	orgServiceInviteOrgMemberSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -180,6 +198,13 @@ type OrgServiceClient interface {
 	// ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
 	// Resuming an organization that is not suspended changes nothing.
 	ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error)
+	// GetOrgLimits returns the organization's effective count limits. Any member may call it.
+	GetOrgLimits(context.Context, *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error)
+	// SetOrgLimits overrides the install's count limits for one organization. Only the fields in
+	// update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
+	// belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+	// system:admin.
+	SetOrgLimits(context.Context, *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error)
 	InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error)
 	ListInvitations(context.Context, *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error)
 	RevokeInvitation(context.Context, *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error)
@@ -214,6 +239,13 @@ type OrgServiceHandler interface {
 	// ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
 	// Resuming an organization that is not suspended changes nothing.
 	ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error)
+	// GetOrgLimits returns the organization's effective count limits. Any member may call it.
+	GetOrgLimits(context.Context, *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error)
+	// SetOrgLimits overrides the install's count limits for one organization. Only the fields in
+	// update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
+	// belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+	// system:admin.
+	SetOrgLimits(context.Context, *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error)
 	InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error)
 	ListInvitations(context.Context, *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error)
 	RevokeInvitation(context.Context, *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error)
@@ -234,6 +266,8 @@ func RegisterOrgServiceHandler(server *connect.Server, svc OrgServiceHandler) {
 		connect.Method{Spec: orgServiceRemoveOrgMemberSpec(), Handler: adapter.removeOrgMember},
 		connect.Method{Spec: orgServiceSuspendOrgSpec(), Handler: adapter.suspendOrg},
 		connect.Method{Spec: orgServiceResumeOrgSpec(), Handler: adapter.resumeOrg},
+		connect.Method{Spec: orgServiceGetOrgLimitsSpec(), Handler: adapter.getOrgLimits},
+		connect.Method{Spec: orgServiceSetOrgLimitsSpec(), Handler: adapter.setOrgLimits},
 		connect.Method{Spec: orgServiceInviteOrgMemberSpec(), Handler: adapter.inviteOrgMember},
 		connect.Method{Spec: orgServiceListInvitationsSpec(), Handler: adapter.listInvitations},
 		connect.Method{Spec: orgServiceRevokeInvitationSpec(), Handler: adapter.revokeInvitation},
@@ -282,6 +316,14 @@ func (UnimplementedOrgServiceHandler) SuspendOrg(context.Context, *v1.SuspendOrg
 
 func (UnimplementedOrgServiceHandler) ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ResumeOrg is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) GetOrgLimits(context.Context, *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.GetOrgLimits is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) SetOrgLimits(context.Context, *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.SetOrgLimits is not implemented")
 }
 
 func (UnimplementedOrgServiceHandler) InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error) {
@@ -379,6 +421,22 @@ func (c *orgServiceClient) SuspendOrg(ctx context.Context, req *v1.SuspendOrgReq
 func (c *orgServiceClient) ResumeOrg(ctx context.Context, req *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error) {
 	var res v1.ResumeOrgResponse
 	if err := c.client.CallUnary(ctx, orgServiceResumeOrgSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) GetOrgLimits(ctx context.Context, req *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error) {
+	var res v1.GetOrgLimitsResponse
+	if err := c.client.CallUnary(ctx, orgServiceGetOrgLimitsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) SetOrgLimits(ctx context.Context, req *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error) {
+	var res v1.SetOrgLimitsResponse
+	if err := c.client.CallUnary(ctx, orgServiceSetOrgLimitsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -532,6 +590,30 @@ func (h orgServiceHandler) resumeOrg(ctx context.Context, _ connect.Spec, stream
 		return err
 	}
 	res, err := h.svc.ResumeOrg(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) getOrgLimits(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetOrgLimitsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetOrgLimits(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) setOrgLimits(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetOrgLimitsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetOrgLimits(ctx, &req)
 	if err != nil {
 		return err
 	}

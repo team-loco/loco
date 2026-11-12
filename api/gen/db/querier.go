@@ -33,7 +33,14 @@ type Querier interface {
 	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
 	CloseSystemBootstrap(ctx context.Context, bootstrappedBy *uuid.UUID) (int64, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
+	CountEntityAPITokens(ctx context.Context, arg CountEntityAPITokensParams) (int64, error)
+	CountOpenOrgInvitations(ctx context.Context, orgID uuid.UUID) (int64, error)
+	CountOrgMembers(ctx context.Context, entityID uuid.UUID) (int64, error)
+	CountOrgWorkspaces(ctx context.Context, orgID uuid.UUID) (int64, error)
+	CountOrgsCreatedBy(ctx context.Context, createdBy uuid.UUID) (int64, error)
 	CountSecrets(ctx context.Context, arg CountSecretsParams) (int64, error)
+	CountWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) (int64, error)
+	CountWorkspaceResources(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// -----------------------------------------------------------------------------
 	// API token queries
@@ -113,6 +120,7 @@ type Querier interface {
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (GetInvitationClaimDetailsRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
+	GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetPlacementForResourceCluster(ctx context.Context, arg GetPlacementForResourceClusterParams) (Placement, error)
@@ -217,6 +225,7 @@ type Querier interface {
 	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
+	LockOrgForCreate(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
 	LockOrgForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organization, error)
@@ -224,11 +233,12 @@ type Querier interface {
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
+	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error)
 	LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
+	LockWorkspaceForCreate(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) error
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
@@ -298,6 +308,7 @@ type Querier interface {
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
 	UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
+	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
 	UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error)

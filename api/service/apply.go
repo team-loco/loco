@@ -12,7 +12,9 @@ import (
 
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -94,6 +96,9 @@ func (s *PlanServer) Apply(
 		if lockErr := lockOrganization(ctx, qtx, planned.env.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
+		if limitErr := a.checkResourceLimit(ctx, qtx, s.counts, operations); limitErr != nil {
+			return limitErr
+		}
 		revisions, lockErr := lockWorkspaceEnvironments(ctx, qtx, planned.env.WorkspaceID)
 		if lockErr != nil {
 			return lockErr
@@ -139,6 +144,39 @@ func (s *PlanServer) Apply(
 		Operations:  planOperationsToProto(operations),
 		Deployments: a.started,
 	}, nil
+}
+
+// checkResourceLimit locks the workspace against concurrent creates and refuses the apply when
+// the services it creates would pass the organization's resource limit. It keeps the effective
+// limits for the domain checks of the operations.
+func (a *applier) checkResourceLimit(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	defaults *configv1.CountLimits,
+	operations []configplan.Operation,
+) error {
+	if _, err := qtx.LockWorkspaceForCreate(ctx, a.env.WorkspaceID); err != nil {
+		return fmt.Errorf("lock workspace: %w", err)
+	}
+	effective, err := limits.ForOrg(ctx, qtx, defaults, a.organizationID)
+	if err != nil {
+		return err
+	}
+	a.counts = effective
+	creates := int64(0)
+	for _, op := range operations {
+		if op.Kind == configplan.KindCreate {
+			creates++
+		}
+	}
+	if creates == 0 {
+		return nil
+	}
+	existing, err := qtx.CountWorkspaceResources(ctx, a.env.WorkspaceID)
+	if err != nil {
+		return fmt.Errorf("count resources: %w", err)
+	}
+	return limits.ResourcesPerWorkspace.Check(effective, existing, creates)
 }
 
 // touchedResources are the existing resources the apply writes: those of the operations it

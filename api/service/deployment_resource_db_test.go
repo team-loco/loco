@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -20,7 +21,7 @@ func TestDeploymentPreservesTheRenameThatCommitsWhileItWaits(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.reportRollout(t, testPhaseReady, true)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}

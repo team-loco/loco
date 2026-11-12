@@ -14,6 +14,8 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -41,11 +43,12 @@ type EnvironmentServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	authz   *authz.Authorizer
+	counts  *configv1.CountLimits
 }
 
 // NewEnvironmentServer creates a new EnvironmentServer instance.
-func NewEnvironmentServer(db *pgxpool.Pool, queries genDb.Querier) *EnvironmentServer {
-	return &EnvironmentServer{db: db, queries: queries, authz: authz.New(db, queries)}
+func NewEnvironmentServer(db *pgxpool.Pool, queries genDb.Querier, counts *configv1.CountLimits) *EnvironmentServer {
+	return &EnvironmentServer{db: db, queries: queries, authz: authz.New(db, queries), counts: counts}
 }
 
 // CreateEnvironment creates a new environment in a workspace.
@@ -70,6 +73,11 @@ func (s *EnvironmentServer) CreateEnvironment(
 	desc := req.GetDescription()
 	var env genDb.Environment
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if limitErr := checkWorkspaceLimit(
+			ctx, qtx, s.counts, limits.EnvironmentsPerWorkspace, workspaceID, qtx.CountWorkspaceEnvironments,
+		); limitErr != nil {
+			return limitErr
+		}
 		created, createErr := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 			WorkspaceID:     workspaceID,
 			Name:            req.GetName(),

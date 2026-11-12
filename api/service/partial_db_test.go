@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -15,7 +16,7 @@ const testPartial = "web"
 
 func transferPartial(t *testing.T, f *deployFixture, partial string) error {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeAdmin},
 	}

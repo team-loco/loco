@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QirwIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkiPwoKQXV0aENvbmZpZxIOCgZpc3N1ZXIYASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg4KBnNjb3BlcxgDIAEoCSLdAgoURGVmYXVsdFNlcnZpY2VDb25maWcSMAoHcm91dGluZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI7CgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAMgASgJEg4KBm1lbW9yeRgEIAEoCRIUCgxtaW5fcmVwbGljYXMYBSABKAUSFAoMbWF4X3JlcGxpY2FzGAYgASgFEjwKDW9ic2VydmFiaWxpdHkYByABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPZGVwbG95X2F0dGVtcHRzGAggASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAkgASgFEhIKCmNwdV90YXJnZXQYCiABKAUyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi4gIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMi5QIKC0NvdW50TGltaXRzEhUKDW9yZ3NfcGVyX3VzZXIYASABKAUSGgoSd29ya3NwYWNlc19wZXJfb3JnGAIgASgFEhcKD21lbWJlcnNfcGVyX29yZxgDIAEoBRIbChNpbnZpdGF0aW9uc19wZXJfb3JnGAQgASgFEiIKGmVudmlyb25tZW50c19wZXJfd29ya3NwYWNlGAUgASgFEh8KF3Jlc291cmNlc19wZXJfd29ya3NwYWNlGAYgASgFEh4KFndlYmhvb2tzX3Blcl93b3Jrc3BhY2UYByABKAUSGQoRdG9rZW5zX3Blcl9lbnRpdHkYCCABKAUSHAoUZG9tYWluc19wZXJfcmVzb3VyY2UYCSABKAUSHAoUc2VjcmV0c19wZXJfcmVzb3VyY2UYCiABKAUSGgoSZGVwbG95bWVudF9oaXN0b3J5GAsgASgFEhUKDWJ1aWxkX2hpc3RvcnkYDCABKAUinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkiPwoKQXV0aENvbmZpZxIOCgZpc3N1ZXIYASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg4KBnNjb3BlcxgDIAEoCSLdAgoURGVmYXVsdFNlcnZpY2VDb25maWcSMAoHcm91dGluZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI7CgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAMgASgJEg4KBm1lbW9yeRgEIAEoCRIUCgxtaW5fcmVwbGljYXMYBSABKAUSFAoMbWF4X3JlcGxpY2FzGAYgASgFEjwKDW9ic2VydmFiaWxpdHkYByABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPZGVwbG95X2F0dGVtcHRzGAggASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAkgASgFEhIKCmNwdV90YXJnZXQYCiABKAUyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -73,6 +73,13 @@ export type GetConfigResponse = Message<"loco.config.v1.GetConfigResponse"> & {
    * @generated from field: loco.config.v1.SizeLimits size_limits = 7;
    */
   sizeLimits?: SizeLimits | undefined;
+
+  /**
+   * count_limits are the install's defaults; GetOrgLimits reports an organization's own.
+   *
+   * @generated from field: loco.config.v1.CountLimits count_limits = 8;
+   */
+  countLimits?: CountLimits | undefined;
 };
 
 /**
@@ -113,6 +120,13 @@ export type GetConfigResponseJson = {
    * @generated from field: loco.config.v1.SizeLimits size_limits = 7;
    */
   sizeLimits?: SizeLimitsJson;
+
+  /**
+   * count_limits are the install's defaults; GetOrgLimits reports an organization's own.
+   *
+   * @generated from field: loco.config.v1.CountLimits count_limits = 8;
+   */
+  countLimits?: CountLimitsJson;
 };
 
 /**
@@ -121,6 +135,179 @@ export type GetConfigResponseJson = {
  */
 export const GetConfigResponseSchema: GenMessage<GetConfigResponse, {jsonType: GetConfigResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_config_v1_config, 1);
+
+/**
+ * CountLimits cap how many of each thing can exist. A create past a cap fails with
+ * RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished
+ * records. Per-workspace and per-resource limits apply to each workspace or resource.
+ *
+ * @generated from message loco.config.v1.CountLimits
+ */
+export type CountLimits = Message<"loco.config.v1.CountLimits"> & {
+  /**
+   * orgs_per_user counts the organizations a user created.
+   *
+   * @generated from field: int32 orgs_per_user = 1;
+   */
+  orgsPerUser: number;
+
+  /**
+   * @generated from field: int32 workspaces_per_org = 2;
+   */
+  workspacesPerOrg: number;
+
+  /**
+   * @generated from field: int32 members_per_org = 3;
+   */
+  membersPerOrg: number;
+
+  /**
+   * invitations_per_org counts open invitations.
+   *
+   * @generated from field: int32 invitations_per_org = 4;
+   */
+  invitationsPerOrg: number;
+
+  /**
+   * @generated from field: int32 environments_per_workspace = 5;
+   */
+  environmentsPerWorkspace: number;
+
+  /**
+   * @generated from field: int32 resources_per_workspace = 6;
+   */
+  resourcesPerWorkspace: number;
+
+  /**
+   * @generated from field: int32 webhooks_per_workspace = 7;
+   */
+  webhooksPerWorkspace: number;
+
+  /**
+   * tokens_per_entity counts the API tokens of one user, organization, workspace or resource.
+   *
+   * @generated from field: int32 tokens_per_entity = 8;
+   */
+  tokensPerEntity: number;
+
+  /**
+   * domains_per_resource counts a resource's domains in one environment.
+   *
+   * @generated from field: int32 domains_per_resource = 9;
+   */
+  domainsPerResource: number;
+
+  /**
+   * secrets_per_resource counts a resource's secrets in one environment.
+   *
+   * @generated from field: int32 secrets_per_resource = 10;
+   */
+  secretsPerResource: number;
+
+  /**
+   * deployment_history is how many deployments a resource keeps in each environment.
+   *
+   * @generated from field: int32 deployment_history = 11;
+   */
+  deploymentHistory: number;
+
+  /**
+   * build_history is how many builds a resource keeps.
+   *
+   * @generated from field: int32 build_history = 12;
+   */
+  buildHistory: number;
+};
+
+/**
+ * CountLimits cap how many of each thing can exist. A create past a cap fails with
+ * RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished
+ * records. Per-workspace and per-resource limits apply to each workspace or resource.
+ *
+ * @generated from message loco.config.v1.CountLimits
+ */
+export type CountLimitsJson = {
+  /**
+   * orgs_per_user counts the organizations a user created.
+   *
+   * @generated from field: int32 orgs_per_user = 1;
+   */
+  orgsPerUser?: number;
+
+  /**
+   * @generated from field: int32 workspaces_per_org = 2;
+   */
+  workspacesPerOrg?: number;
+
+  /**
+   * @generated from field: int32 members_per_org = 3;
+   */
+  membersPerOrg?: number;
+
+  /**
+   * invitations_per_org counts open invitations.
+   *
+   * @generated from field: int32 invitations_per_org = 4;
+   */
+  invitationsPerOrg?: number;
+
+  /**
+   * @generated from field: int32 environments_per_workspace = 5;
+   */
+  environmentsPerWorkspace?: number;
+
+  /**
+   * @generated from field: int32 resources_per_workspace = 6;
+   */
+  resourcesPerWorkspace?: number;
+
+  /**
+   * @generated from field: int32 webhooks_per_workspace = 7;
+   */
+  webhooksPerWorkspace?: number;
+
+  /**
+   * tokens_per_entity counts the API tokens of one user, organization, workspace or resource.
+   *
+   * @generated from field: int32 tokens_per_entity = 8;
+   */
+  tokensPerEntity?: number;
+
+  /**
+   * domains_per_resource counts a resource's domains in one environment.
+   *
+   * @generated from field: int32 domains_per_resource = 9;
+   */
+  domainsPerResource?: number;
+
+  /**
+   * secrets_per_resource counts a resource's secrets in one environment.
+   *
+   * @generated from field: int32 secrets_per_resource = 10;
+   */
+  secretsPerResource?: number;
+
+  /**
+   * deployment_history is how many deployments a resource keeps in each environment.
+   *
+   * @generated from field: int32 deployment_history = 11;
+   */
+  deploymentHistory?: number;
+
+  /**
+   * build_history is how many builds a resource keeps.
+   *
+   * @generated from field: int32 build_history = 12;
+   */
+  buildHistory?: number;
+};
+
+/**
+ * Describes the message loco.config.v1.CountLimits.
+ * Use `create(CountLimitsSchema)` to create a new message.
+ */
+export const CountLimitsSchema: GenMessage<CountLimits, {jsonType: CountLimitsJson}> = /*@__PURE__*/
+  messageDesc(file_loco_config_v1_config, 2);
 
 /**
  * SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must
@@ -203,7 +390,7 @@ export type SizeLimitsJson = {
  * Use `create(SizeLimitsSchema)` to create a new message.
  */
 export const SizeLimitsSchema: GenMessage<SizeLimits, {jsonType: SizeLimitsJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 2);
+  messageDesc(file_loco_config_v1_config, 3);
 
 /**
  * @generated from message loco.config.v1.OrgLink
@@ -240,7 +427,7 @@ export type OrgLinkJson = {
  * Use `create(OrgLinkSchema)` to create a new message.
  */
 export const OrgLinkSchema: GenMessage<OrgLink, {jsonType: OrgLinkJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 3);
+  messageDesc(file_loco_config_v1_config, 4);
 
 /**
  * @generated from message loco.config.v1.AuthConfig
@@ -287,7 +474,7 @@ export type AuthConfigJson = {
  * Use `create(AuthConfigSchema)` to create a new message.
  */
 export const AuthConfigSchema: GenMessage<AuthConfig, {jsonType: AuthConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 4);
+  messageDesc(file_loco_config_v1_config, 5);
 
 /**
  * DefaultServiceConfig contains default values for service deployments.
@@ -434,7 +621,7 @@ export type DefaultServiceConfigJson = {
  * Use `create(DefaultServiceConfigSchema)` to create a new message.
  */
 export const DefaultServiceConfigSchema: GenMessage<DefaultServiceConfig, {jsonType: DefaultServiceConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 5);
+  messageDesc(file_loco_config_v1_config, 6);
 
 /**
  * ConfigService provides static configuration values. Clients can query this to show safe defaults.

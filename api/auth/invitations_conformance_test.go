@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -85,7 +86,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 		t.Fatalf("policy: %v", err)
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
-	resolver := auth.NewResolver(pool, policy)
+	resolver := auth.NewResolver(pool, policy, limits.Defaults())
 	authorizer := authz.New(pool, queries)
 
 	server := connect.NewServer(
@@ -95,7 +96,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 		validate.NewServerInterceptor(),
 	)
 	invitations := service.InvitationConfig{TTL: journeyTTL, WebURL: journeyWebURL}
-	orgv1connect.RegisterOrgServiceHandler(server, service.NewOrgServer(pool, queries, invitations))
+	orgv1connect.RegisterOrgServiceHandler(server, service.NewOrgServer(pool, queries, invitations, limits.Defaults()))
 	userv1connect.RegisterUserServiceHandler(server, service.NewUserServer(pool, queries, machine, auth.Admins{}))
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
@@ -106,7 +107,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	admin, _, err := auth.NewResolver(pool, openPolicy).Resolve(t.Context(), auth.Identity{
+	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults()).Resolve(t.Context(), auth.Identity{
 		Issuer: adminIssuer, Subject: adminSubject, Email: adminEmail, EmailVerified: true,
 	})
 	if err != nil {
@@ -136,7 +137,7 @@ func (a *journeyAPI) existingAccount(t *testing.T, email string) {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	if _, _, err = auth.NewResolver(a.pool, openPolicy).Resolve(t.Context(), auth.Identity{
+	if _, _, err = auth.NewResolver(a.pool, openPolicy, limits.Defaults()).Resolve(t.Context(), auth.Identity{
 		Issuer: adminIssuer, Subject: email, Email: email, EmailVerified: true,
 	}); err != nil {
 		t.Fatalf("existing account for %s: %v", email, err)

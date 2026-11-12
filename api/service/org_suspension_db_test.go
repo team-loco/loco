@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
@@ -24,14 +25,14 @@ const (
 
 func (f *deployFixture) suspend(t *testing.T, reason string) (*orgv1.SuspendOrgResponse, error) {
 	t.Helper()
-	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	req := &orgv1.SuspendOrgRequest{OrgId: f.organizationID(t), Reason: reason}
 	return server.SuspendOrg(systemAdminContext(t), req)
 }
 
 func (f *deployFixture) resume(t *testing.T) (*orgv1.ResumeOrgResponse, error) {
 	t.Helper()
-	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	return server.ResumeOrg(systemAdminContext(t), &orgv1.ResumeOrgRequest{OrgId: f.organizationID(t)})
 }
 
@@ -126,7 +127,7 @@ func TestSuspendAndResumeRequireSystemAdmin(t *testing.T) {
 		t,
 		genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeWrite},
 	)
-	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 
 	for name, ctx := range map[string]context.Context{"org admin": orgAdmin, "system writer": systemWriter} {
 		_, err := server.SuspendOrg(ctx, &orgv1.SuspendOrgRequest{OrgId: orgID, Reason: testSuspensionReason})
@@ -149,7 +150,7 @@ func TestSuspendAndResumeRequireSystemAdmin(t *testing.T) {
 
 func TestSuspendOrgOfAnUnknownOrganizationIsNotFound(t *testing.T) {
 	f := newDeployFixture(t)
-	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	req := &orgv1.SuspendOrgRequest{OrgId: uuid.NewString(), Reason: testSuspensionReason}
 	_, err := server.SuspendOrg(systemAdminContext(t), req)
 	wantCode(t, err, connect.CodeNotFound)

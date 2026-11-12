@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/reqctx"
@@ -158,10 +159,10 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 		databaseURLName: databaseURLValue,
 	})
 
-	limits := testSecretConfig()
-	limits.MaxPlacementBytes = testMaxValue
+	secretConfig := testSecretConfig()
+	secretConfig.MaxPlacementBytes = testMaxValue
 	server := NewPlanServer(f.pool, f.queries, &fakeResolver{digest: testDigest}, testRegistryHost,
-		testServiceDefaults(), limits, testClusterSilentAfter)
+		testServiceDefaults(), secretConfig, testClusterSilentAfter, limits.Defaults())
 	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	resp, err := server.Plan(ctx, &planv1.PlanRequest{
 		File: []byte(file), EnvironmentId: f.envID.String(),
@@ -306,9 +307,9 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 					sessionKeyName: sessionKeyValue, databaseURLName: databaseURLValue,
 				})
 				f.useLockTimeout(t)
-				limits := testSecretConfig()
-				limits.LockTimeout = lockTimeout
-				secrets := NewSecretServer(f.pool, f.queries, provider, limits)
+				secretConfig := testSecretConfig()
+				secretConfig.LockTimeout = lockTimeout
+				secrets := NewSecretServer(f.pool, f.queries, provider, secretConfig, limits.Defaults())
 				planned, err := plan(t, f, file, f.workspaceReadScopes(t))
 				if err != nil || len(planned.GetErrors()) != 0 {
 					t.Fatalf("Plan = %v (%v), want no errors", planned.GetErrors(), err)

@@ -3625,6 +3625,68 @@
         }
       }
     },
+    "/loco.org.v1.OrgService/GetOrgLimits": {
+      "post": {
+        "tags": [
+          "loco.org.v1.OrgService"
+        ],
+        "summary": "GetOrgLimits",
+        "description": "GetOrgLimits returns the organization's effective count limits. Any member may call it.",
+        "operationId": "loco.org.v1.OrgService.GetOrgLimits",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.org.v1.GetOrgLimitsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.org.v1.GetOrgLimitsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.org.v1.OrgService/InviteOrgMember": {
       "post": {
         "tags": [
@@ -4108,6 +4170,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.org.v1.RevokeInvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.org.v1.OrgService/SetOrgLimits": {
+      "post": {
+        "tags": [
+          "loco.org.v1.OrgService"
+        ],
+        "summary": "SetOrgLimits",
+        "description": "SetOrgLimits overrides the install's count limits for one organization. Only the fields in\n update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user\n belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires\n system:admin.",
+        "operationId": "loco.org.v1.OrgService.SetOrgLimits",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.org.v1.SetOrgLimitsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.org.v1.SetOrgLimitsResponse"
                 }
               }
             }
@@ -8906,6 +9030,81 @@
         "title": "AuthConfig",
         "additionalProperties": false
       },
+      "loco.config.v1.CountLimits": {
+        "type": "object",
+        "properties": {
+          "orgsPerUser": {
+            "type": "integer",
+            "title": "orgs_per_user",
+            "format": "int32",
+            "description": "orgs_per_user counts the organizations a user created."
+          },
+          "workspacesPerOrg": {
+            "type": "integer",
+            "title": "workspaces_per_org",
+            "format": "int32"
+          },
+          "membersPerOrg": {
+            "type": "integer",
+            "title": "members_per_org",
+            "format": "int32"
+          },
+          "invitationsPerOrg": {
+            "type": "integer",
+            "title": "invitations_per_org",
+            "format": "int32",
+            "description": "invitations_per_org counts open invitations."
+          },
+          "environmentsPerWorkspace": {
+            "type": "integer",
+            "title": "environments_per_workspace",
+            "format": "int32"
+          },
+          "resourcesPerWorkspace": {
+            "type": "integer",
+            "title": "resources_per_workspace",
+            "format": "int32"
+          },
+          "webhooksPerWorkspace": {
+            "type": "integer",
+            "title": "webhooks_per_workspace",
+            "format": "int32"
+          },
+          "tokensPerEntity": {
+            "type": "integer",
+            "title": "tokens_per_entity",
+            "format": "int32",
+            "description": "tokens_per_entity counts the API tokens of one user, organization, workspace or resource."
+          },
+          "domainsPerResource": {
+            "type": "integer",
+            "title": "domains_per_resource",
+            "format": "int32",
+            "description": "domains_per_resource counts a resource's domains in one environment."
+          },
+          "secretsPerResource": {
+            "type": "integer",
+            "title": "secrets_per_resource",
+            "format": "int32",
+            "description": "secrets_per_resource counts a resource's secrets in one environment."
+          },
+          "deploymentHistory": {
+            "type": "integer",
+            "title": "deployment_history",
+            "format": "int32",
+            "description": "deployment_history is how many deployments a resource keeps in each environment."
+          },
+          "buildHistory": {
+            "type": "integer",
+            "title": "build_history",
+            "format": "int32",
+            "description": "build_history is how many builds a resource keeps."
+          }
+        },
+        "title": "CountLimits",
+        "additionalProperties": false,
+        "description": "CountLimits cap how many of each thing can exist. A create past a cap fails with\n RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished\n records. Per-workspace and per-resource limits apply to each workspace or resource."
+      },
       "loco.config.v1.DefaultServiceConfig": {
         "type": "object",
         "properties": {
@@ -9003,6 +9202,11 @@
           "sizeLimits": {
             "title": "size_limits",
             "$ref": "#/components/schemas/loco.config.v1.SizeLimits"
+          },
+          "countLimits": {
+            "title": "count_limits",
+            "description": "count_limits are the install's defaults; GetOrgLimits reports an organization's own.",
+            "$ref": "#/components/schemas/loco.config.v1.CountLimits"
           }
         },
         "title": "GetConfigResponse",
@@ -11506,6 +11710,31 @@
         "additionalProperties": false,
         "description": "DeleteOrgResponse is the response after deleting an organization."
       },
+      "loco.org.v1.GetOrgLimitsRequest": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
+          }
+        },
+        "title": "GetOrgLimitsRequest",
+        "additionalProperties": false,
+        "description": "GetOrgLimitsRequest is the request for an organization's count limits."
+      },
+      "loco.org.v1.GetOrgLimitsResponse": {
+        "type": "object",
+        "properties": {
+          "limits": {
+            "title": "limits",
+            "$ref": "#/components/schemas/loco.org.v1.OrgLimits"
+          }
+        },
+        "title": "GetOrgLimitsResponse",
+        "additionalProperties": false,
+        "description": "GetOrgLimitsResponse holds the organization's count limits."
+      },
       "loco.org.v1.GetOrgRequest": {
         "type": "object",
         "properties": {
@@ -11732,6 +11961,39 @@
         "additionalProperties": false,
         "description": "ListUserOrgsResponse is the response containing organization list."
       },
+      "loco.org.v1.OrgLimits": {
+        "type": "object",
+        "properties": {
+          "limits": {
+            "title": "limits",
+            "$ref": "#/components/schemas/loco.config.v1.CountLimits"
+          },
+          "overridden": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "overridden",
+            "description": "overridden names the CountLimits fields set for this organization rather than by the install."
+          },
+          "reason": {
+            "type": "string",
+            "title": "reason",
+            "description": "reason, updated_by and updated_at describe the latest SetOrgLimits; empty without one."
+          },
+          "updatedBy": {
+            "type": "string",
+            "title": "updated_by"
+          },
+          "updatedAt": {
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "OrgLimits",
+        "additionalProperties": false,
+        "description": "OrgLimits are an organization's effective count limits and the latest change to them."
+      },
       "loco.org.v1.OrgMember": {
         "type": "object",
         "properties": {
@@ -11881,6 +12143,49 @@
         "type": "object",
         "title": "RevokeInvitationResponse",
         "additionalProperties": false
+      },
+      "loco.org.v1.SetOrgLimitsRequest": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
+          },
+          "limits": {
+            "title": "limits",
+            "$ref": "#/components/schemas/loco.config.v1.CountLimits"
+          },
+          "updateMask": {
+            "title": "update_mask",
+            "$ref": "#/components/schemas/google.protobuf.FieldMask"
+          },
+          "reason": {
+            "type": "string",
+            "title": "reason",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "title": "SetOrgLimitsRequest",
+        "required": [
+          "limits",
+          "updateMask"
+        ],
+        "additionalProperties": false,
+        "description": "SetOrgLimitsRequest is the request to override an organization's count limits."
+      },
+      "loco.org.v1.SetOrgLimitsResponse": {
+        "type": "object",
+        "properties": {
+          "limits": {
+            "title": "limits",
+            "$ref": "#/components/schemas/loco.org.v1.OrgLimits"
+          }
+        },
+        "title": "SetOrgLimitsResponse",
+        "additionalProperties": false,
+        "description": "SetOrgLimitsResponse holds the organization's count limits after the request."
       },
       "loco.org.v1.SetOrgMemberRoleRequest": {
         "type": "object",

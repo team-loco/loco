@@ -22,6 +22,33 @@ message GetConfigResponse {
   repeated OrgLink org_links = 5;
   int64 api_token_max_lifetime_seconds = 6;
   SizeLimits size_limits = 7;
+  // count_limits are the install's defaults; GetOrgLimits reports an organization's own.
+  CountLimits count_limits = 8;
+}
+
+// CountLimits cap how many of each thing can exist. A create past a cap fails with
+// RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished
+// records. Per-workspace and per-resource limits apply to each workspace or resource.
+message CountLimits {
+  // orgs_per_user counts the organizations a user created.
+  int32 orgs_per_user = 1;
+  int32 workspaces_per_org = 2;
+  int32 members_per_org = 3;
+  // invitations_per_org counts open invitations.
+  int32 invitations_per_org = 4;
+  int32 environments_per_workspace = 5;
+  int32 resources_per_workspace = 6;
+  int32 webhooks_per_workspace = 7;
+  // tokens_per_entity counts the API tokens of one user, organization, workspace or resource.
+  int32 tokens_per_entity = 8;
+  // domains_per_resource counts a resource's domains in one environment.
+  int32 domains_per_resource = 9;
+  // secrets_per_resource counts a resource's secrets in one environment.
+  int32 secrets_per_resource = 10;
+  // deployment_history is how many deployments a resource keeps in each environment.
+  int32 deployment_history = 11;
+  // build_history is how many builds a resource keeps.
+  int32 build_history = 12;
 }
 
 // SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must

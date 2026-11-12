@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
@@ -52,11 +53,16 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 		},
 	}})
 	return &providerFixture{
-		issuer:      issuer,
-		interceptor: NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy), authz.New(pool, queries)),
-		machine:     machine,
-		queries:     queries,
-		pool:        pool,
+		issuer: issuer,
+		interceptor: NewAuthInterceptor(
+			machine,
+			verifier,
+			auth.NewResolver(pool, policy, limits.Defaults()),
+			authz.New(pool, queries),
+		),
+		machine: machine,
+		queries: queries,
+		pool:    pool,
 	}
 }
 

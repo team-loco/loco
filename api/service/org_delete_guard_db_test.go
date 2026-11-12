@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -27,7 +28,7 @@ type orgDeleteFixture struct {
 func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 	t.Helper()
 	f := newEventFixture(t)
-	server := NewWorkspaceServer(f.pool, f.queries)
+	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	created, err := server.CreateWorkspace(
 		f.owner,
 		&workspacev1.CreateWorkspaceRequest{OrgId: f.orgID, Name: "org-guard-workspace"},
@@ -41,9 +42,16 @@ func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 	}
 	f.owner = scoped(t, f.queries, org.CreatedBy)
 	return &orgDeleteFixture{
-		eventFixture: f, workspaceID: created.GetWorkspaceId(),
-		orgs:      NewOrgServer(f.pool, f.queries, InvitationConfig{}),
-		resources: NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter),
+		eventFixture: f,
+		workspaceID:  created.GetWorkspaceId(),
+		orgs:         NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults()),
+		resources: NewResourceServer(
+			f.pool,
+			f.queries,
+			testServiceDefaults(),
+			testClusterSilentAfter,
+			limits.Defaults(),
+		),
 	}
 }
 
@@ -180,7 +188,7 @@ func TestCreationReportsMissingParentWhenOrgDeletionWins(t *testing.T) {
 					created <- createErr
 					return
 				}
-				server := NewWorkspaceServer(f.pool, f.queries)
+				server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 				_, createErr := server.CreateWorkspace(
 					f.owner,
 					&workspacev1.CreateWorkspaceRequest{OrgId: f.orgID, Name: "new-workspace"},

@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -29,7 +30,7 @@ func TestTransferPartialRequiresAdmin(t *testing.T) {
 	workspaceID := uuid.Must(uuid.NewV7())
 	orgID := uuid.Must(uuid.NewV7())
 	querier := resourceOwnerQuerier{workspaceID: workspaceID, orgID: orgID}
-	server := NewResourceServer(nil, querier, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(nil, querier, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 
 	cases := map[string][]genDb.EntityScope{
 		"resource write": {

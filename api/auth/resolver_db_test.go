@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 )
 
 func open(t *testing.T) SignupPolicy {
@@ -38,7 +39,7 @@ func identity(sub, email string, verified bool) Identity {
 
 func TestResolveProvisionsOnceAndGrantsSelfScopes(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	q := genDb.New(pool)
 
 	first, _, err := r.Resolve(t.Context(), identity("s1", "dev@example.test", true))
@@ -67,7 +68,7 @@ func TestResolveProvisionsOnceAndGrantsSelfScopes(t *testing.T) {
 
 func TestResolveLinksVerifiedEmailToExistingUser(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 
 	github, _, err := r.Resolve(t.Context(), Identity{
 		Issuer: "https://github.com", Subject: "42", Email: "dev@example.test", EmailVerified: true,
@@ -86,7 +87,7 @@ func TestResolveLinksVerifiedEmailToExistingUser(t *testing.T) {
 
 func TestResolveRejectsUnverifiedEmailCollision(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	q := genDb.New(pool)
 
 	if _, _, err := r.Resolve(t.Context(), identity("owner", "dev@example.test", true)); err != nil {
@@ -106,7 +107,7 @@ func TestResolveRejectsUnverifiedEmailCollision(t *testing.T) {
 
 func TestResolveUnverifiedIdentityNeverCreatesAnAccount(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	q := genDb.New(pool)
 
 	_, _, err := r.Resolve(t.Context(), identity("squatter", "dev@example.test", false))
@@ -134,7 +135,7 @@ func TestResolveUnverifiedIdentityNeverCreatesAnAccount(t *testing.T) {
 
 func TestResolveDoesNotLinkIntoAccountWithUnverifiedIdentity(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	q := genDb.New(pool)
 
 	if _, _, err := r.Resolve(t.Context(), identity("first", "dev@example.test", true)); err != nil {
@@ -162,7 +163,7 @@ func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	r := NewResolver(pool, policy)
+	r := NewResolver(pool, policy, limits.Defaults())
 	q := genDb.New(pool)
 
 	_, _, err = r.Resolve(t.Context(), identity("s1", "dev@evil.test", true))
@@ -178,7 +179,7 @@ func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 
 func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	openResolver := NewResolver(pool, open(t))
+	openResolver := NewResolver(pool, open(t), limits.Defaults())
 	if _, _, err := openResolver.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -186,7 +187,7 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	r := NewResolver(pool, closed)
+	r := NewResolver(pool, closed, limits.Defaults())
 	if _, _, err := r.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("existing identity blocked: %v", err)
 	}
@@ -197,7 +198,7 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 
 func TestResolveRequiresEmail(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	_, _, err := r.Resolve(t.Context(), identity("s1", "", false))
 	if rejected, ok := errors.AsType[*SignupRejectedError](err); !ok {
 		t.Fatalf("err = %v, want rejection", err)
@@ -208,7 +209,7 @@ func TestResolveRequiresEmail(t *testing.T) {
 
 func TestResolveConcurrentFirstLoginsCreateOneUser(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 
 	const n = 8
 	ids := make([]uuid.UUID, n)
@@ -239,7 +240,7 @@ const (
 
 func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	q := genDb.New(pool)
 
 	user, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
@@ -271,7 +272,7 @@ func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
 
 func TestResolveUnverifiedEmailChangeKeepsTheAccountEmail(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	q := genDb.New(pool)
 
 	user, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
@@ -301,7 +302,7 @@ func TestResolveUnverifiedEmailChangeKeepsTheAccountEmail(t *testing.T) {
 
 func TestResolveVerifiedEmailChangeKeepsAnAddressAnotherUserHas(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 	q := genDb.New(pool)
 
 	mover, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
@@ -331,7 +332,7 @@ func TestResolveVerifiedEmailChangeKeepsAnAddressAnotherUserHas(t *testing.T) {
 
 func TestResolveEmailChangeKeepsAnAccountEmailAnotherIdentityConfirms(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 
 	user, _, err := r.Resolve(t.Context(), identity("first", "shared@example.test", true))
 	if err != nil {
@@ -371,7 +372,7 @@ func (f *fakeEmailVerifier) callCount() int {
 func TestResolveAsksTheProviderOnlyWhenItNeedsTheVerifiedState(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
-	r := NewResolver(pool, open(t), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
+	r := NewResolver(pool, open(t), limits.Defaults(), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
 	q := genDb.New(pool)
 
 	_, _, err := r.Resolve(t.Context(), identity("self-asserted", "squat@example.test", true))
@@ -423,7 +424,7 @@ func TestResolveAsksTheProviderOnlyWhenItNeedsTheVerifiedState(t *testing.T) {
 func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
-	r := NewResolver(pool, open(t), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
+	r := NewResolver(pool, open(t), limits.Defaults(), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
 
 	user, _, err := r.Resolve(t.Context(), identity(subjectConfirmed, oldAccountEmail, false))
 	if err != nil {
@@ -449,7 +450,7 @@ func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
 
 func TestResolveRecordsTheAccountEmailMove(t *testing.T) {
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t))
+	r := NewResolver(pool, open(t), limits.Defaults())
 
 	user, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
 	if err != nil {
@@ -498,7 +499,7 @@ func (f *invitationFixture) resolver(t *testing.T, mode string) *Resolver {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	return NewResolver(f.pool, policy)
+	return NewResolver(f.pool, policy, limits.Defaults())
 }
 
 func (f *invitationFixture) org(t *testing.T, name string) uuid.UUID {
@@ -863,4 +864,31 @@ func TestDuplicateOpenInvitationIsRejected(t *testing.T) {
 	}
 	f.invite(t, orgID, inviteeEmail, invitationTTL)
 	f.invite(t, f.org(t, "other"), inviteeEmail, invitationTTL)
+}
+
+func TestResolveLeavesTheInvitationOpenWhenTheOrgIsAtItsMemberLimit(t *testing.T) {
+	f := newInvitationFixture(t)
+	orgID := f.org(t, "acme")
+	if err := f.q.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+		UserID: f.inviter.ID, EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatalf("add inviter: %v", err)
+	}
+	if _, err := f.q.UpsertOrgLimitOverrides(t.Context(), genDb.UpsertOrgLimitOverridesParams{
+		OrgID: orgID, MembersPerOrg: new(int32(1)), Reason: "test",
+	}); err != nil {
+		t.Fatalf("override: %v", err)
+	}
+	invitation := f.invite(t, orgID, inviteeEmail, invitationTTL)
+
+	user, claimed, err := f.resolver(t, "open").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(claimed) != 0 || f.isMember(t, user.ID, orgID) {
+		t.Fatalf("user joined a full organization: claimed %+v", claimed)
+	}
+	if claimedBy := f.claimedBy(t, invitation.ID); claimedBy != nil {
+		t.Fatalf("invitation claimed by %s, want it left open", claimedBy)
+	}
 }

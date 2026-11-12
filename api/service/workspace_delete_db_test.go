@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
@@ -21,7 +22,7 @@ func deleteFixtureWorkspace(t *testing.T, f *deployFixture, confirm bool) error 
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: resource.WorkspaceID, Scope: genDb.ScopeAdmin},
 	}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
-	server := NewWorkspaceServer(f.pool, f.queries)
+	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	workspaceID := resource.WorkspaceID.String()
 	request := &workspacev1.DeleteWorkspaceRequest{
 		WorkspaceId: workspaceID, ConfirmDeleteApps: confirm,

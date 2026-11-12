@@ -8,6 +8,7 @@ import (
 
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -16,7 +17,7 @@ import (
 
 func TestGetResourceReportsDatabaseFailure(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
-	server := NewResourceServer(pool, genDb.New(pool), testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(pool, genDb.New(pool), testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	_, err := server.GetResource(ctx, &resourcev1.GetResourceRequest{
@@ -29,7 +30,7 @@ func TestGetResourceReportsDatabaseFailure(t *testing.T) {
 
 func TestCheckPermissionReportsDatabaseFailure(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
-	server := NewTokenServer(pool, genDb.New(pool), nil)
+	server := NewTokenServer(pool, genDb.New(pool), nil, limits.Defaults())
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{}})
 	resp, err := server.CheckPermission(ctx, &tokenv1.CheckPermissionRequest{
 		EntityType: tokenv1.EntityType_ENTITY_TYPE_RESOURCE,

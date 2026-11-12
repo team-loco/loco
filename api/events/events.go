@@ -29,6 +29,7 @@ const (
 	OrgDeleted           = "org.deleted"
 	OrgSuspended         = "org.suspended"
 	OrgResumed           = "org.resumed"
+	OrgLimitsChanged     = "org.limits_changed"
 	WorkspaceCreated     = "workspace.created"
 	WorkspaceUpdated     = "workspace.updated"
 	WorkspaceDeleted     = "workspace.deleted"
@@ -143,6 +144,8 @@ const (
 	FieldReplicas      = "replicas"
 	FieldCPU           = "cpu"
 	FieldMemory        = "memory"
+	FieldOld           = "old"
+	FieldNew           = "new"
 )
 
 type Event struct {

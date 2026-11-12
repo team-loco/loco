@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
@@ -49,11 +50,11 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 		pool:     pool,
 		queries:  queries,
 		provider: newTestKeyProvider(t, "k1"),
-		resolver: auth.NewResolver(pool, policy),
+		resolver: auth.NewResolver(pool, policy, limits.Defaults()),
 	}
 	owner := f.signUp(t, "owner", "owner@corp.test")
 	ownerCtx := scoped(t, queries, owner)
-	orgs := NewOrgServer(pool, queries, InvitationConfig{})
+	orgs := NewOrgServer(pool, queries, InvitationConfig{}, limits.Defaults())
 	created, err := orgs.CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{Name: new("corp")})
 	if err != nil {
 		t.Fatalf("org: %v", err)
@@ -103,7 +104,7 @@ func (f *webhookFixture) member(t *testing.T, sub string, scope genDb.Scope) con
 
 func TestWebhookLifecycle(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 
 	for _, bad := range []string{"http://hooks.example.test/loco", "https://user:pw@hooks.example.test", "ftp://x.test"} {
 		if _, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
@@ -184,7 +185,7 @@ func TestWebhookLifecycle(t *testing.T) {
 
 func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	admin := f.member(t, "admin", genDb.ScopeAdmin)
 	writer := f.member(t, "writer", genDb.ScopeWrite)
 
@@ -245,14 +246,14 @@ func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
 
 func TestWebhookLimitIsPerWorkspace(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	create := &webhookv1.CreateWebhookRequest{WorkspaceId: f.workspaceID, Url: receiverURL}
-	for i := range maxWebhooksPerWorkspace {
+	for i := range defaultWebhookLimit {
 		if _, err := s.CreateWebhook(f.owner, create); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
-	if _, err := s.CreateWebhook(f.owner, create); codeOf(err) != connect.CodeFailedPrecondition {
+	if _, err := s.CreateWebhook(f.owner, create); codeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("webhook over the limit: %v", err)
 	}
 	if _, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
@@ -261,17 +262,17 @@ func TestWebhookLimitIsPerWorkspace(t *testing.T) {
 		t.Fatalf("another workspace hit the first workspace's limit: %v", err)
 	}
 
-	local := NewWebhookServer(f.pool, f.queries, f.provider, true)
+	local := NewWebhookServer(f.pool, f.queries, f.provider, true, limits.Defaults())
 	if _, err := local.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: "http://localhost:3000/hook",
-	}); codeOf(err) != connect.CodeFailedPrecondition {
+	}); codeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("http url with private networks allowed should reach the limit check: %v", err)
 	}
 }
 
 func TestWebhookChangesFailWithoutTheirEvent(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	if _, err := f.pool.Exec(t.Context(), failEventInsertsSQL); err != nil {
 		t.Fatalf("install failing trigger: %v", err)
 	}
@@ -288,7 +289,7 @@ func TestWebhookChangesFailWithoutTheirEvent(t *testing.T) {
 
 func TestWorkspaceWebhookAPIHidesInstallWebhooks(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
@@ -344,7 +345,7 @@ func TestWorkspaceWebhookAPIHidesInstallWebhooks(t *testing.T) {
 
 func TestUpdateWebhookReroutesPendingDeliveriesAndFiltersNewEvents(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL, EventTypes: []string{events.EnvironmentCreated},
 	})
@@ -424,7 +425,7 @@ func TestUpdateWebhookReroutesPendingDeliveriesAndFiltersNewEvents(t *testing.T)
 
 func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL,
 	})
@@ -493,7 +494,7 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 
 func TestRedeliverWebhookDeliveryRequeuesFinishedDeliveries(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	hook := func(url string) string {
 		t.Helper()
 		created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{WorkspaceId: f.workspaceID, Url: url})
@@ -549,7 +550,7 @@ func TestRedeliverWebhookDeliveryRequeuesFinishedDeliveries(t *testing.T) {
 
 func TestSendTestEventReachesOnlyItsWebhook(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	secret, err := webhooksig.NewSecret()
 	if err != nil {
 		t.Fatalf("secret: %v", err)
@@ -604,7 +605,7 @@ func TestSendTestEventReachesOnlyItsWebhook(t *testing.T) {
 
 func TestRotateWebhookSecretKeepsThePreviousSecretForTheGracePeriod(t *testing.T) {
 	f := newWebhookFixture(t)
-	s := NewWebhookServer(f.pool, f.queries, f.provider, false)
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL,
 	})

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -179,7 +180,9 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(registryPullEnv, "")
 	t.Setenv(registrySweepEnv, "")
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
-	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
+	for _, limit := range limits.All {
+		t.Setenv(limit.Env, "")
+	}
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
 	t.Setenv(bootstrapEnv, "")
@@ -272,7 +275,6 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 	wantSecrets := service.SecretConfig{
 		MaxValueBytes:     defaultSecretMaxValueBytes,
-		MaxPerService:     defaultSecretMaxPerService,
 		MaxPlacementBytes: defaultSecretMaxPlacementBytes,
 		LockTimeout:       defaultSecretLockTimeout,
 	}
@@ -281,24 +283,46 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestNewAPIConfigReadsCountLimits(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(limits.WorkspacesPerOrg.Env, "250")
+	t.Setenv(limits.SecretsPerResource.Env, "8")
+	counts := newAPIConfig().CountLimits
+	if got := limits.WorkspacesPerOrg.Get(counts); got != 250 {
+		t.Errorf("workspaces per org = %d, want 250", got)
+	}
+	if got := limits.SecretsPerResource.Get(counts); got != 8 {
+		t.Errorf("secrets per resource = %d, want 8", got)
+	}
+	if got, want := limits.DeploymentHistory.Get(counts), limits.DeploymentHistory.Get(limits.Defaults()); got != want {
+		t.Errorf("deployment history = %d, want the default %d", got, want)
+	}
+	for _, limit := range limits.All {
+		t.Run(limit.Env, func(t *testing.T) {
+			t.Setenv(limit.Env, "0")
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, envconfig.ErrNotPositive) {
+				t.Errorf("panic = %v, want %v", err, envconfig.ErrNotPositive)
+			}
+		})
+	}
+}
+
 func TestNewAPIConfigReadsSecretLimits(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "1024")
-	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "8")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "4096")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "250ms")
-	limits := newAPIConfig().SecretLimits
+	secretLimits := newAPIConfig().SecretLimits
 	want := service.SecretConfig{
 		MaxValueBytes:     1024,
-		MaxPerService:     8,
 		MaxPlacementBytes: 4096,
 		LockTimeout:       250 * time.Millisecond,
 	}
-	if limits != want {
-		t.Errorf("secret limits = %+v, want %+v", limits, want)
+	if secretLimits != want {
+		t.Errorf("secret limits = %+v, want %+v", secretLimits, want)
 	}
 	for _, name := range []string{
-		"LOCO_SECRETS_MAX_PER_SERVICE",
 		"LOCO_SECRETS_MAX_PLACEMENT_BYTES",
 		"LOCO_SECRETS_LOCK_TIMEOUT",
 	} {

@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 )
@@ -65,6 +66,7 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 		testServiceDefaults(),
 		testSecretConfig(),
 		testClusterSilentAfter,
+		limits.Defaults(),
 	)
 	readCtx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	planned, err := server.Plan(readCtx, &planv1.PlanRequest{
