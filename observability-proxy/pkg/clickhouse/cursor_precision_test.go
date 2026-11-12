@@ -32,12 +32,6 @@ func TestHistoryQueryCursorsRejectTimestampOverflow(t *testing.T) {
 			if !errors.Is(logsErr, ErrInvalidLogCursor) {
 				t.Errorf("log cursor error=%v, want invalid cursor", logsErr)
 			}
-			request := traceRequest(start, end)
-			request.Cursor = cursor
-			_, _, tracesErr := buildTracesQuery(request, testPageSize, testQueryTimeout)
-			if !errors.Is(tracesErr, ErrInvalidTraceCursor) {
-				t.Errorf("trace cursor error=%v, want invalid cursor", tracesErr)
-			}
 		})
 	}
 }

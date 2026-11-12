@@ -11,9 +11,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func buildTraceSummaryQuery(req *observabilityv1.QueryTracesRequest) (string, []any) {
-	where, args := traceScope(req)
-	filters := req.GetSummary()
+func buildTraceSummaryQuery(req *observabilityv1.ListTracesRequest) (string, []any) {
+	where, args := traceScope(req.GetScope())
+	where = append(where, "Timestamp >= fromUnixTimestamp64Nano(?)", "Timestamp <= fromUnixTimestamp64Nano(?)")
+	args = append(args, req.GetStartTime().AsTime().UnixNano(), req.GetEndTime().AsTime().UnixNano())
+	if req.GetTraceId() != "" {
+		where = append(where, "TraceId = ?")
+		args = append(args, req.GetTraceId())
+	}
+	filters := req
 	having := []string{"1"}
 	if filters.MinDurationNanos != nil {
 		having = append(having, "duration_nanos >= ?")
@@ -45,11 +51,11 @@ func buildTraceSummaryQuery(req *observabilityv1.QueryTracesRequest) (string, []
 		" GROUP BY TraceId HAVING " + strings.Join(having, " AND "), args
 }
 
-func (c *Client) queryTraceSummaries(
+func (c *Client) ListTraces(
 	ctx context.Context,
-	req *observabilityv1.QueryTracesRequest,
+	req *observabilityv1.ListTracesRequest,
 	limit int32,
-) (*observabilityv1.QueryTracesResponse, error) {
+) (*observabilityv1.ListTracesResponse, error) {
 	query, args := buildTraceSummaryQuery(req)
 	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
 	var total uint64
@@ -57,16 +63,16 @@ func (c *Client) queryTraceSummaries(
 		return nil, fmt.Errorf("count trace summaries: %w", err)
 	}
 	sort := "start_time"
-	if req.GetSummary().GetSort() == observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION {
+	if req.GetSort() == observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION {
 		sort = "duration_nanos"
 	}
 	direction := " DESC"
-	if req.GetSummary().GetAscending() {
+	if req.GetAscending() {
 		direction = " ASC"
 	}
 	query = "SELECT TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count FROM (" +
 		query + ") ORDER BY " + sort + direction + ", TraceId ASC LIMIT ? OFFSET ?" + settings
-	args = append(args, limit, req.GetSummary().GetOffset())
+	args = append(args, limit, req.GetOffset())
 	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trace summaries: %w", err)
@@ -95,5 +101,5 @@ func (c *Client) queryTraceSummaries(
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("trace summary rows: %w", err)
 	}
-	return &observabilityv1.QueryTracesResponse{Summaries: summaries, TotalCount: total}, nil
+	return &observabilityv1.ListTracesResponse{Summaries: summaries, TotalCount: total}, nil
 }

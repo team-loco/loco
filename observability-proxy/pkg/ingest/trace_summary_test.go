@@ -30,19 +30,25 @@ func TestIngestedTraceSummaryStatus(t *testing.T) {
 				t.Fatal(err)
 			}
 			reader := f.reader(t)
-			req := &observabilityv1.QueryTracesRequest{
-				WorkspaceId: testWorkspaceID, StartTime: timestamppb.New(now.Add(-testWindow)),
-				EndTime: timestamppb.New(now.Add(testWindow)),
+			req := &observabilityv1.ListTracesRequest{
+				Scope: &observabilityv1.TraceScope{
+					WorkspaceId: testWorkspaceID,
+				},
+				StartTime: timestamppb.New(now.Add(-testWindow)),
+				EndTime:   timestamppb.New(now.Add(testWindow)),
 			}
-			spans, err := reader.QueryTraces(t.Context(), req, testQueryLimit)
+			spans, err := reader.GetTrace(
+				t.Context(),
+				&observabilityv1.GetTraceRequest{Scope: req.GetScope(), TraceId: testTraceID.String()},
+			)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if len(spans.GetSpans()) != 1 || spans.GetSpans()[0].GetStatusCode() != tc.stored.String() {
 				t.Fatalf("stored status: %v", spans)
 			}
-			req.Summary = &observabilityv1.TraceSummaryQuery{Status: tc.summary}
-			summaries, err := reader.QueryTraces(t.Context(), req, testQueryLimit)
+			req.Status = tc.summary
+			summaries, err := reader.ListTraces(t.Context(), req, testQueryLimit)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -54,8 +60,8 @@ func TestIngestedTraceSummaryStatus(t *testing.T) {
 			if tc.summary == other {
 				other = observabilityv1.TraceStatus_TRACE_STATUS_OK
 			}
-			req.Summary.Status = other
-			summaries, err = reader.QueryTraces(t.Context(), req, testQueryLimit)
+			req.Status = other
+			summaries, err = reader.ListTraces(t.Context(), req, testQueryLimit)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -28,8 +28,12 @@ func TestHistoryQueriesValidateTimestampPresenceAndPrecision(t *testing.T) {
 			return validated(req, func() error { return ValidateMetricsRequest(req, cfg) })
 		}},
 		{name: "traces", validate: func(start, end *timestamppb.Timestamp) error {
-			req := &observabilityv1.QueryTracesRequest{WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end}
-			return validated(req, func() error { return ValidateTracesRequest(req, cfg) })
+			req := &observabilityv1.ListTracesRequest{
+				Scope:     &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+				StartTime: start,
+				EndTime:   end,
+			}
+			return validated(req, func() error { return ValidateListTracesRequest(req, cfg) })
 		}},
 	}
 	now := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)

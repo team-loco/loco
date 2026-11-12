@@ -8,6 +8,7 @@ import (
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const summaryService = "summary-web"
@@ -28,37 +29,37 @@ func TestTraceSummaries(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name   string
-		change func(*observabilityv1.QueryTracesRequest)
+		change func(*observabilityv1.ListTracesRequest)
 		want   []int
 	}{
-		{"minimum duration", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.MinDurationNanos = proto.Uint64(uint64(4 * time.Second))
+		{"minimum duration", func(r *observabilityv1.ListTracesRequest) {
+			r.MinDurationNanos = proto.Uint64(uint64(4 * time.Second))
 		}, []int{1}},
-		{"maximum duration", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.MaxDurationNanos = proto.Uint64(uint64(time.Second))
+		{"maximum duration", func(r *observabilityv1.ListTracesRequest) {
+			r.MaxDurationNanos = proto.Uint64(uint64(time.Second))
 		}, []int{2, 3}},
-		{"error in child", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.Status = observabilityv1.TraceStatus_TRACE_STATUS_ERROR
+		{"error in child", func(r *observabilityv1.ListTracesRequest) {
+			r.Status = observabilityv1.TraceStatus_TRACE_STATUS_ERROR
 		}, []int{1}},
-		{"ok", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.Status = observabilityv1.TraceStatus_TRACE_STATUS_OK
+		{"ok", func(r *observabilityv1.ListTracesRequest) {
+			r.Status = observabilityv1.TraceStatus_TRACE_STATUS_OK
 		}, []int{2, 3}},
-		{"root name terms", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.RootNameTerms = []string{"get", "/CART"}
+		{"root name terms", func(r *observabilityv1.ListTracesRequest) {
+			r.RootNameTerms = []string{"get", "/CART"}
 		}, []int{1}},
-		{"child name excluded", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.RootNameTerms = []string{"child"}
+		{"child name excluded", func(r *observabilityv1.ListTracesRequest) {
+			r.RootNameTerms = []string{"child"}
 		}, nil},
-		{"duration descending", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.Sort = observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION
+		{"duration descending", func(r *observabilityv1.ListTracesRequest) {
+			r.Sort = observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION
 		}, []int{1, 2, 3}},
-		{"duration ascending", func(r *observabilityv1.QueryTracesRequest) {
-			r.Summary.Sort = observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION
-			r.Summary.Ascending = true
+		{"duration ascending", func(r *observabilityv1.ListTracesRequest) {
+			r.Sort = observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION
+			r.Ascending = true
 		}, []int{2, 3, 1}},
-		{"start ascending", func(r *observabilityv1.QueryTracesRequest) { r.Summary.Ascending = true }, []int{1, 2, 3}},
-		{"trace id", func(r *observabilityv1.QueryTracesRequest) { r.TraceId = fmt.Sprintf("%032x", 1) }, []int{1}},
-		{"empty workspace", func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = testUnknownWorkspaceID }, nil},
+		{"start ascending", func(r *observabilityv1.ListTracesRequest) { r.Ascending = true }, []int{1, 2, 3}},
+		{"trace id", func(r *observabilityv1.ListTracesRequest) { r.TraceId = fmt.Sprintf("%032x", 1) }, []int{1}},
+		{"empty workspace", func(r *observabilityv1.ListTracesRequest) { r.Scope.WorkspaceId = testUnknownWorkspaceID }, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := proto.CloneOf(base)
@@ -84,7 +85,7 @@ func TestTraceSummaryPages(t *testing.T) {
 	req := proto.CloneOf(base)
 	var ids []string
 	for offset := range 4 {
-		req.Summary.Offset = int32(offset)
+		req.Offset = int32(offset)
 		got := queryTraceSummaries(t, f, req, 1)
 		if got.GetTotalCount() != 3 {
 			t.Fatalf("count: %v", got)
@@ -112,27 +113,27 @@ func TestTraceSummaryPages(t *testing.T) {
 func TestTraceSummaryTenancy(t *testing.T) {
 	f, base := newTraceSummaryFixture(t)
 	req := proto.CloneOf(base)
-	req.ResourceIds = []string{testWorkerResourceID}
+	req.Scope.ResourceIds = []string{testWorkerResourceID}
 	got := queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
 	if len(got) != 1 || got[0].GetRootSpanName() != "child operation" || got[0].GetSpanCount() != 1 ||
 		got[0].GetDurationNanos() != uint64(3*time.Second) {
 		t.Fatalf("resource scope: %v", got)
 	}
-	req.ResourceIds = nil
-	req.WorkspaceId = testOtherWorkspaceID
+	req.Scope.ResourceIds = nil
+	req.Scope.WorkspaceId = testOtherWorkspaceID
 	got = queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
 	if len(got) != 1 || got[0].GetRootSpanName() != "foreign workspace" || got[0].GetSpanCount() != 1 {
 		t.Fatalf("workspace scope: %v", got)
 	}
-	req.WorkspaceId = testWorkspaceID
-	req.EnvironmentId = testOtherEnvironmentID
+	req.Scope.WorkspaceId = testWorkspaceID
+	req.Scope.EnvironmentId = testOtherEnvironmentID
 	got = queryTraceSummaries(t, f, req, testFullPage).GetSummaries()
 	if len(got) != 1 || got[0].GetRootSpanName() != "separate environment" || got[0].GetSpanCount() != 1 {
 		t.Fatalf("environment scope: %v", got)
 	}
 }
 
-func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.QueryTracesRequest) {
+func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListTracesRequest) {
 	t.Helper()
 	f := newQueryFixture(t)
 	start := f.start.Add(time.Minute)
@@ -243,25 +244,25 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.Query
 	if err := batch.Send(); err != nil {
 		t.Fatal(err)
 	}
-	base := traceRequest(start, start.Add(5*time.Second))
-	base.EnvironmentId = testEnvironmentID
-	base.Summary = &observabilityv1.TraceSummaryQuery{}
+	base := &observabilityv1.ListTracesRequest{
+		Scope:     &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+		StartTime: timestamppb.New(start),
+		EndTime:   timestamppb.New(start.Add(5 * time.Second)),
+	}
+	base.Scope.EnvironmentId = testEnvironmentID
 	return f, base
 }
 
 func queryTraceSummaries(
 	t *testing.T,
 	f *queryFixture,
-	req *observabilityv1.QueryTracesRequest,
+	req *observabilityv1.ListTracesRequest,
 	limit int32,
-) *observabilityv1.QueryTracesResponse {
+) *observabilityv1.ListTracesResponse {
 	t.Helper()
-	result, err := f.client.QueryTraces(t.Context(), req, limit)
+	result, err := f.client.ListTraces(t.Context(), req, limit)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if len(result.GetSpans()) != 0 || result.GetNextCursor() != "" {
-		t.Fatal("summary returned spans or span cursor")
 	}
 	return result
 }

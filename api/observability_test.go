@@ -197,20 +197,20 @@ func TestRegionalGatewayConfiguration(t *testing.T) {
 	}
 }
 
-func (*gatewayTelemetry) QueryTraces(
+func (*gatewayTelemetry) ListTraces(
 	ctx context.Context,
-	req *observabilityv1.QueryTracesRequest,
-) (*observabilityv1.QueryTracesResponse, error) {
-	if err := gatewayPermission(ctx, req.GetWorkspaceId()); err != nil {
+	req *observabilityv1.ListTracesRequest,
+) (*observabilityv1.ListTracesResponse, error) {
+	if err := gatewayPermission(ctx, req.GetScope().GetWorkspaceId()); err != nil {
 		return nil, err
 	}
-	return &observabilityv1.QueryTracesResponse{
+	return &observabilityv1.ListTracesResponse{
 		TotalCount: 42,
 		Summaries: []*observabilityv1.TraceSummary{{
-			TraceId: req.GetTraceId(), RootSpanName: strings.Join(req.GetSummary().GetRootNameTerms(), " "),
-			ServiceName: req.GetEnvironmentId(), ResourceId: req.GetResourceIds()[0],
-			StartTime: req.GetStartTime(), DurationNanos: req.GetSummary().GetMinDurationNanos(),
-			Status: req.GetSummary().GetStatus(), SpanCount: uint64(req.GetSummary().GetOffset()),
+			TraceId: req.GetTraceId(), RootSpanName: strings.Join(req.GetRootNameTerms(), " "),
+			ServiceName: req.GetScope().GetEnvironmentId(), ResourceId: req.GetScope().GetResourceIds()[0],
+			StartTime: req.GetStartTime(), DurationNanos: req.GetMinDurationNanos(),
+			Status: req.GetStatus(), SpanCount: uint64(req.GetOffset()),
 		}},
 	}, nil
 }
@@ -227,20 +227,25 @@ func TestTraceSummaryPassthrough(t *testing.T) {
 	gateway := httptest.NewServer(mux)
 	t.Cleanup(gateway.Close)
 	ctx := t.Context()
-	req := &observabilityv1.QueryTracesRequest{
-		WorkspaceId: gatewayWorkspace, ResourceIds: []string{"resource"}, EnvironmentId: "environment",
-		TraceId: "0123456789abcdef0123456789abcdef", StartTime: timestamppb.Now(), EndTime: timestamppb.Now(),
-		Limit: 1, Summary: &observabilityv1.TraceSummaryQuery{
-			MinDurationNanos: proto.Uint64(
-				9007199254740993,
-			),
-			Status:        observabilityv1.TraceStatus_TRACE_STATUS_ERROR,
-			RootNameTerms: []string{"GET", "/cart"},
-			Offset:        7,
+	req := &observabilityv1.ListTracesRequest{
+		Scope: &observabilityv1.TraceScope{
+			WorkspaceId:   gatewayWorkspace,
+			ResourceIds:   []string{"resource"},
+			EnvironmentId: "environment",
 		},
+		TraceId:   "0123456789abcdef0123456789abcdef",
+		StartTime: timestamppb.Now(),
+		EndTime:   timestamppb.Now(),
+		Limit:     1,
+		MinDurationNanos: proto.Uint64(
+			9007199254740993,
+		),
+		Status:        observabilityv1.TraceStatus_TRACE_STATUS_ERROR,
+		RootNameTerms: []string{"GET", "/cart"},
+		Offset:        7,
 	}
 	clients := rpc.NewHTTPClients(gateway.Client(), gateway.URL, "reader")
-	response, err := clients.ObservabilityProxy.QueryTraces(ctx, req)
+	response, err := clients.ObservabilityProxy.ListTraces(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,16 +254,27 @@ func TestTraceSummaryPassthrough(t *testing.T) {
 	}
 	summary := response.GetSummaries()[0]
 	if summary.GetTraceId() != req.GetTraceId() || summary.GetRootSpanName() != "GET /cart" ||
-		summary.GetServiceName() != req.GetEnvironmentId() || summary.GetResourceId() != req.GetResourceIds()[0] ||
+		summary.GetServiceName() != req.GetScope().
+			GetEnvironmentId() ||
+		summary.GetResourceId() != req.GetScope().GetResourceIds()[0] ||
 		!proto.Equal(
 			summary.GetStartTime(),
 			req.GetStartTime(),
-		) || summary.GetDurationNanos() != req.GetSummary().GetMinDurationNanos() ||
+		) || summary.GetDurationNanos() != req.GetMinDurationNanos() ||
 		summary.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_ERROR || summary.GetSpanCount() != 7 {
 		t.Fatalf("lost summary fields: %v", summary)
 	}
+	traceReq := &observabilityv1.GetTraceRequest{Scope: req.GetScope(), TraceId: req.GetTraceId()}
+	trace, err := clients.ObservabilityProxy.GetTrace(ctx, traceReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(trace.GetSpans()) != 1 || trace.GetSpans()[0].GetTraceId() != req.GetTraceId() ||
+		trace.GetSpans()[0].GetWorkspaceId() != gatewayWorkspace {
+		t.Fatalf("trace: %v", trace)
+	}
 	for _, token := range []string{"", "wrong-reader"} {
-		_, err := rpc.NewHTTPClients(gateway.Client(), gateway.URL, token).ObservabilityProxy.QueryTraces(ctx, req)
+		_, err := rpc.NewHTTPClients(gateway.Client(), gateway.URL, token).ObservabilityProxy.ListTraces(ctx, req)
 		want := connect.CodePermissionDenied
 		if token == "" {
 			want = connect.CodeUnauthenticated
@@ -266,5 +282,21 @@ func TestTraceSummaryPassthrough(t *testing.T) {
 		if connect.CodeOf(err) != want {
 			t.Fatalf("token %q: %v", token, err)
 		}
+		_, err = rpc.NewHTTPClients(gateway.Client(), gateway.URL, token).ObservabilityProxy.GetTrace(ctx, traceReq)
+		if connect.CodeOf(err) != want {
+			t.Fatalf("get trace token %q: %v", token, err)
+		}
 	}
+}
+
+func (*gatewayTelemetry) GetTrace(
+	ctx context.Context,
+	req *observabilityv1.GetTraceRequest,
+) (*observabilityv1.GetTraceResponse, error) {
+	if err := gatewayPermission(ctx, req.GetScope().GetWorkspaceId()); err != nil {
+		return nil, err
+	}
+	return &observabilityv1.GetTraceResponse{
+		Spans: []*observabilityv1.TraceSpan{{TraceId: req.GetTraceId(), WorkspaceId: req.GetScope().GetWorkspaceId()}},
+	}, nil
 }

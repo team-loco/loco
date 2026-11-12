@@ -105,84 +105,84 @@ func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
 	}
 }
 
-func TestValidateTracesRequest(t *testing.T) {
+func TestValidateListTracesRequest(t *testing.T) {
 	cfg := &config.Config{MaxTimeRange: testMaxRange}
 	now := time.Date(2026, time.October, 14, 0, 0, 0, 1, time.UTC)
 	cases := []struct {
 		name   string
-		change func(*observabilityv1.QueryTracesRequest)
+		change func(*observabilityv1.ListTracesRequest)
 		valid  bool
 	}{
 		{name: "valid", valid: true},
-		{name: "empty workspace", change: func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = "" }},
+		{name: "empty workspace", change: func(r *observabilityv1.ListTracesRequest) { r.Scope.WorkspaceId = "" }},
 		{
 			name:   "invalid workspace",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = malformedID },
+			change: func(r *observabilityv1.ListTracesRequest) { r.Scope.WorkspaceId = malformedID },
 		},
 		{
 			name:   "invalid resource",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.ResourceIds = []string{malformedID} },
+			change: func(r *observabilityv1.ListTracesRequest) { r.Scope.ResourceIds = []string{malformedID} },
 		},
 		{
 			name:   "invalid environment",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.EnvironmentId = malformedID },
+			change: func(r *observabilityv1.ListTracesRequest) { r.Scope.EnvironmentId = malformedID },
 		},
-		{name: "missing start", change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = nil }},
-		{name: "missing end", change: func(r *observabilityv1.QueryTracesRequest) { r.EndTime = nil }},
+		{name: "missing start", change: func(r *observabilityv1.ListTracesRequest) { r.StartTime = nil }},
+		{name: "missing end", change: func(r *observabilityv1.ListTracesRequest) { r.EndTime = nil }},
 		{
 			name:   "invalid timestamp",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = &timestamppb.Timestamp{Nanos: -1} },
+			change: func(r *observabilityv1.ListTracesRequest) { r.StartTime = &timestamppb.Timestamp{Nanos: -1} },
 		},
-		{name: "unrepresentable nanoseconds", change: func(r *observabilityv1.QueryTracesRequest) {
+		{name: "unrepresentable nanoseconds", change: func(r *observabilityv1.ListTracesRequest) {
 			r.StartTime = timestamppb.New(time.Date(2500, time.January, 1, 0, 0, 0, 0, time.UTC))
 			r.EndTime = r.GetStartTime()
 		}},
 		{
 			name:   "reversed range",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = timestamppb.New(now.Add(time.Second)) },
+			change: func(r *observabilityv1.ListTracesRequest) { r.StartTime = timestamppb.New(now.Add(time.Second)) },
 		},
-		{name: "excessive range", change: func(r *observabilityv1.QueryTracesRequest) {
+		{name: "excessive range", change: func(r *observabilityv1.ListTracesRequest) {
 			r.StartTime = timestamppb.New(now.Add(-testMaxRange - time.Nanosecond))
 		}},
 		{
 			name:   "exact maximum range",
 			valid:  true,
-			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = timestamppb.New(now.Add(-testMaxRange)) },
+			change: func(r *observabilityv1.ListTracesRequest) { r.StartTime = timestamppb.New(now.Add(-testMaxRange)) },
 		},
 		{
 			name:   "equal timestamps",
 			valid:  true,
-			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = r.GetEndTime() },
+			change: func(r *observabilityv1.ListTracesRequest) { r.StartTime = r.GetEndTime() },
 		},
 		{
 			name:   "known trace",
 			valid:  true,
-			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "0123456789abcdef0123456789abcdef" },
+			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "0123456789abcdef0123456789abcdef" },
 		},
-		{name: "short trace", change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "abcd" }},
+		{name: "short trace", change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "abcd" }},
 		{
 			name:   "nonhex trace",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" },
+			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" },
 		},
 		{
 			name:   "uppercase trace",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "0123456789ABCDEF0123456789ABCDEF" },
+			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "0123456789ABCDEF0123456789ABCDEF" },
 		},
-		{name: "zero trace", change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = zeroTraceID }},
-		{name: "negative limit", change: func(r *observabilityv1.QueryTracesRequest) { r.Limit = -1 }},
-		{name: "excessive limit", change: func(r *observabilityv1.QueryTracesRequest) { r.Limit = testTraceLimit + 1 }},
+		{name: "zero trace", change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = zeroTraceID }},
+		{name: "negative limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = -1 }},
+		{name: "excessive limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = testTraceLimit + 1 }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := &observabilityv1.QueryTracesRequest{
-				WorkspaceId: testWorkspaceID,
-				StartTime:   timestamppb.New(now.Add(-time.Hour)),
-				EndTime:     timestamppb.New(now),
+			req := &observabilityv1.ListTracesRequest{
+				Scope:     &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+				StartTime: timestamppb.New(now.Add(-time.Hour)),
+				EndTime:   timestamppb.New(now),
 			}
 			if tc.change != nil {
 				tc.change(req)
 			}
-			err := validated(req, func() error { return ValidateTracesRequest(req, cfg) })
+			err := validated(req, func() error { return ValidateListTracesRequest(req, cfg) })
 			if (err == nil) != tc.valid {
 				t.Fatalf("validation = %v, valid = %v", err, tc.valid)
 			}
@@ -228,14 +228,22 @@ func validateEveryQuery(workspace, environment string, resources []string) map[s
 		WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources, StartTime: start, EndTime: end,
 		MetricName: "m", IntervalSeconds: 1, Aggregation: testWorkspaceAggregation,
 	}
-	traces := &observabilityv1.QueryTracesRequest{
-		WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources, StartTime: start, EndTime: end,
+	traces := &observabilityv1.ListTracesRequest{
+		Scope: &observabilityv1.TraceScope{
+			WorkspaceId:   workspace,
+			EnvironmentId: environment,
+			ResourceIds:   resources,
+		},
+		StartTime: start,
+		EndTime:   end,
 	}
+	getTrace := &observabilityv1.GetTraceRequest{Scope: traces.GetScope(), TraceId: "0123456789abcdef0123456789abcdef"}
 	return map[string]error{
-		"logs":    validated(logs, func() error { return ValidateLogsRequest(logs, cfg) }),
-		"tail":    validated(tail, func() error { return ValidateTailRequest(tail, cfg, now) }),
-		"metrics": validated(metrics, func() error { return ValidateMetricsRequest(metrics, cfg) }),
-		"traces":  validated(traces, func() error { return ValidateTracesRequest(traces, cfg) }),
+		"logs":      validated(logs, func() error { return ValidateLogsRequest(logs, cfg) }),
+		"tail":      validated(tail, func() error { return ValidateTailRequest(tail, cfg, now) }),
+		"metrics":   validated(metrics, func() error { return ValidateMetricsRequest(metrics, cfg) }),
+		"traces":    validated(traces, func() error { return ValidateListTracesRequest(traces, cfg) }),
+		"get trace": validated(getTrace, func() error { return ValidateTraceScope(getTrace.GetScope()) }),
 	}
 }
 

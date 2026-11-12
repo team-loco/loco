@@ -15,11 +15,11 @@ import (
 )
 
 var (
+	errZeroTraceID         = errors.New("trace_id must be nonzero")
 	errNonCanonicalID      = errors.New("IDs must be lowercase UUIDs")
 	errInvalidRegionFilter = errors.New("region filters must not be blank and may only end with a wildcard")
 	errSinceTooOld         = errors.New("since is older than the maximum time range")
 	errSinceInFuture       = errors.New("since is in the future")
-	errZeroTraceID         = errors.New("trace_id must be nonzero")
 	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
 	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
 )
@@ -77,13 +77,13 @@ func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Confi
 	return nil
 }
 
-// ValidateTracesRequest validates the query parameters for a traces request.
-func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.Config) error {
-	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+func ValidateTraceScope(scope *observabilityv1.TraceScope) error {
+	return validateCanonicalIDs(scope.GetWorkspaceId(), scope.GetEnvironmentId(), scope.GetResourceIds())
+}
+
+func ValidateListTracesRequest(req *observabilityv1.ListTracesRequest, cfg *config.Config) error {
+	if err := ValidateTraceScope(req.GetScope()); err != nil {
 		return err
-	}
-	if req.GetTraceId() == zeroTraceID {
-		return errZeroTraceID
 	}
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
 }
@@ -146,4 +146,15 @@ func validateRegions(groups ...[]string) error {
 		}
 	}
 	return nil
+}
+
+// ValidateTracesRequest validates the query parameters for a traces request.
+func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.Config) error {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+		return err
+	}
+	if req.GetTraceId() == zeroTraceID {
+		return errZeroTraceID
+	}
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
 }

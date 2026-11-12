@@ -19,6 +19,16 @@ export const queryLogs = ObservabilityProxyService.method.queryLogs;
 export const queryMetrics = ObservabilityProxyService.method.queryMetrics;
 
 /**
+ * @generated from rpc loco.observability.v1.ObservabilityProxyService.ListTraces
+ */
+export const listTraces = ObservabilityProxyService.method.listTraces;
+
+/**
+ * @generated from rpc loco.observability.v1.ObservabilityProxyService.GetTrace
+ */
+export const getTrace = ObservabilityProxyService.method.getTrace;
+
+/**
  * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryTraces
  */
 export const queryTraces = ObservabilityProxyService.method.queryTraces;

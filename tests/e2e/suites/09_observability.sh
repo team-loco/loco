@@ -30,8 +30,6 @@ obs_output_rows=20
 obs_body_chars=140
 obs_proxy_limit=50
 obs_metric_interval_seconds=60
-obs_trace_page_limit=1
-obs_trace_max_pages=100
 obs_curl_timeout_seconds=10
 obs_event_flush_seconds=10
 obs_ingest_replicas=2
@@ -64,7 +62,8 @@ obs_forged_organization=$(awk -F'"' '$1 ~ /^\tforgedOrganizationID +=/ { print $
 obs_proxy_url="$E2E_API_URL"
 obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
 obs_query_metrics="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
-obs_query_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryTraces"
+obs_get_trace="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/GetTrace"
+obs_list_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/ListTraces"
 obs_metric_tables="otel_metrics_sum otel_metrics_gauge otel_metrics_histogram"
 obs_all_tables="otel_traces otel_logs otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
 
@@ -422,40 +421,25 @@ test_o03_migrations() {
 }
 
 obs_trace_body() {
-    local workspace=$1 start end
-    start=$(utc_timestamp "$((obs_traffic_started - obs_query_window_seconds))")
-    end=$(utc_timestamp "$(obs_now)")
-    printf '{"workspaceId":"%s","startTime":"%s","endTime":"%s","traceId":"%s","limit":%d}' \
-        "$workspace" "$start" "$end" "$obs_trace_id" "$obs_trace_page_limit"
+    printf '{"scope":{"workspaceId":"%s"},"traceId":"%s"}' "$1" "$obs_trace_id"
 }
 
 obs_trace_call() {
-    curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_traces" \
-        -H 'Content-Type: application/json' -H "Authorization: Bearer $1" -d "$2"
+    curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$1" \
+        -H 'Content-Type: application/json' -H "Authorization: Bearer $2" -d "$3"
 }
 
 check_ingress_trace() {
-    local body output status response cursor="" previous="" rows="" page complete=false
+    local body output status response rows
     body=$(obs_trace_body "$obs_workspace_id")
-    for ((page=0; page<obs_trace_max_pages; page++)); do
-        output=$(obs_trace_call "$obs_workspace_token" "$body") || return 1
-        status=$(tail -n 1 <<<"$output")
-        response=$(sed '$d' <<<"$output")
-        ev_command "QueryTraces page $((page+1)) for the known trace" \
-            "curl -X POST ${obs_query_traces} -H 'Authorization: Bearer <workspace token>' -d '${body}'" \
-            "HTTP ${status}"$'\n'"${response}"
-        test "$status" = "$obs_http_ok" || return 1
-        rows+=$(yq -p json -r '.spans // [] | .[] | [.spanId, (.parentSpanId // ""), .scopeName, .workspaceId, .resourceId, (.resourceAttributes."loco.organization.id" // ""), .traceId] | @tsv' <<<"$response")$'\n'
-        cursor=$(yq -p json -r '.nextCursor // ""' <<<"$response")
-        if [ -z "$cursor" ]; then
-            complete=true
-            break
-        fi
-        test "$cursor" != "$previous" || return 1
-        previous=$cursor
-        body=$(CURSOR="$cursor" yq -p json -o json -I 0 '.cursor = strenv(CURSOR)' <<<"$body")
-    done
-    test "$complete" = true || return 1
+    output=$(obs_trace_call "$obs_get_trace" "$obs_workspace_token" "$body") || return 1
+    status=$(tail -n 1 <<<"$output")
+    response=$(sed '$d' <<<"$output")
+    ev_command "GetTrace returns all spans of the known trace" \
+        "curl -X POST ${obs_get_trace} -H 'Authorization: Bearer <workspace token>' -d '${body}'" \
+        "HTTP ${status}"$'\n'"${response}"
+    test "$status" = "$obs_http_ok" || return 1
+    rows=$(yq -p json -r '.spans // [] | .[] | [.spanId, (.parentSpanId // ""), .scopeName, .workspaceId, .resourceId, (.resourceAttributes."loco.organization.id" // ""), .traceId] | @tsv' <<<"$response")
     awk -F'\t' -v scope="$obs_fixture_scope" -v ws="$obs_workspace_id" -v res="$obs_resource_id" -v org="$obs_organization_id" -v trace="$obs_trace_id" '
         NF {
             if ($4 != ws || $7 != trace) invalid = 1
@@ -473,17 +457,18 @@ check_ingress_trace() {
 }
 
 check_trace_summary() {
-    local body output response status count spans
-    body=$(obs_trace_body "$obs_workspace_id")
-    body=$(yq -p json -o json '.summary = {} | .limit = 1' <<<"$body")
-    output=$(obs_trace_call "$obs_workspace_token" "$body") || return 1
+    local body output response status count spans start end
+    start=$(utc_timestamp "$((obs_traffic_started - obs_query_window_seconds))")
+    end=$(utc_timestamp "$(obs_now)")
+    body=$(printf '{"scope":{"workspaceId":"%s"},"startTime":"%s","endTime":"%s","traceId":"%s","limit":1}' "$obs_workspace_id" "$start" "$end" "$obs_trace_id")
+    output=$(obs_trace_call "$obs_list_traces" "$obs_workspace_token" "$body") || return 1
     response=$(sed '$d' <<<"$output")
     status=$(tail -n 1 <<<"$output")
     test "$status" = "$obs_http_ok" || return 1
     count=$(yq -p json -r '.summaries | length' <<<"$response")
     spans=$(yq -p json -r '.summaries[0].spanCount // "0"' <<<"$response")
-    ev_command "QueryTraces summarizes the known trace before paging" \
-        "curl -X POST ${obs_query_traces} -H 'Authorization: Bearer <workspace token>' -d '${body}'" \
+    ev_command "ListTraces summarizes the known trace before paging" \
+        "curl -X POST ${obs_list_traces} -H 'Authorization: Bearer <workspace token>' -d '${body}'" \
         "$response"
     test "$count" = 1 && test "$spans" -gt 1 &&
         test "$(yq -p json -r '.totalCount' <<<"$response")" = 1 &&
@@ -723,18 +708,18 @@ check_proxy_isolation() {
 check_trace_proxy_isolation() {
     local body output status response count
     body=$(obs_trace_body "$obs_workspace_id")
-    output=$(obs_trace_call "$obs_second_token" "$body")
+    output=$(obs_trace_call "$obs_get_trace" "$obs_second_token" "$body")
     status=$(tail -n 1 <<<"$output")
     test "$status" = "$obs_http_forbidden" || return 1
     body=$(obs_trace_body "$obs_second_workspace_id")
-    output=$(obs_trace_call "$obs_workspace_token" "$body")
+    output=$(obs_trace_call "$obs_get_trace" "$obs_workspace_token" "$body")
     status=$(tail -n 1 <<<"$output")
     test "$status" = "$obs_http_forbidden" || return 1
-    output=$(obs_trace_call "$obs_second_token" "$body")
+    output=$(obs_trace_call "$obs_get_trace" "$obs_second_token" "$body")
     status=$(tail -n 1 <<<"$output")
     response=$(sed '$d' <<<"$output")
     count=$(yq -p json -r '.spans // [] | length' <<<"$response")
-    ev "QueryTraces: both cross-workspace requests returned HTTP ${obs_http_forbidden}; second workspace querying the known trace returned HTTP ${status}, spans ${count}." ""
+    ev "GetTrace: both cross-workspace requests returned HTTP ${obs_http_forbidden}; second workspace querying the known trace returned HTTP ${status}, spans ${count}." ""
     test "$status" = "$obs_http_ok" && test "$count" -eq 0
 }
 
