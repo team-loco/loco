@@ -160,16 +160,7 @@ function InviteForm({
 function OutcomeRow({ outcome }: { outcome: InviteOutcome }) {
 	const invitation = outcome.kind === "invited" ? outcome.invitation : undefined;
 	const link = invitation?.link;
-	const detail = (() => {
-		switch (outcome.kind) {
-			case "invited":
-				return "";
-			case "exists":
-				return outcome.message;
-			case "failed":
-				return outcome.message;
-		}
-	})();
+	const detail = outcome.kind === "invited" ? "" : outcome.message;
 	return (
 		<li className="flex items-start gap-2.5 rounded-lg bg-panel px-3 py-2.5">
 			<span className="mt-0.5">
