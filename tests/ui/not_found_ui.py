@@ -40,7 +40,7 @@ sibling = state["workspaces"]["acme/sibling"]
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{shared}';")
 base = f"{ui}/org/{org}/wks/{shared}"
 issuer = f"{ui}/dex"
-TITLE = "This page doesn’t exist"
+TITLE = "Nothing lives at this address"
 
 
 def open_page(browser, user, theme="light", narrow=False):
@@ -213,6 +213,12 @@ with sync_playwright() as playwright:
             expect(prompt.get_by_role("link", name="Read the docs")).to_be_visible()
             page.get_by_role("button", name=re.compile(r"^Invitations")).click()
             expect(page.get_by_text("No invitations", exact=True)).to_be_visible()
+            page.goto(ui + "/cli/device?code=ABCD-EFGH")
+            expect(page.get_by_text("Check that this matches your terminal", exact=True)).to_be_visible()
+            expect(page.get_by_role("status")).to_have_text("ABCD-EFGH")
+            expect(page.get_by_role("textbox", name="Device code")).to_have_count(0)
+            page.goto(ui + "/cli/device")
+            expect(page.get_by_role("textbox", name="Device code")).to_be_editable()
             assert not errors, errors
             cases.append("owner-other-org")
         except BaseException:
