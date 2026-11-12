@@ -186,3 +186,47 @@ func TestTraceDurationJSONPreservesUint64(t *testing.T) {
 		t.Fatalf("duration = %d, want %d", decoded.GetDurationNanos(), duration)
 	}
 }
+
+func TestGetTraceLookupRetainsRecentSpansOfLongTraces(t *testing.T) {
+	f := newQueryFixture(t)
+	batch, prepareErr := f.conn.PrepareBatch(
+		t.Context(),
+		"INSERT INTO otel_traces (Timestamp, TraceId, SpanId, ResourceAttributes)",
+	)
+	if prepareErr != nil {
+		t.Fatal(prepareErr)
+	}
+	attrs := tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID)
+	for _, span := range []struct {
+		id        string
+		timestamp time.Time
+	}{
+		{"expired-root", f.start.Add(-testTracesTTL - time.Hour)},
+		{"recent-child", f.start},
+	} {
+		if err := batch.Append(span.timestamp, knownTraceID, span.id, attrs); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := batch.Send(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.conn.Exec(
+		t.Context(),
+		"ALTER TABLE otel_traces_trace_id_ts MATERIALIZE TTL SETTINGS mutations_sync = 2",
+	); err != nil {
+		t.Fatal(err)
+	}
+	response, err := f.client.GetTrace(t.Context(), &observabilityv1.GetTraceRequest{
+		Scope: &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID}, TraceId: knownTraceID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(
+		response.GetSpans(),
+		func(span *observabilityv1.TraceSpan) bool { return span.GetSpanId() == "recent-child" },
+	) {
+		t.Fatalf("lookup expired before its recent span: %v", response)
+	}
+}

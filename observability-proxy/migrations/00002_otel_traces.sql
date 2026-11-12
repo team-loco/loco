@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts
 ENGINE = MergeTree
 PARTITION BY toDate(Start)
 ORDER BY (WorkspaceId, TraceId, Start)
-TTL toDateTime(Start) + ${TRACES_TTL}
+TTL toDateTime(End) + ${TRACES_TTL}
 SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts_mv
