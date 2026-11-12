@@ -1,47 +1,55 @@
-import { ArrowUpRightIcon } from "lucide-react";
+import { useQuery } from "@connectrpc/connect-query";
+import { ArrowUpRightIcon, GlobeIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { Link } from "react-router";
+import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
 import { Button } from "@/components/design/Button";
-import { ART_SOFT, ART_STRONG, ClusterArt } from "@/components/design/ClusterArt";
 import { CopyButton } from "@/components/design/CopyButton";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { DOCS_URL } from "@/pages/splash/links";
 
 const DEPLOY_COMMAND = "loco deploy";
-const ROUTES = ["M177 38 C177 52 156 50 156 64", "M183 38 C183 52 183 50 183 64", "M189 38 C189 52 210 50 210 64"];
-const SERVICES = [143, 170, 197];
+const NODE = "flex h-[38px] items-center gap-[7px] rounded-[9px] border px-3 text-[12.5px] whitespace-nowrap";
 
-function ResourcesArt() {
+function Node({ children }: { children: ReactNode }) {
+	return <span className={`${NODE} border-line2 bg-background text-fg2 [&_svg]:size-3.5`}>{children}</span>;
+}
+
+function ResourcesArt({ domain, newHref }: { domain: string | undefined; newHref: string }) {
 	return (
-		<ClusterArt>
-			<rect
-				x={163}
-				y={27}
-				width={40}
-				height={11}
-				rx={3}
-				fill="var(--panel)"
-				stroke={ART_STRONG}
-				strokeDasharray="2 1.5"
-			/>
-			<rect x={169} y={31} width={28} height={3} rx={1.5} fill={ART_SOFT} />
-			{ROUTES.map((d) => (
-				<path key={d} d={d} fill="none" stroke={ART_SOFT} />
-			))}
-			{SERVICES.map((x) => (
-				<g key={x}>
-					<rect x={x} y={64} width={26} height={16} rx={3} fill="var(--panel)" stroke={ART_STRONG} />
-					<rect x={x + 7} y={70.5} width={13} height={3} rx={1.5} fill={ART_SOFT} />
-					<circle cx={x + 3.5} cy={72} r={1.8} fill="var(--ok)" />
-				</g>
-			))}
-		</ClusterArt>
+		<div className="flex max-w-full flex-wrap items-center justify-center gap-y-2">
+			<Node>
+				<GlobeIcon />
+				Internet
+			</Node>
+			<span aria-hidden className="h-px w-9 bg-line2" />
+			<Node>
+				<ShieldCheckIcon />
+				<span className="font-mono">{domain === undefined ? "Gateway" : `*.${domain}`}</span>
+			</Node>
+			<span aria-hidden className="w-9 animate-pulse border-t border-dashed border-fg3" />
+			<Link
+				to={newHref}
+				aria-label="New resource"
+				className={`${NODE} border-dashed border-fg3 text-foreground no-underline hover:bg-panel2 [&_svg]:size-3.5`}
+			>
+				<PlusIcon />
+				your first resource
+			</Link>
+		</div>
 	);
 }
 
-export function ResourcesEmpty() {
+export function ResourcesEmpty({ environmentId, newHref }: { environmentId: string | undefined; newHref: string }) {
+	const domainsQuery = useQuery(
+		listPlatformDomains,
+		{ environmentId: environmentId ?? "" },
+		{ enabled: environmentId !== undefined },
+	);
 	return (
 		<EmptyHero
-			art={<ResourcesArt />}
+			art={<ResourcesArt domain={domainsQuery.data?.platformDomains[0]?.domain} newHref={newHref} />}
 			title="Deploy your first resource"
 			subtitle="Run loco deploy in a folder with a Dockerfile, or start one from New resource."
 		>

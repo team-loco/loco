@@ -23,6 +23,7 @@ import {
 	type MapPoint,
 } from "./mapLayout";
 import { isDraftItem, itemKey, itemName, type DashboardItem } from "./resourceRows";
+import type { EnvResource } from "./useDashboardData";
 
 const NODE =
 	"absolute flex flex-col justify-center gap-0.5 rounded-lg px-3 py-[9px] text-foreground no-underline hover:no-underline";
@@ -84,17 +85,44 @@ function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; 
 	);
 }
 
-function ResourceNode({ node, sub, href }: { node: MapNode; sub: string; href: string }) {
+function ResourceNode({
+	node,
+	sub,
+	href,
+	onSelect,
+}: {
+	node: MapNode;
+	sub: string;
+	href: string;
+	onSelect: ((item: EnvResource) => void) | undefined;
+}) {
 	const { row } = node;
 	const draft = isDraftItem(row);
+	const text = (
+		<NodeText
+			icon={<StatusGlyph glyph={draft ? "draft" : resourceStatusStyle(row.status).glyph} />}
+			title={itemName(row)}
+			sub={draft ? "draft" : sub}
+			meta={row.regions.map((g) => g.region).join(" · ")}
+		/>
+	);
+	if (!isDraftItem(row) && onSelect !== undefined) {
+		return (
+			<button
+				type="button"
+				className={cn(RESOURCE_NODE, "text-left")}
+				style={box(node)}
+				onClick={() => {
+					onSelect(row);
+				}}
+			>
+				{text}
+			</button>
+		);
+	}
 	return (
 		<Link to={href} className={draft ? DRAFT_NODE : RESOURCE_NODE} style={box(node)}>
-			<NodeText
-				icon={<StatusGlyph glyph={draft ? "draft" : resourceStatusStyle(row.status).glyph} />}
-				title={itemName(row)}
-				sub={draft ? "draft" : sub}
-				meta={row.regions.map((g) => g.region).join(" · ")}
-			/>
+			{text}
 		</Link>
 	);
 }
@@ -120,12 +148,14 @@ export function ArchitectureDiagram({
 	environmentId,
 	hrefFor,
 	onShowTable,
+	onSelect,
 }: {
 	rows: DashboardItem[];
 	regionOrder: string[];
 	environmentId: string;
 	hrefFor: (item: DashboardItem) => string;
 	onShowTable: () => void;
+	onSelect?: (item: EnvResource) => void;
 }) {
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
 	const platformDomains = domainsRes?.platformDomains ?? [];
@@ -179,6 +209,7 @@ export function ArchitectureDiagram({
 								node={node}
 								sub={isDraftItem(node.row) ? "" : (primaryDomain(node.row.resource) ?? "")}
 								href={hrefFor(node.row)}
+								onSelect={onSelect}
 							/>
 						))}
 						{layout.publicMore !== null && more(layout.hiddenPublic, layout.publicMore)}
@@ -196,7 +227,13 @@ export function ArchitectureDiagram({
 							</div>
 						)}
 						{layout.internalNodes.map((node) => (
-							<ResourceNode key={itemKey(node.row)} node={node} sub="internal" href={hrefFor(node.row)} />
+							<ResourceNode
+								key={itemKey(node.row)}
+								node={node}
+								sub="internal"
+								href={hrefFor(node.row)}
+								onSelect={onSelect}
+							/>
 						))}
 						{layout.internalMore !== null && more(layout.hiddenInternal, layout.internalMore)}
 					</div>
