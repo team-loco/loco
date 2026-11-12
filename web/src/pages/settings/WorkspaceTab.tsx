@@ -191,9 +191,15 @@ export function WorkspaceTab({
 				</SettingsCard>
 			</SettingsSection>
 
-			<EnvironmentsSection workspaceId={ws.id} workspaceName={ws.name} canWrite={canWrite} canAdmin={canAdmin} />
+			<EnvironmentsSection
+				orgId={ws.orgId}
+				workspaceId={ws.id}
+				workspaceName={ws.name}
+				canWrite={canWrite}
+				canAdmin={canAdmin}
+			/>
 
-			{canAdmin && <WebhooksSection workspaceId={ws.id} workspaceName={ws.name} />}
+			{canAdmin && <WebhooksSection orgId={ws.orgId} workspaceId={ws.id} workspaceName={ws.name} />}
 
 			{canAdmin && (
 				<ActivityPanel

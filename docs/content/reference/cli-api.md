@@ -17,6 +17,7 @@ loco config --help
 | `locoadm bootstrap --file installation.yaml --email admin@example.com` | Create the first administrator through the installation's identity provider and save its CLI session |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
 | `locoadm recovery export` | Encrypt seal material and individual recovery shares for separate custodians |
+| `locoadm org limits get`, `set`, `unset` | Show or override an organization's [count limits](../operations/access.md#count-limits) |
 | `loco login`, `loco logout`, `loco whoami` | Sign in to a Loco instance, sign out, show the signed-in user |
 | `loco org`, `loco workspace`, `loco use` | Manage organizations and workspaces and choose the current one |
 | `loco infra init`, `validate`, `plan`, `apply`, `transfer` | Work with [`loco.yaml`](../deployment/loco-yaml.md) |

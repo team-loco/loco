@@ -79,9 +79,7 @@ test("describes the last error with the attempt count", () => {
 
 test("places only argument rejections under the URL field", () => {
 	expect(isUrlRejection(new ConnectError("use an https URL with a host name", Code.InvalidArgument))).toBe(true);
-	expect(isUrlRejection(new ConnectError("a workspace can have at most 10 webhooks", Code.FailedPrecondition))).toBe(
-		false,
-	);
+	expect(isUrlRejection(new ConnectError("count limit reached", Code.ResourceExhausted))).toBe(false);
 	expect(isUrlRejection(new Error("network down"))).toBe(false);
 });
 

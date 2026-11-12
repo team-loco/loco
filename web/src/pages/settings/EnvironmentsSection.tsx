@@ -27,6 +27,9 @@ import { environmentTypeLabel } from "@/hooks/useEnvironment";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { slug } from "@/lib/slug";
+import { LimitedAction } from "@/components/design/LimitedAction";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { limitReason, limitUsage } from "@/lib/limits";
 
 import { resourcesPerEnvironment } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
@@ -35,11 +38,13 @@ const TYPES = [EnvironmentType.STAGING, EnvironmentType.PRODUCTION];
 const MAX_DESCRIPTION = 256;
 
 export function EnvironmentsSection({
+	orgId,
 	workspaceId,
 	workspaceName,
 	canWrite,
 	canAdmin,
 }: {
+	orgId: string;
 	workspaceId: string;
 	workspaceName: string;
 	canWrite: boolean;
@@ -54,6 +59,12 @@ export function EnvironmentsSection({
 	const [deleting, setDeleting] = useState<Environment | null>(null);
 
 	const environments = envsQuery.data?.environments ?? [];
+	const limits = useOrgLimits(orgId);
+	const usage =
+		envsQuery.data === undefined
+			? null
+			: limitUsage(environments.length, limits?.environmentsPerWorkspace, "environments", "This workspace has");
+	const createBlocked = canWrite ? limitReason(usage) : `Requires Write on ${workspaceName}`;
 	const counts = resourcesPerEnvironment(resourcesQuery.data?.resources ?? []);
 	const envsKey = createConnectQueryKey({ schema: listEnvironments, input: { workspaceId }, cardinality: "finite" });
 	const permissionNote = !canWrite
@@ -89,17 +100,19 @@ export function EnvironmentsSection({
 		<SettingsSection
 			title="Environments"
 			actions={
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={!canWrite}
-					onClick={() => {
-						setEditing("new");
-					}}
-				>
-					<PlusIcon />
-					New environment
-				</Button>
+				<LimitedAction usage={usage} reason={createBlocked}>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={createBlocked !== null}
+						onClick={() => {
+							setEditing("new");
+						}}
+					>
+						<PlusIcon />
+						New environment
+					</Button>
+				</LimitedAction>
 			}
 		>
 			<SettingsCard className="pt-1">

@@ -28,6 +28,10 @@ import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { toastConnectError } from "@/lib/error-handler";
 import { domainCoverage } from "@/lib/platform-domain";
 import { slug } from "@/lib/slug";
+import { LimitedAction } from "@/components/design/LimitedAction";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { limitReason, limitUsage } from "@/lib/limits";
 
 import { MANAGED_NOTICE_ID } from "./ManagedNotice";
 import { SettingsBlock, type SectionProps } from "./SettingsSections";
@@ -225,6 +229,10 @@ function AddDomainForm({
 	const [subdomain, setSubdomain] = useState("");
 	const [picked, setPicked] = useState<string | null>(null);
 	const create = useMutation(createResourceDomain);
+	const { activeOrgId } = useOrgWorkspace();
+	const limits = useOrgLimits(activeOrgId ?? "");
+	const usage = limitUsage(own.length, limits?.domainsPerResource, "domains", "This resource has");
+	const blocked = limitReason(usage);
 	const served = options.filter((d) => domainCoverage(d.regions, running).missing.length === 0);
 	const platformDomain = (served.find((d) => d.domain === picked) ?? served[0])?.domain ?? "";
 	const check = useDomainAvailability(subdomain, platformDomain, own);
@@ -268,9 +276,15 @@ function AddDomainForm({
 				onSubdomainChange={setSubdomain}
 				onPlatformDomainChange={setPicked}
 			/>
-			<Button type="submit" variant="outline" disabled={locked || check.state !== "available" || create.isPending}>
-				Add
-			</Button>
+			<LimitedAction usage={usage} reason={blocked}>
+				<Button
+					type="submit"
+					variant="outline"
+					disabled={locked || check.state !== "available" || create.isPending || blocked !== null}
+				>
+					Add
+				</Button>
+			</LimitedAction>
 			{unserved && (
 				<span id={unservedId} className="w-full text-[12.5px] text-fg3">
 					No platform domain is served in every region of {resourceName}

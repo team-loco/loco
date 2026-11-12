@@ -12,13 +12,17 @@ import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { EmptyState } from "@/components/design/EmptyState";
+import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { limitReason, limitUsage } from "@/lib/limits";
+import { tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
 import { pagedRows } from "@/lib/paging";
 
@@ -43,6 +47,7 @@ export function Team() {
 	const meId = user?.id ?? "";
 	const scopes = useMyScopes();
 	const data = useTeamData(orgId);
+	const limits = useOrgLimits(orgId);
 	const now = useNow(NOW_TICK_MS).getTime();
 	const resend = useMutation(resendInvitation);
 	const changeRole = useMutation(setOrgMemberRole);
@@ -140,18 +145,30 @@ export function Team() {
 		}
 	};
 
-	const inviteTitle = canInvite ? undefined : "Only organization admins can invite members";
+	const memberUsage =
+		data.isLoading || data.error
+			? null
+			: limitUsage(data.members.length, limits?.membersPerOrg, "members", "This organization has");
+	const openInvitations = data.invitations.filter((i) => tsMs(i.expiresAt) > now).length;
+	const invitationUsage =
+		data.isLoading || data.error
+			? null
+			: limitUsage(openInvitations, limits?.invitationsPerOrg, "open invitations", "This organization has");
+	const inviteBlocked = canInvite
+		? (limitReason(memberUsage) ?? limitReason(invitationUsage))
+		: "Only organization admins can invite members";
 	const inviteButton = (
-		<Button
-			disabled={!canInvite}
-			title={inviteTitle}
-			onClick={() => {
-				setInviteOpen(true);
-			}}
-		>
-			<PlusIcon />
-			Invite
-		</Button>
+		<LimitedAction usage={memberUsage} reason={inviteBlocked}>
+			<Button
+				disabled={inviteBlocked !== null}
+				onClick={() => {
+					setInviteOpen(true);
+				}}
+			>
+				<PlusIcon />
+				Invite
+			</Button>
+		</LimitedAction>
 	);
 
 	const empty =
