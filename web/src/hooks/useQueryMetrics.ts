@@ -15,6 +15,7 @@ interface UseQueryMetricsOptions {
 	environmentId: string;
 	region?: string;
 	aggregation?: string;
+	attributes?: Record<string, string>;
 	enabled?: boolean;
 }
 export function metricsQueryOptions(
@@ -28,6 +29,7 @@ export function metricsQueryOptions(
 		environmentId,
 		region = "",
 		aggregation = "avg",
+		attributes = {},
 		enabled = true,
 	}: UseQueryMetricsOptions,
 ) {
@@ -38,6 +40,7 @@ export function metricsQueryOptions(
 		environmentId,
 		region,
 		aggregation,
+		attributes,
 		intervalSeconds: stepSeconds(spanMs),
 	};
 	return {

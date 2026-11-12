@@ -109,7 +109,12 @@ export function Dashboard() {
 				/>
 			) : (
 				<>
-					<Totals value={allocation(data.envResources)} hrefFor={hrefFor} />
+					<Totals
+						workspaceId={workspaceId}
+						environmentId={active.id}
+						value={allocation(data.envResources)}
+						hrefFor={hrefFor}
+					/>
 					<ResourcesTable
 						key={active.id}
 						items={[...data.envResources, ...draftItems(drafts, data.regions)]}

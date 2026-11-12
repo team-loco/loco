@@ -1,3 +1,8 @@
+import { useState } from "react";
+import { useTraffic } from "@/hooks/useTraffic";
+import { latestTraffic, errorShare, trafficValue } from "@/lib/traffic";
+import { RANGE_MS, METRIC_RANGES, type MetricRange } from "@/pages/resource/metric";
+import { getErrorMessage } from "@/lib/error-handler";
 import { ChevronDownIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
@@ -10,9 +15,6 @@ import { cn } from "@/lib/utils";
 
 import type { Allocation } from "./allocation";
 
-const RANGES = ["24h", "7d", "30d"];
-const DEFAULT_RANGE = "24h";
-const TRAFFIC = ["Requests", "Errors", "Bandwidth out"];
 const SPEND = "Spend";
 const TOP = 5;
 const PERCENT = 100;
@@ -169,13 +171,38 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 	);
 }
 
-export function Totals({ value, hrefFor }: { value: Allocation; hrefFor: (id: string) => string }) {
+export function Totals({
+	value,
+	hrefFor,
+	workspaceId,
+	environmentId,
+}: {
+	value: Allocation;
+	hrefFor: (id: string) => string;
+	workspaceId: string;
+	environmentId: string;
+}) {
+	const [range, setRange] = useState<MetricRange>("24h");
+	const traffic = useTraffic({ workspaceId, environmentId, resourceIds: [], spanMs: RANGE_MS[range] });
+	const latest = latestTraffic(traffic.points);
+	const cards = [
+		{ label: "Requests", value: trafficValue(latest?.requests, "/s") },
+		{ label: "Errors", value: trafficValue(errorShare(latest), "%") },
+		{ label: "Bandwidth out", value: trafficValue(latest?.bytes, " B/s") },
+	];
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-end gap-2">
-				<SoonTag />
-				<ToggleGroup variant="segmented" aria-label="Time range" disabled value={[DEFAULT_RANGE]}>
-					{RANGES.map((r) => (
+				<ToggleGroup
+					variant="segmented"
+					aria-label="Time range"
+					value={[range]}
+					onValueChange={(values) => {
+						const next = METRIC_RANGES.find((r) => r === values[0]);
+						if (next !== undefined) setRange(next);
+					}}
+				>
+					{METRIC_RANGES.map((r) => (
 						<ToggleGroupItem key={r} value={r}>
 							{r}
 						</ToggleGroupItem>
@@ -186,8 +213,14 @@ export function Totals({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 				aria-label="Totals"
 				className="grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] items-start gap-2.5"
 			>
-				{TRAFFIC.map((label) => (
-					<SoonCard key={label} label={label} />
+				{cards.map(({ label, value: shown }) => (
+					<div key={label} className={CARD}>
+						<CardHead label={label} />
+						<span className={VALUE}>{traffic.isLoading ? "…" : traffic.error !== null ? "—" : shown}</span>
+						<span className="text-[12px] text-fg3">
+							{traffic.error !== null ? getErrorMessage(traffic.error, "Failed to load traffic") : "Latest bucket"}
+						</span>
+					</div>
 				))}
 				<SoonCard label={SPEND} />
 				<AllocatedCard value={value} hrefFor={hrefFor} />

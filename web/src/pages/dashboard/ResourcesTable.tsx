@@ -1,3 +1,8 @@
+import { useTransport } from "@connectrpc/connect-query";
+import { useQuery } from "@tanstack/react-query";
+import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
+import { HOUR_MS } from "@/lib/obs-time";
+import { TRAFFIC_METRICS, latestTraffic, trafficPoints, trafficValue, type TrafficPoint } from "@/lib/traffic";
 import { useTable, type PaginationState, type SortingState } from "@tanstack/react-table";
 import { ArrowRightIcon, SearchXIcon, XIcon } from "lucide-react";
 import { createContext, use, useState } from "react";
@@ -110,6 +115,9 @@ function Regions({ item }: { item: DashboardItem }) {
 }
 
 interface DashboardCellValues {
+	traffic: TrafficPoint[];
+	trafficLoading: boolean;
+	trafficError: boolean;
 	orgId: string;
 	workspaceId: string;
 	envName: string;
@@ -208,6 +216,20 @@ function MenuCell({ item }: { item: DashboardItem }) {
 	return <DashboardRowMenu item={item} orgId={orgId} workspaceId={workspaceId} envName={envName} />;
 }
 
+function TrafficCell({ item }: { item: DashboardItem }) {
+	const { traffic, trafficLoading, trafficError } = useCells();
+	if (isDraftItem(item)) return <span className="text-fg3">—</span>;
+	const point = latestTraffic(traffic, item.resource.id);
+	return (
+		<span
+			className="font-mono text-[12px] whitespace-nowrap"
+			title={trafficError ? "Failed to load traffic" : "Latest request rate"}
+		>
+			{trafficLoading ? "…" : trafficError ? "Unavailable" : trafficValue(point?.requests, "/s")}
+		</span>
+	);
+}
+
 export const COLUMNS: DataColumn<DashboardItem>[] = [
 	{
 		id: "status",
@@ -241,7 +263,13 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		meta: { headClassName: "w-[110px]" },
 		cell: ({ row }) => <ReplicasCell item={row.original} />,
 	},
-	{ id: "traffic", header: "Traffic", enableSorting: false, meta: { headClassName: "w-[90px]", soon: true } },
+	{
+		id: "traffic",
+		header: "Traffic",
+		enableSorting: false,
+		meta: { headClassName: "w-[90px]" },
+		cell: ({ row }) => <TrafficCell item={row.original} />,
+	},
 	{
 		id: "last",
 		header: "Last deploy",
@@ -287,6 +315,17 @@ export function ResourcesTable({
 	nowMs: number;
 	hrefFor: (id: string) => string;
 }) {
+	const transport = useTransport();
+	const traffic = useQuery(
+		metricsQueryOptions(transport, {
+			workspaceId,
+			environmentId,
+			resourceIds: [],
+			...TRAFFIC_METRICS[0],
+			spanMs: HOUR_MS,
+		}),
+	);
+	const trafficData = trafficPoints([traffic.data ?? []]);
 	const [params, setParams] = useSearchParams();
 	const isMap = params.get(VIEW_PARAM) === MAP_VIEW;
 	const setView = (view: string) => {
@@ -459,7 +498,18 @@ export function ResourcesTable({
 				)
 			) : (
 				<>
-					<DashboardCellContext value={{ orgId, workspaceId, envName, nowMs, hrefFor: itemHref }}>
+					<DashboardCellContext
+						value={{
+							orgId,
+							workspaceId,
+							envName,
+							nowMs,
+							hrefFor: itemHref,
+							traffic: trafficData,
+							trafficLoading: traffic.isLoading,
+							trafficError: traffic.error !== null,
+						}}
+					>
 						<DataTable table={table} className="min-w-[820px] table-fixed" empty={empty} />
 					</DashboardCellContext>
 					<DataTablePager table={table} pageSizes={[PAGE_SIZE]} empty={`0 of ${items.length.toString()}`} />
