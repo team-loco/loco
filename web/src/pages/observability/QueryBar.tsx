@@ -74,7 +74,7 @@ function placeholder(view: string): string {
 		case "logs":
 			return "Search messages, or type @ to filter by resource, level, replica…";
 		case "traces":
-			return "Search span names, or type @ to filter by resource, status, trace…";
+			return "Search root span names, or type @ to filter by resource, status, trace…";
 		case "events":
 			return "Search events, or type @ to filter by resource or type";
 		default:

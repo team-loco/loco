@@ -62,7 +62,7 @@ def handle(route):
     if mode[0] == 'empty':
         route.fulfill(json={'spans': []})
         return
-    if mode[0] == 'many':
+    if mode[0] == 'many' and 'summary' not in body:
         route.fulfill(json={'spans': spans + [dict(spans[5],spanId=f'{index + 256:016x}') for index in range(100)]})
         return
     if 'summary' in body:
