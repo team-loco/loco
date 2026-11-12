@@ -23,6 +23,7 @@ nav = [
     { "Applications" = "operations/applications.md" },
     { "Organizations and access" = "operations/access.md" },
     { "Self-hosting" = "operations/self-hosting.md" },
+    { "Webhooks" = "operations/webhooks.md" },
     { "Secrets key provider" = "operations/secrets-key-provider.md" },
   ] },
   { "Reference" = [

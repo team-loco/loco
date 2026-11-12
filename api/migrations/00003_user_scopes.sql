@@ -88,9 +88,7 @@ CREATE TABLE invitations (
     expires_at TIMESTAMPTZ NOT NULL,
     claimed_by UUID REFERENCES users(id),
     claimed_at TIMESTAMPTZ,
-    revoked_at TIMESTAMPTZ,
-    delivered_at TIMESTAMPTZ,
-    delivery_error TEXT
+    revoked_at TIMESTAMPTZ
 );
 
 CREATE UNIQUE INDEX invitations_open_idx ON invitations (org_id, lower(email)) WHERE claimed_at IS NULL AND revoked_at IS NULL;

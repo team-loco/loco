@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db"
-	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -139,7 +138,6 @@ const (
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 	defaultInvitationTTL             = 168 * time.Hour
-	defaultEmailTimeout              = 10 * time.Second
 
 	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
 	minBootstrapTokenLength    = 32
@@ -366,18 +364,9 @@ func newWebhookConfig() webhooks.Config {
 }
 
 func newInvitationConfig(webURL string) service.InvitationConfig {
-	transport, err := mail.ParseTransport(
-		envconfig.String("EMAIL_TRANSPORT", ""),
-		envconfig.String("EMAIL_HOOK_SECRET", ""),
-		envconfig.PositiveDuration("EMAIL_TIMEOUT", defaultEmailTimeout),
-	)
-	if err != nil {
-		panic(err)
-	}
 	return service.InvitationConfig{
-		Transport: transport,
-		TTL:       envconfig.PositiveDuration("INVITATION_TTL", defaultInvitationTTL),
-		WebURL:    webURL,
+		TTL:    envconfig.PositiveDuration("INVITATION_TTL", defaultInvitationTTL),
+		WebURL: webURL,
 	}
 }
 

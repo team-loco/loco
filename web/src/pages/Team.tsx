@@ -24,7 +24,7 @@ import { usePagedRows } from "@/lib/paging";
 
 import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
-import { buildRows, invitationBadge, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
+import { buildRows, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
 import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
@@ -79,9 +79,8 @@ export function Team() {
 
 	const doResend = async (invitation: Invitation) => {
 		try {
-			const res = await resend.mutateAsync({ id: invitation.id });
-			const label = res.invitation === undefined ? "Invite sent" : invitationBadge(res.invitation.status).label;
-			toast(`${invitation.email}: ${label}`);
+			await resend.mutateAsync({ id: invitation.id });
+			toast(`Invitation renewed for ${invitation.email}`);
 		} catch (err) {
 			toastConnectError(err, "Failed to resend the invitation");
 		} finally {

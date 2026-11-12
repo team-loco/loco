@@ -557,17 +557,15 @@ type Identity struct {
 }
 
 type Invitation struct {
-	ID            uuid.UUID  `json:"id"`
-	OrgID         uuid.UUID  `json:"orgId"`
-	Email         string     `json:"email"`
-	InvitedBy     uuid.UUID  `json:"invitedBy"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	ExpiresAt     time.Time  `json:"expiresAt"`
-	ClaimedBy     *uuid.UUID `json:"claimedBy"`
-	ClaimedAt     *time.Time `json:"claimedAt"`
-	RevokedAt     *time.Time `json:"revokedAt"`
-	DeliveredAt   *time.Time `json:"deliveredAt"`
-	DeliveryError *string    `json:"deliveryError"`
+	ID        uuid.UUID  `json:"id"`
+	OrgID     uuid.UUID  `json:"orgId"`
+	Email     string     `json:"email"`
+	InvitedBy uuid.UUID  `json:"invitedBy"`
+	CreatedAt time.Time  `json:"createdAt"`
+	ExpiresAt time.Time  `json:"expiresAt"`
+	ClaimedBy *uuid.UUID `json:"claimedBy"`
+	ClaimedAt *time.Time `json:"claimedAt"`
+	RevokedAt *time.Time `json:"revokedAt"`
 }
 
 type Organization struct {

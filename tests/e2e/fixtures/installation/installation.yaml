@@ -20,8 +20,6 @@ controlPlane:
   registry:
     endpoint: http://registry.installation.localhost:5000
     credentialsSecretRef: {name: fixture-inputs}
-  email:
-    transportSecretRef: {name: fixture-inputs, key: email-transport}
   openbao:
     managed: true
     seal: {type: static}

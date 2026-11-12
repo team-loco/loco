@@ -132,7 +132,7 @@ func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
 
 func newMembershipOrg(t *testing.T) *membershipOrg {
 	t.Helper()
-	return newInvitationOrg(t, &fakeTransport{})
+	return newInvitationOrg(t)
 }
 
 func newMembershipOrgWith(t *testing.T, invitations InvitationConfig) *membershipOrg {

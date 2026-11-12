@@ -1,8 +1,6 @@
 package installation
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,7 +14,6 @@ import (
 )
 
 const testInputSecret = "inputs"
-const testEmailTransportKey = "email-transport"
 
 func TestInputCredentialsUseOneSecretVersionPerOperation(t *testing.T) {
 	var reads atomic.Int32
@@ -41,12 +38,6 @@ func TestInputCredentialsUseOneSecretVersionPerOperation(t *testing.T) {
 		}
 		for key, value := range inputs {
 			want := fmt.Sprintf("generation-%d", operation)
-			if key == testEmailTransportKey {
-				want = "https://" + want
-			}
-			if key == envEmailHookSecret {
-				want = string(fixtureInputData(want)[emailHookSecretKey])
-			}
 			if string(value) != want {
 				t.Errorf("operation %d input %s = %q, want %s", operation, key, value, want)
 			}
@@ -62,7 +53,6 @@ func fixtureInputReferences() ControlPlane {
 		Database:     Database{SecretRef: SecretKeyRef{Name: testInputSecret, Key: "database-url"}},
 		SourceBucket: Bucket{CredentialsSecretRef: SecretRef{Name: testInputSecret}},
 		Registry:     Registry{CredentialsSecretRef: SecretRef{Name: testInputSecret}},
-		Email:        Email{TransportSecretRef: SecretKeyRef{Name: testInputSecret, Key: testEmailTransportKey}},
 		OpenBao:      OpenBao{Snapshots: Bucket{CredentialsSecretRef: SecretRef{Name: testInputSecret}}},
 	}
 }
@@ -71,12 +61,9 @@ func fixtureInputData(value string) map[string][]byte {
 	data := map[string][]byte{}
 	for _, key := range []string{
 		"database-url", "access-key-id", "secret-access-key", "api-username", "api-password",
-		"push-username", "push-password", "pull-username", "pull-password", testEmailTransportKey,
+		"push-username", "push-password", "pull-username", "pull-password",
 	} {
 		data[key] = []byte(value)
 	}
-	data[testEmailTransportKey] = []byte("https://" + value)
-	key := sha256.Sum256([]byte(value))
-	data[emailHookSecretKey] = []byte("whsec_" + base64.StdEncoding.EncodeToString(key[:]))
 	return data
 }

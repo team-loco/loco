@@ -1,7 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { InvitationStatus, type Invitation, type OrgMember } from "@gen/loco/org/v1/org_pb";
+import type { Invitation, OrgMember } from "@gen/loco/org/v1/org_pb";
 
-import type { BadgeTone } from "@/components/design/Badge";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DAY_MS, tsMs } from "@/lib/time";
@@ -124,25 +123,6 @@ export function inviteFailure(email: string, err: unknown): InviteOutcome {
 	const message = getErrorMessage(err, "Failed to send the invitation");
 	if (err instanceof ConnectError && err.code === Code.AlreadyExists) return { kind: "exists", email, message };
 	return { kind: "failed", email, message };
-}
-
-export function invitationBadge(status: InvitationStatus): { label: string; tone: BadgeTone } {
-	switch (status) {
-		case InvitationStatus.EMAILED:
-			return { label: "Invite sent", tone: "info" };
-		case InvitationStatus.FAILED:
-			return { label: "Delivery failed", tone: "bad" };
-		case InvitationStatus.NO_TRANSPORT:
-			return { label: "Not emailed", tone: "neutral" };
-		case InvitationStatus.EXPIRED:
-			return { label: "Expired", tone: "muted" };
-		case InvitationStatus.UNSPECIFIED:
-			return { label: "Unknown", tone: "muted" };
-	}
-}
-
-export function needsSharedLink(status: InvitationStatus): boolean {
-	return status === InvitationStatus.NO_TRANSPORT || status === InvitationStatus.FAILED;
 }
 
 export function untilLabel(ms: number, now: number): string {

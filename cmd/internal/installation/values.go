@@ -18,11 +18,6 @@ api:
   existingSecret: loco-api-env
   bootstrapToken:
     existingSecret: {name: {{quote .Bootstrap}}, key: token}
-  email:
-    transport:
-      existingSecret:
-        name: {{quote .Config.ControlPlane.Email.TransportSecretRef.Name}}
-        key: {{quote .Config.ControlPlane.Email.TransportSecretRef.Key}}
   env:
     WEB_URL: {{quote .Config.ControlPlane.WebURL}}
     CORS_ALLOWED_ORIGINS: {{quote .Config.ControlPlane.WebURL}}

@@ -19,7 +19,7 @@ WHERE id = $2
   AND claimed_at IS NULL
   AND revoked_at IS NULL
   AND expires_at > NOW()
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type ClaimInvitationParams struct {
@@ -40,8 +40,6 @@ func (q *Queries) ClaimInvitation(ctx context.Context, arg ClaimInvitationParams
 		&i.ClaimedBy,
 		&i.ClaimedAt,
 		&i.RevokedAt,
-		&i.DeliveredAt,
-		&i.DeliveryError,
 	)
 	return i, err
 }
@@ -49,7 +47,7 @@ func (q *Queries) ClaimInvitation(ctx context.Context, arg ClaimInvitationParams
 const createInvitation = `-- name: CreateInvitation :one
 INSERT INTO invitations (org_id, email, invited_by, expires_at)
 VALUES ($1, $2, $3, $4)
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type CreateInvitationParams struct {
@@ -77,8 +75,6 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 		&i.ClaimedBy,
 		&i.ClaimedAt,
 		&i.RevokedAt,
-		&i.DeliveredAt,
-		&i.DeliveryError,
 	)
 	return i, err
 }
@@ -87,7 +83,7 @@ const extendInvitation = `-- name: ExtendInvitation :one
 UPDATE invitations
 SET expires_at = $2
 WHERE id = $1 AND claimed_at IS NULL AND revoked_at IS NULL
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type ExtendInvitationParams struct {
@@ -108,14 +104,12 @@ func (q *Queries) ExtendInvitation(ctx context.Context, arg ExtendInvitationPara
 		&i.ClaimedBy,
 		&i.ClaimedAt,
 		&i.RevokedAt,
-		&i.DeliveredAt,
-		&i.DeliveryError,
 	)
 	return i, err
 }
 
 const getInvitation = `-- name: GetInvitation :one
-SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error FROM invitations WHERE id = $1
+SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at FROM invitations WHERE id = $1
 `
 
 func (q *Queries) GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error) {
@@ -131,8 +125,6 @@ func (q *Queries) GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, 
 		&i.ClaimedBy,
 		&i.ClaimedAt,
 		&i.RevokedAt,
-		&i.DeliveredAt,
-		&i.DeliveryError,
 	)
 	return i, err
 }
@@ -158,7 +150,7 @@ func (q *Queries) GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (
 }
 
 const listOpenInvitationsForEmail = `-- name: ListOpenInvitationsForEmail :many
-SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 FROM invitations
 WHERE lower(email) = lower($1)
   AND claimed_at IS NULL
@@ -186,8 +178,6 @@ func (q *Queries) ListOpenInvitationsForEmail(ctx context.Context, email string)
 			&i.ClaimedBy,
 			&i.ClaimedAt,
 			&i.RevokedAt,
-			&i.DeliveredAt,
-			&i.DeliveryError,
 		); err != nil {
 			return nil, err
 		}
@@ -200,7 +190,7 @@ func (q *Queries) ListOpenInvitationsForEmail(ctx context.Context, email string)
 }
 
 const listOrgInvitations = `-- name: ListOrgInvitations :many
-SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 FROM invitations
 WHERE org_id = $1
   AND claimed_at IS NULL
@@ -245,8 +235,6 @@ func (q *Queries) ListOrgInvitations(ctx context.Context, arg ListOrgInvitations
 			&i.ClaimedBy,
 			&i.ClaimedAt,
 			&i.RevokedAt,
-			&i.DeliveredAt,
-			&i.DeliveryError,
 		); err != nil {
 			return nil, err
 		}
@@ -266,7 +254,7 @@ WHERE org_id = $1
   AND claimed_at IS NULL
   AND revoked_at IS NULL
   AND expires_at <= NOW()
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type RevokeExpiredInvitationsParams struct {
@@ -293,8 +281,6 @@ func (q *Queries) RevokeExpiredInvitations(ctx context.Context, arg RevokeExpire
 			&i.ClaimedBy,
 			&i.ClaimedAt,
 			&i.RevokedAt,
-			&i.DeliveredAt,
-			&i.DeliveryError,
 		); err != nil {
 			return nil, err
 		}
@@ -310,7 +296,7 @@ const revokeInvitation = `-- name: RevokeInvitation :one
 UPDATE invitations
 SET revoked_at = NOW()
 WHERE id = $1 AND claimed_at IS NULL AND revoked_at IS NULL
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 func (q *Queries) RevokeInvitation(ctx context.Context, id uuid.UUID) (Invitation, error) {
@@ -326,35 +312,6 @@ func (q *Queries) RevokeInvitation(ctx context.Context, id uuid.UUID) (Invitatio
 		&i.ClaimedBy,
 		&i.ClaimedAt,
 		&i.RevokedAt,
-		&i.DeliveredAt,
-		&i.DeliveryError,
 	)
 	return i, err
-}
-
-const setInvitationDelivered = `-- name: SetInvitationDelivered :exec
-UPDATE invitations
-SET delivered_at = NOW(), delivery_error = NULL
-WHERE id = $1
-`
-
-func (q *Queries) SetInvitationDelivered(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, setInvitationDelivered, id)
-	return err
-}
-
-const setInvitationDeliveryError = `-- name: SetInvitationDeliveryError :exec
-UPDATE invitations
-SET delivery_error = $2, delivered_at = NULL
-WHERE id = $1
-`
-
-type SetInvitationDeliveryErrorParams struct {
-	ID            uuid.UUID `json:"id"`
-	DeliveryError *string   `json:"deliveryError"`
-}
-
-func (q *Queries) SetInvitationDeliveryError(ctx context.Context, arg SetInvitationDeliveryErrorParams) error {
-	_, err := q.db.Exec(ctx, setInvitationDeliveryError, arg.ID, arg.DeliveryError)
-	return err
 }

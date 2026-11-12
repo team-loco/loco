@@ -41,7 +41,6 @@ func run() error {
 	}
 	options := flag.NewFlagSet(suiteName, flag.ContinueOnError)
 	options.SetOutput(io.Discard)
-	mail := options.Bool("mail-sink", false, "Serve the external fixture email transport")
 	client := options.Bool("client", false, "Run operator acceptance inside the fixture pod")
 	keep := options.Bool("no-teardown", false, "Keep this suite's kind cluster for inspection")
 	skip := options.Bool("skip-build", false, "Reuse this suite's built images and binaries")
@@ -57,9 +56,6 @@ func run() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if *mail {
-		return mailSink(ctx)
-	}
 	if *client {
 		return clientAcceptance(ctx)
 	}

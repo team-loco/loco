@@ -23,7 +23,6 @@ import (
 )
 
 const (
-	statusEmailed         = "emailed"
 	testInvitationOrgID   = "00000000-0000-7000-8000-0000000000a1"
 	testInvitationOrgName = "acme"
 	testOtherOrgID        = "00000000-0000-7000-8000-0000000000a2"
@@ -42,8 +41,6 @@ type invitationServer struct {
 	t          *testing.T
 	mu         sync.Mutex
 	credential string
-	status     orgv1.InvitationStatus
-	failure    string
 	pages      [][]*orgv1.Invitation
 	listCalls  int
 	revoked    []string
@@ -92,11 +89,9 @@ func (s *invitationServer) InviteOrgMember(
 	}
 	s.invited = append(s.invited, req.GetEmail())
 	return &orgv1.InviteOrgMemberResponse{Invitation: &orgv1.Invitation{
-		Id:            testInvitationID,
-		Email:         req.GetEmail(),
-		Status:        s.status,
-		DeliveryError: s.failure,
-		Link:          testInviteLink,
+		Id:    testInvitationID,
+		Email: req.GetEmail(),
+		Link:  testInviteLink,
 	}}, nil
 }
 
@@ -169,50 +164,35 @@ func runInvitationCmd(
 	return output.String(), err
 }
 
-func TestInviteReportsDeliveryStatus(t *testing.T) {
-	cases := []struct {
-		name    string
-		status  orgv1.InvitationStatus
-		failure string
-		want    string
-	}{
-		{"emailed", orgv1.InvitationStatus_INVITATION_STATUS_EMAILED, "", statusEmailed},
-		{"failed", orgv1.InvitationStatus_INVITATION_STATUS_FAILED, "relay refused", "email failed: relay refused"},
-		{"no transport", orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT, "", "no email transport configured"},
+func TestInviteReturnsTheLink(t *testing.T) {
+	fake := &invitationServer{}
+	output, err := runInvitationCmd(t, fake, buildInviteCmd, testInviteeEmail)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			fake := &invitationServer{status: tc.status, failure: tc.failure}
-			output, err := runInvitationCmd(t, fake, buildInviteCmd, testInviteeEmail)
-			if err != nil {
-				t.Fatal(err)
-			}
-			want := "Invited " + testInviteeEmail + ": " + tc.want + "\nLink: " + testInviteLink + "\n"
-			if output != want {
-				t.Fatalf("output = %q, want %q", output, want)
-			}
-			if len(fake.invited) != 1 || fake.invited[0] != testInviteeEmail {
-				t.Fatalf("invited = %v", fake.invited)
-			}
-		})
+	want := "Invited " + testInviteeEmail + "\nLink: " + testInviteLink + "\n"
+	if output != want {
+		t.Fatalf("output = %q, want %q", output, want)
+	}
+	if len(fake.invited) != 1 || fake.invited[0] != testInviteeEmail {
+		t.Fatalf("invited = %v", fake.invited)
 	}
 }
 
 func TestInvitationsListsEveryPage(t *testing.T) {
-	invitation := func(id, email string, status orgv1.InvitationStatus) *orgv1.Invitation {
+	invitation := func(id, email string) *orgv1.Invitation {
 		return &orgv1.Invitation{
 			Id:        id,
 			Email:     email,
 			InvitedBy: &orgv1.User{Email: testInviterEmail},
 			ExpiresAt: timestamppb.New(testInvitationExpiry),
-			Status:    status,
 		}
 	}
 	fake := &invitationServer{pages: [][]*orgv1.Invitation{
-		{invitation("id-1", "a@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_EMAILED)},
+		{invitation("id-1", "a@acme.test")},
 		{
-			invitation("id-2", "b@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT),
-			invitation("id-3", "c@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED),
+			invitation("id-2", "b@acme.test"),
+			invitation("id-3", "c@acme.test"),
 		},
 	}}
 	output, err := runInvitationCmd(t, fake, buildInvitationsCmd)
@@ -225,10 +205,10 @@ func TestInvitationsListsEveryPage(t *testing.T) {
 	}
 	expires := testInvitationExpiry.Format(invitationTimeLayout)
 	for i, want := range [][]string{
-		{"ID", "EMAIL", "INVITED BY", "EXPIRES", "STATUS"},
-		{"id-1", "a@acme.test", testInviterEmail, expires, "emailed"},
-		{"id-2", "b@acme.test", testInviterEmail, expires, "no email transport configured"},
-		{"id-3", "c@acme.test", testInviterEmail, expires, "expired"},
+		{"ID", "EMAIL", "INVITED BY", "EXPIRES"},
+		{"id-1", "a@acme.test", testInviterEmail, expires},
+		{"id-2", "b@acme.test", testInviterEmail, expires},
+		{"id-3", "c@acme.test", testInviterEmail, expires},
 	} {
 		if got := strings.Join(strings.Fields(lines[i]), " "); got != strings.Join(want, " ") {
 			t.Errorf("line %d = %q, want %q", i, got, strings.Join(want, " "))

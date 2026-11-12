@@ -194,7 +194,7 @@ func TestAuditProtectedOperatorFiles(t *testing.T) {
 }
 
 func TestAuditCredentialURLs(t *testing.T) {
-	for _, key := range []string{"email-transport", "database-url", "DATABASE_URL", "url"} {
+	for _, key := range []string{"database-url", "DATABASE_URL", "url"} {
 		t.Run(key, func(t *testing.T) {
 			transport := []byte("https://notifications:" + testCanary + "@mail.example.test")
 			secret := auditSecret{Data: map[string][]byte{key: transport}}

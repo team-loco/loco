@@ -15,7 +15,6 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		Auth:          Auth{Issuer: "https://auth.example.com", ClientID: canary},
 		SourceBucket:  Bucket{Bucket: canary, Endpoint: "https://s3.example.com", Region: canary},
 		Registry:      Registry{Endpoint: "https://registry.example.com"},
-		Email:         Email{TransportSecretRef: SecretKeyRef{Name: "mail", Key: "transport"}},
 		Observability: Observability{IngestURL: "https://ingest.example.com"},
 	}}
 	data, err := controlPlaneValues(config, releaseFixture(), false)
