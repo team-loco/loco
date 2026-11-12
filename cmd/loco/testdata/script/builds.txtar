@@ -17,6 +17,9 @@ stdout '0000000000b2'
 stdout '0000000000b0'
 
 
+exec loco builds list app --limit 1001
+stdout '0000000000b0'
+
 exec loco builds list app --output json
 stdout '"builds":'
 stdout '"BUILD_STATUS_SUCCEEDED"'

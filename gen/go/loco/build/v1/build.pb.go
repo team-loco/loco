@@ -928,12 +928,11 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\x0fGetBuildRequest\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\">\n" +
 	"\x10GetBuildResponse\x12*\n" +
-	"\x05build\x18\x01 \x01(\v2\x14.loco.build.v1.BuildR\x05build\"\x86\x01\n" +
+	"\x05build\x18\x01 \x01(\v2\x14.loco.build.v1.BuildR\x05build\"\x83\x01\n" +
 	"\x11ListBuildsRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12'\n" +
-	"\tpage_size\x18\x02 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
+	"resourceId\x12$\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"j\n" +
 	"\x12ListBuildsResponse\x12,\n" +

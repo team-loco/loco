@@ -422,3 +422,24 @@ func (s scopeInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
 		return next(reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: s()}), spec, stream)
 	}
 }
+
+func TestListEventsCapsRemainingUserLimit(t *testing.T) {
+	f := newEventFixture(t)
+	orgID := uuid.MustParse(f.orgID)
+	for range maxPageSize {
+		if err := events.Record(f.owner, f.queries, events.Event{Type: events.OrgUpdated, OrgID: &orgID}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID, PageSize: 1001})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetEvents()) != maxPageSize || response.GetNextBeforeSeq() == 0 {
+		t.Fatalf(
+			"got %d events, next=%d, want capped page with cursor",
+			len(response.GetEvents()),
+			response.GetNextBeforeSeq(),
+		)
+	}
+}

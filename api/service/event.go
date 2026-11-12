@@ -116,6 +116,7 @@ func (s *EventServer) ListEvents(
 	if pageSize == 0 {
 		pageSize = defaultEventPage
 	}
+	pageSize = min(pageSize, maxPageSize)
 	rows, err := s.listAuditEvents(ctx, req, scope, pageSize+1)
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
