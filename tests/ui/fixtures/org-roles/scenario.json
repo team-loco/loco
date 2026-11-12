@@ -1,10 +1,11 @@
 {
   "users": {
     "owner": {"email": "owner@acme.test", "name": "Olivia Owner"},
-    "member": {"email": "member@acme.test", "name": "Max Member"}
+    "member": {"email": "member@acme.test", "name": "Max Member"},
+    "leaver": {"email": "leaver@acme.test", "name": "Lee Leaver"}
   },
   "orgs": [
-    {"name": "acme", "owner": "owner", "members": ["member"], "workspaces": ["shared", "sibling"]}
+    {"name": "acme", "owner": "owner", "members": ["member", "leaver"], "workspaces": ["shared", "sibling"]}
   ],
   "grants": [
     {"user": "member", "workspace": "acme/shared", "scopes": ["read", "write"]}
