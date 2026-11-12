@@ -15,6 +15,37 @@ import (
 
 const knownTraceID = "0123456789abcdef0123456789abcdef"
 
+func TestGetTraceQueryUsesScopedTimestampBounds(t *testing.T) {
+	req := &observabilityv1.GetTraceRequest{
+		Scope: &observabilityv1.TraceScope{
+			WorkspaceId:   testWorkspaceID,
+			ResourceIds:   []string{testResourceID, testWorkerResourceID},
+			EnvironmentId: testEnvironmentID,
+		},
+		TraceId: knownTraceID,
+	}
+	lookup, query, args := buildGetTraceQueries(req, testQueryTimeout)
+	if !strings.Contains(lookup, "SELECT count(), min(Start), max(End) FROM otel_traces_trace_id_ts") {
+		t.Fatalf("trace lookup missing: %s", lookup)
+	}
+	for _, sql := range []string{lookup, query} {
+		for _, clause := range []string{"WorkspaceId = ?", "ResourceId IN (?,?)", "EnvironmentId = ?", "TraceId = ?"} {
+			if !strings.Contains(sql, clause) {
+				t.Fatalf("query missing tenancy/trace clause %q: %s", clause, sql)
+			}
+		}
+	}
+	for _, bound := range []string{"Timestamp >= fromUnixTimestamp64Nano(?)", "Timestamp < fromUnixTimestamp64Nano(?)"} {
+		if !strings.Contains(query, bound) {
+			t.Fatalf("unbounded trace query: %s", query)
+		}
+	}
+	want := []any{testWorkspaceID, testResourceID, testWorkerResourceID, testEnvironmentID, knownTraceID}
+	if !slices.Equal(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
+	}
+}
+
 func TestGetTraceReturnsAllScopedSpans(t *testing.T) {
 	f, list := newTraceSummaryFixture(t)
 	// A trace can outlive the list window and the configured list page size.

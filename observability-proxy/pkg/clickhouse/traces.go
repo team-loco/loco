@@ -30,14 +30,17 @@ func (c *Client) GetTrace(
 	ctx context.Context,
 	req *observabilityv1.GetTraceRequest,
 ) (*observabilityv1.GetTraceResponse, error) {
-	where, args := traceScope(req.GetScope())
-	where = append(where, "TraceId = ?")
-	args = append(args, req.GetTraceId())
-	query := "SELECT Timestamp, TraceId, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, " +
-		"Duration, StatusCode, StatusMessage, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes, " +
-		"SpanAttributes, ScopeName, ScopeVersion, Events.Timestamp, Events.Name, Events.Attributes " +
-		"FROM otel_traces WHERE " + strings.Join(where, " AND ") + " ORDER BY Timestamp ASC, SpanId ASC"
-	query = fmt.Sprintf("%s SETTINGS max_execution_time = %d", query, int(c.queryTimeout.Seconds()))
+	lookup, query, args := buildGetTraceQueries(req, c.queryTimeout)
+	var count uint64
+	var start, end time.Time
+	if err := c.conn.QueryRow(ctx, lookup, args...).Scan(&count, &start, &end); err != nil {
+		return nil, fmt.Errorf("look up trace timestamps: %w", err)
+	}
+	if count == 0 {
+		return &observabilityv1.GetTraceResponse{}, nil
+	}
+	// The lookup stores whole seconds, so include the fractional part of its final second.
+	args = append(args, start.UnixNano(), end.Add(time.Second).UnixNano())
 	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse trace query: %w", err)
@@ -82,6 +85,22 @@ func (c *Client) GetTrace(
 		return nil, fmt.Errorf("trace rows iteration: %w", err)
 	}
 	return response, nil
+}
+
+func buildGetTraceQueries(req *observabilityv1.GetTraceRequest, timeout time.Duration) (string, string, []any) {
+	where, args := traceScope(req.GetScope())
+	where = append(where, "TraceId = ?")
+	args = append(args, req.GetTraceId())
+	predicates := strings.Join(where, " AND ")
+	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(timeout.Seconds()))
+	lookup := "SELECT count(), min(Start), max(End) FROM otel_traces_trace_id_ts WHERE " + predicates + settings
+	query := "SELECT Timestamp, TraceId, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, " +
+		"Duration, StatusCode, StatusMessage, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes, " +
+		"SpanAttributes, ScopeName, ScopeVersion, Events.Timestamp, Events.Name, Events.Attributes " +
+		"FROM otel_traces WHERE " + predicates +
+		" AND Timestamp >= fromUnixTimestamp64Nano(?) AND Timestamp < fromUnixTimestamp64Nano(?)" +
+		" ORDER BY Timestamp ASC, SpanId ASC" + settings
+	return lookup, query, args
 }
 
 // spanEvents zips the Events nested columns, whose arrays ClickHouse keeps equal in length.
