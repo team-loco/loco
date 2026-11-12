@@ -1,5 +1,4 @@
 import { PlusIcon, XIcon } from "lucide-react";
-import { useState } from "react";
 
 import {
 	DropdownMenu,
@@ -13,23 +12,15 @@ import { Button } from "@/components/design/Button";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import {
-	clampWidth,
-	columnLabel,
-	columnValue,
-	columnWidth,
-	PICKABLE_COLUMNS,
-	type ColumnKey,
-	type ColumnWidths,
-} from "./columns";
+import { columnLabel, columnValue, columnWidth, PICKABLE_COLUMNS, type ColumnKey, type ColumnWidths } from "./columns";
 import { bodyParts, fmtTs, jsonPreview, levelStyle } from "./format";
+import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import type { LogRow } from "./rows";
 
 const TIME_WIDTH = 176;
 const COMPACT_TIME_WIDTH = 124;
 const MESSAGE_MIN = "minmax(260px,1fr)";
 const ADD_WIDTH = 36;
-const RESIZE_STEP = 16;
 
 export function LogTable({
 	rows,
@@ -54,11 +45,7 @@ export function LogTable({
 	onSelect: (key: string) => void;
 	onColumns: (next: ColumnKey[]) => void;
 }) {
-	const [drag, setDrag] = useState<{ key: ColumnKey; startX: number; start: number; width: number } | null>(null);
-	const live = drag === null ? widths : { ...widths, [drag.key]: drag.width };
-	const resize = (key: ColumnKey, width: number) => {
-		onWidths({ ...widths, [key]: clampWidth(width) });
-	};
+	const { live, handle } = useResizableColumns(widths, onWidths, columnWidth);
 	const grid = [
 		`${String(compact ? COMPACT_TIME_WIDTH : TIME_WIDTH)}px`,
 		...columns.map((c) => `${String(columnWidth(c, live))}px`),
@@ -69,10 +56,7 @@ export function LogTable({
 	return (
 		<div className="w-max min-w-full">
 			<div>
-				<div
-					className="grid h-[38px] items-center border-b border-line2 text-[12px] text-fg3"
-					style={{ gridTemplateColumns: grid }}
-				>
+				<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
 					<span className="px-3">Time</span>
 					{columns.map((c) => (
 						<span key={c} className="group/col relative flex min-w-0 items-center gap-1 px-3">
@@ -87,37 +71,7 @@ export function LogTable({
 							>
 								<XIcon className="size-3" />
 							</button>
-							<span
-								role="separator"
-								tabIndex={0}
-								aria-orientation="vertical"
-								aria-label={`Resize column ${columnLabel(c)}`}
-								aria-valuenow={columnWidth(c, live)}
-								className="absolute top-1.5 -right-1 bottom-1.5 z-10 w-2 cursor-col-resize touch-none after:absolute after:inset-y-0 after:left-[3px] after:w-px after:bg-line2 hover:after:bg-fg4 focus-visible:outline-none focus-visible:after:bg-ring"
-								onPointerDown={(event) => {
-									event.currentTarget.setPointerCapture(event.pointerId);
-									const start = columnWidth(c, widths);
-									setDrag({ key: c, startX: event.clientX, start, width: start });
-								}}
-								onPointerMove={(event) => {
-									if (drag?.key !== c) return;
-									setDrag({ ...drag, width: clampWidth(drag.start + event.clientX - drag.startX) });
-								}}
-								onPointerUp={() => {
-									if (drag?.key !== c) return;
-									setDrag(null);
-									resize(c, drag.width);
-								}}
-								onPointerCancel={() => {
-									setDrag(null);
-								}}
-								onKeyDown={(event) => {
-									const step = event.key === "ArrowRight" ? RESIZE_STEP : event.key === "ArrowLeft" ? -RESIZE_STEP : 0;
-									if (step === 0) return;
-									event.preventDefault();
-									resize(c, columnWidth(c, widths) + step);
-								}}
-							/>
+							{handle(c, columnLabel(c))}
 						</span>
 					))}
 					<span className="px-3">Message</span>
@@ -166,12 +120,7 @@ export function LogTable({
 							onClick={() => {
 								onSelect(l.key);
 							}}
-							className={cn(
-								"grid min-h-[34px] w-full items-center rounded-lg text-left text-[12px] transition-[background] duration-900 ease-out hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-								i % 2 === 1 && "bg-[color-mix(in_oklab,var(--panel2)_45%,transparent)]",
-								open && "bg-background shadow-[0_0_0_1px_var(--line2)] hover:bg-background",
-								!open && fresh && "bg-ok-bg",
-							)}
+							className={cn(listRowClass(i, open), !open && fresh && "bg-ok-bg")}
 							style={{ gridTemplateColumns: grid }}
 						>
 							<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">

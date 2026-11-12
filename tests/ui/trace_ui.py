@@ -107,7 +107,8 @@ with sync_playwright() as p:
             expect(page.get_by_role('heading', level=1)).to_have_text(re.compile(r'^Traces\s*7$'))
             suffix = f"{theme}{('-narrow' if narrow else '')}"
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
-            open_trace.click()
+            expect(open_trace).to_have_attribute('aria-pressed', 'false')
+            open_trace.click(position={'x': 20, 'y': 10})
             drawer = page.get_by_role('dialog', name=root_name)
             assert 'trace=' + trace in page.url
             evidence.settle(page)
@@ -222,7 +223,10 @@ with sync_playwright() as p:
     evidence.settle(page)
     assert last_page_request().get('limit') == 25
     expect(page.get_by_text('1–25 of 67', exact=True)).to_be_visible()
-    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(25)
+    expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]')).to_have_count(25)
+    page.get_by_role('separator', name='Resize column Root span').press('ArrowRight')
+    expect(page).to_have_url(re.compile(r'widths=span%3A276'))
+    expect(page.get_by_role('region', name='Trace list').get_by_role('button', name=re.compile(r'^Spans'))).to_have_count(0)
     page.get_by_role('button', name='Next page', exact=True).click()
     evidence.settle(page)
     assert last_page_request()['offset'] == 25
@@ -230,7 +234,7 @@ with sync_playwright() as p:
     page.get_by_role('button', name='Last page', exact=True).click()
     evidence.settle(page)
     assert last_page_request()['offset'] == 50
-    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(17)
+    expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]')).to_have_count(17)
     expect(page.get_by_text('51–67 of 67', exact=True)).to_be_visible()
     expect(page.get_by_role('button', name=re.compile(r'^All\s*67$'))).to_be_visible()
     expect(page.get_by_role('button', name=re.compile(r'^Errors\s*1$'))).to_be_visible()
@@ -242,11 +246,11 @@ with sync_playwright() as p:
     page.get_by_role('button', name='Duration ↓', exact=True).click()
     evidence.settle(page)
     assert last_page_request()['ascending'] is True
-    expect(page.get_by_role('region', name='Trace list').locator('tbody tr').first).to_contain_text('GetProduct')
+    expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]').first).to_contain_text('GetProduct')
     page.get_by_role('button', name=re.compile(r'^Errors')).click()
     evidence.settle(page)
     assert last_page_request()['status'] == 'TRACE_STATUS_ERROR'
-    expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(1)
+    expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]')).to_have_count(1)
     page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:>100'))
     evidence.settle(page)
     assert last_page_request()['minDurationNanos'] == '100000000'
@@ -383,4 +387,4 @@ with sync_playwright() as p:
     browser.close()
 assert all((row.get('scope', {}).get('environmentId') for row in recorded))
 assert all((not row.get('scope', {}).get('resourceIds') for row in recorded if row.get('traceId')))
-print('PASS browser trace list, complete drawer spans, span selection and attributes, trace ID validation, frozen bounds, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI light/dark desktop/390px; trace responses use explicit browser fixtures.')
+print('PASS browser trace list, complete drawer spans, span selection and attributes, trace ID validation, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI light/dark desktop/390px; trace responses use explicit browser fixtures.')
