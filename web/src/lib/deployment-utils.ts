@@ -41,9 +41,12 @@ export function isInFlight(phase: DeploymentPhase): boolean {
 	}
 }
 
+export function deploymentActor(d: Deployment): string {
+	return d.actorType === DeploymentActorType.USER ? `@${d.actorName || d.actorId}` : d.actorName || "Deleted token";
+}
+
 export function deploymentOrigin(d: Deployment): string {
-	const actor =
-		d.actorType === DeploymentActorType.USER ? `@${d.actorName || d.actorId}` : d.actorName || "Deleted token";
+	const actor = deploymentActor(d);
 	const methods: Record<DeploymentMethod, string> = {
 		[DeploymentMethod.UNSPECIFIED]: "Unknown method",
 		[DeploymentMethod.CLI]: "loco deploy",

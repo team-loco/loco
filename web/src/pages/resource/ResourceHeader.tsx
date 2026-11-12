@@ -28,7 +28,8 @@ import {
 import { PartialBadge } from "@/components/design/PartialBadge";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
-import { shortImageRef } from "@/lib/image";
+import { deploymentActor } from "@/lib/deployment-utils";
+import { shortImageParts } from "@/lib/image";
 import { agoLabel } from "@/lib/time";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
@@ -38,6 +39,7 @@ import { depImage, depTag, isDeployed, startedMs, type RegionView } from "./mode
 interface SwitcherItem {
 	id: string;
 	name: string;
+	description: string;
 	status: ResourceStatus | undefined;
 	href: string;
 }
@@ -50,11 +52,14 @@ function Switcher({ items, currentId }: { items: SwitcherItem[]; currentId: stri
 			>
 				<ChevronsUpDownIcon />
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="max-h-80 w-auto min-w-[240px]">
+			<DropdownMenuContent align="start" className="max-h-80 w-[280px]">
 				{items.map((it) => (
 					<DropdownMenuItem key={it.id} render={<Link to={it.href} />} className="gap-2">
 						<StatusGlyph glyph={resourceStatusStyle(it.status).glyph} />
-						<span className="flex-1 truncate">{it.name}</span>
+						<span className="flex min-w-0 flex-1 flex-col gap-px">
+							<span className="truncate">{it.name}</span>
+							{it.description !== "" && <span className="truncate text-[12px] text-fg3">{it.description}</span>}
+						</span>
 						{it.id === currentId && <CheckIcon className="size-3.5 text-fg3" />}
 					</DropdownMenuItem>
 				))}
@@ -117,6 +122,7 @@ export function ResourceHeader({
 	const deployed = regions.filter(isDeployed);
 	const primary = deployed[0]?.current;
 	const image = depImage(primary);
+	const imageRef = shortImageParts(image);
 	const since = primary === undefined ? undefined : startedMs(primary);
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
 	const canRedeploy = canWrite && deployed.length > 0 && !redeploying;
@@ -135,11 +141,16 @@ export function ResourceHeader({
 				</div>
 				<div className="flex flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
 					{image !== "" && (
-						<span className="font-mono text-[12px] text-fg2" title={image}>
-							{shortImageRef(image)}
+						<span className="font-mono text-[12px]" title={image}>
+							<span className="text-fg3">{imageRef.repository}</span>
+							<span className="text-foreground">{imageRef.version}</span>
 						</span>
 					)}
-					{since !== undefined && <span>deployed {agoLabel(since, nowMs)}</span>}
+					{since !== undefined && primary !== undefined && (
+						<span>
+							deployed {agoLabel(since, nowMs)} by {deploymentActor(primary)}
+						</span>
+					)}
 					{domain !== undefined ? (
 						<a
 							href={`https://${domain.domain}`}

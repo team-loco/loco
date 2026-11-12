@@ -7,6 +7,7 @@ const progress: RegionProgress = {
 	form: {
 		image: "ghcr.io/acme/web:1",
 		name: "web",
+		description: "",
 		regions: ["us-east-1", "eu-west-1"],
 		cpu: "250m",
 		memory: "512Mi",

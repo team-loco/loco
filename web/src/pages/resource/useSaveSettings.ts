@@ -45,7 +45,7 @@ export function useSaveSettings({
 	onDone: (next: SettingsDraft, notice: Notice) => void;
 }) {
 	const [saving, setSaving] = useState(false);
-	const rename = useMutation(updateResource);
+	const update = useMutation(updateResource);
 	const writeSecrets = useMutation(setSecrets);
 	const removeSecrets = useMutation(deleteSecrets);
 	const addDomain = useMutation(createResourceDomain);
@@ -86,8 +86,20 @@ export function useSaveSettings({
 			);
 		}
 		const name = draft.name?.trim();
-		if (name !== undefined && name !== resource.name) {
-			await attempt("Name", ["name"], async () => await rename.mutateAsync({ resourceId, name }));
+		const renamed = name !== undefined && name !== resource.name;
+		const description = draft.description?.trim();
+		const described = description !== undefined && description !== (resource.description ?? "");
+		if (renamed || described) {
+			await attempt(
+				"General",
+				["name", "description"],
+				async () =>
+					await update.mutateAsync({
+						resourceId,
+						...(renamed ? { name } : {}),
+						...(described ? { description } : {}),
+					}),
+			);
 		}
 
 		const domainChange = domainsChange(draft, base);

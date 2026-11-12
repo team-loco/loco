@@ -83,6 +83,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 				workspaceId,
 				name: form.name,
 				type: ResourceType.SERVICE,
+				...(form.description.trim() === "" ? {} : { description: form.description.trim() }),
 				...(form.isPublic
 					? {
 							environmentId: env.id,

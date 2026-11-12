@@ -338,15 +338,7 @@ export function RegionsSection({
 	);
 }
 
-export function GeneralSection({
-	draft,
-	base,
-	errors,
-	locked,
-	describedBy,
-	onChange,
-	description,
-}: SectionProps & { description: string }) {
+export function GeneralSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
 	const name = draft.name ?? base.name;
 	return (
 		<SettingsBlock id="set-general" title="General">
@@ -362,15 +354,16 @@ export function GeneralSection({
 						}}
 					/>
 				</Field>
-				<Field
-					label={
-						<span className="flex items-center gap-1.5">
-							Description
-							<SoonTag />
-						</span>
-					}
-				>
-					<Input value={description} placeholder="No description" disabled readOnly />
+				<Field label="Description" hint="Shown under the name in lists and the resource switcher">
+					<Input
+						value={draft.description ?? base.description}
+						placeholder="No description"
+						disabled={locked}
+						aria-describedby={describedBy}
+						onChange={(e) => {
+							onChange({ description: e.target.value });
+						}}
+					/>
 				</Field>
 			</div>
 		</SettingsBlock>

@@ -152,6 +152,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
 	const base = baseline(
 		resource.name,
+		resource.description ?? "",
 		regions,
 		resource.domains.length > 0,
 		configQuery.data?.serviceDefaults?.healthCheck,
@@ -171,6 +172,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		? (resourcesQuery.data?.resources ?? []).map((r) => ({
 				id: r.id,
 				name: r.name,
+				description: r.description ?? "",
 				status: environmentStatus(r, environmentId)?.status,
 				href: `${resourcePath(activeOrgId, activeWorkspaceId, r.id)}${env !== null ? `?env=${encodeURIComponent(env)}` : ""}`,
 			}))
