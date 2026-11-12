@@ -35,7 +35,7 @@ func TestRootCommandRegistersUser(t *testing.T) {
 	for _, operation := range user.Commands() {
 		operations = append(operations, operation.Name())
 	}
-	if got, want := strings.Join(operations, " "), "reinstate suspend"; got != want {
+	if got, want := strings.Join(operations, " "), "invite reinstate suspend"; got != want {
 		t.Errorf("user operations = %q, want %q", got, want)
 	}
 }
