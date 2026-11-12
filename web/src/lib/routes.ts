@@ -24,6 +24,10 @@ export function settingsPath(orgId: string, workspaceId: string, scope: Settings
 	return `${workspacePath(orgId, workspaceId, "settings")}?scope=${scope}`;
 }
 
+export function orgSettingsPath(orgId: string, workspaceId: string | null): string {
+	return workspaceId !== null ? settingsPath(orgId, workspaceId, "org") : `/org/${orgId}/settings`;
+}
+
 export const PROFILE_PATH = "/profile";
 
 export function accountSettingsPath(orgId: string | null, workspaceId: string | null): string {

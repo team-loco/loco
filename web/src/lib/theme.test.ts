@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { pageTheme, parseColorTheme, parseMode, resolveMode, toggledMode } from "./theme";
+import { nextMode, pageTheme, parseColorTheme, parseMode, resolveMode } from "./theme";
 
 describe("theme mode", () => {
 	test("reads a stored explicit mode", () => {
@@ -23,19 +23,10 @@ describe("theme mode", () => {
 		expect(resolveMode("dark", false)).toBe("dark");
 	});
 
-	test("toggling away from the system preference stores the opposite theme", () => {
-		expect(toggledMode("system", false)).toBe("dark");
-		expect(toggledMode("system", true)).toBe("light");
-	});
-
-	test("toggling back to the system preference follows the system again", () => {
-		expect(toggledMode("dark", false)).toBe("system");
-		expect(toggledMode("light", true)).toBe("system");
-	});
-
-	test("toggling an explicit theme that matches the system stores the opposite", () => {
-		expect(toggledMode("dark", true)).toBe("light");
-		expect(toggledMode("light", false)).toBe("dark");
+	test("the toggle cycles light, dark and system", () => {
+		expect(nextMode("light")).toBe("dark");
+		expect(nextMode("dark")).toBe("system");
+		expect(nextMode("system")).toBe("light");
 	});
 });
 

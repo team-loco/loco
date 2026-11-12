@@ -378,7 +378,27 @@ with sync_playwright() as playwright:
                         assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
                     if not args.capture_only:
                         personal.click()
-                        colours = page.get_by_role("radiogroup", name="Colour theme")
+                        modes = page.get_by_role("radiogroup", name="Mode")
+                        html = page.locator("html")
+                        dark_class = re.compile(r"\bdark\b")
+                        modes.get_by_role("radio", name="Light" if theme == "dark" else "Dark", exact=True).click()
+                        (expect(html).not_to_have_class if theme == "dark" else expect(html).to_have_class)(dark_class)
+                        modes.get_by_role("radio", name="System", exact=True).click()
+                        (expect(html).to_have_class if theme == "dark" else expect(html).not_to_have_class)(dark_class)
+                        if not narrow:
+                            page.get_by_role("button", name=re.compile(re.escape(owner["email"]))).click()
+                            toggle = page.get_by_role("menuitem", name=re.compile(r"^(Light|Dark|System) mode$"))
+                            # The theme follows the system here, so the toggle offers Light, then Dark, then System.
+                            seen = []
+                            for _ in range(3):
+                                label = toggle.inner_text().strip()
+                                seen.append(label)
+                                toggle.click()
+                                expect(toggle).not_to_have_text(label)
+                            assert seen == ["Light mode", "Dark mode", "System mode"], seen
+                            expect(toggle).to_have_text("Light mode")
+                            page.keyboard.press("Escape")
+                        colours = page.get_by_role("radiogroup", name="Color theme")
                         loco = colours.get_by_role("radio", name="Loco", exact=True)
                         loco.focus()
                         page.keyboard.press("ArrowRight")

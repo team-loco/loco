@@ -9,6 +9,7 @@ import {
 	LogOutIcon,
 	ArrowUpRightIcon,
 	PlusIcon,
+	Settings2Icon,
 	UserIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -45,11 +46,11 @@ import {
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { expandOrgLink } from "@/lib/org-links";
-import { colorThemes, parseColorTheme } from "@/lib/theme";
+import { colorThemes, modes, nextMode, parseColorTheme, type Mode } from "@/lib/theme";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
-import { accountSettingsPath, workspacePath } from "@/lib/routes";
+import { accountSettingsPath, orgSettingsPath, workspacePath } from "@/lib/routes";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 import { useNavSections } from "./nav";
@@ -82,7 +83,8 @@ function preloadPage(load: (() => Promise<unknown>) | undefined) {
 export function AppSidebar() {
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
-	const { theme, toggle, color, setColor } = useTheme();
+	const { theme, mode, toggle, color, setColor } = useTheme();
+	const next = nextMode(mode);
 	const dark = theme === "dark";
 	const colorName = colorThemes.find((t) => t.id === color)?.name ?? "";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
@@ -204,6 +206,16 @@ export function AppSidebar() {
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>
+							{activeOrgId !== null && (
+								<MenuLink
+									icon={<Settings2Icon />}
+									onClick={() => {
+										void navigate(orgSettingsPath(activeOrgId, activeWorkspaceId));
+									}}
+								>
+									Organization settings
+								</MenuLink>
+							)}
 							<MenuLink
 								icon={<Building2Icon />}
 								onClick={() => {
@@ -232,16 +244,12 @@ export function AppSidebar() {
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>
-							<MenuLink
-								icon={<ThemeIcon mode={theme === "dark" ? "sun" : "moon"} />}
-								onClick={toggle}
-								closeOnClick={false}
-							>
-								{theme === "dark" ? "Light mode" : "Dark mode"}
+							<MenuLink icon={<ThemeIcon mode={MODE_ICONS[next]} />} onClick={toggle} closeOnClick={false}>
+								{`${modes.find((m) => m.id === next)?.name ?? ""} mode`}
 							</MenuLink>
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger className={cn(menuItem, "gap-2 [&>svg:last-child]:ml-0")}>
-									<span className="flex-1">Colour theme</span>
+									<span className="flex-1">Color theme</span>
 									<span className="flex items-center gap-2 text-[13px] text-fg3">
 										<ThemeSwatch color={color} dark={dark} />
 										{colorName}
@@ -301,6 +309,7 @@ function MenuSeparator() {
 }
 
 const menuItem = "h-10 justify-between rounded-none px-4 text-[14px]";
+const MODE_ICONS: Record<Mode, "sun" | "moon" | "monitor"> = { light: "sun", dark: "moon", system: "monitor" };
 
 function MenuLink({
 	icon,

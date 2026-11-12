@@ -27,6 +27,21 @@
 	transition: all 0.35s ease 0s;
 }
 
+/* The monitor's stand; hidden in the sun and moon shapes. */
+.theme-icon::before {
+	content: "";
+	position: absolute;
+	bottom: -12px;
+	left: 50%;
+	width: 14px;
+	height: 4px;
+	margin-left: -7px;
+	border-radius: 2px;
+	background-color: var(--fg);
+	transform: scale(0);
+	transition: all 0.35s ease 0s;
+}
+
 .theme-icon[data-mode="moon"] {
 	overflow: hidden;
 	border: none;
@@ -48,4 +63,22 @@
 
 .theme-icon[data-mode="sun"]::after {
 	transform: scale(1);
+}
+
+.theme-icon[data-mode="monitor"] {
+	overflow: visible;
+	width: 30px;
+	height: 21px;
+	border: 4px solid var(--fg);
+	border-radius: 4px;
+	background-color: transparent;
+	transform: translateY(-2px) scale(0.55);
+}
+
+.theme-icon[data-mode="monitor"]::before {
+	transform: scale(1);
+}
+
+.theme-icon[data-mode="monitor"]::after {
+	transform: scale(0);
 }
