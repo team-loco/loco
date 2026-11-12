@@ -17,7 +17,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
-	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
@@ -92,8 +91,9 @@ func TestAdmissionExemptsControlPlane(t *testing.T) {
 			t.Error(closeErr)
 		}
 	}()
-	if sendErr := stream.Send(&agentv1.SyncRequest{}); sendErr != nil {
-		t.Fatal(sendErr)
+	// Sync rejects missing credentials from headers before reading any request messages.
+	if headerErr := stream.SendHeaders(); headerErr != nil {
+		t.Fatal(headerErr)
 	}
 	_, err = stream.Receive()
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
