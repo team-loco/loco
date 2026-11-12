@@ -148,6 +148,10 @@ function matches(row: TeamRow, q: string): boolean {
 	return `${user?.name ?? ""} ${user?.email ?? ""}`.toLowerCase().includes(q);
 }
 
+export function inWorkspace(m: Member, workspaceId: string): boolean {
+	return roleOf(m.member.scopes) === "Admin" || m.workspaces.some((w) => w.id === workspaceId);
+}
+
 export function buildRows(
 	members: readonly Member[],
 	invitations: readonly Invitation[],
@@ -157,8 +161,6 @@ export function buildRows(
 	workspaceId = "",
 ): TeamRow[] {
 	const q = query.trim().toLowerCase();
-	const inWorkspace = (m: Member) =>
-		workspaceId === "" || roleOf(m.member.scopes) === "Admin" || m.workspaces.some((w) => w.id === workspaceId);
 	const invitationRows: TeamRow[] =
 		view === "members" || workspaceId !== ""
 			? []
@@ -169,7 +171,7 @@ export function buildRows(
 		view === "invitations"
 			? []
 			: members
-					.filter(inWorkspace)
+					.filter((m) => workspaceId === "" || inWorkspace(m, workspaceId))
 					.toSorted((a, b) => {
 						const aMe = a.member.user?.id === meId ? 0 : 1;
 						const bMe = b.member.user?.id === meId ? 0 : 1;
