@@ -17,12 +17,13 @@ import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { NewWebhookDialog } from "./NewWebhookDialog";
 import { WebhookDrawer } from "./WebhookDrawer";
 import { formatDay, SettingsCard, SettingsSection } from "./parts";
-import { DELIVERY_TICKS, eventsSummary, failedCount, tickStrip, type Tick } from "./webhooks";
+import { DELIVERY_TICKS, errorCount, eventsSummary, tickStrip, type Tick } from "./webhooks";
 
 const TICK_CLASS: Record<Tick, string> = {
 	ok: "bg-ok-glyph opacity-75",
@@ -232,8 +233,8 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 	}
 	const ticks = tickStrip(query.data.deliveries);
 	if (ticks.length === 0) return <span className="text-[12px] text-fg3">No deliveries yet</span>;
-	const failed = failedCount(query.data.deliveries.slice(0, DELIVERY_TICKS));
-	const label = `${failed.toString()} failed`;
+	const errors = errorCount(query.data.deliveries.slice(0, DELIVERY_TICKS));
+	const label = pluralize(errors, "error");
 	return (
 		<span className="flex min-w-0 items-center gap-2.5">
 			<span
@@ -245,7 +246,7 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 					<i key={t.id} title={t.tip} className={cn("block h-4 w-1 rounded-[1.5px]", TICK_CLASS[t.tick])} />
 				))}
 			</span>
-			{failed > 0 && <span className="text-[12px] whitespace-nowrap text-warn-fg">{label}</span>}
+			{errors > 0 && <span className="text-[12px] whitespace-nowrap text-warn-fg">{label}</span>}
 		</span>
 	);
 }

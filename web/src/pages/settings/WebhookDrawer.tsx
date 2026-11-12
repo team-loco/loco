@@ -34,9 +34,8 @@ import {
 	STATUS_SUCCEEDED,
 } from "./webhooks";
 
-const PAGE_SIZE = 10;
-const PAGE_SIZES = [PAGE_SIZE];
-const FIRST_PAGE: Paging = { page: 0, size: PAGE_SIZE };
+const PAGE_SIZES = [25, 50, 100] as const;
+const FIRST_PAGE: Paging = { page: 0, size: PAGE_SIZES[0] };
 const SKELETON_ROWS = [0, 1, 2];
 
 // Base UI's Toggle swaps an empty value for a generated id, so All needs a real one.
@@ -90,7 +89,7 @@ function WebhookDetail({
 	const queryClient = useQueryClient();
 	const query = useInfiniteQuery(
 		listWebhookDeliveries,
-		{ workspaceId, webhookId: webhook.id, status: filter === ALL ? "" : filter, pageSize: PAGE_SIZE, pageToken: "" },
+		{ workspaceId, webhookId: webhook.id, status: filter === ALL ? "" : filter, pageSize: paging.size, pageToken: "" },
 		{
 			pageParamKey: "pageToken",
 			getNextPageParam: (last) => last.nextPageToken || undefined,

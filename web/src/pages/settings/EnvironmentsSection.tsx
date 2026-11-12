@@ -4,9 +4,10 @@ import {
 	createEnvironment,
 	deleteEnvironment,
 	listEnvironments,
+	updateEnvironment,
 } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -49,14 +50,14 @@ export function EnvironmentsSection({
 	const envsQuery = useQuery(listEnvironments, { workspaceId });
 	const resourcesQuery = useTanstackQuery(workspaceResourcesOptions(transport, workspaceId, "workspace"));
 	const remove = useMutation(deleteEnvironment);
-	const [creating, setCreating] = useState(false);
+	const [editing, setEditing] = useState<Environment | "new" | null>(null);
 	const [deleting, setDeleting] = useState<Environment | null>(null);
 
 	const environments = envsQuery.data?.environments ?? [];
 	const counts = resourcesPerEnvironment(resourcesQuery.data?.resources ?? []);
 	const envsKey = createConnectQueryKey({ schema: listEnvironments, input: { workspaceId }, cardinality: "finite" });
 	const permissionNote = !canWrite
-		? `Requires Write on ${workspaceName} to add environments.`
+		? `Requires Write on ${workspaceName} to add or edit environments.`
 		: !canAdmin
 			? `Requires Admin on ${workspaceName} to delete environments.`
 			: null;
@@ -93,7 +94,7 @@ export function EnvironmentsSection({
 					size="sm"
 					disabled={!canWrite}
 					onClick={() => {
-						setCreating(true);
+						setEditing("new");
 					}}
 				>
 					<PlusIcon />
@@ -117,7 +118,7 @@ export function EnvironmentsSection({
 								<TableHead>Type</TableHead>
 								<TableHead className="hidden md:table-cell">Description</TableHead>
 								<TableHead>Resources</TableHead>
-								<TableHead className="w-10">
+								<TableHead className="w-20">
 									<span className="sr-only">Actions</span>
 								</TableHead>
 							</TableRow>
@@ -147,12 +148,24 @@ export function EnvironmentsSection({
 											</Badge>
 										</TableCell>
 										<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
-											{env.description ?? ""}
+											{(env.description ?? "") === "" ? <span className="text-fg4">—</span> : env.description}
 										</TableCell>
 										<TableCell className="font-mono text-[12px] text-fg3">
-											{resourcesQuery.isPending ? "—" : String(counts.get(env.id) ?? 0)}
+											{resourcesQuery.isPending ? "—" : pluralize(counts.get(env.id) ?? 0, "resource")}
 										</TableCell>
-										<TableCell className="text-right">
+										<TableCell className="text-right whitespace-nowrap">
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												aria-label={`Edit ${env.name}`}
+												disabled={!canWrite}
+												title={canWrite ? undefined : `Requires Write on ${workspaceName}`}
+												onClick={() => {
+													setEditing(env);
+												}}
+											>
+												<PencilIcon />
+											</Button>
 											{blocked === null ? (
 												button
 											) : (
@@ -173,18 +186,24 @@ export function EnvironmentsSection({
 				)}
 			</SettingsCard>
 
-			<Dialog open={creating} onOpenChange={setCreating}>
-				{creating && (
-					<NewEnvironmentForm
+			<Dialog
+				open={editing !== null}
+				onOpenChange={(open) => {
+					if (!open) setEditing(null);
+				}}
+			>
+				{editing !== null && (
+					<EnvironmentForm
 						workspaceId={workspaceId}
 						workspaceName={workspaceName}
-						taken={environments.map((e) => e.name)}
+						env={editing === "new" ? undefined : editing}
+						taken={environments.filter((e) => e !== editing).map((e) => e.name)}
 						onDone={() => {
-							setCreating(false);
+							setEditing(null);
 							void queryClient.invalidateQueries({ queryKey: envsKey });
 						}}
 						onCancel={() => {
-							setCreating(false);
+							setEditing(null);
 						}}
 					/>
 				)}
@@ -208,33 +227,57 @@ export function EnvironmentsSection({
 	);
 }
 
-function NewEnvironmentForm({
+function EnvironmentForm({
 	workspaceId,
 	workspaceName,
+	env,
 	taken,
 	onDone,
 	onCancel,
 }: {
 	workspaceId: string;
 	workspaceName: string;
+	env: Environment | undefined;
 	taken: string[];
 	onDone: () => void;
 	onCancel: () => void;
 }) {
 	const create = useMutation(createEnvironment);
-	const [raw, setRaw] = useState("");
-	const [type, setType] = useState(EnvironmentType.STAGING);
-	const [desc, setDesc] = useState("");
+	const update = useMutation(updateEnvironment);
+	const [raw, setRaw] = useState(env?.name ?? "");
+	const [type, setType] = useState(env?.type ?? EnvironmentType.STAGING);
+	const [desc, setDesc] = useState(env?.description ?? "");
+	const pending = create.isPending || update.isPending;
 
 	const name = slug(raw);
 	const error =
 		raw.trim() !== "" && name === "" ? "Use letters or digits" : taken.includes(name) ? `${name} already exists` : null;
 	const hint = name !== "" && name !== raw ? `Saved as ${name}` : undefined;
-	const ok = name !== "" && error === null && !create.isPending;
+	const ok = name !== "" && error === null && !pending;
 
 	const submit = () => {
 		if (!ok) return;
 		const description = desc.trim();
+		if (env !== undefined) {
+			update.mutate(
+				{
+					environmentId: env.id,
+					...(name === env.name ? {} : { name }),
+					...(type === env.type ? {} : { type }),
+					...(description === (env.description ?? "") ? {} : { description }),
+				},
+				{
+					onSuccess: () => {
+						toast.success(`Saved ${name}`);
+						onDone();
+					},
+					onError: (err) => {
+						toastConnectError(err, "Failed to save environment");
+					},
+				},
+			);
+			return;
+		}
 		create.mutate(
 			{ workspaceId, name, type, description: description === "" ? undefined : description },
 			{
@@ -250,7 +293,7 @@ function NewEnvironmentForm({
 	};
 
 	return (
-		<DialogContent title={`New environment in ${workspaceName}`}>
+		<DialogContent title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.name}`}>
 			<form
 				className="contents"
 				onSubmit={(e) => {
@@ -308,7 +351,7 @@ function NewEnvironmentForm({
 						Cancel
 					</Button>
 					<Button type="submit" disabled={!ok}>
-						{create.isPending ? "Creating…" : "Create"}
+						{env === undefined ? (pending ? "Creating…" : "Create") : pending ? "Saving…" : "Save"}
 					</Button>
 				</DialogFooter>
 			</form>

@@ -31,6 +31,8 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"resource.scaled": { label: "Scaled a resource", category: "deploys" },
 	"resource.restarted": { label: "Restarted a resource", category: "deploys" },
 	"resource.partial_transferred": { label: "Moved a resource to another partial", category: "deploys" },
+	"resource.degraded": { label: "Resource degraded", category: "deploys" },
+	"resource.recovered": { label: "Resource recovered", category: "deploys" },
 	"secret.set": { label: "Set secrets", category: "deploys" },
 	"secret.deleted": { label: "Removed secrets", category: "deploys" },
 	"deployment.created": { label: "Deployed", category: "deploys" },

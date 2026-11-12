@@ -128,6 +128,17 @@ def check_webhooks(page):
     page.get_by_text("No webhooks yet.", exact=True).wait_for()
 
 
+def check_environments(page):
+    environments = page.get_by_role("region", name="Environments", exact=True)
+    environments.get_by_role("button", name="Edit production", exact=True).click()
+    dialog = page.get_by_role("dialog", name="Edit production", exact=True)
+    dialog.get_by_role("textbox", name="Description", exact=True).fill("Customer traffic")
+    dialog.get_by_role("button", name="Save", exact=True).click()
+    expect(dialog).to_be_hidden()
+    expect(environments.get_by_text("Customer traffic", exact=True)).to_be_visible()
+    expect(environments.get_by_text("0 resources", exact=True).first).to_be_visible()
+
+
 def check_create_dialogs(page):
     for path, button, field in (("/organizations", "New organization", "Name"), (base + "?tab=org", "New workspace", "Name"), ("/tokens", "New token", "Name")):
         page.goto(state["ui_url"] + path)
@@ -210,6 +221,7 @@ with sync_playwright() as playwright:
                                 expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
                             if tab == "ws" and user == "owner" and theme == "light" and not narrow:
                                 check_webhooks(page)
+                                check_environments(page)
                                 check_create_dialogs(page)
                             suffix = f"{user}-{tab}-{theme}{'-narrow' if narrow else ''}"
                             page.screenshot(path=out / f"settings-labels-{suffix}.png", animations="disabled")
