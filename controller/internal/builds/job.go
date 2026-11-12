@@ -48,7 +48,7 @@ const (
 
 func buildLabels(build *locov1alpha1.Build) map[string]string {
 	return map[string]string{
-		locolabels.LabelManagedBy:      managed.ManagedByValue,
+		locolabels.LabelManagedBy:      locolabels.ControllerManagedBy,
 		managed.LabelComponent:         componentBuild,
 		locolabels.LabelOrganizationID: build.Spec.OrganizationID,
 		locolabels.LabelWorkspaceID:    build.Spec.WorkspaceID,

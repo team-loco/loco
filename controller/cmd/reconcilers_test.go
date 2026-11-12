@@ -68,7 +68,7 @@ func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
 		}
 	}
 	buildPod := labels.Set{
-		locolabels.LabelManagedBy: managed.ManagedByValue,
+		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
 		managed.LabelComponent:    "build",
 	}
 	for obj, byObject := range setup.cache.ByObject {

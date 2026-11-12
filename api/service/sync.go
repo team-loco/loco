@@ -384,6 +384,9 @@ func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv
 	if err := ss.reconcilePlacementInventory(ctx, inventory); err != nil {
 		return err
 	}
+	if err := ss.reconcileWorkspaceInventory(ctx, inventory.GetWorkspaceIds()); err != nil {
+		return err
+	}
 	builds := inventory.GetBuilds()
 	return ss.reconcileBuildInventory(ctx, builds)
 }

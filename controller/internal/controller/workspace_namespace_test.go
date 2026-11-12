@@ -6,11 +6,13 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/team-loco/loco/controller/internal/managed"
@@ -98,9 +100,6 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	if err := r.deleteAppObjects(ctx, deleted); err != nil {
 		t.Fatalf("deleteAppObjects: %v", err)
 	}
-	if err := r.deleteNamespaceIfUnused(ctx, deleted); err != nil {
-		t.Fatalf("deleteNamespaceIfUnused: %v", err)
-	}
 
 	for _, obj := range appObjects(deleted) {
 		if objectExists(t, kubeClient, obj) {
@@ -121,25 +120,77 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	}
 }
 
-func TestDeletingTheLastAppRemovesTheWorkspaceNamespace(t *testing.T) {
-	scheme := workspaceTestScheme(t)
-	app := workspaceApp("only", "1")
-	other := workspaceApp("elsewhere", "5")
-	other.Spec.WorkspaceID = "9"
+func TestApplicationCreatedDuringCleanupKeepsWorkspaceInfrastructure(t *testing.T) {
+	ctx := context.Background()
+	app := workspaceApp("old", "1")
+	app.Finalizers = []string{locov1alpha1.FinalizerAppResourcesCleanup}
+	replacement := workspaceApp("new", "3")
 	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app), Labels: managed.Labels()}
-
-	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, app, other).Build()
+	secret := &corev1.Secret{Name: workspacePullSecretName, Namespace: namespace.Name}
+	policy := &networkingv1.NetworkPolicy{Name: "workspace-isolation", Namespace: namespace.Name}
+	base := fake.NewClientBuilder().
+		WithScheme(workspaceTestScheme(t)).
+		WithObjects(app, namespace, secret, policy).
+		Build()
+	if err := base.Delete(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	if err := base.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
+		t.Fatal(err)
+	}
+	created := false
+	create := func() error {
+		if created {
+			return nil
+		}
+		created = true
+		if err := base.Create(ctx, replacement); err != nil {
+			return err
+		}
+		for _, obj := range appObjects(replacement) {
+			if err := base.Create(ctx, obj); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	interleaved := interceptor.NewClient(base, interceptor.Funcs{
+		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			if err := c.List(ctx, list, opts...); err != nil {
+				return err
+			}
+			if _, ok := list.(*locov1alpha1.ApplicationList); ok {
+				return create()
+			}
+			return nil
+		},
+		Patch: func(
+			ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption,
+		) error {
+			if err := create(); err != nil {
+				return err
+			}
+			return c.Patch(ctx, obj, patch, opts...)
+		},
+	})
 	r := &ApplicationReconciler{
-		Client:                   kubeClient,
-		APIReader:                kubeClient,
+		Client:                   interleaved,
+		APIReader:                interleaved,
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 	}
-
-	if err := r.deleteNamespaceIfUnused(context.Background(), app); err != nil {
-		t.Fatalf("deleteNamespaceIfUnused: %v", err)
+	if _, err := r.handleDeletion(ctx, app); err != nil {
+		t.Fatal(err)
 	}
-	if objectExists(t, kubeClient, &corev1.Namespace{Name: namespace.Name}) {
-		t.Error("workspace namespace kept after its last app was deleted")
+	if !created {
+		t.Fatal("replacement application was not created")
+	}
+	for _, obj := range append(appObjects(replacement), namespace, secret, policy) {
+		if !objectExists(t, base, obj) {
+			t.Errorf("%T %s deleted during replacement creation", obj, obj.GetName())
+		}
+	}
+	if objectExists(t, base, app) {
+		t.Error("deleted application did not finalize")
 	}
 }

@@ -35,6 +35,13 @@ tests:
           value: [get, list, watch]
         template: templates/controller/manager-role.yaml
 
+  - it: keeps namespace deletion with the agent
+    asserts:
+      - equal:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          value: [create, get, list, patch, update, watch]
+        template: templates/controller/manager-role.yaml
+
   - it: points at the collector Services, DaemonSet and Gateway the chart renders
     asserts:
       - contains:

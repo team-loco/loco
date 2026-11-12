@@ -14,7 +14,6 @@ import (
 
 const (
 	LabelComponent = "app.kubernetes.io/component"
-	ManagedByValue = "loco-controller"
 	FieldOwner     = "loco-controller"
 )
 
@@ -24,7 +23,7 @@ var (
 )
 
 func Labels() map[string]string {
-	return map[string]string{locolabels.LabelManagedBy: ManagedByValue}
+	return map[string]string{locolabels.LabelManagedBy: locolabels.ControllerManagedBy}
 }
 
 func ApplyOptions() []client.ApplyOption {
