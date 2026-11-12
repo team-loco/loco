@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
@@ -137,7 +138,7 @@ func (f *deployFixture) deployTo(
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, f.paramsFor(clusterID), buildSpec)
+		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), f.paramsFor(clusterID), buildSpec)
 		return deployErr
 	})
 	return id, err

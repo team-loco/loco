@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
@@ -27,6 +28,7 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 		testServiceDefaults(),
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
+		limits.Defaults(),
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},

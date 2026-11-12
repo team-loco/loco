@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
 
@@ -28,7 +29,7 @@ func TestBuildServiceDisabledWithoutConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBuildServer(nil, nil, tt.bucket, tt.config)
+			s := NewBuildServer(nil, nil, tt.bucket, tt.config, limits.Defaults())
 
 			createReq := &buildv1.CreateBuildRequest{
 				ResourceId:     resourceID,

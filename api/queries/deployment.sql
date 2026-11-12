@@ -129,3 +129,17 @@ FROM deployments d
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 WHERE d.id = $1;
+
+-- name: PruneDeploymentHistory :execrows
+-- Deletes the resource's deployments in the environment past the newest keep, except active
+-- and unfinished ones and those a placement still runs.
+DELETE FROM deployments d
+WHERE d.id IN (
+    SELECT old.id FROM deployments old
+    WHERE old.resource_id = sqlc.arg(resource_id) AND old.environment_id = sqlc.arg(environment_id)
+    ORDER BY old.created_at DESC, old.id DESC
+    OFFSET sqlc.arg(keep)::int
+)
+  AND NOT d.is_active
+  AND d.status IN ('succeeded', 'failed', 'canceled')
+  AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id);

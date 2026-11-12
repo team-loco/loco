@@ -588,6 +588,35 @@ func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resource
 	return err
 }
 
+const pruneDeploymentHistory = `-- name: PruneDeploymentHistory :execrows
+DELETE FROM deployments d
+WHERE d.id IN (
+    SELECT old.id FROM deployments old
+    WHERE old.resource_id = $1 AND old.environment_id = $2
+    ORDER BY old.created_at DESC, old.id DESC
+    OFFSET $3::int
+)
+  AND NOT d.is_active
+  AND d.status IN ('succeeded', 'failed', 'canceled')
+  AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id)
+`
+
+type PruneDeploymentHistoryParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Keep          int32     `json:"keep"`
+}
+
+// Deletes the resource's deployments in the environment past the newest keep, except active
+// and unfinished ones and those a placement still runs.
+func (q *Queries) PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, pruneDeploymentHistory, arg.ResourceID, arg.EnvironmentID, arg.Keep)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateActiveDeploymentStatus = `-- name: UpdateActiveDeploymentStatus :exec
 UPDATE deployments
 SET status = $2, message = $3, updated_at = NOW()

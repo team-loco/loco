@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -108,7 +109,7 @@ func TestDeploymentRecordsSecretNamesAndEnvironmentOnThePlacement(t *testing.T) 
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, params, staticSpec)
+		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), params, staticSpec)
 		return deployErr
 	})
 	if err != nil {

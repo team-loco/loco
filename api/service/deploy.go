@@ -13,17 +13,23 @@ import (
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
+// createDeploymentWithCleanup creates a deployment and places it, then deletes the oldest
+// deployments of the resource in the environment past the deployment history limit, which
+// the organization's overrides of counts set.
 func createDeploymentWithCleanup(
 	ctx context.Context,
 	qtx *genDb.Queries,
+	counts *configv1.CountLimits,
 	params genDb.CreateDeploymentParams,
 	buildSpec desiredSpecFunc,
 ) (uuid.UUID, error) {
@@ -101,6 +107,10 @@ func createDeploymentWithCleanup(
 		return uuid.UUID{}, err
 	}
 
+	if pruneErr := pruneDeploymentHistory(ctx, qtx, counts, params); pruneErr != nil {
+		return uuid.UUID{}, pruneErr
+	}
+
 	slog.InfoContext(ctx, "deployment created",
 		"deployment_id", deploymentID,
 		"cluster_id", params.ClusterID,
@@ -109,6 +119,34 @@ func createDeploymentWithCleanup(
 		"hadPreviousDeployment", hadPreviousDeployment)
 
 	return deploymentID, nil
+}
+
+func pruneDeploymentHistory(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	counts *configv1.CountLimits,
+	params genDb.CreateDeploymentParams,
+) error {
+	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, params.ResourceID)
+	if err != nil {
+		return fmt.Errorf("get resource organization: %w", err)
+	}
+	effective, err := limits.ForOrg(ctx, qtx, counts, owner.OrgID)
+	if err != nil {
+		return err
+	}
+	pruned, err := qtx.PruneDeploymentHistory(ctx, genDb.PruneDeploymentHistoryParams{
+		ResourceID:    params.ResourceID,
+		EnvironmentID: params.EnvironmentID,
+		Keep:          limits.DeploymentHistory.Get(effective),
+	})
+	if err != nil {
+		return fmt.Errorf("prune deployment history: %w", err)
+	}
+	if pruned > 0 {
+		slog.InfoContext(ctx, "pruned deployment history", "resourceId", params.ResourceID, "deleted", pruned)
+	}
+	return nil
 }
 
 // checkClusterEnvironment refuses a deployment to a cluster whose placement of the resource

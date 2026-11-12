@@ -924,7 +924,7 @@ func (s *ResourceServer) redeployRegions(
 			plan.environmentName,
 			s.defaults,
 		)
-		if _, deployErr := createDeploymentWithCleanup(ctx, qtx, plan.params, buildSpec); deployErr != nil {
+		if _, deployErr := createDeploymentWithCleanup(ctx, qtx, s.counts, plan.params, buildSpec); deployErr != nil {
 			return deployErr
 		}
 	}

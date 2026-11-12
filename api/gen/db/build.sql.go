@@ -912,6 +912,35 @@ func (q *Queries) MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) erro
 	return err
 }
 
+const pruneBuildHistory = `-- name: PruneBuildHistory :execrows
+DELETE FROM builds b
+WHERE b.id IN (
+    SELECT old.id FROM builds old
+    WHERE old.resource_id = $1
+    ORDER BY old.created_at DESC, old.id DESC
+    OFFSET $2::int
+)
+  AND b.status IN ('succeeded', 'failed', 'canceled')
+  AND b.source_deleted_at IS NOT NULL
+  AND (b.status <> 'succeeded' OR b.image_deleted_at IS NOT NULL)
+`
+
+type PruneBuildHistoryParams struct {
+	ResourceID uuid.UUID `json:"resourceId"`
+	Keep       int32     `json:"keep"`
+}
+
+// Deletes the resource's builds past the newest keep once their source and, for a succeeded
+// build, image are gone: the sweepers find what to delete through these rows. The image
+// sweeper treats a failed or canceled build's tags like those of a missing row.
+func (q *Queries) PruneBuildHistory(ctx context.Context, arg PruneBuildHistoryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, pruneBuildHistory, arg.ResourceID, arg.Keep)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const queueBuild = `-- name: QueueBuild :execrows
 UPDATE builds
 SET status = 'queued',
