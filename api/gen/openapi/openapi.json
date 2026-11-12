@@ -4054,6 +4054,67 @@
         }
       }
     },
+    "/loco.org.v1.OrgService/SetOrgMemberRole": {
+      "post": {
+        "tags": [
+          "loco.org.v1.OrgService"
+        ],
+        "summary": "SetOrgMemberRole",
+        "operationId": "loco.org.v1.OrgService.SetOrgMemberRole",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.org.v1.SetOrgMemberRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.org.v1.SetOrgMemberRoleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.org.v1.OrgService/SuspendOrg": {
       "post": {
         "tags": [
@@ -11339,6 +11400,15 @@
         "title": "OrgMember",
         "additionalProperties": false
       },
+      "loco.org.v1.OrgRole": {
+        "type": "string",
+        "title": "OrgRole",
+        "enum": [
+          "ORG_ROLE_UNSPECIFIED",
+          "ORG_ROLE_ADMIN",
+          "ORG_ROLE_MEMBER"
+        ]
+      },
       "loco.org.v1.Organization": {
         "type": "object",
         "properties": {
@@ -11460,6 +11530,37 @@
       "loco.org.v1.RevokeInvitationResponse": {
         "type": "object",
         "title": "RevokeInvitationResponse",
+        "additionalProperties": false
+      },
+      "loco.org.v1.SetOrgMemberRoleRequest": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid"
+          },
+          "role": {
+            "not": {
+              "enum": [
+                "ORG_ROLE_UNSPECIFIED"
+              ]
+            },
+            "title": "role",
+            "$ref": "#/components/schemas/loco.org.v1.OrgRole"
+          }
+        },
+        "title": "SetOrgMemberRoleRequest",
+        "additionalProperties": false
+      },
+      "loco.org.v1.SetOrgMemberRoleResponse": {
+        "type": "object",
+        "title": "SetOrgMemberRoleResponse",
         "additionalProperties": false
       },
       "loco.org.v1.SuspendOrgRequest": {

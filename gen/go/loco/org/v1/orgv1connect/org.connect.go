@@ -36,6 +36,9 @@ const (
 	OrgServiceListUserOrgsProcedure = "/loco.org.v1.OrgService/ListUserOrgs"
 	// OrgServiceListOrgMembersProcedure is the procedure name of the OrgService's ListOrgMembers RPC.
 	OrgServiceListOrgMembersProcedure = "/loco.org.v1.OrgService/ListOrgMembers"
+	// OrgServiceSetOrgMemberRoleProcedure is the procedure name of the OrgService's SetOrgMemberRole
+	// RPC.
+	OrgServiceSetOrgMemberRoleProcedure = "/loco.org.v1.OrgService/SetOrgMemberRole"
 	// OrgServiceRemoveOrgMemberProcedure is the procedure name of the OrgService's RemoveOrgMember RPC.
 	OrgServiceRemoveOrgMemberProcedure = "/loco.org.v1.OrgService/RemoveOrgMember"
 	// OrgServiceSuspendOrgProcedure is the procedure name of the OrgService's SuspendOrg RPC.
@@ -95,6 +98,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ListOrgMembers"),
 			Procedure:  OrgServiceListOrgMembersProcedure,
+		}
+	})
+	orgServiceSetOrgMemberRoleSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("SetOrgMemberRole"),
+			Procedure:  OrgServiceSetOrgMemberRoleProcedure,
 		}
 	})
 	orgServiceRemoveOrgMemberSpec = sync.OnceValue(func() connect.Spec {
@@ -161,6 +171,7 @@ type OrgServiceClient interface {
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
+	SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
 	// SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
 	// It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
@@ -194,6 +205,7 @@ type OrgServiceHandler interface {
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
+	SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
 	// SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
 	// It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
@@ -218,6 +230,7 @@ func RegisterOrgServiceHandler(server *connect.Server, svc OrgServiceHandler) {
 		connect.Method{Spec: orgServiceDeleteOrgSpec(), Handler: adapter.deleteOrg},
 		connect.Method{Spec: orgServiceListUserOrgsSpec(), Handler: adapter.listUserOrgs},
 		connect.Method{Spec: orgServiceListOrgMembersSpec(), Handler: adapter.listOrgMembers},
+		connect.Method{Spec: orgServiceSetOrgMemberRoleSpec(), Handler: adapter.setOrgMemberRole},
 		connect.Method{Spec: orgServiceRemoveOrgMemberSpec(), Handler: adapter.removeOrgMember},
 		connect.Method{Spec: orgServiceSuspendOrgSpec(), Handler: adapter.suspendOrg},
 		connect.Method{Spec: orgServiceResumeOrgSpec(), Handler: adapter.resumeOrg},
@@ -253,6 +266,10 @@ func (UnimplementedOrgServiceHandler) ListUserOrgs(context.Context, *v1.ListUser
 
 func (UnimplementedOrgServiceHandler) ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ListOrgMembers is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.SetOrgMemberRole is not implemented")
 }
 
 func (UnimplementedOrgServiceHandler) RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error) {
@@ -330,6 +347,14 @@ func (c *orgServiceClient) ListUserOrgs(ctx context.Context, req *v1.ListUserOrg
 func (c *orgServiceClient) ListOrgMembers(ctx context.Context, req *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error) {
 	var res v1.ListOrgMembersResponse
 	if err := c.client.CallUnary(ctx, orgServiceListOrgMembersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) SetOrgMemberRole(ctx context.Context, req *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error) {
+	var res v1.SetOrgMemberRoleResponse
+	if err := c.client.CallUnary(ctx, orgServiceSetOrgMemberRoleSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -459,6 +484,18 @@ func (h orgServiceHandler) listOrgMembers(ctx context.Context, _ connect.Spec, s
 		return err
 	}
 	res, err := h.svc.ListOrgMembers(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) setOrgMemberRole(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetOrgMemberRoleRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetOrgMemberRole(ctx, &req)
 	if err != nil {
 		return err
 	}

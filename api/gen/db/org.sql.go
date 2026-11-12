@@ -246,6 +246,17 @@ func (q *Queries) LockOrgForDeletion(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const lockOrgForMembership = `-- name: LockOrgForMembership :one
+SELECT id FROM organizations WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockOrgForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockOrgForMembership, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const lockOrgForSuspension = `-- name: LockOrgForSuspension :one
 SELECT id, name, created_by, suspended_at, suspension_reason, created_at, updated_at FROM organizations WHERE id = $1 FOR UPDATE
 `

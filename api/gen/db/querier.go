@@ -214,6 +214,7 @@ type Querier interface {
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
+	LockOrgForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organization, error)
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
