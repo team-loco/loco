@@ -7,7 +7,7 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
-import { DeploymentOrigin } from "@/components/design/DeploymentOrigin";
+import { DeploymentActor, DeploymentCommit } from "@/components/design/DeploymentOrigin";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -24,7 +24,7 @@ import {
 } from "./deploymentRows";
 import { startedLabel } from "./format";
 
-const COLUMNS = 6;
+const COLUMNS = 7;
 
 export function RecentDeployments({
 	deployments,
@@ -88,7 +88,8 @@ export function RecentDeployments({
 							<TableHead className="w-[120px]">Status</TableHead>
 							<TableHead className="w-[180px]">Resource</TableHead>
 							<TableHead className="w-[110px]">Region</TableHead>
-							<TableHead className="w-[400px]">Deployment</TableHead>
+							<TableHead className="w-[150px]">Commit</TableHead>
+							<TableHead className="w-[200px]">Deployed by</TableHead>
 							<TableHead>Message</TableHead>
 							<TableHead className="w-[100px] text-right">When</TableHead>
 						</TableRow>
@@ -122,7 +123,10 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell className="truncate font-mono text-[12px] text-fg2">{d.region}</TableCell>
 									<TableCell>
-										<DeploymentOrigin deployment={d} />
+										<DeploymentCommit deployment={d} />
+									</TableCell>
+									<TableCell>
+										<DeploymentActor deployment={d} />
 									</TableCell>
 									<TableCell className="truncate text-fg2" title={d.message}>
 										{d.message}

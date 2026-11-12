@@ -1,21 +1,62 @@
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentActorType, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { KeyRoundIcon } from "lucide-react";
 
-import { deploymentOrigin } from "@/lib/deployment-utils";
+import { deploymentActor, deploymentImage, deploymentMethod, shortSha } from "@/lib/deployment-utils";
+import { imageVersion } from "@/lib/image";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
-export function DeploymentOrigin({ deployment }: { deployment: Deployment }) {
-	const label = deploymentOrigin(deployment);
+import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip";
+
+export function DeploymentActor({ deployment: d }: { deployment: Deployment }) {
+	const actor = deploymentActor(d);
+	const method = deploymentMethod(d);
 	return (
-		<span className="flex min-w-0 items-center gap-2 text-[12.5px] text-fg2" title={label}>
-			{deployment.actorAvatarUrl !== "" && (
+		<span className="flex min-w-0 items-center gap-2.5">
+			{d.actorType === DeploymentActorType.API_TOKEN ? (
+				<span
+					aria-hidden
+					className="flex size-[22px] shrink-0 items-center justify-center rounded-md border border-line2 text-fg2"
+				>
+					<KeyRoundIcon className="size-3" />
+				</span>
+			) : (
 				<MemberAvatar
-					name={deployment.actorName}
+					name={d.actorName}
 					email=""
-					avatarUrl={deployment.actorAvatarUrl}
-					className="size-5 shrink-0"
+					avatarUrl={d.actorAvatarUrl}
+					className="size-[22px] shrink-0 [&_[data-slot=avatar-fallback]]:text-[9.5px]"
 				/>
 			)}
-			<span className="truncate">{label}</span>
+			<span className="flex min-w-0 flex-col gap-px">
+				<span className="truncate text-[13px] text-foreground" title={actor}>
+					{actor}
+				</span>
+				{method !== "" && <span className="truncate font-mono text-[11px] text-fg3">{method}</span>}
+			</span>
+		</span>
+	);
+}
+
+export function DeploymentCommit({ deployment: d }: { deployment: Deployment }) {
+	const image = deploymentImage(d);
+	const label = d.commit === undefined ? (image === "" ? "" : imageVersion(image)) : shortSha(d.commit.sha);
+	if (label === "") return <span className="text-fg4">—</span>;
+	return (
+		<span className="flex min-w-0 items-center gap-1.5">
+			<span className="truncate font-mono text-[12.5px] text-foreground" title={d.commit?.sha ?? image}>
+				{label}
+			</span>
+			{d.commit?.dirty === true && (
+				<Tooltip>
+					<TooltipTrigger
+						render={<span />}
+						className="shrink-0 rounded-[4px] border border-current px-1 font-mono text-[10.5px] leading-[15px] text-warn"
+					>
+						modified
+					</TooltipTrigger>
+					<TooltipContent>Deployed with uncommitted changes</TooltipContent>
+				</Tooltip>
+			)}
 		</span>
 	);
 }
