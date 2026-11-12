@@ -273,15 +273,15 @@ func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invi
 	if err != nil {
 		return nil, fmt.Errorf("get inviter: %w", err)
 	}
-	message := mail.Message{Event: mail.InvitationEvent{
+	event := mail.InvitationEvent{
 		Invitation: mail.InvitationInfo{
 			ID: invitation.ID, OrgID: invitation.OrgID, Email: invitation.Email, ExpiresAt: invitation.ExpiresAt,
 		},
 		Org:     mail.OrgInfo{ID: org.ID, Name: org.Name},
 		Inviter: mail.InviterInfo{ID: inviter.ID, Email: inviter.Email, Name: derefString(inviter.Name)},
 		Link:    s.invitations.link(invitation.Email),
-	}}
-	sendErr := s.invitations.Transport.Send(ctx, message)
+	}
+	sendErr := s.invitations.Transport.Send(ctx, event)
 	detached := context.WithoutCancel(ctx)
 	recordCtx, cancel := context.WithTimeout(detached, deliveryRecordTimeout)
 	defer cancel()

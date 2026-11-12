@@ -37,8 +37,8 @@ func newHook(u *url.URL, secret string, tlsConfig *tls.Config, timeout time.Dura
 	return &hookTransport{url: u.String(), secret: secret, client: client, timeout: timeout}, nil
 }
 
-func (t *hookTransport) Send(ctx context.Context, msg Message) error {
-	body, err := json.Marshal(msg.Event)
+func (t *hookTransport) Send(ctx context.Context, event InvitationEvent) error {
+	body, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("encode hook payload: %w", err)
 	}

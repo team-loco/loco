@@ -24,12 +24,8 @@ var (
 	)
 )
 
-type Message struct {
-	Event any
-}
-
 type Transport interface {
-	Send(ctx context.Context, msg Message) error
+	Send(ctx context.Context, event InvitationEvent) error
 }
 
 type Option func(*options)

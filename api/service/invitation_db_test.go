@@ -32,20 +32,20 @@ var errInvitationTransportDown = errors.New("email hook refused the message")
 type fakeTransport struct {
 	mu   sync.Mutex
 	err  error
-	sent []mail.Message
+	sent []mail.InvitationEvent
 }
 
-func (f *fakeTransport) Send(_ context.Context, msg mail.Message) error {
+func (f *fakeTransport) Send(_ context.Context, msg mail.InvitationEvent) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.sent = append(f.sent, msg)
 	return f.err
 }
 
-func (f *fakeTransport) messages() []mail.Message {
+func (f *fakeTransport) messages() []mail.InvitationEvent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return append([]mail.Message(nil), f.sent...)
+	return append([]mail.InvitationEvent(nil), f.sent...)
 }
 
 func newInvitationOrg(t *testing.T, transport mail.Transport) *membershipOrg {
@@ -96,9 +96,8 @@ func TestInviteDeliversAndRecordsOutcome(t *testing.T) {
 	if len(sent) != 1 {
 		t.Fatalf("sent = %+v", sent)
 	}
-	event, ok := sent[0].Event.(mail.InvitationEvent)
-	if !ok || event.Invitation.Email != invitationEmail || event.Inviter.Email != "owner@acme.test" {
-		t.Fatalf("event = %+v", sent[0].Event)
+	if sent[0].Invitation.Email != invitationEmail || sent[0].Inviter.Email != "owner@acme.test" {
+		t.Fatalf("event = %+v", sent[0])
 	}
 }
 
@@ -426,7 +425,7 @@ func TestConcurrentInvitesOverAnExpiredInvitationCreateOne(t *testing.T) {
 
 type stalledTransport struct{}
 
-func (stalledTransport) Send(ctx context.Context, _ mail.Message) error {
+func (stalledTransport) Send(ctx context.Context, _ mail.InvitationEvent) error {
 	<-ctx.Done()
 	return ctx.Err()
 }

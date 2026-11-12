@@ -59,7 +59,7 @@ func TestNoTransportReportsItself(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if err := transport.Send(t.Context(), Message{}); !errors.Is(err, ErrNoTransport) {
+	if err := transport.Send(t.Context(), InvitationEvent{}); !errors.Is(err, ErrNoTransport) {
 		t.Fatalf("send = %v, want ErrNoTransport", err)
 	}
 }

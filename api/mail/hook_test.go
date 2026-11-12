@@ -60,7 +60,7 @@ func TestHookPostsSignedInvitation(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	if err := hook.Send(t.Context(), Message{Event: event}); err != nil {
+	if err := hook.Send(t.Context(), event); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestHookNon2xxIsAnError(t *testing.T) {
 		hook := newTestHook(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(status)
 		})
-		if err := hook.Send(t.Context(), Message{Event: testEvent()}); err == nil {
+		if err := hook.Send(t.Context(), testEvent()); err == nil {
 			t.Fatalf("status %d delivered", status)
 		}
 	}
@@ -142,7 +142,7 @@ func TestHookSurfacesReceiverError(t *testing.T) {
 		}
 	})
 
-	err := hook.Send(t.Context(), Message{Event: testEvent()})
+	err := hook.Send(t.Context(), testEvent())
 
 	if err == nil || err.Error() != message {
 		t.Fatalf("error = %v, want %q", err, message)
@@ -157,7 +157,7 @@ func TestHookFallsBackToStatusWithoutReceiverError(t *testing.T) {
 		}
 	})
 
-	err := hook.Send(t.Context(), Message{Event: testEvent()})
+	err := hook.Send(t.Context(), testEvent())
 
 	if err == nil || err.Error() != "hook returned 500 Internal Server Error" {
 		t.Fatalf("error = %v", err)
@@ -171,7 +171,7 @@ func TestHookIgnoresBodyOn2xx(t *testing.T) {
 		}
 	})
 
-	if err := hook.Send(t.Context(), Message{Event: testEvent()}); err != nil {
+	if err := hook.Send(t.Context(), testEvent()); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 }
@@ -188,7 +188,7 @@ func TestHookGivesUpOnAStalledReceiver(t *testing.T) {
 	}
 	hook.timeout = stallTimeout
 
-	err := hook.Send(t.Context(), Message{Event: testEvent()})
+	err := hook.Send(t.Context(), testEvent())
 
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want DeadlineExceeded", err)

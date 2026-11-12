@@ -944,7 +944,7 @@ func TestNewAPIConfigReadsInvitations(t *testing.T) {
 	if ac.Invitations.TTL != defaultInvitationTTL || ac.Invitations.WebURL != "https://app.loco.test" {
 		t.Fatalf("invitations = %+v", ac.Invitations)
 	}
-	if err := ac.Invitations.Transport.Send(t.Context(), mail.Message{}); !errors.Is(err, mail.ErrNoTransport) {
+	if err := ac.Invitations.Transport.Send(t.Context(), mail.InvitationEvent{}); !errors.Is(err, mail.ErrNoTransport) {
 		t.Fatalf("default transport send = %v, want ErrNoTransport", err)
 	}
 
@@ -969,7 +969,7 @@ func TestNewAPIConfigReadsEmailTimeout(t *testing.T) {
 	transport := newAPIConfig().Invitations.Transport
 	started := time.Now()
 
-	err := transport.Send(t.Context(), mail.Message{})
+	err := transport.Send(t.Context(), mail.InvitationEvent{})
 
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("send = %v, want a timeout", err)
@@ -990,8 +990,8 @@ func TestNewAPIConfigAcceptsHTTPHookTransport(t *testing.T) {
 	t.Setenv("EMAIL_TRANSPORT", receiver.URL)
 	t.Setenv("EMAIL_HOOK_SECRET", testHookSecret)
 	ac := newAPIConfig()
-	msg := mail.Message{Event: map[string]string{"type": "invitation"}}
-	if err := ac.Invitations.Transport.Send(t.Context(), msg); err != nil {
+	event := mail.InvitationEvent{}
+	if err := ac.Invitations.Transport.Send(t.Context(), event); err != nil {
 		t.Fatalf("send = %v", err)
 	}
 	if !strings.HasPrefix(receiver.URL, "http://") || signature == "" {
