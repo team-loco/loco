@@ -79,6 +79,8 @@ def check_scoped_user(browser, theme):
         'QueryMetrics': {'series': [{'resourceId': rid, 'points': [{'timestamp': stamp, 'value': 0.25}]}]},
     }
     back_off = {'seq': '1', 'id': '01a1c8b3-0000-7000-8000-00000000b0ff', 'type': 'resource.degraded', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'environmentId': production, 'createdAt': stamp, 'data': {'reason': 'crash_looping', 'message': 'Back-off restarting failed container', 'placementId': 'checkout-us-east-1', 'region': 'us-east-1'}}
+    rollout = {'seq': '2', 'id': '01a1c8b3-0000-7000-8000-00000000d001', 'type': 'deployment.created', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'createdAt': stamp, 'data': {'resourceId': rid, 'environmentId': production}}
+    other_rollout = dict(rollout, id='01a1c8b3-0000-7000-8000-00000000d002', type='resource.scaled', data={'environmentId': '01a1c8b3-0000-7000-8000-0000000000ff', 'replicas': 3})
     down = {'environmentId': production, 'environmentName': 'production', 'status': 'RESOURCE_STATUS_UNAVAILABLE', 'regions': [{'region': 'us-east-1', 'status': 'RESOURCE_STATUS_UNAVAILABLE', 'desiredReplicas': 1, 'message': 'Back-off restarting failed container'}]}
     pages = [
         ('dashboard', base, lambda page: expect(page.get_by_role('list', name='Your resources').get_by_role('link', name='checkout', exact=True)).to_be_visible()),
@@ -87,7 +89,7 @@ def check_scoped_user(browser, theme):
         ('logs', base + '/observability?view=logs', lambda page: expect(page.get_by_text('checkout order placed').first).to_be_visible()),
         ('metrics', base + '/observability?view=metrics', lambda page: expect(page.get_by_role('heading', name='Metrics')).to_be_visible()),
         ('traces', base + '/observability?view=traces', lambda page: expect(page.get_by_text('POST /api/checkout').first).to_be_visible()),
-        ('events', base + '/observability?view=events', lambda page: expect(page.get_by_text('Back-off restarting failed container').first).to_be_visible()),
+        ('events', base + '/observability?view=events', lambda page: (expect(page.get_by_text('Back-off restarting failed container').first).to_be_visible(), expect(page.get_by_text('Rollout started', exact=True)).to_be_visible(), expect(page.get_by_text('Scaled', exact=True)).to_have_count(0))),
         ('settings', base + '/settings?scope=workspace', lambda page: expect(page.get_by_text('You have access to 1 resource in this workspace', exact=True)).to_be_visible()),
         ('team', f"/org/{activity['orgId']}/team", lambda page: expect(page.get_by_role('heading', name='Team')).to_be_visible()),
         ('tokens', '/tokens', lambda page: expect(page.get_by_role('heading', name='Tokens')).to_be_visible()),
@@ -133,6 +135,11 @@ def check_scoped_user(browser, theme):
                 # The cluster reports crash loops as runtime events; this resource never ran.
                 listed = response.json()
                 listed['events'] = [back_off, *listed.get('events', [])]
+                route.fulfill(response=response, json=listed)
+            elif method == 'ListEvents' and scene == 'events' and not body.get('environmentId') and response.status == 200:
+                # Deploys and scaling carry their environment only in their data.
+                listed = response.json()
+                listed['events'] = [rollout, other_rollout, *listed.get('events', [])]
                 route.fulfill(response=response, json=listed)
             elif method == 'GetResource' and scene == 'resource' and response.status == 200:
                 resource = response.json()
