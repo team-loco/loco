@@ -154,10 +154,13 @@ export function buildRows(
 	view: View,
 	query: string,
 	meId: string,
+	workspaceId = "",
 ): TeamRow[] {
 	const q = query.trim().toLowerCase();
+	const inWorkspace = (m: Member) =>
+		workspaceId === "" || roleOf(m.member.scopes) === "Admin" || m.workspaces.some((w) => w.id === workspaceId);
 	const invitationRows: TeamRow[] =
-		view === "members"
+		view === "members" || workspaceId !== ""
 			? []
 			: invitations
 					.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt))
@@ -166,6 +169,7 @@ export function buildRows(
 		view === "invitations"
 			? []
 			: members
+					.filter(inWorkspace)
 					.toSorted((a, b) => {
 						const aMe = a.member.user?.id === meId ? 0 : 1;
 						const bMe = b.member.user?.id === meId ? 0 : 1;

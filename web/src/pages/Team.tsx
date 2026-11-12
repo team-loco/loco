@@ -20,15 +20,16 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { userLabel } from "@/lib/user";
-import { usePagedRows } from "@/lib/paging";
+import { pagedRows } from "@/lib/paging";
 
 import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
-import { buildRows, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
+import { buildRows, roleOf, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
 import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
-import { WorkspaceAccessDialog } from "./team/WorkspaceAccessDialog";
+import { WorkspaceAccessDrawer } from "./team/WorkspaceAccessDrawer";
+import { WorkspaceFilter } from "./team/WorkspaceFilter";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
@@ -48,17 +49,49 @@ export function Team() {
 	const remove = useMutation(removeOrgMember);
 	const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null);
 	const [roleChange, setRoleChange] = useState<{ userId: string; name: string; role: Role } | null>(null);
-	const [view, setView] = useState<View>("all");
-	const [q, setQ] = useState("");
-	const [accessId, setAccessId] = useState<string | null>(null);
+	const view = VIEWS.find((v) => v.key === params.get("view"))?.key ?? "all";
+	const q = params.get("q") ?? "";
+	const wsFilter = params.get("ws") ?? "";
+	const accessId = params.get("access");
 	const [revoking, setRevoking] = useState<Invitation | null>(null);
 
 	const canInvite = scopes.holds(orgId, "", Scope.ADMIN);
 	const canChangeRoles = scopes.holds(orgId, "", Scope.ADMIN);
 	const orgName = data.org?.name ?? "";
 	const inviteOpen = canInvite && params.get("invite") === "1";
-	const rows = buildRows(data.members, data.invitations, view, q, meId);
-	const paged = usePagedRows(rows, PAGE_SIZES);
+	const rows = buildRows(data.members, data.invitations, view, q, meId, wsFilter);
+	const update = (patch: Record<string, string | null>) => {
+		setParams(
+			(prev) => {
+				const p = new URLSearchParams(prev);
+				for (const [k, v] of Object.entries(patch)) {
+					if (v === null || v === "") p.delete(k);
+					else p.set(k, v);
+				}
+				return p;
+			},
+			{ replace: true },
+		);
+	};
+	const size = PAGE_SIZES.find((n) => n.toString() === params.get("size")) ?? PAGE_SIZES[0];
+	const paged = pagedRows(
+		rows,
+		{ page: Number(params.get("page") ?? 0) || 0, size },
+		(next) => {
+			update({
+				page: next.page === 0 ? null : next.page.toString(),
+				size: next.size === PAGE_SIZES[0] ? null : next.size.toString(),
+			});
+		},
+		PAGE_SIZES,
+	);
+	const resetPage = { page: null };
+	const workspaceCounts = new Map(
+		data.workspaces.map((w) => [
+			w.id,
+			data.members.filter((m) => roleOf(m.member.scopes) === "Admin" || m.workspaces.some((a) => a.id === w.id)).length,
+		]),
+	);
 	const counts: Record<View, number> = {
 		all: data.members.length + data.invitations.length,
 		members: data.members.length,
@@ -68,15 +101,7 @@ export function Team() {
 	const justYou = !data.isLoading && data.members.length <= 1 && data.invitations.length === 0;
 
 	const setInviteOpen = (open: boolean) => {
-		setParams(
-			(prev) => {
-				const p = new URLSearchParams(prev);
-				if (open) p.set("invite", "1");
-				else p.delete("invite");
-				return p;
-			},
-			{ replace: true },
-		);
+		update({ invite: open ? "1" : null });
 	};
 
 	const doResend = async (invitation: Invitation) => {
@@ -142,8 +167,7 @@ export function Team() {
 					<Button
 						variant="outline"
 						onClick={() => {
-							setQ("");
-							paged.reset();
+							update({ q: null, ...resetPage });
 						}}
 					>
 						<XIcon />
@@ -181,7 +205,7 @@ export function Team() {
 							if (target !== undefined) setRemoving({ userId: target.id, name: userLabel(target) });
 						},
 						onAccess: (m: Member) => {
-							setAccessId(m.member.user?.id ?? null);
+							update({ access: m.member.user?.id ?? null });
 						},
 						onCopyLink: (invitation) => {
 							void navigator.clipboard.writeText(invitation.link).then(() => {
@@ -233,31 +257,39 @@ export function Team() {
 			/>
 			<Section
 				filters={
-					<ToggleGroup
-						variant="segmented"
-						aria-label="Show"
-						className="max-w-full overflow-x-auto"
-						value={[view]}
-						onValueChange={(v: string[]) => {
-							const next = VIEWS.find((x) => x.key === v[0]);
-							if (next === undefined) return;
-							setView(next.key);
-							paged.reset();
-						}}
-					>
-						{VIEWS.map((v) => (
-							<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
-								{v.label}
-							</ToggleGroupItem>
-						))}
-					</ToggleGroup>
+					<>
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Show"
+							className="max-w-full overflow-x-auto"
+							value={[view]}
+							onValueChange={(v: string[]) => {
+								const next = VIEWS.find((x) => x.key === v[0]);
+								if (next === undefined) return;
+								update({ view: next.key === "all" ? null : next.key, ...resetPage });
+							}}
+						>
+							{VIEWS.map((v) => (
+								<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
+									{v.label}
+								</ToggleGroupItem>
+							))}
+						</ToggleGroup>
+						<WorkspaceFilter
+							workspaces={data.workspaces}
+							counts={workspaceCounts}
+							value={wsFilter}
+							onChange={(ws) => {
+								update({ ws, ...resetPage });
+							}}
+						/>
+					</>
 				}
 				search={
 					<SearchInput
 						value={q}
 						onChange={(e) => {
-							setQ(e.target.value);
-							paged.reset();
+							update({ q: e.target.value, ...resetPage });
 						}}
 						placeholder="Search by name or email"
 						aria-label="Search people"
@@ -277,12 +309,12 @@ export function Team() {
 					void data.invalidateInvitations();
 				}}
 			/>
-			<WorkspaceAccessDialog
+			<WorkspaceAccessDrawer
 				member={accessMember}
 				workspaces={data.workspaces}
 				holds={(workspaceId, s) => scopes.holds(orgId, workspaceId, SCOPE_OF[s])}
 				onClose={() => {
-					setAccessId(null);
+					update({ access: null });
 				}}
 				onChanged={data.invalidateAccess}
 			/>
