@@ -34,6 +34,7 @@ import type { Owner } from "./tokens/useTokenData";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
+const NEW_PARAM = "new";
 
 function parseOwner(value: string | null): OwnerKey {
 	return OWNER_KEYS.find((k) => k === value) ?? "workspace";
@@ -111,6 +112,10 @@ export function Tokens() {
 		}
 		setDraft({ owner: ownerKey, name: `${token.name}-copy`, items });
 	};
+
+	// The command palette links to ?new=1 to open the create drawer.
+	const shownDraft =
+		draft ?? (params.get(NEW_PARAM) === "1" && owner.canCreate ? { owner: ownerKey, name: "", items: [] } : null);
 
 	const openCreate = () => {
 		setDraft({ owner: ownerKey, name: "", items: [] });
@@ -237,11 +242,21 @@ export function Tokens() {
 				)}
 			</Section>
 			<CreateTokenDrawer
-				draft={draft}
+				draft={shownDraft}
 				data={data}
 				now={now}
 				onClose={() => {
 					setDraft(null);
+					if (params.has(NEW_PARAM)) {
+						setParams(
+							(prev) => {
+								const p = new URLSearchParams(prev);
+								p.delete(NEW_PARAM);
+								return p;
+							},
+							{ replace: true },
+						);
+					}
 				}}
 				onCreated={(created) => {
 					if (created !== ownerKey) setOwner(created);

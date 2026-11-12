@@ -2,6 +2,7 @@ import { EntityType, Scope } from "@gen/loco/token/v1/token_pb";
 import type { EntityScope, Token } from "@gen/loco/token/v1/token_pb";
 
 import { scopeLevel } from "@/hooks/useMyScopes";
+import { pluralize } from "@/lib/format";
 import { DAY_MS, maybeTsMs } from "@/lib/time";
 
 export type OwnerKey = "org" | "workspace" | "personal";
@@ -45,9 +46,24 @@ export function defaultExpirySeconds(maxSeconds: bigint): number {
 	return Math.min((30 * DAY_MS) / 1000, Number(maxSeconds));
 }
 
+const HOUR_MS = 3_600_000;
+export const TOKEN_NAME_RE = /^[a-z0-9][a-z0-9-]+$/;
+
+export function sanitizeTokenName(raw: string): string {
+	return raw.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+}
+
+export function customExpiryError(atMs: number, now: number, maxSeconds: bigint): string | null {
+	if (Number.isNaN(atMs)) return "Pick a date and time.";
+	if (atMs < now + HOUR_MS) return "Pick a time at least an hour from now.";
+	const maxMs = Number(maxSeconds) * 1000;
+	if (atMs > now + maxMs) return `Tokens can last at most ${pluralize(Math.floor(maxMs / DAY_MS), "day")}.`;
+	return null;
+}
+
 export function expiryOptions(maxSeconds: bigint): number[] {
 	const maximum = Number(maxSeconds);
-	return [1, 7, 30]
+	return [1, 7, 14, 30]
 		.map((days) => (days * DAY_MS) / 1000)
 		.filter((seconds) => seconds < maximum)
 		.concat(maximum);

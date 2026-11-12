@@ -5,7 +5,16 @@ import { TokenSchema } from "@gen/loco/token/v1/token_pb";
 
 import { DAY_MS } from "@/lib/time";
 
-import { allowsFor, defaultExpirySeconds, expiryOptions, expiresLabel, tokenStatus } from "./model";
+import {
+	allowsFor,
+	customExpiryError,
+	defaultExpirySeconds,
+	expiryOptions,
+	expiresLabel,
+	sanitizeTokenName,
+	TOKEN_NAME_RE,
+	tokenStatus,
+} from "./model";
 
 const NOW = Date.UTC(2026, 10, 8);
 
@@ -45,9 +54,9 @@ describe("allows list", () => {
 describe("token expiry options", () => {
 	test("includes the configured maximum and only shorter presets", () => {
 		const day = DAY_MS / 1000;
-		expect(expiryOptions(BigInt(365 * day))).toEqual([day, 7 * day, 30 * day, 365 * day]);
+		expect(expiryOptions(BigInt(365 * day))).toEqual([day, 7 * day, 14 * day, 30 * day, 365 * day]);
 		expect(expiryOptions(BigInt(2 * day))).toEqual([day, 2 * day]);
-		expect(expiryOptions(BigInt(30 * day))).toEqual([day, 7 * day, 30 * day]);
+		expect(expiryOptions(BigInt(30 * day))).toEqual([day, 7 * day, 14 * day, 30 * day]);
 		expect(expiryOptions(90n)).toEqual([90]);
 	});
 });
@@ -58,4 +67,21 @@ test("default token expiry is thirty days capped at the configured maximum", () 
 	expect(defaultExpirySeconds(BigInt(30 * day))).toBe(30 * day);
 	expect(defaultExpirySeconds(BigInt(2 * day))).toBe(2 * day);
 	expect(defaultExpirySeconds(90n)).toBe(90);
+});
+
+describe("custom token expiry", () => {
+	const max = BigInt((30 * DAY_MS) / 1000);
+	test("needs at least an hour and at most the configured maximum", () => {
+		expect(customExpiryError(NOW + 30 * 60_000, NOW, max)).toBe("Pick a time at least an hour from now.");
+		expect(customExpiryError(NOW + 31 * DAY_MS, NOW, max)).toBe("Tokens can last at most 30 days.");
+		expect(customExpiryError(NOW + 3 * DAY_MS, NOW, max)).toBeNull();
+		expect(customExpiryError(Number.NaN, NOW, max)).toBe("Pick a date and time.");
+	});
+});
+
+test("token names keep only lowercase letters, digits and dashes", () => {
+	expect(sanitizeTokenName("CI Deploy_1")).toBe("ci-deploy-1");
+	expect(TOKEN_NAME_RE.test("ci-deploy")).toBe(true);
+	expect(TOKEN_NAME_RE.test("-ci")).toBe(false);
+	expect(TOKEN_NAME_RE.test("c")).toBe(false);
 });
