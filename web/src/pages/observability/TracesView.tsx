@@ -263,7 +263,7 @@ function TraceSession({
 		next.delete("page");
 		setParams(next);
 	};
-	const sortArrow = (column: TraceSummarySort) => (sort !== column ? "" : ascending ? " ↑" : " ↓");
+	const sortDir = (column: TraceSummarySort) => (sort !== column ? undefined : ascending ? "ascending" : "descending");
 	const widths = readWidths(params.get("widths"));
 
 	if (openId !== "" && active !== undefined && params.get("env") === null) {
@@ -383,7 +383,7 @@ function TraceSession({
 						onWidths={(next) => {
 							setParam("widths", writeWidths(next), true);
 						}}
-						sortArrow={sortArrow}
+						sortDir={sortDir}
 						onSort={sortBy}
 					/>
 					{!loading && browse.error !== null && (
@@ -442,7 +442,7 @@ function TraceList({
 	onOpen,
 	widths,
 	onWidths,
-	sortArrow,
+	sortDir,
 	onSort,
 }: {
 	traces: TraceSummary[];
@@ -453,7 +453,7 @@ function TraceList({
 	onOpen: (id: string) => void;
 	widths: ColumnWidths;
 	onWidths: (next: ColumnWidths) => void;
-	sortArrow: (column: TraceSummarySort) => string;
+	sortDir: (column: TraceSummarySort) => "ascending" | "descending" | undefined;
 	onSort: (column: TraceSummarySort) => void;
 }) {
 	const { live, handle } = useResizableColumns(widths, onWidths, traceColumnWidth);
@@ -478,7 +478,12 @@ function TraceList({
 								className="truncate rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 							>
 								{c.label}
-								{sortArrow(c.sort)}
+								{sortDir(c.sort) !== undefined && (
+									<>
+										<span aria-hidden>{sortDir(c.sort) === "ascending" ? " ↑" : " ↓"}</span>
+										<span className="sr-only">, sorted {sortDir(c.sort)}</span>
+									</>
+								)}
 							</button>
 						)}
 						{handle(c.key, c.label)}

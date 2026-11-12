@@ -243,7 +243,7 @@ with sync_playwright() as p:
     assert last_page_request().get('offset', 0) == 0
     assert last_page_request()['sort'] == 'TRACE_SUMMARY_SORT_DURATION'
     assert not last_page_request().get('ascending')
-    page.get_by_role('button', name='Duration ↓', exact=True).click()
+    page.get_by_role('button', name=re.compile(r'^Duration\W*sorted descending$')).click()
     evidence.settle(page)
     assert last_page_request()['ascending'] is True
     expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]').first).to_contain_text('GetProduct')
