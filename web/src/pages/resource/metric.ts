@@ -59,13 +59,27 @@ export function mergeBand(parts: Record<BandAggregation, MetricPointPct[]>): Ban
 		}));
 }
 
-interface BandSummary {
-	min: number | undefined;
-	median: number | undefined;
-	max: number | undefined;
+// Absolute units only make sense when every charted region runs the same size.
+export function sharedLimit(sizes: readonly number[]): number | undefined {
+	const first = sizes[0];
+	if (first === undefined || first <= 0 || sizes.some((n) => n !== first)) return undefined;
+	return first;
 }
 
-export function latestBand(points: BandPoint[]): BandSummary {
-	const last = points.at(-1);
-	return { min: last?.band?.[0], median: last?.median ?? undefined, max: last?.band?.[1] };
+export function scaleBand(points: BandPoint[], limit: number): BandPoint[] {
+	const k = limit / PERCENT;
+	return points.map((p) => ({
+		time: p.time,
+		median: p.median === null ? null : p.median * k,
+		band: p.band === null ? null : [p.band[0] * k, p.band[1] * k],
+	}));
+}
+
+export function usageSummary(points: BandPoint[]): { average: number | undefined; highest: number | undefined } {
+	const medians = points.flatMap((p) => (p.median === null ? [] : [p.median]));
+	const highs = points.flatMap((p) => (p.band === null ? (p.median === null ? [] : [p.median]) : [p.band[1]]));
+	return {
+		average: medians.length === 0 ? undefined : medians.reduce((a, b) => a + b, 0) / medians.length,
+		highest: highs.length === 0 ? undefined : Math.max(...highs),
+	};
 }
