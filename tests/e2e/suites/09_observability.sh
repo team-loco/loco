@@ -721,7 +721,7 @@ test_o10_proxy_isolation() {
     obs_check trace_proxy_isolation check_trace_proxy_isolation
 }
 
-test_o11_writes_the_summary() {
+test_o13_writes_the_summary() {
     {
         printf '## Summary\n\n| Check | Result |\n| --- | --- |\n'
         awk '{ printf "| %s | %s |\n", $1, $2 }' "$obs_results"
@@ -802,4 +802,90 @@ test_o10_stops_pulling_when_the_endpoint_is_removed() {
     IFS=$'\t' read -r rows markers <<<"$counts"
     log_info "After discovery removal: ${rows} recorded samples and ${markers} no-recorded-value markers since ${since}."
     assert "a pod without the discovery label is not scraped" test "$rows" -eq 0
+}
+
+obs_crash_forward_ready() {
+    grep -q 'Forwarding from 127.0.0.1:' "$1"
+}
+
+obs_crash_restarted() {
+    local status
+    status=$(obs_kube -n "$E2E_OBS_NAMESPACE" get pod "$1" -o json) || return 1
+    test "$(yq -p json '.status.containerStatuses[0].containerID' <<<"$status")" != "$2" &&
+        test "$(yq -p json '.status.containerStatuses[0].ready' <<<"$status")" = true
+}
+
+obs_crash_logs_arrived() {
+    test "$(obs_ch "$1" TabSeparated)" -eq "$2"
+}
+
+obs_crash_replay() (
+    set -e
+    collector=$(yq '.["otel-col-deploy"].fullnameOverride' "$obs_chart_values")
+    config="$obs_dir/crash-config.json"
+    forward_log="$obs_dir/crash-forward.log"
+    forward_pid=""
+    flush_seconds=60
+    records=50
+    marker="collector-crash-$(obs_random_hex "$obs_marker_bytes")"
+    obs_kube -n "$E2E_OBS_NAMESPACE" get configmap "$collector" -o json >"$config"
+    obs_crash_cleanup() {
+        result=$?
+        docker start "$E2E_OBS_INGEST_CONTAINER" || result=1
+        obs_kube -n "$E2E_OBS_NAMESPACE" patch configmap "$collector" --type merge -p "$(yq -o=json '{"data": .data}' "$config")" || result=1
+        obs_kube -n "$E2E_OBS_NAMESPACE" rollout restart "statefulset/$collector" || result=1
+        obs_kube -n "$E2E_OBS_NAMESPACE" rollout status "statefulset/$collector" --timeout="${obs_route_timeout_seconds}s" || result=1
+        if [ -n "$forward_pid" ]; then
+            kill "$forward_pid" 2>/dev/null || true
+            wait "$forward_pid" 2>/dev/null || true
+        fi
+        exit "$result"
+    }
+    trap obs_crash_cleanup EXIT
+    # Keep the acknowledged records below the flush threshold until SIGKILL reaches the process.
+    flush_seconds="$flush_seconds" yq -o=json '.data.relay |= (from_yaml | .exporters.otlp_http.sending_queue.batch = {"sizer": "items", "min_size": 100000, "flush_timeout": strenv(flush_seconds) + "s"} | to_yaml)' "$config" |
+        obs_kube -n "$E2E_OBS_NAMESPACE" replace -f -
+    window_started=$(obs_now)
+    obs_kube -n "$E2E_OBS_NAMESPACE" rollout restart "statefulset/$collector"
+    obs_kube -n "$E2E_OBS_NAMESPACE" rollout status "statefulset/$collector" --timeout="${obs_route_timeout_seconds}s"
+    pod="${collector}-0"
+    status=$(obs_kube -n "$E2E_OBS_NAMESPACE" get pod "$pod" -o json)
+    container=$(yq -p json '.status.containerStatuses[0].containerID' <<<"$status")
+    node=$(yq -p json '.spec.nodeName' <<<"$status")
+    pid=$(docker exec "$node" crictl inspect "${container#containerd://}" | yq -p json '.info.pid')
+    port=$(yq -p json '.spec.containers[0].ports[] | select(.name == "otlp-http") | .containerPort' <<<"$status")
+    test "$pid" -gt 0
+    docker stop "$E2E_OBS_INGEST_CONTAINER"
+    obs_kube -n "$E2E_OBS_NAMESPACE" port-forward --address 127.0.0.1 "pod/$pod" ":$port" >"$forward_log" 2>&1 &
+    forward_pid=$!
+    wait_for "the crash-test collector port-forward" "$obs_route_timeout_seconds" obs_crash_forward_ready "$forward_log"
+    port=$(awk '/Forwarding from 127.0.0.1:/ {split($3, address, ":"); print address[2]; exit}' "$forward_log")
+    timestamp="$(obs_now)000000000"
+    {
+        printf '{"resourceLogs":[{"scopeLogs":[{"logRecords":['
+        separator=""
+        for i in $(seq 1 "$records"); do
+            printf '%s{"timeUnixNano":"%s","body":{"stringValue":"%s-%d"}}' "$separator" "$timestamp" "$marker" "$i"
+            separator=,
+        done
+        printf ']}]}]}'
+    } >"$obs_dir/crash-logs.json"
+    code=$(curl -sS --fail-with-body --max-time "$obs_curl_timeout_seconds" -o "$obs_dir/crash-response.json" -w '%{http_code}' \
+        -H 'Content-Type: application/json' --data-binary "@$obs_dir/crash-logs.json" "http://127.0.0.1:$port/v1/logs")
+    test "$code" = "$obs_http_ok"
+    test "$(yq -p json -o=json '.partialSuccess.rejectedLogRecords // 0' "$obs_dir/crash-response.json")" -eq 0
+    docker exec "$node" kill -9 "$pid"
+    test "$(($(obs_now) - window_started))" -lt "$flush_seconds"
+    wait_for "the killed collector to restart" "$obs_route_timeout_seconds" obs_crash_restarted "$pod" "$container"
+    test "$(obs_kube -n "$E2E_OBS_NAMESPACE" get pod "$pod" -o jsonpath='{.status.containerStatuses[0].lastState.terminated.exitCode}')" -eq 137
+    docker start "$E2E_OBS_INGEST_CONTAINER"
+    query="SELECT count(DISTINCT Body) FROM otel_logs WHERE startsWith(Body, '${marker}-')"
+    wait_for "all $records acknowledged logs to replay after SIGKILL" "$obs_telemetry_timeout_seconds" obs_crash_logs_arrived "$query" "$records"
+    printf '\n## Collector crash replay\n\nSIGKILL of `%s` before its %ss flush: all %s acknowledged numbered logs (`%s-*`) replayed from the same PVC after restart.\n' \
+        "$pod" "$flush_seconds" "$records" "$marker" >>"$obs_evidence"
+)
+
+test_o12_replays_acknowledged_logs_after_collector_sigkill() {
+    obs_crash_replay
+    assert "all acknowledged logs survive a collector SIGKILL before batching flushes" true
 }

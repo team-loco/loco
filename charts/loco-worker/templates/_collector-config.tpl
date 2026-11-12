@@ -5,6 +5,8 @@
 {{- $template = "opentelemetry-collector.daemonsetConfig" -}}
 {{- end -}}
 {{- $config := include $template $collector | fromYaml -}}
+{{/* The subchart still defines batch; only the persistent exporter queue may buffer records. */}}
+{{- $_ := unset $config.processors "batch" -}}
 {{- $settings := .root.Values.global.platformTelemetry -}}
 {{- $export := .root.Values.global.exporter -}}
 {{- if and $settings.enabled (eq .name "otel-col-cluster") (or (ne (int $collector.Values.replicaCount) 1) $collector.Values.autoscaling.enabled) -}}
@@ -14,7 +16,7 @@
 {{- fail "global.platformTelemetry.platformOnly requires platformTelemetry.enabled" -}}
 {{- end -}}
 {{- $queueStorage := "file_storage/exporter" -}}
-{{- $exporter := dict "endpoint" (required "global.exporter.endpoint is required" $export.endpoint) "headers" $export.headers "sending_queue" (dict "enabled" true "storage" $queueStorage "num_consumers" $export.queue.num_consumers "queue_size" $export.queue.queue_size) "retry_on_failure" (merge (dict "enabled" true) $export.retry) -}}
+{{- $exporter := dict "endpoint" (required "global.exporter.endpoint is required" $export.endpoint) "headers" $export.headers "sending_queue" (dict "enabled" true "storage" $queueStorage "num_consumers" $export.queue.num_consumers "queue_size" $export.queue.queue_size "block_on_overflow" $export.queue.block_on_overflow "batch" $export.queue.batch) "retry_on_failure" (merge (dict "enabled" true) $export.retry) -}}
 {{- $extensions := dict $queueStorage (dict "directory" $export.queue.directory) -}}
 {{- if $export.ingestToken.enabled -}}
 {{- $authenticator := "bearertokenauth/exporter" -}}
@@ -57,9 +59,9 @@
 {{- $_ := set $config.receivers.k8s_cluster "node_conditions_to_report" $settings.nodeConditions -}}
 {{- $_ := set $config.receivers.k8s_cluster "allocatable_types_to_report" $settings.allocatableTypes -}}
 {{- $_ := set $config.processors "transform/platform_event" (dict "error_mode" "propagate" "log_statements" (list (dict "context" "log" "statements" (list "set(resource.attributes[\"k8s.namespace.name\"], body[\"object\"][\"metadata\"][\"namespace\"]) where IsMap(body) and IsMap(body[\"object\"])" "set(resource.attributes[\"k8s.namespace.name\"], body[\"metadata\"][\"namespace\"]) where IsMap(body) and IsMap(body[\"metadata\"])")))) -}}
-{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "k8sobjects") "processors" (list "memory_limiter" "transform/platform_event" "filter/platform" "resource/platform" "batch")) -}}
+{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "k8sobjects") "processors" (list "memory_limiter" "transform/platform_event" "filter/platform" "resource/platform")) -}}
 {{- end -}}
-{{- $_ := set $config.service.pipelines "metrics/platform" (dict "receivers" $receivers "processors" (list "memory_limiter" "filter/platform" "resource/platform" "batch")) -}}
+{{- $_ := set $config.service.pipelines "metrics/platform" (dict "receivers" $receivers "processors" (list "memory_limiter" "filter/platform" "resource/platform")) -}}
 {{- if $settings.platformOnly -}}
 {{- $pipelines := pick $config.service.pipelines "metrics/platform" "logs/platform" -}}
 {{- $_ := set $config.service "pipelines" $pipelines -}}

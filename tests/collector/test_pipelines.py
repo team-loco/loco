@@ -1,4 +1,8 @@
+import json
+import os
 import re
+import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -223,7 +227,7 @@ def test_all_collectors_render(worker_relays):
 def test_every_pipeline_stamps_the_region_last(worker_relays, subtests):
     for collector, config, name, pipeline in _pipelines(worker_relays):
         with subtests.test(collector=collector, pipeline=name):
-            assert pipeline["processors"][-2:] == ["resource/region", "batch"]
+            assert pipeline["processors"][-1] == "resource/region"
             assert config["processors"]["resource/region"] == {
                 "attributes": [
                     {"key": "loco.region", "value": TEST_REGION, "action": "upsert"}
@@ -231,12 +235,11 @@ def test_every_pipeline_stamps_the_region_last(worker_relays, subtests):
             }
 
 
-def test_memory_limiter_runs_first_and_batch_last(worker_relays):
+def test_memory_limiter_runs_first(worker_relays):
     for collector, _, name, pipeline in _pipelines(worker_relays):
         processors = pipeline.get("processors", [])
         assert len(processors) >= 2, f"{collector} {name}"
         assert processors[0] == "memory_limiter", f"{collector} {name}"
-        assert processors[-1] == "batch", f"{collector} {name}"
 
 
 def test_push_receivers_have_their_own_pipelines(worker_relays):
@@ -402,7 +405,7 @@ def test_route_tenancy_runs_after_kubernetes_attributes(envoy_telemetry):
                 "k8s_attributes/connection",
                 "transform/envoy_tenancy",
                 "groupbyattrs/tenancy",
-                "batch",
+                "resource/region",
             )
         ]
         assert order == sorted(order), name
@@ -463,7 +466,7 @@ def test_file_logs_extract_application_severity(worker_relays):
         processors = pipeline["processors"]
         assert "transform/log_severity" in processors
         assert processors.index("transform/log_severity") > processors.index("memory_limiter")
-        assert processors.index("transform/log_severity") < processors.index("batch")
+        assert processors.index("transform/log_severity") < processors.index("resource/region")
         assert "log_statements" in config["processors"]["transform/log_severity"]
 
 
@@ -473,3 +476,52 @@ def test_the_collector_parses_routes_in_the_controllers_workspace_namespaces():
     statements = collector_relays(documents)["otel-col-deploy"]["processors"]["transform/envoy_tenancy"]["trace_statements"][1]["statements"]
     (parse,) = [statement for statement in statements if "ExtractPatterns" in statement]
     assert f'"^httproute/{prefix}(?P<workspace>' in parse
+
+
+@pytest.mark.parametrize("platform_only", [None, False, True])
+def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
+    settings = exporter_settings()["queue"]
+    image = chart_values("loco-worker")["otel-col-daemon"]["image"]
+    service_account = tmp_path / "serviceaccount"
+    service_account.mkdir()
+    (service_account / "token").write_text("test-token")
+    (service_account / "namespace").write_text("default")
+    ca = Path(__file__).parent / "fixtures/ca.crt"
+    (service_account / "ca.crt").write_bytes(ca.read_bytes())
+    overrides = {}
+    if platform_only is not None:
+        overrides = {
+            "global": {"platformTelemetry": {
+                "enabled": True, "platformOnly": platform_only,
+                "installation": "test", "cluster": "test", "environment": "staging",
+            }},
+            "otel-col-deploy": {"enabled": not platform_only},
+        }
+    for collector, config in collector_relays(render_chart("loco-worker", overrides)).items():
+        queue = config["exporters"]["otlp_http"]["sending_queue"]
+        assert queue["storage"] == "file_storage/exporter", collector
+        assert queue["block_on_overflow"] is True, collector
+        assert queue["batch"] == settings["batch"], collector
+        assert queue["batch"]["min_size"] > 0, collector
+        assert queue["batch"]["sizer"] == "items", collector
+        assert "batch" not in config["processors"], collector
+        for pipeline in config["service"]["pipelines"].values():
+            assert all(step.split("/")[0] not in {"batch", "queuebatch"} for step in pipeline["processors"]), collector
+        config_path = tmp_path / f"{collector}.json"
+        config_path.write_text(json.dumps(config))
+        storage_mounts = [
+            argument
+            for name, extension in config["extensions"].items()
+            if name.split("/")[0] == "file_storage"
+            for argument in ("--tmpfs", extension["directory"])
+        ]
+        result = subprocess.run([
+            "docker", "run", "--rm", "--user", str(os.getuid()), *storage_mounts,
+            "--env", "MY_POD_IP=127.0.0.1", "--env", "OTEL_K8S_NODE_NAME=test-node",
+            "--env", "OTEL_K8S_NODE_IP=127.0.0.1",
+            "--env", "KUBERNETES_SERVICE_HOST=127.0.0.1", "--env", "KUBERNETES_SERVICE_PORT=443",
+            "--volume", f"{service_account}:/var/run/secrets/kubernetes.io/serviceaccount:ro",
+            "--volume", f"{tmp_path}:/conf:ro", f'{image["repository"]}:{image["tag"]}',
+            "validate", f"--config=/conf/{config_path.name}",
+        ], capture_output=True, text=True)
+        assert result.returncode == 0, f"{collector}: {result.stdout}\n{result.stderr}"

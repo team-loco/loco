@@ -455,3 +455,34 @@ tests:
         template: charts/otel-col-deploy/templates/statefulset.yaml
       - equal: *noWait
         template: charts/otel-col-cluster/templates/statefulset.yaml
+
+  - it: renders exporter batching and backpressure settings into every collector
+    set:
+      global.exporter.queue.batch.min_size: 42
+      global.exporter.queue.batch.flush_timeout: 2s
+    template: templates/collectors/collector-configs.yaml
+    asserts:
+      - matchRegex:
+          path: data.relay
+          pattern: 'min_size: 42'
+      - matchRegex:
+          path: data.relay
+          pattern: 'flush_timeout: 2s'
+      - matchRegex:
+          path: data.relay
+          pattern: 'block_on_overflow: true'
+
+  - it: emits file logs synchronously only on the node collector
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --feature-gates=stanza.synchronousLogEmitter
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --feature-gates=stanza.synchronousLogEmitter
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --feature-gates=stanza.synchronousLogEmitter
+        template: charts/otel-col-cluster/templates/statefulset.yaml

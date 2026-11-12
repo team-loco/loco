@@ -53,6 +53,12 @@ global:
       directory: &exporterQueueDirectory /var/lib/otelcol-exporter
       num_consumers: 2
       queue_size: 5000
+      block_on_overflow: true
+      # @schema additionalProperties: false
+      batch:
+        sizer: items
+        min_size: 100
+        flush_timeout: 1s
     retry:
       initial_interval: 1s
       max_interval: 30s
@@ -364,6 +370,10 @@ otel-col-daemon:
     checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
   namespaceOverride: loco-obs-node
   mode: daemonset
+  command:
+    # Keep file-log checkpoints behind acceptance into the persistent exporter queue.
+    extraArgs:
+      - --feature-gates=stanza.synchronousLogEmitter
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
@@ -546,9 +556,6 @@ otel-col-daemon:
           k8s.pod.network.io:
             enabled: true
     processors:
-      batch:
-        timeout: 1s
-        send_batch_size: 100
       memory_limiter:
         check_interval: 1s
         limit_mib: 384
@@ -680,23 +687,23 @@ otel-col-daemon:
                 name: k8s.pod.uid
         extract: *tenancyExtract
     service:
-      # memory_limiter must run first so it can refuse data before batch buffers it in memory.
+      # Refuse data before enrichment and persistence consume more memory.
       pipelines:
         logs:
           receivers: [file_log]
-          processors: [memory_limiter, transform/log_severity, k8s_attributes/pod_uid, resource/region, batch]
+          processors: [memory_limiter, transform/log_severity, k8s_attributes/pod_uid, resource/region]
         logs/otlp:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region]
         metrics/applications:
           receivers: [prometheus/applications]
-          processors: [memory_limiter, resource/strip_tenancy, transform/scrape_identity, k8s_attributes/pod_uid, resource/region, batch]
+          processors: [memory_limiter, resource/strip_tenancy, transform/scrape_identity, k8s_attributes/pod_uid, resource/region]
         metrics:
           receivers: [kubeletstats]
-          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
+          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region]
         traces:
           receivers: [otlp, jaeger, zipkin]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region]
 
 # @schema skipProperties
 otel-col-deploy:
@@ -828,13 +835,13 @@ otel-col-deploy:
       pipelines:
         logs:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region]
         metrics:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region]
         traces:
           receivers: [otlp, jaeger, zipkin]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region]
 
 # @schema skipProperties
 otel-col-cluster:
@@ -901,7 +908,6 @@ otel-col-cluster:
         check_interval: 5s
         limit_percentage: 80
         spike_limit_percentage: 25
-      batch: {}
       k8s_attributes/pod_uid:
         passthrough: false
         pod_association: *podUIDAssociation
@@ -911,7 +917,7 @@ otel-col-cluster:
       pipelines:
         logs:
           receivers: [k8sobjects]
-          processors: [memory_limiter, resource/region, batch]
+          processors: [memory_limiter, resource/region]
         metrics:
           receivers: [k8s_cluster]
-          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
+          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region]

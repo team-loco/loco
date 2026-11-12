@@ -3,14 +3,15 @@ import pytest
 from helpers import collector_relays, render_chart
 
 
-@pytest.mark.parametrize("name,kind,namespace,key", [
-    ("otel-col-daemon", "DaemonSet", "loco-obs-node", "config"),
-    ("otel-col-cluster", "StatefulSet", "loco-obs", "alternateConfig"),
+@pytest.mark.parametrize("name,kind,namespace", [
+    ("otel-col-daemon", "DaemonSet", "loco-obs-node"),
+    ("otel-col-deploy", "StatefulSet", "loco-obs"),
+    ("otel-col-cluster", "StatefulSet", "loco-obs"),
 ])
-def test_collector_config_changes_roll_pods_and_match_mounted_config(name, kind, namespace, key):
+def test_collector_config_changes_roll_pods_and_match_mounted_config(name, kind, namespace):
     checksums = []
     for timeout in ("1s", "2s"):
-        documents = render_chart("loco-worker", {name: {key: {"processors": {"batch": {"timeout": timeout}}}}})
+        documents = render_chart("loco-worker", {"global": {"exporter": {"queue": {"batch": {"flush_timeout": timeout}}}}})
         workload = next(document for document in documents if document["kind"] == kind and document["metadata"]["labels"].get("app.kubernetes.io/name") == name)
         pod = workload["spec"]["template"]
         checksums.append(pod["metadata"]["annotations"]["checksum/platform-telemetry"])
@@ -18,5 +19,5 @@ def test_collector_config_changes_roll_pods_and_match_mounted_config(name, kind,
         mounted = next(volume["configMap"]["name"] for volume in pod["spec"]["volumes"] if volume["name"] == mount["name"])
         configmap = next(document for document in documents if document["kind"] == "ConfigMap" and document["metadata"]["name"] == mounted)
         assert configmap["metadata"]["namespace"] == namespace
-        assert collector_relays(documents)[mounted]["processors"]["batch"]["timeout"] == timeout
+        assert collector_relays(documents)[mounted]["exporters"]["otlp_http"]["sending_queue"]["batch"]["flush_timeout"] == timeout
     assert checksums[0] != checksums[1]

@@ -587,6 +587,24 @@
             "queue": {
               "type": "object",
               "properties": {
+                "batch": {
+                  "type": "object",
+                  "properties": {
+                    "flush_timeout": {
+                      "type": "string"
+                    },
+                    "min_size": {
+                      "type": "integer"
+                    },
+                    "sizer": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "block_on_overflow": {
+                  "type": "boolean"
+                },
                 "directory": {
                   "type": "string"
                 },
