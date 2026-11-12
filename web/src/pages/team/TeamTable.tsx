@@ -1,5 +1,14 @@
 import type { Invitation } from "@gen/loco/org/v1/org_pb";
-import { ChevronDownIcon, CopyIcon, LayersIcon, RotateCwIcon, Trash2Icon, UserMinusIcon } from "lucide-react";
+import {
+	CheckIcon,
+	ChevronDownIcon,
+	CopyIcon,
+	LayersIcon,
+	RotateCwIcon,
+	Trash2Icon,
+	UserCogIcon,
+	UserMinusIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
@@ -11,6 +20,9 @@ import {
 	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 } from "@/components/design/DropdownMenu";
 import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
@@ -38,6 +50,34 @@ export interface RowActions {
 	onCopyLink: (invitation: Invitation) => void;
 	onResend: (invitation: Invitation) => void;
 	onRevoke: (invitation: Invitation) => void;
+}
+
+const ROLE_HINT: Record<Role, string> = {
+	Admin: "Manage members and every workspace.",
+	Member: "Only sees the workspaces you give them.",
+};
+
+function RoleItems({ role, onPick }: { role: Role; onPick: (role: Role) => void }) {
+	return (
+		<DropdownMenuGroup>
+			{(["Admin", "Member"] as const).map((next) => (
+				<DropdownMenuItem
+					key={next}
+					disabled={next === role}
+					className="items-start data-disabled:cursor-default data-disabled:opacity-100"
+					onClick={() => {
+						onPick(next);
+					}}
+				>
+					<span className="flex min-w-0 flex-1 flex-col gap-0.5">
+						<span>{next}</span>
+						<span className="text-[12px] text-fg3">{ROLE_HINT[next]}</span>
+					</span>
+					<CheckIcon className={next === role ? "mt-0.5" : "invisible"} />
+				</DropdownMenuItem>
+			))}
+		</DropdownMenuGroup>
+	);
 }
 
 function Dash() {
@@ -105,20 +145,13 @@ function MemberRow({
 						{role}
 						<ChevronDownIcon className="text-fg4" />
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start">
-						<DropdownMenuGroup>
-							{(["Admin", "Member"] as const).map((next) => (
-								<DropdownMenuItem
-									key={next}
-									disabled={next === role}
-									onClick={() => {
-										actions.onRole(member, next);
-									}}
-								>
-									{next}
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuGroup>
+					<DropdownMenuContent align="start" className="w-[260px]">
+						<RoleItems
+							role={role}
+							onPick={(next) => {
+								actions.onRole(member, next);
+							}}
+						/>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</TableCell>
@@ -161,17 +194,29 @@ function MemberRow({
 			<TableCell className="text-right">
 				{!isMe && (
 					<RowMenu label={`Actions for ${name}`} title={name}>
-						{role === "Member" && (
-							<>
-								<DropdownMenuGroup>
-									<DropdownMenuItem onClick={openAccess}>
-										<LayersIcon />
-										Workspace access
-									</DropdownMenuItem>
-								</DropdownMenuGroup>
-								<DropdownMenuSeparator />
-							</>
-						)}
+						<DropdownMenuGroup>
+							<DropdownMenuSub>
+								<DropdownMenuSubTrigger disabled={!actions.canChangeRoles}>
+									<UserCogIcon />
+									Change role
+								</DropdownMenuSubTrigger>
+								<DropdownMenuSubContent className="w-[260px]">
+									<RoleItems
+										role={role}
+										onPick={(next) => {
+											actions.onRole(member, next);
+										}}
+									/>
+								</DropdownMenuSubContent>
+							</DropdownMenuSub>
+							{role === "Member" && (
+								<DropdownMenuItem onClick={openAccess}>
+									<LayersIcon />
+									Workspace access
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuGroup>
+						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							variant="destructive"
 							disabled={!actions.canChangeRoles}
