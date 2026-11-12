@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import { ArrowUpRightIcon, HistoryIcon, SearchXIcon, XIcon } from "lucide-react";
+import { ArrowUpRightIcon, CheckIcon, CopyIcon, HistoryIcon, SearchXIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { ART_SOFT, ART_STRONG, ClusterArt } from "@/components/design/ClusterArt";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
-import { formatSpan, windowSpan } from "@/lib/obs-time";
+import { useCopy } from "@/hooks/useCopy";
+import { formatSpan, windowSpan, type TimeWindow } from "@/lib/obs-time";
 import type { ObservabilityView } from "@/lib/routes";
 import { DOCS_URL } from "@/pages/splash/links";
 
@@ -117,6 +118,30 @@ export function ObsHero({
 				</Button>
 			</div>
 		</EmptyHero>
+	);
+}
+
+/** True when the range already reaches as far back as this view can look, so an empty result means nothing was collected. */
+export function coversWholeRange(range: TimeWindow, maxMs: number): boolean {
+	return range.kind === "relative" && range.spanMs >= maxMs;
+}
+
+export function CopyCommand({ command }: { command: string }) {
+	const [copied, copy] = useCopy();
+	return (
+		<Button
+			variant="outline"
+			aria-label={`Copy ${command}`}
+			title="Copy"
+			onClick={() => {
+				copy("cmd", command, "Copied command");
+			}}
+			className="font-mono text-[12.5px]"
+		>
+			<span className="text-fg4">$</span>
+			{command}
+			{copied === null ? <CopyIcon className="text-fg3" /> : <CheckIcon className="text-ok-fg" />}
+		</Button>
 	);
 }
 

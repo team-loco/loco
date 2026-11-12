@@ -210,7 +210,7 @@ export function LogDetail({
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								onClick={() => {
-									copy("msg", msgText);
+									copy("msg", msgText, "Copied message");
 								}}
 							>
 								<CopyIcon />
@@ -218,7 +218,7 @@ export function LogDetail({
 							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={() => {
-									copy("json", json);
+									copy("json", json, "Copied as JSON");
 								}}
 							>
 								<CopyIcon />
@@ -238,7 +238,7 @@ export function LogDetail({
 						aria-label="Copy message"
 						title="Copy message"
 						onClick={() => {
-							copy("msg", msgText);
+							copy("msg", msgText, "Copied message");
 						}}
 						className={cn("absolute top-2 right-2", copied === "msg" ? "text-ok-fg" : "text-fg3")}
 					>
@@ -276,7 +276,7 @@ export function LogDetail({
 								copied={copied === `a:${a.key}`}
 								isColumn={a.column !== undefined && columns.includes(a.column)}
 								onCopy={() => {
-									copy(`a:${a.key}`, a.value);
+									copy(`a:${a.key}`, a.value, `Copied ${a.key}`);
 								}}
 								onFilter={(neg) => {
 									if (a.field !== undefined) addTok({ neg, key: a.field, value: a.value });

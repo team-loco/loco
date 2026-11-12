@@ -272,7 +272,7 @@ export function buildBackendQuery(
 	};
 }
 
-export const PINNED_KEY = "loco:pinned-queries:v1";
+const PINNED_KEY_PREFIX = "loco:pinned-queries:v1";
 const RECENT_KEY_PREFIX = "loco:recent-queries:v1";
 const RECENT_VIEWS = new Set<ObservabilityView>(["logs", "metrics", "traces"]);
 const RECENT_KEEP = 8;
@@ -304,6 +304,10 @@ export function recentKey(orgId: string, workspaceId: string, view: Observabilit
 	return RECENT_VIEWS.has(view) ? `${RECENT_KEY_PREFIX}:${orgId}/${workspaceId}:${view}` : null;
 }
 
+export function pinnedKey(orgId: string, workspaceId: string, view: ObservabilityView): string {
+	return `${PINNED_KEY_PREFIX}:${orgId}/${workspaceId}:${view}`;
+}
+
 export function recentQuery(view: ObservabilityView, tokens: Token[], text: string): string {
 	const support = tokenSupport(view, tokens);
 	return queryStr(
@@ -316,8 +320,8 @@ export function addRecent(list: RecentQuery[], q: string, ts: number): RecentQue
 	return [{ q, ts }, ...list.filter((r) => r.q !== q)].slice(0, RECENT_KEEP);
 }
 
-export function shownRecent(list: RecentQuery[], current: string): RecentQuery[] {
-	return list.filter((r) => r.q !== current).slice(0, RECENT_SHOWN);
+export function shownRecent(list: RecentQuery[], current: string, pinned: string[]): RecentQuery[] {
+	return list.filter((r) => r.q !== current && !pinned.includes(r.q)).slice(0, RECENT_SHOWN);
 }
 
 export function agoShort(ms: number, nowMs: number): string {

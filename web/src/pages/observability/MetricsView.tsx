@@ -1,10 +1,11 @@
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { BellIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
+import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
+import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -17,13 +18,13 @@ import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { imageVersion } from "@/lib/image";
 import { aroundWindow, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { logAnchor } from "@/lib/log-history";
-import { resourcePath } from "@/lib/routes";
+import { newResourcePath, resourcePath } from "@/lib/routes";
 import { formatHourMinute, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs, type ObsResource } from "./context";
 import { MetricChart, type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
-import { ObsHero } from "./ObsEmpty";
+import { coversWholeRange, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, narrow, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { ViewHeader } from "./ViewHeader";
@@ -187,7 +188,8 @@ function Meter({ value }: { value: number | undefined }) {
 }
 
 export function MetricsView() {
-	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, params, goTo, setQuery, text } = useObs();
+	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, maxMs, params, goTo, setQuery, text } =
+		useObs();
 	const navigate = useNavigate();
 	const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "cpu", desc: true });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
@@ -268,11 +270,21 @@ export function MetricsView() {
 		return (
 			<>
 				<ViewHeader />
-				<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
 				<ObsHero
 					view="metrics"
-					title="No metrics in this range"
-					body="CPU and memory appear once a resource is running. Requests, errors and latency come from resources with a public address."
+					title={coversWholeRange(range, maxMs) ? "No metrics collected" : "No metrics in this range"}
+					body="CPU and memory start as soon as a resource is up. Requests and latency come from resources with a public address."
+					action={
+						<>
+							<Button
+								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.name } : {})} />}
+							>
+								<PlusIcon />
+								New resource
+							</Button>
+							<WidenRangeButton />
+						</>
+					}
 				/>
 			</>
 		);

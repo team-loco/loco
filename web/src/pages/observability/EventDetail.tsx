@@ -81,7 +81,7 @@ export function EventDetail({
 									<CopyButton
 										copied={copied === f.k}
 										onCopy={() => {
-											copy(f.k, f.v);
+											copy(f.k, f.v, `Copied ${f.k.toLowerCase()}`);
 										}}
 										className="size-5"
 									/>
