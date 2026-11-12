@@ -147,23 +147,11 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, err
 	}
 
-	resourceID, err := parseID("resource_id", req.GetResourceId())
+	resource, err := s.resourceForDeployment(ctx, req.GetResourceId())
 	if err != nil {
 		return nil, err
 	}
-
-	required := actions.New(actions.CreateDeployment, resourceID)
-	if authErr := authorizeVisible(ctx, s.authz, required, ErrResourceNotFound); authErr != nil {
-		return nil, authErr
-	}
-
-	resource, err := s.queries.GetResourceByID(ctx, resourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrResourceNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get resource: %w", err)
-	}
+	resourceID := resource.ID
 
 	if admitErr := admission.AdmitWork(ctx, resource.WorkspaceID, admission.Deploy); admitErr != nil {
 		return nil, admitErr
@@ -537,6 +525,25 @@ func (s *DeploymentServer) WatchDeployment(
 		case <-ticker.C:
 		}
 	}
+}
+
+func (s *DeploymentServer) resourceForDeployment(ctx context.Context, rawID string) (genDb.Resource, error) {
+	resourceID, err := parseID("resource_id", rawID)
+	if err != nil {
+		return genDb.Resource{}, err
+	}
+	required := actions.New(actions.CreateDeployment, resourceID)
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrResourceNotFound); authErr != nil {
+		return genDb.Resource{}, authErr
+	}
+	resource, err := s.queries.GetResourceByID(ctx, resourceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return genDb.Resource{}, ErrResourceNotFound
+	}
+	if err != nil {
+		return genDb.Resource{}, fmt.Errorf("get resource: %w", err)
+	}
+	return resource, nil
 }
 
 func isTerminalDeploymentStatus(status genDb.DeploymentStatus) bool {
