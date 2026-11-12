@@ -11,7 +11,7 @@ describe("scorePaletteItem", () => {
 	});
 
 	test("does not match letters scattered across words", () => {
-		expect(score("log", "Switch to light mode", "theme appearance toggle")).toBe(0);
+		expect(score("log", "Light mode", "appearance theme mode")).toBe(0);
 	});
 
 	test("ignores the item value", () => {
