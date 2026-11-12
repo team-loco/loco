@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { cn } from "@/lib/utils";
 
-import { demoFrame, ENDPOINT, STRATEGY, TERMINAL, TONE_CLASS, type Pod } from "./deploy";
+import { demoFrame, DEPLOY_SHARE, ENDPOINT, REQUEST_SERIES, STRATEGY, TERMINAL, TONE_CLASS, type Pod } from "./deploy";
 import { RolloutPlayer } from "./rolloutPlayer";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -29,12 +29,51 @@ function Fact({ label, value }: { label: string; value: string }) {
 	);
 }
 
+const CHART_W = 300;
+const CHART_H = 64;
+const SERIES_MAX = Math.max(...REQUEST_SERIES) + 6;
+const SERIES_LINE = `M${REQUEST_SERIES.map((v, i) => `${((i / (REQUEST_SERIES.length - 1)) * CHART_W).toFixed(1)},${(CHART_H - (v / SERIES_MAX) * 60).toFixed(1)}`).join(" L")}`;
+const DEPLOY_X = CHART_W * DEPLOY_SHARE;
+
+function RequestsChart({ rps, deployed }: { rps: number; deployed: boolean }) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<div className="flex justify-between text-[12.5px] text-fg3">
+				<span>Requests</span>
+				<span className="font-mono text-foreground">{`${rps.toLocaleString()} req/s`}</span>
+			</div>
+			<svg
+				viewBox={`0 0 ${String(CHART_W)} ${String(CHART_H)}`}
+				preserveAspectRatio="none"
+				aria-hidden="true"
+				className="block h-16 w-full"
+			>
+				<path
+					d={`${SERIES_LINE} L${String(CHART_W)},${String(CHART_H)} L0,${String(CHART_H)} Z`}
+					fill="color-mix(in oklch, var(--brand) 12%, transparent)"
+				/>
+				<path d={SERIES_LINE} fill="none" stroke="var(--brand)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+				<line
+					x1={DEPLOY_X}
+					x2={DEPLOY_X}
+					y1={0}
+					y2={CHART_H}
+					stroke="var(--fg4)"
+					strokeDasharray="3 3"
+					vectorEffect="non-scaling-stroke"
+					className={cn("transition-opacity duration-300", deployed ? "opacity-100" : "opacity-0")}
+				/>
+			</svg>
+		</div>
+	);
+}
+
 export function DeployDemo() {
 	const [{ subscribe, getSnapshot, observe }] = useState(
 		() => new RolloutPlayer(window.matchMedia(REDUCED_MOTION).matches),
 	);
 	const frame = useSyncExternalStore(subscribe, getSnapshot);
-	const { shown, status, ready, desired, regions } = demoFrame(frame);
+	const { shown, status, ready, desired, regions, version, requestsPerSecond, p95Ms, deployed } = demoFrame(frame);
 
 	return (
 		<div
@@ -79,6 +118,9 @@ export function DeployDemo() {
 						<Server className="size-[15px] text-fg2" aria-hidden="true" />
 						<span className="text-[14.5px] font-semibold">api</span>
 						<span className="rounded-[4px] bg-panel2 px-[7px] py-px text-xs text-fg2">production</span>
+						<span className="ml-auto truncate font-mono text-xs text-fg3 transition-colors duration-300">
+							{version}
+						</span>
 					</div>
 					<div className="flex items-center gap-2.5">
 						<ResourceStatusBadge status={status} />
@@ -98,9 +140,13 @@ export function DeployDemo() {
 							</div>
 						))}
 					</div>
-					<div className="mt-auto flex flex-col gap-3 border-t border-line pt-3">
+					<RequestsChart rps={requestsPerSecond} deployed={deployed} />
+					<div className="mt-auto grid grid-cols-2 gap-3 border-t border-line pt-3">
 						<Fact label="Endpoint" value={ENDPOINT} />
-						<Fact label="Strategy" value={STRATEGY} />
+						<Fact label="p95" value={`${String(p95Ms)} ms`} />
+						<div className="col-span-2">
+							<Fact label="Strategy" value={STRATEGY} />
+						</div>
 					</div>
 				</div>
 			</div>

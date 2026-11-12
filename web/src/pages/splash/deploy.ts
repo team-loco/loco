@@ -34,11 +34,20 @@ export interface DemoFrame {
 	ready: number;
 	desired: number;
 	regions: readonly RegionFrame[];
+	version: string;
+	requestsPerSecond: number;
+	p95Ms: number;
+	deployed: boolean;
 }
 
 const SURGE_PERCENT = 25;
 const REPLICAS = 4;
 const BUILD_ID = "019a6b2e-41c7-7d3a-9f02-5b8e1c4d7a90";
+const OLD_DIGEST = "sha256:91d2f0ae";
+const NEW_DIGEST = "sha256:4be1c09d";
+const BASE_RPS = 1180;
+const BASE_P95_MS = 86;
+const ROLLOUT_P95_MS = 92;
 
 export const ENDPOINT = "api-kwvn.onloco.app";
 export const STRATEGY = `Rolling · ${SURGE_PERCENT}% surge · ${SURGE_PERCENT}% unavailable`;
@@ -62,7 +71,7 @@ export const TERMINAL: readonly TerminalLine[] = [
 	{ at: 8, text: `Build ${BUILD_ID} running`, tone: "output" },
 	{
 		at: 16,
-		text: `Build ${BUILD_ID} succeeded in 38s: registry.onloco.app/ws-019a1f04-8c2d-7e55-b6a1-0d9e3c7f2a18/019a1f05-3b6e-7a90-8d24-6f1c0e9b5d73@sha256:4be1c09d`,
+		text: `Build ${BUILD_ID} succeeded in 38s: registry.onloco.app/ws-019a1f04-8c2d-7e55-b6a1-0d9e3c7f2a18/019a1f05-3b6e-7a90-8d24-6f1c0e9b5d73@${NEW_DIGEST}`,
 		tone: "ok",
 	},
 	{ at: DEPLOYED_AT, text: "Applied. Environment revision is now 8.", tone: "ok" },
@@ -113,6 +122,13 @@ const STAGES: readonly (readonly Pod[])[] = [
 	[pod(5, true, "ready"), pod(6, true, "ready"), pod(7, true, "ready"), pod(8, true, "ready")],
 ];
 const LAST_STAGE = STAGES.length - 1;
+
+// A staged request rate for the demo chart, one point a minute over the past hour.
+export const REQUEST_SERIES: readonly number[] = Array.from(
+	{ length: 60 },
+	(_, i) => 30 + 9 * Math.sin(i / 5) + 5 * Math.sin(i / 1.7 + 1) + (i % 7 === 3 ? 4 : 0),
+);
+export const DEPLOY_SHARE = 0.78;
 const LAST_START = Math.max(...REGION_STARTS.map((r) => r.start));
 
 export const REST_FRAME = LAST_START + LAST_STAGE * STAGE_FRAMES;
@@ -126,11 +142,16 @@ export function demoFrame(frame: number): DemoFrame {
 	const regions = REGION_STARTS.map(({ name, start }) => ({ name, pods: stageAt(frame, start) }));
 	const ready = regions.reduce((sum, r) => sum + r.pods.filter((p) => p.phase === "ready").length, 0);
 	const deploying = frame >= DEPLOYED_AT && frame < REST_FRAME;
+	const pods = regions.flatMap((r) => r.pods);
 	return {
 		shown: TERMINAL.filter((line) => line.at <= frame).length,
 		status: deploying ? ResourceStatus.DEPLOYING : ResourceStatus.HEALTHY,
 		ready,
 		desired: REPLICAS * regions.length,
 		regions,
+		version: pods.every((p) => p.fresh) ? NEW_DIGEST : OLD_DIGEST,
+		requestsPerSecond: BASE_RPS + Math.round(40 * Math.sin(frame / 3)),
+		p95Ms: (deploying ? ROLLOUT_P95_MS : BASE_P95_MS) + Math.round(3 * Math.sin(frame)),
+		deployed: frame >= DEPLOYED_AT,
 	};
 }

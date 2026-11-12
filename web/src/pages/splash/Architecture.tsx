@@ -9,7 +9,7 @@ const STACK = [
 	{ layer: "Edge", parts: ["Envoy Gateway", "HTTP/3", "TLS"] },
 	{ layer: "Certificates", parts: ["cert-manager", "Let's Encrypt"] },
 	{ layer: "Network", parts: ["NetworkPolicy CNI"] },
-	{ layer: "Compute", parts: ["Kubernetes"] },
+	{ layer: "Compute", parts: ["Kubernetes", "restricted pods"] },
 	{ layer: "Telemetry", parts: ["OpenTelemetry", "ClickHouse"] },
 	{ layer: "Control plane", parts: ["Go", "Connect RPC", "PostgreSQL"] },
 ] as const;
@@ -25,7 +25,7 @@ export function Architecture() {
 			<div>
 				<SectionTitle>Open source, end to end.</SectionTitle>
 				<p className="-mt-6 mb-5 max-w-[420px] text-[15.5px] text-pretty text-fg3">
-					Every layer is open source, from the edge to the control plane.
+					Every request passes through these layers, from the edge to the control plane.
 				</p>
 				<a
 					href={GITHUB_URL}

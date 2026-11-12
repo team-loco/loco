@@ -17,6 +17,12 @@ describe("demoFrame", () => {
 		expect(rest.regions.flatMap((r) => r.pods).every((p) => p.fresh && p.phase === "ready")).toBe(true);
 	});
 
+	test("moves the version tag to the digest the demo build pushed", () => {
+		const built = demoFrame(REST_FRAME).version;
+		expect(demoFrame(0).version).not.toBe(built);
+		expect(TERMINAL.some((line) => line.text.endsWith(`@${built}`))).toBe(true);
+	});
+
 	test("reports deploying while a region is still rolling out", () => {
 		expect(demoFrame(REST_FRAME - 1).status).toBe(ResourceStatus.DEPLOYING);
 	});
