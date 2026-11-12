@@ -3,6 +3,7 @@ import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
 import {
 	ObservabilityProxyService,
+	TraceStatus,
 	TraceSummarySort,
 	type QueryTracesRequest,
 } from "@gen/loco/observability/v1/observability_pb";
@@ -16,7 +17,7 @@ const input = {
 	start: 1_800_000_000_123,
 	end: 1_800_003_600_456,
 	limit: 25,
-	summary: { offset: 25, rootNameTerms: ["GET", "/cart"], status: "error", sort: TraceSummarySort.DURATION },
+	summary: { offset: 25, rootNameTerms: ["GET", "/cart"], status: TraceStatus.ERROR, sort: TraceSummarySort.DURATION },
 };
 
 describe("trace summary queries", () => {
@@ -57,7 +58,7 @@ describe("trace summary queries", () => {
 			{ end: input.end + 1 },
 			{ limit: 50 },
 			{ summary: { ...input.summary, offset: 50 } },
-			{ summary: { ...input.summary, status: "ok" } },
+			{ summary: { ...input.summary, status: TraceStatus.OK } },
 			{ summary: { ...input.summary, rootNameTerms: ["POST"] } },
 			{ summary: { ...input.summary, sort: TraceSummarySort.START_TIME } },
 		]) {

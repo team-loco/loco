@@ -68,8 +68,8 @@ def handle(route):
     if 'summary' in body:
         summary = body['summary']
         others = [dict(spans[index], traceId=f'{index + 100:032x}', parentSpanId='', name=name, durationNanos=str(duration * 1000000)) for index, (name, duration) in enumerate([('GET /api/products', 18), ('GetRecommendations', 132), ('GetProduct', 9), ('GET /cart', 42), ('Convert · USD → EUR', 12), ('GetQuote', 86)])]
-        summaries = [{'traceId': trace, 'rootSpanName': spans[0]['name'], 'serviceName': spans[0]['serviceName'], 'startTime': spans[0]['startTime'], 'durationNanos': '427600000', 'status': 'error', 'spanCount': str(len(spans))}]
-        summaries += [{'traceId': row['traceId'], 'rootSpanName': row['name'], 'serviceName': row['serviceName'], 'startTime': row['startTime'], 'durationNanos': row['durationNanos'], 'status': 'ok', 'spanCount': '1'} for row in others]
+        summaries = [{'traceId': trace, 'rootSpanName': spans[0]['name'], 'serviceName': spans[0]['serviceName'], 'startTime': spans[0]['startTime'], 'durationNanos': '427600000', 'status': 'TRACE_STATUS_ERROR', 'spanCount': str(len(spans))}]
+        summaries += [{'traceId': row['traceId'], 'rootSpanName': row['name'], 'serviceName': row['serviceName'], 'startTime': row['startTime'], 'durationNanos': row['durationNanos'], 'status': 'TRACE_STATUS_OK', 'spanCount': '1'} for row in others]
         if mode[0] == 'paged':
             summaries += [dict(summaries[1], traceId=f'{index + 1000:032x}', rootSpanName=f'Paged trace {index}') for index in range(60)]
         if body.get('traceId'):
@@ -237,7 +237,7 @@ with sync_playwright() as p:
     assert recorded[-1]['summary']['sort'] == 'TRACE_SUMMARY_SORT_DURATION'
     page.get_by_role('button', name='Errors', exact=True).click()
     evidence.settle(page)
-    assert recorded[-1]['summary']['status'] == 'error'
+    assert recorded[-1]['summary']['status'] == 'TRACE_STATUS_ERROR'
     expect(page.get_by_role('region', name='Trace list').locator('tbody tr')).to_have_count(1)
     page.goto(state['ui_url'] + base + '&q=products')
     evidence.settle(page)

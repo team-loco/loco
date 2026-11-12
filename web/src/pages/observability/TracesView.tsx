@@ -1,4 +1,4 @@
-import { TraceSummarySort } from "@gen/loco/observability/v1/observability_pb";
+import { TraceStatus, TraceSummarySort } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { Navigate } from "react-router";
@@ -82,7 +82,12 @@ function TraceSession() {
 		summary: {
 			offset: paging.page * paging.size,
 			rootNameTerms: text.split(" ").filter(Boolean),
-			status: statuses.length === 1 ? (statuses[0] ?? "") : "",
+			status:
+				statuses.length === 1
+					? statuses[0] === "error"
+						? TraceStatus.ERROR
+						: TraceStatus.OK
+					: TraceStatus.UNSPECIFIED,
 			sort,
 		},
 		enabled: filterReady && scopeReady && validLookup && statusReady,
@@ -275,7 +280,7 @@ function TraceSession() {
 								))}
 							{!loading &&
 								traces.map((t) => {
-									const failed = t.status === "error";
+									const failed = t.status === TraceStatus.ERROR;
 									const startMs = Number(t.startTime?.seconds ?? 0n) * 1000 + (t.startTime?.nanos ?? 0) / 1_000_000;
 									const on = t.traceId === openId;
 									return (
