@@ -27,7 +27,7 @@ import {
 import { SearchInput } from "@/components/design/SearchInput";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useCopy } from "@/hooks/useCopy";
-import { aroundWindow } from "@/lib/obs-time";
+import { AROUND_MS, aroundWindow, MINUTE_MS } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
 
 const NUMERIC_RE = /^\d+(\.\d+)?$/;
+const AROUND_LABEL = `±${String(AROUND_MS / MINUTE_MS)} minutes`;
 
 interface Attribute {
 	key: string;
@@ -142,44 +143,52 @@ export function LogDetail({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-[250px]">
 							{known !== undefined && (
-								<DropdownMenuItem render={<Link to={resourcePath(orgId, workspaceId, known.id)} />}>
+								<DropdownMenuItem
+									render={<Link to={resourcePath(orgId, workspaceId, known.id)} />}
+									className="items-start"
+								>
 									<BoxIcon />
-									Open {known.name}
+									<ItemText label={`View ${known.name}`} sub="Resource page" />
+								</DropdownMenuItem>
+							)}
+							{e.traceId !== "" && (
+								<DropdownMenuItem
+									className="items-start"
+									onClick={() => {
+										goTo("traces", {
+											range: aroundWindow(row.ts, Date.now()),
+											tokens: [],
+											trace: e.traceId,
+											...(e.spanId !== "" ? { span: e.spanId } : {}),
+										});
+									}}
+								>
+									<WaypointsIcon />
+									<ItemText label="View trace" sub="Waterfall for this request" />
 								</DropdownMenuItem>
 							)}
 							<DropdownMenuItem
-								disabled={e.traceId === ""}
-								onClick={() => {
-									goTo("traces", {
-										range: aroundWindow(row.ts, Date.now()),
-										tokens: [],
-										trace: e.traceId,
-										...(e.spanId !== "" ? { span: e.spanId } : {}),
-									});
-								}}
-							>
-								<WaypointsIcon />
-								{e.traceId === "" ? "No trace on this line" : "View trace"}
-							</DropdownMenuItem>
-							<DropdownMenuItem
+								className="items-start"
 								onClick={() => {
 									goTo("logs", { range: aroundWindow(row.ts, Date.now()), focusTs: row.ts });
 								}}
 							>
 								<ClockIcon />
-								Logs around this line
+								<ItemText label="Logs around this line" sub={`${AROUND_LABEL}, same filters`} />
 							</DropdownMenuItem>
 							{row.pod !== "" && (
 								<DropdownMenuItem
+									className="items-start"
 									onClick={() => {
 										addTok({ neg: false, key: "replica", value: row.pod });
 									}}
 								>
 									<FilterIcon />
-									Only replica {row.replica}
+									<ItemText label={`Only replica ${row.replica}`} sub="Add @replica filter" />
 								</DropdownMenuItem>
 							)}
 							<DropdownMenuItem
+								className="items-start"
 								onClick={() => {
 									goTo("metrics", {
 										range: aroundWindow(row.ts, Date.now()),
@@ -189,7 +198,7 @@ export function LogDetail({
 								}}
 							>
 								<ChartLineIcon />
-								Metrics around this line
+								<ItemText label="Metrics around this line" sub={`${row.resourceName}, ${AROUND_LABEL}`} />
 							</DropdownMenuItem>
 							<DropdownMenuItem disabled>
 								<ScrollTextIcon />
@@ -289,6 +298,15 @@ export function LogDetail({
 				</div>
 			</div>
 		</DetailPanel>
+	);
+}
+
+function ItemText({ label, sub }: { label: string; sub: string }) {
+	return (
+		<span className="flex min-w-0 flex-col">
+			<span className="truncate">{label}</span>
+			<span className="truncate text-[12px] text-fg3">{sub}</span>
+		</span>
 	);
 }
 
