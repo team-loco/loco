@@ -1,4 +1,3 @@
-import re
 import subprocess
 import sys
 import tomllib
@@ -68,15 +67,9 @@ def test_site_uses_the_web_favicon(built_site):
     ).read_text()
 
 
-def test_site_logo_matches_the_web_logo_strokes(built_site):
-    strokes = re.findall(
-        '\\["([^"]+)", ([\\d.]+)\\]',
-        (WEB / "src/components/design/logo-strokes.ts").read_text(),
-    )
+def test_site_logo_is_the_web_logo(built_site):
     logo = (DOCS / "overrides/partials/logo.html").read_text()
-    for path, width in strokes:
-        assert f'<path d="{path}" stroke-width="{width}"/>' in logo
-    assert logo.count("<path ") == len(strokes)
+    assert logo == (WEB / "public/logo.svg").read_text()
     assert logo.strip() in built_site.html
 
 

@@ -1,26 +1,14 @@
 import { cn } from "@/lib/utils";
 
-import { LOGO_STROKES, LOGO_VIEWBOX } from "./logo-strokes";
-
 function LocoLogo({ className, title = "Loco" }: { className?: string | undefined; title?: string | undefined }) {
+	// A mask lets each colour theme paint the shared logo file with its own --logo; the aspect ratio is the file's viewBox.
 	return (
-		<span className={cn("loco-logo inline-block", className)}>
-			<svg
-				viewBox={LOGO_VIEWBOX}
-				role="img"
-				aria-label={title}
-				fill="none"
-				stroke="var(--logo)"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				className="block h-auto w-full"
-			>
-				<title>{title}</title>
-				{LOGO_STROKES.map(([d, width]) => (
-					<path key={d} d={d} strokeWidth={width} />
-				))}
-			</svg>
-		</span>
+		<span
+			role="img"
+			aria-label={title}
+			className={cn("inline-block aspect-[995/475] bg-[var(--logo)]", className)}
+			style={{ mask: "url(/logo.svg) center / contain no-repeat" }}
+		/>
 	);
 }
 
