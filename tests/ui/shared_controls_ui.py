@@ -110,6 +110,47 @@ def live_focus(page, suffix):
     expect(live).to_have_attribute("aria-pressed", "false")
 
 
+def log_paging(page, suffix):
+    many = [{"timestamp": stamp(timedelta(seconds=i * 7 + 1)), "severity": "INFO", "body": f"Paged line {i + 1}", "resourceId": resource, "resourceAttributes": {"cloud.region": "us-east-1"}, "logAttributes": {"http.request.method": "GET"}} for i in range(120)]
+    page.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: route.fulfill(json={"entries": many, "totalMatched": "0"}))
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&size=25")
+    pager_label = page.get_by_text(re.compile(r"of 120 loaded$"))
+    expect(pager_label).to_have_text("1–25 of 120 loaded")
+    expect(page.get_by_role("button", name="Newest", exact=True)).to_be_disabled()
+    page.get_by_role("button", name="Oldest", exact=True).click()
+    expect(pager_label).to_have_text("101–120 of 120 loaded")
+    assert "page=last" in page.url, page.url
+    expect(page.get_by_role("button", name="Oldest", exact=True)).to_be_disabled()
+    page.get_by_role("button", name="Newest", exact=True).click()
+    expect(pager_label).to_have_text("1–25 of 120 loaded")
+    page.get_by_role("button", name="Older", exact=True).click()
+    expect(pager_label).to_have_text("26–50 of 120 loaded")
+    page.get_by_role("group", name="Rows per page").get_by_role("button", name="250", exact=True).click()
+    expect(pager_label).to_have_text("1–120 of 120 loaded")
+    assert "size=250" in page.url, page.url
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&size=25&page=2")
+    expect(pager_label).to_have_text("26–50 of 120 loaded")
+    page.get_by_role("button", name=re.compile(r"Paged line 30$")).click()
+    assert "log=" in page.url, page.url
+    page.reload()
+    detail = page.get_by_role("complementary", name="Log line")
+    expect(detail).to_contain_text("Paged line 30")
+    detail.get_by_role("button", name="More for this line", exact=True).click()
+    expect(page.get_by_role("menuitem", name=re.compile(r"^View controls-pilot"))).to_be_visible()
+    expect(page.get_by_role("menuitem", name=re.compile(r"^View trace"))).to_have_count(0)
+    page.keyboard.press("Escape")
+    page.get_by_role("button", name="Add a column", exact=True).click()
+    page.get_by_role("menuitemcheckbox", name="Method", exact=True).click()
+    page.keyboard.press("Escape")
+    assert "method" in urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["cols"][0], page.url
+    expect(page.get_by_role("button", name=re.compile(r"GET Paged line 30$"))).to_have_count(1)
+    page.get_by_role("separator", name="Resize column Resource").focus()
+    page.keyboard.press("ArrowRight")
+    expect(page).to_have_url(re.compile(r"widths=resource%3A156"))
+    page.screenshot(path=str(out / f"log-paging-{suffix}.png"))
+    page.unroute("**/loco.observability.v1.ObservabilityProxyService/QueryLogs")
+
+
 def time_presets(page, suffix):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
@@ -425,7 +466,7 @@ with sync_playwright() as playwright:
                         box = name.bounding_box()
                         assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
                     if not args.capture_only:
-                        for check in (log_levels, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
+                        for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
                             check(page, suffix)
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})

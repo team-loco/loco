@@ -14,7 +14,7 @@ import { liveTokens, narrow, readQuery, writeQuery, type Token } from "./query";
 import { EVENTS_MAX_MS, QUERY_MAX_MS, readWindow, writeWindow, type TimeWindow } from "@/lib/obs-time";
 
 const SERIES_COLORS = 8;
-const VIEW_STATE_KEYS = ["page", "at", "trace", "span"];
+const VIEW_STATE_KEYS = ["page", "at", "trace", "span", "log"];
 
 export function seriesColor(index: number): string {
 	return `var(--series-${String(index % SERIES_COLORS)})`;
@@ -113,6 +113,7 @@ export function ObsProvider({
 	const setQuery = (nextTokens: Token[], nextText: string) => {
 		const next = writeQuery(params, nextTokens, nextText);
 		next.delete("page");
+		next.delete("log");
 		commit(next);
 	};
 	const setParam = (key: string, value: string | null, replace = false) => {

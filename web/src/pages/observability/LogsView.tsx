@@ -14,12 +14,12 @@ import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
-import { createLogHistory, logAnchor, moveLogHistory } from "@/lib/log-history";
+import { createLogHistory, logAnchor, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
 import { formatHourMinute, msToTimestamp } from "@/lib/time";
 import { windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
-import { readColumns, writeColumns, type ColumnKey } from "./columns";
+import { readColumns, readWidths, writeColumns, writeWidths, type ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { fmtTs } from "./format";
 import { LogDetail } from "./LogDetail";
@@ -37,6 +37,8 @@ const BATCH = 1000;
 const WHITESPACE = /\s+/;
 const BUCKETS = 60;
 const DEFAULT_PAGE_SIZE = 50;
+const LOG_PAGE_SIZES = [...PAGE_SIZES, 250];
+const LAST_PAGE = "last";
 const TAIL_TICK_MS = 1000;
 const IDLE_TICK_MS = 15_000;
 const RATE_WINDOW_MS = 10_000;
@@ -74,18 +76,20 @@ export function LogsView() {
 		setQuery,
 		params,
 		setParam,
+		setParams,
 	} = useObs();
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = environment?.id ?? "";
 	const mobile = useIsMobile();
-	const { size } = readPaging(params, DEFAULT_PAGE_SIZE);
+	const { size, page: urlPage } = readPaging(params, DEFAULT_PAGE_SIZE, LOG_PAGE_SIZES);
+	const page: number | "last" = params.get("page") === LAST_PAGE ? "last" : urlPage;
+	const selectedKey = params.get("log");
 	const columns = readColumns(params.get("cols"));
-	const [page, setPage] = useState<number | "last">(0);
+	const widths = readWidths(params.get("widths"));
 	const [history, setHistory] = useState(createLogHistory);
 	const anchor = logAnchor(params.get("at"));
 	const [focusActive, setFocusActive] = useState(anchor !== null);
 	const [windowEnd, setWindowEnd] = useState(Date.now);
-	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
 	const backend = buildBackendQuery(tokens, text, resources, scopedResourceIds);
 	const spanMs = windowSpan(range);
@@ -122,8 +126,6 @@ export function LogsView() {
 		setHistory(createLogHistory());
 		setWindowEnd(Math.max(windowEnd, nowMs));
 		setFocusActive(anchor !== null);
-		setPage(0);
-		setSelectedKey(null);
 		if (!canTail) setPlayback({ ...currentPlayback, on: false, pending: null, paused: null });
 	}
 	const historyFrom =
@@ -165,10 +167,19 @@ export function LogsView() {
 	const held = frozen ? allTail.length - tailRows.length : 0;
 	const rows = visibleLogRows(batchRows, tailRows, playback.paused?.rows ?? null);
 	const rate = allTail.filter((r) => r.ts > nowMs - RATE_WINDOW_MS).length / (RATE_WINDOW_MS / 1000);
+	// The page and selected line live in the URL so a reload or shared link reopens them.
+	const setView = (nextPage: number | "last", key: string | null) => {
+		const next = new URLSearchParams(params);
+		if (nextPage === 0) next.delete("page");
+		else next.set("page", nextPage === "last" ? LAST_PAGE : String(nextPage + 1));
+		if (key === null) next.delete("log");
+		else next.set("log", key);
+		setParams(next, true);
+	};
 	const handleToggleTail = () => {
-		setPage(0);
 		setFreezeTs(null);
 		if (tail) {
+			setView(0, selectedKey);
 			setPlayback({
 				...playback,
 				on: false,
@@ -193,7 +204,7 @@ export function LogsView() {
 		const pending = { from: playbackKey, to: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]) };
 		setHistory(createLogHistory());
 		setWindowEnd(latest.end);
-		setSelectedKey(null);
+		setView(0, null);
 		setPlayback({ ...playback, pending });
 		void latest.result.then(
 			() => {
@@ -246,15 +257,27 @@ export function LogsView() {
 
 	const select = (key: string | null) => {
 		setFocusActive(false);
-		setSelectedKey(key);
 		if (key === null) {
 			setFreezeTs(null);
+			setView(curPage, null);
 			return;
 		}
 		const idx = rows.findIndex((r) => r.key === key);
-		if (idx >= 0) setPage(Math.floor(idx / size));
+		setView(idx >= 0 ? Math.floor(idx / size) : curPage, key);
 		if (freezeTs === null || selectedKey === null) setFreezeTs(rows[0]?.ts ?? nowMs);
 	};
+	const toOlderBatch = () => {
+		setPlayback({ ...playback, on: false, pending: null, paused: null });
+		setHistory(moveLogHistory(history, "older", cutoffCursor ?? ""));
+		setView(0, null);
+	};
+	const toNewerBatch = () => {
+		setPlayback({ ...playback, on: false, pending: null, paused: null });
+		setHistory(moveLogHistory(history, "newer", newerCursor ?? ""));
+		setView("last", null);
+	};
+	const atNewest = curPage === 0 && history.newer.length === 0 && newerCursor === null;
+	const atOldest = curPage === pages - 1 && history.older.length === 0 && cutoffCursor === null;
 
 	const valueCounts = (key: FieldKey): [string, number][] => {
 		const m = new Map<string, number>();
@@ -303,7 +326,6 @@ export function LogsView() {
 
 	const returnToLatest = () => {
 		setRange({ kind: "relative", spanMs });
-		setSelectedKey(null);
 	};
 	const header = (
 		<ViewHeader
@@ -419,7 +441,7 @@ export function LogsView() {
 									type="button"
 									onClick={() => {
 										setFreezeTs(allTail[0]?.ts ?? nowMs);
-										setPage(0);
+										setView(0, selectedKey);
 									}}
 									className="flex h-[30px] w-full items-center justify-center gap-1.5 rounded-t-card bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
 								>
@@ -439,6 +461,10 @@ export function LogsView() {
 										select(key === selRow?.key ? null : key);
 									}}
 									onColumns={setColumns}
+									widths={widths}
+									onWidths={(next) => {
+										setParam("widths", writeWidths(next), true);
+									}}
 								/>
 								{isLoading && <LoadingRows />}
 								{!isLoading && error !== null && (
@@ -460,24 +486,35 @@ export function LogsView() {
 										: "0"
 								}
 								total={rows.length}
-								pageSizes={PAGE_SIZES}
+								pageSizes={LOG_PAGE_SIZES}
 								pageSize={size}
 								onPageSize={(n) => {
-									setParam("size", n === DEFAULT_PAGE_SIZE ? null : String(n), true);
-									setPage(0);
+									const next = new URLSearchParams(params);
+									if (n === DEFAULT_PAGE_SIZE) next.delete("size");
+									else next.set("size", String(n));
+									next.delete("page");
+									setParams(next, true);
 								}}
 								prevLabel="Newer"
 								nextLabel="Older"
+								firstLabel="Newest"
+								lastLabel="Oldest"
+								onFirst={
+									atNewest
+										? null
+										: () => {
+												setFocusActive(false);
+												setPlayback({ ...playback, on: false, pending: null, paused: null });
+												if (anchor === null) setHistory(createLogHistory());
+												setView(0, null);
+											}
+								}
 								onPrev={
 									canNewer
 										? () => {
 												setFocusActive(false);
-												if (curPage > 0) setPage(curPage - 1);
-												else {
-													setPlayback({ ...playback, on: false, pending: null, paused: null });
-													setHistory(moveLogHistory(history, "newer", newerCursor ?? ""));
-													setPage("last");
-												}
+												if (curPage > 0) setView(curPage - 1, selectedKey);
+												else toNewerBatch();
 											}
 										: null
 								}
@@ -485,14 +522,21 @@ export function LogsView() {
 									canOlder
 										? () => {
 												setFocusActive(false);
-												if (curPage < pages - 1) setPage(curPage + 1);
-												else {
-													setPlayback({ ...playback, on: false, pending: null, paused: null });
-													setHistory(moveLogHistory(history, "older", cutoffCursor ?? ""));
-													setPage(0);
-												}
+												if (curPage < pages - 1) setView(curPage + 1, selectedKey);
+												else toOlderBatch();
 											}
 										: null
+								}
+								onLast={
+									atOldest || anchor !== null || tail
+										? null
+										: () => {
+												setFocusActive(false);
+												setPlayback({ ...playback, on: false, pending: null, paused: null });
+												// Lines past this batch are reachable only through cursors, so jump to the oldest batch.
+												if (cutoffCursor !== null || history.older.length > 0) setHistory(oldestLogHistory());
+												setView("last", null);
+											}
 								}
 							/>
 						</section>
