@@ -1,7 +1,10 @@
+import { useEffect, useEffectEvent, useRef } from "react";
+
 import { Spinner } from "@/components/design/Spinner";
 
 import { useSignIn } from "@/auth/SignIn";
 import { Button } from "@/components/design/Button";
+import { AppLoading } from "@/context/AppLoader";
 
 import { AuthCard } from "./AuthCard";
 
@@ -16,7 +19,20 @@ export function SignInCard({
 	loginHint: string | null;
 	error: string | null;
 }) {
-	const { signIn, redirecting } = useSignIn();
+	const { signIn, redirecting, failed } = useSignIn();
+	const automatic = error === null && !failed;
+	const startedRef = useRef(false);
+	const startAutomatically = useEffectEvent(() => {
+		void signIn(next, loginHint);
+	});
+
+	useEffect(() => {
+		if (!automatic || startedRef.current) return;
+		startedRef.current = true;
+		startAutomatically();
+	}, [automatic]);
+
+	if (automatic) return <AppLoading />;
 
 	return (
 		<AuthCard title="Sign in to loco" subtitle={subtitle} error={error}>
