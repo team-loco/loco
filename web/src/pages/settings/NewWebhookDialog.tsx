@@ -13,7 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { pageSelection, setPage, toggleId } from "@/lib/selection";
 
-import { groupCountLabel, isUrlRejection, webhookEventGroups } from "./webhooks";
+import { groupCountLabel, isHttpsUrl, isUrlRejection, webhookEventGroups } from "./webhooks";
 
 type Mode = "all" | "choose";
 
@@ -102,8 +102,10 @@ function NewWebhookForm({
 
 	const target = url.trim();
 	const rejected = isUrlRejection(mutation.error);
-	const urlError = rejected ? getErrorMessage(mutation.error) : null;
-	const ok = target !== "" && (mode === "all" || types.size > 0);
+	const httpsUrl = isHttpsUrl(target);
+	const urlError =
+		target !== "" && !httpsUrl ? "Use an https:// URL." : rejected ? getErrorMessage(mutation.error) : null;
+	const ok = httpsUrl && (mode === "all" || types.size > 0);
 
 	const submit = () => {
 		if (!ok || mutation.isPending) return;
@@ -270,7 +272,6 @@ function EventPicker({
 }
 
 export function SigningSecret({ secret, onDone }: { secret: string; onDone: () => void }) {
-	const [visible, setVisible] = useState(false);
 	return (
 		<>
 			<DialogBody>
@@ -279,22 +280,7 @@ export function SigningSecret({ secret, onDone }: { secret: string; onDone: () =
 					<code className="font-mono">webhook-signature</code> header.
 				</p>
 				<div className="flex items-center gap-2.5 rounded-lg bg-panel2 py-2 pr-2 pl-3">
-					<Input
-						aria-label="Signing secret"
-						type={visible ? "text" : "password"}
-						readOnly
-						autoComplete="off"
-						value={secret}
-						className="min-w-0 flex-1 font-mono"
-					/>
-					<ToggleChip
-						pressed={visible}
-						onPressedChange={(pressed) => {
-							setVisible(pressed);
-						}}
-					>
-						Show
-					</ToggleChip>
+					<code className="min-w-0 flex-1 font-mono text-[13px] break-all">{secret}</code>
 					<CopyButton text={secret} name="Copy signing secret" />
 				</div>
 			</DialogBody>

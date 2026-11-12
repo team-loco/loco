@@ -11,8 +11,9 @@ import {
 	deliveryLabel,
 	deliveryWhen,
 	eventsSummary,
-	failedCount,
+	errorCount,
 	groupCountLabel,
+	isHttpsUrl,
 	isUrlRejection,
 	tickStrip,
 	webhookEventGroups,
@@ -38,14 +39,18 @@ test("colours ticks oldest first and caps the strip", () => {
 	expect(strip.at(-1)?.id).toBe("0");
 });
 
-test("counts only failed deliveries, like the Failed filter", () => {
+test("counts failed and retrying deliveries as errors, not fresh or delivered ones", () => {
 	const deliveries = [
 		delivery("a", "succeeded"),
 		delivery("b", "pending"),
 		delivery("c", "pending", "timeout"),
 		delivery("d", "failed", "endpoint returned 500"),
 	];
-	expect(failedCount(deliveries)).toBe(1);
+	expect(errorCount(deliveries)).toBe(2);
+	expect(errorCount([delivery("b", "pending")])).toBe(0);
+	expect(errorCount([delivery("c", "pending", "timeout")])).toBe(1);
+	expect(errorCount([delivery("d", "failed", "endpoint returned 500")])).toBe(1);
+	expect(errorCount([delivery("a", "succeeded")])).toBe(0);
 	expect(deliveries.map(deliveryLabel)).toEqual(["Delivered", "Pending", "Retrying", "Failed"]);
 });
 
@@ -106,4 +111,18 @@ test("groups workspace events by subject and leaves out organization events", ()
 	]);
 	const builds = webhookEventGroups().find((g) => g.label === "Builds");
 	expect(builds?.types).toContain("build.failed");
+});
+
+test("accepts only https endpoint URLs", () => {
+	expect(isHttpsUrl("https://hooks.example.com/loco")).toBe(true);
+	expect(isHttpsUrl("http://hooks.example.com/loco")).toBe(false);
+	expect(isHttpsUrl("hooks.example.com")).toBe(false);
+});
+
+test("puts runtime alerts in their own group", () => {
+	const groups = webhookEventGroups(["resource.created", "resource.degraded", "resource.recovered"]);
+	expect(groups).toEqual([
+		{ label: "Runtime alerts", types: ["resource.degraded", "resource.recovered"] },
+		{ label: "Resources", types: ["resource.created"] },
+	]);
 });

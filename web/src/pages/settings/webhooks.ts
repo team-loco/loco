@@ -23,8 +23,10 @@ export function deliveryTick(d: WebhookDelivery): Tick {
 	return "warn";
 }
 
-export function failedCount(deliveries: readonly WebhookDelivery[]): number {
-	return deliveries.filter((d) => d.status === STATUS_FAILED).length;
+// A pending delivery counts once an attempt has failed; a fresh one has not been tried yet.
+export function errorCount(deliveries: readonly WebhookDelivery[]): number {
+	return deliveries.filter((d) => d.status === STATUS_FAILED || (d.status === STATUS_PENDING && d.lastError !== ""))
+		.length;
 }
 
 export function deliveryLabel(d: WebhookDelivery): string {
@@ -68,6 +70,10 @@ export function deliveryDetail(d: WebhookDelivery): string | null {
 	return `${d.lastError} · ${pluralize(d.attempts, "attempt")}`;
 }
 
+export function isHttpsUrl(value: string): boolean {
+	return URL.canParse(value) && new URL(value).protocol === "https:";
+}
+
 export function isUrlRejection(error: unknown): boolean {
 	return error instanceof ConnectError && error.code === Code.InvalidArgument;
 }
@@ -76,7 +82,10 @@ export function eventsSummary(types: readonly string[]): string {
 	return types.length === 0 ? "All events" : pluralize(types.length, "event");
 }
 
+const RUNTIME_ALERTS: ReadonlySet<string> = new Set(["resource.degraded", "resource.recovered"]);
+
 const GROUPS: readonly { label: string; subjects: readonly string[] }[] = [
+	{ label: "Runtime alerts", subjects: ["runtime"] },
 	{ label: "Deployments", subjects: ["deployment"] },
 	{ label: "Builds", subjects: ["build"] },
 	{ label: "Resources", subjects: ["resource"] },
@@ -87,6 +96,10 @@ const GROUPS: readonly { label: string; subjects: readonly string[] }[] = [
 	{ label: "Tokens", subjects: ["token"] },
 	{ label: "Workspace", subjects: ["workspace", "webhook"] },
 ];
+
+function subjectOf(type: string): string {
+	return RUNTIME_ALERTS.has(type) ? "runtime" : type.slice(0, type.indexOf("."));
+}
 
 interface EventGroup {
 	label: string;
@@ -100,6 +113,6 @@ export function groupCountLabel(selected: number, total: number): string {
 export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES): EventGroup[] {
 	return GROUPS.map((g) => ({
 		label: g.label,
-		types: types.filter((t) => g.subjects.includes(t.slice(0, t.indexOf(".")))),
+		types: types.filter((t) => g.subjects.includes(subjectOf(t))),
 	})).filter((g) => g.types.length > 0);
 }
