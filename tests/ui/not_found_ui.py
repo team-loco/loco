@@ -40,7 +40,7 @@ sibling = state["workspaces"]["acme/sibling"]
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{shared}';")
 base = f"{ui}/org/{org}/wks/{shared}"
 issuer = f"{ui}/dex"
-TITLE = "This page doesn’t exist"
+TITLE = "Nothing lives at this address"
 
 
 def open_page(browser, user, theme="light", narrow=False):
@@ -213,6 +213,12 @@ with sync_playwright() as playwright:
             expect(prompt.get_by_role("link", name="Read the docs")).to_be_visible()
             page.get_by_role("button", name=re.compile(r"^Invitations")).click()
             expect(page.get_by_text("No invitations", exact=True)).to_be_visible()
+            page.goto(ui + "/cli/device?code=ABCD-EFGH")
+            expect(page.get_by_text("Check that this matches your terminal", exact=True)).to_be_visible()
+            expect(page.get_by_role("status")).to_have_text("ABCD-EFGH")
+            expect(page.get_by_role("textbox", name="Device code")).to_have_count(0)
+            page.goto(ui + "/cli/device")
+            expect(page.get_by_role("textbox", name="Device code")).to_be_editable()
             assert not errors, errors
             cases.append("owner-other-org")
         except BaseException:
@@ -250,6 +256,12 @@ with sync_playwright() as playwright:
             page.goto(ui + "/")
             expect(page).to_have_url(ui + "/")
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+
+            page.goto(ui + "/auth/callback?error=access_denied")
+            expect(page).to_have_url(ui + "/login")
+            expect(page.get_by_role("heading", name="Sign in to loco", exact=True)).to_be_visible()
+            expect(page.get_by_role("link", name="loco home", exact=True)).to_have_attribute("href", "/")
+            expect(page.locator("aside canvas")).to_be_visible()
 
             deep = f"/org/{org}/wks/{shared}/no-such-tab?env=production"
             fake_idp(context, "owner")

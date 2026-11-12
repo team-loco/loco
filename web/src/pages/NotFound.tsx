@@ -56,14 +56,18 @@ export function NotFound({ unknownWorkspace = false }: { unknownWorkspace?: bool
 			</header>
 			<div className="flex flex-1 items-center justify-center px-4 pb-14">
 				<EmptyHero
-					art={<NotFoundArt />}
-					title="This page doesn’t exist"
-					subtitle="The link may be old, or the resource was renamed or deleted."
+					art={
+						<>
+							<NotFoundArt />
+							<span className="max-w-full truncate rounded-[7px] border border-dashed border-[color-mix(in_oklch,var(--err)_55%,var(--line2))] bg-background px-2.5 py-1 font-mono text-[15px] text-foreground">
+								{pathname + search}
+							</span>
+						</>
+					}
+					title="Nothing lives at this address"
+					subtitle="The link may be wrong, or you may not have access to it."
 					className="w-full max-w-[560px] bg-transparent py-10"
 				>
-					<span className="max-w-full truncate rounded-md bg-panel px-2.5 py-1 font-mono text-[12.5px] text-fg3">
-						{pathname + search}
-					</span>
 					<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 						<Button variant="outline" nativeButton={false} render={<Link to={dashboard} />}>
 							<LayoutGridIcon className="text-fg3" aria-hidden />
