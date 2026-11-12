@@ -39,14 +39,18 @@ test("colours ticks oldest first and caps the strip", () => {
 	expect(strip.at(-1)?.id).toBe("0");
 });
 
-test("counts pending and failed deliveries as errors", () => {
+test("counts failed and retrying deliveries as errors, not fresh or delivered ones", () => {
 	const deliveries = [
 		delivery("a", "succeeded"),
 		delivery("b", "pending"),
 		delivery("c", "pending", "timeout"),
 		delivery("d", "failed", "endpoint returned 500"),
 	];
-	expect(errorCount(deliveries)).toBe(3);
+	expect(errorCount(deliveries)).toBe(2);
+	expect(errorCount([delivery("b", "pending")])).toBe(0);
+	expect(errorCount([delivery("c", "pending", "timeout")])).toBe(1);
+	expect(errorCount([delivery("d", "failed", "endpoint returned 500")])).toBe(1);
+	expect(errorCount([delivery("a", "succeeded")])).toBe(0);
 	expect(deliveries.map(deliveryLabel)).toEqual(["Delivered", "Pending", "Retrying", "Failed"]);
 });
 
