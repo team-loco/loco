@@ -2,7 +2,7 @@ import { useTransport } from "@connectrpc/connect-query";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { runtimeEvent, type RuntimeEvent } from "@/lib/runtime-events";
+import { ENVIRONMENT_EVENT_TYPES, ROLLOUT_EVENT_TYPES, runtimeEvent, type RuntimeEvent } from "@/lib/runtime-events";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
@@ -26,28 +26,32 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 
 	const resources = resourceFilter ?? resourcesData?.resources ?? [];
 
+	const environmentId = active?.id ?? "";
+	const kinds = [
+		{ types: ENVIRONMENT_EVENT_TYPES, anyEnvironment: false },
+		{ types: ROLLOUT_EVENT_TYPES, anyEnvironment: true },
+	];
 	const queries = useQueries({
-		queries: resources.map((resource) => ({
-			...runtimeEventsOptions(transport, {
-				orgId: activeOrgId ?? "",
-				workspaceId,
-				environmentId: active?.id ?? "",
-				resourceId: resource.id,
-			}),
-			refetchInterval: pollMs ?? false,
-		})),
+		queries: resources.flatMap((resource) =>
+			kinds.map((kind) => ({
+				...runtimeEventsOptions(
+					transport,
+					{ orgId: activeOrgId ?? "", workspaceId, environmentId, resourceId: resource.id },
+					kind,
+				),
+				refetchInterval: pollMs ?? false,
+			})),
+		),
 	});
 
 	const events: WorkspaceEventWithResource[] = [];
 	resources.forEach((resource, ri) => {
-		const list = queries[ri]?.data?.events ?? [];
+		const list = kinds.flatMap((_, ki) => queries[ri * kinds.length + ki]?.data?.events ?? []);
 		list.forEach((event) => {
-			events.push({
-				...runtimeEvent(event),
-				id: event.id,
-				resourceId: resource.id,
-				resourceName: resource.name,
-			});
+			const e = runtimeEvent(event);
+			// Builds belong to no environment; deploys and scaling name theirs only in their data.
+			if (e.environmentId !== "" && e.environmentId !== environmentId) return;
+			events.push({ ...e, id: event.id, resourceId: resource.id, resourceName: resource.name });
 		});
 	});
 	events.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));

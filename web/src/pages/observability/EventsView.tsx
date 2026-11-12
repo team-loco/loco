@@ -1,23 +1,26 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { HammerIcon, PlusIcon, RocketIcon, RotateCwIcon, ScalingIcon } from "lucide-react";
 
+import { Button } from "@/components/design/Button";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow } from "@/lib/obs-time";
 import { pagedRows } from "@/lib/paging";
-import { resourcePath } from "@/lib/routes";
+import { newResourcePath, resourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
-import { eventTitle, groupEvents, severityStyle, type Severity } from "./events";
+import { eventSummary, eventTitle, groupEvents, severityStyle, type EventGroup, type Severity } from "./events";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
@@ -30,6 +33,21 @@ const POLL_MS = 10_000;
 const NOW_TICK_MS = 30_000;
 
 type Show = "all" | "warning" | "error";
+
+function EventIcon({ group }: { group: EventGroup }) {
+	const icon = "size-3.5 text-fg3";
+	if (group.type === "deployment.created") return <RocketIcon aria-hidden className={icon} />;
+	if (group.type === "resource.scaled") return <ScalingIcon aria-hidden className={icon} />;
+	if (group.type === "resource.restarted") return <RotateCwIcon aria-hidden className={icon} />;
+	if (group.type.startsWith("build.") && group.severity === "normal")
+		return <HammerIcon aria-hidden className={icon} />;
+	return (
+		<StatusGlyph
+			glyph={group.type === "resource.recovered" ? "ok" : severityStyle(group.severity).glyph}
+			className={cn(group.severity === "normal" && "opacity-60")}
+		/>
+	);
+}
 
 const SHOW_TOKENS: Record<Exclude<Show, "all">, Token> = {
 	warning: { neg: false, key: "type", value: "warning" },
@@ -61,8 +79,11 @@ export function EventsView() {
 		setParam,
 		setPaging,
 	} = useObs();
-	const live = params.get("live") === "1";
+	// Events poll by default; ?live=0 stops it.
+	const live = params.get("live") !== "0";
 	const [selKey, setSelKey] = useState<string | null>(null);
+	const [openedAt] = useState(Date.now);
+	const { active: environment } = useEnvironments();
 	const now = useNow(live ? POLL_MS : NOW_TICK_MS);
 	const nowMs = now.getTime();
 	const { from, to } = resolveWindow(range, nowMs);
@@ -77,7 +98,7 @@ export function EventsView() {
 	const inRange = events.filter((e) => {
 		const ts = tsMs(e.timestamp);
 		if (ts < from || ts > to || !visible.has(e.resourceId)) return false;
-		const hay = `${eventTitle(e.reason)} ${e.reason} ${e.message} ${e.resourceName}`.toLowerCase();
+		const hay = `${eventTitle(e.type, e.reason)} ${e.reason} ${eventSummary(e)} ${e.resourceName}`.toLowerCase();
 		return words.every((w) => hay.includes(w));
 	});
 	const typeTokens = liveTokens("events", tokens, "type");
@@ -131,7 +152,7 @@ export function EventsView() {
 					detail="every 10s"
 					title={live ? "Stop checking for new events" : "Check for new events every 10 seconds"}
 					onToggle={() => {
-						setParam("live", live ? null : "1", true);
+						setParam("live", live ? "0" : null, true);
 					}}
 				/>
 			}
@@ -145,9 +166,19 @@ export function EventsView() {
 				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="events"
-					title="No events in this range"
+					title={environment === undefined ? "No events yet" : `No events yet in ${environment.name}`}
 					body="Deploys, restarts, failed health checks and scaling show up here as they happen."
-					action={<WidenRangeButton />}
+					action={
+						<>
+							<Button
+								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.name } : {})} />}
+							>
+								<PlusIcon />
+								New resource
+							</Button>
+							<WidenRangeButton />
+						</>
+					}
 				/>
 			</>
 		);
@@ -216,10 +247,14 @@ export function EventsView() {
 										return (
 											<tr
 												key={e.key}
-												className={cn("h-[58px] border-b border-line2 last:border-b-0", on && "bg-background")}
+												className={cn(
+													"h-[58px] border-b border-line2 last:border-b-0",
+													on && "bg-background",
+													e.ts > openedAt && "animate-row-flash motion-reduce:animate-none",
+												)}
 											>
-												<td className={cn(e.severity === "normal" && "opacity-60")}>
-													<StatusGlyph glyph={severityStyle(e.severity).glyph} />
+												<td>
+													<EventIcon group={e} />
 													<span className="sr-only">{e.severity}</span>
 												</td>
 												<td className="max-w-0 px-3">
@@ -233,9 +268,9 @@ export function EventsView() {
 													>
 														<span
 															className={cn("font-medium", e.severity === "error" && "text-bad-fg")}
-															title={e.reason}
+															title={e.reason === "" ? e.type : e.reason}
 														>
-															{eventTitle(e.reason)}
+															{e.title}
 														</span>
 														<span className="w-full truncate font-mono text-[12px] text-fg3" title={e.message}>
 															{e.object !== e.resourceName ? `${e.object} · ` : ""}

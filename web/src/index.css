@@ -150,6 +150,7 @@
 	--animate-pod-pop: pod-pop 220ms ease-out;
 	--animate-pod-starting: pod-pop 220ms ease-out, pulse-soft 0.8s 220ms ease-in-out infinite;
 	--animate-log-in: log-in 200ms ease-out;
+	--animate-row-flash: row-flash 1.8s ease-out;
 	--animate-ring: ring 1.8s ease-out infinite;
 }
 
@@ -705,6 +706,12 @@
 	to {
 		transform: none;
 		opacity: 1;
+	}
+}
+
+@keyframes row-flash {
+	from {
+		background-color: color-mix(in oklch, var(--ok) 16%, transparent);
 	}
 }
 

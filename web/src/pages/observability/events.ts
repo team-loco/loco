@@ -12,10 +12,40 @@ const REASON_TITLES: Record<string, string> = {
 	unschedulable: "Couldn't schedule service",
 	health_check_failing: "Health check failing",
 };
-export function eventTitle(reason: string): string {
-	return REASON_TITLES[reason] ?? (reason === "" ? "Service recovered" : reason.replaceAll("_", " "));
+const TYPE_TITLES: Record<string, string> = {
+	"resource.recovered": "Service recovered",
+	"resource.restarted": "Restarted",
+	"resource.scaled": "Scaled",
+	"deployment.created": "Rollout started",
+	"build.created": "Build queued",
+	"build.started": "Build started",
+	"build.succeeded": "Build succeeded",
+	"build.failed": "Build failed",
+	"build.canceled": "Build canceled",
+};
+
+export function eventTitle(type: string, reason: string): string {
+	if (type !== "resource.degraded") return TYPE_TITLES[type] ?? type;
+	return REASON_TITLES[reason] ?? reason.replaceAll("_", " ");
 }
+
+/** A one-line summary for events whose data has no message of its own. */
+export function eventSummary(e: WorkspaceEventWithResource): string {
+	if (e.message !== "") return e.message;
+	const parts =
+		e.type === "resource.scaled"
+			? [
+					e.replicas !== "" ? `${e.replicas} replicas` : "",
+					e.cpu !== "" ? `${e.cpu} CPU` : "",
+					e.memory !== "" ? `${e.memory} memory` : "",
+					e.region,
+				]
+			: [e.region];
+	return parts.filter((p) => p !== "").join(" · ");
+}
+
 export function severityOf(type: string, reason: string): Severity {
+	if (type === "build.failed") return "error";
 	if (type !== "resource.degraded") return "normal";
 	return reason === "health_check_failing" || reason === "unschedulable" ? "warning" : "error";
 }
@@ -59,6 +89,7 @@ export function severityStyle(s: Severity): SeverityStyle {
 
 export interface EventGroup {
 	key: string;
+	title: string;
 	resourceId: string;
 	resourceName: string;
 	reason: string;
@@ -74,7 +105,8 @@ export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] 
 	const m = new Map<string, EventGroup>();
 	for (const e of events) {
 		const object = e.resourceName;
-		const key = `${e.resourceId}|${e.reason}|${e.placementId}|${object}|${e.message}`;
+		const message = eventSummary(e);
+		const key = `${e.resourceId}|${e.type}|${e.reason}|${e.placementId}|${object}|${message}`;
 		const ts = tsMs(e.timestamp);
 		const g = m.get(key);
 		if (g !== undefined) {
@@ -83,10 +115,11 @@ export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] 
 		} else {
 			m.set(key, {
 				key,
+				title: eventTitle(e.type, e.reason),
 				resourceId: e.resourceId,
 				resourceName: e.resourceName,
 				reason: e.reason,
-				message: e.message,
+				message,
 				object,
 				severity: severityOf(e.type, e.reason),
 				type: e.type,

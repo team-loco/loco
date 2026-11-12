@@ -9,7 +9,7 @@ import { formatClock, formatHourMinute } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
-import { eventTitle, severityStyle, type EventGroup } from "./events";
+import { severityStyle, type EventGroup } from "./events";
 import { fmtTs } from "./format";
 import { CopyButton, DetailPanel, JumpButton, PanelNav } from "./shared";
 
@@ -46,7 +46,7 @@ export function EventDetail({
 		{ k: "Resource", v: item.resourceName },
 		{ k: "Object", v: item.object, copyable: true },
 		{ k: "Deployment", v: "", soon: true },
-		{ k: "Reason", v: item.reason },
+		{ k: "Reason", v: item.reason === "" ? item.type : item.reason },
 		{ k: "Regions", v: res === undefined || res.regions.length === 0 ? "—" : res.regions.join(", ") },
 		{ k: "Last seen", v: fmtTs(last, true) },
 		{ k: "First seen", v: fmtTs(first, true) },
@@ -58,7 +58,7 @@ export function EventDetail({
 			header={
 				<>
 					<span className={cn("size-2 rounded-[2px]", st.dot)} />
-					<span className={cn("min-w-0 truncate font-semibold", st.fg)}>{eventTitle(item.reason)}</span>
+					<span className={cn("min-w-0 truncate font-semibold", st.fg)}>{item.title}</span>
 					<span className={cn("inline-flex h-5 items-center rounded-sm px-[7px] text-xs font-medium", st.badge)}>
 						{st.label}
 					</span>

@@ -9,8 +9,12 @@ import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
 
 type Scope = Pick<ListEventsRequest, "orgId" | "workspaceId" | "resourceId" | "environmentId">;
 
-export function runtimeEventsOptions(transport: Transport, scope: Scope) {
-	const input = { ...scope, types: RUNTIME_EVENT_TYPES, pageSize: 500 };
+export function runtimeEventsOptions(
+	transport: Transport,
+	scope: Scope,
+	{ types = RUNTIME_EVENT_TYPES, anyEnvironment = false }: { types?: string[]; anyEnvironment?: boolean } = {},
+) {
+	const input = { ...scope, environmentId: anyEnvironment ? "" : scope.environmentId, types, pageSize: 500 };
 	const key = createConnectQueryKey({ schema: listEvents, input, transport, cardinality: "finite" });
 	return queryOptions({
 		queryKey: [...key, "all-pages"] as const,
