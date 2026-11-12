@@ -1,15 +1,9 @@
 version: v2
-managed:
-  enabled: false
+inputs:
+  - directory: .
+  - module: buf.build/googleapis/googleapis
+    paths: [google/rpc/error_details.proto]
 plugins:
-  # Go — all generated Go lands under gen/go/, out of the way of the .proto sources.
-  - local: ["go", "tool", "protoc-gen-go"]
-    out: ./gen/go
-    opt: paths=source_relative
-  - local: ["go", "tool", "protoc-gen-connect-go"]
-    out: ./gen/go
-    opt: paths=source_relative
-
   # TypeScript — gen/ts/ mirrors gen/go/ instead of being buried in web/src/gen.
   - local: ./node_modules/.bin/protoc-gen-es
     out: ./gen/ts
@@ -17,18 +11,3 @@ plugins:
     opt:
       - target=ts
       - json_types=true
-  - local: ./node_modules/.bin/protoc-gen-connect-query
-    out: ./gen/ts
-    opt:
-      - target=ts
-      - import_extension=none
-
-  # OpenAPI — merge every service into the schema embedded in the API binary.
-  - local: protoc-gen-connect-openapi
-    out: ./api/gen/openapi
-    strategy: all
-    opt:
-      - format=json
-      - path=openapi.json
-      - base=api/openapi-base.yaml
-      - with-streaming

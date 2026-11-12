@@ -4,9 +4,6 @@ package loco.deployment.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
-// Error details travel outside RPC messages but must be available to generated clients.
-// buf:lint:ignore IMPORT_USED
-import "google/rpc/error_details.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/deployment/v1;deploymentv1";
 

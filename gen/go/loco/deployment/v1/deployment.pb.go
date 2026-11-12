@@ -8,7 +8,6 @@ package deploymentv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	_ "google.golang.org/genproto/googleapis/rpc/errdetails"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -1723,7 +1722,7 @@ var File_loco_deployment_v1_deployment_proto protoreflect.FileDescriptor
 
 const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
-	"#loco/deployment/v1/deployment.proto\x12\x12loco.deployment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/rpc/error_details.proto\"6\n" +
+	"#loco/deployment/v1/deployment.proto\x12\x12loco.deployment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
 	"\x04Port\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1a\n" +
 	"\bprotocol\x18\x02 \x01(\tR\bprotocol\"U\n" +
