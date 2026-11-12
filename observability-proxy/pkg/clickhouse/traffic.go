@@ -106,11 +106,11 @@ func addTrafficSample(
 	switch sample.temporality {
 	case 1:
 	case 2:
-		if previous.stream == sample.stream && previous.start.Equal(sample.start) &&
-			slices.Equal(previous.bounds, sample.bounds) {
-			if !sample.end.After(previous.end) {
-				return
-			}
+		// A producer's accumulation start can be invalid; scrape intervals stay usable across resets.
+		if previous.stream != sample.stream || !sample.end.After(previous.end) {
+			return
+		}
+		if previous.start.Equal(sample.start) && slices.Equal(previous.bounds, sample.bounds) {
 			reset := len(values) != len(previous.values)
 			if !reset {
 				for i, v := range values {
@@ -125,12 +125,8 @@ func addTrafficSample(
 					values[i] -= previous.values[i]
 				}
 			}
-			from = previous.end
-		} else if from.UnixNano() <= 0 ||
-			(from.Before(start) && (previous.stream != sample.stream || !from.After(previous.end))) {
-			// An initial cumulative value without a known in-range start is a baseline.
-			return
 		}
+		from = previous.end
 	default:
 		return
 	}
