@@ -640,6 +640,55 @@ func (q *Queries) OpenPlacementWindow(ctx context.Context, arg OpenPlacementWind
 	return err
 }
 
+const restartResourcePlacements = `-- name: RestartResourcePlacements :many
+WITH restarted AS (
+    UPDATE placements
+    SET desired_revision = desired_revision + 1,
+        applied_error = NULL,
+        retry_after = NULL,
+        apply_attempts = 0,
+        apply_failed = false,
+        updated_at = NOW()
+    WHERE placements.resource_id = $1
+      AND placements.environment_id = $2
+      AND ($3::text = '' OR placements.region = $3)
+      AND NOT desired_deleted
+    RETURNING cluster_id, deployment_id
+), deploying AS (
+    UPDATE deployments
+    SET status = 'deploying', message = 'Restarting replicas', completed_at = NULL, updated_at = NOW()
+    FROM restarted
+    WHERE deployments.id = restarted.deployment_id AND deployments.is_active
+)
+SELECT cluster_id FROM restarted
+`
+
+type RestartResourcePlacementsParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Region        string    `json:"region"`
+}
+
+func (q *Queries) RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, restartResourcePlacements, arg.ResourceID, arg.EnvironmentID, arg.Region)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var cluster_id uuid.UUID
+		if err := rows.Scan(&cluster_id); err != nil {
+			return nil, err
+		}
+		items = append(items, cluster_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const resumeOrgPlacements = `-- name: ResumeOrgPlacements :many
 UPDATE placements
 SET desired_revision = placements.desired_revision + 1,

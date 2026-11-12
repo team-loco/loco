@@ -247,3 +247,25 @@ RETURNING resource_id, environment_id, region;
 SELECT sync_generation FROM clusters
 WHERE id = $1 AND removed_at IS NULL
 FOR SHARE;
+
+-- name: RestartResourcePlacements :many
+WITH restarted AS (
+    UPDATE placements
+    SET desired_revision = desired_revision + 1,
+        applied_error = NULL,
+        retry_after = NULL,
+        apply_attempts = 0,
+        apply_failed = false,
+        updated_at = NOW()
+    WHERE placements.resource_id = sqlc.arg(resource_id)
+      AND placements.environment_id = sqlc.arg(environment_id)
+      AND (sqlc.arg(region)::text = '' OR placements.region = sqlc.arg(region))
+      AND NOT desired_deleted
+    RETURNING cluster_id, deployment_id
+), deploying AS (
+    UPDATE deployments
+    SET status = 'deploying', message = 'Restarting replicas', completed_at = NULL, updated_at = NOW()
+    FROM restarted
+    WHERE deployments.id = restarted.deployment_id AND deployments.is_active
+)
+SELECT cluster_id FROM restarted;

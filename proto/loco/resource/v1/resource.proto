@@ -55,6 +55,8 @@ service ResourceService {
   // Resource Operations
   // ScaleResource adjusts resource replicas and resource allocation.
   rpc ScaleResource(ScaleResourceRequest) returns (ScaleResourceResponse);
+  // RestartResource rolls the current replicas without creating a new deployment.
+  rpc RestartResource(RestartResourceRequest) returns (RestartResourceResponse);
   // TransferPartial moves a resource to another partial.
   rpc TransferPartial(TransferPartialRequest) returns (TransferPartialResponse);
 }
@@ -305,3 +307,13 @@ message TransferPartialRequest {
 
 // TransferPartialResponse is the response after moving a resource to another partial.
 message TransferPartialResponse {}
+
+// RestartResourceRequest targets one environment; omitting region restarts every region.
+message RestartResourceRequest {
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  optional string region = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// RestartResourceResponse is the response after scheduling a rolling restart.
+message RestartResourceResponse {}
