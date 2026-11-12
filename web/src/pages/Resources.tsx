@@ -6,7 +6,6 @@ import { Badge } from "@/components/design/Badge";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -19,6 +18,7 @@ import { DRAFT_PARAM, draftSearch, NEW_RESOURCE_PARAM, newResourcePath } from "@
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
 import { DraftSheet, NewService } from "@/pages/resources/NewService";
 import { ResourcesEmpty } from "@/pages/resources/ResourcesEmpty";
+import { ResourcesMap } from "@/pages/resources/ResourcesMap";
 import { ResourceTable } from "@/pages/resources/ResourceTable";
 import { buildRows, draftRows } from "@/pages/resources/table";
 
@@ -26,15 +26,20 @@ const NOW_TICK_MS = 60_000;
 const SKELETON_ROWS = 6;
 const TABLE_VIEW = "table";
 const MAP_VIEW = "map";
+const VIEW_PARAM = "view";
 
-function ViewToggle() {
+function ViewToggle({ view, onView }: { view: string; onView: (view: string) => void }) {
 	return (
-		<ToggleGroup variant="segmented" aria-label="View" value={[TABLE_VIEW]}>
+		<ToggleGroup
+			variant="segmented"
+			aria-label="View"
+			value={[view]}
+			onValueChange={(v: string[]) => {
+				if (v[0] !== undefined) onView(v[0]);
+			}}
+		>
 			<ToggleGroupItem value={TABLE_VIEW}>Table</ToggleGroupItem>
-			<ToggleGroupItem value={MAP_VIEW} disabled>
-				Map
-				<SoonTag />
-			</ToggleGroupItem>
+			<ToggleGroupItem value={MAP_VIEW}>Map</ToggleGroupItem>
 		</ToggleGroup>
 	);
 }
@@ -53,6 +58,13 @@ export function Resources() {
 	const loading = envsLoading || data.isLoading;
 	const total = data.resources.length + drafts.length;
 	const draftId = params.get(DRAFT_PARAM);
+	const view = params.get(VIEW_PARAM) === MAP_VIEW ? MAP_VIEW : TABLE_VIEW;
+	const setView = (next: string) => {
+		const p = new URLSearchParams(params);
+		if (next === MAP_VIEW) p.set(VIEW_PARAM, MAP_VIEW);
+		else p.delete(VIEW_PARAM);
+		setParams(p);
+	};
 	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.name });
 
 	const body = (() => {
@@ -76,7 +88,19 @@ export function Resources() {
 				</Section>
 			);
 		}
-		if (total === 0) return <ResourcesEmpty />;
+		if (total === 0) return <ResourcesEmpty environmentId={active?.id} newHref={serviceHref} />;
+		if (view === MAP_VIEW && active !== undefined) {
+			return (
+				<ResourcesMap
+					orgId={orgId}
+					workspaceId={workspaceId}
+					env={active}
+					onShowTable={() => {
+						setView(TABLE_VIEW);
+					}}
+				/>
+			);
+		}
 		const resources = buildRows(data.resources, data.deployments, environments, active?.id);
 		return (
 			<ResourceTable
@@ -105,7 +129,7 @@ export function Resources() {
 				}
 				actions={
 					<div className="flex items-center gap-2.5">
-						{!loading && total > 0 && <ViewToggle />}
+						{!loading && total > 0 && <ViewToggle view={view} onView={setView} />}
 						<NewResourceMenu serviceHref={serviceHref} />
 					</div>
 				}
