@@ -1,18 +1,9 @@
 import { useTable, type PaginationState, type SortingState } from "@tanstack/react-table";
-import {
-	ActivityIcon,
-	ArrowRightIcon,
-	ChevronsUpDownIcon,
-	ScrollTextIcon,
-	SearchXIcon,
-	VariableIcon,
-	XIcon,
-} from "lucide-react";
+import { ArrowRightIcon, SearchXIcon, XIcon } from "lucide-react";
 import { createContext, use, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
-import { ResourceStatus, type RegionInfo, type Resource, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { Link, useSearchParams } from "react-router";
+import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
-import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { Button } from "@/components/design/Button";
 import {
 	DataTable,
@@ -22,7 +13,6 @@ import {
 	pageWithin,
 	type DataColumn,
 } from "@/components/design/DataTable";
-import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
@@ -33,11 +23,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
-import { draftSearch, observabilityPath, resourcePath, resourcesPath } from "@/lib/routes";
+import { draftSearch, resourcesPath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
+import { DashboardRowMenu } from "./DashboardRowMenu";
 import {
 	ALL,
 	filterRows,
@@ -103,44 +94,6 @@ function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: num
 				/>
 			))}
 		</span>
-	);
-}
-
-function DashboardRowMenu({
-	resource,
-	orgId,
-	workspaceId,
-	envName,
-}: {
-	resource: Resource;
-	orgId: string;
-	workspaceId: string;
-	envName: string;
-}) {
-	const navigate = useNavigate();
-	const base = resourcePath(orgId, workspaceId, resource.id);
-	const envQuery = `env=${encodeURIComponent(envName)}`;
-	const obs = (view: "logs" | "events") =>
-		observabilityPath(orgId, workspaceId, view, { env: envName, r: resource.name });
-	return (
-		<ResourceRowMenu resource={resource} workspaceId={workspaceId}>
-			<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>
-				<ScrollTextIcon className="text-fg3" />
-				View logs
-			</DropdownMenuItem>
-			<DropdownMenuItem onClick={() => void navigate(obs("events"))}>
-				<ActivityIcon className="text-fg3" />
-				View events
-			</DropdownMenuItem>
-			<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>
-				<ChevronsUpDownIcon className="text-fg3" />
-				Scale
-			</DropdownMenuItem>
-			<DropdownMenuItem onClick={() => void navigate(`${base}?tab=variables&${envQuery}`)}>
-				<VariableIcon className="text-fg3" />
-				Environment variables
-			</DropdownMenuItem>
-		</ResourceRowMenu>
 	);
 }
 
@@ -252,7 +205,7 @@ function DeployedCell({ item }: { item: DashboardItem }) {
 function MenuCell({ item }: { item: DashboardItem }) {
 	const { orgId, workspaceId, envName } = useCells();
 	if (isDraftItem(item)) return null;
-	return <DashboardRowMenu resource={item.resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />;
+	return <DashboardRowMenu item={item} orgId={orgId} workspaceId={workspaceId} envName={envName} />;
 }
 
 export const COLUMNS: DataColumn<DashboardItem>[] = [

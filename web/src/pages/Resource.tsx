@@ -27,7 +27,7 @@ import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
-import { DeleteDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
+import { DeleteDialogContent, RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { shortId } from "@/pages/resource/format";
@@ -38,8 +38,10 @@ import {
 	buildRegions,
 	depImage,
 	depTag,
+	focusRegion,
 	isDeployed,
 	lastGoodDeployment,
+	problemRegionOf,
 	regionProblem,
 	useResourceData,
 	type ModalState,
@@ -52,7 +54,6 @@ import { RolloutProgress } from "@/pages/resource/RolloutProgress";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
-import { isInFlight } from "@/lib/deployment-utils";
 
 const EVENTS_REFRESH_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
@@ -178,12 +179,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			}))
 		: [];
 
-	const problemRegion = regions.find(
-		(r) => (r.current === undefined || !isInFlight(r.current.status)) && regionProblem(r) !== undefined,
-	);
+	const problemRegion = problemRegionOf(regions);
 	const problem = problemRegion === undefined ? undefined : regionProblem(problemRegion);
-	const focusRegion = problemRegion ?? deployed[0];
-	const rollbackTarget = focusRegion === undefined ? undefined : lastGoodDeployment(focusRegion);
+	const focus = focusRegion(regions);
+	const rollbackTarget = focus === undefined ? undefined : lastGoodDeployment(focus);
 	const markers = [...new Set(regions.flatMap((r) => r.history).map((d) => tsMs(d.createdAt)))];
 	const specDeployments = [
 		...new Map(
@@ -228,6 +227,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setRedeploying(true);
 		const failures = await redeployFrom(currents);
 		setRedeploying(false);
+		setModal(null);
 		if (failures.length > 0) {
 			setNotice({ tone: "bad", title: `Redeploying ${resource.name} failed`, message: failures.join(" · ") });
 			return;
@@ -303,9 +303,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				onSettings={() => {
 					setView(view === "overview" ? "settings" : "overview");
 				}}
-				onRedeploy={() => void handleRedeploy()}
+				onRedeploy={() => {
+					setModal({ kind: "redeploy" });
+				}}
 				onRollback={() => {
-					if (rollbackTarget !== undefined) openRollback(rollbackTarget, focusRegion?.current);
+					if (rollbackTarget !== undefined) openRollback(rollbackTarget, focus?.current);
 				}}
 				onScale={() => {
 					setView("scaling");
@@ -464,6 +466,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						current={modal.current}
 						pending={deploy.isPending}
 						onConfirm={() => void handleRollback(modal.target)}
+					/>
+				)}
+				{modal?.kind === "redeploy" && (
+					<RedeployDialogContent
+						resourceName={resource.name}
+						running={currents}
+						pending={redeploying}
+						onConfirm={() => void handleRedeploy()}
 					/>
 				)}
 				{modal?.kind === "delete" && (

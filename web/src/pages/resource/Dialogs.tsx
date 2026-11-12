@@ -21,6 +21,55 @@ function DiffCell({ value, tone }: { value: string | null; tone: "add" | "del" }
 	);
 }
 
+function RunningSwap({ from, to }: { from: string; to: string }) {
+	return (
+		<div className="flex items-center gap-3.5 rounded-lg bg-panel px-3.5 py-3">
+			<div className="flex min-w-0 flex-col gap-0.5 text-[13px]">
+				<span className="text-[12px] text-fg3">Now running</span>
+				<span className="truncate font-mono text-foreground">{from}</span>
+			</div>
+			<ArrowRightIcon aria-hidden className="size-4 shrink-0 text-fg3" />
+			<div className="flex min-w-0 flex-col gap-0.5 text-[13px]">
+				<span className="text-[12px] text-fg3">Will run</span>
+				<span className="truncate font-mono text-foreground">{to}</span>
+			</div>
+		</div>
+	);
+}
+
+export function RedeployDialogContent({
+	resourceName,
+	running,
+	pending,
+	onConfirm,
+}: {
+	resourceName: string;
+	running: Deployment[];
+	pending: boolean;
+	onConfirm: () => void;
+}) {
+	const tags = [...new Set(running.map((d) => depTag(d)))].join(", ");
+	return (
+		<DialogContent title={`Redeploy ${resourceName}?`}>
+			<DialogBody className="gap-3.5 leading-normal text-fg2">
+				<RunningSwap from={tags} to={tags} />
+				<span className="text-[12.5px] text-fg3">Same spec as the running deployment</span>
+				<span>
+					Starts fresh replicas from the same image in{" "}
+					<span className="font-mono text-foreground">{running.map((d) => d.region).join(", ")}</span>. Useful after
+					changing a secret or when a replica is stuck.
+				</span>
+			</DialogBody>
+			<DialogFooter>
+				<DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+				<Button disabled={pending} onClick={onConfirm}>
+					{pending ? "Redeploying…" : "Redeploy"}
+				</Button>
+			</DialogFooter>
+		</DialogContent>
+	);
+}
+
 export function RollbackDialogContent({
 	resourceName,
 	target,
@@ -39,21 +88,10 @@ export function RollbackDialogContent({
 		<DialogContent size="wide" title={`Roll back ${resourceName} in ${target.region}`}>
 			<DialogBody className="gap-3.5 leading-normal text-fg2">
 				{changes.length === 0 && (
-					<div className="flex items-center gap-3.5 rounded-lg bg-panel px-3.5 py-3">
-						<div className="flex min-w-0 flex-col gap-0.5 text-[13px]">
-							<span className="text-[12px] text-fg3">Now running</span>
-							<span className="truncate font-mono text-foreground">
-								{current === undefined ? "—" : `${depTag(current)} · ${shortId(current.id)}`}
-							</span>
-						</div>
-						<ArrowRightIcon aria-hidden className="size-4 shrink-0 text-fg3" />
-						<div className="flex min-w-0 flex-col gap-0.5 text-[13px]">
-							<span className="text-[12px] text-fg3">Will run</span>
-							<span className="truncate font-mono text-foreground">
-								{depTag(target)} · {shortId(target.id)}
-							</span>
-						</div>
-					</div>
+					<RunningSwap
+						from={current === undefined ? "—" : `${depTag(current)} · ${shortId(current.id)}`}
+						to={`${depTag(target)} · ${shortId(target.id)}`}
+					/>
 				)}
 				{current !== undefined && changes.length === 0 && (
 					<span className="text-[12.5px] text-fg3">Same spec as the running deployment</span>

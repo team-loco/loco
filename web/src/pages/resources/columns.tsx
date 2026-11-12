@@ -1,4 +1,4 @@
-import { CopyIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
+import { CopyIcon, RocketIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
 import { createContext, use } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -124,6 +124,12 @@ function RowActions({ row }: { row: ResourceRow }) {
 	const settings = new URLSearchParams({ tab: "settings", ...envParams });
 	return (
 		<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.name}>
+			{row.cells.size === 0 && (
+				<DropdownMenuItem onClick={() => void navigate(resourcePath(orgId, workspaceId, resource.id))}>
+					<RocketIcon className="text-fg3" />
+					Deploy
+				</DropdownMenuItem>
+			)}
 			{row.cells.size > 0 && (
 				<DropdownMenuItem
 					onClick={() =>
