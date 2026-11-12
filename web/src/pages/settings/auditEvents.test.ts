@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
-import { auditActor, distinctAuditEvents } from "./auditEvents";
+import { auditActor, auditLabel, typesIn, distinctAuditEvents } from "./auditEvents";
 
 test("appends older audit rows once while preserving the first loaded record", () => {
 	const newest = create(EventSchema, { id: "new", seq: 5n });
@@ -22,4 +22,9 @@ test("uses the returned actor identity without organization members", () => {
 		name: "Deleted user",
 		detail: "",
 	});
+});
+
+test("role changes appear in the access audit filter", () => {
+	expect(auditLabel("org_member.role_changed")).toBe("Changed an organization member’s role");
+	expect(typesIn("access")).toContain("org_member.role_changed");
 });

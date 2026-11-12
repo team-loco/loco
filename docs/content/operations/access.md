@@ -15,7 +15,7 @@ A user holds one or more scopes on an organization:
 
 `read`, `write` and `admin` each include `member`. The user who creates an organization holds all three.
 
-`OrgService.SetOrgMemberRole` lets an organization admin set an existing member to Admin (`read`, `write`, `admin`) or Member (`member` only). Workspace and resource grants stay unchanged. Demoting or removing the last organization admin fails with `FailedPrecondition`; self-demotion follows the same rule. Role changes record an `org_member.role_changed` audit event.
+`OrgService.SetOrgMemberRole` lets an organization admin set an existing member to Admin (`read`, `write`, `admin`) or Member (`member` only). Workspace and resource grants stay unchanged. Demoting or removing the last organization admin fails with `FailedPrecondition`; self-demotion follows the same rule. Role changes record an `org_member.role_changed` audit event. Organization admins can also change roles from the dashboard’s Team page.
 
 ## Invite and remove members
 

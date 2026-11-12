@@ -1,5 +1,6 @@
 import { createConnectQueryKey, useQuery, useTransport } from "@connectrpc/connect-query";
 import { getOrg, listInvitations } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { listWorkspaceMembers } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueries, useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -47,6 +48,19 @@ export function useTeamData(orgId: string) {
 		isLoading: orgQuery.isLoading || membersQuery.isLoading || invitationsQuery.isLoading,
 		accessLoading: wsQuery.isLoading || myScopes.isLoading || memberQueries.some((q) => q.isLoading),
 		error: orgQuery.error ?? membersQuery.error,
+		invalidateRoles: async (self: boolean) => {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: orgMembersOptions(transport, orgId).queryKey }),
+				...(self
+					? [
+							queryClient.invalidateQueries({
+								queryKey: createConnectQueryKey({ schema: getScopes, cardinality: "finite" }),
+							}),
+							queryClient.invalidateQueries({ queryKey: orgWorkspacesOptions(transport, orgId).queryKey }),
+						]
+					: []),
+			]);
+		},
 		invalidateInvitations: async () => {
 			const queryKey = createConnectQueryKey({ schema: listInvitations, cardinality: "finite" });
 			await queryClient.invalidateQueries({ queryKey });

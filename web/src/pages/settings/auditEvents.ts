@@ -17,6 +17,7 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"member.added": { label: "Added a member", category: "access" },
 	"member.removed": { label: "Removed a member", category: "access" },
 	"org_member.added": { label: "Added an organization member", category: "access" },
+	"org_member.role_changed": { label: "Changed an organization member’s role", category: "access" },
 	"org_member.removed": { label: "Removed an organization member", category: "access" },
 	"workspace.created": { label: "Created a workspace", category: "workspaces" },
 	"workspace.updated": { label: "Updated a workspace", category: "workspaces" },
