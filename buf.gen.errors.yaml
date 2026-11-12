@@ -1,0 +1,12 @@
+version: v2
+inputs:
+  - tarball: https://github.com/googleapis/googleapis/archive/8f28f48bf9ea3ec0f14a75a5cfc970819cec9e2b.tar.gz
+    strip_components: 1
+    paths: [google/rpc/error_details.proto]
+    types: [google.rpc.BadRequest, google.rpc.ErrorInfo]
+plugins:
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: ./gen/ts
+    opt:
+      - target=ts
+      - json_types=true

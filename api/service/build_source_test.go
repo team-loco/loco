@@ -7,12 +7,12 @@ import (
 	"slices"
 	"testing"
 
-	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/uuid"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -175,29 +175,35 @@ func TestImageErrorsOnWire(t *testing.T) {
 		sourceType string
 		cause      error
 		want       string
+		reason     string
 	}{
 		{
-			name:  "not found",
-			cause: &transport.Error{StatusCode: http.StatusNotFound},
-			want:  `Image "nginx:1.27" was not found. Check the repository and tag or digest.`,
+			name:   "not found",
+			reason: "IMAGE_NOT_FOUND",
+			cause:  &transport.Error{StatusCode: http.StatusNotFound},
+			want:   `Image "nginx:1.27" was not found. Check the repository and tag or digest.`,
 		},
 		{
-			name:  "manifest unknown",
-			cause: &transport.Error{Errors: []transport.Diagnostic{{Code: transport.ManifestUnknownErrorCode}}},
-			want:  `Image "nginx:1.27" was not found. Check the repository and tag or digest.`,
+			name:   "manifest unknown",
+			reason: "IMAGE_NOT_FOUND",
+			cause:  &transport.Error{Errors: []transport.Diagnostic{{Code: transport.ManifestUnknownErrorCode}}},
+			want:   `Image "nginx:1.27" was not found. Check the repository and tag or digest.`,
 		},
 		{
-			name:  "unauthorized",
-			cause: &transport.Error{StatusCode: http.StatusUnauthorized},
-			want:  deniedMessage,
+			name:   "unauthorized",
+			reason: imageAccessDeniedReason,
+			cause:  &transport.Error{StatusCode: http.StatusUnauthorized},
+			want:   deniedMessage,
 		},
 		{
-			name:  "forbidden",
-			cause: &transport.Error{StatusCode: http.StatusForbidden},
-			want:  deniedMessage,
+			name:   "forbidden",
+			reason: imageAccessDeniedReason,
+			cause:  &transport.Error{StatusCode: http.StatusForbidden},
+			want:   deniedMessage,
 		},
 		{
-			name: "registry denial",
+			name:   "registry denial",
+			reason: imageAccessDeniedReason,
 			cause: &transport.Error{
 				Errors: []transport.Diagnostic{
 					{Code: transport.DeniedErrorCode, Message: "secret registry.internal token=password"},
@@ -206,9 +212,10 @@ func TestImageErrorsOnWire(t *testing.T) {
 			want: deniedMessage,
 		},
 		{
-			name:  "invalid",
-			image: "https://user:" + t.Name() + "@registry.internal/app",
-			want:  "Invalid image reference. Use a repository with a tag or digest.",
+			name:   "invalid",
+			reason: "IMAGE_REFERENCE_INVALID",
+			image:  "https://user:" + t.Name() + "@registry.internal/app",
+			want:   "Invalid image reference. Use a repository with a tag or digest.",
 		},
 		{
 			name:       "unsupported source",
@@ -216,9 +223,10 @@ func TestImageErrorsOnWire(t *testing.T) {
 			want:       "Unsupported build type. Use dockerfile or image.",
 		},
 		{
-			name:  "unsupported platform",
-			cause: imageresolver.ErrPlatformUnsupported,
-			want:  `Cannot deploy image "nginx:1.27": image has no linux/amd64 variant.`,
+			name:   "unsupported platform",
+			reason: "IMAGE_PLATFORM_UNSUPPORTED",
+			cause:  imageresolver.ErrPlatformUnsupported,
+			want:   `Cannot deploy image "nginx:1.27": image has no linux/amd64 variant.`,
 		},
 		{
 			name:  "registry outage",
@@ -269,21 +277,34 @@ func TestImageErrorsOnWire(t *testing.T) {
 				}
 				return
 			}
-			if len(public.Details()) != 1 {
+			wantDetails := 1
+			if tt.reason != "" {
+				wantDetails++
+			}
+			if len(public.Details()) != wantDetails {
 				t.Fatalf("details = %v", public.Details())
 			}
 			detail, detailErr := connectproto.UnmarshalErrorDetail(public.Details()[0])
 			if detailErr != nil {
 				t.Fatal(detailErr)
 			}
-			violations, ok := detail.(*validate.Violations)
-			if !ok || len(violations.GetViolations()) != 1 {
+			violations, ok := detail.(*errdetails.BadRequest)
+			if !ok || len(violations.GetFieldViolations()) != 1 {
 				t.Fatalf("detail = %v", detail)
 			}
-			violation := violations.GetViolations()[0]
-			elements := violation.GetField().GetElements()
-			if len(elements) != 1 || elements[0].GetFieldName() != "image" || violation.GetMessage() != tt.want {
+			violation := violations.GetFieldViolations()[0]
+			if violation.GetField() != "image" || violation.GetDescription() != tt.want {
 				t.Fatalf("violation = %v", violation)
+			}
+			if tt.reason != "" {
+				detail, detailErr := connectproto.UnmarshalErrorDetail(public.Details()[1])
+				if detailErr != nil {
+					t.Fatal(detailErr)
+				}
+				info, ok := detail.(*errdetails.ErrorInfo)
+				if !ok || info.GetReason() != tt.reason || info.GetDomain() != "loco.build" {
+					t.Fatalf("error info = %v", detail)
+				}
 			}
 			planner := &PlanServer{resolver: resolver, registryHost: testRegistryHost}
 			images := planner.resolveImages(t.Context(), map[string]locofile.Service{"image-service": {Image: image}})

@@ -1,4 +1,5 @@
 import { ConnectError } from "@connectrpc/connect";
+import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
 import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
 import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 
@@ -186,10 +187,19 @@ const VIOLATION_FIELDS: Partial<Record<string, ApiField>> = {
 
 export function apiFieldError(err: unknown): ApiFieldError | null {
 	if (!(err instanceof ConnectError)) return null;
-	for (const v of err.findDetails(ViolationsSchema).flatMap((d) => d.violations)) {
-		const name = v.field?.elements.at(-1)?.fieldName;
+	const violations = [
+		...err
+			.findDetails(ViolationsSchema)
+			.flatMap((d) => d.violations)
+			.map((v) => ({ name: v.field?.elements.at(-1)?.fieldName, message: v.message })),
+		...err
+			.findDetails(BadRequestSchema)
+			.flatMap((d) => d.fieldViolations)
+			.map((v) => ({ name: v.field.split(".").at(-1), message: v.description })),
+	];
+	for (const { name, message } of violations) {
 		const field = name === undefined ? undefined : VIOLATION_FIELDS[name];
-		if (field !== undefined) return { field, message: v.message.charAt(0).toUpperCase() + v.message.slice(1) };
+		if (field !== undefined) return { field, message: message.charAt(0).toUpperCase() + message.slice(1) };
 	}
 	return null;
 }
