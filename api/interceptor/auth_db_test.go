@@ -67,7 +67,7 @@ func withBearer(token string) http.Header {
 }
 
 func TestAuthenticateProviderTokenProvisionsUser(t *testing.T) {
-	policy, err := auth.ParseSignupPolicy("open", "")
+	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestAuthenticateProviderTokenProvisionsUser(t *testing.T) {
 }
 
 func TestAuthenticateProviderTokenErrors(t *testing.T) {
-	policy, err := auth.ParseSignupPolicy("domains", "acme.test")
+	policy, err := auth.ParseSignupPolicy("closed")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestAuthenticateProviderTokenErrors(t *testing.T) {
 }
 
 func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
-	policy, err := auth.ParseSignupPolicy("open", "")
+	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
@@ -209,7 +209,7 @@ func claimedOrgs(ctx context.Context) []auth.ClaimedOrg {
 }
 
 func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
-	policy, err := auth.ParseSignupPolicy("open", "")
+	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}

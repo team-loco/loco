@@ -110,7 +110,7 @@ func componentAuthHTTP(t *testing.T, a *membershipAPI, issuer string) string {
 		t.Fatal(err)
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
-	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Mode: auth.SignupDomains, Domains: []string{"test.local"}})
+	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Mode: auth.SignupOpen})
 	store, err := cache.NewMemory()
 	if err != nil {
 		t.Fatal(err)

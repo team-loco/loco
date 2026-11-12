@@ -72,7 +72,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 		}
 	})
 
-	policy, err := auth.ParseSignupPolicy("open", "")
+	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}

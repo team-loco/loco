@@ -155,7 +155,7 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.DeploymentMethod) (*rpc.Clients, uuid.UUID) {
 	t.Helper()
 	issuer := authtest.NewIssuer(t)
-	policy, err := auth.ParseSignupPolicy("open", "")
+	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatal(err)
 	}

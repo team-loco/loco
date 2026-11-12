@@ -479,8 +479,7 @@ func newAuthIssuers() []auth.IssuerConfig {
 
 func newSignupPolicy() auth.SignupPolicy {
 	mode := envconfig.String("AUTH_SIGNUP_MODE", "")
-	domains := envconfig.String("AUTH_SIGNUP_DOMAINS", "")
-	policy, err := auth.ParseSignupPolicy(mode, domains)
+	policy, err := auth.ParseSignupPolicy(mode)
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidSignupPolicy, err))
 	}

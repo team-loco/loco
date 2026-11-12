@@ -69,46 +69,25 @@ func TestParseIssuersRequiresAudience(t *testing.T) {
 }
 
 func TestSignupPolicy(t *testing.T) {
-	verified := func(email string) Identity { return Identity{Email: email, EmailVerified: true} }
-
-	open, err := ParseSignupPolicy("", "")
+	open, err := ParseSignupPolicy("")
 	if err != nil {
 		t.Fatalf("parse open: %v", err)
 	}
-	if checkErr := open.Check(Identity{Email: "a@b.test"}); checkErr != nil {
+	if checkErr := open.Check(); checkErr != nil {
 		t.Errorf("open rejected: %v", checkErr)
 	}
 
-	closed, err := ParseSignupPolicy("closed", "")
+	closed, err := ParseSignupPolicy("closed")
 	if err != nil {
 		t.Fatalf("parse closed: %v", err)
 	}
 	var rejectedErr *SignupRejectedError
-	if checkErr := closed.Check(verified("a@b.test")); !errors.As(checkErr, &rejectedErr) {
+	if checkErr := closed.Check(); !errors.As(checkErr, &rejectedErr) {
 		t.Errorf("closed allowed a signup: %v", checkErr)
 	}
 
-	domains, err := ParseSignupPolicy("domains", " Acme.test , corp.test")
-	if err != nil {
-		t.Fatalf("parse domains: %v", err)
-	}
-	if err := domains.Check(verified("dev@acme.test")); err != nil {
-		t.Errorf("allowed domain rejected: %v", err)
-	}
-	if err := domains.Check(verified("dev@evil.test")); !errors.As(err, &rejectedErr) {
-		t.Errorf("other domain allowed: %v", err)
-	}
-	if err := domains.Check(Identity{Email: "dev@acme.test"}); !errors.As(err, &rejectedErr) {
-		t.Errorf("unverified email allowed: %v", err)
-	}
-	if err := domains.Check(verified("dev@sub.acme.test")); !errors.As(err, &rejectedErr) {
-		t.Errorf("subdomain allowed: %v", err)
-	}
-
-	for mode, domainList := range map[string]string{"domains": "", "invite-only-typo": ""} {
-		if _, err := ParseSignupPolicy(mode, domainList); err == nil {
-			t.Errorf("ParseSignupPolicy(%q) accepted", mode)
-		}
+	if _, err := ParseSignupPolicy("invite-only-typo"); err == nil {
+		t.Error("accepted unknown signup mode")
 	}
 }
 

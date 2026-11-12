@@ -46,7 +46,7 @@ func (s *recordSink) loud() []slog.Record {
 }
 
 func TestFailedAuthenticationIsLoggedOnce(t *testing.T) {
-	policy, err := auth.ParseSignupPolicy("open", "")
+	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}

@@ -158,7 +158,6 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(orgLinksEnv, "")
 	t.Setenv(authIssuersEnv, "")
 	t.Setenv("AUTH_SIGNUP_MODE", "")
-	t.Setenv("AUTH_SIGNUP_DOMAINS", "")
 	t.Setenv("MIN_CLI_VERSION", "")
 	t.Setenv(testAdminEnv, "")
 	t.Setenv(transitAddrEnv, testTransitAddr)
@@ -388,8 +387,7 @@ func TestNewAPIConfigResolvesAdminTokens(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv(authIssuersEnv, adminIssuers)
 	t.Setenv(testAdminEnv, testAdminToken)
-	t.Setenv("AUTH_SIGNUP_MODE", "domains")
-	t.Setenv("AUTH_SIGNUP_DOMAINS", "acme.test")
+	t.Setenv("AUTH_SIGNUP_MODE", "closed")
 	t.Setenv("MIN_CLI_VERSION", "v0.0.61")
 	ac := newAPIConfig()
 	if len(ac.AuthIssuers) != 1 || ac.AuthIssuers[0].Admin == nil {
@@ -398,8 +396,7 @@ func TestNewAPIConfigResolvesAdminTokens(t *testing.T) {
 	if got := ac.AuthIssuers[0].Admin.Token; got != testAdminToken {
 		t.Errorf("admin token = %q, want %q", got, testAdminToken)
 	}
-	wantDomains := []string{"acme.test"}
-	if ac.SignupPolicy.Mode != auth.SignupDomains || !slices.Equal(ac.SignupPolicy.Domains, wantDomains) {
+	if ac.SignupPolicy.Mode != auth.SignupClosed {
 		t.Errorf("signup policy = %+v", ac.SignupPolicy)
 	}
 }
