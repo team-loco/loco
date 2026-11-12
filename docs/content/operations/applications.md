@@ -9,7 +9,7 @@ loco resource logs --help
 loco resource events --help
 ```
 
-`loco resource` also includes `env`, `scale`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
+`loco resource` also includes `env`, `scale`, `restart`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
 
 ## Scale
 
@@ -19,6 +19,17 @@ loco resource events --help
 loco resource scale web --env production --replicas 3
 loco resource scale web --env staging --cpu 250m --memory 512Mi
 ```
+
+## Restart
+
+`loco resource restart` starts a rolling restart of the current replicas in one environment, preserving the deployment spec and ID. It uses the same `--env` and `LOCO_ENV` selection as scale. Without `--region`, it restarts every region in that environment. Restart requires write access and refuses an environment or region with a rollout already in progress.
+
+```sh
+loco resource restart web --env production
+loco resource restart web --env staging --region us-east-1
+```
+
+The dashboard's **Restart all replicas** action restarts the environment selected in the breadcrumb. The event history records the request as `resource.restarted`.
 
 ## Secrets
 

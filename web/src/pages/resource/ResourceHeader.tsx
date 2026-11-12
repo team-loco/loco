@@ -26,7 +26,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { PartialBadge } from "@/components/design/PartialBadge";
-import { SoonTag } from "@/components/design/SoonTag";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { shortImageRef } from "@/lib/image";
@@ -77,6 +76,8 @@ export function ResourceHeader({
 	isSettings,
 	dirty,
 	redeploying,
+	restarting,
+	onRestart,
 	canWrite,
 	canDelete,
 	rollbackTarget,
@@ -98,6 +99,8 @@ export function ResourceHeader({
 	isSettings: boolean;
 	dirty: boolean;
 	redeploying: boolean;
+	restarting: boolean;
+	onRestart: () => void;
 	canWrite: boolean;
 	canDelete: boolean;
 	rollbackTarget: Deployment | undefined;
@@ -192,12 +195,11 @@ export function ResourceHeader({
 							</MenuIcon>
 							{rollbackTarget === undefined ? "Roll back" : `Roll back to ${depTag(rollbackTarget)}`}
 						</DropdownMenuItem>
-						<DropdownMenuItem disabled>
+						<DropdownMenuItem disabled={!canRedeploy || restarting} title={writeHint} onClick={onRestart}>
 							<MenuIcon>
 								<RotateCwIcon />
 							</MenuIcon>
 							Restart all replicas
-							<SoonTag />
 						</DropdownMenuItem>
 						<DropdownMenuItem onClick={onScale}>
 							<MenuIcon>

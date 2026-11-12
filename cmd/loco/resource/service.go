@@ -14,6 +14,7 @@ func BuildResourceCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		newScaleCmd(),
+		newRestartCmd(),
 		newStatusCmd(),
 		newLogsCmd(),
 		newEventsCmd(),

@@ -92,6 +92,18 @@ with sync_playwright() as playwright:
                     assert page.evaluate("navigator.clipboard.readText()") == image
                     expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
                     more.click()
+                    restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)
+                    expect(restart).to_be_enabled()
+                    evidence.settle(page, wait_for_network=False)
+                    page.screenshot(path=out / f"restart-{case}.png", animations="disabled")
+                    with page.expect_response(lambda response: response.url.endswith("/RestartResource")) as restarted:
+                        restart.click()
+                    assert restarted.value.ok, restarted.value.text()
+                    expect(page.get_by_text(f"Restarting {name}", exact=True)).to_be_visible()
+                    assert evidence.psql(state["container"], f"SELECT deployment_id FROM placements WHERE resource_id='{resource}';") == deployment
+                    assert evidence.psql(state["container"], f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}' AND environment_id='{production}';") == str(len(results) + 1)
+                    evidence.psql(state["container"], f"UPDATE deployments SET status='running' WHERE id='{deployment}';")
+                    more.click()
                     page.get_by_role("menuitem", name="View spec", exact=True).click()
                     dialog = page.get_by_role("dialog")
                     expect(dialog).to_be_visible()

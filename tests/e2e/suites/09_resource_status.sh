@@ -66,6 +66,25 @@ test_s01_deploy_reports_healthy() {
     mv "$status_dir/config.yaml" "$cli_home/.loco/config.yaml"
 }
 
+status_revision_changed() {
+    test "$(sk -n "$status_namespace" get deployment -l "$(status_app_selector)" -o 'jsonpath={.items[0].spec.template.metadata.annotations.loco\.io/placement-revision}')" != "$1"
+}
+
+test_s01_restart_preserves_deployment() {
+    local before_revision before_deployment before_count
+    before_revision=$(sk -n "$status_namespace" get deployment -l "$(status_app_selector)" -o 'jsonpath={.items[0].spec.template.metadata.annotations.loco\.io/placement-revision}')
+    before_deployment=$(region_field deploymentId)
+    before_count=$(e2e_psql "SELECT count(*) FROM deployments WHERE resource_id = (SELECT id FROM resources WHERE name = '${status_app}')")
+    loco_cli resource restart "$status_app" --env production
+    wait_for "the restart revision to reach the pod template" 60 status_revision_changed "$before_revision"
+    sk -n "$status_namespace" rollout status deployment -l "$(status_app_selector)" --timeout=180s
+    wait_for "restarted replicas to report healthy" 180 environment_status_is RESOURCE_STATUS_HEALTHY
+    assert "Restart keeps the deployment ID" test "$(region_field deploymentId)" = "$before_deployment"
+    assert "Restart creates no deployment record" test \
+        "$(e2e_psql "SELECT count(*) FROM deployments WHERE resource_id = (SELECT id FROM resources WHERE name = '${status_app}')")" = "$before_count"
+    assert_contains "Restart appears in resource events" "resource.restarted" loco_cli resource events "$status_app" --output json
+}
+
 test_s02_crashed_pods_report_unavailable() {
     sk cordon "$status_node" >/dev/null
     sk -n "$status_namespace" delete pods -l "$(status_app_selector)" --wait=false >/dev/null

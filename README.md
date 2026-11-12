@@ -32,7 +32,7 @@ Run `loco update` to replace the installed binary with the latest release.
 Apps run under Kubernetes' `restricted` Pod Security profile, so the image must run as a numeric non-root user (for example `USER 10001` in the Dockerfile).
 
 Your app will be available at the first of its `domains`, such as `https://<app-name>.onloco.app`.
-`loco resource` holds `status`, `logs`, `events`, `env`, `scale` and `destroy`. `loco builds` lists builds and shows, follows or cancels one: `loco builds list`, `loco builds get <id>`, `loco builds logs <id> -f` and `loco builds cancel <id>`.
+`loco resource` holds `status`, `logs`, `events`, `env`, `scale`, `restart` and `destroy`. `loco builds` lists builds and shows, follows or cancels one: `loco builds list`, `loco builds get <id>`, `loco builds logs <id> -f` and `loco builds cancel <id>`.
 
 See all loco cli commands via `loco help`.
 Loco also generates completions for shells such as bash and zshrc.
