@@ -28,6 +28,7 @@ import (
 )
 
 var (
+	errAPITokenLifetime   = errors.New("LOCO_API_TOKEN_MAX_LIFETIME must be at least one second")
 	errDatabaseURLMissing = errors.New("DATABASE_URL is required")
 	errDatabasePoolSize   = errors.New("DATABASE_MIN_CONNS must not exceed DATABASE_MAX_CONNS")
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
@@ -334,8 +335,12 @@ func newDatabaseConfig() db.Config {
 }
 
 func newTokenConfig() tvm.Config {
+	maximum := envconfig.PositiveDuration("LOCO_API_TOKEN_MAX_LIFETIME", defaultAPITokenMaxLifetime)
+	if maximum < time.Second {
+		panic(errAPITokenLifetime)
+	}
 	return tvm.Config{
-		MaxAPITokenDuration: envconfig.PositiveDuration("LOCO_API_TOKEN_MAX_LIFETIME", defaultAPITokenMaxLifetime),
+		MaxAPITokenDuration: maximum,
 		SessionAccessTokenDuration: envconfig.PositiveDuration(
 			"LOCO_SESSION_ACCESS_TOKEN_LIFETIME",
 			defaultSessionAccessTokenLifetime,

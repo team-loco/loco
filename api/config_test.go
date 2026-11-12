@@ -1233,3 +1233,21 @@ func TestImageResolveTimeoutConfiguration(t *testing.T) {
 		t.Fatalf("panic = %v, want positive duration validation", err)
 	}
 }
+
+func TestNewAPIConfigTokenMaximum(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if got := newAPIConfig().Tokens.MaxAPITokenDuration; got != defaultAPITokenMaxLifetime {
+		t.Fatalf("maximum = %s", got)
+	}
+	t.Setenv("LOCO_API_TOKEN_MAX_LIFETIME", "42h")
+	if got := newAPIConfig().Tokens.MaxAPITokenDuration; got != 42*time.Hour {
+		t.Fatalf("maximum = %s, want 42h", got)
+	}
+	t.Setenv("LOCO_API_TOKEN_MAX_LIFETIME", "500ms")
+	defer func() {
+		if got, ok := recover().(error); !ok || !errors.Is(got, errAPITokenLifetime) {
+			t.Fatalf("panic = %v", got)
+		}
+	}()
+	newAPIConfig()
+}

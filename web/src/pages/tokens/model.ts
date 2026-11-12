@@ -41,8 +41,17 @@ export const ALLOWS: Record<NodeKind, string[]> = {
 	system: ["Read anything on the platform", "Change anything on the platform", "Administer the platform"],
 };
 
-export const EXPIRY_DAYS = [1, 7, 30] as const;
-export type ExpiryDays = (typeof EXPIRY_DAYS)[number];
+export function defaultExpirySeconds(maxSeconds: bigint): number {
+	return Math.min((30 * DAY_MS) / 1000, Number(maxSeconds));
+}
+
+export function expiryOptions(maxSeconds: bigint): number[] {
+	const maximum = Number(maxSeconds);
+	return [1, 7, 30]
+		.map((days) => (days * DAY_MS) / 1000)
+		.filter((seconds) => seconds < maximum)
+		.concat(maximum);
+}
 
 export interface EntityNode {
 	key: string;

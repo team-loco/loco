@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 )
 
@@ -94,6 +95,17 @@ Tokens can be scoped to different entity types:
 			if err != nil {
 				return err
 			}
+			config, err := target.Clients.Config.GetConfig(ctx, &configv1.GetConfigRequest{})
+			if err != nil {
+				return fmt.Errorf("failed to get token lifetime limit: %w", err)
+			}
+			maximum := config.GetApiTokenMaxLifetimeSeconds()
+			if !cmd.Flags().Changed("expires") {
+				expiresSec = min(expiresSec, maximum)
+			}
+			if expiresSec <= 0 || expiresSec > maximum {
+				return fmt.Errorf("token expiration must be between 1 and %d seconds", maximum)
+			}
 
 			req := &tokenv1.CreateTokenRequest{
 				Name:         name,
@@ -121,7 +133,7 @@ Tokens can be scoped to different entity types:
 
 	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().StringSlice("scope", []string{"read"}, "Token scopes: read, write, admin")
-	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d, 30d)")
+	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d; default capped at the server maximum)")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
 	cmd.Flags().String("entity-id", "", "Entity ID (required for non-user entity types)")
 

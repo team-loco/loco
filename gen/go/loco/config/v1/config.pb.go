@@ -60,14 +60,15 @@ func (*GetConfigRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetConfigResponse struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	ServiceDefaults *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
-	MinCliVersion   string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
-	Auth            *AuthConfig            `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
-	SchemaUrl       string                 `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
-	OrgLinks        []*OrgLink             `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	ServiceDefaults            *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
+	MinCliVersion              string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
+	Auth                       *AuthConfig            `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
+	SchemaUrl                  string                 `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
+	OrgLinks                   []*OrgLink             `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
+	ApiTokenMaxLifetimeSeconds int64                  `protobuf:"varint,6,opt,name=api_token_max_lifetime_seconds,json=apiTokenMaxLifetimeSeconds,proto3" json:"api_token_max_lifetime_seconds,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *GetConfigResponse) Reset() {
@@ -133,6 +134,13 @@ func (x *GetConfigResponse) GetOrgLinks() []*OrgLink {
 		return x.OrgLinks
 	}
 	return nil
+}
+
+func (x *GetConfigResponse) GetApiTokenMaxLifetimeSeconds() int64 {
+	if x != nil {
+		return x.ApiTokenMaxLifetimeSeconds
+	}
+	return 0
 }
 
 type OrgLink struct {
@@ -366,14 +374,15 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\x91\x02\n" +
+	"\x10GetConfigRequest\"\xd5\x02\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
 	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\x12\x1d\n" +
 	"\n" +
 	"schema_url\x18\x04 \x01(\tR\tschemaUrl\x124\n" +
-	"\torg_links\x18\x05 \x03(\v2\x17.loco.config.v1.OrgLinkR\borgLinks\"1\n" +
+	"\torg_links\x18\x05 \x03(\v2\x17.loco.config.v1.OrgLinkR\borgLinks\x12B\n" +
+	"\x1eapi_token_max_lifetime_seconds\x18\x06 \x01(\x03R\x1aapiTokenMaxLifetimeSeconds\"1\n" +
 	"\aOrgLink\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\"Y\n" +
