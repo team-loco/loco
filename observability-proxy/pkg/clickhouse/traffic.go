@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -125,8 +126,8 @@ func addTrafficSample(
 				}
 			}
 			from = previous.end
-		} else if from.Before(start) ||
-			from.UnixNano() <= 0 {
+		} else if from.UnixNano() <= 0 ||
+			(from.Before(start) && (previous.stream != sample.stream || !from.After(previous.end))) {
 			// An initial cumulative value without a known in-range start is a baseline.
 			return
 		}
@@ -148,7 +149,12 @@ func addTrafficSample(
 		clippedEnd = end
 	}
 	interval := time.Duration(req.GetIntervalSeconds()) * time.Second
-	for at := clippedFrom.Truncate(interval); at.Before(clippedEnd); at = at.Add(interval) {
+	origin := time.Unix(0, 0)
+	first := origin.Add(clippedFrom.Sub(origin).Truncate(interval))
+	if first.After(clippedFrom) {
+		first = first.Add(-interval)
+	}
+	for at := first; at.Before(clippedEnd); at = at.Add(interval) {
 		left, right := at, at.Add(interval)
 		if left.Before(clippedFrom) {
 			left = clippedFrom
@@ -163,12 +169,10 @@ func addTrafficSample(
 			counts = make(map[float64]float64)
 			buckets[key] = counts
 		}
-		for i, v := range values {
-			bound := math.Inf(1)
-			if histogram && i < len(sample.bounds) {
-				bound = sample.bounds[i]
-			}
-			counts[bound] += v * weight
+		if histogram {
+			addHistogramCounts(counts, sample.bounds, values, weight)
+		} else {
+			counts[math.Inf(1)] += values[0] * weight
 		}
 	}
 }
@@ -219,6 +223,28 @@ func trafficSeries(
 	return result
 }
 
+func addHistogramCounts(counts map[float64]float64, bounds, values []float64, weight float64) {
+	common := append(slices.Clone(bounds), math.Inf(1))
+	if len(counts) > 0 {
+		// Only shared boundaries preserve whole buckets when replicas use different layouts.
+		common = slices.DeleteFunc(common, func(bound float64) bool { _, ok := counts[bound]; return !ok })
+		for bound, count := range counts {
+			index := sort.SearchFloat64s(common, bound)
+			if common[index] != bound {
+				counts[common[index]] += count
+				delete(counts, bound)
+			}
+		}
+	}
+	for i, value := range values {
+		upper := math.Inf(1)
+		if i < len(bounds) {
+			upper = bounds[i]
+		}
+		counts[common[sort.SearchFloat64s(common, upper)]] += value * weight
+	}
+}
+
 func histogramQuantile(counts map[float64]float64, quantile float64) float64 {
 	bounds := make([]float64, 0, len(counts))
 	total := 0.0
@@ -226,7 +252,7 @@ func histogramQuantile(counts map[float64]float64, quantile float64) float64 {
 		bounds = append(bounds, bound)
 		total += count
 	}
-	if total == 0 {
+	if total == 0 || len(bounds) < 2 {
 		return math.NaN()
 	}
 	slices.Sort(bounds)

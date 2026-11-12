@@ -9,8 +9,6 @@ import (
 func TestGatewayRatesAndLatency(t *testing.T) {
 	f := newQueryFixture(t)
 	start := f.start.Truncate(time.Minute)
-	attrs := tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID)
-	attrs[regionAttribute] = testRegion
 	for _, sample := range []struct {
 		at               int
 		value            float64
@@ -93,7 +91,7 @@ func TestGatewayRatesAndLatency(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	req.MetricName, req.Aggregation = "cluster.upstream_rq_time", "p95"
+	req.MetricName, req.Aggregation = "cluster.upstream_rq_time", trafficQuantile
 	series, err = f.client.QueryMetrics(t.Context(), req)
 	if err != nil {
 		t.Fatal(err)
