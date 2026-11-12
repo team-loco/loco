@@ -40,9 +40,7 @@ func TestHTTPEmailInputsRequireAndReadTheProviderHookCredential(t *testing.T) {
 		{"long key", testHTTPEmailTransport, "whsec_" + base64.StdEncoding.EncodeToString(make([]byte, 33)), false},
 		{"http", testHTTPEmailTransport, valid, true},
 		{"https", testHTTPSEmailTransport, valid, true},
-		{"smtp", "smtp://mail.test:587", "", true},
-		{"smtp host missing", "smtp://:587", "", false},
-		{"smtp port missing", "smtp://user:credential-canary@mail.test", "", false},
+		{"smtp rejected", "smtp://mail.test:587", "", false},
 		{"unsupported scheme", "ftp://mail.test:587", "", false},
 		{"http host missing", "http:///invitations", valid, false},
 	} {

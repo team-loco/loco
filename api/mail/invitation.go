@@ -1,15 +1,10 @@
 package mail
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-const invitationBody = "%s invited you to join %s on Loco.\n\n" +
-	"Sign in with this email address to join:\n%s\n\n" +
-	"This invitation expires on %s.\n"
 
 type InvitationInfo struct {
 	ID        uuid.UUID `json:"id"`
@@ -34,22 +29,4 @@ type InvitationEvent struct {
 	Org        OrgInfo        `json:"org"`
 	Inviter    InviterInfo    `json:"inviter"`
 	Link       string         `json:"link"`
-}
-
-func NewInvitationMessage(ev InvitationEvent) Message {
-	who := ev.Inviter.Email
-	if ev.Inviter.Name != "" {
-		who = fmt.Sprintf("%s (%s)", ev.Inviter.Name, ev.Inviter.Email)
-	}
-	body := fmt.Sprintf(
-		invitationBody,
-		who, ev.Org.Name, ev.Link, ev.Invitation.ExpiresAt.UTC().Format(time.DateOnly),
-	)
-	return Message{
-		To:      ev.Invitation.Email,
-		ReplyTo: ev.Inviter.Email,
-		Subject: fmt.Sprintf("You have been invited to join %s on Loco", ev.Org.Name),
-		Body:    body,
-		Event:   ev,
-	}
 }

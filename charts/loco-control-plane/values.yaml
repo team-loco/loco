@@ -38,7 +38,6 @@ api:
       key: token
   # @schema additionalProperties: false
   email:
-    from: ""
     invitationTtl: ""
     # @schema additionalProperties: false
     transport:

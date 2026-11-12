@@ -109,21 +109,17 @@ tests:
 
   - it: reads the invitation email settings from the values and existing Secrets
     set:
-      api.email.from: loco@example.test
       api.email.invitationTtl: 72h
-      api.email.transport.existingSecret: {name: loco-email, key: smtp}
+      api.email.transport.existingSecret: {name: loco-email, key: transport}
       api.email.hookSecret.existingSecret: {name: loco-email-hook, key: signing}
     template: templates/api-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: EMAIL_FROM, value: loco@example.test}
-      - contains:
-          path: spec.template.spec.containers[0].env
           content: {name: INVITATION_TTL, value: 72h}
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: EMAIL_TRANSPORT, valueFrom: {secretKeyRef: {name: loco-email, key: smtp}}}
+          content: {name: EMAIL_TRANSPORT, valueFrom: {secretKeyRef: {name: loco-email, key: transport}}}
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: EMAIL_HOOK_SECRET, valueFrom: {secretKeyRef: {name: loco-email-hook, key: signing}}}
@@ -131,10 +127,6 @@ tests:
   - it: sets no invitation email settings by default
     template: templates/api-deployment.yaml
     asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content: {name: EMAIL_FROM}
-          any: true
       - notContains:
           path: spec.template.spec.containers[0].env
           content: {name: INVITATION_TTL}

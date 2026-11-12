@@ -67,7 +67,6 @@ type Registry struct {
 }
 
 type Email struct {
-	From               string       `json:"from"               yaml:"from"`
 	TransportSecretRef SecretKeyRef `json:"transportSecretRef" yaml:"transportSecretRef"`
 }
 

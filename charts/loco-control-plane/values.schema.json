@@ -29,9 +29,6 @@
         "email": {
           "type": "object",
           "properties": {
-            "from": {
-              "type": "string"
-            },
             "hookSecret": {
               "type": "object",
               "properties": {

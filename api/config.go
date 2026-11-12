@@ -368,7 +368,6 @@ func newWebhookConfig() webhooks.Config {
 func newInvitationConfig(webURL string) service.InvitationConfig {
 	transport, err := mail.ParseTransport(
 		envconfig.String("EMAIL_TRANSPORT", ""),
-		envconfig.String("EMAIL_FROM", ""),
 		envconfig.String("EMAIL_HOOK_SECRET", ""),
 		envconfig.PositiveDuration("EMAIL_TIMEOUT", defaultEmailTimeout),
 	)

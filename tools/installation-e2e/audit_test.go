@@ -196,7 +196,7 @@ func TestAuditProtectedOperatorFiles(t *testing.T) {
 func TestAuditCredentialURLs(t *testing.T) {
 	for _, key := range []string{"email-transport", "database-url", "DATABASE_URL", "url"} {
 		t.Run(key, func(t *testing.T) {
-			transport := []byte("smtp://notifications:" + testCanary + "@smtp.example.test:587")
+			transport := []byte("https://notifications:" + testCanary + "@mail.example.test")
 			secret := auditSecret{Data: map[string][]byte{key: transport}}
 			secret.Metadata.Namespace = controlNamespace
 			audit := newLeakAudit()

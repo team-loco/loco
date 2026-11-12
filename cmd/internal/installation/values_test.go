@@ -15,7 +15,7 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		Auth:          Auth{Issuer: "https://auth.example.com", ClientID: canary},
 		SourceBucket:  Bucket{Bucket: canary, Endpoint: "https://s3.example.com", Region: canary},
 		Registry:      Registry{Endpoint: "https://registry.example.com"},
-		Email:         Email{From: canary, TransportSecretRef: SecretKeyRef{Name: "mail", Key: "transport"}},
+		Email:         Email{TransportSecretRef: SecretKeyRef{Name: "mail", Key: "transport"}},
 		Observability: Observability{IngestURL: "https://ingest.example.com"},
 	}}
 	data, err := controlPlaneValues(config, releaseFixture(), false)
@@ -24,10 +24,7 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	}
 	var values struct {
 		API struct {
-			Env   map[string]string `json:"env"`
-			Email struct {
-				From string `json:"from"`
-			} `json:"email"`
+			Env map[string]string `json:"env"`
 		} `json:"api"`
 	}
 	var full map[string]any
@@ -41,7 +38,7 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		t.Fatal(decodeErr)
 	}
 
-	if values.API.Env["LOCO_SOURCE_BUCKET_REGION"] != canary || values.API.Email.From != canary {
+	if values.API.Env["LOCO_SOURCE_BUCKET_REGION"] != canary {
 		t.Fatal("quoted value did not survive rendering")
 	}
 	if !strings.Contains(values.API.Env["AUTH_ISSUERS"], `quoted\"\nmalicious`) {

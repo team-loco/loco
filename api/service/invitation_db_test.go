@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/mail"
-	"github.com/team-loco/loco/api/mail/mailtest"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
@@ -21,7 +20,6 @@ const (
 	invitationWebURL  = "https://app.loco.test"
 	invitationEmail   = "bob@acme.test"
 	invitationLink    = invitationWebURL + "/login?login_hint=bob%40acme.test"
-	invitationFrom    = "Loco <noreply@loco.test>"
 
 	invitationRPCDeadline     = 5 * time.Second
 	invitationStalledDeadline = time.Second
@@ -29,7 +27,7 @@ const (
 	invitationRecordPolling   = 50 * time.Millisecond
 )
 
-var errInvitationTransportDown = errors.New("smtp relay refused the message")
+var errInvitationTransportDown = errors.New("email hook refused the message")
 
 type fakeTransport struct {
 	mu   sync.Mutex
@@ -95,8 +93,12 @@ func TestInviteDeliversAndRecordsOutcome(t *testing.T) {
 		t.Fatalf("expires in %v", ttl)
 	}
 	sent := transport.messages()
-	if len(sent) != 1 || sent[0].To != invitationEmail || sent[0].ReplyTo != "owner@acme.test" {
+	if len(sent) != 1 {
 		t.Fatalf("sent = %+v", sent)
+	}
+	event, ok := sent[0].Event.(mail.InvitationEvent)
+	if !ok || event.Invitation.Email != invitationEmail || event.Inviter.Email != "owner@acme.test" {
+		t.Fatalf("event = %+v", sent[0].Event)
 	}
 }
 
@@ -136,7 +138,7 @@ func TestInviteDeliveryErrorCutOnARuneBoundaryIsStored(t *testing.T) {
 }
 
 func TestInviteWithoutTransportReturnsTheLink(t *testing.T) {
-	transport, err := mail.ParseTransport("", "", "", invitationEmailTimeout)
+	transport, err := mail.ParseTransport("", "", invitationEmailTimeout)
 	if err != nil {
 		t.Fatalf("transport: %v", err)
 	}
@@ -427,32 +429,6 @@ type stalledTransport struct{}
 func (stalledTransport) Send(ctx context.Context, _ mail.Message) error {
 	<-ctx.Done()
 	return ctx.Err()
-}
-
-func TestInviteToStalledSMTPServerRecordsTheFailure(t *testing.T) {
-	stalled := mailtest.NewStalledSMTPServer(t)
-	transport, err := mail.ParseTransport(stalled, invitationFrom, "", invitationEmailTimeout)
-	if err != nil {
-		t.Fatalf("transport: %v", err)
-	}
-	o := newInvitationOrg(t, transport)
-	ctx, cancel := context.WithTimeout(t.Context(), invitationRPCDeadline)
-	defer cancel()
-
-	resp, err := o.owner.clients.Org.InviteOrgMember(ctx, &orgv1.InviteOrgMemberRequest{
-		OrgId: o.orgID, Email: invitationEmail,
-	})
-	if err != nil {
-		t.Fatalf("invite: %v", err)
-	}
-
-	invitation := resp.GetInvitation()
-	if invitation.GetStatus() != orgv1.InvitationStatus_INVITATION_STATUS_FAILED {
-		t.Fatalf("status = %v", invitation.GetStatus())
-	}
-	if !strings.Contains(invitation.GetDeliveryError(), "smtp greeting") {
-		t.Fatalf("delivery error = %q", invitation.GetDeliveryError())
-	}
 }
 
 func TestInviteRecordsTheFailureAfterTheRequestDeadline(t *testing.T) {

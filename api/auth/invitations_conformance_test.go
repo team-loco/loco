@@ -29,7 +29,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/mail"
-	"github.com/team-loco/loco/api/mail/mailtest"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
@@ -47,7 +46,6 @@ const (
 
 	journeyOrgName = "Acme"
 	journeyWebURL  = "https://app.loco.test"
-	journeyFrom    = "Loco <noreply@loco.test>"
 	journeyTTL     = time.Hour
 	journeyTimeout = 10 * time.Second
 
@@ -186,51 +184,6 @@ type deliveryCase struct {
 	setup      func(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInvitations))
 }
 
-func smtpDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInvitations)) {
-	t.Helper()
-	server := mailtest.NewSMTPServer(t, true)
-	transport, err := mail.ParseTransport(
-		server.URL(mailtest.Password), journeyFrom, "", journeyTimeout, mail.WithTLSConfig(server.ClientTLS()),
-	)
-	if err != nil {
-		t.Fatalf("smtp transport: %v", err)
-	}
-	return transport, func(t *testing.T, _ sentInvitations) {
-		t.Helper()
-		var toCarol []mailtest.Capture
-		for range 2 {
-			select {
-			case got := <-server.Captured:
-				if strings.Contains(got.Rcpt, carolEmail) {
-					toCarol = append(toCarol, got)
-				}
-			case <-time.After(time.Second):
-				t.Fatal("expected one message per invitation")
-			}
-		}
-		if len(toCarol) != 1 {
-			t.Fatalf("messages to %s = %d, want 1", carolEmail, len(toCarol))
-		}
-		got := toCarol[0]
-		for _, want := range []string{
-			"To: <" + carolEmail + ">\r\n",
-			"Reply-To: <" + adminEmail + ">\r\n",
-			wantLink(carolEmail),
-			journeyOrgName,
-		} {
-			if !strings.Contains(got.Data, want) {
-				t.Errorf("message to carol lacks %q:\n%s", want, got.Data)
-			}
-		}
-		select {
-		case extra := <-server.Captured:
-			t.Fatalf("unexpected extra message to %s", extra.Rcpt)
-		default:
-		}
-		t.Logf("smtp sink received exactly one message to %s with link %s", carolEmail, wantLink(carolEmail))
-	}
-}
-
 type hookCall struct {
 	header http.Header
 	body   []byte
@@ -258,7 +211,7 @@ func hookDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInv
 	pool := x509.NewCertPool()
 	pool.AddCert(server.Certificate())
 	config := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
-	transport, err := mail.ParseTransport(server.URL, journeyFrom, secret, journeyTimeout, mail.WithTLSConfig(config))
+	transport, err := mail.ParseTransport(server.URL, secret, journeyTimeout, mail.WithTLSConfig(config))
 	if err != nil {
 		t.Fatalf("hook transport: %v", err)
 	}
@@ -314,7 +267,7 @@ func hookDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInv
 
 func noneDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInvitations)) {
 	t.Helper()
-	transport, err := mail.ParseTransport("", "", "", journeyTimeout)
+	transport, err := mail.ParseTransport("", "", journeyTimeout)
 	if err != nil {
 		t.Fatalf("empty transport: %v", err)
 	}
@@ -331,7 +284,6 @@ func noneDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInv
 
 func TestInvitationsJourney(t *testing.T) {
 	cases := []deliveryCase{
-		{name: "smtp", wantStatus: orgv1.InvitationStatus_INVITATION_STATUS_EMAILED, setup: smtpDelivery},
 		{name: "https hook", wantStatus: orgv1.InvitationStatus_INVITATION_STATUS_EMAILED, setup: hookDelivery},
 		{name: "no transport", wantStatus: orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT, setup: noneDelivery},
 	}
@@ -384,7 +336,7 @@ func TestInvitationsJourney(t *testing.T) {
 }
 
 func TestInvitationsOpenSignup(t *testing.T) {
-	noTransport, err := mail.ParseTransport("", "", "", journeyTimeout)
+	noTransport, err := mail.ParseTransport("", "", journeyTimeout)
 	if err != nil {
 		t.Fatalf("empty transport: %v", err)
 	}

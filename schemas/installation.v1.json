@@ -201,14 +201,9 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "from",
             "transportSecretRef"
           ],
           "properties": {
-            "from": {
-              "type": "string",
-              "minLength": 1
-            },
             "transportSecretRef": {
               "type": "object",
               "additionalProperties": false,

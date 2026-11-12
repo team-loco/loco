@@ -19,7 +19,6 @@ api:
   bootstrapToken:
     existingSecret: {name: {{quote .Bootstrap}}, key: token}
   email:
-    from: {{quote .Config.ControlPlane.Email.From}}
     transport:
       existingSecret:
         name: {{quote .Config.ControlPlane.Email.TransportSecretRef.Name}}

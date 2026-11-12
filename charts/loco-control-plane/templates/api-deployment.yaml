@@ -90,10 +90,6 @@ spec:
                   key: {{ .key | quote }}
             {{- end }}
             {{- end }}
-            {{- with .Values.api.email.from }}
-            - name: EMAIL_FROM
-              value: {{ . | quote }}
-            {{- end }}
             {{- with .Values.api.email.invitationTtl }}
             - name: INVITATION_TTL
               value: {{ . | quote }}

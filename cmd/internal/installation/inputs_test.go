@@ -1,6 +1,8 @@
 package installation
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -40,7 +42,10 @@ func TestInputCredentialsUseOneSecretVersionPerOperation(t *testing.T) {
 		for key, value := range inputs {
 			want := fmt.Sprintf("generation-%d", operation)
 			if key == testEmailTransportKey {
-				want = "smtp://" + want + ":587"
+				want = "https://" + want
+			}
+			if key == envEmailHookSecret {
+				want = string(fixtureInputData(want)[emailHookSecretKey])
 			}
 			if string(value) != want {
 				t.Errorf("operation %d input %s = %q, want %s", operation, key, value, want)
@@ -70,6 +75,8 @@ func fixtureInputData(value string) map[string][]byte {
 	} {
 		data[key] = []byte(value)
 	}
-	data[testEmailTransportKey] = []byte("smtp://" + value + ":587")
+	data[testEmailTransportKey] = []byte("https://" + value)
+	key := sha256.Sum256([]byte(value))
+	data[emailHookSecretKey] = []byte("whsec_" + base64.StdEncoding.EncodeToString(key[:]))
 	return data
 }

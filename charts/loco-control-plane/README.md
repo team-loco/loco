@@ -23,9 +23,9 @@ kubectl -n loco-system create secret generic regional-api-env \
 
 `api.bootstrapToken.existingSecret` names the Secret key holding the one-time `LOCO_BOOTSTRAP_TOKEN` for `locoadm bootstrap`. Remove it after the first system admin exists; see [self-hosting](../../docs/content/operations/self-hosting.md#first-system-admin).
 
-`api.email.transport.existingSecret` and `api.email.hookSecret.existingSecret` name the Secret keys holding `EMAIL_TRANSPORT` and `EMAIL_HOOK_SECRET`; `api.email.from` and `api.email.invitationTtl` set `EMAIL_FROM` and `INVITATION_TTL`. Leave the transport empty to return invitation links without sending mail.
+`api.email.transport.existingSecret` and `api.email.hookSecret.existingSecret` name the Secret keys holding `EMAIL_TRANSPORT` and `EMAIL_HOOK_SECRET`; `api.email.invitationTtl` sets `INVITATION_TTL`. Leave the transport empty to return invitation links without sending mail.
 
-An `https://` transport receives each invitation as a signed JSON `POST` (`Webhook-Id`, `Webhook-Timestamp` and `Webhook-Signature` headers). Any 2xx answer counts as delivered. For any other status, a JSON body of the form `{"error":"<message>"}` makes the message the delivery error shown to the inviter, up to 500 characters; without it the inviter sees `hook returned <status>`.
+An `http://` or `https://` transport receives each invitation as a signed JSON `POST` (`Webhook-Id`, `Webhook-Timestamp` and `Webhook-Signature` headers). Any 2xx answer counts as delivered. For any other status, a JSON body of the form `{"error":"<message>"}` makes the message the delivery error shown to the inviter, up to 500 characters; without it the inviter sees `hook returned <status>`.
 
 Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and `OBSERVABILITY_PROXY_URL` to connect its own Services.
 

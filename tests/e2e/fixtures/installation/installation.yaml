@@ -21,7 +21,6 @@ controlPlane:
     endpoint: http://registry.installation.localhost:5000
     credentialsSecretRef: {name: fixture-inputs}
   email:
-    from: Loco <notifications@installation.test>
     transportSecretRef: {name: fixture-inputs, key: email-transport}
   openbao:
     managed: true

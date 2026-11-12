@@ -46,7 +46,7 @@ const (
 )
 
 var errInputMissing = errors.New("required input Secret or key is missing")
-var errEmailTransport = errors.New("email transport input is invalid")
+var errEmailTransport = errors.New("email transport input must use http:// or https://")
 var errEmailHookSecret = errors.New("HTTP email transport requires a valid hook-secret in its input Secret")
 
 var errRecoveryRequired = errors.New(
@@ -333,12 +333,7 @@ func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]by
 	if err != nil || transport.Hostname() == "" {
 		return nil, errEmailTransport
 	}
-	if transport.Scheme == "smtp" {
-		if transport.Port() == "" {
-			return nil, errEmailTransport
-		}
-		return output, nil
-	}
+
 	if transport.Scheme != schemeHTTP && transport.Scheme != schemeHTTPS {
 		return nil, errEmailTransport
 	}

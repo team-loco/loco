@@ -11,6 +11,10 @@ mise run tilt
 
 The local environment is a development installation. Review the repository's environment configuration before adapting it to a production cluster.
 
+## Invitation delivery
+
+Leave `EMAIL_TRANSPORT` unset to send no email; the inviter shares the invitation link. To delegate delivery, set it to an `http://` or `https://` URL and set `EMAIL_HOOK_SECRET` to `whsec_` followed by standard base64 encoding of exactly 32 bytes. The API posts a signed invitation event to that URL. Other schemes fail at startup. The hook chooses the sender address; the API does not require one.
+
 ## Supported Kubernetes versions
 
 Loco supports Kubernetes **1.36–1.37**, with current patch releases recommended. The agent rejects servers below 1.36 before starting watches or registering. Newer minors are unverified. The minimum follows required server behavior, not the Go client version: private Service names accept digit-leading resource slugs, requiring [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) (enabled by default in 1.36, stable in 1.37). Keep that gate enabled on 1.36. Both supported minors remain in the [upstream patch-support window](https://kubernetes.io/releases/patch-releases/) and the pinned [Envoy Gateway compatibility matrix](https://gateway.envoyproxy.io/news/releases/matrix/).
