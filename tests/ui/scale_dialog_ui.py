@@ -47,7 +47,7 @@ for name, cpu, memory, replicas in (("scale-small", "500m", "512Mi", 1), ("scale
     resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {"us-east-1": {"enabled": True, **size}}}}})["resourceId"]
     deployment = str(uuid.uuid4())
     runtime = json.dumps({"build": {"type": "image", "image": f"registry.example.com/{name}:1"}, "port": 8080, **size})
-    sql.append(f"INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES('{deployment}','{resource}','{cluster}','us-east-1',{replicas},'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());")
+    sql.append(f"INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',{replicas},'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());")
     sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{}}',true,{replicas},'Ready',NOW());")
 evidence.psql(state["container"], "BEGIN;\n" + "\n".join(sql) + "\nCOMMIT;")
 limits = evidence.rpc(state["api_url"], owner["token"], "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]
