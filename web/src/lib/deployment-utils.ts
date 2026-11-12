@@ -45,17 +45,17 @@ export function deploymentActor(d: Deployment): string {
 	return d.actorType === DeploymentActorType.USER ? `@${d.actorName || d.actorId}` : d.actorName || "Deleted token";
 }
 
-export function deploymentOrigin(d: Deployment): string {
-	const actor = deploymentActor(d);
-	const methods: Record<DeploymentMethod, string> = {
-		[DeploymentMethod.UNSPECIFIED]: "Unknown method",
-		[DeploymentMethod.CLI]: "loco deploy",
-		[DeploymentMethod.WEB]: "Dashboard",
-		[DeploymentMethod.API_TOKEN]: "API token",
-	};
-	const parts = [actor, methods[d.method]];
-	if (d.commit !== undefined) {
-		parts.push(`${d.commit.sha.slice(0, 7)}${d.commit.dirty ? " (uncommitted changes)" : ""}`);
-	}
-	return parts.join(" · ");
+const METHOD_LABEL: Record<DeploymentMethod, string> = {
+	[DeploymentMethod.UNSPECIFIED]: "",
+	[DeploymentMethod.CLI]: "loco deploy · CLI",
+	[DeploymentMethod.WEB]: "Dashboard",
+	[DeploymentMethod.API_TOKEN]: "API token",
+};
+
+export function deploymentMethod(d: Deployment): string {
+	return METHOD_LABEL[d.method];
+}
+
+export function shortSha(sha: string): string {
+	return sha.slice(0, 7);
 }

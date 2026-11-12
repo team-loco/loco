@@ -11,7 +11,7 @@ import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { DeploymentOrigin } from "@/components/design/DeploymentOrigin";
+import { DeploymentActor } from "@/components/design/DeploymentOrigin";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
@@ -30,7 +30,7 @@ import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type Reg
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
 
-const BASE_COLUMNS = 6;
+const BASE_COLUMNS = 7;
 const DEFAULT_PAGE_SIZE = 10;
 const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
@@ -140,9 +140,11 @@ function Detail({
 						Build <span className="font-mono">{shortId(buildId)}</span>
 					</Button>
 				)}
-				<CopyId value={dep.id} className="h-[30px] px-2.5 text-[12.5px] text-fg2">
-					Copy ID
-				</CopyId>
+				{dep.commit !== undefined && (
+					<CopyId value={dep.commit.sha} className="h-[30px] px-2.5 text-[12.5px] text-fg2">
+						Copy SHA
+					</CopyId>
+				)}
 			</div>
 		</div>
 	);
@@ -267,7 +269,8 @@ export function DeploymentsSection({
 								<TableRow>
 									<TableHead className="w-6" />
 									<TableHead className="w-[130px]">Status</TableHead>
-									<TableHead className="w-[400px]">Deployment</TableHead>
+									<TableHead className="w-[180px]">Version</TableHead>
+									<TableHead className="w-[200px]">Deployed by</TableHead>
 									{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
 									<TableHead>Message</TableHead>
 									<TableHead className="w-[72px] text-right">Took</TableHead>
@@ -319,10 +322,13 @@ export function DeploymentsSection({
 												<DeploymentPhaseBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />
 											</TableCell>
 											<TableCell>
-												<span className="flex items-center gap-2">
-													<DeploymentOrigin deployment={dep} />
+												<span className="flex min-w-0 items-center gap-1.5">
+													<span className="truncate font-mono text-[12.5px] text-foreground">{depTag(dep)}</span>
 													{isCurrent && <Badge tone="pill">current</Badge>}
 												</span>
+											</TableCell>
+											<TableCell>
+												<DeploymentActor deployment={dep} />
 											</TableCell>
 											{multiRegion && (
 												<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
