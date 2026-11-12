@@ -11,6 +11,16 @@ mise run tilt
 
 The local environment is a development installation. Review the repository's environment configuration before adapting it to a production cluster.
 
+## Supported Kubernetes versions
+
+Loco supports Kubernetes **1.36–1.37**, with current patch releases recommended. The agent rejects servers below 1.36 before starting watches or registering. Newer minors are unverified. The minimum follows required server behavior, not the Go client version: private Service names accept digit-leading resource slugs, requiring [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) (enabled by default in 1.36, stable in 1.37). Keep that gate enabled on 1.36. Both supported minors remain in the [upstream patch-support window](https://kubernetes.io/releases/patch-releases/) and the pinned [Envoy Gateway compatibility matrix](https://gateway.envoyproxy.io/news/releases/matrix/).
+
+Clusters need `apiextensions.k8s.io/v1` CRDs with CEL validation (Build path checks and immutable specs), server-side apply with field ownership and conflict handling, `autoscaling/v2` for collector HPAs, and a CNI enforcing standard `networking.k8s.io/v1` NetworkPolicy ingress and egress. CEL validation and server-side apply are stable before the supported range. Loco does not install ValidatingAdmissionPolicy resources or require that feature gate. Installing API objects alone does not prove CNI enforcement; the e2e lifecycle suite checks traffic between namespaces.
+
+Nightly and manually dispatched compatibility tests exercise installation, deployment, networking, secrets and deletion on the oldest and newest minors using digest-pinned kind images in `agent/pkg/cluster/kubernetes.json`; the oldest image also supplies the agent's minimum minor. PR CI runs only the newest endpoint. Renovate updates endpoint patches and digests without changing their minors. Expand the range only after the endpoint suites pass; remove an old minor when upstream support ends or a required capability moves the minimum, publishing the change with the Loco release.
+
+Use the same Loco release for the agent, controller and CRDs; mixed Loco releases are untested. Upgrade Kubernetes one minor at a time, API servers before nodes, following the [upstream skew policy](https://kubernetes.io/releases/version-skew-policy/). Every API server and node must remain inside Loco's supported range during an upgrade. Apply release CRDs before rolling the controller and agent, and upgrade clusters to a new minimum before deploying a Loco release that requires it.
+
 ## Platform components
 
 | Component | Repository location | Responsibility |

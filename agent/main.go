@@ -111,6 +111,10 @@ func main() {
 	}
 
 	inspector := cluster.NewInspector(clientset, cfg.ControllerNamespace, cfg.ControllerDeployment)
+	if err = inspector.CheckKubernetesVersion(); err != nil {
+		slog.Error("Kubernetes compatibility check failed", "error", err)
+		os.Exit(1)
+	}
 	domainReader, err := domains.NewReader(&inspectorConfig)
 	if err != nil {
 		slog.Error("failed to create the gateway client", "error", err)
