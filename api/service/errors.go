@@ -44,12 +44,20 @@ func withDetail(err *connect.Error, msg proto.Message) *connect.Error {
 	return err.WithDetail(detail)
 }
 
+const (
+	buildErrorDomain               = "loco.build"
+	imageNotFoundReason            = "IMAGE_NOT_FOUND"
+	imageAccessDeniedReason        = "IMAGE_ACCESS_DENIED"
+	imageReferenceInvalidReason    = "IMAGE_REFERENCE_INVALID"
+	imagePlatformUnsupportedReason = "IMAGE_PLATFORM_UNSUPPORTED"
+)
+
 func fieldError(code connect.Code, field, message, reason string) *connect.Error {
 	err := withDetail(connect.NewError(code, message), &errdetails.BadRequest{
 		FieldViolations: []*errdetails.BadRequest_FieldViolation{{Field: field, Description: message}},
 	})
 	if reason != "" {
-		return withDetail(err, &errdetails.ErrorInfo{Reason: reason, Domain: "loco.build"})
+		return withDetail(err, &errdetails.ErrorInfo{Reason: reason, Domain: buildErrorDomain})
 	}
 	return err
 }

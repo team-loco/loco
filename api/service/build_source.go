@@ -23,7 +23,6 @@ import (
 const (
 	buildSourceTypeDockerfile = "dockerfile"
 	buildSourceTypeImage      = "image"
-	imageAccessDeniedReason   = "IMAGE_ACCESS_DENIED"
 )
 
 var (
@@ -161,7 +160,7 @@ func pinPublicImage(
 		invalid := fmt.Errorf("invalid image reference %q: %w", image, err)
 		return nil, fieldError(
 			connect.CodeInvalidArgument, "image",
-			"Invalid image reference. Use a repository with a tag or digest.", "IMAGE_REFERENCE_INVALID",
+			"Invalid image reference. Use a repository with a tag or digest.", imageReferenceInvalidReason,
 		).WithCause(invalid)
 	}
 
@@ -189,7 +188,7 @@ func imageResolutionFailure(image string, err error) (message, reason string) {
 	if errors.Is(err, imageresolver.ErrPlatformUnsupported) {
 		return fmt.Sprintf(
 			"Cannot deploy image %q: %s.", image, imageresolver.ErrPlatformUnsupported,
-		), "IMAGE_PLATFORM_UNSUPPORTED"
+		), imagePlatformUnsupportedReason
 	}
 	registryErr, ok := errors.AsType[*transport.Error](err)
 	if ok {
@@ -213,7 +212,7 @@ func imageResolutionFailure(image string, err error) (message, reason string) {
 			return fmt.Sprintf(
 				"Image %q was not found. Check the repository and tag or digest.",
 				image,
-			), "IMAGE_NOT_FOUND"
+			), imageNotFoundReason
 		}
 	}
 	return fmt.Sprintf("Could not resolve image %q. The registry may be unavailable; try again.", image), ""

@@ -22,9 +22,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Regenerate Go, TypeScript and OpenAPI from the protos
-        run: |
-          buf generate
-          buf generate --template buf.gen.errors.yaml
+        run: buf generate
 
       - name: Fail if anything is out of date
         run: |

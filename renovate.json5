@@ -233,16 +233,6 @@
   customManagers: [
     {
       customType: "regex",
-      description: "The standard RPC error detail source used by the TypeScript generator",
-      managerFilePatterns: ["/^buf\\.gen\\.errors\\.yaml$/"],
-      matchStrings: ["tarball: https://github\\.com/googleapis/googleapis/archive/(?<currentDigest>[a-f0-9]+)\\.tar\\.gz"],
-      datasourceTemplate: "git-refs",
-      depNameTemplate: "googleapis/googleapis",
-      packageNameTemplate: "https://github.com/googleapis/googleapis",
-      currentValueTemplate: "master",
-    },
-    {
-      customType: "regex",
       description: "The API docs load Scalar from the CDN without bundling it. Renovate cannot recompute the script's integrity hash, so lint:sri fails the update until mise run fix:sri refreshes it",
       managerFilePatterns: ["/^api/docs\\.html$/"],
       matchStrings: ["https://cdn\\.jsdelivr\\.net/npm/(?<depName>@scalar/api-reference)@(?<currentValue>[^/]+)/"],
