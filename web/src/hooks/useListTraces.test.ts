@@ -5,9 +5,9 @@ import {
 	ObservabilityProxyService,
 	TraceStatus,
 	TraceSummarySort,
-	type QueryTracesRequest,
+	type ListTracesRequest,
 } from "@gen/loco/observability/v1/observability_pb";
-import { traceSummaryQueryOptions } from "./useTraceSummaries";
+import { listTracesQueryOptions } from "./useListTraces";
 
 const input = {
 	workspaceId: "workspace",
@@ -17,30 +17,37 @@ const input = {
 	start: 1_800_000_000_123,
 	end: 1_800_003_600_456,
 	limit: 25,
-	summary: { offset: 25, rootNameTerms: ["GET", "/cart"], status: TraceStatus.ERROR, sort: TraceSummarySort.DURATION },
+	offset: 25,
+	rootNameTerms: ["GET", "/cart"],
+	status: TraceStatus.ERROR,
+	sort: TraceSummarySort.DURATION,
 };
 
 describe("trace summary queries", () => {
 	test("requests a complete trace page with server filters and total count", async () => {
-		let received: QueryTracesRequest | undefined;
+		let received: ListTracesRequest | undefined;
 		const transport = createRouterTransport((router) => {
 			router.service(ObservabilityProxyService, {
-				queryTraces(request) {
+				listTraces(request) {
 					received = request;
 					return { totalCount: 67n, summaries: [{ traceId: "trace", rootSpanName: "GET /cart", spanCount: 900n }] };
 				},
 			});
 		});
 		const client = new QueryClient();
-		const result = await client.query(traceSummaryQueryOptions(transport, input));
+		const result = await client.query(listTracesQueryOptions(transport, input));
 		expect(result.totalCount).toBe(67n);
 		expect(result.summaries[0]?.spanCount).toBe(900n);
-		expect(received?.workspaceId).toBe(input.workspaceId);
-		expect(received?.environmentId).toBe(input.environmentId);
-		expect(received?.resourceIds).toEqual(input.resourceIds);
+		expect(received?.scope?.workspaceId).toBe(input.workspaceId);
+		expect(received?.scope?.environmentId).toBe(input.environmentId);
+		expect(received?.scope?.resourceIds).toEqual(input.resourceIds);
 		expect(received?.limit).toBe(25);
-		expect(received?.cursor).toBe("");
-		expect(received?.summary).toMatchObject(input.summary);
+		expect(received).toMatchObject({
+			offset: input.offset,
+			rootNameTerms: input.rootNameTerms,
+			status: input.status,
+			sort: input.sort,
+		});
 		expect(received?.startTime?.nanos).toBe(123_000_000);
 		expect(received?.endTime?.nanos).toBe(456_000_000);
 		client.clear();
@@ -48,7 +55,7 @@ describe("trace summary queries", () => {
 
 	test("separates page sort filters and scope in cache identity", () => {
 		const transport = createRouterTransport(() => {});
-		const base = traceSummaryQueryOptions(transport, input).queryKey;
+		const base = listTracesQueryOptions(transport, input).queryKey;
 		for (const change of [
 			{ workspaceId: "other" },
 			{ environmentId: "staging" },
@@ -57,26 +64,26 @@ describe("trace summary queries", () => {
 			{ start: input.start + 1 },
 			{ end: input.end + 1 },
 			{ limit: 50 },
-			{ summary: { ...input.summary, offset: 50 } },
-			{ summary: { ...input.summary, status: TraceStatus.OK } },
-			{ summary: { ...input.summary, rootNameTerms: ["POST"] } },
-			{ summary: { ...input.summary, sort: TraceSummarySort.START_TIME } },
+			{ offset: 50 },
+			{ status: TraceStatus.OK },
+			{ rootNameTerms: ["POST"] },
+			{ sort: TraceSummarySort.START_TIME },
 		]) {
-			expect(traceSummaryQueryOptions(transport, { ...input, ...change }).queryKey).not.toEqual(base);
+			expect(listTracesQueryOptions(transport, { ...input, ...change }).queryKey).not.toEqual(base);
 		}
-		expect(traceSummaryQueryOptions(transport, { ...input, workspaceId: "" }).enabled).toBe(false);
-		expect(traceSummaryQueryOptions(transport, { ...input, environmentId: "" }).enabled).toBe(false);
+		expect(listTracesQueryOptions(transport, { ...input, workspaceId: "" }).enabled).toBe(false);
+		expect(listTracesQueryOptions(transport, { ...input, environmentId: "" }).enabled).toBe(false);
 	});
 
 	test("preserves errors and cancels abandoned requests", async () => {
 		const transport = createRouterTransport((router) => {
 			router.service(ObservabilityProxyService, {
-				queryTraces() {
+				listTraces() {
 					throw new ConnectError("Workspace read required", Code.PermissionDenied);
 				},
 			});
 		});
-		const options = traceSummaryQueryOptions(transport, input);
+		const options = listTracesQueryOptions(transport, input);
 		expect(await options.queryFn({ signal: new AbortController().signal }).catch(String)).toContain(
 			"Workspace read required",
 		);

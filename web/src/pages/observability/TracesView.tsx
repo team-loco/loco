@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { useQueryTraces } from "@/hooks/useQueryTraces";
-import { useTraceSummaries } from "@/hooks/useTraceSummaries";
+import { useGetTrace } from "@/hooks/useGetTrace";
+import { useListTraces } from "@/hooks/useListTraces";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow } from "@/lib/obs-time";
@@ -71,7 +71,7 @@ function TraceSession() {
 	const statuses = ["error", "ok"].filter((status) => passes([status], statusTokens));
 	const statusReady = statuses.length > 0;
 	const sort = params.get("sort") === "duration" ? TraceSummarySort.DURATION : TraceSummarySort.START_TIME;
-	const browse = useTraceSummaries({
+	const browse = useListTraces({
 		workspaceId,
 		environmentId,
 		resourceIds: resourceFilter ? visible.map((r) => r.id) : (scopedResourceIds ?? []),
@@ -79,27 +79,19 @@ function TraceSession() {
 		start: bounds.from,
 		end: bounds.to,
 		limit: paging.size,
-		summary: {
-			offset: paging.page * paging.size,
-			rootNameTerms: text.split(" ").filter(Boolean),
-			status:
-				statuses.length === 1
-					? statuses[0] === "error"
-						? TraceStatus.ERROR
-						: TraceStatus.OK
-					: TraceStatus.UNSPECIFIED,
-			sort,
-		},
+		offset: paging.page * paging.size,
+		rootNameTerms: text.split(" ").filter(Boolean),
+		status:
+			statuses.length === 1 ? (statuses[0] === "error" ? TraceStatus.ERROR : TraceStatus.OK) : TraceStatus.UNSPECIFIED,
+		sort,
 		enabled: filterReady && scopeReady && validLookup && statusReady,
 	});
 	const openId = params.get("trace") ?? "";
-	const detail = useQueryTraces({
+	const detail = useGetTrace({
 		workspaceId,
 		environmentId,
 		resourceIds: scopedResourceIds ?? [],
 		traceId: openId,
-		start: bounds.from,
-		end: bounds.to,
 		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId) && scopeReady,
 	});
 
@@ -112,7 +104,7 @@ function TraceSession() {
 	const pages = Math.max(1, Math.ceil(total / paging.size));
 	const maxDuration = traces.reduce((max, t) => (t.durationNanos > max ? t.durationNanos : max), 1n);
 	const loading = environmentLoading || browse.isLoading || ((resourceFilter || !scopeReady) && resourcesLoading);
-	const detailSpans = uniqueSpans(detail.data?.pages.flatMap((r) => r.spans) ?? []);
+	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
 	const query = queryStr(tokens, text);
 	const open = (id: string) => {
@@ -371,11 +363,6 @@ function TraceSession() {
 					trace={openTrace}
 					loading={detail.isLoading}
 					error={detail.error}
-					incomplete={detail.hasNextPage}
-					loadingMore={detail.isFetchingNextPage}
-					onLoadMore={() => {
-						void detail.fetchNextPage();
-					}}
 					onRetry={() => {
 						void detail.refetch();
 					}}

@@ -75,7 +75,7 @@ def check_scoped_user(browser, theme):
     stamp = minute_ago.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     telemetry = {
         'QueryLogs': {'entries': [{'timestamp': stamp, 'severity': 'INFO', 'body': 'checkout order placed', 'resourceId': rid, 'resourceAttributes': {'loco.region': 'us-east-1', 'k8s.pod.name': 'checkout-7d9f-x2k4p'}}]},
-        'QueryTraces': {'totalCount': '1', 'summaries': [{'traceId': '0af7651916cd43dd8448eb211c80319c', 'rootSpanName': 'POST /api/checkout', 'serviceName': 'checkout', 'startTime': stamp, 'durationNanos': '12000000', 'status': 'TRACE_STATUS_OK', 'spanCount': '1', 'resourceId': rid}], 'spans': [{'traceId': '0af7651916cd43dd8448eb211c80319c', 'spanId': 'b7ad6b7169203331', 'parentSpanId': '', 'name': 'POST /api/checkout', 'kind': 'Server', 'serviceName': 'checkout', 'startTime': stamp, 'durationNanos': '12000000', 'statusCode': 'Ok', 'resourceId': rid, 'workspaceId': activity['workspaceId']}]},
+        'ListTraces': {'totalCount': '1', 'summaries': [{'traceId': '0af7651916cd43dd8448eb211c80319c', 'rootSpanName': 'POST /api/checkout', 'serviceName': 'checkout', 'startTime': stamp, 'durationNanos': '12000000', 'status': 'TRACE_STATUS_OK', 'spanCount': '1', 'resourceId': rid}]},
         'QueryMetrics': {'series': [{'resourceId': rid, 'points': [{'timestamp': stamp, 'value': 0.25}]}]},
     }
     back_off = {'seq': '1', 'id': '01a1c8b3-0000-7000-8000-00000000b0ff', 'type': 'resource.degraded', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'environmentId': production, 'createdAt': stamp, 'data': {'reason': 'crash_looping', 'message': 'Back-off restarting failed container', 'placementId': 'checkout-us-east-1', 'region': 'us-east-1'}}
@@ -115,8 +115,8 @@ def check_scoped_user(browser, theme):
             body = route.request.post_data_json
             if method in telemetry:
                 # The proxy serves a caller without workspace read only for resources it names and reads.
-                named = body.get('resourceIds') or []
-                status = 200 if named and set(named) == {rid} and body.get('environmentId') == production else 403
+                named = body.get('scope', body).get('resourceIds') or []
+                status = 200 if named and set(named) == {rid} and (body.get('scope', body)).get('environmentId') == production else 403
                 recorded.append({'method': method, 'body': body, 'status': status})
                 if status == 200:
                     route.fulfill(json=telemetry[method])

@@ -15,7 +15,6 @@ import (
 )
 
 var (
-	errZeroTraceID         = errors.New("trace_id must be nonzero")
 	errNonCanonicalID      = errors.New("IDs must be lowercase UUIDs")
 	errInvalidRegionFilter = errors.New("region filters must not be blank and may only end with a wildcard")
 	errSinceTooOld         = errors.New("since is older than the maximum time range")
@@ -28,7 +27,6 @@ const (
 	reservedAttributePrefix = "loco."
 	// keep in sync with the loco.io/ keys in k8sapi/labels and k8sapi/v1alpha1
 	kubernetesLabelPrefix = "loco.io/"
-	zeroTraceID           = "00000000000000000000000000000000"
 )
 
 // ValidateLogsRequest validates the query parameters for a logs request.
@@ -146,15 +144,4 @@ func validateRegions(groups ...[]string) error {
 		}
 	}
 	return nil
-}
-
-// ValidateTracesRequest validates the query parameters for a traces request.
-func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.Config) error {
-	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
-		return err
-	}
-	if req.GetTraceId() == zeroTraceID {
-		return errZeroTraceID
-	}
-	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
 }

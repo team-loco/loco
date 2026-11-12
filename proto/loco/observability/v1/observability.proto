@@ -20,7 +20,6 @@ service ObservabilityProxyService {
 
   rpc ListTraces(ListTracesRequest) returns (ListTracesResponse);
   rpc GetTrace(GetTraceRequest) returns (GetTraceResponse);
-  rpc QueryTraces(QueryTracesRequest) returns (QueryTracesResponse);
 }
 
 // ---------- Logs: Historical Query ----------
@@ -252,37 +251,6 @@ message MetricPoint {
   google.protobuf.Timestamp timestamp = 1;
   // Metric value (result of aggregation function).
   double value = 2;
-}
-
-message QueryTracesRequest {
-  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
-  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
-  string environment_id = 3 [
-    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
-    (buf.validate.field).string.uuid = true
-  ];
-  google.protobuf.Timestamp start_time = 4 [(buf.validate.field).required = true];
-  google.protobuf.Timestamp end_time = 5 [(buf.validate.field).required = true];
-  string trace_id = 6 [
-    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
-    (buf.validate.field).string.pattern = "^[0-9a-f]{32}$"
-  ];
-  int32 limit = 7 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 10000
-  }];
-  string cursor = 8;
-
-  option (buf.validate.message).cel = {
-    id: "time_range.start_lte_end"
-    message: "start_time must be before or equal to end_time"
-    expression: "this.start_time <= this.end_time"
-  };
-}
-
-message QueryTracesResponse {
-  repeated TraceSpan spans = 1;
-  string next_cursor = 2;
 }
 
 message TraceScope {
