@@ -152,7 +152,7 @@ with sync_playwright() as playwright:
                 expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
                 expect(palette.get_by_role("option", name="New resource")).to_have_attribute("aria-selected", "true")
                 page.keyboard.press("ArrowDown")
-                expect(palette.get_by_role("option", name=re.compile(r"^Switch to (dark|light) mode$"))).to_have_attribute("aria-selected", "true")
+                expect(palette.get_by_role("option", name=re.compile(r"^Switch to (dark|light|system) mode$"))).to_have_attribute("aria-selected", "true")
                 query.fill("no such command")
                 expect(palette.get_by_text("Nothing matches.", exact=True)).to_be_visible()
                 query.fill("sibling")

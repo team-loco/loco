@@ -1,7 +1,11 @@
 import { readStorage, removeStorage, writeStorage } from "./storage";
 
-const modes = ["system", "light", "dark"] as const;
-export type Mode = (typeof modes)[number];
+export const modes = [
+	{ id: "system", name: "System" },
+	{ id: "light", name: "Light" },
+	{ id: "dark", name: "Dark" },
+] as const;
+export type Mode = (typeof modes)[number]["id"];
 export type ResolvedTheme = Exclude<Mode, "system">;
 
 export const colorThemes = [
@@ -20,7 +24,7 @@ const colorKey = "loco:color:v1";
 const darkQuery = "(prefers-color-scheme: dark)";
 
 export function parseMode(value: string | null): Mode {
-	return modes.find((mode) => mode === value) ?? "system";
+	return modes.find((mode) => mode.id === value)?.id ?? "system";
 }
 
 export function resolveMode(mode: Mode, systemDark: boolean): ResolvedTheme {
@@ -30,9 +34,11 @@ export function resolveMode(mode: Mode, systemDark: boolean): ResolvedTheme {
 	return mode;
 }
 
-export function toggledMode(mode: Mode, systemDark: boolean): Mode {
-	const next: ResolvedTheme = resolveMode(mode, systemDark) === "dark" ? "light" : "dark";
-	return next === resolveMode("system", systemDark) ? "system" : next;
+const MODE_CYCLE: Record<Mode, Mode> = { light: "dark", dark: "system", system: "light" };
+
+/** The mode a click on the theme toggle switches to: light, dark, system, then light again. */
+export function nextMode(mode: Mode): Mode {
+	return MODE_CYCLE[mode];
 }
 
 export function parseColorTheme(value: string | null): ColorTheme {

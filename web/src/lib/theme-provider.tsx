@@ -13,7 +13,7 @@ import {
 	storeMode,
 	subscribeSystemTheme,
 	systemPrefersDark,
-	toggledMode,
+	nextMode,
 	type ColorTheme,
 	type Mode,
 } from "./theme";
@@ -40,11 +40,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		applyTheme(page.mode, page.color);
 	}, [page.mode, page.color]);
 
-	const toggle = () => {
-		const next = toggledMode(mode, systemDark);
+	const changeMode = (next: Mode) => {
 		setMode(next);
 		storeMode(next);
-		playThemeSound(resolved !== "dark");
+		const nextResolved = resolveMode(next, systemDark);
+		if (nextResolved !== resolved) playThemeSound(nextResolved === "dark");
+	};
+
+	const toggle = () => {
+		changeMode(nextMode(mode));
 	};
 
 	const changeColor = (next: ColorTheme) => {
@@ -52,7 +56,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		storeColorTheme(next);
 	};
 
-	const contextValue = { theme: page.mode, toggle, color, setColor: changeColor };
+	const contextValue = { theme: page.mode, mode, setMode: changeMode, toggle, color, setColor: changeColor };
 
 	return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 }

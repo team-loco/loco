@@ -1,4 +1,6 @@
-import type { ColorTheme } from "@/lib/theme";
+import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+
+import type { ColorTheme, Mode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 function ThemeSwatch({ color, dark, className }: { color: ColorTheme; dark: boolean; className?: string }) {
@@ -15,9 +17,12 @@ function ThemeSwatch({ color, dark, className }: { color: ColorTheme; dark: bool
 	);
 }
 
-function ThemeHalf({ color, dark }: { color: ColorTheme; dark: boolean }) {
+function ThemeHalf({ color, dark, split }: { color: ColorTheme; dark: boolean; split: boolean }) {
 	return (
-		<span data-theme={color} className={cn("flex min-w-0 flex-1 bg-background", dark && "dark border-l border-line2")}>
+		<span
+			data-theme={color}
+			className={cn("flex min-w-0 flex-1 bg-background", dark && "dark", dark && split && "border-l border-line2")}
+		>
 			<span className="w-[28%] bg-panel" />
 			<span className="flex flex-1 flex-col gap-[5px] p-[9px]">
 				<span className="h-1 w-[70%] rounded-xs bg-foreground opacity-85" />
@@ -29,13 +34,20 @@ function ThemeHalf({ color, dark }: { color: ColorTheme; dark: boolean }) {
 	);
 }
 
-function ThemePreview({ color, className }: { color: ColorTheme; className?: string }) {
+function ThemePreview({ color, mode = "system", className }: { color: ColorTheme; mode?: Mode; className?: string }) {
+	const split = mode === "system";
 	return (
 		<span aria-hidden className={cn("flex h-[76px] overflow-hidden rounded-md border border-line", className)}>
-			<ThemeHalf color={color} dark={false} />
-			<ThemeHalf color={color} dark />
+			{mode !== "dark" && <ThemeHalf color={color} dark={false} split={split} />}
+			{mode !== "light" && <ThemeHalf color={color} dark split={split} />}
 		</span>
 	);
 }
 
-export { ThemePreview, ThemeSwatch };
+function ModeIcon({ mode }: { mode: Mode }) {
+	if (mode === "light") return <SunIcon />;
+	if (mode === "dark") return <MoonIcon />;
+	return <MonitorIcon />;
+}
+
+export { ModeIcon, ThemePreview, ThemeSwatch };

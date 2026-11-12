@@ -4,11 +4,9 @@ import {
 	Building2Icon,
 	CornerDownLeftIcon,
 	LayersIcon,
-	MoonIcon,
 	PackageIcon,
 	PlusIcon,
 	SearchIcon,
-	SunIcon,
 	UserIcon,
 	UserPlusIcon,
 } from "lucide-react";
@@ -28,11 +26,13 @@ import {
 	CommandShortcut,
 } from "@/components/design/Command";
 import { Kbd } from "@/components/design/Kbd";
+import { ModeIcon } from "@/components/design/ThemePreview";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { scorePaletteItem } from "@/lib/command-palette";
 import { accountSettingsPath, newResourcePath, resourcePath, switchWorkspacePath } from "@/lib/routes";
+import { modes, nextMode } from "@/lib/theme";
 import { useTheme } from "@/lib/use-theme";
 
 import { useNavSections } from "./nav";
@@ -58,7 +58,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
 	const { pathname, search } = useLocation();
 	const [params] = useSearchParams();
-	const { theme, toggle } = useTheme();
+	const { mode, toggle } = useTheme();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
 	const navPages = useNavSections().flatMap((section) => section.pages);
 	const scopes = useMyScopes();
@@ -101,9 +101,9 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	items.push({
 		id: "action-theme",
 		group: "Actions",
-		label: theme === "dark" ? "Switch to light mode" : "Switch to dark mode",
+		label: `Switch to ${modes.find((m) => m.id === nextMode(mode))?.name.toLowerCase() ?? ""} mode`,
 		keywords: "theme appearance toggle",
-		icon: theme === "dark" ? <SunIcon /> : <MoonIcon />,
+		icon: <ModeIcon mode={nextMode(mode)} />,
 		run: toggle,
 	});
 	for (const page of navPages) {
