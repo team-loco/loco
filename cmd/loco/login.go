@@ -156,8 +156,6 @@ func setupLoginScope(
 	return printLoginSuccess("Authentication successful!", org.Name, workspace.Name)
 }
 
-const loginPageSize = 100
-
 func resolveLoginScope(
 	ctx context.Context,
 	httpClient *http.Client,
@@ -179,7 +177,6 @@ func resolveLoginScope(
 	orgs, err := cmdutil.Paginate(func(token string) ([]*orgv1.Organization, string, error) {
 		resp, listErr := orgClient.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
 			UserId:          currentUserResp.GetUser().GetId(),
-			PageSize:        loginPageSize,
 			PageToken:       token,
 			CreateIfMissing: true,
 		})
@@ -199,7 +196,6 @@ func resolveLoginScope(
 	workspaces, err := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
 		resp, listErr := wsClient.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
 			OrgId:     selectedOrg.GetId(),
-			PageSize:  loginPageSize,
 			PageToken: token,
 		})
 		if listErr != nil {

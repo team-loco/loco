@@ -17,7 +17,6 @@ import (
 
 const (
 	MaxRange      = 24 * time.Hour
-	pageSize      = 1000
 	overlapWindow = 5 * time.Second
 	retryBackoff  = 2 * time.Second
 	// keep in sync with LabelBuildID in k8sapi/labels/labels.go
@@ -101,10 +100,8 @@ func (c *Client) query(
 	limit int32,
 ) ([]*observabilityv1.LogEntry, error) {
 	order := observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST
-	size := int32(pageSize)
 	if limit > 0 {
 		order = observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST
-		size = min(limit, pageSize)
 	}
 	startTime := timestamppb.New(start)
 	endTime := timestamppb.New(end)
@@ -117,7 +114,6 @@ func (c *Client) query(
 			Labels:      filter.Labels,
 			StartTime:   startTime,
 			EndTime:     endTime,
-			Limit:       size,
 			Cursor:      cursor,
 			Order:       order,
 		}

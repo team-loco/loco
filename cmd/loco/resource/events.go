@@ -70,7 +70,6 @@ Examples:
 				OrgId:       workspace.GetWorkspace().GetOrgId(),
 				WorkspaceId: t.WorkspaceID,
 				ResourceId:  resource.GetId(),
-				PageSize:    500,
 			}
 			if limit < 0 {
 				return errInvalidEventLimit
@@ -78,7 +77,7 @@ Examples:
 			var items []*eventv1.Event
 			for {
 				if limit > 0 {
-					request.PageSize = min(500, limit-int32(len(items)))
+					request.PageSize = limit - int32(len(items))
 				}
 				response, err := t.Clients.Event.ListEvents(ctx, request)
 				if err != nil {

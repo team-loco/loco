@@ -121,6 +121,12 @@ func (s *fakeOrgService) ListUserOrgs(
 	); err != nil {
 		return nil, err
 	}
+	if req.GetPageSize() != 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "use the API page size")
+	}
+	if req.GetPageToken() == "" {
+		return &orgv1.ListUserOrgsResponse{NextPageToken: "org-next"}, nil
+	}
 	if !req.GetCreateIfMissing() {
 		return &orgv1.ListUserOrgsResponse{}, nil
 	}
@@ -153,7 +159,7 @@ func (s *fakeWorkspaceService) GetWorkspace(
 
 func (s *fakeWorkspaceService) ListOrgWorkspaces(
 	ctx context.Context,
-	_ *workspacev1.ListOrgWorkspacesRequest,
+	req *workspacev1.ListOrgWorkspacesRequest,
 ) (*workspacev1.ListOrgWorkspacesResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	if _, _, err := s.api.authenticate(
@@ -161,6 +167,12 @@ func (s *fakeWorkspaceService) ListOrgWorkspaces(
 		info.RequestHeader(),
 	); err != nil {
 		return nil, err
+	}
+	if req.GetPageSize() != 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "use the API page size")
+	}
+	if req.GetPageToken() == "" {
+		return &workspacev1.ListOrgWorkspacesResponse{NextPageToken: "workspace-next"}, nil
 	}
 	ws := &workspacev1.Workspace{Id: fakeWorkspaceID, OrgId: fakeOrgID, Name: fakeWorkspaceName}
 	resp := &workspacev1.ListOrgWorkspacesResponse{Workspaces: []*workspacev1.Workspace{ws}}

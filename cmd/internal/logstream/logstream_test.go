@@ -3,6 +3,7 @@ package logstream
 import (
 	"context"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -49,14 +50,25 @@ func (p *fakeProxy) QueryLogs(
 	}
 	offset := 0
 	if req.GetCursor() != "" {
-		offset = p.pageSize
+		var err error
+		offset, err = strconv.Atoi(req.GetCursor())
+		if err != nil {
+			return nil, err
+		}
 	}
-	end := len(entries)
+	size := p.pageSize
+	if size == 0 {
+		size = len(entries)
+	}
+	if req.GetLimit() > 0 {
+		size = min(size, int(req.GetLimit()))
+	}
+	end := min(offset+size, len(entries))
 	next := ""
-	if p.pageSize > 0 && offset == 0 && end > p.pageSize {
-		end = p.pageSize
-		next = "page-2"
+	if end < len(entries) {
+		next = strconv.Itoa(end)
 	}
+
 	return &observabilityv1.QueryLogsResponse{Entries: entries[offset:end], NextCursor: next}, nil
 }
 
@@ -293,5 +305,43 @@ func TestTailKeepsTheSameLineFromTwoPods(t *testing.T) {
 	pods := []string{got[0].GetResourceAttributes()["k8s.pod.name"], got[1].GetResourceAttributes()["k8s.pod.name"]}
 	if want := []string{"app-a", "app-b"}; !slices.Equal(pods, want) {
 		t.Fatalf("pods = %v, want %v", pods, want)
+	}
+}
+
+func TestBackfillUsesServerPagesAndHonorsLimit(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		limit int32
+		sizes []int32
+		want  []string
+	}{
+		{"all", 0, []int32{0, 0, 0}, []string{"a", "b", "c", "d", "e"}},
+		{"limited", 3, []int32{0, 0}, []string{"c", "d", "e"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			proxy := &fakeProxy{
+				entries: []*observabilityv1.LogEntry{
+					entry(0, "a"), entry(1, "b"), entry(2, "c"),
+					entry(3, "d"), entry(4, "e"),
+				},
+				pageSize: 2,
+			}
+			var got []string
+			if err := newClient(
+				proxy,
+			).Backfill(t.Context(), Filter{WorkspaceID: "ws"}, base, base.Add(time.Hour), tc.limit, collect(&got)); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("entries = %v, want %v", got, tc.want)
+			}
+			sizes := make([]int32, 0, len(proxy.queries))
+			for _, req := range proxy.queries {
+				sizes = append(sizes, req.GetLimit())
+			}
+			if !slices.Equal(sizes, tc.sizes) {
+				t.Fatalf("page sizes = %v, want %v", sizes, tc.sizes)
+			}
+		})
 	}
 }
