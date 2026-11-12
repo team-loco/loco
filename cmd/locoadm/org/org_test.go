@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -87,7 +87,11 @@ func TestLimitsGetPrintsTheEffectiveLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v\n%s", err, output)
 	}
-	if !strings.Contains(output, `"workspacesPerOrg": 500`) || !strings.Contains(output, orgID) {
+	var printed orgv1.GetOrgLimitsResponse
+	if err = protojson.Unmarshal([]byte(output), &printed); err != nil {
+		t.Fatalf("output %q is not a GetOrgLimitsResponse: %v", output, err)
+	}
+	if printed.GetLimits().GetLimits().GetWorkspacesPerOrg() != 500 || printed.GetLimits().GetReason() != orgID {
 		t.Fatalf("output = %s, want the limits of %s", output, orgID)
 	}
 }
