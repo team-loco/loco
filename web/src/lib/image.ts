@@ -24,6 +24,18 @@ export function parseImage(image: string): ImageParts {
 	return { path, repository, tag, digest };
 }
 
+// The reference after the repository: a tag, a digest or tag@digest.
+export function splitImage(image: string): { repository: string; reference: string } {
+	const { path, tag, digest } = parseImage(image);
+	if (tag === "") return { repository: path, reference: digest };
+	return { repository: path, reference: digest === "" ? tag : `${tag}@${digest}` };
+}
+
+export function joinImage(repository: string, reference: string): string {
+	if (reference === "") return repository;
+	return `${repository}${reference.startsWith("sha256:") ? "@" : ":"}${reference}`;
+}
+
 export function imageName(image: string): string {
 	return parseImage(image).path;
 }

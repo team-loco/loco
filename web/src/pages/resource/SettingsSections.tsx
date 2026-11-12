@@ -4,11 +4,12 @@ import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { RegionHealth } from "@/components/design/RegionHealth";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { SegmentedChoice } from "@/components/design/SegmentedChoice";
+import { StepSlider } from "@/components/design/StepSlider";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Stepper } from "@/components/design/Stepper";
 import { Switch } from "@/components/design/Switch";
+import { joinImage, splitImage } from "@/lib/image";
 import type { SizeOptions } from "@/lib/sizing";
 import { slug } from "@/lib/slug";
 
@@ -63,25 +64,44 @@ export function SettingsBlock({
 }
 
 export function ImageSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
+	const { repository: path, reference: version } = splitImage(draft.image ?? base.image);
+	const set = (repository: string, reference: string) => {
+		onChange({ image: joinImage(repository, reference) });
+	};
 	return (
 		<SettingsBlock
 			id="set-image"
 			title="Image"
 			hint="Public images only. Loco pins the image by digest when it deploys."
 		>
-			<Field label="Image reference" error={errors.image}>
-				<Input
-					className="font-mono"
-					value={draft.image ?? base.image}
-					disabled={locked}
-					aria-describedby={describedBy}
-					aria-invalid={errors.image !== undefined}
-					spellCheck={false}
-					onChange={(e) => {
-						onChange({ image: e.target.value });
-					}}
-				/>
-			</Field>
+			<div className={grid2}>
+				<Field label="Repository" error={errors.image}>
+					<Input
+						className="font-mono"
+						value={path}
+						disabled={locked}
+						aria-describedby={describedBy}
+						aria-invalid={errors.image !== undefined}
+						spellCheck={false}
+						onChange={(e) => {
+							set(e.target.value, version);
+						}}
+					/>
+				</Field>
+				<Field label="Tag or digest">
+					<Input
+						className="font-mono"
+						value={version}
+						placeholder="latest"
+						disabled={locked}
+						aria-describedby={describedBy}
+						spellCheck={false}
+						onChange={(e) => {
+							set(path, e.target.value);
+						}}
+					/>
+				</Field>
+			</div>
 		</SettingsBlock>
 	);
 }
@@ -156,7 +176,7 @@ export function SizeSection({
 		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
 			<div className="flex flex-col gap-3.5">
 				<Field label="CPU">
-					<SegmentedChoice
+					<StepSlider
 						label="CPU"
 						options={sizes.cpu}
 						value={draft.cpu ?? base.cpu}
@@ -168,7 +188,7 @@ export function SizeSection({
 					/>
 				</Field>
 				<Field label="Memory">
-					<SegmentedChoice
+					<StepSlider
 						label="Memory"
 						options={sizes.memory}
 						value={draft.memory ?? base.memory}
