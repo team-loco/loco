@@ -271,7 +271,7 @@ export function AppSidebar() {
 								destructive
 								onClick={() => {
 									void logout().then(async () => {
-										await navigate("/login");
+										await navigate("/");
 									});
 								}}
 							>
