@@ -97,3 +97,46 @@ test_c05_cli_deploys_without_loco_yaml() {
         grep -Eq "^${minimal_app}: https://${minimal_app}-[a-z]{4}\\.e2e\\.test\\.local$" "$cli_dir/minimal.out"
     wait_for "the minimal app to be Ready" 120 cli_application_is_ready "$minimal_app"
 }
+
+cli_secret_matches() {
+    local expected=$1 id value
+    # The pod can start before the agent reports rollout completion to the API.
+    test "$(loco_cli resource status e2e-cli-secret --output json |
+        yq -p json -r '.resource.environmentStatuses[] | select(.environmentName == "production") | .regions[].deploymentStatus')" \
+        = DEPLOYMENT_PHASE_RUNNING || return 1
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = 'e2e-cli-secret' AND workspace_id = '${cli_workspace_id}'")
+    value=$(kubectl --context "$cli_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
+        exec "deployment/resource-${id}" -- printenv E2E_SECRET) || return 1
+    test "$value" = "$expected"
+}
+
+test_c06_cli_deploys_a_secret() {
+    local secret_dir="$cli_dir/secret"
+    mkdir -p "$secret_dir"
+    cli_write_image_config "$secret_dir" e2e-cli-secret "$E2E_PUBLIC_IMAGE" 8080 '[]'
+    yq -i '.services.e2e-cli-secret.secrets = ["E2E_SECRET"]' "$secret_dir/loco.yaml"
+
+    assert_fails_with "deploy provisions the service and asks for its missing secret" \
+        'Created e2e-cli-secret. Set its secrets with: loco env set' \
+        cli_deploy_secret
+    assert "loco env set stores the initial secret" \
+        loco_cli env set --service e2e-cli-secret --env production E2E_SECRET=e2e-secret-initial
+    assert "loco deploy applies the service with its secret" \
+        cli_deploy_secret
+    assert "the running pod receives the initial secret through Transit" \
+        wait_for "the initial secret in the pod" 120 cli_secret_matches e2e-secret-initial
+}
+
+cli_deploy_secret() {
+    (cd "$cli_dir/secret" && loco_cli deploy --env production --yes)
+}
+
+test_c07_cli_rotates_a_secret() {
+    assert "loco env set rotates the secret" \
+        loco_cli env set --service e2e-cli-secret --env production E2E_SECRET=e2e-secret-rotated
+    assert "the secret rotation rollout finishes before redeploying" \
+        wait_for "the rotated secret and API rollout completion" 120 cli_secret_matches e2e-secret-rotated
+    assert "loco deploy reapplies the service after rotation" cli_deploy_secret
+    assert "the running pod receives the rotated secret through Transit" \
+        wait_for "the rotated secret in the pod" 120 cli_secret_matches e2e-secret-rotated
+}
