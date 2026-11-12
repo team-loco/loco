@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	netmail "net/mail"
 	"strings"
 	"time"
 
@@ -60,13 +59,9 @@ func (s *UserServer) CreateUser(
 	if err := authorizeSystem(ctx, s.authz, actions.CreateUser); err != nil {
 		return nil, err
 	}
-	address, err := netmail.ParseAddress(req.GetEmail())
-	if err != nil || address.Name != "" || address.Address != req.GetEmail() {
-		return nil, ErrInvalidInviteEmail
-	}
-	email := strings.ToLower(address.Address)
+	email := strings.ToLower(req.GetEmail())
 	var user genDb.User
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var createErr error
 		user, createErr = auth.CreateUser(ctx, qtx, genDb.CreateUserParams{Email: email})
 		if isUniqueViolation(createErr, "users_email_key") {
@@ -401,8 +396,6 @@ func (s *UserServer) Logout(
 	slog.InfoContext(ctx, "user logged out")
 	return res, nil
 }
-
-// Helper methods
 
 func (s *UserServer) getUserByID(ctx context.Context, id string) (*userv1.User, error) {
 	user, err := s.queries.GetUserByID(ctx, uuid.MustParse(id))
