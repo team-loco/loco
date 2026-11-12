@@ -38,6 +38,15 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 			seedDeployment(t, f, sameRegionSpec)
 			f.prepareApply(t)
 			clients, actorID := deploymentActorClients(t, f, method)
+			resolved, err := clients.Deployment.ResolveImage(t.Context(), &deploymentv1.ResolveImageRequest{
+				WorkspaceId: f.workspaceID(t).String(), Image: testPublicImage,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resolved.GetImage() == "" || f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`) != 0 {
+				t.Fatal("image resolution did not return an image without deploying")
+			}
 			commit := &deploymentv1.SourceCommit{Sha: strings.Repeat("a", 40), Dirty: true}
 			created, err := clients.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
 				ResourceId:    f.resourceID.String(),
@@ -50,6 +59,18 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 			})
 			if err != nil {
 				t.Fatal(err)
+			}
+			assertDeploymentActor(t, clients, f.resourceID.String(), created.GetDeploymentId(), method, actorID, commit)
+
+			f.finishRollouts(t)
+			_, err = clients.Resource.RestartResource(t.Context(), &resourcev1.RestartResourceRequest{
+				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if count := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); count != 1 {
+				t.Fatalf("restart created deployment rows: count = %d", count)
 			}
 			assertDeploymentActor(t, clients, f.resourceID.String(), created.GetDeploymentId(), method, actorID, commit)
 
