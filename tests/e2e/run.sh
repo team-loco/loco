@@ -498,6 +498,7 @@ setup_clickhouse() {
     docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
     printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$CONTROL_PLANE_VALUES")" >"$LOG_DIR/clickhouse-keeper.xml"
     chmod a+r "$LOG_DIR/clickhouse-keeper.xml"
+    go -C "$ROOT_DIR" run ./tools/pullimage "$CLICKHOUSE_IMAGE"
     docker run -d --name "$CLICKHOUSE_CONTAINER" --network kind -p "127.0.0.1:${CLICKHOUSE_PORT}:${CLICKHOUSE_NATIVE_PORT}" \
         -e CLICKHOUSE_USER="$CLICKHOUSE_USER" -e CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASS" \
         -v "$LOG_DIR/clickhouse-keeper.xml:/etc/clickhouse-server/config.d/keeper.xml:ro" \
@@ -613,6 +614,7 @@ start_realm_proxy() {
         "$API_PORT" "$API_PORT" >"$E2E_REGISTRY_TOKEN_DIR/realm.conf"
     chmod a+r "$E2E_REGISTRY_TOKEN_DIR/realm.conf"
     docker rm -fv "$REALM_CONTAINER" >/dev/null 2>&1 || true
+    go -C "$ROOT_DIR" run ./tools/pullimage "$PUBLIC_FIXTURE_IMAGE"
     docker run -d --name "$REALM_CONTAINER" --network kind --add-host host.docker.internal:host-gateway \
         -v "$E2E_REGISTRY_TOKEN_DIR/realm.conf:/etc/nginx/conf.d/default.conf:ro" \
         "$PUBLIC_FIXTURE_IMAGE" >/dev/null
