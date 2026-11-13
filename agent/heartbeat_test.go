@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"testing"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/kubernetes/fake"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -17,11 +15,11 @@ import (
 	"github.com/team-loco/loco/agent/pkg/cluster"
 	"github.com/team-loco/loco/agent/pkg/domains"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
 const (
 	testHeartbeatInterval = 10 * time.Millisecond
-	testDetectInterval    = 10 * time.Millisecond
 	testHeartbeatWait     = 2 * time.Second
 	testHeartbeatCount    = 3
 	testServedDomain      = "apps.test"
@@ -29,8 +27,6 @@ const (
 	testGateway           = "ingress"
 	testListener          = "https-apps-0"
 	testGatewayGeneration = 1
-	testLocoGroupVersion  = "infra.loco.io/v1alpha1"
-	testBuildResource     = "builds"
 )
 
 func testDomains(t *testing.T) *domains.Reporter {
@@ -68,28 +64,12 @@ func testDomains(t *testing.T) *domains.Reporter {
 	})
 }
 
-func inspectorServingBuilds(t *testing.T, served bool) *cluster.Inspector {
-	t.Helper()
-	client := fake.NewClientset()
-	discovery, ok := client.Discovery().(*fakediscovery.FakeDiscovery)
-	if !ok {
-		t.Fatal("fake clientset has no fake discovery")
-	}
-	if served {
-		discovery.Resources = []*metav1.APIResourceList{{
-			GroupVersion: testLocoGroupVersion,
-			APIResources: []metav1.APIResource{{Name: testBuildResource, Kind: "Build", Namespaced: true}},
-		}}
-	}
-	return cluster.NewInspector(client, "loco-system", "loco-controller")
-}
-
 func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 	inspector := cluster.NewInspector(fake.NewClientset(), "loco-system", "loco-controller")
 	a := &Agent{
 		inspector:         inspector,
 		domains:           testDomains(t),
-		buildsEnabled:     true,
+		cfg:               &Config{Role: clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS},
 		heartbeatInterval: testHeartbeatInterval,
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -108,8 +88,8 @@ func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 	for range testHeartbeatCount {
 		select {
 		case msg := <-sent:
-			if !msg.GetHeartbeat().GetBuildsEnabled() {
-				t.Fatalf("sent %v, want a heartbeat that reports builds enabled", msg)
+			if msg.GetHeartbeat().GetRole() != clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS {
+				t.Fatalf("sent %v, want a heartbeat that reports the builds role", msg)
 			}
 			if !slices.Equal(msg.GetHeartbeat().GetDomains(), []string{testServedDomain}) {
 				t.Fatalf("sent %v, want a heartbeat that reports %s", msg, testServedDomain)
@@ -124,23 +104,5 @@ func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 	case <-stopped:
 	case <-time.After(testHeartbeatWait):
 		t.Fatal("heartbeats kept going after the sync stream's context ended")
-	}
-}
-
-func TestWatchBuildSupportStopsTheAgentWhenSupportChanges(t *testing.T) {
-	ctx, cancel := context.WithTimeout(t.Context(), testHeartbeatWait)
-	defer cancel()
-	err := watchBuildSupport(ctx, inspectorServingBuilds(t, true), false, testDetectInterval)
-	if !errors.Is(err, errBuildSupportChanged) {
-		t.Fatalf("watchBuildSupport returned %v, want errBuildSupportChanged", err)
-	}
-}
-
-func TestWatchBuildSupportKeepsRunningWhileSupportIsUnchanged(t *testing.T) {
-	ctx, cancel := context.WithTimeout(t.Context(), 10*testDetectInterval)
-	defer cancel()
-	err := watchBuildSupport(ctx, inspectorServingBuilds(t, true), true, testDetectInterval)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("watchBuildSupport returned %v, want it to run until the context ends", err)
 	}
 }

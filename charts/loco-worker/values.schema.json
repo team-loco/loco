@@ -91,28 +91,7 @@
       "additionalProperties": false
     },
     "builds": {
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "enabled": {
-                "const": true
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "builderImage": {
-                "properties": {
-                  "tag": {
-                    "minLength": 1
-                  }
-                }
-              }
-            }
-          }
-        }
-      ],
+      "type": "object",
       "properties": {
         "builderImage": {
           "type": "object",
@@ -176,9 +155,6 @@
         },
         "downloadTimeout": {
           "type": "string"
-        },
-        "enabled": {
-          "type": "boolean"
         },
         "insecureRegistry": {
           "type": "boolean"
@@ -389,6 +365,20 @@
             }
           },
           "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cluster": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "apps",
+            "builds",
+            "all"
+          ]
         }
       },
       "additionalProperties": false

@@ -351,8 +351,8 @@ read -r INGEST_CLUSTER INGEST_WORKSPACE < <(psql -F ' ' -c "
     WITH u AS (INSERT INTO users (email) VALUES ('ingest-e2e@test.local') RETURNING id),
     o AS (INSERT INTO organizations (name, created_by) SELECT 'ingest-e2e', id FROM u RETURNING id),
     w AS (INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ingest-e2e', u.id FROM o, u RETURNING id),
-    c AS (INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider, is_active, is_default, agent_public_key)
-          VALUES (true, true, 'ingest-e2e', 'us-east-1', 'kind', true, false,
+    c AS (INSERT INTO clusters (name, region, provider, is_active, is_default, agent_public_key)
+          VALUES ('ingest-e2e', 'us-east-1', 'kind', true, false,
                   decode('$("$RUN_DIR/ingesttoken" -agent-key "$RUN_DIR/agent-key" -public-key)', 'hex')) RETURNING id),
     p AS (INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, placed_at)
           SELECT uuidv7(), c.id, w.id, NOW() - INTERVAL '1 hour' FROM c, w)

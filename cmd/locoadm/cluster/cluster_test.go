@@ -44,7 +44,6 @@ type fakeClusterAdmin struct {
 	calls   []string
 	force   bool
 	created *clusterv1.CreateClusterRequest
-	updated *clusterv1.UpdateClusterRequest
 	err     error
 }
 
@@ -211,7 +210,7 @@ func TestClusterCreateAndJoinTokenPrintTheToken(t *testing.T) {
 		}
 		if args[0] == clusterCreate &&
 			(fake.created.GetName() != testName || fake.created.GetRegion() != testRegion ||
-				fake.created.GetTier() != testTier || !fake.created.GetApplicationsAllowed() || !fake.created.GetBuildsAllowed()) {
+				fake.created.GetTier() != testTier) {
 			t.Fatalf("created %v", fake.created)
 		}
 	}
@@ -262,40 +261,5 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		if len(fake.calls) != 0 {
 			t.Fatalf("made RPC for invalid args: %v", args)
 		}
-	}
-}
-
-func (f *fakeClusterAdmin) UpdateCluster(
-	ctx context.Context,
-	req *clusterv1.UpdateClusterRequest,
-) (*clusterv1.UpdateClusterResponse, error) {
-	if err := f.record(ctx, clusterUpdate, req.GetClusterId()); err != nil {
-		return nil, err
-	}
-	f.updated = req
-	return &clusterv1.UpdateClusterResponse{ClusterId: req.GetClusterId()}, nil
-}
-
-func TestClusterCapabilityFlags(t *testing.T) {
-	for _, method := range []string{clusterCreate, clusterUpdate} {
-		t.Run(method, func(t *testing.T) {
-			fake := &fakeClusterAdmin{t: t}
-			cmd, _ := clusterTestCommand(t, fake)
-			args := []string{clusterUpdate, testClusterID}
-			if method == clusterCreate {
-				args = append([]string{}, createArgs...)
-			}
-			cmd.SetArgs(append(args, "--applications-allowed=false", "--builds-allowed=true"))
-			if err := cmd.Execute(); err != nil {
-				t.Fatal(err)
-			}
-			if method == clusterCreate {
-				if fake.created.GetApplicationsAllowed() || !fake.created.GetBuildsAllowed() {
-					t.Fatal(fake.created)
-				}
-			} else if fake.updated.GetApplicationsAllowed() || !fake.updated.GetBuildsAllowed() {
-				t.Fatal(fake.updated)
-			}
-		})
 	}
 }

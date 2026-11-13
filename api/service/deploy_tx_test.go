@@ -86,11 +86,11 @@ WITH u AS (
 ), e AS (
     INSERT INTO environments (workspace_id, name, created_by) SELECT w.id, 'prod', u.id FROM w, u RETURNING id
 ), c AS (
-    INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider, is_active, is_default)
-    VALUES (true, true, 'c1', 'us-east-1', 'kind', true, true) RETURNING id
+    INSERT INTO clusters (name, region, provider, is_active, is_default)
+    VALUES ('c1', 'us-east-1', 'kind', true, true) RETURNING id
 ), c2 AS (
-    INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider, is_active, is_default)
-    VALUES (true, true, 'c2', 'us-east-1', 'kind', true, false) RETURNING id
+    INSERT INTO clusters (name, region, provider, is_active, is_default)
+    VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
 ), r AS (
     INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
     SELECT w.id, 'svc', 'svc', 'service', '', '{}', 1 FROM w RETURNING id

@@ -111,7 +111,7 @@ Deploys:
 - **loco-controller** (the Application controller)
   - Watches Application CRDs
   - Reconciles to Deployments, Services, HTTPRoutes and NetworkPolicies
-- **loco-build-controller** (the build controller, only with `builds.enabled`)
+- **loco-build-controller** (the build controller, only with `cluster.role` `builds` or `all`)
   - Watches Build CRDs in the `loco-builds` namespace
   - Runs each Build as a BuildKit Job and reports the pushed digest
 - **OpenTelemetry collectors**: three OpenTelemetry Collector contrib instances, at the image `charts/loco-worker/values.yaml` pins, `otel-col-deploy` (OTLP from applications and Envoy) and `otel-col-cluster` (cluster metrics and events) in `loco-obs`, `otel-col-daemon` (container logs and node metrics) in `loco-obs-node`. They export everything over OTLP/HTTP to one configured endpoint.

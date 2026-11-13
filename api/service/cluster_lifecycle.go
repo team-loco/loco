@@ -113,11 +113,10 @@ func lockAssignableCluster(ctx context.Context, qtx *genDb.Queries, id uuid.UUID
 	if err != nil {
 		return fmt.Errorf("lock assignable cluster: %w", err)
 	}
-	if build {
-		if !cluster.BuildsAllowed || !cluster.BuildsEnabled {
-			return errClusterBuildsNotAllowed
-		}
-	} else if !cluster.ApplicationsAllowed {
+	if build && !runsBuilds(cluster.Role) {
+		return errClusterBuildsNotAllowed
+	}
+	if !build && !runsApps(cluster.Role) {
 		return errClusterApplicationsNotAllowed
 	}
 	return nil

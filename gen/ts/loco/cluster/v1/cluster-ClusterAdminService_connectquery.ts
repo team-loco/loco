@@ -10,11 +10,6 @@ import { ClusterAdminService } from "./cluster_pb";
 export const createCluster = ClusterAdminService.method.createCluster;
 
 /**
- * @generated from rpc loco.cluster.v1.ClusterAdminService.UpdateCluster
- */
-export const updateCluster = ClusterAdminService.method.updateCluster;
-
-/**
  * @generated from rpc loco.cluster.v1.ClusterAdminService.IssueJoinToken
  */
 export const issueJoinToken = ClusterAdminService.method.issueJoinToken;

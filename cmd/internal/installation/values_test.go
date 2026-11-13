@@ -59,6 +59,7 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	worker := Worker{
 		MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
 		Region:        canary,
+		Role:          "builds",
 		AppsDomain:    "apps.example.com",
 		Builds:        Builds{PrivateEgress: []PrivateEgress{{CIDR: "10.0.0.1/32", Port: 443}}},
 	}
@@ -67,6 +68,9 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	var workerChart struct {
+		Cluster struct {
+			Role string `json:"role"`
+		} `json:"cluster"`
 		Builds struct {
 			PrivateEgress []PrivateEgress `json:"privateEgress"`
 		} `json:"builds"`
@@ -83,6 +87,9 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	}
 	if workerChart.Global.Region != canary {
 		t.Fatal("worker region changed during rendering")
+	}
+	if workerChart.Cluster.Role != "builds" {
+		t.Fatalf("worker role rendered as %q", workerChart.Cluster.Role)
 	}
 }
 

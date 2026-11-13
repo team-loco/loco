@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/loglevel"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -28,6 +29,7 @@ func agentEnv() map[string]string {
 		envNamespace:                "loco-system",
 		envControllerDeployment:     "loco-controller",
 		envBuildNamespace:           "loco-builds",
+		envClusterRole:              "apps",
 		envInventoryInterval:        "10m",
 		envBuildRetention:           "1h",
 		envBuildCollectInterval:     "5m",
@@ -77,6 +79,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		ControllerNamespace:      "loco-operator",
 		ControllerDeployment:     "loco-controller",
 		BuildNamespace:           "loco-builds",
+		Role:                     clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
 		InventoryInterval:        10 * time.Minute,
 		BuildRetention:           time.Hour,
 		BuildCollectInterval:     5 * time.Minute,
@@ -121,6 +124,7 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 		envNamespace,
 		envControllerDeployment,
 		envBuildNamespace,
+		envClusterRole,
 		envInventoryInterval,
 		envBuildRetention,
 		envBuildCollectInterval,
@@ -288,5 +292,26 @@ func TestParseAgentConfigReadsTheRegistryAuthMode(t *testing.T) {
 				t.Errorf("parseAgentConfig with %s=%s = %v, want errInvalidAuth", envRegistryAuth, value, err)
 			}
 		})
+	}
+}
+
+func TestParseAgentConfigReadsTheClusterRole(t *testing.T) {
+	for value, builds := range map[string]bool{"apps": false, "builds": true, "all": true} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envClusterRole] = value
+			cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
+			if err != nil {
+				t.Fatalf("parseAgentConfig: %v", err)
+			}
+			if cfg.Role != clusterRoles[value] || cfg.RunsBuilds() != builds {
+				t.Errorf("%s=%s gives role %s, runs builds %t", envClusterRole, value, cfg.Role, cfg.RunsBuilds())
+			}
+		})
+	}
+	env := agentEnv()
+	env[envClusterRole] = "everything"
+	if _, err := parseAgentConfig(lookup(env), testAgentVersion); !errors.Is(err, errInvalidRole) {
+		t.Errorf("parseAgentConfig with an unknown role = %v, want errInvalidRole", err)
 	}
 }

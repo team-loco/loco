@@ -754,8 +754,8 @@ load_controller_image() {
 
 install_worker() {
     local collectors=$1
-    log_step "Installing the loco-worker chart (builds.enabled=${BUILDS_ENABLED}, observability=${OBSERVABILITY}, collectors=${collectors}, registry.auth=${REGISTRY_AUTH})..."
-    local build_values=(--set builds.enabled=false)
+    log_step "Installing the loco-worker chart (builds=${BUILDS_ENABLED}, observability=${OBSERVABILITY}, collectors=${collectors}, registry.auth=${REGISTRY_AUTH})..."
+    local build_values=(--set cluster.role=apps)
     if [ "$BUILDS_ENABLED" = true ]; then
         build_values=(
             --set builds.builderImage.repository="${BUILDER_IMAGE%%:*}"
@@ -968,7 +968,8 @@ start_agent() {
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$WORKER_VALUES")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
     LOCO_BUILD_NAMESPACE="$E2E_BUILD_NAMESPACE" \
-    LOCO_CONTROLLER_DEPLOYMENT="$(yq '.controller.name' "$WORKER_VALUES")" \
+    LOCO_CONTROLLER_DEPLOYMENT="$(agent_chart_env LOCO_CONTROLLER_DEPLOYMENT)" \
+    LOCO_CLUSTER_ROLE="$(agent_chart_env LOCO_CLUSTER_ROLE)" \
     LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$WORKER_VALUES")" \
     LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$WORKER_VALUES")" \
     LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$WORKER_VALUES")" \

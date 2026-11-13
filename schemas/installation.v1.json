@@ -325,7 +325,7 @@
           "kubernetes",
           "region",
           "tier",
-          "applicationsAllowed",
+          "role",
           "appsDomain",
           "builds",
           "certificates",
@@ -371,8 +371,14 @@
               "production"
             ]
           },
-          "applicationsAllowed": {
-            "type": "boolean"
+          "role": {
+            "type": "string",
+            "minLength": 1,
+            "enum": [
+              "apps",
+              "builds",
+              "all"
+            ]
           },
           "appsDomain": {
             "type": "string",
@@ -382,13 +388,9 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "allowed",
               "privateEgress"
             ],
             "properties": {
-              "allowed": {
-                "type": "boolean"
-              },
               "privateEgress": {
                 "type": "array",
                 "uniqueItems": true,

@@ -5,7 +5,7 @@ UPDATE clusters
 SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
-    builds_enabled = $5,
+    role = $5,
     domains = sqlc.arg(domains)::text[],
     updated_at = NOW()
 WHERE id = $1;
@@ -16,13 +16,13 @@ SET last_heartbeat = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     health_status = $5,
-    builds_enabled = $6,
+    role = $6,
     domains = sqlc.arg(domains)::text[],
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL;
 
--- name: GetClusterBuildsEnabled :one
-SELECT builds_enabled FROM clusters WHERE id = $1;
+-- name: GetClusterRole :one
+SELECT role FROM clusters WHERE id = $1;
 
 -- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
@@ -37,9 +37,9 @@ SET gateway_hostname = $2, updated_at = NOW()
 WHERE id = $1;
 
 -- name: CreateCluster :exec
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id, applications_allowed, builds_allowed)
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id)
 VALUES (sqlc.arg(name), sqlc.arg(region), sqlc.arg(tier), 'kubernetes', true, false,
-        sqlc.arg(id), sqlc.arg(applications_allowed), sqlc.arg(builds_allowed))
+        sqlc.arg(id))
 ON CONFLICT (id) DO NOTHING;
 
 -- name: LockClusterRegistration :one
@@ -81,14 +81,14 @@ ON CONFLICT (cluster_id, jti) DO NOTHING;
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, builds_enabled, applications_allowed, builds_allowed
+       last_heartbeat, agent_version, agent_public_key, role
 FROM clusters ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one
 SELECT id, is_active, removed_at FROM clusters WHERE id = $1 FOR UPDATE;
 
 -- name: LockAssignableCluster :one
-SELECT id, applications_allowed, builds_allowed, builds_enabled FROM clusters
+SELECT id, role FROM clusters
 WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE;
 
 -- name: UpdateClusterLifecycle :exec
@@ -119,10 +119,3 @@ ORDER BY kind, id;
 SELECT id, name, region, domains FROM clusters
 WHERE id = ANY(sqlc.arg(ids)::uuid[])
 ORDER BY region, name;
-
--- name: UpdateClusterCapabilities :one
-UPDATE clusters
-SET applications_allowed = sqlc.arg(applications_allowed),
-    builds_allowed = sqlc.arg(builds_allowed), updated_at = NOW()
-WHERE id = sqlc.arg(id) AND removed_at IS NULL
-RETURNING id;

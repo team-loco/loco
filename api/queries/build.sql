@@ -61,8 +61,7 @@ RETURNING id, cluster_id, source_key;
 -- name: GetBuildCluster :one
 SELECT id FROM clusters
 WHERE is_active = true
-  AND builds_enabled = true
-  AND builds_allowed = true
+  AND role IN ('builds', 'all')
 ORDER BY created_at, id
 LIMIT 1;
 

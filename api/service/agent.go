@@ -128,7 +128,7 @@ func (s *AgentServer) Register(
 			AgentVersion:          &agentVersion,
 			CapacityCpuMillicores: &cpuCores,
 			CapacityMemoryBytes:   &memBytes,
-			BuildsEnabled:         req.GetBuildsEnabled(),
+			Role:                  clusterRoleFromProto(req.GetRole()),
 			Domains:               reportedDomains(req.GetDomains()),
 		}); updateErr != nil {
 			return fmt.Errorf("update cluster %s agent info: %w", cluster.id, updateErr)
@@ -152,7 +152,7 @@ func (s *AgentServer) Register(
 		"region", cluster.region,
 		"enrolled", req.GetEnrollment() != nil,
 		"agent_version", req.GetAgentVersion(),
-		"builds_enabled", req.GetBuildsEnabled(),
+		"role", req.GetRole(),
 		"domains", req.GetDomains(),
 	)
 
@@ -201,6 +201,11 @@ func registeredAs(row genDb.GetEnrolledClusterRow, key uuid.UUID) (registeredClu
 }
 
 func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
+	// The sync stream bypasses the validation interceptor, and an unknown role cannot be stored.
+	if err := protovalidate.Validate(heartbeat); err != nil {
+		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", clusterID)
+		return
+	}
 	now := time.Now()
 	cpuCores := heartbeat.GetCapacity().GetCpuMillicoresTotal()
 	memBytes := heartbeat.GetCapacity().GetMemoryBytesTotal()
@@ -211,7 +216,7 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		CapacityCpuMillicores: &cpuCores,
 		CapacityMemoryBytes:   &memBytes,
 		HealthStatus:          &healthStatus,
-		BuildsEnabled:         heartbeat.GetBuildsEnabled(),
+		Role:                  clusterRoleFromProto(heartbeat.GetRole()),
 		Domains:               reportedDomains(heartbeat.GetDomains()),
 	})
 	if err != nil {

@@ -35,7 +35,7 @@ import (
 
 // agentLoops is the number of goroutines Agent.Run starts. Each gets a slot in errCh so none
 // blocks on its send after Run has returned.
-const agentLoops = 5
+const agentLoops = 4
 
 func main() {
 	cfg := newAgentConfig()
@@ -137,11 +137,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	buildsEnabled, err := inspector.BuildsEnabled(ctx)
-	if err != nil {
-		slog.Error("failed to check whether the cluster runs builds", "error", err)
-		os.Exit(1)
-	}
 	buildConfig := buildwatch.Config{
 		Namespace:           cfg.BuildNamespace,
 		Retention:           cfg.BuildRetention,
@@ -150,14 +145,14 @@ func main() {
 		TokenMode:           cfg.RegistryTokenMode(),
 	}
 	var builds buildRunner = buildwatch.Disabled{}
-	if buildsEnabled {
+	if cfg.RunsBuilds() {
 		builds, err = buildwatch.Start(ctx, restConfig, buildConfig)
 		if err != nil {
 			slog.Error("failed to watch Builds", "error", err)
 			os.Exit(1)
 		}
 	}
-	slog.Info("build support detected", "builds_enabled", buildsEnabled)
+	slog.Info("cluster role", "role", cfg.Role)
 	go builds.RunCollector(ctx, cfg.BuildCollectInterval)
 
 	var telemetryTokens *telemetrytoken.Renewer
@@ -167,18 +162,17 @@ func main() {
 	}
 
 	agent := &Agent{
-		cfg:           cfg,
-		client:        agentClient,
-		applier:       kubeApplier,
-		inspector:     inspector,
-		domains:       domainReporter,
-		identities:    identities,
-		credentials:   credentials,
-		watcher:       watcher,
-		builds:        builds,
-		buildsEnabled: buildsEnabled,
-		ingest:        telemetryTokens,
-		pullSecrets:   pullSecrets,
+		cfg:         cfg,
+		client:      agentClient,
+		applier:     kubeApplier,
+		inspector:   inspector,
+		domains:     domainReporter,
+		identities:  identities,
+		credentials: credentials,
+		watcher:     watcher,
+		builds:      builds,
+		ingest:      telemetryTokens,
+		pullSecrets: pullSecrets,
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -214,7 +208,6 @@ type Agent struct {
 	credentials       *identity.Credentials
 	watcher           *appwatch.Watcher
 	builds            buildRunner
-	buildsEnabled     bool
 	heartbeatInterval time.Duration
 	ingest            *telemetrytoken.Renewer
 	pullSecrets       *registrycred.Manager
@@ -241,10 +234,6 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	go func() {
 		errCh <- a.runSync(ctx)
-	}()
-
-	go func() {
-		errCh <- watchBuildSupport(ctx, a.inspector, a.buildsEnabled, a.heartbeatInterval)
 	}()
 
 	go func() {

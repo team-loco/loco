@@ -80,7 +80,7 @@ func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
 		t.Fatalf("registration created %d clusters", count)
 	}
 	id := uuid.MustParse(responses[0].GetClusterId())
-	if _, err := e.pool.Exec(t.Context(), "UPDATE clusters SET builds_enabled = true WHERE id = $1", id); err != nil {
+	if _, err := e.pool.Exec(t.Context(), "UPDATE clusters SET role = 'builds' WHERE id = $1", id); err != nil {
 		t.Fatal(err)
 	}
 	listed, err := e.admin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
@@ -88,8 +88,8 @@ func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, cluster := range listed.GetClusters() {
-		if cluster.GetId() == id.String() && !cluster.GetBuildsEnabled() {
-			t.Fatal("admin status lost build capability")
+		if cluster.GetId() == id.String() && cluster.GetRole() != clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS {
+			t.Fatal("admin status lost the cluster role")
 		}
 	}
 	if _, pauseErr := manageCluster(ctx, e.pool, clusterPause, id, false); pauseErr != nil {

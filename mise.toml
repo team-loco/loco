@@ -349,7 +349,7 @@ description = "Run only the image build end-to-end tests, controller-only and th
 run = "./tests/e2e/run.sh build"
 
 [tasks."e2e:builds-disabled"]
-description = "Run the end-to-end tests for an install with builds.enabled=false: no build objects, public images deploy, source deploys are refused; takes the e2e flags"
+description = "Run the end-to-end tests for an apps-only install (cluster.role=apps): no build objects, public images deploy, source deploys are refused; takes the e2e flags"
 run = "./tests/e2e/run.sh --builds-disabled builds_disabled"
 
 [tasks."e2e:ingress"]

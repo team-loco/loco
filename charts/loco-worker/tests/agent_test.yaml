@@ -185,6 +185,32 @@ tests:
         template: templates/builds/agent-rbac.yaml
         documentSelector: {path: kind, value: RoleBinding}
 
+  - it: reports the cluster role and checks the build controller on a builds-only cluster
+    set:
+      cluster.role: builds
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CLUSTER_ROLE, value: builds}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CONTROLLER_DEPLOYMENT, value: loco-build-controller}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: rules
+          content: {apiGroups: [apps], resources: [deployments], resourceNames: [loco-build-controller], verbs: [get]}
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+
+  - it: rejects an unknown cluster role
+    set:
+      cluster.role: everything
+    asserts:
+      - failedTemplate:
+          errorPattern: "/cluster/role"
+        template: templates/agent-deployment.yaml
+
   - it: writes the ingest token to the exporter Secret in each collector namespace
     set:
       global.exporter.ingestToken.enabled: true

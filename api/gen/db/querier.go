@@ -97,9 +97,9 @@ type Querier interface {
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context) (uuid.UUID, error)
-	GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bool, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
+	GetClusterRole(ctx context.Context, id uuid.UUID) (ClusterRole, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	GetDeploymentActor(ctx context.Context, id uuid.UUID) (GetDeploymentActorRow, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
@@ -279,7 +279,6 @@ type Querier interface {
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	// Cluster queries for agent operations
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
-	UpdateClusterCapabilities(ctx context.Context, arg UpdateClusterCapabilitiesParams) (uuid.UUID, error)
 	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error
 	UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterLifecycleParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error

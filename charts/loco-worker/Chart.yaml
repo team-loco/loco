@@ -2,7 +2,7 @@ apiVersion: v2
 name: loco-worker
 description: "Loco worker cluster: agent, controllers, Envoy Gateway and OpenTelemetry collectors"
 type: application
-version: 0.3.9
+version: 0.3.10
 dependencies:
     - name: metrics-server
       version: 3.14.0

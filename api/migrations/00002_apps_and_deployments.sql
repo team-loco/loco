@@ -31,6 +31,8 @@ CREATE TYPE build_status AS ENUM (
 -- Domain source enum (who manages the domain)
 CREATE TYPE domain_source AS ENUM ('platform_provided', 'user_provided');
 
+CREATE TYPE cluster_role AS ENUM ('apps', 'builds', 'all');
+
 -- Environments: workspace-level isolation concept
 CREATE TABLE
     environments (
@@ -92,9 +94,8 @@ CREATE TABLE
         join_token_hash TEXT UNIQUE,
         join_token_expires_at TIMESTAMPTZ,
         join_token_used_at TIMESTAMPTZ,
-        applications_allowed BOOLEAN NOT NULL,
-        builds_allowed BOOLEAN NOT NULL,
-        builds_enabled BOOLEAN NOT NULL DEFAULT false,
+        -- reported by the agent from its install; 'all' until the agent first registers
+        role cluster_role NOT NULL DEFAULT 'all',
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
@@ -407,6 +408,7 @@ DROP TABLE IF EXISTS cluster_assertions;
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environment_keys;
 DROP TABLE IF EXISTS environments;
+DROP TYPE IF EXISTS cluster_role;
 DROP TYPE IF EXISTS domain_source;
 DROP TYPE IF EXISTS build_status;
 DROP TYPE IF EXISTS resource_type;

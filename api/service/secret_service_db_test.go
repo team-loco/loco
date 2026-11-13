@@ -379,8 +379,8 @@ func (f *secretFixture) declare(t *testing.T, resourceID uuid.UUID, names ...str
 	ctx := t.Context()
 	var clusterID uuid.UUID
 	err := f.pool.QueryRow(ctx, `
-INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider, is_active, is_default)
-VALUES (true, true, $1, $2, 'kind', true, true) RETURNING id`, "c-"+resourceID.String(), testRegion).Scan(&clusterID)
+INSERT INTO clusters (name, region, provider, is_active, is_default)
+VALUES ($1, $2, 'kind', true, true) RETURNING id`, "c-"+resourceID.String(), testRegion).Scan(&clusterID)
 	if err != nil {
 		t.Fatalf("cluster: %v", err)
 	}
@@ -874,8 +874,8 @@ func (f *secretFixture) placement(t *testing.T, resourceID uuid.UUID, names []st
 	var id uuid.UUID
 	const insert = `
 WITH c AS (
-    INSERT INTO clusters (applications_allowed, builds_allowed, name, region, provider, is_active, is_default)
-    VALUES (true, true, uuidv7()::text, 'us-east-1', 'kind', true, false) RETURNING id
+    INSERT INTO clusters (name, region, provider, is_active, is_default)
+    VALUES (uuidv7()::text, 'us-east-1', 'kind', true, false) RETURNING id
 )
 INSERT INTO placements (resource_id, cluster_id, region, environment_id, secret_names, desired_spec, applied_error)
 SELECT $3, c.id, 'us-east-1', $1, $2, '{}', 'secret missing' FROM c RETURNING id`

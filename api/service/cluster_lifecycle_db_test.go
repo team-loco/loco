@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
 func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
@@ -37,7 +38,8 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 			t.Fatal(err)
 		}
 		health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
-		f.agentServer().recordHeartbeat(ctx, id, &agentv1.Heartbeat{Health: health})
+		f.agentServer().
+			recordHeartbeat(ctx, id, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Health: health})
 		row, err := f.queries.GetClusterByID(ctx, id)
 		if err != nil {
 			t.Fatal(err)

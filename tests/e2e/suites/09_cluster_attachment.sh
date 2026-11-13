@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-source "$E2E_ROOT_DIR/tests/e2e/cli.sh"
-
 cluster_admin_code() {
     curl -s -o /dev/null -w '%{http_code}' \
         -H 'Content-Type: application/json' -H "Authorization: Bearer $3" \
@@ -130,23 +128,4 @@ test_z20_pause_remove_and_restore() {
     cluster_admin resume "$E2E_CLUSTER_ID"
     wait_for "Restored cluster heartbeat" "$READY_TIMEOUT" agent_heartbeat_recorded
     assert "Restore reuses cluster identity" test "$(e2e_psql 'SELECT count(*) FROM clusters')" = 1
-}
-
-test_z18_cluster_capabilities_retain_existing_workloads() {
-    local dir="$E2E_BUILD_WORK_DIR/cluster-capabilities"
-    local cli_home="$dir/home"
-    mkdir -p "$dir"
-    cli_write_credentials
-    cli_write_image_config "$dir" "capability-check" "$E2E_PUBLIC_IMAGE" 8080 "[]"
-
-    local placements
-    placements=$(e2e_psql "SELECT count(*) FROM placements WHERE cluster_id = '${E2E_CLUSTER_ID}'")
-    cluster_admin update "$E2E_CLUSTER_ID" --applications-allowed=false --builds-allowed=true
-    assert "Cluster reports application capability disabled" \
-        test "$(cluster_admin list | yq -p json ".clusters[] | select(.id == \"${E2E_CLUSTER_ID}\") | .applicationsAllowed // false")" = false
-    assert "Build-only update retains placements" \
-        test "$(e2e_psql "SELECT count(*) FROM placements WHERE cluster_id = '${E2E_CLUSTER_ID}'")" = "$placements"
-    (cd "$dir" && assert_fails_with "Application deploy requires a runtime cluster" 'accepting applications' \
-        loco_cli deploy --yes)
-    cluster_admin update "$E2E_CLUSTER_ID" --applications-allowed=true --builds-allowed=true
 }

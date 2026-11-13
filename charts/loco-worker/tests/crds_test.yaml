@@ -5,15 +5,15 @@ includeCrds: true
 templates:
   - "**/*"
 tests:
-  - it: renders no CustomResourceDefinition with builds enabled, since mise run crds:apply and the platform bundle own them
+  - it: renders no CustomResourceDefinition for the all role, since mise run crds:apply and the platform bundle own them
     asserts:
       - isKind:
           of: CustomResourceDefinition
         not: true
 
-  - it: renders no CustomResourceDefinition with builds disabled
+  - it: renders no CustomResourceDefinition for the apps role
     set:
-      builds.enabled: false
+      cluster.role: apps
     asserts:
       - isKind:
           of: CustomResourceDefinition

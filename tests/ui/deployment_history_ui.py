@@ -79,7 +79,7 @@ def fixture():
     sql = []
     for cluster, region, tier in zip(clusters, ("us-east-1", "eu-west-1", "us-east-1"), ("production", "production", "staging"), strict=True):
         domains = "{" + PLATFORM_DOMAIN + "}" if cluster == clusters[0] else "{}"
-        sql.append(f"INSERT INTO clusters (applications_allowed, builds_allowed, id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier,domains) VALUES (true, true, '{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{tier}','{domains}');")
+        sql.append(f"INSERT INTO clusters (id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier,domains) VALUES ('{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{tier}','{domains}');")
     for index, deployment in enumerate(release_ids, 1):
         region = "eu-west-1" if index == len(release_ids) else "us-east-1"
         cluster = clusters[1] if region == "eu-west-1" else clusters[0]

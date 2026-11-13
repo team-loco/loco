@@ -1,4 +1,4 @@
-{{- if .Values.metrics.enable }}
+{{- if and (include "loco-worker.runsApps" .) .Values.metrics.enable }}
 apiVersion: v1
 kind: Service
 metadata:

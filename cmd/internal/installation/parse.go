@@ -131,6 +131,9 @@ func validate(cfg Config) error {
 		if w.Tier != "staging" && w.Tier != "production" {
 			return field(path + ".tier")
 		}
+		if _, ok := workerRoles[w.Role]; !ok {
+			return field(path + ".role")
+		}
 		if !domain(w.AppsDomain) {
 			return field(path + ".appsDomain")
 		}

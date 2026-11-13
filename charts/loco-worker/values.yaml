@@ -117,6 +117,12 @@ certManager:
               key: api-token
 
 # @schema additionalProperties: false
+cluster:
+  # Which workloads this cluster runs; the agent reports it to the control plane.
+  # @schema enum: [apps, builds, all]
+  role: all
+
+# @schema additionalProperties: false
 agent:
   # @schema additionalProperties: false
   joinToken:
@@ -247,9 +253,8 @@ registry:
   auth: static
   pullSecretName: ""
 
-# @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {builderImage: {properties: {tag: {minLength: 1}}}}}}]
+# @schema additionalProperties: false
 builds:
-  enabled: true
   createNamespace: true
 
   # @schema additionalProperties: false

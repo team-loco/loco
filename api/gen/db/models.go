@@ -59,6 +59,49 @@ func (ns NullBuildStatus) Value() (driver.Value, error) {
 	return string(ns.BuildStatus), nil
 }
 
+type ClusterRole string
+
+const (
+	ClusterRoleApps   ClusterRole = "apps"
+	ClusterRoleBuilds ClusterRole = "builds"
+	ClusterRoleAll    ClusterRole = "all"
+)
+
+func (e *ClusterRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ClusterRole(s)
+	case string:
+		*e = ClusterRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ClusterRole: %T", src)
+	}
+	return nil
+}
+
+type NullClusterRole struct {
+	ClusterRole ClusterRole `json:"clusterRole"`
+	Valid       bool        `json:"valid"` // Valid is true if ClusterRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullClusterRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.ClusterRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ClusterRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullClusterRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ClusterRole), nil
+}
+
 type DeploymentActorType string
 
 const (
@@ -446,34 +489,32 @@ type Build struct {
 }
 
 type Cluster struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	ClusterKey            *uuid.UUID `json:"clusterKey"`
-	RemovedAt             *time.Time `json:"removedAt"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	GatewayHostname       *string    `json:"gatewayHostname"`
-	SyncGeneration        int64      `json:"syncGeneration"`
-	Domains               []string   `json:"domains"`
-	AgentPublicKey        []byte     `json:"agentPublicKey"`
-	JoinTokenHash         *string    `json:"joinTokenHash"`
-	JoinTokenExpiresAt    *time.Time `json:"joinTokenExpiresAt"`
-	JoinTokenUsedAt       *time.Time `json:"joinTokenUsedAt"`
-	ApplicationsAllowed   bool       `json:"applicationsAllowed"`
-	BuildsAllowed         bool       `json:"buildsAllowed"`
-	BuildsEnabled         bool       `json:"buildsEnabled"`
-	Tier                  string     `json:"tier"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
+	ID                    uuid.UUID   `json:"id"`
+	Name                  string      `json:"name"`
+	ClusterKey            *uuid.UUID  `json:"clusterKey"`
+	RemovedAt             *time.Time  `json:"removedAt"`
+	Region                string      `json:"region"`
+	Provider              string      `json:"provider"`
+	IsActive              bool        `json:"isActive"`
+	IsDefault             bool        `json:"isDefault"`
+	Endpoint              *string     `json:"endpoint"`
+	HealthStatus          *string     `json:"healthStatus"`
+	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
+	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
+	AgentVersion          *string     `json:"agentVersion"`
+	GatewayHostname       *string     `json:"gatewayHostname"`
+	SyncGeneration        int64       `json:"syncGeneration"`
+	Domains               []string    `json:"domains"`
+	AgentPublicKey        []byte      `json:"agentPublicKey"`
+	JoinTokenHash         *string     `json:"joinTokenHash"`
+	JoinTokenExpiresAt    *time.Time  `json:"joinTokenExpiresAt"`
+	JoinTokenUsedAt       *time.Time  `json:"joinTokenUsedAt"`
+	Role                  ClusterRole `json:"role"`
+	Tier                  string      `json:"tier"`
+	CreatedAt             time.Time   `json:"createdAt"`
+	UpdatedAt             time.Time   `json:"updatedAt"`
 }
 
 type ClusterAssertion struct {

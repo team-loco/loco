@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect/v2"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -18,6 +19,35 @@ var errNoActiveCluster = rpcerr.NewCoded(
 	connect.CodeFailedPrecondition,
 	"no healthy cluster accepting applications for the region and environment type",
 )
+
+var clusterRoles = map[clusterv1.ClusterRole]genDb.ClusterRole{
+	clusterv1.ClusterRole_CLUSTER_ROLE_APPS:   genDb.ClusterRoleApps,
+	clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS: genDb.ClusterRoleBuilds,
+	clusterv1.ClusterRole_CLUSTER_ROLE_ALL:    genDb.ClusterRoleAll,
+}
+
+// clusterRoleFromProto takes only a validated role; agent requests reject unspecified ones.
+func clusterRoleFromProto(role clusterv1.ClusterRole) genDb.ClusterRole {
+	return clusterRoles[role]
+}
+
+func clusterRoleToProto(role genDb.ClusterRole) clusterv1.ClusterRole {
+	for proto, stored := range clusterRoles {
+		if stored == role {
+			return proto
+		}
+	}
+	return clusterv1.ClusterRole_CLUSTER_ROLE_UNSPECIFIED
+}
+
+// runsApps and runsBuilds match the role filters in the cluster selection queries.
+func runsApps(role genDb.ClusterRole) bool {
+	return role == genDb.ClusterRoleApps || role == genDb.ClusterRoleAll
+}
+
+func runsBuilds(role genDb.ClusterRole) bool {
+	return role == genDb.ClusterRoleBuilds || role == genDb.ClusterRoleAll
+}
 
 func ClusterSilentAfter(heartbeatInterval time.Duration) time.Duration {
 	return missedHeartbeats * heartbeatInterval

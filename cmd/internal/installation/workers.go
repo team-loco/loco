@@ -34,6 +34,13 @@ var (
 	errWorkerRegistration     = errors.New("create or recover worker registration failed")
 )
 
+// workerRoles keys are the loco-worker chart's cluster.role values.
+var workerRoles = map[string]clusterv1.ClusterRole{
+	"apps":   clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
+	"builds": clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS,
+	"all":    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+}
+
 // ApplyWorkers requires an authenticated system-admin session established after
 // the first-admin checkpoint. Enrollment credentials never leave destination Secrets.
 func ApplyWorkers(ctx context.Context, config Config, manifestPath, token string) error {
@@ -135,21 +142,13 @@ func (k *Kubernetes) applyWorker(
 	created, err := client.CreateCluster(
 		ctx,
 		&clusterv1.CreateClusterRequest{
-			Name:                worker.Name,
-			ApplicationsAllowed: worker.ApplicationsAllowed, BuildsAllowed: worker.Builds.Allowed,
+			Name:      worker.Name,
 			Region:    worker.Region,
 			Tier:      tier,
 			RequestId: state.Data["requestID"],
 		},
 	)
 	if err != nil {
-		return errWorkerRegistration
-	}
-	if _, updateErr := client.UpdateCluster(ctx, &clusterv1.UpdateClusterRequest{
-		ClusterId:           created.GetClusterId(),
-		ApplicationsAllowed: worker.ApplicationsAllowed,
-		BuildsAllowed:       worker.Builds.Allowed,
-	}); updateErr != nil {
 		return errWorkerRegistration
 	}
 	if previous := state.Data["clusterID"]; previous != "" && previous != created.GetClusterId() {
@@ -255,9 +254,7 @@ func (k *Kubernetes) workerReady(ctx context.Context, cluster *clusterv1.Cluster
 	}
 	ready := cluster.GetIsActive() && cluster.GetLastHeartbeat() != nil &&
 		time.Since(cluster.GetLastHeartbeat().AsTime()) < workerHeartbeatMaxAge &&
-		cluster.GetBuildsEnabled() == worker.Builds.Allowed &&
-		cluster.GetBuildsAllowed() == worker.Builds.Allowed &&
-		cluster.GetApplicationsAllowed() == worker.ApplicationsAllowed
+		cluster.GetRole() == workerRoles[worker.Role]
 	return ready, nil
 }
 

@@ -192,7 +192,7 @@ FROM (
     FROM clusters
     WHERE tier = $1
       AND is_active = true
-      AND applications_allowed = true
+      AND role IN ('apps', 'all')
       AND health_status IN ('healthy', 'degraded')
       AND last_heartbeat >= $2::timestamptz
     ORDER BY region, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
@@ -238,7 +238,7 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
 FROM clusters
 WHERE tier = $1
   AND is_active = true
-  AND applications_allowed = true
+  AND role IN ('apps', 'all')
   AND health_status = 'healthy'
   AND last_heartbeat >= $2::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC

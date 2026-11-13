@@ -90,6 +90,7 @@ func (e *enrollmentFixture) enroll(
 ) (*agentv1.RegisterResponse, error) {
 	t.Helper()
 	return e.agent.Register(t.Context(), &agentv1.RegisterRequest{
+		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: clusterKey.String(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 	})
@@ -112,7 +113,10 @@ func registerWithAssertion(
 ) (*agentv1.RegisterResponse, error) {
 	ctx, info := connect.NewClientContext(ctx)
 	info.RequestHeader().Set("Authorization", "Bearer "+assertion)
-	return client.Register(ctx, &agentv1.RegisterRequest{ClusterKey: clusterKey.String()})
+	return client.Register(
+		ctx,
+		&agentv1.RegisterRequest{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, ClusterKey: clusterKey.String()},
+	)
 }
 
 func (e *enrollmentFixture) register(

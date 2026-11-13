@@ -12,15 +12,17 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
 func (f *buildFixture) disableBuilds(t *testing.T, clusterID uuid.UUID) {
 	t.Helper()
 	if _, err := f.pool.Exec(
 		f.ctx,
-		`UPDATE clusters SET builds_enabled = false WHERE id = $1`,
+		`UPDATE clusters SET role = 'apps' WHERE id = $1`,
 		clusterID,
 	); err != nil {
 		t.Fatalf("disable builds on %s: %v", clusterID, err)
@@ -133,26 +135,19 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 	f.wantBuildOutcome(t, id, events.BuildFailed, events.FieldMessage, buildsDisabledMessage)
 }
 
-func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) {
+func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 	f := newBuildFixture(t)
-	if _, err := f.pool.Exec(
-		f.ctx,
-		"UPDATE clusters SET applications_allowed = false, builds_allowed = false WHERE id = $1",
-		f.clusterID,
-	); err != nil {
-		t.Fatal(err)
-	}
 	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval, testAgentConfig())
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
 	transport := connectinprocess.New(rpcServer)
 	registerClient := agentv1connect.NewAgentServiceClient(connect.NewClient(transport))
-	register := func(enabled bool) {
+	register := func(role clusterv1.ClusterRole) {
 		t.Helper()
 		req := &agentv1.RegisterRequest{
-			AgentVersion:  "test",
-			BuildsEnabled: enabled,
-			ClusterKey:    f.clusterID.String(),
+			AgentVersion: "test",
+			Role:         role,
+			ClusterKey:   f.clusterID.String(),
 		}
 		ctx := agentContext(f.ctx, t, f.clusterID)
 		resp, err := registerClient.Register(ctx, req)
@@ -163,31 +158,22 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 			t.Fatalf("heartbeat interval = %s, want %s", got, testHeartbeatInterval)
 		}
 	}
-	buildsEnabled := func() bool {
+	role := func() genDb.ClusterRole {
 		t.Helper()
-		enabled, err := f.queries.GetClusterBuildsEnabled(f.ctx, f.clusterID)
+		stored, err := f.queries.GetClusterRole(f.ctx, f.clusterID)
 		if err != nil {
-			t.Fatalf("read builds_enabled: %v", err)
+			t.Fatalf("read role: %v", err)
 		}
-		return enabled
+		return stored
 	}
 
-	register(false)
-	if buildsEnabled() {
-		t.Fatal("builds_enabled stayed true after the agent registered without builds")
+	register(clusterv1.ClusterRole_CLUSTER_ROLE_APPS)
+	if got := role(); got != genDb.ClusterRoleApps {
+		t.Fatalf("role = %s after the agent registered as apps", got)
 	}
-	register(true)
-	var applications, builds bool
-	capabilitiesQuery := "SELECT applications_allowed, builds_allowed FROM clusters WHERE id = $1"
-	if err := f.pool.QueryRow(f.ctx, capabilitiesQuery, f.clusterID).
-		Scan(&applications, &builds); err != nil {
-		t.Fatal(err)
-	}
-	if applications || builds {
-		t.Fatal("agent registration overwrote operator capabilities")
-	}
-	if !buildsEnabled() {
-		t.Fatal("builds_enabled is false after the agent registered with builds")
+	register(clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS)
+	if got := role(); got != genDb.ClusterRoleBuilds {
+		t.Fatalf("role = %s after the agent registered as builds", got)
 	}
 
 	client := startSyncServerWithSources(t, f.deployFixture, f.bucket)
@@ -196,22 +182,18 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	heartbeat := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{}}}
-	if err := stream.Send(heartbeat); err != nil {
-		t.Fatalf("send heartbeat: %v", err)
+	for _, heartbeat := range []*agentv1.Heartbeat{{}, {Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL}} {
+		message := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: heartbeat}}
+		if err := stream.Send(message); err != nil {
+			t.Fatalf("send heartbeat: %v", err)
+		}
 	}
 	deadline := time.Now().Add(5 * time.Second)
-	for buildsEnabled() {
+	for role() != genDb.ClusterRoleAll {
 		if time.Now().After(deadline) {
-			t.Fatal("builds_enabled stayed true after a heartbeat without builds")
+			t.Fatalf("role = %s after a heartbeat reporting all", role())
 		}
 		time.Sleep(50 * time.Millisecond)
-	}
-	if err := f.pool.QueryRow(f.ctx, capabilitiesQuery, f.clusterID).Scan(&applications, &builds); err != nil {
-		t.Fatal(err)
-	}
-	if applications || builds {
-		t.Fatal("heartbeat overwrote operator capabilities")
 	}
 	if err := stream.CloseSend(); err != nil {
 		t.Fatalf("close sync stream: %v", err)

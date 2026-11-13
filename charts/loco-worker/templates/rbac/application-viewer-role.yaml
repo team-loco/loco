@@ -1,4 +1,4 @@
-{{- if .Values.rbacHelpers.enable }}
+{{- if and (include "loco-worker.runsApps" .) .Values.rbacHelpers.enable }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

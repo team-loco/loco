@@ -65,7 +65,9 @@ spec:
             - name: LOCO_BUILD_NAMESPACE
               value: {{ .Values.builds.namespace | quote }}
             - name: LOCO_CONTROLLER_DEPLOYMENT
-              value: {{ .Values.controller.name | quote }}
+              value: {{ include "loco-worker.healthController" . | quote }}
+            - name: LOCO_CLUSTER_ROLE
+              value: {{ .Values.cluster.role | quote }}
             - name: LOCO_INVENTORY_INTERVAL
               value: {{ .Values.agent.inventoryInterval | quote }}
             - name: LOCO_BUILD_RETENTION

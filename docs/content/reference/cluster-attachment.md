@@ -22,7 +22,7 @@ env:
 
 `agent.joinToken.existingSecret` and `agent.joinToken.secretKey` name a Secret you create instead of `value`.
 
-On first start the agent generates a key pair and stores the private key in the `<release>-agent-key` Secret in its namespace. It sends the join token, its public key and its cluster key, the UID of Kubernetes' `kube-system` namespace, to the API. The API consumes the token and binds the key and cluster key to the record. A Kubernetes cluster can be enrolled into one record only. Clusters that allow applications become eligible for deployment after healthy heartbeats arrive.
+On first start the agent generates a key pair and stores the private key in the `<release>-agent-key` Secret in its namespace. It sends the join token, its public key and its cluster key, the UID of Kubernetes' `kube-system` namespace, to the API. The API consumes the token and binds the key and cluster key to the record. A Kubernetes cluster can be enrolled into one record only. New clusters become eligible for deployment after healthy heartbeats arrive.
 
 After enrollment the agent ignores the join token. Every registration and sync stream carries a JWT the agent signs with its key: `iss` and `sub` are the cluster ID, `aud` is `loco-api`, and `exp` is `agent.assertionLifetime` (default `1m`) after `iat`. The API verifies it against the bound public key, rejects assertions that live longer than `LOCO_AGENT_ASSERTION_MAX_LIFETIME` (default `5m`), and records each `jti` in PostgreSQL so every API replica rejects a reused assertion. The agent needs no credential issued by the API, so it reconnects after an outage of any length.
 
@@ -67,15 +67,6 @@ The account needs the `system:admin` grant; organization and workspace admins do
 
 `mise run e2e:attachment` builds an isolated kind environment, creates the cluster with `locoadm`, enrolls the agent and deploys an application. `--no-teardown` keeps the environment; `--skip-build` reuses its binaries and images on another run.
 
-## Cluster capabilities
+## Cluster roles
 
-`locoadm cluster create` accepts `--applications-allowed` and `--builds-allowed`, both true by default. For a build-only cluster:
-
-```sh
-locoadm cluster create --name builds-east --region us-east-1 --tier production --applications-allowed=false --builds-allowed=true
-locoadm cluster update <cluster-id> --applications-allowed=false --builds-allowed=true
-```
-
-Update requires both flags. `locoadm cluster list` reports `applicationsAllowed`, `buildsAllowed` and the agent's `buildsEnabled`. Builds require operator permission and agent readiness; an agent heartbeat cannot override operator permission. A worker installed with builds disabled never accepts builds.
-
-Disabling a capability blocks new admissions after the update returns. Existing applications and already queued or running builds continue; the update does not move or delete them. Application planning, region discovery and direct deployment admission exclude clusters without the application capability. Each runtime cluster still belongs to one tier, staging or production.
+The worker chart's `cluster.role` sets what a cluster runs: `apps` for applications, `builds` for source builds, or `all`, the default, for both. The chart installs only the controllers the role needs, and the agent reports the role when it registers and in every heartbeat. Applications are placed only on `apps` and `all` clusters, and builds run only on `builds` and `all` clusters. To change a role, upgrade the chart with the new value; the agent restarts with it.

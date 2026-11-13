@@ -1,5 +1,6 @@
-{{- if .Values.builds.enabled }}
+{{- if include "loco-worker.runsBuilds" . }}
 {{- $controller := .Values.builds.controller }}
+{{- $_ := required "builds.builderImage.tag is required when cluster.role runs builds" .Values.builds.builderImage.tag }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

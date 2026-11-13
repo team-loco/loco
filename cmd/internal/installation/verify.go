@@ -22,6 +22,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -79,7 +80,8 @@ func VerifySource(
 			worker = candidate
 		}
 	}
-	if worker.Name == "" || !worker.Builds.Allowed {
+	// Verification builds its source and deploys the result on the same worker.
+	if worker.Name == "" || workerRoles[worker.Role] != clusterv1.ClusterRole_CLUSTER_ROLE_ALL {
 		return Status{}, errVerificationTarget
 	}
 	clients := rpc.ForHost(config.ControlPlane.APIURL, token)

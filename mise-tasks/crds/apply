@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Server-side apply the Loco CRDs and the Gateway API and Envoy Gateway CRDs from the pinned gateway-helm chart to the KIND_CLUSTER cluster; no chart installs CRDs, so this runs before any of them"
 #MISE depends=["helm:deps"]
-#USAGE flag "--without-builds" help="apply no Build CRD and delete it if present, for an install with builds.enabled=false"
+#USAGE flag "--without-builds" help="apply no Build CRD and delete it if present, for a worker with cluster.role=apps"
 set -euo pipefail
 
 cluster=${KIND_CLUSTER:?}

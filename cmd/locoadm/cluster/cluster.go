@@ -20,9 +20,6 @@ import (
 )
 
 const (
-	clusterUpdate    = "update"
-	flagApplications = "applications-allowed"
-	flagBuilds       = "builds-allowed"
 	clusterCreate    = "create"
 	clusterJoinToken = "join-token"
 	clusterList      = "list"
@@ -81,7 +78,6 @@ func operations() []operation {
 			short: "create a pending cluster and print its one-time join token",
 			args:  cobra.NoArgs,
 			flags: func(c *cobra.Command) {
-				capabilityFlags(c)
 				c.Flags().String(flagName, "", "Cluster name")
 				c.Flags().String(flagRegion, "", "Cluster region")
 				c.Flags().String(flagTier, "", "Cluster tier: staging or production")
@@ -90,27 +86,6 @@ func operations() []operation {
 				}
 			},
 			run: createCluster,
-		},
-		{
-			use: clusterUpdate + " <cluster-id>", short: "Set cluster capabilities", args: cobra.ExactArgs(1),
-			flags: func(c *cobra.Command) {
-				capabilityFlags(c)
-				cobra.CheckErr(c.MarkFlagRequired(flagApplications))
-				cobra.CheckErr(c.MarkFlagRequired(flagBuilds))
-			},
-			run: func(cmd *cobra.Command, client adminClient, args []string) (proto.Message, error) {
-				applications, err := cmd.Flags().GetBool(flagApplications)
-				if err != nil {
-					return nil, err
-				}
-				builds, err := cmd.Flags().GetBool(flagBuilds)
-				if err != nil {
-					return nil, err
-				}
-				return client.UpdateCluster(cmd.Context(), &clusterv1.UpdateClusterRequest{
-					ClusterId: args[0], ApplicationsAllowed: applications, BuildsAllowed: builds,
-				})
-			},
 		},
 		byID(clusterJoinToken, "issue a one-time join token that enrolls an agent into the cluster",
 			func(ctx context.Context, c adminClient, id string) (proto.Message, error) {
@@ -184,34 +159,24 @@ func createCluster(
 	client adminClient,
 	_ []string,
 ) (proto.Message, error) {
-	applications, err := cmd.Flags().GetBool(flagApplications)
-	if err != nil {
-		return nil, err
-	}
-	builds, err := cmd.Flags().GetBool(flagBuilds)
-	if err != nil {
-		return nil, err
-	}
-	name, err := cmd.Flags().GetString(flagName)
-	if err != nil {
-		return nil, err
-	}
-	region, err := cmd.Flags().GetString(flagRegion)
-	if err != nil {
-		return nil, err
+	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString()}
+	fields := map[string]*string{flagName: &request.Name, flagRegion: &request.Region}
+	for flag, field := range fields {
+		value, err := cmd.Flags().GetString(flag)
+		if err != nil {
+			return nil, err
+		}
+		*field = value
 	}
 	tierFlag, err := cmd.Flags().GetString(flagTier)
 	if err != nil {
 		return nil, err
 	}
-	tier, err := parseTier(tierFlag)
+	request.Tier, err = parseTier(tierFlag)
 	if err != nil {
 		return nil, err
 	}
-	return client.CreateCluster(cmd.Context(), &clusterv1.CreateClusterRequest{
-		RequestId: uuid.NewString(), Name: name, Region: region, Tier: tier,
-		ApplicationsAllowed: applications, BuildsAllowed: builds,
-	})
+	return client.CreateCluster(cmd.Context(), request)
 }
 
 func removeCluster(
@@ -242,9 +207,4 @@ func printWorkloads(cmd *cobra.Command, err error) {
 	for _, workload := range workloads.GetWorkloads() {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", workload.GetKind(), workload.GetId())
 	}
-}
-
-func capabilityFlags(c *cobra.Command) {
-	c.Flags().Bool(flagApplications, true, "Accept application placements")
-	c.Flags().Bool(flagBuilds, true, "Accept builds when the agent reports builds enabled")
 }
