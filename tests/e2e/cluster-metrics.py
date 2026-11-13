@@ -137,7 +137,7 @@ def collector_manifest():
         "global": {"region": "test-region", "platformTelemetry": settings, "exporter": exporter},
         "agent": {"image": {"tag": "unused"}},
         "controller": {"image": {"tag": "unused"}},
-        "builds": {"enabled": False},
+        "cluster": {"role": "apps"},
         "certManager": {"existingTLSSecret": "unused"},
         "gateway-helm": {"enabled": False},
         "otel-col-deploy": {"enabled": False},
