@@ -146,6 +146,8 @@ message Resource {
   optional string partial = 12;
   repeated EnvironmentStatus environment_statuses = 13;
   string slug = 14;
+  // revision increases with every change to the resource spec or its scaling.
+  int64 revision = 15;
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -233,6 +235,15 @@ message UpdateResourceRequest {
     max_len: 63
   }];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
+  // regions replaces the resource's whole region map when set; omitted regions are torn down.
+  optional RegionTargets regions = 4;
+  // revision is the Resource.revision the caller loaded; a regions update fails when it moved.
+  int64 revision = 5;
+}
+
+// RegionTargets is a resource's desired region map, keyed by region name.
+message RegionTargets {
+  map<string, RegionTarget> targets = 1;
 }
 
 // UpdateResourceResponse is the response containing the updated resource ID.

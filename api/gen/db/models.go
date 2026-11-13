@@ -679,6 +679,7 @@ type Resource struct {
 	Description            string       `json:"description"`
 	Spec                   []byte       `json:"spec"`
 	SpecVersion            int32        `json:"specVersion"`
+	Revision               int64        `json:"revision"`
 	Partial                *string      `json:"partial"`
 	MaxApplyAttempts       *int32       `json:"maxApplyAttempts"`
 	ApplyRetryDelaySeconds *int32       `json:"applyRetryDelaySeconds"`

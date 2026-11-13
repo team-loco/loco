@@ -463,12 +463,25 @@ func (s *ResourceServer) UpdateResource(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if req.GetRegions() != nil {
+			if lockErr := ensureOrganizationActive(ctx, qtx, resourceID); lockErr != nil {
+				return lockErr
+			}
+		}
 		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
+		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
 		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
 		if getErr != nil {
 			return fmt.Errorf("get resource: %w", getErr)
+		}
+		if req.GetRegions() != nil {
+			if updateErr := s.updateRegions(ctx, qtx, resource, req); updateErr != nil {
+				return updateErr
+			}
 		}
 		if rename {
 			slugErr := checkSlugFree(ctx, qtx, resource.WorkspaceID, *updateParams.Slug, &resourceID)
@@ -714,7 +727,13 @@ func (s *ResourceServer) scaleCurrentDeployments(
 		SubjectID:   new(resourceID),
 		Data:        scaled,
 	}
-	return s.redeployRegions(ctx, qtx, res, plans, scaledEvent)
+	if err := s.redeployRegions(ctx, qtx, res, plans, scaledEvent); err != nil {
+		return err
+	}
+	if err := qtx.BumpResourceRevision(ctx, resourceID); err != nil {
+		return fmt.Errorf("bump resource revision: %w", err)
+	}
+	return nil
 }
 
 type regionRedeploy struct {
@@ -1013,6 +1032,7 @@ func dbResourceToProto(
 		UpdatedAt:           timestamppb.New(res.UpdatedAt),
 		Description:         &res.Description,
 		Partial:             res.Partial,
+		Revision:            res.Revision,
 		EnvironmentStatuses: statuses,
 	}, nil
 }

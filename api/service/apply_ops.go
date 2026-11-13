@@ -34,6 +34,7 @@ var errNoBuildToDeploy = errors.New("the service has no build to deploy")
 // request named per service; deployed records the services the operations have deployed;
 // provisioning creates services without deploying them.
 type applier struct {
+	regionTargets   *resourcev1.RegionTargets
 	env             genDb.Environment
 	organizationID  uuid.UUID
 	partial         string

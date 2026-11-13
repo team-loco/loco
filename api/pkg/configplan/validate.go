@@ -1,8 +1,10 @@
 package configplan
 
 import (
-	"maps"
+	"fmt"
 	"slices"
+
+	"github.com/team-loco/loco/api/pkg/platformdomain"
 
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -46,21 +48,26 @@ func validateDesired(name string, desired State) []Error {
 		add(pathRouting, locoControllerV1.ValidateRoute(desired.Routing.PathPrefix, desired.Routing.IdleTimeout))
 	}
 	add(pathEnv, locoControllerV1.ValidateEnv(desired.Env))
-	for _, region := range slices.Sorted(maps.Keys(desired.Regions)) {
-		target := desired.Regions[region]
-		resources := locoControllerV1.ResourcesSpec{
-			CPU:      target.CPU,
-			Memory:   target.Memory,
-			Replicas: locoControllerV1.ReplicasSpec{Min: target.MinReplicas, Max: target.MaxReplicas},
-		}
-		if target.Autoscaling != nil {
-			resources.Scalers = locoControllerV1.ScalersSpec{
-				Enabled:      true,
-				CPUTarget:    target.Autoscaling.CPUTarget,
-				MemoryTarget: target.Autoscaling.MemoryTarget,
-			}
-		}
-		add(pathRegions+"."+region, resources.Validate())
-	}
 	return errs
+}
+
+func validateRegion(name string, target Region, clusters []platformdomain.Cluster) error {
+	if !slices.ContainsFunc(clusters, func(cluster platformdomain.Cluster) bool { return cluster.Region == name }) {
+		return fmt.Errorf("%w: %s", ErrUnknownRegion, name)
+	}
+	var scalers locoControllerV1.ScalersSpec
+	if target.Autoscaling != nil {
+		scalers = locoControllerV1.ScalersSpec{
+			Enabled:      true,
+			CPUTarget:    target.Autoscaling.CPUTarget,
+			MemoryTarget: target.Autoscaling.MemoryTarget,
+		}
+	}
+	resources := locoControllerV1.ResourcesSpec{
+		CPU:      target.CPU,
+		Memory:   target.Memory,
+		Replicas: locoControllerV1.ReplicasSpec{Min: target.MinReplicas, Max: target.MaxReplicas},
+		Scalers:  scalers,
+	}
+	return resources.Validate()
 }

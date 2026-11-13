@@ -10,17 +10,17 @@ SELECT name FROM resources
 WHERE workspace_id = $1 AND slug = $2 AND id IS DISTINCT FROM sqlc.narg('except_id')::uuid;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
@@ -42,7 +42,7 @@ RETURNING id;
 
 -- name: UpdateResourceSpec :exec
 UPDATE resources
-SET spec = $2, updated_at = NOW()
+SET spec = $2, revision = revision + 1, updated_at = NOW()
 WHERE id = $1;
 
 -- name: SetResourceDeployPolicy :exec
@@ -134,7 +134,7 @@ ORDER BY d.resource_id, e.name, d.region;
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
 
 -- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC;
@@ -144,3 +144,11 @@ SELECT EXISTS (
   SELECT 1 FROM resources
   WHERE workspace_id = $1 AND id = ANY(sqlc.arg('resource_ids')::uuid[])
 );
+
+-- name: BumpResourceRevision :exec
+UPDATE resources SET revision = revision + 1 WHERE id = $1;
+
+-- name: ListLatestResourceDeployments :many
+SELECT DISTINCT ON (environment_id, region) * FROM deployments
+WHERE resource_id = $1
+ORDER BY environment_id, region, created_at DESC, id DESC;

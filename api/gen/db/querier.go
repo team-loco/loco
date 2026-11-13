@@ -20,6 +20,7 @@ type Querier interface {
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error)
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
+	BumpResourceRevision(ctx context.Context, id uuid.UUID) error
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
 	CancelOrgActiveBuilds(ctx context.Context, arg CancelOrgActiveBuildsParams) ([]CancelOrgActiveBuildsRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
@@ -172,6 +173,7 @@ type Querier interface {
 	ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
 	ListInstallWebhookIDs(ctx context.Context) ([]ListInstallWebhookIDsRow, error)
+	ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
 	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
 	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)
