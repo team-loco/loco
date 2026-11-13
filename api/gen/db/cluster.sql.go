@@ -76,17 +76,6 @@ func (q *Queries) EnrollCluster(ctx context.Context, arg EnrollClusterParams) (E
 	return i, err
 }
 
-const getClusterBuildsEnabled = `-- name: GetClusterBuildsEnabled :one
-SELECT builds_enabled FROM clusters WHERE id = $1
-`
-
-func (q *Queries) GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, getClusterBuildsEnabled, id)
-	var builds_enabled bool
-	err := row.Scan(&builds_enabled)
-	return builds_enabled, err
-}
-
 const getClusterByID = `-- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,
@@ -136,6 +125,17 @@ func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterB
 	return i, err
 }
 
+const getClusterRole = `-- name: GetClusterRole :one
+SELECT role FROM clusters WHERE id = $1
+`
+
+func (q *Queries) GetClusterRole(ctx context.Context, id uuid.UUID) (ClusterRole, error) {
+	row := q.db.QueryRow(ctx, getClusterRole, id)
+	var role ClusterRole
+	err := row.Scan(&role)
+	return role, err
+}
+
 const getEnrolledCluster = `-- name: GetEnrolledCluster :one
 SELECT id, name, region, cluster_key, agent_public_key FROM clusters
 WHERE id = $1 AND removed_at IS NULL AND agent_public_key IS NOT NULL
@@ -164,23 +164,23 @@ func (q *Queries) GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnro
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, builds_enabled
+       last_heartbeat, agent_version, agent_public_key, role
 FROM clusters ORDER BY created_at, id
 `
 
 type ListAdminClustersRow struct {
-	ID             uuid.UUID  `json:"id"`
-	ClusterKey     *uuid.UUID `json:"clusterKey"`
-	Name           string     `json:"name"`
-	Region         string     `json:"region"`
-	Tier           string     `json:"tier"`
-	IsActive       bool       `json:"isActive"`
-	RemovedAt      *time.Time `json:"removedAt"`
-	HealthStatus   *string    `json:"healthStatus"`
-	LastHeartbeat  *time.Time `json:"lastHeartbeat"`
-	AgentVersion   *string    `json:"agentVersion"`
-	AgentPublicKey []byte     `json:"agentPublicKey"`
-	BuildsEnabled  bool       `json:"buildsEnabled"`
+	ID             uuid.UUID   `json:"id"`
+	ClusterKey     *uuid.UUID  `json:"clusterKey"`
+	Name           string      `json:"name"`
+	Region         string      `json:"region"`
+	Tier           string      `json:"tier"`
+	IsActive       bool        `json:"isActive"`
+	RemovedAt      *time.Time  `json:"removedAt"`
+	HealthStatus   *string     `json:"healthStatus"`
+	LastHeartbeat  *time.Time  `json:"lastHeartbeat"`
+	AgentVersion   *string     `json:"agentVersion"`
+	AgentPublicKey []byte      `json:"agentPublicKey"`
+	Role           ClusterRole `json:"role"`
 }
 
 func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
@@ -204,7 +204,7 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.LastHeartbeat,
 			&i.AgentVersion,
 			&i.AgentPublicKey,
-			&i.BuildsEnabled,
+			&i.Role,
 		); err != nil {
 			return nil, err
 		}
@@ -292,14 +292,20 @@ func (q *Queries) ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID)
 }
 
 const lockAssignableCluster = `-- name: LockAssignableCluster :one
-SELECT id FROM clusters WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE
+SELECT id, role FROM clusters
+WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE
 `
 
-func (q *Queries) LockAssignableCluster(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+type LockAssignableClusterRow struct {
+	ID   uuid.UUID   `json:"id"`
+	Role ClusterRole `json:"role"`
+}
+
+func (q *Queries) LockAssignableCluster(ctx context.Context, id uuid.UUID) (LockAssignableClusterRow, error) {
 	row := q.db.QueryRow(ctx, lockAssignableCluster, id)
-	var id_2 uuid.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
+	var i LockAssignableClusterRow
+	err := row.Scan(&i.ID, &i.Role)
+	return i, err
 }
 
 const lockClusterLifecycle = `-- name: LockClusterLifecycle :one
@@ -413,19 +419,19 @@ UPDATE clusters
 SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
-    builds_enabled = $5,
+    role = $5,
     domains = $6::text[],
     updated_at = NOW()
 WHERE id = $1
 `
 
 type UpdateClusterAgentInfoParams struct {
-	ID                    uuid.UUID `json:"id"`
-	AgentVersion          *string   `json:"agentVersion"`
-	CapacityCpuMillicores *int64    `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64    `json:"capacityMemoryBytes"`
-	BuildsEnabled         bool      `json:"buildsEnabled"`
-	Domains               []string  `json:"domains"`
+	ID                    uuid.UUID   `json:"id"`
+	AgentVersion          *string     `json:"agentVersion"`
+	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
+	Role                  ClusterRole `json:"role"`
+	Domains               []string    `json:"domains"`
 }
 
 // Cluster queries for agent operations
@@ -435,7 +441,7 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 		arg.AgentVersion,
 		arg.CapacityCpuMillicores,
 		arg.CapacityMemoryBytes,
-		arg.BuildsEnabled,
+		arg.Role,
 		arg.Domains,
 	)
 	return err
@@ -447,20 +453,20 @@ SET last_heartbeat = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     health_status = $5,
-    builds_enabled = $6,
+    role = $6,
     domains = $7::text[],
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL
 `
 
 type UpdateClusterHeartbeatParams struct {
-	ID                    uuid.UUID  `json:"id"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	HealthStatus          *string    `json:"healthStatus"`
-	BuildsEnabled         bool       `json:"buildsEnabled"`
-	Domains               []string   `json:"domains"`
+	ID                    uuid.UUID   `json:"id"`
+	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
+	HealthStatus          *string     `json:"healthStatus"`
+	Role                  ClusterRole `json:"role"`
+	Domains               []string    `json:"domains"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
@@ -470,7 +476,7 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.CapacityCpuMillicores,
 		arg.CapacityMemoryBytes,
 		arg.HealthStatus,
-		arg.BuildsEnabled,
+		arg.Role,
 		arg.Domains,
 	)
 	return err

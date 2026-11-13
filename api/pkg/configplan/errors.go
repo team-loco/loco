@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrOwnedByOtherPartial = errors.New("service is owned by another partial")
-	ErrUnknownRegion       = errors.New("region has no active cluster")
+	ErrUnknownRegion       = errors.New("region has no healthy cluster accepting applications")
 	ErrUnknownEnvironment  = errors.New("environment does not exist in the workspace")
 	ErrMissingSecret       = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,

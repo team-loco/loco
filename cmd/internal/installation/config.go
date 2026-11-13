@@ -95,6 +95,7 @@ type Worker struct {
 	Kubernetes    KubernetesTarget `json:"kubernetes"    yaml:"kubernetes"`
 	Region        string           `json:"region"        yaml:"region"`
 	Tier          string           `json:"tier"          yaml:"tier"`
+	Role          string           `json:"role"          yaml:"role"`
 	AppsDomain    string           `json:"appsDomain"    yaml:"appsDomain"`
 	Builds        Builds           `json:"builds"        yaml:"builds"`
 	Certificates  Certificates     `json:"certificates"  yaml:"certificates"`
@@ -109,7 +110,6 @@ type PrivateEgress struct {
 
 type Builds struct {
 	PrivateEgress []PrivateEgress `json:"privateEgress" yaml:"privateEgress"`
-	Enabled       bool            `json:"enabled"       yaml:"enabled"`
 }
 
 type MetricsServer struct {

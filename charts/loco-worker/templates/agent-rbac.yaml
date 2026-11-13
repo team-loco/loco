@@ -23,7 +23,7 @@ rules:
     verbs: ["create", "get", "list", "update", "delete"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    resourceNames: [{{ .Values.controller.name | quote }}]
+    resourceNames: [{{ include "loco-worker.healthController" . | quote }}]
     verbs: ["get"]
   - apiGroups: ["gateway.networking.k8s.io"]
     resources: ["gateways"]

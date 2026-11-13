@@ -42,10 +42,10 @@ test_n01_no_build_objects_are_installed() {
     assert_fails "No pod runs a builder or BuildKit image" grep -qE 'loco-builder|buildkit' <<<"$images"
 }
 
-test_n02_agent_reports_builds_disabled() {
-    local enabled
-    enabled=$(e2e_psql "SELECT builds_enabled FROM clusters WHERE id = '${nobuild_cluster_id}'")
-    assert "The agent reported that the cluster does not run builds" test "$enabled" = "f"
+test_n02_agent_reports_apps_role() {
+    local role
+    role=$(e2e_psql "SELECT role FROM clusters WHERE id = '${nobuild_cluster_id}'")
+    assert "The agent reported the apps role" test "$role" = "apps"
 }
 
 test_n03_public_image_deploys() {

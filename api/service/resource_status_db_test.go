@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -515,7 +516,9 @@ func heartbeatOverSync(
 ) {
 	health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
 	heartbeat := &agentv1.SyncRequest{
-		Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{Health: health}},
+		Message: &agentv1.SyncRequest_Heartbeat{
+			Heartbeat: &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Health: health},
+		},
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()

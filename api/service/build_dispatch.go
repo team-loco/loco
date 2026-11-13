@@ -92,11 +92,11 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 		return nil
 	}
 	clusterID := ss.clusterID
-	buildsEnabled, err := ss.server.queries.GetClusterBuildsEnabled(ctx, clusterID)
+	role, err := ss.server.queries.GetClusterRole(ctx, clusterID)
 	if err != nil {
 		return fmt.Errorf("check whether the cluster accepts builds: %w", err)
 	}
-	if !buildsEnabled {
+	if !runsBuilds(role) {
 		return ss.server.failClusterBuilds(ctx, genDb.FailClusterBuildsParams{
 			ClusterID:      &clusterID,
 			PreviousStatus: genDb.BuildStatusQueued,

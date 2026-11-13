@@ -4,6 +4,7 @@ package loco.agent.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
+import "loco/cluster/v1/cluster.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1";
 
@@ -19,7 +20,10 @@ service AgentService {
 message RegisterRequest {
   string agent_version = 1;
   AgentCapacity capacity = 2;
-  bool builds_enabled = 3;
+  loco.cluster.v1.ClusterRole role = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string cluster_key = 4 [(buf.validate.field).string.uuid = true];
   Enrollment enrollment = 5;
   repeated string domains = 6 [(buf.validate.field).repeated.items.string.hostname = true];
@@ -159,7 +163,10 @@ message CancelBuild {
 message Heartbeat {
   AgentCapacity capacity = 1;
   AgentHealth health = 2;
-  bool builds_enabled = 3;
+  loco.cluster.v1.ClusterRole role = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   repeated string domains = 4 [(buf.validate.field).repeated.items.string.hostname = true];
 }
 

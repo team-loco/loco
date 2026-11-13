@@ -7600,9 +7600,14 @@
             "title": "health",
             "$ref": "#/components/schemas/loco.agent.v1.AgentHealth"
           },
-          "buildsEnabled": {
-            "type": "boolean",
-            "title": "builds_enabled"
+          "role": {
+            "not": {
+              "enum": [
+                "CLUSTER_ROLE_UNSPECIFIED"
+              ]
+            },
+            "title": "role",
+            "$ref": "#/components/schemas/loco.cluster.v1.ClusterRole"
           },
           "domains": {
             "type": "array",
@@ -7734,9 +7739,14 @@
             "title": "capacity",
             "$ref": "#/components/schemas/loco.agent.v1.AgentCapacity"
           },
-          "buildsEnabled": {
-            "type": "boolean",
-            "title": "builds_enabled"
+          "role": {
+            "not": {
+              "enum": [
+                "CLUSTER_ROLE_UNSPECIFIED"
+              ]
+            },
+            "title": "role",
+            "$ref": "#/components/schemas/loco.cluster.v1.ClusterRole"
           },
           "clusterKey": {
             "type": "string",
@@ -8616,13 +8626,24 @@
             ],
             "title": "agent_key_fingerprint"
           },
-          "buildsEnabled": {
-            "type": "boolean",
-            "title": "builds_enabled"
+          "role": {
+            "title": "role",
+            "$ref": "#/components/schemas/loco.cluster.v1.ClusterRole"
           }
         },
         "title": "Cluster",
         "additionalProperties": false
+      },
+      "loco.cluster.v1.ClusterRole": {
+        "type": "string",
+        "title": "ClusterRole",
+        "enum": [
+          "CLUSTER_ROLE_UNSPECIFIED",
+          "CLUSTER_ROLE_APPS",
+          "CLUSTER_ROLE_BUILDS",
+          "CLUSTER_ROLE_ALL"
+        ],
+        "description": "ClusterRole is chosen when the worker is installed and reported by its agent."
       },
       "loco.cluster.v1.ClusterWorkload": {
         "type": "object",
@@ -14864,6 +14885,13 @@
   "security": [],
   "tags": [
     {
+      "name": "loco.environment.v1.EnvironmentService",
+      "description": "EnvironmentService manages environments within a workspace."
+    },
+    {
+      "name": "loco.cluster.v1.ClusterAdminService"
+    },
+    {
       "name": "loco.agent.v1.AgentService",
       "description": "AgentService handles communication between the control plane and data plane agents."
     },
@@ -14875,13 +14903,6 @@
     },
     {
       "name": "loco.build.v1.BuildService"
-    },
-    {
-      "name": "loco.environment.v1.EnvironmentService",
-      "description": "EnvironmentService manages environments within a workspace."
-    },
-    {
-      "name": "loco.cluster.v1.ClusterAdminService"
     },
     {
       "name": "loco.deployment.v1.DeploymentService",

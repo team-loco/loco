@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
 func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
@@ -37,7 +38,8 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 			t.Fatal(err)
 		}
 		health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
-		f.agentServer().recordHeartbeat(ctx, id, &agentv1.Heartbeat{Health: health})
+		f.agentServer().
+			recordHeartbeat(ctx, id, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Health: health})
 		row, err := f.queries.GetClusterByID(ctx, id)
 		if err != nil {
 			t.Fatal(err)
@@ -137,7 +139,7 @@ func TestPauseWaitsForAnInFlightAssignment(t *testing.T) {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	qtx := genDb.New(tx)
-	if lockErr := lockAssignableCluster(ctx, qtx, f.clusterID); lockErr != nil {
+	if lockErr := lockAssignableCluster(ctx, qtx, f.clusterID, false); lockErr != nil {
 		t.Fatal(lockErr)
 	}
 	result := make(chan error, 1)
@@ -166,7 +168,7 @@ func TestPauseWaitsForAnInFlightAssignment(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if err := lockAssignableCluster(ctx, genDb.New(tx), f.clusterID); !errors.Is(err, ErrClusterNotAssignable) {
+	if err := lockAssignableCluster(ctx, genDb.New(tx), f.clusterID, false); !errors.Is(err, ErrClusterNotAssignable) {
 		t.Fatalf("assignment after pause: %v", err)
 	}
 	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {

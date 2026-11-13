@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/loglevel"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -25,6 +26,7 @@ const (
 	envControllerNamespace      = "LOCO_CONTROLLER_NAMESPACE"
 	envControllerDeployment     = "LOCO_CONTROLLER_DEPLOYMENT"
 	envBuildNamespace           = "LOCO_BUILD_NAMESPACE"
+	envClusterRole              = "LOCO_CLUSTER_ROLE"
 	envInventoryInterval        = "LOCO_INVENTORY_INTERVAL"
 	envBuildRetention           = "LOCO_BUILD_RETENTION"
 	envBuildCollectInterval     = "LOCO_BUILD_COLLECT_INTERVAL"
@@ -56,9 +58,17 @@ var (
 	errInvalidDuration = errors.New("must be a positive duration")
 	errInvalidInteger  = errors.New("must be a positive integer")
 	errInvalidAuth     = errors.New("must be static or token")
+	errInvalidRole     = errors.New("must be apps, builds or all")
 )
 
 var version string
+
+// clusterRoles keys are the loco-worker chart's cluster.role values.
+var clusterRoles = map[string]clusterv1.ClusterRole{
+	"apps":   clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
+	"builds": clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS,
+	"all":    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+}
 
 type Config struct {
 	LogLevel                 slog.Level
@@ -72,6 +82,7 @@ type Config struct {
 	ControllerNamespace      string
 	ControllerDeployment     string
 	BuildNamespace           string
+	Role                     clusterv1.ClusterRole
 	InventoryInterval        time.Duration
 	BuildRetention           time.Duration
 	BuildCollectInterval     time.Duration
@@ -92,6 +103,10 @@ type Config struct {
 	IngestTokenSecret        telemetrytoken.Secret
 	RegistryAuth             string
 	RegistryCheckInterval    time.Duration
+}
+
+func (c *Config) RunsBuilds() bool {
+	return c.Role == clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS || c.Role == clusterv1.ClusterRole_CLUSTER_ROLE_ALL
 }
 
 func (c *Config) RegistryTokenMode() bool {
@@ -153,6 +168,15 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 	default:
 		return nil, fmt.Errorf("%s %q %w", envRegistryAuth, cfg.RegistryAuth, errInvalidAuth)
 	}
+	rawRole, err := requireEnv(getenv, envClusterRole)
+	if err != nil {
+		return nil, err
+	}
+	role, ok := clusterRoles[rawRole]
+	if !ok {
+		return nil, fmt.Errorf("%s %q %w", envClusterRole, rawRole, errInvalidRole)
+	}
+	cfg.Role = role
 	cfg.ControllerNamespace = getenv(envControllerNamespace)
 	if cfg.ControllerNamespace == "" {
 		cfg.ControllerNamespace = cfg.Namespace

@@ -8,7 +8,7 @@ templates:
   - templates/builds/*.yaml
   - templates/controller/*.yaml
 tests:
-  - it: renders the build controller, its namespace and its RBAC with builds enabled
+  - it: renders the build controller, its namespace and its RBAC for the all role
     asserts:
       - containsDocument: {kind: Namespace, apiVersion: v1, name: loco-builds}
         template: templates/builds/namespace.yaml
@@ -31,9 +31,9 @@ tests:
       - containsDocument: {kind: RoleBinding, apiVersion: rbac.authorization.k8s.io/v1, name: loco-agent-builds, any: true}
         template: templates/builds/agent-rbac.yaml
 
-  - it: renders nothing for builds with builds disabled
+  - it: renders nothing for builds for the apps role
     set:
-      builds.enabled: false
+      cluster.role: apps
     asserts:
       - hasDocuments:
           count: 0
@@ -63,7 +63,7 @@ tests:
           count: 0
         template: templates/builds/serviceaccount.yaml
 
-  - it: renders the Application controller with builds enabled
+  - it: renders the Application controller for the all role
     asserts: &controller
       - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-controller}
         template: templates/controller/deployment.yaml
@@ -74,10 +74,32 @@ tests:
       - containsDocument: {kind: ClusterRoleBinding, apiVersion: rbac.authorization.k8s.io/v1, name: loco-controller}
         template: templates/controller/manager-rolebinding.yaml
 
-  - it: renders the Application controller with builds disabled
+  - it: renders the Application controller for the apps role
     set:
-      builds.enabled: false
+      cluster.role: apps
     asserts: *controller
+
+  - it: renders the build controller and no Application controller for the builds role
+    set:
+      cluster.role: builds
+    asserts:
+      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-build-controller}
+        template: templates/builds/deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/controller/deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/controller/serviceaccount.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/controller/manager-role.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/controller/manager-rolebinding.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/controller/leader-election-rolebinding.yaml
 
   - it: lets the build controller read only the registry Secrets the values name
     set:
@@ -147,16 +169,16 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: requires a builder image tag with builds enabled
+  - it: requires a builder image tag for a role that runs builds
     set:
       builds.builderImage.tag: ""
     asserts:
       - failedTemplate:
-          errorPattern: "/builds/builderImage/tag': minLength"
+          errorMessage: builds.builderImage.tag is required when cluster.role runs builds
 
-  - it: needs no builder image tag with builds disabled
+  - it: needs no builder image tag for the apps role
     set:
-      builds.enabled: false
+      cluster.role: apps
       builds.builderImage.tag: ""
     asserts:
       - notFailedTemplate: {}

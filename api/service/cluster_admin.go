@@ -164,7 +164,7 @@ func (s *ClusterAdminServer) ListClusters(
 			IsActive: row.IsActive, RemovedAt: optionalTimestamp(row.RemovedAt),
 			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
-			BuildsEnabled: row.BuildsEnabled,
+			Role: clusterRoleToProto(row.Role),
 		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)

@@ -32,9 +32,12 @@ func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
 	const canary = "credential-canary-do-not-print"
 	valid := string(example(t))
 	tests := map[string]string{
-		"missing boolean": strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: {}", 1),
-		"null object":     strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: null", 1),
-		"wrong scalar":    strings.Replace(valid, "clientId: loco", "clientId: 123", 1),
+		"missing boolean": strings.Replace(
+			valid, "metricsServer: {enabled: true, kubeletInsecureTLS: false}", "metricsServer: {}", 1,
+		),
+		"null object":  strings.Replace(valid, "builds: {privateEgress: []}", "builds: null", 1),
+		"unknown role": strings.Replace(valid, "role: all", "role: everything", 1),
+		"wrong scalar": strings.Replace(valid, "clientId: loco", "clientId: 123", 1),
 		"bootstrap remote": strings.Replace(
 			valid,
 			"http://127.0.0.1:8400/callback",
@@ -126,18 +129,9 @@ func TestLoadReadFailureDoesNotDisclosePath(t *testing.T) {
 	}
 }
 
-func TestEmptyWorkersAndDisabledBuilds(t *testing.T) {
+func TestEmptyWorkersAndAppsOnlyRole(t *testing.T) {
 	valid := string(example(t))
-	if _, err := Parse(
-		[]byte(
-			strings.Replace(
-				valid,
-				"builds: {enabled: true, privateEgress: []}",
-				"builds: {enabled: false, privateEgress: []}",
-				1,
-			),
-		),
-	); err != nil {
+	if _, err := Parse([]byte(strings.Replace(valid, "role: all", "role: apps", 1))); err != nil {
 		t.Fatal(err)
 	}
 	prefix, _, _ := strings.Cut(valid, "workers:\n")

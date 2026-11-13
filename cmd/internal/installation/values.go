@@ -105,8 +105,9 @@ agent:
   joinToken: {existingSecret: loco-worker-enrollment}
 controller:
   image: {{with image .Manifest "controller"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
+cluster:
+  role: {{quote .Worker.Role}}
 builds:
-  enabled: {{.Worker.Builds.Enabled}}
   builderImage: {{with image .Manifest "builder"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
   privateEgress:{{if .Worker.Builds.PrivateEgress}}
 {{range .Worker.Builds.PrivateEgress}}    - cidr: {{quote .CIDR}}

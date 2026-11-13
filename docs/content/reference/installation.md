@@ -46,8 +46,8 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `workers[].kubernetes` | Existing `context`, pinned `clusterUID` and destination `namespace` |
 | `workers[].region` | Region registered with the API |
 | `workers[].tier` | `staging` or `production` |
+| `workers[].role` | `apps` runs only applications, `builds` only source builds, `all` both; installed as the worker chart's `cluster.role` |
 | `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
-| `workers[].builds.enabled` | Whether this worker runs source builds |
 | `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
 | `workers[].metricsServer.enabled` | `false` uses an existing `metrics.k8s.io` provider instead of installing metrics-server |
 | `workers[].metricsServer.kubeletInsecureTLS` | `true` skips kubelet certificate verification for clusters without CA-signed kubelet serving certificates |

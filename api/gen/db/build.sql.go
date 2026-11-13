@@ -378,7 +378,7 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 const getBuildCluster = `-- name: GetBuildCluster :one
 SELECT id FROM clusters
 WHERE is_active = true
-  AND builds_enabled = true
+  AND role IN ('builds', 'all')
 ORDER BY created_at, id
 LIMIT 1
 `

@@ -13,6 +13,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -79,6 +80,7 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	key := newAgentKey(t)
 	clusterKey := uuid.New()
 	_, err := e.agent.Register(t.Context(), &agentv1.RegisterRequest{
+		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: clusterKey.String(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 		Domains:    []string{domainsSecond, domainsFirst, domainsFirst},
@@ -91,11 +93,15 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	}
 
 	server := e.agentServer()
-	server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{Domains: []string{domainsThird}})
+	server.recordHeartbeat(
+		t.Context(),
+		clusterID,
+		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Domains: []string{domainsThird}},
+	)
 	if got := e.clusterDomains(t, clusterID); !slices.Equal(got, []string{domainsThird}) {
 		t.Fatalf("domains after heartbeat = %v, want [c.test]", got)
 	}
-	server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{})
+	server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
 	if got := e.clusterDomains(t, clusterID); len(got) != 0 {
 		t.Fatalf("domains after an empty heartbeat = %v, want none", got)
 	}
@@ -106,6 +112,7 @@ func TestRegisterRejectsAnInvalidDomain(t *testing.T) {
 	_, token := e.createCluster(t)
 	key := newAgentKey(t)
 	_, err := e.agent.Register(t.Context(), &agentv1.RegisterRequest{
+		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: uuid.NewString(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 		Domains:    []string{"*.example.com"},
@@ -288,6 +295,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	})
 
 	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
+		Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		Health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
 	})
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, wantRegion{
@@ -300,6 +308,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	}
 
 	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
+		Role:    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		Health:  &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
 		Domains: []string{testDomainPlatform},
 	})

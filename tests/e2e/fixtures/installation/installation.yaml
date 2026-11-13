@@ -38,8 +38,9 @@ workers:
   kubernetes: {context: fixture, clusterUID: {{ .ClusterUID | quote }}, namespace: loco-staging}
   region: us-east-1
   tier: staging
+  role: all
   appsDomain: apps.installation.test
   metricsServer: {enabled: true, kubeletInsecureTLS: true}
-  builds: {enabled: true, privateEgress: {{ .PrivateEgress | json }}}
+  builds: {privateEgress: {{ .PrivateEgress | json }}}
   certificates:
     issuerRef: {name: installation-ca, kind: ClusterIssuer}

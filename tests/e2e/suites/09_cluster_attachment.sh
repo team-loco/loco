@@ -33,7 +33,7 @@ enrollment_code() {
     public_key=$(head -c 32 /dev/urandom | base64)
     curl -s -o /dev/null -w '%{http_code}' \
         -H 'Content-Type: application/json' \
-        --data "{\"clusterKey\":\"${E2E_CLUSTER_KEY}\",\"agentVersion\":\"${E2E_VERSION}\",\"enrollment\":{\"joinToken\":\"${token}\",\"publicKey\":\"${public_key}\"}}" \
+        --data "{\"clusterKey\":\"${E2E_CLUSTER_KEY}\",\"agentVersion\":\"${E2E_VERSION}\",\"role\":\"CLUSTER_ROLE_ALL\",\"enrollment\":{\"joinToken\":\"${token}\",\"publicKey\":\"${public_key}\"}}" \
         "${E2E_API_URL}/loco.agent.v1.AgentService/Register"
 }
 

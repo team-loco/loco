@@ -69,7 +69,7 @@ region=obs-stack-region
 ingest_endpoint=http://host.docker.internal:$ingest_http_port
 manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set global.region="$region" \
 	--set global.exporter.endpoint="$ingest_endpoint" --set global.exporter.ingestToken.enabled=true --set agent.image.tag="$1" --set controller.image.tag="$1" \
-	--set builds.enabled=false --set certManager.issuer.email=obs-stack@example.test)
+	--set cluster.role=apps --set certManager.issuer.email=obs-stack@example.test)
 control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
 	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
 	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false --set certManager.enabled=false \

@@ -2,16 +2,11 @@ package main
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/team-loco/loco/agent/pkg/cluster"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
-
-var errBuildSupportChanged = errors.New("the cluster's build support changed; restarting to pick it up")
 
 func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRequest)) {
 	ticker := time.NewTicker(a.heartbeatInterval)
@@ -32,10 +27,10 @@ func (a *Agent) heartbeat(ctx context.Context) *agentv1.Heartbeat {
 	health := a.getHealth(ctx)
 	served := a.servedDomains(ctx)
 	return &agentv1.Heartbeat{
-		Capacity:      capacity,
-		Health:        health,
-		BuildsEnabled: a.buildsEnabled,
-		Domains:       served,
+		Capacity: capacity,
+		Health:   health,
+		Role:     a.cfg.Role,
+		Domains:  served,
 	}
 }
 
@@ -63,29 +58,4 @@ func (a *Agent) getHealth(ctx context.Context) *agentv1.AgentHealth {
 		slog.WarnContext(ctx, "cluster unhealthy", "message", health.GetMessage())
 	}
 	return health
-}
-
-func watchBuildSupport(
-	ctx context.Context,
-	inspector *cluster.Inspector,
-	started bool,
-	interval time.Duration,
-) error {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			enabled, err := inspector.BuildsEnabled(ctx)
-			if err != nil {
-				slog.WarnContext(ctx, "failed to check whether the cluster runs builds", "error", err)
-				continue
-			}
-			if enabled != started {
-				return fmt.Errorf("%w: builds_enabled went from %t to %t", errBuildSupportChanged, started, enabled)
-			}
-		}
-	}
 }

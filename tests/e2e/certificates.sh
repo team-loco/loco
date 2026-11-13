@@ -37,7 +37,7 @@ helm upgrade --install cert-manager "$(yq .chart "$CERT_MANAGER")" --repo "$(yq 
 kubectl create namespace loco-certificates --dry-run=client -o yaml | kubectl apply -f -
 
 CHART_VALUES=(--set gateway-helm.enabled=false --set agent.image.tag=e2e --set controller.image.tag=e2e
-    --set builds.enabled=false --set otel-col-daemon.enabled=false --set otel-col-deploy.enabled=false
+    --set cluster.role=apps --set otel-col-daemon.enabled=false --set otel-col-deploy.enabled=false
     --set otel-col-cluster.enabled=false)
 
 render_certificate() {

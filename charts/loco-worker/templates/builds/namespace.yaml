@@ -1,4 +1,4 @@
-{{- if and .Values.builds.enabled .Values.builds.createNamespace }}
+{{- if and (include "loco-worker.runsBuilds" .) .Values.builds.createNamespace }}
 {{- $podSecurity := .Values.builds.podSecurity }}
 apiVersion: v1
 kind: Namespace

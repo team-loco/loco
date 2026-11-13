@@ -64,7 +64,20 @@ app.kubernetes.io/name: loco-build-controller
 {{- end }}
 
 {{- define "loco-worker.buildConfig" -}}
-{{- omit .Values.builds "enabled" "controller" "podSecurity" | toJson }}
+{{- omit .Values.builds "controller" "podSecurity" | toJson }}
+{{- end }}
+
+{{- define "loco-worker.runsApps" -}}
+{{- if has .Values.cluster.role (list "apps" "all") }}true{{ end }}
+{{- end }}
+
+{{- /* The agent reports cluster health from this controller: the Application controller, or the build controller on a builds-only cluster. */ -}}
+{{- define "loco-worker.healthController" -}}
+{{- if include "loco-worker.runsApps" . }}{{ .Values.controller.name }}{{ else }}loco-build-controller{{ end }}
+{{- end }}
+
+{{- define "loco-worker.runsBuilds" -}}
+{{- if has .Values.cluster.role (list "builds" "all") }}true{{ end }}
 {{- end }}
 
 {{- define "loco-worker.image" -}}

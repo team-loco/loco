@@ -281,7 +281,7 @@ func queueBuild(
 			return lockErr
 		}
 
-		if assignErr := lockAssignableCluster(ctx, qtx, clusterID); assignErr != nil {
+		if assignErr := lockAssignableCluster(ctx, qtx, clusterID, true); assignErr != nil {
 			return assignErr
 		}
 		superseded, cancelErr := qtx.CancelOtherActiveBuilds(ctx, genDb.CancelOtherActiveBuildsParams{

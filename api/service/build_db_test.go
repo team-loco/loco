@@ -160,17 +160,10 @@ func newBuildFixture(t *testing.T) *buildFixture {
 
 	if _, err := f.pool.Exec(
 		ctx,
-		`UPDATE clusters SET created_at = NOW() - INTERVAL '1 hour', builds_enabled = true WHERE id = $1`,
+		`UPDATE clusters SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`,
 		f.clusterID,
 	); err != nil {
 		t.Fatalf("make the primary cluster the oldest: %v", err)
-	}
-	if _, err := f.pool.Exec(
-		ctx,
-		`UPDATE clusters SET builds_enabled = true WHERE id = $1`,
-		f.otherCluster,
-	); err != nil {
-		t.Fatalf("enable builds on the other cluster: %v", err)
 	}
 
 	bucket := newFakeBucket()

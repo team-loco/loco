@@ -66,3 +66,7 @@ The account needs the `system:admin` grant; organization and workspace admins do
 ## Verification
 
 `mise run e2e:attachment` builds an isolated kind environment, creates the cluster with `locoadm`, enrolls the agent and deploys an application. `--no-teardown` keeps the environment; `--skip-build` reuses its binaries and images on another run.
+
+## Cluster roles
+
+The worker chart's `cluster.role` sets what a cluster runs: `apps` for applications, `builds` for source builds, or `all`, the default, for both. The chart installs only the controllers the role needs, and the agent reports the role when it registers and in every heartbeat. Applications are placed only on `apps` and `all` clusters, and builds run only on `builds` and `all` clusters. To change a role, upgrade the chart with the new value; the agent restarts with it.

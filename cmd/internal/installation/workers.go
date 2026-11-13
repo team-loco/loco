@@ -34,6 +34,13 @@ var (
 	errWorkerRegistration     = errors.New("create or recover worker registration failed")
 )
 
+// workerRoles keys are the loco-worker chart's cluster.role values.
+var workerRoles = map[string]clusterv1.ClusterRole{
+	"apps":   clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
+	"builds": clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS,
+	"all":    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+}
+
 // ApplyWorkers requires an authenticated system-admin session established after
 // the first-admin checkpoint. Enrollment credentials never leave destination Secrets.
 func ApplyWorkers(ctx context.Context, config Config, manifestPath, token string) error {
@@ -247,7 +254,7 @@ func (k *Kubernetes) workerReady(ctx context.Context, cluster *clusterv1.Cluster
 	}
 	ready := cluster.GetIsActive() && cluster.GetLastHeartbeat() != nil &&
 		time.Since(cluster.GetLastHeartbeat().AsTime()) < workerHeartbeatMaxAge &&
-		cluster.GetBuildsEnabled() == worker.Builds.Enabled
+		cluster.GetRole() == workerRoles[worker.Role]
 	return ready, nil
 }
 

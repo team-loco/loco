@@ -27,11 +27,11 @@ func (a *Agent) register(ctx context.Context) error {
 	}
 	capacity := a.getCapacity(ctx)
 	req := &agentv1.RegisterRequest{
-		AgentVersion:  a.cfg.AgentVersion,
-		ClusterKey:    key,
-		Capacity:      capacity,
-		BuildsEnabled: a.buildsEnabled,
-		Domains:       a.servedDomains(ctx),
+		AgentVersion: a.cfg.AgentVersion,
+		ClusterKey:   key,
+		Capacity:     capacity,
+		Role:         a.cfg.Role,
+		Domains:      a.servedDomains(ctx),
 	}
 	if stored.ClusterID == "" {
 		if a.cfg.JoinToken == "" {

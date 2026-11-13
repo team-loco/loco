@@ -8,6 +8,7 @@ package agentv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -86,7 +87,7 @@ type RegisterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AgentVersion  string                 `protobuf:"bytes,1,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
 	Capacity      *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	BuildsEnabled bool                   `protobuf:"varint,3,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
+	Role          v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	ClusterKey    string                 `protobuf:"bytes,4,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
 	Enrollment    *Enrollment            `protobuf:"bytes,5,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
 	Domains       []string               `protobuf:"bytes,6,rep,name=domains,proto3" json:"domains,omitempty"`
@@ -138,11 +139,11 @@ func (x *RegisterRequest) GetCapacity() *AgentCapacity {
 	return nil
 }
 
-func (x *RegisterRequest) GetBuildsEnabled() bool {
+func (x *RegisterRequest) GetRole() v1.ClusterRole {
 	if x != nil {
-		return x.BuildsEnabled
+		return x.Role
 	}
-	return false
+	return v1.ClusterRole(0)
 }
 
 func (x *RegisterRequest) GetClusterKey() string {
@@ -1305,7 +1306,7 @@ type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Capacity      *AgentCapacity         `protobuf:"bytes,1,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	Health        *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
-	BuildsEnabled bool                   `protobuf:"varint,3,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
+	Role          v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	Domains       []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1355,11 +1356,11 @@ func (x *Heartbeat) GetHealth() *AgentHealth {
 	return nil
 }
 
-func (x *Heartbeat) GetBuildsEnabled() bool {
+func (x *Heartbeat) GetRole() v1.ClusterRole {
 	if x != nil {
-		return x.BuildsEnabled
+		return x.Role
 	}
-	return false
+	return v1.ClusterRole(0)
 }
 
 func (x *Heartbeat) GetDomains() []string {
@@ -1519,11 +1520,12 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"\xa5\x02\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1dloco/cluster/v1/cluster.proto\"\xbc\x02\n" +
 	"\x0fRegisterRequest\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
-	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12%\n" +
-	"\x0ebuilds_enabled\x18\x03 \x01(\bR\rbuildsEnabled\x12)\n" +
+	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12<\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12)\n" +
 	"\vcluster_key\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"clusterKey\x129\n" +
 	"\n" +
@@ -1623,11 +1625,12 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x13registry_credential\x18\n" +
 	" \x01(\tR\x12registryCredential\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xc8\x01\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xdf\x01\n" +
 	"\tHeartbeat\x128\n" +
 	"\bcapacity\x18\x01 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
-	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12%\n" +
-	"\x0ebuilds_enabled\x18\x03 \x01(\bR\rbuildsEnabled\x12&\n" +
+	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
 	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\"\x8d\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
@@ -1689,38 +1692,41 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*AgentCapacity)(nil),       // 18: loco.agent.v1.AgentCapacity
 	(*AgentHealth)(nil),         // 19: loco.agent.v1.AgentHealth
 	nil,                         // 20: loco.agent.v1.EnvSecret.DataEntry
-	(*durationpb.Duration)(nil), // 21: google.protobuf.Duration
+	(v1.ClusterRole)(0),         // 21: loco.cluster.v1.ClusterRole
+	(*durationpb.Duration)(nil), // 22: google.protobuf.Duration
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	18, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	2,  // 1: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
-	21, // 2: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
-	5,  // 3: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
-	9,  // 4: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
-	10, // 5: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
-	8,  // 6: loco.agent.v1.SyncRequest.build_status:type_name -> loco.agent.v1.BuildStatus
-	17, // 7: loco.agent.v1.SyncRequest.heartbeat:type_name -> loco.agent.v1.Heartbeat
-	6,  // 8: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
-	7,  // 9: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
-	0,  // 10: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
-	0,  // 11: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
-	12, // 12: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	14, // 13: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	15, // 14: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	16, // 15: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	13, // 16: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	20, // 17: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	18, // 18: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
-	19, // 19: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	1,  // 20: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	4,  // 21: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	3,  // 22: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	11, // 23: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	22, // [22:24] is the sub-list for method output_type
-	20, // [20:22] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	21, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
+	2,  // 2: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
+	22, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
+	5,  // 4: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
+	9,  // 5: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
+	10, // 6: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
+	8,  // 7: loco.agent.v1.SyncRequest.build_status:type_name -> loco.agent.v1.BuildStatus
+	17, // 8: loco.agent.v1.SyncRequest.heartbeat:type_name -> loco.agent.v1.Heartbeat
+	6,  // 9: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
+	7,  // 10: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
+	0,  // 11: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
+	0,  // 12: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
+	12, // 13: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	14, // 14: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	15, // 15: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	16, // 16: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	13, // 17: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	20, // 18: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	18, // 19: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	19, // 20: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
+	21, // 21: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
+	1,  // 22: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	4,  // 23: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	3,  // 24: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	11, // 25: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	24, // [24:26] is the sub-list for method output_type
+	22, // [22:24] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }

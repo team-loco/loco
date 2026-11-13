@@ -5,7 +5,7 @@ UPDATE clusters
 SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
-    builds_enabled = $5,
+    role = $5,
     domains = sqlc.arg(domains)::text[],
     updated_at = NOW()
 WHERE id = $1;
@@ -16,13 +16,13 @@ SET last_heartbeat = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     health_status = $5,
-    builds_enabled = $6,
+    role = $6,
     domains = sqlc.arg(domains)::text[],
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL;
 
--- name: GetClusterBuildsEnabled :one
-SELECT builds_enabled FROM clusters WHERE id = $1;
+-- name: GetClusterRole :one
+SELECT role FROM clusters WHERE id = $1;
 
 -- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
@@ -81,14 +81,15 @@ ON CONFLICT (cluster_id, jti) DO NOTHING;
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, builds_enabled
+       last_heartbeat, agent_version, agent_public_key, role
 FROM clusters ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one
 SELECT id, is_active, removed_at FROM clusters WHERE id = $1 FOR UPDATE;
 
 -- name: LockAssignableCluster :one
-SELECT id FROM clusters WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE;
+SELECT id, role FROM clusters
+WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE;
 
 -- name: UpdateClusterLifecycle :exec
 UPDATE clusters

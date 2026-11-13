@@ -30,7 +30,15 @@ message Cluster {
   google.protobuf.Timestamp last_heartbeat = 9;
   optional string agent_version = 10;
   optional string agent_key_fingerprint = 11;
-  bool builds_enabled = 12;
+  ClusterRole role = 12;
+}
+
+// ClusterRole is chosen when the worker is installed and reported by its agent.
+enum ClusterRole {
+  CLUSTER_ROLE_UNSPECIFIED = 0;
+  CLUSTER_ROLE_APPS = 1;
+  CLUSTER_ROLE_BUILDS = 2;
+  CLUSTER_ROLE_ALL = 3;
 }
 
 message ClusterWorkload {
