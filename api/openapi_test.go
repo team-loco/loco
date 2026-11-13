@@ -117,7 +117,7 @@ func TestOpenAPI(t *testing.T) {
 	for _, path := range []string{
 		configv1connect.ConfigServiceGetConfigProcedure,
 		agentv1connect.AgentServiceSyncProcedure,
-		observabilityv1connect.ObservabilityProxyServiceQueryLogsProcedure,
+		observabilityv1connect.ObservabilityServiceQueryLogsProcedure,
 	} {
 		if _, ok := spec.Paths[path]; !ok {
 			t.Errorf("missing RPC path %s", path)

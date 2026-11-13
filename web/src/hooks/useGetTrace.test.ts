@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
-import { ObservabilityProxyService, type GetTraceRequest } from "@gen/loco/observability/v1/observability_pb";
+import { ObservabilityService, type GetTraceRequest } from "@gen/loco/observability/v1/observability_pb";
 import { getTraceQueryOptions } from "./useGetTrace";
 
 const input = { workspaceId: "workspace", environmentId: "production", resourceIds: ["cart"], traceId: "trace" };
@@ -9,7 +9,7 @@ describe("get trace", () => {
 	test("fetches every span in one scoped request", async () => {
 		let received: GetTraceRequest | undefined;
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				getTrace(request) {
 					received = request;
 					return { spans: Array.from({ length: 700 }, (_, i) => ({ traceId: request.traceId, spanId: String(i) })) };
@@ -40,7 +40,7 @@ describe("get trace", () => {
 	});
 	test("preserves errors and cancellation", async () => {
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				getTrace() {
 					throw new ConnectError("Workspace read required", Code.PermissionDenied);
 				},

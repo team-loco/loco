@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
-import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
+import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
 
 export interface TraceScopeOptions {
 	workspaceId: string;
@@ -17,13 +17,13 @@ export function getTraceQueryOptions(transport: Transport, options: GetTraceOpti
 	const input = { scope, traceId };
 	return {
 		queryKey: createConnectQueryKey({
-			schema: ObservabilityProxyService.method.getTrace,
+			schema: ObservabilityService.method.getTrace,
 			transport,
 			cardinality: "finite",
 			input,
 		}),
 		queryFn: async ({ signal }: { signal: AbortSignal }) =>
-			await createClient(ObservabilityProxyService, transport).getTrace(input, { signal }),
+			await createClient(ObservabilityService, transport).getTrace(input, { signal }),
 		enabled: enabled && options.workspaceId !== "" && options.environmentId !== "" && traceId !== "",
 		staleTime: 0,
 	};

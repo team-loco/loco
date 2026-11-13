@@ -1,6 +1,6 @@
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
-import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
+import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
 import { stepSeconds } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 
@@ -46,7 +46,7 @@ export function metricsQueryOptions(
 	return {
 		queryKey: [
 			...createConnectQueryKey({
-				schema: ObservabilityProxyService.method.queryMetrics,
+				schema: ObservabilityService.method.queryMetrics,
 				transport,
 				cardinality: "finite",
 				input,
@@ -56,7 +56,7 @@ export function metricsQueryOptions(
 		],
 		queryFn: async ({ signal }: { signal: AbortSignal }) => {
 			const end = endMs ?? Date.now();
-			const response = await createClient(ObservabilityProxyService, transport).queryMetrics(
+			const response = await createClient(ObservabilityService, transport).queryMetrics(
 				{ ...input, startTime: msToTimestamp(end - spanMs), endTime: msToTimestamp(end) },
 				{ signal },
 			);

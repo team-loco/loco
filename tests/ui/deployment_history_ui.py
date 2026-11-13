@@ -150,7 +150,7 @@ with sync_playwright() as playwright:
                     entries = [{"timestamp": f"2026-01-01T00:00:0{index}Z", "severity": severity, "body": text} for index, (severity, text) in enumerate(BUILD_LOG)]
                     route.fulfill(json={"entries": entries})
 
-                context.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", build_logs)
+                context.route("**/loco.observability.v1.ObservabilityService/QueryLogs", build_logs)
                 failed = []
 
                 def history(route):

@@ -521,7 +521,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 	planv1connect.RegisterPlanServiceHandler(authenticatedServer, d.plan)
 	environmentv1connect.RegisterEnvironmentServiceHandler(authenticatedServer, d.environment)
 	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, d.secret)
-	observabilityv1connect.RegisterObservabilityProxyServiceHandler(authenticatedServer, d.observability)
+	observabilityv1connect.RegisterObservabilityServiceHandler(authenticatedServer, d.observability)
 
 	mux.HandleFunc("GET "+ingesttoken.JWKSPath, d.ingest.JWKS)
 	if d.registryKey != nil {

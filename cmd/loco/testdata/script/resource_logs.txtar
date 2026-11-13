@@ -10,7 +10,7 @@ exec loco resource logs app --output json
 stdout '"body":"listening on :8080"'
 
 ! exec loco resource logs app --since 48h
-stderr '(?i)the log proxy reads at most 24h back'
+stderr '(?i)the API reads logs at most 24h back'
 
 exec loco resource logs app
 stdout 'listening on :8080'

@@ -76,7 +76,7 @@ func readLogOptions(cmd *cobra.Command, out io.Writer) (logOptions, error) {
 		return opts, errors.New("--lines must not be negative")
 	}
 	if opts.since > logstream.MaxRange {
-		return opts, errors.New("the log proxy reads at most 24h back; lower --since")
+		return opts, errors.New("the API reads logs at most 24h back; lower --since")
 	}
 	output, err := cmd.Flags().GetString("output")
 	if err != nil {
@@ -132,7 +132,7 @@ func runResourceLogs(cmd *cobra.Command, name string) error {
 	filter := logstream.Filter{WorkspaceID: t.WorkspaceID, ResourceIDs: []string{resource.GetId()}}
 	end := time.Now()
 	start := end.Add(-opts.since)
-	logs := &logstream.Client{Proxy: t.Clients.ObservabilityProxy}
+	logs := &logstream.Client{Observability: t.Clients.Observability}
 	window := logstream.Window{Start: start, End: end, Limit: opts.lines, Follow: opts.follow}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {

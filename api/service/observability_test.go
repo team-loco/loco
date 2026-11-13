@@ -41,7 +41,7 @@ var observabilityTestConfig = ObservabilityConfig{
 	MaxTailDuration: time.Minute,
 }
 
-type observabilityClient = observabilityv1connect.ObservabilityProxyServiceClient
+type observabilityClient = observabilityv1connect.ObservabilityServiceClient
 
 // observabilityTestClient serves server behind the authenticated server's error and validation
 // interceptors. A bearer token names its caller's scopes in callers; an unknown token is a caller
@@ -62,13 +62,13 @@ func observabilityTestClient(
 		}
 	}
 	rpcServer := connect.NewServer(interceptor.NewErrorInterceptor(), principals, validate.NewServerInterceptor())
-	observabilityv1connect.RegisterObservabilityProxyServiceHandler(rpcServer, server)
+	observabilityv1connect.RegisterObservabilityServiceHandler(rpcServer, server)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, rpcServer)
 	httpServer := httptest.NewServer(mux)
 	t.Cleanup(httpServer.Close)
 	transport := connecthttp.NewTransport(httpServer.Client(), httpServer.URL)
-	return observabilityv1connect.NewObservabilityProxyServiceClient(connect.NewClient(transport))
+	return observabilityv1connect.NewObservabilityServiceClient(connect.NewClient(transport))
 }
 
 func callerContext(t *testing.T, token string) context.Context {

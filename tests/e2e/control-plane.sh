@@ -171,7 +171,7 @@ done
 API_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/port-forward.log" | head -1)
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/health"
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/openapi.json" >"$RUN_DIR/openapi.json"
-yq -e -p json '.openapi == "3.1.0" and .info.version == "e2e" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityProxyService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
+yq -e -p json '.openapi == "3.1.0" and .info.version == "e2e" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/api-docs.html"
 grep -F 'Scalar.createApiReference(' "$RUN_DIR/api-docs.html" >/dev/null
 grep -F 'url: "/openapi.json"' "$RUN_DIR/api-docs.html" >/dev/null
@@ -186,7 +186,7 @@ curl --fail --silent -H "Host: $APP_HOST" -H 'Content-Type: application/json' -d
     "http://127.0.0.1:$API_PORT/api/loco.config.v1.ConfigService/GetConfig" >"$RUN_DIR/config.json"
 curl --silent -H "Host: $APP_HOST" -H 'Content-Type: application/json' -H 'Authorization: Bearer invalid-e2e-token' \
     --data-binary @"$RUN_DIR/query.json" \
-    "http://127.0.0.1:$API_PORT/api/loco.observability.v1.ObservabilityProxyService/QueryLogs" >"$RUN_DIR/observability.json"
+    "http://127.0.0.1:$API_PORT/api/loco.observability.v1.ObservabilityService/QueryLogs" >"$RUN_DIR/observability.json"
 python3 - "$RUN_DIR" <<'PY'
 import json
 import pathlib
