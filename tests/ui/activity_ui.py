@@ -166,6 +166,8 @@ def check_scoped_user(browser, theme):
             assert any(request['method'] == 'ListEvents' and request['body'].get('resourceId') == rid and request['status'] == 200 for request in recorded), recorded
         if scene == 'dashboard':
             assert 'shared' in page.locator('nav[aria-label=breadcrumb]').inner_text()
+            # Environment-wide traffic needs workspace read; the scoped view shows none.
+            assert not [request for request in recorded if request['method'] == 'QueryMetrics'], recorded
         page.screenshot(path=out / f'scoped-{scene}-{phase}-{theme}.png', full_page=True, animations='disabled')
         checked.append({'scene': scene, 'theme': theme, 'requests': recorded})
         context.close()

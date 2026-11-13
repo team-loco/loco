@@ -84,7 +84,9 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 		envResources,
 		envDeployments,
 		regions: regionInfos,
-		isLoading,
+		// Until grants resolve a scoped viewer is indistinguishable from a workspace reader, and the
+		// workspace view queries environment-wide metrics the proxy refuses them.
+		isLoading: isLoading || grants === undefined,
 		error,
 	};
 }
