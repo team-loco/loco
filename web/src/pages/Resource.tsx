@@ -1,3 +1,4 @@
+import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -12,7 +13,6 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, Section } from "@/components/design/Page";
-import { SoonTag } from "@/components/design/SoonTag";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
@@ -377,18 +377,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							</EmptyState>
 						</Section>
 					)}
-					<Section
-						title={
-							<>
-								Traffic
-								<SoonTag />
-							</>
-						}
-					>
-						<p className="m-0 px-5 py-4 text-fg3">
-							Requests, errors and latency for this resource are not collected yet.
-						</p>
-					</Section>
+					{deployed.length > 0 && environmentId !== undefined && (
+						<TrafficSection
+							workspaceId={resource.workspaceId}
+							environmentId={environmentId}
+							resourceId={resource.id}
+							region={selectedRegion ?? ""}
+							range={range}
+						/>
+					)}
 					<DeploymentsSection
 						nowMs={nowMs}
 						resourceId={resource.id}
