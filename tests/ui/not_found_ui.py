@@ -213,7 +213,15 @@ with sync_playwright() as playwright:
             expect(prompt.get_by_role("link", name="Read the docs")).to_be_visible()
             page.get_by_role("button", name=re.compile(r"^Invitations")).click()
             expect(page.get_by_text("No invitations", exact=True)).to_be_visible()
+            # Hold the API until the loading overlay shows, so the code below is read while the
+            # overlay fades out and must stay the only exposed status.
+            held = []
+            page.route("**/loco.*/**", lambda route: held.append(route) if held is not None else route.continue_())
             page.goto(ui + "/cli/device?code=ABCD-EFGH")
+            expect(page.get_by_role("status")).to_be_visible()
+            pending, held = held, None
+            for route in pending:
+                route.continue_()
             expect(page.get_by_text("Check that this matches your terminal", exact=True)).to_be_visible()
             expect(page.get_by_role("status")).to_have_text("ABCD-EFGH")
             expect(page.get_by_role("textbox", name="Device code")).to_have_count(0)
