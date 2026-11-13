@@ -34,7 +34,6 @@ obsProxy:
     tag: e2e
   imagePullPolicy: Never
   ingest:
-    enabled: true
     hostname: ingest.e2e.test.local
 clickhouse:
   enabled: true

@@ -57,9 +57,10 @@ def main():
             'openbao': {'seal': {'static': {'existingSecret': {'name': 'openbao-seal'}}},
                         'snapshots': {'s3': {'endpoint': 'https://s3.example.test', 'bucket': 'backups', 'existingSecret': {'name': 'snapshot-s3'}}}},
             'ui': {'image': {'repository': images['ui'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}},
-            'api': {'image': {'repository': images['api'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}, 'existingSecret': 'regional-api-env'},
+            'api': {'image': {'repository': images['api'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}, 'existingSecret': 'regional-api-env',
+                    'clickhouse': {'existingSecret': {'name': 'reader'}}},
             'obsProxy': {'image': {'repository': images['obs-proxy'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'},
-                         'query': {'clickhouse': {'existingSecret': {'name': 'reader'}, 'migratorExistingSecret': {'name': 'migrator'}}}},
+                         'ingest': {'clickhouse': {'existingSecret': {'name': 'ingest'}, 'migratorExistingSecret': {'name': 'migrator'}}}},
         }
         cp_path = temp / 'control-plane-values.json'
         cp_path.write_text(json.dumps(cp_values))

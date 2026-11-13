@@ -14,7 +14,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/pressly/goose/v3"
 
-	"github.com/team-loco/loco/observability-proxy/pkg/clickhouseerr"
+	"github.com/team-loco/loco/internal/clickhouse/clickhouseerr"
 )
 
 const VersionTable = "loco_schema_migrations"

@@ -26,6 +26,24 @@
           },
           "additionalProperties": false
         },
+        "clickhouse": {
+          "type": "object",
+          "properties": {
+            "existingSecret": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "env": {
           "type": "object"
         },
@@ -249,51 +267,6 @@
                     }
                   },
                   "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
-            },
-            "enabled": {
-              "type": "boolean"
-            },
-            "grpcPort": {
-              "type": "integer"
-            },
-            "hostname": {
-              "type": "string"
-            },
-            "httpPort": {
-              "type": "integer"
-            },
-            "port": {
-              "type": "integer"
-            },
-            "replicaCount": {
-              "type": "integer"
-            },
-            "resources": {
-              "type": "object"
-            }
-          },
-          "additionalProperties": false
-        },
-        "query": {
-          "type": "object",
-          "properties": {
-            "clickhouse": {
-              "type": "object",
-              "properties": {
-                "existingSecret": {
-                  "type": "object",
-                  "properties": {
-                    "key": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
                 },
                 "migratorExistingSecret": {
                   "type": "object",
@@ -310,17 +283,14 @@
               },
               "additionalProperties": false
             },
-            "cors": {
-              "type": "object",
-              "properties": {
-                "allowedOrigins": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "additionalProperties": false
+            "grpcPort": {
+              "type": "integer"
+            },
+            "hostname": {
+              "type": "string"
+            },
+            "httpPort": {
+              "type": "integer"
             },
             "port": {
               "type": "integer"

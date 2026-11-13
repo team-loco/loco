@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Test scalar metrics through the chart-pinned Collector and its rendered OTLP/HTTP exporter, the observability proxy ingest role, ClickHouse and the authenticated proxy HTTP API; LOCO_TEST_CLICKHOUSE_URL reuses a running server with Keeper instead"
+#MISE description="Test scalar metrics through the chart-pinned Collector and its rendered OTLP/HTTP exporter, the observability proxy, ClickHouse and the telemetry queries the API serves, then run the observability proxy and ClickHouse package tests against the same server; LOCO_TEST_CLICKHOUSE_URL reuses a running server with Keeper instead"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 root=$(git rev-parse --show-toplevel)
@@ -92,8 +92,8 @@ mkdir -p "$work_dir/token"
 chmod -R a+rX "$work_dir/token"
 
 (cd "$root/observability-proxy" && go build -o "$work_dir/loco-obs-proxy" .)
-CONTROL_PLANE_URL="http://$LOCO_TEST_COUNTER_CONTROL_PLANE_ADDR" QUERY_ENABLED=true INGEST_ENABLED=true PORT="$proxy_port" OTLP_GRPC_PORT="$otlp_grpc_port" OTLP_HTTP_PORT="$otlp_http_port" \
-    CLICKHOUSE_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_MIGRATOR_URL="$LOCO_TEST_CLICKHOUSE_URL" \
+CONTROL_PLANE_URL="http://$LOCO_TEST_COUNTER_CONTROL_PLANE_ADDR" PORT="$proxy_port" OTLP_GRPC_PORT="$otlp_grpc_port" OTLP_HTTP_PORT="$otlp_http_port" \
+    CLICKHOUSE_MIGRATOR_URL="$LOCO_TEST_CLICKHOUSE_URL" \
     CLICKHOUSE_INGEST_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_DB="$LOCO_TEST_COUNTER_DATABASE" \
     "$work_dir/loco-obs-proxy" >"$work_dir/proxy.log" 2>&1 &
 proxy_pid=$!
@@ -126,5 +126,6 @@ start_container "$collector"
 address=$(docker port "$collector" 4318/tcp | head -1)
 export LOCO_TEST_COUNTER_OTLP_URL="http://$address"
 wait_for curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}'
+go -C "$root" test -v -count=1 ./internal/clickhouse/... "$@"
 cd "$root/observability-proxy"
 go test -v -count=1 -coverprofile=coverage.out ./... "$@"

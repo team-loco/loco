@@ -27,7 +27,7 @@ def _selected(module_dependencies, *paths):
 def test_stacked_proxy_test_and_docs_select_only_proxy(module_dependencies):
     assert _selected(
         module_dependencies,
-        "observability-proxy/pkg/auth/validator_test.go",
+        "observability-proxy/pkg/ingest/gate_test.go",
         "docs/content/operations/self-hosting.md",
     ) == {"observability-proxy"}
 
@@ -72,11 +72,21 @@ def test_proxy_external_test_inputs(module_dependencies, subtests):
         "mise-tasks/test/counter-metrics",
         "mise-tasks/test/lib/ports.sh",
         "charts/loco-worker/values.yaml",
-        "charts/loco-control-plane/values.yaml",
     ):
         with subtests.test(path=path):
             assert _selected(module_dependencies, path) == {"observability-proxy"}
     assert _selected(module_dependencies, "controller/Makefile") == {"controller"}
+
+
+def test_clickhouse_test_changes_select_the_jobs_that_run_them(module_dependencies, subtests):
+    for path, expected in (
+        ("internal/clickhouse/logs_test.go", {".", "observability-proxy"}),
+        ("mise-tasks/test/api", {"api"}),
+        ("mise-tasks/test/lib/clickhouse.sh", {"api"}),
+        ("charts/loco-control-plane/values.yaml", {"api", "observability-proxy"}),
+    ):
+        with subtests.test(path=path):
+            assert _selected(module_dependencies, path) == expected
 
 
 def test_toolchain_and_selector_changes_select_every_module(

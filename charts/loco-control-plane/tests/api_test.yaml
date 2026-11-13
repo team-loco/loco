@@ -10,7 +10,7 @@ templates:
   - templates/api-route.yaml
   - templates/api-traffic-policy.yaml
   - templates/ui.yaml
-  - templates/obs-proxy-query-deployment.yaml
+  - templates/obs-proxy-ingest-deployment.yaml
 tests:
   - it: installs the API and the observability proxy, and routes to the API
     set:
@@ -18,8 +18,8 @@ tests:
     asserts:
       - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-control-plane-api}
         template: templates/api-deployment.yaml
-      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-control-plane-obs-proxy-query}
-        template: templates/obs-proxy-query-deployment.yaml
+      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-control-plane-obs-proxy-ingest}
+        template: templates/obs-proxy-ingest-deployment.yaml
       - equal:
           path: spec.rules[0].backendRefs[0].name
           value: loco-control-plane-api
@@ -60,12 +60,29 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: APP_ENV, value: production}
 
-  - it: points the API at the private observability proxy
+  - it: reads ClickHouse with the read-only URL from the existing Secret
     template: templates/api-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: OBSERVABILITY_PROXY_URL, value: http://loco-control-plane-obs-proxy-query.loco-control-plane.svc.cluster.local}
+          content: {name: CLICKHOUSE_URL, valueFrom: {secretKeyRef: {name: loco-api-clickhouse-reader, key: url}}}
+
+  - it: reads its ClickHouse database from the one chart value
+    set:
+      clickhouse.clickhouse.database: observability
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_DB, value: observability}
+
+  - it: requires the API's ClickHouse Secret name
+    set:
+      api.clickhouse.existingSecret.name: ""
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: api.clickhouse.existingSecret.name is required
 
   - it: probes API startup with the values' thresholds
     set:
@@ -83,9 +100,9 @@ tests:
       - failedTemplate:
           errorPattern: "/api/existingSecret': minLength"
 
-  - it: keeps APP_PORT and OBSERVABILITY_PROXY_URL out of the values env
+  - it: keeps APP_PORT and the ClickHouse settings out of the values env
     set:
-      api.env: {APP_PORT: wrong, OBSERVABILITY_PROXY_URL: wrong}
+      api.env: {APP_PORT: wrong, CLICKHOUSE_URL: wrong, CLICKHOUSE_DB: wrong}
     template: templates/api-deployment.yaml
     asserts:
       - notContains:
@@ -93,7 +110,10 @@ tests:
           content: {name: APP_PORT, value: wrong}
       - notContains:
           path: spec.template.spec.containers[0].env
-          content: {name: OBSERVABILITY_PROXY_URL, value: wrong}
+          content: {name: CLICKHOUSE_URL, value: wrong}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_DB, value: wrong}
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: APP_PORT, value: "0.0.0.0:8000"}
@@ -132,7 +152,7 @@ tests:
           content: {name: LOCO_BOOTSTRAP_TOKEN}
           any: true
 
-  - it: admits the Gateway's Envoy pods and the query proxy to the API
+  - it: admits the Gateway's Envoy pods and the ingest proxy to the API
     set:
       gatewayNamespace: gateway
     template: templates/api-network-policy.yaml
@@ -142,7 +162,10 @@ tests:
           value: {kubernetes.io/metadata.name: gateway}
       - equal:
           path: spec.ingress[0].from[1]
-          value: {podSelector: {matchLabels: {app: loco-control-plane-obs-proxy-query}}}
+          value: {podSelector: {matchLabels: {app: loco-control-plane-obs-proxy-ingest}}}
+      - lengthEqual:
+          path: spec.ingress[0].from
+          count: 2
       - lengthEqual:
           path: spec.ingress
           count: 1

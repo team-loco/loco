@@ -38,7 +38,7 @@ test_p02_requests_without_a_valid_token_are_unauthenticated() {
     status=$(proxy_status "$cli_workspace_id")
     assert "QueryLogs without a token is unauthenticated (HTTP ${status})" test "$status" = 401
     status=$(proxy_status "$cli_workspace_id" -H 'Authorization: Bearer loco_k_not-a-token')
-    assert "QueryLogs with an unknown token is denied (HTTP ${status})" test "$status" = 403
+    assert "QueryLogs with an unknown token is unauthenticated (HTTP ${status})" test "$status" = 401
 }
 
 test_p03_revoked_token_is_denied() {
@@ -48,7 +48,7 @@ test_p03_revoked_token_is_denied() {
     assert "TokenService/RevokeToken revokes the token" \
         revoke_api_token "$name" ENTITY_TYPE_WORKSPACE "$cli_workspace_id"
     status=$(proxy_status "$cli_workspace_id" -H "Authorization: Bearer ${token}")
-    assert "QueryLogs with a revoked token is denied (HTTP ${status})" test "$status" = 403
+    assert "QueryLogs with a revoked token is unauthenticated (HTTP ${status})" test "$status" = 401
 }
 
 test_p04_token_is_scoped_to_its_workspace() {

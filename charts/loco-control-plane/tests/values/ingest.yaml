@@ -1,6 +1,0 @@
-obsProxy:
-  ingest:
-    enabled: true
-    clickhouse:
-      existingSecret:
-        name: proxy-ingest

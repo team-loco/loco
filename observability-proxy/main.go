@@ -17,9 +17,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
-	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
-	"github.com/team-loco/loco/observability-proxy/service"
 )
 
 const (
@@ -33,8 +32,7 @@ var version string
 
 type proxy struct {
 	server *http.Server
-	query  *queryRole
-	ingest *ingestRole
+	ingest *ingestServer
 }
 
 type listeners struct {
@@ -44,14 +42,18 @@ type listeners struct {
 }
 
 func newProxy(cfg *config.Config, lock *migrationlock.Lock, proxyVersion string) (*proxy, error) {
-	p := &proxy{}
+	registry := prometheus.NewRegistry()
+	ingest, err := newIngestServer(cfg, lock, proxyVersion, registry)
+	if err != nil {
+		return nil, err
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		if err := p.ready(r.Context()); err != nil {
+		if err := ingest.ready(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintln(w, err)
 			return
@@ -59,67 +61,22 @@ func newProxy(cfg *config.Config, lock *migrationlock.Lock, proxyVersion string)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})
+	mux.Handle("GET "+metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 
-	if cfg.QueryEnabled {
-		query, err := newQueryRole(cfg, lock)
-		if err != nil {
-			return nil, err
-		}
-		mux.Handle("/", query.handler)
-		p.query = query
-	}
-	if cfg.IngestEnabled {
-		registry := prometheus.NewRegistry()
-		mux.Handle("GET "+metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-		ingest, err := newIngestRole(cfg, proxyVersion, registry)
-		if err != nil {
-			p.close()
-			return nil, err
-		}
-		p.ingest = ingest
-	}
-
-	protocols := new(http.Protocols)
-	protocols.SetHTTP1(true)
-	protocols.SetUnencryptedHTTP2(true)
-
-	p.server = &http.Server{
-		Handler:           mux,
-		Protocols:         protocols,
-		ReadHeaderTimeout: readHeaderTimeout,
-	}
-	return p, nil
-}
-
-func (p *proxy) ready(ctx context.Context) error {
-	if p.query != nil {
-		if err := p.query.ready(ctx); err != nil {
-			return err
-		}
-	}
-	if p.ingest != nil {
-		if err := p.ingest.ready(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
+	return &proxy{
+		server: &http.Server{Handler: mux, ReadHeaderTimeout: readHeaderTimeout},
+		ingest: ingest,
+	}, nil
 }
 
 func (p *proxy) close() {
-	if p.query != nil {
-		p.query.close()
-	}
-	if p.ingest != nil {
-		p.ingest.close()
-	}
+	p.ingest.close()
 }
 
 func logStartup(logger *slog.Logger, cfg *config.Config, proxyVersion string) {
 	logger.Info("starting observability proxy",
 		"version", proxyVersion,
 		"port", cfg.Port,
-		"query_enabled", cfg.QueryEnabled,
-		"ingest_enabled", cfg.IngestEnabled,
 		"clickhouse_database", cfg.ClickHouseDB,
 	)
 }
@@ -127,29 +84,11 @@ func logStartup(logger *slog.Logger, cfg *config.Config, proxyVersion string) {
 func (p *proxy) shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	var err error
-	if p.ingest != nil {
-		err = p.ingest.shutdown(shutdownCtx)
-	}
+	err := p.ingest.shutdown(shutdownCtx)
 	if shutdownErr := p.server.Shutdown(shutdownCtx); shutdownErr != nil {
 		err = errors.Join(err, fmt.Errorf("shut down server: %w", shutdownErr))
 	}
 	return err
-}
-
-func (p *proxy) start(ctx context.Context, cfg *config.Config, ln listeners, serveErr chan<- error) error {
-	if p.query != nil {
-		if err := p.query.migrate(ctx, cfg); err != nil {
-			return err
-		}
-	}
-	if p.ingest != nil {
-		if err := p.ingest.start(ctx, cfg); err != nil {
-			return err
-		}
-		p.ingest.serve(ctx, ln.otlpGRPC, ln.otlpHTTP, serveErr)
-	}
-	return nil
 }
 
 func (p *proxy) run(ctx context.Context, cfg *config.Config, ln listeners) error {
@@ -159,12 +98,13 @@ func (p *proxy) run(ctx context.Context, cfg *config.Config, ln listeners) error
 	}()
 	slog.InfoContext(ctx, "server listening", "addr", ln.main.Addr().String())
 
-	if err := p.start(ctx, cfg, ln, serveErr); err != nil {
+	if err := p.ingest.start(ctx, cfg); err != nil {
 		if shutdownErr := p.shutdown(); shutdownErr != nil {
 			slog.ErrorContext(ctx, "server shutdown failed", "error", shutdownErr)
 		}
 		return err
 	}
+	p.ingest.serve(ctx, ln.otlpGRPC, ln.otlpHTTP, serveErr)
 
 	select {
 	case <-ctx.Done():
@@ -197,9 +137,6 @@ func openListeners(ctx context.Context, cfg *config.Config) (listeners, error) {
 	if ln.main, err = listen(ctx, cfg.Port); err != nil {
 		return ln, err
 	}
-	if !cfg.IngestEnabled {
-		return ln, nil
-	}
 	if ln.otlpGRPC, err = listen(ctx, cfg.OTLPGRPCPort); err != nil {
 		return ln, err
 	}
@@ -212,10 +149,7 @@ func openListeners(ctx context.Context, cfg *config.Config) (listeners, error) {
 func main() {
 	cfg := config.Load()
 
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
-	logger := slog.New(service.LogHandler{Handler: handler})
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 
 	proxyVersion := buildinfo.Version(version)

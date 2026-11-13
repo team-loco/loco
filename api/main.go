@@ -55,6 +55,7 @@ import (
 	environmentv1connect "github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
+	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	planv1connect "github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
@@ -64,6 +65,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
+	chClient "github.com/team-loco/loco/internal/clickhouse"
 	"github.com/team-loco/loco/internal/ingesttoken"
 )
 
@@ -181,7 +183,19 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	d, err := newDeps(ctx, ac, pool, appCache)
+	var clickhouse *chClient.Client
+	if ac.ClickHouse.URL == "" {
+		slog.Warn("CLICKHOUSE_URL is not set; logs, metrics and traces are unavailable")
+	} else {
+		cfg := ac.ClickHouse
+		clickhouse, err = chClient.NewClient(cfg.URL, cfg.Database, cfg.MaxConns, cfg.QueryTimeout)
+		if err != nil {
+			return fmt.Errorf("connect to clickhouse: %w", err)
+		}
+		defer clickhouse.Close()
+	}
+
+	d, err := newDeps(ctx, ac, pool, appCache, clickhouse)
 	if err != nil {
 		return err
 	}
@@ -193,7 +207,6 @@ func run() error {
 	registerHandlers(mux, baseServer, authenticatedServer, d)
 	mountRPCServers(mux, baseServer, authenticatedServer)
 	mountOpenAPI(mux, ac.Version)
-	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
 	var background sync.WaitGroup
 	var pprofServer *http.Server
@@ -246,32 +259,40 @@ type deps struct {
 	imageSweeper    *sweepers.ImageSweeper
 	registrySweeper *sweepers.RegistrySweeper
 
-	config       *service.ConfigServer
-	clusterAdmin *service.ClusterAdminServer
-	bootstrap    *service.BootstrapServer
-	user         *service.UserServer
-	auth         *service.AuthServer
-	event        *service.EventServer
-	webhook      *service.WebhookServer
-	org          *service.OrgServer
-	workspace    *service.WorkspaceServer
-	resource     *service.ResourceServer
-	deployment   *service.DeploymentServer
-	build        *service.BuildServer
-	domain       *service.DomainServer
-	token        *service.TokenServer
-	agent        *service.AgentServer
-	ingest       *service.IngestServer
-	registry     *service.RegistryServer
-	plan         *service.PlanServer
-	environment  *service.EnvironmentServer
-	secret       *service.SecretServer
+	config        *service.ConfigServer
+	clusterAdmin  *service.ClusterAdminServer
+	bootstrap     *service.BootstrapServer
+	user          *service.UserServer
+	auth          *service.AuthServer
+	event         *service.EventServer
+	webhook       *service.WebhookServer
+	org           *service.OrgServer
+	workspace     *service.WorkspaceServer
+	resource      *service.ResourceServer
+	deployment    *service.DeploymentServer
+	build         *service.BuildServer
+	domain        *service.DomainServer
+	token         *service.TokenServer
+	agent         *service.AgentServer
+	ingest        *service.IngestServer
+	registry      *service.RegistryServer
+	plan          *service.PlanServer
+	environment   *service.EnvironmentServer
+	secret        *service.SecretServer
+	observability *service.ObservabilityServer
 	// registryKey is nil unless registry auth runs in token mode.
 	registryKey http.HandlerFunc
 }
 
-func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache cache.Cache) (*deps, error) {
+func newDeps(
+	ctx context.Context,
+	ac *APIConfig,
+	pool *pgxpool.Pool,
+	appCache cache.Cache,
+	clickhouse *chClient.Client,
+) (*deps, error) {
 	queries := genDb.New(pool)
+	authorizer := authz.New(pool, queries)
 	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
 
 	authClient := newOutboundHTTPClient()
@@ -370,7 +391,7 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		queries:           queries,
 		verifier:          verifier,
 		resolver:          resolver,
-		authorizer:        authz.New(pool, queries),
+		authorizer:        authorizer,
 		webhookDispatcher: webhookDispatcher,
 		placementNotifier: placementNotifier,
 		sourceSweeper:     sourceSweeper,
@@ -449,7 +470,8 @@ func newDeps(ctx context.Context, ac *APIConfig, pool *pgxpool.Pool, appCache ca
 		secret: service.NewSecretServer(
 			pool, queries, secretKeyProvider, ac.SecretLimits, ac.CountLimits,
 		),
-		registryKey: registryKeyHandler,
+		observability: service.NewObservabilityServer(clickhouse, authorizer, ac.Observability),
+		registryKey:   registryKeyHandler,
 	}, nil
 }
 
@@ -499,6 +521,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 	planv1connect.RegisterPlanServiceHandler(authenticatedServer, d.plan)
 	environmentv1connect.RegisterEnvironmentServiceHandler(authenticatedServer, d.environment)
 	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, d.secret)
+	observabilityv1connect.RegisterObservabilityProxyServiceHandler(authenticatedServer, d.observability)
 
 	mux.HandleFunc("GET "+ingesttoken.JWKSPath, d.ingest.JWKS)
 	if d.registryKey != nil {

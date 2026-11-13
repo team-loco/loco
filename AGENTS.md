@@ -32,7 +32,7 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 
 - **`api/`**: Go API for platform state, authentication, deployment orchestration and agent sync; ConnectRPC v2 (`connectrpc.com/connect/v2`) and PostgreSQL.
 - **`web/`**: React dashboard for application teams to manage applications and inspect logs, metrics and traces; calls the control-plane API.
-- **`observability-proxy/`**: Separate ingest and query deployments: ingest writes OpenTelemetry logs, metrics and traces to ClickHouse; query reads them, serves live log tails and runs ClickHouse schema migrations.
+- **`observability-proxy/`**: OTLP ingest: runs the ClickHouse schema migrations and writes OpenTelemetry logs, metrics and traces to ClickHouse. The API serves the reads and live log tails from ClickHouse itself.
 
 ### Data plane (`charts/loco-worker/`)
 
@@ -46,7 +46,7 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 
 - **`k8sapi/`**: Shared Kubernetes API types and validation for `Application` and `Build` CRs, plus resource labels.
 - **`proto/loco/`**, **`gen/`**: Protobuf service definitions and generated Go/TypeScript types and clients; do not edit generated code directly.
-- **`internal/`**: Shared Go packages, including `loco.yaml` parsing and validation, RPC clients, authentication and session helpers. CLI-only packages live in `cmd/internal/`.
+- **`internal/`**: Shared Go packages, including `loco.yaml` parsing and validation, RPC clients, authentication and session helpers, and the ClickHouse telemetry queries, schema migrations and migration lock. CLI-only packages live in `cmd/internal/`.
 - **`charts/`**: Helm charts for the control plane and worker clusters.
 - **`tests/e2e/`**: End-to-end suites that build and exercise Loco on kind clusters.
 - **`tests/ui/`**: Dashboard suites that each start a throwaway API, database and production UI build and drive it with Playwright; `mise run test:ui` runs them.

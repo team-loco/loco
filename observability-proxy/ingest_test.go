@@ -14,8 +14,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 
-	"github.com/team-loco/loco/observability-proxy/migrations"
-	"github.com/team-loco/loco/observability-proxy/pkg/config"
+	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/ingest"
 )
 
@@ -23,8 +22,7 @@ const (
 	testOTLPMaxBytes      = 1 << 20
 	testIngestTimeout     = 5 * time.Second
 	testIngestDialTimeout = 10 * time.Second
-	ingestOnlyLogBody     = "written by the ingest role"
-	queryLogsPath         = "/loco.observability.v1.ObservabilityProxyService/QueryLogs"
+	ingestOnlyLogBody     = "written by the ingest server"
 )
 
 func localListener(t *testing.T) net.Listener {
@@ -90,42 +88,27 @@ func postLog(t *testing.T, endpoint string) int {
 	return response.StatusCode
 }
 
-func TestIngestOnlyRoleWaitsForTheSchemaWithoutMigrating(t *testing.T) {
+func TestIngestMigratesWithItsMigratorAndRefusesUnauthenticatedTelemetry(t *testing.T) {
 	admin, dsn, database := testClickHouse(t)
 	exec := func(statement string) error { return admin.Exec(context.Background(), statement) }
-	cfg := &config.Config{
-		IngestEnabled:          true,
-		ClickHouseIngestURL:    ingestUserDSN(t, dsn, database, exec),
-		ClickHouseDB:           database,
-		MigrationRetryBudget:   sharedRetryBudget,
-		MigrationRetryInterval: testRetryInterval,
-		OTLPMaxRequestBytes:    testOTLPMaxBytes,
-		IngestTimeout:          testIngestTimeout,
-		IngestDialTimeout:      testIngestDialTimeout,
-	}
+	cfg := testConfig(ingestUserDSN(t, dsn, database, exec), dsn, database, sharedRetryBudget)
 	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
 	t.Cleanup(p.close)
-	ln := listeners{main: localListener(t), otlpGRPC: localListener(t), otlpHTTP: localListener(t)}
+	ln := testListeners(t, localListener(t))
 	base := "http://" + ln.main.Addr().String()
 	ctx, stop := context.WithCancel(t.Context())
 	runErr := make(chan error, 1)
 	go func() { runErr <- p.run(ctx, cfg, ln) }()
 
-	if status := getStatus(t, base+"/readyz"); status != http.StatusServiceUnavailable {
-		t.Fatalf("GET /readyz before the schema exists = %d, want %d", status, http.StatusServiceUnavailable)
-	}
-	if status := getStatus(t, base+queryLogsPath); status != http.StatusNotFound {
-		t.Fatalf("query route on the ingest role = %d, want %d", status, http.StatusNotFound)
-	}
-
-	schema := migrations.Config{DSN: dsn, Database: database, LogsTTL: testTTL, TracesTTL: testTTL, MetricsTTL: testTTL}
-	if err := migrations.Up(t.Context(), schema); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
 	waitReady(t, base)
+	var versions uint64
+	query := "SELECT uniqExact(version_id) FROM " + database + "." + migrations.VersionTable
+	if err := admin.QueryRow(t.Context(), query).Scan(&versions); err != nil || versions == 0 {
+		t.Fatalf("applied migrations = %d, %v; want the schema migrated", versions, err)
+	}
 	endpoint := "http://" + ln.otlpHTTP.Addr().String() + ingest.LogsPath
 	if status := postLog(t, endpoint); status != http.StatusUnauthorized {
 		t.Fatalf("POST %s without an ingest token = %d, want %d", endpoint, status, http.StatusUnauthorized)

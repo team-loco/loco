@@ -12,7 +12,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"github.com/team-loco/loco/observability-proxy/migrations"
+	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

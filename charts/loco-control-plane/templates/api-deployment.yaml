@@ -35,7 +35,7 @@ spec:
             - secretRef:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
-            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" "LOCO_INGEST_TRANSIT_KEY" "LOCO_REGISTRY_AUTH" "LOCO_REGISTRY_TRANSIT_KEY" "LOCO_REGISTRY_TRANSIT_KEY_VERSION" "LOCO_REGISTRY_TOKEN_SERVICE" }}
+            {{- range $name, $value := omit .Values.api.env "APP_PORT" "CLICKHOUSE_URL" "CLICKHOUSE_DB" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" "LOCO_INGEST_TRANSIT_KEY" "LOCO_REGISTRY_AUTH" "LOCO_REGISTRY_TRANSIT_KEY" "LOCO_REGISTRY_TRANSIT_KEY_VERSION" "LOCO_REGISTRY_TOKEN_SERVICE" }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
@@ -95,8 +95,12 @@ spec:
               value: {{ . | quote }}
             {{- end }}
             {{- if .Values.obsProxy.enabled }}
-            - name: OBSERVABILITY_PROXY_URL
-              value: {{ include "loco-control-plane.obsProxyURL" . | quote }}
+            - name: CLICKHOUSE_DB
+              value: {{ .Values.clickhouse.clickhouse.database | quote }}
+            - name: CLICKHOUSE_URL
+              valueFrom:
+                secretKeyRef:
+                  {{- include "loco-control-plane.clickhouseURL" (dict "root" . "grant" "GRANT SELECT" "path" "api.clickhouse.existingSecret" "secret" .Values.api.clickhouse.existingSecret) | nindent 18 }}
             {{- end }}
           ports:
             - name: http

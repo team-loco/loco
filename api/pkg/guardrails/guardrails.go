@@ -11,7 +11,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
 var (
@@ -23,6 +22,13 @@ var (
 	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
 )
 
+// Limits bounds what one query may ask for.
+type Limits struct {
+	DefaultLimit int32
+	MaxLimit     int32
+	MaxTimeRange time.Duration
+}
+
 const (
 	reservedAttributePrefix = "loco."
 	// keep in sync with the loco.io/ keys in k8sapi/labels and k8sapi/v1alpha1
@@ -30,7 +36,7 @@ const (
 )
 
 // ValidateLogsRequest validates the query parameters for a logs request.
-func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Config) error {
+func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, limits Limits) error {
 	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
@@ -40,19 +46,19 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Conf
 	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
 		return err
 	}
-	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
 }
 
 // ValidateMetricsRequest validates the query parameters for a metrics request.
-func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *config.Config) error {
+func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, limits Limits) error {
 	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
-	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
 }
 
 // ValidateTailRequest validates a tail logs request.
-func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config, now time.Time) error {
+func ValidateTailRequest(req *observabilityv1.TailLogsRequest, limits Limits, now time.Time) error {
 	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
@@ -69,8 +75,8 @@ func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Confi
 	if since.After(now) {
 		return errSinceInFuture
 	}
-	if now.Sub(since) > cfg.MaxTimeRange {
-		return fmt.Errorf("%w of %v", errSinceTooOld, cfg.MaxTimeRange)
+	if now.Sub(since) > limits.MaxTimeRange {
+		return fmt.Errorf("%w of %v", errSinceTooOld, limits.MaxTimeRange)
 	}
 	return nil
 }
@@ -79,20 +85,20 @@ func ValidateTraceScope(scope *observabilityv1.TraceScope) error {
 	return validateCanonicalIDs(scope.GetWorkspaceId(), scope.GetEnvironmentId(), scope.GetResourceIds())
 }
 
-func ValidateListTracesRequest(req *observabilityv1.ListTracesRequest, cfg *config.Config) error {
+func ValidateListTracesRequest(req *observabilityv1.ListTracesRequest, limits Limits) error {
 	if err := ValidateTraceScope(req.GetScope()); err != nil {
 		return err
 	}
-	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
 }
 
 // ClampLimit ensures the limit is within bounds.
-func ClampLimit(requested int32, cfg *config.Config) int32 {
+func ClampLimit(requested int32, limits Limits) int32 {
 	if requested <= 0 {
-		return cfg.DefaultLimit
+		return limits.DefaultLimit
 	}
-	if requested > cfg.MaxLimit {
-		return cfg.MaxLimit
+	if requested > limits.MaxLimit {
+		return limits.MaxLimit
 	}
 	return requested
 }

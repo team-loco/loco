@@ -11,7 +11,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
 const (
@@ -44,7 +43,7 @@ func logsRequest(change func(*observabilityv1.QueryLogsRequest)) error {
 		EndTime:     timestamppb.New(now),
 	}
 	change(req)
-	return validated(req, func() error { return ValidateLogsRequest(req, &config.Config{MaxTimeRange: testMaxRange}) })
+	return validated(req, func() error { return ValidateLogsRequest(req, Limits{MaxTimeRange: testMaxRange}) })
 }
 
 func tailRequest(now time.Time, change func(*observabilityv1.TailLogsRequest)) error {
@@ -52,7 +51,7 @@ func tailRequest(now time.Time, change func(*observabilityv1.TailLogsRequest)) e
 	change(req)
 	return validated(
 		req,
-		func() error { return ValidateTailRequest(req, &config.Config{MaxTimeRange: testMaxRange}, now) },
+		func() error { return ValidateTailRequest(req, Limits{MaxTimeRange: testMaxRange}, now) },
 	)
 }
 
@@ -106,7 +105,7 @@ func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
 }
 
 func TestValidateListTracesRequest(t *testing.T) {
-	cfg := &config.Config{MaxTimeRange: testMaxRange}
+	cfg := Limits{MaxTimeRange: testMaxRange}
 	now := time.Date(2026, time.October, 14, 0, 0, 0, 1, time.UTC)
 	cases := []struct {
 		name   string
@@ -219,7 +218,7 @@ func TestRegionFilters(t *testing.T) {
 }
 
 func validateEveryQuery(workspace, environment string, resources []string) map[string]error {
-	cfg := &config.Config{MaxTimeRange: time.Hour}
+	cfg := Limits{MaxTimeRange: time.Hour}
 	now := time.Now()
 	start := timestamppb.New(now.Add(-time.Minute))
 	end := timestamppb.New(now)

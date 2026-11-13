@@ -581,19 +581,19 @@ ingest_ready() {
 }
 
 start_ingest() {
-    log_step "Starting the observability proxy ingest role on the kind network..."
+    log_step "Starting a second observability proxy on the kind network..."
     docker rm -fv "$INGEST_CONTAINER" >/dev/null 2>&1 || true
     docker run -d --name "$INGEST_CONTAINER" --network kind --add-host host.docker.internal:host-gateway \
         -e CONTROL_PLANE_URL="http://host.docker.internal:${API_PORT}" \
         -p "127.0.0.1::$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
-        -e QUERY_ENABLED=false -e INGEST_ENABLED=true \
         -e PORT="$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
         -e CLICKHOUSE_DB="$OBS_DATABASE" \
         -e OTLP_GRPC_PORT="$(yq '.obsProxy.ingest.grpcPort' "$CONTROL_PLANE_VALUES")" \
         -e OTLP_HTTP_PORT="$INGEST_OTLP_HTTP_PORT" \
         -e CLICKHOUSE_INGEST_URL="clickhouse://${CLICKHOUSE_USER}:${CLICKHOUSE_PASS}@${CLICKHOUSE_CONTAINER}:${CLICKHOUSE_NATIVE_PORT}" \
+        -e CLICKHOUSE_MIGRATOR_URL="clickhouse://${CLICKHOUSE_USER}:${CLICKHOUSE_PASS}@${CLICKHOUSE_CONTAINER}:${CLICKHOUSE_NATIVE_PORT}" \
         "${OBS_PROXY_REPOSITORY}:e2e-${RUN_ID}" >/dev/null
-    wait_for "the ingest role readiness" "$READY_TIMEOUT" ingest_ready
+    wait_for "the kind network proxy readiness" "$READY_TIMEOUT" ingest_ready
     log_ok "Ingest serving OTLP/HTTP at http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT} on the kind network"
 }
 
@@ -871,7 +871,12 @@ start_api() {
     DATABASE_URL="$E2E_DATABASE_URL" \
     CACHE_TYPE=in-memory \
     APP_PORT="$(api_bind_address):$API_PORT" \
-    OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
+    CLICKHOUSE_URL="$(clickhouse_dsn "$CLICKHOUSE_USER" "$CLICKHOUSE_PASS")" \
+    CLICKHOUSE_DB="$OBS_DATABASE" \
+    CLICKHOUSE_QUERY_TIMEOUT="5s" \
+    LOCO_OBSERVABILITY_DEFAULT_LIMIT="100" \
+    LOCO_OBSERVABILITY_MAX_LIMIT="1000" \
+    LOCO_OBSERVABILITY_MAX_TAIL_DURATION="10m" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     APP_ENV="test" \
     LOG_LEVEL=debug \
@@ -1014,22 +1019,11 @@ start_obs_proxy() {
 
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
-    CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     CLICKHOUSE_DB="$OBS_DATABASE" \
-    CLICKHOUSE_URL="$dsn" \
     CLICKHOUSE_MIGRATOR_URL="$dsn" \
-    INGEST_ENABLED=true \
     CLICKHOUSE_INGEST_URL="$dsn" \
     OTLP_GRPC_PORT="$OTLP_GRPC_PORT" \
     OTLP_HTTP_PORT="$OTLP_HTTP_PORT" \
-    DEFAULT_LIMIT="100" \
-    MAX_LIMIT="1000" \
-    QUERY_TIMEOUT="5s" \
-    MAX_TIME_RANGE="24h" \
-    MAX_CONCURRENT_QUERIES="5" \
-    MAX_TAIL_DURATION="10m" \
-    MAX_CONCURRENT_TAILS="3" \
-    TOKEN_CACHE_TTL="5s" \
         "$BIN_DIR/loco-obs-proxy" \
         >"$LOG_DIR/obs-proxy.log" 2>&1 &
 

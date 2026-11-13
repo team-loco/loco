@@ -191,9 +191,10 @@ def main():
             evidence["layouts"][layout] = current
             values = {"gatewayNamespace": args.gateway_namespace, "controlPlaneHostname": host,
                 "gateway": {"name": args.gateway_name}, "certManager": {"enabled": False},
-                "api": {"image": {"tag": "e2e"}, "existingSecret": "unused"},
+                "api": {"image": {"tag": "e2e"}, "existingSecret": "unused",
+                    "clickhouse": {"existingSecret": {"name": "unused", "key": "url"}}},
                 "openbao": {"enabled": False, "external": {"address": "http://unused:8200"}},
-                "obsProxy": {"image": {"tag": "e2e"}, "query": {"clickhouse": {
+                "obsProxy": {"image": {"tag": "e2e"}, "ingest": {"clickhouse": {
                     "existingSecret": {"name": "unused", "key": "url"},
                     "migratorExistingSecret": {"name": "unused", "key": "url"}}}},
                 "ui": {"enabled": layout != "headless", "hostname": host if layout == "shared" else "ui-" + host,

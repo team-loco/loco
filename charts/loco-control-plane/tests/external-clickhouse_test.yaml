@@ -4,7 +4,6 @@ release:
   namespace: loco-control-plane
 values:
   - ../ci/default-values.yaml
-  - values/ingest.yaml
 set:
   ui.enabled: false
   certManager.enabled: false
@@ -23,13 +22,17 @@ tests:
           count: 0
         template: templates/clickhouse.yaml
 
-  - it: points the proxy roles at the existing Secrets
+  - it: points the API and the proxy at the existing Secrets
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: CLICKHOUSE_URL, valueFrom: {secretKeyRef: {name: loco-obs-proxy-reader, key: url}}}
-        template: templates/obs-proxy-query-deployment.yaml
+          content: {name: CLICKHOUSE_URL, valueFrom: {secretKeyRef: {name: loco-api-clickhouse-reader, key: url}}}
+        template: templates/api-deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: CLICKHOUSE_INGEST_URL, valueFrom: {secretKeyRef: {name: proxy-ingest, key: url}}}
+          content: {name: CLICKHOUSE_INGEST_URL, valueFrom: {secretKeyRef: {name: loco-obs-proxy-ingest, key: url}}}
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_MIGRATOR_URL, valueFrom: {secretKeyRef: {name: loco-obs-proxy-migrator, key: url}}}
         template: templates/obs-proxy-ingest-deployment.yaml
