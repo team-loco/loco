@@ -66,6 +66,20 @@ VALUES ($1, $2, $3, $4, $5, '{}')`, f.resourceID, f.otherCluster, testRegion, pl
 	}
 }
 
+func TestRegionUpdateKeepsThePreviousDeployment(t *testing.T) {
+	f := prepareRegionUpdate(t)
+	previous := f.activeDeployments(t, f.envID)[0].ID
+	targets, revision := regionTargets(t, f)
+	targets[testRegion].Cpu = biggerCPU
+	if err := updateResourceRegions(t, f, targets, revision); err != nil {
+		t.Fatal(err)
+	}
+
+	if !f.deploymentExists(t, previous) {
+		t.Error("the region update deleted the deployment it replaced")
+	}
+}
+
 func (f *buildFixture) seedBuild(t *testing.T, status string, sourceDeleted, imageDeleted bool, age string) uuid.UUID {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())
