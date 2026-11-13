@@ -21,6 +21,7 @@ import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
+import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
@@ -161,7 +162,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const deployed = regions.filter(isDeployed);
 	const currents = deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
 	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
-	const base = baseline(resource.name, resource.description ?? "", regions, resource.domains.length > 0, defaults);
+	const base = baseline(
+		resource.name,
+		resource.description ?? "",
+		regions,
+		configuredRegions(resource),
+		resource.domains.length > 0,
+		defaults,
+	);
 	const dirty = changeCount(draft, base) > 0;
 	const level =
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;

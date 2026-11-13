@@ -287,17 +287,11 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 	);
 }
 
-function regionNote(info: RegionInfo | undefined, inSpec: boolean, deployed: boolean): ReactNode {
+function regionNote(info: RegionInfo | undefined, deployed: boolean): ReactNode {
 	return (
 		<span className="flex flex-wrap items-center gap-2">
 			<RegionHealth region={info} />
-			{!inSpec
-				? "Not in this resource's spec"
-				: !deployed
-					? "Starts without this resource's secrets"
-					: info?.isDefault === true
-						? "default"
-						: null}
+			{!deployed ? "Starts without this resource's secrets" : info?.isDefault === true ? "default" : null}
 		</span>
 	);
 }
@@ -310,24 +304,33 @@ export function RegionsSection({
 	describedBy,
 	onChange,
 	available,
-	inSpec,
-}: SectionProps & { available: RegionInfo[]; inSpec: string[] }) {
+}: SectionProps & { available: RegionInfo[] }) {
 	const names = [...new Set([...available.map((r) => r.region), ...Object.keys(base.regions)])].toSorted();
+	const hasDeployment = Object.keys(base.scaling).length > 0;
 	return (
-		<SettingsBlock id="set-regions" title="Regions" hint="Turning a region off stops the resource there.">
+		<SettingsBlock
+			id="set-regions"
+			title="Regions"
+			hint={
+				hasDeployment
+					? "Regions apply in every environment this resource runs in. Turning a region off stops the resource there."
+					: "Deploy this resource before adding regions."
+			}
+		>
 			<div className="overflow-hidden rounded-card border border-line bg-background">
 				{names.map((name) => {
-					const deployed = base.regions[name] === true;
-					const allowed = deployed || inSpec.includes(name);
-					const on = draft.regions?.[name] ?? deployed;
+					const configured = base.regions[name] === true;
+					const allowed =
+						configured ||
+						(hasDeployment && available.some((region) => region.region === name && region.healthStatus === "healthy"));
+					const on = draft.regions?.[name] ?? configured;
 					return (
 						<div key={name} className="flex items-center gap-3.5 border-b border-line px-3.5 py-3 last:border-b-0">
 							<span className="font-mono text-[12.5px]">{name}</span>
 							<span className="flex-1 text-[12.5px] text-fg3">
 								{regionNote(
 									available.find((r) => r.region === name),
-									allowed,
-									deployed,
+									name in base.scaling,
 								)}
 							</span>
 							<Switch

@@ -12,14 +12,21 @@ import { Notice } from "@/components/design/Notice";
 import { SaveBar } from "@/components/design/SaveBar";
 import { NEEDS_ADMIN } from "@/hooks/useMyScopes";
 import { servedDomains } from "@/lib/new-resource";
-import { configuredRegions } from "@/lib/resource-regions";
 import { sizeOptions } from "@/lib/sizing";
 import { cn } from "@/lib/utils";
 
 import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
 import type { Notice as NoticeState, RegionView } from "./model";
 import { NetworkingSection } from "./NetworkingSection";
-import { changeCount, planSave, resolved, validateDraft, type Baseline, type SettingsDraft } from "./settings-draft";
+import {
+	changeCount,
+	planSave,
+	regionMapChanged,
+	resolved,
+	validateDraft,
+	type Baseline,
+	type SettingsDraft,
+} from "./settings-draft";
 import {
 	GeneralSection,
 	HealthSection,
@@ -97,11 +104,10 @@ export function SettingsView({
 	const want = resolved(draft, base);
 	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
 	const served = servedDomains(domainsQuery.data?.platformDomains ?? [], onRegions);
-	const errors = validateDraft(draft, base, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
+	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const errorCount = Object.keys(errors).length;
 	const count = changeCount(draft, base);
-	const plan = planSave(regions, draft, base);
-	const redeploys = plan.deploy.length + plan.retire.length > 0;
+	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, base).length > 0;
 	const { save, saving } = useSaveSettings({
 		resource,
 		environmentId,
@@ -182,12 +188,7 @@ export function SettingsView({
 						}}
 					/>
 					<HealthSection {...props} />
-					<RegionsSection
-						{...props}
-						errors={errors}
-						available={regionsQuery.data?.regions ?? []}
-						inSpec={configuredRegions(resource)}
-					/>
+					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
 					<GeneralSection {...props} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
