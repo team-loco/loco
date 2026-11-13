@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
@@ -23,7 +24,7 @@ func (f *deployFixture) deployStaging(t *testing.T, stagingID uuid.UUID) uuid.UU
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, staging, staticSpec)
+		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), staging, staticSpec)
 		return deployErr
 	})
 	if err != nil {
@@ -46,6 +47,7 @@ func (f *deployFixture) listDeployments(
 		testServiceDefaults(),
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
+		limits.Defaults(),
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},

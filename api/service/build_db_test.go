@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/reqctx"
@@ -173,7 +174,7 @@ func newBuildFixture(t *testing.T) *buildFixture {
 		RegistryHost:       testRegistryHost,
 		RegistryPrefix:     "builds",
 		SourceMaxBytes:     1024,
-	})
+	}, limits.Defaults())
 
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},

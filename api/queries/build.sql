@@ -251,3 +251,18 @@ WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
   AND status = 'succeeded'
   AND image_deleted_at IS NULL
 ORDER BY resource_id, finished_at DESC, id DESC;
+
+-- name: PruneBuildHistory :execrows
+-- Deletes the resource's builds past the newest keep once their source and, for a succeeded
+-- build, image are gone: the sweepers find what to delete through these rows. The image
+-- sweeper treats a failed or canceled build's tags like those of a missing row.
+DELETE FROM builds b
+WHERE b.id IN (
+    SELECT old.id FROM builds old
+    WHERE old.resource_id = sqlc.arg(resource_id)
+    ORDER BY old.created_at DESC, old.id DESC
+    OFFSET sqlc.arg(keep)::int
+)
+  AND b.status IN ('succeeded', 'failed', 'canceled')
+  AND b.source_deleted_at IS NOT NULL
+  AND (b.status <> 'succeeded' OR b.image_deleted_at IS NOT NULL);

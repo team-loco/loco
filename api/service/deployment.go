@@ -20,6 +20,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -97,6 +98,7 @@ type DeploymentServer struct {
 	authz          *authz.Authorizer
 	silentAfter    time.Duration
 	maxSecretBytes int32
+	counts         *configv1.CountLimits
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -108,6 +110,7 @@ func NewDeploymentServer(
 	defaults servicedefaults.Defaults,
 	clusterSilentAfter time.Duration,
 	maxSecretBytes int32,
+	counts *configv1.CountLimits,
 ) *DeploymentServer {
 	return &DeploymentServer{
 		db:             db,
@@ -118,6 +121,7 @@ func NewDeploymentServer(
 		authz:          authz.New(db, queries),
 		silentAfter:    clusterSilentAfter,
 		maxSecretBytes: maxSecretBytes,
+		counts:         counts,
 	}
 }
 
@@ -286,7 +290,7 @@ func (s *DeploymentServer) CreateDeployment(
 		)
 
 		var txErr error
-		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
+		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, s.counts, genDb.CreateDeploymentParams{
 			ResourceID:    resourceID,
 			ClusterID:     cluster.ID,
 			Region:        region,

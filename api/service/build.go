@@ -17,10 +17,12 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -67,6 +69,7 @@ type BuildServer struct {
 	authz   *authz.Authorizer
 	bucket  SourceBucket
 	config  BuildConfig
+	counts  *configv1.CountLimits
 	now     func() time.Time
 }
 
@@ -75,6 +78,7 @@ func NewBuildServer(
 	queries genDb.Querier,
 	bucket SourceBucket,
 	config BuildConfig,
+	counts *configv1.CountLimits,
 ) *BuildServer {
 	return &BuildServer{
 		db:      db,
@@ -82,6 +86,7 @@ func NewBuildServer(
 		authz:   authz.New(db, queries),
 		bucket:  bucket,
 		config:  config,
+		counts:  counts,
 		now:     time.Now,
 	}
 }
@@ -177,6 +182,9 @@ func (s *BuildServer) CreateBuild(
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)
 		}
+		if err := s.pruneBuildHistory(ctx, qtx, resource); err != nil {
+			return err
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.BuildCreated,
 			WorkspaceID: new(resource.WorkspaceID),
@@ -201,6 +209,28 @@ func (s *BuildServer) CreateBuild(
 		UploadUrl:       uploadURL,
 		UploadExpiresAt: uploadExpiresAt,
 	}, nil
+}
+
+func (s *BuildServer) pruneBuildHistory(ctx context.Context, qtx *genDb.Queries, resource genDb.Resource) error {
+	orgID, err := qtx.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
+	if err != nil {
+		return fmt.Errorf("get workspace organization: %w", err)
+	}
+	effective, err := limits.ForOrg(ctx, qtx, s.counts, orgID)
+	if err != nil {
+		return err
+	}
+	pruned, err := qtx.PruneBuildHistory(ctx, genDb.PruneBuildHistoryParams{
+		ResourceID: resource.ID,
+		Keep:       limits.BuildHistory.Get(effective),
+	})
+	if err != nil {
+		return fmt.Errorf("prune build history: %w", err)
+	}
+	if pruned > 0 {
+		slog.InfoContext(ctx, "pruned build history", "resourceId", resource.ID, "deleted", pruned)
+	}
+	return nil
 }
 
 func (s *BuildServer) StartBuild(

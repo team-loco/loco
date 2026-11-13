@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -94,6 +95,7 @@ func deployRequest(
 		testServiceDefaults(),
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
+		limits.Defaults(),
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},

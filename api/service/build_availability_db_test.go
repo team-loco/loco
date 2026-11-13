@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
@@ -100,7 +101,7 @@ func TestCreateBuildFailsBeforeUploadWhenNoClusterAcceptsBuilds(t *testing.T) {
 
 func TestBuildServiceWithoutABucketIsUnavailable(t *testing.T) {
 	f := newBuildFixture(t)
-	server := NewBuildServer(f.pool, f.queries, nil, f.server.config)
+	server := NewBuildServer(f.pool, f.queries, nil, f.server.config, limits.Defaults())
 	req := &buildv1.CreateBuildRequest{
 		ResourceId:     f.resourceID.String(),
 		DockerfilePath: testDockerfile,

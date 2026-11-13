@@ -364,7 +364,13 @@ func TestDeployCommittedWhileSuspendWaitsIsStopped(t *testing.T) {
 	if err := lockOrganization(ctx, qtx, f.workspaceID(t)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := createDeploymentWithCleanup(ctx, qtx, f.paramsFor(f.clusterID), staticSpec); err != nil {
+	if _, err := createDeploymentWithCleanup(
+		ctx,
+		qtx,
+		limits.Defaults(),
+		f.paramsFor(f.clusterID),
+		staticSpec,
+	); err != nil {
 		t.Fatal(err)
 	}
 

@@ -281,7 +281,7 @@ func (a *applier) deploy(
 			a.env.Name,
 			a.defaults,
 		)
-		deploymentID, deployErr := createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
+		deploymentID, deployErr := createDeploymentWithCleanup(ctx, qtx, a.counts, genDb.CreateDeploymentParams{
 			ResourceID:    res.ID,
 			ClusterID:     cluster.ID,
 			Region:        region,
