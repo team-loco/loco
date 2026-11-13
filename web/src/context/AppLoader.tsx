@@ -124,7 +124,10 @@ function AppLoaderOverlay({ active, message }: { active: boolean; message: strin
 		<div
 			role="status"
 			aria-live="polite"
-			aria-busy={shown === "visible"}
+			aria-busy
+			// The overlay lingers through the grace period and the fade after loading ends; hide it
+			// then so the loaded page is the only thing assistive tech reads.
+			aria-hidden={!active}
 			className={cn(
 				"fixed inset-0 z-[400] flex flex-col items-center justify-center gap-4 bg-background transition-opacity ease-out",
 				shown === "fading" && "opacity-0",
