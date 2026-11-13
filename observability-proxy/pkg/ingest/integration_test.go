@@ -41,7 +41,6 @@ const (
 	testTTL              = 24 * time.Hour
 	testIngestTimeout    = 5 * time.Second
 	testDialTimeout      = 10 * time.Second
-	testWaitInterval     = 50 * time.Millisecond
 	testQueryTimeout     = 10 * time.Second
 	testQueryLimit       = int32(10)
 	testMaxConns         = 2
@@ -291,8 +290,8 @@ func (f *ingestFixture) startedWriter(t *testing.T) *Writer {
 	writer := f.writer(t)
 	ctx, cancel := context.WithTimeout(t.Context(), testIngestTimeout)
 	defer cancel()
-	if err := WaitForSchema(ctx, f.ingestConn(t), f.database, writer.Tables(), testWaitInterval); err != nil {
-		t.Fatalf("WaitForSchema: %v", err)
+	if err := CheckSchema(ctx, f.ingestConn(t), f.database, writer.Tables()); err != nil {
+		t.Fatalf("CheckSchema: %v", err)
 	}
 	if err := writer.Start(t.Context()); err != nil {
 		t.Fatalf("Start: %v", err)
@@ -554,50 +553,19 @@ func (f *ingestFixture) reader(t *testing.T) *chClient.Client {
 	return client
 }
 
-type cancelAfterQuery struct {
-	driver.Conn
-	cancel context.CancelFunc
-}
-
-type cancelAfterScan struct {
-	driver.Row
-	cancel context.CancelFunc
-}
-
-func (c cancelAfterQuery) QueryRow(ctx context.Context, query string, args ...any) driver.Row {
-	return cancelAfterScan{Row: c.Conn.QueryRow(ctx, query, args...), cancel: c.cancel}
-}
-
-func (r cancelAfterScan) Scan(dest ...any) error {
-	defer r.cancel()
-	return r.Row.Scan(dest...)
-}
-
-func waitForSchemaOnce(t *testing.T, conn driver.Conn, database string, tables []string) error {
-	t.Helper()
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	return WaitForSchema(ctx, cancelAfterQuery{Conn: conn, cancel: cancel}, database, tables, testWaitInterval)
-}
-
-func TestWaitForSchemaBlocksUntilMigrated(t *testing.T) {
+func TestCheckSchemaNeedsTheMigratedTables(t *testing.T) {
 	f := newIngestFixture(t)
 	writer := f.writer(t)
 	conn := f.ingestConn(t)
-	err := waitForSchemaOnce(t, conn, f.database, writer.Tables())
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("WaitForSchema before the database exists = %v, want it to wait until canceled", err)
-	}
-	if err = f.admin.Exec(t.Context(), "CREATE DATABASE "+f.database); err != nil {
+	if err := f.admin.Exec(t.Context(), "CREATE DATABASE "+f.database); err != nil {
 		t.Fatalf("create database: %v", err)
 	}
-	err = waitForSchemaOnce(t, conn, f.database, writer.Tables())
-	if !errors.Is(err, errTableMissing) || !errors.Is(err, context.Canceled) {
-		t.Fatalf("WaitForSchema before migrations = %v, want a missing table and a canceled wait", err)
+	if err := CheckSchema(t.Context(), conn, f.database, writer.Tables()); !errors.Is(err, errTableMissing) {
+		t.Fatalf("CheckSchema before migrations = %v, want %v", err, errTableMissing)
 	}
 	f.migrate(t)
-	if err := WaitForSchema(t.Context(), conn, f.database, writer.Tables(), testWaitInterval); err != nil {
-		t.Fatalf("WaitForSchema after migrations = %v", err)
+	if err := CheckSchema(t.Context(), conn, f.database, writer.Tables()); err != nil {
+		t.Fatalf("CheckSchema after migrations = %v", err)
 	}
 }
 
