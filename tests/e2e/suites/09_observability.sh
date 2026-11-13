@@ -193,7 +193,7 @@ obs_versions() {
         "| otel-col-cluster | $(obs_image "$E2E_OBS_NAMESPACE" statefulsets -l app.kubernetes.io/name=otel-col-cluster) |" \
         "| otel-col-daemon | $(obs_image "$obs_daemon_namespace" daemonsets -l app.kubernetes.io/name=otel-col-daemon) |" \
         "| loco-controller | $(obs_image "$E2E_LOCO_NAMESPACE" deployments -l app.kubernetes.io/name=loco-controller) |" \
-        "| API, agent, CLI, obs-proxy query | host binaries built from the commit, version ${E2E_VERSION} |" \
+        "| API, agent, CLI, host obs-proxy | host binaries built from the commit, version ${E2E_VERSION} |" \
         "| obs-proxy ingest | $(docker inspect -f '{{.Config.Image}}' "${E2E_OBS_INGEST_CONTAINER}") on the kind network |" \
         "| Fixture OTel Go SDK | ${otel_sdk} |"
 }
@@ -397,7 +397,7 @@ test_o02_sends_traffic_through_the_gateway() {
 
 obs_latest_embedded_migration() {
     local file version latest=0
-    for file in "$E2E_ROOT_DIR"/observability-proxy/migrations/*.sql; do
+    for file in "$E2E_ROOT_DIR"/internal/clickhouse/migrations/*.sql; do
         version=$(basename "$file")
         version=$((10#${version%%_*}))
         if [ "$version" -gt "$latest" ]; then

@@ -8,7 +8,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
+	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
 )
 
 const (

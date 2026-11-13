@@ -6,12 +6,11 @@ import (
 	"time"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestHistoryQueriesValidateTimestampPresenceAndPrecision(t *testing.T) {
-	cfg := &config.Config{MaxTimeRange: testMaxRange}
+	cfg := Limits{MaxTimeRange: testMaxRange}
 	checks := []struct {
 		name     string
 		validate func(start, end *timestamppb.Timestamp) error

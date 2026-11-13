@@ -71,7 +71,7 @@ Deployable sample apps, each with its own `loco.yaml`:
 - **Envoy:** Implements the 'new' Kubernetes Gateway API. Responsible for routing, TLS termination, enabling HTTP3
 - **cert-manager:** For automatic SSL certificate management for various components. (Let's Encrypt).
 - **OpenTelemetry:** For observability; collects metrics, logs and traces.
-- **ClickHouse:** As the data store for observability data, read through the observability proxy.
+- **ClickHouse:** As the data store for observability data, written by the observability proxy and read by the API.
 
 ## Sign-up Policy
 

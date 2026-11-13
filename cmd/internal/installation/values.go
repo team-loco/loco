@@ -55,7 +55,6 @@ obsProxy:
   enabled: true
   image: {{with image .Manifest "obs-proxy"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
   ingest:
-    enabled: true
     hostname: {{quote .IngestHost}}
 `))
 

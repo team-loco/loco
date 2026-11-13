@@ -1,25 +1,15 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
+	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
 	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/observability-proxy/pkg/ingest"
-	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const (
-	defaultLimit              = 1000
-	defaultMaxLimit           = 10000
-	defaultMaxConcurrent      = 5
-	defaultMaxConcurrentTails = 3
-
-	defaultMaxTimeRange           = 24 * time.Hour
-	defaultQueryTimeout           = 10 * time.Second
-	defaultMaxTailDuration        = 30 * time.Minute
-	defaultTokenCacheTTL          = 30 * time.Second
 	defaultRetention              = 365 * 24 * time.Hour
 	defaultMigrationRetryBudget   = 2 * time.Minute
 	defaultMigrationRetryInterval = 5 * time.Second
@@ -38,16 +28,10 @@ const (
 	defaultIngestRetryAfter          = 30 * time.Second
 )
 
-var errNoRole = errors.New("QUERY_ENABLED or INGEST_ENABLED must be true")
-
 type Config struct {
-	QueryEnabled       bool
-	IngestEnabled      bool
-	Port               int
-	ControlPlaneURL    string
-	CORSAllowedOrigins []string
-	ClickHouseURL      string
-	ClickHouseDB       string
+	Port            int
+	ControlPlaneURL string
+	ClickHouseDB    string
 
 	ClickHouseMigratorURL  string
 	LogsTTL                time.Duration
@@ -57,16 +41,6 @@ type Config struct {
 	MigrationRetryInterval time.Duration
 	MigrationLockTTL       time.Duration
 	MigrationLockRetry     time.Duration
-
-	DefaultLimit       int32
-	MaxLimit           int32
-	MaxTimeRange       time.Duration
-	QueryTimeout       time.Duration
-	MaxConcurrent      int
-	MaxTailDuration    time.Duration
-	MaxConcurrentTails int
-
-	TokenCacheTTL time.Duration
 
 	ClickHouseIngestURL string
 	OTLPGRPCPort        int
@@ -85,12 +59,11 @@ type Config struct {
 
 func Load() *Config {
 	cfg := &Config{
-		QueryEnabled:       envconfig.Bool("QUERY_ENABLED", true),
-		IngestEnabled:      envconfig.Bool("INGEST_ENABLED", false),
-		Port:               requiredIntEnv("PORT"),
-		CORSAllowedOrigins: originsEnv("CORS_ALLOWED_ORIGINS"),
-		ClickHouseDB:       requiredIdentifierEnv("CLICKHOUSE_DB"),
+		Port:            requiredIntEnv("PORT"),
+		ControlPlaneURL: requiredStringEnv("CONTROL_PLANE_URL"),
+		ClickHouseDB:    requiredIdentifierEnv("CLICKHOUSE_DB"),
 
+		ClickHouseMigratorURL:  requiredStringEnv("CLICKHOUSE_MIGRATOR_URL"),
 		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL", defaultRetention),
 		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL", defaultRetention),
 		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL", defaultRetention),
@@ -99,16 +72,9 @@ func Load() *Config {
 		MigrationLockTTL:       envconfig.PositiveDuration("MIGRATION_LOCK_TTL", defaultMigrationLockTTL),
 		MigrationLockRetry:     envconfig.PositiveDuration("MIGRATION_LOCK_RETRY_PERIOD", defaultMigrationLockRetry),
 
-		DefaultLimit:       envconfig.Int32("DEFAULT_LIMIT", defaultLimit),
-		MaxLimit:           envconfig.Int32("MAX_LIMIT", defaultMaxLimit),
-		MaxTimeRange:       envconfig.PositiveDuration("MAX_TIME_RANGE", defaultMaxTimeRange),
-		QueryTimeout:       ttlEnv("QUERY_TIMEOUT", defaultQueryTimeout),
-		MaxConcurrent:      intEnv("MAX_CONCURRENT_QUERIES", defaultMaxConcurrent),
-		MaxTailDuration:    envconfig.PositiveDuration("MAX_TAIL_DURATION", defaultMaxTailDuration),
-		MaxConcurrentTails: intEnv("MAX_CONCURRENT_TAILS", defaultMaxConcurrentTails),
-
-		TokenCacheTTL: envconfig.PositiveDuration("TOKEN_CACHE_TTL", defaultTokenCacheTTL),
-
+		ClickHouseIngestURL: requiredStringEnv("CLICKHOUSE_INGEST_URL"),
+		OTLPGRPCPort:        requiredIntEnv("OTLP_GRPC_PORT"),
+		OTLPHTTPPort:        requiredIntEnv("OTLP_HTTP_PORT"),
 		OTLPMaxRequestBytes: positiveIntEnv("OTLP_MAX_REQUEST_BYTES", defaultOTLPMaxRequestBytes),
 		IngestTimeout:       envconfig.PositiveDuration("CLICKHOUSE_INGEST_TIMEOUT", defaultIngestTimeout),
 		IngestDialTimeout:   envconfig.PositiveDuration("CLICKHOUSE_INGEST_DIAL_TIMEOUT", defaultIngestDialTimeout),
@@ -128,21 +94,8 @@ func Load() *Config {
 		IngestClockSkew:  envconfig.PositiveDuration("INGEST_CLOCK_SKEW", defaultIngestClockSkew),
 		IngestRetryAfter: ttlEnv("INGEST_RETRY_AFTER", defaultIngestRetryAfter),
 	}
-	if !cfg.QueryEnabled && !cfg.IngestEnabled {
-		panic(errNoRole)
-	}
-	cfg.ControlPlaneURL = requiredStringEnv("CONTROL_PLANE_URL")
-	if cfg.QueryEnabled {
-		cfg.ClickHouseURL = requiredStringEnv("CLICKHOUSE_URL")
-		cfg.ClickHouseMigratorURL = requiredStringEnv("CLICKHOUSE_MIGRATOR_URL")
-		if err := cfg.MigrationLock().Validate(); err != nil {
-			panic(fmt.Errorf("migration lock: %w", err))
-		}
-	}
-	if cfg.IngestEnabled {
-		cfg.ClickHouseIngestURL = requiredStringEnv("CLICKHOUSE_INGEST_URL")
-		cfg.OTLPGRPCPort = requiredIntEnv("OTLP_GRPC_PORT")
-		cfg.OTLPHTTPPort = requiredIntEnv("OTLP_HTTP_PORT")
+	if err := cfg.MigrationLock().Validate(); err != nil {
+		panic(fmt.Errorf("migration lock: %w", err))
 	}
 	return cfg
 }

@@ -109,6 +109,19 @@ var (
 		scope:      db.ScopeAdmin,
 	}
 
+	// observability
+
+	// ReadWorkspaceTelemetry requires workspace:read.
+	ReadWorkspaceTelemetry = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeRead,
+	}
+	// ReadResourceTelemetry requires resource:read.
+	ReadResourceTelemetry = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeRead,
+	}
+
 	// deployments
 
 	// GetDeployment requires resource:read.

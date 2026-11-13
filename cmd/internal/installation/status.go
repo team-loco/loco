@@ -190,7 +190,7 @@ func validatedURL(value string) *url.URL {
 }
 
 func (k *Kubernetes) controlPlaneReady(ctx context.Context) error {
-	for _, component := range []string{"api", "ui", "obs-proxy-query", "obs-proxy-ingest"} {
+	for _, component := range []string{"api", "ui", "obs-proxy-ingest"} {
 		deployment, err := k.Apps.Deployments(k.Target.Namespace).
 			Get(ctx, controlPlaneRelease+"-"+component, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {

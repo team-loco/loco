@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db"
 	"github.com/team-loco/loco/api/pkg/cache"
+	"github.com/team-loco/loco/api/pkg/guardrails"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -21,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/internal/envconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"golang.org/x/mod/semver"
@@ -33,6 +34,8 @@ var (
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
+	errClickHouseDatabase = errors.New("CLICKHOUSE_DB must be a ClickHouse identifier when CLICKHOUSE_URL is set")
+	errClickHouseTimeout  = errors.New("CLICKHOUSE_QUERY_TIMEOUT must be a whole number of seconds")
 
 	errInvalidServiceDefault  = errors.New("invalid service default")
 	errRegistryAuthPartial    = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
@@ -108,6 +111,13 @@ const (
 	defaultDatabaseMinConns         = 5
 	defaultDatabaseStatementTimeout = 15 * time.Second
 
+	defaultClickHouseMaxConns        = 5
+	defaultClickHouseQueryTimeout    = 10 * time.Second
+	defaultObservabilityLimit        = 1000
+	defaultObservabilityMaxLimit     = 10000
+	defaultObservabilityMaxTimeRange = 24 * time.Hour
+	defaultObservabilityMaxTail      = 30 * time.Minute
+
 	defaultAPITokenMaxLifetime        = 365 * 24 * time.Hour
 	defaultSessionAccessTokenLifetime = time.Hour
 	defaultSessionRefreshLifetime     = 7 * 24 * time.Hour
@@ -158,6 +168,15 @@ var defaultWebhookRetryDelays = []time.Duration{
 	24 * time.Hour,
 }
 
+// ClickHouseConfig is the read-only connection the observability RPCs query. An empty URL turns
+// them off.
+type ClickHouseConfig struct {
+	URL          string
+	Database     string
+	MaxConns     int
+	QueryTimeout time.Duration
+}
+
 type IngestConfig struct {
 	TransitKey    string
 	TokenLifetime time.Duration
@@ -177,7 +196,8 @@ func (c RegistryAuthConfig) TokenMode() bool {
 }
 
 type APIConfig struct {
-	ObservabilityProxyURL *url.URL
+	ClickHouse            ClickHouseConfig
+	Observability         service.ObservabilityConfig
 	Agent                 service.AgentConfig
 	Ingest                IngestConfig
 	Version               string
@@ -226,8 +246,6 @@ type APIConfig struct {
 
 func newAPIConfig() *APIConfig {
 	database := newDatabaseConfig()
-	observabilityRaw := envconfig.String("OBSERVABILITY_PROXY_URL", "")
-	observabilityURL := parseObservabilityProxyURL(observabilityRaw)
 	ingestConfig := newIngestConfig()
 	databaseListenConfig := newDatabaseListenConfig(database.URL)
 	cacheType, cacheAddr := newCacheConfig()
@@ -282,7 +300,8 @@ func newAPIConfig() *APIConfig {
 		RPCTimeout:            envconfig.PositiveDuration("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
 		ShutdownDrainTimeout:  envconfig.PositiveDuration("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
 		Port:                  envconfig.String("APP_PORT", ""),
-		ObservabilityProxyURL: observabilityURL,
+		ClickHouse:            newClickHouseConfig(),
+		Observability:         newObservabilityConfig(),
 		LogLevel:              logLevel,
 		CacheType:             cacheType,
 		CacheAddr:             cacheAddr,
@@ -314,6 +333,40 @@ func newAPIConfig() *APIConfig {
 		HeartbeatInterval:     heartbeatInterval,
 		BootstrapTokenHash:    bootstrapTokenHash,
 		TracingEnabled:        tracingEnabled,
+	}
+}
+
+func newClickHouseConfig() ClickHouseConfig {
+	cfg := ClickHouseConfig{
+		URL:          envconfig.String("CLICKHOUSE_URL", ""),
+		Database:     envconfig.String("CLICKHOUSE_DB", ""),
+		MaxConns:     int(positiveInt32Env("CLICKHOUSE_MAX_CONNS", defaultClickHouseMaxConns)),
+		QueryTimeout: envconfig.PositiveDuration("CLICKHOUSE_QUERY_TIMEOUT", defaultClickHouseQueryTimeout),
+	}
+	if cfg.URL != "" && !migrations.IsIdentifier(cfg.Database) {
+		panic(fmt.Errorf("%w: %q", errClickHouseDatabase, cfg.Database))
+	}
+	// ClickHouse takes the timeout as max_execution_time in whole seconds.
+	if cfg.QueryTimeout%time.Second != 0 {
+		panic(fmt.Errorf("%w: %s", errClickHouseTimeout, cfg.QueryTimeout))
+	}
+	return cfg
+}
+
+func newObservabilityConfig() service.ObservabilityConfig {
+	return service.ObservabilityConfig{
+		Limits: guardrails.Limits{
+			DefaultLimit: positiveInt32Env("LOCO_OBSERVABILITY_DEFAULT_LIMIT", defaultObservabilityLimit),
+			MaxLimit:     positiveInt32Env("LOCO_OBSERVABILITY_MAX_LIMIT", defaultObservabilityMaxLimit),
+			MaxTimeRange: envconfig.PositiveDuration(
+				"LOCO_OBSERVABILITY_MAX_TIME_RANGE",
+				defaultObservabilityMaxTimeRange,
+			),
+		},
+		MaxTailDuration: envconfig.PositiveDuration(
+			"LOCO_OBSERVABILITY_MAX_TAIL_DURATION",
+			defaultObservabilityMaxTail,
+		),
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/api/pkg/guardrails"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -20,6 +21,17 @@ import (
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/envconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
+)
+
+const (
+	clickHouseURLEnv     = "CLICKHOUSE_URL"
+	clickHouseDBEnv      = "CLICKHOUSE_DB"
+	clickHouseTimeoutEnv = "CLICKHOUSE_QUERY_TIMEOUT"
+	clickHouseConnsEnv   = "CLICKHOUSE_MAX_CONNS"
+	maxLimitEnv          = "LOCO_OBSERVABILITY_MAX_LIMIT"
+	maxTimeRangeEnv      = "LOCO_OBSERVABILITY_MAX_TIME_RANGE"
+	testClickHouseURL    = "clickhouse://loco_reader@clickhouse.loco.test:9000"
+	testClickHouseDB     = "loco_obs"
 )
 
 const (
@@ -186,6 +198,67 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("INVITATION_TTL", "")
 	t.Setenv(otlpEndpointEnv, "")
 	t.Setenv(otlpTracesEndpointEnv, "")
+	for _, name := range observabilityEnv {
+		t.Setenv(name, "")
+	}
+}
+
+var observabilityEnv = []string{
+	clickHouseURLEnv,
+	clickHouseDBEnv,
+	clickHouseConnsEnv,
+	clickHouseTimeoutEnv,
+	"LOCO_OBSERVABILITY_DEFAULT_LIMIT",
+	maxLimitEnv,
+	maxTimeRangeEnv,
+	"LOCO_OBSERVABILITY_MAX_TAIL_DURATION",
+}
+
+func TestNewAPIConfigReadsObservability(t *testing.T) {
+	clearAPIConfigEnv(t)
+	ac := newAPIConfig()
+	wantClickHouse := ClickHouseConfig{MaxConns: defaultClickHouseMaxConns, QueryTimeout: defaultClickHouseQueryTimeout}
+	if ac.ClickHouse != wantClickHouse {
+		t.Errorf("default clickhouse = %+v, want %+v", ac.ClickHouse, wantClickHouse)
+	}
+	wantLimits := service.ObservabilityConfig{
+		Limits: guardrails.Limits{
+			DefaultLimit: defaultObservabilityLimit,
+			MaxLimit:     defaultObservabilityMaxLimit,
+			MaxTimeRange: defaultObservabilityMaxTimeRange,
+		},
+		MaxTailDuration: defaultObservabilityMaxTail,
+	}
+	if ac.Observability != wantLimits {
+		t.Errorf("default observability = %+v, want %+v", ac.Observability, wantLimits)
+	}
+
+	for name, value := range map[string]string{
+		clickHouseURLEnv:                       testClickHouseURL,
+		clickHouseDBEnv:                        testClickHouseDB,
+		clickHouseConnsEnv:                     "3",
+		clickHouseTimeoutEnv:                   "7s",
+		"LOCO_OBSERVABILITY_DEFAULT_LIMIT":     "10",
+		maxLimitEnv:                            "20",
+		maxTimeRangeEnv:                        "48h",
+		"LOCO_OBSERVABILITY_MAX_TAIL_DURATION": "5m",
+	} {
+		t.Setenv(name, value)
+	}
+	ac = newAPIConfig()
+	wantClickHouse = ClickHouseConfig{
+		URL: testClickHouseURL, Database: testClickHouseDB, MaxConns: 3, QueryTimeout: 7 * time.Second,
+	}
+	if ac.ClickHouse != wantClickHouse {
+		t.Errorf("clickhouse = %+v, want %+v", ac.ClickHouse, wantClickHouse)
+	}
+	wantLimits = service.ObservabilityConfig{
+		Limits:          guardrails.Limits{DefaultLimit: 10, MaxLimit: 20, MaxTimeRange: 48 * time.Hour},
+		MaxTailDuration: 5 * time.Minute,
+	}
+	if ac.Observability != wantLimits {
+		t.Errorf("observability = %+v, want %+v", ac.Observability, wantLimits)
+	}
 }
 
 func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {
@@ -645,6 +718,28 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"database min conns above max",
 			map[string]string{"DATABASE_MIN_CONNS": "10", "DATABASE_MAX_CONNS": "5"},
 			errDatabasePoolSize,
+		},
+		{
+			"clickhouse url without a database",
+			map[string]string{clickHouseURLEnv: testClickHouseURL},
+			errClickHouseDatabase,
+		},
+		{
+			"clickhouse database that is not an identifier",
+			map[string]string{clickHouseURLEnv: testClickHouseURL, clickHouseDBEnv: "loco-obs"},
+			errClickHouseDatabase,
+		},
+		{
+			"fractional clickhouse query timeout",
+			map[string]string{clickHouseTimeoutEnv: "1500ms"},
+			errClickHouseTimeout,
+		},
+		{"zero clickhouse conns", map[string]string{clickHouseConnsEnv: "0"}, envconfig.ErrNotPositive},
+		{"zero observability limit", map[string]string{maxLimitEnv: "0"}, envconfig.ErrNotPositive},
+		{
+			"zero observability time range",
+			map[string]string{maxTimeRangeEnv: "0s"},
+			envconfig.ErrNotPositive,
 		},
 		{"malformed install webhooks", map[string]string{installHooksEnv: "{"}, errInvalidInstallWebhooks},
 		{

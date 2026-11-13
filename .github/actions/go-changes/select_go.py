@@ -14,6 +14,13 @@ PROXY_TEST_INPUTS = (
     'charts/loco-worker/values.yaml',
     'charts/loco-control-plane/values.yaml',
 )
+# The proxy job's task also runs these root packages' tests against ClickHouse.
+PROXY_TEST_PREFIXES = ('internal/clickhouse/',)
+API_TEST_INPUTS = (
+    'mise-tasks/test/api',
+    'mise-tasks/test/lib/clickhouse.sh',
+    'charts/loco-control-plane/values.yaml',
+)
 
 
 def module_dependencies(root):
@@ -34,8 +41,10 @@ def select_modules(paths, dependencies):
     for path in paths:
         if path in GLOBAL_PATHS or path in WORKFLOWS or path.startswith(GLOBAL_PREFIXES):
             return set(dependencies)
-        if path in PROXY_TEST_INPUTS:
+        if path in PROXY_TEST_INPUTS or path.startswith(PROXY_TEST_PREFIXES):
             selected.add('observability-proxy')
+        if path in API_TEST_INPUTS:
+            selected.add('api')
         owner = next((module for module in ordered if module != '.' and path.startswith(module + '/')), None)
         if owner is None:
             if path in ('go.mod', 'go.sum') or path.startswith(ROOT_LIBRARIES):

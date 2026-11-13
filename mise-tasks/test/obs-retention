@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Boot ClickHouse with the users and config the loco-control-plane chart renders, apply the schema with the observability proxy query role, send logs, metrics and traces through the collector's rendered OTLP/HTTP exporter to the proxy ingest role, check that the collectors export traces over OTLP/HTTP, check that every table expires its rows, and check that ClickHouse keeps no profiler logs and no query log rows for the ingest user"
+#MISE description="Boot ClickHouse with the users and config the loco-control-plane chart renders, apply the schema with the observability proxy, send logs, metrics and traces through the collector's rendered OTLP/HTTP exporter to it, check that the collectors export traces over OTLP/HTTP, check that every table expires its rows, and check that ClickHouse keeps no profiler logs and no query log rows for the ingest user"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 

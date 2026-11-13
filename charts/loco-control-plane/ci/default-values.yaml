@@ -10,14 +10,17 @@ api:
   image:
     tag: ci
   existingSecret: loco-api-env
+  clickhouse:
+    existingSecret:
+      name: loco-api-clickhouse-reader
 
 obsProxy:
   image:
     tag: ci
-  query:
+  ingest:
     clickhouse:
       existingSecret:
-        name: loco-obs-proxy-reader
+        name: loco-obs-proxy-ingest
       migratorExistingSecret:
         name: loco-obs-proxy-migrator
 

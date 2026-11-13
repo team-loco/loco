@@ -3,22 +3,19 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/internal/envconfig"
-	"github.com/team-loco/loco/observability-proxy/migrations"
 )
 
 var (
-	errInvalidOrigin = errors.New("must contain only HTTP or HTTPS origins")
-	errMissing       = errors.New("is required")
-	errInvalidInt    = errors.New("is not an integer")
-	errFractional    = errors.New("must be a whole number of seconds")
-	errInvalidName   = errors.New("is not a ClickHouse identifier")
+	errMissing     = errors.New("is required")
+	errInvalidInt  = errors.New("is not an integer")
+	errFractional  = errors.New("must be a whole number of seconds")
+	errInvalidName = errors.New("is not a ClickHouse identifier")
 )
 
 func requiredStringEnv(name string) string {
@@ -72,21 +69,4 @@ func ttlEnv(name string, fallback time.Duration) time.Duration {
 		panic(fmt.Errorf("%s %q %w", name, ttl, errFractional))
 	}
 	return ttl
-}
-
-func originsEnv(name string) []string {
-	var origins []string
-	for raw := range strings.SplitSeq(os.Getenv(name), ",") {
-		origin := strings.TrimSpace(raw)
-		if origin == "" {
-			continue
-		}
-		parsed, err := url.Parse(origin)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" ||
-			parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-			panic(fmt.Errorf("%s %w", name, errInvalidOrigin))
-		}
-		origins = append(origins, origin)
-	}
-	return origins
 }

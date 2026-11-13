@@ -108,11 +108,6 @@ run = "go test -v -coverprofile=coverage.out ./..."
 description = "Test the shared packages and dev tools in the root module"
 run = "go test -v -coverprofile=coverage.out ./..."
 
-[tasks."test:api"]
-description = "Test the API server"
-dir = "api"
-run = "go test -v -coverprofile=coverage.out ./..."
-
 [tasks."test:agent"]
 description = "Test the agent"
 dir = "agent"
@@ -432,7 +427,7 @@ description = "Test image platform selection, executable architecture and Docker
 run = "uv run --locked --project tests pytest tools/platform-images/tests tests/versions"
 
 [tasks."obs:serve"]
-description = "Run a local ClickHouse container and serve the observability proxy query and OTLP ingest roles against it; the kind collectors export to the ingest port"
+description = "Run a local ClickHouse container and serve the observability proxy against it: the proxy migrates the schema and ingests OTLP from the kind collectors, and the API reads it"
 env = { _.source = "dev/stack.sh" }
 run = "./mise-tasks/obs/serve"
 
