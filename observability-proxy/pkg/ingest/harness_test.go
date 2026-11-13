@@ -6,6 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
@@ -69,6 +70,7 @@ func (c *controlPlane) gate() *Gate {
 		PlacementTTL:        testPlacementTTL,
 		RefetchInterval:     testPlacementRefetch,
 		ClockSkew:           testClockSkew,
+		LogsTTL:             testTTL,
 	})
 }
 
@@ -81,5 +83,10 @@ func newPlacedControlPlane(t *testing.T) *controlPlane {
 	t.Helper()
 	cp := newControlPlane(t)
 	cp.Place(testWorkspaceID, time.Now().Add(-testPlacedFor), time.Time{})
+	cp.Update(func(state *ingesttest.State) {
+		state.LogRetentions = []*ingestv1.ResourceLogRetention{
+			{WorkspaceId: testWorkspaceID, ResourceId: testResourceID},
+		}
+	})
 	return cp
 }

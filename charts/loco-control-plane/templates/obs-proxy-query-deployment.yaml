@@ -37,6 +37,8 @@ spec:
               drop:
                 - ALL
           env:
+            - name: CLICKHOUSE_LOGS_TTL
+              value: {{ .Values.obsProxy.logsTTL | quote }}
             - name: PORT
               value: {{ .Values.obsProxy.query.port | quote }}
             - name: CONTROL_PLANE_URL

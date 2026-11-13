@@ -118,7 +118,22 @@ func (s *IngestServer) ListPlacementWindows(
 		}
 		windows = append(windows, window)
 	}
-	return &ingestv1.ListPlacementWindowsResponse{Windows: windows}, nil
+	resources, err := s.queries.ListClusterLogRetentions(ctx, clusterID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+	}
+	policies := make([]*ingestv1.ResourceLogRetention, 0, len(resources))
+	for _, resource := range resources {
+		policies = append(
+			policies,
+			&ingestv1.ResourceLogRetention{
+				WorkspaceId:     resource.WorkspaceID.String(),
+				ResourceId:      resource.ID.String(),
+				RetentionPeriod: resource.RetentionPeriod,
+			},
+		)
+	}
+	return &ingestv1.ListPlacementWindowsResponse{Windows: windows, LogRetentions: policies}, nil
 }
 
 func (s *IngestServer) JWKS(w http.ResponseWriter, r *http.Request) {

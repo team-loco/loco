@@ -3,10 +3,12 @@ package servicedefaults
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/logretention"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -40,7 +42,7 @@ type Defaults struct {
 	DeployRetryDelay         int32
 	MetricsPort              int32
 	MetricsPath              string
-	LogRetention             string
+	LogRetention             time.Duration
 }
 
 // Resources is what a deployment runs with in one region.
@@ -154,4 +156,9 @@ func FirstSet[T comparable](values ...T) T {
 		}
 	}
 	return zero
+}
+
+func (d Defaults) ValidateLogRetention(value string) error {
+	_, err := logretention.Resolve(value, d.LogRetention)
+	return err
 }

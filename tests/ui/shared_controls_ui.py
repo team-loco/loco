@@ -75,6 +75,7 @@ def query_param(page):
 
 def log_levels(page, suffix):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
+    expect(page.get_by_text("Log retention defaults to 365d", exact=False)).to_be_visible()
     levels = page.get_by_role("group", name="Log levels")
     warn = levels.get_by_role("button", name=re.compile(r"^Warn"))
     error = levels.get_by_role("button", name=re.compile(r"^Error"))

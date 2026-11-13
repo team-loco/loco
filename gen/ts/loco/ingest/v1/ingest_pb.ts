@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/ingest/v1/ingest.proto.
  */
 export const file_loco_ingest_v1_ingest: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QiUAocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93IoYBCg9QbGFjZW1lbnRXaW5kb3cSFAoMd29ya3NwYWNlX2lkGAEgASgJEi0KCXBsYWNlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmVtb3ZlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAy1wEKDUluZ2VzdFNlcnZpY2USUwoKSXNzdWVUb2tlbhIhLmxvY28uaW5nZXN0LnYxLklzc3VlVG9rZW5SZXF1ZXN0GiIubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlc3BvbnNlEnEKFExpc3RQbGFjZW1lbnRXaW5kb3dzEisubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXF1ZXN0GiwubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2luZ2VzdC92MTtpbmdlc3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QijgEKHExpc3RQbGFjZW1lbnRXaW5kb3dzUmVzcG9uc2USMAoHd2luZG93cxgBIAMoCzIfLmxvY28uaW5nZXN0LnYxLlBsYWNlbWVudFdpbmRvdxI8Cg5sb2dfcmV0ZW50aW9ucxgCIAMoCzIkLmxvY28uaW5nZXN0LnYxLlJlc291cmNlTG9nUmV0ZW50aW9uIoYBCg9QbGFjZW1lbnRXaW5kb3cSFAoMd29ya3NwYWNlX2lkGAEgASgJEi0KCXBsYWNlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmVtb3ZlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWwoUUmVzb3VyY2VMb2dSZXRlbnRpb24SFAoMd29ya3NwYWNlX2lkGAEgASgJEhMKC3Jlc291cmNlX2lkGAIgASgJEhgKEHJldGVudGlvbl9wZXJpb2QYAyABKAky1wEKDUluZ2VzdFNlcnZpY2USUwoKSXNzdWVUb2tlbhIhLmxvY28uaW5nZXN0LnYxLklzc3VlVG9rZW5SZXF1ZXN0GiIubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlc3BvbnNlEnEKFExpc3RQbGFjZW1lbnRXaW5kb3dzEisubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXF1ZXN0GiwubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2luZ2VzdC92MTtpbmdlc3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.ingest.v1.IssueTokenRequest
@@ -97,6 +97,11 @@ export type ListPlacementWindowsResponse = Message<"loco.ingest.v1.ListPlacement
    * @generated from field: repeated loco.ingest.v1.PlacementWindow windows = 1;
    */
   windows: PlacementWindow[];
+
+  /**
+   * @generated from field: repeated loco.ingest.v1.ResourceLogRetention log_retentions = 2;
+   */
+  logRetentions: ResourceLogRetention[];
 };
 
 /**
@@ -107,6 +112,11 @@ export type ListPlacementWindowsResponseJson = {
    * @generated from field: repeated loco.ingest.v1.PlacementWindow windows = 1;
    */
   windows?: PlacementWindowJson[];
+
+  /**
+   * @generated from field: repeated loco.ingest.v1.ResourceLogRetention log_retentions = 2;
+   */
+  logRetentions?: ResourceLogRetentionJson[];
 };
 
 /**
@@ -168,6 +178,53 @@ export type PlacementWindowJson = {
  */
 export const PlacementWindowSchema: GenMessage<PlacementWindow, {jsonType: PlacementWindowJson}> = /*@__PURE__*/
   messageDesc(file_loco_ingest_v1_ingest, 4);
+
+/**
+ * @generated from message loco.ingest.v1.ResourceLogRetention
+ */
+export type ResourceLogRetention = Message<"loco.ingest.v1.ResourceLogRetention"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string resource_id = 2;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: string retention_period = 3;
+   */
+  retentionPeriod: string;
+};
+
+/**
+ * @generated from message loco.ingest.v1.ResourceLogRetention
+ */
+export type ResourceLogRetentionJson = {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string resource_id = 2;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: string retention_period = 3;
+   */
+  retentionPeriod?: string;
+};
+
+/**
+ * Describes the message loco.ingest.v1.ResourceLogRetention.
+ * Use `create(ResourceLogRetentionSchema)` to create a new message.
+ */
+export const ResourceLogRetentionSchema: GenMessage<ResourceLogRetention, {jsonType: ResourceLogRetentionJson}> = /*@__PURE__*/
+  messageDesc(file_loco_ingest_v1_ingest, 5);
 
 /**
  * IngestService authorizes telemetry that worker clusters send to the observability proxy.

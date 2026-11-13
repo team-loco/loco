@@ -1,3 +1,5 @@
+import { useQuery } from "@connectrpc/connect-query";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { useEffect, useState, type CSSProperties } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon } from "lucide-react";
@@ -64,6 +66,8 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 }
 
 export function LogsView() {
+	const { data: config } = useQuery(getConfig, {});
+	const retention = config?.serviceDefaults?.observability?.logging?.retentionPeriod;
 	const {
 		workspaceId,
 		resources,
@@ -371,6 +375,12 @@ export function LogsView() {
 	return (
 		<>
 			{header}
+			{retention !== undefined && (
+				<p className="text-xs text-fg3">
+					Log retention defaults to {retention}, the installation maximum. Resource overrides may expire sooner. Each
+					line records its applied retention in seconds.
+				</p>
+			)}
 			{firstRun ? (
 				<ObsHero
 					view="logs"

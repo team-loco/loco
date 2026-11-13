@@ -96,6 +96,8 @@ secrets:
 # @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {image: {properties: {tag: {minLength: 1}}}}}}]
 obsProxy:
   enabled: true
+  # Empty uses the built-in default.
+  logsTTL: ""
   # @schema additionalProperties: false
   image:
     repository: ghcr.io/team-loco/loco-obs-proxy

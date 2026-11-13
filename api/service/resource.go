@@ -126,6 +126,11 @@ func (s *ResourceServer) CreateResource(
 		return nil, errOnlyServiceResources
 	}
 
+	if err = s.defaults.ValidateLogRetention(
+		req.GetSpec().GetService().GetObservability().GetLogging().GetRetentionPeriod(),
+	); err != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, err)
+	}
 	specJSON, err := marshalResourceSpec(req.GetSpec())
 	if err != nil {
 		return nil, err

@@ -233,6 +233,43 @@ func (q *Queries) GetPlacementForResourceCluster(ctx context.Context, arg GetPla
 	return i, err
 }
 
+const listClusterLogRetentions = `-- name: ListClusterLogRetentions :many
+SELECT r.id, r.workspace_id,
+       COALESCE(r.spec #>> '{observability,logging,retentionPeriod}', '')::text AS retention_period
+FROM resources r
+WHERE r.type = 'service' AND EXISTS (
+ SELECT 1 FROM placement_windows w
+ WHERE w.workspace_id = r.workspace_id AND w.cluster_id = $1
+)
+ORDER BY r.id
+`
+
+type ListClusterLogRetentionsRow struct {
+	ID              uuid.UUID `json:"id"`
+	WorkspaceID     uuid.UUID `json:"workspaceId"`
+	RetentionPeriod string    `json:"retentionPeriod"`
+}
+
+func (q *Queries) ListClusterLogRetentions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterLogRetentionsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterLogRetentions, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClusterLogRetentionsRow
+	for rows.Next() {
+		var i ListClusterLogRetentionsRow
+		if err := rows.Scan(&i.ID, &i.WorkspaceID, &i.RetentionPeriod); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listClusterPlacementRevisions = `-- name: ListClusterPlacementRevisions :many
 SELECT id, desired_revision, desired_deleted, applied_revision,
        (apply_failed OR COALESCE(retry_after > NOW(), false))::boolean AS send_held,

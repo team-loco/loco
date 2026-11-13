@@ -296,3 +296,36 @@ tests:
       - failedTemplate:
           errorMessage: obsProxy.ingest.clickhouse.existingSecret.name is required
         template: templates/obs-proxy-ingest-deployment.yaml
+
+  - it: shares log retention with api-deployment
+    template: templates/api-deployment.yaml
+    set:
+      obsProxy.ingest.enabled: true
+      obsProxy.ingest.clickhouse.existingSecret.name: loco-ingest
+      obsProxy.logsTTL: 48h
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_LOGS_TTL, value: 48h}
+
+  - it: shares log retention with obs-proxy-query-deployment
+    template: templates/obs-proxy-query-deployment.yaml
+    set:
+      obsProxy.ingest.enabled: true
+      obsProxy.ingest.clickhouse.existingSecret.name: loco-ingest
+      obsProxy.logsTTL: 48h
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_LOGS_TTL, value: 48h}
+
+  - it: shares log retention with obs-proxy-ingest-deployment
+    template: templates/obs-proxy-ingest-deployment.yaml
+    set:
+      obsProxy.ingest.enabled: true
+      obsProxy.ingest.clickhouse.existingSecret.name: loco-ingest
+      obsProxy.logsTTL: 48h
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_LOGS_TTL, value: 48h}

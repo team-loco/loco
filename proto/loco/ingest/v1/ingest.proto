@@ -26,6 +26,7 @@ message ListPlacementWindowsRequest {}
 
 message ListPlacementWindowsResponse {
   repeated PlacementWindow windows = 1;
+  repeated ResourceLogRetention log_retentions = 2;
 }
 
 // PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;
@@ -34,4 +35,10 @@ message PlacementWindow {
   string workspace_id = 1;
   google.protobuf.Timestamp placed_at = 2;
   google.protobuf.Timestamp removed_at = 3;
+}
+
+message ResourceLogRetention {
+  string workspace_id = 1;
+  string resource_id = 2;
+  string retention_period = 3;
 }

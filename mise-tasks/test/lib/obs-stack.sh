@@ -149,9 +149,9 @@ ingest_cluster=$run_id
 chmod -R a+rX "$workdir/token"
 
 start_control_plane() {
-	local workspaces
-	workspaces=$(IFS=,; echo "$*")
-	"$workdir/ingesttoken" -key "$ingest_key" -serve "127.0.0.1:$control_plane_port" -workspaces "$workspaces" \
+	local resources
+	resources=$(IFS=,; echo "$*")
+	"$workdir/ingesttoken" -key "$ingest_key" -serve "127.0.0.1:$control_plane_port" -resources "$resources" \
 		>"$workdir/control-plane.log" 2>&1 &
 	proxy_pids+=($!)
 }
