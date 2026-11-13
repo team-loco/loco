@@ -79,8 +79,8 @@ func openProbe(cfg *config.Config) (driver.Conn, error) {
 }
 
 // start applies the schema migrations under the migration lock, so one replica of a rollout
-// migrates and the others wait, then checks the writer's tables exist and starts the writer. The
-// retry budget covers waiting for the lock as well as the migrations.
+// migrates and the others wait, then checks the ingest user can see the writer's tables and starts
+// the writer. The retry budget covers waiting for the lock as well as the migrations.
 func (s *ingestServer) start(ctx context.Context, cfg *config.Config) error {
 	schema := migrations.Config{
 		DSN:        cfg.ClickHouseMigratorURL,
@@ -97,13 +97,7 @@ func (s *ingestServer) start(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("migrate clickhouse schema: %w", err)
 	}
-	if err := ingest.WaitForSchema(
-		budgetCtx,
-		s.probe,
-		cfg.ClickHouseDB,
-		s.writer.Tables(),
-		cfg.MigrationRetryInterval,
-	); err != nil {
+	if err := ingest.CheckSchema(budgetCtx, s.probe, cfg.ClickHouseDB, s.writer.Tables()); err != nil {
 		return err
 	}
 	if err := s.writer.Start(ctx); err != nil {
