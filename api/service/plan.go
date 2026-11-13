@@ -310,7 +310,7 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 
 	for _, res := range resources {
 		latest, built := live.builds[res.ID]
-		state, stateErr := s.liveState(ctx, res, live.domains[res.ID], live.deployments[res.ID])
+		state, stateErr := liveState(ctx, s.queries, s.defaults, res, live.domains[res.ID], live.deployments[res.ID])
 		if stateErr != nil {
 			return liveEnvironment{}, fmt.Errorf("resource %s: %w", res.Name, stateErr)
 		}
@@ -361,8 +361,10 @@ func deploymentRegions(deployments []genDb.Deployment) []string {
 	return slices.Compact(regions)
 }
 
-func (s *PlanServer) liveState(
+func liveState(
 	ctx context.Context,
+	queries genDb.Querier,
+	defaults servicedefaults.Defaults,
 	res genDb.Resource,
 	domains []genDb.ResourceDomain,
 	deployments []genDb.Deployment,
@@ -384,11 +386,11 @@ func (s *PlanServer) liveState(
 	if metrics := spec.GetObservability().GetMetrics(); metrics.GetEnabled() {
 		state.Metrics = &locofile.Metrics{Port: metrics.GetPort(), Path: metrics.GetPath()}
 		if state.Metrics.Path == "" {
-			state.Metrics.Path = s.defaults.MetricsPath
+			state.Metrics.Path = defaults.MetricsPath
 		}
 	}
 	if routing := spec.GetRouting(); routing.GetPathPrefix() != "" || routing.GetIdleTimeout() != 0 {
-		pathPrefix, idleTimeout := s.defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
+		pathPrefix, idleTimeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
 		state.Routing = &configplan.Routing{PathPrefix: pathPrefix, IdleTimeout: idleTimeout}
 	}
 	slices.SortStableFunc(domains, func(a, b genDb.ResourceDomain) int {
@@ -427,7 +429,7 @@ func (s *PlanServer) liveState(
 		if !target.GetEnabled() {
 			target = nil
 		}
-		resources := s.defaults.Fill(target, service)
+		resources := defaults.Fill(target, service)
 		state.Regions[deployment.Region] = configplan.Region{
 			CPU:         resources.CPU,
 			Memory:      resources.Memory,
@@ -456,14 +458,14 @@ func (s *PlanServer) liveState(
 		case buildSourceTypeImage:
 			state.Image = build.GetImage()
 		case buildSourceTypeDockerfile:
-			deployed, buildErr := s.deployedBuild(ctx, build)
+			deployed, buildErr := deployedBuild(ctx, queries, build)
 			if buildErr != nil {
 				return configplan.State{}, fmt.Errorf("deployment %s build: %w", deployment.ID, buildErr)
 			}
 			state.Dockerfile = deployed.DockerfilePath
 			state.Context = deployed.Context
 		}
-		env, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.ClusterID)
+		env, envErr := desiredEnv(ctx, queries, res.ID, deployment.ClusterID)
 		if envErr != nil {
 			return configplan.State{}, fmt.Errorf("deployment %s env: %w", deployment.ID, envErr)
 		}
@@ -478,12 +480,12 @@ func (s *PlanServer) liveState(
 	return state, nil
 }
 
-func (s *PlanServer) deployedBuild(ctx context.Context, build *deploymentv1.BuildSource) (genDb.Build, error) {
+func deployedBuild(ctx context.Context, queries genDb.Querier, build *deploymentv1.BuildSource) (genDb.Build, error) {
 	buildID, err := uuid.Parse(build.GetBuildId())
 	if err != nil {
 		return genDb.Build{}, fmt.Errorf("parse build id %q: %w", build.GetBuildId(), err)
 	}
-	deployed, err := s.queries.GetBuildByID(ctx, buildID)
+	deployed, err := queries.GetBuildByID(ctx, buildID)
 	if err != nil {
 		return genDb.Build{}, fmt.Errorf("get build %s: %w", buildID, err)
 	}

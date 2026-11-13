@@ -12781,6 +12781,22 @@
         "additionalProperties": false,
         "description": "RegionTarget defines the desired state for a specific region."
       },
+      "loco.resource.v1.RegionTargets": {
+        "type": "object",
+        "properties": {
+          "targets": {
+            "type": "object",
+            "title": "targets",
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/loco.resource.v1.RegionTarget"
+            }
+          }
+        },
+        "title": "RegionTargets",
+        "additionalProperties": false,
+        "description": "RegionTargets is a resource's desired region map, keyed by region name."
+      },
       "loco.resource.v1.Resource": {
         "type": "object",
         "properties": {
@@ -12859,6 +12875,12 @@
           "slug": {
             "type": "string",
             "title": "slug"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64",
+            "description": "revision increases with every change to the resource spec or its scaling."
           }
         },
         "title": "Resource",
@@ -13186,6 +13208,24 @@
             ],
             "title": "description",
             "maxLength": 256
+          },
+          "regions": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/loco.resource.v1.RegionTargets"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "regions",
+            "description": "regions replaces the resource's whole region map when set; omitted regions are torn down."
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64",
+            "description": "revision is the Resource.revision the caller loaded; a regions update fails when it moved."
           }
         },
         "title": "UpdateResourceRequest",

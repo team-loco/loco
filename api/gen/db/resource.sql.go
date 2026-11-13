@@ -12,6 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
+const bumpResourceRevision = `-- name: BumpResourceRevision :exec
+UPDATE resources SET revision = revision + 1 WHERE id = $1
+`
+
+func (q *Queries) BumpResourceRevision(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, bumpResourceRevision, id)
+	return err
+}
+
 const createResource = `-- name: CreateResource :one
 
 INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
@@ -82,7 +91,7 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClust
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -99,6 +108,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.Description,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.Revision,
 		&i.Partial,
 		&i.MaxApplyAttempts,
 		&i.ApplyRetryDelaySeconds,
@@ -109,7 +119,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -131,6 +141,7 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.Description,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.Revision,
 		&i.Partial,
 		&i.MaxApplyAttempts,
 		&i.ApplyRetryDelaySeconds,
@@ -303,6 +314,54 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 	return items, nil
 }
 
+const listLatestResourceDeployments = `-- name: ListLatestResourceDeployments :many
+SELECT DISTINCT ON (environment_id, region) id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, created_at, started_at, completed_at, updated_at FROM deployments
+WHERE resource_id = $1
+ORDER BY environment_id, region, created_at DESC, id DESC
+`
+
+func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error) {
+	rows, err := q.db.Query(ctx, listLatestResourceDeployments, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Deployment
+	for rows.Next() {
+		var i Deployment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.ClusterID,
+			&i.Region,
+			&i.Replicas,
+			&i.Status,
+			&i.IsActive,
+			&i.Message,
+			&i.EnvironmentID,
+			&i.Spec,
+			&i.SpecVersion,
+			&i.ActorType,
+			&i.ActorID,
+			&i.Method,
+			&i.CommitSha,
+			&i.CommitDirty,
+			&i.SecretNames,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRegionStatusesForResources = `-- name: ListRegionStatusesForResources :many
 SELECT d.resource_id,
        d.environment_id,
@@ -389,7 +448,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -431,6 +490,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.Description,
 			&i.Spec,
 			&i.SpecVersion,
+			&i.Revision,
 			&i.Partial,
 			&i.MaxApplyAttempts,
 			&i.ApplyRetryDelaySeconds,
@@ -448,7 +508,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 }
 
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC
@@ -472,6 +532,7 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 			&i.Description,
 			&i.Spec,
 			&i.SpecVersion,
+			&i.Revision,
 			&i.Partial,
 			&i.MaxApplyAttempts,
 			&i.ApplyRetryDelaySeconds,
@@ -581,7 +642,7 @@ func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) 
 
 const updateResourceSpec = `-- name: UpdateResourceSpec :exec
 UPDATE resources
-SET spec = $2, updated_at = NOW()
+SET spec = $2, revision = revision + 1, updated_at = NOW()
 WHERE id = $1
 `
 

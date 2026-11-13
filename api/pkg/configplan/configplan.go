@@ -131,7 +131,7 @@ func Compute(in Input) (Plan, error) {
 			return Plan{}, err
 		}
 		desired := fileState(service, pinned, in.Defaults)
-		plan.Errors = append(plan.Errors, validateDesired(name, desired)...)
+		plan.Errors = append(plan.Errors, ValidateState(name, desired, in.Clusters)...)
 		plan.Desired[name] = desired
 
 		current, exists := live[name]
@@ -145,19 +145,10 @@ func Compute(in Input) (Plan, error) {
 				Desired:     desired,
 			})
 		case current.Partial == in.Partial:
-			changes := withEnabled(current, diff(&current.State, &desired))
-			needsDeploy := needsBuild(current, desired)
-			if len(changes) == 0 && !needsDeploy {
-				continue
+			op := Update(current, desired)
+			if len(op.Changes) != 0 || op.NeedsDeploy {
+				plan.Operations = append(plan.Operations, op)
 			}
-			plan.Operations = append(plan.Operations, Operation{
-				Kind:        KindUpdate,
-				Service:     name,
-				Changes:     changes,
-				Destructive: stopsRunningRegion(current, desired),
-				NeedsDeploy: needsDeploy,
-				Desired:     desired,
-			})
 		case current.Partial == "":
 			plan.Operations = append(plan.Operations, Operation{
 				Kind:        KindImport,
@@ -236,23 +227,6 @@ func unknownEnvironments(in Input) []Error {
 
 func checkService(name string, service locofile.Service, in Input) []Error {
 	var errs []Error
-	var targets []platformdomain.Cluster
-	for _, region := range slices.Sorted(maps.Keys(service.Regions)) {
-		index := slices.IndexFunc(in.Clusters, func(cluster platformdomain.Cluster) bool {
-			return cluster.Region == region
-		})
-		if index >= 0 {
-			targets = append(targets, in.Clusters[index])
-			continue
-		}
-		unknown := fmt.Errorf("%w: %s", ErrUnknownRegion, region)
-		errs = append(errs, Error{Service: name, Path: pathRegions + "." + region, Err: unknown})
-	}
-	for _, domain := range service.Domains {
-		if _, _, err := platformdomain.Check(domain, in.Clusters, targets); err != nil {
-			errs = append(errs, Error{Service: name, Path: pathDomains, Err: err})
-		}
-	}
 	if service.Image != "" {
 		if result, found := in.Images[service.Image]; found && result.Err != nil {
 			unresolved := fmt.Errorf("%w: %s: %w", ErrImageUnresolved, service.Image, result.Err)
@@ -330,4 +304,37 @@ func pinnedImage(service locofile.Service, images map[string]ImageResult) (strin
 		return "", fmt.Errorf("%w: %s", ErrImageNotResolved, service.Image)
 	}
 	return result.Pinned, nil
+}
+
+func Update(current Service, desired State) Operation {
+	return Operation{
+		Kind:        KindUpdate,
+		Service:     current.Name,
+		Changes:     withEnabled(current, diff(&current.State, &desired)),
+		Destructive: stopsRunningRegion(current, desired),
+		NeedsDeploy: needsBuild(current, desired),
+		Desired:     desired,
+	}
+}
+
+func ValidateState(name string, desired State, clusters []platformdomain.Cluster) []Error {
+	errs := validateDesired(name, desired)
+	var targets []platformdomain.Cluster
+	for _, region := range slices.Sorted(maps.Keys(desired.Regions)) {
+		if err := validateRegion(region, desired.Regions[region], clusters); err != nil {
+			errs = append(errs, Error{Service: name, Path: pathRegions + "." + region, Err: err})
+		}
+		for _, cluster := range clusters {
+			if cluster.Region == region {
+				targets = append(targets, cluster)
+				break
+			}
+		}
+	}
+	for _, domain := range desired.Domains {
+		if _, _, err := platformdomain.Check(domain, clusters, targets); err != nil {
+			errs = append(errs, Error{Service: name, Path: pathDomains, Err: err})
+		}
+	}
+	return errs
 }

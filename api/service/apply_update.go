@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -43,15 +44,7 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 		}
 	}
 
-	spec := serviceSpecFor(op.Desired)
-	spec.Observability = current.GetObservability()
-	for name, target := range current.GetRegions() {
-		if _, kept := spec.GetRegions()[name]; kept {
-			continue
-		}
-		disabled := &resourcev1.RegionTarget{Cpu: target.GetCpu(), Memory: target.GetMemory()}
-		spec.Regions[name] = disabled
-	}
+	spec := a.updatedSpec(current, op.Desired)
 	specJSON, err := protojson.Marshal(spec)
 	if err != nil {
 		return fmt.Errorf("marshal resource spec: %w", err)
@@ -91,6 +84,25 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 		return nil
 	}
 	return a.deploy(ctx, qtx, res, spec, op.Desired, affected)
+}
+
+// updatedSpec is the resource spec an update stores. A region edit replaces only the region map
+// and keeps every other field as stored, instead of rebuilding them from the running deployments.
+func (a *applier) updatedSpec(current *resourcev1.ServiceSpec, desired configplan.State) *resourcev1.ServiceSpec {
+	if a.regionTargets != nil {
+		spec := proto.CloneOf(current)
+		spec.Regions = a.regionTargets.GetTargets()
+		return spec
+	}
+	spec := serviceSpecFor(desired)
+	spec.Observability = current.GetObservability()
+	for name, target := range current.GetRegions() {
+		if _, kept := spec.GetRegions()[name]; kept {
+			continue
+		}
+		spec.Regions[name] = &resourcev1.RegionTarget{Cpu: target.GetCpu(), Memory: target.GetMemory()}
+	}
+	return spec
 }
 
 func stopsService(op configplan.Operation) bool {

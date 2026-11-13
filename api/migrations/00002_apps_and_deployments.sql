@@ -125,6 +125,7 @@ CREATE TABLE
         description TEXT NOT NULL,
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
+        revision BIGINT NOT NULL DEFAULT 1,
         partial TEXT CHECK (partial ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
         max_apply_attempts INT CHECK (max_apply_attempts > 0),
         apply_retry_delay_seconds INT CHECK (apply_retry_delay_seconds > 0),
