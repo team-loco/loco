@@ -22,7 +22,6 @@ func (f *buildFixture) setRole(t *testing.T, id uuid.UUID, role genDb.ClusterRol
 
 func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 	f := newBuildFixture(t)
-	f.markClustersHealthy(t)
 	f.setRole(t, f.clusterID, genDb.ClusterRoleBuilds)
 	f.setRole(t, f.otherCluster, genDb.ClusterRoleApps)
 	buildRegionQuery := "UPDATE clusters SET region = 'builds-region' WHERE id = $1"
@@ -78,7 +77,8 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 
 	f.setRole(t, f.clusterID, genDb.ClusterRoleApps)
 	f.setRole(t, f.otherCluster, genDb.ClusterRoleApps)
-	if _, lookupErr := f.queries.GetBuildCluster(t.Context()); !errors.Is(lookupErr, pgx.ErrNoRows) {
+	heardSince := time.Now().Add(-testClusterSilentAfter)
+	if _, lookupErr := f.queries.GetBuildCluster(t.Context(), heardSince); !errors.Is(lookupErr, pgx.ErrNoRows) {
 		t.Fatalf("build cluster among apps clusters: %v", lookupErr)
 	}
 }

@@ -62,6 +62,8 @@ RETURNING id, cluster_id, source_key;
 SELECT id FROM clusters
 WHERE is_active = true
   AND role IN ('builds', 'all')
+  AND health_status = 'healthy'
+  AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
 ORDER BY created_at, id
 LIMIT 1;
 

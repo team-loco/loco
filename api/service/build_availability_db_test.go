@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -197,5 +198,54 @@ func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 	}
 	if err := stream.CloseSend(); err != nil {
 		t.Fatalf("close sync stream: %v", err)
+	}
+}
+
+func TestBuildSelectionRequiresHealthyRecentHeartbeats(t *testing.T) {
+	for _, invalid := range []string{
+		"last_heartbeat = $2", "last_heartbeat = NULL", "health_status = 'unhealthy'", "health_status = 'degraded'",
+	} {
+		t.Run(invalid, func(t *testing.T) {
+			f := newBuildFixture(t)
+			invalidate := func(id uuid.UUID) {
+				t.Helper()
+				args := []any{id}
+				if invalid == "last_heartbeat = $2" {
+					args = append(args, time.Now().Add(-2*testClusterSilentAfter))
+				}
+				if _, err := f.pool.Exec(f.ctx, "UPDATE clusters SET "+invalid+" WHERE id = $1", args...); err != nil {
+					t.Fatal(err)
+				}
+			}
+			invalidate(f.clusterID)
+			id := f.create(t, 10).GetBuildId()
+			f.uploadFor(t, id, 10)
+			build, err := f.start(id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if build.GetClusterId() != f.otherCluster.String() {
+				t.Fatalf("queued on unavailable oldest builder: %v", build)
+			}
+
+			pending := f.create(t, 10).GetBuildId()
+			f.uploadFor(t, pending, 10)
+			invalidate(f.otherCluster)
+			_, err = f.start(pending)
+			wantBuildsUnavailable(t, err, errNoBuildCluster.Error())
+			wantStatus(t, f.get(t, pending), buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD)
+			if !strings.Contains(err.Error(), "healthy") || !strings.Contains(err.Error(), "heartbeat") {
+				t.Fatal(err)
+			}
+
+			presigned := len(f.bucket.presigned)
+			_, err = f.server.CreateBuild(f.ctx, &buildv1.CreateBuildRequest{
+				ResourceId: f.resourceID.String(), DockerfilePath: testDockerfile, SourceSize: 10,
+			})
+			wantBuildsUnavailable(t, err, errNoBuildCluster.Error())
+			if len(f.bucket.presigned) != presigned {
+				t.Fatal("created an upload without a live builder")
+			}
+		})
 	}
 }

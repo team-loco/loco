@@ -156,6 +156,7 @@ type buildFixture struct {
 func newBuildFixture(t *testing.T) *buildFixture {
 	t.Helper()
 	f := newDeployFixture(t)
+	f.markClustersHealthy(t)
 	ctx := context.Background()
 
 	if _, err := f.pool.Exec(
@@ -168,9 +169,10 @@ func newBuildFixture(t *testing.T) *buildFixture {
 
 	bucket := newFakeBucket()
 	server := NewBuildServer(f.pool, f.queries, bucket, BuildConfig{
-		RegistryHost:   testRegistryHost,
-		RegistryPrefix: "builds",
-		SourceMaxBytes: 1024,
+		ClusterSilentAfter: testClusterSilentAfter,
+		RegistryHost:       testRegistryHost,
+		RegistryPrefix:     "builds",
+		SourceMaxBytes:     1024,
 	})
 
 	scopes := []genDb.EntityScope{
@@ -382,7 +384,7 @@ func TestConcurrentStartBuildsLeaveOneQueued(t *testing.T) {
 	}
 }
 
-func TestStartBuildPicksTheOldestActiveCluster(t *testing.T) {
+func TestStartBuildPicksTheOldestEligibleCluster(t *testing.T) {
 	f := newBuildFixture(t)
 
 	exec := func(sql string, args ...any) {
@@ -408,12 +410,12 @@ func TestStartBuildPicksTheOldestActiveCluster(t *testing.T) {
 
 	exec(`UPDATE clusters SET tier = 'production', health_status = 'healthy' WHERE id = $1`, f.clusterID)
 	exec(
-		`UPDATE clusters SET created_at = NOW() - INTERVAL '2 hours', tier = 'staging', health_status = NULL,
+		`UPDATE clusters SET created_at = NOW() - INTERVAL '2 hours', tier = 'staging',
 		 region = 'eu-west-1', is_default = false WHERE id = $1`,
 		f.otherCluster,
 	)
 	if got, want := queuedOn(), f.otherCluster.String(); got != want {
-		t.Fatalf("build queued on %q, want the oldest cluster %q whatever its tier, health or region", got, want)
+		t.Fatalf("build queued on %q, want the oldest cluster %q whatever its tier or region", got, want)
 	}
 
 	exec(`UPDATE clusters SET is_active = false WHERE id = $1`, f.otherCluster)

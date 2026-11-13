@@ -41,7 +41,9 @@ var (
 	errBuildNotQueueable  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "build is no longer awaiting upload")
 	errBuildNotCancelable = rpcerr.NewCoded(connect.CodeFailedPrecondition, "build has already finished")
 	errSourceNotUploaded  = errors.New("the source has not been uploaded")
-	errNoBuildCluster     = errors.New("no cluster in this install accepts builds")
+	errNoBuildCluster     = errors.New(
+		"no cluster in this install accepts builds: requires a healthy cluster with a recent heartbeat",
+	)
 )
 
 type SourceBucket interface {
@@ -53,9 +55,10 @@ type SourceBucket interface {
 }
 
 type BuildConfig struct {
-	RegistryHost   string
-	RegistryPrefix string
-	SourceMaxBytes int64
+	ClusterSilentAfter time.Duration
+	RegistryHost       string
+	RegistryPrefix     string
+	SourceMaxBytes     int64
 }
 
 type BuildServer struct {
@@ -255,7 +258,7 @@ func (s *BuildServer) StartBuild(
 }
 
 func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
-	clusterID, err := s.queries.GetBuildCluster(ctx)
+	clusterID, err := s.queries.GetBuildCluster(ctx, s.now().Add(-s.config.ClusterSilentAfter))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.UUID{}, buildsUnavailable(errNoBuildCluster)
 	}
