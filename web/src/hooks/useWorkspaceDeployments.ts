@@ -4,6 +4,7 @@ import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { workspaceDeploymentsOptions } from "@/hooks/workspaceDeployments";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { isInFlight } from "@/lib/deployment-utils";
 
@@ -15,9 +16,8 @@ function rollingOut(resource: Resource): boolean {
 	return resource.environmentStatuses.some((e) => e.regions.some((r) => isInFlight(r.deploymentStatus)));
 }
 
-export function useWorkspaceDeployments(orgId: string | null, workspaceId: string | null) {
-	const transport = useTransport();
-	const resourcesQuery = useQuery({
+function usePollingWorkspaceResources(orgId: string | null, workspaceId: string | null) {
+	return useQuery({
 		...useWorkspaceResourcesOptions(orgId ?? "", workspaceId ?? ""),
 		enabled: orgId !== null && workspaceId !== null,
 		refetchInterval: (q) => {
@@ -25,6 +25,11 @@ export function useWorkspaceDeployments(orgId: string | null, workspaceId: strin
 			return list.some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
 		},
 	});
+}
+
+export function useWorkspaceDeployments(orgId: string | null, workspaceId: string | null) {
+	const transport = useTransport();
+	const resourcesQuery = usePollingWorkspaceResources(orgId, workspaceId);
 	const resources = resourcesQuery.data?.resources ?? [];
 
 	const deploymentQueries = useQueries({
@@ -42,5 +47,27 @@ export function useWorkspaceDeployments(orgId: string | null, workspaceId: strin
 		deployments: resources.map((_, i) => deploymentQueries[i]?.data?.deployments ?? []),
 		isLoading: resourcesQuery.isLoading || deploymentQueries.some((q) => q.isLoading),
 		error: resourcesQuery.error,
+	};
+}
+
+export function useWorkspaceEnvironmentDeployments(
+	orgId: string | null,
+	workspaceId: string | null,
+	environmentId: string,
+) {
+	const transport = useTransport();
+	const resourcesQuery = usePollingWorkspaceResources(orgId, workspaceId);
+	const deploymentsQuery = useQuery({
+		...workspaceDeploymentsOptions(transport, workspaceId ?? "", environmentId),
+		refetchInterval: (q) => {
+			const list = q.state.data?.deployments ?? [];
+			return list.some((d) => d.isActive && isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS;
+		},
+	});
+	return {
+		resources: resourcesQuery.data?.resources ?? [],
+		deployments: deploymentsQuery.data?.deployments ?? [],
+		isLoading: resourcesQuery.isLoading || deploymentsQuery.isLoading,
+		error: resourcesQuery.error ?? deploymentsQuery.error,
 	};
 }

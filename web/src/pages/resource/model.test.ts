@@ -15,6 +15,7 @@ import {
 	activeDeploymentPlaces,
 	buildRegions,
 	deploymentsRequest,
+	focusRegion,
 	lastGoodDeployment,
 	statusEnvironmentId,
 	tookMs,
@@ -114,6 +115,20 @@ describe("lastGoodDeployment", () => {
 	test("finds nothing when the region has one deployment", () => {
 		const region: RegionView = { name: "us-east-1", status: undefined, history: [failed], current: failed };
 		expect(lastGoodDeployment(region)).toBeUndefined();
+	});
+});
+
+describe("focusRegion", () => {
+	test("picks the healthy region that has a release to roll back to", () => {
+		const spec = create(DeploymentSpecSchema);
+		const europe = create(DeploymentSchema, { id: "europe", isActive: true, status: DeploymentPhase.RUNNING, spec });
+		const current = create(DeploymentSchema, { id: "current", isActive: true, status: DeploymentPhase.RUNNING, spec });
+		const previous = create(DeploymentSchema, { id: "previous", status: DeploymentPhase.SUCCEEDED, spec });
+		const regions: RegionView[] = [
+			{ name: "eu-west-1", status: undefined, history: [europe], current: europe },
+			{ name: "us-east-1", status: undefined, history: [current, previous], current },
+		];
+		expect(focusRegion(regions)?.name).toBe("us-east-1");
 	});
 });
 

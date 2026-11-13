@@ -10,7 +10,7 @@ import {
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
+import { useWorkspaceEnvironmentDeployments } from "@/hooks/useWorkspaceDeployments";
 import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { tsMs } from "@/lib/time";
@@ -42,7 +42,11 @@ function regionReplicas(resource: Resource, environment: EnvironmentStatus | und
 }
 
 export function useDashboardData(orgId: string | null, workspaceId: string | null, env: Environment | undefined) {
-	const { resources, deployments, isLoading, error } = useWorkspaceDeployments(orgId, workspaceId);
+	const { resources, deployments, isLoading, error } = useWorkspaceEnvironmentDeployments(
+		orgId,
+		workspaceId,
+		env?.id ?? "",
+	);
 	const grants = useMyScopes().resourceGrants(orgId ?? "", workspaceId ?? "");
 	const regionsQuery = useQuery(
 		listRegions,
@@ -54,11 +58,12 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 	const envResources: EnvResource[] = [];
 	const envDeployments: { deployment: Deployment; resource: Resource }[] = [];
 
-	resources.forEach((resource, i) => {
-		const all = deployments[i] ?? [];
-		const mine = all.filter((d) => d.environmentId === envId).toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+	resources.forEach((resource) => {
+		const mine = deployments
+			.filter((d) => d.resourceId === resource.id)
+			.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
-		const neverDeployed = all.length === 0;
+		const neverDeployed = mine.length === 0 && resource.environmentStatuses.length === 0;
 		if (mine.length === 0 && !neverDeployed) return;
 		const environment = environmentStatus(resource, envId);
 		const regions = regionReplicas(resource, environment);

@@ -135,8 +135,9 @@ export function problemRegionOf(regions: RegionView[]): RegionView | undefined {
 	);
 }
 
+// A healthy region without an earlier release must not hide the rollback a sibling region still offers.
 export function focusRegion(regions: RegionView[]): RegionView | undefined {
-	return problemRegionOf(regions) ?? regions.find(isDeployed);
+	return problemRegionOf(regions) ?? regions.find((r) => isDeployed(r) && lastGoodDeployment(r) !== undefined);
 }
 
 export function previousDeployment(region: RegionView, dep: Deployment): Deployment | undefined {
