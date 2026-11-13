@@ -72,3 +72,34 @@ While an organization is suspended:
 - The dashboard shows the reason in a banner on the organization's pages, and `OrgService.GetOrg` returns it in `suspended_at` and `suspension_reason`.
 
 `ResumeOrg` sends each active deployment's application back to its cluster, including secret and domain changes made during the suspension. Both calls are idempotent: suspending a suspended organization keeps the first reason and records nothing, and resuming an active one changes nothing. Each change records an `org.suspended` or `org.resumed` event, which the organization's audit log lists and install webhooks can subscribe to.
+
+## Count limits
+
+The API caps how many of each thing can exist, so one account cannot fill the control plane. A create past a cap fails with `ResourceExhausted` and a message that names the count, the limit and the variable that raises it, such as `the workspace has 100 of 100 resources; delete one or ask a Loco administrator to raise LOCO_LIMIT_RESOURCES_PER_WORKSPACE`. `loco` prints that message and exits non-zero, and a `loco infra apply` or `loco deploy` that would create services or domains past a cap changes nothing. Lowering a limit deletes nothing; it only refuses new creates.
+
+| Limit | Counted per | Default | API variable |
+| --- | --- | --- | --- |
+| Organizations | user who created them | 10 | `LOCO_LIMIT_ORGS_PER_USER` |
+| Workspaces | organization | 100 | `LOCO_LIMIT_WORKSPACES_PER_ORG` |
+| Members | organization | 500 | `LOCO_LIMIT_MEMBERS_PER_ORG` |
+| Open invitations | organization | 100 | `LOCO_LIMIT_INVITATIONS_PER_ORG` |
+| Environments | workspace | 10 | `LOCO_LIMIT_ENVIRONMENTS_PER_WORKSPACE` |
+| Resources | workspace | 100 | `LOCO_LIMIT_RESOURCES_PER_WORKSPACE` |
+| Webhooks | workspace | 20 | `LOCO_LIMIT_WEBHOOKS_PER_WORKSPACE` |
+| API tokens | user, organization, workspace or resource that owns them | 50 | `LOCO_LIMIT_TOKENS_PER_ENTITY` |
+| Domains | resource in one environment | 10 | `LOCO_LIMIT_DOMAINS_PER_RESOURCE` |
+| Secrets | service in one environment | 256 | `LOCO_SECRETS_MAX_PER_SERVICE` |
+
+An invitation is refused while the organization is at its member or open-invitation limit. A user signing in with an open invitation to an organization at its member limit signs in without joining it, and the invitation stays open until it expires.
+
+Deployments and builds are not capped; the API deletes the oldest instead. Creating a deployment deletes the resource's deployments in that environment past the newest `LOCO_LIMIT_DEPLOYMENT_HISTORY` (100), except active and unfinished deployments and those a cluster still runs. Creating a build deletes the resource's builds past the newest `LOCO_LIMIT_BUILD_HISTORY` (100) once the image and source sweepers have deleted their image and source; with `LOCO_IMAGE_RETENTION=0` succeeded builds are kept. Their events stay in the audit log until `EVENTS_RETENTION` removes them.
+
+`ConfigService.GetConfig` reports the install defaults in `count_limits`. A system admin can override every limit except organizations per user for one organization, for example to give a large customer more workspaces. Per-workspace and per-resource overrides apply to every workspace or resource of the organization. Each change needs a reason of 1 to 500 characters and records an `org.limits_changed` event with the reason and the old and new values:
+
+```sh
+locoadm org limits set <org-id> --workspaces-per-org 500 --reason "Enterprise contract"
+locoadm org limits unset <org-id> workspaces-per-org --reason "Contract ended"
+locoadm org limits get <org-id>
+```
+
+`OrgService.GetOrgLimits` returns an organization's effective limits, the ones it overrides and the latest reason to any member, and the dashboard shows the usage beside each create button, such as "42 of 100 workspaces". `OrgService.SetOrgLimits` takes the limits, an `update_mask` naming the ones to change, where 0 returns a limit to the install default, and the reason; it requires `system:admin`.

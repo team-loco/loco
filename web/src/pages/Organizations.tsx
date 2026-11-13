@@ -2,6 +2,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { Building2, Plus } from "lucide-react";
 import { useState } from "react";
 
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 
@@ -9,9 +10,11 @@ import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
+import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { limitReason, limitUsage } from "@/lib/limits";
 
 import { CreateOrgDialog } from "./organizations/CreateOrgDialog";
 import { DeleteOrgDialog } from "./organizations/DeleteOrgDialog";
@@ -48,6 +51,13 @@ export function Organizations() {
 	});
 
 	const orgs = orgsRes?.orgs ?? [];
+	const config = useQuery(getConfig, {});
+	const created = orgs.filter((org) => org.createdBy === user?.id).length;
+	const usage =
+		isLoading || error
+			? null
+			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations created", "You have");
+	const blocked = limitReason(usage);
 
 	const openCreate = () => {
 		setCreateOrgOpen(true);
@@ -100,10 +110,12 @@ export function Organizations() {
 			<PageHeader
 				title="Organizations"
 				actions={
-					<Button onClick={openCreate}>
-						<Plus />
-						New organization
-					</Button>
+					<LimitedAction usage={usage} reason={blocked}>
+						<Button disabled={blocked !== null} onClick={openCreate}>
+							<Plus />
+							New organization
+						</Button>
+					</LimitedAction>
 				}
 			/>
 			<Section title="Your organizations" count={isLoading ? undefined : orgs.length}>

@@ -30,10 +30,10 @@ const TYPES: { type: ResourceType; label: string; icon: ReactNode }[] = [
 	{ type: ResourceType.FUNCTION, label: "Function", icon: <SquareFunctionIcon /> },
 ];
 
-export function NewResourceMenu({ serviceHref }: { serviceHref: string }) {
+export function NewResourceMenu({ serviceHref, disabled }: { serviceHref: string; disabled: boolean }) {
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button />}>
+			<DropdownMenuTrigger disabled={disabled} render={<Button />}>
 				<PlusIcon />
 				New resource
 				<ChevronDownIcon className="opacity-70" />

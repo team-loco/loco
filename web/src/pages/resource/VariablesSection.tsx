@@ -16,6 +16,10 @@ import { parseDotEnv } from "@/lib/dotenv";
 import { getErrorMessage } from "@/lib/error-handler";
 import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { LimitedAction } from "@/components/design/LimitedAction";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { limitReason, limitUsage } from "@/lib/limits";
 
 import { formatStarted } from "./format";
 import { SECRET_NAME, type SettingsDraft } from "./settings-draft";
@@ -203,6 +207,15 @@ export function VariablesSection({
 	const rows = secretRows(secretsQuery.data?.secrets ?? [], envQuery.data?.secretNames, Object.keys(staged));
 	const plain = Object.entries(envQuery.data?.env ?? {}).toSorted(([a], [b]) => a.localeCompare(b));
 	const newProblem = newName === "" ? undefined : secretNameProblem(newName);
+	const { activeOrgId } = useOrgWorkspace();
+	const limits = useOrgLimits(activeOrgId ?? "");
+	const kept = new Set([...(secretsQuery.data?.secrets ?? []).map((sec) => sec.name), ...Object.keys(staged)]);
+	for (const name of removed) kept.delete(name);
+	const secretUsage =
+		secretsQuery.isLoading || secretsQuery.error !== null
+			? null
+			: limitUsage(kept.size, limits?.secretsPerResource, "secrets", "This service has");
+	const addBlocked = kept.has(newName) ? null : limitReason(secretUsage);
 
 	const stage = (name: string, value: string) => {
 		onChange({ secrets: value === "" ? withoutKey(staged, name) : { ...staged, [name]: value } });
@@ -309,14 +322,16 @@ export function VariablesSection({
 									setNewValue(e.target.value);
 								}}
 							/>
-							<Button
-								type="submit"
-								variant="outline"
-								disabled={newName === "" || newProblem !== undefined || newValue === ""}
-							>
-								<PlusIcon />
-								Add
-							</Button>
+							<LimitedAction usage={secretUsage} reason={addBlocked}>
+								<Button
+									type="submit"
+									variant="outline"
+									disabled={newName === "" || newProblem !== undefined || newValue === "" || addBlocked !== null}
+								>
+									<PlusIcon />
+									Add
+								</Button>
+							</LimitedAction>
 						</form>
 					)}
 				</div>

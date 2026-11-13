@@ -19,6 +19,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { LimitedAction } from "@/components/design/LimitedAction";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { limitReason, limitUsage } from "@/lib/limits";
 
 import { NewWebhookDialog } from "./NewWebhookDialog";
 import { WebhookDrawer } from "./WebhookDrawer";
@@ -31,9 +34,18 @@ const TICK_CLASS: Record<Tick, string> = {
 	err: "bg-err",
 };
 
-export function WebhooksSection({ workspaceId, workspaceName }: { workspaceId: string; workspaceName: string }) {
+export function WebhooksSection({
+	orgId,
+	workspaceId,
+	workspaceName,
+}: {
+	orgId: string;
+	workspaceId: string;
+	workspaceName: string;
+}) {
 	const queryClient = useQueryClient();
 	const query = useQuery(listWebhooks, { workspaceId });
+	const limits = useOrgLimits(orgId);
 	const remove = useMutation(deleteWebhook);
 	const [creating, setCreating] = useState(false);
 	const [openId, setOpenId] = useState<string | null>(null);
@@ -60,21 +72,30 @@ export function WebhooksSection({ workspaceId, workspaceName }: { workspaceId: s
 		);
 	};
 
+	const usage =
+		query.data === undefined
+			? null
+			: limitUsage(webhooks.length, limits?.webhooksPerWorkspace, "webhooks", "This workspace has");
+	const createBlocked = limitReason(usage);
+
 	return (
 		<SettingsSection
 			title="Webhooks"
 			count={query.data === undefined ? undefined : webhooks.length}
 			actions={
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => {
-						setCreating(true);
-					}}
-				>
-					<PlusIcon />
-					New webhook
-				</Button>
+				<LimitedAction usage={usage} reason={createBlocked}>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={createBlocked !== null}
+						onClick={() => {
+							setCreating(true);
+						}}
+					>
+						<PlusIcon />
+						New webhook
+					</Button>
+				</LimitedAction>
 			}
 		>
 			<SettingsCard className="pt-1">

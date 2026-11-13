@@ -3,20 +3,25 @@ import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
-import type { Token } from "@gen/loco/token/v1/token_pb";
-import { createConnectQueryKey } from "@connectrpc/connect-query";
+import { EntityType, type Token } from "@gen/loco/token/v1/token_pb";
+import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
+import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useNow } from "@/hooks/useNow";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { getErrorMessage } from "@/lib/error-handler";
+import { limitReason, limitUsage } from "@/lib/limits";
 import { usePagedRows } from "@/lib/paging";
 import { tsMs } from "@/lib/time";
 
@@ -86,6 +91,9 @@ export function Tokens() {
 	const [params, setParams] = useSearchParams();
 	const ownerKey = parseOwner(params.get("owner"));
 	const data = useTokenData();
+	const { activeOrgId } = useOrgWorkspace();
+	const limits = useOrgLimits(activeOrgId ?? "");
+	const config = useQuery(getConfig, {});
 	const queryClient = useQueryClient();
 	const now = useNow(NOW_TICK_MS).getTime();
 	const [q, setQ] = useState("");
@@ -145,9 +153,15 @@ export function Tokens() {
 	const openCreate = () => {
 		setDraft({ owner: ownerKey, name: "", items: [] });
 	};
-	const createTitle = owner.canCreate ? undefined : `You need write access to ${owner.label} to create tokens`;
+	const tokenLimit =
+		owner.entityType === EntityType.USER ? config.data?.countLimits?.tokensPerEntity : limits?.tokensPerEntity;
+	const usage =
+		current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, "tokens", `${owner.label} has`);
+	const createBlocked = owner.canCreate
+		? limitReason(usage)
+		: `You need write access to ${owner.label} to create tokens`;
 	const newTokenButton = (
-		<Button disabled={!owner.canCreate} title={createTitle} onClick={openCreate}>
+		<Button disabled={createBlocked !== null} onClick={openCreate}>
 			<PlusIcon />
 			New token
 		</Button>
@@ -195,7 +209,11 @@ export function Tokens() {
 						{!anyLoading && <Badge tone="count">{total}</Badge>}
 					</>
 				}
-				actions={newTokenButton}
+				actions={
+					<LimitedAction usage={usage} reason={createBlocked}>
+						{newTokenButton}
+					</LimitedAction>
+				}
 			/>
 			<Section
 				filters={
@@ -256,7 +274,9 @@ export function Tokens() {
 						className="rounded-none border-t border-line2"
 					>
 						<span className="flex flex-wrap justify-center gap-2">
-							{newTokenButton}
+							<LimitedAction usage={null} reason={createBlocked}>
+								{newTokenButton}
+							</LimitedAction>
 							<Button variant="outline" render={<a href={TOKEN_DOCS} target="_blank" rel="noopener noreferrer" />}>
 								Read the docs
 								<ExternalLinkIcon className="text-fg3" />

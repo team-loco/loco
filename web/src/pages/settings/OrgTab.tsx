@@ -15,18 +15,20 @@ import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { LimitedAction } from "@/components/design/LimitedAction";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SaveBar } from "@/components/design/SaveBar";
 import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { CreateScopeDialog } from "@/components/shell/CreateScopeDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
+import { limitReason, limitUsage } from "@/lib/limits";
 import { usePagedRows } from "@/lib/paging";
 import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
@@ -67,6 +69,7 @@ export function OrgTab({
 }) {
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
+	const limits = useOrgLimits(org.id);
 	const update = useMutation(updateOrg);
 	const remove = useMutation(deleteOrg);
 
@@ -143,11 +146,15 @@ export function OrgTab({
 		);
 	};
 
+	const workspaceUsage = workspacesLoading
+		? null
+		: limitUsage(workspaces.length, limits?.workspacesPerOrg, "workspaces", "This organization has");
+	const newBlocked = canWrite ? limitReason(workspaceUsage) : `Requires Write on ${org.name}`;
 	const newButton = (
 		<Button
 			variant="outline"
 			size="sm"
-			disabled={!canWrite}
+			disabled={newBlocked !== null}
 			onClick={() => {
 				setNewOpen(true);
 			}}
@@ -212,14 +219,9 @@ export function OrgTab({
 				count={workspaces.length}
 				className="max-w-[960px]"
 				actions={
-					canWrite ? (
-						newButton
-					) : (
-						<Tooltip>
-							<TooltipTrigger render={<span className="inline-flex" />}>{newButton}</TooltipTrigger>
-							<TooltipContent>Requires Write on {org.name}</TooltipContent>
-						</Tooltip>
-					)
+					<LimitedAction usage={workspaceUsage} reason={newBlocked}>
+						{newButton}
+					</LimitedAction>
 				}
 				search={
 					<SearchInput

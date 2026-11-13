@@ -4,6 +4,7 @@ import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery
 
 import { Badge } from "@/components/design/Badge";
 import { EmptyState } from "@/components/design/EmptyState";
+import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -12,8 +13,10 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
 import { getErrorMessage } from "@/lib/error-handler";
+import { limitReason, limitUsage } from "@/lib/limits";
 import { DRAFT_PARAM, draftSearch, NEW_RESOURCE_PARAM, newResourcePath } from "@/lib/routes";
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
 import { DraftSheet, NewService } from "@/pages/resources/NewService";
@@ -56,6 +59,12 @@ export function Resources() {
 	const configQuery = useQuery(getConfig, {}, { enabled: drafts.length > 0 });
 
 	const loading = envsLoading || data.isLoading;
+	const limits = useOrgLimits(orgId);
+	const usage =
+		data.isLoading || data.error !== null
+			? null
+			: limitUsage(data.resources.length, limits?.resourcesPerWorkspace, "resources", "This workspace has");
+	const createBlocked = limitReason(usage);
 	const total = data.resources.length + drafts.length;
 	const draftId = params.get(DRAFT_PARAM);
 	const view = params.get(VIEW_PARAM) === MAP_VIEW ? MAP_VIEW : TABLE_VIEW;
@@ -130,7 +139,9 @@ export function Resources() {
 				actions={
 					<div className="flex items-center gap-2.5">
 						{!loading && total > 0 && <ViewToggle view={view} onView={setView} />}
-						<NewResourceMenu serviceHref={serviceHref} />
+						<LimitedAction usage={usage} reason={createBlocked}>
+							<NewResourceMenu serviceHref={serviceHref} disabled={createBlocked !== null} />
+						</LimitedAction>
 					</div>
 				}
 			/>

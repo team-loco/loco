@@ -22,6 +22,9 @@ import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { formatCount } from "@/lib/format";
 
 import { deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
 import { BuildsTable, type BuildActor } from "./BuildsTable";
@@ -188,6 +191,8 @@ export function DeploymentsSection({
 	const [buildPaging, setBuildPaging] = useState<Paging>({ page: 0, size: BUILD_PAGE_SIZE });
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
 	const builds = useResourceBuilds(resourceId);
+	const { activeOrgId } = useOrgWorkspace();
+	const limits = useOrgLimits(activeOrgId ?? "");
 	const { data: membersRes } = useTanstackQuery({
 		...workspaceMembersOptions(transport, workspaceId),
 		enabled: canReadWorkspace,
@@ -372,6 +377,11 @@ export function DeploymentsSection({
 							{getErrorMessage(historyError, "Could not load older deployments. Try Next again.")}
 						</div>
 					)}
+					{limits !== undefined && (
+						<p className="m-0 px-5 pb-3.5 text-[12.5px] text-fg3">
+							Loco keeps the last {formatCount(limits.deploymentHistory)} deployments for each environment.
+						</p>
+					)}
 				</TabsContent>
 				<TabsContent value="builds" className="pt-1.5">
 					<div aria-busy={builds.isLoading || builds.isLoadingMore}>
@@ -409,6 +419,11 @@ export function DeploymentsSection({
 						<div role="alert" className="px-5 pb-3 text-bad-fg">
 							{getErrorMessage(builds.error, "Could not load builds.")}
 						</div>
+					)}
+					{limits !== undefined && (
+						<p className="m-0 px-5 pb-3.5 text-[12.5px] text-fg3">
+							Loco keeps the last {formatCount(limits.buildHistory)} builds of each resource.
+						</p>
 					)}
 				</TabsContent>
 			</Tabs>
