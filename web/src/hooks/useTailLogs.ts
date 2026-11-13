@@ -1,7 +1,7 @@
 import { useState, useEffect, useEffectEvent } from "react";
 import { createClient } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
-import { ObservabilityProxyService, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
+import { ObservabilityService, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 import { msToTimestamp } from "@/lib/time";
 
@@ -53,7 +53,7 @@ export function useTailLogs(options: UseTailLogsOptions) {
 	const request = tailLogsRequest(options);
 	const streamKey = JSON.stringify([
 		enabled,
-		createConnectQueryKey({ schema: ObservabilityProxyService, transport, cardinality: "finite" }),
+		createConnectQueryKey({ schema: ObservabilityService, transport, cardinality: "finite" }),
 		{ ...request, since: sinceMs ?? null },
 	]);
 	const [tail, setTail] = useState<TailState>({ key: streamKey, ...NO_TAIL });
@@ -64,7 +64,7 @@ export function useTailLogs(options: UseTailLogsOptions) {
 		const consume = async () => {
 			if (!enabled || workspaceId === "" || (!allEnvironments && environmentId === "")) return;
 			try {
-				const client = createClient(ObservabilityProxyService, transport);
+				const client = createClient(ObservabilityService, transport);
 				for await (const message of client.tailLogs(request, { signal })) {
 					if (signal.aborted) return;
 					setTail((previous) => {

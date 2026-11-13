@@ -20,16 +20,14 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
-	"github.com/team-loco/loco/observability-proxy/migrations"
+	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
+	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
-	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const (
 	startupDeadline         = 2 * time.Second
 	healthzDeadline         = 2 * time.Second
-	testTokenTTL            = time.Second
-	testMaxConcurrent       = 1
 	testRetryBudget         = 300 * time.Millisecond
 	testRetryInterval       = 50 * time.Millisecond
 	testTTL                 = time.Hour
@@ -41,6 +39,32 @@ const (
 
 func lockFor(cfg *config.Config) *migrationlock.Lock {
 	return migrationlock.New(cfg.MigrationLock())
+}
+
+// testConfig writes through ingestURL and migrates through migratorURL; the control plane never
+// answers, which neither migrating nor readiness needs.
+func testConfig(ingestURL, migratorURL, database string, retryBudget time.Duration) *config.Config {
+	return &config.Config{
+		ControlPlaneURL:        unreachableControlPlane,
+		ClickHouseIngestURL:    ingestURL,
+		ClickHouseMigratorURL:  migratorURL,
+		ClickHouseDB:           database,
+		LogsTTL:                testTTL,
+		TracesTTL:              testTTL,
+		MetricsTTL:             testTTL,
+		MigrationRetryBudget:   retryBudget,
+		MigrationRetryInterval: testRetryInterval,
+		MigrationLockTTL:       testLockTTL,
+		MigrationLockRetry:     testLockRetry,
+		OTLPMaxRequestBytes:    testOTLPMaxBytes,
+		IngestTimeout:          testIngestTimeout,
+		IngestDialTimeout:      testIngestDialTimeout,
+	}
+}
+
+func testListeners(t *testing.T, main net.Listener) listeners {
+	t.Helper()
+	return listeners{main: main, otlpGRPC: localListener(t), otlpHTTP: localListener(t)}
 }
 
 func silentListener(t *testing.T) net.Listener {
@@ -86,14 +110,7 @@ func silentListener(t *testing.T) net.Listener {
 func TestHealthzServedWhenClickHouseNeverAnswers(t *testing.T) {
 	ln := silentListener(t)
 	addr := ln.Addr().String()
-	cfg := &config.Config{
-		QueryEnabled:    true,
-		ControlPlaneURL: unreachableControlPlane,
-		ClickHouseURL:   "clickhouse://" + addr,
-		ClickHouseDB:    "default",
-		MaxConcurrent:   testMaxConcurrent,
-		TokenCacheTTL:   testTokenTTL,
-	}
+	cfg := testConfig("clickhouse://"+addr, unreachableMigrator, proxyDatabase, testRetryBudget)
 
 	started := make(chan *proxy, 1)
 	startErr := make(chan error, 1)
@@ -140,11 +157,10 @@ func TestStartupDiagnostics(t *testing.T) {
 	var output bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&output, nil))
 	cfg := &config.Config{
-		QueryEnabled:    true,
-		Port:            8080,
-		ControlPlaneURL: "https://api.example.test?token=control-plane-password",
-		ClickHouseURL:   "clickhouse://reader:database-password@db.example.test:9000?password=query-password",
-		ClickHouseDB:    "telemetry",
+		Port:                8080,
+		ControlPlaneURL:     "https://api.example.test?token=control-plane-password",
+		ClickHouseIngestURL: "clickhouse://ingest:database-password@db.example.test:9000?password=ingest-password",
+		ClickHouseDB:        "telemetry",
 	}
 	logStartup(logger, cfg, "test-version")
 	var record map[string]any
@@ -160,7 +176,7 @@ func TestStartupDiagnostics(t *testing.T) {
 		t.Errorf("port = %v, want %d", record["port"], cfg.Port)
 	}
 	credentials := []string{
-		"database-password", "query-password", "control-plane-password", "proxy-password",
+		"database-password", "ingest-password", "control-plane-password",
 	}
 	for _, credential := range credentials {
 		if strings.Contains(output.String(), credential) {
@@ -190,22 +206,7 @@ func getStatus(t *testing.T, url string) int {
 func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 	ln := silentListener(t)
 	addr := ln.Addr().String()
-	cfg := &config.Config{
-		QueryEnabled:           true,
-		ControlPlaneURL:        unreachableControlPlane,
-		ClickHouseURL:          "clickhouse://" + addr,
-		ClickHouseMigratorURL:  unreachableMigrator,
-		ClickHouseDB:           proxyDatabase,
-		LogsTTL:                testTTL,
-		TracesTTL:              testTTL,
-		MetricsTTL:             testTTL,
-		MigrationRetryBudget:   testRetryBudget,
-		MigrationRetryInterval: testRetryInterval,
-		MigrationLockTTL:       testLockTTL,
-		MigrationLockRetry:     testLockRetry,
-		MaxConcurrent:          testMaxConcurrent,
-		TokenCacheTTL:          testTokenTTL,
-	}
+	cfg := testConfig("clickhouse://"+addr, unreachableMigrator, proxyDatabase, testRetryBudget)
 	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
@@ -218,7 +219,7 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 	if status := getStatus(t, srv.URL+"/readyz"); status != http.StatusServiceUnavailable {
 		t.Fatalf("GET /readyz before migrations status = %d, want %d", status, http.StatusServiceUnavailable)
 	}
-	if err := p.query.migrate(t.Context(), cfg); err == nil {
+	if err := p.ingest.start(t.Context(), cfg); err == nil {
 		t.Fatal("migrate succeeded against an unreachable ClickHouse")
 	}
 	if status := getStatus(t, srv.URL+"/readyz"); status != http.StatusServiceUnavailable {
@@ -231,22 +232,7 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 
 func TestServesProbesWhileMigrating(t *testing.T) {
 	ln := silentListener(t)
-	cfg := &config.Config{
-		QueryEnabled:           true,
-		ControlPlaneURL:        unreachableControlPlane,
-		ClickHouseURL:          "clickhouse://" + ln.Addr().String(),
-		ClickHouseMigratorURL:  unreachableMigrator,
-		ClickHouseDB:           proxyDatabase,
-		LogsTTL:                testTTL,
-		TracesTTL:              testTTL,
-		MetricsTTL:             testTTL,
-		MigrationRetryBudget:   testRetryBudget,
-		MigrationRetryInterval: testRetryInterval,
-		MigrationLockTTL:       testLockTTL,
-		MigrationLockRetry:     testLockRetry,
-		MaxConcurrent:          testMaxConcurrent,
-		TokenCacheTTL:          testTokenTTL,
-	}
+	cfg := testConfig("clickhouse://"+ln.Addr().String(), unreachableMigrator, proxyDatabase, testRetryBudget)
 	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
@@ -261,7 +247,7 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 	base := "http://" + serverLn.Addr().String()
 
 	runErr := make(chan error, 1)
-	go func() { runErr <- p.run(t.Context(), cfg, listeners{main: serverLn}) }()
+	go func() { runErr <- p.run(t.Context(), cfg, testListeners(t, serverLn)) }()
 
 	if status := getStatus(t, base+"/healthz"); status != http.StatusOK {
 		t.Fatalf("GET /healthz while migrating status = %d, want %d", status, http.StatusOK)
@@ -335,22 +321,7 @@ func waitReady(t *testing.T, base string) {
 
 func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
 	_, dsn, database := testClickHouse(t)
-	cfg := &config.Config{
-		QueryEnabled:           true,
-		ControlPlaneURL:        unreachableControlPlane,
-		ClickHouseURL:          dsn,
-		ClickHouseMigratorURL:  dsn,
-		ClickHouseDB:           database,
-		LogsTTL:                testTTL,
-		TracesTTL:              testTTL,
-		MetricsTTL:             testTTL,
-		MigrationRetryBudget:   testRetryBudget,
-		MigrationRetryInterval: testRetryInterval,
-		MigrationLockTTL:       testLockTTL,
-		MigrationLockRetry:     testLockRetry,
-		MaxConcurrent:          testMaxConcurrent,
-		TokenCacheTTL:          testTokenTTL,
-	}
+	cfg := testConfig(dsn, dsn, database, testRetryBudget)
 	holder := lockFor(cfg)
 	held := make(chan struct{})
 	release := make(chan struct{})
@@ -381,7 +352,7 @@ func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
 	t.Cleanup(p.close)
 
 	migrateErr := make(chan error, 1)
-	go func() { migrateErr <- p.query.migrate(t.Context(), cfg) }()
+	go func() { migrateErr <- p.ingest.start(t.Context(), cfg) }()
 	select {
 	case err := <-migrateErr:
 		if !errors.Is(err, context.DeadlineExceeded) {
@@ -390,8 +361,8 @@ func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
 	case <-time.After(startupDeadline):
 		t.Fatalf("migrate waited for the lock past the %s retry budget", testRetryBudget)
 	}
-	if p.query.migrated.Load() {
-		t.Fatal("proxy marked migrated without holding the lock")
+	if p.ingest.started.Load() {
+		t.Fatal("proxy started without holding the lock")
 	}
 }
 
@@ -405,22 +376,7 @@ func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
 	bases := make([]string, 0, replicas)
 	runErrs := make(chan error, replicas)
 	for replica := range replicas {
-		cfg := &config.Config{
-			QueryEnabled:           true,
-			ControlPlaneURL:        unreachableControlPlane,
-			ClickHouseURL:          dsn,
-			ClickHouseMigratorURL:  dsn,
-			ClickHouseDB:           database,
-			LogsTTL:                testTTL,
-			TracesTTL:              testTTL,
-			MetricsTTL:             testTTL,
-			MigrationRetryBudget:   sharedRetryBudget,
-			MigrationRetryInterval: testRetryInterval,
-			MigrationLockTTL:       testLockTTL,
-			MigrationLockRetry:     testLockRetry,
-			MaxConcurrent:          testMaxConcurrent,
-			TokenCacheTTL:          testTokenTTL,
-		}
+		cfg := testConfig(dsn, dsn, database, sharedRetryBudget)
 		p, err := newProxy(cfg, migrationlock.New(cfg.MigrationLock()), testVersion)
 		if err != nil {
 			t.Fatalf("newProxy(replica %d): %v", replica, err)
@@ -432,7 +388,7 @@ func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
 			t.Fatalf("listen: %v", err)
 		}
 		bases = append(bases, "http://"+ln.Addr().String())
-		go func() { runErrs <- p.run(ctx, cfg, listeners{main: ln}) }()
+		go func() { runErrs <- p.run(ctx, cfg, testListeners(t, ln)) }()
 	}
 	for _, base := range bases {
 		waitReady(t, base)

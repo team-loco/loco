@@ -3,7 +3,7 @@ import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
 import {
 	LogOrder,
-	ObservabilityProxyService,
+	ObservabilityService,
 	type QueryLogsRequest,
 	type QueryMetricsRequest,
 } from "@gen/loco/observability/v1/observability_pb";
@@ -28,7 +28,7 @@ describe("regional control-plane queries", () => {
 	test("isolates historical logs by environment and waits for its selection", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
 					return {};
@@ -54,7 +54,7 @@ describe("regional control-plane queries", () => {
 	test("queries build logs across environments without waiting for one", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
 					return {};
@@ -93,7 +93,7 @@ describe("regional control-plane queries", () => {
 	test("preserves milliseconds in log and metric query bounds", async () => {
 		const received: (QueryLogsRequest | QueryMetricsRequest)[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
 					return {};
@@ -132,7 +132,7 @@ describe("regional control-plane queries", () => {
 		const received: QueryLogsRequest[] = [];
 		const target = Date.UTC(2026, 9, 16, 6, 8, 29, 123);
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
 					const newer = request.order === LogOrder.OLDEST_FIRST;
@@ -177,7 +177,7 @@ describe("regional control-plane queries", () => {
 		const target = Date.UTC(2026, 9, 16, 6, 0);
 		const resumed = target + 40 * 60_000;
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
 					return {
@@ -228,7 +228,7 @@ describe("regional control-plane queries", () => {
 		const target = Date.UTC(2026, 9, 16, 6, 0);
 		const resumed = target + 40 * 60_000;
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					if (fail) throw new ConnectError("history temporarily unavailable", Code.Unavailable);
 					const latest = request.endTime?.seconds === BigInt(resumed / 1000);
@@ -266,7 +266,7 @@ describe("regional control-plane queries", () => {
 	test("keeps the two focus ranges disjoint at an exact second", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
 					return {};
@@ -289,7 +289,7 @@ describe("regional control-plane queries", () => {
 	test("queries history once without cluster discovery and preserves an opaque cursor", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
 					return { entries: [{ body: "history" }], nextCursor: "opaque/not-a-date" };
@@ -314,7 +314,7 @@ describe("regional control-plane queries", () => {
 	test("isolates selected control-plane transports and region metric caches", async () => {
 		const received: QueryMetricsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryMetrics(request) {
 					received.push(request);
 					return {};
@@ -322,7 +322,7 @@ describe("regional control-plane queries", () => {
 			});
 		});
 		const otherTransport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryMetrics() {
 					throw new ConnectError("other control plane", Code.Unavailable);
 				},
@@ -363,7 +363,7 @@ describe("regional control-plane queries", () => {
 
 	test("passes permission errors through without replacing them with empty history", async () => {
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				queryLogs() {
 					throw new ConnectError("workspace read required", Code.PermissionDenied);
 				},

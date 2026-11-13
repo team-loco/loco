@@ -49,7 +49,6 @@ cleanup() {
         for pod in $(kubectl -n "$NAMESPACE" get pods -l app=regional-api -o name 2>/dev/null); do
             kubectl -n "$NAMESPACE" logs "$pod" --previous --prefix --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         done
-        kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-query --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-ingest --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" get gateways,httproutes,clickhouseinstallations -o yaml >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs -l app=regional-openbao --all-containers --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
@@ -172,7 +171,7 @@ done
 API_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/port-forward.log" | head -1)
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/health"
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/openapi.json" >"$RUN_DIR/openapi.json"
-yq -e -p json '.openapi == "3.1.0" and .info.version == "e2e" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityProxyService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
+yq -e -p json '.openapi == "3.1.0" and .info.version == "e2e" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/api-docs.html"
 grep -F 'Scalar.createApiReference(' "$RUN_DIR/api-docs.html" >/dev/null
 grep -F 'url: "/openapi.json"' "$RUN_DIR/api-docs.html" >/dev/null
@@ -187,7 +186,7 @@ curl --fail --silent -H "Host: $APP_HOST" -H 'Content-Type: application/json' -d
     "http://127.0.0.1:$API_PORT/api/loco.config.v1.ConfigService/GetConfig" >"$RUN_DIR/config.json"
 curl --silent -H "Host: $APP_HOST" -H 'Content-Type: application/json' -H 'Authorization: Bearer invalid-e2e-token' \
     --data-binary @"$RUN_DIR/query.json" \
-    "http://127.0.0.1:$API_PORT/api/loco.observability.v1.ObservabilityProxyService/QueryLogs" >"$RUN_DIR/observability.json"
+    "http://127.0.0.1:$API_PORT/api/loco.observability.v1.ObservabilityService/QueryLogs" >"$RUN_DIR/observability.json"
 python3 - "$RUN_DIR" <<'PY'
 import json
 import pathlib
@@ -202,10 +201,10 @@ assert html.index('/runtime-config.js') < html.index('type="module"'), html
 assert (root / 'runtime-config.js').read_text().strip() == 'window.locoConfig = {"apiURL":"/api"};'
 assert 'immutable' not in (root / 'runtime-headers.txt').read_text().lower()
 response = json.loads((root / 'observability.json').read_text())
-assert response.get('code') == 'permission_denied', response
+assert response.get('code') == 'unauthenticated', response
 PY
 kubectl -n "$NAMESPACE" exec deployment/postgres -- psql -U loco -d loco -Atc 'SELECT count(*) FROM goose_db_version' >"$RUN_DIR/postgres-migrations.txt"
-printf 'Two API replicas started on an empty database; dashboard and same-origin API routing work; private proxy permission check passed.\n'
+printf 'Two API replicas started on an empty database; dashboard and same-origin API routing work; the API refused an observability query with an invalid token.\n'
 
 psql() {
     kubectl -n "$NAMESPACE" exec -i deployment/postgres -- psql -U loco -d loco -v ON_ERROR_STOP=1 -Atq "$@"

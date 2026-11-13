@@ -9,14 +9,13 @@ run_id=loco-obs-$1-$$
 clickhouse=$run_id-clickhouse
 workdir=$(mktemp -d)
 ready_attempts=60
-ports_per_run=5
+ports_per_run=4
 source mise-tasks/test/lib/ports.sh
 first_port=$(first_run_port "$ports_per_run")
-query_port=$first_port
-ingest_port=$((first_port + 1))
-ingest_grpc_port=$((first_port + 2))
-ingest_http_port=$((first_port + 3))
-control_plane_port=$((first_port + 4))
+ingest_port=$first_port
+ingest_grpc_port=$((first_port + 1))
+ingest_http_port=$((first_port + 2))
+control_plane_port=$((first_port + 3))
 proxy_pids=()
 failures=0
 containers=("$clickhouse")
@@ -73,7 +72,7 @@ manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set glo
 control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
 	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
 	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false --set certManager.enabled=false \
-	--set clickhouse.enabled=true --set obsProxy.ingest.enabled=true --set openbao.enabled=false \
+	--set clickhouse.enabled=true --set openbao.enabled=false \
 	--set openbao.external.address=https://openbao.obs-stack.test:8200 --set openbao.external.caSecret.name=obs-stack-openbao-ca)
 # The chart consumes existing credentials; the fixture supplies those external Secrets.
 for user in $(yq '.clickhouse.clickhouse.users[].name' "$control_plane_chart/values.yaml"); do
@@ -186,10 +185,8 @@ wait_for_proxy() {
 	fi
 }
 
-start_proxy query "$query_port"
 start_proxy ingest "$ingest_port" OTLP_GRPC_PORT="$ingest_grpc_port" OTLP_HTTP_PORT="$ingest_http_port" \
 	CONTROL_PLANE_URL="http://127.0.0.1:$control_plane_port"
-wait_for_proxy query "$query_port"
 wait_for_proxy ingest "$ingest_port"
 
 start_collector() {

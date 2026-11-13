@@ -60,10 +60,10 @@ obs_forged_span=$(awk -F'"' '$1 ~ /^\tforgedSpanName +=/ { print $2 }' "$obs_fix
 obs_forged_workspace=$(awk -F'"' '$1 ~ /^\tforgedWorkspaceID +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_forged_organization=$(awk -F'"' '$1 ~ /^\tforgedOrganizationID +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_proxy_url="$E2E_API_URL"
-obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
-obs_query_metrics="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
-obs_get_trace="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/GetTrace"
-obs_list_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/ListTraces"
+obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityService/QueryLogs"
+obs_query_metrics="${obs_proxy_url}/loco.observability.v1.ObservabilityService/QueryMetrics"
+obs_get_trace="${obs_proxy_url}/loco.observability.v1.ObservabilityService/GetTrace"
+obs_list_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityService/ListTraces"
 obs_metric_tables="otel_metrics_sum otel_metrics_gauge otel_metrics_histogram"
 obs_all_tables="otel_traces otel_logs otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
 
@@ -193,7 +193,7 @@ obs_versions() {
         "| otel-col-cluster | $(obs_image "$E2E_OBS_NAMESPACE" statefulsets -l app.kubernetes.io/name=otel-col-cluster) |" \
         "| otel-col-daemon | $(obs_image "$obs_daemon_namespace" daemonsets -l app.kubernetes.io/name=otel-col-daemon) |" \
         "| loco-controller | $(obs_image "$E2E_LOCO_NAMESPACE" deployments -l app.kubernetes.io/name=loco-controller) |" \
-        "| API, agent, CLI, obs-proxy query | host binaries built from the commit, version ${E2E_VERSION} |" \
+        "| API, agent, CLI, host obs-proxy | host binaries built from the commit, version ${E2E_VERSION} |" \
         "| obs-proxy ingest | $(docker inspect -f '{{.Config.Image}}' "${E2E_OBS_INGEST_CONTAINER}") on the kind network |" \
         "| Fixture OTel Go SDK | ${otel_sdk} |"
 }
@@ -397,7 +397,7 @@ test_o02_sends_traffic_through_the_gateway() {
 
 obs_latest_embedded_migration() {
     local file version latest=0
-    for file in "$E2E_ROOT_DIR"/observability-proxy/migrations/*.sql; do
+    for file in "$E2E_ROOT_DIR"/internal/clickhouse/migrations/*.sql; do
         version=$(basename "$file")
         version=$((10#${version%%_*}))
         if [ "$version" -gt "$latest" ]; then

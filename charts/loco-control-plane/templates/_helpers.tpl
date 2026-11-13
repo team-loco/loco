@@ -2,17 +2,13 @@
 {{- printf "http://%s-api.%s.svc.cluster.local" .Release.Name .Release.Namespace -}}
 {{- end -}}
 
-{{- define "loco-control-plane.obsProxyURL" -}}
-{{- printf "http://%s-obs-proxy-query.%s.svc.cluster.local" .Release.Name .Release.Namespace -}}
-{{- end -}}
-
 {{- define "loco-control-plane.gatewayRef" -}}
 - name: {{ .Values.gateway.name }}
   namespace: {{ .Values.gatewayNamespace }}
 {{- end -}}
 
 {{- define "loco-control-plane.ingestRouted" -}}
-{{- if and .Values.obsProxy.enabled .Values.obsProxy.ingest.enabled .Values.obsProxy.ingest.hostname -}}
+{{- if and .Values.obsProxy.enabled .Values.obsProxy.ingest.hostname -}}
 true
 {{- end -}}
 {{- end -}}

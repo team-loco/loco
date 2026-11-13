@@ -1,6 +1,6 @@
 # Trace queries
 
-`ObservabilityProxyService.ListTraces` returns one summary per trace for the traces list. `GetTrace` returns every stored span of one trace for the drawer. Both RPCs go through the control-plane API to its regional observability proxy and share workspace/resource authorization and ClickHouse tenancy filtering.
+`ObservabilityService.ListTraces` returns one summary per trace for the traces list. `GetTrace` returns every stored span of one trace for the drawer. The regional control-plane API serves both RPCs from its ClickHouse; they share workspace/resource authorization and ClickHouse tenancy filtering.
 
 Both requests require a `scope` with a workspace ID. Optional resource IDs and an environment ID narrow the visible spans. A caller needs workspace READ, or must name resources and have READ on every one. Scope IDs must be lowercase UUIDs; a resource from another workspace returns no rows.
 
@@ -18,7 +18,7 @@ Both requests require a `scope` with a workspace ID. Optional resource IDs and a
 }
 ```
 
-The inclusive time window selects span start times. The proxy enforces its configured maximum range and page limits. A zero limit uses the configured default. Duration minimum/maximum and status filters apply to the grouped trace. Every root-name term must occur in the root name, ignoring case. An optional trace ID selects a single trace. IDs must be 32 lowercase hexadecimal characters and nonzero.
+The inclusive time window selects span start times. The API enforces its configured maximum range and page limits. A zero limit uses the configured default. Duration minimum/maximum and status filters apply to the grouped trace. Every root-name term must occur in the root name, ignoring case. An optional trace ID selects a single trace. IDs must be 32 lowercase hexadecimal characters and nonzero.
 
 Summaries contain trace ID, root span name, service, resource, start time, observed duration, status and distinct span count. Resource/time filtering can hide a root, so metadata then comes from the earliest visible span. Duration runs from the first visible start to the last visible end. An error in any visible span marks the trace as `TRACE_STATUS_ERROR`; other traces are `TRACE_STATUS_OK`. An unspecified status skips status filtering.
 
@@ -39,4 +39,4 @@ Nanosecond durations and counts use protobuf JSON decimal strings. Clients prese
 
 ## Validation
 
-`mise run test:obs-proxy` exercises real ClickHouse grouping, filters, counts, ordering, page boundaries, whole-trace retrieval, ingestion and tenancy. The API passthrough tests cover both RPCs. `mise run e2e:observability` checks a known gateway-to-app trace through `GetTrace`, its one-row `ListTraces` summary and workspace isolation.
+`mise run test:obs-proxy` exercises real ClickHouse grouping, filters, counts, ordering, page boundaries, whole-trace retrieval, ingestion and tenancy. `mise run test:api` covers both RPCs' validation, authorization and whole-trace reads through the API. `mise run e2e:observability` checks a known gateway-to-app trace through `GetTrace`, its one-row `ListTraces` summary and workspace isolation.

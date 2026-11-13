@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { ObservabilityProxyService, LogOrder } from "@gen/loco/observability/v1/observability_pb";
+import { ObservabilityService, LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 import { msToTimestamp } from "@/lib/time";
 
@@ -60,7 +60,7 @@ export function logsQueryOptions(
 	return {
 		queryKey: [
 			...createConnectQueryKey({
-				schema: ObservabilityProxyService.method.queryLogs,
+				schema: ObservabilityService.method.queryLogs,
 				transport,
 				cardinality: "finite",
 				input,
@@ -70,7 +70,7 @@ export function logsQueryOptions(
 		],
 		queryFn: async ({ signal }: { signal: AbortSignal }) => {
 			const now = Date.now();
-			const client = createClient(ObservabilityProxyService, transport);
+			const client = createClient(ObservabilityService, transport);
 			const request = {
 				...input,
 				startTime: startTime ?? msToTimestamp(now - spanMs),

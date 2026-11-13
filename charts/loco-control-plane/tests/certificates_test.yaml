@@ -108,8 +108,6 @@ tests:
         documentSelector: {path: kind, value: Gateway}
 
   - it: covers the ingest hostname when ingest is published
-    values:
-      - values/ingest.yaml
     set:
       obsProxy.ingest.hostname: ingest.region.test
     asserts:
@@ -124,8 +122,6 @@ tests:
         documentSelector: {path: kind, value: Gateway}
 
   - it: leaves the ingest hostname out while ingest is unpublished
-    values:
-      - values/ingest.yaml
     asserts:
       - equal:
           path: spec.dnsNames

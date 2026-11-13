@@ -65,8 +65,8 @@ def mock_telemetry(context):
     logs = [{"timestamp": stamp(timedelta(seconds=i * 13 + 1)), "severity": ("INFO", "WARN", "ERROR", "DEBUG")[i % 4], "body": f"Request completed ({i + 1})", "resourceId": resource, "resourceAttributes": {"cloud.region": "us-east-1"}} for i in range(18)]
     points = [{"timestamp": stamp(timedelta(minutes=minute)), "value": value} for minute, value in ((50, 0.25), (30, 0.55), (10, 0.35))]
     telemetry_points[:] = points
-    context.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: route.fulfill(json={"entries": logs, "totalMatched": str(len(logs))}))
-    context.route("**/loco.observability.v1.ObservabilityProxyService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
+    context.route("**/loco.observability.v1.ObservabilityService/QueryLogs", lambda route: route.fulfill(json={"entries": logs, "totalMatched": str(len(logs))}))
+    context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
 
 def query_param(page):
@@ -95,7 +95,7 @@ def live_focus(page, suffix):
     expect(live).to_have_attribute("aria-pressed", "false")
     # Hold the latest-logs request so the button stays in its pending state.
     held = []
-    page.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: held.append(route))
+    page.route("**/loco.observability.v1.ObservabilityService/QueryLogs", lambda route: held.append(route))
     live.focus()
     page.keyboard.press("Enter")
     expect(live).to_have_text("Starting…")
@@ -107,7 +107,7 @@ def live_focus(page, suffix):
     assert len(held) == 1, len(held)
     # fallback() to the context mock fails with "Route is already handled", so answer here.
     held[0].fulfill(json={"entries": [], "totalMatched": "0"})
-    page.unroute("**/loco.observability.v1.ObservabilityProxyService/QueryLogs")
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
     expect(live).to_have_attribute("aria-pressed", "true")
     expect(live).to_be_focused()
     page.keyboard.press("Enter")
@@ -116,7 +116,7 @@ def live_focus(page, suffix):
 
 def log_paging(page, suffix):
     many = [{"timestamp": stamp(timedelta(seconds=i * 7 + 1)), "severity": "INFO", "body": f"Paged line {i + 1}", "resourceId": resource, "resourceAttributes": {"cloud.region": "us-east-1"}, "logAttributes": {"http.request.method": "GET"}} for i in range(120)]
-    page.route("**/loco.observability.v1.ObservabilityProxyService/QueryLogs", lambda route: route.fulfill(json={"entries": many, "totalMatched": "0"}))
+    page.route("**/loco.observability.v1.ObservabilityService/QueryLogs", lambda route: route.fulfill(json={"entries": many, "totalMatched": "0"}))
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&size=25")
     pager_label = page.get_by_text(re.compile(r"of 120 loaded$"))
     expect(pager_label).to_have_text("1–25 of 120 loaded")
@@ -152,7 +152,7 @@ def log_paging(page, suffix):
     page.keyboard.press("ArrowRight")
     expect(page).to_have_url(re.compile(r"widths=resource%3A156"))
     page.screenshot(path=str(out / f"log-paging-{suffix}.png"))
-    page.unroute("**/loco.observability.v1.ObservabilityProxyService/QueryLogs")
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
 def time_presets(page, suffix):

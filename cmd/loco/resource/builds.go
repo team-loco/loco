@@ -301,7 +301,7 @@ func runBuildsLogs(cmd *cobra.Command, buildID string) error {
 		end = build.GetFinishedAt().AsTime().Add(finishedLogMargin)
 	}
 	filter := logstream.BuildFilter(workspaceID, buildID)
-	logs := &logstream.Client{Proxy: t.Clients.ObservabilityProxy}
+	logs := &logstream.Client{Observability: t.Clients.Observability}
 	window := logstream.Window{Start: start, End: end}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {

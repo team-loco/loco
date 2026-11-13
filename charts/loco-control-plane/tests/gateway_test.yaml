@@ -66,8 +66,6 @@ tests:
           value: {kubernetes.io/metadata.name: loco-control-plane}
 
   - it: attaches every route to the chart's Gateway
-    values:
-      - values/ingest.yaml
     set:
       gatewayNamespace: edge
       certManager.enabled: false
@@ -162,9 +160,7 @@ tests:
         template: templates/ui.yaml
         documentSelector: {path: kind, value: HTTPRoute}
 
-  - it: publishes ingest at its hostname through the Gateway when ingest is enabled
-    values:
-      - values/ingest.yaml
+  - it: publishes ingest at its hostname through the Gateway
     set:
       obsProxy.ingest.hostname: ingest.region.test
     asserts:
@@ -194,8 +190,6 @@ tests:
         template: templates/obs-proxy-ingest-network-policy.yaml
 
   - it: does not publish ingest without a hostname
-    values:
-      - values/ingest.yaml
     asserts:
       - notContains: &noIngestListener
           path: spec.listeners
@@ -210,8 +204,9 @@ tests:
           count: 1
         template: templates/obs-proxy-ingest-network-policy.yaml
 
-  - it: does not publish ingest while ingest is disabled
+  - it: does not publish ingest while the proxy is disabled
     set:
+      obsProxy.enabled: false
       obsProxy.ingest.hostname: ingest.region.test
     asserts:
       - notContains: *noIngestListener

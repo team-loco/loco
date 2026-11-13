@@ -50,27 +50,31 @@ tests:
           path: spec.configuration.profiles["loco_ingest/profile"]
           value: default
 
-  - it: wires each proxy role to the user its grant needs
+  - it: wires the API and the proxy to the user each grant needs
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: CLICKHOUSE_URL, valueFrom: {secretKeyRef: {name: loco-clickhouse-reader, key: url}}}
-        template: templates/obs-proxy-query-deployment.yaml
+        template: templates/api-deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: CLICKHOUSE_MIGRATOR_URL, valueFrom: {secretKeyRef: {name: loco-clickhouse-migrator, key: url}}}
-        template: templates/obs-proxy-query-deployment.yaml
+        template: templates/obs-proxy-ingest-deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: CLICKHOUSE_INGEST_URL, valueFrom: {secretKeyRef: {name: loco-clickhouse-ingest, key: url}}}
         template: templates/obs-proxy-ingest-deployment.yaml
 
-  - it: grants each user access to the database the proxy reads
+  - it: grants each user access to the database the API and the proxy use
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: CLICKHOUSE_DB, value: loco_obs}
-        template: templates/obs-proxy-query-deployment.yaml
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_DB, value: loco_obs}
+        template: templates/obs-proxy-ingest-deployment.yaml
       - matchRegex:
           path: spec.configuration.users["loco_migrator/grants/query"][*]
           pattern: " ON loco_obs\\.\\*$"
@@ -92,12 +96,14 @@ tests:
           errorMessage: clickhouse.enabled requires obsProxy.enabled
         template: templates/clickhouse.yaml
 
-  - it: admits only the proxy roles and the operator to ClickHouse
+  - it: admits only the proxy, the API and the operator to ClickHouse
     asserts:
       - equal:
           path: spec.ingress[0]
           value:
-            from: [{podSelector: {matchLabels: {app.kubernetes.io/component: observability-proxy}}}]
+            from:
+              - {podSelector: {matchLabels: {app.kubernetes.io/component: observability-proxy}}}
+              - {podSelector: {matchLabels: {app: loco-control-plane-api}}}
             ports: [{protocol: TCP, port: 9000}]
         template: templates/clickhouse.yaml
         documentSelector: {path: kind, value: NetworkPolicy}
@@ -110,10 +116,6 @@ tests:
           path: spec.template.metadata.labels
           content: {app.kubernetes.io/name: operator, app.kubernetes.io/instance: loco-control-plane}
         template: charts/clickhouse/charts/operator/templates/generated/Deployment-clickhouse-operator.yaml
-      - equal:
-          path: spec.template.metadata.labels["app.kubernetes.io/component"]
-          value: observability-proxy
-        template: templates/obs-proxy-query-deployment.yaml
       - equal:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
           value: observability-proxy

@@ -182,7 +182,7 @@ func (f *Follower) streamLogs(
 	workspaceID string,
 ) {
 	buildID := build.GetId()
-	logs := &logstream.Client{Proxy: f.clients.ObservabilityProxy}
+	logs := &logstream.Client{Observability: f.clients.Observability}
 	filter := logstream.BuildFilter(workspaceID, buildID)
 	start := build.GetCreatedAt().AsTime()
 	now := time.Now()

@@ -22,7 +22,7 @@ const verificationStageCanary = "private-provider-credential-canary"
 
 type rejectedVerificationAPI struct {
 	buildv1connect.UnimplementedBuildServiceHandler
-	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
+	observabilityv1connect.UnimplementedObservabilityServiceHandler
 }
 
 func (*rejectedVerificationAPI) GetBuild(context.Context, *buildv1.GetBuildRequest) (*buildv1.GetBuildResponse, error) {
@@ -39,7 +39,7 @@ func TestVerificationRPCFailuresIdentifyStageWithoutProviderOutput(t *testing.T)
 	server := connect.NewServer()
 	api := &rejectedVerificationAPI{}
 	buildv1connect.RegisterBuildServiceHandler(server, api)
-	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, api)
+	observabilityv1connect.RegisterObservabilityServiceHandler(server, api)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	endpoint := httptest.NewServer(mux)

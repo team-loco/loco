@@ -119,7 +119,7 @@ func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	domainv1connect.RegisterDomainServiceHandler(server, &fakeDomainService{api: f})
 	environmentv1connect.RegisterEnvironmentServiceHandler(server, &fakeEnvironmentService{api: f})
 	buildv1connect.RegisterBuildServiceHandler(server, &fakeBuildService{api: f})
-	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, &fakeProxyService{api: f})
+	observabilityv1connect.RegisterObservabilityServiceHandler(server, &fakeProxyService{api: f})
 	secretv1connect.RegisterSecretServiceHandler(server, &fakeSecretService{api: f})
 	connecthttp.Mount(mux, server)
 
@@ -624,7 +624,7 @@ func (s *fakeBuildService) CancelBuild(
 }
 
 type fakeProxyService struct {
-	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
+	observabilityv1connect.UnimplementedObservabilityServiceHandler
 
 	api *fakeAPI
 }
@@ -646,7 +646,7 @@ func (s *fakeProxyService) QueryLogs(
 	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
 	if _, _, err := f.authenticate(
-		connect.Spec{Procedure: observabilityv1connect.ObservabilityProxyServiceQueryLogsProcedure},
+		connect.Spec{Procedure: observabilityv1connect.ObservabilityServiceQueryLogsProcedure},
 		info.RequestHeader(),
 	); err != nil {
 		return nil, err
@@ -670,11 +670,11 @@ func (s *fakeProxyService) QueryLogs(
 func (s *fakeProxyService) TailLogs(
 	ctx context.Context,
 	_ *observabilityv1.TailLogsRequest,
-	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
+	stream observabilityv1connect.ObservabilityServiceTailLogsServerStream,
 ) error {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	if _, _, err := s.api.authenticate(
-		connect.Spec{Procedure: observabilityv1connect.ObservabilityProxyServiceTailLogsProcedure},
+		connect.Spec{Procedure: observabilityv1connect.ObservabilityServiceTailLogsProcedure},
 		info.RequestHeader(),
 	); err != nil {
 		return err

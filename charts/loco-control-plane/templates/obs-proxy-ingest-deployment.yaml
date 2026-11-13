@@ -1,4 +1,4 @@
-{{- if and .Values.obsProxy.enabled .Values.obsProxy.ingest.enabled }}
+{{- if .Values.obsProxy.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,10 +37,6 @@ spec:
               drop:
                 - ALL
           env:
-            - name: QUERY_ENABLED
-              value: "false"
-            - name: INGEST_ENABLED
-              value: "true"
             - name: PORT
               value: {{ .Values.obsProxy.ingest.port | quote }}
             - name: CONTROL_PLANE_URL
@@ -55,6 +51,10 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "loco-control-plane.clickhouseURL" (dict "root" . "grant" "GRANT INSERT" "path" "obsProxy.ingest.clickhouse.existingSecret" "secret" .Values.obsProxy.ingest.clickhouse.existingSecret) | nindent 18 }}
+            - name: CLICKHOUSE_MIGRATOR_URL
+              valueFrom:
+                secretKeyRef:
+                  {{- include "loco-control-plane.clickhouseURL" (dict "root" . "grant" "GRANT ALL" "path" "obsProxy.ingest.clickhouse.migratorExistingSecret" "secret" .Values.obsProxy.ingest.clickhouse.migratorExistingSecret) | nindent 18 }}
           ports:
             - name: health
               containerPort: {{ .Values.obsProxy.ingest.port }}

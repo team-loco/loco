@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run each collector's rendered OTLP pipelines and OTLP/HTTP exporter in the collector image against the observability proxy ingest role and ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels or, for the Envoy gateway, from the route of each request, and that every row carries the chart's region"
+#MISE description="Run each collector's rendered OTLP pipelines and OTLP/HTTP exporter in the collector image against the observability proxy and ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels or, for the Envoy gateway, from the route of each request, and that every row carries the chart's region"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 

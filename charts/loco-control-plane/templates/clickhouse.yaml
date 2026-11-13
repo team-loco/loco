@@ -20,6 +20,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/component: observability-proxy
+        - podSelector:
+            matchLabels:
+              app: {{ .Release.Name }}-api
       ports:
         - protocol: TCP
           port: 9000

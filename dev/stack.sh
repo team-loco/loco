@@ -85,7 +85,11 @@ export CLICKHOUSE_NATIVE_PORT=$((19050 + port_offset))
 export OBS_OTLP_GRPC_PORT=$((4317 + port_offset))
 export OBS_OTLP_HTTP_PORT=$((4318 + port_offset))
 export CLICKHOUSE_CONTAINER="$COMPOSE_PROJECT_NAME-clickhouse"
-export OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT"
+export CLICKHOUSE_USER=loco_dev
+export CLICKHOUSE_PASSWORD=loco-dev-clickhouse
+export CLICKHOUSE_URL="clickhouse://$CLICKHOUSE_USER:$CLICKHOUSE_PASSWORD@127.0.0.1:$CLICKHOUSE_NATIVE_PORT"
+CLICKHOUSE_DB=$(yq '.clickhouse.clickhouse.database' "$stack_root/charts/loco-control-plane/values.yaml")
+export CLICKHOUSE_DB
 
 app_port=$(env_value APP_PORT)
 export APP_PORT="${app_port%:*}:$((${app_port##*:} + port_offset))"

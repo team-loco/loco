@@ -143,7 +143,7 @@ Deploys:
 
 #### loco-control-plane Chart
 
-Runs the observability proxy and, with `clickhouse.enabled`, ClickHouse (26.3 Altinity stable image, Altinity chart 0.3.13). The proxy's ingest role writes OTLP to ClickHouse with the contrib ClickHouse exporter v0.163.0; its query role serves reads.
+Runs the observability proxy and, with `clickhouse.enabled`, ClickHouse (26.3 Altinity stable image, Altinity chart 0.3.13). The proxy migrates the schema and writes OTLP to ClickHouse with the contrib ClickHouse exporter v0.163.0; the API serves reads.
 
 **Observability Data Flow**:
 
@@ -152,9 +152,9 @@ Applications → OpenTelemetry SDK
   ↓
 Worker collectors (OTLP/HTTP)
   ↓
-Observability proxy ingest → ClickHouse
+Observability proxy → ClickHouse
   ↓
-Observability proxy query → API
+API
 ```
 
 ---

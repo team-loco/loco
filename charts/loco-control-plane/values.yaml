@@ -44,6 +44,12 @@ api:
     # @schema minimum: 1
     transitKeyVersion: 1
     service: ""
+  # @schema additionalProperties: false
+  clickhouse:
+    # @schema additionalProperties: false
+    existingSecret:
+      name: ""
+      key: url
   env: {}
   # @schema skipProperties
   resources:
@@ -102,34 +108,7 @@ obsProxy:
     tag: ""
   imagePullPolicy: Always
   # @schema additionalProperties: false
-  query:
-    replicaCount: 1
-    # @schema skipProperties
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-    port: 8080
-    # @schema additionalProperties: false
-    cors:
-      # @schema item: string
-      allowedOrigins: []
-    # @schema additionalProperties: false
-    clickhouse:
-      # @schema additionalProperties: false
-      existingSecret:
-        name: ""
-        key: url
-      # @schema additionalProperties: false
-      migratorExistingSecret:
-        name: ""
-        key: url
-  # @schema additionalProperties: false
   ingest:
-    enabled: false
     replicaCount: 1
     # @schema skipProperties
     resources:
@@ -147,6 +126,10 @@ obsProxy:
     clickhouse:
       # @schema additionalProperties: false
       existingSecret:
+        name: ""
+        key: url
+      # @schema additionalProperties: false
+      migratorExistingSecret:
         name: ""
         key: url
 

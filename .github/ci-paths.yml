@@ -311,6 +311,7 @@ obs-chart:
     - "observability-proxy/**"
     - "gen/go/**"
     - "internal/buildinfo/**"
+    - "internal/clickhouse/**"
     - "go.mod"
     - "go.sum"
     - "mise.toml"

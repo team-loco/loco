@@ -1,4 +1,4 @@
-{{- if and .Values.obsProxy.enabled .Values.obsProxy.ingest.enabled }}
+{{- if .Values.obsProxy.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
