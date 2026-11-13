@@ -1,29 +1,27 @@
-import { useMutation } from "@connectrpc/connect-query";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { callUnaryMethod, useMutation, useTransport } from "@connectrpc/connect-query";
 import { useState } from "react";
-import { createDeployment, deleteDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { createResourceDomain, deleteResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
-import { updateResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { getResource, updateResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { deleteSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 
 import { getErrorMessage } from "@/lib/error-handler";
 
 import type { Notice, RegionView } from "./model";
-import { domainsChange, planSave, savedScaling, type Baseline, type SettingsDraft } from "./settings-draft";
+import {
+	REGION_MAP_KEYS,
+	domainsChange,
+	planSave,
+	regionChanges,
+	regionTargets,
+	type Baseline,
+	type SettingsDraft,
+} from "./settings-draft";
 
-const SPEC_KEYS = [
-	"image",
-	"scaling",
-	"cpu",
-	"memory",
-	"port",
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
-	"regions",
-] as const;
+const SPEC_KEYS = ["image", "port", "healthPath", "healthInterval", "healthTimeout", "healthFailures"] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
 
@@ -51,7 +49,17 @@ export function useSaveSettings({
 	const addDomain = useMutation(createResourceDomain);
 	const removeDomain = useMutation(deleteResourceDomain);
 	const deploy = useMutation(createDeployment);
-	const retire = useMutation(deleteDeployment);
+	const transport = useTransport();
+
+	// The API refuses a stale region map with FAILED_PRECONDITION, as it does a rollout in
+	// progress; only a moved revision means someone else saved first.
+	const revisionMoved = async (err: unknown) => {
+		if (!(err instanceof ConnectError) || err.code !== Code.FailedPrecondition) return false;
+		const latest = await callUnaryMethod(transport, getResource, {
+			key: { case: "resourceId", value: resource.id },
+		});
+		return latest.resource?.revision !== resource.revision;
+	};
 
 	const save = async (draft: SettingsDraft) => {
 		setSaving(true);
@@ -126,26 +134,38 @@ export function useSaveSettings({
 			});
 		}
 
-		const plan = planSave(regions, domainsSaved ? draft : omit(draft, DOMAIN_KEYS), base);
-		let specSaved = true;
-		const savedRegions: string[] = [];
-		for (const r of plan.retire) {
-			const ok = await attempt(r.region, [], async () => await retire.mutateAsync({ deploymentId: r.deploymentId }));
-			specSaved &&= ok;
-			if (ok) savedRegions.push(r.region);
+		const effective = domainsSaved ? draft : omit(draft, DOMAIN_KEYS);
+		const spec = resource.spec?.spec;
+		const targets = regionTargets(spec?.case === "service" ? spec.value.regions : {}, effective, base);
+		if (targets !== undefined) {
+			try {
+				await update.mutateAsync({ resourceId, regions: { targets }, revision: resource.revision });
+				next = omit(next, REGION_MAP_KEYS);
+			} catch (err) {
+				if (await revisionMoved(err)) {
+					setSaving(false);
+					onDone(omit(next, REGION_MAP_KEYS), {
+						tone: "warn",
+						title: `${resource.name} changed since you opened it`,
+						message: "Showing its current regions and scaling. Make your region changes again.",
+					});
+					return;
+				}
+				failures.push(`Regions: ${getErrorMessage(err, "failed")}`);
+			}
 		}
-		for (const d of plan.deploy) {
+		const deploys = planSave(regions, effective, base);
+		const savedRegions: string[] = [];
+		for (const d of deploys) {
 			const ok = await attempt(
 				d.region,
 				[],
 				async () =>
 					await deploy.mutateAsync({ resourceId, region: d.region, spec: d.spec, environmentId, commit: d.commit }),
 			);
-			specSaved &&= ok;
 			if (ok) savedRegions.push(d.region);
 		}
-		next = savedScaling(next, savedRegions);
-		if (specSaved) next = omit(next, SPEC_KEYS);
+		if (savedRegions.length === deploys.length) next = omit(next, SPEC_KEYS);
 
 		setSaving(false);
 		if (failures.length > 0) {
@@ -160,8 +180,10 @@ export function useSaveSettings({
 			return;
 		}
 		const parts = [];
-		if (plan.deploy.length > 0) parts.push(`Rolling out in ${plan.deploy.map((d) => d.region).join(", ")}.`);
-		if (plan.retire.length > 0) parts.push(`Stopping in ${plan.retire.map((r) => r.region).join(", ")}.`);
+		const { rolling, stopping } =
+			targets === undefined ? { rolling: deploys.map((d) => d.region), stopping: [] } : regionChanges(effective, base);
+		if (rolling.length > 0) parts.push(`Rolling out in ${rolling.join(", ")}.`);
+		if (stopping.length > 0) parts.push(`Stopping in ${stopping.join(", ")}.`);
 		const message = parts.length === 0 ? "No redeploy needed." : parts.join(" ");
 		onDone(next, { tone: "info", title: `Saved ${name ?? resource.name}`, message });
 	};

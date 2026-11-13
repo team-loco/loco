@@ -4,17 +4,21 @@ import {
 	BuildSourceSchema,
 	DeploymentSpecSchema,
 	HealthCheckConfigSchema,
-	ScalersSchema,
 	type DeploymentSpec,
 	type HealthCheckConfig,
 	type SourceCommit,
 } from "@gen/loco/deployment/v1/deployment_pb";
+import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { IMAGE_RE, scalingError, scalingSpec, type Scaling } from "@/lib/new-resource";
 import { SUBDOMAIN_RE } from "@/lib/platform-domain";
 
 import { isDeployed, type RegionView } from "./model";
+
+// These fields make up the resource's region map, which UpdateResource replaces in one request
+// for every environment; the other spec fields redeploy this environment's regions.
+export const REGION_MAP_KEYS = ["regions", "scaling", "cpu", "memory"] as const;
 
 export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
@@ -69,6 +73,7 @@ export function baseline(
 	name: string,
 	description: string,
 	regions: RegionView[],
+	configured: string[],
 	isPublic: boolean,
 	defaults: DefaultServiceConfig,
 ): Baseline {
@@ -102,7 +107,7 @@ export function baseline(
 				];
 			}),
 		),
-		regions: Object.fromEntries(regions.map((r) => [r.name, isDeployed(r)])),
+		regions: Object.fromEntries(regions.map((r) => [r.name, isDeployed(r) || configured.includes(r.name)])),
 		isPublic,
 	};
 }
@@ -168,6 +173,7 @@ function positive(value: string): boolean {
 export function validateDraft(
 	draft: SettingsDraft,
 	base: Baseline,
+	regions: RegionView[],
 	served: string[],
 	replicaLimit: number,
 ): DraftErrors {
@@ -188,6 +194,8 @@ export function validateDraft(
 	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
 		errors.healthFailures = "A whole number, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
+	else if (regionMapChanged(draft, base) && planSave(regions, draft, base).length > 0)
+		errors.regions = "Save region, size and scaling changes separately from image, port, health and domain changes";
 	if (domainsChange(draft, base) === "add") {
 		if (draft.platformDomain === undefined || !served.includes(draft.platformDomain))
 			errors.platformDomain = "No platform domain is served in every region";
@@ -218,12 +226,7 @@ function healthEdited(draft: SettingsDraft): boolean {
 	);
 }
 
-function applyDraft(
-	spec: DeploymentSpec,
-	scaling: Scaling | undefined,
-	draft: SettingsDraft,
-	base: Baseline,
-): DeploymentSpec {
+function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline): DeploymentSpec {
 	const next = clone(DeploymentSpecSchema, spec);
 	if (next.spec.case !== "service") return next;
 	const svc = next.spec.value;
@@ -231,16 +234,8 @@ function applyDraft(
 	if (draft.image !== undefined && want.image.trim() !== (svc.build?.image ?? "")) {
 		svc.build = create(BuildSourceSchema, { type: IMAGE_BUILD, image: want.image.trim() });
 	}
-	if (draft.cpu !== undefined) svc.cpu = want.cpu;
-	if (draft.memory !== undefined) svc.memory = want.memory;
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
 	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
-	if (scaling !== undefined) {
-		const sizing = scalingSpec(scaling);
-		svc.minReplicas = sizing.minReplicas;
-		svc.maxReplicas = sizing.maxReplicas;
-		svc.scalers = create(ScalersSchema, sizing.scalers);
-	}
 	return next;
 }
 
@@ -248,57 +243,86 @@ interface RegionDeploy {
 	commit: SourceCommit | undefined;
 	region: string;
 	spec: DeploymentSpec;
-	added: boolean;
 }
 
-interface SavePlan {
-	deploy: RegionDeploy[];
-	retire: { region: string; deploymentId: string }[];
-}
-
-export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): SavePlan {
-	const want = resolved(draft, base);
+export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): RegionDeploy[] {
 	const redeployAll = domainsChange(draft, base) !== null;
-	const template = templateRegion(regions)?.current;
-	const plan: SavePlan = { deploy: [], retire: [] };
-	for (const region of regions) {
-		const on = want.regions[region.name] ?? false;
+	const deploys: RegionDeploy[] = [];
+	for (const region of deployedRegions(regions)) {
 		const current = region.current;
-		if (isDeployed(region) && current !== undefined) {
-			if (!on) {
-				plan.retire.push({ region: region.name, deploymentId: current.id });
-				continue;
-			}
-			if (current.spec === undefined) continue;
-			const requested = draft.scaling?.[region.name];
-			const scaling = sameScaling(requested, base.scaling[region.name]) ? undefined : requested;
-			const spec = applyDraft(current.spec, scaling, draft, base);
-			if (redeployAll || !equals(DeploymentSpecSchema, spec, current.spec)) {
-				plan.deploy.push({
-					region: region.name,
-					spec,
-					added: false,
-					commit:
-						draft.image === undefined || draft.image.trim() === getServiceSpec(current)?.build?.image
-							? current.commit
-							: undefined,
-				});
-			}
-			continue;
-		}
-		if (!on || template?.spec === undefined) continue;
-		const scaling = draft.scaling?.[region.name] ?? base.scaling[template.region];
-		plan.deploy.push({
+		if (current?.spec === undefined) continue;
+		const spec = applyDraft(current.spec, draft, base);
+		if (!redeployAll && equals(DeploymentSpecSchema, spec, current.spec)) continue;
+		deploys.push({
 			region: region.name,
-			spec: applyDraft(template.spec, scaling, draft, base),
-			added: true,
+			spec,
 			commit:
-				draft.image === undefined || draft.image.trim() === getServiceSpec(template)?.build?.image
-					? template.commit
+				draft.image === undefined || draft.image.trim() === getServiceSpec(current)?.build?.image
+					? current.commit
 					: undefined,
 		});
 	}
-	return plan;
+	return deploys;
+}
+
+export function regionMapChanged(draft: SettingsDraft, base: Baseline): boolean {
+	const next = resolved(draft, base);
+	return (
+		differs(next.cpu, base.cpu) ||
+		differs(next.memory, base.memory) ||
+		Object.keys(next.regions).some((r) => next.regions[r] !== (base.regions[r] ?? false)) ||
+		Object.keys(draft.scaling ?? {}).some((r) => !sameScaling(next.scaling[r], base.scaling[r]))
+	);
+}
+
+export function regionChanges(draft: SettingsDraft, base: Baseline): { rolling: string[]; stopping: string[] } {
+	const want = resolved(draft, base);
+	const resized = differs(want.cpu, base.cpu) || differs(want.memory, base.memory);
+	const names = Object.keys(want.regions).toSorted();
+	return {
+		rolling: names.filter(
+			(r) =>
+				want.regions[r] === true &&
+				(base.regions[r] !== true || resized || !sameScaling(want.scaling[r], base.scaling[r])),
+		),
+		stopping: names.filter((r) => want.regions[r] === false && base.regions[r] === true),
+	};
+}
+
+// regionTargets is the full region map to store, or undefined when the draft leaves it alone or
+// no region runs here to size a new one from.
+export function regionTargets(
+	stored: Record<string, RegionTarget>,
+	draft: SettingsDraft,
+	base: Baseline,
+): Record<string, RegionTarget> | undefined {
+	const fallback = Object.values(base.scaling)[0];
+	if (fallback === undefined || !regionMapChanged(draft, base)) return undefined;
+	const want = resolved(draft, base);
+	const targets = { ...stored };
+	for (const [name, on] of Object.entries(want.regions)) {
+		const kept = stored[name];
+		if (!on) {
+			if (kept !== undefined) targets[name] = create(RegionTargetSchema, { ...kept, enabled: false });
+			continue;
+		}
+		const scaling =
+			want.scaling[name] ??
+			(kept === undefined || kept.minReplicas === 0
+				? fallback
+				: {
+						replicas: kept.minReplicas,
+						maxReplicas: kept.maxReplicas,
+						cpuTarget: kept.scalers?.cpuTarget ?? fallback.cpuTarget,
+					});
+		targets[name] = create(RegionTargetSchema, {
+			enabled: true,
+			cpu: want.cpu,
+			memory: want.memory,
+			...scalingSpec(scaling),
+		});
+	}
+	return targets;
 }
 
 function sameScaling(a: Scaling | undefined, b: Scaling | undefined): boolean {
@@ -307,12 +331,4 @@ function sameScaling(a: Scaling | undefined, b: Scaling | undefined): boolean {
 		a?.maxReplicas === b?.maxReplicas &&
 		(a?.replicas === a?.maxReplicas || a?.cpuTarget === b?.cpuTarget)
 	);
-}
-
-export function savedScaling(draft: SettingsDraft, savedRegions: string[]): SettingsDraft {
-	if (draft.scaling === undefined) return draft;
-	const scaling = Object.fromEntries(
-		Object.entries(draft.scaling).filter(([region]) => !savedRegions.includes(region)),
-	);
-	return { ...draft, scaling };
 }
