@@ -12,9 +12,8 @@ import (
 )
 
 const (
-	// ObservabilityProxyServiceName is the fully-qualified name of the ObservabilityProxyService
-	// service.
-	ObservabilityProxyServiceName = "loco.observability.v1.ObservabilityProxyService"
+	// ObservabilityServiceName is the fully-qualified name of the ObservabilityService service.
+	ObservabilityServiceName = "loco.observability.v1.ObservabilityService"
 )
 
 // These constants are the procedure names of the RPCs defined in this package. They're exposed at
@@ -25,89 +24,89 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ObservabilityProxyServiceQueryLogsProcedure is the procedure name of the
-	// ObservabilityProxyService's QueryLogs RPC.
-	ObservabilityProxyServiceQueryLogsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryLogs"
-	// ObservabilityProxyServiceTailLogsProcedure is the procedure name of the
-	// ObservabilityProxyService's TailLogs RPC.
-	ObservabilityProxyServiceTailLogsProcedure = "/loco.observability.v1.ObservabilityProxyService/TailLogs"
-	// ObservabilityProxyServiceQueryMetricsProcedure is the procedure name of the
-	// ObservabilityProxyService's QueryMetrics RPC.
-	ObservabilityProxyServiceQueryMetricsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
-	// ObservabilityProxyServiceListTracesProcedure is the procedure name of the
-	// ObservabilityProxyService's ListTraces RPC.
-	ObservabilityProxyServiceListTracesProcedure = "/loco.observability.v1.ObservabilityProxyService/ListTraces"
-	// ObservabilityProxyServiceGetTraceProcedure is the procedure name of the
-	// ObservabilityProxyService's GetTrace RPC.
-	ObservabilityProxyServiceGetTraceProcedure = "/loco.observability.v1.ObservabilityProxyService/GetTrace"
+	// ObservabilityServiceQueryLogsProcedure is the procedure name of the ObservabilityService's
+	// QueryLogs RPC.
+	ObservabilityServiceQueryLogsProcedure = "/loco.observability.v1.ObservabilityService/QueryLogs"
+	// ObservabilityServiceTailLogsProcedure is the procedure name of the ObservabilityService's
+	// TailLogs RPC.
+	ObservabilityServiceTailLogsProcedure = "/loco.observability.v1.ObservabilityService/TailLogs"
+	// ObservabilityServiceQueryMetricsProcedure is the procedure name of the ObservabilityService's
+	// QueryMetrics RPC.
+	ObservabilityServiceQueryMetricsProcedure = "/loco.observability.v1.ObservabilityService/QueryMetrics"
+	// ObservabilityServiceListTracesProcedure is the procedure name of the ObservabilityService's
+	// ListTraces RPC.
+	ObservabilityServiceListTracesProcedure = "/loco.observability.v1.ObservabilityService/ListTraces"
+	// ObservabilityServiceGetTraceProcedure is the procedure name of the ObservabilityService's
+	// GetTrace RPC.
+	ObservabilityServiceGetTraceProcedure = "/loco.observability.v1.ObservabilityService/GetTrace"
 )
 
 var (
-	observabilityProxyServiceQueryLogsSpec = sync.OnceValue(func() connect.Spec {
+	observabilityServiceQueryLogsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("QueryLogs"),
-			Procedure:  ObservabilityProxyServiceQueryLogsProcedure,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("QueryLogs"),
+			Procedure:  ObservabilityServiceQueryLogsProcedure,
 		}
 	})
-	observabilityProxyServiceTailLogsSpec = sync.OnceValue(func() connect.Spec {
+	observabilityServiceTailLogsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeServer,
-			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("TailLogs"),
-			Procedure:  ObservabilityProxyServiceTailLogsProcedure,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("TailLogs"),
+			Procedure:  ObservabilityServiceTailLogsProcedure,
 		}
 	})
-	observabilityProxyServiceQueryMetricsSpec = sync.OnceValue(func() connect.Spec {
+	observabilityServiceQueryMetricsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("QueryMetrics"),
-			Procedure:  ObservabilityProxyServiceQueryMetricsProcedure,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("QueryMetrics"),
+			Procedure:  ObservabilityServiceQueryMetricsProcedure,
 		}
 	})
-	observabilityProxyServiceListTracesSpec = sync.OnceValue(func() connect.Spec {
+	observabilityServiceListTracesSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("ListTraces"),
-			Procedure:  ObservabilityProxyServiceListTracesProcedure,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("ListTraces"),
+			Procedure:  ObservabilityServiceListTracesProcedure,
 		}
 	})
-	observabilityProxyServiceGetTraceSpec = sync.OnceValue(func() connect.Spec {
+	observabilityServiceGetTraceSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("GetTrace"),
-			Procedure:  ObservabilityProxyServiceGetTraceProcedure,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("GetTrace"),
+			Procedure:  ObservabilityServiceGetTraceProcedure,
 		}
 	})
 )
 
-// ObservabilityProxyServiceClient is a client for the
-// loco.observability.v1.ObservabilityProxyService service.
-type ObservabilityProxyServiceClient interface {
+// ObservabilityServiceClient is a client for the loco.observability.v1.ObservabilityService
+// service.
+type ObservabilityServiceClient interface {
 	// QueryLogs returns historical log entries matching the given filters.
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
-	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error)
+	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityServiceTailLogsClientStream, error)
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
 }
 
-// NewObservabilityProxyServiceClient constructs a client for the
-// loco.observability.v1.ObservabilityProxyService service. Multiple service clients may share a
-// single connect.Client.
-func NewObservabilityProxyServiceClient(client *connect.Client) ObservabilityProxyServiceClient {
-	return &observabilityProxyServiceClient{client: client}
+// NewObservabilityServiceClient constructs a client for the
+// loco.observability.v1.ObservabilityService service. Multiple service clients may share a single
+// connect.Client.
+func NewObservabilityServiceClient(client *connect.Client) ObservabilityServiceClient {
+	return &observabilityServiceClient{client: client}
 }
 
-// ObservabilityProxyServiceTailLogsClientStream is the client stream for the
-// ObservabilityProxyService's TailLogs RPC.
-type ObservabilityProxyServiceTailLogsClientStream struct {
+// ObservabilityServiceTailLogsClientStream is the client stream for the ObservabilityService's
+// TailLogs RPC.
+type ObservabilityServiceTailLogsClientStream struct {
 	stream connect.ClientStream
 }
 
 // Receive returns the next response message from the server.
-func (s ObservabilityProxyServiceTailLogsClientStream) Receive() (*v1.TailLogsResponse, error) {
+func (s ObservabilityServiceTailLogsClientStream) Receive() (*v1.TailLogsResponse, error) {
 	var res v1.TailLogsResponse
 	if err := s.stream.Receive(&res); err != nil {
 		return nil, err
@@ -117,124 +116,122 @@ func (s ObservabilityProxyServiceTailLogsClientStream) Receive() (*v1.TailLogsRe
 
 // Close releases the stream's resources. It is idempotent and is typically deferred to clean up a
 // stream abandoned before io.EOF.
-func (s ObservabilityProxyServiceTailLogsClientStream) Close() error {
+func (s ObservabilityServiceTailLogsClientStream) Close() error {
 	return s.stream.Close()
 }
 
-// ObservabilityProxyServiceHandler is an implementation of the
-// loco.observability.v1.ObservabilityProxyService service.
-type ObservabilityProxyServiceHandler interface {
+// ObservabilityServiceHandler is an implementation of the
+// loco.observability.v1.ObservabilityService service.
+type ObservabilityServiceHandler interface {
 	// QueryLogs returns historical log entries matching the given filters.
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
-	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error
+	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityServiceTailLogsServerStream) error
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
 }
 
-// RegisterObservabilityProxyServiceHandler registers svc as the
-// loco.observability.v1.ObservabilityProxyService implementation on server.
-func RegisterObservabilityProxyServiceHandler(server *connect.Server, svc ObservabilityProxyServiceHandler) {
-	adapter := observabilityProxyServiceHandler{svc: svc}
+// RegisterObservabilityServiceHandler registers svc as the
+// loco.observability.v1.ObservabilityService implementation on server.
+func RegisterObservabilityServiceHandler(server *connect.Server, svc ObservabilityServiceHandler) {
+	adapter := observabilityServiceHandler{svc: svc}
 	server.Register(
-		connect.Method{Spec: observabilityProxyServiceQueryLogsSpec(), Handler: adapter.queryLogs},
-		connect.Method{Spec: observabilityProxyServiceTailLogsSpec(), Handler: adapter.tailLogs},
-		connect.Method{Spec: observabilityProxyServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
-		connect.Method{Spec: observabilityProxyServiceListTracesSpec(), Handler: adapter.listTraces},
-		connect.Method{Spec: observabilityProxyServiceGetTraceSpec(), Handler: adapter.getTrace},
+		connect.Method{Spec: observabilityServiceQueryLogsSpec(), Handler: adapter.queryLogs},
+		connect.Method{Spec: observabilityServiceTailLogsSpec(), Handler: adapter.tailLogs},
+		connect.Method{Spec: observabilityServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
+		connect.Method{Spec: observabilityServiceListTracesSpec(), Handler: adapter.listTraces},
+		connect.Method{Spec: observabilityServiceGetTraceSpec(), Handler: adapter.getTrace},
 	)
 }
 
-// ObservabilityProxyServiceTailLogsServerStream is the server stream for the
-// ObservabilityProxyService's TailLogs RPC.
-type ObservabilityProxyServiceTailLogsServerStream struct {
+// ObservabilityServiceTailLogsServerStream is the server stream for the ObservabilityService's
+// TailLogs RPC.
+type ObservabilityServiceTailLogsServerStream struct {
 	stream connect.ServerStream
 }
 
 // SendHeaders flushes the response headers without a message. The first Send does this implicitly.
-func (s ObservabilityProxyServiceTailLogsServerStream) SendHeaders() error {
+func (s ObservabilityServiceTailLogsServerStream) SendHeaders() error {
 	return s.stream.SendHeaders()
 }
 
 // Send sends a response message to the client.
-func (s ObservabilityProxyServiceTailLogsServerStream) Send(res *v1.TailLogsResponse) error {
+func (s ObservabilityServiceTailLogsServerStream) Send(res *v1.TailLogsResponse) error {
 	return s.stream.Send(res)
 }
 
-// UnimplementedObservabilityProxyServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedObservabilityProxyServiceHandler struct{}
+// UnimplementedObservabilityServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedObservabilityServiceHandler struct{}
 
-func (UnimplementedObservabilityProxyServiceHandler) QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryLogs is not implemented")
+func (UnimplementedObservabilityServiceHandler) QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.QueryLogs is not implemented")
 }
 
-func (UnimplementedObservabilityProxyServiceHandler) TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error {
-	return connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.TailLogs is not implemented")
+func (UnimplementedObservabilityServiceHandler) TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityServiceTailLogsServerStream) error {
+	return connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.TailLogs is not implemented")
 }
 
-func (UnimplementedObservabilityProxyServiceHandler) QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryMetrics is not implemented")
+func (UnimplementedObservabilityServiceHandler) QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.QueryMetrics is not implemented")
 }
 
-func (UnimplementedObservabilityProxyServiceHandler) ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.ListTraces is not implemented")
+func (UnimplementedObservabilityServiceHandler) ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.ListTraces is not implemented")
 }
 
-func (UnimplementedObservabilityProxyServiceHandler) GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.GetTrace is not implemented")
+func (UnimplementedObservabilityServiceHandler) GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.GetTrace is not implemented")
 }
 
-type observabilityProxyServiceClient struct {
+type observabilityServiceClient struct {
 	client *connect.Client
 }
 
-func (c *observabilityProxyServiceClient) QueryLogs(ctx context.Context, req *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error) {
+func (c *observabilityServiceClient) QueryLogs(ctx context.Context, req *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error) {
 	var res v1.QueryLogsResponse
-	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryLogsSpec(), req, &res); err != nil {
+	if err := c.client.CallUnary(ctx, observabilityServiceQueryLogsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-func (c *observabilityProxyServiceClient) TailLogs(ctx context.Context, req *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error) {
-	stream, err := c.client.CallServerStream(ctx, observabilityProxyServiceTailLogsSpec(), req)
+func (c *observabilityServiceClient) TailLogs(ctx context.Context, req *v1.TailLogsRequest) (ObservabilityServiceTailLogsClientStream, error) {
+	stream, err := c.client.CallServerStream(ctx, observabilityServiceTailLogsSpec(), req)
 	if err != nil {
-		return ObservabilityProxyServiceTailLogsClientStream{}, err
+		return ObservabilityServiceTailLogsClientStream{}, err
 	}
-	return ObservabilityProxyServiceTailLogsClientStream{stream: stream}, nil
+	return ObservabilityServiceTailLogsClientStream{stream: stream}, nil
 }
 
-func (c *observabilityProxyServiceClient) QueryMetrics(ctx context.Context, req *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
+func (c *observabilityServiceClient) QueryMetrics(ctx context.Context, req *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
 	var res v1.QueryMetricsResponse
-	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryMetricsSpec(), req, &res); err != nil {
+	if err := c.client.CallUnary(ctx, observabilityServiceQueryMetricsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-func (c *observabilityProxyServiceClient) ListTraces(ctx context.Context, req *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
+func (c *observabilityServiceClient) ListTraces(ctx context.Context, req *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
 	var res v1.ListTracesResponse
-	if err := c.client.CallUnary(ctx, observabilityProxyServiceListTracesSpec(), req, &res); err != nil {
+	if err := c.client.CallUnary(ctx, observabilityServiceListTracesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-func (c *observabilityProxyServiceClient) GetTrace(ctx context.Context, req *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
+func (c *observabilityServiceClient) GetTrace(ctx context.Context, req *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
 	var res v1.GetTraceResponse
-	if err := c.client.CallUnary(ctx, observabilityProxyServiceGetTraceSpec(), req, &res); err != nil {
+	if err := c.client.CallUnary(ctx, observabilityServiceGetTraceSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-type observabilityProxyServiceHandler struct {
-	svc ObservabilityProxyServiceHandler
-}
+type observabilityServiceHandler struct{ svc ObservabilityServiceHandler }
 
-func (h observabilityProxyServiceHandler) queryLogs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+func (h observabilityServiceHandler) queryLogs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.QueryLogsRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
@@ -246,15 +243,15 @@ func (h observabilityProxyServiceHandler) queryLogs(ctx context.Context, _ conne
 	return stream.Send(res)
 }
 
-func (h observabilityProxyServiceHandler) tailLogs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+func (h observabilityServiceHandler) tailLogs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.TailLogsRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
 	}
-	return h.svc.TailLogs(ctx, &req, ObservabilityProxyServiceTailLogsServerStream{stream: stream})
+	return h.svc.TailLogs(ctx, &req, ObservabilityServiceTailLogsServerStream{stream: stream})
 }
 
-func (h observabilityProxyServiceHandler) queryMetrics(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+func (h observabilityServiceHandler) queryMetrics(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.QueryMetricsRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
@@ -266,7 +263,7 @@ func (h observabilityProxyServiceHandler) queryMetrics(ctx context.Context, _ co
 	return stream.Send(res)
 }
 
-func (h observabilityProxyServiceHandler) listTraces(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+func (h observabilityServiceHandler) listTraces(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.ListTracesRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
@@ -278,7 +275,7 @@ func (h observabilityProxyServiceHandler) listTraces(ctx context.Context, _ conn
 	return stream.Send(res)
 }
 
-func (h observabilityProxyServiceHandler) getTrace(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+func (h observabilityServiceHandler) getTrace(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.GetTraceRequest
 	if err := stream.Receive(&req); err != nil {
 		return err

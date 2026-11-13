@@ -396,7 +396,7 @@ func verificationLogs(
 ) error {
 	for {
 		request.EndTime = timestamppb.Now()
-		response, err := clients.ObservabilityProxy.QueryLogs(ctx, request)
+		response, err := clients.Observability.QueryLogs(ctx, request)
 		if err != nil {
 			return errVerificationLogs
 		}

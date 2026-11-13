@@ -1920,8 +1920,8 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\vTraceStatus\x12\x1c\n" +
 	"\x18TRACE_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fTRACE_STATUS_OK\x10\x01\x12\x16\n" +
-	"\x12TRACE_STATUS_ERROR\x10\x022\x83\x04\n" +
-	"\x19ObservabilityProxyService\x12^\n" +
+	"\x12TRACE_STATUS_ERROR\x10\x022\xfe\x03\n" +
+	"\x14ObservabilityService\x12^\n" +
 	"\tQueryLogs\x12'.loco.observability.v1.QueryLogsRequest\x1a(.loco.observability.v1.QueryLogsResponse\x12]\n" +
 	"\bTailLogs\x12&.loco.observability.v1.TailLogsRequest\x1a'.loco.observability.v1.TailLogsResponse0\x01\x12g\n" +
 	"\fQueryMetrics\x12*.loco.observability.v1.QueryMetricsRequest\x1a+.loco.observability.v1.QueryMetricsResponse\x12a\n" +
@@ -2013,16 +2013,16 @@ var file_loco_observability_v1_observability_proto_depIdxs = []int32{
 	20, // 33: loco.observability.v1.TraceSpan.events:type_name -> loco.observability.v1.TraceSpanEvent
 	30, // 34: loco.observability.v1.TraceSpanEvent.timestamp:type_name -> google.protobuf.Timestamp
 	29, // 35: loco.observability.v1.TraceSpanEvent.attributes:type_name -> loco.observability.v1.TraceSpanEvent.AttributesEntry
-	3,  // 36: loco.observability.v1.ObservabilityProxyService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
-	6,  // 37: loco.observability.v1.ObservabilityProxyService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
-	9,  // 38: loco.observability.v1.ObservabilityProxyService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
-	14, // 39: loco.observability.v1.ObservabilityProxyService.ListTraces:input_type -> loco.observability.v1.ListTracesRequest
-	16, // 40: loco.observability.v1.ObservabilityProxyService.GetTrace:input_type -> loco.observability.v1.GetTraceRequest
-	4,  // 41: loco.observability.v1.ObservabilityProxyService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
-	7,  // 42: loco.observability.v1.ObservabilityProxyService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
-	10, // 43: loco.observability.v1.ObservabilityProxyService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
-	15, // 44: loco.observability.v1.ObservabilityProxyService.ListTraces:output_type -> loco.observability.v1.ListTracesResponse
-	17, // 45: loco.observability.v1.ObservabilityProxyService.GetTrace:output_type -> loco.observability.v1.GetTraceResponse
+	3,  // 36: loco.observability.v1.ObservabilityService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
+	6,  // 37: loco.observability.v1.ObservabilityService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
+	9,  // 38: loco.observability.v1.ObservabilityService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
+	14, // 39: loco.observability.v1.ObservabilityService.ListTraces:input_type -> loco.observability.v1.ListTracesRequest
+	16, // 40: loco.observability.v1.ObservabilityService.GetTrace:input_type -> loco.observability.v1.GetTraceRequest
+	4,  // 41: loco.observability.v1.ObservabilityService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
+	7,  // 42: loco.observability.v1.ObservabilityService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
+	10, // 43: loco.observability.v1.ObservabilityService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
+	15, // 44: loco.observability.v1.ObservabilityService.ListTraces:output_type -> loco.observability.v1.ListTracesResponse
+	17, // 45: loco.observability.v1.ObservabilityService.GetTrace:output_type -> loco.observability.v1.GetTraceResponse
 	41, // [41:46] is the sub-list for method output_type
 	36, // [36:41] is the sub-list for method input_type
 	36, // [36:36] is the sub-list for extension type_name

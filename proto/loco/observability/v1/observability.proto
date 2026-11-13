@@ -7,8 +7,8 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1";
 
-// ObservabilityProxyService queries telemetry in the selected regional control plane.
-service ObservabilityProxyService {
+// ObservabilityService queries the telemetry the selected regional control plane stores in ClickHouse.
+service ObservabilityService {
   // QueryLogs returns historical log entries matching the given filters.
   rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
 

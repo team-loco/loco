@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	ObservabilityProxyService,
+	ObservabilityService,
 	TraceStatus,
 	TraceSummarySort,
 	type ListTracesRequest,
@@ -27,7 +27,7 @@ describe("trace summary queries", () => {
 	test("requests a complete trace page with server filters and total count", async () => {
 		let received: ListTracesRequest | undefined;
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				listTraces(request) {
 					received = request;
 					return { totalCount: 67n, summaries: [{ traceId: "trace", rootSpanName: "GET /cart", spanCount: 900n }] };
@@ -77,7 +77,7 @@ describe("trace summary queries", () => {
 
 	test("preserves errors and cancels abandoned requests", async () => {
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, {
+			router.service(ObservabilityService, {
 				listTraces() {
 					throw new ConnectError("Workspace read required", Code.PermissionDenied);
 				},

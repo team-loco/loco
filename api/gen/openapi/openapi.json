@@ -3026,13 +3026,13 @@
         }
       }
     },
-    "/loco.observability.v1.ObservabilityProxyService/GetTrace": {
+    "/loco.observability.v1.ObservabilityService/GetTrace": {
       "post": {
         "tags": [
-          "loco.observability.v1.ObservabilityProxyService"
+          "loco.observability.v1.ObservabilityService"
         ],
         "summary": "GetTrace",
-        "operationId": "loco.observability.v1.ObservabilityProxyService.GetTrace",
+        "operationId": "loco.observability.v1.ObservabilityService.GetTrace",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -3087,13 +3087,13 @@
         }
       }
     },
-    "/loco.observability.v1.ObservabilityProxyService/ListTraces": {
+    "/loco.observability.v1.ObservabilityService/ListTraces": {
       "post": {
         "tags": [
-          "loco.observability.v1.ObservabilityProxyService"
+          "loco.observability.v1.ObservabilityService"
         ],
         "summary": "ListTraces",
-        "operationId": "loco.observability.v1.ObservabilityProxyService.ListTraces",
+        "operationId": "loco.observability.v1.ObservabilityService.ListTraces",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -3148,14 +3148,14 @@
         }
       }
     },
-    "/loco.observability.v1.ObservabilityProxyService/QueryLogs": {
+    "/loco.observability.v1.ObservabilityService/QueryLogs": {
       "post": {
         "tags": [
-          "loco.observability.v1.ObservabilityProxyService"
+          "loco.observability.v1.ObservabilityService"
         ],
         "summary": "QueryLogs",
         "description": "QueryLogs returns historical log entries matching the given filters.",
-        "operationId": "loco.observability.v1.ObservabilityProxyService.QueryLogs",
+        "operationId": "loco.observability.v1.ObservabilityService.QueryLogs",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -3210,14 +3210,14 @@
         }
       }
     },
-    "/loco.observability.v1.ObservabilityProxyService/QueryMetrics": {
+    "/loco.observability.v1.ObservabilityService/QueryMetrics": {
       "post": {
         "tags": [
-          "loco.observability.v1.ObservabilityProxyService"
+          "loco.observability.v1.ObservabilityService"
         ],
         "summary": "QueryMetrics",
         "description": "Counter rates and histogram quantiles are calculated before combining source streams.",
-        "operationId": "loco.observability.v1.ObservabilityProxyService.QueryMetrics",
+        "operationId": "loco.observability.v1.ObservabilityService.QueryMetrics",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -3272,14 +3272,14 @@
         }
       }
     },
-    "/loco.observability.v1.ObservabilityProxyService/TailLogs": {
+    "/loco.observability.v1.ObservabilityService/TailLogs": {
       "post": {
         "tags": [
-          "loco.observability.v1.ObservabilityProxyService"
+          "loco.observability.v1.ObservabilityService"
         ],
         "summary": "TailLogs",
         "description": "TailLogs streams live log entries as they arrive (server-push, polling-based).",
-        "operationId": "loco.observability.v1.ObservabilityProxyService.TailLogs",
+        "operationId": "loco.observability.v1.ObservabilityService.TailLogs",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -14990,8 +14990,8 @@
       "description": "IngestService authorizes telemetry that worker clusters send to the observability proxy."
     },
     {
-      "name": "loco.observability.v1.ObservabilityProxyService",
-      "description": "ObservabilityProxyService queries telemetry in the selected regional control plane."
+      "name": "loco.observability.v1.ObservabilityService",
+      "description": "ObservabilityService queries the telemetry the selected regional control plane stores in ClickHouse."
     },
     {
       "name": "loco.org.v1.OrgService",

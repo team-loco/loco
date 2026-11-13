@@ -24,7 +24,7 @@ const maxResourceReadChecks = 100
 
 var errObservabilityUnavailable = errors.New("observability is unavailable")
 
-var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityServer)(nil)
+var _ observabilityv1connect.ObservabilityServiceHandler = (*ObservabilityServer)(nil)
 
 // ObservabilityConfig bounds the logs, metrics and traces one request can read.
 type ObservabilityConfig struct {

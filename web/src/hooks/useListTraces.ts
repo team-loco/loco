@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import {
-	ObservabilityProxyService,
+	ObservabilityService,
 	type TraceStatus,
 	type TraceSummarySort,
 } from "@gen/loco/observability/v1/observability_pb";
@@ -33,13 +33,13 @@ export function listTracesQueryOptions(transport: Transport, options: ListTraces
 	};
 	return {
 		queryKey: createConnectQueryKey({
-			schema: ObservabilityProxyService.method.listTraces,
+			schema: ObservabilityService.method.listTraces,
 			transport,
 			cardinality: "finite",
 			input,
 		}),
 		queryFn: async ({ signal }: { signal: AbortSignal }) =>
-			await createClient(ObservabilityProxyService, transport).listTraces(input, { signal }),
+			await createClient(ObservabilityService, transport).listTraces(input, { signal }),
 		enabled: enabled && options.workspaceId !== "" && options.environmentId !== "",
 		staleTime: Infinity,
 	};

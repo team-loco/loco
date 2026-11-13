@@ -1,6 +1,6 @@
 # Trace queries
 
-`ObservabilityProxyService.ListTraces` returns one summary per trace for the traces list. `GetTrace` returns every stored span of one trace for the drawer. The regional control-plane API serves both RPCs from its ClickHouse; they share workspace/resource authorization and ClickHouse tenancy filtering.
+`ObservabilityService.ListTraces` returns one summary per trace for the traces list. `GetTrace` returns every stored span of one trace for the drawer. The regional control-plane API serves both RPCs from its ClickHouse; they share workspace/resource authorization and ClickHouse tenancy filtering.
 
 Both requests require a `scope` with a workspace ID. Optional resource IDs and an environment ID narrow the visible spans. A caller needs workspace READ, or must name resources and have READ on every one. Scope IDs must be lowercase UUIDs; a resource from another workspace returns no rows.
 

@@ -19,7 +19,7 @@ import (
 var base = time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
 
 type fakeProxy struct {
-	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
+	observabilityv1connect.UnimplementedObservabilityServiceHandler
 
 	mu       sync.Mutex
 	entries  []*observabilityv1.LogEntry
@@ -63,7 +63,7 @@ func (p *fakeProxy) QueryLogs(
 func (p *fakeProxy) TailLogs(
 	ctx context.Context,
 	_ *observabilityv1.TailLogsRequest,
-	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
+	stream observabilityv1connect.ObservabilityServiceTailLogsServerStream,
 ) error {
 	p.mu.Lock()
 	p.tails++
@@ -86,12 +86,12 @@ func (p *fakeProxy) TailLogs(
 	return nil
 }
 
-func newClient(proxy observabilityv1connect.ObservabilityProxyServiceHandler) *Client {
+func newClient(proxy observabilityv1connect.ObservabilityServiceHandler) *Client {
 	server := connect.NewServer()
-	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, proxy)
+	observabilityv1connect.RegisterObservabilityServiceHandler(server, proxy)
 	transport := connectinprocess.New(server)
 	client := connect.NewClient(transport, rpc.BearerInterceptor("token"))
-	return &Client{Proxy: observabilityv1connect.NewObservabilityProxyServiceClient(client)}
+	return &Client{Observability: observabilityv1connect.NewObservabilityServiceClient(client)}
 }
 
 func collect(entries *[]string) Emit {
@@ -193,7 +193,7 @@ const (
 )
 
 type windowProxy struct {
-	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
+	observabilityv1connect.UnimplementedObservabilityServiceHandler
 
 	now      time.Time
 	backfill []*observabilityv1.LogEntry
@@ -210,7 +210,7 @@ func (p *windowProxy) QueryLogs(
 func (p *windowProxy) TailLogs(
 	ctx context.Context,
 	req *observabilityv1.TailLogsRequest,
-	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
+	stream observabilityv1connect.ObservabilityServiceTailLogsServerStream,
 ) error {
 	after := p.now.Add(-proxyTailLookback)
 	if since := req.GetSince(); since != nil {

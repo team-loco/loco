@@ -23,7 +23,7 @@ const verificationLogsTestTimeout = 10 * time.Second
 const verificationLogsTestMarker = "verification-log-marker"
 
 type verificationLogsAPI struct {
-	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
+	observabilityv1connect.UnimplementedObservabilityServiceHandler
 	t     *testing.T
 	start time.Time
 	ends  []time.Time
@@ -53,7 +53,7 @@ func TestVerificationLogsUseValidAdvancingTimeBounds(t *testing.T) {
 	started := time.Now()
 	api := &verificationLogsAPI{t: t, start: started}
 	server := connect.NewServer()
-	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, api)
+	observabilityv1connect.RegisterObservabilityServiceHandler(server, api)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	endpoint := httptest.NewServer(mux)

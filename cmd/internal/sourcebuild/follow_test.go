@@ -23,7 +23,7 @@ const followTestMargin = 3 * buildPollInterval
 
 type blockedBackfill struct {
 	buildv1connect.UnimplementedBuildServiceHandler
-	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
+	observabilityv1connect.UnimplementedObservabilityServiceHandler
 	started  chan struct{}
 	canceled chan struct{}
 	terminal chan time.Time
@@ -65,7 +65,7 @@ func TestFollowBoundsBlockedBackfillAfterBuildFinishes(t *testing.T) {
 				terminal: make(chan time.Time, 1), build: build}
 			server := connect.NewServer()
 			buildv1connect.RegisterBuildServiceHandler(server, service)
-			observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, service)
+			observabilityv1connect.RegisterObservabilityServiceHandler(server, service)
 			mux := http.NewServeMux()
 			connecthttp.Mount(mux, server)
 			endpoint := httptest.NewServer(mux)

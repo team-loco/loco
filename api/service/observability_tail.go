@@ -25,7 +25,7 @@ const (
 func (s *ObservabilityServer) TailLogs(
 	ctx context.Context,
 	req *observabilityv1.TailLogsRequest,
-	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
+	stream observabilityv1connect.ObservabilityServiceTailLogsServerStream,
 ) error {
 	started := time.Now()
 	if err := guardrails.ValidateTailRequest(req, s.cfg.Limits, started); err != nil {

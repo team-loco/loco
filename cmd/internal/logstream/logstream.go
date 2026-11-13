@@ -39,7 +39,7 @@ func BuildFilter(workspaceID, buildID string) Filter {
 type Emit func(entry *observabilityv1.LogEntry) error
 
 type Client struct {
-	Proxy observabilityv1connect.ObservabilityProxyServiceClient
+	Observability observabilityv1connect.ObservabilityServiceClient
 }
 
 type Window struct {
@@ -122,7 +122,7 @@ func (c *Client) query(
 			Order:       order,
 		}
 
-		resp, err := c.Proxy.QueryLogs(ctx, req)
+		resp, err := c.Observability.QueryLogs(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("query logs: %w", err)
 		}
@@ -146,7 +146,7 @@ func (c *Client) Tail(ctx context.Context, filter Filter, since time.Time, emit 
 			Since:       start,
 		}
 
-		stream, err := c.Proxy.TailLogs(ctx, req)
+		stream, err := c.Observability.TailLogs(ctx, req)
 		if err != nil {
 			return tailError(ctx, err)
 		}
