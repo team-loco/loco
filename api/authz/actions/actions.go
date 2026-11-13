@@ -111,11 +111,6 @@ var (
 
 	// deployments
 
-	// ListDeployments requires resource:read.
-	ListDeployments = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeRead,
-	}
 	// GetDeployment requires resource:read.
 	GetDeployment = Action{
 		entityType: db.EntityTypeResource,

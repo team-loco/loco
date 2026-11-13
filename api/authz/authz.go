@@ -88,6 +88,34 @@ func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, r
 	return ErrInsufficientPermissions
 }
 
+type ReadableEntities struct {
+	System        bool
+	Organizations []uuid.UUID
+	Workspaces    []uuid.UUID
+	Resources     []uuid.UUID
+}
+
+func (*Authorizer) ReadableEntities(granted []queries.EntityScope) ReadableEntities {
+	var system bool
+	var organizations, workspaces, resources []uuid.UUID
+	for _, scope := range granted {
+		if !covers(scope.Scope, queries.ScopeRead) {
+			continue
+		}
+		switch scope.EntityType {
+		case queries.EntityTypeSystem:
+			system = true
+		case queries.EntityTypeOrganization:
+			organizations = append(organizations, scope.EntityID)
+		case queries.EntityTypeWorkspace:
+			workspaces = append(workspaces, scope.EntityID)
+		case queries.EntityTypeResource:
+			resources = append(resources, scope.EntityID)
+		}
+	}
+	return ReadableEntities{System: system, Organizations: organizations, Workspaces: workspaces, Resources: resources}
+}
+
 func (a *Authorizer) ReadableWorkspaces(
 	ctx context.Context,
 	granted []queries.EntityScope,
@@ -101,13 +129,7 @@ func (a *Authorizer) ReadableWorkspaces(
 	if a.Check(ctx, granted, orgRead) == nil {
 		return true, nil
 	}
-	var ids []uuid.UUID
-	for _, scope := range granted {
-		if scope.EntityType == queries.EntityTypeWorkspace && scope.Scope == queries.ScopeRead {
-			ids = append(ids, scope.EntityID)
-		}
-	}
-	return false, ids
+	return false, a.ReadableEntities(granted).Workspaces
 }
 
 func covers(held queries.Scope, required queries.Scope) bool {

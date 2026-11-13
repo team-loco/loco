@@ -49,7 +49,11 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
-func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*deploymentv1.Deployment, error) {
+func deploymentToProto(
+	d genDb.Deployment,
+	resourceType genDb.ResourceType,
+	actorName, actorAvatarURL string,
+) (*deploymentv1.Deployment, error) {
 	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
@@ -58,29 +62,29 @@ func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*de
 	if d.CommitSha != nil {
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
 	}
-	deployment := &deploymentv1.Deployment{
-		Id:            d.ID.String(),
-		ResourceId:    d.ResourceID.String(),
-		EnvironmentId: d.EnvironmentID.String(),
-		ClusterId:     d.ClusterID.String(),
-		Region:        d.Region,
-		Replicas:      d.Replicas,
-		Status:        parseDeploymentPhase(d.Status),
-		IsActive:      d.IsActive,
-		CreatedAt:     timestamppb.New(d.CreatedAt),
-		UpdatedAt:     timestamppb.New(d.UpdatedAt),
-		StartedAt:     timestamppb.New(d.StartedAt),
-		CompletedAt:   optionalTimestamp(d.CompletedAt),
-		SpecVersion:   d.SpecVersion,
-		Message:       d.Message,
-		Spec:          spec,
-		ActorType:     parseDeploymentActorType(d.ActorType),
-		ActorId:       d.ActorID.String(),
-		Method:        parseDeploymentMethod(d.Method),
-		Commit:        commit,
-	}
-
-	return deployment, nil
+	return &deploymentv1.Deployment{
+		Id:             d.ID.String(),
+		ResourceId:     d.ResourceID.String(),
+		EnvironmentId:  d.EnvironmentID.String(),
+		ClusterId:      d.ClusterID.String(),
+		Region:         d.Region,
+		Replicas:       d.Replicas,
+		Status:         parseDeploymentPhase(d.Status),
+		IsActive:       d.IsActive,
+		CreatedAt:      timestamppb.New(d.CreatedAt),
+		UpdatedAt:      timestamppb.New(d.UpdatedAt),
+		StartedAt:      timestamppb.New(d.StartedAt),
+		CompletedAt:    optionalTimestamp(d.CompletedAt),
+		SpecVersion:    d.SpecVersion,
+		Message:        d.Message,
+		Spec:           spec,
+		ActorType:      parseDeploymentActorType(d.ActorType),
+		ActorId:        d.ActorID.String(),
+		ActorName:      actorName,
+		ActorAvatarUrl: actorAvatarURL,
+		Method:         parseDeploymentMethod(d.Method),
+		Commit:         commit,
+	}, nil
 }
 
 // DeploymentServer implements the DeploymentService gRPC server
@@ -353,89 +357,103 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
-	deployment, err := deploymentToProto(deploymentData, resource.Type)
-	if err != nil {
-		return nil, err
-	}
-
 	actor, err := s.queries.GetDeploymentActor(ctx, deploymentID)
 	if err != nil {
 		return nil, fmt.Errorf("get deployment actor: %w", err)
 	}
-	deployment.ActorName = actor.Name
-	deployment.ActorAvatarUrl = actor.AvatarUrl
+	deployment, err := deploymentToProto(deploymentData, resource.Type, actor.Name, actor.AvatarUrl)
+	if err != nil {
+		return nil, err
+	}
 	return &deploymentv1.GetDeploymentResponse{
 		Deployment: deployment,
 	}, nil
 }
 
-// ListDeployments lists deployments for a resource
+// ListDeployments lists deployments the caller can read for a resource or workspace environment.
 func (s *DeploymentServer) ListDeployments(
 	ctx context.Context,
 	req *deploymentv1.ListDeploymentsRequest,
 ) (*deploymentv1.ListDeploymentsResponse, error) {
-	resourceID, err := parseID("resource_id", req.GetResourceId())
+	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err = authorize(ctx, s.authz, actions.ListDeployments, resourceID); err != nil {
-		return nil, err
+	var resourceID, workspaceID, environmentID *uuid.UUID
+	for _, field := range []struct {
+		name   string
+		value  string
+		target **uuid.UUID
+	}{
+		{"resource_id", req.GetResourceId(), &resourceID},
+		{"workspace_id", req.GetWorkspaceId(), &workspaceID},
+		{"environment_id", req.GetEnvironmentId(), &environmentID},
+	} {
+		if field.value == "" {
+			continue
+		}
+		id, parseErr := parseID(field.name, field.value)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		*field.target = &id
 	}
-
-	resource, err := s.queries.GetResourceByID(ctx, resourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrResourceNotFound
+	var since, until *time.Time
+	if req.GetSince() != nil {
+		if err = req.GetSince().CheckValid(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid since").WithCause(err)
+		}
+		value := req.GetSince().AsTime()
+		since = &value
 	}
-	if err != nil {
-		return nil, fmt.Errorf("get resource: %w", err)
+	if req.GetUntil() != nil {
+		if err = req.GetUntil().CheckValid(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid until").WithCause(err)
+		}
+		value := req.GetUntil().AsTime()
+		until = &value
 	}
-
+	readable := s.authz.ReadableEntities(p.Scopes)
 	pageSize := normalizePageSize(req.GetPageSize())
-
 	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
 	if cursorErr != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
-
-	var environmentID *uuid.UUID
-	if req.GetEnvironmentId() != "" {
-		id := uuid.MustParse(req.GetEnvironmentId())
-		environmentID = &id
+	var rows []genDb.ListEnvironmentDeploymentsRow
+	if resourceID != nil {
+		resourceRows, listErr := s.queries.ListResourceDeployments(ctx, genDb.ListResourceDeploymentsParams{
+			ResourceID: *resourceID, EnvironmentID: environmentID,
+			SystemRead: readable.System, OrganizationIds: readable.Organizations,
+			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
+			Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+		})
+		err = listErr
+		for _, row := range resourceRows {
+			rows = append(rows, genDb.ListEnvironmentDeploymentsRow(row))
+		}
+	} else {
+		rows, err = s.queries.ListEnvironmentDeployments(ctx, genDb.ListEnvironmentDeploymentsParams{
+			WorkspaceID: *workspaceID, EnvironmentID: *environmentID,
+			SystemRead: readable.System, OrganizationIds: readable.Organizations,
+			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
+			Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+		})
 	}
-
-	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID:    resourceID,
-		Limit:         pageSize,
-		EnvironmentID: environmentID,
-		PageToken:     cursor.ID,
-		PageCreatedAt: cursor.CreatedAt,
-	})
 	if err != nil {
 		return nil, fmt.Errorf("list deployments: %w", err)
 	}
-
 	var deployments []*deploymentv1.Deployment
-	for _, d := range deploymentList {
-		deployment, err := deploymentToProto(d.Deployment, resource.Type)
+	for _, row := range rows {
+		deployment, err := deploymentToProto(row.Deployment, row.ResourceType, row.ActorName, row.ActorAvatarUrl)
 		if err != nil {
 			return nil, err
 		}
-		deployment.ActorName = d.ActorName
-		deployment.ActorAvatarUrl = d.ActorAvatarUrl
 		deployments = append(deployments, deployment)
 	}
-
-	token := nextPageToken(
-		deploymentList,
-		pageSize,
-		func(d genDb.ListDeploymentsForResourceRow) (uuid.UUID, time.Time) {
-			return d.Deployment.ID, d.Deployment.CreatedAt
-		},
-	)
-	return &deploymentv1.ListDeploymentsResponse{
-		Deployments:   deployments,
-		NextPageToken: token,
-	}, nil
+	token := nextPageToken(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {
+		return row.Deployment.ID, row.Deployment.CreatedAt
+	})
+	return &deploymentv1.ListDeploymentsResponse{Deployments: deployments, NextPageToken: token}, nil
 }
 
 // DeleteDeployment takes a deployment out of service and removes its Application.

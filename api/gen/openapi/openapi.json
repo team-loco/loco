@@ -1646,7 +1646,7 @@
           "loco.deployment.v1.DeploymentService"
         ],
         "summary": "ListDeployments",
-        "description": "ListDeployments lists deployments for a resource.",
+        "description": "ListDeployments lists deployments visible to the caller.",
         "operationId": "loco.deployment.v1.DeploymentService.ListDeployments",
         "parameters": [
           {
@@ -9487,11 +9487,25 @@
             "type": "string",
             "title": "environment_id",
             "format": "uuid"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "since": {
+            "title": "since",
+            "description": "The window includes since and excludes until, using deployment creation time.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "until": {
+            "title": "until",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "ListDeploymentsRequest",
         "additionalProperties": false,
-        "description": "ListDeploymentsRequest is the request to list deployments."
+        "description": "ListDeploymentsRequest is the request to list deployments.\nlist_deployments.scope // provide resource_id or workspace_id with environment_id\nlist_deployments.window // since must precede until\n"
       },
       "loco.deployment.v1.ListDeploymentsResponse": {
         "type": "object",

@@ -148,6 +148,28 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 			if got := listed.GetDeployments()[0]; got.GetActorName() != name || got.GetActorAvatarUrl() != avatar {
 				t.Fatalf("actor after rename = %q, %q", got.GetActorName(), got.GetActorAvatarUrl())
 			}
+			environmentListed, err := clients.Deployment.ListDeployments(
+				t.Context(),
+				&deploymentv1.ListDeploymentsRequest{
+					WorkspaceId: f.workspaceID(t).String(), EnvironmentId: f.envID.String(),
+				},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := listed.GetDeployments()[0]
+			var found bool
+			for _, got := range environmentListed.GetDeployments() {
+				if got.GetId() == want.GetId() {
+					found = true
+					if !proto.Equal(got, want) {
+						t.Fatalf("environment and resource lists differ: %v / %v", got, want)
+					}
+				}
+			}
+			if !found {
+				t.Fatalf("environment list omitted deployment %s", want.GetId())
+			}
 		})
 	}
 }

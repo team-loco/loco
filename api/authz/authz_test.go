@@ -3,6 +3,7 @@ package authz_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -651,5 +652,34 @@ func TestCheckReportsDatabaseFailure(t *testing.T) {
 		if err == nil || errors.Is(err, authz.ErrEntityNotFound) || errors.Is(err, authz.ErrInsufficientPermissions) {
 			t.Errorf("%s lookup on a closed pool: got %v, want the database error", entityType, err)
 		}
+	}
+}
+
+func TestReadableEntities(t *testing.T) {
+	a := authz.New(nil, nil)
+	granted := []queries.EntityScope{
+		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeOrganization, EntityID: org2UUID, Scope: queries.ScopeAdmin},
+		{EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID, Scope: queries.ScopeWrite},
+		{EntityType: queries.EntityTypeResource, EntityID: res1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeResource, EntityID: uuid.New(), Scope: queries.ScopeMember},
+		{EntityType: queries.EntityTypeUser, EntityID: user1UUID, Scope: queries.ScopeRead},
+	}
+	got := a.ReadableEntities(granted)
+	if got.System || !slices.Equal(got.Organizations, []uuid.UUID{org1UUID}) ||
+		!slices.Equal(got.Workspaces, []uuid.UUID{ws1UUID}) ||
+		!slices.Equal(got.Resources, []uuid.UUID{res1UUID}) {
+		t.Fatalf("readable entities = %+v", got)
+	}
+	for _, scope := range []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin} {
+		entities := a.ReadableEntities([]queries.EntityScope{{EntityType: queries.EntityTypeSystem, Scope: scope}})
+		if entities.System != (scope == queries.ScopeRead) {
+			t.Fatalf("system %s: %+v", scope, entities)
+		}
+	}
+	empty := a.ReadableEntities(nil)
+	if empty.System || len(empty.Organizations)+len(empty.Workspaces)+len(empty.Resources) != 0 {
+		t.Fatalf("empty grants expose entities: %+v", empty)
 	}
 }

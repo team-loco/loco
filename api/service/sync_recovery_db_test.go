@@ -80,7 +80,7 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get deployment: %v", err)
 	}
-	deployment, err := deploymentToProto(row, genDb.ResourceTypeService)
+	deployment, err := deploymentToProto(row, genDb.ResourceTypeService, "", "")
 	if err != nil {
 		t.Fatalf("deployment to proto: %v", err)
 	}

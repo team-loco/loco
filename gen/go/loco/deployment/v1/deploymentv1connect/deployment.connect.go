@@ -95,7 +95,7 @@ type DeploymentServiceClient interface {
 	CreateDeployment(context.Context, *v1.CreateDeploymentRequest) (*v1.CreateDeploymentResponse, error)
 	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *v1.GetDeploymentRequest) (*v1.GetDeploymentResponse, error)
-	// ListDeployments lists deployments for a resource.
+	// ListDeployments lists deployments visible to the caller.
 	ListDeployments(context.Context, *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error)
 	// WatchDeployment streams deployment events in real-time.
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest) (DeploymentServiceWatchDeploymentClientStream, error)
@@ -139,7 +139,7 @@ type DeploymentServiceHandler interface {
 	CreateDeployment(context.Context, *v1.CreateDeploymentRequest) (*v1.CreateDeploymentResponse, error)
 	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *v1.GetDeploymentRequest) (*v1.GetDeploymentResponse, error)
-	// ListDeployments lists deployments for a resource.
+	// ListDeployments lists deployments visible to the caller.
 	ListDeployments(context.Context, *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error)
 	// WatchDeployment streams deployment events in real-time.
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error

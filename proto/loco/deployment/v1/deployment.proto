@@ -30,7 +30,7 @@ service DeploymentService {
   rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
   // GetDeployment retrieves a deployment by ID.
   rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
-  // ListDeployments lists deployments for a resource.
+  // ListDeployments lists deployments visible to the caller.
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
   // WatchDeployment streams deployment events in real-time.
   rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
@@ -229,7 +229,20 @@ message GetDeploymentResponse {
 
 // ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
-  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  option (buf.validate.message).cel = {
+    id: "list_deployments.scope"
+    message: "provide resource_id or workspace_id with environment_id"
+    expression: "(this.resource_id != '' && this.workspace_id == '') || (this.resource_id == '' && this.workspace_id != '' && this.environment_id != '')"
+  };
+  option (buf.validate.message).cel = {
+    id: "list_deployments.window"
+    message: "since must precede until"
+    expression: "!has(this.since) || !has(this.until) || this.since < this.until"
+  };
+  string resource_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
   int32 page_size = 2 [(buf.validate.field).int32 = {
     gte: 0
     lte: 200
@@ -239,6 +252,13 @@ message ListDeploymentsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+  string workspace_id = 5 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The window includes since and excludes until, using deployment creation time.
+  google.protobuf.Timestamp since = 6;
+  google.protobuf.Timestamp until = 7;
 }
 
 // ListDeploymentsResponse is the response containing deployment list.

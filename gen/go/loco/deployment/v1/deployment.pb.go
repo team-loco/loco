@@ -1408,6 +1408,10 @@ type ListDeploymentsRequest struct {
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	EnvironmentId string                 `protobuf:"bytes,4,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// The window includes since and excludes until, using deployment creation time.
+	Since         *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
+	Until         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=until,proto3" json:"until,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1468,6 +1472,27 @@ func (x *ListDeploymentsRequest) GetEnvironmentId() string {
 		return x.EnvironmentId
 	}
 	return ""
+}
+
+func (x *ListDeploymentsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ListDeploymentsRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+func (x *ListDeploymentsRequest) GetUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Until
+	}
+	return nil
 }
 
 // ListDeploymentsResponse is the response containing deployment list.
@@ -2057,15 +2082,20 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\"\xbf\x01\n" +
-	"\x16ListDeploymentsRequest\x12)\n" +
-	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"deployment\"\xb1\x05\n" +
+	"\x16ListDeploymentsRequest\x12,\n" +
+	"\vresource_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\x122\n" +
-	"\x0eenvironment_id\x18\x04 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\x83\x01\n" +
+	"\x0eenvironment_id\x18\x04 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12.\n" +
+	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
+	"\x05until\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x05until:\xd8\x02\xbaH\xd4\x02\x1a\xdb\x01\n" +
+	"\x16list_deployments.scope\x127provide resource_id or workspace_id with environment_id\x1a\x87\x01(this.resource_id != '' && this.workspace_id == '') || (this.resource_id == '' && this.workspace_id != '' && this.environment_id != '')\x1at\n" +
+	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"G\n" +
@@ -2190,26 +2220,28 @@ var file_loco_deployment_v1_deployment_proto_depIdxs = []int32{
 	29, // 21: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
 	7,  // 22: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
 	14, // 23: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	14, // 24: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	0,  // 25: loco.deployment.v1.WatchDeploymentResponse.status:type_name -> loco.deployment.v1.DeploymentPhase
-	31, // 26: loco.deployment.v1.WatchDeploymentResponse.timestamp:type_name -> google.protobuf.Timestamp
-	15, // 27: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
-	18, // 28: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
-	20, // 29: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
-	22, // 30: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
-	24, // 31: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
-	27, // 32: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
-	17, // 33: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
-	19, // 34: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
-	21, // 35: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
-	23, // 36: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
-	25, // 37: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
-	28, // 38: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
-	33, // [33:39] is the sub-list for method output_type
-	27, // [27:33] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	31, // 24: loco.deployment.v1.ListDeploymentsRequest.since:type_name -> google.protobuf.Timestamp
+	31, // 25: loco.deployment.v1.ListDeploymentsRequest.until:type_name -> google.protobuf.Timestamp
+	14, // 26: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
+	0,  // 27: loco.deployment.v1.WatchDeploymentResponse.status:type_name -> loco.deployment.v1.DeploymentPhase
+	31, // 28: loco.deployment.v1.WatchDeploymentResponse.timestamp:type_name -> google.protobuf.Timestamp
+	15, // 29: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
+	18, // 30: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
+	20, // 31: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
+	22, // 32: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
+	24, // 33: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
+	27, // 34: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
+	17, // 35: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
+	19, // 36: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
+	21, // 37: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
+	23, // 38: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
+	25, // 39: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
+	28, // 40: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
+	35, // [35:41] is the sub-list for method output_type
+	29, // [29:35] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_loco_deployment_v1_deployment_proto_init() }

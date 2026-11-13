@@ -19,7 +19,7 @@ export const createDeployment = DeploymentService.method.createDeployment;
 export const getDeployment = DeploymentService.method.getDeployment;
 
 /**
- * ListDeployments lists deployments for a resource.
+ * ListDeployments lists deployments visible to the caller.
  *
  * @generated from rpc loco.deployment.v1.DeploymentService.ListDeployments
  */

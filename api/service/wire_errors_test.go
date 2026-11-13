@@ -115,10 +115,10 @@ func TestServicesExposePublicWireErrors(t *testing.T) {
 		},
 			call: func(ctx context.Context, client *connect.Client) error {
 				serviceClient := deploymentv1connect.NewDeploymentServiceClient(client)
-				request := &deploymentv1.ListDeploymentsRequest{ResourceId: wireEntityID}
+				request := &deploymentv1.ListDeploymentsRequest{ResourceId: "malformed"}
 				_, err := serviceClient.ListDeployments(ctx, request)
 				return err
-			}, code: connect.CodePermissionDenied, message: expectedPermissionMessage},
+			}, code: connect.CodeInvalidArgument, message: "invalid resource_id"},
 		{name: "Domain", register: func(server *connect.Server) {
 			domainv1connect.RegisterDomainServiceHandler(server, &DomainServer{authz: authorizer})
 		},
