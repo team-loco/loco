@@ -66,7 +66,7 @@ func ForHost(host, token string) *Clients {
 
 func NewHTTPClients(httpClient *http.Client, host, token string) *Clients {
 	transport := connecthttp.NewTransport(httpClient, host)
-	connectClient := connect.NewClient(transport, BearerInterceptor(token), requestIDInterceptor)
+	connectClient := connect.NewClient(transport, BearerInterceptor(token), RequestIDInterceptor)
 	return NewClients(connectClient)
 }
 

@@ -65,3 +65,36 @@ func TestFailedCallLogsRequestIDOnce(t *testing.T) {
 		t.Fatalf("record = %+v, want DEBUG with request_id %q", record, testRequestID)
 	}
 }
+
+type recordingConfigServer struct {
+	configv1connect.UnimplementedConfigServiceHandler
+	requestID string
+}
+
+func (s *recordingConfigServer) GetConfig(
+	ctx context.Context,
+	_ *configv1.GetConfigRequest,
+) (*configv1.GetConfigResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	s.requestID = info.RequestHeader().Get(rpc.RequestIDHeader)
+	return &configv1.GetConfigResponse{}, nil
+}
+
+func TestCallForwardsContextRequestID(t *testing.T) {
+	recorder := &recordingConfigServer{}
+	server := connect.NewServer()
+	configv1connect.RegisterConfigServiceHandler(server, recorder)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, server)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	ctx := rpc.WithRequestID(t.Context(), testRequestID)
+	clients := rpc.NewHTTPClients(srv.Client(), srv.URL, "")
+	if _, err := clients.Config.GetConfig(ctx, &configv1.GetConfigRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if recorder.requestID != testRequestID {
+		t.Fatalf("server saw request ID %q, want %q", recorder.requestID, testRequestID)
+	}
+}

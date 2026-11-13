@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 type key int
@@ -33,13 +34,16 @@ type Principal struct {
 	Token     string
 }
 
+// WithRequest keeps the ID in rpc's context value, so outgoing RPC clients forward it.
 func WithRequest(ctx context.Context, r Request) context.Context {
-	return context.WithValue(ctx, requestKey, r)
+	ctx = rpc.WithRequestID(ctx, r.ID)
+	return context.WithValue(ctx, requestKey, r.Procedure)
 }
 
 func RequestFrom(ctx context.Context) (Request, bool) {
-	r, ok := ctx.Value(requestKey).(Request)
-	return r, ok
+	procedure, ok := ctx.Value(requestKey).(string)
+	id, _ := rpc.RequestIDFrom(ctx)
+	return Request{ID: id, Procedure: procedure}, ok
 }
 
 func WithPrincipal(ctx context.Context, p Principal) context.Context {
