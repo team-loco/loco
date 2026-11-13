@@ -3,6 +3,8 @@ package clickhouse
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +35,9 @@ func (c *Client) QueryMetrics(
 	ctx context.Context,
 	req *observabilityv1.QueryMetricsRequest,
 ) ([]*observabilityv1.MetricSeries, error) {
+	if req.GetAggregation() == "rate" {
+		return c.queryTrafficMetrics(ctx, req, false)
+	}
 	query, args := buildMetricsQuery(req, c.queryTimeout)
 
 	rows, err := c.conn.Query(ctx, query, args...)
@@ -90,6 +95,13 @@ func (c *Client) QueryMetrics(
 	for _, s := range seriesMap {
 		result = append(result, s)
 	}
+	if strings.HasPrefix(req.GetAggregation(), "p") {
+		histograms, err := c.queryTrafficMetrics(ctx, req, true)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, histograms...)
+	}
 	return result, nil
 }
 
@@ -97,24 +109,7 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 	aggFunc := aggregationFunctions[req.GetAggregation()]
 	interval := req.GetIntervalSeconds()
 
-	whereParts := []string{workspaceColumn + " = ?"}
-	args := []any{req.GetWorkspaceId()}
-
-	if req.GetEnvironmentId() != "" {
-		whereParts = append(whereParts, environmentColumn+" = ?")
-		args = append(args, req.GetEnvironmentId())
-	}
-
-	if req.GetRegion() != "" {
-		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
-		args = append(args, regionAttribute, req.GetRegion())
-	}
-
-	if len(req.GetResourceIds()) > 0 {
-		clause, values := inFilter(resourceColumn, req.GetResourceIds())
-		whereParts = append(whereParts, clause)
-		args = append(args, values...)
-	}
+	whereParts, args := metricsFilters(req)
 
 	whereParts = append(whereParts,
 		"MetricName = ?",
@@ -146,4 +141,31 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 	args = append(args, args...)
 
 	return query, args
+}
+
+func metricsFilters(req *observabilityv1.QueryMetricsRequest) ([]string, []any) {
+	whereParts := []string{workspaceColumn + " = ?"}
+	args := []any{req.GetWorkspaceId()}
+
+	if req.GetEnvironmentId() != "" {
+		whereParts = append(whereParts, environmentColumn+" = ?")
+		args = append(args, req.GetEnvironmentId())
+	}
+
+	if req.GetRegion() != "" {
+		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
+		args = append(args, regionAttribute, req.GetRegion())
+	}
+
+	if len(req.GetResourceIds()) > 0 {
+		clause, values := inFilter(resourceColumn, req.GetResourceIds())
+		whereParts = append(whereParts, clause)
+		args = append(args, values...)
+	}
+
+	for _, key := range slices.Sorted(maps.Keys(req.GetAttributes())) {
+		whereParts = append(whereParts, "Attributes[?] = ?")
+		args = append(args, key, req.GetAttributes()[key])
+	}
+	return whereParts, args
 }

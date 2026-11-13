@@ -526,13 +526,13 @@ obs_metrics_union() {
 check_envoy_metrics() {
     local query rows union route
     route="resource-${obs_resource_id}-route"
-    union=$(obs_metrics_union "MetricName, WorkspaceId, ResourceId, Attributes")
+    union=$(obs_metrics_union "MetricName, WorkspaceId, ResourceId, EnvironmentId, Attributes")
     query="SELECT MetricName, WorkspaceId, ResourceId, count() AS Points FROM (${union}) WHERE ResourceId = '${obs_resource_id}' OR arrayExists(v -> position(v, '${route}') > 0, mapValues(Attributes)) GROUP BY MetricName, WorkspaceId, ResourceId ORDER BY MetricName LIMIT ${obs_output_rows}"
     ev "Metrics since the traffic that name the fixture's route \`${route}\` or carry its ResourceId. Expected a request metric (\`upstream_rq\`) with WorkspaceId \`${obs_workspace_id}\` and ResourceId \`${obs_resource_id}\`." ""
     ev_query "Envoy metrics for the fixture's route" "$query"
-    rows=$(obs_ch "SELECT MetricName, WorkspaceId, ResourceId FROM (${union}) WHERE ResourceId = '${obs_resource_id}'" TabSeparated) || return 1
-    awk -F'\t' -v ws="$obs_workspace_id" -v res="$obs_resource_id" '
-        $1 ~ /upstream_rq/ && $2 == ws && $3 == res { found = 1 } END { exit !found }' <<<"$rows"
+    rows=$(obs_ch "SELECT MetricName, WorkspaceId, ResourceId, EnvironmentId FROM (${union}) WHERE ResourceId = '${obs_resource_id}'" TabSeparated) || return 1
+    awk -F'\t' -v ws="$obs_workspace_id" -v res="$obs_resource_id" -v env="$obs_environment_id" '
+        $1 ~ /upstream_rq/ && $2 == ws && $3 == res && $4 == env { found = 1 } END { exit !found }' <<<"$rows"
 }
 
 test_o07_envoy_metrics() {

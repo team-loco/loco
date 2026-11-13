@@ -12,7 +12,7 @@ import { ObservabilityProxyService } from "./observability_pb";
 export const queryLogs = ObservabilityProxyService.method.queryLogs;
 
 /**
- * QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
+ * Counter rates and histogram quantiles are calculated before combining source streams.
  *
  * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryMetrics
  */

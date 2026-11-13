@@ -257,7 +257,7 @@ def test_client_tenancy_is_removed_before_kubernetes_attributes(worker_relays):
     for collector, config, name, pipeline in _push_pipelines(worker_relays):
         processors = pipeline["processors"]
         enrichers = _k8s_attributes(pipeline)
-        assert len(enrichers) == 1, f"{collector} {name}"
+        assert enrichers[0] == "k8s_attributes/connection", f"{collector} {name}"
         strips = [
             index
             for index, processor in enumerate(processors)
@@ -276,6 +276,8 @@ def test_client_tenancy_is_removed_before_kubernetes_attributes(worker_relays):
 def test_push_pipelines_associate_pods_by_connection_only(worker_relays):
     for collector, config, name, pipeline in _push_pipelines(worker_relays):
         for enricher in _k8s_attributes(pipeline):
+            if enricher == "k8s_attributes/route_namespace":
+                continue
             assert config["processors"][enricher]["pod_association"] == [
                 {"sources": [{"from": "connection"}]}
             ], f"{collector} {name}"
@@ -318,6 +320,8 @@ def test_build_logs_keep_their_build_id(worker_relays):
 def test_tenancy_comes_from_explicit_pod_labels(worker_relays):
     for collector, config, name, pipeline in _pipelines(worker_relays):
         for enricher in _k8s_attributes(pipeline):
+            if enricher == "k8s_attributes/route_namespace":
+                continue
             extract = config["processors"][enricher]["extract"]
             labels = {
                 rule.get("key"): rule.get("tag_name")
@@ -411,7 +415,7 @@ def test_route_tenancy_runs_after_kubernetes_attributes(envoy_telemetry):
         assert order == sorted(order), name
     assert envoy_telemetry.collector["processors"]["groupbyattrs/tenancy"][
         "keys"
-    ] == list(ROUTE_TENANCY)
+    ] == [*ROUTE_TENANCY, "k8s.namespace.name"]
 
 
 def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
@@ -525,3 +529,16 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
             "validate", f"--config=/conf/{config_path.name}",
         ], capture_output=True, text=True)
         assert result.returncode == 0, f"{collector}: {result.stdout}\n{result.stderr}"
+
+
+def test_gateway_environment_comes_from_the_route_namespace(worker_relays):
+    config = worker_relays["otel-col-deploy"]
+    processor = config["processors"]["k8s_attributes/route_namespace"]
+    assert processor["extract"]["labels"] == [{"from": "namespace", "key": "loco.io/environment-id", "tag_name": "loco.environment.id"}]
+    for pipeline in config["service"]["pipelines"].values():
+        order = pipeline["processors"]
+        assert order.index("groupbyattrs/tenancy") < order.index("k8s_attributes/route_namespace") < order.index("resource/region")
+    for groups in config["processors"]["transform/envoy_tenancy"].values():
+        if not isinstance(groups, list):
+            continue
+        assert any('set(attributes["k8s.namespace.name"]' in statement for group in groups for statement in group["statements"])

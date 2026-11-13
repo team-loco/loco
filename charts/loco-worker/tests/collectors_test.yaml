@@ -486,3 +486,11 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --feature-gates=stanza.synchronousLogEmitter
         template: charts/otel-col-cluster/templates/statefulset.yaml
+
+  - it: enriches route groups from namespace labels before export
+    template: templates/collectors/collector-configs.yaml
+    documentSelector: {path: metadata.name, value: otel-col-deploy}
+    asserts:
+      - matchRegex:
+          path: data.relay
+          pattern: 'k8s_attributes/route_namespace'
