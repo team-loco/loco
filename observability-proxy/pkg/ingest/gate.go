@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 var (
@@ -68,7 +69,7 @@ type clusterPlacements struct {
 func NewGate(cfg GateConfig) *Gate {
 	httpClient := &http.Client{Timeout: cfg.RequestTimeout}
 	transport := connecthttp.NewTransport(httpClient, cfg.ControlPlaneURL)
-	client := ingestv1connect.NewIngestServiceClient(connect.NewClient(transport))
+	client := ingestv1connect.NewIngestServiceClient(connect.NewClient(transport, rpc.RequestIDInterceptor))
 	return &Gate{cfg: cfg, http: httpClient, placements: client, clusters: map[string]*clusterPlacements{}}
 }
 

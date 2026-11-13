@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
-	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/internal/rpc"
 )
@@ -17,18 +16,6 @@ func NewContextInterceptor() *contextInterceptor {
 	return &contextInterceptor{}
 }
 
-func resolveRequestID(existing string) string {
-	if existing != "" {
-		return existing
-	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		slog.Warn("failed to generate request ID, using empty string", "error", err)
-		return ""
-	}
-	return id.String()
-}
-
 func (*contextInterceptor) Interceptor() connect.ServerInterceptor {
 	return func(next connect.ServerFunc) connect.ServerFunc {
 		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
@@ -36,7 +23,7 @@ func (*contextInterceptor) Interceptor() connect.ServerInterceptor {
 			slog.DebugContext(ctx, "adding additional request context",
 				slog.String("user-agent", info.RequestHeader().Get("User-Agent")),
 				slog.String("content-type", info.RequestHeader().Get("Content-Type")))
-			rid := resolveRequestID(info.RequestHeader().Get(rpc.RequestIDHeader))
+			rid := rpc.ResolveRequestID(info.RequestHeader().Get(rpc.RequestIDHeader))
 			ctx = reqctx.WithRequest(ctx, reqctx.Request{ID: rid, Procedure: spec.Procedure})
 			info.ResponseHeader().Set(rpc.RequestIDHeader, rid)
 			start := time.Now()

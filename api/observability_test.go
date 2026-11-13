@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -299,4 +300,51 @@ func (*gatewayTelemetry) GetTrace(
 	return &observabilityv1.GetTraceResponse{
 		Spans: []*observabilityv1.TraceSpan{{TraceId: req.GetTraceId(), WorkspaceId: req.GetScope().GetWorkspaceId()}},
 	}, nil
+}
+
+func TestRegionalGatewayRequestID(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		backend  bool
+		incoming string
+	}{
+		{name: "forwarded", backend: true, incoming: "caller-request-id"},
+		{name: "minted", backend: true},
+		{name: "unavailable", incoming: "caller-request-id"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			upstreamIDs := make(chan string, 1)
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				upstreamIDs <- r.Header.Get(rpc.RequestIDHeader)
+				w.Header().Set(rpc.RequestIDHeader, r.Header.Get(rpc.RequestIDHeader))
+				http.Error(w, `{"code":"internal","message":"query failed"}`, http.StatusInternalServerError)
+			}))
+			t.Cleanup(upstream.Close)
+			var target *url.URL
+			if tc.backend {
+				target = parseObservabilityProxyURL(upstream.URL)
+			}
+			mux := http.NewServeMux()
+			mountObservabilityProxy(mux, target)
+			gateway := httptest.NewServer(mux)
+			t.Cleanup(gateway.Close)
+			ctx, info := connect.NewClientContext(t.Context())
+			if tc.incoming != "" {
+				info.RequestHeader().Set(rpc.RequestIDHeader, tc.incoming)
+			}
+			clients := rpc.NewHTTPClients(gateway.Client(), gateway.URL, "reader")
+			if _, err := clients.ObservabilityProxy.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{}); err == nil {
+				t.Fatal("QueryLogs succeeded, want an error")
+			}
+			ids := info.ResponseHeader().Values(rpc.RequestIDHeader)
+			if len(ids) != 1 || ids[0] == "" || (tc.incoming != "" && ids[0] != tc.incoming) {
+				t.Fatalf("response request IDs = %q, want one matching %q", ids, tc.incoming)
+			}
+			if tc.backend {
+				if got := <-upstreamIDs; got != ids[0] {
+					t.Errorf("forwarded request ID = %q, want %q", got, ids[0])
+				}
+			}
+		})
+	}
 }

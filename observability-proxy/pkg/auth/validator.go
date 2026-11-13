@@ -14,6 +14,7 @@ import (
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/internal/bearer"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 var (
@@ -53,7 +54,7 @@ func NewValidator(controlPlaneURL string, cacheTTL time.Duration) (*Validator, e
 	httpClient := &http.Client{Transport: transport}
 
 	rpcTransport := connecthttp.NewTransport(httpClient, controlPlaneURL)
-	tokenClient := tokenv1connect.NewTokenServiceClient(connect.NewClient(rpcTransport))
+	tokenClient := tokenv1connect.NewTokenServiceClient(connect.NewClient(rpcTransport, rpc.RequestIDInterceptor))
 	return &Validator{client: tokenClient, cache: cache, ttl: cacheTTL}, nil
 }
 

@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
+	"github.com/team-loco/loco/observability-proxy/service"
 )
 
 const (
@@ -214,7 +215,7 @@ func main() {
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})
-	logger := slog.New(handler)
+	logger := slog.New(service.LogHandler{Handler: handler})
 	slog.SetDefault(logger)
 
 	proxyVersion := buildinfo.Version(version)
