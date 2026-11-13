@@ -377,13 +377,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							</EmptyState>
 						</Section>
 					)}
-					<TrafficSection
-						workspaceId={resource.workspaceId}
-						environmentId={environmentId ?? ""}
-						resourceId={resource.id}
-						region={selectedRegion ?? ""}
-						range={range}
-					/>
+					{deployed.length > 0 && environmentId !== undefined && (
+						<TrafficSection
+							workspaceId={resource.workspaceId}
+							environmentId={environmentId}
+							resourceId={resource.id}
+							region={selectedRegion ?? ""}
+							range={range}
+						/>
+					)}
 					<DeploymentsSection
 						nowMs={nowMs}
 						resourceId={resource.id}
