@@ -611,6 +611,24 @@ type Invitation struct {
 	RevokedAt *time.Time `json:"revokedAt"`
 }
 
+type OrgLimitOverride struct {
+	OrgID                    uuid.UUID  `json:"orgId"`
+	WorkspacesPerOrg         *int32     `json:"workspacesPerOrg"`
+	MembersPerOrg            *int32     `json:"membersPerOrg"`
+	InvitationsPerOrg        *int32     `json:"invitationsPerOrg"`
+	EnvironmentsPerWorkspace *int32     `json:"environmentsPerWorkspace"`
+	ResourcesPerWorkspace    *int32     `json:"resourcesPerWorkspace"`
+	WebhooksPerWorkspace     *int32     `json:"webhooksPerWorkspace"`
+	TokensPerEntity          *int32     `json:"tokensPerEntity"`
+	DomainsPerResource       *int32     `json:"domainsPerResource"`
+	SecretsPerResource       *int32     `json:"secretsPerResource"`
+	DeploymentHistory        *int32     `json:"deploymentHistory"`
+	BuildHistory             *int32     `json:"buildHistory"`
+	Reason                   string     `json:"reason"`
+	UpdatedBy                *uuid.UUID `json:"updatedBy"`
+	UpdatedAt                time.Time  `json:"updatedAt"`
+}
+
 type Organization struct {
 	ID               uuid.UUID  `json:"id"`
 	Name             string     `json:"name"`

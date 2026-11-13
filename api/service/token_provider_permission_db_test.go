@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
@@ -27,7 +28,7 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 		Claims: auth.ClaimPaths{Subject: "sub", Email: "email", EmailVerified: "email_verified"},
 	}})
 	policy := auth.SignupPolicy{}
-	resolver := auth.NewResolver(f.pool, policy)
+	resolver := auth.NewResolver(f.pool, policy, limits.Defaults())
 	identity := auth.Identity{Issuer: issuer.URL(), Subject: "reader", Email: "test@example.com", EmailVerified: true}
 	user, _, err := resolver.Resolve(t.Context(), identity)
 	if err != nil {
@@ -54,7 +55,7 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 	)
 	authorizer := authz.New(f.pool, f.queries)
 	authInterceptor := interceptor.NewAuthInterceptor(machine, verifier, resolver, authorizer)
-	service := NewTokenServer(f.pool, f.queries, machine)
+	service := NewTokenServer(f.pool, f.queries, machine, limits.Defaults())
 	serverInterceptor := authInterceptor.Interceptor()
 	rpcServer := connect.NewServer(serverInterceptor)
 	tokenv1connect.RegisterTokenServiceHandler(rpcServer, service)

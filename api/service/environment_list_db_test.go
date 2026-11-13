@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
@@ -27,7 +28,7 @@ RETURNING id`, workspaceID).Scan(&otherResource)
 	if err != nil {
 		t.Fatalf("create resource in another workspace: %v", err)
 	}
-	server := NewEnvironmentServer(f.pool, f.queries)
+	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	list := func(scopes []genDb.EntityScope) ([]*environmentv1.Environment, error) {
 		ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 		resp, listErr := server.ListEnvironments(ctx, &environmentv1.ListEnvironmentsRequest{

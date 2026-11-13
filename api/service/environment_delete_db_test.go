@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
@@ -31,7 +32,7 @@ func TestDeleteEnvironmentRefusesADeploymentThatCommitsWhileItWaits(t *testing.T
 	if _, err = lockWorkspaceEnvironments(ctx, qtx, workspaceID); err != nil {
 		t.Fatal(err)
 	}
-	server := NewEnvironmentServer(f.pool, f.queries)
+	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeAdmin},
 	}

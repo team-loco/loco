@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
@@ -77,7 +78,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 		t.Fatalf("policy: %v", err)
 	}
 	identity := auth.Identity{Issuer: testIssuer, Subject: "sub-1", Email: "dev@example.test", EmailVerified: true}
-	user, _, err := auth.NewResolver(pool, policy).Resolve(t.Context(), identity)
+	user, _, err := auth.NewResolver(pool, policy, limits.Defaults()).Resolve(t.Context(), identity)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}

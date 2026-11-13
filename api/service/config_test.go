@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/team-loco/loco/api/limits"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -14,7 +15,7 @@ import (
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
-	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour)
+	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour, limits.Defaults())
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -73,7 +74,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 		{Label: "Support", URL: "https://support.example.com/orgs/{orgId}"},
 		{Label: "Status", URL: "https://status.example.com"},
 	}
-	server := NewConfigServer("", "", testServiceDefaults(), nil, links, time.Hour)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, links, time.Hour, limits.Defaults())
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -89,12 +90,12 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 }
 
 func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
-	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, limits.Defaults())
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
 	}
-	limits := resp.GetSizeLimits()
+	sizes := resp.GetSizeLimits()
 	size := func(cpuMillis, memoryBytes int64, minReplicas, maxReplicas int32) locoControllerV1.ResourcesSpec {
 		return locoControllerV1.ResourcesSpec{
 			CPU:      resource.NewMilliQuantity(cpuMillis, resource.DecimalSI).String(),
@@ -102,9 +103,9 @@ func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 			Replicas: locoControllerV1.ReplicasSpec{Min: minReplicas, Max: maxReplicas},
 		}
 	}
-	minCPU, maxCPU := int64(limits.GetMinCpuMillis()), int64(limits.GetMaxCpuMillis())
-	minMemory, maxMemory := limits.GetMinMemoryBytes(), limits.GetMaxMemoryBytes()
-	minReplicas, maxReplicas := limits.GetMinReplicas(), limits.GetMaxReplicas()
+	minCPU, maxCPU := int64(sizes.GetMinCpuMillis()), int64(sizes.GetMaxCpuMillis())
+	minMemory, maxMemory := sizes.GetMinMemoryBytes(), sizes.GetMaxMemoryBytes()
+	minReplicas, maxReplicas := sizes.GetMinReplicas(), sizes.GetMaxReplicas()
 
 	for name, spec := range map[string]locoControllerV1.ResourcesSpec{
 		"minimums": size(minCPU, minMemory, minReplicas, minReplicas),
@@ -125,5 +126,18 @@ func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 		if err := spec.Validate(); err == nil {
 			t.Errorf("%s: %+v accepted", name, spec)
 		}
+	}
+}
+
+func TestGetConfigReportsTheInstallCountLimits(t *testing.T) {
+	counts := limits.Defaults()
+	limits.ResourcesPerWorkspace.Set(counts, 7)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, counts)
+	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if got := resp.GetCountLimits().GetResourcesPerWorkspace(); got != 7 {
+		t.Fatalf("resources per workspace = %d, want the configured 7", got)
 	}
 }

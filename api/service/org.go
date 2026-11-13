@@ -17,7 +17,9 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -56,6 +58,7 @@ type OrgServer struct {
 	queries     genDb.Querier
 	authz       *authz.Authorizer
 	invitations InvitationConfig
+	counts      *configv1.CountLimits
 }
 
 // NewOrgServer creates a new OrgServer instance
@@ -63,12 +66,14 @@ func NewOrgServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	invitations InvitationConfig,
+	counts *configv1.CountLimits,
 ) *OrgServer {
 	return &OrgServer{
 		db:          db,
 		queries:     queries,
 		invitations: invitations,
 		authz:       authz.New(db, queries),
+		counts:      counts,
 	}
 }
 
@@ -101,7 +106,7 @@ func (s *OrgServer) CreateOrg(
 	var org genDb.Organization
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var createErr error
-		org, createErr = createOrgInTx(ctx, qtx, p.Entity.ID, orgName)
+		org, createErr = createOrgInTx(ctx, qtx, s.counts, p.Entity.ID, orgName)
 		return createErr
 	})
 	if err != nil {
@@ -113,7 +118,23 @@ func (s *OrgServer) CreateOrg(
 	}, nil
 }
 
-func createOrgInTx(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID, name string) (genDb.Organization, error) {
+func createOrgInTx(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	counts *configv1.CountLimits,
+	userID uuid.UUID,
+	name string,
+) (genDb.Organization, error) {
+	if _, err := qtx.LockUserForMembership(ctx, userID); err != nil {
+		return genDb.Organization{}, fmt.Errorf("lock user: %w", err)
+	}
+	created, err := qtx.CountOrgsCreatedBy(ctx, userID)
+	if err != nil {
+		return genDb.Organization{}, fmt.Errorf("count organizations: %w", err)
+	}
+	if err = limits.OrgsPerUser.Check(counts, created, 1); err != nil {
+		return genDb.Organization{}, err
+	}
 	org, err := qtx.CreateOrg(ctx, genDb.CreateOrgParams{
 		Name:      name,
 		CreatedBy: userID,
@@ -252,11 +273,11 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, user
 		if err != nil {
 			return fmt.Errorf("get user: %w", err)
 		}
-		org, err := createOrgInTx(ctx, qtx, userID, defaultOrgName(user))
+		org, err := createOrgInTx(ctx, qtx, s.counts, userID, defaultOrgName(user))
 		if err != nil {
 			return err
 		}
-		_, err = createWorkspaceInTx(ctx, qtx, genDb.CreateWorkspaceParams{
+		_, err = createWorkspaceInTx(ctx, qtx, s.counts, genDb.CreateWorkspaceParams{
 			OrgID:     org.ID,
 			Name:      firstWorkspaceName,
 			CreatedBy: userID,

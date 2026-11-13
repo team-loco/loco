@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -206,6 +207,17 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 			Data:        map[string]any{events.FieldDomain: row.Domain},
 		}); eventErr != nil {
 			return eventErr
+		}
+	}
+	missing := 0
+	for _, domain := range desired {
+		if _, exists := ids[domain]; !exists {
+			missing++
+		}
+	}
+	if missing > 0 {
+		if limitErr := limits.DomainsPerResource.Check(a.counts, int64(len(ids)), int64(missing)); limitErr != nil {
+			return limitErr
 		}
 	}
 	for _, domain := range desired {

@@ -72,6 +72,23 @@ export const suspendOrg = OrgService.method.suspendOrg;
 export const resumeOrg = OrgService.method.resumeOrg;
 
 /**
+ * GetOrgLimits returns the organization's effective count limits. Any member may call it.
+ *
+ * @generated from rpc loco.org.v1.OrgService.GetOrgLimits
+ */
+export const getOrgLimits = OrgService.method.getOrgLimits;
+
+/**
+ * SetOrgLimits overrides the install's count limits for one organization. Only the fields in
+ * update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
+ * belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+ * system:admin.
+ *
+ * @generated from rpc loco.org.v1.OrgService.SetOrgLimits
+ */
+export const setOrgLimits = OrgService.method.setOrgLimits;
+
+/**
  * @generated from rpc loco.org.v1.OrgService.InviteOrgMember
  */
 export const inviteOrgMember = OrgService.method.inviteOrgMember;

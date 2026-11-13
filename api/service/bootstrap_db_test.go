@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
 	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
@@ -51,7 +52,7 @@ func bootstrapHTTP(t *testing.T, a *membershipAPI, issuer *authtest.Issuer, hash
 		t.Fatal(err)
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
-	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Closed: true})
+	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Closed: true}, limits.Defaults())
 	server := connect.NewServer(interceptor.NewErrorInterceptor())
 	sessions := NewAuthServer(a.pool, a.queries, a.machine, nil, auth.Admins{}, "")
 	bootstrapv1connect.RegisterBootstrapServiceHandler(
@@ -147,7 +148,7 @@ func TestBootstrapFreshClosedInstallation(t *testing.T) {
 	if _, err = clusters.ListClusters(t.Context(), &clusterv1.ListClustersRequest{}); err != nil {
 		t.Fatalf("session cannot administer clusters: %v", err)
 	}
-	closed := auth.NewResolver(f.api.pool, auth.SignupPolicy{Closed: true})
+	closed := auth.NewResolver(f.api.pool, auth.SignupPolicy{Closed: true}, limits.Defaults())
 	if _, _, err = closed.Resolve(
 		t.Context(),
 		auth.Identity{Issuer: f.issuer.URL(), Subject: "blocked", Email: "blocked@example.com", EmailVerified: true},

@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -44,7 +45,7 @@ func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
 	if _, err := f.pool.Exec(ctx, "UPDATE environments SET description='before' WHERE id=$1", f.envID); err != nil {
 		t.Fatal(err)
 	}
-	server := NewEnvironmentServer(f.pool, f.queries)
+	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	if _, err := server.UpdateEnvironment(
 		ctx,
 		&environmentv1.UpdateEnvironmentRequest{EnvironmentId: f.envID.String(), Description: new("")},
@@ -87,7 +88,7 @@ func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
 func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	for _, description := range []string{optionalChanged, ""} {
 		_, err := server.UpdateResource(
 			ctx,
@@ -135,7 +136,7 @@ func TestOptionalWorkspaceDescriptionClears(t *testing.T) {
 	if _, err := f.pool.Exec(ctx, "UPDATE workspaces SET description='before' WHERE id=$1", id); err != nil {
 		t.Fatal(err)
 	}
-	server := NewWorkspaceServer(f.pool, f.queries)
+	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	_, err := server.UpdateWorkspace(
 		ctx,
 		&workspacev1.UpdateWorkspaceRequest{WorkspaceId: id.String(), Description: new("")},
@@ -218,7 +219,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	_, err = server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: id.String(), Name: new("")})
 	if codeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty organization name error=%v", err)
@@ -228,7 +229,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 func TestOptionalOrganizationOmittedFieldsRequireExistingRow(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
-	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	auditBefore := optionalAuditCount(t, f)
 	_, err := server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: uuid.NewString()})
 	if codeOf(err) != connect.CodeNotFound {
@@ -273,9 +274,9 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 			t.Fatal(err)
 		}
 	}
-	environment := NewEnvironmentServer(f.pool, f.queries)
-	resource := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
-	workspace := NewWorkspaceServer(f.pool, f.queries)
+	environment := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
+	resource := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	workspace := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	if _, err := environment.UpdateEnvironment(
 		ctx,
 		&environmentv1.UpdateEnvironmentRequest{EnvironmentId: f.envID.String(), Name: new("renamed-env")},

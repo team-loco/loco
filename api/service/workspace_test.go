@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
@@ -23,7 +24,7 @@ func (q orgLookupQuerier) GetOrganizationIDByWorkspaceID(_ context.Context, _ uu
 func TestCreateMemberRejectsScopesTheCallerDoesNotHold(t *testing.T) {
 	wsID := uuid.Must(uuid.NewV7())
 	querier := orgLookupQuerier{orgID: uuid.Must(uuid.NewV7())}
-	server := NewWorkspaceServer(nil, querier)
+	server := NewWorkspaceServer(nil, querier, limits.Defaults())
 
 	callerScopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},

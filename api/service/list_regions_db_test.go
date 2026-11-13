@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -58,7 +59,7 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 	f.markClusterUnhealthy(t, f.clusterID)
 	f.addStagingRegionCluster(t)
 	staging := f.addStagingEnvironment(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := f.workspaceReadScopes(t)
 
 	production := listRegions(t, server, scopes, f.envID.String())
@@ -90,7 +91,7 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 func TestListRegionsReportsDegradedRegions(t *testing.T) {
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := f.workspaceReadScopes(t)
 
 	ctx := t.Context()

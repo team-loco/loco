@@ -3,7 +3,9 @@ syntax = "proto3";
 package loco.org.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
+import "loco/config/v1/config.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/org/v1;orgv1";
 
@@ -31,6 +33,13 @@ service OrgService {
   // ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
   // Resuming an organization that is not suspended changes nothing.
   rpc ResumeOrg(ResumeOrgRequest) returns (ResumeOrgResponse);
+  // GetOrgLimits returns the organization's effective count limits. Any member may call it.
+  rpc GetOrgLimits(GetOrgLimitsRequest) returns (GetOrgLimitsResponse);
+  // SetOrgLimits overrides the install's count limits for one organization. Only the fields in
+  // update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
+  // belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+  // system:admin.
+  rpc SetOrgLimits(SetOrgLimitsRequest) returns (SetOrgLimitsResponse);
   rpc InviteOrgMember(InviteOrgMemberRequest) returns (InviteOrgMemberResponse);
   rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse);
   rpc RevokeInvitation(RevokeInvitationRequest) returns (RevokeInvitationResponse);
@@ -232,4 +241,41 @@ message ResumeOrgRequest {
 // ResumeOrgResponse is the organization after the request.
 message ResumeOrgResponse {
   Organization organization = 1;
+}
+
+// OrgLimits are an organization's effective count limits and the latest change to them.
+message OrgLimits {
+  loco.config.v1.CountLimits limits = 1;
+  // overridden names the CountLimits fields set for this organization rather than by the install.
+  repeated string overridden = 2;
+  // reason, updated_by and updated_at describe the latest SetOrgLimits; empty without one.
+  string reason = 3;
+  string updated_by = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// GetOrgLimitsRequest is the request for an organization's count limits.
+message GetOrgLimitsRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetOrgLimitsResponse holds the organization's count limits.
+message GetOrgLimitsResponse {
+  OrgLimits limits = 1;
+}
+
+// SetOrgLimitsRequest is the request to override an organization's count limits.
+message SetOrgLimitsRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  loco.config.v1.CountLimits limits = 2 [(buf.validate.field).required = true];
+  google.protobuf.FieldMask update_mask = 3 [(buf.validate.field).required = true];
+  string reason = 4 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 500
+  }];
+}
+
+// SetOrgLimitsResponse holds the organization's count limits after the request.
+message SetOrgLimitsResponse {
+  OrgLimits limits = 1;
 }

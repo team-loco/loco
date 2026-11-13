@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
@@ -181,7 +182,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolver := auth.NewResolver(f.pool, policy)
+	resolver := auth.NewResolver(f.pool, policy, limits.Defaults())
 	user, _, err := resolver.Resolve(t.Context(), auth.Identity{
 		Issuer: issuer.URL(), Subject: "deployer", Email: "deployer@example.test", EmailVerified: true,
 	})
@@ -220,7 +221,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 	planv1connect.RegisterPlanServiceHandler(server, newPlanServer(f))
 	resourcev1connect.RegisterResourceServiceHandler(
 		server,
-		NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter),
+		NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults()),
 	)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

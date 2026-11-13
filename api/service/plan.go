@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
@@ -37,6 +38,7 @@ type PlanServer struct {
 	defaults     servicedefaults.Defaults
 	secrets      SecretConfig
 	silentAfter  time.Duration
+	counts       *configv1.CountLimits
 }
 
 // NewPlanServer creates a PlanServer; secrets supplies the per-placement size limit the plan
@@ -49,6 +51,7 @@ func NewPlanServer(
 	defaults servicedefaults.Defaults,
 	secrets SecretConfig,
 	clusterSilentAfter time.Duration,
+	counts *configv1.CountLimits,
 ) *PlanServer {
 	return &PlanServer{
 		db:           db,
@@ -59,6 +62,7 @@ func NewPlanServer(
 		defaults:     defaults,
 		secrets:      secrets,
 		silentAfter:  clusterSilentAfter,
+		counts:       counts,
 	}
 }
 

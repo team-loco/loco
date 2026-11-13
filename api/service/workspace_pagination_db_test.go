@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
@@ -59,7 +60,7 @@ func TestWorkspacePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 				}
 			}
 			slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(b[:], a[:]) })
-			server := NewWorkspaceServer(f.pool, f.queries)
+			server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 			page := func(cursor string) ([]*workspacev1.Workspace, string) {
 				t.Helper()
 				if kind == "organization" {

@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -57,6 +58,10 @@ func (s *ResourceServer) updateRegions(
 	organizationID, err := qtx.GetOrganizationIDByWorkspaceID(ctx, res.WorkspaceID)
 	if err != nil {
 		return fmt.Errorf("get workspace organization: %w", err)
+	}
+	counts, err := limits.ForOrg(ctx, qtx, s.counts, organizationID)
+	if err != nil {
+		return err
 	}
 	environments, err := qtx.ListWorkspaceEnvironments(ctx, res.WorkspaceID)
 	if err != nil {
@@ -140,6 +145,7 @@ func (s *ResourceServer) updateRegions(
 		a := applier{
 			env:            env,
 			organizationID: organizationID,
+			counts:         counts,
 			live: liveEnvironment{
 				resources:   map[string]genDb.Resource{res.Name: res},
 				deployments: map[uuid.UUID][]genDb.Deployment{res.ID: active},

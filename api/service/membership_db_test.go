@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -86,10 +87,10 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 			Interceptor(),
 		validate.NewServerInterceptor(),
 	)
-	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, invitations))
-	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries))
+	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, invitations, limits.Defaults()))
+	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries, limits.Defaults()))
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine, auth.Admins{}))
-	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute)
+	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute, limits.Defaults())
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
@@ -99,7 +100,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 		pool:     pool,
 		queries:  queries,
 		machine:  machine,
-		resolver: auth.NewResolver(pool, policy),
+		resolver: auth.NewResolver(pool, policy, limits.Defaults()),
 		url:      srv.URL,
 	}
 }

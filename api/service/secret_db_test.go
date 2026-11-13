@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
@@ -56,13 +57,19 @@ func newSecretFixture(t *testing.T) *secretFixture {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	f := &secretFixture{pool: pool, queries: queries, machine: machine, resolver: auth.NewResolver(pool, policy)}
+	f := &secretFixture{
+		pool:     pool,
+		queries:  queries,
+		machine:  machine,
+		resolver: auth.NewResolver(pool, policy, limits.Defaults()),
+	}
 	f.ownerID = f.signUp(t, "owner", "owner@secrets.test")
 	ownerCtx := scoped(t, queries, f.ownerID)
 	created, err := NewOrgServer(
 		pool,
 		queries,
 		InvitationConfig{},
+		limits.Defaults(),
 	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("secrets"),
 	})

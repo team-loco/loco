@@ -15,8 +15,10 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/reqctx"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -82,10 +84,15 @@ func (p *testKeyProvider) Unwrap(_ context.Context, wrapped secretkeys.WrappedKe
 	return secretkeys.Open(key, wrapped.Bytes[:testNonceSize], wrapped.Bytes[testNonceSize:], aad)
 }
 
+func testSecretCounts() *configv1.CountLimits {
+	counts := limits.Defaults()
+	limits.SecretsPerResource.Set(counts, testMaxSecrets)
+	return counts
+}
+
 func testSecretConfig() SecretConfig {
 	return SecretConfig{
 		MaxValueBytes:     testMaxValue,
-		MaxPerService:     testMaxSecrets,
 		MaxPlacementBytes: testMaxPlacementBytes,
 		LockTimeout:       testLockTimeout,
 	}
@@ -93,7 +100,7 @@ func testSecretConfig() SecretConfig {
 
 func (f *secretFixture) server(t *testing.T, provider secretkeys.Provider) *SecretServer {
 	t.Helper()
-	return NewSecretServer(f.pool, f.queries, provider, testSecretConfig())
+	return NewSecretServer(f.pool, f.queries, provider, testSecretConfig(), testSecretCounts())
 }
 
 func (f *secretFixture) set(t *testing.T, server *SecretServer, values map[string]string) *secretv1.SetSecretsResponse {
@@ -369,9 +376,9 @@ const (
 	lockWaiterPoll = 10 * time.Millisecond
 )
 
-func (f *secretFixture) serverWith(t *testing.T, provider secretkeys.Provider, limits SecretConfig) *SecretServer {
+func (f *secretFixture) serverWith(t *testing.T, provider secretkeys.Provider, config SecretConfig) *SecretServer {
 	t.Helper()
-	return NewSecretServer(f.pool, f.queries, provider, limits)
+	return NewSecretServer(f.pool, f.queries, provider, config, testSecretCounts())
 }
 
 func (f *secretFixture) declare(t *testing.T, resourceID uuid.UUID, names ...string) {
@@ -542,7 +549,7 @@ func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 	provider := newTestKeyProvider(t, "k1")
 	const serviceLimit = 40
 	server := f.serverWith(t, provider, SecretConfig{
-		MaxValueBytes: testMaxValue, MaxPerService: testMaxSecrets, MaxPlacementBytes: serviceLimit,
+		MaxValueBytes: testMaxValue, MaxPlacementBytes: serviceLimit,
 		LockTimeout: testLockTimeout,
 	})
 	f.declare(t, f.resourceID, alphaKey, betaKey)
@@ -727,7 +734,7 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 			f := newSecretFixture(t)
 			provider := newTestKeyProvider(t, "k1")
 			server := f.serverWith(t, provider, SecretConfig{
-				MaxValueBytes: testMaxValue, MaxPerService: testMaxSecrets, MaxPlacementBytes: testMaxPlacementBytes,
+				MaxValueBytes: testMaxValue, MaxPlacementBytes: testMaxPlacementBytes,
 				LockTimeout: 100 * time.Millisecond,
 			})
 			f.set(t, server, map[string]string{alphaKey: "1"})

@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db/dbtest"
 	queries "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/internal/bearer"
 )
@@ -49,7 +50,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	})
 	ctx := t.Context()
 
-	resolver := auth.NewResolver(pool, auth.SignupPolicy{})
+	resolver := auth.NewResolver(pool, auth.SignupPolicy{}, limits.Defaults())
 	user, _, err := resolver.Resolve(ctx, auth.Identity{
 		Issuer: "https://issuer.test", Subject: "entropy", Email: "entropy@example.com", EmailVerified: true,
 	})
@@ -128,7 +129,7 @@ func TestIssueRejectsADuplicateTokenName(t *testing.T) {
 	machine := tvm.NewVendingMachine(pool, q, tvm.Config{MaxAPITokenDuration: time.Hour})
 	ctx := t.Context()
 
-	resolver := auth.NewResolver(pool, auth.SignupPolicy{})
+	resolver := auth.NewResolver(pool, auth.SignupPolicy{}, limits.Defaults())
 	user, _, err := resolver.Resolve(ctx, auth.Identity{
 		Issuer: "https://issuer.test", Subject: "dupe", Email: "dupe@example.com", EmailVerified: true,
 	})

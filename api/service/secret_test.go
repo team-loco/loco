@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
@@ -45,7 +46,7 @@ func TestSecretServiceAuthorization(t *testing.T) {
 	envID := env.ID.String()
 	resourceID := resource.ID.String()
 	querier := environmentLookupQuerier{orgLookupQuerier{orgID: uuid.Must(uuid.NewV7())}, env, resource}
-	server := NewSecretServer(nil, querier, nil, SecretConfig{})
+	server := NewSecretServer(nil, querier, nil, SecretConfig{}, limits.Defaults())
 	read := genDb.EntityScope{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead}
 	write := genDb.EntityScope{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite}
 	otherWrite := genDb.EntityScope{

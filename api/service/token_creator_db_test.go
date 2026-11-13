@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -12,7 +13,7 @@ import (
 
 func TestTokenMetadataIncludesCreator(t *testing.T) {
 	f := newSecretFixture(t)
-	server := NewTokenServer(f.pool, f.queries, f.machine)
+	server := NewTokenServer(f.pool, f.queries, f.machine, limits.Defaults())
 	for _, tc := range []struct {
 		entityType tokenv1.EntityType
 		entityID   string
@@ -66,7 +67,7 @@ func TestCreateTokenRespectsConfiguredMaximum(t *testing.T) {
 		f.queries,
 		tvm.Config{MaxAPITokenDuration: 90 * time.Second, LastUsedUpdateInterval: time.Minute},
 	)
-	server := NewTokenServer(f.pool, f.queries, machine)
+	server := NewTokenServer(f.pool, f.queries, machine, limits.Defaults())
 	for _, seconds := range []int64{0, -1, 91, 90} {
 		_, err := server.CreateToken(f.owner, &tokenv1.CreateTokenRequest{
 			Name:         "lifetime-check",
@@ -90,5 +91,32 @@ func TestCreateTokenRespectsConfiguredMaximum(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestCreateTokenStopsAtTheOwnersLimit(t *testing.T) {
+	f := newSecretFixture(t)
+	counts := limits.Defaults()
+	limits.TokensPerEntity.Set(counts, 1)
+	server := NewTokenServer(f.pool, f.queries, f.machine, counts)
+	create := func(entityType tokenv1.EntityType, entityID, name string) error {
+		_, err := server.CreateToken(f.owner, &tokenv1.CreateTokenRequest{
+			Name:         name,
+			EntityType:   entityType,
+			EntityId:     entityID,
+			ExpiresInSec: 60,
+			Scopes: []*tokenv1.EntityScope{
+				{Scope: tokenv1.Scope_SCOPE_READ, EntityType: entityType, EntityId: entityID},
+			},
+		})
+		return err
+	}
+	workspace := tokenv1.EntityType_ENTITY_TYPE_WORKSPACE
+	if err := create(workspace, f.workspaceID.String(), "first"); err != nil {
+		t.Fatalf("first token: %v", err)
+	}
+	wantCode(t, create(workspace, f.workspaceID.String(), "second"), connect.CodeResourceExhausted)
+	if err := create(tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, f.orgID.String(), "first"); err != nil {
+		t.Fatalf("another owner hit the workspace's limit: %v", err)
 	}
 }

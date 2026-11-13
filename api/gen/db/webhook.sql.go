@@ -456,17 +456,6 @@ func (q *Queries) LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhook
 	return status, err
 }
 
-const lockWorkspaceForWebhookCreation = `-- name: LockWorkspaceForWebhookCreation :one
-SELECT id FROM workspaces WHERE id = $1 FOR NO KEY UPDATE
-`
-
-func (q *Queries) LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, lockWorkspaceForWebhookCreation, id)
-	var id_2 uuid.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
-}
-
 const postponeWebhookDelivery = `-- name: PostponeWebhookDelivery :execrows
 UPDATE webhook_deliveries
 SET attempts = attempts - 1,

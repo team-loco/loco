@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
@@ -110,7 +111,7 @@ func componentAuthHTTP(t *testing.T, a *membershipAPI, issuer string) string {
 		t.Fatal(err)
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
-	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{})
+	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{}, limits.Defaults())
 	store, err := cache.NewMemory()
 	if err != nil {
 		t.Fatal(err)
@@ -134,12 +135,15 @@ func componentAuthHTTP(t *testing.T, a *membershipAPI, issuer string) string {
 	userv1connect.RegisterUserServiceHandler(authenticated, NewUserServer(a.pool, a.queries, a.machine, auth.Admins{}))
 	orgv1connect.RegisterOrgServiceHandler(
 		authenticated,
-		NewOrgServer(a.pool, a.queries, InvitationConfig{}),
+		NewOrgServer(a.pool, a.queries, InvitationConfig{}, limits.Defaults()),
 	)
-	workspacev1connect.RegisterWorkspaceServiceHandler(authenticated, NewWorkspaceServer(a.pool, a.queries))
+	workspacev1connect.RegisterWorkspaceServiceHandler(
+		authenticated,
+		NewWorkspaceServer(a.pool, a.queries, limits.Defaults()),
+	)
 	environmentv1connect.RegisterEnvironmentServiceHandler(
 		authenticated,
-		NewEnvironmentServer(a.pool, a.queries),
+		NewEnvironmentServer(a.pool, a.queries, limits.Defaults()),
 	)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, base)

@@ -17,6 +17,8 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -35,11 +37,12 @@ type WorkspaceServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	authz   *authz.Authorizer
+	counts  *configv1.CountLimits
 }
 
 // NewWorkspaceServer creates a new WorkspaceServer instance
-func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier) *WorkspaceServer {
-	return &WorkspaceServer{db: db, queries: queries, authz: authz.New(db, queries)}
+func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier, counts *configv1.CountLimits) *WorkspaceServer {
+	return &WorkspaceServer{db: db, queries: queries, authz: authz.New(db, queries), counts: counts}
 }
 
 // CreateWorkspace creates a new workspace
@@ -64,7 +67,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 	var wsID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var createErr error
-		wsID, createErr = createWorkspaceInTx(ctx, qtx, genDb.CreateWorkspaceParams{
+		wsID, createErr = createWorkspaceInTx(ctx, qtx, s.counts, genDb.CreateWorkspaceParams{
 			OrgID:       orgID,
 			Name:        req.GetName(),
 			Description: req.Description,
@@ -84,12 +87,22 @@ func (s *WorkspaceServer) CreateWorkspace(
 func createWorkspaceInTx(
 	ctx context.Context,
 	qtx *genDb.Queries,
+	counts *configv1.CountLimits,
 	params genDb.CreateWorkspaceParams,
 ) (uuid.UUID, error) {
-	wsID, err := qtx.CreateWorkspace(ctx, params)
-	if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
+	if _, err := qtx.LockOrgForCreate(ctx, params.OrgID); errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, ErrOrgNotFound
+	} else if err != nil {
+		return uuid.Nil, fmt.Errorf("lock organization: %w", err)
 	}
+	existing, err := qtx.CountOrgWorkspaces(ctx, params.OrgID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("count workspaces: %w", err)
+	}
+	if err = checkOrgLimit(ctx, qtx, counts, limits.WorkspacesPerOrg, params.OrgID, existing, 1); err != nil {
+		return uuid.Nil, err
+	}
+	wsID, err := qtx.CreateWorkspace(ctx, params)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("insert workspace: %w", err)
 	}

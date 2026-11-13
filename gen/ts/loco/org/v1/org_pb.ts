@@ -5,15 +5,17 @@
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { CountLimits, CountLimitsJson } from "../../config/v1/config_pb";
+import { file_loco_config_v1_config } from "../../config/v1/config_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/org/v1/org.proto.
  */
 export const file_loco_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIukBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHN1c3BlbmRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRc3VzcGVuc2lvbl9yZWFzb24YByABKAkiOQoQQ3JlYXRlT3JnUmVxdWVzdBIcCgRuYW1lGAEgASgJQgm6SAZyBBABGGRIAIgBAUIHCgVfbmFtZSIjChFDcmVhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAkiKQoNR2V0T3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBIkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJ+ChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJEhkKEWNyZWF0ZV9pZl9taXNzaW5nGAQgASgIIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImQKFUxpc3RPcmdNZW1iZXJzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIloKFkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USJwoHbWVtYmVycxgBIAMoCzIWLmxvY28ub3JnLnYxLk9yZ01lbWJlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiPAoJT3JnTWVtYmVyEh8KBHVzZXIYASABKAsyES5sb2NvLm9yZy52MS5Vc2VyEg4KBnNjb3BlcxgCIAMoCSJNChZSZW1vdmVPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiGQoXUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2UifgoXU2V0T3JnTWVtYmVyUm9sZVJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABARIuCgRyb2xlGAMgASgOMhQubG9jby5vcmcudjEuT3JnUm9sZUIKukgHggEEEAEgACIaChhTZXRPcmdNZW1iZXJSb2xlUmVzcG9uc2UizAEKCkludml0YXRpb24SCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEiUKCmludml0ZWRfYnkYBCABKAsyES5sb2NvLm9yZy52MS5Vc2VyEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGxpbmsYByABKAkiSgoWSW52aXRlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhYKBWVtYWlsGAIgASgJQge6SARyAhABIkYKF0ludml0ZU9yZ01lbWJlclJlc3BvbnNlEisKCmludml0YXRpb24YASABKAsyFy5sb2NvLm9yZy52MS5JbnZpdGF0aW9uImUKFkxpc3RJbnZpdGF0aW9uc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJgChdMaXN0SW52aXRhdGlvbnNSZXNwb25zZRIsCgtpbnZpdGF0aW9ucxgBIAMoCzIXLmxvY28ub3JnLnYxLkludml0YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIi8KF1Jldm9rZUludml0YXRpb25SZXF1ZXN0EhQKAmlkGAEgASgJQgi6SAVyA7ABASIaChhSZXZva2VJbnZpdGF0aW9uUmVzcG9uc2UiLwoXUmVzZW5kSW52aXRhdGlvblJlcXVlc3QSFAoCaWQYASABKAlCCLpIBXIDsAEBIkcKGFJlc2VuZEludml0YXRpb25SZXNwb25zZRIrCgppbnZpdGF0aW9uGAEgASgLMhcubG9jby5vcmcudjEuSW52aXRhdGlvbiJDCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKYXZhdGFyX3VybBgEIAEoCSJTChBVcGRhdGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHAoEbmFtZRgCIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRVXBkYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIiwKEERlbGV0ZU9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABASITChFEZWxldGVPcmdSZXNwb25zZSJJChFTdXNwZW5kT3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhoKBnJlYXNvbhgCIAEoCUIKukgHcgUQARj0AyJFChJTdXNwZW5kT3JnUmVzcG9uc2USLwoMb3JnYW5pemF0aW9uGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uIiwKEFJlc3VtZU9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABASJEChFSZXN1bWVPcmdSZXNwb25zZRIvCgxvcmdhbml6YXRpb24YASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24qTAoHT3JnUm9sZRIYChRPUkdfUk9MRV9VTlNQRUNJRklFRBAAEhIKDk9SR19ST0xFX0FETUlOEAESEwoPT1JHX1JPTEVfTUVNQkVSEAIyuwkKCk9yZ1NlcnZpY2USSgoJQ3JlYXRlT3JnEh0ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1Jlc3BvbnNlEkEKBkdldE9yZxIaLmxvY28ub3JnLnYxLkdldE9yZ1JlcXVlc3QaGy5sb2NvLm9yZy52MS5HZXRPcmdSZXNwb25zZRJKCglVcGRhdGVPcmcSHS5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVzcG9uc2USSgoJRGVsZXRlT3JnEh0ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1Jlc3BvbnNlElMKDExpc3RVc2VyT3JncxIgLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXNwb25zZRJZCg5MaXN0T3JnTWVtYmVycxIiLmxvY28ub3JnLnYxLkxpc3RPcmdNZW1iZXJzUmVxdWVzdBojLmxvY28ub3JnLnYxLkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USXwoQU2V0T3JnTWVtYmVyUm9sZRIkLmxvY28ub3JnLnYxLlNldE9yZ01lbWJlclJvbGVSZXF1ZXN0GiUubG9jby5vcmcudjEuU2V0T3JnTWVtYmVyUm9sZVJlc3BvbnNlElwKD1JlbW92ZU9yZ01lbWJlchIjLmxvY28ub3JnLnYxLlJlbW92ZU9yZ01lbWJlclJlcXVlc3QaJC5sb2NvLm9yZy52MS5SZW1vdmVPcmdNZW1iZXJSZXNwb25zZRJNCgpTdXNwZW5kT3JnEh4ubG9jby5vcmcudjEuU3VzcGVuZE9yZ1JlcXVlc3QaHy5sb2NvLm9yZy52MS5TdXNwZW5kT3JnUmVzcG9uc2USSgoJUmVzdW1lT3JnEh0ubG9jby5vcmcudjEuUmVzdW1lT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlJlc3VtZU9yZ1Jlc3BvbnNlElwKD0ludml0ZU9yZ01lbWJlchIjLmxvY28ub3JnLnYxLkludml0ZU9yZ01lbWJlclJlcXVlc3QaJC5sb2NvLm9yZy52MS5JbnZpdGVPcmdNZW1iZXJSZXNwb25zZRJcCg9MaXN0SW52aXRhdGlvbnMSIy5sb2NvLm9yZy52MS5MaXN0SW52aXRhdGlvbnNSZXF1ZXN0GiQubG9jby5vcmcudjEuTGlzdEludml0YXRpb25zUmVzcG9uc2USXwoQUmV2b2tlSW52aXRhdGlvbhIkLmxvY28ub3JnLnYxLlJldm9rZUludml0YXRpb25SZXF1ZXN0GiUubG9jby5vcmcudjEuUmV2b2tlSW52aXRhdGlvblJlc3BvbnNlEl8KEFJlc2VuZEludml0YXRpb24SJC5sb2NvLm9yZy52MS5SZXNlbmRJbnZpdGF0aW9uUmVxdWVzdBolLmxvY28ub3JnLnYxLlJlc2VuZEludml0YXRpb25SZXNwb25zZUI0WjJnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL29yZy92MTtvcmd2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIukBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHN1c3BlbmRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRc3VzcGVuc2lvbl9yZWFzb24YByABKAkiOQoQQ3JlYXRlT3JnUmVxdWVzdBIcCgRuYW1lGAEgASgJQgm6SAZyBBABGGRIAIgBAUIHCgVfbmFtZSIjChFDcmVhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAkiKQoNR2V0T3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBIkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJ+ChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJEhkKEWNyZWF0ZV9pZl9taXNzaW5nGAQgASgIIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImQKFUxpc3RPcmdNZW1iZXJzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIloKFkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USJwoHbWVtYmVycxgBIAMoCzIWLmxvY28ub3JnLnYxLk9yZ01lbWJlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiPAoJT3JnTWVtYmVyEh8KBHVzZXIYASABKAsyES5sb2NvLm9yZy52MS5Vc2VyEg4KBnNjb3BlcxgCIAMoCSJNChZSZW1vdmVPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiGQoXUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2UifgoXU2V0T3JnTWVtYmVyUm9sZVJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABARIuCgRyb2xlGAMgASgOMhQubG9jby5vcmcudjEuT3JnUm9sZUIKukgHggEEEAEgACIaChhTZXRPcmdNZW1iZXJSb2xlUmVzcG9uc2UizAEKCkludml0YXRpb24SCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEiUKCmludml0ZWRfYnkYBCABKAsyES5sb2NvLm9yZy52MS5Vc2VyEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGxpbmsYByABKAkiSgoWSW52aXRlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhYKBWVtYWlsGAIgASgJQge6SARyAhABIkYKF0ludml0ZU9yZ01lbWJlclJlc3BvbnNlEisKCmludml0YXRpb24YASABKAsyFy5sb2NvLm9yZy52MS5JbnZpdGF0aW9uImUKFkxpc3RJbnZpdGF0aW9uc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJgChdMaXN0SW52aXRhdGlvbnNSZXNwb25zZRIsCgtpbnZpdGF0aW9ucxgBIAMoCzIXLmxvY28ub3JnLnYxLkludml0YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIi8KF1Jldm9rZUludml0YXRpb25SZXF1ZXN0EhQKAmlkGAEgASgJQgi6SAVyA7ABASIaChhSZXZva2VJbnZpdGF0aW9uUmVzcG9uc2UiLwoXUmVzZW5kSW52aXRhdGlvblJlcXVlc3QSFAoCaWQYASABKAlCCLpIBXIDsAEBIkcKGFJlc2VuZEludml0YXRpb25SZXNwb25zZRIrCgppbnZpdGF0aW9uGAEgASgLMhcubG9jby5vcmcudjEuSW52aXRhdGlvbiJDCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKYXZhdGFyX3VybBgEIAEoCSJTChBVcGRhdGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHAoEbmFtZRgCIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRVXBkYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIiwKEERlbGV0ZU9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABASITChFEZWxldGVPcmdSZXNwb25zZSJJChFTdXNwZW5kT3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhoKBnJlYXNvbhgCIAEoCUIKukgHcgUQARj0AyJFChJTdXNwZW5kT3JnUmVzcG9uc2USLwoMb3JnYW5pemF0aW9uGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uIiwKEFJlc3VtZU9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABASJEChFSZXN1bWVPcmdSZXNwb25zZRIvCgxvcmdhbml6YXRpb24YASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24ioAEKCU9yZ0xpbWl0cxIrCgZsaW1pdHMYASABKAsyGy5sb2NvLmNvbmZpZy52MS5Db3VudExpbWl0cxISCgpvdmVycmlkZGVuGAIgAygJEg4KBnJlYXNvbhgDIAEoCRISCgp1cGRhdGVkX2J5GAQgASgJEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIi8KE0dldE9yZ0xpbWl0c1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABASI+ChRHZXRPcmdMaW1pdHNSZXNwb25zZRImCgZsaW1pdHMYASABKAsyFi5sb2NvLm9yZy52MS5PcmdMaW1pdHMiuQEKE1NldE9yZ0xpbWl0c1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIzCgZsaW1pdHMYAiABKAsyGy5sb2NvLmNvbmZpZy52MS5Db3VudExpbWl0c0IGukgDyAEBEjcKC3VwZGF0ZV9tYXNrGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFza0IGukgDyAEBEhoKBnJlYXNvbhgEIAEoCUIKukgHcgUQARj0AyI+ChRTZXRPcmdMaW1pdHNSZXNwb25zZRImCgZsaW1pdHMYASABKAsyFi5sb2NvLm9yZy52MS5PcmdMaW1pdHMqTAoHT3JnUm9sZRIYChRPUkdfUk9MRV9VTlNQRUNJRklFRBAAEhIKDk9SR19ST0xFX0FETUlOEAESEwoPT1JHX1JPTEVfTUVNQkVSEAIy5QoKCk9yZ1NlcnZpY2USSgoJQ3JlYXRlT3JnEh0ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1Jlc3BvbnNlEkEKBkdldE9yZxIaLmxvY28ub3JnLnYxLkdldE9yZ1JlcXVlc3QaGy5sb2NvLm9yZy52MS5HZXRPcmdSZXNwb25zZRJKCglVcGRhdGVPcmcSHS5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVzcG9uc2USSgoJRGVsZXRlT3JnEh0ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1Jlc3BvbnNlElMKDExpc3RVc2VyT3JncxIgLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXNwb25zZRJZCg5MaXN0T3JnTWVtYmVycxIiLmxvY28ub3JnLnYxLkxpc3RPcmdNZW1iZXJzUmVxdWVzdBojLmxvY28ub3JnLnYxLkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USXwoQU2V0T3JnTWVtYmVyUm9sZRIkLmxvY28ub3JnLnYxLlNldE9yZ01lbWJlclJvbGVSZXF1ZXN0GiUubG9jby5vcmcudjEuU2V0T3JnTWVtYmVyUm9sZVJlc3BvbnNlElwKD1JlbW92ZU9yZ01lbWJlchIjLmxvY28ub3JnLnYxLlJlbW92ZU9yZ01lbWJlclJlcXVlc3QaJC5sb2NvLm9yZy52MS5SZW1vdmVPcmdNZW1iZXJSZXNwb25zZRJNCgpTdXNwZW5kT3JnEh4ubG9jby5vcmcudjEuU3VzcGVuZE9yZ1JlcXVlc3QaHy5sb2NvLm9yZy52MS5TdXNwZW5kT3JnUmVzcG9uc2USSgoJUmVzdW1lT3JnEh0ubG9jby5vcmcudjEuUmVzdW1lT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlJlc3VtZU9yZ1Jlc3BvbnNlElMKDEdldE9yZ0xpbWl0cxIgLmxvY28ub3JnLnYxLkdldE9yZ0xpbWl0c1JlcXVlc3QaIS5sb2NvLm9yZy52MS5HZXRPcmdMaW1pdHNSZXNwb25zZRJTCgxTZXRPcmdMaW1pdHMSIC5sb2NvLm9yZy52MS5TZXRPcmdMaW1pdHNSZXF1ZXN0GiEubG9jby5vcmcudjEuU2V0T3JnTGltaXRzUmVzcG9uc2USXAoPSW52aXRlT3JnTWVtYmVyEiMubG9jby5vcmcudjEuSW52aXRlT3JnTWVtYmVyUmVxdWVzdBokLmxvY28ub3JnLnYxLkludml0ZU9yZ01lbWJlclJlc3BvbnNlElwKD0xpc3RJbnZpdGF0aW9ucxIjLmxvY28ub3JnLnYxLkxpc3RJbnZpdGF0aW9uc1JlcXVlc3QaJC5sb2NvLm9yZy52MS5MaXN0SW52aXRhdGlvbnNSZXNwb25zZRJfChBSZXZva2VJbnZpdGF0aW9uEiQubG9jby5vcmcudjEuUmV2b2tlSW52aXRhdGlvblJlcXVlc3QaJS5sb2NvLm9yZy52MS5SZXZva2VJbnZpdGF0aW9uUmVzcG9uc2USXwoQUmVzZW5kSW52aXRhdGlvbhIkLmxvY28ub3JnLnYxLlJlc2VuZEludml0YXRpb25SZXF1ZXN0GiUubG9jby5vcmcudjEuUmVzZW5kSW52aXRhdGlvblJlc3BvbnNlQjRaMmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_config_v1_config]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -1270,6 +1272,239 @@ export const ResumeOrgResponseSchema: GenMessage<ResumeOrgResponse, {jsonType: R
   messageDesc(file_loco_org_v1_org, 31);
 
 /**
+ * OrgLimits are an organization's effective count limits and the latest change to them.
+ *
+ * @generated from message loco.org.v1.OrgLimits
+ */
+export type OrgLimits = Message<"loco.org.v1.OrgLimits"> & {
+  /**
+   * @generated from field: loco.config.v1.CountLimits limits = 1;
+   */
+  limits?: CountLimits | undefined;
+
+  /**
+   * overridden names the CountLimits fields set for this organization rather than by the install.
+   *
+   * @generated from field: repeated string overridden = 2;
+   */
+  overridden: string[];
+
+  /**
+   * reason, updated_by and updated_at describe the latest SetOrgLimits; empty without one.
+   *
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string updated_by = 4;
+   */
+  updatedBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 5;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * OrgLimits are an organization's effective count limits and the latest change to them.
+ *
+ * @generated from message loco.org.v1.OrgLimits
+ */
+export type OrgLimitsJson = {
+  /**
+   * @generated from field: loco.config.v1.CountLimits limits = 1;
+   */
+  limits?: CountLimitsJson;
+
+  /**
+   * overridden names the CountLimits fields set for this organization rather than by the install.
+   *
+   * @generated from field: repeated string overridden = 2;
+   */
+  overridden?: string[];
+
+  /**
+   * reason, updated_by and updated_at describe the latest SetOrgLimits; empty without one.
+   *
+   * @generated from field: string reason = 3;
+   */
+  reason?: string;
+
+  /**
+   * @generated from field: string updated_by = 4;
+   */
+  updatedBy?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 5;
+   */
+  updatedAt?: TimestampJson;
+};
+
+/**
+ * Describes the message loco.org.v1.OrgLimits.
+ * Use `create(OrgLimitsSchema)` to create a new message.
+ */
+export const OrgLimitsSchema: GenMessage<OrgLimits, {jsonType: OrgLimitsJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 32);
+
+/**
+ * GetOrgLimitsRequest is the request for an organization's count limits.
+ *
+ * @generated from message loco.org.v1.GetOrgLimitsRequest
+ */
+export type GetOrgLimitsRequest = Message<"loco.org.v1.GetOrgLimitsRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+};
+
+/**
+ * GetOrgLimitsRequest is the request for an organization's count limits.
+ *
+ * @generated from message loco.org.v1.GetOrgLimitsRequest
+ */
+export type GetOrgLimitsRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.GetOrgLimitsRequest.
+ * Use `create(GetOrgLimitsRequestSchema)` to create a new message.
+ */
+export const GetOrgLimitsRequestSchema: GenMessage<GetOrgLimitsRequest, {jsonType: GetOrgLimitsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 33);
+
+/**
+ * GetOrgLimitsResponse holds the organization's count limits.
+ *
+ * @generated from message loco.org.v1.GetOrgLimitsResponse
+ */
+export type GetOrgLimitsResponse = Message<"loco.org.v1.GetOrgLimitsResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.OrgLimits limits = 1;
+   */
+  limits?: OrgLimits | undefined;
+};
+
+/**
+ * GetOrgLimitsResponse holds the organization's count limits.
+ *
+ * @generated from message loco.org.v1.GetOrgLimitsResponse
+ */
+export type GetOrgLimitsResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgLimits limits = 1;
+   */
+  limits?: OrgLimitsJson;
+};
+
+/**
+ * Describes the message loco.org.v1.GetOrgLimitsResponse.
+ * Use `create(GetOrgLimitsResponseSchema)` to create a new message.
+ */
+export const GetOrgLimitsResponseSchema: GenMessage<GetOrgLimitsResponse, {jsonType: GetOrgLimitsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 34);
+
+/**
+ * SetOrgLimitsRequest is the request to override an organization's count limits.
+ *
+ * @generated from message loco.org.v1.SetOrgLimitsRequest
+ */
+export type SetOrgLimitsRequest = Message<"loco.org.v1.SetOrgLimitsRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: loco.config.v1.CountLimits limits = 2;
+   */
+  limits?: CountLimits | undefined;
+
+  /**
+   * @generated from field: google.protobuf.FieldMask update_mask = 3;
+   */
+  updateMask?: FieldMask | undefined;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * SetOrgLimitsRequest is the request to override an organization's count limits.
+ *
+ * @generated from message loco.org.v1.SetOrgLimitsRequest
+ */
+export type SetOrgLimitsRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: loco.config.v1.CountLimits limits = 2;
+   */
+  limits?: CountLimitsJson;
+
+  /**
+   * @generated from field: google.protobuf.FieldMask update_mask = 3;
+   */
+  updateMask?: FieldMaskJson;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.SetOrgLimitsRequest.
+ * Use `create(SetOrgLimitsRequestSchema)` to create a new message.
+ */
+export const SetOrgLimitsRequestSchema: GenMessage<SetOrgLimitsRequest, {jsonType: SetOrgLimitsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 35);
+
+/**
+ * SetOrgLimitsResponse holds the organization's count limits after the request.
+ *
+ * @generated from message loco.org.v1.SetOrgLimitsResponse
+ */
+export type SetOrgLimitsResponse = Message<"loco.org.v1.SetOrgLimitsResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.OrgLimits limits = 1;
+   */
+  limits?: OrgLimits | undefined;
+};
+
+/**
+ * SetOrgLimitsResponse holds the organization's count limits after the request.
+ *
+ * @generated from message loco.org.v1.SetOrgLimitsResponse
+ */
+export type SetOrgLimitsResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgLimits limits = 1;
+   */
+  limits?: OrgLimitsJson;
+};
+
+/**
+ * Describes the message loco.org.v1.SetOrgLimitsResponse.
+ * Use `create(SetOrgLimitsResponseSchema)` to create a new message.
+ */
+export const SetOrgLimitsResponseSchema: GenMessage<SetOrgLimitsResponse, {jsonType: SetOrgLimitsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 36);
+
+/**
  * @generated from enum loco.org.v1.OrgRole
  */
 export enum OrgRole {
@@ -1402,6 +1637,29 @@ export const OrgService: GenService<{
     methodKind: "unary";
     input: typeof ResumeOrgRequestSchema;
     output: typeof ResumeOrgResponseSchema;
+  },
+  /**
+   * GetOrgLimits returns the organization's effective count limits. Any member may call it.
+   *
+   * @generated from rpc loco.org.v1.OrgService.GetOrgLimits
+   */
+  getOrgLimits: {
+    methodKind: "unary";
+    input: typeof GetOrgLimitsRequestSchema;
+    output: typeof GetOrgLimitsResponseSchema;
+  },
+  /**
+   * SetOrgLimits overrides the install's count limits for one organization. Only the fields in
+   * update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
+   * belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+   * system:admin.
+   *
+   * @generated from rpc loco.org.v1.OrgService.SetOrgLimits
+   */
+  setOrgLimits: {
+    methodKind: "unary";
+    input: typeof SetOrgLimitsRequestSchema;
+    output: typeof SetOrgLimitsResponseSchema;
   },
   /**
    * @generated from rpc loco.org.v1.OrgService.InviteOrgMember

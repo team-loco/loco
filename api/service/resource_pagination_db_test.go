@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -40,7 +41,7 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 		}
 	}
 	slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(b[:], a[:]) })
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	page := func(cursor string) ([]*resourcev1.Resource, string) {
 		t.Helper()
 		response, err := server.ListWorkspaceResources(

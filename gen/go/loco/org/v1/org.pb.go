@@ -8,8 +8,10 @@ package orgv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -1722,11 +1724,294 @@ func (x *ResumeOrgResponse) GetOrganization() *Organization {
 	return nil
 }
 
+// OrgLimits are an organization's effective count limits and the latest change to them.
+type OrgLimits struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Limits *v1.CountLimits        `protobuf:"bytes,1,opt,name=limits,proto3" json:"limits,omitempty"`
+	// overridden names the CountLimits fields set for this organization rather than by the install.
+	Overridden []string `protobuf:"bytes,2,rep,name=overridden,proto3" json:"overridden,omitempty"`
+	// reason, updated_by and updated_at describe the latest SetOrgLimits; empty without one.
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	UpdatedBy     string                 `protobuf:"bytes,4,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OrgLimits) Reset() {
+	*x = OrgLimits{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrgLimits) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrgLimits) ProtoMessage() {}
+
+func (x *OrgLimits) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrgLimits.ProtoReflect.Descriptor instead.
+func (*OrgLimits) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *OrgLimits) GetLimits() *v1.CountLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+func (x *OrgLimits) GetOverridden() []string {
+	if x != nil {
+		return x.Overridden
+	}
+	return nil
+}
+
+func (x *OrgLimits) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *OrgLimits) GetUpdatedBy() string {
+	if x != nil {
+		return x.UpdatedBy
+	}
+	return ""
+}
+
+func (x *OrgLimits) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+// GetOrgLimitsRequest is the request for an organization's count limits.
+type GetOrgLimitsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOrgLimitsRequest) Reset() {
+	*x = GetOrgLimitsRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOrgLimitsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOrgLimitsRequest) ProtoMessage() {}
+
+func (x *GetOrgLimitsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOrgLimitsRequest.ProtoReflect.Descriptor instead.
+func (*GetOrgLimitsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetOrgLimitsRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+// GetOrgLimitsResponse holds the organization's count limits.
+type GetOrgLimitsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limits        *OrgLimits             `protobuf:"bytes,1,opt,name=limits,proto3" json:"limits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOrgLimitsResponse) Reset() {
+	*x = GetOrgLimitsResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOrgLimitsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOrgLimitsResponse) ProtoMessage() {}
+
+func (x *GetOrgLimitsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOrgLimitsResponse.ProtoReflect.Descriptor instead.
+func (*GetOrgLimitsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetOrgLimitsResponse) GetLimits() *OrgLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+// SetOrgLimitsRequest is the request to override an organization's count limits.
+type SetOrgLimitsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Limits        *v1.CountLimits        `protobuf:"bytes,2,opt,name=limits,proto3" json:"limits,omitempty"`
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetOrgLimitsRequest) Reset() {
+	*x = SetOrgLimitsRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetOrgLimitsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetOrgLimitsRequest) ProtoMessage() {}
+
+func (x *SetOrgLimitsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetOrgLimitsRequest.ProtoReflect.Descriptor instead.
+func (*SetOrgLimitsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *SetOrgLimitsRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *SetOrgLimitsRequest) GetLimits() *v1.CountLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+func (x *SetOrgLimitsRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
+}
+
+func (x *SetOrgLimitsRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// SetOrgLimitsResponse holds the organization's count limits after the request.
+type SetOrgLimitsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limits        *OrgLimits             `protobuf:"bytes,1,opt,name=limits,proto3" json:"limits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetOrgLimitsResponse) Reset() {
+	*x = SetOrgLimitsResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetOrgLimitsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetOrgLimitsResponse) ProtoMessage() {}
+
+func (x *SetOrgLimitsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetOrgLimitsResponse.ProtoReflect.Descriptor instead.
+func (*SetOrgLimitsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *SetOrgLimitsResponse) GetLimits() *OrgLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
 var File_loco_org_v1_org_proto protoreflect.FileDescriptor
 
 const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\n" +
-	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb3\x02\n" +
+	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bloco/config/v1/config.proto\"\xb3\x02\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -1840,11 +2125,35 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x10ResumeOrgRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"R\n" +
 	"\x11ResumeOrgResponse\x12=\n" +
-	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization*L\n" +
+	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\xd2\x01\n" +
+	"\tOrgLimits\x123\n" +
+	"\x06limits\x18\x01 \x01(\v2\x1b.loco.config.v1.CountLimitsR\x06limits\x12\x1e\n" +
+	"\n" +
+	"overridden\x18\x02 \x03(\tR\n" +
+	"overridden\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x1d\n" +
+	"\n" +
+	"updated_by\x18\x04 \x01(\tR\tupdatedBy\x129\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"6\n" +
+	"\x13GetOrgLimitsRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"F\n" +
+	"\x14GetOrgLimitsResponse\x12.\n" +
+	"\x06limits\x18\x01 \x01(\v2\x16.loco.org.v1.OrgLimitsR\x06limits\"\xdc\x01\n" +
+	"\x13SetOrgLimitsRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12;\n" +
+	"\x06limits\x18\x02 \x01(\v2\x1b.loco.config.v1.CountLimitsB\x06\xbaH\x03\xc8\x01\x01R\x06limits\x12C\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x06\xbaH\x03\xc8\x01\x01R\n" +
+	"updateMask\x12\"\n" +
+	"\x06reason\x18\x04 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xf4\x03R\x06reason\"F\n" +
+	"\x14SetOrgLimitsResponse\x12.\n" +
+	"\x06limits\x18\x01 \x01(\v2\x16.loco.org.v1.OrgLimitsR\x06limits*L\n" +
 	"\aOrgRole\x12\x18\n" +
 	"\x14ORG_ROLE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eORG_ROLE_ADMIN\x10\x01\x12\x13\n" +
-	"\x0fORG_ROLE_MEMBER\x10\x022\xbb\t\n" +
+	"\x0fORG_ROLE_MEMBER\x10\x022\xe5\n" +
+	"\n" +
 	"\n" +
 	"OrgService\x12J\n" +
 	"\tCreateOrg\x12\x1d.loco.org.v1.CreateOrgRequest\x1a\x1e.loco.org.v1.CreateOrgResponse\x12A\n" +
@@ -1857,7 +2166,9 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x0fRemoveOrgMember\x12#.loco.org.v1.RemoveOrgMemberRequest\x1a$.loco.org.v1.RemoveOrgMemberResponse\x12M\n" +
 	"\n" +
 	"SuspendOrg\x12\x1e.loco.org.v1.SuspendOrgRequest\x1a\x1f.loco.org.v1.SuspendOrgResponse\x12J\n" +
-	"\tResumeOrg\x12\x1d.loco.org.v1.ResumeOrgRequest\x1a\x1e.loco.org.v1.ResumeOrgResponse\x12\\\n" +
+	"\tResumeOrg\x12\x1d.loco.org.v1.ResumeOrgRequest\x1a\x1e.loco.org.v1.ResumeOrgResponse\x12S\n" +
+	"\fGetOrgLimits\x12 .loco.org.v1.GetOrgLimitsRequest\x1a!.loco.org.v1.GetOrgLimitsResponse\x12S\n" +
+	"\fSetOrgLimits\x12 .loco.org.v1.SetOrgLimitsRequest\x1a!.loco.org.v1.SetOrgLimitsResponse\x12\\\n" +
 	"\x0fInviteOrgMember\x12#.loco.org.v1.InviteOrgMemberRequest\x1a$.loco.org.v1.InviteOrgMemberResponse\x12\\\n" +
 	"\x0fListInvitations\x12#.loco.org.v1.ListInvitationsRequest\x1a$.loco.org.v1.ListInvitationsResponse\x12_\n" +
 	"\x10RevokeInvitation\x12$.loco.org.v1.RevokeInvitationRequest\x1a%.loco.org.v1.RevokeInvitationResponse\x12_\n" +
@@ -1876,7 +2187,7 @@ func file_loco_org_v1_org_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_org_v1_org_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_loco_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_loco_org_v1_org_proto_goTypes = []any{
 	(OrgRole)(0),                     // 0: loco.org.v1.OrgRole
 	(*Organization)(nil),             // 1: loco.org.v1.Organization
@@ -1911,58 +2222,75 @@ var file_loco_org_v1_org_proto_goTypes = []any{
 	(*SuspendOrgResponse)(nil),       // 30: loco.org.v1.SuspendOrgResponse
 	(*ResumeOrgRequest)(nil),         // 31: loco.org.v1.ResumeOrgRequest
 	(*ResumeOrgResponse)(nil),        // 32: loco.org.v1.ResumeOrgResponse
-	(*timestamppb.Timestamp)(nil),    // 33: google.protobuf.Timestamp
+	(*OrgLimits)(nil),                // 33: loco.org.v1.OrgLimits
+	(*GetOrgLimitsRequest)(nil),      // 34: loco.org.v1.GetOrgLimitsRequest
+	(*GetOrgLimitsResponse)(nil),     // 35: loco.org.v1.GetOrgLimitsResponse
+	(*SetOrgLimitsRequest)(nil),      // 36: loco.org.v1.SetOrgLimitsRequest
+	(*SetOrgLimitsResponse)(nil),     // 37: loco.org.v1.SetOrgLimitsResponse
+	(*timestamppb.Timestamp)(nil),    // 38: google.protobuf.Timestamp
+	(*v1.CountLimits)(nil),           // 39: loco.config.v1.CountLimits
+	(*fieldmaskpb.FieldMask)(nil),    // 40: google.protobuf.FieldMask
 }
 var file_loco_org_v1_org_proto_depIdxs = []int32{
-	33, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	33, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
-	33, // 2: loco.org.v1.Organization.suspended_at:type_name -> google.protobuf.Timestamp
+	38, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	38, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
+	38, // 2: loco.org.v1.Organization.suspended_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: loco.org.v1.GetOrgResponse.organization:type_name -> loco.org.v1.Organization
 	1,  // 4: loco.org.v1.ListUserOrgsResponse.orgs:type_name -> loco.org.v1.Organization
 	10, // 5: loco.org.v1.ListOrgMembersResponse.members:type_name -> loco.org.v1.OrgMember
 	24, // 6: loco.org.v1.OrgMember.user:type_name -> loco.org.v1.User
 	0,  // 7: loco.org.v1.SetOrgMemberRoleRequest.role:type_name -> loco.org.v1.OrgRole
 	24, // 8: loco.org.v1.Invitation.invited_by:type_name -> loco.org.v1.User
-	33, // 9: loco.org.v1.Invitation.created_at:type_name -> google.protobuf.Timestamp
-	33, // 10: loco.org.v1.Invitation.expires_at:type_name -> google.protobuf.Timestamp
+	38, // 9: loco.org.v1.Invitation.created_at:type_name -> google.protobuf.Timestamp
+	38, // 10: loco.org.v1.Invitation.expires_at:type_name -> google.protobuf.Timestamp
 	15, // 11: loco.org.v1.InviteOrgMemberResponse.invitation:type_name -> loco.org.v1.Invitation
 	15, // 12: loco.org.v1.ListInvitationsResponse.invitations:type_name -> loco.org.v1.Invitation
 	15, // 13: loco.org.v1.ResendInvitationResponse.invitation:type_name -> loco.org.v1.Invitation
 	1,  // 14: loco.org.v1.SuspendOrgResponse.organization:type_name -> loco.org.v1.Organization
 	1,  // 15: loco.org.v1.ResumeOrgResponse.organization:type_name -> loco.org.v1.Organization
-	2,  // 16: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	4,  // 17: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	25, // 18: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	27, // 19: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	6,  // 20: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
-	8,  // 21: loco.org.v1.OrgService.ListOrgMembers:input_type -> loco.org.v1.ListOrgMembersRequest
-	13, // 22: loco.org.v1.OrgService.SetOrgMemberRole:input_type -> loco.org.v1.SetOrgMemberRoleRequest
-	11, // 23: loco.org.v1.OrgService.RemoveOrgMember:input_type -> loco.org.v1.RemoveOrgMemberRequest
-	29, // 24: loco.org.v1.OrgService.SuspendOrg:input_type -> loco.org.v1.SuspendOrgRequest
-	31, // 25: loco.org.v1.OrgService.ResumeOrg:input_type -> loco.org.v1.ResumeOrgRequest
-	16, // 26: loco.org.v1.OrgService.InviteOrgMember:input_type -> loco.org.v1.InviteOrgMemberRequest
-	18, // 27: loco.org.v1.OrgService.ListInvitations:input_type -> loco.org.v1.ListInvitationsRequest
-	20, // 28: loco.org.v1.OrgService.RevokeInvitation:input_type -> loco.org.v1.RevokeInvitationRequest
-	22, // 29: loco.org.v1.OrgService.ResendInvitation:input_type -> loco.org.v1.ResendInvitationRequest
-	3,  // 30: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	5,  // 31: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	26, // 32: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	28, // 33: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	7,  // 34: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
-	9,  // 35: loco.org.v1.OrgService.ListOrgMembers:output_type -> loco.org.v1.ListOrgMembersResponse
-	14, // 36: loco.org.v1.OrgService.SetOrgMemberRole:output_type -> loco.org.v1.SetOrgMemberRoleResponse
-	12, // 37: loco.org.v1.OrgService.RemoveOrgMember:output_type -> loco.org.v1.RemoveOrgMemberResponse
-	30, // 38: loco.org.v1.OrgService.SuspendOrg:output_type -> loco.org.v1.SuspendOrgResponse
-	32, // 39: loco.org.v1.OrgService.ResumeOrg:output_type -> loco.org.v1.ResumeOrgResponse
-	17, // 40: loco.org.v1.OrgService.InviteOrgMember:output_type -> loco.org.v1.InviteOrgMemberResponse
-	19, // 41: loco.org.v1.OrgService.ListInvitations:output_type -> loco.org.v1.ListInvitationsResponse
-	21, // 42: loco.org.v1.OrgService.RevokeInvitation:output_type -> loco.org.v1.RevokeInvitationResponse
-	23, // 43: loco.org.v1.OrgService.ResendInvitation:output_type -> loco.org.v1.ResendInvitationResponse
-	30, // [30:44] is the sub-list for method output_type
-	16, // [16:30] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	39, // 16: loco.org.v1.OrgLimits.limits:type_name -> loco.config.v1.CountLimits
+	38, // 17: loco.org.v1.OrgLimits.updated_at:type_name -> google.protobuf.Timestamp
+	33, // 18: loco.org.v1.GetOrgLimitsResponse.limits:type_name -> loco.org.v1.OrgLimits
+	39, // 19: loco.org.v1.SetOrgLimitsRequest.limits:type_name -> loco.config.v1.CountLimits
+	40, // 20: loco.org.v1.SetOrgLimitsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	33, // 21: loco.org.v1.SetOrgLimitsResponse.limits:type_name -> loco.org.v1.OrgLimits
+	2,  // 22: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
+	4,  // 23: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
+	25, // 24: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
+	27, // 25: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
+	6,  // 26: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
+	8,  // 27: loco.org.v1.OrgService.ListOrgMembers:input_type -> loco.org.v1.ListOrgMembersRequest
+	13, // 28: loco.org.v1.OrgService.SetOrgMemberRole:input_type -> loco.org.v1.SetOrgMemberRoleRequest
+	11, // 29: loco.org.v1.OrgService.RemoveOrgMember:input_type -> loco.org.v1.RemoveOrgMemberRequest
+	29, // 30: loco.org.v1.OrgService.SuspendOrg:input_type -> loco.org.v1.SuspendOrgRequest
+	31, // 31: loco.org.v1.OrgService.ResumeOrg:input_type -> loco.org.v1.ResumeOrgRequest
+	34, // 32: loco.org.v1.OrgService.GetOrgLimits:input_type -> loco.org.v1.GetOrgLimitsRequest
+	36, // 33: loco.org.v1.OrgService.SetOrgLimits:input_type -> loco.org.v1.SetOrgLimitsRequest
+	16, // 34: loco.org.v1.OrgService.InviteOrgMember:input_type -> loco.org.v1.InviteOrgMemberRequest
+	18, // 35: loco.org.v1.OrgService.ListInvitations:input_type -> loco.org.v1.ListInvitationsRequest
+	20, // 36: loco.org.v1.OrgService.RevokeInvitation:input_type -> loco.org.v1.RevokeInvitationRequest
+	22, // 37: loco.org.v1.OrgService.ResendInvitation:input_type -> loco.org.v1.ResendInvitationRequest
+	3,  // 38: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
+	5,  // 39: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
+	26, // 40: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
+	28, // 41: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
+	7,  // 42: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
+	9,  // 43: loco.org.v1.OrgService.ListOrgMembers:output_type -> loco.org.v1.ListOrgMembersResponse
+	14, // 44: loco.org.v1.OrgService.SetOrgMemberRole:output_type -> loco.org.v1.SetOrgMemberRoleResponse
+	12, // 45: loco.org.v1.OrgService.RemoveOrgMember:output_type -> loco.org.v1.RemoveOrgMemberResponse
+	30, // 46: loco.org.v1.OrgService.SuspendOrg:output_type -> loco.org.v1.SuspendOrgResponse
+	32, // 47: loco.org.v1.OrgService.ResumeOrg:output_type -> loco.org.v1.ResumeOrgResponse
+	35, // 48: loco.org.v1.OrgService.GetOrgLimits:output_type -> loco.org.v1.GetOrgLimitsResponse
+	37, // 49: loco.org.v1.OrgService.SetOrgLimits:output_type -> loco.org.v1.SetOrgLimitsResponse
+	17, // 50: loco.org.v1.OrgService.InviteOrgMember:output_type -> loco.org.v1.InviteOrgMemberResponse
+	19, // 51: loco.org.v1.OrgService.ListInvitations:output_type -> loco.org.v1.ListInvitationsResponse
+	21, // 52: loco.org.v1.OrgService.RevokeInvitation:output_type -> loco.org.v1.RevokeInvitationResponse
+	23, // 53: loco.org.v1.OrgService.ResendInvitation:output_type -> loco.org.v1.ResendInvitationResponse
+	38, // [38:54] is the sub-list for method output_type
+	22, // [22:38] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_loco_org_v1_org_proto_init() }
@@ -1978,7 +2306,7 @@ func file_loco_org_v1_org_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_org_v1_org_proto_rawDesc), len(file_loco_org_v1_org_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   32,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

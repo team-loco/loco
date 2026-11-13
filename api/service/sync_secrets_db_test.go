@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
@@ -16,7 +17,7 @@ import (
 const sessionKeyValue = "session-key-value-9f2c"
 
 func (f *deployFixture) secretServer(provider secretkeys.Provider) *SecretServer {
-	return NewSecretServer(f.pool, f.queries, provider, testSecretConfig())
+	return NewSecretServer(f.pool, f.queries, provider, testSecretConfig(), limits.Defaults())
 }
 
 func (f *deployFixture) storeSecret(t *testing.T, provider secretkeys.Provider, name, value string) {

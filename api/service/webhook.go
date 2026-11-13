@@ -17,26 +17,23 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
-	maxWebhooksPerWorkspace = 10
-	fieldWebhookURL         = "url"
-	fieldWebhookEvents      = "eventTypes"
-	fieldGracePeriod        = "gracePeriodSeconds"
+	fieldWebhookURL    = "url"
+	fieldWebhookEvents = "eventTypes"
+	fieldGracePeriod   = "gracePeriodSeconds"
 )
 
 var (
-	ErrWebhookURL   = rpcerr.NewCoded(connect.CodeInvalidArgument, "use an https URL with a host name")
-	ErrWebhookLimit = rpcerr.NewCoded(
-		connect.CodeFailedPrecondition,
-		fmt.Sprintf("a workspace can have at most %d webhooks", maxWebhooksPerWorkspace),
-	)
+	ErrWebhookURL       = rpcerr.NewCoded(connect.CodeInvalidArgument, "use an https URL with a host name")
 	ErrWebhookNotFound  = rpcerr.NewCoded(connect.CodeNotFound, "webhook not found in this workspace")
 	ErrDeliveryNotFound = rpcerr.NewCoded(connect.CodeNotFound, "delivery not found for this webhook")
 	ErrDeliveryPending  = rpcerr.NewCoded(
@@ -51,6 +48,7 @@ type WebhookServer struct {
 	authz        *authz.Authorizer
 	provider     secretkeys.Provider
 	allowPrivate bool
+	counts       *configv1.CountLimits
 }
 
 func NewWebhookServer(
@@ -58,6 +56,7 @@ func NewWebhookServer(
 	queries genDb.Querier,
 	provider secretkeys.Provider,
 	allowPrivate bool,
+	counts *configv1.CountLimits,
 ) *WebhookServer {
 	return &WebhookServer{
 		db:           db,
@@ -65,6 +64,7 @@ func NewWebhookServer(
 		authz:        authz.New(db, queries),
 		provider:     provider,
 		allowPrivate: allowPrivate,
+		counts:       counts,
 	}
 }
 
@@ -131,19 +131,10 @@ func (s *WebhookServer) CreateWebhook(
 	var row genDb.Webhook
 	err = pgx.BeginTxFunc(ctx, s.db, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
 		qtx := genDb.New(tx)
-		_, lockErr := qtx.LockWorkspaceForWebhookCreation(ctx, workspaceID)
-		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return ErrWorkspaceNotFound
-		}
-		if lockErr != nil {
-			return fmt.Errorf("lock workspace: %w", lockErr)
-		}
-		count, countErr := qtx.CountWorkspaceWebhooks(ctx, workspaceID)
-		if countErr != nil {
-			return fmt.Errorf("count webhooks: %w", countErr)
-		}
-		if count >= maxWebhooksPerWorkspace {
-			return ErrWebhookLimit
+		if limitErr := checkWorkspaceLimit(
+			ctx, qtx, s.counts, limits.WebhooksPerWorkspace, workspaceID, qtx.CountWorkspaceWebhooks,
+		); limitErr != nil {
+			return limitErr
 		}
 		created, createErr := qtx.CreateWorkspaceWebhook(ctx, genDb.CreateWorkspaceWebhookParams{
 			ID:          id,

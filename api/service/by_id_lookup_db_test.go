@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
@@ -34,8 +35,8 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 	domainID := domains.domainID(t, testPrimaryDomain)
 	deploymentID := created.GetDeploymentId()
 	deployments, _ := f.deploymentWriter(t)
-	environments := NewEnvironmentServer(f.pool, f.queries)
-	resources := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	environments := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
+	resources := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	plans := newPlanServer(f)
 	var stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream
 	file := []byte(planFileHeader + planFileSvc)

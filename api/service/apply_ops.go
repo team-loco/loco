@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -48,6 +49,8 @@ type applier struct {
 	provisioning    bool
 	silentAfter     time.Duration
 	commit          *deploymentv1.SourceCommit
+	// counts are the organization's effective limits.
+	counts *configv1.CountLimits
 }
 
 func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {

@@ -11,10 +11,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
 )
 
 const webhookQuotaContenders = 2
+
+var defaultWebhookLimit = int64(limits.WebhooksPerWorkspace.Get(limits.Defaults()))
 
 func TestConcurrentWebhookCreationRespectsWorkspaceLimit(t *testing.T) {
 	for _, isolation := range []pgx.TxIsoLevel{pgx.ReadCommitted, pgx.RepeatableRead} {
@@ -33,13 +36,13 @@ func testWebhookQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 	}
 	t.Cleanup(pool.Close)
 	queries := genDb.New(pool)
-	server := NewWebhookServer(pool, queries, newTestKeyProvider(t, "k1"), false)
+	server := NewWebhookServer(pool, queries, newTestKeyProvider(t, "k1"), false, limits.Defaults())
 	request := &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID,
 		Url:         receiverURL,
 		EventTypes:  []string{events.ResourceScaled},
 	}
-	for range maxWebhooksPerWorkspace - 1 {
+	for range defaultWebhookLimit - 1 {
 		if _, createErr := server.CreateWebhook(f.owner, request); createErr != nil {
 			t.Fatal(createErr)
 		}
@@ -82,7 +85,7 @@ func testWebhookQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 			switch {
 			case createErr == nil:
 				succeeded++
-			case wireCode(createErr) == connect.CodeFailedPrecondition:
+			case wireCode(createErr) == connect.CodeResourceExhausted:
 				limited++
 			default:
 				t.Fatalf("create failed: %v", createErr)
@@ -95,18 +98,18 @@ func testWebhookQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 		t.Fatalf("created=%d limited=%d, want 1 each", succeeded, limited)
 	}
 	count, err := f.queries.CountWorkspaceWebhooks(t.Context(), uuid.MustParse(f.workspaceID))
-	if err != nil || count != maxWebhooksPerWorkspace {
+	if err != nil || count != defaultWebhookLimit {
 		t.Fatalf("hook count=%d error=%v", count, err)
 	}
-	var recorded int
+	var recorded int64
 	const creationEvents = `SELECT count(*) FROM events
 WHERE workspace_id=$1 AND type=$2`
 	if eventErr := f.pool.QueryRow(t.Context(), creationEvents, f.workspaceID, events.WebhookCreated).
 		Scan(&recorded); eventErr != nil {
 		t.Fatal(eventErr)
 	}
-	if recorded != maxWebhooksPerWorkspace {
-		t.Fatalf("recorded %d webhook creation events, want %d", recorded, maxWebhooksPerWorkspace)
+	if recorded != defaultWebhookLimit {
+		t.Fatalf("recorded %d webhook creation events, want %d", recorded, defaultWebhookLimit)
 	}
 }
 

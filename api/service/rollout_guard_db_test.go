@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -265,7 +266,7 @@ func TestScaleGuardRespectsTheRequestedRegion(t *testing.T) {
 	if f.rolloutSnapshot(t) != before {
 		t.Fatal("all-region scaling partly mutated the healthy region")
 	}
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	_, err := server.ScaleResource(
 		f.rolloutContext(t),
 		&resourcev1.ScaleResourceRequest{

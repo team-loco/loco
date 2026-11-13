@@ -23,20 +23,18 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var (
 	ErrSecretValueTooLarge = errors.New("secret value exceeds the size limit")
-	ErrTooManySecrets      = rpcerr.NewCoded(
-		connect.CodeResourceExhausted,
-		"service has reached its secret limit in the environment",
-	)
-	ErrSecretNotFound    = rpcerr.NewCoded(connect.CodeNotFound, "secret not found")
-	ErrKeyProvider       = errors.New("secrets key provider unavailable")
-	ErrSecretLockTimeout = rpcerr.NewCoded(
+	ErrSecretNotFound      = rpcerr.NewCoded(connect.CodeNotFound, "secret not found")
+	ErrKeyProvider         = errors.New("secrets key provider unavailable")
+	ErrSecretLockTimeout   = rpcerr.NewCoded(
 		connect.CodeAborted,
 		"secrets of the service are locked by another operation",
 	)
@@ -69,11 +67,10 @@ const (
 	rewrapSkipped
 )
 
-// SecretConfig holds the limits SetSecrets enforces and how long a secret operation waits for
-// the environment's key row lock.
+// SecretConfig holds the size limits SetSecrets enforces and how long a secret operation waits
+// for the environment's key row lock.
 type SecretConfig struct {
 	MaxValueBytes     int32
-	MaxPerService     int32
 	MaxPlacementBytes int32
 	LockTimeout       time.Duration
 }
@@ -85,6 +82,7 @@ type SecretServer struct {
 	authz    *authz.Authorizer
 	provider secretkeys.Provider
 	config   SecretConfig
+	counts   *configv1.CountLimits
 }
 
 // NewSecretServer creates a SecretServer.
@@ -93,8 +91,16 @@ func NewSecretServer(
 	queries genDb.Querier,
 	provider secretkeys.Provider,
 	config SecretConfig,
+	counts *configv1.CountLimits,
 ) *SecretServer {
-	return &SecretServer{db: db, queries: queries, authz: authz.New(db, queries), provider: provider, config: config}
+	return &SecretServer{
+		db:       db,
+		queries:  queries,
+		authz:    authz.New(db, queries),
+		provider: provider,
+		config:   config,
+		counts:   counts,
+	}
 }
 
 // secretTarget is the service and environment a secret operation addresses.
@@ -281,8 +287,16 @@ func (s *SecretServer) writeSecrets(
 	if countErr != nil {
 		return fmt.Errorf("count secrets: %w", countErr)
 	}
-	if count+added > int64(s.config.MaxPerService) {
-		return ErrTooManySecrets
+	if limitErr := checkResourceLimit(
+		ctx,
+		qtx,
+		s.counts,
+		limits.SecretsPerResource,
+		target.resourceID,
+		count,
+		added,
+	); limitErr != nil {
+		return limitErr
 	}
 	if upsertErr := qtx.UpsertSecrets(ctx, params); upsertErr != nil {
 		return fmt.Errorf("upsert secrets: %w", upsertErr)

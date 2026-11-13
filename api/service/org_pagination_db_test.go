@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
@@ -18,7 +19,7 @@ func TestOrgPaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	position := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)
 	ids := make([]uuid.UUID, 3)
 	for i := range ids {

@@ -19,10 +19,12 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/reqctx"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -85,6 +87,7 @@ type ResourceServer struct {
 	authz              *authz.Authorizer
 	defaults           servicedefaults.Defaults
 	clusterSilentAfter time.Duration
+	counts             *configv1.CountLimits
 }
 
 // NewResourceServer creates a new ResourceServer instance
@@ -93,6 +96,7 @@ func NewResourceServer(
 	queries genDb.Querier,
 	defaults servicedefaults.Defaults,
 	clusterSilentAfter time.Duration,
+	counts *configv1.CountLimits,
 ) *ResourceServer {
 	return &ResourceServer{
 		db:                 db,
@@ -100,6 +104,7 @@ func NewResourceServer(
 		authz:              authz.New(db, queries),
 		defaults:           defaults,
 		clusterSilentAfter: clusterSilentAfter,
+		counts:             counts,
 	}
 }
 
@@ -147,6 +152,11 @@ func (s *ResourceServer) CreateResource(
 	}
 	var resourceID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if limitErr := checkWorkspaceLimit(
+			ctx, qtx, s.counts, limits.ResourcesPerWorkspace, workspaceID, qtx.CountWorkspaceResources,
+		); limitErr != nil {
+			return limitErr
+		}
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
 			return lockErr
 		}
@@ -155,9 +165,6 @@ func (s *ResourceServer) CreateResource(
 		}
 		var createErr error
 		resourceID, createErr = qtx.CreateResource(ctx, params)
-		if pgForeignKeyConstraint(createErr) == pgResourceWorkspaceReference {
-			return ErrWorkspaceNotFound
-		}
 		if isUniqueViolation(createErr, pgResourceNameUnique) {
 			return ErrResourceNameNotUnique
 		}

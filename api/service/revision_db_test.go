@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
@@ -23,7 +24,7 @@ func (f *deployFixture) workspaceID(t *testing.T) uuid.UUID {
 
 func getEnvironment(t *testing.T, f *deployFixture) *environmentv1.Environment {
 	t.Helper()
-	server := NewEnvironmentServer(f.pool, f.queries)
+	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeRead},
 	}
@@ -86,7 +87,7 @@ func TestRejectedScaleLeavesTheRevisionAlone(t *testing.T) {
 
 func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.UpdateEnvironmentRequest) {
 	t.Helper()
-	server := NewEnvironmentServer(f.pool, f.queries)
+	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},
 	}

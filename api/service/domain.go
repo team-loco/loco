@@ -17,9 +17,11 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -44,6 +46,7 @@ type DomainServer struct {
 	authz       *authz.Authorizer
 	defaults    servicedefaults.Defaults
 	silentAfter time.Duration
+	counts      *configv1.CountLimits
 }
 
 func NewDomainServer(
@@ -51,6 +54,7 @@ func NewDomainServer(
 	queries genDb.Querier,
 	defaults servicedefaults.Defaults,
 	clusterSilentAfter time.Duration,
+	counts *configv1.CountLimits,
 ) *DomainServer {
 	return &DomainServer{
 		db:          db,
@@ -58,6 +62,7 @@ func NewDomainServer(
 		authz:       authz.New(db, queries),
 		defaults:    defaults,
 		silentAfter: clusterSilentAfter,
+		counts:      counts,
 	}
 }
 
@@ -146,6 +151,18 @@ func (s *DomainServer) CreateResourceDomain(
 		environmentID, envErr := imperativeDomainEnvironment(ctx, qtx, resourceID)
 		if envErr != nil {
 			return envErr
+		}
+		existing, countErr := qtx.GetResourceDomainCount(ctx, genDb.GetResourceDomainCountParams{
+			ResourceID:    resourceID,
+			EnvironmentID: environmentID,
+		})
+		if countErr != nil {
+			return fmt.Errorf("count domains: %w", countErr)
+		}
+		if limitErr := checkResourceLimit(
+			ctx, qtx, s.counts, limits.DomainsPerResource, resourceID, existing, 1,
+		); limitErr != nil {
+			return limitErr
 		}
 		hasPrimary, primaryErr := qtx.ResourceHasPrimaryDomain(ctx, genDb.ResourceHasPrimaryDomainParams{
 			ResourceID:    resourceID,

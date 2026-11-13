@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
@@ -60,7 +61,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	owner, _, err := auth.NewResolver(pool, policy).Resolve(t.Context(), auth.Identity{
+	owner, _, err := auth.NewResolver(pool, policy, limits.Defaults()).Resolve(t.Context(), auth.Identity{
 		Issuer: testIssuer, Subject: "owner", Email: auditOwnerEmail, EmailVerified: true,
 	})
 	if err != nil {
@@ -71,6 +72,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 		pool,
 		queries,
 		InvitationConfig{},
+		limits.Defaults(),
 	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("acme"),
 	})
@@ -391,7 +393,7 @@ CREATE TRIGGER fail_event_insert BEFORE INSERT ON events FOR EACH ROW EXECUTE FU
 
 func TestMutationFailsWithoutItsEvent(t *testing.T) {
 	f := newEventFixture(t)
-	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{})
+	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	orgID := uuid.MustParse(f.orgID)
 	if _, err := f.pool.Exec(t.Context(), failEventInsertsSQL); err != nil {
 		t.Fatalf("install failing trigger: %v", err)

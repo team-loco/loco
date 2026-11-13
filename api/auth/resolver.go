@@ -12,6 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 )
 
 var ErrResolve = errors.New("could not resolve the signed-in user")
@@ -27,6 +29,7 @@ type Resolver struct {
 	queries        *genDb.Queries
 	policy         SignupPolicy
 	emailVerifiers EmailVerifiers
+	counts         *configv1.CountLimits
 }
 
 type ResolverOption func(*Resolver)
@@ -37,8 +40,14 @@ func WithEmailVerifiers(verifiers EmailVerifiers) ResolverOption {
 	}
 }
 
-func NewResolver(pool *pgxpool.Pool, policy SignupPolicy, opts ...ResolverOption) *Resolver {
-	r := &Resolver{pool: pool, queries: genDb.New(pool), policy: policy}
+// NewResolver creates a Resolver; counts caps the members an invitation claim may add.
+func NewResolver(
+	pool *pgxpool.Pool,
+	policy SignupPolicy,
+	counts *configv1.CountLimits,
+	opts ...ResolverOption,
+) *Resolver {
+	r := &Resolver{pool: pool, queries: genDb.New(pool), policy: policy, counts: counts}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -124,7 +133,7 @@ func (r *Resolver) claimOpenInvitations(ctx context.Context, user genDb.User, em
 			slog.WarnContext(ctx, "failed to roll back invitation claim", "error", rbErr)
 		}
 	}()
-	claimed, claimErr := claimInvitations(ctx, r.queries.WithTx(tx), user, invitations)
+	claimed, claimErr := claimInvitations(ctx, r.queries.WithTx(tx), r.counts, user, invitations)
 	if claimErr != nil {
 		return nil, fmt.Errorf("%w: claim invitations for user %s: %w", ErrResolve, user.ID, claimErr)
 	}
@@ -137,6 +146,7 @@ func (r *Resolver) claimOpenInvitations(ctx context.Context, user genDb.User, em
 func claimInvitations(
 	ctx context.Context,
 	qtx *genDb.Queries,
+	counts *configv1.CountLimits,
 	user genDb.User,
 	invitations []genDb.Invitation,
 ) ([]ClaimedOrg, error) {
@@ -145,6 +155,16 @@ func claimInvitations(
 	}
 	var claimedOrgs []ClaimedOrg
 	for _, invitation := range invitations {
+		full, err := orgFull(ctx, qtx, counts, invitation.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		if full {
+			// The invitation stays open: the user joins once a member leaves or the limit rises.
+			slog.WarnContext(ctx, "organization is at its member limit; invitation left open",
+				"org_id", invitation.OrgID, "invitation_id", invitation.ID)
+			continue
+		}
 		claimed, err := qtx.ClaimInvitation(ctx, genDb.ClaimInvitationParams{ID: invitation.ID, UserID: user.ID})
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
@@ -192,6 +212,22 @@ func claimInvitations(
 		})
 	}
 	return claimedOrgs, nil
+}
+
+// orgFull locks the organization's membership and reports whether it is at its member limit.
+func orgFull(ctx context.Context, qtx *genDb.Queries, counts *configv1.CountLimits, orgID uuid.UUID) (bool, error) {
+	if _, err := qtx.LockOrgForMembership(ctx, orgID); err != nil {
+		return false, fmt.Errorf("lock organization %s: %w", orgID, err)
+	}
+	effective, err := limits.ForOrg(ctx, qtx, counts, orgID)
+	if err != nil {
+		return false, err
+	}
+	members, err := qtx.CountOrgMembers(ctx, orgID)
+	if err != nil {
+		return false, fmt.Errorf("count members of organization %s: %w", orgID, err)
+	}
+	return limits.MembersPerOrg.Check(effective, members, 1) != nil, nil
 }
 
 func (r *Resolver) recordVerifiedEmail(ctx context.Context, user genDb.User, id Identity) (genDb.User, error) {
@@ -364,7 +400,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		return genDb.User{}, nil, fmt.Errorf("%w: create identity for user %s: %w", ErrResolve, user.ID, err)
 	}
 
-	claimed, claimErr := claimInvitations(ctx, qtx, user, invitations)
+	claimed, claimErr := claimInvitations(ctx, qtx, r.counts, user, invitations)
 	if claimErr != nil {
 		return genDb.User{}, nil, fmt.Errorf("%w: claim invitations for user %s: %w", ErrResolve, user.ID, claimErr)
 	}
