@@ -34,6 +34,7 @@ import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { useDrafts } from "@/hooks/useDrafts";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { parseDotEnv } from "@/lib/dotenv";
@@ -241,15 +242,15 @@ export function DraftSheet({
 	workspaceId,
 	env,
 	draftId,
-	open,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
 	draftId: string | null;
-	open: boolean;
 }) {
 	const [params, setParams] = useSearchParams();
+	const open = draftId !== null;
+	const heldId = useHeldWhileClosed(draftId, open);
 	const close = () => {
 		const next = new URLSearchParams(params);
 		next.delete(DRAFT_PARAM);
@@ -263,13 +264,13 @@ export function DraftSheet({
 			}}
 		>
 			<SheetContent size="wide">
-				{draftId !== null && (
+				{heldId !== null && (
 					<DraftPanel
-						key={draftId}
+						key={heldId}
 						orgId={orgId}
 						workspaceId={workspaceId}
 						env={env}
-						draftId={draftId}
+						draftId={heldId}
 						open={open}
 						close={close}
 					/>
