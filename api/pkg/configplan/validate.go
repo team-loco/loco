@@ -25,16 +25,6 @@ func validateDesired(name string, desired State) []Error {
 	if desired.Port != nil {
 		add(pathPort, locoControllerV1.ValidatePort(*desired.Port))
 	}
-	if desired.Metrics != nil {
-		obs := &locoControllerV1.ObsSpec{
-			Metrics: locoControllerV1.MetricsSpec{
-				Enabled: true,
-				Port:    desired.Metrics.Port,
-				Path:    desired.Metrics.Path,
-			},
-		}
-		add("metrics", obs.Metrics.Validate())
-	}
 	if desired.Health != nil {
 		health := locoControllerV1.HealthCheckSpec{
 			Path:               desired.Health.Path,

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/url"
 	"regexp"
 	"strings"
 
@@ -26,7 +25,6 @@ var (
 	errImageMissing           = errors.New("image must be set")
 	errHealthPathMissing      = errors.New("healthCheck.path must be set")
 	errHealthPathNoSlash      = errors.New("healthCheck.path must start with '/'")
-	errMetricsPath            = errors.New("metrics.path must be an absolute HTTP path without a query or fragment")
 	errHostnameMissing        = errors.New("routing.hostname must be set")
 	errPathPrefixNoSlash      = errors.New("routing.pathPrefix must start with '/'")
 	errIdleTimeoutNotPositive = errors.New("routing.idleTimeout must be positive")
@@ -120,12 +118,6 @@ func validateServiceSpec(spec *ServiceSpec) error {
 	}
 	if err := spec.Resources.Validate(); err != nil {
 		return fmt.Errorf("invalid resources: %w", err)
-	}
-
-	if spec.Obs != nil {
-		if err := spec.Obs.Metrics.Validate(); err != nil {
-			return fmt.Errorf("invalid observability: %w", err)
-		}
 	}
 
 	if spec.Routing != nil {
@@ -367,23 +359,6 @@ func ValidateRoute(pathPrefix string, idleTimeout int32) error {
 func ValidateRuntimeID(id *int64) error {
 	if id != nil && (*id <= 0 || *id > math.MaxInt32) {
 		return ErrRuntimeID
-	}
-	return nil
-}
-
-func (spec *MetricsSpec) Validate() error {
-	if !spec.Enabled {
-		return nil
-	}
-	parsed, err := url.ParseRequestURI(spec.Path)
-	if err != nil || !strings.HasPrefix(spec.Path, "/") || strings.HasPrefix(spec.Path, "//") ||
-		parsed.RawQuery != "" ||
-		strings.ContainsAny(spec.Path, "#\r\n") {
-		return errMetricsPath
-	}
-
-	if spec.Port < minServicePort || spec.Port > maxServicePort {
-		return fmt.Errorf("metrics.port must be between %d and %d, got %d", minServicePort, maxServicePort, spec.Port)
 	}
 	return nil
 }

@@ -39,10 +39,6 @@ spec:
                           fieldPath: metadata.namespace
                     - name: LOCO_OBSERVABILITY_NAMESPACE
                       value: {{ include "loco-worker.observabilityNamespace" . | quote }}
-                    - name: LOCO_METRICS_COLLECTOR_NAMESPACE
-                      value: {{ index .Values "otel-col-daemon" "namespaceOverride" | quote }}
-                    - name: LOCO_METRICS_COLLECTOR_SERVICE
-                      value: {{ index .Values "otel-col-daemon" "nameOverride" | default "otel-col-daemon" | quote }}
                     - name: LOCO_OTEL_COLLECTOR_SERVICE
                       value: {{ include "loco-worker.collectorService" . | quote }}
                     - name: LOCO_OTEL_COLLECTOR_GRPC_PORT

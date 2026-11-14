@@ -32,8 +32,6 @@ const (
 	testPinned         = "ghcr.io/acme/worker@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"
 )
 
-const testMetricsPath = "/metrics"
-
 func testDefaults() servicedefaults.Defaults {
 	return servicedefaults.Defaults{
 		CPU:                 "100m",
@@ -46,7 +44,6 @@ func testDefaults() servicedefaults.Defaults {
 		HealthInterval:      30,
 		HealthTimeout:       5,
 		HealthFailThreshold: 3,
-		MetricsPath:         testMetricsPath,
 	}
 }
 

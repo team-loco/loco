@@ -9742,27 +9742,6 @@
         "additionalProperties": false,
         "description": "ListDeploymentsResponse is the response containing deployment list."
       },
-      "loco.deployment.v1.MetricsEndpoint": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "title": "enabled"
-          },
-          "path": {
-            "type": "string",
-            "title": "path"
-          },
-          "port": {
-            "type": "integer",
-            "title": "port",
-            "format": "int32"
-          }
-        },
-        "title": "MetricsEndpoint",
-        "additionalProperties": false,
-        "description": "metrics.endpoint // enabled metrics require a port between 1024 and 65535 and an absolute path\n"
-      },
       "loco.deployment.v1.Port": {
         "type": "object",
         "properties": {
@@ -9987,10 +9966,6 @@
             "title": "run_as_group",
             "format": "int64",
             "description": "int64.lte = 2147483647\nint64.gt = 0\n"
-          },
-          "metrics": {
-            "title": "metrics",
-            "$ref": "#/components/schemas/loco.deployment.v1.MetricsEndpoint"
           }
         },
         "title": "ServiceDeploymentSpec",
@@ -13011,39 +12986,12 @@
         "additionalProperties": false,
         "description": "LoggingConfig defines logging configuration."
       },
-      "loco.resource.v1.MetricsConfig": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "title": "enabled"
-          },
-          "path": {
-            "type": "string",
-            "title": "path",
-            "description": "e.g., \"/metrics\""
-          },
-          "port": {
-            "type": "integer",
-            "title": "port",
-            "format": "int32",
-            "description": "e.g., 9090"
-          }
-        },
-        "title": "MetricsConfig",
-        "additionalProperties": false,
-        "description": "MetricsConfig defines metrics scraping configuration."
-      },
       "loco.resource.v1.ObservabilityConfig": {
         "type": "object",
         "properties": {
           "logging": {
             "title": "logging",
             "$ref": "#/components/schemas/loco.resource.v1.LoggingConfig"
-          },
-          "metrics": {
-            "title": "metrics",
-            "$ref": "#/components/schemas/loco.resource.v1.MetricsConfig"
           }
         },
         "title": "ObservabilityConfig",

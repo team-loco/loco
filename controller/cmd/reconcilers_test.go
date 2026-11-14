@@ -38,8 +38,6 @@ func testApplicationConfig() operatorConfig {
 
 func testTelemetry() controller.TelemetryConfig {
 	return controller.TelemetryConfig{
-		ScrapeNamespace:  "loco-obs-node",
-		ScrapeCollector:  "otel-col-daemon",
 		Namespace:        "loco-obs",
 		CollectorService: "otel-col-deploy",
 		GRPCPort:         4317,
@@ -199,22 +197,6 @@ func TestRegistryTokenModeStartsWithoutStaticRegistrySecrets(t *testing.T) {
 	build := operatorConfig{LocoNamespace: testLocoNamespace, RawBuildConfig: rawBuildConfig, RegistryTokenMode: true}
 	if _, err := selectReconciler(reconcilerBuild, build); err != nil {
 		t.Errorf("build: %v", err)
-	}
-}
-
-func TestApplicationReconcilerRequiresTheMetricsCollector(t *testing.T) {
-	cases := map[string]func(*operatorConfig){
-		"namespace": func(c *operatorConfig) { c.Telemetry.ScrapeNamespace = "" },
-		"service":   func(c *operatorConfig) { c.Telemetry.ScrapeCollector = "" },
-	}
-	for name, change := range cases {
-		t.Run(name, func(t *testing.T) {
-			operator := testApplicationConfig()
-			change(&operator)
-			if _, err := selectReconciler(reconcilerApplication, operator); err == nil {
-				t.Error("selectReconciler accepted a missing metrics collector setting")
-			}
-		})
 	}
 }
 

@@ -32,24 +32,20 @@ const (
 )
 
 var errTelemetryIncomplete = errors.New(
-	"telemetry requires the observability namespace, the collector service and its OTLP gRPC and HTTP ports, " +
-		"and the metrics collector namespace and service",
+	"telemetry requires the observability namespace, the collector service and its OTLP gRPC and HTTP ports",
 )
 
 // TelemetryConfig locates the OpenTelemetry collector that app pods export to.
 type TelemetryConfig struct {
-	ScrapeNamespace  string
-	ScrapeCollector  string
 	Namespace        string
 	CollectorService string
 	GRPCPort         int32
 	HTTPPort         int32
 }
 
-// Validate reports whether every field needed to reach and scrape the collectors is set.
+// Validate reports whether every field needed to reach the collector is set.
 func (c TelemetryConfig) Validate() error {
-	if c.Namespace == "" || c.CollectorService == "" || c.GRPCPort == 0 || c.HTTPPort == 0 ||
-		c.ScrapeNamespace == "" || c.ScrapeCollector == "" {
+	if c.Namespace == "" || c.CollectorService == "" || c.GRPCPort == 0 || c.HTTPPort == 0 {
 		return errTelemetryIncomplete
 	}
 	return nil

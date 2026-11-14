@@ -192,17 +192,6 @@
           "minimum": 1,
           "description": "Positive numeric primary GID for the application process. Omitted uses the image group.",
           "maximum": 2147483647
-        },
-        "metrics": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/OverrideMetrics"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Opt in to OpenTelemetry Collector pulling from a private HTTP metrics endpoint."
         }
       },
       "additionalProperties": false,
@@ -492,10 +481,6 @@
           "description": "Positive numeric primary GID for the application process. Omitted uses the image group.",
           "maximum": 2147483647
         },
-        "metrics": {
-          "$ref": "#/$defs/Metrics",
-          "description": "Opt in to OpenTelemetry Collector pulling from a private HTTP metrics endpoint."
-        },
         "deploy": {
           "$ref": "#/$defs/Deploy",
           "description": "How often the API sends a deployment a cluster fails to apply before marking it failed. The API fills omitted fields. Applies to every environment."
@@ -508,45 +493,6 @@
       },
       "additionalProperties": false,
       "type": "object"
-    },
-    "Metrics": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "port": {
-          "type": "integer",
-          "minimum": 1024,
-          "maximum": 65535,
-          "description": "Private HTTP metrics endpoint port."
-        },
-        "path": {
-          "type": "string",
-          "description": "Private HTTP metrics endpoint path."
-        }
-      },
-      "required": [
-        "port"
-      ]
-    },
-    "OverrideMetrics": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "port": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "Private HTTP metrics endpoint port."
-        },
-        "path": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "description": "Private HTTP metrics endpoint path."
-        }
-      }
     }
   },
   "properties": {

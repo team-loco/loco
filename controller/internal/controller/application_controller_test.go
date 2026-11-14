@@ -89,11 +89,6 @@ var _ = Describe("Application Controller", func() {
 									Enabled:    true,
 									Structured: true,
 								},
-								Metrics: locov1alpha1.MetricsSpec{
-									Enabled: true,
-									Path:    testMetricsPath,
-									Port:    9090,
-								},
 							},
 						},
 					},

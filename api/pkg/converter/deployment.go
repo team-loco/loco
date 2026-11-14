@@ -97,7 +97,6 @@ func MergeDeploymentSpec(
 		healthCheck = resourceServiceSpec.GetHealthCheck()
 	}
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Metrics:     requestServiceSpec.GetMetrics(),
 		RunAsUser:   requestServiceSpec.RunAsUser,
 		RunAsGroup:  requestServiceSpec.RunAsGroup,
 		Build:       requestServiceSpec.GetBuild(),
@@ -157,16 +156,10 @@ func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSp
 	}
 
 	logging := obs.GetLogging()
-	metrics := obs.GetMetrics()
 	return &locoControllerV1.ObsSpec{
 		Logging: locoControllerV1.LoggingSpec{
 			Enabled:    logging.GetEnabled(),
 			Structured: logging.GetStructured(),
-		},
-		Metrics: locoControllerV1.MetricsSpec{
-			Enabled: metrics.GetEnabled(),
-			Path:    metrics.GetPath(),
-			Port:    metrics.GetPort(),
 		},
 	}
 }

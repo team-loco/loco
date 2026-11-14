@@ -195,11 +195,11 @@ var _ = Describe("Workspace isolation", func() {
 	})
 
 	It("accepts removing the last observability setting through server-side apply", func() {
-		app := isolationTestApplication("ws-metrics-apply", "metrics-apply")
+		app := isolationTestApplication("ws-obs-apply", "obs-apply")
 		app.APIVersion = locov1alpha1.GroupVersion.String()
 		app.Kind = "Application"
 		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
-			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: testMetricsPath},
+			Logging: locov1alpha1.LoggingSpec{Enabled: true},
 		}
 		for _, enabled := range []bool{true, false} {
 			if !enabled {
@@ -209,44 +209,10 @@ var _ = Describe("Workspace isolation", func() {
 			Expect(err).NotTo(HaveOccurred())
 			configuration := client.ApplyConfigurationFromUnstructured(&unstructured.Unstructured{Object: object})
 			applyErr := k8sClient.Apply(
-				ctx, configuration, client.FieldOwner("metrics-apply-test"), client.ForceOwnership,
+				ctx, configuration, client.FieldOwner("obs-apply-test"), client.ForceOwnership,
 			)
 			Expect(applyErr).To(Succeed())
 		}
-	})
-
-	It("updates metrics discovery and removes collector ingress with the application", func() {
-		app := isolationTestApplication("ws-metrics-policy", "metrics-policy")
-		reconciler.Telemetry.ScrapeNamespace = "loco-obs-node"
-		reconciler.Telemetry.ScrapeCollector = "otel-col-daemon"
-		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
-			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: testMetricsPath},
-		}
-		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
-		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
-		Expect(err).NotTo(HaveOccurred())
-		key := client.ObjectKey{
-			Namespace: testWorkspaceNamespace(app),
-			Name:      testAppName(app),
-		}
-		deployment := &appsv1.Deployment{}
-		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
-		Expect(deployment.Spec.Template.Labels[locolabels.LabelMetricsPort]).To(Equal("9090"))
-		Expect(deployment.Spec.Template.Annotations[locolabels.AnnotationMetricsPath]).To(Equal(testMetricsPath))
-		app.Spec.ServiceSpec.Obs = nil
-		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
-		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
-		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(locolabels.LabelMetricsPort))
-		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(locolabels.AnnotationMetricsPath))
-		policyName := testAppName(app) + "-metrics"
-		Expect(getPolicy(testWorkspaceNamespace(app), policyName).Spec.Ingress).To(BeEmpty())
-		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
-		policyKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: policyName}
-		err = k8sClient.Get(ctx, policyKey, &networkingv1.NetworkPolicy{})
-		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 
 	It("runs the app without a service account token under restricted pod security", func() {

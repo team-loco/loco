@@ -80,11 +80,6 @@ func (s *ConfigServer) GetConfig(
 					Enabled:    true,
 					Structured: false,
 				},
-				Metrics: &resourcev1.MetricsConfig{
-					Enabled: false,
-					Path:    s.defaults.MetricsPath,
-					Port:    s.defaults.MetricsPort,
-				},
 			},
 		},
 	}, nil
