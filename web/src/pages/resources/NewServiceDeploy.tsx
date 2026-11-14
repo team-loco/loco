@@ -99,14 +99,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 					spec: {
 						case: "service",
 						value: {
-							routing:
-								port === undefined
-									? {}
-									: {
-											port,
-											pathPrefix: defaults.routing?.pathPrefix ?? "",
-											idleTimeout: defaults.routing?.idleTimeout ?? 0,
-										},
+							routing: { port },
 							...(defaults.observability !== undefined ? { observability: defaults.observability } : {}),
 							regions: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])),
 							...health,
