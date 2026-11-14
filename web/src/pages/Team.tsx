@@ -7,7 +7,7 @@ import {
 } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, LayersIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
+import { PickFilter } from "@/components/design/FilterPopover";
 import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
@@ -38,7 +39,6 @@ import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
 import { WorkspaceAccessDrawer } from "./team/WorkspaceAccessDrawer";
-import { WorkspaceFilter } from "./team/WorkspaceFilter";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
@@ -294,8 +294,11 @@ export function Team() {
 									</ToggleGroupItem>
 								))}
 							</ToggleGroup>
-							<WorkspaceFilter
-								workspaces={data.workspaces}
+							<PickFilter
+								icon={<LayersIcon />}
+								label="Workspace"
+								items={data.workspaces}
+								placeholder="Find a workspace"
 								counts={workspaceCounts}
 								value={wsFilter}
 								onChange={(ws) => {

@@ -5,6 +5,7 @@ export const pageImporters = {
 	Observability: async () => await import("@/pages/Observability"),
 	Settings: async () => await import("@/pages/Settings"),
 	Team: async () => await import("@/pages/Team"),
+	Audit: async () => await import("@/pages/Audit"),
 	Tokens: async () => await import("@/pages/Tokens"),
 	Organizations: async () => await import("@/pages/Organizations"),
 	DashboardRedirect: async () => await import("@/pages/DashboardRedirect"),

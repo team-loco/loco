@@ -22,8 +22,8 @@ import { CopyId } from "./CopyId";
 import { EmptyHero } from "./EmptyHero";
 import { Spinner } from "./Spinner";
 
-/** What the caller is missing when the load is denied: the workspace, an admin role, or the whole organization. */
-export type DeniedScope = "workspace" | "role" | "org";
+/** What the caller is missing when the load is denied: the workspace, an admin role, an admin role for the audit log, or the whole organization. */
+export type DeniedScope = "workspace" | "role" | "audit" | "org";
 
 const RATE_RETRY_S = 12;
 const RING_R = 26;
@@ -189,6 +189,10 @@ function Denied({ scope, className }: { scope: DeniedScope; className: string | 
 			body: `You’re in ${org}, but not in this workspace. An admin can add you.`,
 		},
 		role: { title: `Only admins can change ${org} settings`, body: "You’re a Member. An admin can change your role." },
+		audit: {
+			title: "Only admins can see the audit log",
+			body: "You’re a Member. Organization and workspace admins can see who changed what.",
+		},
 		org: { title: `You’re not a member of ${org}`, body: `Ask someone in ${org} to invite you.` },
 	}[scope];
 	return (

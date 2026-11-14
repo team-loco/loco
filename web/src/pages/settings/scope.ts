@@ -5,7 +5,6 @@ export const SCOPES: readonly SettingsScope[] = ["org", "workspace", "account"];
 const LEGACY_TABS: ReadonlyMap<string, SettingsScope> = new Map([
 	["ws", "workspace"],
 	["org", "org"],
-	["audit", "org"],
 ]);
 
 export function scopeFromParams(params: URLSearchParams): SettingsScope {

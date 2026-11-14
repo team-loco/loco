@@ -2,6 +2,7 @@ import {
 	BellIcon,
 	BoxesIcon,
 	ChartLineIcon,
+	HistoryIcon,
 	KeyRoundIcon,
 	LayoutGridIcon,
 	ScrollTextIcon,
@@ -13,8 +14,10 @@ import type { ReactNode } from "react";
 import { useLocation, useSearchParams } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { pageImporters } from "@/lib/lazy-pages";
 import {
+	auditPath,
 	inResourcesSection,
 	observabilityPath,
 	resourcesPath,
@@ -55,6 +58,7 @@ export function useNavSections(): NavSection[] {
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
 	const onObs = wsBase !== null && pathname.startsWith(`${wsBase}/observability`);
+	const audit = useAuditAccess(activeOrgId);
 
 	return [
 		{
@@ -107,6 +111,18 @@ export function useNavSections(): NavSection[] {
 					active: pathname.endsWith("/team"),
 					preload: pageImporters.Team,
 				},
+				...(audit.visible && activeOrgId !== null
+					? [
+							{
+								name: "Audit log",
+								icon: <HistoryIcon />,
+								keywords: "events activity history changes",
+								to: auditPath(activeOrgId),
+								active: pathname === auditPath(activeOrgId),
+								preload: pageImporters.Audit,
+							},
+						]
+					: []),
 				{
 					name: "Settings",
 					icon: <Settings2Icon />,

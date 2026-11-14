@@ -28,6 +28,10 @@ export function orgSettingsPath(orgId: string, workspaceId: string | null): stri
 	return workspaceId !== null ? settingsPath(orgId, workspaceId, "org") : `/org/${orgId}/settings`;
 }
 
+export function auditPath(orgId: string): string {
+	return `/org/${orgId}/audit`;
+}
+
 export const PROFILE_PATH = "/profile";
 
 export function accountSettingsPath(orgId: string | null, workspaceId: string | null): string {

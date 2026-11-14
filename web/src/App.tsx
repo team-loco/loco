@@ -30,6 +30,7 @@ const Resource = lazy(async () => ({ default: (await pageImporters.Resource()).R
 const Observability = lazy(async () => ({ default: (await pageImporters.Observability()).Observability }));
 const Settings = lazy(async () => ({ default: (await pageImporters.Settings()).Settings }));
 const Team = lazy(async () => ({ default: (await pageImporters.Team()).Team }));
+const Audit = lazy(async () => ({ default: (await pageImporters.Audit()).Audit }));
 const Tokens = lazy(async () => ({ default: (await pageImporters.Tokens()).Tokens }));
 const Organizations = lazy(async () => ({ default: (await pageImporters.Organizations()).Organizations }));
 const PersonalSettings = lazy(async () => ({ default: (await pageImporters.Settings()).PersonalSettings }));
@@ -169,6 +170,15 @@ function AppRoutes() {
 							<>
 								<PageTitle title="Team" />
 								<Team />
+							</>
+						}
+					/>
+					<Route
+						path="/org/:orgId/audit"
+						element={
+							<>
+								<PageTitle title="Audit log" />
+								<Audit />
 							</>
 						}
 					/>

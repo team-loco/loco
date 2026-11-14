@@ -33,7 +33,6 @@ import { usePagedRows } from "@/lib/paging";
 import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
 
-import { AuditLogTab } from "./AuditLogTab";
 import { LimitsSection } from "./LimitsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
@@ -307,8 +306,6 @@ export function OrgTab({
 				workspaceCount={workspacesLoading ? undefined : workspaces.length}
 				memberCount={memberCount}
 			/>
-
-			{canAdmin && <AuditLogTab org={org} workspaces={workspaces} users={users} />}
 
 			<SettingsSection title="Danger zone">
 				<DangerZone
