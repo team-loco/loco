@@ -7,6 +7,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/team-loco/loco/cmd/internal/keychain"
 )
 
 const (
@@ -14,6 +17,7 @@ const (
 	invalidTag     = "latest"
 	currentVersion = "v0.0.53"
 	newerVersion   = "v0.0.60"
+	whoamiCmd      = "whoami"
 )
 
 func TestUpgradeHint(t *testing.T) {
@@ -137,6 +141,58 @@ func TestVersionFlagSet(t *testing.T) {
 			}
 			if got := versionFlagSet(root); got != tt.want {
 				t.Fatalf("versionFlagSet after %v = %v, want %v", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCommandReportsServerMinimum(t *testing.T) {
+	const minimum = "v0.0.61"
+	tests := []struct {
+		name    string
+		current string
+		want    []string
+	}{
+		{
+			name:    "older release",
+			current: currentVersion,
+			want: []string{
+				"loco " + currentVersion + " is no longer supported by this server; upgrade to " + minimum + " or newer.",
+				"Run loco update",
+			},
+		},
+		{name: "supported release", current: minimum},
+		{name: "devel build", current: develVersion},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			api := newFakeAPI()
+			api.minCLIVersion = minimum
+			srv := httptest.NewServer(api.handler())
+			t.Cleanup(srv.Close)
+
+			env := NewEnv()
+			token := &keychain.UserToken{Host: srv.URL, Token: fakeAPIToken, ExpiresAt: time.Now().Add(time.Hour)}
+			env.Tokens = func() (keychain.TokenStore, error) { return &memoryTokenStore{token: token}, nil }
+			root := NewRootCmd(env)
+			root.Version = tt.current
+			root.SetOut(&bytes.Buffer{})
+			root.SetErr(&bytes.Buffer{})
+			root.SetArgs([]string{whoamiCmd, "--host=" + srv.URL})
+			if err := root.Execute(); err != nil {
+				t.Fatal(err)
+			}
+
+			var out bytes.Buffer
+			env.versionCheck.report(&out)
+			if len(tt.want) == 0 && out.Len() != 0 {
+				t.Fatalf("output = %q, want none", out.String())
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(out.String(), want) {
+					t.Fatalf("output = %q, want it to contain %q", out.String(), want)
+				}
 			}
 		})
 	}

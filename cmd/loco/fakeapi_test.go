@@ -54,6 +54,7 @@ type fakeAPI struct {
 
 	identityProvider bool
 	deviceLogin      string
+	minCLIVersion    string
 }
 
 func newFakeAPI() *fakeAPI {
@@ -206,6 +207,7 @@ func (c *fakeConfigService) GetConfig(
 	if c.api.identityProvider {
 		auth = &configv1.AuthConfig{Issuer: fakeIssuer, ClientId: fakeClientID}
 	}
+	minimum := c.api.minCLIVersion
 	c.api.mu.Unlock()
 	defaults := &configv1.DefaultServiceConfig{
 		Cpu:         fakeDefaultCPU,
@@ -213,6 +215,11 @@ func (c *fakeConfigService) GetConfig(
 		MinReplicas: fakeDefaultMinReplicas,
 		MaxReplicas: fakeDefaultMaxReplicas,
 	}
-	resp := &configv1.GetConfigResponse{ServiceDefaults: defaults, SchemaUrl: fakeSchemaURL, Auth: auth}
+	resp := &configv1.GetConfigResponse{
+		ServiceDefaults: defaults,
+		SchemaUrl:       fakeSchemaURL,
+		Auth:            auth,
+		MinCliVersion:   minimum,
+	}
 	return resp, nil
 }
