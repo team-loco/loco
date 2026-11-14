@@ -31,7 +31,7 @@ var (
 )
 
 func BuildBootstrapCmd() *cobra.Command {
-	var file, email string
+	var file, email, idTokenFile string
 	var noBrowser bool
 	var timeout time.Duration
 	command := &cobra.Command{
@@ -57,7 +57,23 @@ func BuildBootstrapCmd() *cobra.Command {
 			if err != nil && !missing {
 				return err
 			}
-			operator, err := authenticate(ctx, config.ControlPlane.Auth, email, cmd.OutOrStdout(), noBrowser)
+			// Fail on an unresolvable release before the operator signs in.
+			release, err := installation.LoadRelease(ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr())
+			if err != nil {
+				return err
+			}
+			var operator string
+			if idTokenFile != "" {
+				operator, err = authenticateWithIDToken(
+					ctx,
+					config.ControlPlane.Auth,
+					email,
+					idTokenFile,
+					cmd.OutOrStdout(),
+				)
+			} else {
+				operator, err = authenticate(ctx, config.ControlPlane.Auth, email, cmd.OutOrStdout(), noBrowser)
+			}
 			if err != nil {
 				return err
 			}
@@ -86,11 +102,6 @@ func BuildBootstrapCmd() *cobra.Command {
 			if err = saveInstallationSession(config.ControlPlane, tokens); err != nil {
 				return err
 			}
-
-			release, err := installation.LoadRelease(ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr())
-			if err != nil {
-				return err
-			}
 			if err = installation.CompleteBootstrap(ctx, *config, release); err != nil {
 				return err
 			}
@@ -103,6 +114,13 @@ func BuildBootstrapCmd() *cobra.Command {
 	command.Flags().
 		DurationVar(&timeout, "timeout", bootstrapTimeout, "Maximum time for sign-in and administrator setup")
 	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the sign-in URL without opening a browser")
+	command.Flags().StringVar(
+		&idTokenFile,
+		"id-token-file",
+		"",
+		"File holding an ID token from the identity provider, used instead of browser sign-in",
+	)
+	command.MarkFlagsMutuallyExclusive("id-token-file", "no-browser")
 	for _, flag := range []string{"file", "email"} {
 		if err := command.MarkFlagRequired(flag); err != nil {
 			panic(err)

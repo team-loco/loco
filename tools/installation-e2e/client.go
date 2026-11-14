@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
@@ -13,38 +12,26 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
-	"golang.org/x/net/html"
+	"sigs.k8s.io/yaml"
 
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
 var (
-	errBootstrapAuthentication        = errors.New("authenticated bootstrap failed")
-	errBootstrapAuthenticationMissing = errors.New("bootstrap did not start IdP authentication")
-	errBootstrapDrain                 = errors.New("drain bootstrap output failed")
-	errBootstrapOutputLimit           = errors.New("bootstrap output exceeded scanner limit")
-	errBootstrapStop                  = errors.New("stop bootstrap subprocess failed")
-)
-
-var (
-	errProviderAuthenticationIncomplete = errors.New("fixture IdP authentication did not complete")
-	errProviderAuthorizationURL         = errors.New("invalid fixture IdP authorization URL")
-	errProviderFormAction               = errors.New("invalid fixture IdP form action")
-	errProviderLoginForm                = errors.New("fixture IdP did not offer its password login form")
-	errProviderLoginOpen                = errors.New("open fixture IdP login failed")
-	errProviderLoginRead                = errors.New("read fixture IdP form failed")
-	errProviderLoginSubmit              = errors.New("submit fixture IdP login failed")
-	errProviderSubmissionURL            = errors.New("invalid fixture IdP submission URL")
+	errBootstrapAuthentication = errors.New("authenticated bootstrap failed")
+	errFixtureAuth             = errors.New("read fixture identity provider from installation file failed")
+	errProviderToken           = errors.New("fixture IdP did not issue an ID token")
+	errProviderTokenRequest    = errors.New("fixture IdP token request failed")
 )
 
 var (
@@ -71,8 +58,10 @@ var (
 )
 
 const (
-	fixtureEmail           = "dev@loco.test"
-	fixturePassword        = "loco-dev"
+	fixtureEmail    = "dev@loco.test"
+	fixturePassword = "loco-dev"
+	// formPassword names both the OAuth password grant and its password field.
+	formPassword           = "password"
 	clientFile             = "/installation/installation.yaml"
 	clientTimeout          = 45 * time.Minute
 	fixtureWorkloadTimeout = 5 * time.Minute
@@ -139,8 +128,12 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if checkErr := audit.inspect(ctx, "before bootstrap"); checkErr != nil {
 		return checkErr
 	}
+	provider, err := loadFixtureAuth()
+	if err != nil {
+		return err
+	}
 	operatorPhase(phaseBootstrap)
-	if checkErr := bootstrap(ctx); checkErr != nil {
+	if checkErr := bootstrap(ctx, provider); checkErr != nil {
 		return checkErr
 	}
 	operatorPhase(phasePostBootstrapAudit)
@@ -178,35 +171,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if before != after {
 		return errReapplyIdentityChanged
 	}
-	// A fresh local credential store must recover the existing administrator and clean up,
-	// rather than requiring an IdP token or an internal installation token copied by hand.
-	operatorPhase(phaseFreshHome)
-	originalHome := os.Getenv("HOME")
-	if checkErr := os.Setenv("HOME", "/tmp/operator-second"); checkErr != nil {
-		return checkErr
-	}
-	if checkErr := bootstrap(ctx); checkErr != nil {
-		return fmt.Errorf("resume from fresh operator state: %w", checkErr)
-	}
-	operatorPhase(phasePostBootstrapAudit)
-	if checkErr := audit.inspect(ctx, "fresh bootstrap complete"); checkErr != nil {
-		return checkErr
-	}
-	operatorPhase(phaseFreshHome)
-	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
-		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
-	}
-	if checkErr := audit.inspect(ctx, "fresh apply complete"); checkErr != nil {
-		return checkErr
-	}
-	after, err = identitySnapshot(ctx)
-	if err != nil {
-		return err
-	}
-	if before != after {
-		return errFreshOperatorIdentityChanged
-	}
-	if checkErr := os.Setenv("HOME", originalHome); checkErr != nil {
+	if checkErr := freshOperator(ctx, audit, provider, before); checkErr != nil {
 		return checkErr
 	}
 	operatorPhase(phaseWorkloads)
@@ -221,14 +186,77 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	return nil
 }
 
-func bootstrap(ctx context.Context) (result error) {
-	var stderr boundedOutput
+// freshOperator checks that a fresh local credential store recovers the existing administrator
+// and cleans up with a new IdP sign-in, rather than an internal installation token copied by hand.
+func freshOperator(ctx context.Context, audit *leakAudit, provider fixtureAuth, before string) error {
+	operatorPhase(phaseFreshHome)
+	originalHome := os.Getenv("HOME")
+	if checkErr := os.Setenv("HOME", "/tmp/operator-second"); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := bootstrap(ctx, provider); checkErr != nil {
+		return fmt.Errorf("resume from fresh operator state: %w", checkErr)
+	}
+	operatorPhase(phasePostBootstrapAudit)
+	if checkErr := audit.inspect(ctx, "fresh bootstrap complete"); checkErr != nil {
+		return checkErr
+	}
+	operatorPhase(phaseFreshHome)
+	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
+		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
+	}
+	if checkErr := audit.inspect(ctx, "fresh apply complete"); checkErr != nil {
+		return checkErr
+	}
+	after, err := identitySnapshot(ctx)
+	if err != nil {
+		return err
+	}
+	if before != after {
+		return errFreshOperatorIdentityChanged
+	}
+	if checkErr := os.Setenv("HOME", originalHome); checkErr != nil {
+		return checkErr
+	}
+	return nil
+}
+
+// fixtureAuth is the identity provider the installation file under test trusts.
+type fixtureAuth struct {
+	Issuer   string `json:"issuer"`
+	ClientID string `json:"clientId"`
+}
+
+func loadFixtureAuth() (fixtureAuth, error) {
+	data, err := os.ReadFile(clientFile)
+	if err != nil {
+		return fixtureAuth{}, err
+	}
+	var file struct {
+		ControlPlane struct {
+			Auth fixtureAuth `json:"auth"`
+		} `json:"controlPlane"`
+	}
+	if err = yaml.Unmarshal(data, &file); err != nil {
+		return fixtureAuth{}, errFixtureAuth
+	}
+	return file.ControlPlane.Auth, nil
+}
+
+func bootstrap(ctx context.Context, provider fixtureAuth) (result error) {
+	var stdout, stderr boundedOutput
 	defer func() {
 		if result != nil {
 			fmt.Fprintln(os.Stderr, bootstrapFailurePrefix+classifyBootstrapFailure(stderr.Bytes()))
 		}
 	}()
-	operatorPhase(phaseBootstrapAuthorization)
+	operatorPhase(phaseBootstrapSignIn)
+	tokenFile, err := fixtureIDToken(ctx, provider)
+	if err != nil {
+		return err
+	}
+	defer func() { result = errors.Join(result, os.Remove(tokenFile)) }()
+	operatorPhase(phaseBootstrapVerify)
 	cmd := exec.CommandContext(
 		ctx,
 		"locoadm",
@@ -237,157 +265,67 @@ func bootstrap(ctx context.Context) (result error) {
 		clientFile,
 		"--email",
 		fixtureEmail,
-		"--no-browser",
+		"--id-token-file",
+		tokenFile,
 	)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
 	// Provider/CLI errors can carry credential material. Only allowlisted failure metadata reaches the host.
-	audit, auditing := ctx.Value(auditKey{}).(*leakAudit)
-	cmd.Stderr = &stderr
-	if auditing {
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
+		cmd.Stdout = io.MultiWriter(&stdout, auditWriter{audit, "CLI output (stdout)"})
 		cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
 	}
-	if checkErr := cmd.Start(); checkErr != nil {
-		return fmt.Errorf("start bootstrap: %w", checkErr)
+	runErr := cmd.Run()
+	if slices.Contains(strings.Split(string(stdout.Bytes()), "\n"), "Verified administrator: "+fixtureEmail) {
+		operatorPhase(phaseBootstrapGrant)
 	}
-	var output io.Reader = stdout
-	if auditing {
-		output = io.TeeReader(stdout, auditWriter{audit, "CLI output (stdout)"})
-	}
-	scanner := bufio.NewScanner(output)
-	var authorization string
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
-			authorization = line
-			break
-		}
-	}
-	if scanner.Err() != nil {
-		return errors.Join(errBootstrapOutputLimit, stopBootstrap(cmd, output))
-	}
-	if authorization == "" {
-		return errors.Join(errBootstrapAuthenticationMissing, cmd.Wait())
-	}
-	operatorPhase(phaseBootstrapBrowser)
-	if checkErr := completeDexLogin(ctx, authorization); checkErr != nil {
-		return errors.Join(checkErr, stopBootstrap(cmd, output))
-	}
-	operatorPhase(phaseBootstrapBrowserComplete)
-	// Continue through the scanner: it may already hold bytes past the URL.
-	for scanner.Scan() {
-		if scanner.Text() == "Verified administrator: "+fixtureEmail {
-			operatorPhase(phaseBootstrapGrant)
-		}
-	}
-	_, copyErr := io.Copy(io.Discard, output)
-	waitErr := cmd.Wait()
-	if scanner.Err() != nil || copyErr != nil || waitErr != nil {
+	if runErr != nil {
 		return errBootstrapAuthentication
 	}
 	return nil
 }
 
-func stopBootstrap(cmd *exec.Cmd, output io.Reader) error {
-	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return errBootstrapStop
+// fixtureIDToken signs in through the fixture IdP's password grant and writes the ID token
+// to an owner-only file, as automation would before running bootstrap.
+func fixtureIDToken(ctx context.Context, provider fixtureAuth) (string, error) {
+	form := url.Values{
+		"grant_type": {formPassword},
+		"client_id":  {provider.ClientID},
+		"username":   {fixtureEmail},
+		formPassword: {fixturePassword},
+		"scope":      {"openid email profile"},
 	}
-	// Capture queued stdout before Wait closes the pipe on failed authentication.
-	_, drainErr := io.Copy(io.Discard, output)
-	stopErr := stopProcess(cmd)
-	if drainErr != nil {
-		return errors.Join(errBootstrapDrain, stopErr)
-	}
-	return stopErr
-}
-
-func completeDexLogin(ctx context.Context, authorization string) error {
-	jar, err := cookiejar.New(nil)
+	request, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, provider.Issuer+"/token", strings.NewReader(form.Encode()),
+	)
 	if err != nil {
-		return err
-	}
-	client := &http.Client{Jar: jar, Timeout: time.Minute}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, authorization, nil)
-	if err != nil {
-		return errProviderAuthorizationURL
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		return errProviderLoginOpen
-	}
-	defer response.Body.Close()
-	document, err := html.Parse(io.LimitReader(response.Body, fixtureResponseLimit))
-	if err != nil {
-		return errProviderLoginRead
-	}
-	action, values, ok := loginForm(document)
-	if !ok {
-		return errProviderLoginForm
-	}
-	target, err := response.Request.URL.Parse(action)
-	if err != nil {
-		return errProviderFormAction
-	}
-	values.Set("login", fixtureEmail)
-	values.Set("password", fixturePassword)
-	request, err = http.NewRequestWithContext(ctx, http.MethodPost, target.String(), strings.NewReader(values.Encode()))
-	if err != nil {
-		return errProviderSubmissionURL
+		return "", errProviderTokenRequest
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	result, err := client.Do(request)
+	response, err := (&http.Client{Timeout: time.Minute}).Do(request)
 	if err != nil {
-		return errProviderLoginSubmit
+		return "", errProviderTokenRequest
 	}
-	defer result.Body.Close()
-	if result.StatusCode != http.StatusOK {
-		return errProviderAuthenticationIncomplete
+	defer response.Body.Close()
+	var tokens struct {
+		IDToken string `json:"id_token"`
 	}
-	return nil
-}
-
-func loginForm(node *html.Node) (string, url.Values, bool) {
-	if node.Type == html.ElementNode && node.Data == "form" {
-		action := ""
-		for _, attribute := range node.Attr {
-			if attribute.Key == "action" {
-				action = attribute.Val
-			}
-		}
-		values := url.Values{}
-		var inputs func(*html.Node)
-		inputs = func(n *html.Node) {
-			if n.Type == html.ElementNode && n.Data == "input" {
-				name, value := "", ""
-				for _, attribute := range n.Attr {
-					switch attribute.Key {
-					case "name":
-						name = attribute.Val
-					case "value":
-						value = attribute.Val
-					}
-				}
-				if name != "" {
-					values.Set(name, value)
-				}
-			}
-			for child := n.FirstChild; child != nil; child = child.NextSibling {
-				inputs(child)
-			}
-		}
-		inputs(node)
-		if values.Has("login") && values.Has("password") {
-			return action, values, true
-		}
+	if response.StatusCode != http.StatusOK ||
+		json.NewDecoder(io.LimitReader(response.Body, fixtureResponseLimit)).Decode(&tokens) != nil ||
+		tokens.IDToken == "" {
+		return "", errProviderToken
 	}
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if action, values, ok := loginForm(child); ok {
-			return action, values, true
-		}
+	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
+		audit.add([]byte(tokens.IDToken))
 	}
-	return "", nil, false
+	file, err := os.CreateTemp("", "id-token-*")
+	if err != nil {
+		return "", err
+	}
+	_, writeErr := file.WriteString(tokens.IDToken)
+	if err = errors.Join(writeErr, file.Close()); err != nil {
+		return "", errors.Join(err, os.Remove(file.Name()))
+	}
+	return file.Name(), nil
 }
 
 func identitySnapshot(ctx context.Context) (string, error) {

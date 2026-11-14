@@ -18,7 +18,7 @@ data:
     issuer: http://dex.installation-fixtures.svc.cluster.local:5556/dex
     storage: {type: memory}
     web: {http: "0.0.0.0:5556"}
-    oauth2: {skipApprovalScreen: true}
+    oauth2: {skipApprovalScreen: true, passwordConnector: local}
     enablePasswordDB: true
     staticPasswords:
     - email: {{ .Email }}
@@ -29,7 +29,6 @@ data:
     - id: loco
       name: Installation operator
       public: true
-      redirectURIs: ["http://127.0.0.1:8400/callback"]
 ---
 apiVersion: v1
 kind: Secret

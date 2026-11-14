@@ -9,10 +9,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
+	"io/fs"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -27,6 +32,7 @@ import (
 const (
 	bootstrapTestEmail  = "admin@example.com"
 	bootstrapTestClient = "loco"
+	claimEmailVerified  = "email_verified"
 )
 
 type browserOutput struct {
@@ -75,39 +81,9 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("PATH", t.TempDir())
-			key, err := rsa.GenerateKey(rand.Reader, 2048)
-			if err != nil {
-				t.Fatal(err)
-			}
-			signer, err := jose.NewSigner(
-				jose.SigningKey{Algorithm: jose.RS256, Key: jose.JSONWebKey{Key: key, KeyID: "test"}},
-				nil,
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var issuer, nonce, challenge string
-			mux := http.NewServeMux()
-			mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				if encodeErr := json.NewEncoder(w).
-					Encode(map[string]any{
-						"issuer": issuer, "authorization_endpoint": issuer + "/authorize",
-						"token_endpoint": issuer + "/token", "jwks_uri": issuer + "/keys",
-						"id_token_signing_alg_values_supported": []string{"RS256"},
-					}); encodeErr != nil {
-					t.Error(encodeErr)
-				}
-			})
-			mux.HandleFunc("GET /keys", func(w http.ResponseWriter, _ *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				if encodeErr := json.NewEncoder(w).
-					Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{
-						{Key: &key.PublicKey, KeyID: "test", Algorithm: "RS256", Use: "sig"},
-					}}); encodeErr != nil {
-					t.Error(encodeErr)
-				}
-			})
+			provider := newTestProvider(t)
+			mux := provider.mux
+			var nonce, challenge string
 			mux.HandleFunc("GET /authorize", func(w http.ResponseWriter, r *http.Request) {
 				query := r.URL.Query()
 				nonce = query.Get("nonce")
@@ -151,17 +127,12 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 				if tc.wrongNonce {
 					tokenNonce = "wrong"
 				}
-				raw, signErr := jwt.Signed(signer).
-					Claims(map[string]any{
-						"iss": issuer, "aud": bootstrapTestClient, "sub": "operator",
-						"email": tc.email, "email_verified": tc.verified,
-						"exp": time.Now().Add(time.Minute).Unix(), "nonce": tokenNonce,
-					}).
-					Serialize()
-				if signErr != nil {
-					t.Error(signErr)
-					return
-				}
+				claims := provider.operatorClaims()
+				maps.Copy(
+					claims,
+					map[string]any{"email": tc.email, claimEmailVerified: tc.verified, "nonce": tokenNonce},
+				)
+				raw := provider.sign(t, claims)
 				if encodeErr := json.NewEncoder(w).
 					Encode(map[string]any{
 						"access_token": "provider-access-canary", "token_type": "Bearer", "id_token": raw,
@@ -169,9 +140,6 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 					t.Error(encodeErr)
 				}
 			})
-			provider := httptest.NewServer(mux)
-			defer provider.Close()
-			issuer = provider.URL
 			var listenConfig net.ListenConfig
 			listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
@@ -185,7 +153,7 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 			operator, err := authenticate(
 				t.Context(),
 				installation.Auth{
-					Issuer:               issuer,
+					Issuer:               provider.issuer,
 					ClientID:             bootstrapTestClient,
 					BootstrapRedirectURI: "http://" + address + "/callback",
 				},
@@ -210,5 +178,142 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 				t.Fatal("provider secret escaped in output")
 			}
 		})
+	}
+}
+
+type testProvider struct {
+	issuer string
+	mux    *http.ServeMux
+	signer jose.Signer
+}
+
+// newTestProvider serves OIDC discovery and signing keys; tests add their own endpoints to mux.
+func newTestProvider(t *testing.T) *testProvider {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := jose.NewSigner(
+		jose.SigningKey{Algorithm: jose.RS256, Key: jose.JSONWebKey{Key: key, KeyID: "test"}},
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &testProvider{mux: http.NewServeMux(), signer: signer}
+	provider.mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if encodeErr := json.NewEncoder(w).
+			Encode(map[string]any{
+				"issuer": provider.issuer, "authorization_endpoint": provider.issuer + "/authorize",
+				"token_endpoint": provider.issuer + "/token", "jwks_uri": provider.issuer + "/keys",
+				"id_token_signing_alg_values_supported": []string{"RS256"},
+			}); encodeErr != nil {
+			t.Error(encodeErr)
+		}
+	})
+	provider.mux.HandleFunc("GET /keys", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if encodeErr := json.NewEncoder(w).
+			Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{
+				{Key: &key.PublicKey, KeyID: "test", Algorithm: "RS256", Use: "sig"},
+			}}); encodeErr != nil {
+			t.Error(encodeErr)
+		}
+	})
+	server := httptest.NewServer(provider.mux)
+	t.Cleanup(server.Close)
+	provider.issuer = server.URL
+	return provider
+}
+
+func (p *testProvider) sign(t *testing.T, claims map[string]any) string {
+	t.Helper()
+	raw, err := jwt.Signed(p.signer).Claims(claims).Serialize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// operatorClaims are the claims of a valid token for bootstrapTestEmail; tests override single fields.
+func (p *testProvider) operatorClaims() map[string]any {
+	return map[string]any{
+		"iss": p.issuer, "aud": bootstrapTestClient, "sub": "operator",
+		"email": bootstrapTestEmail, claimEmailVerified: true,
+		"exp": time.Now().Add(time.Minute).Unix(),
+	}
+}
+
+func TestIDTokenFileVerifiedOperator(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		expected string
+		claims   map[string]any
+		contents func(raw string) string
+		want     error
+	}{
+		{name: "verified"},
+		{name: "surrounding newline", contents: func(raw string) string { return "\n" + raw + "\n" }},
+		{name: "wrong account", expected: "other@example.com", want: errIdentity},
+		{name: "unverified", claims: map[string]any{claimEmailVerified: false}, want: errIdentity},
+		{name: "other client", claims: map[string]any{"aud": "other-client"}, want: errIDToken},
+		{name: "expired", claims: map[string]any{"exp": time.Now().Add(-time.Minute).Unix()}, want: errIDToken},
+		{name: "empty", contents: func(string) string { return " \n" }, want: errIDTokenEmpty},
+		{
+			name:     "oversized",
+			contents: func(raw string) string { return raw + strings.Repeat("a", maxIDTokenBytes) },
+			want:     errIDTokenSize,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			provider := newTestProvider(t)
+			claims := provider.operatorClaims()
+			maps.Copy(claims, tc.claims)
+			raw := provider.sign(t, claims)
+			contents := raw
+			if tc.contents != nil {
+				contents = tc.contents(raw)
+			}
+			path := filepath.Join(t.TempDir(), "id-token")
+			if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
+				t.Fatal(err)
+			}
+			expected := bootstrapTestEmail
+			if tc.expected != "" {
+				expected = tc.expected
+			}
+			var output bytes.Buffer
+			operator, err := authenticateWithIDToken(
+				t.Context(),
+				installation.Auth{Issuer: provider.issuer, ClientID: bootstrapTestClient},
+				expected,
+				path,
+				&output,
+			)
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("error = %v, want %v", err, tc.want)
+			}
+			if tc.want == nil && (operator != raw || !strings.Contains(output.String(), "Subject: operator")) {
+				t.Fatal("missing verified operator identity")
+			}
+			if strings.Contains(output.String(), raw) || (err != nil && strings.Contains(err.Error(), raw)) {
+				t.Fatal("ID token escaped in output")
+			}
+		})
+	}
+}
+
+func TestIDTokenFileMissing(t *testing.T) {
+	_, err := authenticateWithIDToken(
+		t.Context(),
+		installation.Auth{Issuer: "http://127.0.0.1:1", ClientID: bootstrapTestClient},
+		bootstrapTestEmail,
+		filepath.Join(t.TempDir(), "missing"),
+		io.Discard,
+	)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("error = %v, want a missing-file error", err)
 	}
 }

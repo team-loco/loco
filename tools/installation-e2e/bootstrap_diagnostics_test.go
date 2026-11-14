@@ -2,8 +2,6 @@ package main
 
 import (
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,12 +15,11 @@ func TestBootstrapFailureReportsObservedBoundary(t *testing.T) {
 		verifiedCanary = verified + "credential-canary\\n"
 	)
 	for _, tc := range []struct{ name, stdout, stderr, phase, category string }{
-		{"no URL", canary, canary, phaseBootstrapAuthorization, bootstrapFailureUnknown},
-		{"browser complete", "$BOOTSTRAP_TEST_URL\\nunknown credential-canary", canary,
-			phaseBootstrapBrowserComplete, bootstrapFailureUnknown},
+		{"unverified", "$BOOTSTRAP_TEST_URL\\nunknown credential-canary", canary,
+			phaseBootstrapVerify, bootstrapFailureUnknown},
 		{"identity verified", verified, canary, phaseBootstrapGrant, bootstrapFailureUnknown},
 		{"unknown message", "$BOOTSTRAP_TEST_URL\\nVerified credential-canary\\n", canary,
-			phaseBootstrapBrowserComplete, bootstrapFailureUnknown},
+			phaseBootstrapVerify, bootstrapFailureUnknown},
 		{"unavailable", verifiedCanary,
 			"  ERROR  \n  Could not reach the Loco API: HTTP status 503 credential-canary.\n",
 			phaseBootstrapGrant, bootstrapFailureUnavailable},
@@ -53,17 +50,7 @@ func TestBootstrapFailureReportsObservedBoundary(t *testing.T) {
 			"permission_denied: credential-canary", phaseBootstrapGrant, bootstrapFailureUnknown},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == http.MethodGet {
-					if _, err := io.WriteString(
-						w,
-						`<form action="/login"><input name="login"><input name="password"></form>`,
-					); err != nil {
-						t.Error(err)
-					}
-				}
-			}))
-			defer server.Close()
+			server := fixtureTokenServer(t, "fixture-id-token")
 			bin := t.TempDir()
 			path := filepath.Join(bin, "locoadm")
 			script := `#!/bin/sh
@@ -89,7 +76,7 @@ exit 1
 			original := os.Stderr
 			os.Stderr = writer
 			defer func() { os.Stderr = original }()
-			bootstrapErr := bootstrap(t.Context())
+			bootstrapErr := bootstrap(t.Context(), fixtureAuth{Issuer: server.URL, ClientID: fixtureClient})
 			if closeErr := writer.Close(); closeErr != nil {
 				t.Fatal(closeErr)
 			}

@@ -6,11 +6,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -209,18 +206,11 @@ func TestAuditCredentialURLs(t *testing.T) {
 	}
 }
 func TestAuditBootstrapOutput(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/login" {
-			fmt.Fprint(w, `<form action="/complete"><input name="login"><input name="password"></form>`)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
+	server := fixtureTokenServer(t, "fixture-id-token")
 	for _, status := range []string{"0", "9"} {
 		t.Run(status, func(t *testing.T) {
 			dir := t.TempDir()
-			script := "#!/bin/sh\nprintf '%s\\n' '" + server.URL + "/login' 'stdout-" + testCanary + "'\n" +
+			script := "#!/bin/sh\nprintf '%s\\n' 'stdout-" + testCanary + "'\n" +
 				"printf '%s' 'stderr-" + testCanary + "' >&2\nexit " + status + "\n"
 			if err := os.WriteFile(filepath.Join(dir, "locoadm"), []byte(script), 0700); err != nil {
 				t.Fatal(err)
@@ -228,7 +218,7 @@ func TestAuditBootstrapOutput(t *testing.T) {
 			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 			audit := newLeakAudit()
 			ctx := context.WithValue(t.Context(), auditKey{}, audit)
-			err := bootstrap(ctx)
+			err := bootstrap(ctx, fixtureAuth{Issuer: server.URL, ClientID: fixtureClient})
 			if (err == nil) != (status == "0") {
 				t.Fatal("unexpected bootstrap exit")
 			}
@@ -242,6 +232,21 @@ func TestAuditBootstrapOutput(t *testing.T) {
 			assertAuditLeak(t, audit, "CLI output (stderr)")
 		})
 	}
+}
+
+func TestAuditCatchesPrintedIDToken(t *testing.T) {
+	server := fixtureTokenServer(t, "fixture-id-token-"+testCanary)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "locoadm"), []byte("#!/bin/sh\ncat \"$7\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	audit := newLeakAudit()
+	ctx := context.WithValue(t.Context(), auditKey{}, audit)
+	if err := bootstrap(ctx, fixtureAuth{Issuer: server.URL, ClientID: fixtureClient}); err != nil {
+		t.Fatal(err)
+	}
+	assertAuditLeak(t, audit, "CLI output (stdout)")
 }
 
 func TestAuditInvalidHelmHistoryKeepsValuesPrivate(t *testing.T) {

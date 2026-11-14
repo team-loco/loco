@@ -9,8 +9,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -25,12 +27,17 @@ const (
 	headerTimeout   = 10 * time.Second
 	shutdownTimeout = 2 * time.Second
 	browserTimeout  = 5 * time.Second
+	maxIDTokenBytes = 64 << 10
 )
 
 var (
-	errOIDC         = errors.New("identity provider sign-in failed")
-	errIdentity     = errors.New("identity provider did not return the expected verified email")
-	errOIDCCallback = fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
+	errOIDC          = errors.New("identity provider sign-in failed")
+	errIdentity      = errors.New("identity provider did not return the expected verified email")
+	errOIDCCallback  = fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
+	errOIDCDiscovery = errors.New("identity provider discovery failed")
+	errIDToken       = errors.New("ID token is not valid for the configured issuer and client, or has expired")
+	errIDTokenSize   = errors.New("ID token file exceeds 64 KiB")
+	errIDTokenEmpty  = errors.New("ID token file is empty")
 )
 
 func authenticate(
@@ -136,30 +143,91 @@ func authenticate(
 	if !ok {
 		return "", errOIDC
 	}
-	identity, err := provider.Verifier(&oidc.Config{ClientID: config.ClientID}).Verify(ctx, raw)
-	if err != nil || identity.Nonce != nonce {
-		return "", errOIDC
+	if err = verifyOperator(ctx, provider, config.ClientID, raw, nonce, expectedEmail, output); err != nil {
+		return "", err
+	}
+	return raw, nil
+}
+
+// authenticateWithIDToken checks a token the operator obtained elsewhere before the API
+// repeats the same checks, so a wrong account fails before any installation change.
+func authenticateWithIDToken(
+	ctx context.Context,
+	config installation.Auth,
+	expectedEmail, path string,
+	output io.Writer,
+) (string, error) {
+	raw, err := readIDToken(path)
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(ctx, loginTimeout)
+	defer cancel()
+	provider, err := oidc.NewProvider(ctx, config.Issuer)
+	if err != nil {
+		return "", errOIDCDiscovery
+	}
+	if err = verifyOperator(ctx, provider, config.ClientID, raw, "", expectedEmail, output); err != nil {
+		if errors.Is(err, errOIDC) {
+			return "", errIDToken
+		}
+		return "", err
+	}
+	return raw, nil
+}
+
+func readIDToken(path string) (string, error) {
+	file, err := os.Open(path) // #nosec G304 -- The operator names the token file.
+	if err != nil {
+		return "", fmt.Errorf("read ID token file: %w", err)
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxIDTokenBytes+1))
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return "", fmt.Errorf("read ID token file: %w", err)
+	}
+	if len(data) > maxIDTokenBytes {
+		return "", errIDTokenSize
+	}
+	raw := strings.TrimSpace(string(data))
+	if raw == "" {
+		return "", errIDTokenEmpty
+	}
+	return raw, nil
+}
+
+// verifyOperator skips the nonce check when nonce is empty: a token file was not
+// requested by this process, so it carries no nonce of ours.
+func verifyOperator(
+	ctx context.Context,
+	provider *oidc.Provider,
+	clientID, raw, nonce, expectedEmail string,
+	output io.Writer,
+) error {
+	identity, err := provider.Verifier(&oidc.Config{ClientID: clientID}).Verify(ctx, raw)
+	if err != nil || (nonce != "" && identity.Nonce != nonce) {
+		return errOIDC
 	}
 	var claims struct {
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
 	}
 	if err = identity.Claims(&claims); err != nil {
-		return "", errOIDC
+		return errOIDC
 	}
 	if !claims.EmailVerified || claims.Email != expectedEmail {
-		return "", errIdentity
+		return errIdentity
 	}
-	if _, err = fmt.Fprintf(
+	_, err = fmt.Fprintf(
 		output,
 		"Verified administrator: %s\nIssuer: %s\nSubject: %s\n",
 		claims.Email,
 		identity.Issuer,
 		identity.Subject,
-	); err != nil {
-		return "", err
-	}
-	return raw, nil
+	)
+	return err
 }
 
 func openBrowser(ctx context.Context, address string) error {
