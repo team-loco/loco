@@ -2,7 +2,7 @@ import * as oauth from "oauth4webapi";
 
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
-import { TOKENS_KEY } from "./session";
+import { notifySessionChange, TOKENS_KEY } from "./session";
 
 const PENDING_KEY = "loco:auth:oidc:pending:v1";
 const EXPIRY_SKEW_MS = 30_000;
@@ -28,8 +28,6 @@ interface PendingLogin {
 }
 
 export interface AuthClient {
-	hasSession: () => boolean;
-	subscribe: (onChange: () => void) => () => void;
 	getAccessToken: (forceRefresh?: boolean) => Promise<string | null>;
 	signIn: (redirectTo: string, loginHint: string | null) => Promise<void>;
 	completeSignIn: (url: URL) => Promise<void>;
@@ -105,19 +103,14 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	);
 	const oauthClient: oauth.Client = { client_id: cfg.clientId };
 	const clientAuth = oauth.None();
-	const listeners = new Set<() => void>();
 	let tokens = parseJSON(readStorage(TOKENS_KEY), isStoredTokens);
 	let refreshing: Promise<string | null> | null = null;
-
-	const notify = () => {
-		for (const listener of listeners) listener();
-	};
 
 	const store = (next: StoredTokens | null) => {
 		tokens = next;
 		if (next === null) removeStorage(TOKENS_KEY);
 		else writeStorage(TOKENS_KEY, JSON.stringify(next));
-		notify();
+		notifySessionChange();
 	};
 
 	const fromResponse = (res: oauth.TokenEndpointResponse, previousRefresh: string | null): StoredTokens => {
@@ -151,13 +144,6 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	};
 
 	return {
-		hasSession: () => tokens !== null,
-		subscribe: (onChange) => {
-			listeners.add(onChange);
-			return () => {
-				listeners.delete(onChange);
-			};
-		},
 		getAccessToken: async (forceRefresh = false) => {
 			if (tokens === null) return null;
 			if (!forceRefresh && tokens.expiresAt - EXPIRY_SKEW_MS > Date.now()) return tokens.idToken;
