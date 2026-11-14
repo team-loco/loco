@@ -218,7 +218,7 @@ func TestAuditBootstrapOutput(t *testing.T) {
 			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 			audit := newLeakAudit()
 			ctx := context.WithValue(t.Context(), auditKey{}, audit)
-			err := bootstrap(ctx, fixtureAuth{Issuer: server.URL, ClientID: fixtureClient})
+			err := bootstrap(ctx, server.URL)
 			if (err == nil) != (status == "0") {
 				t.Fatal("unexpected bootstrap exit")
 			}
@@ -243,7 +243,7 @@ func TestAuditCatchesPrintedIDToken(t *testing.T) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	audit := newLeakAudit()
 	ctx := context.WithValue(t.Context(), auditKey{}, audit)
-	if err := bootstrap(ctx, fixtureAuth{Issuer: server.URL, ClientID: fixtureClient}); err != nil {
+	if err := bootstrap(ctx, server.URL); err != nil {
 		t.Fatal(err)
 	}
 	assertAuditLeak(t, audit, "CLI output (stdout)")

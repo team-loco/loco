@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,8 +11,6 @@ import (
 	"strings"
 	"testing"
 )
-
-const fixtureClient = "loco"
 
 // fixtureTokenServer stands in for Dex's token endpoint and issues idToken for the fixture user.
 func fixtureTokenServer(t *testing.T, idToken string) *httptest.Server {
@@ -37,46 +34,13 @@ func fixtureTokenServer(t *testing.T, idToken string) *httptest.Server {
 	return server
 }
 
-func TestBootstrapPassesIDTokenFileAndRemovesIt(t *testing.T) {
-	const idToken = "fixture-id-token"
-	server := fixtureTokenServer(t, idToken)
-	bin := t.TempDir()
-	seen := filepath.Join(bin, "token-file")
-	script := `#!/bin/sh
-[ "$6" = --id-token-file ] && [ "$(cat "$7")" = "$WANT_TOKEN" ] || exit 1
-printf '%s' "$7" > "$SEEN_FILE"
-printf 'Verified administrator: ` + fixtureEmail + `\n'
-`
-	path := filepath.Join(bin, "locoadm")
-	if err := os.WriteFile(path, []byte(script), 0600); err != nil {
-		t.Fatal(err)
-	}
-	//nolint:gosec // Disposable test executable, readable only by its owner.
-	if err := os.Chmod(path, 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("WANT_TOKEN", idToken)
-	t.Setenv("SEEN_FILE", seen)
-	if err := bootstrap(t.Context(), fixtureAuth{Issuer: server.URL, ClientID: fixtureClient}); err != nil {
-		t.Fatal(err)
-	}
-	tokenFile, err := os.ReadFile(seen)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = os.Stat(string(tokenFile)); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("ID token file left behind: %v", err)
-	}
-}
-
 func TestIdPFailureDoesNotDiscloseResponse(t *testing.T) {
 	const canary = "provider-credential-canary"
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, canary, http.StatusBadGateway) }),
 	)
 	defer server.Close()
-	_, err := fixtureIDToken(t.Context(), fixtureAuth{Issuer: server.URL, ClientID: fixtureClient})
+	_, err := fixtureIDToken(t.Context(), server.URL)
 	if err == nil || strings.Contains(err.Error(), canary) {
 		t.Fatalf("unsafe IdP error: %v", err)
 	}

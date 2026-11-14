@@ -27,17 +27,13 @@ const (
 	headerTimeout   = 10 * time.Second
 	shutdownTimeout = 2 * time.Second
 	browserTimeout  = 5 * time.Second
-	maxIDTokenBytes = 64 << 10
 )
 
 var (
-	errOIDC          = errors.New("identity provider sign-in failed")
-	errIdentity      = errors.New("identity provider did not return the expected verified email")
-	errOIDCCallback  = fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
-	errOIDCDiscovery = errors.New("identity provider discovery failed")
-	errIDToken       = errors.New("ID token is not valid for the configured issuer and client, or has expired")
-	errIDTokenSize   = errors.New("ID token file exceeds 64 KiB")
-	errIDTokenEmpty  = errors.New("ID token file is empty")
+	errOIDC         = errors.New("identity provider sign-in failed")
+	errIdentity     = errors.New("identity provider did not return the expected verified email")
+	errOIDCCallback = fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
+	errIDToken      = errors.New("ID token is not valid for the configured issuer and client, or has expired")
 )
 
 func authenticate(
@@ -157,43 +153,20 @@ func authenticateWithIDToken(
 	expectedEmail, path string,
 	output io.Writer,
 ) (string, error) {
-	raw, err := readIDToken(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- The operator names the token file.
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("read ID token file: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(ctx, loginTimeout)
-	defer cancel()
+	raw := strings.TrimSpace(string(data))
 	provider, err := oidc.NewProvider(ctx, config.Issuer)
 	if err != nil {
-		return "", errOIDCDiscovery
+		return "", errOIDC
 	}
 	if err = verifyOperator(ctx, provider, config.ClientID, raw, "", expectedEmail, output); err != nil {
 		if errors.Is(err, errOIDC) {
 			return "", errIDToken
 		}
 		return "", err
-	}
-	return raw, nil
-}
-
-func readIDToken(path string) (string, error) {
-	file, err := os.Open(path) // #nosec G304 -- The operator names the token file.
-	if err != nil {
-		return "", fmt.Errorf("read ID token file: %w", err)
-	}
-	data, err := io.ReadAll(io.LimitReader(file, maxIDTokenBytes+1))
-	if closeErr := file.Close(); err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		return "", fmt.Errorf("read ID token file: %w", err)
-	}
-	if len(data) > maxIDTokenBytes {
-		return "", errIDTokenSize
-	}
-	raw := strings.TrimSpace(string(data))
-	if raw == "" {
-		return "", errIDTokenEmpty
 	}
 	return raw, nil
 }

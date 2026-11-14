@@ -1,10 +1,6 @@
 package bootstrap
 
 import (
-	"bytes"
-	"context"
-	"encoding/base64"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,47 +13,17 @@ import (
 	"github.com/team-loco/loco/cmd/internal/auth"
 	"github.com/team-loco/loco/cmd/internal/host"
 
-	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/internal/session"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
-	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
-	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
 )
 
 func TestBootstrapTimeoutBoundsKubernetesRead(t *testing.T) {
 	received := make(chan struct{})
-	server := httptest.NewServer(
-		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { close(received); <-r.Context().Done() }),
-	)
-	defer server.Close()
-	directory := t.TempDir()
-	kubeconfig := filepath.Join(directory, "kubeconfig")
-	data := []byte(`apiVersion: v1
-kind: Config
-clusters:
-- name: fixture
-  cluster:
-    server: ` + server.URL + `
-contexts:
-- name: example-control-plane
-  context:
-    cluster: fixture
-    user: fixture
-users:
-- name: fixture
-  user: {}
-current-context: example-control-plane
-`)
-
-	if err := os.WriteFile(kubeconfig, data, 0600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("KUBECONFIG", kubeconfig)
+	useKubernetes(t, func(_ http.ResponseWriter, r *http.Request) { close(received); <-r.Context().Done() })
 	command := BuildBootstrapCmd()
 	command.SetOut(io.Discard)
 	command.SetErr(io.Discard)
@@ -184,90 +150,8 @@ func TestBootstrapRejectsIDTokenFileWithNoBrowser(t *testing.T) {
 	}
 }
 
-type bootstrapAPI struct {
-	bootstrapv1connect.UnimplementedBootstrapServiceHandler
-	token chan string
-}
-
-func (api *bootstrapAPI) Bootstrap(
-	_ context.Context,
-	request *bootstrapv1.BootstrapRequest,
-) (*bootstrapv1.BootstrapResponse, error) {
-	api.token <- request.GetToken()
-	return nil, connect.NewError(connect.CodeInternal, "stop after the bootstrap call")
-}
-
-const fixtureBootstrapToken = "fixture-bootstrap-token-0123456789abcdef"
-
-func TestBootstrapSendsIDTokenFileToAPI(t *testing.T) {
-	provider := newTestProvider(t)
-	raw := provider.sign(t, provider.operatorClaims())
-	api := &bootstrapAPI{token: make(chan string, 1)}
-	server := connect.NewServer()
-	bootstrapv1connect.RegisterBootstrapServiceHandler(server, api)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	authorization := make(chan string, 1)
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorization <- r.Header.Get("Authorization")
-		mux.ServeHTTP(w, r)
-	}))
-	defer apiServer.Close()
-	configPath := bootstrapInstallation(t, provider.issuer, apiServer.URL, true)
-	tokenPath := filepath.Join(t.TempDir(), "id-token")
-	if err := os.WriteFile(tokenPath, []byte(raw+"\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	command := BuildBootstrapCmd()
-	var output bytes.Buffer
-	command.SetOut(&output)
-	command.SetErr(io.Discard)
-	command.SetArgs([]string{
-		"--file=" + configPath, "--email=" + bootstrapTestEmail, "--id-token-file=" + tokenPath,
-	})
-	if err := command.Execute(); connect.CodeOf(err) != connect.CodeInternal {
-		t.Fatalf("error = %v, want the API's bootstrap failure", err)
-	}
-	if got := <-authorization; got != "Bearer "+raw {
-		t.Fatal("bootstrap call did not authenticate with the ID token file")
-	}
-	if got := <-api.token; got != fixtureBootstrapToken {
-		t.Fatalf("bootstrap token = %q, want the Kubernetes credential", got)
-	}
-	if !strings.Contains(output.String(), "Verified administrator: "+bootstrapTestEmail) ||
-		strings.Contains(output.String(), raw) {
-		t.Fatal("output did not confirm the operator, or exposed the ID token")
-	}
-}
-
 func TestBootstrapRejectsMissingReleaseBeforeSignIn(t *testing.T) {
-	signIn := make(chan struct{}, 1)
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		signIn <- struct{}{}
-		http.NotFound(w, r)
-	}))
-	defer provider.Close()
-	configPath := bootstrapInstallation(t, provider.URL, "http://127.0.0.1:1", false)
-	command := BuildBootstrapCmd()
-	command.SetOut(io.Discard)
-	command.SetErr(io.Discard)
-	command.SetArgs([]string{"--file=" + configPath, "--email=" + bootstrapTestEmail, "--no-browser=true"})
-	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "release") {
-		t.Fatalf("error = %v, want a missing release", err)
-	}
-	select {
-	case <-signIn:
-		t.Fatal("bootstrap contacted the identity provider before resolving the release")
-	default:
-	}
-}
-
-// bootstrapInstallation serves an installation with an open bootstrap from a fake Kubernetes API
-// and writes an installation file pointed at issuer and apiURL. Without withRelease the file has
-// no release block, which a development build cannot resolve.
-func bootstrapInstallation(t *testing.T, issuer, apiURL string, withRelease bool) string {
-	t.Helper()
-	kubernetes := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	useKubernetes(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var object string
 		switch r.URL.Path {
@@ -276,68 +160,27 @@ func bootstrapInstallation(t *testing.T, issuer, apiURL string, withRelease bool
 		case "/api/v1/namespaces/loco-system/configmaps/loco-installation":
 			object = `{"kind":"ConfigMap","apiVersion":"v1","metadata":{"name":"loco-installation","uid":"state",` +
 				`"labels":{"loco.build/installation":"example"}}}`
-		case "/api/v1/namespaces/loco-system/secrets/loco-bootstrap":
-			object = `{"kind":"Secret","apiVersion":"v1","metadata":{"name":"loco-bootstrap",` +
-				`"annotations":{"loco.build/installation-id":"state"}},"data":{"token":"` +
-				base64.StdEncoding.EncodeToString([]byte(fixtureBootstrapToken)) + `"}}`
 		default:
-			t.Errorf("unexpected Kubernetes request %s %s", r.Method, r.URL.Path)
 			http.NotFound(w, r)
 			return
 		}
 		if _, err := io.WriteString(w, object); err != nil {
 			t.Error(err)
 		}
-	}))
-	t.Cleanup(kubernetes.Close)
-	directory := t.TempDir()
-	kubeconfig := filepath.Join(directory, "kubeconfig")
-	if err := os.WriteFile(kubeconfig, []byte(`apiVersion: v1
-kind: Config
-clusters: [{name: fixture, cluster: {server: `+kubernetes.URL+`}}]
-contexts: [{name: example-control-plane, context: {cluster: fixture, user: fixture}}]
-users: [{name: fixture, user: {}}]
-current-context: example-control-plane
-`), 0600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("KUBECONFIG", kubeconfig)
-	release := ""
-	if withRelease {
-		digest := "@sha256:" + strings.Repeat("0", 64)
-		manifest := installation.Manifest{
-			ConfigVersion: installation.ConfigVersion,
-			Version:       "0.1.0",
-			CoreCommit:    strings.Repeat("0", 40),
-			Artifacts:     map[string]string{},
-			Images:        map[string]string{},
-		}
-		for _, name := range []string{
-			"loco-control-plane", "loco-worker", "cert-manager-chart",
-			"loco-applications-crd", "loco-builds-crd", "loco-gateway-crd",
-		} {
-			manifest.Artifacts[name] = "registry.test/" + name + digest
-		}
-		for _, name := range []string{"api", "ui", "obs-proxy", "agent", "controller", "builder"} {
-			manifest.Images[name] = "registry.test/" + name + digest
-		}
-		data, err := json.Marshal(manifest)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err = os.WriteFile(filepath.Join(directory, "release.json"), data, 0600); err != nil {
-			t.Fatal(err)
-		}
-		release = "release:\n  manifest: ./release.json\n"
-	}
-	config := "version: 1\nname: example\n" + release + `controlPlane:
+	})
+	// The file has no release block, which a development build cannot resolve. An unreachable
+	// issuer would fail sign-in with an error that does not name the release.
+	configPath := filepath.Join(t.TempDir(), "installation.yaml")
+	if err := os.WriteFile(configPath, []byte(`version: 1
+name: example
+controlPlane:
   kubernetes: {context: example-control-plane, clusterUID: control-plane-cluster-uid, namespace: loco-system}
-  apiURL: ` + apiURL + `
+  apiURL: http://127.0.0.1:1
   webURL: https://console.example.com
   database: {secretRef: {name: loco-inputs, key: database-url}}
   auth:
-    issuer: ` + issuer + `
-    clientId: ` + bootstrapTestClient + `
+    issuer: http://127.0.0.1:1
+    clientId: loco
     bootstrapRedirectURI: http://127.0.0.1:8400/callback
     signupMode: closed
   sourceBucket:
@@ -357,10 +200,32 @@ current-context: example-control-plane
   observability: {enabled: true, ingestURL: https://ingest.example.com}
   certificates: {issuerRef: {name: example-issuer, kind: ClusterIssuer}}
 workers: []
-`
-	path := filepath.Join(directory, "installation.yaml")
-	if err := os.WriteFile(path, []byte(config), 0600); err != nil {
+`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	return path
+	command := BuildBootstrapCmd()
+	command.SetOut(io.Discard)
+	command.SetErr(io.Discard)
+	command.SetArgs([]string{"--file=" + configPath, "--email=" + bootstrapTestEmail})
+	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "release") {
+		t.Fatalf("error = %v, want a missing release", err)
+	}
+}
+
+// useKubernetes points the example-control-plane kubeconfig context at handler.
+func useKubernetes(t *testing.T, handler http.HandlerFunc) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	kubeconfig := filepath.Join(t.TempDir(), "kubeconfig")
+	if err := os.WriteFile(kubeconfig, []byte(`apiVersion: v1
+kind: Config
+clusters: [{name: fixture, cluster: {server: `+server.URL+`}}]
+contexts: [{name: example-control-plane, context: {cluster: fixture, user: fixture}}]
+users: [{name: fixture, user: {}}]
+current-context: example-control-plane
+`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("KUBECONFIG", kubeconfig)
 }

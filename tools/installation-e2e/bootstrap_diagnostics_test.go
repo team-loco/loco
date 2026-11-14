@@ -11,14 +11,14 @@ import (
 func TestBootstrapFailureReportsObservedBoundary(t *testing.T) {
 	const (
 		canary         = "credential-canary"
-		verified       = "$BOOTSTRAP_TEST_URL\\nVerified administrator: dev@loco.test\\n"
+		verified       = "Verified administrator: dev@loco.test\\n"
 		verifiedCanary = verified + "credential-canary\\n"
 	)
 	for _, tc := range []struct{ name, stdout, stderr, phase, category string }{
-		{"unverified", "$BOOTSTRAP_TEST_URL\\nunknown credential-canary", canary,
+		{"unverified", "unknown credential-canary", canary,
 			phaseBootstrapVerify, bootstrapFailureUnknown},
 		{"identity verified", verified, canary, phaseBootstrapGrant, bootstrapFailureUnknown},
-		{"unknown message", "$BOOTSTRAP_TEST_URL\\nVerified credential-canary\\n", canary,
+		{"unknown message", "Verified credential-canary\\n", canary,
 			phaseBootstrapVerify, bootstrapFailureUnknown},
 		{"unavailable", verifiedCanary,
 			"  ERROR  \n  Could not reach the Loco API: HTTP status 503 credential-canary.\n",
@@ -66,7 +66,7 @@ exit 1
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", bin)
-			t.Setenv("BOOTSTRAP_TEST_STDOUT", strings.ReplaceAll(tc.stdout, "$BOOTSTRAP_TEST_URL", server.URL))
+			t.Setenv("BOOTSTRAP_TEST_STDOUT", tc.stdout)
 			t.Setenv("BOOTSTRAP_TEST_STDERR", tc.stderr)
 			reader, writer, err := os.Pipe()
 			if err != nil {
@@ -76,7 +76,7 @@ exit 1
 			original := os.Stderr
 			os.Stderr = writer
 			defer func() { os.Stderr = original }()
-			bootstrapErr := bootstrap(t.Context(), fixtureAuth{Issuer: server.URL, ClientID: fixtureClient})
+			bootstrapErr := bootstrap(t.Context(), server.URL)
 			if closeErr := writer.Close(); closeErr != nil {
 				t.Fatal(closeErr)
 			}

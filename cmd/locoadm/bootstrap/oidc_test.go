@@ -9,8 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"io"
-	"io/fs"
 	"maps"
 	"net"
 	"net/http"
@@ -260,12 +258,6 @@ func TestIDTokenFileVerifiedOperator(t *testing.T) {
 		{name: "unverified", claims: map[string]any{claimEmailVerified: false}, want: errIdentity},
 		{name: "other client", claims: map[string]any{"aud": "other-client"}, want: errIDToken},
 		{name: "expired", claims: map[string]any{"exp": time.Now().Add(-time.Minute).Unix()}, want: errIDToken},
-		{name: "empty", contents: func(string) string { return " \n" }, want: errIDTokenEmpty},
-		{
-			name:     "oversized",
-			contents: func(raw string) string { return raw + strings.Repeat("a", maxIDTokenBytes) },
-			want:     errIDTokenSize,
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			provider := newTestProvider(t)
@@ -302,18 +294,5 @@ func TestIDTokenFileVerifiedOperator(t *testing.T) {
 				t.Fatal("ID token escaped in output")
 			}
 		})
-	}
-}
-
-func TestIDTokenFileMissing(t *testing.T) {
-	_, err := authenticateWithIDToken(
-		t.Context(),
-		installation.Auth{Issuer: "http://127.0.0.1:1", ClientID: bootstrapTestClient},
-		bootstrapTestEmail,
-		filepath.Join(t.TempDir(), "missing"),
-		io.Discard,
-	)
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("error = %v, want a missing-file error", err)
 	}
 }

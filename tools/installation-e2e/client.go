@@ -21,17 +21,13 @@ import (
 	"strings"
 	"time"
 
-	"sigs.k8s.io/yaml"
-
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
 var (
 	errBootstrapAuthentication = errors.New("authenticated bootstrap failed")
-	errFixtureAuth             = errors.New("read fixture identity provider from installation file failed")
 	errProviderToken           = errors.New("fixture IdP did not issue an ID token")
-	errProviderTokenRequest    = errors.New("fixture IdP token request failed")
 )
 
 var (
@@ -60,6 +56,8 @@ var (
 const (
 	fixtureEmail    = "dev@loco.test"
 	fixturePassword = "loco-dev"
+	fixtureIssuer   = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
+	fixtureClient   = "loco"
 	// formPassword names both the OAuth password grant and its password field.
 	formPassword           = "password"
 	clientFile             = "/installation/installation.yaml"
@@ -128,12 +126,8 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if checkErr := audit.inspect(ctx, "before bootstrap"); checkErr != nil {
 		return checkErr
 	}
-	provider, err := loadFixtureAuth()
-	if err != nil {
-		return err
-	}
 	operatorPhase(phaseBootstrap)
-	if checkErr := bootstrap(ctx, provider); checkErr != nil {
+	if checkErr := bootstrap(ctx, fixtureIssuer); checkErr != nil {
 		return checkErr
 	}
 	operatorPhase(phasePostBootstrapAudit)
@@ -171,7 +165,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if before != after {
 		return errReapplyIdentityChanged
 	}
-	if checkErr := freshOperator(ctx, audit, provider, before); checkErr != nil {
+	if checkErr := freshOperator(ctx, audit, before); checkErr != nil {
 		return checkErr
 	}
 	operatorPhase(phaseWorkloads)
@@ -188,13 +182,13 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 
 // freshOperator checks that a fresh local credential store recovers the existing administrator
 // and cleans up with a new IdP sign-in, rather than an internal installation token copied by hand.
-func freshOperator(ctx context.Context, audit *leakAudit, provider fixtureAuth, before string) error {
+func freshOperator(ctx context.Context, audit *leakAudit, before string) error {
 	operatorPhase(phaseFreshHome)
 	originalHome := os.Getenv("HOME")
 	if checkErr := os.Setenv("HOME", "/tmp/operator-second"); checkErr != nil {
 		return checkErr
 	}
-	if checkErr := bootstrap(ctx, provider); checkErr != nil {
+	if checkErr := bootstrap(ctx, fixtureIssuer); checkErr != nil {
 		return fmt.Errorf("resume from fresh operator state: %w", checkErr)
 	}
 	operatorPhase(phasePostBootstrapAudit)
@@ -221,29 +215,7 @@ func freshOperator(ctx context.Context, audit *leakAudit, provider fixtureAuth, 
 	return nil
 }
 
-// fixtureAuth is the identity provider the installation file under test trusts.
-type fixtureAuth struct {
-	Issuer   string `json:"issuer"`
-	ClientID string `json:"clientId"`
-}
-
-func loadFixtureAuth() (fixtureAuth, error) {
-	data, err := os.ReadFile(clientFile)
-	if err != nil {
-		return fixtureAuth{}, err
-	}
-	var file struct {
-		ControlPlane struct {
-			Auth fixtureAuth `json:"auth"`
-		} `json:"controlPlane"`
-	}
-	if err = yaml.Unmarshal(data, &file); err != nil {
-		return fixtureAuth{}, errFixtureAuth
-	}
-	return file.ControlPlane.Auth, nil
-}
-
-func bootstrap(ctx context.Context, provider fixtureAuth) (result error) {
+func bootstrap(ctx context.Context, issuer string) (result error) {
 	var stdout, stderr boundedOutput
 	defer func() {
 		if result != nil {
@@ -251,11 +223,10 @@ func bootstrap(ctx context.Context, provider fixtureAuth) (result error) {
 		}
 	}()
 	operatorPhase(phaseBootstrapSignIn)
-	tokenFile, err := fixtureIDToken(ctx, provider)
+	idToken, err := fixtureIDToken(ctx, issuer)
 	if err != nil {
 		return err
 	}
-	defer func() { result = errors.Join(result, os.Remove(tokenFile)) }()
 	operatorPhase(phaseBootstrapVerify)
 	cmd := exec.CommandContext(
 		ctx,
@@ -266,8 +237,9 @@ func bootstrap(ctx context.Context, provider fixtureAuth) (result error) {
 		"--email",
 		fixtureEmail,
 		"--id-token-file",
-		tokenFile,
+		"/dev/stdin",
 	)
+	cmd.Stdin = strings.NewReader(idToken)
 	// Provider/CLI errors can carry credential material. Only allowlisted failure metadata reaches the host.
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
@@ -284,26 +256,26 @@ func bootstrap(ctx context.Context, provider fixtureAuth) (result error) {
 	return nil
 }
 
-// fixtureIDToken signs in through the fixture IdP's password grant and writes the ID token
-// to an owner-only file, as automation would before running bootstrap.
-func fixtureIDToken(ctx context.Context, provider fixtureAuth) (string, error) {
+// fixtureIDToken signs in through the fixture IdP's password grant, as automation would
+// before running bootstrap.
+func fixtureIDToken(ctx context.Context, issuer string) (string, error) {
 	form := url.Values{
 		"grant_type": {formPassword},
-		"client_id":  {provider.ClientID},
+		"client_id":  {fixtureClient},
 		"username":   {fixtureEmail},
 		formPassword: {fixturePassword},
 		"scope":      {"openid email profile"},
 	}
 	request, err := http.NewRequestWithContext(
-		ctx, http.MethodPost, provider.Issuer+"/token", strings.NewReader(form.Encode()),
+		ctx, http.MethodPost, issuer+"/token", strings.NewReader(form.Encode()),
 	)
 	if err != nil {
-		return "", errProviderTokenRequest
+		return "", errProviderToken
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := (&http.Client{Timeout: time.Minute}).Do(request)
 	if err != nil {
-		return "", errProviderTokenRequest
+		return "", errProviderToken
 	}
 	defer response.Body.Close()
 	var tokens struct {
@@ -317,15 +289,7 @@ func fixtureIDToken(ctx context.Context, provider fixtureAuth) (string, error) {
 	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
 		audit.add([]byte(tokens.IDToken))
 	}
-	file, err := os.CreateTemp("", "id-token-*")
-	if err != nil {
-		return "", err
-	}
-	_, writeErr := file.WriteString(tokens.IDToken)
-	if err = errors.Join(writeErr, file.Close()); err != nil {
-		return "", errors.Join(err, os.Remove(file.Name()))
-	}
-	return file.Name(), nil
+	return tokens.IDToken, nil
 }
 
 func identitySnapshot(ctx context.Context) (string, error) {
