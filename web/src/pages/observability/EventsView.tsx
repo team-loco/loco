@@ -145,7 +145,6 @@ export function EventsView() {
 
 	const header = (
 		<ViewHeader
-			count={loading || error !== null ? undefined : formatCount(items.length)}
 			actions={
 				<LiveButton
 					on={live}
