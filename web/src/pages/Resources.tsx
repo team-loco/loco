@@ -1,9 +1,10 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { useSearchParams } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { Badge } from "@/components/design/Badge";
-import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -15,7 +16,6 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
-import { getErrorMessage } from "@/lib/error-handler";
 import { limitReason, limitUsage } from "@/lib/limits";
 import { DRAFT_PARAM, draftSearch, NEW_RESOURCE_PARAM, newResourcePath } from "@/lib/routes";
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
@@ -78,13 +78,7 @@ export function Resources() {
 
 	const body = (() => {
 		if (data.error !== null) {
-			return (
-				<Section>
-					<EmptyState title="Couldn't load resources">
-						{getErrorMessage(data.error, "Failed to load resources")}
-					</EmptyState>
-				</Section>
-			);
+			return <ErrorState error={data.error} what="resources" rpc={listWorkspaceResources} onRetry={data.refetch} />;
 		}
 		if (loading) {
 			return (
@@ -133,7 +127,7 @@ export function Resources() {
 				title={
 					<>
 						Resources
-						{!loading && <Badge tone="count">{total}</Badge>}
+						{!loading && data.error === null && <Badge tone="count">{total}</Badge>}
 					</>
 				}
 				actions={

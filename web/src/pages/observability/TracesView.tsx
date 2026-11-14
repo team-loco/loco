@@ -1,9 +1,11 @@
+import { listTraces } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
 import { RefreshCwIcon, ZoomOutIcon } from "lucide-react";
 import { Navigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -11,7 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useGetTrace } from "@/hooks/useGetTrace";
 import { useListTraces } from "@/hooks/useListTraces";
-import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
+import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow, writeWindow, type TimeWindow } from "@/lib/obs-time";
 import { pageRangeLabel } from "@/lib/paging";
@@ -305,7 +307,16 @@ function TraceSession({
 			</>
 		);
 	}
-	if (!loading && browse.error === null && total === 0 && query === "") {
+	if (!loading && browse.error !== null) {
+		return (
+			<>
+				{header}
+				<QueryBar valueCounts={valueCounts} />
+				<ErrorState error={browse.error} what="traces" rpc={listTraces} onRetry={browse.refetch} />
+			</>
+		);
+	}
+	if (!loading && total === 0 && query === "") {
 		return (
 			<>
 				{header}
@@ -385,20 +396,7 @@ function TraceSession({
 						sortDir={sortDir}
 						onSort={sortBy}
 					/>
-					{!loading && browse.error !== null && (
-						<div role="alert" className="flex flex-wrap items-center justify-between gap-3 px-3 py-6">
-							<span className="text-bad-fg">{getErrorMessage(browse.error, "Failed to load traces")}</span>
-							<Button
-								variant="outline"
-								onClick={() => {
-									void browse.refetch();
-								}}
-							>
-								Retry
-							</Button>
-						</div>
-					)}
-					{!loading && browse.error === null && traces.length === 0 && (
+					{!loading && traces.length === 0 && (
 						<NoMatches title={filterReady ? "No requests match." : "The filtered resources aren't in this workspace"} />
 					)}
 				</div>

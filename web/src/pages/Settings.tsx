@@ -10,6 +10,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { orgMembersOptions } from "@/hooks/completeMembers";
@@ -17,7 +18,6 @@ import { ResourceAccess } from "@/components/ResourceAccess";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { getErrorMessage } from "@/lib/error-handler";
 import { settingsPath, type SettingsScope } from "@/lib/routes";
 
 import { OrgTab } from "./settings/OrgTab";
@@ -107,7 +107,6 @@ export function Settings() {
 		}
 	};
 
-	const orgError = orgQuery.error ? getErrorMessage(orgQuery.error, "Failed to load organization") : null;
 	const itemClass = "h-7! min-w-0 shrink gap-1.5 px-3 text-[12.5px]";
 
 	return (
@@ -142,10 +141,10 @@ export function Settings() {
 				</ToggleGroupItem>
 			</ToggleGroup>
 
-			{scope === "org" && orgError !== null && (
-				<div className="rounded-card bg-panel px-5 py-8 text-fg3">{orgError}</div>
+			{scope === "org" && orgQuery.error !== null && (
+				<ErrorState error={orgQuery.error} what="settings" rpc={getOrg} scope="role" onRetry={orgQuery.refetch} />
 			)}
-			{((scopes.isLoading && scope !== "account") || (scope === "org" && orgError === null && !org)) && (
+			{((scopes.isLoading && scope !== "account") || (scope === "org" && orgQuery.error === null && !org)) && (
 				<SettingsSkeleton />
 			)}
 			{!scopes.isLoading && scope === "workspace" && !readsWorkspace(workspaceId) && (

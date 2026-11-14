@@ -26,6 +26,7 @@ interface OwnerTokens {
 	tokens: Token[];
 	isLoading: boolean;
 	error: unknown;
+	refetch: () => Promise<unknown>;
 }
 
 export interface TokenData {
@@ -163,6 +164,7 @@ export function useTokenData(): TokenData {
 		tokens: q.data?.tokens ?? [],
 		isLoading: scopesQuery.isLoading || (owner.canList && q.isLoading),
 		error: q.error,
+		refetch: async () => await Promise.all([scopesQuery.refetch(), ...(owner.canList ? [q.refetch()] : [])]),
 	});
 
 	const owners: Record<OwnerKey, OwnerTokens> = {

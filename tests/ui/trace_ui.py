@@ -199,6 +199,8 @@ with sync_playwright() as p:
                 mode[0] = 'error'
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 page.get_by_text('Trace storage is temporarily unavailable', exact=False).wait_for(timeout=20000)
+                expect(page.get_by_role('heading', name='Couldn\u2019t load traces', exact=True)).to_be_visible()
+                expect(page.get_by_text('ObservabilityService/ListTraces', exact=True)).to_be_visible()
                 evidence.settle(page)
                 page.screenshot(path=out / f'trace-error-after-{suffix}.png', full_page=True, animations='disabled')
                 mode[0] = 'normal'

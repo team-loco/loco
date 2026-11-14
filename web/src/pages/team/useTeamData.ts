@@ -48,6 +48,7 @@ export function useTeamData(orgId: string) {
 		isLoading: orgQuery.isLoading || membersQuery.isLoading || invitationsQuery.isLoading,
 		accessLoading: wsQuery.isLoading || myScopes.isLoading || memberQueries.some((q) => q.isLoading),
 		error: orgQuery.error ?? membersQuery.error,
+		refetch: async () => await Promise.all([orgQuery.refetch(), membersQuery.refetch()]),
 		invalidateRoles: async (self: boolean) => {
 			await Promise.all([
 				queryClient.invalidateQueries({ queryKey: orgMembersOptions(transport, orgId).queryKey }),

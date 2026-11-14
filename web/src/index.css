@@ -152,6 +152,7 @@
 	--animate-log-in: log-in 200ms ease-out;
 	--animate-row-flash: row-flash 1.8s ease-out;
 	--animate-ring: ring 1.8s ease-out infinite;
+	--animate-wire-flow: wire-flow 1s linear infinite;
 }
 
 :root,
@@ -712,6 +713,12 @@
 @keyframes row-flash {
 	from {
 		background-color: color-mix(in oklch, var(--ok) 16%, transparent);
+	}
+}
+
+@keyframes wire-flow {
+	to {
+		background-position: 22px 0;
 	}
 }
 

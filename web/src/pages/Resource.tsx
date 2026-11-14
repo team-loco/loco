@@ -7,11 +7,16 @@ import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { deleteResource, restartResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import {
+	deleteResource,
+	getResource,
+	restartResource,
+} from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Page, Section } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
@@ -151,7 +156,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		if (resourceMissing(error, canListResources)) notFound();
 		return (
 			<Page>
-				<EmptyState title="Couldn't load resource">{getErrorMessage(error, "Failed to load resource")}</EmptyState>
+				<ErrorState error={error} what="this resource" rpc={getResource} onRetry={refresh} />
 			</Page>
 		);
 	}
@@ -220,7 +225,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				failures.push(`${d.region}: ${getErrorMessage(err, "Failed to create deployment")}`);
 			}
 		}
-		refresh();
+		void refresh();
 		return failures;
 	};
 
@@ -229,7 +234,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		try {
 			await restart.mutateAsync({ resourceId, environmentId });
 			toast.success(`Restarting ${resource.name}`);
-			refresh();
+			void refresh();
 		} catch (err) {
 			toastConnectError(err, "Failed to restart replicas");
 		}
@@ -431,7 +436,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					}}
 					onSaved={(next) => {
 						setNotice(next);
-						refresh();
+						void refresh();
 					}}
 				/>
 			)}

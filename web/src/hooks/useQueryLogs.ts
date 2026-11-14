@@ -137,6 +137,7 @@ export function useQueryLogs(options: UseQueryLogsOptions) {
 		newerCursor: query.data?.newerCursor ?? "",
 		isLoading: query.isLoading,
 		error: query.error,
+		refetch: query.refetch,
 		refetchLatest: () => {
 			const end = Date.now();
 			return { end, result: client.query(latestLogsQueryOptions(transport, options, end)) };

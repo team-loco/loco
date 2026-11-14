@@ -12,6 +12,7 @@ import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
@@ -20,7 +21,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useNow } from "@/hooks/useNow";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { getErrorMessage } from "@/lib/error-handler";
 import { limitReason, limitUsage } from "@/lib/limits";
 import { usePagedRows } from "@/lib/paging";
 import { tsMs } from "@/lib/time";
@@ -174,8 +174,6 @@ export function Tokens() {
 			if (data.scopesLoading) return null;
 			return <div className="py-7 text-center text-fg3">{`You don't have access to ${owner.label} tokens.`}</div>;
 		}
-		if (listError !== null && listError !== undefined)
-			return <div className="py-7 text-center text-fg3">{getErrorMessage(listError, "Failed to load tokens")}</div>;
 		if (tokens.length > 0) {
 			return (
 				<EmptyState
@@ -261,7 +259,15 @@ export function Tokens() {
 					/>
 				}
 			>
-				{firstRunEmpty && !current.isLoading ? (
+				{listError !== null && listError !== undefined ? (
+					<ErrorState
+						error={listError}
+						what="tokens"
+						rpc={listTokens}
+						onRetry={current.refetch}
+						className="rounded-none border-t border-line2"
+					/>
+				) : firstRunEmpty && !current.isLoading ? (
 					<EmptyHero
 						art={
 							<div className="flex w-full flex-col items-center gap-5">

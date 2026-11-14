@@ -1,9 +1,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import { queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon } from "lucide-react";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { Button } from "@/components/design/Button";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -354,6 +356,16 @@ export function LogsView() {
 					title="Logs aren't available here yet"
 					body="This installation has no log store connected. Anything your resources print to stdout or stderr shows up here once it does."
 				/>
+			</>
+		);
+	}
+
+	if (!isLoading && logs.error !== null) {
+		return (
+			<>
+				{header}
+				<QueryBar valueCounts={valueCounts} />
+				<ErrorState error={logs.error} what="logs" rpc={queryLogs} onRetry={logs.refetch} />
 			</>
 		);
 	}
