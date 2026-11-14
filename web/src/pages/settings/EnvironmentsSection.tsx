@@ -63,7 +63,7 @@ export function EnvironmentsSection({
 	const usage =
 		envsQuery.data === undefined
 			? null
-			: limitUsage(environments.length, limits?.environmentsPerWorkspace, "environments", "This workspace has");
+			: limitUsage(environments.length, limits?.environmentsPerWorkspace, "environments", "workspace");
 	const createBlocked = canWrite ? limitReason(usage) : `Requires Write on ${workspaceName}`;
 	const counts = resourcesPerEnvironment(resourcesQuery.data?.resources ?? []);
 	const envsKey = createConnectQueryKey({ schema: listEnvironments, input: { workspaceId }, cardinality: "finite" });

@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CreateScopeDialog } from "@/components/shell/CreateScopeDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
-import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { useOrgLimitDetails } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
 import { limitReason, limitUsage } from "@/lib/limits";
@@ -34,6 +34,7 @@ import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
 
 import { AuditLogTab } from "./AuditLogTab";
+import { LimitsSection } from "./LimitsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
@@ -69,7 +70,8 @@ export function OrgTab({
 }) {
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
-	const limits = useOrgLimits(org.id);
+	const limitDetails = useOrgLimitDetails(org.id);
+	const limits = limitDetails?.limits;
 	const update = useMutation(updateOrg);
 	const remove = useMutation(deleteOrg);
 
@@ -148,7 +150,7 @@ export function OrgTab({
 
 	const workspaceUsage = workspacesLoading
 		? null
-		: limitUsage(workspaces.length, limits?.workspacesPerOrg, "workspaces", "This organization has");
+		: limitUsage(workspaces.length, limits?.workspacesPerOrg, "workspaces", "organization");
 	const newBlocked = canWrite ? limitReason(workspaceUsage) : `Requires Write on ${org.name}`;
 	const newButton = (
 		<Button
@@ -297,6 +299,14 @@ export function OrgTab({
 				)}
 				<Pager {...paged.pager} {...paged.ends} />
 			</Section>
+
+			<LimitsSection
+				org={org}
+				limits={limitDetails}
+				users={users}
+				workspaceCount={workspacesLoading ? undefined : workspaces.length}
+				memberCount={memberCount}
+			/>
 
 			{canAdmin && <AuditLogTab org={org} workspaces={workspaces} users={users} />}
 

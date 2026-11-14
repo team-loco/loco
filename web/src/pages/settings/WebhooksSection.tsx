@@ -75,7 +75,7 @@ export function WebhooksSection({
 	const usage =
 		query.data === undefined
 			? null
-			: limitUsage(webhooks.length, limits?.webhooksPerWorkspace, "webhooks", "This workspace has");
+			: limitUsage(webhooks.length, limits?.webhooksPerWorkspace, "webhooks", "workspace");
 	const createBlocked = limitReason(usage);
 
 	return (

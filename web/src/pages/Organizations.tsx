@@ -54,9 +54,7 @@ export function Organizations() {
 	const config = useQuery(getConfig, {});
 	const created = orgs.filter((org) => org.createdBy === user?.id).length;
 	const usage =
-		isLoading || error
-			? null
-			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations created", "You have");
+		isLoading || error ? null : limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations", "account");
 	const blocked = limitReason(usage);
 
 	const openCreate = () => {

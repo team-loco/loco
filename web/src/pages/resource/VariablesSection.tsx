@@ -214,7 +214,7 @@ export function VariablesSection({
 	const secretUsage =
 		secretsQuery.isLoading || secretsQuery.error !== null
 			? null
-			: limitUsage(kept.size, limits?.secretsPerResource, "secrets", "This service has");
+			: limitUsage(kept.size, limits?.secretsPerResource, "secrets", "service");
 	const addBlocked = kept.has(newName) ? null : limitReason(secretUsage);
 
 	const stage = (name: string, value: string) => {
