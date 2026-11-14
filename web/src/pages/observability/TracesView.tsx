@@ -416,19 +416,17 @@ function TraceSession({
 					onLast={!loading && paging.page < pages - 1 ? go(pages - 1) : null}
 				/>
 			</section>
-			{shownId !== "" && (
-				<TraceDrawer
-					open={openId !== ""}
-					traceId={shownId}
-					trace={openTrace}
-					loading={detail.isLoading}
-					error={detail.error}
-					onRetry={() => {
-						void detail.refetch();
-					}}
-					onClose={close}
-				/>
-			)}
+			<TraceDrawer
+				open={openId !== ""}
+				traceId={shownId}
+				trace={openTrace}
+				loading={detail.isLoading}
+				error={detail.error}
+				onRetry={() => {
+					void detail.refetch();
+				}}
+				onClose={close}
+			/>
 		</>
 	);
 }

@@ -234,6 +234,8 @@ function ImageStep({
 	);
 }
 
+// The sheet stays mounted while closed so every open runs Base UI's starting-style transition;
+// the panel inside is keyed by draft so each draft starts with fresh state.
 export function DraftSheet({
 	orgId,
 	workspaceId,
@@ -244,10 +246,54 @@ export function DraftSheet({
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
-	draftId: string;
+	draftId: string | null;
 	open: boolean;
 }) {
 	const [params, setParams] = useSearchParams();
+	const close = () => {
+		const next = new URLSearchParams(params);
+		next.delete(DRAFT_PARAM);
+		setParams(next);
+	};
+	return (
+		<Sheet
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) close();
+			}}
+		>
+			<SheetContent size="wide">
+				{draftId !== null && (
+					<DraftPanel
+						key={draftId}
+						orgId={orgId}
+						workspaceId={workspaceId}
+						env={env}
+						draftId={draftId}
+						open={open}
+						close={close}
+					/>
+				)}
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+function DraftPanel({
+	orgId,
+	workspaceId,
+	env,
+	draftId,
+	open,
+	close,
+}: {
+	orgId: string;
+	workspaceId: string;
+	env: Environment;
+	draftId: string;
+	open: boolean;
+	close: () => void;
+}) {
 	const store = useDrafts(orgId, workspaceId, env.id);
 	const taken = useTakenNames(orgId, workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
@@ -259,11 +305,6 @@ export function DraftSheet({
 	const [discarding, setDiscarding] = useState(false);
 	const [secretValues, setSecretValues] = useState<ReadonlyMap<string, string>>(() => new Map());
 	const [saveFailed, setSaveFailed] = useState(false);
-	const close = () => {
-		const next = new URLSearchParams(params);
-		next.delete(DRAFT_PARAM);
-		setParams(next);
-	};
 
 	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
@@ -342,16 +383,9 @@ export function DraftSheet({
 		);
 	})();
 	return (
-		<Sheet
-			open={open}
-			onOpenChange={(next) => {
-				if (!next) close();
-			}}
-		>
-			<SheetContent size="wide">
-				{deployment.run === null && header}
-				{body}
-			</SheetContent>
+		<>
+			{deployment.run === null && header}
+			{body}
 			{draft !== undefined && (
 				<ConfirmDialog
 					open={discarding}
@@ -368,7 +402,7 @@ export function DraftSheet({
 					}}
 				/>
 			)}
-		</Sheet>
+		</>
 	);
 }
 

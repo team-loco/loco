@@ -137,9 +137,8 @@ export function Dashboard() {
 					/>
 				</>
 			)}
-			{heldDraftId !== null && active !== undefined && (
+			{active !== undefined && (
 				<DraftSheet
-					key={heldDraftId}
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={active}
