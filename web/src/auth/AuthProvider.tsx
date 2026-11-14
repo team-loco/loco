@@ -8,11 +8,10 @@ import type { ClaimedOrg, User } from "@gen/loco/user/v1/user_pb";
 
 import { authClient } from "./client";
 import { getClaimedOrgs, setClaimedOrgs, subscribeClaimedOrgs } from "./claimed";
-import type { AuthClient } from "./oidc";
+import { hasStoredSession, subscribeSession } from "./session";
 
 interface AuthContextType {
 	user: User | null;
-	client: AuthClient | null;
 	claimedOrgs: ClaimedOrg[];
 	dismissClaimedOrgs: () => void;
 	signedOut: boolean;
@@ -24,19 +23,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const clientForUI: Promise<AuthClient | null> = authClient().catch((err: unknown) => {
+authClient().catch((err: unknown) => {
 	console.error("Could not load the sign-in configuration:", err);
-	return null;
 });
 
 const SIGN_IN_PATHS = ["/auth/callback"];
 
-const noSubscription = () => () => undefined;
-const neverSignedIn = () => false;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const client = use(clientForUI);
-	const hasSession = useSyncExternalStore(client?.subscribe ?? noSubscription, client?.hasSession ?? neverSignedIn);
+	const hasSession = useSyncExternalStore(subscribeSession, hasStoredSession);
 	const { pathname } = useLocation();
 	const onSignInPage = SIGN_IN_PATHS.some((path) => pathname.startsWith(path));
 	const { data: user, isPending, error } = useQuery(whoAmI, {}, { enabled: hasSession && !onSignInPage });
@@ -46,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const logout = async () => {
 		try {
-			await client?.signOut();
+			await (await authClient()).signOut();
 		} catch (err) {
 			console.error("Logout failed:", err);
 		} finally {
@@ -58,7 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		<AuthContext
 			value={{
 				user: hasSession ? (user?.user ?? null) : null,
-				client,
 				claimedOrgs: hasSession ? claimedOrgs : [],
 				dismissClaimedOrgs: () => {
 					setClaimedOrgs([]);

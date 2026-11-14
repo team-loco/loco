@@ -230,16 +230,14 @@ export default function App() {
 			<TransportProvider transport={transport}>
 				<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
 					<AppLoaderProvider>
-						<Suspense fallback={<AppLoading />}>
-							<AuthProvider>
-								<ThemeProvider>
-									<Toaster />
-									<ErrorBoundary>
-										<AppRoutes />
-									</ErrorBoundary>
-								</ThemeProvider>
-							</AuthProvider>
-						</Suspense>
+						<AuthProvider>
+							<ThemeProvider>
+								<Toaster />
+								<ErrorBoundary>
+									<AppRoutes />
+								</ErrorBoundary>
+							</ThemeProvider>
+						</AuthProvider>
 					</AppLoaderProvider>
 				</PersistQueryClientProvider>
 			</TransportProvider>
