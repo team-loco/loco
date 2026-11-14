@@ -70,7 +70,7 @@ func (s *OrgServer) SetOrgLimits(
 		return nil, err
 	}
 	for _, limit := range masked {
-		if limit.Get(req.GetLimits()) < 0 {
+		if limit.Value(req.GetLimits()) < 0 {
 			return nil, errNegativeLimit
 		}
 	}
@@ -95,7 +95,7 @@ func (s *OrgServer) SetOrgLimits(
 		}
 		before := limits.Apply(s.counts, row)
 		for _, limit := range masked {
-			value := limit.Get(req.GetLimits())
+			value := limit.Value(req.GetLimits())
 			column := limit.Column(&row)
 			*column = nil
 			if value > 0 {
@@ -126,8 +126,8 @@ func (s *OrgServer) SetOrgLimits(
 		old := make(map[string]int32, len(masked))
 		changed := make(map[string]int32, len(masked))
 		for _, limit := range masked {
-			old[string(limit.Field)] = limit.Get(before)
-			changed[string(limit.Field)] = limit.Get(after)
+			old[string(limit.Field)] = limit.Value(before)
+			changed[string(limit.Field)] = limit.Value(after)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.OrgLimitsChanged,

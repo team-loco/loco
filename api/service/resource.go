@@ -894,9 +894,9 @@ func (s *ResourceServer) redeployRegions(
 		hostnames[environmentID] = hostname
 	}
 
-	organizationID, err := qtx.GetOrganizationIDByWorkspaceID(ctx, res.WorkspaceID)
+	organizationID, counts, err := workspaceLimits(ctx, qtx, s.counts, res.WorkspaceID)
 	if err != nil {
-		return fmt.Errorf("get workspace organization: %w", err)
+		return err
 	}
 
 	resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
@@ -924,7 +924,7 @@ func (s *ResourceServer) redeployRegions(
 			plan.environmentName,
 			s.defaults,
 		)
-		if _, deployErr := createDeploymentWithCleanup(ctx, qtx, s.counts, plan.params, buildSpec); deployErr != nil {
+		if _, deployErr := createDeploymentWithCleanup(ctx, qtx, counts, plan.params, buildSpec); deployErr != nil {
 			return deployErr
 		}
 	}

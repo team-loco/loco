@@ -132,7 +132,7 @@ func createOrgInTx(
 	if err != nil {
 		return genDb.Organization{}, fmt.Errorf("count organizations: %w", err)
 	}
-	if err = limits.OrgsPerUser.Check(counts, created, 1); err != nil {
+	if err = limits.OrgsPerUser.Check(limits.Install(counts), created, 1); err != nil {
 		return genDb.Organization{}, err
 	}
 	org, err := qtx.CreateOrg(ctx, genDb.CreateOrgParams{

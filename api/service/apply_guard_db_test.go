@@ -171,7 +171,11 @@ func TestApplyDeleteInOneEnvironmentKeepsTheOther(t *testing.T) {
 	staging := f.paramsFor(f.otherCluster)
 	staging.EnvironmentID = stagingID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), staging, staticSpec)
+		counts, deployErr := f.counts(ctx, qtx)
+		if deployErr != nil {
+			return deployErr
+		}
+		_, deployErr = createDeploymentWithCleanup(ctx, qtx, counts, staging, staticSpec)
 		return deployErr
 	})
 	if err != nil {

@@ -367,7 +367,7 @@ func TestDeployCommittedWhileSuspendWaitsIsStopped(t *testing.T) {
 	if _, err := createDeploymentWithCleanup(
 		ctx,
 		qtx,
-		limits.Defaults(),
+		limits.Install(limits.Defaults()),
 		f.paramsFor(f.clusterID),
 		staticSpec,
 	); err != nil {

@@ -65,7 +65,7 @@ func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
 	staging := f.paramsFor(f.otherCluster)
 	staging.EnvironmentID = stagingID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), staging, staticSpec)
+		_, deployErr := createDeploymentWithCleanup(ctx, qtx, limits.Install(limits.Defaults()), staging, staticSpec)
 		return deployErr
 	})
 	if err != nil {
@@ -93,7 +93,7 @@ func TestDeployingAnotherEnvironmentToTheSameClusterIsRefused(t *testing.T) {
 	qa := f.paramsFor(f.clusterID)
 	qa.EnvironmentID = qaID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), qa, staticSpec)
+		_, deployErr := createDeploymentWithCleanup(ctx, qtx, limits.Install(limits.Defaults()), qa, staticSpec)
 		return deployErr
 	})
 	if !errors.Is(err, errClusterHeldByEnvironment) {

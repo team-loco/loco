@@ -190,7 +190,7 @@ func (s *TokenServer) checkTokenLimit(ctx context.Context, qtx *genDb.Queries, o
 	case genDb.EntityTypeResource:
 		return checkResourceLimit(ctx, qtx, s.counts, limits.TokensPerEntity, owner.ID, existing, 1)
 	case genDb.EntityTypeUser, genDb.EntityTypeSystem:
-		return limits.TokensPerEntity.Check(s.counts, existing, 1)
+		return limits.TokensPerEntity.Check(limits.Install(s.counts), existing, 1)
 	default:
 		panic(fmt.Errorf("%w: %s", errUnknownEntityType, owner.Type))
 	}

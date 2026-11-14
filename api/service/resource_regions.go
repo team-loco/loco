@@ -8,7 +8,6 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -55,11 +54,7 @@ func (s *ResourceServer) updateRegions(
 	if err != nil {
 		return fmt.Errorf("list resource domains: %w", err)
 	}
-	organizationID, err := qtx.GetOrganizationIDByWorkspaceID(ctx, res.WorkspaceID)
-	if err != nil {
-		return fmt.Errorf("get workspace organization: %w", err)
-	}
-	counts, err := limits.ForOrg(ctx, qtx, s.counts, organizationID)
+	organizationID, counts, err := workspaceLimits(ctx, qtx, s.counts, res.WorkspaceID)
 	if err != nil {
 		return err
 	}
@@ -142,23 +137,16 @@ func (s *ResourceServer) updateRegions(
 		if sha := runtime[0].CommitSha; sha != nil {
 			commit = &deploymentv1.SourceCommit{Sha: *sha, Dirty: runtime[0].CommitDirty}
 		}
-		a := applier{
-			env:            env,
-			organizationID: organizationID,
-			counts:         counts,
-			live: liveEnvironment{
-				resources:   map[string]genDb.Resource{res.Name: res},
-				deployments: map[uuid.UUID][]genDb.Deployment{res.ID: active},
-				domains:     map[uuid.UUID][]genDb.ResourceDomain{res.ID: envDomains},
-			},
-			defaults:        s.defaults,
-			silentAfter:     s.clusterSilentAfter,
-			builds:          builds,
-			deployed:        map[string]bool{},
-			platformDomains: platformdomain.Served(targets),
-			commit:          commit,
-			regionTargets:   req.GetRegions(),
+		a := newApplier(env, organizationID, counts, s.defaults, s.clusterSilentAfter)
+		a.live = liveEnvironment{
+			resources:   map[string]genDb.Resource{res.Name: res},
+			deployments: map[uuid.UUID][]genDb.Deployment{res.ID: active},
+			domains:     map[uuid.UUID][]genDb.ResourceDomain{res.ID: envDomains},
 		}
+		a.builds = builds
+		a.platformDomains = platformdomain.Served(targets)
+		a.commit = commit
+		a.regionTargets = req.GetRegions()
 		if applyErr := a.apply(ctx, qtx, configplan.Update(current, desired)); applyErr != nil {
 			return applyErr
 		}
