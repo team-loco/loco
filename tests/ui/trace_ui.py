@@ -104,7 +104,8 @@ with sync_playwright() as p:
             evidence.settle(page)
             open_trace = page.get_by_role('region', name='Trace list').get_by_role('button', name='Open trace ' + root_name, exact=True)
             open_trace.wait_for()
-            expect(page.get_by_role('heading', level=1)).to_have_text(re.compile(r'^Traces\s*7$'))
+            expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
+            expect(page.get_by_role('button', name=re.compile(r'^All\s*7$'))).to_be_visible()
             suffix = f"{theme}{('-narrow' if narrow else '')}"
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
             expect(open_trace).to_have_attribute('aria-pressed', 'false')
@@ -254,7 +255,8 @@ with sync_playwright() as p:
     page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:>100'))
     evidence.settle(page)
     assert last_page_request()['minDurationNanos'] == '100000000'
-    expect(page.get_by_role('heading', level=1)).to_have_text(re.compile(r'^Traces\s*2$'))
+    expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
+    expect(page.get_by_role('button', name=re.compile(r'^All\s*2$'))).to_be_visible()
     page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:100'))
     evidence.settle(page)
     expect(page.get_by_role('alert')).to_contain_text('A duration filter compares in milliseconds')
