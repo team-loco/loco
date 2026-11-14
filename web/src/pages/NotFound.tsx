@@ -1,5 +1,5 @@
 import { LayoutGridIcon, SearchIcon } from "lucide-react";
-import { Component, type ReactNode } from "react";
+import { Component, type ComponentProps, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 
 import { PageTitle } from "@/components/PageTitle";
@@ -33,35 +33,82 @@ function NotFoundArt() {
 	);
 }
 
-export function NotFound({ unknownWorkspace = false }: { unknownWorkspace?: boolean }) {
-	const { pathname, search } = useLocation();
+function DashboardLink({
+	unknownWorkspace,
+	staticPage,
+	children,
+	...props
+}: ComponentProps<"a"> & { unknownWorkspace: boolean; staticPage: boolean }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const openPalette = useOpenPalette();
-	const dashboard =
+	const to =
 		!unknownWorkspace && activeOrgId !== null && activeWorkspaceId !== null
 			? workspacePath(activeOrgId, activeWorkspaceId)
 			: "/dashboard";
+	return staticPage ? (
+		<a href={to} {...props}>
+			{children}
+		</a>
+	) : (
+		<Link to={to} {...props}>
+			{children}
+		</Link>
+	);
+}
+
+function MissingPath() {
+	const { pathname, search } = useLocation();
+	return (
+		<span className="max-w-full truncate rounded-[7px] border border-dashed border-[color-mix(in_oklch,var(--err)_55%,var(--line2))] bg-background px-2.5 py-1 font-mono text-[15px] text-foreground">
+			{pathname + search}
+		</span>
+	);
+}
+
+function SearchButton() {
+	const openPalette = useOpenPalette();
+	return (
+		<Button variant="outline" aria-keyshortcuts="Meta+K Control+K" onClick={openPalette}>
+			<SearchIcon className="text-fg3" aria-hidden />
+			Search
+			<Kbd className="ml-0.5">{SHORTCUT_LABEL}</Kbd>
+		</Button>
+	);
+}
+
+/**
+ * `staticPage` renders the page for the 404 file the static server returns for missing files and unknown
+ * documentation paths, built by build.ts. That file runs no script and has no router, so it leaves out the
+ * parts that need them (the missing path and the search button) and gets the logo inline, because /logo.svg
+ * does not exist on the documentation host.
+ */
+export function NotFound({
+	unknownWorkspace = false,
+	staticPage,
+}: {
+	unknownWorkspace?: boolean;
+	staticPage?: { logoUrl: string };
+}) {
+	const isStatic = staticPage !== undefined;
 
 	return (
 		<main className="flex min-h-dvh flex-col bg-background text-foreground">
 			<PageTitle title="Page not found" />
 			<header className="px-[clamp(16px,3vw,28px)] pt-5">
-				<Link
-					to={dashboard}
+				<DashboardLink
+					unknownWorkspace={unknownWorkspace}
+					staticPage={isStatic}
 					aria-label="Loco dashboard"
 					className="inline-flex h-8 items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 				>
-					<LocoLogo className="w-[46px]" />
-				</Link>
+					<LocoLogo className="w-[46px]" src={staticPage?.logoUrl} />
+				</DashboardLink>
 			</header>
 			<div className="flex flex-1 items-center justify-center px-4 pb-14">
 				<EmptyHero
 					art={
 						<>
 							<NotFoundArt />
-							<span className="max-w-full truncate rounded-[7px] border border-dashed border-[color-mix(in_oklch,var(--err)_55%,var(--line2))] bg-background px-2.5 py-1 font-mono text-[15px] text-foreground">
-								{pathname + search}
-							</span>
+							{!isStatic && <MissingPath />}
 						</>
 					}
 					title="Nothing lives at this address"
@@ -69,15 +116,15 @@ export function NotFound({ unknownWorkspace = false }: { unknownWorkspace?: bool
 					className="w-full max-w-[560px] bg-transparent py-10"
 				>
 					<div className="mt-1.5 flex flex-wrap justify-center gap-2">
-						<Button variant="outline" nativeButton={false} render={<Link to={dashboard} />}>
+						<Button
+							variant="outline"
+							nativeButton={false}
+							render={<DashboardLink unknownWorkspace={unknownWorkspace} staticPage={isStatic} />}
+						>
 							<LayoutGridIcon className="text-fg3" aria-hidden />
 							Go to dashboard
 						</Button>
-						<Button variant="outline" aria-keyshortcuts="Meta+K Control+K" onClick={openPalette}>
-							<SearchIcon className="text-fg3" aria-hidden />
-							Search
-							<Kbd className="ml-0.5">{SHORTCUT_LABEL}</Kbd>
-						</Button>
+						{!isStatic && <SearchButton />}
 					</div>
 				</EmptyHero>
 			</div>

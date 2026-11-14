@@ -55,6 +55,8 @@ def package():
     config = config.replace(json.dumps(policy), json.dumps(replacement))
     project = tomllib.loads((DOCS / '.generated.toml').read_text())['project']
     hostname = urlsplit(project['site_url']).hostname
+    sections = ','.join(sorted({'docs', *(entry.name for entry in (DOCS / 'site').iterdir() if entry.is_dir())}))
+    config = config.replace('/{docs}', '/{' + sections + '}')
     config = config.replace('host = "docs.loco.build"', f'host = {json.dumps(hostname)}')
     GENERATED_CONFIG.write_text(config)
 
