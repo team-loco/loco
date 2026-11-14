@@ -66,53 +66,51 @@ export function ResourcesMap({
 				/>
 			)}
 			<Sheet open={open} onOpenChange={setOpen}>
-				<SheetContent>
-					{selected !== undefined && (
-						<>
-							<SheetHeader>
-								<SheetTitle className="truncate font-mono">{selected.resource.name}</SheetTitle>
-								<ResourceStatusBadge status={selected.status} />
-							</SheetHeader>
-							<SheetBody>
-								<Fact label="Version">{version}</Fact>
-								<Fact label="Replicas">
-									{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(" · ")}
-								</Fact>
-								<Fact label="Address">{primaryDomain(selected.resource) ?? "internal only"}</Fact>
-							</SheetBody>
-							<SheetFooter className="justify-start">
-								<Button
-									variant="outline"
-									nativeButton={false}
-									render={
-										<Link
-											to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: selected.resource.name })}
-										/>
-									}
-								>
-									<ScrollTextIcon />
-									Logs
-								</Button>
-								<Button
-									variant="outline"
-									nativeButton={false}
-									render={
-										<Link
-											to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: selected.resource.name })}
-										/>
-									}
-								>
-									<WaypointsIcon />
-									Traces
-								</Button>
-								<Button nativeButton={false} className="ml-auto" render={<Link to={hrefFor(selected)} />}>
-									Open {selected.resource.name}
-									<ArrowRightIcon />
-								</Button>
-							</SheetFooter>
-						</>
-					)}
-				</SheetContent>
+				{selected !== undefined && (
+					<SheetContent>
+						<SheetHeader>
+							<SheetTitle className="truncate font-mono">{selected.resource.name}</SheetTitle>
+							<ResourceStatusBadge status={selected.status} />
+						</SheetHeader>
+						<SheetBody>
+							<Fact label="Version">{version}</Fact>
+							<Fact label="Replicas">
+								{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(" · ")}
+							</Fact>
+							<Fact label="Address">{primaryDomain(selected.resource) ?? "internal only"}</Fact>
+						</SheetBody>
+						<SheetFooter className="justify-start">
+							<Button
+								variant="outline"
+								nativeButton={false}
+								render={
+									<Link
+										to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: selected.resource.name })}
+									/>
+								}
+							>
+								<ScrollTextIcon />
+								Logs
+							</Button>
+							<Button
+								variant="outline"
+								nativeButton={false}
+								render={
+									<Link
+										to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: selected.resource.name })}
+									/>
+								}
+							>
+								<WaypointsIcon />
+								Traces
+							</Button>
+							<Button nativeButton={false} className="ml-auto" render={<Link to={hrefFor(selected)} />}>
+								Open {selected.resource.name}
+								<ArrowRightIcon />
+							</Button>
+						</SheetFooter>
+					</SheetContent>
+				)}
 			</Sheet>
 		</Section>
 	);
