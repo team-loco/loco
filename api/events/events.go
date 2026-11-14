@@ -20,7 +20,6 @@ const (
 	UserCreated          = "user.created"
 	UserUpdated          = "user.updated"
 	UserDeleted          = "user.deleted"
-	IdentityLinked       = "identity.linked"
 	IdentityRevoked      = "identity.revoked"
 	CLILoginApproved     = "cli_login.approved"
 	CLILoginCompleted    = "cli_login.completed"

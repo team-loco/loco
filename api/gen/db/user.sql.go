@@ -260,10 +260,6 @@ UPDATE users u
 SET email = $1, updated_at = NOW()
 WHERE u.id = $2
     AND u.email <> $1
-    AND NOT EXISTS (
-        SELECT 1 FROM identities i
-        WHERE i.user_id = u.id AND i.email_verified AND i.email = u.email
-    )
 RETURNING id, email, name, avatar_url, status, created_at, updated_at
 `
 

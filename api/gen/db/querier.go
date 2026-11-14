@@ -318,7 +318,6 @@ type Querier interface {
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
-	UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error)
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }
 

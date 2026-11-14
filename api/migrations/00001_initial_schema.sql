@@ -25,10 +25,10 @@ CREATE TABLE
         email_verified BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         last_login_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (issuer, subject)
+        UNIQUE (issuer, subject),
+        -- An account signs in through exactly one identity.
+        UNIQUE (user_id)
     );
-
-CREATE INDEX IF NOT EXISTS idx_identities_user_id ON identities (user_id);
 
 -- Organizations table
 CREATE TABLE

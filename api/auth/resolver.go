@@ -69,8 +69,13 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, []Clai
 	}
 	id.EmailVerified = verified
 	user, claimed, err = r.provision(ctx, id)
-	if isUniqueViolation(err) {
-		return r.existing(ctx, id)
+	if !isUniqueViolation(err) {
+		return user, claimed, err
+	}
+	// A concurrent sign-in created the account first: this identity's, or another one with the same email.
+	user, claimed, err = r.existing(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return genDb.User{}, nil, ErrEmailTaken
 	}
 	return user, claimed, err
 }
@@ -348,36 +353,23 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		return genDb.User{}, nil, fmt.Errorf("%w: look up invitations: %w", ErrResolve, err)
 	}
 
-	created := false
-	user, err := qtx.GetUserByEmail(ctx, id.Email)
-	switch {
-	case err == nil:
-		unverified, checkErr := qtx.UserHasUnverifiedIdentity(ctx, user.ID)
-		if checkErr != nil {
-			return genDb.User{}, nil, fmt.Errorf("%w: check identities for user %s: %w", ErrResolve, user.ID, checkErr)
-		}
-		if unverified {
-			return genDb.User{}, nil, ErrEmailTaken
-		}
-	case errors.Is(err, pgx.ErrNoRows):
-		if policyErr := r.policy.Check(); policyErr != nil {
-			return genDb.User{}, nil, policyErr
-		}
-		user, err = createUser(ctx, qtx, id)
-		if err != nil {
-			return genDb.User{}, nil, err
-		}
-		created = true
-	default:
+	// Each account signs in through the one identity that created it.
+	_, err = qtx.GetUserByEmail(ctx, id.Email)
+	if err == nil {
+		return genDb.User{}, nil, ErrEmailTaken
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return genDb.User{}, nil, fmt.Errorf("%w: look up user by email: %w", ErrResolve, err)
 	}
-
-	eventType := events.IdentityLinked
-	if created {
-		eventType = events.UserCreated
+	if policyErr := r.policy.Check(); policyErr != nil {
+		return genDb.User{}, nil, policyErr
+	}
+	user, err := createUser(ctx, qtx, id)
+	if err != nil {
+		return genDb.User{}, nil, err
 	}
 	if err := events.Record(ctx, qtx, events.Event{
-		Type:        eventType,
+		Type:        events.UserCreated,
 		ActorType:   string(genDb.EntityTypeUser),
 		ActorID:     new(user.ID),
 		SubjectType: events.SubjectUser,
