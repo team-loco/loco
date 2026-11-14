@@ -1,6 +1,5 @@
 import { useQuery as useRpcQuery } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
-import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -266,10 +265,7 @@ export function DraftSheet({
 		setParams(next);
 	};
 
-	const draft = useHeldWhileClosed(
-		store.drafts.find((d) => d.id === draftId),
-		open,
-	);
+	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const config = configQuery.data;
 	const defaults = config?.serviceDefaults;
@@ -295,6 +291,8 @@ export function DraftSheet({
 			);
 		}
 		if (draft === undefined) {
+			// Discarding or deploying removes the draft before the panel finishes sliding out.
+			if (!open) return <SheetBody />;
 			return (
 				<SheetBody>
 					<EmptyState title="This draft isn't here">

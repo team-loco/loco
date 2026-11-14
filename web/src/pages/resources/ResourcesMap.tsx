@@ -7,7 +7,6 @@ import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
-import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { primaryDomain } from "@/lib/resource-status";
@@ -37,12 +36,11 @@ export function ResourcesMap({
 	onShowTable: () => void;
 }) {
 	const data = useDashboardData(orgId, workspaceId, env);
+	// Kept after close so the panel keeps its contents while it slides out.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [open, setOpen] = useState(false);
 	const deployed = data.envResources.filter((r) => r.last !== undefined);
-	const selected = useHeldWhileClosed(
-		deployed.find((r) => r.resource.id === selectedId),
-		selectedId !== null,
-	);
+	const selected = deployed.find((r) => r.resource.id === selectedId);
 	const envParam = { env: env.name };
 	const version = selected?.last === undefined ? "—" : imageVersion(deploymentImage(selected.last));
 	const hrefFor = (item: DashboardItem) =>
@@ -63,15 +61,11 @@ export function ResourcesMap({
 					onShowTable={onShowTable}
 					onSelect={(item: EnvResource) => {
 						setSelectedId(item.resource.id);
+						setOpen(true);
 					}}
 				/>
 			)}
-			<Sheet
-				open={selectedId !== null}
-				onOpenChange={(open) => {
-					if (!open) setSelectedId(null);
-				}}
-			>
+			<Sheet open={open} onOpenChange={setOpen}>
 				<SheetContent>
 					{selected !== undefined && (
 						<>
