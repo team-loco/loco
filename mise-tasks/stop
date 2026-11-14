@@ -19,6 +19,7 @@ if pgrep -f "$tilt_pattern" >/dev/null; then
 		exit 1
 	fi
 fi
+mise run services:stop
 
 echo "stopping the compose services and ClickHouse..."
 docker compose stop

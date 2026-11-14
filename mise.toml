@@ -218,6 +218,7 @@ if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
 fi
 mise run doctor
 mise run cluster:up
+mise run services:stop
 infisical="--projectId 01f016e0-4b6e-49fd-bbc0-072b89cfc699 --env dev --silent --log-level warn"
 if infisical export $infisical >/dev/null 2>&1 </dev/null; then
   infisical run $infisical -- tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
@@ -275,6 +276,9 @@ env = { _.source = "dev/stack.sh" }
 run = 'kind delete cluster --name "$KIND_CLUSTER"'
 
 [tasks.stop]
+env = { _.source = "dev/stack.sh" }
+
+[tasks."services:stop"]
 env = { _.source = "dev/stack.sh" }
 
 [tasks.down]
