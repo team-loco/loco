@@ -79,7 +79,7 @@ export function toastConnectError(error: unknown, fallback = "An unexpected erro
 		duration: 7000,
 		description: (
 			<span className="flex flex-col items-start">
-				Something failed on Loco's side. Send support this request ID.
+				Something failed on Loco’s side. Send support this request ID.
 				<RequestIdChip id={id} />
 			</span>
 		),

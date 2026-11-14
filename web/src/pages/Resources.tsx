@@ -127,7 +127,7 @@ export function Resources() {
 				title={
 					<>
 						Resources
-						{!loading && <Badge tone="count">{total}</Badge>}
+						{!loading && data.error === null && <Badge tone="count">{total}</Badge>}
 					</>
 				}
 				actions={

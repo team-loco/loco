@@ -267,7 +267,7 @@ export function Team() {
 				title={
 					<>
 						Team
-						{!data.isLoading && <Badge tone="count">{data.members.length}</Badge>}
+						{!data.isLoading && data.error === null && <Badge tone="count">{data.members.length}</Badge>}
 					</>
 				}
 				actions={inviteButton}
