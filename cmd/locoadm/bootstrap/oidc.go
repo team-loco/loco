@@ -30,10 +30,11 @@ const (
 )
 
 var (
-	errOIDC         = errors.New("identity provider sign-in failed")
-	errIdentity     = errors.New("identity provider did not return the expected verified email")
-	errOIDCCallback = fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
-	errIDToken      = errors.New("ID token is not valid for the configured issuer and client, or has expired")
+	errOIDC          = errors.New("identity provider sign-in failed")
+	errIdentity      = errors.New("identity provider did not return the expected verified email")
+	errOIDCCallback  = fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
+	errOIDCDiscovery = errors.New("cannot reach the identity provider's discovery document")
+	errIDToken       = errors.New("ID token is not valid for the configured issuer and client, or has expired")
 )
 
 func authenticate(
@@ -41,13 +42,12 @@ func authenticate(
 	config installation.Auth,
 	expectedEmail string,
 	output io.Writer,
-	noBrowser bool,
 ) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, loginTimeout)
 	defer cancel()
 	provider, err := oidc.NewProvider(ctx, config.Issuer)
 	if err != nil {
-		return "", errOIDC
+		return "", errOIDCDiscovery
 	}
 	redirect, err := url.Parse(config.BootstrapRedirectURI)
 	if err != nil {
@@ -115,11 +115,9 @@ func authenticate(
 	if _, err = fmt.Fprintf(output, "Sign in as %s:\n%s\n", expectedEmail, authorizationURL); err != nil {
 		return "", err
 	}
-	if !noBrowser {
-		if err = openBrowser(ctx, authorizationURL); err != nil {
-			if _, writeErr := fmt.Fprintln(output, "Open the sign-in URL in your browser."); writeErr != nil {
-				return "", writeErr
-			}
+	if err = openBrowser(ctx, authorizationURL); err != nil {
+		if _, writeErr := fmt.Fprintln(output, "Open the sign-in URL in your browser."); writeErr != nil {
+			return "", writeErr
 		}
 	}
 	var code string
@@ -139,7 +137,11 @@ func authenticate(
 	if !ok {
 		return "", errOIDC
 	}
-	if err = verifyOperator(ctx, provider, config.ClientID, raw, nonce, expectedEmail, output); err != nil {
+	identity, err := provider.Verifier(&oidc.Config{ClientID: config.ClientID}).Verify(ctx, raw)
+	if err != nil || identity.Nonce != nonce {
+		return "", errOIDC
+	}
+	if err = verifyOperator(identity, expectedEmail, output); err != nil {
 		return "", err
 	}
 	return raw, nil
@@ -160,40 +162,32 @@ func authenticateWithIDToken(
 	raw := strings.TrimSpace(string(data))
 	provider, err := oidc.NewProvider(ctx, config.Issuer)
 	if err != nil {
-		return "", errOIDC
+		return "", errOIDCDiscovery
 	}
-	if err = verifyOperator(ctx, provider, config.ClientID, raw, "", expectedEmail, output); err != nil {
-		if errors.Is(err, errOIDC) {
-			return "", errIDToken
-		}
+	// No nonce check: this process did not request the token.
+	identity, err := provider.Verifier(&oidc.Config{ClientID: config.ClientID}).Verify(ctx, raw)
+	if err != nil {
+		return "", errIDToken
+	}
+	if err = verifyOperator(identity, expectedEmail, output); err != nil {
 		return "", err
 	}
 	return raw, nil
 }
 
-// verifyOperator skips the nonce check when nonce is empty: a token file was not
-// requested by this process, so it carries no nonce of ours.
-func verifyOperator(
-	ctx context.Context,
-	provider *oidc.Provider,
-	clientID, raw, nonce, expectedEmail string,
-	output io.Writer,
-) error {
-	identity, err := provider.Verifier(&oidc.Config{ClientID: clientID}).Verify(ctx, raw)
-	if err != nil || (nonce != "" && identity.Nonce != nonce) {
-		return errOIDC
-	}
+// verifyOperator checks that a verified ID token names the expected administrator.
+func verifyOperator(identity *oidc.IDToken, expectedEmail string, output io.Writer) error {
 	var claims struct {
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
 	}
-	if err = identity.Claims(&claims); err != nil {
+	if err := identity.Claims(&claims); err != nil {
 		return errOIDC
 	}
 	if !claims.EmailVerified || claims.Email != expectedEmail {
 		return errIdentity
 	}
-	_, err = fmt.Fprintf(
+	_, err := fmt.Fprintf(
 		output,
 		"Verified administrator: %s\nIssuer: %s\nSubject: %s\n",
 		claims.Email,

@@ -32,7 +32,6 @@ var (
 
 func BuildBootstrapCmd() *cobra.Command {
 	var file, email, idTokenFile string
-	var noBrowser bool
 	var timeout time.Duration
 	command := &cobra.Command{
 		Use:   "bootstrap --file installation.yaml --email admin@example.com",
@@ -72,7 +71,7 @@ func BuildBootstrapCmd() *cobra.Command {
 					cmd.OutOrStdout(),
 				)
 			} else {
-				operator, err = authenticate(ctx, config.ControlPlane.Auth, email, cmd.OutOrStdout(), noBrowser)
+				operator, err = authenticate(ctx, config.ControlPlane.Auth, email, cmd.OutOrStdout())
 			}
 			if err != nil {
 				return err
@@ -113,14 +112,12 @@ func BuildBootstrapCmd() *cobra.Command {
 	command.Flags().StringVar(&email, "email", "", "Expected verified email of the initial administrator")
 	command.Flags().
 		DurationVar(&timeout, "timeout", bootstrapTimeout, "Maximum time for sign-in and administrator setup")
-	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the sign-in URL without opening a browser")
 	command.Flags().StringVar(
 		&idTokenFile,
 		"id-token-file",
 		"",
 		"File holding an ID token from the identity provider, used instead of browser sign-in",
 	)
-	command.MarkFlagsMutuallyExclusive("id-token-file", "no-browser")
 	for _, flag := range []string{"file", "email"} {
 		if err := command.MarkFlagRequired(flag); err != nil {
 			panic(err)

@@ -68,7 +68,7 @@ users:
 			ctx, cancel := context.WithTimeout(t.Context(), signalTestTimeout)
 			defer cancel()
 			child := exec.CommandContext(ctx, executable, "-test.run=^TestLocoadmSignalChild$", "--",
-				"bootstrap", "--file", file, "--email", "admin@example.com", "--no-browser")
+				"bootstrap", "--file", file, "--email", "admin@example.com")
 			child.Env = append(os.Environ(), signalHelperEnv+"=1", "KUBECONFIG="+kubeconfig)
 			if err := child.Start(); err != nil {
 				t.Fatal(err)

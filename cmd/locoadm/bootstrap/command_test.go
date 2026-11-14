@@ -35,7 +35,6 @@ func TestBootstrapTimeoutBoundsKubernetesRead(t *testing.T) {
 			bootstrapTestEmail,
 			"--timeout",
 			"100ms",
-			"--no-browser",
 		},
 	)
 	started := time.Now()
@@ -133,20 +132,6 @@ func TestBootstrapPersistsOperatorTarget(t *testing.T) {
 				t.Fatal("new installation retained a foreign application scope")
 			}
 		})
-	}
-}
-
-func TestBootstrapRejectsIDTokenFileWithNoBrowser(t *testing.T) {
-	command := BuildBootstrapCmd()
-	command.SetOut(io.Discard)
-	command.SetErr(io.Discard)
-	command.SetArgs([]string{
-		"--file=../../../examples/installation/installation.yaml", "--email=" + bootstrapTestEmail,
-		"--id-token-file=token", "--no-browser",
-	})
-	err := command.Execute()
-	if err == nil || !strings.Contains(err.Error(), "none of the others can be") {
-		t.Fatalf("error = %v, want mutually exclusive flags", err)
 	}
 }
 

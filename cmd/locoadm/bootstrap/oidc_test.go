@@ -67,11 +67,9 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 	for _, tc := range []struct {
 		name, email                      string
 		verified, wrongNonce, tokenError bool
-		browserFallback                  bool
 		want                             error
 	}{
 		{name: "verified", email: bootstrapTestEmail, verified: true},
-		{name: "manual browser fallback", email: bootstrapTestEmail, verified: true, browserFallback: true},
 		{name: "wrong account", email: "other@example.com", verified: true, want: errIdentity},
 		{name: "unverified", email: bootstrapTestEmail, want: errIdentity},
 		{name: "nonce mismatch", email: bootstrapTestEmail, verified: true, wrongNonce: true, want: errOIDC},
@@ -157,7 +155,6 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 				},
 				bootstrapTestEmail,
 				&output,
-				!tc.browserFallback,
 			)
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("error = %v, want %v", err, tc.want)
@@ -168,7 +165,7 @@ func TestOIDCVerifiedOperator(t *testing.T) {
 			if tc.want == nil && (operator == "" || !strings.Contains(output.String(), "Subject: operator")) {
 				t.Fatal("missing verified operator identity")
 			}
-			if tc.browserFallback && !strings.Contains(output.String(), "Open the sign-in URL in your browser.") {
+			if tc.want == nil && !strings.Contains(output.String(), "Open the sign-in URL in your browser.") {
 				t.Fatal("failed browser launch did not offer manual sign-in")
 			}
 
@@ -247,6 +244,7 @@ func (p *testProvider) operatorClaims() map[string]any {
 func TestIDTokenFileVerifiedOperator(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
+		issuer   string
 		expected string
 		claims   map[string]any
 		contents func(raw string) string
@@ -258,6 +256,7 @@ func TestIDTokenFileVerifiedOperator(t *testing.T) {
 		{name: "unverified", claims: map[string]any{claimEmailVerified: false}, want: errIdentity},
 		{name: "other client", claims: map[string]any{"aud": "other-client"}, want: errIDToken},
 		{name: "expired", claims: map[string]any{"exp": time.Now().Add(-time.Minute).Unix()}, want: errIDToken},
+		{name: "unreachable issuer", issuer: "http://127.0.0.1:1", want: errOIDCDiscovery},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			provider := newTestProvider(t)
@@ -276,10 +275,14 @@ func TestIDTokenFileVerifiedOperator(t *testing.T) {
 			if tc.expected != "" {
 				expected = tc.expected
 			}
+			issuer := provider.issuer
+			if tc.issuer != "" {
+				issuer = tc.issuer
+			}
 			var output bytes.Buffer
 			operator, err := authenticateWithIDToken(
 				t.Context(),
-				installation.Auth{Issuer: provider.issuer, ClientID: bootstrapTestClient},
+				installation.Auth{Issuer: issuer, ClientID: bootstrapTestClient},
 				expected,
 				path,
 				&output,
