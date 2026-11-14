@@ -132,9 +132,7 @@ The status comes from the replicas the cluster reports ready, not from the deplo
 
 Runtime reasons are `crash_looping`, `out_of_memory`, `image_pull_failed`, `unschedulable` and `health_check_failing`. Events include a Loco-written message, placement ID and region in their data, with organization, workspace, resource and environment IDs for filtering. The dashboard's events drawer and warning count use this history; its crash-loop card shows recent logs for the affected resource, environment and region. Kubernetes reasons and replica names are not included in events.
 
-`EventService.ListEvents` filters by environment and by creation time (`start_time` inclusive, `end_time` exclusive), as well as organization, workspace, resource and event type. `actor_ids` selects people and tokens by ID; `actor_types` selects Loco (`system`), cluster agents (`agent`) or anonymous actors. An event matches if it matches either list. `query` accepts an empty string or 3 to 256 characters and matches a request ID exactly or by prefix, or a case-insensitive substring of the actor's current name/email or the target's stored `name`/`domain`. Other filters still apply, and paging follows matching events in descending sequence order. Runtime events are also delivered by the event stream and matching webhooks.
-
-The dashboard's Audit log saves search and Actor selections in the URL. An event's details offer **More by** to apply its actor filter. Organization admins can choose organization members; other choices come from actors in the loaded events, plus Loco and cluster agents.
+`EventService.ListEvents` filters by organization, workspace, resource, environment, event type, actor ID/type and creation time. `query` needs 3+ characters and matches a request ID prefix, actor name/email or stored target name.
 
 ```sh
 loco web

@@ -20,6 +20,8 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND (sqlc.arg('query')::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
+    AND (sqlc.narg('start_time')::timestamptz IS NULL OR candidate.created_at >= sqlc.narg('start_time'))
+    AND (sqlc.narg('end_time')::timestamptz IS NULL OR candidate.created_at < sqlc.narg('end_time'))
     AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
       OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
       OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
@@ -27,6 +29,8 @@ WHERE e.org_id = sqlc.arg('org_id')
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
+    AND (sqlc.narg('start_time')::timestamptz IS NULL OR a.created_at >= sqlc.narg('start_time'))
+    AND (sqlc.narg('end_time')::timestamptz IS NULL OR a.created_at < sqlc.narg('end_time'))
     AND (actor.name ILIKE sqlc.arg('substring')::text OR actor.email ILIKE sqlc.arg('substring')::text)
   )))
 ORDER BY e.seq DESC
@@ -49,6 +53,9 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND (sqlc.arg('query')::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
+    AND candidate.workspace_id = sqlc.arg('workspace_id')
+    AND (sqlc.narg('start_time')::timestamptz IS NULL OR candidate.created_at >= sqlc.narg('start_time'))
+    AND (sqlc.narg('end_time')::timestamptz IS NULL OR candidate.created_at < sqlc.narg('end_time'))
     AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
       OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
       OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
@@ -56,6 +63,9 @@ WHERE e.org_id = sqlc.arg('org_id')
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
+    AND a.workspace_id = sqlc.arg('workspace_id')
+    AND (sqlc.narg('start_time')::timestamptz IS NULL OR a.created_at >= sqlc.narg('start_time'))
+    AND (sqlc.narg('end_time')::timestamptz IS NULL OR a.created_at < sqlc.narg('end_time'))
     AND (actor.name ILIKE sqlc.arg('substring')::text OR actor.email ILIKE sqlc.arg('substring')::text)
   )))
 ORDER BY e.seq DESC
@@ -79,6 +89,10 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND (sqlc.arg('query')::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
+    AND candidate.workspace_id = sqlc.arg('workspace_id')
+    AND candidate.resource_id = sqlc.arg('resource_id')
+    AND (sqlc.narg('start_time')::timestamptz IS NULL OR candidate.created_at >= sqlc.narg('start_time'))
+    AND (sqlc.narg('end_time')::timestamptz IS NULL OR candidate.created_at < sqlc.narg('end_time'))
     AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
       OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
       OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
@@ -86,6 +100,10 @@ WHERE e.org_id = sqlc.arg('org_id')
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
+    AND a.workspace_id = sqlc.arg('workspace_id')
+    AND a.resource_id = sqlc.arg('resource_id')
+    AND (sqlc.narg('start_time')::timestamptz IS NULL OR a.created_at >= sqlc.narg('start_time'))
+    AND (sqlc.narg('end_time')::timestamptz IS NULL OR a.created_at < sqlc.narg('end_time'))
     AND (actor.name ILIKE sqlc.arg('substring')::text OR actor.email ILIKE sqlc.arg('substring')::text)
   )))
 ORDER BY e.seq DESC

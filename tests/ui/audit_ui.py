@@ -121,6 +121,7 @@ with sync_playwright() as p:
         expect(page).not_to_have_url(re.compile(r"[?&]event="))
 
         search = page.get_by_role("textbox", name="Search events", exact=True)
+        expect(page.get_by_text("3+ characters", exact=True)).not_to_be_visible()
         search.fill("ab")
         expect(page.get_by_text("3+ characters", exact=True)).to_be_visible()
         page.wait_for_timeout(500)
@@ -143,6 +144,7 @@ with sync_playwright() as p:
         page.set_viewport_size(evidence.DESKTOP)
         page.get_by_role("button", name="Clear search", exact=True).click()
         expect(rows).to_have_count(3)
+        expect(page.get_by_text("3+ characters", exact=True)).not_to_be_visible()
         page.get_by_role("button", name="Actor", exact=True).click()
         expect(page.get_by_role("option", name="Loco", exact=True)).to_be_visible()
         expect(page.get_by_role("option", name="Cluster agent", exact=True)).to_be_visible()

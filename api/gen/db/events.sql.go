@@ -134,6 +134,8 @@ WHERE e.org_id = $1
   AND ($9::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = $1 AND $9::text <> ''
+    AND ($3::timestamptz IS NULL OR candidate.created_at >= $3)
+    AND ($4::timestamptz IS NULL OR candidate.created_at < $4)
     AND (candidate.request_id LIKE $10::text
       OR candidate.data->>'name' ILIKE $11::text
       OR candidate.data->>'domain' ILIKE $11::text)
@@ -141,6 +143,8 @@ WHERE e.org_id = $1
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = $1 AND $9::text <> ''
+    AND ($3::timestamptz IS NULL OR a.created_at >= $3)
+    AND ($4::timestamptz IS NULL OR a.created_at < $4)
     AND (actor.name ILIKE $11::text OR actor.email ILIKE $11::text)
   )))
 ORDER BY e.seq DESC
@@ -238,6 +242,10 @@ WHERE e.org_id = $1
   AND ($11::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = $1 AND $11::text <> ''
+    AND candidate.workspace_id = $2
+    AND candidate.resource_id = $3
+    AND ($5::timestamptz IS NULL OR candidate.created_at >= $5)
+    AND ($6::timestamptz IS NULL OR candidate.created_at < $6)
     AND (candidate.request_id LIKE $12::text
       OR candidate.data->>'name' ILIKE $13::text
       OR candidate.data->>'domain' ILIKE $13::text)
@@ -245,6 +253,10 @@ WHERE e.org_id = $1
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = $1 AND $11::text <> ''
+    AND a.workspace_id = $2
+    AND a.resource_id = $3
+    AND ($5::timestamptz IS NULL OR a.created_at >= $5)
+    AND ($6::timestamptz IS NULL OR a.created_at < $6)
     AND (actor.name ILIKE $13::text OR actor.email ILIKE $13::text)
   )))
 ORDER BY e.seq DESC
@@ -345,6 +357,9 @@ WHERE e.org_id = $1
   AND ($10::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = $1 AND $10::text <> ''
+    AND candidate.workspace_id = $2
+    AND ($4::timestamptz IS NULL OR candidate.created_at >= $4)
+    AND ($5::timestamptz IS NULL OR candidate.created_at < $5)
     AND (candidate.request_id LIKE $11::text
       OR candidate.data->>'name' ILIKE $12::text
       OR candidate.data->>'domain' ILIKE $12::text)
@@ -352,6 +367,9 @@ WHERE e.org_id = $1
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = $1 AND $10::text <> ''
+    AND a.workspace_id = $2
+    AND ($4::timestamptz IS NULL OR a.created_at >= $4)
+    AND ($5::timestamptz IS NULL OR a.created_at < $5)
     AND (actor.name ILIKE $12::text OR actor.email ILIKE $12::text)
   )))
 ORDER BY e.seq DESC

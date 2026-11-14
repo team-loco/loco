@@ -163,3 +163,44 @@ func TestAuditSearchValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestAuditSearchTimeBoundsAtEveryScope(t *testing.T) {
+	f := newScopedAuditFixture(t)
+	principal, _ := reqctx.PrincipalFrom(f.owner)
+	orgID := uuid.MustParse(f.orgID)
+	if err := events.Record(f.owner, f.queries, events.Event{
+		Type: events.TokenCreated, ResourceID: &f.resourceID,
+		Data: map[string]any{events.FieldName: auditOwnerEmail},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	scopes := []genDb.EntityType{
+		genDb.EntityTypeOrganization, genDb.EntityTypeWorkspace, genDb.EntityTypeResource,
+	}
+	for _, scope := range scopes {
+		req := &eventv1.ListEventsRequest{OrgId: orgID.String(), Query: auditOwnerEmail,
+			ActorIds: []string{principal.Entity.ID.String()}, Types: []string{events.TokenCreated}}
+		if scope != genDb.EntityTypeOrganization {
+			req.WorkspaceId = f.workspaceID.String()
+		}
+		if scope == genDb.EntityTypeResource {
+			req.ResourceId = f.resourceID.String()
+		}
+		res, err := f.events.ListEvents(f.owner, req)
+		if err != nil || len(res.GetEvents()) != 1 {
+			t.Fatalf("initial: %v %v", res, err)
+		}
+		at := res.GetEvents()[0].GetCreatedAt()
+		req.StartTime = at
+		included, err := f.events.ListEvents(f.owner, req)
+		if err != nil || len(included.GetEvents()) != 1 {
+			t.Fatalf("%s inclusive start: %v %v", scope, included, err)
+		}
+		req.StartTime = nil
+		req.EndTime = at
+		excluded, err := f.events.ListEvents(f.owner, req)
+		if err != nil || len(excluded.GetEvents()) != 0 {
+			t.Fatalf("%s exclusive end: %v %v", scope, excluded, err)
+		}
+	}
+}
