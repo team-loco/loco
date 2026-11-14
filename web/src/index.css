@@ -48,32 +48,6 @@
 		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Base UI starts a drawer that mounts already open in its settled state, so the
-   starting-style transition never runs. A keyframe animation plays on every mount;
-   the ending-style transition still plays the exit. */
-@keyframes sheet-in {
-	from {
-		translate: calc(100% + 16px);
-		opacity: 0;
-	}
-}
-
-[data-slot="sheet-overlay"][data-open] {
-	animation: sheet-overlay-in 150ms;
-}
-
-@keyframes sheet-overlay-in {
-	from {
-		opacity: 0;
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	[data-slot="sheet-overlay"][data-open] {
-		animation: none;
-	}
-}
-
 .code-lines {
 	display: block;
 	width: max-content;
