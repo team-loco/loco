@@ -15,6 +15,7 @@ import { DeploymentActor } from "@/components/design/DeploymentOrigin";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -54,6 +55,20 @@ interface Row {
 
 function timeFact(ms: number | undefined): string {
 	return ms === undefined ? "—" : formatFullTime(ms);
+}
+
+function HistoryKept({ count, tip }: { count: number; tip: string }) {
+	return (
+		<Tooltip>
+			<TooltipTrigger render={<span className="font-sans text-[12px] text-fg3" />}>
+				<span aria-hidden className="mx-1.5">
+					·
+				</span>
+				last {formatCount(count)} kept
+			</TooltipTrigger>
+			<TooltipContent className="max-w-[280px]">{tip}</TooltipContent>
+		</Tooltip>
+	);
 }
 
 function Detail({
@@ -369,18 +384,23 @@ export function DeploymentsSection({
 					</div>
 					<Pager
 						{...deployRows.pager}
-						label={`${deployRows.pager.label}${hasMore ? "+" : ""}`}
+						label={
+							<>
+								{`${deployRows.pager.label}${hasMore ? "+" : ""}`}
+								{limits !== undefined && (
+									<HistoryKept
+										count={limits.deploymentHistory}
+										tip={`Loco keeps the last ${formatCount(limits.deploymentHistory)} deployments for each environment.`}
+									/>
+								)}
+							</>
+						}
 						onNext={nextPage(deployRows, isLoadingMore, hasMore, onLoadMore, setPagination)}
 					/>
 					{historyError !== null && (
 						<div role="alert" className="px-5 pb-3 text-bad-fg">
 							{getErrorMessage(historyError, "Could not load older deployments. Try Next again.")}
 						</div>
-					)}
-					{limits !== undefined && (
-						<p className="m-0 px-5 pb-3.5 text-[12.5px] text-fg3">
-							Loco keeps the last {formatCount(limits.deploymentHistory)} deployments for each environment.
-						</p>
 					)}
 				</TabsContent>
 				<TabsContent value="builds" className="pt-1.5">
@@ -410,7 +430,17 @@ export function DeploymentsSection({
 					</div>
 					<Pager
 						{...buildRows.pager}
-						label={`${buildRows.pager.label}${builds.hasMore ? "+" : ""}`}
+						label={
+							<>
+								{`${buildRows.pager.label}${builds.hasMore ? "+" : ""}`}
+								{limits !== undefined && (
+									<HistoryKept
+										count={limits.buildHistory}
+										tip={`Loco keeps the last ${formatCount(limits.buildHistory)} builds for each resource.`}
+									/>
+								)}
+							</>
+						}
 						prevLabel="Newer builds"
 						nextLabel="Older builds"
 						onNext={nextPage(buildRows, builds.isLoadingMore, builds.hasMore, builds.loadMore, setBuildPaging)}
@@ -419,11 +449,6 @@ export function DeploymentsSection({
 						<div role="alert" className="px-5 pb-3 text-bad-fg">
 							{getErrorMessage(builds.error, "Could not load builds.")}
 						</div>
-					)}
-					{limits !== undefined && (
-						<p className="m-0 px-5 pb-3.5 text-[12.5px] text-fg3">
-							Loco keeps the last {formatCount(limits.buildHistory)} builds of each resource.
-						</p>
 					)}
 				</TabsContent>
 			</Tabs>

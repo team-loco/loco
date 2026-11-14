@@ -13,22 +13,21 @@ import { useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import { useAuth } from "@/auth/AuthProvider";
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
+import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
 import { limitReason, limitUsage } from "@/lib/limits";
-import { tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
 import { pagedRows } from "@/lib/paging";
 
@@ -154,12 +153,12 @@ export function Team() {
 	const memberUsage =
 		data.isLoading || data.error
 			? null
-			: limitUsage(data.members.length, limits?.membersPerOrg, "members", "This organization has");
-	const openInvitations = data.invitations.filter((i) => tsMs(i.expiresAt) > now).length;
+			: limitUsage(data.members.length, limits?.membersPerOrg, "members", "organization");
+	const openInvitations = useOpenInvitations(orgId, now);
 	const invitationUsage =
-		data.isLoading || data.error
+		openInvitations === undefined || data.error
 			? null
-			: limitUsage(openInvitations, limits?.invitationsPerOrg, "open invitations", "This organization has");
+			: limitUsage(openInvitations, limits?.invitationsPerOrg, "open invitations", "organization");
 	const inviteBlocked = canInvite
 		? (limitReason(memberUsage) ?? limitReason(invitationUsage))
 		: "Only organization admins can invite members";
@@ -267,7 +266,7 @@ export function Team() {
 				title={
 					<>
 						Team
-						{!data.isLoading && data.error === null && <Badge tone="count">{data.members.length}</Badge>}
+						{!data.isLoading && data.error === null && <LimitCount count={data.members.length} usage={memberUsage} />}
 					</>
 				}
 				actions={inviteButton}

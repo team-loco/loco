@@ -28,10 +28,10 @@ import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { toastConnectError } from "@/lib/error-handler";
 import { domainCoverage } from "@/lib/platform-domain";
 import { slug } from "@/lib/slug";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitedAction, LimitUsageText } from "@/components/design/LimitedAction";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { limitReason, limitUsage } from "@/lib/limits";
+import { type LimitUsage, limitReason, limitUsage } from "@/lib/limits";
 
 import { MANAGED_NOTICE_ID } from "./ManagedNotice";
 import { SettingsBlock, type SectionProps } from "./SettingsSections";
@@ -209,6 +209,7 @@ function AddDomainForm({
 	resourceId,
 	resourceName,
 	own,
+	usage,
 	options,
 	regions,
 	running,
@@ -219,6 +220,7 @@ function AddDomainForm({
 	resourceId: string;
 	resourceName: string;
 	own: readonly string[];
+	usage: LimitUsage | null;
 	options: PlatformDomain[];
 	regions: readonly RegionInfo[];
 	running: readonly string[];
@@ -229,9 +231,6 @@ function AddDomainForm({
 	const [subdomain, setSubdomain] = useState("");
 	const [picked, setPicked] = useState<string | null>(null);
 	const create = useMutation(createResourceDomain);
-	const { activeOrgId } = useOrgWorkspace();
-	const limits = useOrgLimits(activeOrgId ?? "");
-	const usage = limitUsage(own.length, limits?.domainsPerResource, "domains", "This resource has");
 	const blocked = limitReason(usage);
 	const served = options.filter((d) => domainCoverage(d.regions, running).missing.length === 0);
 	const platformDomain = (served.find((d) => d.domain === picked) ?? served[0])?.domain ?? "";
@@ -315,6 +314,9 @@ export function NetworkingSection({
 	served: string[];
 	onDomainsChanged: () => void;
 }) {
+	const { activeOrgId } = useOrgWorkspace();
+	const limits = useOrgLimits(activeOrgId ?? "");
+	const usage = limitUsage(domains.length, limits?.domainsPerResource, "domains", "resource");
 	const sorted = domains.toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
 	const own = domains.map((d) => d.domain);
 	const running = Object.keys(base.regions).filter((r) => base.regions[r] === true);
@@ -382,7 +384,10 @@ export function NetworkingSection({
 			)}
 			{isPublic && base.isPublic && (
 				<div className="flex flex-col gap-1.5">
-					<span className="text-[13px] font-medium">Domains</span>
+					<span className="flex items-baseline gap-2">
+						<span className="text-[13px] font-medium">Domains</span>
+						<LimitUsageText usage={usage} />
+					</span>
 					<div className="overflow-hidden rounded-card border border-line bg-background">
 						{sorted.map((d) => (
 							<DomainRow
@@ -402,6 +407,7 @@ export function NetworkingSection({
 							resourceId={resourceId}
 							resourceName={base.name}
 							own={own}
+							usage={usage}
 							options={platformDomains}
 							regions={regions}
 							running={running}

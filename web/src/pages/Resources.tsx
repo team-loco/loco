@@ -3,9 +3,8 @@ import { useSearchParams } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
-import { Badge } from "@/components/design/Badge";
 import { ErrorState } from "@/components/design/ErrorState";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -63,7 +62,7 @@ export function Resources() {
 	const usage =
 		data.isLoading || data.error !== null
 			? null
-			: limitUsage(data.resources.length, limits?.resourcesPerWorkspace, "resources", "This workspace has");
+			: limitUsage(data.resources.length, limits?.resourcesPerWorkspace, "resources", "workspace");
 	const createBlocked = limitReason(usage);
 	const total = data.resources.length + drafts.length;
 	const draftId = params.get(DRAFT_PARAM);
@@ -127,7 +126,7 @@ export function Resources() {
 				title={
 					<>
 						Resources
-						{!loading && data.error === null && <Badge tone="count">{total}</Badge>}
+						{!loading && data.error === null && <LimitCount count={total} usage={usage} />}
 					</>
 				}
 				actions={

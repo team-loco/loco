@@ -8,12 +8,11 @@ import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType, type Token } from "@gen/loco/token/v1/token_pb";
 import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
@@ -114,7 +113,6 @@ export function Tokens() {
 		});
 	const paged = usePagedRows(owner.canList ? rows : [], PAGE_SIZES);
 	const liveCount = (k: OwnerKey) => data.owners[k].tokens.filter((t) => tokenStatus(t, now) !== "expired").length;
-	const total = OWNER_KEYS.reduce((sum, k) => sum + liveCount(k), 0);
 	const anyLoading = data.scopesLoading || OWNER_KEYS.some((k) => data.owners[k].isLoading);
 
 	const setOwner = (next: OwnerKey) => {
@@ -155,8 +153,9 @@ export function Tokens() {
 	};
 	const tokenLimit =
 		owner.entityType === EntityType.USER ? config.data?.countLimits?.tokensPerEntity : limits?.tokensPerEntity;
-	const usage =
-		current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, "tokens", `${owner.label} has`);
+	const scope = ownerKey === "personal" ? "account" : OWNER_TITLE[ownerKey].toLowerCase();
+	const usage = current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, "tokens", scope);
+	const liveUsage = limitUsage(liveCount(ownerKey), tokenLimit, "tokens", scope);
 	const createBlocked = owner.canCreate
 		? limitReason(usage)
 		: `You need write access to ${owner.label} to create tokens`;
@@ -204,7 +203,7 @@ export function Tokens() {
 				title={
 					<>
 						Tokens
-						{!anyLoading && <Badge tone="count">{total}</Badge>}
+						{!anyLoading && <LimitCount count={liveCount(ownerKey)} usage={liveUsage} />}
 					</>
 				}
 				actions={
