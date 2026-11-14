@@ -10783,7 +10783,8 @@
           "query": {
             "type": "string",
             "title": "query",
-            "maxLength": 256
+            "maxLength": 256,
+            "minLength": 3
           }
         },
         "title": "ListEventsRequest",

@@ -86,7 +86,7 @@ export function Audit() {
 			resourceId,
 			environmentId,
 			types,
-			query: search,
+			query: Array.from(search).length >= 3 ? search : "",
 			actorIds,
 			actorTypes,
 			pageSize: size,

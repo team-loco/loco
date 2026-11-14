@@ -81,10 +81,10 @@ func TestListEventsSearchAndActors(t *testing.T) {
 		{name: "actor email", query: "NER@ACME", want: []int64{primary[4], primary[0]}},
 		{name: "target", query: "CHECKOUT", want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
 		{name: "domain", query: "EXAMPLE", want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
-		{name: "overlapping actor and target", query: "a",
+		{name: "overlapping actor and target", query: "test",
 			want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
 		{name: "combined", ids: []string{tokenID.String()}, query: "search-request-b", want: []int64{primary[1]}},
-		{name: "literal wildcard", query: "%"},
+		{name: "literal wildcard", query: "%%%"},
 		{name: "request suffix is not prefix", query: "request-b"},
 		{name: "different actor", ids: []string{uuid.NewString()}},
 	} {
@@ -145,10 +145,18 @@ func TestListEventsSearchAndActors(t *testing.T) {
 }
 
 func TestAuditSearchValidation(t *testing.T) {
+	for _, query := range []string{"", "abc"} {
+		req := &eventv1.ListEventsRequest{OrgId: uuid.NewString(), Query: query}
+		if err := protovalidate.Validate(req); err != nil {
+			t.Fatalf("rejected query %q: %v", query, err)
+		}
+	}
 	for _, req := range []*eventv1.ListEventsRequest{
 		{OrgId: uuid.NewString(), ActorIds: []string{"not-a-uuid"}},
 		{OrgId: uuid.NewString(), ActorTypes: []string{"not-an-actor-type"}},
 		{OrgId: uuid.NewString(), Query: strings.Repeat("x", 257)},
+		{OrgId: uuid.NewString(), Query: "a"},
+		{OrgId: uuid.NewString(), Query: "ab"},
 	} {
 		if err := protovalidate.Validate(req); err == nil {
 			t.Fatalf("accepted %v", req)

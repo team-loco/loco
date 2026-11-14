@@ -121,6 +121,10 @@ with sync_playwright() as p:
         expect(page).not_to_have_url(re.compile(r"[?&]event="))
 
         search = page.get_by_role("textbox", name="Search events", exact=True)
+        search.fill("ab")
+        expect(page.get_by_text("3+ characters", exact=True)).to_be_visible()
+        page.wait_for_timeout(500)
+        assert not any(call["body"].get("query") == "ab" for call in list_events(calls))
         prefix = request_id[:12]
         with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == prefix) as searched:
             search.fill(prefix[:4])

@@ -137,6 +137,8 @@ const (
 	eventScopeResource
 )
 
+// eventScope is the narrowest level a ListEvents request reads. workspaceID is set for the
+// workspace and resource levels, resourceID for the resource level.
 type eventScope struct {
 	kind        eventScopeKind
 	orgID       uuid.UUID
@@ -249,7 +251,7 @@ func (s *EventServer) listAuditEvents(
 		}
 		actorIDs = append(actorIDs, id)
 	}
-	text := strings.TrimSpace(req.GetQuery())
+	text := req.GetQuery()
 	escaped := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(text)
 	requestPrefix := escaped + "%"
 	substring := "%" + escaped + "%"

@@ -73,6 +73,7 @@ export function AuditSearch({ value, onChange }: { value: string; onChange: (val
 			aria-label="Search events"
 			placeholder="Search request ID, actor or target"
 			maxLength={256}
+			hint={Array.from(input.draft).length < 3 ? "3+ characters" : undefined}
 			value={input.draft}
 			onChange={(event) => {
 				const control = event.currentTarget;
