@@ -55,14 +55,6 @@ export function dayLabel(ms: number, nowMs: number): string {
 	return new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 }
 
-export function shortAgo(ms: number, nowMs: number): string {
-	const s = Math.max(1, Math.round((nowMs - ms) / 1000));
-	if (s < 60) return `${s.toString()}s`;
-	if (s < 3600) return `${Math.round(s / 60).toString()}m`;
-	if (s < 86_400) return `${Math.round(s / 3600).toString()}h`;
-	return `${Math.round(s / 86_400).toString()}d`;
-}
-
 const ACTOR_KINDS: Record<string, string> = {
 	user: "Person",
 	organization: "Organization token",

@@ -2,10 +2,11 @@ import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
 import { Fragment } from "react";
 
 import { Skeleton } from "@/components/design/Skeleton";
+import { agoLabel } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
-import { dayLabel, shortAgo, type AuditRow } from "./model";
+import { dayLabel, type AuditRow } from "./model";
 
 const GRID = "grid grid-cols-[110px_200px_minmax(300px,1fr)_220px] items-center gap-x-5";
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -82,7 +83,7 @@ export function AuditTable({
 												selected && "rounded-[6px] bg-background shadow-[inset_0_0_0_1px_var(--line2)]",
 											)}
 										>
-											<span className="font-mono text-[12px] text-fg2" title={`${shortAgo(row.ms, nowMs)} ago`}>
+											<span className="font-mono text-[12px] text-fg2" title={agoLabel(row.ms, nowMs)}>
 												{new Date(row.ms).toLocaleTimeString([], {
 													hour: "numeric",
 													minute: "2-digit",

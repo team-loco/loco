@@ -1,7 +1,5 @@
 import { CheckIcon, ListFilterIcon } from "lucide-react";
-import type { ReactNode } from "react";
 
-import { Button } from "@/components/design/Button";
 import { CommandGroup, CommandItem } from "@/components/design/Command";
 import { FilterPopover } from "@/components/design/FilterPopover";
 import { auditLabel } from "@/pages/settings/auditEvents";
@@ -9,26 +7,15 @@ import { auditLabel } from "@/pages/settings/auditEvents";
 import { CATEGORIES, toggleCategory, toggleType, typesLabel } from "./model";
 
 export function EventFilter({ types, onChange }: { types: string[]; onChange: (types: string[]) => void }) {
-	const clear = () => {
-		onChange([]);
-	};
 	return (
 		<FilterPopover
 			icon={<ListFilterIcon />}
 			label="Event"
 			value={typesLabel(types)}
-			onClear={clear}
+			onClear={() => {
+				onChange([]);
+			}}
 			placeholder="Find an event type"
-			footer={
-				types.length > 0 && (
-					<div className="flex items-center justify-between border-t border-line px-3 py-2 text-[12px] text-fg3">
-						<span className="font-mono">{types.length} selected</span>
-						<Button variant="link" onClick={clear}>
-							Clear
-						</Button>
-					</div>
-				)
-			}
 		>
 			{() =>
 				CATEGORIES.map((c) => (
@@ -60,52 +47,6 @@ export function EventFilter({ types, onChange }: { types: string[]; onChange: (t
 							</CommandItem>
 						))}
 					</CommandGroup>
-				))
-			}
-		</FilterPopover>
-	);
-}
-
-/** A single-choice filter over named items, such as a workspace's resources or environments. */
-export function PickFilter({
-	icon,
-	label,
-	items,
-	value,
-	placeholder,
-	onChange,
-}: {
-	icon: ReactNode;
-	label: string;
-	items: readonly { id: string; name: string }[];
-	value: string;
-	placeholder?: string;
-	onChange: (id: string) => void;
-}) {
-	return (
-		<FilterPopover
-			icon={icon}
-			label={label}
-			value={items.find((i) => i.id === value)?.name ?? ""}
-			mono
-			onClear={() => {
-				onChange("");
-			}}
-			placeholder={placeholder}
-		>
-			{(close) =>
-				items.map((i) => (
-					<CommandItem
-						key={i.id}
-						value={i.name}
-						onSelect={() => {
-							onChange(i.id === value ? "" : i.id);
-							close();
-						}}
-					>
-						<span className="min-w-0 flex-1 truncate font-mono">{i.name}</span>
-						{i.id === value && <CheckIcon className="size-3.5" />}
-					</CommandItem>
 				))
 			}
 		</FilterPopover>

@@ -1,7 +1,7 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { BoxIcon, ChevronDownIcon, ClockIcon, GitBranchIcon, HistoryIcon } from "lucide-react";
+import { BoxIcon, ChevronDownIcon, ClockIcon, GitBranchIcon, HistoryIcon, LayersIcon } from "lucide-react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 
@@ -15,21 +15,21 @@ import {
 } from "@/components/design/DropdownMenu";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
+import { PickFilter } from "@/components/design/FilterPopover";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useNow } from "@/hooks/useNow";
-import { msToTimestamp } from "@/lib/time";
+import { agoLabel, msToTimestamp } from "@/lib/time";
 
 import { AuditDrawer } from "./audit/AuditDrawer";
-import { EventFilter, PickFilter } from "./audit/AuditFilters";
+import { EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
-import { auditRow, DEFAULT_RANGE, PAGE_SIZES, RANGES, shortAgo } from "./audit/model";
+import { auditRow, DEFAULT_RANGE, PAGE_SIZES, RANGES } from "./audit/model";
 import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
-import { WorkspaceFilter } from "./team/WorkspaceFilter";
 
 const NOW_TICK_MS = 60_000;
 
@@ -145,17 +145,7 @@ export function Audit() {
 				}
 			/>
 			{query.error !== null ? (
-				<ErrorState
-					error={query.error}
-					what="the audit log"
-					rpc={listEvents}
-					scope="role"
-					denied={{
-						title: "Only admins can see the audit log",
-						body: "You’re a Member. Organization and workspace admins can see who changed what.",
-					}}
-					onRetry={query.refetch}
-				/>
+				<ErrorState error={query.error} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
 			) : (
 				<Section
 					filters={
@@ -167,8 +157,11 @@ export function Audit() {
 								}}
 							/>
 							{(access.org || choices.length > 1) && (
-								<WorkspaceFilter
-									workspaces={choices}
+								<PickFilter
+									icon={<LayersIcon />}
+									label="Workspace"
+									items={choices}
+									placeholder="Find a workspace"
 									value={workspaceId}
 									clearable={access.org}
 									onChange={(id) => {
@@ -235,7 +228,7 @@ export function Audit() {
 						label={
 							first === undefined || last === undefined
 								? ""
-								: `${rows.length.toLocaleString()} events, ${shortAgo(first.ms, now)} to ${shortAgo(last.ms, now)} ago`
+								: `${rows.length.toLocaleString()} events, ${agoLabel(first.ms, now)} to ${agoLabel(last.ms, now)}`
 						}
 						total={rows.length}
 						pageSizes={PAGE_SIZES}

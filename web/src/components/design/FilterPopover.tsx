@@ -1,8 +1,8 @@
-import { ChevronDownIcon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { Button } from "./Button";
-import { Command, CommandEmpty, CommandInput, CommandList } from "./Command";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "./Command";
 import { Popover, PopoverContent, PopoverTrigger } from "./Popover";
 
 /** A filter button that opens a searchable list; once set it shows the value and a clear button. */
@@ -13,7 +13,6 @@ export function FilterPopover({
 	mono = false,
 	onClear,
 	placeholder,
-	footer,
 	children,
 }: {
 	icon: ReactNode;
@@ -22,7 +21,6 @@ export function FilterPopover({
 	mono?: boolean;
 	onClear?: (() => void) | undefined;
 	placeholder?: string | undefined;
-	footer?: ReactNode;
 	children: (close: () => void) => ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
@@ -53,7 +51,6 @@ export function FilterPopover({
 							})}
 						</CommandList>
 					</Command>
-					{footer}
 				</PopoverContent>
 			</Popover>
 			{clearable && (
@@ -68,5 +65,62 @@ export function FilterPopover({
 				</Button>
 			)}
 		</span>
+	);
+}
+
+/** A single-choice FilterPopover over named items, such as workspaces or a workspace's resources. */
+export function PickFilter({
+	icon,
+	label,
+	items,
+	value,
+	counts,
+	placeholder,
+	clearable = true,
+	onChange,
+}: {
+	icon: ReactNode;
+	label: string;
+	items: readonly { id: string; name: string }[];
+	value: string;
+	counts?: ReadonlyMap<string, number>;
+	placeholder?: string;
+	clearable?: boolean;
+	onChange: (id: string) => void;
+}) {
+	return (
+		<FilterPopover
+			icon={icon}
+			label={label}
+			value={items.find((i) => i.id === value)?.name ?? ""}
+			mono
+			onClear={
+				clearable
+					? () => {
+							onChange("");
+						}
+					: undefined
+			}
+			placeholder={placeholder}
+		>
+			{(close) =>
+				items.map((i) => (
+					<CommandItem
+						key={i.id}
+						value={i.name}
+						onSelect={() => {
+							onChange(i.id);
+							close();
+						}}
+					>
+						<span className="min-w-0 flex-1 truncate font-mono">{i.name}</span>
+						{counts !== undefined && (
+							<span className="font-mono text-[11.5px] text-fg3">{(counts.get(i.id) ?? 0).toLocaleString()}</span>
+						)}
+						{i.id === value && <CheckIcon className="size-3.5" />}
+					</CommandItem>
+				))
+			}
+		</FilterPopover>
 	);
 }

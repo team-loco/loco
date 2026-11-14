@@ -6,8 +6,9 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { agoLabel } from "@/lib/time";
 
-import { shortAgo, type AuditRow } from "./model";
+import type { AuditRow } from "./model";
 
 function Item({ term, children }: { term: string; children: ReactNode }) {
 	return (
@@ -73,7 +74,7 @@ export function AuditDrawer({
 							<dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-4 gap-y-3 text-[13px]">
 								<Item term="When">
 									<span>{new Date(row.ms).toLocaleString([], { dateStyle: "medium", timeStyle: "medium" })}</span>
-									<span className="text-[11.5px] text-fg3">{shortAgo(row.ms, nowMs)} ago</span>
+									<span className="text-[11.5px] text-fg3">{agoLabel(row.ms, nowMs)}</span>
 								</Item>
 								<Item term="Actor">
 									<span>{row.actor.name}</span>

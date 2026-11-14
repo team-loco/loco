@@ -22,8 +22,8 @@ import { CopyId } from "./CopyId";
 import { EmptyHero } from "./EmptyHero";
 import { Spinner } from "./Spinner";
 
-/** What the caller is missing when the load is denied: the workspace, an admin role, or the whole organization. */
-export type DeniedScope = "workspace" | "role" | "org";
+/** What the caller is missing when the load is denied: the workspace, an admin role, an admin role for the audit log, or the whole organization. */
+export type DeniedScope = "workspace" | "role" | "audit" | "org";
 
 const RATE_RETRY_S = 12;
 const RING_R = 26;
@@ -171,20 +171,7 @@ function Internal({
 	);
 }
 
-interface DeniedCopy {
-	title: string;
-	body: string;
-}
-
-function Denied({
-	scope,
-	copy: override,
-	className,
-}: {
-	scope: DeniedScope;
-	copy: DeniedCopy | undefined;
-	className: string | undefined;
-}) {
+function Denied({ scope, className }: { scope: DeniedScope; className: string | undefined }) {
 	const transport = useTransport();
 	const { user } = useAuth();
 	const { activeOrgId, activeWorkspaceId, orgs, workspaces } = useOrgWorkspace();
@@ -202,9 +189,12 @@ function Denied({
 			body: `You’re in ${org}, but not in this workspace. An admin can add you.`,
 		},
 		role: { title: `Only admins can change ${org} settings`, body: "You’re a Member. An admin can change your role." },
+		audit: {
+			title: "Only admins can see the audit log",
+			body: "You’re a Member. Organization and workspace admins can see who changed what.",
+		},
 		org: { title: `You’re not a member of ${org}`, body: `Ask someone in ${org} to invite you.` },
 	}[scope];
-	const { title, body } = override ?? copy;
 	return (
 		<EmptyHero
 			role="alert"
@@ -245,8 +235,8 @@ function Denied({
 					)}
 				</div>
 			}
-			title={title}
-			subtitle={body}
+			title={copy.title}
+			subtitle={copy.body}
 		/>
 	);
 }
@@ -308,16 +298,12 @@ function RateLimited({ onRetry, className }: { onRetry: () => Promise<unknown>; 
 	);
 }
 
-/**
- * Replaces a page body whose main query failed; `rpc` names that query in the support details.
- * `denied` replaces the denied text for a page whose role requirement the scope's text misstates.
- */
+/** Replaces a page body whose main query failed; `rpc` names that query in the support details. */
 export function ErrorState({
 	error,
 	what,
 	rpc,
 	scope = "workspace",
-	denied,
 	onRetry,
 	className,
 }: {
@@ -325,7 +311,6 @@ export function ErrorState({
 	what: string;
 	rpc: DescMethod;
 	scope?: DeniedScope;
-	denied?: DeniedCopy;
 	onRetry: () => Promise<unknown>;
 	className?: string;
 }) {
@@ -346,7 +331,7 @@ export function ErrorState({
 				/>
 			);
 		case "denied":
-			return <Denied scope={scope} copy={denied} className={className} />;
+			return <Denied scope={scope} className={className} />;
 		case "rate":
 			return <RateLimited onRetry={onRetry} className={className} />;
 	}
