@@ -43,8 +43,8 @@ var workerRoles = map[string]clusterv1.ClusterRole{
 
 // ApplyWorkers requires an authenticated system-admin session established after
 // the first-admin checkpoint. Enrollment credentials never leave destination Secrets.
-func ApplyWorkers(ctx context.Context, config Config, manifestPath, token string) error {
-	release, err := loadArtifacts(ctx, manifestPath)
+func ApplyWorkers(ctx context.Context, config Config, resolved ResolvedRelease, token string) error {
+	release, err := loadArtifacts(ctx, resolved)
 	if err != nil {
 		return err
 	}

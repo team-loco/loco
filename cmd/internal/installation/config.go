@@ -3,15 +3,18 @@ package installation
 const ConfigVersion = 1
 
 type Config struct {
-	Version      int          `json:"version"      yaml:"version"`
-	Name         string       `json:"name"         yaml:"name"`
-	Release      Release      `json:"release"      yaml:"release"`
-	ControlPlane ControlPlane `json:"controlPlane" yaml:"controlPlane"`
-	Workers      []Worker     `json:"workers"      yaml:"workers"`
+	Version      int          `json:"version"           yaml:"version"`
+	Name         string       `json:"name"              yaml:"name"`
+	Release      *Release     `json:"release,omitempty" yaml:"release,omitempty"`
+	ControlPlane ControlPlane `json:"controlPlane"      yaml:"controlPlane"`
+	Workers      []Worker     `json:"workers"           yaml:"workers"`
 }
 
+// Release names a published platform bundle version or, for air-gapped installs, a
+// local release.json; exactly one is set. Without it, locoadm installs its own version.
 type Release struct {
-	Manifest string `json:"manifest" yaml:"manifest"`
+	Version  string `json:"version,omitempty"  yaml:"version,omitempty"`
+	Manifest string `json:"manifest,omitempty" yaml:"manifest,omitempty"`
 }
 
 type KubernetesTarget struct {

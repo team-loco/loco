@@ -38,7 +38,7 @@ func TestResumedPhasesRejectReleaseChangedWhileAcquiringLock(t *testing.T) {
 	for _, phase := range []string{"bootstrap-cleanup", "worker-apply"} {
 		for _, field := range []string{testReleaseVersion, testReleaseCommit} {
 			t.Run(phase+"/"+field, func(t *testing.T) {
-				manifest, path, _ := fixtureReleaseRegistry(t)
+				manifest, _ := fixtureReleaseRegistry(t)
 				locked, mutations := false, 0
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", testJSON)
@@ -125,9 +125,9 @@ func TestResumedPhasesRejectReleaseChangedWhileAcquiringLock(t *testing.T) {
 				defer cancel()
 				var err error
 				if phase == "bootstrap-cleanup" {
-					err = CompleteBootstrap(ctx, config, path)
+					err = CompleteBootstrap(ctx, config, ResolvedRelease{Manifest: manifest})
 				} else {
-					err = ApplyWorkers(ctx, config, path, "operator-session")
+					err = ApplyWorkers(ctx, config, ResolvedRelease{Manifest: manifest}, "operator-session")
 				}
 				if !errors.Is(err, errReleaseChanged) {
 					t.Fatalf("got %v, want release change rejected", err)

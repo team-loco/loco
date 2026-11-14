@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -30,7 +29,8 @@ import (
 const testFixture = "fixture"
 
 func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
-	manifest, manifestPath, tag := fixtureReleaseRegistry(t)
+	manifest, tag := fixtureReleaseRegistry(t)
+	release := ResolvedRelease{Manifest: manifest}
 	var err error
 	sawWorker := false
 	var kubeRequests atomic.Int32
@@ -95,7 +95,7 @@ func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
 			},
 		},
 	}
-	_, err = PlanInstallation(t.Context(), config, manifestPath)
+	_, err = PlanInstallation(t.Context(), config, release)
 	if !errors.Is(err, errForeignOwnership) {
 		t.Fatalf("got %v, want foreign worker ownership error", err)
 	}
@@ -105,7 +105,7 @@ func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
 	t.Run("wrong-empty-control-plane", func(t *testing.T) {
 		config.ControlPlane.Kubernetes.ClusterUID = "different-cluster"
 		sawWorker = false
-		_, targetErr := PlanInstallation(t.Context(), config, manifestPath)
+		_, targetErr := PlanInstallation(t.Context(), config, release)
 		if !errors.Is(targetErr, errTargetChanged) {
 			t.Fatalf("got %v, want target pin mismatch", targetErr)
 		}
@@ -133,20 +133,13 @@ func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
 			t.Fatal(digestErr)
 		}
 		manifest.Artifacts["loco-control-plane"] = tag.Context().Digest(invalidDigest.String()).String()
-		encoded, encodeErr := json.Marshal(manifest)
-		if encodeErr != nil {
-			t.Fatal(encodeErr)
-		}
-		if writeErr := os.WriteFile(manifestPath, encoded, 0600); writeErr != nil {
-			t.Fatal(writeErr)
-		}
 		config.ControlPlane.Kubernetes.ClusterUID = testClusterUID
 		kubeRequests.Store(0)
-		_, planErr := PlanInstallation(t.Context(), config, manifestPath)
+		_, planErr := PlanInstallation(t.Context(), config, release)
 		if planErr == nil || strings.Contains(planErr.Error(), "credential-canary") {
 			t.Fatalf("unsafe render failure: %v", planErr)
 		}
-		applyErr := ApplyControlPlane(t.Context(), config, manifestPath)
+		applyErr := ApplyControlPlane(t.Context(), config, release)
 		if applyErr == nil || strings.Contains(applyErr.Error(), "credential-canary") {
 			t.Fatalf("unsafe apply render failure: %v", applyErr)
 		}
@@ -156,7 +149,7 @@ func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
 	})
 }
 
-func fixtureReleaseRegistry(t *testing.T) (Manifest, string, name.Tag) {
+func fixtureReleaseRegistry(t *testing.T) (Manifest, name.Tag) {
 	t.Helper()
 	artifactRegistry := httptest.NewServer(registry.New(registry.Logger(log.New(io.Discard, "", 0))))
 	t.Cleanup(artifactRegistry.Close)
@@ -188,14 +181,5 @@ func fixtureReleaseRegistry(t *testing.T) (Manifest, string, name.Tag) {
 	for key := range manifest.Artifacts {
 		manifest.Artifacts[key] = reference
 	}
-	manifestData, err := json.Marshal(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifestPath := filepath.Join(t.TempDir(), "release.json")
-	if err = os.WriteFile(manifestPath, manifestData, 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	return manifest, manifestPath, tag
+	return manifest, tag
 }

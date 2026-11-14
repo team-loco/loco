@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
@@ -44,14 +43,16 @@ func Commands() []*cobra.Command {
 			if err != nil {
 				return err
 			}
-			manifestPath := config.Release.Manifest
-			if !filepath.IsAbs(manifestPath) {
-				manifestPath = filepath.Join(filepath.Dir(file), manifestPath)
-			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 			defer cancel()
 			if operation == "plan" {
-				plan, planErr := installation.PlanInstallation(ctx, *config, manifestPath)
+				release, releaseErr := installation.LoadRelease(
+					ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr(),
+				)
+				if releaseErr != nil {
+					return releaseErr
+				}
+				plan, planErr := installation.PlanInstallation(ctx, *config, release)
 				if planErr != nil {
 					return planErr
 				}
@@ -77,7 +78,11 @@ func Commands() []*cobra.Command {
 				}
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(status)
 			}
-			if err = installation.ApplyControlPlane(ctx, *config, manifestPath); err != nil {
+			release, err := installation.LoadRelease(ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr())
+			if err != nil {
+				return err
+			}
+			if err = installation.ApplyControlPlane(ctx, *config, release); err != nil {
 				return err
 			}
 			ready, err := installation.BootstrapComplete(ctx, *config)
@@ -101,7 +106,7 @@ func Commands() []*cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = installation.ApplyWorkers(ctx, *config, manifestPath, session.Token); err != nil {
+			if err = installation.ApplyWorkers(ctx, *config, release, session.Token); err != nil {
 				return err
 			}
 			_, err = fmt.Fprintln(

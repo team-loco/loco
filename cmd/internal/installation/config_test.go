@@ -1,6 +1,7 @@
 package installation
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -263,6 +264,37 @@ func TestWorkerMetricsServerOptions(t *testing.T) {
 			_, err := Parse([]byte(data))
 			if (err == nil) != tt.valid {
 				t.Fatalf("valid = %t, error = %v", tt.valid, err)
+			}
+		})
+	}
+}
+
+func TestReleaseNamesExactlyOneSource(t *testing.T) {
+	valid := string(example(t))
+	const versionLine = "release:\n  version: 0.1.0\n"
+	for _, test := range []struct {
+		name, release string
+		valid         bool
+	}{
+		{"version", versionLine, true},
+		{"prerelease", "release:\n  version: 0.1.0-rc.1\n", true},
+		{"manifest", "release:\n  manifest: ./release.json\n", true},
+		{"omitted", "", true},
+		{"both", "release:\n  version: 0.1.0\n  manifest: ./release.json\n", false},
+		{"neither", "release: {}\n", false},
+		{"null", "release: null\n", false},
+		{"leading v", "release:\n  version: v0.1.0\n", false},
+		{"partial version", "release:\n  version: \"0.1\"\n", false},
+		{"build metadata", "release:\n  version: 0.1.0+build\n", false},
+		{"remote manifest", "release:\n  manifest: https://example.com/release.json\n", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Parse([]byte(strings.Replace(valid, versionLine, test.release, 1)))
+			if test.valid && err != nil {
+				t.Fatal(err)
+			}
+			if !test.valid && !errors.Is(err, errInvalid) {
+				t.Fatalf("got %v, want invalid release", err)
 			}
 		})
 	}

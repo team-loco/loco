@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
@@ -88,11 +87,11 @@ func BuildBootstrapCmd() *cobra.Command {
 				return err
 			}
 
-			manifest := config.Release.Manifest
-			if !filepath.IsAbs(manifest) {
-				manifest = filepath.Join(filepath.Dir(file), manifest)
+			release, err := installation.LoadRelease(ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr())
+			if err != nil {
+				return err
 			}
-			if err = installation.CompleteBootstrap(ctx, *config, manifest); err != nil {
+			if err = installation.CompleteBootstrap(ctx, *config, release); err != nil {
 				return err
 			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Administrator setup complete for %s\n", email)

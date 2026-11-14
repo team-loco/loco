@@ -17,13 +17,14 @@ locoadm verify --file installation.yaml --worker staging-us --environment ENVIRO
 
 `validate`, `verify` and `recovery export` default to `installation.yaml`; `plan`, `apply`, `status` and `bootstrap` require `--file`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
-Every field below is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
+Every field below except `release` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
 
 | Field | Value |
 | --- | --- |
 | `version` | `1` |
 | `name` | Installation identity, a lowercase Kubernetes DNS label |
-| `release.manifest` | Path to a local release manifest; artifact compatibility is checked by the installer |
+| `release.version` | Published platform bundle version, such as `0.1.0`; defaults to the version of `locoadm` |
+| `release.manifest` | Path to a local `release.json`, for installs without registry access; replaces `release.version` |
 | `controlPlane.kubernetes.context` | Existing kubeconfig context |
 | `controlPlane.kubernetes.clusterUID` | Existing cluster's `kube-system` Namespace UID; pins the target independently of the context name |
 | `controlPlane.kubernetes.namespace` | Destination namespace, a lowercase Kubernetes DNS label |
@@ -73,7 +74,16 @@ Each worker definition must pin a different physical cluster UID. Context aliase
 
 ## Release and input Secrets
 
-`release.manifest` points to the public platform bundle's `release.json`, relative to the installation file. The JSON object contains `configVersion` matching `version`, a release `version`, its `coreCommit`, and digest-pinned `artifacts` and `images`. Required artifacts are `loco-control-plane`, `loco-worker`, `cert-manager-chart`, `loco-applications-crd`, `loco-builds-crd` and `loco-gateway-crd`. Required images are `api`, `ui`, `obs-proxy`, `agent`, `controller` and `builder`. Mutable image tags cannot replace digest references.
+`release` selects the platform bundle to install and takes exactly one of `version` or `manifest`:
+
+```yaml
+release:
+  version: 0.1.0
+```
+
+With `version`, `locoadm` resolves `ghcr.io/team-loco/loco/platform:<version>` to a digest, downloads it anonymously, checks the digest, and reads `release.json` from the bundle. That file must name the same version. Without `release`, `locoadm` installs the bundle matching its own version, so `locoadm` 0.1.0 installs bundle `0.1.0`; a development build has no matching bundle and requires `release.version` or `release.manifest`. When the bundle version differs from the version of `locoadm`, the command prints a warning and continues. `plan` reports the resolved bundle as `releaseBundle`, and `status` reports the bundle the last apply recorded.
+
+`release.manifest` points to a `release.json` copied from a platform bundle, relative to the installation file. Use it where the operator machine cannot reach the bundle's registry; the artifacts and images it pins must still be pullable. `plan` and `status` report no bundle digest for a local manifest. The JSON object contains `configVersion` matching `version`, a release `version`, its `coreCommit`, and digest-pinned `artifacts` and `images`. Required artifacts are `loco-control-plane`, `loco-worker`, `cert-manager-chart`, `loco-applications-crd`, `loco-builds-crd` and `loco-gateway-crd`. Required images are `api`, `ui`, `obs-proxy`, `agent`, `controller` and `builder`. Mutable image tags cannot replace digest references.
 
 Create these external input Secrets in the control-plane namespace before applying:
 

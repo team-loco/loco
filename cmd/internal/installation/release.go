@@ -9,11 +9,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
 
@@ -28,7 +33,18 @@ var (
 	errInvalidRelease   = errors.New("invalid release manifest or unsupported configuration version")
 	errArtifactDownload = errors.New("download pinned release artifact failed")
 	errArtifactRead     = errors.New("read pinned release artifact failed")
+	errBundleMissing    = errors.New("platform bundle version is not published")
+	errBundleVersion    = errors.New("platform bundle release.json names a different version")
+	errNoRelease        = errors.New(
+		"is not a release build; set release.version or release.manifest in the installation file",
+	)
 )
+
+const (
+	platformRepository = "ghcr.io/team-loco/loco/platform"
+	releaseFile        = "release.json"
+)
+
 var digestReference = regexp.MustCompile(`^[a-z0-9][a-z0-9./:_-]*@sha256:[a-f0-9]{64}$`)
 var commitReference = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
@@ -41,14 +57,111 @@ type Manifest struct {
 	Images        map[string]string `json:"images"`
 }
 
+// ResolvedRelease is the release an installation runs and the digest reference of
+// the platform bundle it came from, empty for a local manifest.
+type ResolvedRelease struct {
+	Manifest Manifest
+	Bundle   string
+}
+
+// LoadRelease reads the release named by the installation file at file, defaulting to
+// the platform bundle of locoadm's own version, and warns when the two versions differ.
+func LoadRelease(
+	ctx context.Context, config Config, file, cliVersion string, warnings io.Writer,
+) (ResolvedRelease, error) {
+	release := config.Release
+	if release == nil {
+		version, ok := releaseVersion(cliVersion)
+		if !ok {
+			return ResolvedRelease{}, fmt.Errorf("locoadm %s %w", cliVersion, errNoRelease)
+		}
+		release = &Release{Version: version}
+	}
+	var resolved ResolvedRelease
+	var err error
+	if release.Manifest != "" {
+		path := release.Manifest
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(filepath.Dir(file), path)
+		}
+		resolved.Manifest, err = LoadManifest(path)
+	} else {
+		resolved, err = fetchBundle(ctx, platformRepository, release.Version)
+	}
+	if err != nil {
+		return ResolvedRelease{}, err
+	}
+	if resolved.Manifest.Version != strings.TrimPrefix(cliVersion, "v") {
+		_, err = fmt.Fprintf(warnings, "Warning: installing release %s with locoadm %s\n",
+			resolved.Manifest.Version, cliVersion)
+	}
+	return resolved, err
+}
+
 func LoadManifest(path string) (Manifest, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return Manifest{}, errReadRelease
 	}
 	defer file.Close()
+	return parseManifest(file)
+}
+
+// releaseVersion returns the platform bundle version a locoadm release build installs.
+// Pseudo-versions and CI tags such as sha-<commit> name no published bundle.
+func releaseVersion(cliVersion string) (string, bool) {
+	if !semver.IsValid(cliVersion) || semver.Canonical(cliVersion) != cliVersion ||
+		module.IsPseudoVersion(cliVersion) {
+		return "", false
+	}
+	return strings.TrimPrefix(cliVersion, "v"), true
+}
+
+// fetchBundle resolves the published platform bundle tag to a digest and reads the
+// release.json at the root of its single layer.
+func fetchBundle(ctx context.Context, repository, version string) (ResolvedRelease, error) {
+	tag, err := name.NewTag(repository + ":" + version)
+	if err != nil {
+		return ResolvedRelease{}, field("release.version")
+	}
+	descriptor, err := remote.Get(tag, remote.WithContext(ctx))
+	var transportErr *transport.Error
+	if errors.As(err, &transportErr) && transportErr.StatusCode == http.StatusNotFound {
+		return ResolvedRelease{}, fmt.Errorf("%s: %w", tag, errBundleMissing)
+	}
+	if err != nil {
+		return ResolvedRelease{}, fmt.Errorf("%s: %w", tag, errArtifactDownload)
+	}
+	bundle := tag.Context().Digest(descriptor.Digest.String()).String()
+	manifest, err := bundleManifest(ctx, bundle)
+	if err == nil && manifest.Version != version {
+		err = errBundleVersion
+	}
+	if err != nil {
+		return ResolvedRelease{}, fmt.Errorf("platform bundle %s: %w", bundle, err)
+	}
+	return ResolvedRelease{Manifest: manifest, Bundle: bundle}, nil
+}
+
+func bundleManifest(ctx context.Context, bundle string) (Manifest, error) {
+	data, err := artifact(ctx, bundle)
+	if err != nil {
+		return Manifest{}, err
+	}
+	files, err := archiveFiles(data)
+	if err != nil {
+		return Manifest{}, err
+	}
+	content, ok := files[releaseFile]
+	if !ok {
+		return Manifest{}, errInvalidRelease
+	}
+	return parseManifest(bytes.NewReader(content))
+}
+
+func parseManifest(reader io.Reader) (Manifest, error) {
 	var manifest Manifest
-	decoder := json.NewDecoder(io.LimitReader(file, manifestReadLimit))
+	decoder := json.NewDecoder(io.LimitReader(reader, manifestReadLimit))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&manifest); err != nil {
 		return Manifest{}, errInvalidRelease
