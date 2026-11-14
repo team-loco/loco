@@ -340,8 +340,8 @@ rollout_deployment() {
 test_s07_failed_rollout_keeps_the_old_version_serving() {
     mkdir -p "$rollout_dir"
     cli_write_image_config "$rollout_dir" "$rollout_app" "$E2E_PUBLIC_IMAGE" 8080 "[${rollout_host}]"
-    # Without a health check the controller probes the port, the case that let a crashing
-    # replica count as ready before it.
+    # No health check: the next version runs for a few seconds without listening and exits,
+    # and must not displace any old replica in that time.
     yq -i ".services[\"${rollout_app}\"] |= (del(.health) | .regions[\"us-east-1\"].replicas = {\"min\": 2, \"max\": 2})" \
         "$rollout_dir/loco.yaml"
     rollout_deploy rollout-a
@@ -360,9 +360,7 @@ test_s07_failed_rollout_keeps_the_old_version_serving() {
     rollout_sample_replica_sets >"$status_dir/rollout-replicasets.log" 2>&1 &
     local sampler=$!
 
-    # The image's entrypoint renders this template to a directory and exits before nginx listens.
-    yq -i ".services[\"${rollout_app}\"].env = {\"NGINX_ENVSUBST_TEMPLATE_DIR\": \"/etc/nginx/conf.d\", \"NGINX_ENVSUBST_TEMPLATE_SUFFIX\": \"default.conf\"}" \
-        "$rollout_dir/loco.yaml"
+    yq -i ".services[\"${rollout_app}\"].image = \"${E2E_CRASHING_IMAGE}\"" "$rollout_dir/loco.yaml"
     rollout_deploy rollout-b
     wait_for "the crashing deployment to fail" 240 rollout_failed
     # Long enough for a replica that stayed ready past minReadySeconds to replace an old one.
