@@ -81,6 +81,8 @@ status_revision_changed() {
 }
 
 test_s01_restart_preserves_deployment() {
+    # A replica reports ready before it has stayed ready long enough to finish the rollout.
+    wait_for "the first rollout to finish" 60 status_rollout_is_finished
     local before_revision before_deployment before_count
     before_revision=$(sk -n "$status_namespace" get deployment -l "$(status_app_selector)" -o 'jsonpath={.items[0].spec.template.metadata.annotations.loco\.io/placement-revision}')
     before_deployment=$(region_field deploymentId)
@@ -249,6 +251,10 @@ rollout_is_healthy_with_two_replicas() {
         test "$(rollout_region_field readyReplicas)/$(rollout_region_field desiredReplicas)" = 2/2
 }
 
+rollout_first_is_running() {
+    rollout_is_healthy_with_two_replicas && test "$(rollout_region_field deploymentStatus)" = DEPLOYMENT_PHASE_RUNNING
+}
+
 rollout_deploy() {
     (cd "$rollout_dir" && loco_cli deploy --yes) >"$status_dir/$1.out" 2>&1 || {
         sed 's/^/    /' "$status_dir/$1.out"
@@ -339,8 +345,8 @@ test_s07_failed_rollout_keeps_the_old_version_serving() {
     yq -i ".services[\"${rollout_app}\"] |= (del(.health) | .regions[\"us-east-1\"].replicas = {\"min\": 2, \"max\": 2})" \
         "$rollout_dir/loco.yaml"
     rollout_deploy rollout-a
-    wait_for "${rollout_app} to serve from two ready replicas" 180 rollout_is_healthy_with_two_replicas
-    assert "The first deployment serves from two ready replicas" rollout_is_healthy_with_two_replicas
+    wait_for "${rollout_app} to finish its first rollout" 180 rollout_first_is_running
+    assert "The first deployment runs and serves from two ready replicas" rollout_first_is_running
 
     local old_deployment old_hash
     old_deployment=$(rollout_region_field deploymentId)
