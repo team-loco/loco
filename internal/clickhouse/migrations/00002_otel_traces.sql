@@ -1,5 +1,7 @@
 -- +goose NO TRANSACTION
 -- +goose Up
+-- Ingest stamps loco.retention.days from the organization's retention limits. least() caps the expiry
+-- at the last DateTime, so a long retention cannot wrap around to an earlier one.
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces
 (
     `Timestamp` DateTime64(9) CODEC(Delta(8), ZSTD(3)),
@@ -29,6 +31,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
+    `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
     `ResourceAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), ResourceAttributes::Array(Tuple(String, String))),
     `SpanAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), SpanAttributes::Array(Tuple(String, String))),
     INDEX idx_organization_id OrganizationId TYPE text(tokenizer = 'array'),
@@ -43,8 +46,8 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces
 ENGINE = MergeTree
 PARTITION BY toDate(Timestamp)
 ORDER BY (WorkspaceId, ResourceId, toDateTime(Timestamp))
-TTL toDateTime(Timestamp) + ${TRACES_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(least(toUnixTimestamp(Timestamp) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0;
 
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts
 (
@@ -55,13 +58,14 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts
     `TraceId` String CODEC(ZSTD(3)),
     `Start` DateTime CODEC(Delta, ZSTD(3)),
     `End` DateTime CODEC(Delta, ZSTD(3)),
+    `RetentionDays` UInt32 CODEC(ZSTD(3)),
     INDEX idx_trace_id TraceId TYPE bloom_filter(0.01) GRANULARITY 1
 )
 ENGINE = MergeTree
 PARTITION BY toDate(Start)
 ORDER BY (WorkspaceId, TraceId, Start)
-TTL toDateTime(End) + ${TRACES_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(least(toUnixTimestamp(End) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts_mv
 TO ${DATABASE}.otel_traces_trace_id_ts
@@ -73,7 +77,8 @@ AS SELECT
     ResourceId,
     TraceId,
     min(Timestamp) AS Start,
-    max(Timestamp) AS End
+    max(Timestamp) AS End,
+    max(RetentionDays) AS RetentionDays
 FROM ${DATABASE}.otel_traces
 WHERE TraceId != ''
 GROUP BY OrganizationId, WorkspaceId, EnvironmentId, ResourceId, TraceId;

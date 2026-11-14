@@ -94,6 +94,8 @@ An invitation is refused while the organization is at its member or open-invitat
 
 Deployments and builds are not capped; the API deletes the oldest instead. Creating a deployment deletes the resource's deployments in that environment past the newest `LOCO_LIMIT_DEPLOYMENT_HISTORY` (100), except active and unfinished deployments and those a cluster still runs. Creating a build deletes the resource's builds past the newest `LOCO_LIMIT_BUILD_HISTORY` (100) once the image and source sweepers have deleted their image and source; with `LOCO_IMAGE_RETENTION=0` succeeded builds are kept. Their events stay in the audit log until `EVENTS_RETENTION` removes them.
 
+Logs, traces and metrics expire after `LOCO_LIMIT_LOG_RETENTION_DAYS`, `LOCO_LIMIT_TRACE_RETENTION_DAYS` and `LOCO_LIMIT_METRIC_RETENTION_DAYS` days (365 each). The observability proxy writes the organization's retention into each row it ingests, so a change applies to rows ingested after the proxy's placement cache next refreshes, at most `INGEST_PLACEMENT_CACHE_TTL` (30 seconds) later, and existing rows keep the retention they were written with. Records that name no workspace, such as Kubernetes events and Envoy's own metrics, keep the install defaults. The dashboard's Logs page shows the organization's log retention below the log table.
+
 `ConfigService.GetConfig` reports the install defaults in `count_limits`. A system admin can override every limit except organizations per user for one organization, for example to give a large customer more workspaces. Per-workspace and per-resource overrides apply to every workspace or resource of the organization. Each change needs a reason of 1 to 500 characters and records an `org.limits_changed` event with the reason and the old and new values:
 
 ```sh

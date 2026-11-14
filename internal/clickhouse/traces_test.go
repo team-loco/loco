@@ -201,7 +201,7 @@ func TestGetTraceLookupRetainsRecentSpansOfLongTraces(t *testing.T) {
 		id        string
 		timestamp time.Time
 	}{
-		{"expired-root", f.start.Add(-testTracesTTL - time.Hour)},
+		{"expired-root", f.start.Add(-(testRetentionDays*24 + 1) * time.Hour)},
 		{"recent-child", f.start},
 	} {
 		if err := batch.Append(span.timestamp, knownTraceID, span.id, attrs); err != nil {

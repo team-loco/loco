@@ -22,9 +22,6 @@ const (
 	testClickHouseEnv  = "LOCO_TEST_CLICKHOUSE_URL"
 	databaseNameBytes  = 4
 	concurrentRunners  = 2
-	testLogsTTL        = 72 * time.Hour
-	testTracesTTL      = 36 * time.Hour
-	testMetricsTTL     = 90 * time.Minute
 	testOrganizationID = "99999999-8888-7777-6666-555555555555"
 	testWorkspaceID    = "11111111-2222-3333-4444-555555555555"
 	testEnvironmentID  = "66666666-7777-8888-9999-000000000000"
@@ -61,7 +58,8 @@ const (
 	serviceNameColumn        = "ServiceName"
 	testScopeVersion         = "1.0"
 	testServiceName          = "web"
-	metricsTTLExpr           = "TTL toDateTime(TimeUnix) + toIntervalMinute(90)"
+	retentionAttribute       = "loco.retention.days"
+	testRetentionDays        = "30"
 	sumColumn                = "Sum"
 	testScopeName            = "scope"
 )
@@ -113,13 +111,7 @@ func newTestDatabase(t *testing.T) *testDatabase {
 	})
 	return &testDatabase{
 		admin: admin,
-		cfg: Config{
-			DSN:        dsn,
-			Database:   database,
-			LogsTTL:    testLogsTTL,
-			TracesTTL:  testTracesTTL,
-			MetricsTTL: testMetricsTTL,
-		},
+		cfg:   Config{DSN: dsn, Database: database},
 	}
 }
 
@@ -282,37 +274,53 @@ func TestConcurrentUpConverges(t *testing.T) {
 	}
 }
 
-func TestTTLsFromConfigLandOnTables(t *testing.T) {
+func TestRowsExpireByTheirOwnRetention(t *testing.T) {
 	db := newTestDatabase(t)
 	if err := Up(t.Context(), db.cfg); err != nil {
 		t.Fatalf("Up: %v", err)
 	}
-	want := map[string]string{
-		logsTable:         "TTL toDateTime(Timestamp) + toIntervalDay(3)",
-		tracesTable:       "TTL toDateTime(Timestamp) + toIntervalHour(36)",
-		traceLookupTable:  "TTL toDateTime(End) + toIntervalHour(36)",
-		gaugeTable:        metricsTTLExpr,
-		sumTable:          metricsTTLExpr,
-		histogramTable:    metricsTTLExpr,
-		expHistogramTable: metricsTTLExpr,
-		summaryTable:      metricsTTLExpr,
-	}
-	for table, ttl := range want {
-		var engine string
-		err := db.admin.QueryRow(
-			t.Context(),
-			"SELECT engine_full FROM system.tables WHERE database = ? AND name = ?",
+	written := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Second)
+	for _, insert := range exporterInserts() {
+		query := fmt.Sprintf(
+			"INSERT INTO %s.%s (%s)",
 			db.cfg.Database,
-			table,
-		).Scan(&engine)
+			insert.table,
+			strings.Join(insert.columns, ", "),
+		)
+		batch, err := db.admin.PrepareBatch(t.Context(), query)
 		if err != nil {
-			t.Fatalf("read %s engine: %v", table, err)
+			t.Fatalf("prepare %s insert: %v", insert.table, err)
 		}
-		if !strings.Contains(engine, ttl) {
-			t.Errorf("%s engine %q does not contain %q", table, engine, ttl)
+		for id, days := range map[string]string{"short": "1", "long": "30"} {
+			resource := tenantResource()
+			resource["loco.resource.id"] = id
+			resource[retentionAttribute] = days
+			if err := batch.Append(insert.row(written, resource)...); err != nil {
+				t.Fatalf("append %s row: %v", insert.table, err)
+			}
 		}
-		if !strings.Contains(engine, "ttl_only_drop_parts = 1") {
-			t.Errorf("%s engine %q does not drop whole parts on expiry", table, engine)
+		if err := batch.Send(); err != nil {
+			t.Fatalf("insert into %s: %v", insert.table, err)
+		}
+	}
+	tables := []string{
+		logsTable, tracesTable, traceLookupTable, gaugeTable, sumTable, histogramTable, expHistogramTable, summaryTable,
+	}
+	for _, table := range tables {
+		name := db.cfg.Database + "." + table
+		if err := db.admin.Exec(
+			t.Context(),
+			"ALTER TABLE "+name+" MATERIALIZE TTL SETTINGS mutations_sync = 2",
+		); err != nil {
+			t.Fatalf("materialize %s TTL: %v", table, err)
+		}
+		var remaining []string
+		query := "SELECT arraySort(groupArray(toString(ResourceId))) FROM " + name
+		if err := db.admin.QueryRow(t.Context(), query).Scan(&remaining); err != nil {
+			t.Fatalf("read %s: %v", table, err)
+		}
+		if !slices.Equal(remaining, []string{"long"}) {
+			t.Errorf("%s keeps %v two days later, want only the resource with 30 days retention", table, remaining)
 		}
 	}
 }
@@ -324,13 +332,14 @@ func tenantResource() map[string]string {
 		"loco.workspace.id":    testWorkspaceID,
 		"loco.environment.id":  testEnvironmentID,
 		"loco.resource.id":     testResourceID,
+		retentionAttribute:     testRetentionDays,
 	}
 }
 
 type exporterInsert struct {
 	table   string
 	columns []string
-	row     func(now time.Time) []any
+	row     func(now time.Time, resource map[string]string) []any
 }
 
 func exporterInserts() []exporterInsert {
@@ -358,9 +367,9 @@ func exporterInserts() []exporterInsert {
 		"StartTimeUnix",
 		"TimeUnix",
 	}
-	metricRow := func(now time.Time) []any {
+	metricRow := func(now time.Time, resource map[string]string) []any {
 		return []any{
-			tenantResource(), "", testScopeName, testScopeVersion, attrs, testDroppedAttrs, "", testServiceName,
+			resource, "", testScopeName, testScopeVersion, attrs, testDroppedAttrs, "", testServiceName,
 			"http.server.requests", "requests", "1", attrs, now, now,
 		}
 	}
@@ -396,10 +405,10 @@ func exporterInserts() []exporterInsert {
 				"LogAttributes",
 				"EventName",
 			},
-			row: func(now time.Time) []any {
+			row: func(now time.Time, resource map[string]string) []any {
 				return []any{
 					now, testTraceID, testSpanID, testTraceFlags, "INFO", testSeverityNumber, testServiceName, "hello",
-					"", tenantResource(), "", testScopeName, testScopeVersion, attrs, attrs, "",
+					"", resource, "", testScopeName, testScopeVersion, attrs, attrs, "",
 				}
 			},
 		},
@@ -429,7 +438,7 @@ func exporterInserts() []exporterInsert {
 				"Links.TraceState",
 				"Links.Attributes",
 			},
-			row: func(now time.Time) []any {
+			row: func(now time.Time, resource map[string]string) []any {
 				return []any{
 					now,
 					testTraceID,
@@ -439,7 +448,7 @@ func exporterInserts() []exporterInsert {
 					"GET /",
 					"Server",
 					testServiceName,
-					tenantResource(),
+					resource,
 					testScopeName,
 					testScopeVersion,
 					attrs,
@@ -459,8 +468,8 @@ func exporterInserts() []exporterInsert {
 		{
 			table:   gaugeTable,
 			columns: slices.Concat(metricColumns, []string{"Value", flagsColumn}, exemplarColumns),
-			row: func(now time.Time) []any {
-				return slices.Concat(metricRow(now), []any{testValue, testFlags}, exemplars(now))
+			row: func(now time.Time, resource map[string]string) []any {
+				return slices.Concat(metricRow(now, resource), []any{testValue, testFlags}, exemplars(now))
 			},
 		},
 		{
@@ -471,9 +480,9 @@ func exporterInserts() []exporterInsert {
 				exemplarColumns,
 				[]string{temporalityColumn, "IsMonotonic"},
 			),
-			row: func(now time.Time) []any {
+			row: func(now time.Time, resource map[string]string) []any {
 				return slices.Concat(
-					metricRow(now), []any{testValue, testFlags}, exemplars(now), []any{testTemporality, true},
+					metricRow(now, resource), []any{testValue, testFlags}, exemplars(now), []any{testTemporality, true},
 				)
 			},
 		},
@@ -485,9 +494,9 @@ func exporterInserts() []exporterInsert {
 				exemplarColumns,
 				[]string{flagsColumn, "Min", "Max", temporalityColumn},
 			),
-			row: func(now time.Time) []any {
+			row: func(now time.Time, resource map[string]string) []any {
 				return slices.Concat(
-					metricRow(now),
+					metricRow(now, resource),
 					[]any{testCount, testValue, []uint64{testCount}, []float64{testValue}},
 					exemplars(now),
 					[]any{testFlags, testValue, testValue, testTemporality},
@@ -511,9 +520,9 @@ func exporterInserts() []exporterInsert {
 				exemplarColumns,
 				[]string{flagsColumn, "Min", "Max", temporalityColumn},
 			),
-			row: func(now time.Time) []any {
+			row: func(now time.Time, resource map[string]string) []any {
 				return slices.Concat(
-					metricRow(now),
+					metricRow(now, resource),
 					[]any{
 						testCount, testValue, testScale, testCount, testOffset, []uint64{testCount}, testOffset,
 						[]uint64{testCount},
@@ -529,9 +538,9 @@ func exporterInserts() []exporterInsert {
 				metricColumns,
 				[]string{countColumn, sumColumn, "ValueAtQuantiles.Quantile", "ValueAtQuantiles.Value", flagsColumn},
 			),
-			row: func(now time.Time) []any {
+			row: func(now time.Time, resource map[string]string) []any {
 				return slices.Concat(
-					metricRow(now),
+					metricRow(now, resource),
 					[]any{testCount, testValue, []float64{testValue}, []float64{testValue}, testFlags},
 				)
 			},
@@ -557,7 +566,7 @@ func TestExporterShapedRowsInsertAndCarryTenancy(t *testing.T) {
 			if err != nil {
 				t.Fatalf("prepare insert: %v", err)
 			}
-			row := insert.row(now)
+			row := insert.row(now, tenantResource())
 			if err := batch.Append(row...); err != nil {
 				t.Fatalf("append row: %v", err)
 			}
@@ -729,7 +738,7 @@ func TestInsertOnlyUserPopulatesTraceLookup(t *testing.T) {
 		if err != nil {
 			t.Fatalf("prepare %s insert as %s: %v", insert.table, user, err)
 		}
-		if err := batch.Append(insert.row(now)...); err != nil {
+		if err := batch.Append(insert.row(now, tenantResource())...); err != nil {
 			t.Fatalf("append %s row: %v", insert.table, err)
 		}
 		if err := batch.Send(); err != nil {

@@ -1,5 +1,7 @@
 -- +goose NO TRANSACTION
 -- +goose Up
+-- Ingest stamps loco.retention.days from the organization's retention limits. least() caps the expiry
+-- at the last DateTime, so a long retention cannot wrap around to an earlier one.
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_gauge
 (
     `ResourceAttributes` Map(LowCardinality(String), String) CODEC(ZSTD(3)),
@@ -27,6 +29,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_gauge
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
+    `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
     INDEX idx_organization_id OrganizationId TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_key mapKeys(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_value mapValues(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
@@ -39,8 +42,8 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_gauge
 ENGINE = MergeTree
 PARTITION BY toDate(TimeUnix)
 ORDER BY (WorkspaceId, MetricName, ResourceId, cityHash64(Attributes), TimeUnix)
-TTL toDateTime(TimeUnix) + ${METRICS_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(least(toUnixTimestamp(TimeUnix) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0;
 
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_sum
 (
@@ -71,6 +74,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_sum
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
+    `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
     INDEX idx_organization_id OrganizationId TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_key mapKeys(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_value mapValues(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
@@ -83,8 +87,8 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_sum
 ENGINE = MergeTree
 PARTITION BY toDate(TimeUnix)
 ORDER BY (WorkspaceId, MetricName, ResourceId, cityHash64(Attributes), TimeUnix)
-TTL toDateTime(TimeUnix) + ${METRICS_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(least(toUnixTimestamp(TimeUnix) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0;
 
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_histogram
 (
@@ -119,6 +123,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_histogram
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
+    `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
     INDEX idx_organization_id OrganizationId TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_key mapKeys(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_value mapValues(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
@@ -131,8 +136,8 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_histogram
 ENGINE = MergeTree
 PARTITION BY toDate(TimeUnix)
 ORDER BY (WorkspaceId, MetricName, ResourceId, cityHash64(Attributes), TimeUnix)
-TTL toDateTime(TimeUnix) + ${METRICS_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(least(toUnixTimestamp(TimeUnix) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0;
 
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_exponential_histogram
 (
@@ -171,6 +176,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_exponential_histogram
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
+    `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
     INDEX idx_organization_id OrganizationId TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_key mapKeys(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_value mapValues(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
@@ -183,8 +189,8 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_exponential_histogram
 ENGINE = MergeTree
 PARTITION BY toDate(TimeUnix)
 ORDER BY (WorkspaceId, MetricName, ResourceId, cityHash64(Attributes), TimeUnix)
-TTL toDateTime(TimeUnix) + ${METRICS_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(least(toUnixTimestamp(TimeUnix) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0;
 
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_summary
 (
@@ -211,6 +217,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_summary
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
+    `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
     INDEX idx_organization_id OrganizationId TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_key mapKeys(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_res_attr_value mapValues(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
@@ -223,5 +230,5 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_summary
 ENGINE = MergeTree
 PARTITION BY toDate(TimeUnix)
 ORDER BY (WorkspaceId, MetricName, ResourceId, cityHash64(Attributes), TimeUnix)
-TTL toDateTime(TimeUnix) + ${METRICS_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(least(toUnixTimestamp(TimeUnix) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0;

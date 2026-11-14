@@ -86,9 +86,8 @@ var _ = Describe("Application Controller", func() {
 							},
 							Obs: &locov1alpha1.ObsSpec{
 								Logging: locov1alpha1.LoggingSpec{
-									Enabled:         true,
-									RetentionPeriod: "7d",
-									Structured:      true,
+									Enabled:    true,
+									Structured: true,
 								},
 								Metrics: locov1alpha1.MetricsSpec{
 									Enabled: true,

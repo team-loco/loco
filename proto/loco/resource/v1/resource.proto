@@ -77,8 +77,9 @@ message RoutingConfig {
 
 // LoggingConfig defines logging configuration.
 message LoggingConfig {
+  reserved 2;
+  reserved "retention_period";
   bool enabled = 1;
-  string retention_period = 2; // e.g., "7d", "30d"
   bool structured = 3; // parse as JSON
 }
 

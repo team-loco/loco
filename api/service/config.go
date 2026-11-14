@@ -77,9 +77,8 @@ func (s *ConfigServer) GetConfig(
 			DeployRetryDelaySeconds: s.defaults.DeployRetryDelay,
 			Observability: &resourcev1.ObservabilityConfig{
 				Logging: &resourcev1.LoggingConfig{
-					Enabled:         true,
-					RetentionPeriod: s.defaults.LogRetention,
-					Structured:      false,
+					Enabled:    true,
+					Structured: false,
 				},
 				Metrics: &resourcev1.MetricsConfig{
 					Enabled: false,

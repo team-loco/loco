@@ -24,18 +24,14 @@ var files embed.FS
 
 var (
 	ErrInvalidDatabase    = errors.New("database name is not a ClickHouse identifier")
-	ErrInvalidTTL         = errors.New("ttl must be a positive whole number of seconds")
 	ErrUnknownPlaceholder = errors.New("migration uses an unknown placeholder")
 
 	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 type Config struct {
-	DSN        string
-	Database   string
-	LogsTTL    time.Duration
-	TracesTTL  time.Duration
-	MetricsTTL time.Duration
+	DSN      string
+	Database string
 }
 
 func IsIdentifier(name string) bool {
@@ -45,11 +41,6 @@ func IsIdentifier(name string) bool {
 func validate(cfg Config) error {
 	if !IsIdentifier(cfg.Database) {
 		return fmt.Errorf("%w: %q", ErrInvalidDatabase, cfg.Database)
-	}
-	for _, ttl := range []time.Duration{cfg.LogsTTL, cfg.TracesTTL, cfg.MetricsTTL} {
-		if ttl <= 0 || ttl%time.Second != 0 {
-			return fmt.Errorf("%w: %s", ErrInvalidTTL, ttl)
-		}
 	}
 	return nil
 }
@@ -82,7 +73,7 @@ func UpWithRetry(ctx context.Context, cfg Config, interval time.Duration) error 
 		if err == nil {
 			return nil
 		}
-		if errors.Is(err, ErrInvalidDatabase) || errors.Is(err, ErrInvalidTTL) {
+		if errors.Is(err, ErrInvalidDatabase) {
 			return err
 		}
 		if clickhouseerr.CredentialsRejected(err) {

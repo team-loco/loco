@@ -85,9 +85,8 @@ type ObsSpec struct {
 }
 
 type LoggingSpec struct {
-	Enabled         bool   `json:"enabled,omitzero"`
-	RetentionPeriod string `json:"retentionPeriod,omitempty"` // e.g. 7d
-	Structured      bool   `json:"structured,omitzero"`
+	Enabled    bool `json:"enabled,omitzero"`
+	Structured bool `json:"structured,omitzero"`
 }
 
 // RoutingSpec exposes the service on the gateway at HostName.

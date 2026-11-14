@@ -232,9 +232,11 @@ SET removed_at = NOW()
 WHERE resource_id = $1 AND cluster_id = $2 AND removed_at IS NULL;
 
 -- name: ListClusterPlacementWindows :many
-SELECT workspace_id, placed_at, removed_at FROM placement_windows
-WHERE cluster_id = $1
-ORDER BY placed_at, id;
+SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at
+FROM placement_windows pw
+JOIN workspaces w ON w.id = pw.workspace_id
+WHERE pw.cluster_id = $1
+ORDER BY pw.placed_at, pw.id;
 
 -- name: ChangePlacementRuntimeCondition :one
 UPDATE placements

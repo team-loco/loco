@@ -160,9 +160,8 @@ func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSp
 	metrics := obs.GetMetrics()
 	return &locoControllerV1.ObsSpec{
 		Logging: locoControllerV1.LoggingSpec{
-			Enabled:         logging.GetEnabled(),
-			RetentionPeriod: logging.GetRetentionPeriod(),
-			Structured:      logging.GetStructured(),
+			Enabled:    logging.GetEnabled(),
+			Structured: logging.GetStructured(),
 		},
 		Metrics: locoControllerV1.MetricsSpec{
 			Enabled: metrics.GetEnabled(),

@@ -28,8 +28,15 @@ const (
 type State struct {
 	Keys    []Signer
 	Windows []*ingestv1.PlacementWindow
-	Revoked bool
-	Outage  bool
+	// Retention applies to records that name no workspace.
+	Retention *ingestv1.Retention
+	Revoked   bool
+	Outage    bool
+}
+
+// Retention is what the fake control plane gives the cluster and each workspace it places.
+func Retention() *ingestv1.Retention {
+	return &ingestv1.Retention{LogDays: 30, TraceDays: 7, MetricDays: 90}
 }
 
 type ControlPlane struct {
@@ -47,7 +54,7 @@ func Start(keys []Signer) *ControlPlane {
 }
 
 func Serve(listener net.Listener, keys []Signer) *ControlPlane {
-	cp := &ControlPlane{state: State{Keys: keys}}
+	cp := &ControlPlane{state: State{Keys: keys, Retention: Retention()}}
 	rpcServer := connect.NewServer()
 	ingestv1connect.RegisterIngestServiceHandler(rpcServer, cp)
 	mux := http.NewServeMux()
@@ -82,7 +89,11 @@ func (c *ControlPlane) SigningKey() Signer {
 }
 
 func (c *ControlPlane) Place(workspaceID string, placedAt, removedAt time.Time) {
-	window := &ingestv1.PlacementWindow{WorkspaceId: workspaceID, PlacedAt: timestamppb.New(placedAt)}
+	window := &ingestv1.PlacementWindow{
+		WorkspaceId: workspaceID,
+		PlacedAt:    timestamppb.New(placedAt),
+		Retention:   Retention(),
+	}
 	if !removedAt.IsZero() {
 		window.RemovedAt = timestamppb.New(removedAt)
 	}
@@ -129,5 +140,5 @@ func (c *ControlPlane) ListPlacementWindows(
 	if c.state.Revoked {
 		return nil, connect.NewError(connect.CodePermissionDenied, revoked)
 	}
-	return &ingestv1.ListPlacementWindowsResponse{Windows: c.state.Windows}, nil
+	return &ingestv1.ListPlacementWindowsResponse{Windows: c.state.Windows, Retention: c.state.Retention}, nil
 }

@@ -162,7 +162,8 @@ func (x *GetConfigResponse) GetCountLimits() *CountLimits {
 
 // CountLimits cap how many of each thing can exist. A create past a cap fails with
 // RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished
-// records. Per-workspace and per-resource limits apply to each workspace or resource.
+// records, and the retention limits expire telemetry older than that many days. Per-workspace
+// and per-resource limits apply to each workspace or resource.
 type CountLimits struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// orgs_per_user counts the organizations a user created.
@@ -183,9 +184,13 @@ type CountLimits struct {
 	// deployment_history is how many deployments a resource keeps in each environment.
 	DeploymentHistory int32 `protobuf:"varint,11,opt,name=deployment_history,json=deploymentHistory,proto3" json:"deployment_history,omitempty"`
 	// build_history is how many builds a resource keeps.
-	BuildHistory  int32 `protobuf:"varint,12,opt,name=build_history,json=buildHistory,proto3" json:"build_history,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	BuildHistory int32 `protobuf:"varint,12,opt,name=build_history,json=buildHistory,proto3" json:"build_history,omitempty"`
+	// log_retention_days is how many days ClickHouse keeps the organization's logs.
+	LogRetentionDays    int32 `protobuf:"varint,13,opt,name=log_retention_days,json=logRetentionDays,proto3" json:"log_retention_days,omitempty"`
+	TraceRetentionDays  int32 `protobuf:"varint,14,opt,name=trace_retention_days,json=traceRetentionDays,proto3" json:"trace_retention_days,omitempty"`
+	MetricRetentionDays int32 `protobuf:"varint,15,opt,name=metric_retention_days,json=metricRetentionDays,proto3" json:"metric_retention_days,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CountLimits) Reset() {
@@ -298,6 +303,27 @@ func (x *CountLimits) GetDeploymentHistory() int32 {
 func (x *CountLimits) GetBuildHistory() int32 {
 	if x != nil {
 		return x.BuildHistory
+	}
+	return 0
+}
+
+func (x *CountLimits) GetLogRetentionDays() int32 {
+	if x != nil {
+		return x.LogRetentionDays
+	}
+	return 0
+}
+
+func (x *CountLimits) GetTraceRetentionDays() int32 {
+	if x != nil {
+		return x.TraceRetentionDays
+	}
+	return 0
+}
+
+func (x *CountLimits) GetMetricRetentionDays() int32 {
+	if x != nil {
+		return x.MetricRetentionDays
 	}
 	return 0
 }
@@ -629,7 +655,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x1eapi_token_max_lifetime_seconds\x18\x06 \x01(\x03R\x1aapiTokenMaxLifetimeSeconds\x12;\n" +
 	"\vsize_limits\x18\a \x01(\v2\x1a.loco.config.v1.SizeLimitsR\n" +
 	"sizeLimits\x12>\n" +
-	"\fcount_limits\x18\b \x01(\v2\x1b.loco.config.v1.CountLimitsR\vcountLimits\"\xc7\x04\n" +
+	"\fcount_limits\x18\b \x01(\v2\x1b.loco.config.v1.CountLimitsR\vcountLimits\"\xdb\x05\n" +
 	"\vCountLimits\x12\"\n" +
 	"\rorgs_per_user\x18\x01 \x01(\x05R\vorgsPerUser\x12,\n" +
 	"\x12workspaces_per_org\x18\x02 \x01(\x05R\x10workspacesPerOrg\x12&\n" +
@@ -643,7 +669,10 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x14secrets_per_resource\x18\n" +
 	" \x01(\x05R\x12secretsPerResource\x12-\n" +
 	"\x12deployment_history\x18\v \x01(\x05R\x11deploymentHistory\x12#\n" +
-	"\rbuild_history\x18\f \x01(\x05R\fbuildHistory\"\xf2\x01\n" +
+	"\rbuild_history\x18\f \x01(\x05R\fbuildHistory\x12,\n" +
+	"\x12log_retention_days\x18\r \x01(\x05R\x10logRetentionDays\x120\n" +
+	"\x14trace_retention_days\x18\x0e \x01(\x05R\x12traceRetentionDays\x122\n" +
+	"\x15metric_retention_days\x18\x0f \x01(\x05R\x13metricRetentionDays\"\xf2\x01\n" +
 	"\n" +
 	"SizeLimits\x12$\n" +
 	"\x0emin_cpu_millis\x18\x01 \x01(\x05R\fminCpuMillis\x12$\n" +

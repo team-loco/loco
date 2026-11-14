@@ -17,6 +17,7 @@ import (
 const (
 	workspaceAttribute     = "loco.workspace.id"
 	clusterAttribute       = "loco.cluster.id"
+	retentionAttribute     = "loco.retention.days"
 	rejectionMessagePrefix = "rejected records outside a placement on this cluster: "
 	rejectionSeparator     = ", "
 	rejectionCountSep      = "="
@@ -91,8 +92,18 @@ func (f *tenancyFilter) record(counter *prometheus.CounterVec) {
 	}
 }
 
-func (f *tenancyFilter) stamp(resource pcommon.Resource) {
-	resource.Attributes().PutStr(clusterAttribute, f.admission.ClusterID)
+// stamp sets the cluster and the days to keep the resource's records of one signal, replacing
+// any values the client sent.
+func (f *tenancyFilter) stamp(resource pcommon.Resource, signal int) {
+	attrs := resource.Attributes()
+	attrs.PutStr(clusterAttribute, f.admission.ClusterID)
+	workspace, _ := attrs.Get(workspaceAttribute)
+	days, ok := f.admission.retention(workspace.Str())
+	if !ok {
+		attrs.Remove(retentionAttribute)
+		return
+	}
+	attrs.PutStr(retentionAttribute, strconv.Itoa(int(days[signal])))
 }
 
 func (f *tenancyFilter) logs(logs plog.Logs) {
@@ -108,7 +119,7 @@ func (f *tenancyFilter) logs(logs plog.Logs) {
 			})
 			return scopeLogs.LogRecords().Len() == 0
 		})
-		f.stamp(resource)
+		f.stamp(resource, logDays)
 		return resourceLogs.ScopeLogs().Len() == 0
 	})
 }
@@ -122,7 +133,7 @@ func (f *tenancyFilter) traces(traces ptrace.Traces) {
 			})
 			return scopeSpans.Spans().Len() == 0
 		})
-		f.stamp(resource)
+		f.stamp(resource, traceDays)
 		return resourceSpans.ScopeSpans().Len() == 0
 	})
 }
@@ -136,7 +147,7 @@ func (f *tenancyFilter) metrics(metrics pmetric.Metrics) {
 			})
 			return scopeMetrics.Metrics().Len() == 0
 		})
-		f.stamp(resource)
+		f.stamp(resource, metricDays)
 		return resourceMetrics.ScopeMetrics().Len() == 0
 	})
 }

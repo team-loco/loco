@@ -19,7 +19,6 @@ const (
 	testRetryBudget   = 300 * time.Millisecond
 	testRetryInterval = 50 * time.Millisecond
 	retrySlack        = 2 * time.Second
-	testTTL           = 24 * time.Hour
 
 	rejectedBudget       = 3 * time.Second
 	authenticationFailed = 516
@@ -27,27 +26,7 @@ const (
 )
 
 func validConfig() Config {
-	return Config{
-		DSN:        unreachableDSN,
-		Database:   "loco_obs",
-		LogsTTL:    testTTL,
-		TracesTTL:  testTTL,
-		MetricsTTL: testTTL,
-	}
-}
-
-func TestIntervalUsesLargestWholeUnit(t *testing.T) {
-	cases := map[time.Duration]string{
-		72 * time.Hour:   "toIntervalDay(3)",
-		36 * time.Hour:   "toIntervalHour(36)",
-		90 * time.Minute: "toIntervalMinute(90)",
-		61 * time.Second: "toIntervalSecond(61)",
-	}
-	for ttl, want := range cases {
-		if got := interval(ttl); got != want {
-			t.Errorf("interval(%s) = %q, want %q", ttl, got, want)
-		}
-	}
+	return Config{DSN: unreachableDSN, Database: "loco_obs"}
 }
 
 func TestValidateRejectsInvalidConfig(t *testing.T) {
@@ -58,9 +37,6 @@ func TestValidateRejectsInvalidConfig(t *testing.T) {
 		"database with a dash":      {func(c *Config) { c.Database = "loco-obs" }, ErrInvalidDatabase},
 		"database with a statement": {func(c *Config) { c.Database = "x; DROP TABLE y" }, ErrInvalidDatabase},
 		"empty database":            {func(c *Config) { c.Database = "" }, ErrInvalidDatabase},
-		"zero logs ttl":             {func(c *Config) { c.LogsTTL = 0 }, ErrInvalidTTL},
-		"negative traces ttl":       {func(c *Config) { c.TracesTTL = -time.Hour }, ErrInvalidTTL},
-		"fractional metrics ttl":    {func(c *Config) { c.MetricsTTL = 1500 * time.Millisecond }, ErrInvalidTTL},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -116,6 +116,9 @@ func (s *OrgServer) SetOrgLimits(
 			SecretsPerResource:       row.SecretsPerResource,
 			DeploymentHistory:        row.DeploymentHistory,
 			BuildHistory:             row.BuildHistory,
+			LogRetentionDays:         row.LogRetentionDays,
+			TraceRetentionDays:       row.TraceRetentionDays,
+			MetricRetentionDays:      row.MetricRetentionDays,
 			Reason:                   req.GetReason(),
 			UpdatedBy:                updatedBy,
 		})

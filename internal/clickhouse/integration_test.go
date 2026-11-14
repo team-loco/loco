@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"os"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -21,9 +22,7 @@ const (
 	databaseNameBytes      = 4
 	testMaxConns           = 2
 	testQueryTimeout       = 10 * time.Second
-	testLogsTTL            = 72 * time.Hour
-	testTracesTTL          = 36 * time.Hour
-	testMetricsTTL         = 90 * time.Minute
+	testRetentionDays      = 1
 	testDataAge            = 10 * time.Minute
 	testRowSpacing         = time.Second
 	testPageSize           = int32(2)
@@ -37,6 +36,7 @@ const (
 	testSharedLabelValue   = "shared"
 	workspaceAttributeKey  = "loco.workspace.id"
 	resourceAttributeKey   = "loco.resource.id"
+	retentionAttributeKey  = "loco.retention.days"
 	environmentAttrKey     = "loco.environment.id"
 	testRegion             = "us-east-1"
 	testWorkerRegion       = "eu-west-1"
@@ -144,13 +144,7 @@ func newQueryFixture(t *testing.T) *queryFixture {
 		t.Fatalf("random database name: %v", err)
 	}
 	database := "loco_obs_query_test_" + hex.EncodeToString(suffix)
-	cfg := migrations.Config{
-		DSN:        dsn,
-		Database:   database,
-		LogsTTL:    testLogsTTL,
-		TracesTTL:  testTracesTTL,
-		MetricsTTL: testMetricsTTL,
-	}
+	cfg := migrations.Config{DSN: dsn, Database: database}
 	if err := migrations.Up(t.Context(), cfg); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
@@ -178,6 +172,7 @@ func tenantAttributes(workspaceID, environmentID, resourceID string) map[string]
 		workspaceAttributeKey: workspaceID,
 		environmentAttrKey:    environmentID,
 		resourceAttributeKey:  resourceID,
+		retentionAttributeKey: strconv.Itoa(testRetentionDays),
 	}
 }
 

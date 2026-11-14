@@ -9099,11 +9099,27 @@
             "title": "build_history",
             "format": "int32",
             "description": "build_history is how many builds a resource keeps."
+          },
+          "logRetentionDays": {
+            "type": "integer",
+            "title": "log_retention_days",
+            "format": "int32",
+            "description": "log_retention_days is how many days ClickHouse keeps the organization's logs."
+          },
+          "traceRetentionDays": {
+            "type": "integer",
+            "title": "trace_retention_days",
+            "format": "int32"
+          },
+          "metricRetentionDays": {
+            "type": "integer",
+            "title": "metric_retention_days",
+            "format": "int32"
           }
         },
         "title": "CountLimits",
         "additionalProperties": false,
-        "description": "CountLimits cap how many of each thing can exist. A create past a cap fails with\n RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished\n records. Per-workspace and per-resource limits apply to each workspace or resource."
+        "description": "CountLimits cap how many of each thing can exist. A create past a cap fails with\n RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished\n records, and the retention limits expire telemetry older than that many days. Per-workspace\n and per-resource limits apply to each workspace or resource."
       },
       "loco.config.v1.DefaultServiceConfig": {
         "type": "object",
@@ -10838,6 +10854,11 @@
               "$ref": "#/components/schemas/loco.ingest.v1.PlacementWindow"
             },
             "title": "windows"
+          },
+          "retention": {
+            "title": "retention",
+            "description": "retention applies to records that name no workspace: the installation's defaults.",
+            "$ref": "#/components/schemas/loco.ingest.v1.Retention"
           }
         },
         "title": "ListPlacementWindowsResponse",
@@ -10857,11 +10878,39 @@
           "removedAt": {
             "title": "removed_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "retention": {
+            "title": "retention",
+            "description": "retention applies to the workspace's records: its organization's retention limits.",
+            "$ref": "#/components/schemas/loco.ingest.v1.Retention"
           }
         },
         "title": "PlacementWindow",
         "additionalProperties": false,
         "description": "PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;\n removed_at is unset while the placement exists."
+      },
+      "loco.ingest.v1.Retention": {
+        "type": "object",
+        "properties": {
+          "logDays": {
+            "type": "integer",
+            "title": "log_days",
+            "format": "int32"
+          },
+          "traceDays": {
+            "type": "integer",
+            "title": "trace_days",
+            "format": "int32"
+          },
+          "metricDays": {
+            "type": "integer",
+            "title": "metric_days",
+            "format": "int32"
+          }
+        },
+        "title": "Retention",
+        "additionalProperties": false,
+        "description": "Retention is how many days ClickHouse keeps each signal's rows."
       },
       "loco.observability.v1.GetTraceRequest": {
         "type": "object",
@@ -12951,11 +13000,6 @@
           "enabled": {
             "type": "boolean",
             "title": "enabled"
-          },
-          "retentionPeriod": {
-            "type": "string",
-            "title": "retention_period",
-            "description": "e.g., \"7d\", \"30d\""
           },
           "structured": {
             "type": "boolean",

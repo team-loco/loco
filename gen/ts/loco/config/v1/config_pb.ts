@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi4gIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMi5QIKC0NvdW50TGltaXRzEhUKDW9yZ3NfcGVyX3VzZXIYASABKAUSGgoSd29ya3NwYWNlc19wZXJfb3JnGAIgASgFEhcKD21lbWJlcnNfcGVyX29yZxgDIAEoBRIbChNpbnZpdGF0aW9uc19wZXJfb3JnGAQgASgFEiIKGmVudmlyb25tZW50c19wZXJfd29ya3NwYWNlGAUgASgFEh8KF3Jlc291cmNlc19wZXJfd29ya3NwYWNlGAYgASgFEh4KFndlYmhvb2tzX3Blcl93b3Jrc3BhY2UYByABKAUSGQoRdG9rZW5zX3Blcl9lbnRpdHkYCCABKAUSHAoUZG9tYWluc19wZXJfcmVzb3VyY2UYCSABKAUSHAoUc2VjcmV0c19wZXJfcmVzb3VyY2UYCiABKAUSGgoSZGVwbG95bWVudF9oaXN0b3J5GAsgASgFEhUKDWJ1aWxkX2hpc3RvcnkYDCABKAUinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkiPwoKQXV0aENvbmZpZxIOCgZpc3N1ZXIYASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg4KBnNjb3BlcxgDIAEoCSKrAgoURGVmYXVsdFNlcnZpY2VDb25maWcSOwoMaGVhbHRoX2NoZWNrGAEgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnEgsKA2NwdRgCIAEoCRIOCgZtZW1vcnkYAyABKAkSFAoMbWluX3JlcGxpY2FzGAQgASgFEhQKDG1heF9yZXBsaWNhcxgFIAEoBRI8Cg1vYnNlcnZhYmlsaXR5GAYgASgLMiUubG9jby5yZXNvdXJjZS52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEhcKD2RlcGxveV9hdHRlbXB0cxgHIAEoBRIiChpkZXBsb3lfcmV0cnlfZGVsYXlfc2Vjb25kcxgIIAEoBRISCgpjcHVfdGFyZ2V0GAkgASgFMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi4gIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMivgMKC0NvdW50TGltaXRzEhUKDW9yZ3NfcGVyX3VzZXIYASABKAUSGgoSd29ya3NwYWNlc19wZXJfb3JnGAIgASgFEhcKD21lbWJlcnNfcGVyX29yZxgDIAEoBRIbChNpbnZpdGF0aW9uc19wZXJfb3JnGAQgASgFEiIKGmVudmlyb25tZW50c19wZXJfd29ya3NwYWNlGAUgASgFEh8KF3Jlc291cmNlc19wZXJfd29ya3NwYWNlGAYgASgFEh4KFndlYmhvb2tzX3Blcl93b3Jrc3BhY2UYByABKAUSGQoRdG9rZW5zX3Blcl9lbnRpdHkYCCABKAUSHAoUZG9tYWluc19wZXJfcmVzb3VyY2UYCSABKAUSHAoUc2VjcmV0c19wZXJfcmVzb3VyY2UYCiABKAUSGgoSZGVwbG95bWVudF9oaXN0b3J5GAsgASgFEhUKDWJ1aWxkX2hpc3RvcnkYDCABKAUSGgoSbG9nX3JldGVudGlvbl9kYXlzGA0gASgFEhwKFHRyYWNlX3JldGVudGlvbl9kYXlzGA4gASgFEh0KFW1ldHJpY19yZXRlbnRpb25fZGF5cxgPIAEoBSKcAQoKU2l6ZUxpbWl0cxIWCg5taW5fY3B1X21pbGxpcxgBIAEoBRIWCg5tYXhfY3B1X21pbGxpcxgCIAEoBRIYChBtaW5fbWVtb3J5X2J5dGVzGAMgASgDEhgKEG1heF9tZW1vcnlfYnl0ZXMYBCABKAMSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBSIlCgdPcmdMaW5rEg0KBWxhYmVsGAEgASgJEgsKA3VybBgCIAEoCSI/CgpBdXRoQ29uZmlnEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDgoGc2NvcGVzGAMgASgJIqsCChREZWZhdWx0U2VydmljZUNvbmZpZxI7CgxoZWFsdGhfY2hlY2sYASABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAIgASgJEg4KBm1lbW9yeRgDIAEoCRIUCgxtaW5fcmVwbGljYXMYBCABKAUSFAoMbWF4X3JlcGxpY2FzGAUgASgFEjwKDW9ic2VydmFiaWxpdHkYBiABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPZGVwbG95X2F0dGVtcHRzGAcgASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAggASgFEhIKCmNwdV90YXJnZXQYCSABKAUyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -139,7 +139,8 @@ export const GetConfigResponseSchema: GenMessage<GetConfigResponse, {jsonType: G
 /**
  * CountLimits cap how many of each thing can exist. A create past a cap fails with
  * RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished
- * records. Per-workspace and per-resource limits apply to each workspace or resource.
+ * records, and the retention limits expire telemetry older than that many days. Per-workspace
+ * and per-resource limits apply to each workspace or resource.
  *
  * @generated from message loco.config.v1.CountLimits
  */
@@ -217,12 +218,30 @@ export type CountLimits = Message<"loco.config.v1.CountLimits"> & {
    * @generated from field: int32 build_history = 12;
    */
   buildHistory: number;
+
+  /**
+   * log_retention_days is how many days ClickHouse keeps the organization's logs.
+   *
+   * @generated from field: int32 log_retention_days = 13;
+   */
+  logRetentionDays: number;
+
+  /**
+   * @generated from field: int32 trace_retention_days = 14;
+   */
+  traceRetentionDays: number;
+
+  /**
+   * @generated from field: int32 metric_retention_days = 15;
+   */
+  metricRetentionDays: number;
 };
 
 /**
  * CountLimits cap how many of each thing can exist. A create past a cap fails with
  * RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished
- * records. Per-workspace and per-resource limits apply to each workspace or resource.
+ * records, and the retention limits expire telemetry older than that many days. Per-workspace
+ * and per-resource limits apply to each workspace or resource.
  *
  * @generated from message loco.config.v1.CountLimits
  */
@@ -300,6 +319,23 @@ export type CountLimitsJson = {
    * @generated from field: int32 build_history = 12;
    */
   buildHistory?: number;
+
+  /**
+   * log_retention_days is how many days ClickHouse keeps the organization's logs.
+   *
+   * @generated from field: int32 log_retention_days = 13;
+   */
+  logRetentionDays?: number;
+
+  /**
+   * @generated from field: int32 trace_retention_days = 14;
+   */
+  traceRetentionDays?: number;
+
+  /**
+   * @generated from field: int32 metric_retention_days = 15;
+   */
+  metricRetentionDays?: number;
 };
 
 /**

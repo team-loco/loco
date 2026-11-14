@@ -278,13 +278,16 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 }
 
 const listClusterPlacementWindows = `-- name: ListClusterPlacementWindows :many
-SELECT workspace_id, placed_at, removed_at FROM placement_windows
-WHERE cluster_id = $1
-ORDER BY placed_at, id
+SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at
+FROM placement_windows pw
+JOIN workspaces w ON w.id = pw.workspace_id
+WHERE pw.cluster_id = $1
+ORDER BY pw.placed_at, pw.id
 `
 
 type ListClusterPlacementWindowsRow struct {
 	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	OrgID       uuid.UUID  `json:"orgId"`
 	PlacedAt    time.Time  `json:"placedAt"`
 	RemovedAt   *time.Time `json:"removedAt"`
 }
@@ -298,7 +301,12 @@ func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uui
 	var items []ListClusterPlacementWindowsRow
 	for rows.Next() {
 		var i ListClusterPlacementWindowsRow
-		if err := rows.Scan(&i.WorkspaceID, &i.PlacedAt, &i.RemovedAt); err != nil {
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.OrgID,
+			&i.PlacedAt,
+			&i.RemovedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

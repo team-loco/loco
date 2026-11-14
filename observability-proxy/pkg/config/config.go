@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	defaultRetention              = 365 * 24 * time.Hour
 	defaultMigrationRetryBudget   = 2 * time.Minute
 	defaultMigrationRetryInterval = 5 * time.Second
 	defaultMigrationLockTTL       = 15 * time.Second
@@ -34,9 +33,6 @@ type Config struct {
 	ClickHouseDB    string
 
 	ClickHouseMigratorURL  string
-	LogsTTL                time.Duration
-	TracesTTL              time.Duration
-	MetricsTTL             time.Duration
 	MigrationRetryBudget   time.Duration
 	MigrationRetryInterval time.Duration
 	MigrationLockTTL       time.Duration
@@ -64,9 +60,6 @@ func Load() *Config {
 		ClickHouseDB:    requiredIdentifierEnv("CLICKHOUSE_DB"),
 
 		ClickHouseMigratorURL:  requiredStringEnv("CLICKHOUSE_MIGRATOR_URL"),
-		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL", defaultRetention),
-		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL", defaultRetention),
-		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL", defaultRetention),
 		MigrationRetryBudget:   envconfig.PositiveDuration("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
 		MigrationRetryInterval: envconfig.PositiveDuration("MIGRATION_RETRY_INTERVAL", defaultMigrationRetryInterval),
 		MigrationLockTTL:       envconfig.PositiveDuration("MIGRATION_LOCK_TTL", defaultMigrationLockTTL),
