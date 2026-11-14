@@ -4,11 +4,14 @@ import { CircleArrowUpIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
+import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { formatCount } from "@/lib/format";
+import { limitTone, limitUsage } from "@/lib/limits";
 import { userLabel } from "@/lib/user";
+import { cn } from "@/lib/utils";
 
 import { formatDay, SettingsCard, SettingsSection } from "./parts";
 
@@ -28,11 +31,14 @@ const protoField = (key: LimitKey) => key.replace(/[A-Z]/g, (c) => `_${c.toLower
 function Rows({ rows, limits }: { rows: readonly LimitRow[]; limits: OrgLimits | undefined }) {
 	return rows.map((row) => {
 		const limit = limits?.limits?.[row.key];
+		const tone = row.used === undefined ? null : limitTone(limitUsage(row.used, limit, row.label, ""));
 		return (
 			<TableRow key={row.key}>
 				<TableCell>{row.label}</TableCell>
 				<TableCell className="text-fg2">{row.per}</TableCell>
-				<TableCell className="font-mono text-fg2">{row.used === undefined ? "—" : formatCount(row.used)}</TableCell>
+				<TableCell className={cn("font-mono", tone === null ? "text-fg2" : LIMIT_TONE_TEXT[tone])}>
+					{row.used === undefined ? "—" : formatCount(row.used)}
+				</TableCell>
 				<TableCell className="text-right font-mono">
 					<span className="inline-flex items-center justify-end gap-2">
 						{limits?.overridden.includes(protoField(row.key)) === true && (

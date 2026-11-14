@@ -155,7 +155,6 @@ export function Tokens() {
 		owner.entityType === EntityType.USER ? config.data?.countLimits?.tokensPerEntity : limits?.tokensPerEntity;
 	const scope = ownerKey === "personal" ? "account" : OWNER_TITLE[ownerKey].toLowerCase();
 	const usage = current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, "tokens", scope);
-	const liveUsage = limitUsage(liveCount(ownerKey), tokenLimit, "tokens", scope);
 	const createBlocked = owner.canCreate
 		? limitReason(usage)
 		: `You need write access to ${owner.label} to create tokens`;
@@ -203,7 +202,7 @@ export function Tokens() {
 				title={
 					<>
 						Tokens
-						{!anyLoading && <LimitCount count={liveCount(ownerKey)} usage={liveUsage} />}
+						{!anyLoading && <LimitCount count={tokens.length} usage={usage} />}
 					</>
 				}
 				actions={
