@@ -653,6 +653,9 @@ setup_public_image() {
     wait_for "the public fixture registry" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${port}/v2/"
     export E2E_PUBLIC_IMAGE="localhost:${port}/public-image:e2e"
     go -C "$ROOT_DIR" run ./tools/e2e-mirror-image "$PUBLIC_FIXTURE_IMAGE" "$E2E_PUBLIC_IMAGE"
+    # A version that runs for a few seconds without listening and then exits, for failed rollouts.
+    export E2E_CRASHING_IMAGE="localhost:${port}/public-image:e2e-crashing"
+    go -C "$ROOT_DIR" run ./tools/e2e-mirror-image "$E2E_PUBLIC_IMAGE" "$E2E_CRASHING_IMAGE" sh -c "sleep 5; exit 1"
     for node in $(kind get nodes --name "$KIND_CLUSTER_NAME"); do
         docker exec "$node" mkdir -p "/etc/containerd/certs.d/localhost:${port}"
         printf '[host."http://%s:5000"]\n  capabilities = ["pull", "resolve"]\n' "$E2E_PUBLIC_REGISTRY_ALIAS" |
