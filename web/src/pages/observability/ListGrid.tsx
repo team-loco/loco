@@ -13,7 +13,7 @@ export function listRowClass(index: number, selected: boolean): string {
 	return cn(
 		"grid min-h-[34px] w-full items-center rounded-lg text-left text-[12px] transition-[background] duration-900 ease-out hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 		index % 2 === 1 && "bg-[color-mix(in_oklab,var(--panel2)_45%,transparent)]",
-		selected && "bg-background shadow-[0_0_0_1px_var(--line2)] hover:bg-background",
+		selected && "bg-background shadow-[inset_0_0_0_1px_var(--line2)] hover:bg-background",
 	);
 }
 

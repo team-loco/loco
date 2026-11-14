@@ -274,7 +274,6 @@ function TraceSession({
 
 	const header = (
 		<ViewHeader
-			count={loading || browse.error !== null ? undefined : formatCount(total)}
 			actions={
 				<Button
 					variant="outline"

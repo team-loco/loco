@@ -317,20 +317,12 @@ export function LogsView() {
 	};
 	const pressedLevels = LEVELS.filter((l) => tokens.some((t) => sameToken(t, levelToken(l))));
 	const away = anchor !== null || range.kind === "absolute";
-	const total = tail ? null : logs.totalMatched;
-	const count =
-		isLoading || error !== null
-			? undefined
-			: total !== null && total >= rows.length
-				? formatCount(total)
-				: `${formatCount(rows.length)}${truncated ? "+" : ""}`;
 
 	const returnToLatest = () => {
 		setRange({ kind: "relative", spanMs });
 	};
 	const header = (
 		<ViewHeader
-			count={count}
 			actions={
 				<>
 					{away && (

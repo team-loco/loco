@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { Badge } from "@/components/design/Badge";
 import { PageHeader } from "@/components/design/Page";
 import { PageTitle } from "@/components/PageTitle";
 import type { ObservabilityView } from "@/lib/routes";
@@ -21,18 +20,13 @@ export function viewTitle(view: ObservabilityView): string {
 	}
 }
 
-export function ViewHeader({ count, actions }: { count?: string | undefined; actions?: ReactNode }) {
+export function ViewHeader({ actions }: { actions?: ReactNode }) {
 	const { view } = useObs();
 	return (
 		<>
 			<PageTitle title={viewTitle(view)} />
 			<PageHeader
-				title={
-					<>
-						{viewTitle(view)}
-						{count !== undefined && <Badge tone="count">{count}</Badge>}
-					</>
-				}
+				title={viewTitle(view)}
 				actions={
 					<div className="flex flex-wrap items-center gap-2">
 						{actions}

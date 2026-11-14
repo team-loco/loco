@@ -5,8 +5,6 @@ import { deploymentActor, deploymentImage, deploymentMethod, shortSha } from "@/
 import { imageVersion } from "@/lib/image";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip";
-
 export function DeploymentActor({ deployment: d }: { deployment: Deployment }) {
 	const actor = deploymentActor(d);
 	const method = deploymentMethod(d);
@@ -46,17 +44,6 @@ export function DeploymentCommit({ deployment: d }: { deployment: Deployment }) 
 			<span className="truncate font-mono text-[12.5px] text-foreground" title={d.commit?.sha ?? image}>
 				{label}
 			</span>
-			{d.commit?.dirty === true && (
-				<Tooltip>
-					<TooltipTrigger
-						render={<span />}
-						className="shrink-0 rounded-[4px] border border-current px-1 font-mono text-[10.5px] leading-[15px] text-warn"
-					>
-						modified
-					</TooltipTrigger>
-					<TooltipContent>Deployed with uncommitted changes</TooltipContent>
-				</Tooltip>
-			)}
 		</span>
 	);
 }
