@@ -10776,11 +10776,12 @@
             "uniqueItems": true,
             "description": "IDs and types are alternatives so people and system actors can be selected together."
           },
-          "query": {
+          "requestId": {
             "type": "string",
-            "title": "query",
-            "maxLength": 256,
-            "minLength": 3
+            "title": "request_id",
+            "maxLength": 36,
+            "minLength": 36,
+            "format": "uuid"
           }
         },
         "title": "ListEventsRequest",

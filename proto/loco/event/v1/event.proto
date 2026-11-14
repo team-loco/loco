@@ -76,11 +76,11 @@ message ListEventsRequest {
       }
     }
   }];
-  string query = 12 [
+  string request_id = 12 [
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string = {
-      min_len: 3
-      max_len: 256
+      uuid: true
+      len: 36
     }
   ];
 }

@@ -16,23 +16,7 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND ((coalesce(cardinality(sqlc.arg('actor_ids')::uuid[]), 0) = 0 AND coalesce(cardinality(sqlc.arg('actor_types')::text[]), 0) = 0)
     OR e.actor_id = ANY(sqlc.arg('actor_ids')::uuid[])
     OR e.actor_type = ANY(sqlc.arg('actor_types')::text[]))
-  -- Separate candidates use each search index; ANY needs no cross-index deduplication.
-  AND (sqlc.arg('query')::text = '' OR e.seq = ANY(ARRAY(
-  SELECT candidate.seq FROM events candidate
-  WHERE candidate.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
-    AND (sqlc.narg('start_time')::timestamptz IS NULL OR candidate.created_at >= sqlc.narg('start_time'))
-    AND (sqlc.narg('end_time')::timestamptz IS NULL OR candidate.created_at < sqlc.narg('end_time'))
-    AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
-      OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
-      OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
-  UNION ALL
-  SELECT a.seq FROM users actor
-  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
-  WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
-    AND (sqlc.narg('start_time')::timestamptz IS NULL OR a.created_at >= sqlc.narg('start_time'))
-    AND (sqlc.narg('end_time')::timestamptz IS NULL OR a.created_at < sqlc.narg('end_time'))
-    AND (actor.name ILIKE sqlc.arg('substring')::text OR actor.email ILIKE sqlc.arg('substring')::text)
-  )))
+  AND (sqlc.arg('request_id')::text = '' OR e.request_id = sqlc.arg('request_id'))
 ORDER BY e.seq DESC
 LIMIT sqlc.arg('max_rows');
 
@@ -50,24 +34,7 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND ((coalesce(cardinality(sqlc.arg('actor_ids')::uuid[]), 0) = 0 AND coalesce(cardinality(sqlc.arg('actor_types')::text[]), 0) = 0)
     OR e.actor_id = ANY(sqlc.arg('actor_ids')::uuid[])
     OR e.actor_type = ANY(sqlc.arg('actor_types')::text[]))
-  AND (sqlc.arg('query')::text = '' OR e.seq = ANY(ARRAY(
-  SELECT candidate.seq FROM events candidate
-  WHERE candidate.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
-    AND candidate.workspace_id = sqlc.arg('workspace_id')
-    AND (sqlc.narg('start_time')::timestamptz IS NULL OR candidate.created_at >= sqlc.narg('start_time'))
-    AND (sqlc.narg('end_time')::timestamptz IS NULL OR candidate.created_at < sqlc.narg('end_time'))
-    AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
-      OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
-      OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
-  UNION ALL
-  SELECT a.seq FROM users actor
-  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
-  WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
-    AND a.workspace_id = sqlc.arg('workspace_id')
-    AND (sqlc.narg('start_time')::timestamptz IS NULL OR a.created_at >= sqlc.narg('start_time'))
-    AND (sqlc.narg('end_time')::timestamptz IS NULL OR a.created_at < sqlc.narg('end_time'))
-    AND (actor.name ILIKE sqlc.arg('substring')::text OR actor.email ILIKE sqlc.arg('substring')::text)
-  )))
+  AND (sqlc.arg('request_id')::text = '' OR e.request_id = sqlc.arg('request_id'))
 ORDER BY e.seq DESC
 LIMIT sqlc.arg('max_rows');
 
@@ -86,26 +53,7 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND ((coalesce(cardinality(sqlc.arg('actor_ids')::uuid[]), 0) = 0 AND coalesce(cardinality(sqlc.arg('actor_types')::text[]), 0) = 0)
     OR e.actor_id = ANY(sqlc.arg('actor_ids')::uuid[])
     OR e.actor_type = ANY(sqlc.arg('actor_types')::text[]))
-  AND (sqlc.arg('query')::text = '' OR e.seq = ANY(ARRAY(
-  SELECT candidate.seq FROM events candidate
-  WHERE candidate.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
-    AND candidate.workspace_id = sqlc.arg('workspace_id')
-    AND candidate.resource_id = sqlc.arg('resource_id')
-    AND (sqlc.narg('start_time')::timestamptz IS NULL OR candidate.created_at >= sqlc.narg('start_time'))
-    AND (sqlc.narg('end_time')::timestamptz IS NULL OR candidate.created_at < sqlc.narg('end_time'))
-    AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
-      OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
-      OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
-  UNION ALL
-  SELECT a.seq FROM users actor
-  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
-  WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
-    AND a.workspace_id = sqlc.arg('workspace_id')
-    AND a.resource_id = sqlc.arg('resource_id')
-    AND (sqlc.narg('start_time')::timestamptz IS NULL OR a.created_at >= sqlc.narg('start_time'))
-    AND (sqlc.narg('end_time')::timestamptz IS NULL OR a.created_at < sqlc.narg('end_time'))
-    AND (actor.name ILIKE sqlc.arg('substring')::text OR actor.email ILIKE sqlc.arg('substring')::text)
-  )))
+  AND (sqlc.arg('request_id')::text = '' OR e.request_id = sqlc.arg('request_id'))
 ORDER BY e.seq DESC
 LIMIT sqlc.arg('max_rows');
 

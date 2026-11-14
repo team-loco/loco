@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -251,10 +250,6 @@ func (s *EventServer) listAuditEvents(
 		}
 		actorIDs = append(actorIDs, id)
 	}
-	text := req.GetQuery()
-	escaped := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(text)
-	requestPrefix := escaped + "%"
-	substring := "%" + escaped + "%"
 	out := []*eventv1.Event{}
 	switch scope.kind {
 	case eventScopeResource:
@@ -265,9 +260,7 @@ func (s *EventServer) listAuditEvents(
 			Types:         types,
 			ActorIds:      actorIDs,
 			ActorTypes:    req.GetActorTypes(),
-			Query:         text,
-			RequestPrefix: requestPrefix,
-			Substring:     substring,
+			RequestID:     req.GetRequestId(),
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
 			EnvironmentID: environmentID,
@@ -288,9 +281,7 @@ func (s *EventServer) listAuditEvents(
 			Types:         types,
 			ActorIds:      actorIDs,
 			ActorTypes:    req.GetActorTypes(),
-			Query:         text,
-			RequestPrefix: requestPrefix,
-			Substring:     substring,
+			RequestID:     req.GetRequestId(),
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
 			EnvironmentID: environmentID,
@@ -310,9 +301,7 @@ func (s *EventServer) listAuditEvents(
 			Types:         types,
 			ActorIds:      actorIDs,
 			ActorTypes:    req.GetActorTypes(),
-			Query:         text,
-			RequestPrefix: requestPrefix,
-			Substring:     substring,
+			RequestID:     req.GetRequestId(),
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
 			EnvironmentID: environmentID,

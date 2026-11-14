@@ -130,25 +130,9 @@ WHERE e.org_id = $1
   AND ((coalesce(cardinality($7::uuid[]), 0) = 0 AND coalesce(cardinality($8::text[]), 0) = 0)
     OR e.actor_id = ANY($7::uuid[])
     OR e.actor_type = ANY($8::text[]))
-  -- Separate candidates use each search index; ANY needs no cross-index deduplication.
-  AND ($9::text = '' OR e.seq = ANY(ARRAY(
-  SELECT candidate.seq FROM events candidate
-  WHERE candidate.org_id = $1 AND $9::text <> ''
-    AND ($3::timestamptz IS NULL OR candidate.created_at >= $3)
-    AND ($4::timestamptz IS NULL OR candidate.created_at < $4)
-    AND (candidate.request_id LIKE $10::text
-      OR candidate.data->>'name' ILIKE $11::text
-      OR candidate.data->>'domain' ILIKE $11::text)
-  UNION ALL
-  SELECT a.seq FROM users actor
-  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
-  WHERE a.org_id = $1 AND $9::text <> ''
-    AND ($3::timestamptz IS NULL OR a.created_at >= $3)
-    AND ($4::timestamptz IS NULL OR a.created_at < $4)
-    AND (actor.name ILIKE $11::text OR actor.email ILIKE $11::text)
-  )))
+  AND ($9::text = '' OR e.request_id = $9)
 ORDER BY e.seq DESC
-LIMIT $12
+LIMIT $10
 `
 
 type ListOrgAuditEventsParams struct {
@@ -160,9 +144,7 @@ type ListOrgAuditEventsParams struct {
 	Types         []string    `json:"types"`
 	ActorIds      []uuid.UUID `json:"actorIds"`
 	ActorTypes    []string    `json:"actorTypes"`
-	Query         string      `json:"query"`
-	RequestPrefix string      `json:"requestPrefix"`
-	Substring     string      `json:"substring"`
+	RequestID     string      `json:"requestId"`
 	MaxRows       int32       `json:"maxRows"`
 }
 
@@ -182,9 +164,7 @@ func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEvents
 		arg.Types,
 		arg.ActorIds,
 		arg.ActorTypes,
-		arg.Query,
-		arg.RequestPrefix,
-		arg.Substring,
+		arg.RequestID,
 		arg.MaxRows,
 	)
 	if err != nil {
@@ -239,28 +219,9 @@ WHERE e.org_id = $1
   AND ((coalesce(cardinality($9::uuid[]), 0) = 0 AND coalesce(cardinality($10::text[]), 0) = 0)
     OR e.actor_id = ANY($9::uuid[])
     OR e.actor_type = ANY($10::text[]))
-  AND ($11::text = '' OR e.seq = ANY(ARRAY(
-  SELECT candidate.seq FROM events candidate
-  WHERE candidate.org_id = $1 AND $11::text <> ''
-    AND candidate.workspace_id = $2
-    AND candidate.resource_id = $3
-    AND ($5::timestamptz IS NULL OR candidate.created_at >= $5)
-    AND ($6::timestamptz IS NULL OR candidate.created_at < $6)
-    AND (candidate.request_id LIKE $12::text
-      OR candidate.data->>'name' ILIKE $13::text
-      OR candidate.data->>'domain' ILIKE $13::text)
-  UNION ALL
-  SELECT a.seq FROM users actor
-  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
-  WHERE a.org_id = $1 AND $11::text <> ''
-    AND a.workspace_id = $2
-    AND a.resource_id = $3
-    AND ($5::timestamptz IS NULL OR a.created_at >= $5)
-    AND ($6::timestamptz IS NULL OR a.created_at < $6)
-    AND (actor.name ILIKE $13::text OR actor.email ILIKE $13::text)
-  )))
+  AND ($11::text = '' OR e.request_id = $11)
 ORDER BY e.seq DESC
-LIMIT $14
+LIMIT $12
 `
 
 type ListResourceAuditEventsParams struct {
@@ -274,9 +235,7 @@ type ListResourceAuditEventsParams struct {
 	Types         []string    `json:"types"`
 	ActorIds      []uuid.UUID `json:"actorIds"`
 	ActorTypes    []string    `json:"actorTypes"`
-	Query         string      `json:"query"`
-	RequestPrefix string      `json:"requestPrefix"`
-	Substring     string      `json:"substring"`
+	RequestID     string      `json:"requestId"`
 	MaxRows       int32       `json:"maxRows"`
 }
 
@@ -298,9 +257,7 @@ func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceA
 		arg.Types,
 		arg.ActorIds,
 		arg.ActorTypes,
-		arg.Query,
-		arg.RequestPrefix,
-		arg.Substring,
+		arg.RequestID,
 		arg.MaxRows,
 	)
 	if err != nil {
@@ -354,26 +311,9 @@ WHERE e.org_id = $1
   AND ((coalesce(cardinality($8::uuid[]), 0) = 0 AND coalesce(cardinality($9::text[]), 0) = 0)
     OR e.actor_id = ANY($8::uuid[])
     OR e.actor_type = ANY($9::text[]))
-  AND ($10::text = '' OR e.seq = ANY(ARRAY(
-  SELECT candidate.seq FROM events candidate
-  WHERE candidate.org_id = $1 AND $10::text <> ''
-    AND candidate.workspace_id = $2
-    AND ($4::timestamptz IS NULL OR candidate.created_at >= $4)
-    AND ($5::timestamptz IS NULL OR candidate.created_at < $5)
-    AND (candidate.request_id LIKE $11::text
-      OR candidate.data->>'name' ILIKE $12::text
-      OR candidate.data->>'domain' ILIKE $12::text)
-  UNION ALL
-  SELECT a.seq FROM users actor
-  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
-  WHERE a.org_id = $1 AND $10::text <> ''
-    AND a.workspace_id = $2
-    AND ($4::timestamptz IS NULL OR a.created_at >= $4)
-    AND ($5::timestamptz IS NULL OR a.created_at < $5)
-    AND (actor.name ILIKE $12::text OR actor.email ILIKE $12::text)
-  )))
+  AND ($10::text = '' OR e.request_id = $10)
 ORDER BY e.seq DESC
-LIMIT $13
+LIMIT $11
 `
 
 type ListWorkspaceAuditEventsParams struct {
@@ -386,9 +326,7 @@ type ListWorkspaceAuditEventsParams struct {
 	Types         []string    `json:"types"`
 	ActorIds      []uuid.UUID `json:"actorIds"`
 	ActorTypes    []string    `json:"actorTypes"`
-	Query         string      `json:"query"`
-	RequestPrefix string      `json:"requestPrefix"`
-	Substring     string      `json:"substring"`
+	RequestID     string      `json:"requestId"`
 	MaxRows       int32       `json:"maxRows"`
 }
 
@@ -409,9 +347,7 @@ func (q *Queries) ListWorkspaceAuditEvents(ctx context.Context, arg ListWorkspac
 		arg.Types,
 		arg.ActorIds,
 		arg.ActorTypes,
-		arg.Query,
-		arg.RequestPrefix,
-		arg.Substring,
+		arg.RequestID,
 		arg.MaxRows,
 	)
 	if err != nil {

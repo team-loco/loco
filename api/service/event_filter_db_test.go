@@ -2,7 +2,6 @@ package service
 
 import (
 	"slices"
-	"strings"
 	"testing"
 
 	"buf.build/go/protovalidate"
@@ -14,20 +13,13 @@ import (
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 )
 
-func TestListEventsSearchAndActors(t *testing.T) {
+func TestListEventsRequestIDAndActors(t *testing.T) {
 	f := newScopedAuditFixture(t)
 	principal, _ := reqctx.PrincipalFrom(f.owner)
-	if _, err := f.pool.Exec(
-		t.Context(),
-		"UPDATE users SET name=$1 WHERE id=$2",
-		"Ada Audit",
-		principal.Entity.ID,
-	); err != nil {
-		t.Fatal(err)
-	}
 	orgID := uuid.MustParse(f.orgID)
 	tokenID := uuid.New()
 	var primary []int64
+	requestIDs := []string{uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()}
 	for _, workspace := range []uuid.UUID{f.workspaceID, f.otherWorkspaceID} {
 		actors := []string{
 			string(genDb.EntityTypeUser), string(genDb.EntityTypeWorkspace),
@@ -48,10 +40,8 @@ func TestListEventsSearchAndActors(t *testing.T) {
 				ResourceID:  &f.resourceID,
 				ActorType:   actor,
 				ActorID:     id,
-				RequestID: new(
-					"search-request-" + string(rune('a'+i)),
-				),
-				Data: []byte(`{"name":"Checkout API","domain":"api.example.test"}`),
+				RequestID:   new(requestIDs[i]),
+				Data:        []byte(`{}`),
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -62,11 +52,11 @@ func TestListEventsSearchAndActors(t *testing.T) {
 		}
 	}
 	for _, tc := range []struct {
-		name  string
-		ids   []string
-		types []string
-		query string
-		want  []int64
+		name      string
+		ids       []string
+		types     []string
+		requestID string
+		want      []int64
 	}{
 		{name: "person", ids: []string{principal.Entity.ID.String()}, want: []int64{primary[4], primary[0]}},
 		{name: "token", ids: []string{tokenID.String()}, want: []int64{primary[1]}},
@@ -74,18 +64,9 @@ func TestListEventsSearchAndActors(t *testing.T) {
 		{name: "cluster agent", types: []string{"agent"}, want: []int64{primary[3]}},
 		{name: "person and Loco", ids: []string{principal.Entity.ID.String()},
 			types: []string{events.ActorSystem}, want: []int64{primary[4], primary[2], primary[0]}},
-		{name: "request prefix", query: "search-request-",
-			want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
-		{name: "request exact", query: "search-request-b", want: []int64{primary[1]}},
-		{name: "actor name", query: "DA AU", want: []int64{primary[4], primary[0]}},
-		{name: "actor email", query: "NER@ACME", want: []int64{primary[4], primary[0]}},
-		{name: "target", query: "CHECKOUT", want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
-		{name: "domain", query: "EXAMPLE", want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
-		{name: "overlapping actor and target", query: "test",
-			want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
-		{name: "combined", ids: []string{tokenID.String()}, query: "search-request-b", want: []int64{primary[1]}},
-		{name: "literal wildcard", query: "%%%"},
-		{name: "request suffix is not prefix", query: "request-b"},
+		{name: "request ID", requestID: requestIDs[1], want: []int64{primary[1]}},
+		{name: "combined", ids: []string{tokenID.String()}, requestID: requestIDs[1], want: []int64{primary[1]}},
+		{name: "different request", requestID: uuid.NewString()},
 		{name: "different actor", ids: []string{uuid.NewString()}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -97,7 +78,7 @@ func TestListEventsSearchAndActors(t *testing.T) {
 					Types:       []string{events.TokenCreated},
 					ActorIds:    tc.ids,
 					ActorTypes:  tc.types,
-					Query:       tc.query,
+					RequestId:   tc.requestID,
 					PageSize:    1,
 				}
 				var got []int64
@@ -121,13 +102,13 @@ func TestListEventsSearchAndActors(t *testing.T) {
 		})
 	}
 	req := &eventv1.ListEventsRequest{
-		OrgId:    f.orgID,
-		Types:    []string{events.TokenCreated},
-		Query:    "Ada",
-		ActorIds: []string{principal.Entity.ID.String()},
+		OrgId:     f.orgID,
+		Types:     []string{events.TokenCreated},
+		RequestId: requestIDs[0],
+		ActorIds:  []string{principal.Entity.ID.String()},
 	}
 	orgResult, err := f.events.ListEvents(f.owner, req)
-	if err != nil || len(orgResult.GetEvents()) != 4 {
+	if err != nil || len(orgResult.GetEvents()) != 2 {
 		t.Fatalf("org search=%v %v", orgResult, err)
 	}
 	admin := auditScope(t, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeAdmin)
@@ -139,24 +120,24 @@ func TestListEventsSearchAndActors(t *testing.T) {
 	}
 	req.WorkspaceId = f.workspaceID.String()
 	scoped, err := f.events.ListEvents(admin, req)
-	if err != nil || len(scoped.GetEvents()) != 2 {
+	if err != nil || len(scoped.GetEvents()) != 1 {
 		t.Fatalf("workspace search=%v %v", scoped, err)
 	}
 }
 
-func TestAuditSearchValidation(t *testing.T) {
-	for _, query := range []string{"", "abc"} {
-		req := &eventv1.ListEventsRequest{OrgId: uuid.NewString(), Query: query}
+func TestAuditFiltersValidation(t *testing.T) {
+	for _, id := range []string{"", uuid.NewString()} {
+		req := &eventv1.ListEventsRequest{OrgId: uuid.NewString(), RequestId: id}
 		if err := protovalidate.Validate(req); err != nil {
-			t.Fatalf("rejected query %q: %v", query, err)
+			t.Fatalf("rejected request ID %q: %v", id, err)
 		}
 	}
 	for _, req := range []*eventv1.ListEventsRequest{
 		{OrgId: uuid.NewString(), ActorIds: []string{"not-a-uuid"}},
 		{OrgId: uuid.NewString(), ActorTypes: []string{"robot"}},
-		{OrgId: uuid.NewString(), Query: strings.Repeat("x", 257)},
-		{OrgId: uuid.NewString(), Query: "a"},
-		{OrgId: uuid.NewString(), Query: "ab"},
+		{OrgId: uuid.NewString(), RequestId: "actor name"},
+		{OrgId: uuid.NewString(), RequestId: uuid.NewString()[:12]},
+		{OrgId: uuid.NewString(), RequestId: "%"},
 	} {
 		if err := protovalidate.Validate(req); err == nil {
 			t.Fatalf("accepted %v", req)
@@ -164,13 +145,14 @@ func TestAuditSearchValidation(t *testing.T) {
 	}
 }
 
-func TestAuditSearchTimeBoundsAtEveryScope(t *testing.T) {
+func TestAuditRequestIDTimeBoundsAtEveryScope(t *testing.T) {
 	f := newScopedAuditFixture(t)
 	principal, _ := reqctx.PrincipalFrom(f.owner)
 	orgID := uuid.MustParse(f.orgID)
-	if err := events.Record(f.owner, f.queries, events.Event{
+	requestID := uuid.NewString()
+	ctx := reqctx.WithRequest(f.owner, reqctx.Request{ID: requestID})
+	if err := events.Record(ctx, f.queries, events.Event{
 		Type: events.TokenCreated, ResourceID: &f.resourceID,
-		Data: map[string]any{events.FieldName: auditOwnerEmail},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +160,7 @@ func TestAuditSearchTimeBoundsAtEveryScope(t *testing.T) {
 		genDb.EntityTypeOrganization, genDb.EntityTypeWorkspace, genDb.EntityTypeResource,
 	}
 	for _, scope := range scopes {
-		req := &eventv1.ListEventsRequest{OrgId: orgID.String(), Query: auditOwnerEmail,
+		req := &eventv1.ListEventsRequest{OrgId: orgID.String(), RequestId: requestID,
 			ActorIds: []string{principal.Entity.ID.String()}, Types: []string{events.TokenCreated}}
 		if scope != genDb.EntityTypeOrganization {
 			req.WorkspaceId = f.workspaceID.String()

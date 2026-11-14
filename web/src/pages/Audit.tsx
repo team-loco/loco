@@ -18,6 +18,7 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { PickFilter } from "@/components/design/FilterPopover";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
+import { SearchInput } from "@/components/design/SearchInput";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
@@ -25,9 +26,18 @@ import { useNow } from "@/hooks/useNow";
 import { agoLabel, msToTimestamp } from "@/lib/time";
 
 import { AuditDrawer } from "./audit/AuditDrawer";
-import { AuditSearch, EventFilter } from "./audit/AuditFilters";
+import { EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
-import { ACTOR_KINDS, auditRow, DEFAULT_RANGE, MIN_QUERY_CHARS, PAGE_SIZES, RANGES, TYPE_ACTORS } from "./audit/model";
+import {
+	ACTOR_KINDS,
+	auditRow,
+	DEFAULT_RANGE,
+	matchesPageFilter,
+	requestIdFilter,
+	PAGE_SIZES,
+	RANGES,
+	TYPE_ACTORS,
+} from "./audit/model";
 import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
@@ -59,6 +69,7 @@ export function Audit() {
 	const range = RANGES.find((r) => r.value === params.get("range")) ?? DEFAULT_RANGE;
 	const types = (params.get("types") ?? "").split(",").filter((t) => AUDIT_EVENT_TYPES.includes(t));
 	const search = params.get("q") ?? "";
+	const requestId = requestIdFilter(search);
 	const actor = params.get("actor") ?? "";
 	const actorTypes = TYPE_ACTORS.includes(actor) ? [actor] : [];
 	const actorIds = actor !== "" && actorTypes.length === 0 ? [actor] : [];
@@ -75,7 +86,16 @@ export function Audit() {
 	const environmentId = workspaceId === "" ? "" : (params.get("env") ?? "");
 
 	// The cursor stack belongs to one set of filters; changing any of them starts from the newest page.
-	const filterKey = JSON.stringify([range.value, types, workspaceId, resourceId, environmentId, size, search, actor]);
+	const filterKey = JSON.stringify([
+		range.value,
+		types,
+		workspaceId,
+		resourceId,
+		environmentId,
+		size,
+		requestId,
+		actor,
+	]);
 	const [cursor, setCursor] = useState<{ key: string; stack: bigint[] }>({ key: filterKey, stack: [] });
 	const stack = cursor.key === filterKey ? cursor.stack : [];
 	const query = useQuery(
@@ -86,7 +106,7 @@ export function Audit() {
 			resourceId,
 			environmentId,
 			types,
-			query: Array.from(search).length >= MIN_QUERY_CHARS ? search : "",
+			requestId,
 			actorIds,
 			actorTypes,
 			pageSize: size,
@@ -110,10 +130,11 @@ export function Audit() {
 		...choices.map((w): [string, string] => [w.id, w.name]),
 		...details.names,
 	]);
-	const rows = events.map((e) => auditRow(e, users, names));
+	const loadedRows = events.map((e) => auditRow(e, users, names));
+	const rows = loadedRows.filter((row) => matchesPageFilter(row, search));
 	const actors = new Map<string, string>([
 		...[...users].map(([id, u]): [string, string] => [id, [u.name, u.email].filter(Boolean).join(" · ")]),
-		...rows
+		...loadedRows
 			.filter((r) => r.event.actorId !== "" && !TYPE_ACTORS.includes(r.event.actorType))
 			.map((r): [string, string] => [r.event.actorId, [r.actor.name, r.actor.detail].filter(Boolean).join(" · ")]),
 		...TYPE_ACTORS.map((t): [string, string] => [t, ACTOR_KINDS[t] ?? t]),
@@ -170,10 +191,15 @@ export function Audit() {
 			) : (
 				<Section
 					search={
-						<AuditSearch
+						<SearchInput
+							aria-label="Filter this page"
+							placeholder="Filter this page"
+							onClear={() => {
+								update({ q: null, event: null });
+							}}
 							value={search}
-							onChange={(q) => {
-								update({ q, event: null });
+							onChange={(event) => {
+								update({ q: event.target.value, event: null });
 							}}
 						/>
 					}

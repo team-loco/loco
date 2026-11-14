@@ -1,10 +1,10 @@
 import { create } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
-import { expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import { typesIn } from "@/pages/settings/auditEvents";
 
-import { auditRow, toggleCategory, toggleType, typesLabel } from "./model";
+import { auditRow, matchesPageFilter, requestIdFilter, toggleCategory, toggleType, typesLabel } from "./model";
 
 test("the event filter names one type, whole categories, or the first type and a count", () => {
 	expect(typesLabel([])).toBe("");
@@ -45,4 +45,29 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 	const gone = create(EventSchema, { type: "resource.deleted", workspaceId: "w1", resourceId: "0199aaaa-bbbb" });
 	expect(auditRow(gone, new Map(), names).where).toBe("storefront / 0199aaaa");
 	expect(auditRow(create(EventSchema, { type: "org.updated" }), new Map(), names).where).toBe("Organization");
+});
+
+describe("audit page filtering", () => {
+	test("only complete request UUIDs trigger history lookup", () => {
+		const id = "01900000-0000-7000-8000-000000000001";
+		expect(requestIdFilter(` ${id} `)).toBe(id);
+		for (const text of ["", "Ada", "checkout", id.slice(0, 12), "%"]) expect(requestIdFilter(text)).toBe("");
+	});
+	test("matches displayed row values without a minimum length", () => {
+		const row = auditRow(
+			create(EventSchema, {
+				type: "resource.created",
+				actorType: "user",
+				actorName: "Ada",
+				actorEmail: "ada@example.test",
+				requestId: "01900000-0000-7000-8000-000000000001",
+				data: { name: "Checkout" },
+			}),
+			new Map(),
+			new Map(),
+		);
+		for (const text of ["", "a", "ADA", "example", "Created a resource", "checkout", row.event.requestId])
+			expect(matchesPageFilter(row, text)).toBe(true);
+		expect(matchesPageFilter(row, "no match")).toBe(false);
+	});
 });

@@ -68,7 +68,25 @@ export const ACTOR_KINDS: Record<string, string> = {
 /** The Actor filter selects these by type: Loco and anonymous actors have no ID, and cluster agents are one choice. */
 export const TYPE_ACTORS = ["system", "agent", "anonymous"];
 
-export const MIN_QUERY_CHARS = 3;
+// Error receipts copy complete UUIDs minted in internal/rpc/requestid.go.
+export function requestIdFilter(text: string): string {
+	const value = text.trim();
+	return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : "";
+}
+
+export function matchesPageFilter(row: AuditRow, text: string): boolean {
+	const query = text.trim().toLowerCase();
+	return [
+		row.actor.name,
+		row.actor.detail,
+		row.label,
+		row.detail,
+		row.where,
+		row.resource,
+		row.environment,
+		row.event.requestId,
+	].some((value) => value.toLowerCase().includes(query));
+}
 
 export interface AuditRow {
 	event: Event;

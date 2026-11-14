@@ -18,12 +18,9 @@ CREATE TABLE events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX events_org_actor_seq_idx ON events (org_id, actor_id, seq DESC);
 CREATE INDEX events_org_actor_type_seq_idx ON events (org_id, actor_type, seq DESC);
-CREATE INDEX events_request_prefix_idx ON events (org_id, request_id text_pattern_ops);
-CREATE INDEX events_target_search_idx ON events USING gin ((data->>'name') gin_trgm_ops, (data->>'domain') gin_trgm_ops);
-CREATE INDEX users_actor_search_idx ON users USING gin (name gin_trgm_ops, email gin_trgm_ops);
+CREATE INDEX events_org_request_idx ON events (org_id, request_id);
 
 CREATE INDEX events_workspace_seq_idx ON events (workspace_id, seq DESC);
 CREATE INDEX events_resource_seq_idx ON events (resource_id, seq DESC);
@@ -123,7 +120,6 @@ AFTER INSERT ON events
 FOR EACH ROW EXECUTE FUNCTION events_enqueue_webhooks();
 
 -- +goose Down
-DROP INDEX users_actor_search_idx;
 DROP TABLE IF EXISTS webhook_deliveries;
 DROP TABLE IF EXISTS webhooks;
 DROP TABLE IF EXISTS events;

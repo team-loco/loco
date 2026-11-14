@@ -6,9 +6,8 @@ import { cn } from "@/lib/utils";
 function SearchInput({
 	className,
 	onClear,
-	hint,
 	...props
-}: React.ComponentProps<typeof InputGroupInput> & { onClear?: () => void; hint?: string | undefined }) {
+}: React.ComponentProps<typeof InputGroupInput> & { onClear?: () => void }) {
 	return (
 		<InputGroup
 			className={cn(
@@ -20,11 +19,6 @@ function SearchInput({
 				<SearchIcon />
 			</InputGroupAddon>
 			<InputGroupInput className="pr-2 text-[13px] md:text-[13px]" {...props} />
-			{hint !== undefined && (
-				<InputGroupAddon align="inline-end" className="text-[11px]">
-					{hint}
-				</InputGroupAddon>
-			)}
 			{onClear !== undefined && props.value !== "" && (
 				<InputGroupAddon align="inline-end" className="pr-1.5">
 					<button
