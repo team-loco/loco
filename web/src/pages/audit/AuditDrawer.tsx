@@ -25,6 +25,7 @@ export function AuditDrawer({
 	onNewer,
 	onOlder,
 	onResource,
+	onActor,
 	onClose,
 }: {
 	row: AuditRow | undefined;
@@ -32,6 +33,7 @@ export function AuditDrawer({
 	onNewer: (() => void) | null;
 	onOlder: (() => void) | null;
 	onResource: (() => void) | null;
+	onActor: () => void;
 	onClose: () => void;
 }) {
 	return (
@@ -109,6 +111,11 @@ export function AuditDrawer({
 									<span className="font-mono text-[12.5px]">#{row.event.seq.toLocaleString()}</span>
 								</Item>
 							</dl>
+							<div>
+								<Button variant="outline" onClick={onActor}>
+									More by {row.actor.name}
+								</Button>
+							</div>
 							{onResource !== null && (
 								<div>
 									<Button variant="outline" onClick={onResource}>

@@ -1,7 +1,9 @@
+import { useCallback, useRef, useState } from "react";
 import { CheckIcon, ListFilterIcon } from "lucide-react";
 
 import { CommandGroup, CommandItem } from "@/components/design/Command";
 import { FilterPopover } from "@/components/design/FilterPopover";
+import { SearchInput } from "@/components/design/SearchInput";
 import { auditLabel } from "@/pages/settings/auditEvents";
 
 import { CATEGORIES, toggleCategory, toggleType, typesLabel } from "./model";
@@ -50,5 +52,42 @@ export function EventFilter({ types, onChange }: { types: string[]; onChange: (t
 				))
 			}
 		</FilterPopover>
+	);
+}
+
+const SEARCH_DEBOUNCE_MS = 350;
+
+export function AuditSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+	const [input, setInput] = useState({ source: value, draft: value });
+	if (input.source !== value) setInput({ source: value, draft: value });
+	const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const ref = useCallback(
+		() => () => {
+			clearTimeout(timerRef.current);
+		},
+		[],
+	);
+	return (
+		<SearchInput
+			ref={ref}
+			aria-label="Search events"
+			placeholder="Search request ID, actor or target"
+			maxLength={256}
+			value={input.draft}
+			onChange={(event) => {
+				const control = event.currentTarget;
+				const draft = control.value;
+				setInput({ source: value, draft });
+				clearTimeout(timerRef.current);
+				timerRef.current = setTimeout(() => {
+					if (control.value === draft) onChange(draft);
+				}, SEARCH_DEBOUNCE_MS);
+			}}
+			onClear={() => {
+				clearTimeout(timerRef.current);
+				setInput({ source: value, draft: "" });
+				onChange("");
+			}}
+		/>
 	);
 }

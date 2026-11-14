@@ -10750,6 +10750,40 @@
           "endTime": {
             "title": "end_time",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "actorIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "actor_ids",
+            "maxItems": 50,
+            "uniqueItems": true
+          },
+          "actorTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "user",
+                "organization",
+                "workspace",
+                "resource",
+                "system",
+                "agent",
+                "anonymous"
+              ]
+            },
+            "title": "actor_types",
+            "maxItems": 7,
+            "uniqueItems": true,
+            "description": "IDs and types are alternatives so people and system actors can be selected together."
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 256
           }
         },
         "title": "ListEventsRequest",

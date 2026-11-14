@@ -198,8 +198,12 @@ type ListEventsRequest struct {
 	ResourceId    string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	EnvironmentId string                 `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	// Inclusive start and exclusive end of the event creation time range.
-	StartTime     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	EndTime       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	ActorIds  []string               `protobuf:"bytes,10,rep,name=actor_ids,json=actorIds,proto3" json:"actor_ids,omitempty"`
+	// IDs and types are alternatives so people and system actors can be selected together.
+	ActorTypes    []string `protobuf:"bytes,11,rep,name=actor_types,json=actorTypes,proto3" json:"actor_types,omitempty"`
+	Query         string   `protobuf:"bytes,12,opt,name=query,proto3" json:"query,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -295,6 +299,27 @@ func (x *ListEventsRequest) GetEndTime() *timestamppb.Timestamp {
 		return x.EndTime
 	}
 	return nil
+}
+
+func (x *ListEventsRequest) GetActorIds() []string {
+	if x != nil {
+		return x.ActorIds
+	}
+	return nil
+}
+
+func (x *ListEventsRequest) GetActorTypes() []string {
+	if x != nil {
+		return x.ActorTypes
+	}
+	return nil
+}
+
+func (x *ListEventsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
 }
 
 type ListEventsResponse struct {
@@ -474,7 +499,7 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"actor_name\x18\x0e \x01(\tR\tactorName\x12\x1f\n" +
 	"\vresource_id\x18\x0f \x01(\tR\n" +
 	"resourceId\x12%\n" +
-	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xa9\x03\n" +
+	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xed\x04\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
@@ -488,7 +513,12 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\a \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x129\n" +
 	"\n" +
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
-	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\"j\n" +
+	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12.\n" +
+	"\tactor_ids\x18\n" +
+	" \x03(\tB\x11\xbaH\x0e\x92\x01\v\x102\x18\x01\"\x05r\x03\xb0\x01\x01R\bactorIds\x12r\n" +
+	"\vactor_types\x18\v \x03(\tBQ\xbaHN\x92\x01K\x10\a\x18\x01\"ErCR\x04userR\forganizationR\tworkspaceR\bresourceR\x06systemR\x05agentR\tanonymousR\n" +
+	"actorTypes\x12\x1e\n" +
+	"\x05query\x18\f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x05query\"j\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"6\n" +

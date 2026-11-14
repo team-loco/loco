@@ -1,7 +1,7 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { BoxIcon, ChevronDownIcon, ClockIcon, GitBranchIcon, HistoryIcon, LayersIcon } from "lucide-react";
+import { BoxIcon, ChevronDownIcon, ClockIcon, GitBranchIcon, HistoryIcon, LayersIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 
@@ -25,7 +25,7 @@ import { useNow } from "@/hooks/useNow";
 import { agoLabel, msToTimestamp } from "@/lib/time";
 
 import { AuditDrawer } from "./audit/AuditDrawer";
-import { EventFilter } from "./audit/AuditFilters";
+import { AuditSearch, EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
 import { auditRow, DEFAULT_RANGE, PAGE_SIZES, RANGES } from "./audit/model";
 import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
@@ -58,6 +58,10 @@ export function Audit() {
 
 	const range = RANGES.find((r) => r.value === params.get("range")) ?? DEFAULT_RANGE;
 	const types = (params.get("types") ?? "").split(",").filter((t) => AUDIT_EVENT_TYPES.includes(t));
+	const search = params.get("q") ?? "";
+	const actor = params.get("actor") ?? "";
+	const actorTypes = ["system", "agent", "anonymous"].includes(actor) ? [actor] : [];
+	const actorIds = actor !== "" && actorTypes.length === 0 ? [actor] : [];
 	const size = PAGE_SIZES.find((n) => n.toString() === params.get("size")) ?? PAGE_SIZES[0];
 	const choices = access.org ? workspaces.filter((w) => w.orgId === orgId) : access.workspaces;
 	const wsParam = params.get("ws") ?? "";
@@ -71,7 +75,7 @@ export function Audit() {
 	const environmentId = workspaceId === "" ? "" : (params.get("env") ?? "");
 
 	// The cursor stack belongs to one set of filters; changing any of them starts from the newest page.
-	const filterKey = JSON.stringify([range.value, types, workspaceId, resourceId, environmentId, size]);
+	const filterKey = JSON.stringify([range.value, types, workspaceId, resourceId, environmentId, size, search, actor]);
 	const [cursor, setCursor] = useState<{ key: string; stack: bigint[] }>({ key: filterKey, stack: [] });
 	const stack = cursor.key === filterKey ? cursor.stack : [];
 	const query = useQuery(
@@ -82,6 +86,9 @@ export function Audit() {
 			resourceId,
 			environmentId,
 			types,
+			query: search,
+			actorIds,
+			actorTypes,
 			pageSize: size,
 			beforeSeq: stack.at(-1) ?? 0n,
 			startTime: msToTimestamp(openedAt - range.ms),
@@ -104,13 +111,29 @@ export function Audit() {
 		...details.names,
 	]);
 	const rows = events.map((e) => auditRow(e, users, names));
+	const actors = new Map<string, string>([
+		...[...users].map(([id, u]): [string, string] => [id, [u.name, u.email].filter(Boolean).join(" · ")]),
+		...rows
+			.filter((r) => r.event.actorId !== "" && !["system", "agent", "anonymous"].includes(r.event.actorType))
+			.map((r): [string, string] => [r.event.actorId, [r.actor.name, r.actor.detail].filter(Boolean).join(" · ")]),
+		["system", "Loco"],
+		["agent", "Cluster agent"],
+		["anonymous", "Anonymous"],
+	]);
+	if (actor !== "" && !actors.has(actor)) actors.set(actor, actor);
 	const selIdx = rows.findIndex((r) => r.event.id === params.get("event"));
 	const selected = rows[selIdx];
 	const select = (index: number) => () => {
 		update({ event: rows[index]?.event.id ?? null });
 	};
 
-	const anyFilter = types.length > 0 || (access.org && workspaceId !== "") || resourceId !== "" || environmentId !== "";
+	const anyFilter =
+		search !== "" ||
+		actor !== "" ||
+		types.length > 0 ||
+		(access.org && workspaceId !== "") ||
+		resourceId !== "" ||
+		environmentId !== "";
 	const nextBeforeSeq = query.data?.nextBeforeSeq ?? 0n;
 	const first = rows[0];
 	const last = rows.at(-1);
@@ -148,8 +171,26 @@ export function Audit() {
 				<ErrorState error={query.error} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
 			) : (
 				<Section
+					search={
+						<AuditSearch
+							value={search}
+							onChange={(q) => {
+								update({ q, event: null });
+							}}
+						/>
+					}
 					filters={
 						<>
+							<PickFilter
+								icon={<UserIcon />}
+								label="Actor"
+								placeholder="Find a person or token"
+								items={[...actors].map(([id, name]) => ({ id, name }))}
+								value={actor}
+								onChange={(id) => {
+									update({ actor: id, event: null });
+								}}
+							/>
 							<EventFilter
 								types={types}
 								onChange={(next) => {
@@ -268,6 +309,15 @@ export function Audit() {
 				nowMs={now}
 				onNewer={selIdx > 0 ? select(selIdx - 1) : null}
 				onOlder={selIdx >= 0 && selIdx < rows.length - 1 ? select(selIdx + 1) : null}
+				onActor={() => {
+					if (selected !== undefined) {
+						const e = selected.event;
+						update({
+							actor: ["system", "agent", "anonymous"].includes(e.actorType) ? e.actorType : e.actorId,
+							event: null,
+						});
+					}
+				}}
 				onResource={
 					selected === undefined || selected.event.resourceId === "" || !known.has(selected.event.workspaceId)
 						? null

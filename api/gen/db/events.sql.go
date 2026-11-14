@@ -127,18 +127,39 @@ WHERE e.org_id = $1
   AND ($4::timestamptz IS NULL OR e.created_at < $4)
   AND ($5::bigint IS NULL OR e.seq < $5::bigint)
   AND (cardinality($6::text[]) = 0 OR e.type = ANY($6::text[]))
+  AND ((coalesce(cardinality($7::uuid[]), 0) = 0 AND coalesce(cardinality($8::text[]), 0) = 0)
+    OR e.actor_id = ANY($7::uuid[])
+    OR e.actor_type = ANY($8::text[]))
+  -- Separate candidate queries let each search index narrow the history before paging.
+  AND ($9::text = '' OR e.seq = ANY(ARRAY(
+  SELECT candidate.seq FROM events candidate
+  WHERE candidate.org_id = $1 AND $9::text <> ''
+    AND (candidate.request_id LIKE $10::text
+      OR candidate.data->>'name' ILIKE $11::text
+      OR candidate.data->>'domain' ILIKE $11::text)
+  UNION
+  SELECT a.seq FROM users actor
+  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
+  WHERE a.org_id = $1 AND $9::text <> ''
+    AND (actor.name ILIKE $11::text OR actor.email ILIKE $11::text)
+  )))
 ORDER BY e.seq DESC
-LIMIT $7
+LIMIT $12
 `
 
 type ListOrgAuditEventsParams struct {
-	OrgID         *uuid.UUID `json:"orgId"`
-	EnvironmentID *uuid.UUID `json:"environmentId"`
-	StartTime     *time.Time `json:"startTime"`
-	EndTime       *time.Time `json:"endTime"`
-	BeforeSeq     *int64     `json:"beforeSeq"`
-	Types         []string   `json:"types"`
-	MaxRows       int32      `json:"maxRows"`
+	OrgID         *uuid.UUID  `json:"orgId"`
+	EnvironmentID *uuid.UUID  `json:"environmentId"`
+	StartTime     *time.Time  `json:"startTime"`
+	EndTime       *time.Time  `json:"endTime"`
+	BeforeSeq     *int64      `json:"beforeSeq"`
+	Types         []string    `json:"types"`
+	ActorIds      []uuid.UUID `json:"actorIds"`
+	ActorTypes    []string    `json:"actorTypes"`
+	Query         string      `json:"query"`
+	RequestPrefix string      `json:"requestPrefix"`
+	Substring     string      `json:"substring"`
+	MaxRows       int32       `json:"maxRows"`
 }
 
 type ListOrgAuditEventsRow struct {
@@ -155,6 +176,11 @@ func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEvents
 		arg.EndTime,
 		arg.BeforeSeq,
 		arg.Types,
+		arg.ActorIds,
+		arg.ActorTypes,
+		arg.Query,
+		arg.RequestPrefix,
+		arg.Substring,
 		arg.MaxRows,
 	)
 	if err != nil {
@@ -206,20 +232,40 @@ WHERE e.org_id = $1
   AND ($6::timestamptz IS NULL OR e.created_at < $6)
   AND ($7::bigint IS NULL OR e.seq < $7::bigint)
   AND (cardinality($8::text[]) = 0 OR e.type = ANY($8::text[]))
+  AND ((coalesce(cardinality($9::uuid[]), 0) = 0 AND coalesce(cardinality($10::text[]), 0) = 0)
+    OR e.actor_id = ANY($9::uuid[])
+    OR e.actor_type = ANY($10::text[]))
+  AND ($11::text = '' OR e.seq = ANY(ARRAY(
+  SELECT candidate.seq FROM events candidate
+  WHERE candidate.org_id = $1 AND $11::text <> ''
+    AND (candidate.request_id LIKE $12::text
+      OR candidate.data->>'name' ILIKE $13::text
+      OR candidate.data->>'domain' ILIKE $13::text)
+  UNION
+  SELECT a.seq FROM users actor
+  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
+  WHERE a.org_id = $1 AND $11::text <> ''
+    AND (actor.name ILIKE $13::text OR actor.email ILIKE $13::text)
+  )))
 ORDER BY e.seq DESC
-LIMIT $9
+LIMIT $14
 `
 
 type ListResourceAuditEventsParams struct {
-	OrgID         *uuid.UUID `json:"orgId"`
-	WorkspaceID   *uuid.UUID `json:"workspaceId"`
-	ResourceID    *uuid.UUID `json:"resourceId"`
-	EnvironmentID *uuid.UUID `json:"environmentId"`
-	StartTime     *time.Time `json:"startTime"`
-	EndTime       *time.Time `json:"endTime"`
-	BeforeSeq     *int64     `json:"beforeSeq"`
-	Types         []string   `json:"types"`
-	MaxRows       int32      `json:"maxRows"`
+	OrgID         *uuid.UUID  `json:"orgId"`
+	WorkspaceID   *uuid.UUID  `json:"workspaceId"`
+	ResourceID    *uuid.UUID  `json:"resourceId"`
+	EnvironmentID *uuid.UUID  `json:"environmentId"`
+	StartTime     *time.Time  `json:"startTime"`
+	EndTime       *time.Time  `json:"endTime"`
+	BeforeSeq     *int64      `json:"beforeSeq"`
+	Types         []string    `json:"types"`
+	ActorIds      []uuid.UUID `json:"actorIds"`
+	ActorTypes    []string    `json:"actorTypes"`
+	Query         string      `json:"query"`
+	RequestPrefix string      `json:"requestPrefix"`
+	Substring     string      `json:"substring"`
+	MaxRows       int32       `json:"maxRows"`
 }
 
 type ListResourceAuditEventsRow struct {
@@ -238,6 +284,11 @@ func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceA
 		arg.EndTime,
 		arg.BeforeSeq,
 		arg.Types,
+		arg.ActorIds,
+		arg.ActorTypes,
+		arg.Query,
+		arg.RequestPrefix,
+		arg.Substring,
 		arg.MaxRows,
 	)
 	if err != nil {
@@ -288,19 +339,39 @@ WHERE e.org_id = $1
   AND ($5::timestamptz IS NULL OR e.created_at < $5)
   AND ($6::bigint IS NULL OR e.seq < $6::bigint)
   AND (cardinality($7::text[]) = 0 OR e.type = ANY($7::text[]))
+  AND ((coalesce(cardinality($8::uuid[]), 0) = 0 AND coalesce(cardinality($9::text[]), 0) = 0)
+    OR e.actor_id = ANY($8::uuid[])
+    OR e.actor_type = ANY($9::text[]))
+  AND ($10::text = '' OR e.seq = ANY(ARRAY(
+  SELECT candidate.seq FROM events candidate
+  WHERE candidate.org_id = $1 AND $10::text <> ''
+    AND (candidate.request_id LIKE $11::text
+      OR candidate.data->>'name' ILIKE $12::text
+      OR candidate.data->>'domain' ILIKE $12::text)
+  UNION
+  SELECT a.seq FROM users actor
+  JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
+  WHERE a.org_id = $1 AND $10::text <> ''
+    AND (actor.name ILIKE $12::text OR actor.email ILIKE $12::text)
+  )))
 ORDER BY e.seq DESC
-LIMIT $8
+LIMIT $13
 `
 
 type ListWorkspaceAuditEventsParams struct {
-	OrgID         *uuid.UUID `json:"orgId"`
-	WorkspaceID   *uuid.UUID `json:"workspaceId"`
-	EnvironmentID *uuid.UUID `json:"environmentId"`
-	StartTime     *time.Time `json:"startTime"`
-	EndTime       *time.Time `json:"endTime"`
-	BeforeSeq     *int64     `json:"beforeSeq"`
-	Types         []string   `json:"types"`
-	MaxRows       int32      `json:"maxRows"`
+	OrgID         *uuid.UUID  `json:"orgId"`
+	WorkspaceID   *uuid.UUID  `json:"workspaceId"`
+	EnvironmentID *uuid.UUID  `json:"environmentId"`
+	StartTime     *time.Time  `json:"startTime"`
+	EndTime       *time.Time  `json:"endTime"`
+	BeforeSeq     *int64      `json:"beforeSeq"`
+	Types         []string    `json:"types"`
+	ActorIds      []uuid.UUID `json:"actorIds"`
+	ActorTypes    []string    `json:"actorTypes"`
+	Query         string      `json:"query"`
+	RequestPrefix string      `json:"requestPrefix"`
+	Substring     string      `json:"substring"`
+	MaxRows       int32       `json:"maxRows"`
 }
 
 type ListWorkspaceAuditEventsRow struct {
@@ -318,6 +389,11 @@ func (q *Queries) ListWorkspaceAuditEvents(ctx context.Context, arg ListWorkspac
 		arg.EndTime,
 		arg.BeforeSeq,
 		arg.Types,
+		arg.ActorIds,
+		arg.ActorTypes,
+		arg.Query,
+		arg.RequestPrefix,
+		arg.Substring,
 		arg.MaxRows,
 	)
 	if err != nil {

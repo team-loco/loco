@@ -111,12 +111,46 @@ with sync_playwright() as p:
         expect(drawer.get_by_role("heading", name="Created a resource", exact=True)).to_be_visible()
         expect(drawer.get_by_role("button", name="Newer event", exact=True)).to_be_disabled()
         expect(drawer.get_by_title("Copy request ID", exact=True)).to_be_visible()
+        request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
+        expect(drawer.get_by_role("button", name=re.compile(r"^More by "))).to_be_visible()
         evidence.settle(page)
         page.screenshot(path=out / f"drawer-{theme}.png", animations="disabled")
         drawer.get_by_role("button", name="Older event", exact=True).click()
         expect(drawer.get_by_role("button", name="Newer event", exact=True)).to_be_enabled()
         page.keyboard.press("Escape")
         expect(page).not_to_have_url(re.compile(r"[?&]event="))
+
+        search = page.get_by_role("textbox", name="Search events", exact=True)
+        prefix = request_id[:12]
+        with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == prefix) as searched:
+            search.fill(prefix)
+        assert searched.value.request.post_data_json["query"] == prefix
+        expect(rows).to_have_count(1)
+        expect(page).to_have_url(re.compile(r"[?&]q=" + prefix))
+        evidence.settle(page)
+        page.screenshot(path=out / f"search-{theme}.png", animations="disabled")
+        page.get_by_role("button", name="Clear search", exact=True).click()
+        expect(rows).to_have_count(3)
+        page.get_by_role("button", name="Actor", exact=True).click()
+        expect(page.get_by_role("option", name="Loco", exact=True)).to_be_visible()
+        expect(page.get_by_role("option", name="Cluster agent", exact=True)).to_be_visible()
+        evidence.settle(page)
+        page.screenshot(path=out / f"actor-filter-{theme}.png", animations="disabled")
+        with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("actorTypes") == ["system"]) as system_events:
+            page.get_by_role("option", name="Loco", exact=True).click()
+        assert system_events.value.request.post_data_json["actorTypes"] == ["system"]
+        expect(page.get_by_text("No events match these filters", exact=True)).to_be_visible()
+        page.get_by_role("button", name="Clear actor filter", exact=True).click()
+        expect(rows).to_have_count(3)
+        rows.first.click()
+        with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("actorIds") == [users["owner"]["id"]]) as by_actor:
+            page.get_by_role("dialog").get_by_role("button", name=re.compile(r"^More by ")).click()
+        assert by_actor.value.request.post_data_json["actorIds"] == [users["owner"]["id"]]
+        expect(page.get_by_role("dialog")).not_to_be_visible()
+        expect(page).to_have_url(re.compile(r"[?&]actor=" + users["owner"]["id"]))
+        page.reload()
+        expect(rows).to_have_count(3)
+        assert list_events(calls)[-1]["body"]["actorIds"] == [users["owner"]["id"]]
 
         # Settings no longer carries the audit log.
         page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}/settings?scope=org")
@@ -145,6 +179,12 @@ with sync_playwright() as p:
         assert reads and all(call["body"].get("workspaceId") in (shared, sibling) for call in reads), reads
         assert {call["body"]["workspaceId"] for call in reads} == {shared, sibling}, reads
         assert all(call["status"] == 200 for call in reads), reads
+        page.get_by_role("button", name="Actor", exact=True).click()
+        with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("actorIds") == [users["workspace_admin"]["id"]]):
+            page.get_by_role("option", name=re.compile("Wren Workspace")).click()
+        expect(page.get_by_role("button", name="Clear actor filter", exact=True)).to_be_visible()
+        assert list_events(calls)[-1]["body"]["actorIds"] == [users["workspace_admin"]["id"]]
+        assert list_events(calls)[-1]["body"]["workspaceId"] == sibling
 
         # Workspace settings link to the log filtered to that workspace, and a resource filter in the URL applies on first load.
         page.goto(state["ui_url"] + f"/org/{org}/wks/{sibling}/settings?scope=workspace")

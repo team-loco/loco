@@ -55,6 +55,32 @@ message ListEventsRequest {
   // Inclusive start and exclusive end of the event creation time range.
   google.protobuf.Timestamp start_time = 8;
   google.protobuf.Timestamp end_time = 9;
+  repeated string actor_ids = 10 [(buf.validate.field).repeated = {
+    max_items: 50
+    unique: true
+    items: {
+      string: {uuid: true}
+    }
+  }];
+  // IDs and types are alternatives so people and system actors can be selected together.
+  repeated string actor_types = 11 [(buf.validate.field).repeated = {
+    max_items: 7
+    unique: true
+    items: {
+      string: {
+        in: [
+          "user",
+          "organization",
+          "workspace",
+          "resource",
+          "system",
+          "agent",
+          "anonymous"
+        ]
+      }
+    }
+  }];
+  string query = 12 [(buf.validate.field).string.max_len = 256];
 }
 
 message ListEventsResponse {
