@@ -215,7 +215,7 @@ func (x *RoutingConfig) GetIdleTimeout() int32 {
 type LoggingConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Structured    bool                   `protobuf:"varint,3,opt,name=structured,proto3" json:"structured,omitempty"` // parse as JSON
+	Structured    bool                   `protobuf:"varint,2,opt,name=structured,proto3" json:"structured,omitempty"` // parse as JSON
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2405,12 +2405,12 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"pathPrefix\x12!\n" +
 	"\fidle_timeout\x18\x03 \x01(\x05R\vidleTimeout:\x9c\x01\xbaH\x98\x01\x1a\x95\x01\n" +
 	"!routing.path_prefix_requires_port\x12Fpath_prefix needs a port: a service without a port receives no traffic\x1a(has(this.port) || this.path_prefix == ''B\a\n" +
-	"\x05_port\"a\n" +
+	"\x05_port\"I\n" +
 	"\rLoggingConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1e\n" +
 	"\n" +
-	"structured\x18\x03 \x01(\bR\n" +
-	"structuredJ\x04\b\x02\x10\x03R\x10retention_period\"Q\n" +
+	"structured\x18\x02 \x01(\bR\n" +
+	"structured\"Q\n" +
 	"\rMetricsConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
