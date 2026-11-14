@@ -57,18 +57,6 @@ export function errorKind(error: unknown): ErrorKind | null {
 	return "internal";
 }
 
-export function RequestIdChip({ id }: { id: string }) {
-	return (
-		<CopyId
-			value={id}
-			title="Copy request ID"
-			className="mt-[3px] max-w-full rounded-[6px] border border-line bg-panel px-1.5 py-0.5 font-mono text-[10.5px] tracking-[-0.01em] text-fg2 hover:border-fg3 hover:bg-panel hover:text-foreground [&_svg]:size-3!"
-		>
-			<span className="min-w-0 truncate">{id}</span>
-		</CopyId>
-	);
-}
-
 export function toastConnectError(error: unknown, fallback = "An unexpected error occurred."): void {
 	const id = error instanceof ConnectError && error.code === Code.Internal ? requestId(error) : null;
 	if (id === null) {
@@ -80,7 +68,13 @@ export function toastConnectError(error: unknown, fallback = "An unexpected erro
 		description: (
 			<span className="flex flex-col items-start">
 				Something failed on Loco’s side. Send support this request ID.
-				<RequestIdChip id={id} />
+				<CopyId
+					value={id}
+					title="Copy request ID"
+					className="mt-[3px] max-w-full rounded-[6px] border border-line bg-panel px-1.5 py-0.5 font-mono text-[10.5px] tracking-[-0.01em] text-fg2 hover:border-fg3 hover:bg-panel hover:text-foreground [&_svg]:size-3!"
+				>
+					<span className="min-w-0 truncate">{id}</span>
+				</CopyId>
 			</span>
 		),
 	});
