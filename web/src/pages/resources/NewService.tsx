@@ -1,5 +1,6 @@
 import { useQuery as useRpcQuery } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -239,11 +240,13 @@ export function DraftSheet({
 	workspaceId,
 	env,
 	draftId,
+	open,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
 	draftId: string;
+	open: boolean;
 }) {
 	const [params, setParams] = useSearchParams();
 	const store = useDrafts(orgId, workspaceId, env.id);
@@ -263,7 +266,10 @@ export function DraftSheet({
 		setParams(next);
 	};
 
-	const draft = store.drafts.find((d) => d.id === draftId);
+	const draft = useHeldWhileClosed(
+		store.drafts.find((d) => d.id === draftId),
+		open,
+	);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const config = configQuery.data;
 	const defaults = config?.serviceDefaults;
@@ -339,9 +345,9 @@ export function DraftSheet({
 	})();
 	return (
 		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) close();
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) close();
 			}}
 		>
 			<SheetContent size="wide">

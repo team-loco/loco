@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { agoLabel } from "@/lib/time";
 
 import type { AuditRow } from "./model";
@@ -34,6 +35,7 @@ export function AuditDrawer({
 	onResource: (() => void) | null;
 	onClose: () => void;
 }) {
+	const shown = useHeldWhileClosed(row, row !== undefined);
 	return (
 		<Sheet
 			open={row !== undefined}
@@ -42,12 +44,12 @@ export function AuditDrawer({
 			}}
 		>
 			<SheetContent size="wide">
-				{row !== undefined && (
+				{shown !== undefined && (
 					<>
 						<SheetHeader className="pr-[140px]">
 							<div className="flex min-w-0 flex-col gap-0.5">
-								<SheetTitle className="truncate">{row.label}</SheetTitle>
-								<SheetDescription className="truncate font-mono text-[12.5px]">{row.detail}</SheetDescription>
+								<SheetTitle className="truncate">{shown.label}</SheetTitle>
+								<SheetDescription className="truncate font-mono text-[12.5px]">{shown.detail}</SheetDescription>
 							</div>
 							<div className="absolute top-[17px] right-12 flex gap-1">
 								<Button
@@ -73,53 +75,53 @@ export function AuditDrawer({
 						<SheetBody>
 							<dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-4 gap-y-3 text-[13px]">
 								<Item term="When">
-									<span>{new Date(row.ms).toLocaleString([], { dateStyle: "medium", timeStyle: "medium" })}</span>
-									<span className="text-[11.5px] text-fg3">{agoLabel(row.ms, nowMs)}</span>
+									<span>{new Date(shown.ms).toLocaleString([], { dateStyle: "medium", timeStyle: "medium" })}</span>
+									<span className="text-[11.5px] text-fg3">{agoLabel(shown.ms, nowMs)}</span>
 								</Item>
 								<Item term="Actor">
-									<span>{row.actor.name}</span>
+									<span>{shown.actor.name}</span>
 									<span className="text-[11.5px] text-fg3">
-										{row.actorKind}
-										{row.actor.detail !== "" && <span className="font-mono"> · {row.actor.detail}</span>}
+										{shown.actorKind}
+										{shown.actor.detail !== "" && <span className="font-mono"> · {shown.actor.detail}</span>}
 									</span>
 								</Item>
 								<Item term="Event">
-									<span className="font-mono text-[12.5px]">{row.event.type}</span>
+									<span className="font-mono text-[12.5px]">{shown.event.type}</span>
 								</Item>
 								<Item term="Where">
-									<span className="font-mono text-[12.5px]">{row.where}</span>
+									<span className="font-mono text-[12.5px]">{shown.where}</span>
 								</Item>
 								<Item term="Environment">
-									<span className="font-mono text-[12.5px]">{row.environment === "" ? "—" : row.environment}</span>
+									<span className="font-mono text-[12.5px]">{shown.environment === "" ? "—" : shown.environment}</span>
 								</Item>
 								<Item term="Request">
-									{row.event.requestId === "" ? (
+									{shown.event.requestId === "" ? (
 										"—"
 									) : (
 										<CopyId
-											value={row.event.requestId}
+											value={shown.event.requestId}
 											title="Copy request ID"
 											className="w-fit max-w-full justify-start p-0 font-mono text-[12.5px] font-normal hover:bg-transparent hover:underline"
 										>
-											<span className="min-w-0 truncate">{row.event.requestId}</span>
+											<span className="min-w-0 truncate">{shown.event.requestId}</span>
 										</CopyId>
 									)}
 								</Item>
 								<Item term="Sequence">
-									<span className="font-mono text-[12.5px]">#{row.event.seq.toLocaleString()}</span>
+									<span className="font-mono text-[12.5px]">#{shown.event.seq.toLocaleString()}</span>
 								</Item>
 							</dl>
 							{onResource !== null && (
 								<div>
 									<Button variant="outline" onClick={onResource}>
-										More for {row.resource}
+										More for {shown.resource}
 									</Button>
 								</div>
 							)}
 							<div className="flex flex-col gap-1.5">
 								<span className="text-[12.5px] text-fg3">Raw event</span>
 								<pre className="m-0 max-h-[320px] overflow-auto rounded-lg border border-line bg-panel px-3.5 py-3 font-mono text-[12px] leading-[1.55]">
-									{toJsonString(EventSchema, row.event, { prettySpaces: 2 })}
+									{toJsonString(EventSchema, shown.event, { prettySpaces: 2 })}
 								</pre>
 							</div>
 						</SheetBody>

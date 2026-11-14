@@ -7,6 +7,7 @@ import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { primaryDomain } from "@/lib/resource-status";
@@ -38,7 +39,10 @@ export function ResourcesMap({
 	const data = useDashboardData(orgId, workspaceId, env);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const deployed = data.envResources.filter((r) => r.last !== undefined);
-	const selected = deployed.find((r) => r.resource.id === selectedId);
+	const selected = useHeldWhileClosed(
+		deployed.find((r) => r.resource.id === selectedId),
+		selectedId !== null,
+	);
 	const envParam = { env: env.name };
 	const version = selected?.last === undefined ? "—" : imageVersion(deploymentImage(selected.last));
 	const hrefFor = (item: DashboardItem) =>
@@ -63,56 +67,58 @@ export function ResourcesMap({
 				/>
 			)}
 			<Sheet
-				open={selected !== undefined}
+				open={selectedId !== null}
 				onOpenChange={(open) => {
 					if (!open) setSelectedId(null);
 				}}
 			>
-				{selected !== undefined && (
-					<SheetContent>
-						<SheetHeader>
-							<SheetTitle className="truncate font-mono">{selected.resource.name}</SheetTitle>
-							<ResourceStatusBadge status={selected.status} />
-						</SheetHeader>
-						<SheetBody>
-							<Fact label="Version">{version}</Fact>
-							<Fact label="Replicas">
-								{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(" · ")}
-							</Fact>
-							<Fact label="Address">{primaryDomain(selected.resource) ?? "internal only"}</Fact>
-						</SheetBody>
-						<SheetFooter className="justify-start">
-							<Button
-								variant="outline"
-								nativeButton={false}
-								render={
-									<Link
-										to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: selected.resource.name })}
-									/>
-								}
-							>
-								<ScrollTextIcon />
-								Logs
-							</Button>
-							<Button
-								variant="outline"
-								nativeButton={false}
-								render={
-									<Link
-										to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: selected.resource.name })}
-									/>
-								}
-							>
-								<WaypointsIcon />
-								Traces
-							</Button>
-							<Button nativeButton={false} className="ml-auto" render={<Link to={hrefFor(selected)} />}>
-								Open {selected.resource.name}
-								<ArrowRightIcon />
-							</Button>
-						</SheetFooter>
-					</SheetContent>
-				)}
+				<SheetContent>
+					{selected !== undefined && (
+						<>
+							<SheetHeader>
+								<SheetTitle className="truncate font-mono">{selected.resource.name}</SheetTitle>
+								<ResourceStatusBadge status={selected.status} />
+							</SheetHeader>
+							<SheetBody>
+								<Fact label="Version">{version}</Fact>
+								<Fact label="Replicas">
+									{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(" · ")}
+								</Fact>
+								<Fact label="Address">{primaryDomain(selected.resource) ?? "internal only"}</Fact>
+							</SheetBody>
+							<SheetFooter className="justify-start">
+								<Button
+									variant="outline"
+									nativeButton={false}
+									render={
+										<Link
+											to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: selected.resource.name })}
+										/>
+									}
+								>
+									<ScrollTextIcon />
+									Logs
+								</Button>
+								<Button
+									variant="outline"
+									nativeButton={false}
+									render={
+										<Link
+											to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: selected.resource.name })}
+										/>
+									}
+								>
+									<WaypointsIcon />
+									Traces
+								</Button>
+								<Button nativeButton={false} className="ml-auto" render={<Link to={hrefFor(selected)} />}>
+									Open {selected.resource.name}
+									<ArrowRightIcon />
+								</Button>
+							</SheetFooter>
+						</>
+					)}
+				</SheetContent>
 			</Sheet>
 		</Section>
 	);

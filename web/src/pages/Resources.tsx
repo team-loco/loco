@@ -11,6 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -66,6 +67,7 @@ export function Resources() {
 	const createBlocked = limitReason(usage);
 	const total = data.resources.length + drafts.length;
 	const draftId = params.get(DRAFT_PARAM);
+	const heldDraftId = useHeldWhileClosed(draftId, draftId !== null);
 	const view = params.get(VIEW_PARAM) === MAP_VIEW ? MAP_VIEW : TABLE_VIEW;
 	const setView = (next: string) => {
 		const p = new URLSearchParams(params);
@@ -155,8 +157,15 @@ export function Resources() {
 					}}
 				/>
 			)}
-			{draftId !== null && active !== undefined && (
-				<DraftSheet key={draftId} orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />
+			{heldDraftId !== null && active !== undefined && (
+				<DraftSheet
+					key={heldDraftId}
+					orgId={orgId}
+					workspaceId={workspaceId}
+					env={active}
+					draftId={heldDraftId}
+					open={draftId !== null}
+				/>
 			)}
 		</Page>
 	);

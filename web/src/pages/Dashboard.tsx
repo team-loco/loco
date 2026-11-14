@@ -7,6 +7,7 @@ import { ResourceAccess } from "@/components/ResourceAccess";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
@@ -45,6 +46,7 @@ export function Dashboard() {
 	const workspaceId = activeWorkspaceId ?? "";
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const draftId = params.get(DRAFT_PARAM);
+	const heldDraftId = useHeldWhileClosed(draftId, draftId !== null);
 	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id);
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
@@ -135,8 +137,15 @@ export function Dashboard() {
 					/>
 				</>
 			)}
-			{draftId !== null && active !== undefined && (
-				<DraftSheet key={draftId} orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />
+			{heldDraftId !== null && active !== undefined && (
+				<DraftSheet
+					key={heldDraftId}
+					orgId={orgId}
+					workspaceId={workspaceId}
+					env={active}
+					draftId={heldDraftId}
+					open={draftId !== null}
+				/>
 			)}
 		</Page>
 	);
