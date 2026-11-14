@@ -17,7 +17,7 @@ import (
 
 const webhookQuotaContenders = 2
 
-var defaultWebhookLimit = int64(limits.WebhooksPerWorkspace.Get(limits.Defaults()))
+var defaultWebhookLimit = int64(limits.WebhooksPerWorkspace.Value(limits.Defaults()))
 
 func TestConcurrentWebhookCreationRespectsWorkspaceLimit(t *testing.T) {
 	for _, isolation := range []pgx.TxIsoLevel{pgx.ReadCommitted, pgx.RepeatableRead} {

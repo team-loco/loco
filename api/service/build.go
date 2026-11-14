@@ -220,9 +220,13 @@ func (s *BuildServer) pruneBuildHistory(ctx context.Context, qtx *genDb.Queries,
 	if err != nil {
 		return err
 	}
+	keep, err := limits.BuildHistory.Get(effective)
+	if err != nil {
+		return err
+	}
 	pruned, err := qtx.PruneBuildHistory(ctx, genDb.PruneBuildHistoryParams{
 		ResourceID: resource.ID,
-		Keep:       limits.BuildHistory.Get(effective),
+		Keep:       keep,
 	})
 	if err != nil {
 		return fmt.Errorf("prune build history: %w", err)

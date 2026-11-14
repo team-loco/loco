@@ -109,7 +109,7 @@ func TestDeploymentRecordsSecretNamesAndEnvironmentOnThePlacement(t *testing.T) 
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), params, staticSpec)
+		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
 		return deployErr
 	})
 	if err != nil {

@@ -137,11 +137,23 @@ func (f *deployFixture) deployTo(
 ) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), f.paramsFor(clusterID), buildSpec)
-		return deployErr
+		counts, err := f.counts(ctx, qtx)
+		if err != nil {
+			return err
+		}
+		id, err = createDeploymentWithCleanup(ctx, qtx, counts, f.paramsFor(clusterID), buildSpec)
+		return err
 	})
 	return id, err
+}
+
+// counts loads the limits of the fixture's organization, as a deploy does.
+func (f *deployFixture) counts(ctx context.Context, qtx *genDb.Queries) (limits.Effective, error) {
+	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, f.resourceID)
+	if err != nil {
+		return limits.Effective{}, err
+	}
+	return limits.ForOrg(ctx, qtx, limits.Defaults(), owner.OrgID)
 }
 
 func (f *deployFixture) count(t *testing.T, query string) int {

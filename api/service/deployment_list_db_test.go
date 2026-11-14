@@ -24,7 +24,7 @@ func (f *deployFixture) deployStaging(t *testing.T, stagingID uuid.UUID) uuid.UU
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Defaults(), staging, staticSpec)
+		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Install(limits.Defaults()), staging, staticSpec)
 		return deployErr
 	})
 	if err != nil {

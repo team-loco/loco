@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 )
 
@@ -63,6 +64,29 @@ VALUES ($1, $2, $3, $4, $5, '{}')`, f.resourceID, f.otherCluster, testRegion, pl
 		if !f.deploymentExists(t, id) {
 			t.Errorf("the %s deployment past the history limit was deleted", name)
 		}
+	}
+}
+
+func TestDeployWithoutLoadedLimitsDeletesNoHistory(t *testing.T) {
+	f := newDeployFixture(t)
+	finished := f.seedDeployment(t, f.clusterID, testRegion, "succeeded", false, "5 days")
+
+	err := withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
+		_, err := createDeploymentWithCleanup(
+			t.Context(),
+			qtx,
+			limits.Effective{},
+			f.paramsFor(f.clusterID),
+			staticSpec,
+		)
+		return err
+	})
+
+	if err == nil {
+		t.Error("the deployment went ahead without the organization's limits")
+	}
+	if !f.deploymentExists(t, finished) {
+		t.Error("the deployment without the organization's limits deleted its history")
 	}
 }
 

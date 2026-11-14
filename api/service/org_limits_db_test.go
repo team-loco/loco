@@ -165,9 +165,9 @@ func TestGetOrgLimitsReportsOverridesToMembers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get limits: %v", err)
 	}
-	if got := limits.ResourcesPerWorkspace.Get(
+	if got := limits.ResourcesPerWorkspace.Value(
 		before.GetLimits().GetLimits(),
-	); got != limits.ResourcesPerWorkspace.Get(
+	); got != limits.ResourcesPerWorkspace.Value(
 		limits.Defaults(),
 	) {
 		t.Fatalf("resources per workspace = %d before an override, want the install default", got)
@@ -179,8 +179,8 @@ func TestGetOrgLimitsReportsOverridesToMembers(t *testing.T) {
 		t.Fatalf("get limits: %v", err)
 	}
 	got := after.GetLimits()
-	if limits.ResourcesPerWorkspace.Get(got.GetLimits()) != 300 {
-		t.Fatalf("resources per workspace = %d, want the override", limits.ResourcesPerWorkspace.Get(got.GetLimits()))
+	if limits.ResourcesPerWorkspace.Value(got.GetLimits()) != 300 {
+		t.Fatalf("resources per workspace = %d, want the override", limits.ResourcesPerWorkspace.Value(got.GetLimits()))
 	}
 	if len(got.GetOverridden()) != 1 || got.GetOverridden()[0] != string(limits.ResourcesPerWorkspace.Field) {
 		t.Fatalf("overridden = %v, want only %s", got.GetOverridden(), limits.ResourcesPerWorkspace.Field)
@@ -254,7 +254,7 @@ func TestSetOrgLimitsRecordsTheReasonAndValues(t *testing.T) {
 	}
 	field := string(limits.WebhooksPerWorkspace.Field)
 	if data.Reason != limitReason ||
-		data.Old[field] != limits.WebhooksPerWorkspace.Get(limits.Defaults()) ||
+		data.Old[field] != limits.WebhooksPerWorkspace.Value(limits.Defaults()) ||
 		data.New[field] != 40 {
 		t.Fatalf("event data = %+v, want the reason and the old and new %s", data, field)
 	}

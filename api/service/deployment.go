@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -210,9 +211,9 @@ func (s *DeploymentServer) CreateDeployment(
 	requestSpec := proto.CloneOf(originalSpec)
 	requestSpec.GetService().Build = pinnedBuild
 
-	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
+	organizationID, counts, err := workspaceLimits(ctx, s.queries, s.counts, resource.WorkspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("get workspace organization: %w", err)
+		return nil, err
 	}
 
 	var deploymentID uuid.UUID
@@ -290,7 +291,7 @@ func (s *DeploymentServer) CreateDeployment(
 		)
 
 		var txErr error
-		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, s.counts, genDb.CreateDeploymentParams{
+		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, counts, genDb.CreateDeploymentParams{
 			ResourceID:    resourceID,
 			ClusterID:     cluster.ID,
 			Region:        region,
@@ -664,4 +665,22 @@ func parseDeploymentMethod(method genDb.DeploymentMethod) deploymentv1.Deploymen
 	default:
 		return deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_UNSPECIFIED
 	}
+}
+
+// workspaceLimits returns the organization of a workspace and its limits.
+func workspaceLimits(
+	ctx context.Context,
+	q genDb.Querier,
+	defaults *configv1.CountLimits,
+	workspaceID uuid.UUID,
+) (uuid.UUID, limits.Effective, error) {
+	organizationID, err := q.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
+	if err != nil {
+		return uuid.UUID{}, limits.Effective{}, fmt.Errorf("get workspace organization: %w", err)
+	}
+	counts, err := limits.ForOrg(ctx, q, defaults, organizationID)
+	if err != nil {
+		return uuid.UUID{}, limits.Effective{}, err
+	}
+	return organizationID, counts, nil
 }

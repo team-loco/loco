@@ -341,7 +341,7 @@ func newAPIConfig() *APIConfig {
 func newCountLimits() *configv1.CountLimits {
 	counts := limits.Defaults()
 	for _, limit := range limits.All {
-		limit.Set(counts, positiveInt32Env(limit.Env, limit.Get(counts)))
+		limit.Set(counts, positiveInt32Env(limit.Env, limit.Value(counts)))
 	}
 	return counts
 }

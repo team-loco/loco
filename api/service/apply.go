@@ -77,28 +77,31 @@ func (s *PlanServer) Apply(
 		return nil, fmt.Errorf("get workspace organization: %w", err)
 	}
 
-	a := &applier{
-		env:             planned.env,
-		organizationID:  organizationID,
-		partial:         planned.file.Partial,
-		live:            planned.live,
-		desired:         plan.Desired,
-		builds:          builds,
-		deployed:        map[string]bool{},
-		platformDomains: planned.platformDomains,
-		defaults:        s.defaults,
-		provisioning:    len(req.GetProvision()) > 0,
-		silentAfter:     s.silentAfter,
-		commit:          req.GetCommit(),
-	}
+	var a *applier
 	var revision int64
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockOrganization(ctx, qtx, planned.env.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
-		if limitErr := a.checkResourceLimit(ctx, qtx, s.counts, operations); limitErr != nil {
+		counts, limitErr := checkCreatedResources(
+			ctx,
+			qtx,
+			s.counts,
+			planned.env.WorkspaceID,
+			organizationID,
+			operations,
+		)
+		if limitErr != nil {
 			return limitErr
 		}
+		a = newApplier(planned.env, organizationID, counts, s.defaults, s.silentAfter)
+		a.partial = planned.file.Partial
+		a.live = planned.live
+		a.desired = plan.Desired
+		a.builds = builds
+		a.platformDomains = planned.platformDomains
+		a.provisioning = len(req.GetProvision()) > 0
+		a.commit = req.GetCommit()
 		revisions, lockErr := lockWorkspaceEnvironments(ctx, qtx, planned.env.WorkspaceID)
 		if lockErr != nil {
 			return lockErr
@@ -146,23 +149,23 @@ func (s *PlanServer) Apply(
 	}, nil
 }
 
-// checkResourceLimit locks the workspace against concurrent creates and refuses the apply when
-// the services it creates would pass the organization's resource limit. It keeps the effective
-// limits for the domain checks of the operations.
-func (a *applier) checkResourceLimit(
+// checkCreatedResources locks the workspace against concurrent creates and refuses the apply when
+// the services it creates would pass the organization's resource limit. It returns the
+// organization's limits for the operations.
+func checkCreatedResources(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	defaults *configv1.CountLimits,
+	workspaceID, organizationID uuid.UUID,
 	operations []configplan.Operation,
-) error {
-	if _, err := qtx.LockWorkspaceForCreate(ctx, a.env.WorkspaceID); err != nil {
-		return fmt.Errorf("lock workspace: %w", err)
+) (limits.Effective, error) {
+	if _, err := qtx.LockWorkspaceForCreate(ctx, workspaceID); err != nil {
+		return limits.Effective{}, fmt.Errorf("lock workspace: %w", err)
 	}
-	effective, err := limits.ForOrg(ctx, qtx, defaults, a.organizationID)
+	effective, err := limits.ForOrg(ctx, qtx, defaults, organizationID)
 	if err != nil {
-		return err
+		return limits.Effective{}, err
 	}
-	a.counts = effective
 	creates := int64(0)
 	for _, op := range operations {
 		if op.Kind == configplan.KindCreate {
@@ -170,13 +173,16 @@ func (a *applier) checkResourceLimit(
 		}
 	}
 	if creates == 0 {
-		return nil
+		return effective, nil
 	}
-	existing, err := qtx.CountWorkspaceResources(ctx, a.env.WorkspaceID)
+	existing, err := qtx.CountWorkspaceResources(ctx, workspaceID)
 	if err != nil {
-		return fmt.Errorf("count resources: %w", err)
+		return limits.Effective{}, fmt.Errorf("count resources: %w", err)
 	}
-	return limits.ResourcesPerWorkspace.Check(effective, existing, creates)
+	if err = limits.ResourcesPerWorkspace.Check(effective, existing, creates); err != nil {
+		return limits.Effective{}, err
+	}
+	return effective, nil
 }
 
 // touchedResources are the existing resources the apply writes: those of the operations it

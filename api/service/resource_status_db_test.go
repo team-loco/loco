@@ -89,7 +89,7 @@ func (f *resourceStatusFixture) deployTo(
 	params.Region = region
 	params.Replicas = replicas
 	err := withTx(f.ctx, f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(f.ctx, qtx, limits.Defaults(), params, staticSpec)
+		_, deployErr := createDeploymentWithCleanup(f.ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
 		return deployErr
 	})
 	if err != nil {

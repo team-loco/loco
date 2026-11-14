@@ -1,5 +1,6 @@
 // Package limits holds the count limits: the install defaults, an organization's overrides and
-// the error a create past a cap returns.
+// the error a create past a cap returns. Checks and history prunes read limits only from an
+// Effective, which ForOrg and Install build, so a caller cannot enforce limits it never loaded.
 package limits
 
 import (
@@ -19,6 +20,20 @@ import (
 
 // ErrLimitReached is the error of a create that a count limit refuses.
 var ErrLimitReached = rpcerr.NewCoded(connect.CodeResourceExhausted, "count limit reached")
+
+var errNotLoaded = errors.New("count limits not loaded")
+
+// Effective is a set of limits loaded for enforcement. Its zero value holds none, and Get and Check
+// refuse it.
+type Effective struct {
+	counts *configv1.CountLimits
+}
+
+// Install returns the install defaults as the effective limits, for limits no organization
+// overrides, such as organizations per user.
+func Install(defaults *configv1.CountLimits) Effective {
+	return Effective{counts: defaults}
+}
 
 // Limit is one field of CountLimits.
 type Limit struct {
@@ -108,8 +123,19 @@ func Defaults() *configv1.CountLimits {
 	return counts
 }
 
-// Get returns the limit's value in counts.
-func (l Limit) Get(counts *configv1.CountLimits) int32 {
+// Get returns the limit's value. Every loaded limit is positive, so Get refuses a value that is
+// not: read as 0, a history limit would prune every finished record.
+func (l Limit) Get(effective Effective) (int32, error) {
+	value := l.Value(effective.counts)
+	if value <= 0 {
+		return 0, fmt.Errorf("%w: %s is %d", errNotLoaded, l.Field, value)
+	}
+	return value, nil
+}
+
+// Value returns the limit's field in a CountLimits message at the API boundary: a request, where 0
+// clears an override, a response or the install defaults being read.
+func (l Limit) Value(counts *configv1.CountLimits) int32 {
 	return int32(counts.ProtoReflect().Get(l.descriptor()).Int())
 }
 
@@ -118,9 +144,12 @@ func (l Limit) Set(counts *configv1.CountLimits, value int32) {
 	counts.ProtoReflect().Set(l.descriptor(), protoreflect.ValueOfInt32(value))
 }
 
-// Check refuses adding records to existing ones when the total would pass the limit in counts.
-func (l Limit) Check(counts *configv1.CountLimits, existing, adding int64) error {
-	limit := l.Get(counts)
+// Check refuses adding records to existing ones when the total would pass the limit.
+func (l Limit) Check(effective Effective, existing, adding int64) error {
+	limit, err := l.Get(effective)
+	if err != nil {
+		return err
+	}
 	if existing+adding <= int64(limit) {
 		return nil
 	}
@@ -151,22 +180,23 @@ func ForOrg(
 	q genDb.Querier,
 	defaults *configv1.CountLimits,
 	orgID uuid.UUID,
-) (*configv1.CountLimits, error) {
+) (Effective, error) {
 	row, err := q.GetOrgLimitOverrides(ctx, orgID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return defaults, nil
+		return Effective{counts: defaults}, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get organization limits: %w", err)
+		return Effective{}, fmt.Errorf("get organization limits: %w", err)
 	}
-	return Apply(defaults, row), nil
+	return Effective{counts: Apply(defaults, row)}, nil
 }
 
-// Apply returns defaults with the columns set in an override row replacing them.
+// Apply returns defaults with the columns set in an override row replacing them, for responses
+// that report an organization's limits.
 func Apply(defaults *configv1.CountLimits, row genDb.OrgLimitOverride) *configv1.CountLimits {
 	effective := &configv1.CountLimits{}
 	for _, limit := range All {
-		value := limit.Get(defaults)
+		value := limit.Value(defaults)
 		if limit.Overridable() {
 			if set := *limit.Column(&row); set != nil {
 				value = *set

@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -24,12 +23,11 @@ import (
 )
 
 // createDeploymentWithCleanup creates a deployment and places it, then deletes the oldest
-// deployments of the resource in the environment past the deployment history limit, which
-// the organization's overrides of counts set.
+// deployments of the resource in the environment past the organization's deployment history limit.
 func createDeploymentWithCleanup(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	counts *configv1.CountLimits,
+	counts limits.Effective,
 	params genDb.CreateDeploymentParams,
 	buildSpec desiredSpecFunc,
 ) (uuid.UUID, error) {
@@ -124,21 +122,17 @@ func createDeploymentWithCleanup(
 func pruneDeploymentHistory(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	counts *configv1.CountLimits,
+	counts limits.Effective,
 	params genDb.CreateDeploymentParams,
 ) error {
-	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, params.ResourceID)
-	if err != nil {
-		return fmt.Errorf("get resource organization: %w", err)
-	}
-	effective, err := limits.ForOrg(ctx, qtx, counts, owner.OrgID)
+	keep, err := limits.DeploymentHistory.Get(counts)
 	if err != nil {
 		return err
 	}
 	pruned, err := qtx.PruneDeploymentHistory(ctx, genDb.PruneDeploymentHistoryParams{
 		ResourceID:    params.ResourceID,
 		EnvironmentID: params.EnvironmentID,
-		Keep:          limits.DeploymentHistory.Get(effective),
+		Keep:          keep,
 	})
 	if err != nil {
 		return fmt.Errorf("prune deployment history: %w", err)

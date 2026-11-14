@@ -11,11 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -49,8 +49,26 @@ type applier struct {
 	provisioning    bool
 	silentAfter     time.Duration
 	commit          *deploymentv1.SourceCommit
-	// counts are the organization's effective limits.
-	counts *configv1.CountLimits
+	counts          limits.Effective
+}
+
+// newApplier returns an applier for one environment with the organization's limits; the caller
+// sets what the operations read.
+func newApplier(
+	env genDb.Environment,
+	organizationID uuid.UUID,
+	counts limits.Effective,
+	defaults servicedefaults.Defaults,
+	silentAfter time.Duration,
+) *applier {
+	return &applier{
+		env:            env,
+		organizationID: organizationID,
+		counts:         counts,
+		defaults:       defaults,
+		silentAfter:    silentAfter,
+		deployed:       map[string]bool{},
+	}
 }
 
 func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
