@@ -123,12 +123,20 @@ with sync_playwright() as p:
         search = page.get_by_role("textbox", name="Search events", exact=True)
         prefix = request_id[:12]
         with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == prefix) as searched:
+            search.fill(prefix[:4])
             search.fill(prefix)
+        assert not any(call["body"].get("query") == prefix[:4] for call in list_events(calls))
+        assert not searched.value.request.post_data_json.get("beforeSeq")
         assert searched.value.request.post_data_json["query"] == prefix
         expect(rows).to_have_count(1)
         expect(page).to_have_url(re.compile(r"[?&]q=" + prefix))
         evidence.settle(page)
         page.screenshot(path=out / f"search-{theme}.png", animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+        expect(search).to_be_visible()
+        evidence.settle(page)
+        page.screenshot(path=out / f"search-{theme}-narrow.png", animations="disabled")
+        page.set_viewport_size(evidence.DESKTOP)
         page.get_by_role("button", name="Clear search", exact=True).click()
         expect(rows).to_have_count(3)
         page.get_by_role("button", name="Actor", exact=True).click()
