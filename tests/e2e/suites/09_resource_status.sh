@@ -368,6 +368,7 @@ test_s07_failed_rollout_keeps_the_old_version_serving() {
     # Long enough for a replica that stayed ready past minReadySeconds to replace an old one.
     sleep 30
     kill "$sampler"
+    wait "$sampler" 2>/dev/null || true
     sk -n "$E2E_LOCO_NAMESPACE" delete pod "$rollout_poller" --wait=false >/dev/null
 
     local served failed

@@ -101,7 +101,7 @@ Choose IDs that can read the application and write its working directories. The 
 
 ## Health checks
 
-Omit `health` for a TCP readiness check: a replica is ready once it accepts connections on `port`, Loco creates no liveness probe, and Kubernetes restarts exited containers. This suits gRPC and other TCP services without an HTTP health endpoint. A service that never listens on `port` never becomes ready, and its deployment fails at the rollout's progress deadline; use protocol-specific E2E checks to verify that it can serve requests.
+Omit `health` for a TCP readiness check: a replica is ready once it accepts connections on `port`, Loco creates no liveness probe, and Kubernetes restarts exited containers. This suits gRPC and other TCP services without an HTTP health endpoint. A service that never listens on `port`, such as a queue worker, never becomes ready, and its deployment fails at the rollout's progress deadline; use protocol-specific E2E checks to verify that it can serve requests.
 
 Set `health: {}` to enable HTTP liveness and readiness checks with the API defaults, or configure `path`, `interval`, `timeout`, `failThreshold` and `startupGracePeriod`. An environment override with `health: null` removes an inherited check. Removing `health` from an existing service redeploys it with the TCP readiness check.
 
