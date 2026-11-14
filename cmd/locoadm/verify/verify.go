@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json/v2"
 	"errors"
-	"path/filepath"
 	"time"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
@@ -35,12 +34,12 @@ func Command() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			manifest := config.Release.Manifest
-			if !filepath.IsAbs(manifest) {
-				manifest = filepath.Join(filepath.Dir(file), manifest)
-			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 			defer cancel()
+			release, err := installation.LoadRelease(ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr())
+			if err != nil {
+				return err
+			}
 			store, err := keychain.ForCurrentUser()
 			if err != nil {
 				return err
@@ -49,7 +48,7 @@ func Command() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			status, err := installation.VerifySource(ctx, *config, manifest, session.Token, target)
+			status, err := installation.VerifySource(ctx, *config, release, session.Token, target)
 			if err != nil {
 				return err
 			}

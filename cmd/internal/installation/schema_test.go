@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -37,18 +38,26 @@ func checkSchema(t *testing.T, typ reflect.Type, document schema) {
 	switch typ.Kind() {
 	case reflect.Struct:
 		if document.Type != "object" || document.AdditionalProperties == nil || *document.AdditionalProperties ||
-			len(document.Properties) != typ.NumField() ||
-			len(document.Required) != typ.NumField() {
+			len(document.Properties) != typ.NumField() {
 			t.Fatalf("schema diverges from %s", typ)
 		}
+		required := 0
 		for field := range typ.Fields() {
-			name := field.Tag.Get("json")
+			name, options, _ := strings.Cut(field.Tag.Get("json"), ",")
 			property, ok := document.Properties[name]
-			if !ok || !slices.Contains(document.Required, name) {
-				t.Fatalf("schema missing required %s.%s", typ, name)
+			if !ok || slices.Contains(document.Required, name) == (options == "omitempty") {
+				t.Fatalf("schema diverges from %s.%s", typ, name)
+			}
+			if options != "omitempty" {
+				required++
 			}
 			checkSchema(t, field.Type, property)
 		}
+		if len(document.Required) != required {
+			t.Fatalf("schema requires unknown fields of %s", typ)
+		}
+	case reflect.Pointer:
+		checkSchema(t, typ.Elem(), document)
 	case reflect.Slice:
 		if document.Type != "array" || document.Items == nil {
 			t.Fatalf("schema array diverges from %s", typ)

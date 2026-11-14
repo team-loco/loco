@@ -48,12 +48,14 @@ var errRecoveryRequired = errors.New(
 
 // Plan contains only non-secret installation observations.
 type Plan struct {
-	Operations []string `json:"operations"`
-	Blocked    []string `json:"blocked,omitempty"`
+	ReleaseBundle string   `json:"releaseBundle,omitempty"`
+	Operations    []string `json:"operations"`
+	Blocked       []string `json:"blocked,omitempty"`
 }
 
 type releaseArtifacts struct {
 	manifest     Manifest
+	bundle       string
 	controlPlane []byte
 	worker       []byte
 	certManager  []byte
@@ -61,12 +63,10 @@ type releaseArtifacts struct {
 	clickhouse   managedClickHouse
 }
 
-func loadArtifacts(ctx context.Context, path string) (releaseArtifacts, error) {
-	manifest, err := LoadManifest(path)
-	if err != nil {
-		return releaseArtifacts{}, err
-	}
-	result := releaseArtifacts{manifest: manifest}
+func loadArtifacts(ctx context.Context, release ResolvedRelease) (releaseArtifacts, error) {
+	manifest := release.Manifest
+	result := releaseArtifacts{manifest: manifest, bundle: release.Bundle}
+	var err error
 	for _, item := range []struct {
 		key    string
 		target *[]byte
@@ -102,8 +102,8 @@ func loadArtifacts(ctx context.Context, path string) (releaseArtifacts, error) {
 	return result, nil
 }
 
-func PlanInstallation(ctx context.Context, config Config, manifestPath string) (Plan, error) {
-	release, err := loadArtifacts(ctx, manifestPath)
+func PlanInstallation(ctx context.Context, config Config, resolved ResolvedRelease) (Plan, error) {
+	release, err := loadArtifacts(ctx, resolved)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -118,6 +118,7 @@ func PlanInstallation(ctx context.Context, config Config, manifestPath string) (
 		return Plan{}, err
 	}
 	plan := Plan{
+		ReleaseBundle: release.bundle,
 		Operations: []string{
 			"validate target ownership and prerequisites",
 			"preserve or create internal credentials",
@@ -166,8 +167,8 @@ func PlanInstallation(ctx context.Context, config Config, manifestPath string) (
 
 // ApplyControlPlane stops at the human authentication checkpoint. It requires no
 // API session to establish the control plane itself.
-func ApplyControlPlane(ctx context.Context, config Config, manifestPath string) error {
-	release, err := loadArtifacts(ctx, manifestPath)
+func ApplyControlPlane(ctx context.Context, config Config, resolved ResolvedRelease) error {
+	release, err := loadArtifacts(ctx, resolved)
 	if err != nil {
 		return err
 	}
@@ -199,6 +200,7 @@ func ApplyControlPlane(ctx context.Context, config Config, manifestPath string) 
 		lockedState.Data["credentialsEstablished"] = stateTrue
 		lockedState.Data["releaseVersion"] = release.manifest.Version
 		lockedState.Data["releaseCommit"] = release.manifest.CoreCommit
+		lockedState.Data["releaseBundle"] = release.bundle
 		var updateErr error
 		lockedState, updateErr = kube.Core.ConfigMaps(kube.Target.Namespace).
 			Update(ctx, lockedState, metav1.UpdateOptions{})
@@ -229,8 +231,8 @@ func ApplyControlPlane(ctx context.Context, config Config, manifestPath string) 
 	})
 }
 
-func CompleteBootstrap(ctx context.Context, config Config, manifestPath string) error {
-	release, err := loadArtifacts(ctx, manifestPath)
+func CompleteBootstrap(ctx context.Context, config Config, resolved ResolvedRelease) error {
+	release, err := loadArtifacts(ctx, resolved)
 	if err != nil {
 		return err
 	}

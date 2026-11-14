@@ -64,7 +64,8 @@ type VerificationTarget struct {
 func VerifySource(
 	ctx context.Context,
 	config Config,
-	manifestPath, token string,
+	resolved ResolvedRelease,
+	token string,
 	target VerificationTarget,
 ) (Status, error) {
 	status, err := StatusInstallation(ctx, config, token)
@@ -104,7 +105,7 @@ func VerifySource(
 	if tier != worker.Tier {
 		return Status{}, errVerificationTarget
 	}
-	release, loadErr := loadArtifacts(ctx, manifestPath)
+	release, loadErr := loadArtifacts(ctx, resolved)
 	if loadErr != nil {
 		return Status{}, loadErr
 	}

@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v2"
+	"golang.org/x/mod/semver"
 )
 
 const (
@@ -70,8 +71,8 @@ func validate(cfg Config) error {
 	if cfg.Version != ConfigVersion {
 		return field("version")
 	}
-	if strings.Contains(cfg.Release.Manifest, "://") {
-		return field("release.manifest")
+	if err := release(cfg.Release); err != nil {
+		return err
 	}
 	if !label(cfg.Name) {
 		return field("name")
@@ -155,12 +156,15 @@ func shape(raw any, typ reflect.Type, path string) error {
 			return field(path)
 		}
 		for definition := range typ.Fields() {
-			name := definition.Tag.Get("yaml")
+			name, options, _ := strings.Cut(definition.Tag.Get("yaml"), ",")
 			next := name
 			if path != "" {
 				next = path + "." + name
 			}
 			value, exists := object[name]
+			if !exists && options == "omitempty" {
+				continue
+			}
 			if !exists {
 				return fmt.Errorf("%s: %w", next, errRequired)
 			}
@@ -168,6 +172,8 @@ func shape(raw any, typ reflect.Type, path string) error {
 				return err
 			}
 		}
+	case reflect.Pointer:
+		return shape(raw, typ.Elem(), path)
 	case reflect.Slice:
 		values, ok := raw.([]any)
 		if !ok {
@@ -205,6 +211,22 @@ func shape(raw any, typ reflect.Type, path string) error {
 		if _, ok := raw.(bool); !ok {
 			return field(path)
 		}
+	}
+	return nil
+}
+
+func release(value *Release) error {
+	if value == nil {
+		return nil
+	}
+	if (value.Version == "") == (value.Manifest == "") {
+		return fmt.Errorf("release: set exactly one of version or manifest: %w", errInvalid)
+	}
+	if value.Version != "" && semver.Canonical("v"+value.Version) != "v"+value.Version {
+		return field("release.version")
+	}
+	if strings.Contains(value.Manifest, "://") {
+		return field("release.manifest")
 	}
 	return nil
 }

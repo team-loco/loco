@@ -23,6 +23,7 @@ var (
 type Status struct {
 	ReleaseVersion   string         `json:"releaseVersion"`
 	ReleaseCommit    string         `json:"releaseCommit"`
+	ReleaseBundle    string         `json:"releaseBundle,omitempty"`
 	Phase            string         `json:"phase"`
 	RequiredDNS      []DNSRecord    `json:"requiredDNS"`
 	Workers          []WorkerStatus `json:"workers"`
@@ -60,6 +61,7 @@ func StatusInstallation(ctx context.Context, config Config, token string) (Statu
 		RecoveryExported: state.Data["recoveryExported"] == stateTrue,
 		ReleaseVersion:   state.Data["releaseVersion"],
 		ReleaseCommit:    state.Data["releaseCommit"],
+		ReleaseBundle:    state.Data["releaseBundle"],
 	}
 	configured := make(map[string]bool, len(config.Workers))
 	for _, worker := range config.Workers {
