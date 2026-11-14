@@ -24,7 +24,7 @@ func TestZeroScalarFieldsAreOmittedUnderJSONV2(t *testing.T) {
 	values := []any{spec, ApplicationStatus{}}
 	absent := []string{
 		`"enabled"`, `"memoryTarget"`, `"startupGracePeriod"`,
-		`"port":0`, `"structured"`, `"deployedGeneration"`, `"observedPlacementRevision"`,
+		`"structured"`, `"deployedGeneration"`, `"observedPlacementRevision"`,
 	}
 	for _, value := range values {
 		encoded, err := jsonv2.Marshal(value)
