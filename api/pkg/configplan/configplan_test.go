@@ -42,7 +42,6 @@ func testDefaults() servicedefaults.Defaults {
 		MaxReplicas:         2,
 		PathPrefix:          "/",
 		IdleTimeout:         60,
-		Port:                8000,
 		HealthPath:          "/health",
 		HealthInterval:      30,
 		HealthTimeout:       5,

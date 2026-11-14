@@ -16,14 +16,12 @@ var (
 	ErrInvalidMemory    = errors.New("invalid memory quantity")
 	errInvalidResources = errors.New("the default resources are not accepted by the controller")
 	errInvalidRoute     = errors.New("the default route is not accepted by the controller")
-	errInvalidPort      = errors.New("the default port is not accepted by the controller")
 	errInvalidHealth    = errors.New("the default health check is not accepted by the controller")
 	errInvalidDeploy    = errors.New("the default deploy policy is outside the loco.yaml bounds")
 )
 
-// Defaults is what the API fills into a service when the file or request omits it. Port is the
-// exception: a service without a port is a worker, so Port is only the port GetConfig offers
-// clients that scaffold a new web service.
+// Defaults is what the API fills into a service when the file or request omits it. There is no
+// default port: a service without one is a worker.
 type Defaults struct {
 	CPU                      string
 	Memory                   string
@@ -32,7 +30,6 @@ type Defaults struct {
 	CPUTarget                int32
 	PathPrefix               string
 	IdleTimeout              int32
-	Port                     int32
 	HealthPath               string
 	HealthInterval           int32
 	HealthTimeout            int32
@@ -94,9 +91,6 @@ func (d Defaults) Health() locoControllerV1.HealthCheckSpec {
 // Validate checks the defaults with the rules the controller applies to an Application, so
 // the API cannot start with defaults that no deployment could use.
 func (d Defaults) Validate() error {
-	if err := locoControllerV1.ValidatePort(d.Port); err != nil {
-		return fmt.Errorf("%w: %w", errInvalidPort, err)
-	}
 	health := d.Health()
 	if err := health.Validate(); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidHealth, err)

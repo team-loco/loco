@@ -10,8 +10,6 @@ import (
 type Starter struct {
 	SchemaURL   string
 	Name        string
-	Hostname    string
-	Port        int32
 	Region      string
 	CPU         string
 	Memory      string
@@ -27,8 +25,6 @@ partial: {{.Name}}
 services:
   {{.Name}}:
     dockerfile: {{.Dockerfile}}
-    port: {{.Port}}
-    domains: [{{.Hostname}}]
     regions:
       {{.Region}}: { cpu: {{.CPU}}, memory: {{.Memory}}, replicas: { min: {{.MinReplicas}}, max: {{.MaxReplicas}} } }
 `))

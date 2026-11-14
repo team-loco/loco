@@ -7,8 +7,8 @@
 package configv1
 
 import (
-	v11 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	v1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	v1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	v11 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -500,32 +500,85 @@ func (x *AuthConfig) GetScopes() string {
 	return ""
 }
 
+// DefaultRouting is the HTTP routing the API fills into a service that leaves it unset.
+type DefaultRouting struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PathPrefix    string                 `protobuf:"bytes,1,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	IdleTimeout   int32                  `protobuf:"varint,2,opt,name=idle_timeout,json=idleTimeout,proto3" json:"idle_timeout,omitempty"` // seconds
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DefaultRouting) Reset() {
+	*x = DefaultRouting{}
+	mi := &file_loco_config_v1_config_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DefaultRouting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DefaultRouting) ProtoMessage() {}
+
+func (x *DefaultRouting) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_config_v1_config_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DefaultRouting.ProtoReflect.Descriptor instead.
+func (*DefaultRouting) Descriptor() ([]byte, []int) {
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DefaultRouting) GetPathPrefix() string {
+	if x != nil {
+		return x.PathPrefix
+	}
+	return ""
+}
+
+func (x *DefaultRouting) GetIdleTimeout() int32 {
+	if x != nil {
+		return x.IdleTimeout
+	}
+	return 0
+}
+
 // DefaultServiceConfig contains default values for service deployments.
 // These values are used when users don't specify explicit configuration.
 type DefaultServiceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Default routing configuration. routing.port is the port clients scaffold a new web service
-	// with; the API never fills it into a service, since a service without a port is a worker.
-	Routing *v1.RoutingConfig `protobuf:"bytes,1,opt,name=routing,proto3" json:"routing,omitempty"`
+	// Default routing of a service with a port. There is no default port: a service without one
+	// is a worker.
+	Routing *DefaultRouting `protobuf:"bytes,1,opt,name=routing,proto3" json:"routing,omitempty"`
 	// Default health check configuration
-	HealthCheck *v11.HealthCheckConfig `protobuf:"bytes,2,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
+	HealthCheck *v1.HealthCheckConfig `protobuf:"bytes,2,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
 	// Default resource allocation
 	Cpu         string `protobuf:"bytes,3,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "0.25"
 	Memory      string `protobuf:"bytes,4,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
 	MinReplicas int32  `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
 	MaxReplicas int32  `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
 	// Default observability configuration
-	Observability           *v1.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
-	DeployAttempts          int32                   `protobuf:"varint,8,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
-	DeployRetryDelaySeconds int32                   `protobuf:"varint,9,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
-	CpuTarget               int32                   `protobuf:"varint,10,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
+	Observability           *v11.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
+	DeployAttempts          int32                    `protobuf:"varint,8,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
+	DeployRetryDelaySeconds int32                    `protobuf:"varint,9,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
+	CpuTarget               int32                    `protobuf:"varint,10,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
 
 func (x *DefaultServiceConfig) Reset() {
 	*x = DefaultServiceConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[6]
+	mi := &file_loco_config_v1_config_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -537,7 +590,7 @@ func (x *DefaultServiceConfig) String() string {
 func (*DefaultServiceConfig) ProtoMessage() {}
 
 func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[6]
+	mi := &file_loco_config_v1_config_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -550,17 +603,17 @@ func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefaultServiceConfig.ProtoReflect.Descriptor instead.
 func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{6}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *DefaultServiceConfig) GetRouting() *v1.RoutingConfig {
+func (x *DefaultServiceConfig) GetRouting() *DefaultRouting {
 	if x != nil {
 		return x.Routing
 	}
 	return nil
 }
 
-func (x *DefaultServiceConfig) GetHealthCheck() *v11.HealthCheckConfig {
+func (x *DefaultServiceConfig) GetHealthCheck() *v1.HealthCheckConfig {
 	if x != nil {
 		return x.HealthCheck
 	}
@@ -595,7 +648,7 @@ func (x *DefaultServiceConfig) GetMaxReplicas() int32 {
 	return 0
 }
 
-func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
+func (x *DefaultServiceConfig) GetObservability() *v11.ObservabilityConfig {
 	if x != nil {
 		return x.Observability
 	}
@@ -669,9 +722,13 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xdd\x03\n" +
-	"\x14DefaultServiceConfig\x129\n" +
-	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
+	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"T\n" +
+	"\x0eDefaultRouting\x12\x1f\n" +
+	"\vpath_prefix\x18\x01 \x01(\tR\n" +
+	"pathPrefix\x12!\n" +
+	"\fidle_timeout\x18\x02 \x01(\x05R\vidleTimeout\"\xdc\x03\n" +
+	"\x14DefaultServiceConfig\x128\n" +
+	"\arouting\x18\x01 \x01(\v2\x1e.loco.config.v1.DefaultRoutingR\arouting\x12H\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
 	"\x03cpu\x18\x03 \x01(\tR\x03cpu\x12\x16\n" +
 	"\x06memory\x18\x04 \x01(\tR\x06memory\x12!\n" +
@@ -698,26 +755,26 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_loco_config_v1_config_proto_rawDescData
 }
 
-var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_loco_config_v1_config_proto_goTypes = []any{
-	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
-	(*CountLimits)(nil),            // 2: loco.config.v1.CountLimits
-	(*SizeLimits)(nil),             // 3: loco.config.v1.SizeLimits
-	(*OrgLink)(nil),                // 4: loco.config.v1.OrgLink
-	(*AuthConfig)(nil),             // 5: loco.config.v1.AuthConfig
-	(*DefaultServiceConfig)(nil),   // 6: loco.config.v1.DefaultServiceConfig
-	(*v1.RoutingConfig)(nil),       // 7: loco.resource.v1.RoutingConfig
-	(*v11.HealthCheckConfig)(nil),  // 8: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil), // 9: loco.resource.v1.ObservabilityConfig
+	(*GetConfigRequest)(nil),        // 0: loco.config.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),       // 1: loco.config.v1.GetConfigResponse
+	(*CountLimits)(nil),             // 2: loco.config.v1.CountLimits
+	(*SizeLimits)(nil),              // 3: loco.config.v1.SizeLimits
+	(*OrgLink)(nil),                 // 4: loco.config.v1.OrgLink
+	(*AuthConfig)(nil),              // 5: loco.config.v1.AuthConfig
+	(*DefaultRouting)(nil),          // 6: loco.config.v1.DefaultRouting
+	(*DefaultServiceConfig)(nil),    // 7: loco.config.v1.DefaultServiceConfig
+	(*v1.HealthCheckConfig)(nil),    // 8: loco.deployment.v1.HealthCheckConfig
+	(*v11.ObservabilityConfig)(nil), // 9: loco.resource.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
-	6, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
+	7, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
 	5, // 1: loco.config.v1.GetConfigResponse.auth:type_name -> loco.config.v1.AuthConfig
 	4, // 2: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
 	3, // 3: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
 	2, // 4: loco.config.v1.GetConfigResponse.count_limits:type_name -> loco.config.v1.CountLimits
-	7, // 5: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
+	6, // 5: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.config.v1.DefaultRouting
 	8, // 6: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
 	9, // 7: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
 	0, // 8: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
@@ -740,7 +797,7 @@ func file_loco_config_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_config_v1_config_proto_rawDesc), len(file_loco_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

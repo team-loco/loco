@@ -42,12 +42,13 @@ func BuildDeployCmd() *cobra.Command {
 		Use:   "deploy [service...]",
 		Short: "Build and deploy an application",
 		Long: `Deploy from the current directory. If it has no loco.yaml, Loco deploys one
-service using API defaults for the port, region, resources, and platform domain. It
-turns the directory name into a safe service name and adds a four-letter suffix to
-the public hostname. It uses Dockerfile in that directory for a source
-build. In a terminal, it asks for the service name. No file is written. Set --name,
---port, --region, --domain, --dockerfile, or --context to override those choices;
---private omits the public domain. Use --yes without a terminal.
+service using API defaults for the region and resources. Without --port the service
+runs as a worker and takes no traffic. With --port it gets a public hostname under a
+platform domain: the directory name turned into a safe service name with a four-letter
+suffix. It uses Dockerfile in that directory for a source build. In a terminal, it
+asks for the service name. No file is written. Set --name, --region, --domain,
+--dockerfile, or --context to override those choices; --private omits the public
+domain. Use --yes without a terminal.
 
 If loco.yaml exists, build its source services and apply the file to an environment
 with the builds. The file's services and environments remain the source of truth.
@@ -76,7 +77,7 @@ replaces the prompt.
 Examples:
   loco deploy
   loco deploy --name web --port 8080 --yes
-  loco deploy --name worker --private --image ghcr.io/acme/worker:release --yes
+  loco deploy --name worker --image ghcr.io/acme/worker:release --yes
   loco deploy --env staging --yes
   loco deploy web worker --file deploy/loco.yaml
   loco deploy web --image ghcr.io/acme/web:release --yes`,
@@ -86,7 +87,7 @@ Examples:
 	cmd.Flags().String("image", "", "Deploy from a public image reference without building source")
 	cmd.Flags().StringP("file", "f", locofile.FileName, "Path to loco.yaml")
 	cmd.Flags().String("name", "", "Service name when deploying without loco.yaml (defaults to the directory name)")
-	cmd.Flags().Int32("port", 0, "Application port when deploying without loco.yaml (defaults to the API value)")
+	cmd.Flags().Int32("port", 0, "Application port without loco.yaml; without it the service is a worker")
 	cmd.Flags().String("region", "", "Region when deploying without loco.yaml (defaults to the API region)")
 	cmd.Flags().String("domain", "", "Public hostname when deploying without loco.yaml")
 	cmd.Flags().Bool("private", false, "Deploy without a public hostname")

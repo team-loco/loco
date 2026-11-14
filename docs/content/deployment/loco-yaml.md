@@ -1,6 +1,6 @@
 # loco.yaml
 
-`loco.yaml` declares the services of a workspace: what to run, where, and how much. The CLI sends the file to the API, which plans the difference against an environment and applies it. The file is optional for a single service: `loco deploy` can deploy from the current directory with API defaults and a public hostname formed from the safe directory name and a four-letter suffix.
+`loco.yaml` declares the services of a workspace: what to run, where, and how much. The CLI sends the file to the API, which plans the difference against an environment and applies it. The file is optional for a single service: `loco deploy` can deploy from the current directory with API defaults, as a worker, or with `--port` as a service with a public hostname formed from the safe directory name and a four-letter suffix.
 
 ## Create a file
 
@@ -8,7 +8,7 @@
 loco infra init --name storefront
 ```
 
-`init` writes a starter `loco.yaml` from the API's defaults: the port, CPU, memory and replica counts, the default region, and a hostname under a platform domain the environment's cluster in that region serves. When that cluster serves none, `init` fails. The first line of the file points editors at the JSON Schema URL the API reports, `https://loco.build/schemas/loco.v1.json` on Loco's hosted service, which gives completion and inline errors. The dashboard serves the schema at `/schemas/loco.v1.json`.
+`init` writes a starter `loco.yaml` from the API's defaults: CPU, memory and replica counts and the default region. Nothing defaults a port, so the starter service is a worker; add `port` and `domains` to serve traffic. The first line of the file points editors at the JSON Schema URL the API reports, `https://loco.build/schemas/loco.v1.json` on Loco's hosted service, which gives completion and inline errors. The dashboard serves the schema at `/schemas/loco.v1.json`.
 
 ```yaml
 version: 1
@@ -29,7 +29,7 @@ services:
       us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
 
-`port` is the port the service listens on. A service without `port`, such as `worker` above, is a worker: Loco creates no Kubernetes Service, route or readiness probe for it, so it needs no listener and cannot have `domains`, `routing` or `health`. The plan rejects those fields on a service without `port`. Each new replica of a worker counts as ready once it has run for the worker cluster's `controller.minReadySeconds`; see [health checks](#health-checks).
+`port` is the port the service listens on, and nothing fills in a default. A service without `port`, such as `worker` above, is a worker: Loco creates no Kubernetes Service, route or readiness probe for it, so it needs no listener and cannot have `domains`, `routing` or `health`. The plan rejects those fields on a service without `port`. Each new replica of a worker counts as ready once it has run for the worker cluster's `controller.minReadySeconds`; see [health checks](#health-checks).
 
 A service builds from source or runs a public `image`, never both. A source service builds in its `context`, a directory relative to `loco.yaml` that defaults to `.`, from its `dockerfile`, a path relative to `context` that defaults to `Dockerfile`. This service builds from `services/web/deploy/Dockerfile` with `services/web` as the build context:
 

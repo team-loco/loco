@@ -40,9 +40,6 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		t.Errorf("routing = %v, want path prefix %q and idle timeout %d",
 			routing, defaults.PathPrefix, defaults.IdleTimeout)
 	}
-	if routing.GetPort() != defaults.Port {
-		t.Errorf("port = %d, want %d", routing.GetPort(), defaults.Port)
-	}
 	health := got.GetHealthCheck()
 	if health.GetPath() != defaults.HealthPath ||
 		health.GetIntervalSeconds() != defaults.HealthInterval ||

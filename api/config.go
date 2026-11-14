@@ -77,7 +77,6 @@ const (
 	defaultServiceCPUTarget   = 70
 	defaultServicePathPrefix  = "/"
 	defaultServiceIdleTimeout = 60
-	defaultServicePort        = 8000
 	defaultHealthPath         = "/health"
 	defaultHealthInterval     = 30
 	defaultHealthTimeout      = 5
@@ -578,7 +577,6 @@ func newServiceDefaults() servicedefaults.Defaults {
 		CPUTarget:                envconfig.Int32("LOCO_DEFAULT_CPU_TARGET", defaultServiceCPUTarget),
 		PathPrefix:               envconfig.String("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
 		IdleTimeout:              envconfig.Int32("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
-		Port:                     envconfig.Int32("LOCO_DEFAULT_PORT", defaultServicePort),
 		HealthPath:               envconfig.String("LOCO_DEFAULT_HEALTH_PATH", defaultHealthPath),
 		HealthInterval:           envconfig.Int32("LOCO_DEFAULT_HEALTH_INTERVAL", defaultHealthInterval),
 		HealthTimeout:            envconfig.Int32("LOCO_DEFAULT_HEALTH_TIMEOUT", defaultHealthTimeout),

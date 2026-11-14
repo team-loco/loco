@@ -32,6 +32,7 @@ var (
 	errDomainConflict      = errors.New("--domain and --private cannot be used together")
 	errUnsafeDirectoryName = errors.New("directory name has no usable letters or digits; set --name")
 	errDomainUnavailable   = errors.New("generated public hostname is unavailable; set --domain")
+	errDomainWithoutPort   = errors.New("a domain needs --port; without a port the service runs as a worker")
 )
 
 func loadDeployFile(cmd *cobra.Command, filePath string) (*locofile.File, []byte, bool, error) {
@@ -65,12 +66,13 @@ func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target) (*lo
 		return nil, nil, err
 	}
 	defaults := config.GetServiceDefaults()
-	port, err := cmd.Flags().GetInt32("port")
-	if err != nil {
-		return nil, nil, err
-	}
-	if !cmd.Flags().Changed("port") {
-		port = defaults.GetRouting().GetPort()
+	var port *int32
+	if cmd.Flags().Changed("port") {
+		flagPort, portErr := cmd.Flags().GetInt32("port")
+		if portErr != nil {
+			return nil, nil, portErr
+		}
+		port = &flagPort
 	}
 	region, err := cmd.Flags().GetString("region")
 	if err != nil {
@@ -83,7 +85,7 @@ func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target) (*lo
 			return nil, nil, err
 		}
 	}
-	domain, err := quickDomain(cmd, t, name, region)
+	domain, err := quickDomain(cmd, t, name, region, port != nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,7 +107,7 @@ func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target) (*lo
 	minReplicas := defaults.GetMinReplicas()
 	maxReplicas := defaults.GetMaxReplicas()
 	service := locofile.Service{
-		Port:       new(port),
+		Port:       port,
 		Dockerfile: dockerfile,
 		Context:    contextDir,
 		Image:      image,
@@ -179,7 +181,9 @@ func directoryServiceName() (string, error) {
 	return name, nil
 }
 
-func quickDomain(cmd *cobra.Command, t cmdutil.Target, name, region string) (string, error) {
+// quickDomain is the service's public hostname. Only a service with a port takes traffic, so a
+// worker gets none.
+func quickDomain(cmd *cobra.Command, t cmdutil.Target, name, region string, hasPort bool) (string, error) {
 	domain, err := cmd.Flags().GetString("domain")
 	if err != nil {
 		return "", err
@@ -190,6 +194,12 @@ func quickDomain(cmd *cobra.Command, t cmdutil.Target, name, region string) (str
 	}
 	if private && domain != "" {
 		return "", errDomainConflict
+	}
+	if !hasPort {
+		if domain != "" {
+			return "", errDomainWithoutPort
+		}
+		return "", nil
 	}
 	if !private && domain == "" {
 		ctx := cmd.Context()

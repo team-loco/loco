@@ -112,16 +112,9 @@ func initCmdFunc(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	appDomain, err := servedDomain(ctx, t, region)
-	if err != nil {
-		return err
-	}
-
 	starter := locofile.Starter{
 		SchemaURL:   apiConfig.GetSchemaUrl(),
 		Name:        appName,
-		Hostname:    appName + "." + appDomain,
-		Port:        defaults.GetRouting().GetPort(),
 		Region:      region,
 		CPU:         defaults.GetCpu(),
 		Memory:      defaults.GetMemory(),

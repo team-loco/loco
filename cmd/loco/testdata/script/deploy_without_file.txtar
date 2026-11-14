@@ -5,15 +5,19 @@ exec loco deploy --yes
 stdout '^Plan for current directory against environment revision 7\.$'
 stdout '^Building app from Dockerfile in \.$'
 stdout '^Applied\. Environment revision is now 8\.$'
-stdout '^app: https://app-[a-z]{4}\.onloco\.test$'
+stdout '^app has no port, so it runs as a worker and takes no traffic\.$'
 ! exists loco.yaml
 fakeapi built app Dockerfile .
 fakeapi uploaded Dockerfile
 fakeapi uploaded main.go
 fakeapi called GetConfig
 fakeapi called ListRegions 'Bearer test-token'
-fakeapi called ListPlatformDomains 'Bearer test-token'
-fakeapi called CheckDomainAvailability 'Bearer test-token'
+! fakeapi called ListPlatformDomains
+! fakeapi called CheckDomainAvailability
+
+# a domain needs a port.
+! exec loco deploy --domain app.onloco.test --yes
+stderr '(?i)a domain needs --port; without a port the service runs as a worker'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

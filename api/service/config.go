@@ -67,8 +67,7 @@ func (s *ConfigServer) GetConfig(
 			MaxReplicas:    locoControllerV1.MaxReplicas,
 		},
 		ServiceDefaults: &configv1.DefaultServiceConfig{
-			Routing: &resourcev1.RoutingConfig{
-				Port:        new(s.defaults.Port),
+			Routing: &configv1.DefaultRouting{
 				PathPrefix:  s.defaults.PathPrefix,
 				IdleTimeout: s.defaults.IdleTimeout,
 			},

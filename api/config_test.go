@@ -117,7 +117,6 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "")
 	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "")
 	t.Setenv("LOCO_SCHEMA_URL", "")
-	t.Setenv("LOCO_DEFAULT_PORT", "")
 	t.Setenv("LOCO_DEFAULT_HEALTH_PATH", "")
 	t.Setenv("LOCO_DEFAULT_HEALTH_INTERVAL", "")
 	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "")
@@ -297,7 +296,6 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 		CPUTarget:                defaultServiceCPUTarget,
 		PathPrefix:               defaultServicePathPrefix,
 		IdleTimeout:              defaultServiceIdleTimeout,
-		Port:                     defaultServicePort,
 		HealthPath:               defaultHealthPath,
 		HealthInterval:           defaultHealthInterval,
 		HealthTimeout:            defaultHealthTimeout,
@@ -600,7 +598,6 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	t.Setenv(maxReplicasEnv, "4")
 	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "/app")
 	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "120")
-	t.Setenv("LOCO_DEFAULT_PORT", "3000")
 	t.Setenv("LOCO_DEFAULT_HEALTH_PATH", "/healthz")
 	t.Setenv("LOCO_DEFAULT_HEALTH_INTERVAL", "10")
 	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "2")
@@ -617,7 +614,6 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		MaxReplicas:              4,
 		PathPrefix:               "/app",
 		IdleTimeout:              120,
-		Port:                     3000,
 		HealthPath:               "/healthz",
 		HealthInterval:           10,
 		HealthTimeout:            2,

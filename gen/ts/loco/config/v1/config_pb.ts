@@ -6,7 +6,7 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { HealthCheckConfig, HealthCheckConfigJson } from "../../deployment/v1/deployment_pb";
 import { file_loco_deployment_v1_deployment } from "../../deployment/v1/deployment_pb";
-import type { ObservabilityConfig, ObservabilityConfigJson, RoutingConfig, RoutingConfigJson } from "../../resource/v1/resource_pb";
+import type { ObservabilityConfig, ObservabilityConfigJson } from "../../resource/v1/resource_pb";
 import { file_loco_resource_v1_resource } from "../../resource/v1/resource_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi4gIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMi5QIKC0NvdW50TGltaXRzEhUKDW9yZ3NfcGVyX3VzZXIYASABKAUSGgoSd29ya3NwYWNlc19wZXJfb3JnGAIgASgFEhcKD21lbWJlcnNfcGVyX29yZxgDIAEoBRIbChNpbnZpdGF0aW9uc19wZXJfb3JnGAQgASgFEiIKGmVudmlyb25tZW50c19wZXJfd29ya3NwYWNlGAUgASgFEh8KF3Jlc291cmNlc19wZXJfd29ya3NwYWNlGAYgASgFEh4KFndlYmhvb2tzX3Blcl93b3Jrc3BhY2UYByABKAUSGQoRdG9rZW5zX3Blcl9lbnRpdHkYCCABKAUSHAoUZG9tYWluc19wZXJfcmVzb3VyY2UYCSABKAUSHAoUc2VjcmV0c19wZXJfcmVzb3VyY2UYCiABKAUSGgoSZGVwbG95bWVudF9oaXN0b3J5GAsgASgFEhUKDWJ1aWxkX2hpc3RvcnkYDCABKAUinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkiPwoKQXV0aENvbmZpZxIOCgZpc3N1ZXIYASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg4KBnNjb3BlcxgDIAEoCSLdAgoURGVmYXVsdFNlcnZpY2VDb25maWcSMAoHcm91dGluZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI7CgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAMgASgJEg4KBm1lbW9yeRgEIAEoCRIUCgxtaW5fcmVwbGljYXMYBSABKAUSFAoMbWF4X3JlcGxpY2FzGAYgASgFEjwKDW9ic2VydmFiaWxpdHkYByABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPZGVwbG95X2F0dGVtcHRzGAggASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAkgASgFEhIKCmNwdV90YXJnZXQYCiABKAUyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi4gIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMi5QIKC0NvdW50TGltaXRzEhUKDW9yZ3NfcGVyX3VzZXIYASABKAUSGgoSd29ya3NwYWNlc19wZXJfb3JnGAIgASgFEhcKD21lbWJlcnNfcGVyX29yZxgDIAEoBRIbChNpbnZpdGF0aW9uc19wZXJfb3JnGAQgASgFEiIKGmVudmlyb25tZW50c19wZXJfd29ya3NwYWNlGAUgASgFEh8KF3Jlc291cmNlc19wZXJfd29ya3NwYWNlGAYgASgFEh4KFndlYmhvb2tzX3Blcl93b3Jrc3BhY2UYByABKAUSGQoRdG9rZW5zX3Blcl9lbnRpdHkYCCABKAUSHAoUZG9tYWluc19wZXJfcmVzb3VyY2UYCSABKAUSHAoUc2VjcmV0c19wZXJfcmVzb3VyY2UYCiABKAUSGgoSZGVwbG95bWVudF9oaXN0b3J5GAsgASgFEhUKDWJ1aWxkX2hpc3RvcnkYDCABKAUinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkiPwoKQXV0aENvbmZpZxIOCgZpc3N1ZXIYASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg4KBnNjb3BlcxgDIAEoCSI7Cg5EZWZhdWx0Um91dGluZxITCgtwYXRoX3ByZWZpeBgBIAEoCRIUCgxpZGxlX3RpbWVvdXQYAiABKAUi3AIKFERlZmF1bHRTZXJ2aWNlQ29uZmlnEi8KB3JvdXRpbmcYASABKAsyHi5sb2NvLmNvbmZpZy52MS5EZWZhdWx0Um91dGluZxI7CgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAMgASgJEg4KBm1lbW9yeRgEIAEoCRIUCgxtaW5fcmVwbGljYXMYBSABKAUSFAoMbWF4X3JlcGxpY2FzGAYgASgFEjwKDW9ic2VydmFiaWxpdHkYByABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPZGVwbG95X2F0dGVtcHRzGAggASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAkgASgFEhIKCmNwdV90YXJnZXQYCiABKAUyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -477,6 +477,51 @@ export const AuthConfigSchema: GenMessage<AuthConfig, {jsonType: AuthConfigJson}
   messageDesc(file_loco_config_v1_config, 5);
 
 /**
+ * DefaultRouting is the HTTP routing the API fills into a service that leaves it unset.
+ *
+ * @generated from message loco.config.v1.DefaultRouting
+ */
+export type DefaultRouting = Message<"loco.config.v1.DefaultRouting"> & {
+  /**
+   * @generated from field: string path_prefix = 1;
+   */
+  pathPrefix: string;
+
+  /**
+   * seconds
+   *
+   * @generated from field: int32 idle_timeout = 2;
+   */
+  idleTimeout: number;
+};
+
+/**
+ * DefaultRouting is the HTTP routing the API fills into a service that leaves it unset.
+ *
+ * @generated from message loco.config.v1.DefaultRouting
+ */
+export type DefaultRoutingJson = {
+  /**
+   * @generated from field: string path_prefix = 1;
+   */
+  pathPrefix?: string;
+
+  /**
+   * seconds
+   *
+   * @generated from field: int32 idle_timeout = 2;
+   */
+  idleTimeout?: number;
+};
+
+/**
+ * Describes the message loco.config.v1.DefaultRouting.
+ * Use `create(DefaultRoutingSchema)` to create a new message.
+ */
+export const DefaultRoutingSchema: GenMessage<DefaultRouting, {jsonType: DefaultRoutingJson}> = /*@__PURE__*/
+  messageDesc(file_loco_config_v1_config, 6);
+
+/**
  * DefaultServiceConfig contains default values for service deployments.
  * These values are used when users don't specify explicit configuration.
  *
@@ -484,12 +529,12 @@ export const AuthConfigSchema: GenMessage<AuthConfig, {jsonType: AuthConfigJson}
  */
 export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"> & {
   /**
-   * Default routing configuration. routing.port is the port clients scaffold a new web service
-   * with; the API never fills it into a service, since a service without a port is a worker.
+   * Default routing of a service with a port. There is no default port: a service without one
+   * is a worker.
    *
-   * @generated from field: loco.resource.v1.RoutingConfig routing = 1;
+   * @generated from field: loco.config.v1.DefaultRouting routing = 1;
    */
-  routing?: RoutingConfig | undefined;
+  routing?: DefaultRouting | undefined;
 
   /**
    * Default health check configuration
@@ -555,12 +600,12 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
  */
 export type DefaultServiceConfigJson = {
   /**
-   * Default routing configuration. routing.port is the port clients scaffold a new web service
-   * with; the API never fills it into a service, since a service without a port is a worker.
+   * Default routing of a service with a port. There is no default port: a service without one
+   * is a worker.
    *
-   * @generated from field: loco.resource.v1.RoutingConfig routing = 1;
+   * @generated from field: loco.config.v1.DefaultRouting routing = 1;
    */
-  routing?: RoutingConfigJson;
+  routing?: DefaultRoutingJson;
 
   /**
    * Default health check configuration
@@ -623,7 +668,7 @@ export type DefaultServiceConfigJson = {
  * Use `create(DefaultServiceConfigSchema)` to create a new message.
  */
 export const DefaultServiceConfigSchema: GenMessage<DefaultServiceConfig, {jsonType: DefaultServiceConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 6);
+  messageDesc(file_loco_config_v1_config, 7);
 
 /**
  * ConfigService provides static configuration values. Clients can query this to show safe defaults.

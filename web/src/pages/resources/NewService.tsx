@@ -445,7 +445,7 @@ function ServiceForm({
 		isPublic: draftIsPublic(draft),
 		subdomain: edits.subdomain ?? slug(name),
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
-		port: edits.port ?? String(defaults.routing?.port ?? ""),
+		port: edits.port ?? "",
 		vars: edits.vars ?? [],
 		health: edits.health ?? defaultHealth(defaults),
 	};

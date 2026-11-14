@@ -14,8 +14,6 @@ func TestStarterRender(t *testing.T) {
 	starter := Starter{
 		SchemaURL:   testSchemaURL,
 		Name:        "my-app",
-		Hostname:    "my-app.onloco.app",
-		Port:        8000,
 		Region:      testRegion,
 		CPU:         "100m",
 		Memory:      "256Mi",
@@ -34,8 +32,8 @@ func TestStarterRender(t *testing.T) {
 	assert.Equal(t, "my-app", file.Partial)
 	service := file.Services["my-app"]
 	assert.Equal(t, DefaultDockerfile, service.Dockerfile)
-	assert.Equal(t, int32(8000), *service.Port)
-	assert.Equal(t, []string{"my-app.onloco.app"}, service.Domains)
+	assert.Nil(t, service.Port)
+	assert.Empty(t, service.Domains)
 	region := service.Regions[testRegion]
 	assert.Equal(t, "100m", region.CPU)
 	assert.Equal(t, "256Mi", region.Memory)

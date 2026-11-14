@@ -73,12 +73,18 @@ message AuthConfig {
   string scopes = 3;
 }
 
+// DefaultRouting is the HTTP routing the API fills into a service that leaves it unset.
+message DefaultRouting {
+  string path_prefix = 1;
+  int32 idle_timeout = 2; // seconds
+}
+
 // DefaultServiceConfig contains default values for service deployments.
 // These values are used when users don't specify explicit configuration.
 message DefaultServiceConfig {
-  // Default routing configuration. routing.port is the port clients scaffold a new web service
-  // with; the API never fills it into a service, since a service without a port is a worker.
-  resource.v1.RoutingConfig routing = 1;
+  // Default routing of a service with a port. There is no default port: a service without one
+  // is a worker.
+  DefaultRouting routing = 1;
 
   // Default health check configuration
   deployment.v1.HealthCheckConfig health_check = 2;

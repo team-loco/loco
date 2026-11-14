@@ -24,7 +24,7 @@ const (
 	testDefaultCPU          = "150m"
 	testDefaultMemory       = "192Mi"
 	testIdleTimeout         = 45
-	testDefaultPort         = 8000
+	testServicePort         = 8000
 	testHealthPath          = "/health"
 	testHealthInterval      = 30
 	testHealthTimeout       = 5
@@ -43,7 +43,6 @@ func testServiceDefaults() servicedefaults.Defaults {
 		MaxReplicas:              3,
 		PathPrefix:               "/",
 		IdleTimeout:              testIdleTimeout,
-		Port:                     testDefaultPort,
 		HealthPath:               testHealthPath,
 		HealthInterval:           testHealthInterval,
 		HealthTimeout:            testHealthTimeout,

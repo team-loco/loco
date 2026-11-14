@@ -1,10 +1,10 @@
-# init writes a starter loco.yaml from the API's service defaults, the default region and a domain
-# the environment's cluster in that region serves.
+# init writes a starter loco.yaml from the API's service defaults and the default region, with no
+# port, so the service starts as a worker.
 exec loco infra init --name my-app
 stdout 'Created .*loco.yaml'
 fakeapi called GetConfig
 fakeapi called ListRegions 'Bearer test-token'
-fakeapi called ListPlatformDomains 'Bearer test-token'
+! fakeapi called ListPlatformDomains
 cmp loco.yaml want.yaml
 exec loco infra validate
 stdout 'loco.yaml is valid'
@@ -38,7 +38,5 @@ partial: my-app
 services:
   my-app:
     dockerfile: Dockerfile
-    port: 8000
-    domains: [my-app.onloco.test]
     regions:
       us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 2 } }

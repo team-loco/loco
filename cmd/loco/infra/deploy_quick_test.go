@@ -22,8 +22,8 @@ func TestDirectoryServiceName(t *testing.T) {
 	}
 
 	starter := locofile.Starter{
-		SchemaURL: "https://loco.test/schemas/loco.v1.json", Name: name, Hostname: name + ".onloco.app",
-		Port: 8000, Region: "us-east", CPU: "100m", Memory: "256Mi", MinReplicas: 1, MaxReplicas: 2,
+		SchemaURL: "https://loco.test/schemas/loco.v1.json", Name: name,
+		Region: "us-east", CPU: "100m", Memory: "256Mi", MinReplicas: 1, MaxReplicas: 2,
 	}
 	data, err := starter.Render()
 	if err != nil {
