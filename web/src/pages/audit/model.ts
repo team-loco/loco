@@ -55,7 +55,7 @@ export function dayLabel(ms: number, nowMs: number): string {
 	return new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 }
 
-const ACTOR_KINDS: Record<string, string> = {
+export const ACTOR_KINDS: Record<string, string> = {
 	user: "Person",
 	organization: "Organization token",
 	workspace: "Workspace token",
@@ -64,6 +64,11 @@ const ACTOR_KINDS: Record<string, string> = {
 	agent: "Cluster agent",
 	anonymous: "Anonymous",
 };
+
+/** The Actor filter selects these by type: Loco and anonymous actors have no ID, and cluster agents are one choice. */
+export const TYPE_ACTORS = ["system", "agent", "anonymous"];
+
+export const MIN_QUERY_CHARS = 3;
 
 export interface AuditRow {
 	event: Event;

@@ -64,15 +64,11 @@ message ListEventsRequest {
   }];
   // IDs and types are alternatives so people and system actors can be selected together.
   repeated string actor_types = 11 [(buf.validate.field).repeated = {
-    max_items: 7
+    max_items: 3
     unique: true
     items: {
       string: {
         in: [
-          "user",
-          "organization",
-          "workspace",
-          "resource",
           "system",
           "agent",
           "anonymous"

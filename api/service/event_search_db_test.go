@@ -153,7 +153,7 @@ func TestAuditSearchValidation(t *testing.T) {
 	}
 	for _, req := range []*eventv1.ListEventsRequest{
 		{OrgId: uuid.NewString(), ActorIds: []string{"not-a-uuid"}},
-		{OrgId: uuid.NewString(), ActorTypes: []string{"not-an-actor-type"}},
+		{OrgId: uuid.NewString(), ActorTypes: []string{"robot"}},
 		{OrgId: uuid.NewString(), Query: strings.Repeat("x", 257)},
 		{OrgId: uuid.NewString(), Query: "a"},
 		{OrgId: uuid.NewString(), Query: "ab"},

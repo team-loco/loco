@@ -27,7 +27,7 @@ import { agoLabel, msToTimestamp } from "@/lib/time";
 import { AuditDrawer } from "./audit/AuditDrawer";
 import { AuditSearch, EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
-import { auditRow, DEFAULT_RANGE, PAGE_SIZES, RANGES } from "./audit/model";
+import { ACTOR_KINDS, auditRow, DEFAULT_RANGE, MIN_QUERY_CHARS, PAGE_SIZES, RANGES, TYPE_ACTORS } from "./audit/model";
 import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
@@ -60,7 +60,7 @@ export function Audit() {
 	const types = (params.get("types") ?? "").split(",").filter((t) => AUDIT_EVENT_TYPES.includes(t));
 	const search = params.get("q") ?? "";
 	const actor = params.get("actor") ?? "";
-	const actorTypes = ["system", "agent", "anonymous"].includes(actor) ? [actor] : [];
+	const actorTypes = TYPE_ACTORS.includes(actor) ? [actor] : [];
 	const actorIds = actor !== "" && actorTypes.length === 0 ? [actor] : [];
 	const size = PAGE_SIZES.find((n) => n.toString() === params.get("size")) ?? PAGE_SIZES[0];
 	const choices = access.org ? workspaces.filter((w) => w.orgId === orgId) : access.workspaces;
@@ -86,7 +86,7 @@ export function Audit() {
 			resourceId,
 			environmentId,
 			types,
-			query: Array.from(search).length >= 3 ? search : "",
+			query: Array.from(search).length >= MIN_QUERY_CHARS ? search : "",
 			actorIds,
 			actorTypes,
 			pageSize: size,
@@ -114,11 +114,9 @@ export function Audit() {
 	const actors = new Map<string, string>([
 		...[...users].map(([id, u]): [string, string] => [id, [u.name, u.email].filter(Boolean).join(" · ")]),
 		...rows
-			.filter((r) => r.event.actorId !== "" && !["system", "agent", "anonymous"].includes(r.event.actorType))
+			.filter((r) => r.event.actorId !== "" && !TYPE_ACTORS.includes(r.event.actorType))
 			.map((r): [string, string] => [r.event.actorId, [r.actor.name, r.actor.detail].filter(Boolean).join(" · ")]),
-		["system", "Loco"],
-		["agent", "Cluster agent"],
-		["anonymous", "Anonymous"],
+		...TYPE_ACTORS.map((t): [string, string] => [t, ACTOR_KINDS[t] ?? t]),
 	]);
 	if (actor !== "" && !actors.has(actor)) actors.set(actor, actor);
 	const selIdx = rows.findIndex((r) => r.event.id === params.get("event"));
@@ -313,7 +311,7 @@ export function Audit() {
 					if (selected !== undefined) {
 						const e = selected.event;
 						update({
-							actor: ["system", "agent", "anonymous"].includes(e.actorType) ? e.actorType : e.actorId,
+							actor: TYPE_ACTORS.includes(e.actorType) ? e.actorType : e.actorId,
 							event: null,
 						});
 					}

@@ -6,7 +6,7 @@ import { FilterPopover } from "@/components/design/FilterPopover";
 import { SearchInput } from "@/components/design/SearchInput";
 import { auditLabel } from "@/pages/settings/auditEvents";
 
-import { CATEGORIES, toggleCategory, toggleType, typesLabel } from "./model";
+import { CATEGORIES, MIN_QUERY_CHARS, toggleCategory, toggleType, typesLabel } from "./model";
 
 export function EventFilter({ types, onChange }: { types: string[]; onChange: (types: string[]) => void }) {
 	return (
@@ -73,7 +73,7 @@ export function AuditSearch({ value, onChange }: { value: string; onChange: (val
 			aria-label="Search events"
 			placeholder="Search request ID, actor or target"
 			maxLength={256}
-			hint={Array.from(input.draft).length < 3 ? "3+ characters" : undefined}
+			hint={Array.from(input.draft).length < MIN_QUERY_CHARS ? `${MIN_QUERY_CHARS}+ characters` : undefined}
 			value={input.draft}
 			onChange={(event) => {
 				const control = event.currentTarget;
