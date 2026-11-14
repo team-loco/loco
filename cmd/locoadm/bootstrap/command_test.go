@@ -263,8 +263,8 @@ func TestBootstrapRejectsMissingReleaseBeforeSignIn(t *testing.T) {
 }
 
 // bootstrapInstallation serves an installation with an open bootstrap from a fake Kubernetes API
-// and writes the example installation file pointed at issuer and apiURL. Without withRelease the
-// file has no release block, which a development build cannot resolve.
+// and writes an installation file pointed at issuer and apiURL. Without withRelease the file has
+// no release block, which a development build cannot resolve.
 func bootstrapInstallation(t *testing.T, issuer, apiURL string, withRelease bool) string {
 	t.Helper()
 	kubernetes := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -330,20 +330,36 @@ current-context: example-control-plane
 		}
 		release = "release:\n  manifest: ./release.json\n"
 	}
-	example, err := os.ReadFile("../../../examples/installation/installation.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	config := strings.NewReplacer(
-		"release:\n  version: 0.1.0\n", release,
-		"https://auth.example.com", issuer,
-		"https://api.example.com", apiURL,
-	).Replace(string(example))
-	if !strings.Contains(config, issuer) || strings.Contains(config, "version: 0.1.0") {
-		t.Fatal("example installation file no longer matches this fixture")
-	}
+	config := "version: 1\nname: example\n" + release + `controlPlane:
+  kubernetes: {context: example-control-plane, clusterUID: control-plane-cluster-uid, namespace: loco-system}
+  apiURL: ` + apiURL + `
+  webURL: https://console.example.com
+  database: {secretRef: {name: loco-inputs, key: database-url}}
+  auth:
+    issuer: ` + issuer + `
+    clientId: ` + bootstrapTestClient + `
+    bootstrapRedirectURI: http://127.0.0.1:8400/callback
+    signupMode: closed
+  sourceBucket:
+    endpoint: https://s3.example.com
+    region: us-east-1
+    bucket: loco-source
+    credentialsSecretRef: {name: loco-source}
+  registry: {endpoint: https://registry.example.com, credentialsSecretRef: {name: loco-registry}}
+  openbao:
+    managed: true
+    seal: {type: static}
+    snapshots:
+      credentialsSecretRef: {name: loco-backups}
+      endpoint: https://s3.example.com
+      region: us-east-1
+      bucket: loco-backups
+  observability: {enabled: true, ingestURL: https://ingest.example.com}
+  certificates: {issuerRef: {name: example-issuer, kind: ClusterIssuer}}
+workers: []
+`
 	path := filepath.Join(directory, "installation.yaml")
-	if err = os.WriteFile(path, []byte(config), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(config), 0600); err != nil {
 		t.Fatal(err)
 	}
 	return path
