@@ -12,9 +12,15 @@ const ADMIN = scopeLevel(Scope.ADMIN);
  */
 export function useAuditAccess(orgId: string | null) {
 	const scopes = useMyScopes();
-	const { workspaces } = useOrgWorkspace();
+	const { workspaces, workspacesSettled } = useOrgWorkspace();
 	const org = orgId !== null && scopes.orgLevel(orgId) >= ADMIN;
 	const administered: Workspace[] =
 		orgId === null ? [] : workspaces.filter((w) => w.orgId === orgId && scopes.workspaceLevel(orgId, w.id) >= ADMIN);
-	return { isLoading: scopes.isLoading, org, workspaces: administered, visible: org || administered.length > 0 };
+	return {
+		isLoading: scopes.isLoading || !workspacesSettled,
+		org,
+		workspaces: administered,
+		visible: org || administered.length > 0,
+		reads: (workspaceId: string) => org || administered.some((w) => w.id === workspaceId),
+	};
 }

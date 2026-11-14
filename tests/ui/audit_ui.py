@@ -43,13 +43,13 @@ if "audit" not in state:
         return evidence.rpc(api, users["owner"]["token"], "loco.resource.v1.ResourceService/CreateResource", body)["resourceId"]
 
     checkout = create(shared, "checkout")
-    create(sibling, "inventory")
+    inventory = create(sibling, "inventory")
     # More than one page of events, so the pager has an older page.
     for index in range(55):
         evidence.rpc(api, users["owner"]["token"], "loco.resource.v1.ResourceService/UpdateResource", {"resourceId": checkout, "description": f"Checkout revision {index}"})
     create(private, "ledger")
     evidence.rpc(api, users["workspace_admin"]["token"], "loco.workspace.v1.WorkspaceService/UpdateWorkspace", {"workspaceId": sibling, "description": "Stock levels"})
-    state["audit"] = {"checkout": checkout}
+    state["audit"] = {"checkout": checkout, "inventory": inventory}
     evidence.write_json(Path(args.state), state)
 audit_path = f"/org/{org}/audit"
 out = Path(args.out)
@@ -145,6 +145,19 @@ with sync_playwright() as p:
         assert reads and all(call["body"].get("workspaceId") in (shared, sibling) for call in reads), reads
         assert {call["body"]["workspaceId"] for call in reads} == {shared, sibling}, reads
         assert all(call["status"] == 200 for call in reads), reads
+
+        # Workspace settings link to the log filtered to that workspace, and a resource filter in the URL applies on first load.
+        page.goto(state["ui_url"] + f"/org/{org}/wks/{sibling}/settings?scope=workspace")
+        page.get_by_role("link", name="Activity in audit log", exact=True).click()
+        page.wait_for_url(f"**{audit_path}?range=90d&ws={sibling}")
+        expect(page.get_by_role("button", name="Past 90 days", exact=True)).to_be_visible()
+        expect(page.get_by_role("button", name="sibling", exact=True)).to_be_visible()
+        calls.clear()
+        page.goto(state["ui_url"] + f"{audit_path}?ws={sibling}&res={state['audit']['inventory']}")
+        expect(page.get_by_role("button", name="inventory", exact=True)).to_be_visible()
+        expect(page.get_by_role("list", name="Audit events")).not_to_contain_text("Wren Workspace")
+        first = list_events(calls)[0]["body"]
+        assert first["workspaceId"] == sibling and first["resourceId"] == state["audit"]["inventory"], first
         assert not errors, errors
         context.close()
 
