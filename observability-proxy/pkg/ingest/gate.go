@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -58,23 +57,13 @@ type window struct {
 	workspaceID string
 	placedAt    time.Time
 	removedAt   time.Time
-	retention   retention
+	retention   *ingestv1.Retention
 }
-
-// retention is how many days ClickHouse keeps each signal's rows, indexed by logDays, traceDays
-// and metricDays.
-type retention [3]int32
-
-const (
-	logDays = iota
-	traceDays
-	metricDays
-)
 
 // snapshot is one ListPlacementWindows response; retention applies to records that name no workspace.
 type snapshot struct {
 	windows   []window
-	retention retention
+	retention *ingestv1.Retention
 }
 
 type clusterPlacements struct {
@@ -211,22 +200,25 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	if err != nil {
 		return fmt.Errorf("%w: list placement windows: %w", ErrAuthUnavailable, err)
 	}
-	clusterRetention, err := retentionFrom(resp.GetRetention())
-	if err != nil {
+	if err = checkRetention(resp.GetRetention()); err != nil {
 		return err
 	}
 	windows := make([]window, 0, len(resp.GetWindows()))
 	for _, w := range resp.GetWindows() {
-		entry := window{workspaceID: w.GetWorkspaceId(), placedAt: w.GetPlacedAt().AsTime()}
+		if err = checkRetention(w.GetRetention()); err != nil {
+			return err
+		}
+		entry := window{
+			workspaceID: w.GetWorkspaceId(),
+			placedAt:    w.GetPlacedAt().AsTime(),
+			retention:   w.GetRetention(),
+		}
 		if w.GetRemovedAt() != nil {
 			entry.removedAt = w.GetRemovedAt().AsTime()
 		}
-		if entry.retention, err = retentionFrom(w.GetRetention()); err != nil {
-			return err
-		}
 		windows = append(windows, entry)
 	}
-	c.snapshot = snapshot{windows: windows, retention: clusterRetention}
+	c.snapshot = snapshot{windows: windows, retention: resp.GetRetention()}
 	c.revoked = false
 	c.fetchedAt = time.Now()
 	return nil
@@ -288,7 +280,7 @@ func (a *Admission) match(workspaceID string, at time.Time) verdict {
 
 // retention returns how long to keep the records of a workspace, or of the cluster for none. It
 // reports false for a workspace with no window, whose records check rejects.
-func (a *Admission) retention(workspaceID string) (retention, bool) {
+func (a *Admission) retention(workspaceID string) (*ingestv1.Retention, bool) {
 	if workspaceID == "" {
 		return a.placements.retention, true
 	}
@@ -297,14 +289,13 @@ func (a *Admission) retention(workspaceID string) (retention, bool) {
 			return w.retention, true
 		}
 	}
-	return retention{}, false
+	return nil, false
 }
 
-// retentionFrom refuses a retention of 0 days, which ClickHouse would expire at once.
-func retentionFrom(days *ingestv1.Retention) (retention, error) {
-	r := retention{days.GetLogDays(), days.GetTraceDays(), days.GetMetricDays()}
-	if slices.Min(r[:]) <= 0 {
-		return retention{}, fmt.Errorf("%w: control plane sent a retention of %v days", ErrAuthUnavailable, r)
+// checkRetention refuses a retention of 0 days, which ClickHouse would expire at once.
+func checkRetention(days *ingestv1.Retention) error {
+	if days.GetLogDays() <= 0 || days.GetTraceDays() <= 0 || days.GetMetricDays() <= 0 {
+		return fmt.Errorf("%w: control plane sent a retention of %v", ErrAuthUnavailable, days)
 	}
-	return r, nil
+	return nil
 }

@@ -34,8 +34,8 @@ type State struct {
 	Outage    bool
 }
 
-// Retention is what the fake control plane gives the cluster and each workspace it places.
-func Retention() *ingestv1.Retention {
+// retention is what the fake control plane gives the cluster and each workspace it places.
+func retention() *ingestv1.Retention {
 	return &ingestv1.Retention{LogDays: 30, TraceDays: 7, MetricDays: 90}
 }
 
@@ -54,7 +54,7 @@ func Start(keys []Signer) *ControlPlane {
 }
 
 func Serve(listener net.Listener, keys []Signer) *ControlPlane {
-	cp := &ControlPlane{state: State{Keys: keys, Retention: Retention()}}
+	cp := &ControlPlane{state: State{Keys: keys, Retention: retention()}}
 	rpcServer := connect.NewServer()
 	ingestv1connect.RegisterIngestServiceHandler(rpcServer, cp)
 	mux := http.NewServeMux()
@@ -92,7 +92,7 @@ func (c *ControlPlane) Place(workspaceID string, placedAt, removedAt time.Time) 
 	window := &ingestv1.PlacementWindow{
 		WorkspaceId: workspaceID,
 		PlacedAt:    timestamppb.New(placedAt),
-		Retention:   Retention(),
+		Retention:   retention(),
 	}
 	if !removedAt.IsZero() {
 		window.RemovedAt = timestamppb.New(removedAt)

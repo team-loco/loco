@@ -60,7 +60,7 @@ if ! wait_for "Collector accepting OTLP" send_telemetry; then
 fi
 
 otel_tables="otel_logs otel_traces otel_traces_trace_id_ts otel_metrics_gauge otel_metrics_sum otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
-# keep in sync with ingesttest.Retention, which the fake control plane gives every workspace
+# keep in sync with ingesttest.retention, which the fake control plane gives every workspace
 retention_days() {
 	case $1 in
 	otel_logs) echo 30 ;;
