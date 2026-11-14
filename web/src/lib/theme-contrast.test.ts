@@ -12,7 +12,7 @@ const pairs = [
 	["--brand", "--panel"] as const,
 ];
 
-const css = await Bun.file(new URL("../index.css", import.meta.url)).text();
+const css = await Bun.file(new URL("../theme.css", import.meta.url)).text();
 const blocks = new Map<string, Map<string, string>>();
 for (const [, selector = "", body = ""] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
 	const declarations = new Map<string, string>();
@@ -24,7 +24,7 @@ for (const [, selector = "", body = ""] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)
 
 function block(selector: string): Map<string, string> {
 	const found = blocks.get(selector);
-	if (found === undefined) throw new Error(`index.css has no ${selector} block`);
+	if (found === undefined) throw new Error(`theme.css has no ${selector} block`);
 	return found;
 }
 
