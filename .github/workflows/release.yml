@@ -53,9 +53,9 @@ jobs:
           [[ "$commit" =~ ^[a-f0-9]{40}$ ]] || fail "commit must be a full lowercase SHA: $commit"
           git merge-base --is-ancestor "$commit" origin/main 2>/dev/null || fail "$commit is not on main"
 
+          latest=$(git tag -l 'v*' --sort=-v:refname | sed -n 1p)
           version=$INPUT_VERSION
           if [[ -z "$version" ]]; then
-            latest=$(git tag -l 'v*' --sort=-v:refname | sed -n 1p)
             IFS=. read -r major minor patch <<< "${latest:-v0.0.0}"
             version="${major#v}.${minor}.$((patch + 1))"
           fi
@@ -64,10 +64,25 @@ jobs:
             fail "tag v$version already exists"
           fi
 
-          for workflow in ci.yml build.yml; do
-            conclusion=$(gh run list --workflow "$workflow" --commit "$commit" --event push --limit 1 --json conclusion --jq '.[0].conclusion // ""')
-            [[ "$conclusion" == success ]] || fail "$workflow on $commit has not succeeded: ${conclusion:-no completed run}"
+          # CI skips checks whose paths a push did not change, so every main push since the last release must pass.
+          # A push of several commits runs CI once, on its head, over all of them; the others have no run.
+          failed=()
+          conclusion() {
+            gh run list --workflow "$1" --commit "$2" --event push --limit 1 --json conclusion \
+              --jq 'if length == 0 then "no run" else .[0].conclusion // "" end'
+          }
+          shas=""
+          [[ -z "$latest" ]] || shas=$(git rev-list --first-parent "$latest..$commit")
+          for sha in ${shas:-$commit}; do
+            result=$(conclusion ci.yml "$sha")
+            [[ "$result" == success || ( "$result" == "no run" && "$sha" != "$commit" ) ]] || failed+=("ci.yml on $sha: ${result:-in progress}")
           done
+          result=$(conclusion build.yml "$commit")
+          [[ "$result" == success ]] || failed+=("build.yml on $commit: ${result:-in progress}")
+          if (( ${#failed[@]} )); then
+            printf '::error::%s\n' "${failed[@]}"
+            fail "the push runs above have not succeeded; re-running a failed run clears it"
+          fi
 
           echo "Releasing $version from $commit"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
