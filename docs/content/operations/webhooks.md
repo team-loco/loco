@@ -34,3 +34,7 @@ Core sends no email. A deployment that wants invitation email consumes `invitati
 The enclosing event includes `orgId`, `subject.type` (`invitation`), and `subject.id` (the invitation ID). Its `actor` identifies the user who performed the action; a resend can have a different actor from the original inviter.
 
 `invitation.created` records a new invitation. `invitation.resent` extends an open invitation's expiry, including an expired invitation that has not been revoked or claimed, and records the renewed expiry. Both changes and their events commit together. Claimed or revoked invitations cannot be resent. Invitation responses always include the link to copy; webhook delivery results do not change an invitation.
+
+## User deletion
+
+`user.deleted` records a deleted Loco user. Its `subject.id` is the user ID, and its `data.identities` lists the sign-in identities removed with the user, each with the `issuer` and `subject` that the identity provider put in its tokens. Loco erases those identities when the user is deleted, so a consumer that removes the matching accounts at an identity provider takes them from this list. A retried delivery carries the same list.

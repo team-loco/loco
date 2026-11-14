@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -122,5 +123,46 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
 				t.Fatalf("DeleteUser error = %v, want %q", err, tt.message)
 			}
 		})
+	}
+}
+
+func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	var userID uuid.UUID
+	if err := f.pool.QueryRow(ctx, `INSERT INTO users (email) VALUES ('leaving@example.com') RETURNING id`).
+		Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `INSERT INTO identities (user_id, issuer, subject)
+		VALUES ($1, 'https://idp.example.com', 'sub-1')`, userID); err != nil {
+		t.Fatal(err)
+	}
+	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
+	}})
+	server := NewUserServer(f.pool, f.queries, nil, nil)
+
+	if _, err := server.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID.String()}); err != nil {
+		t.Fatal(err)
+	}
+
+	var data struct {
+		Identities []struct {
+			Issuer  string `json:"issuer"`
+			Subject string `json:"subject"`
+		} `json:"identities"`
+	}
+	var raw []byte
+	if err := f.pool.QueryRow(ctx, `SELECT data FROM events WHERE type = 'user.deleted' AND subject_id = $1`, userID).
+		Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatal(err)
+	}
+	if len(data.Identities) != 1 || data.Identities[0].Issuer != "https://idp.example.com" ||
+		data.Identities[0].Subject != "sub-1" {
+		t.Fatalf("user.deleted identities = %+v, want one for https://idp.example.com/sub-1", data.Identities)
 	}
 }

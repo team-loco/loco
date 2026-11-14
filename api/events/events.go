@@ -139,6 +139,8 @@ const (
 	FieldUserAgent     = "userAgent"
 	FieldFlow          = "flow"
 	FieldIssuer        = "issuer"
+	FieldSubject       = "subject"
+	FieldIdentities    = "identities"
 	FieldEntityType    = "entityType"
 	FieldEntityID      = "entityId"
 	FieldReplicas      = "replicas"
