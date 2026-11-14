@@ -624,6 +624,9 @@ type OrgLimitOverride struct {
 	SecretsPerResource       *int32     `json:"secretsPerResource"`
 	DeploymentHistory        *int32     `json:"deploymentHistory"`
 	BuildHistory             *int32     `json:"buildHistory"`
+	LogRetentionDays         *int32     `json:"logRetentionDays"`
+	TraceRetentionDays       *int32     `json:"traceRetentionDays"`
+	MetricRetentionDays      *int32     `json:"metricRetentionDays"`
 	Reason                   string     `json:"reason"`
 	UpdatedBy                *uuid.UUID `json:"updatedBy"`
 	UpdatedAt                time.Time  `json:"updatedAt"`

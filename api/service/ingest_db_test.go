@@ -14,8 +14,10 @@ import (
 	"connectrpc.com/connect/v2/connectinprocess"
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 	"github.com/team-loco/loco/internal/ingesttoken"
@@ -72,7 +74,7 @@ func newIngestKey(t *testing.T, id string) ingesttest.Signer {
 
 func newIngestServer(f *deployFixture, signer *testIngestSigner) *IngestServer {
 	clusters := NewClusterAuthenticator(f.queries, testAgentConfig().AssertionMaxLifetime)
-	return NewIngestServer(f.queries, clusters, signer, testIngestTokenLifetime)
+	return NewIngestServer(f.queries, clusters, signer, testIngestTokenLifetime, limits.Defaults())
 }
 
 func signingWith(keys ...ingesttest.Signer) *testIngestSigner {
@@ -324,5 +326,30 @@ func TestIngestKeysUnavailableWhileTheSignerIs(t *testing.T) {
 	server.JWKS(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, ingesttoken.JWKSPath, nil))
 	if recorder.Code != http.StatusServiceUnavailable {
 		t.Fatalf("JWKS while the signer is unavailable = %d", recorder.Code)
+	}
+}
+
+func TestPlacementWindowsCarryTheOrganizationsRetention(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	f.setLimit(t, limits.LogRetentionDays, 7)
+	key := newIngestKey(t, testCurrentIngestKey)
+	client := ingestClient(newIngestServer(f, signingWith(key)))
+
+	windows, err := placementWindows(t, client, signedIngestToken(t, key, f.clusterID, time.Now()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defaults := limits.Defaults()
+	want := &ingestv1.Retention{
+		LogDays:    7,
+		TraceDays:  limits.TraceRetentionDays.Value(defaults),
+		MetricDays: limits.MetricRetentionDays.Value(defaults),
+	}
+	if len(windows) != 1 || !proto.Equal(windows[0].GetRetention(), want) {
+		t.Fatalf("windows = %v, want one keeping %v", windows, want)
 	}
 }

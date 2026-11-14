@@ -57,11 +57,18 @@ type window struct {
 	workspaceID string
 	placedAt    time.Time
 	removedAt   time.Time
+	retention   *ingestv1.Retention
+}
+
+// snapshot is one ListPlacementWindows response; retention applies to records that name no workspace.
+type snapshot struct {
+	windows   []window
+	retention *ingestv1.Retention
 }
 
 type clusterPlacements struct {
 	mu        sync.Mutex
-	windows   []window
+	snapshot  snapshot
 	revoked   bool
 	fetchedAt time.Time
 }
@@ -83,11 +90,11 @@ func (g *Gate) Admit(ctx context.Context, authorization string) (*Admission, err
 		return nil, err
 	}
 	cluster := g.cluster(claims.ClusterID)
-	windows, err := cluster.load(ctx, g, token, g.cfg.PlacementTTL)
+	placements, err := cluster.load(ctx, g, token, g.cfg.PlacementTTL)
 	if err != nil {
 		return nil, err
 	}
-	return &Admission{gate: g, cluster: cluster, token: token, ClusterID: claims.ClusterID, windows: windows}, nil
+	return &Admission{gate: g, cluster: cluster, token: token, ClusterID: claims.ClusterID, placements: placements}, nil
 }
 
 func (g *Gate) verify(ctx context.Context, token string) (ingesttoken.Claims, error) {
@@ -163,18 +170,18 @@ func (g *Gate) cluster(id string) *clusterPlacements {
 	return cluster
 }
 
-func (c *clusterPlacements) load(ctx context.Context, g *Gate, token string, maxAge time.Duration) ([]window, error) {
+func (c *clusterPlacements) load(ctx context.Context, g *Gate, token string, maxAge time.Duration) (snapshot, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.fetchedAt.IsZero() || time.Since(c.fetchedAt) >= maxAge {
 		if err := c.fetch(ctx, g, token); err != nil {
-			return nil, err
+			return snapshot{}, err
 		}
 	}
 	if c.revoked {
-		return nil, ErrClusterRevoked
+		return snapshot{}, ErrClusterRevoked
 	}
-	return c.windows, nil
+	return c.snapshot, nil
 }
 
 func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) error {
@@ -183,7 +190,7 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	resp, err := g.placements.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
 	if err != nil && connect.CodeOf(err) == connect.CodePermissionDenied {
 		c.revoked = true
-		c.windows = nil
+		c.snapshot = snapshot{}
 		c.fetchedAt = time.Now()
 		return nil
 	}
@@ -193,15 +200,25 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	if err != nil {
 		return fmt.Errorf("%w: list placement windows: %w", ErrAuthUnavailable, err)
 	}
+	if err = checkRetention(resp.GetRetention()); err != nil {
+		return err
+	}
 	windows := make([]window, 0, len(resp.GetWindows()))
 	for _, w := range resp.GetWindows() {
-		entry := window{workspaceID: w.GetWorkspaceId(), placedAt: w.GetPlacedAt().AsTime()}
+		if err = checkRetention(w.GetRetention()); err != nil {
+			return err
+		}
+		entry := window{
+			workspaceID: w.GetWorkspaceId(),
+			placedAt:    w.GetPlacedAt().AsTime(),
+			retention:   w.GetRetention(),
+		}
 		if w.GetRemovedAt() != nil {
 			entry.removedAt = w.GetRemovedAt().AsTime()
 		}
 		windows = append(windows, entry)
 	}
-	c.windows = windows
+	c.snapshot = snapshot{windows: windows, retention: resp.GetRetention()}
 	c.revoked = false
 	c.fetchedAt = time.Now()
 	return nil
@@ -210,11 +227,11 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 type Admission struct {
 	ClusterID string
 
-	gate      *Gate
-	cluster   *clusterPlacements
-	token     string
-	windows   []window
-	refetched bool
+	gate       *Gate
+	cluster    *clusterPlacements
+	token      string
+	placements snapshot
+	refetched  bool
 }
 
 type verdict string
@@ -234,18 +251,18 @@ func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time)
 		return result, nil
 	}
 	a.refetched = true
-	windows, err := a.cluster.load(ctx, a.gate, a.token, a.gate.cfg.RefetchInterval)
+	placements, err := a.cluster.load(ctx, a.gate, a.token, a.gate.cfg.RefetchInterval)
 	if err != nil {
 		return accepted, err
 	}
-	a.windows = windows
+	a.placements = placements
 	return a.match(workspaceID, at), nil
 }
 
 func (a *Admission) match(workspaceID string, at time.Time) verdict {
 	skew := a.gate.cfg.ClockSkew
 	result := rejectNotPlaced
-	for _, w := range a.windows {
+	for _, w := range a.placements.windows {
 		if w.workspaceID != workspaceID {
 			continue
 		}
@@ -259,4 +276,26 @@ func (a *Admission) match(workspaceID string, at time.Time) verdict {
 		return accepted
 	}
 	return result
+}
+
+// retention returns how long to keep the records of a workspace, or of the cluster for none. It
+// reports false for a workspace with no window, whose records check rejects.
+func (a *Admission) retention(workspaceID string) (*ingestv1.Retention, bool) {
+	if workspaceID == "" {
+		return a.placements.retention, true
+	}
+	for _, w := range a.placements.windows {
+		if w.workspaceID == workspaceID {
+			return w.retention, true
+		}
+	}
+	return nil, false
+}
+
+// checkRetention refuses a retention of 0 days, which ClickHouse would expire at once.
+func checkRetention(days *ingestv1.Retention) error {
+	if days.GetLogDays() <= 0 || days.GetTraceDays() <= 0 || days.GetMetricDays() <= 0 {
+		return fmt.Errorf("%w: control plane sent a retention of %v", ErrAuthUnavailable, days)
+	}
+	return nil
 }

@@ -5,25 +5,9 @@ import (
 	"io/fs"
 	"regexp"
 	"testing/fstest"
-	"time"
 )
 
-const day = 24 * time.Hour
-
 var placeholderPattern = regexp.MustCompile(`\$\{([A-Z_]+)\}`)
-
-func interval(ttl time.Duration) string {
-	switch {
-	case ttl%day == 0:
-		return fmt.Sprintf("toIntervalDay(%d)", ttl/day)
-	case ttl%time.Hour == 0:
-		return fmt.Sprintf("toIntervalHour(%d)", ttl/time.Hour)
-	case ttl%time.Minute == 0:
-		return fmt.Sprintf("toIntervalMinute(%d)", ttl/time.Minute)
-	default:
-		return fmt.Sprintf("toIntervalSecond(%d)", ttl/time.Second)
-	}
-}
 
 func substitute(content []byte, values map[string]string) ([]byte, error) {
 	var unknown []string
@@ -43,12 +27,7 @@ func substitute(content []byte, values map[string]string) ([]byte, error) {
 }
 
 func render(cfg Config) (fs.FS, error) {
-	values := map[string]string{
-		"DATABASE":    cfg.Database,
-		"LOGS_TTL":    interval(cfg.LogsTTL),
-		"TRACES_TTL":  interval(cfg.TracesTTL),
-		"METRICS_TTL": interval(cfg.MetricsTTL),
-	}
+	values := map[string]string{"DATABASE": cfg.Database}
 	names, err := fs.Glob(files, "*.sql")
 	if err != nil {
 		return nil, fmt.Errorf("list migrations: %w", err)

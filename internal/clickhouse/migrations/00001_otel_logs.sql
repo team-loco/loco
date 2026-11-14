@@ -1,5 +1,7 @@
 -- +goose NO TRANSACTION
 -- +goose Up
+-- Ingest stamps loco.retention.days from the organization's retention limits. least() caps the expiry
+-- at the last DateTime, so a long retention cannot wrap around to an earlier one.
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_logs
 (
     `Timestamp` DateTime64(9) CODEC(Delta(8), ZSTD(3)),
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_logs
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(3)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
+    `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
     `ResourceAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), ResourceAttributes::Array(Tuple(String, String))),
     `ScopeAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), ScopeAttributes::Array(Tuple(String, String))),
     `LogAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), LogAttributes::Array(Tuple(String, String))),
@@ -38,5 +41,5 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_logs
 ENGINE = MergeTree
 PARTITION BY toDate(Timestamp)
 ORDER BY (WorkspaceId, ResourceId, toStartOfFiveMinutes(Timestamp), Timestamp)
-TTL toDateTime(Timestamp) + ${LOGS_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1, enable_block_number_column = 1, enable_block_offset_column = 1;
+TTL toDateTime(least(toUnixTimestamp(Timestamp) + RetentionDays * 86400, 4294967295))
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 0, enable_block_number_column = 1, enable_block_offset_column = 1;

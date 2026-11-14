@@ -149,8 +149,6 @@ spec:
                         properties:
                           enabled:
                             type: boolean
-                          retentionPeriod:
-                            type: string
                           structured:
                             type: boolean
                         type: object

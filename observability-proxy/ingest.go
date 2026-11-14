@@ -82,13 +82,7 @@ func openProbe(cfg *config.Config) (driver.Conn, error) {
 // migrates and the others wait, then checks the ingest user can see the writer's tables and starts
 // the writer. The retry budget covers waiting for the lock as well as the migrations.
 func (s *ingestServer) start(ctx context.Context, cfg *config.Config) error {
-	schema := migrations.Config{
-		DSN:        cfg.ClickHouseMigratorURL,
-		Database:   cfg.ClickHouseDB,
-		LogsTTL:    cfg.LogsTTL,
-		TracesTTL:  cfg.TracesTTL,
-		MetricsTTL: cfg.MetricsTTL,
-	}
+	schema := migrations.Config{DSN: cfg.ClickHouseMigratorURL, Database: cfg.ClickHouseDB}
 	budgetCtx, cancel := context.WithTimeout(ctx, cfg.MigrationRetryBudget)
 	defer cancel()
 	err := s.lock.WithLock(budgetCtx, func(lockCtx context.Context) error {

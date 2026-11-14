@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	testLogsTTL           = 48 * time.Hour
-	testTelemetryTTL      = time.Hour
 	tailLoopCancelDelay   = 100 * time.Millisecond
 	tailLoopReturnLimit   = 500 * time.Millisecond
 	tailTestEnvironment   = "66666666-7777-8888-9999-000000000000"
@@ -29,6 +27,7 @@ const (
 	workspaceAttribute    = "loco.workspace.id"
 	resourceAttribute     = "loco.resource.id"
 	environmentAttribute  = "loco.environment.id"
+	retentionAttribute    = "loco.retention.days"
 	logsInsert            = "INSERT INTO otel_logs (Timestamp, Body, ResourceAttributes)"
 	tracesInsert          = "INSERT INTO otel_traces (Timestamp, TraceId, SpanId, ResourceAttributes)"
 	wholeTraceSpans       = 4
@@ -46,13 +45,7 @@ func newTestClickHouse(t *testing.T) *chClient.Client {
 		t.Skip("LOCO_TEST_CLICKHOUSE_URL not set")
 	}
 	database := "service_" + fmt.Sprintf("%x", uuid.New())
-	cfg := migrations.Config{
-		DSN:        dsn,
-		Database:   database,
-		LogsTTL:    testLogsTTL,
-		TracesTTL:  testTelemetryTTL,
-		MetricsTTL: testTelemetryTTL,
-	}
+	cfg := migrations.Config{DSN: dsn, Database: database}
 	if err := migrations.Up(t.Context(), cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -82,6 +75,8 @@ func insertLogs(
 	if err != nil {
 		t.Fatal(err)
 	}
+	attrs = maps.Clone(attrs)
+	attrs[retentionAttribute] = "1"
 	for range count {
 		if err := batch.Append(timestamp, body, attrs); err != nil {
 			t.Fatal(err)
@@ -268,7 +263,7 @@ func TestGetTraceReadsTheWholeTraceInTheWorkspace(t *testing.T) {
 	}
 	for _, workspace := range []uuid.UUID{f.workspace, f.otherWorkspace} {
 		for i := range wholeTraceSpans {
-			attrs := map[string]string{workspaceAttribute: workspace.String()}
+			attrs := map[string]string{workspaceAttribute: workspace.String(), retentionAttribute: "1"}
 			if appendErr := batch.Append(
 				now,
 				observabilityTestTraceID,

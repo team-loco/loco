@@ -28,7 +28,8 @@ message GetConfigResponse {
 
 // CountLimits cap how many of each thing can exist. A create past a cap fails with
 // RESOURCE_EXHAUSTED; deployment_history and build_history instead delete the oldest finished
-// records. Per-workspace and per-resource limits apply to each workspace or resource.
+// records, and the retention limits expire telemetry older than that many days. Per-workspace
+// and per-resource limits apply to each workspace or resource.
 message CountLimits {
   // orgs_per_user counts the organizations a user created.
   int32 orgs_per_user = 1;
@@ -49,6 +50,10 @@ message CountLimits {
   int32 deployment_history = 11;
   // build_history is how many builds a resource keeps.
   int32 build_history = 12;
+  // log_retention_days is how many days ClickHouse keeps the organization's logs.
+  int32 log_retention_days = 13;
+  int32 trace_retention_days = 14;
+  int32 metric_retention_days = 15;
 }
 
 // SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must

@@ -17,6 +17,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
@@ -37,6 +39,7 @@ type IngestServer struct {
 	clusters *ClusterAuthenticator
 	signer   IngestSigner
 	lifetime time.Duration
+	counts   *configv1.CountLimits
 }
 
 func NewIngestServer(
@@ -44,8 +47,9 @@ func NewIngestServer(
 	clusters *ClusterAuthenticator,
 	signer IngestSigner,
 	lifetime time.Duration,
+	counts *configv1.CountLimits,
 ) *IngestServer {
-	return &IngestServer{queries: queries, clusters: clusters, signer: signer, lifetime: lifetime}
+	return &IngestServer{queries: queries, clusters: clusters, signer: signer, lifetime: lifetime, counts: counts}
 }
 
 func (s *IngestServer) keySet(ctx context.Context) (jose.JSONWebKeySet, error) {
@@ -107,18 +111,50 @@ func (s *IngestServer) ListPlacementWindows(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
 	}
+	install, err := retention(limits.Install(s.counts))
+	if err != nil {
+		return nil, err
+	}
+	orgs := map[uuid.UUID]*ingestv1.Retention{}
 	windows := make([]*ingestv1.PlacementWindow, 0, len(rows))
 	for _, row := range rows {
+		if _, loaded := orgs[row.OrgID]; !loaded {
+			counts, limitsErr := limits.ForOrg(ctx, s.queries, s.counts, row.OrgID)
+			if limitsErr != nil {
+				return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(limitsErr)
+			}
+			if orgs[row.OrgID], err = retention(counts); err != nil {
+				return nil, err
+			}
+		}
 		window := &ingestv1.PlacementWindow{
 			WorkspaceId: row.WorkspaceID.String(),
 			PlacedAt:    timestamppb.New(row.PlacedAt),
+			Retention:   orgs[row.OrgID],
 		}
 		if row.RemovedAt != nil {
 			window.RemovedAt = timestamppb.New(*row.RemovedAt)
 		}
 		windows = append(windows, window)
 	}
-	return &ingestv1.ListPlacementWindowsResponse{Windows: windows}, nil
+	return &ingestv1.ListPlacementWindowsResponse{Windows: windows, Retention: install}, nil
+}
+
+// retention returns how many days to keep each signal under counts.
+func retention(counts limits.Effective) (*ingestv1.Retention, error) {
+	logs, err := limits.LogRetentionDays.Get(counts)
+	if err != nil {
+		return nil, err
+	}
+	traces, err := limits.TraceRetentionDays.Get(counts)
+	if err != nil {
+		return nil, err
+	}
+	metrics, err := limits.MetricRetentionDays.Get(counts)
+	if err != nil {
+		return nil, err
+	}
+	return &ingestv1.Retention{LogDays: logs, TraceDays: traces, MetricDays: metrics}, nil
 }
 
 func (s *IngestServer) JWKS(w http.ResponseWriter, r *http.Request) {

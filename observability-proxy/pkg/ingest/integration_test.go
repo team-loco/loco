@@ -147,7 +147,7 @@ func newIngestFixture(t *testing.T) *ingestFixture {
 func (f *ingestFixture) migrate(t *testing.T) {
 	t.Helper()
 	cfg := migrations.Config{
-		DSN: f.adminDSN, Database: f.database, LogsTTL: testTTL, TracesTTL: testTTL, MetricsTTL: testTTL,
+		DSN: f.adminDSN, Database: f.database,
 	}
 	if err := migrations.Up(t.Context(), cfg); err != nil {
 		t.Fatalf("migrate: %v", err)
@@ -188,6 +188,7 @@ func tenantResource(resource pcommon.Resource) {
 	attrs.PutStr("loco.environment.id", testEnvironmentID)
 	attrs.PutStr("loco.resource.id", testResourceID)
 	attrs.PutStr(regionAttribute, testRegion)
+	attrs.PutStr(retentionAttribute, "30")
 }
 
 func testLogs(now time.Time) plog.Logs {

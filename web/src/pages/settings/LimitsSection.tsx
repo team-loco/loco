@@ -23,6 +23,7 @@ type LimitRow = {
 	per: string;
 	/** The org-wide count against the limit; absent where the count is per workspace or resource. */
 	used?: number | undefined;
+	unit?: string;
 };
 
 /** GetOrgLimits lists a raised limit by its proto field name. */
@@ -46,7 +47,7 @@ function Rows({ rows, limits }: { rows: readonly LimitRow[]; limits: OrgLimits |
 								Raised
 							</Badge>
 						)}
-						{limit === undefined ? "—" : formatCount(limit)}
+						{limit === undefined ? "—" : `${formatCount(limit)}${row.unit === undefined ? "" : ` ${row.unit}`}`}
 					</span>
 				</TableCell>
 			</TableRow>
@@ -98,6 +99,9 @@ export function LimitsSection({
 	const historyRows: LimitRow[] = [
 		{ key: "deploymentHistory", label: "Deployments", per: "Resource, per environment" },
 		{ key: "buildHistory", label: "Builds", per: "Resource" },
+		{ key: "logRetentionDays", label: "Logs", per: "Organization", unit: "days" },
+		{ key: "traceRetentionDays", label: "Traces", per: "Organization", unit: "days" },
+		{ key: "metricRetentionDays", label: "Metrics", per: "Organization", unit: "days" },
 	];
 	return (
 		<SettingsSection title="Limits">

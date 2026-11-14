@@ -15,6 +15,9 @@ INSERT INTO org_limit_overrides (
     secrets_per_resource,
     deployment_history,
     build_history,
+    log_retention_days,
+    trace_retention_days,
+    metric_retention_days,
     reason,
     updated_by
 )
@@ -31,6 +34,9 @@ VALUES (
     sqlc.narg('secrets_per_resource'),
     sqlc.narg('deployment_history'),
     sqlc.narg('build_history'),
+    sqlc.narg('log_retention_days'),
+    sqlc.narg('trace_retention_days'),
+    sqlc.narg('metric_retention_days'),
     sqlc.arg('reason'),
     sqlc.narg('updated_by')
 )
@@ -46,6 +52,9 @@ ON CONFLICT (org_id) DO UPDATE SET
     secrets_per_resource = EXCLUDED.secrets_per_resource,
     deployment_history = EXCLUDED.deployment_history,
     build_history = EXCLUDED.build_history,
+    log_retention_days = EXCLUDED.log_retention_days,
+    trace_retention_days = EXCLUDED.trace_retention_days,
+    metric_retention_days = EXCLUDED.metric_retention_days,
     reason = EXCLUDED.reason,
     updated_by = EXCLUDED.updated_by,
     updated_at = NOW()

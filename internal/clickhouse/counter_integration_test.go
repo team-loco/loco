@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -57,6 +58,7 @@ func TestQueryMetricsReadsCounterSamplesAndSeparatesTemporality(t *testing.T) {
 			environmentAttrKey:    testEnvironmentID,
 			resourceAttributeKey:  testResourceID,
 			regionAttribute:       testRegion,
+			retentionAttributeKey: strconv.Itoa(testRetentionDays),
 		},
 		counterMetric,
 		f.start,

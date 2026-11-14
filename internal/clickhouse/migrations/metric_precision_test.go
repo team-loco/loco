@@ -24,7 +24,7 @@ func TestMetricsPreserveNanosecondTimestamps(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			row := insert.row(timestamp)
+			row := insert.row(timestamp, tenantResource())
 			if err := batch.Append(row...); err != nil {
 				t.Fatal(err)
 			}

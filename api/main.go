@@ -454,6 +454,7 @@ func newDeps(
 			clusterAuthenticator,
 			transitKeys.Ingest,
 			ac.Ingest.TokenLifetime,
+			ac.CountLimits,
 		),
 		registry: registryServiceHandler,
 		plan: service.NewPlanServer(

@@ -39,7 +39,6 @@ type Defaults struct {
 	DeployRetryDelay         int32
 	MetricsPort              int32
 	MetricsPath              string
-	LogRetention             string
 }
 
 // Resources is what a deployment runs with in one region.

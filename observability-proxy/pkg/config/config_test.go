@@ -11,9 +11,6 @@ import (
 const (
 	testMigratorURL = "clickhouse://loco_migrator@clickhouse:9000"
 	testDatabase    = "loco_obs_override"
-	testLogsTTL     = 720 * time.Hour
-	testTracesTTL   = 168 * time.Hour
-	testMetricsTTL  = 2160 * time.Hour
 	testBudget      = 2 * time.Minute
 	testInterval    = 5 * time.Second
 	testLockTTL     = 15 * time.Second
@@ -44,9 +41,6 @@ func setRequiredEnv(t *testing.T) {
 
 func setOverrides(t *testing.T) {
 	t.Helper()
-	t.Setenv("CLICKHOUSE_LOGS_TTL", testLogsTTL.String())
-	t.Setenv("CLICKHOUSE_TRACES_TTL", testTracesTTL.String())
-	t.Setenv("CLICKHOUSE_METRICS_TTL", testMetricsTTL.String())
 	t.Setenv("MIGRATION_RETRY_BUDGET", testBudget.String())
 	t.Setenv("MIGRATION_RETRY_INTERVAL", testInterval.String())
 	t.Setenv("MIGRATION_LOCK_TTL", testLockTTL.String())
@@ -69,9 +63,6 @@ func TestLoadDefaultsOptionalSettings(t *testing.T) {
 	cfg := Load()
 
 	durations := map[string][2]time.Duration{
-		"LogsTTL":                {cfg.LogsTTL, defaultRetention},
-		"TracesTTL":              {cfg.TracesTTL, defaultRetention},
-		"MetricsTTL":             {cfg.MetricsTTL, defaultRetention},
 		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, defaultMigrationRetryBudget},
 		"MigrationRetryInterval": {cfg.MigrationRetryInterval, defaultMigrationRetryInterval},
 		"MigrationLockTTL":       {cfg.MigrationLockTTL, defaultMigrationLockTTL},
@@ -97,9 +88,6 @@ func TestLoadReadsSchemaOverrides(t *testing.T) {
 		t.Errorf("ClickHouseDB = %q, want %q", cfg.ClickHouseDB, testDatabase)
 	}
 	durations := map[string][2]time.Duration{
-		"LogsTTL":                {cfg.LogsTTL, testLogsTTL},
-		"TracesTTL":              {cfg.TracesTTL, testTracesTTL},
-		"MetricsTTL":             {cfg.MetricsTTL, testMetricsTTL},
 		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, testBudget},
 		"MigrationRetryInterval": {cfg.MigrationRetryInterval, testInterval},
 		"MigrationLockTTL":       {cfg.MigrationLockTTL, testLockTTL},
@@ -134,9 +122,6 @@ func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	invalid := map[string][]string{
 		databaseVar:                         {"loco-obs", "loco_obs; DROP", "1loco"},
-		"CLICKHOUSE_LOGS_TTL":               {"30d", "-1h", "0s", fractionalSeconds},
-		"CLICKHOUSE_TRACES_TTL":             {"forever"},
-		"CLICKHOUSE_METRICS_TTL":            {"-24h"},
 		"MIGRATION_RETRY_BUDGET":            {"0s", "soon"},
 		"MIGRATION_RETRY_INTERVAL":          {"-5s"},
 		portVar:                             {"eighty"},

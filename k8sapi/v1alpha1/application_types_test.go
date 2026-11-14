@@ -20,7 +20,6 @@ func TestZeroScalarFieldsAreOmittedUnderJSONV2(t *testing.T) {
 			Scalers:  ScalersSpec{CPUTarget: 50},
 		},
 		Obs: &ObsSpec{
-			Logging: LoggingSpec{RetentionPeriod: "7d"},
 			Metrics: MetricsSpec{Path: "/metrics"},
 		},
 	}

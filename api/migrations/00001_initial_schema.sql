@@ -62,6 +62,9 @@ CREATE TABLE
         secrets_per_resource INT CHECK (secrets_per_resource > 0),
         deployment_history INT CHECK (deployment_history > 0),
         build_history INT CHECK (build_history > 0),
+        log_retention_days INT CHECK (log_retention_days > 0),
+        trace_retention_days INT CHECK (trace_retention_days > 0),
+        metric_retention_days INT CHECK (metric_retention_days > 0),
         reason TEXT NOT NULL,
         updated_by UUID REFERENCES users (id) ON DELETE SET NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
