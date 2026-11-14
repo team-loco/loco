@@ -36,6 +36,10 @@ var (
 	errGraceNegative          = errors.New("healthCheck.startupGracePeriod cannot be negative")
 	errEnvSecretNameMissing   = errors.New("envSecretRef.name must be set")
 	errEnvSecretRevision      = errors.New("envSecretRef.revision must be positive")
+	errRoutingWithoutPort     = errors.New(
+		"routing needs deployment.port: a service without a port receives no traffic",
+	)
+	errHealthWithoutPort = errors.New("healthCheck needs port: the HTTP check probes the service port")
 )
 
 // Size limits a ResourcesSpec must fall within. The API's GetConfig reports them so
@@ -125,6 +129,9 @@ func validateServiceSpec(spec *ServiceSpec) error {
 	}
 
 	if spec.Routing != nil {
+		if spec.Deployment.Port == nil {
+			return errRoutingWithoutPort
+		}
 		if err := validateRoutingSpec(spec.Routing); err != nil {
 			return fmt.Errorf("invalid routing: %w", err)
 		}
@@ -153,11 +160,16 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 		return err
 	}
 
-	if err := ValidatePort(spec.Port); err != nil {
-		return err
+	if spec.Port != nil {
+		if err := ValidatePort(*spec.Port); err != nil {
+			return err
+		}
 	}
 
 	if spec.HealthCheck != nil {
+		if spec.Port == nil {
+			return errHealthWithoutPort
+		}
 		if err := spec.HealthCheck.Validate(); err != nil {
 			return err
 		}

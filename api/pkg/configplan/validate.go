@@ -22,7 +22,9 @@ func validateDesired(name string, desired State) []Error {
 
 	add("runAsUser", locoControllerV1.ValidateRuntimeID(desired.RunAsUser))
 	add("runAsGroup", locoControllerV1.ValidateRuntimeID(desired.RunAsGroup))
-	add(pathPort, locoControllerV1.ValidatePort(desired.Port))
+	if desired.Port != nil {
+		add(pathPort, locoControllerV1.ValidatePort(*desired.Port))
+	}
 	if desired.Metrics != nil {
 		obs := &locoControllerV1.ObsSpec{
 			Metrics: locoControllerV1.MetricsSpec{

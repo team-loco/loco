@@ -169,6 +169,7 @@ func TestDisabledListsTheServicesAnEnvironmentTurnsOff(t *testing.T) {
 
 func TestResolveNullRemovesKeys(t *testing.T) {
 	yaml := minimalFile + `    env: { A: "1", B: "2" }
+    port: 8080
     domains: [api.example.com]
     environments:
       prod:

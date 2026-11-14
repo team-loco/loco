@@ -152,10 +152,12 @@ type ServiceDeploymentSpec struct {
 	// +required
 	// +kubebuilder:validation:MinLength=1
 	Image string `json:"image"`
-	// +required
+	// Port is the port the service listens on. Without it the service is a worker: it gets no
+	// Service, no route and no readiness probe.
+	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
-	Port int32 `json:"port"`
+	Port *int32 `json:"port,omitempty"`
 
 	// +optional
 	// +kubebuilder:validation:Minimum=1

@@ -352,6 +352,10 @@ func writeReachability(w io.Writer, services map[string]locofile.Service) error 
 			fmt.Fprintf(&b, "%s: https://%s\n", name, domains[0])
 			continue
 		}
+		if services[name].Port == nil {
+			fmt.Fprintf(&b, "%s has no port, so it runs as a worker and takes no traffic.\n", name)
+			continue
+		}
 		fmt.Fprintf(&b, "%s has no public URL and takes no internet traffic.\n", name)
 	}
 	_, err := fmt.Fprint(w, b.String())

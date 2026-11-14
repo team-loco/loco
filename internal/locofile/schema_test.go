@@ -324,6 +324,16 @@ func TestSchemaRejectsNullOutsideOverrides(t *testing.T) {
 	}
 }
 
+func TestSchemaRejectsTrafficSettingsWithoutAPort(t *testing.T) {
+	schema := compileSchema(t)
+	for _, field := range []string{"domains: [api.example.com]", "health: {}", "routing: { pathPrefix: / }"} {
+		t.Run(field, func(t *testing.T) {
+			file := strings.Replace(minimalFile, "    regions:", "    "+field+"\n    regions:", 1)
+			assert.Error(t, validateAgainstSchema(t, schema, file))
+		})
+	}
+}
+
 func TestResolveAppliesTheSchemaNullRemovals(t *testing.T) {
 	file, err := Parse([]byte(nullOverrideFile))
 	require.NoError(t, err)

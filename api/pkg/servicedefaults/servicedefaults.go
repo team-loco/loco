@@ -21,7 +21,9 @@ var (
 	errInvalidDeploy    = errors.New("the default deploy policy is outside the loco.yaml bounds")
 )
 
-// Defaults is what the API fills into a service when the file or request omits it.
+// Defaults is what the API fills into a service when the file or request omits it. Port is the
+// exception: a service without a port is a worker, so Port is only the port GetConfig offers
+// clients that scaffold a new web service.
 type Defaults struct {
 	CPU                      string
 	Memory                   string

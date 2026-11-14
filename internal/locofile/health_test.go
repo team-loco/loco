@@ -8,6 +8,7 @@ partial: worker
 services:
   worker:
     image: example.com/worker:v1
+    port: 8080
     health: {path: /healthz}
     regions:
       us-east-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
@@ -35,6 +36,7 @@ partial: web
 services:
   web:
     image: example.com/web:v1
+    port: 8080
     health: {}
     regions:
       us-east-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}

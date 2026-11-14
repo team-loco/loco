@@ -239,7 +239,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		pod.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/runtime-health",
-				Port: intstr.FromInt32(app.Spec.ServiceSpec.Deployment.Port),
+				Port: intstr.FromInt32(*app.Spec.ServiceSpec.Deployment.Port),
 			},
 		}
 		// Pod probes are immutable: create another current replica with the probe.

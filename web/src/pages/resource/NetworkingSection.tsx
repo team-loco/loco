@@ -305,9 +305,11 @@ export function NetworkingSection({
 	platformDomains,
 	regions,
 	served,
+	worker,
 	onDomainsChanged,
 }: SectionProps & {
 	resourceId: string;
+	worker: boolean;
 	domains: ResourceDomain[];
 	platformDomains: PlatformDomain[];
 	regions: readonly RegionInfo[];
@@ -326,6 +328,16 @@ export function NetworkingSection({
 	const subdomain = draft.subdomain ?? "";
 	const check = useDomainAvailability(adding ? subdomain : "", platformDomain, own);
 	const draftError = check.state === "empty" ? (errors.subdomain ?? errors.platformDomain) : undefined;
+
+	if (worker) {
+		return (
+			<SettingsBlock id="set-net" title="Networking">
+				<span className="text-[12.5px] text-fg3">
+					This resource has no port, so it runs as a worker: it takes no traffic and has no domains or health check.
+				</span>
+			</SettingsBlock>
+		);
+	}
 
 	return (
 		<SettingsBlock id="set-net" title="Networking">

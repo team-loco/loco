@@ -47,6 +47,7 @@ export interface NewResourceForm {
 
 export interface FormErrors {
 	regions: string | null;
+	port: string | null;
 	subdomain: string | null;
 	env: string | null;
 	scaling: string | null;
@@ -151,10 +152,19 @@ export function validateForm(
 ): FormErrors {
 	return {
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
+		port: portError(form),
 		subdomain: subdomainError(form, availability),
 		env: envError(form.vars),
 		scaling: scalingError(form, replicaLimit),
 	};
+}
+
+// A service without a port is a worker, which takes no traffic and has nothing to probe.
+function portError(form: NewResourceForm): string | null {
+	if (form.port.trim() !== "") return null;
+	if (form.isPublic) return "A public service needs a port";
+	if (form.health.path !== "") return "A health check needs a port";
+	return null;
 }
 
 export type Scaling = Pick<NewResourceForm, "replicas" | "maxReplicas" | "cpuTarget">;
@@ -181,7 +191,7 @@ export function scalingSpec(form: Scaling) {
 }
 
 export function firstError(errors: FormErrors): string | null {
-	const ordered: (string | null)[] = [errors.regions, errors.subdomain, errors.env, errors.scaling];
+	const ordered: (string | null)[] = [errors.regions, errors.port, errors.subdomain, errors.env, errors.scaling];
 	return ordered.find((e) => e !== null) ?? null;
 }
 
@@ -278,8 +288,8 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 		"services:",
 		`  ${name}:`,
 		`    image: ${scalar(form.image.trim(), BLOCK_PLAIN_RE)}`,
-		`    port: ${yamlInt(form.port)}`,
 	];
+	if (form.port.trim() !== "") lines.push(`    port: ${yamlInt(form.port)}`);
 	if (form.health.path !== "") lines.push(healthYaml(form.health, flow));
 	if (form.isPublic) lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
 	const vars = envVars(form.vars.filter((row) => !row.secret));

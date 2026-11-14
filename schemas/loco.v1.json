@@ -435,22 +435,22 @@
           "type": "integer",
           "maximum": 65535,
           "minimum": 1,
-          "description": "Container port. Required when routing is set."
+          "description": "Container port. Without it the service is a worker: it gets no Kubernetes Service, domains, routing or readiness probe."
         },
         "health": {
           "$ref": "#/$defs/Health",
-          "description": "Optional HTTP liveness and readiness checks. Without it a replica is ready once it accepts TCP connections on port; an empty object uses API defaults."
+          "description": "Optional HTTP liveness and readiness checks on port. Without it a replica is ready once it accepts TCP connections on port; an empty object uses API defaults. Needs port."
         },
         "routing": {
           "$ref": "#/$defs/Routing",
-          "description": "HTTP routing. The API fills omitted fields."
+          "description": "HTTP routing. The API fills omitted fields. Needs port."
         },
         "domains": {
           "items": {
             "type": "string"
           },
           "type": "array",
-          "description": "Hostnames routed to the service. The first is primary. Platform domains end in an active platform domain."
+          "description": "Hostnames routed to the service. The first is primary. Platform domains end in an active platform domain. Needs port."
         },
         "env": {
           "additionalProperties": {
@@ -500,6 +500,11 @@
           "$ref": "#/$defs/Deploy",
           "description": "How often the API sends a deployment a cluster fails to apply before marking it failed. The API fills omitted fields. Applies to every environment."
         }
+      },
+      "dependentRequired": {
+        "domains": ["port"],
+        "health": ["port"],
+        "routing": ["port"]
       },
       "additionalProperties": false,
       "type": "object"

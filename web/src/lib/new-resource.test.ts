@@ -108,8 +108,16 @@ test("nameError follows the API's name rules", () => {
 });
 
 test("validateForm leaves port and health check numbers to the API", () => {
-	const loose = { ...form, port: "", health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
+	const loose = { ...form, port: "0", health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
 	expect(firstError(validateForm(loose, "available", 10))).toBeNull();
+});
+
+test("validateForm accepts an empty port only for a private service without a health check", () => {
+	const noHealth = { path: "", interval: "", timeout: "", failAfter: "" };
+	const worker = { ...form, port: "", isPublic: false, health: noHealth };
+	expect(validateForm(worker, "available", 10).port).toBeNull();
+	expect(validateForm({ ...worker, isPublic: true }, "available", 10).port).toBe("A public service needs a port");
+	expect(validateForm({ ...worker, health: form.health }, "available", 10).port).toBe("A health check needs a port");
 });
 
 test("firstError reports the first blocking field in form order", () => {

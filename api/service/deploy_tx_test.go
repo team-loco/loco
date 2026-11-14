@@ -94,7 +94,7 @@ WITH u AS (
     VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
 ), r AS (
     INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-    SELECT w.id, 'svc', 'svc', 'service', '', '{}', 1 FROM w RETURNING id
+    SELECT w.id, 'svc', 'svc', 'service', '', '{"routing":{"port":8080}}', 1 FROM w RETURNING id
 )
 SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e`)
 	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {

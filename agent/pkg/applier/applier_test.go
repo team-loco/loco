@@ -45,7 +45,7 @@ func serviceApplication(t *testing.T) []byte {
 		Type:       testAppType,
 		ResourceID: testResourceID,
 		ServiceSpec: &locoControllerV1.ServiceSpec{
-			Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: testImage, Port: 8080},
+			Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: testImage, Port: new(int32(8080))},
 		},
 	})
 }

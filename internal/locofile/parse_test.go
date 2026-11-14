@@ -204,7 +204,31 @@ func TestParseRejects(t *testing.T) {
 			name: "routing without port",
 			yaml: strings.Replace(minimalFile, "    image:", "    routing: { pathPrefix: / }\n    image:", 1),
 			err:  ErrPortRequired,
-			path: "services.api.port",
+			path: "services.api.routing",
+		},
+		{
+			name: "domains without port",
+			yaml: strings.Replace(minimalFile, "    image:", "    domains: [api.example.com]\n    image:", 1),
+			err:  ErrPortRequired,
+			path: "services.api.domains",
+		},
+		{
+			name: "health without port",
+			yaml: strings.Replace(minimalFile, "    image:", "    health: {}\n    image:", 1),
+			err:  ErrPortRequired,
+			path: "services.api.health",
+		},
+		{
+			name: "override removes the port of a service with domains",
+			yaml: strings.Replace(
+				minimalFile,
+				"    image:",
+				"    port: 8080\n    domains: [api.example.com]\n    image:",
+				1,
+			) +
+				"    environments:\n      prod:\n        port: null\n",
+			err:  ErrPortRequired,
+			path: "services.api (environment prod).domains",
 		},
 		{
 			name: "no regions",

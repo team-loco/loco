@@ -210,7 +210,7 @@ func (c *fakeConfigService) GetConfig(
 	}
 	c.api.mu.Unlock()
 	defaults := &configv1.DefaultServiceConfig{
-		Routing:     &resourcev1.RoutingConfig{Port: fakeDefaultPort},
+		Routing:     &resourcev1.RoutingConfig{Port: new(int32(fakeDefaultPort))},
 		Cpu:         fakeDefaultCPU,
 		Memory:      fakeDefaultMemory,
 		MinReplicas: fakeDefaultMinReplicas,

@@ -29,6 +29,8 @@ services:
       us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
 
+`port` is the port the service listens on. A service without `port`, such as `worker` above, is a worker: Loco creates no Kubernetes Service, route or readiness probe for it, so it needs no listener and cannot have `domains`, `routing` or `health`. The plan rejects those fields on a service without `port`. Each new replica of a worker counts as ready once it has run for the worker cluster's `controller.minReadySeconds`; see [health checks](#health-checks).
+
 A service builds from source or runs a public `image`, never both. A source service builds in its `context`, a directory relative to `loco.yaml` that defaults to `.`, from its `dockerfile`, a path relative to `context` that defaults to `Dockerfile`. This service builds from `services/web/deploy/Dockerfile` with `services/web` as the build context:
 
 ```yaml
@@ -38,7 +40,7 @@ services:
     dockerfile: deploy/Dockerfile
 ```
 
-A service without `domains` is private. Each entry of `domains` is one label under a platform domain, such as `storefront.example.com` under `example.com`. A platform domain is one a cluster serves: the cluster's agent reports it once the Gateway listeners for `*.<domain>` are accepted and programmed and the certificate covering it is ready. The plan rejects a hostname unless the cluster of every region the service runs in serves its platform domain, and names the clusters that do not. When a cluster stops serving a domain, assigned hostnames stay, and the region's status turns degraded with the hostnames it no longer serves. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Without `autoscaling`, the service runs `replicas.min` replicas. Set `autoscaling: { cpuTarget: 70 }` or `autoscaling: { memoryTarget: 80 }` on a region to scale between `replicas.min` and `replicas.max`. The target is a percentage of the container’s resource request, from 1 to 100. `loco.yaml` accepts exactly one target per region. Removing `autoscaling` returns the service to `replicas.min` replicas. Partial names are DNS labels. A service name is any label of at most 63 characters with a letter or digit; see [private service discovery](#private-service-discovery) for its slug. The API checks resource limits when it plans the file, and `GetConfig` reports them as `size_limits`.
+A service with `port` and without `domains` is private. Each entry of `domains` is one label under a platform domain, such as `storefront.example.com` under `example.com`. A platform domain is one a cluster serves: the cluster's agent reports it once the Gateway listeners for `*.<domain>` are accepted and programmed and the certificate covering it is ready. The plan rejects a hostname unless the cluster of every region the service runs in serves its platform domain, and names the clusters that do not. When a cluster stops serving a domain, assigned hostnames stay, and the region's status turns degraded with the hostnames it no longer serves. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Without `autoscaling`, the service runs `replicas.min` replicas. Set `autoscaling: { cpuTarget: 70 }` or `autoscaling: { memoryTarget: 80 }` on a region to scale between `replicas.min` and `replicas.max`. The target is a percentage of the container’s resource request, from 1 to 100. `loco.yaml` accepts exactly one target per region. Removing `autoscaling` returns the service to `replicas.min` replicas. Partial names are DNS labels. A service name is any label of at most 63 characters with a letter or digit; see [private service discovery](#private-service-discovery) for its slug. The API checks resource limits when it plans the file, and `GetConfig` reports them as `size_limits`.
 
 ## Pull application metrics
 
@@ -60,7 +62,7 @@ The controller restricts metrics ingress to the node collector, which it finds t
 
 ## Private service discovery
 
-Applications in the same workspace on the same cluster reach HTTP services through native Kubernetes DNS, such as `http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `loco-ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
+Applications in the same workspace on the same cluster reach services that declare `port` through native Kubernetes DNS, such as `http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `loco-ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
 
 For example, a caller can pass dependency addresses through its environment:
 
@@ -101,11 +103,11 @@ Choose IDs that can read the application and write its working directories. The 
 
 ## Health checks
 
-Omit `health` for a TCP readiness check: a replica is ready once it accepts connections on `port`, Loco creates no liveness probe, and Kubernetes restarts exited containers. This suits gRPC and other TCP services without an HTTP health endpoint. A service that never listens on `port`, such as a queue worker, never becomes ready, and its deployment fails at the rollout's progress deadline; use protocol-specific E2E checks to verify that it can serve requests.
+Omit `health` for a TCP readiness check: a replica is ready once it accepts connections on `port`, Loco creates no liveness probe, and Kubernetes restarts exited containers. This suits gRPC and other TCP services without an HTTP health endpoint; use protocol-specific E2E checks to verify that it can serve requests. A service that never listens, such as a queue worker, leaves out `port`: it gets no probe, and a replica is ready once it has started.
 
 Set `health: {}` to enable HTTP liveness and readiness checks with the API defaults, or configure `path`, `interval`, `timeout`, `failThreshold` and `startupGracePeriod`. An environment override with `health: null` removes an inherited check. Removing `health` from an existing service redeploys it with the TCP readiness check.
 
-A rollout starts new replicas next to the old ones, up to a quarter more than the desired count, and stops an old replica only after a new one has stayed ready for the worker cluster's `controller.minReadySeconds` (10 seconds by default). A new version that crashes, never accepts connections or fails its health check therefore receives no traffic and replaces no old replica: the deployment fails and the previous version keeps serving with all its replicas.
+A rollout starts new replicas next to the old ones, up to a quarter more than the desired count, and stops an old replica only after a new one has stayed ready for the worker cluster's `controller.minReadySeconds` (10 seconds by default). A new version that crashes, never accepts connections or fails its health check therefore receives no traffic and replaces no old replica: the deployment fails and the previous version keeps serving with all its replicas. A worker's new replica replaces an old one once it has run that long without exiting.
 
 Check the structure without calling the API:
 

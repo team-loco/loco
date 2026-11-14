@@ -74,7 +74,7 @@ func liveState() State {
 	return State{
 		Dockerfile: locofile.DefaultDockerfile,
 		Context:    locofile.DefaultContext,
-		Port:       3000,
+		Port:       new(int32(3000)),
 		Routing:    &Routing{PathPrefix: "/", IdleTimeout: 60},
 		Domains:    []string{appDomain},
 		Env:        map[string]string{logLevelKey: logLevelInfo},

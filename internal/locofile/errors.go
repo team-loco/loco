@@ -15,7 +15,7 @@ var (
 	ErrInvalidName            = errors.New("must be a DNS label of 1 to 63 lowercase letters, digits and hyphens")
 	ErrInvalidServiceName     = errors.New("must be at most 63 characters and contain a letter or digit")
 	ErrImageWithBuild         = errors.New("image cannot be combined with dockerfile or context")
-	ErrPortRequired           = errors.New("port is required when routing is set")
+	ErrPortRequired           = errors.New("needs port; a service without port is a worker and receives no traffic")
 	ErrNoRegions              = errors.New("at least one region is required")
 	ErrRegionIncomplete       = errors.New("cpu, memory, replicas.min and replicas.max are required")
 	ErrAutoscalingTarget      = errors.New("autoscaling needs exactly one of cpuTarget or memoryTarget")

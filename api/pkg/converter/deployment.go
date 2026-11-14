@@ -101,7 +101,7 @@ func MergeDeploymentSpec(
 		RunAsUser:   requestServiceSpec.RunAsUser,
 		RunAsGroup:  requestServiceSpec.RunAsGroup,
 		Build:       requestServiceSpec.GetBuild(),
-		Port:        requestServiceSpec.GetPort(),
+		Port:        requestServiceSpec.Port,
 		Env:         requestServiceSpec.GetEnv(),
 		Cpu:         &resources.CPU,
 		Memory:      &resources.Memory,
@@ -144,7 +144,7 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 		RunAsUser:   serviceSpec.RunAsUser,
 		RunAsGroup:  serviceSpec.RunAsGroup,
 		Image:       serviceSpec.GetBuild().GetImage(),
-		Port:        serviceSpec.GetPort(),
+		Port:        serviceSpec.Port,
 		HealthCheck: healthCheck,
 		Env:         serviceSpec.GetEnv(),
 	}

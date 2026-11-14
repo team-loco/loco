@@ -83,7 +83,7 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{
 				Image:       "nginx:1.27",
-				Port:        d.Port,
+				Port:        new(d.Port),
 				HealthCheck: &health,
 			},
 			Resources: &locoControllerV1.ResourcesSpec{

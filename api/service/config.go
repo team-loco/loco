@@ -68,7 +68,7 @@ func (s *ConfigServer) GetConfig(
 		},
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{
-				Port:        s.defaults.Port,
+				Port:        new(s.defaults.Port),
 				PathPrefix:  s.defaults.PathPrefix,
 				IdleTimeout: s.defaults.IdleTimeout,
 			},

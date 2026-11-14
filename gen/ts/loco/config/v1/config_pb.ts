@@ -484,7 +484,8 @@ export const AuthConfigSchema: GenMessage<AuthConfig, {jsonType: AuthConfigJson}
  */
 export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"> & {
   /**
-   * Default routing configuration
+   * Default routing configuration. routing.port is the port clients scaffold a new web service
+   * with; the API never fills it into a service, since a service without a port is a worker.
    *
    * @generated from field: loco.resource.v1.RoutingConfig routing = 1;
    */
@@ -554,7 +555,8 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
  */
 export type DefaultServiceConfigJson = {
   /**
-   * Default routing configuration
+   * Default routing configuration. routing.port is the port clients scaffold a new web service
+   * with; the API never fills it into a service, since a service without a port is a worker.
    *
    * @generated from field: loco.resource.v1.RoutingConfig routing = 1;
    */

@@ -37,6 +37,33 @@ var _ = Describe("Rollout", func() {
 		readiness := applied.Spec.Template.Spec.Containers[0].ReadinessProbe
 		Expect(readiness).NotTo(BeNil())
 		Expect(readiness.TCPSocket).NotTo(BeNil())
-		Expect(readiness.TCPSocket.Port).To(Equal(intstr.FromInt32(app.Spec.ServiceSpec.Deployment.Port)))
+		Expect(readiness.TCPSocket.Port).To(Equal(intstr.FromInt32(*app.Spec.ServiceSpec.Deployment.Port)))
+	})
+	It("gives a service without a port no probe but the same rollout", func() {
+		app := workspaceApp("rollout-worker", "rollout-worker")
+		app.Spec.WorkspaceID = "rollout-worker"
+		app.Spec.ServiceSpec.Deployment.Port = nil
+		namespace := &corev1.Namespace{}
+		namespace.Name = testWorkspaceNamespace(app)
+		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
+		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
+		r := &ApplicationReconciler{
+			Client:                   k8sClient,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Telemetry:                testTelemetry(),
+			MinReadySeconds:          testMinReadySeconds,
+		}
+		_, err := r.ensureDeployment(ctx, app, envSecretMount{})
+		Expect(err).NotTo(HaveOccurred())
+
+		applied := &appsv1.Deployment{}
+		key := client.ObjectKey{Namespace: namespace.Name, Name: testAppName(app)}
+		Expect(k8sClient.Get(ctx, key, applied)).To(Succeed())
+		Expect(applied.Spec.MinReadySeconds).To(Equal(testMinReadySeconds))
+		Expect(*applied.Spec.Strategy.RollingUpdate.MaxUnavailable).To(Equal(intstr.FromInt32(0)))
+		container := applied.Spec.Template.Spec.Containers[0]
+		Expect(container.Ports).To(BeEmpty())
+		Expect(container.ReadinessProbe).To(BeNil())
+		Expect(container.LivenessProbe).To(BeNil())
 	})
 })

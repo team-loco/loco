@@ -15,6 +15,8 @@ import { slug } from "@/lib/slug";
 import type { RegionView } from "./model";
 import type { Baseline, DraftErrors, SettingsDraft } from "./settings-draft";
 
+export const HEALTH_SECTION_ID = "set-health";
+
 export interface SectionProps {
 	draft: SettingsDraft;
 	base: Baseline;
@@ -235,7 +237,7 @@ function SecondsInput({
 
 export function HealthSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
 	return (
-		<SettingsBlock id="set-health" title="Health check">
+		<SettingsBlock id={HEALTH_SECTION_ID} title="Health check">
 			<div className={grid2}>
 				<Field label="Path" error={errors.healthPath}>
 					<Input

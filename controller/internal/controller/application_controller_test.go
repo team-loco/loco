@@ -54,7 +54,7 @@ var _ = Describe("Application Controller", func() {
 						ServiceSpec: &locov1alpha1.ServiceSpec{
 							Deployment: &locov1alpha1.ServiceDeploymentSpec{
 								Image: "test:latest",
-								Port:  8080,
+								Port:  new(int32(8080)),
 								HealthCheck: &locov1alpha1.HealthCheckSpec{
 									Path:               "/health",
 									Interval:           10,

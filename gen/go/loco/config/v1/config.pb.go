@@ -504,7 +504,8 @@ func (x *AuthConfig) GetScopes() string {
 // These values are used when users don't specify explicit configuration.
 type DefaultServiceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Default routing configuration
+	// Default routing configuration. routing.port is the port clients scaffold a new web service
+	// with; the API never fills it into a service, since a service without a port is a worker.
 	Routing *v1.RoutingConfig `protobuf:"bytes,1,opt,name=routing,proto3" json:"routing,omitempty"`
 	// Default health check configuration
 	HealthCheck *v11.HealthCheckConfig `protobuf:"bytes,2,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`

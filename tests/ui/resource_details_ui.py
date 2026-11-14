@@ -43,7 +43,7 @@ def rpc(service, method, body):
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
 production = next(env["id"] for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})["environments"] if env["name"] == "production")
 name = "details-" + uuid.uuid4().hex[:8]
-resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
+resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
 cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
 image = f"registry.example.com/recommendation-{resource}:{deployment}"
 runtime = json.dumps({"build": {"type": "image", "image": image}, "cpu": "500m", "memory": "512Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080, "healthCheck": {"path": "/health", "initialDelaySeconds": 5, "intervalSeconds": 10, "timeoutSeconds": 2, "failureThreshold": 3}})

@@ -70,8 +70,8 @@ def fixture():
     environments = rpc("environment", "ListEnvironments", {"workspaceId": workspace_id})["environments"]
     production = next(env["id"] for env in environments if env["name"] == "production")
     staging = rpc("environment", "CreateEnvironment", {"workspaceId": workspace_id, "name": "staging", "type": "ENVIRONMENT_TYPE_STAGING"})["environmentId"]
-    resource = rpc("resource", "CreateResource", {"workspaceId": workspace_id, "name": "history-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in ("us-east-1", "eu-west-1")}}}})["resourceId"]
-    edge = rpc("resource", "CreateResource", {"workspaceId": workspace_id, "name": "edge-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in ("us-east-1", "eu-west-1")}}}})["resourceId"]
+    resource = rpc("resource", "CreateResource", {"workspaceId": workspace_id, "name": "history-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in ("us-east-1", "eu-west-1")}}}})["resourceId"]
+    edge = rpc("resource", "CreateResource", {"workspaceId": workspace_id, "name": "edge-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in ("us-east-1", "eu-west-1")}}}})["resourceId"]
     clusters = [str(uuid.uuid4()) for _ in range(3)]
     release_ids = [str(uuid.uuid4()) for _ in range(221)]
     staging_release = str(uuid.uuid4())
@@ -88,15 +88,15 @@ def fixture():
         source = {"type": "image", "image": f"example.invalid/browser-pilot:release-{index:03}"}
         if index == 2:
             source = dict(source, type="dockerfile", buildId=builds["deployed"])
-        runtime = json.dumps({"build": source, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1})
+        runtime = json.dumps({"build": source, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080})
         sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,created_at,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{resource}','{cluster}','{region}',1,'{status}',{str(active).lower()},'Pilot release {index:03}','{production}',{evidence.sql_literal(runtime)},1,NOW()-INTERVAL '{index} minutes',NOW()-INTERVAL '{index} minutes');")
-    runtime = json.dumps({"build": {"type": "image", "image": "example.invalid/browser-pilot:staging-current"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 2, "maxReplicas": 2})
+    runtime = json.dumps({"build": {"type": "image", "image": "example.invalid/browser-pilot:staging-current"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 2, "maxReplicas": 2, "port": 8080})
     sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{staging_release}','{resource}','{clusters[2]}','us-east-1',2,'running',true,'Staging current','{staging}',{evidence.sql_literal(runtime)},1,NOW());")
     for deployment, cluster, environment, region, replicas in ((release_ids[0], clusters[0], production, "us-east-1", 1), (release_ids[-1], clusters[1], production, "eu-west-1", 1), (staging_release, clusters[2], staging, "us-east-1", 2)):
         sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource}','{cluster}','{region}','{deployment}','{environment}','{{}}',true,{replicas},'Ready',NOW());")
     for cluster, region in ((clusters[0], "us-east-1"), (clusters[1], "eu-west-1")):
         deployment = str(uuid.uuid4())
-        runtime = json.dumps({"build": {"type": "image", "image": "example.invalid/edge-pilot:1.0.0"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1})
+        runtime = json.dumps({"build": {"type": "image", "image": "example.invalid/edge-pilot:1.0.0"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080})
         sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{edge}','{cluster}','{region}',1,'running',true,'Edge current','{production}',{evidence.sql_literal(runtime)},1,NOW());")
         sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{edge}','{cluster}','{region}','{deployment}','{production}','{{}}',true,1,'Ready',NOW());")
     sql.append(f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);")

@@ -45,7 +45,7 @@ def resource_fixture():
     name = "scaling-" + uuid.uuid4().hex[:8]
     resource = evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {
         "workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE",
-        "spec": {"service": {"regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in regions}}},
+        "spec": {"service": {"routing": {"port": 8080}, "regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in regions}}},
     })["resourceId"]
     runtime = json.dumps({"build": {"type": "image", "image": "registry.example.com/app:1"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080})
     for region in regions:

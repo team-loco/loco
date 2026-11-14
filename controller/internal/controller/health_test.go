@@ -51,7 +51,7 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 				}
 				readiness := container.ReadinessProbe
 				if readiness == nil || readiness.TCPSocket == nil || readiness.HTTPGet != nil ||
-					readiness.TCPSocket.Port.IntVal != app.Spec.ServiceSpec.Deployment.Port {
+					readiness.TCPSocket.Port.IntVal != *app.Spec.ServiceSpec.Deployment.Port {
 					t.Errorf("readiness probe = %+v, want a TCP check on the service port", readiness)
 				}
 				return
@@ -59,7 +59,7 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 			for _, probe := range []*corev1ac.ProbeApplyConfiguration{container.LivenessProbe, container.ReadinessProbe} {
 				if probe == nil || probe.HTTPGet == nil ||
 					*probe.HTTPGet.Path != health.Path ||
-					probe.HTTPGet.Port.IntVal != app.Spec.ServiceSpec.Deployment.Port ||
+					probe.HTTPGet.Port.IntVal != *app.Spec.ServiceSpec.Deployment.Port ||
 					*probe.PeriodSeconds != health.Interval ||
 					*probe.TimeoutSeconds != health.Timeout ||
 					*probe.FailureThreshold != health.FailThreshold ||

@@ -44,7 +44,7 @@ with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     try:
         for theme in ("light", "dark"):
-            resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": "regions-" + uuid.uuid4().hex[:8], "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 2, "maxReplicas": 2}}}}})["resourceId"]
+            resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": "regions-" + uuid.uuid4().hex[:8], "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 2, "maxReplicas": 2}}}}})["resourceId"]
             cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
             evidence.psql(state["container"], f"""
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES
