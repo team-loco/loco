@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { CopyId } from "@/components/design/CopyId";
 import { DangerZone } from "@/components/design/DangerZone";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { SaveBar } from "@/components/design/SaveBar";
@@ -21,7 +22,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import type { AccessLevel } from "@/hooks/useMyScopes";
-import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { workspacePath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
@@ -62,7 +63,7 @@ export function WorkspaceTab({
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const transport = useTransport();
-	const { data, isLoading, error } = useQuery(getWorkspace, { workspaceId });
+	const { data, isLoading, error, refetch } = useQuery(getWorkspace, { workspaceId });
 	const { data: membersRes } = useTanstackQuery(workspaceMembersOptions(transport, workspaceId));
 	const update = useMutation(updateWorkspace);
 	const remove = useMutation(deleteWorkspace);
@@ -71,10 +72,7 @@ export function WorkspaceTab({
 
 	const ws = data?.workspace;
 	if (isLoading) return <SettingsSkeleton />;
-	if (!ws) {
-		const message = getErrorMessage(error, "Failed to load workspace");
-		return <div className="rounded-lg border border-line px-5 py-8 text-fg3">{message}</div>;
-	}
+	if (!ws) return <ErrorState error={error} what="settings" rpc={getWorkspace} onRetry={refetch} />;
 
 	const current: WorkspaceDraft = draft ?? { name: ws.name, desc: ws.description };
 	const nameT = current.name.trim();

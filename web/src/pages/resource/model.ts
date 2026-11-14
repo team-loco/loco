@@ -198,10 +198,12 @@ export function useResourceData(resourceId: string) {
 			refetchInterval: REFRESH_MS,
 		})),
 	});
-	const refresh = () => {
-		void resourceQuery.refetch();
-		void deploymentsQuery.refetch();
-		for (const query of currentQueries) void query.refetch();
+	const refresh = async () => {
+		await Promise.all([
+			resourceQuery.refetch(),
+			deploymentsQuery.refetch(),
+			...currentQueries.map(async (query) => await query.refetch()),
+		]);
 	};
 	const loadMoreHistory = async () => {
 		const result = await deploymentsQuery.fetchNextPage();

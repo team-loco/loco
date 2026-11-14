@@ -62,5 +62,6 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 		events,
 		isLoading: resourcesLoading || queries.some((q) => q.isLoading),
 		error,
+		refetch: async () => await Promise.all(queries.map(async (q) => await q.refetch())),
 	};
 }

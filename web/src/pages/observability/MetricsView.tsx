@@ -1,11 +1,13 @@
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -14,7 +16,7 @@ import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
 import { deploymentImage } from "@/lib/deployment-utils";
-import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
+import { isUnimplemented } from "@/lib/error-handler";
 import { imageVersion } from "@/lib/image";
 import { aroundWindow, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { logAnchor } from "@/lib/log-history";
@@ -140,6 +142,7 @@ function useComputeSeries(def: MetricDef, rows: Placement[], spanMs: number, end
 		latest,
 		isLoading: results.some((r) => r.isLoading),
 		error: results.find((r) => r.error !== null)?.error ?? null,
+		refetch: async () => await Promise.all(results.map(async (r) => await r.refetch())),
 	};
 }
 
@@ -266,7 +269,20 @@ export function MetricsView() {
 			</>
 		);
 	}
-	if (!loading && error === null && cpu.series.length === 0 && mem.series.length === 0 && tokens.length === 0) {
+	if (!loading && error !== null) {
+		return (
+			<>
+				<ViewHeader />
+				<ErrorState
+					error={error}
+					what="metrics"
+					rpc={queryMetrics}
+					onRetry={async () => await Promise.all([cpu.refetch(), mem.refetch()])}
+				/>
+			</>
+		);
+	}
+	if (!loading && cpu.series.length === 0 && mem.series.length === 0 && tokens.length === 0) {
 		return (
 			<>
 				<ViewHeader />
@@ -361,14 +377,6 @@ export function MetricsView() {
 							</div>
 							{result.isLoading || environmentLoading ? (
 								<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />
-							) : result.error !== null ? (
-								<div
-									role="alert"
-									className="flex items-center justify-center text-sm text-bad-fg"
-									style={{ height: CHART_HEIGHT }}
-								>
-									{getErrorMessage(result.error, "Failed to load metrics")}
-								</div>
 							) : result.series.length === 0 ? (
 								<div
 									className="flex items-center justify-center rounded-lg border border-dashed border-line2 text-sm text-fg3"

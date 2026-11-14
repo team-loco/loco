@@ -16,7 +16,7 @@ Paths and commands below are relative to `web/`.
 - **Production build**: the dev server does not catch bundling bugs. Any change to
   `build.ts` or dependencies needs `bun run build` and `bun run preview`, loaded in a browser,
   before the PR.
-- **Errors**: user-facing error text goes through `src/lib/error-handler.ts`:
+- **Errors**: user-facing error text goes through `src/lib/error-handler.tsx`:
   `getErrorMessage(error, fallback)` for a string, `toastConnectError(error, fallback)` for a
   toast. Both handle `ConnectError`, `Error` and unknown values.
 - **PR screenshots**: UI changes need before/after screenshots in light and dark mode, plus

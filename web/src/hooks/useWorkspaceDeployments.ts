@@ -47,6 +47,7 @@ export function useWorkspaceDeployments(orgId: string | null, workspaceId: strin
 		deployments: resources.map((_, i) => deploymentQueries[i]?.data?.deployments ?? []),
 		isLoading: resourcesQuery.isLoading || deploymentQueries.some((q) => q.isLoading),
 		error: resourcesQuery.error,
+		refetch: resourcesQuery.refetch,
 	};
 }
 

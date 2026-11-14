@@ -1,5 +1,10 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { removeOrgMember, resendInvitation, setOrgMemberRole } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import {
+	listOrgMembers,
+	removeOrgMember,
+	resendInvitation,
+	setOrgMemberRole,
+} from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
@@ -12,6 +17,7 @@ import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
@@ -20,7 +26,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { toastConnectError } from "@/lib/error-handler";
 import { limitReason, limitUsage } from "@/lib/limits";
 import { tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
@@ -194,9 +200,6 @@ export function Team() {
 		);
 
 	const body = (() => {
-		if (data.error !== null) {
-			return <div className="py-7 text-center text-fg3">{getErrorMessage(data.error, "Failed to load members")}</div>;
-		}
 		return (
 			<>
 				<TeamTable
@@ -269,49 +272,53 @@ export function Team() {
 				}
 				actions={inviteButton}
 			/>
-			<Section
-				filters={
-					<>
-						<ToggleGroup
-							variant="segmented"
-							aria-label="Show"
-							className="max-w-full overflow-x-auto"
-							value={[view]}
-							onValueChange={(v: string[]) => {
-								const next = VIEWS.find((x) => x.key === v[0]);
-								if (next === undefined) return;
-								update({ view: next.key === "all" ? null : next.key, ...resetPage });
+			{data.error !== null ? (
+				<ErrorState error={data.error} what="people" rpc={listOrgMembers} scope="org" onRetry={data.refetch} />
+			) : (
+				<Section
+					filters={
+						<>
+							<ToggleGroup
+								variant="segmented"
+								aria-label="Show"
+								className="max-w-full overflow-x-auto"
+								value={[view]}
+								onValueChange={(v: string[]) => {
+									const next = VIEWS.find((x) => x.key === v[0]);
+									if (next === undefined) return;
+									update({ view: next.key === "all" ? null : next.key, ...resetPage });
+								}}
+							>
+								{VIEWS.map((v) => (
+									<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
+										{v.label}
+									</ToggleGroupItem>
+								))}
+							</ToggleGroup>
+							<WorkspaceFilter
+								workspaces={data.workspaces}
+								counts={workspaceCounts}
+								value={wsFilter}
+								onChange={(ws) => {
+									update({ ws, ...resetPage });
+								}}
+							/>
+						</>
+					}
+					search={
+						<SearchInput
+							value={q}
+							onChange={(e) => {
+								update({ q: e.target.value, ...resetPage });
 							}}
-						>
-							{VIEWS.map((v) => (
-								<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
-									{v.label}
-								</ToggleGroupItem>
-							))}
-						</ToggleGroup>
-						<WorkspaceFilter
-							workspaces={data.workspaces}
-							counts={workspaceCounts}
-							value={wsFilter}
-							onChange={(ws) => {
-								update({ ws, ...resetPage });
-							}}
+							placeholder="Search by name or email"
+							aria-label="Search people"
 						/>
-					</>
-				}
-				search={
-					<SearchInput
-						value={q}
-						onChange={(e) => {
-							update({ q: e.target.value, ...resetPage });
-						}}
-						placeholder="Search by name or email"
-						aria-label="Search people"
-					/>
-				}
-			>
-				{body}
-			</Section>
+					}
+				>
+					{body}
+				</Section>
+			)}
 			<InviteDrawer
 				orgId={orgId}
 				orgName={orgName}

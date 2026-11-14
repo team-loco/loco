@@ -8,15 +8,18 @@ export function EmptyHero({
 	subtitle,
 	children,
 	className,
+	role,
 }: {
 	art: ReactNode;
 	title: ReactNode;
 	subtitle?: ReactNode;
 	children?: ReactNode;
-	className?: string;
+	className?: string | undefined;
+	role?: "alert";
 }) {
 	return (
 		<section
+			role={role}
 			className={cn(
 				"flex flex-col items-center gap-3 rounded-overlay bg-panel px-6 pt-14 pb-16 text-center",
 				className,

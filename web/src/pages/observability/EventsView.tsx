@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { Link } from "react-router";
 import { HammerIcon, PlusIcon, RocketIcon, RotateCwIcon, ScalingIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -10,7 +12,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
-import { getErrorMessage } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow } from "@/lib/obs-time";
 import { pagedRows } from "@/lib/paging";
@@ -88,7 +89,7 @@ export function EventsView() {
 	const nowMs = now.getTime();
 	const { from, to } = resolveWindow(range, nowMs);
 
-	const { events, isLoading, error } = useWorkspaceEvents(
+	const { events, isLoading, error, refetch } = useWorkspaceEvents(
 		workspaceId,
 		resources.map((r) => r.raw),
 		live ? POLL_MS : undefined,
@@ -159,7 +160,15 @@ export function EventsView() {
 		/>
 	);
 
-	if (!loading && error === null && inRange.length === 0 && query === "") {
+	if (!loading && error !== null) {
+		return (
+			<>
+				{header}
+				<ErrorState error={error} what="events" rpc={listEvents} onRetry={refetch} />
+			</>
+		);
+	}
+	if (!loading && inRange.length === 0 && query === "") {
 		return (
 			<>
 				{header}
@@ -301,12 +310,7 @@ export function EventsView() {
 									})}
 							</tbody>
 						</table>
-						{!loading && error !== null && (
-							<div role="alert" className="py-6 text-bad-fg">
-								{getErrorMessage(error, "Failed to load events")}
-							</div>
-						)}
-						{!loading && error === null && items.length === 0 && <NoMatches title="No events match these filters" />}
+						{!loading && items.length === 0 && <NoMatches title="No events match these filters" />}
 					</div>
 					<Pager {...paged.pager} {...paged.ends} />
 				</section>
