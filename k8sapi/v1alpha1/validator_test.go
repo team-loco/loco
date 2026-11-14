@@ -67,7 +67,7 @@ func TestResourcesSpecValidate(t *testing.T) {
 func TestServiceDeploymentSpecValidatesEnvSecretRef(t *testing.T) {
 	valid := ServiceDeploymentSpec{
 		Image:        "ghcr.io/team-loco/app:v1",
-		Port:         8080,
+		Port:         new(int32(8080)),
 		EnvSecretRef: &EnvSecretRef{Name: "env-p1", Revision: 3},
 	}
 	if err := validateServiceDeploymentSpec(&valid); err != nil {
@@ -85,6 +85,29 @@ func TestServiceDeploymentSpecValidatesEnvSecretRef(t *testing.T) {
 				t.Errorf("%+v accepted", ref)
 			}
 		})
+	}
+}
+
+func TestPortlessServiceTakesNoTrafficOrHealthCheck(t *testing.T) {
+	health := &HealthCheckSpec{Path: "/healthz", Interval: 5, Timeout: 1, FailThreshold: 1}
+	worker := func() *ServiceSpec {
+		return &ServiceSpec{
+			Deployment: &ServiceDeploymentSpec{Image: "ghcr.io/team-loco/worker:v1"},
+			Resources:  &ResourcesSpec{CPU: "100m", Memory: "64Mi", Replicas: ReplicasSpec{Min: 1, Max: 1}},
+		}
+	}
+	if err := validateServiceSpec(worker()); err != nil {
+		t.Fatalf("portless service rejected: %v", err)
+	}
+	routed := worker()
+	routed.Routing = &RoutingSpec{HostName: "worker.example.com", PathPrefix: "/", IdleTimeout: 60}
+	if err := validateServiceSpec(routed); !errors.Is(err, errRoutingWithoutPort) {
+		t.Errorf("routed portless service error = %v, want %v", err, errRoutingWithoutPort)
+	}
+	checked := worker()
+	checked.Deployment.HealthCheck = health
+	if err := validateServiceSpec(checked); !errors.Is(err, errHealthWithoutPort) {
+		t.Errorf("health-checked portless service error = %v, want %v", err, errHealthWithoutPort)
 	}
 }
 

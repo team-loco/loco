@@ -73,7 +73,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			regions: form.regions.map((region) => ({ region, deploymentId: undefined, error: null })),
 		};
 		setRun(start);
-		const port = Number(form.port);
+		const port = form.port.trim() === "" ? undefined : Number(form.port);
 		const replicas = { cpu: form.cpu.trim(), memory: form.memory.trim(), ...scalingSpec(form) };
 		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
 		const health = healthCheck === undefined ? {} : { healthCheck };
@@ -99,11 +99,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 					spec: {
 						case: "service",
 						value: {
-							routing: {
-								port,
-								pathPrefix: defaults.routing?.pathPrefix ?? "",
-								idleTimeout: defaults.routing?.idleTimeout ?? 0,
-							},
+							routing: { port },
 							...(defaults.observability !== undefined ? { observability: defaults.observability } : {}),
 							regions: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])),
 							...health,

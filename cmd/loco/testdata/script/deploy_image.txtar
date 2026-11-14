@@ -5,7 +5,7 @@ exec loco deploy --yes
 stdout '^  \+ api$'
 stdout '^Applied\. Environment revision is now 8\.$'
 stdout '^Started deployment dep-api for api in us-east-1\.$'
-stdout '^api has no public URL and takes no internet traffic\.$'
+stdout '^api has no port, so it runs as a worker and takes no traffic\.$'
 ! stdout 'Packed'
 ! fakeapi called CreateBuild
 ! fakeapi called Upload

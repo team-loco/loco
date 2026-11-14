@@ -45,7 +45,7 @@ var _ = Describe("Application reconcile", func() {
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
 						Image:        "registry.example.com/app:v1",
-						Port:         8080,
+						Port:         new(int32(8080)),
 						Env:          map[string]string{"B": "2", "A": "1", "C": "3"},
 						EnvSecretRef: &locov1alpha1.EnvSecretRef{Name: "env-converge", Revision: 2},
 					},
@@ -599,7 +599,7 @@ var _ = Describe("Application reconcile", func() {
 			"memory":          func(spec *locov1alpha1.ServiceSpec) { spec.Resources.Memory = "" },
 			"min replicas":    func(spec *locov1alpha1.ServiceSpec) { spec.Resources.Replicas.Min = 0 },
 			"max replicas":    func(spec *locov1alpha1.ServiceSpec) { spec.Resources.Replicas.Max = 0 },
-			"port":            func(spec *locov1alpha1.ServiceSpec) { spec.Deployment.Port = 0 },
+			"port":            func(spec *locov1alpha1.ServiceSpec) { spec.Deployment.Port = new(int32(0)) },
 			"path prefix":     func(spec *locov1alpha1.ServiceSpec) { spec.Routing.PathPrefix = "" },
 			"idle timeout":    func(spec *locov1alpha1.ServiceSpec) { spec.Routing.IdleTimeout = 0 },
 			"health interval": func(spec *locov1alpha1.ServiceSpec) { spec.Deployment.HealthCheck.Interval = 0 },

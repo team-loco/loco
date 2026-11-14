@@ -42,7 +42,6 @@ func testDefaults() servicedefaults.Defaults {
 		MaxReplicas:         2,
 		PathPrefix:          "/",
 		IdleTimeout:         60,
-		Port:                8000,
 		HealthPath:          "/health",
 		HealthInterval:      30,
 		HealthTimeout:       5,
@@ -74,7 +73,7 @@ func liveState() State {
 	return State{
 		Dockerfile: locofile.DefaultDockerfile,
 		Context:    locofile.DefaultContext,
-		Port:       3000,
+		Port:       new(int32(3000)),
 		Routing:    &Routing{PathPrefix: "/", IdleTimeout: 60},
 		Domains:    []string{appDomain},
 		Env:        map[string]string{logLevelKey: logLevelInfo},

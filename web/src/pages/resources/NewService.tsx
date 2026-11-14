@@ -445,7 +445,7 @@ function ServiceForm({
 		isPublic: draftIsPublic(draft),
 		subdomain: edits.subdomain ?? slug(name),
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
-		port: edits.port ?? String(defaults.routing?.port ?? ""),
+		port: edits.port ?? "",
 		vars: edits.vars ?? [],
 		health: edits.health ?? defaultHealth(defaults),
 	};
@@ -571,12 +571,17 @@ function ServiceForm({
 								{subdomainError !== null && <span className="text-[12.5px] text-bad-fg">{subdomainError}</span>}
 							</div>
 						)}
-						<Field label="Port" error={apiError("port")} className="max-w-[140px] sm:col-start-2 sm:max-w-none">
+						<Field
+							label="Port"
+							error={shown(errors.port, "port") ?? apiError("port")}
+							className="max-w-[140px] sm:col-start-2 sm:max-w-none"
+						>
 							<Input
 								value={form.port}
 								inputMode="numeric"
+								placeholder="None"
 								className="font-mono"
-								aria-invalid={apiError("port") !== null}
+								aria-invalid={shown(errors.port, "port") !== null || apiError("port") !== null}
 								onChange={(e) => {
 									set({ port: e.target.value.replace(NON_DIGITS_RE, "") });
 								}}

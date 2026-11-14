@@ -508,7 +508,8 @@ type ServiceDeploymentSpec struct {
 	MaxReplicas *int32                 `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3,oneof" json:"max_replicas,omitempty"` // defaults from resource if omitted
 	Scalers     *Scalers               `protobuf:"bytes,7,opt,name=scalers,proto3,oneof" json:"scalers,omitempty"`                             // autoscaling config (defaults from resource if omitted)
 	Env         map[string]string      `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Port        int32                  `protobuf:"varint,9,opt,name=port,proto3" json:"port,omitempty"`
+	// port is the port the service listens on; without it the service is a worker.
+	Port *int32 `protobuf:"varint,9,opt,name=port,proto3,oneof" json:"port,omitempty"`
 	// routing is the HTTP routing the deployment's environment uses. An empty message means the
 	// service sets no routing and the defaults apply; without the field the resource's routing
 	// applies.
@@ -607,8 +608,8 @@ func (x *ServiceDeploymentSpec) GetEnv() map[string]string {
 }
 
 func (x *ServiceDeploymentSpec) GetPort() int32 {
-	if x != nil {
-		return x.Port
+	if x != nil && x.Port != nil {
+		return *x.Port
 	}
 	return 0
 }
@@ -1984,7 +1985,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12t\n" +
 	"\x05image\x18\x02 \x01(\tB^\xbaH[\xd8\x01\x01rV2T^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+)?(@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
 	"\bbuild_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\abuildId\x88\x01\x01B\v\n" +
-	"\t_build_id\"\xb7\b\n" +
+	"\t_build_id\"\xe5\t\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +
@@ -1993,27 +1994,29 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fmin_replicas\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x03R\vminReplicas\x88\x01\x01\x12/\n" +
 	"\fmax_replicas\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x04R\vmaxReplicas\x88\x01\x01\x12:\n" +
 	"\ascalers\x18\a \x01(\v2\x1b.loco.deployment.v1.ScalersH\x05R\ascalers\x88\x01\x01\x12D\n" +
-	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12\x1f\n" +
-	"\x04port\x18\t \x01(\x05B\v\xbaH\b\x1a\x06\x18\xff\xff\x03(\x01R\x04port\x12A\n" +
+	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12$\n" +
+	"\x04port\x18\t \x01(\x05B\v\xbaH\b\x1a\x06\x18\xff\xff\x03(\x01H\x06R\x04port\x88\x01\x01\x12A\n" +
 	"\arouting\x18\n" +
-	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\x06R\arouting\x88\x01\x01\x122\n" +
+	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\aR\arouting\x88\x01\x01\x122\n" +
 	"\vrun_as_user\x18\v \x01(\x03B\r\xbaH\n" +
-	"\"\b\x18\xff\xff\xff\xff\a \x00H\aR\trunAsUser\x88\x01\x01\x124\n" +
+	"\"\b\x18\xff\xff\xff\xff\a \x00H\bR\trunAsUser\x88\x01\x01\x124\n" +
 	"\frun_as_group\x18\f \x01(\x03B\r\xbaH\n" +
-	"\"\b\x18\xff\xff\xff\xff\a \x00H\bR\n" +
+	"\"\b\x18\xff\xff\xff\xff\a \x00H\tR\n" +
 	"runAsGroup\x88\x01\x01\x12=\n" +
 	"\ametrics\x18\r \x01(\v2#.loco.deployment.v1.MetricsEndpointR\ametrics\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xa1\x01\xbaH\x9d\x01\x1a\x9a\x01\n" +
-	"\x14replicas.min_lte_max\x12$min_replicas must be <= max_replicas\x1a\\!has(this.min_replicas) || !has(this.max_replicas) || this.min_replicas <= this.max_replicasB\x0f\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xc1\x02\xbaH\xbd\x02\x1a\x9a\x01\n" +
+	"\x14replicas.min_lte_max\x12$min_replicas must be <= max_replicas\x1a\\!has(this.min_replicas) || !has(this.max_replicas) || this.min_replicas <= this.max_replicas\x1a\x9d\x01\n" +
+	"-service_deployment.health_check_requires_port\x12Ahealth_check needs a port: the HTTP check probes the service port\x1a)has(this.port) || !has(this.health_check)B\x0f\n" +
 	"\r_health_checkB\x06\n" +
 	"\x04_cpuB\t\n" +
 	"\a_memoryB\x0f\n" +
 	"\r_min_replicasB\x0f\n" +
 	"\r_max_replicasB\n" +
 	"\n" +
-	"\b_scalersB\n" +
+	"\b_scalersB\a\n" +
+	"\x05_portB\n" +
 	"\n" +
 	"\b_routingB\x0e\n" +
 	"\f_run_as_userB\x0f\n" +

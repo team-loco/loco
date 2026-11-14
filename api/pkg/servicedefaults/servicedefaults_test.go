@@ -16,7 +16,6 @@ func validDefaults() Defaults {
 		MaxReplicas:         2,
 		PathPrefix:          "/",
 		IdleTimeout:         60,
-		Port:                8000,
 		HealthPath:          "/health",
 		HealthInterval:      30,
 		HealthTimeout:       5,
@@ -51,8 +50,6 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		"max above the controller max": {func(d *Defaults) { d.MaxReplicas = 12 }, errInvalidResources},
 		"relative prefix":              {func(d *Defaults) { d.PathPrefix = "app" }, errInvalidRoute},
 		"zero idle timeout":            {func(d *Defaults) { d.IdleTimeout = 0 }, errInvalidRoute},
-		"privileged port":              {func(d *Defaults) { d.Port = 80 }, errInvalidPort},
-		"port above the range":         {func(d *Defaults) { d.Port = 65536 }, errInvalidPort},
 		"relative health path":         {func(d *Defaults) { d.HealthPath = "health" }, errInvalidHealth},
 		"short health interval":        {func(d *Defaults) { d.HealthInterval = 1 }, errInvalidHealth},
 		"long health timeout":          {func(d *Defaults) { d.HealthTimeout = 61 }, errInvalidHealth},
@@ -83,7 +80,7 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{
 				Image:       "nginx:1.27",
-				Port:        d.Port,
+				Port:        new(int32(8080)),
 				HealthCheck: &health,
 			},
 			Resources: &locoControllerV1.ResourcesSpec{
@@ -102,9 +99,6 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 
 func TestValidateAgreesWithTheApplicationValidator(t *testing.T) {
 	boundaries := map[string]func(*Defaults){
-		"port 1023":         func(d *Defaults) { d.Port = 1023 },
-		"port 1024":         func(d *Defaults) { d.Port = 1024 },
-		"port 65535":        func(d *Defaults) { d.Port = 65535 },
 		"interval 4":        func(d *Defaults) { d.HealthInterval = 4 },
 		"interval 5":        func(d *Defaults) { d.HealthInterval = 5 },
 		"timeout 0":         func(d *Defaults) { d.HealthTimeout = 0 },

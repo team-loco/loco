@@ -22,7 +22,7 @@ var _ = Describe("Private service discovery", func() {
 	It("exposes a logical TCP endpoint alongside the UUID HTTP routing endpoint", func() {
 		app := isolationTestApplication("discovery", testPrivateHTTPName)
 		Expect(json.Unmarshal([]byte(`{"slug":"cart"}`), &app.Spec)).To(Succeed())
-		app.Spec.ServiceSpec.Deployment.Port = 7070
+		app.Spec.ServiceSpec.Deployment.Port = new(int32(7070))
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		reconciler := &ApplicationReconciler{
@@ -62,10 +62,33 @@ var _ = Describe("Private service discovery", func() {
 		).To(Succeed())
 		Expect(legacy.Spec.Ports[0].Port).To(Equal(servicePort))
 	})
+	It("removes both Services when the service drops its port", func() {
+		app := isolationTestApplication("discovery-worker", "worker")
+		app.Spec.Slug = "worker"
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+		r := &ApplicationReconciler{
+			Client:                   k8sClient,
+			APIReader:                k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
+		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
+
+		app.Spec.ServiceSpec.Deployment.Port = nil
+		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
+		for _, name := range []string{testAppName(app), "worker"} {
+			key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: name}
+			err := k8sClient.Get(ctx, key, &corev1.Service{})
+			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "Service %s: %v", name, err)
+		}
+	})
 	It("keeps the ClusterIP on port changes and removes only the renamed alias", func() {
 		app := isolationTestApplication("discovery-rename", "rename")
 		app.Spec.Slug = testPrivateTCPName
-		app.Spec.ServiceSpec.Deployment.Port = 50051
+		app.Spec.ServiceSpec.Deployment.Port = new(int32(50051))
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &ApplicationReconciler{
@@ -82,7 +105,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.ResourceVersion).To(Equal(version))
-		app.Spec.ServiceSpec.Deployment.Port = 3550
+		app.Spec.ServiceSpec.Deployment.Port = new(int32(3550))
 		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.Spec.ClusterIP).To(Equal(address))
@@ -209,7 +232,7 @@ var _ = Describe("Private service discovery", func() {
 	It("exposes port 80 once when the target is already port 80", func() {
 		app := isolationTestApplication("discovery-default-port", "default-port")
 		app.Spec.Slug = testPrivateHTTPName
-		app.Spec.ServiceSpec.Deployment.Port = servicePort
+		app.Spec.ServiceSpec.Deployment.Port = new(servicePort)
 		app.UID = "default-port-owner"
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &ApplicationReconciler{

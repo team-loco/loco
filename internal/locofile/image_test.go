@@ -13,6 +13,7 @@ services:
   api:
     dockerfile: Dockerfile
     context: source
+    port: 8080
     health: {path: /health}
     regions:
       us-east-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}

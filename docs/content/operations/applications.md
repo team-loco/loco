@@ -89,9 +89,20 @@ Container stdout and stderr records keep their original message. When a record h
 
 Malformed JSON, unknown levels and messages without a recognized level remain unclassified and appear as INFO in the dashboard. A word such as “warning” inside an ordinary message does not set its severity. Structured OTLP logs retain the severity supplied by the application SDK.
 
-## Public and private applications
+## Public, private and worker applications
 
-An application with a domain is public: the gateway routes its hostname to the application. An application without a domain is private: it runs, scales and writes logs like any other, makes outbound connections, and accepts connections only from inside its workspace. To deploy a private application, leave `domains` off the service in `loco.yaml`:
+An application with a domain is public: the gateway routes its hostname to the application. An application with a `port` and without a domain is private: it accepts connections only from inside its workspace, through its [private hostname](../deployment/loco-yaml.md#private-service-discovery). To deploy a private application, leave `domains` off the service in `loco.yaml`:
+
+```yaml
+services:
+  cart:
+    image: ghcr.io/acme/cart:2.1.0
+    port: 7070
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+```
+
+An application without a `port` is a worker, such as a queue consumer: it runs, scales and writes logs like any other and makes outbound connections, but it has no hostname, takes no traffic and gets no readiness probe. Leave out `port` to deploy one:
 
 ```yaml
 services:
@@ -101,7 +112,7 @@ services:
       us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
 
-`loco deploy` then prints that the application has no public URL, and `loco resource status` shows `URL: none`. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.
+`loco deploy` prints that a private application has no public URL and that a worker takes no traffic, and `loco resource status` shows `URL: none` for both. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. Its Port field starts empty, which creates a worker. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.
 
 ## Investigate a rollout
 

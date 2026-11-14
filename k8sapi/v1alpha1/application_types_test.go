@@ -10,7 +10,7 @@ func TestZeroScalarFieldsAreOmittedUnderJSONV2(t *testing.T) {
 	spec := ServiceSpec{
 		Deployment: &ServiceDeploymentSpec{
 			Image:       "app:latest",
-			Port:        8080,
+			Port:        new(int32(8080)),
 			HealthCheck: &HealthCheckSpec{Path: "/healthz", Interval: 1, Timeout: 1, FailThreshold: 1},
 		},
 		Resources: &ResourcesSpec{

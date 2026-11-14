@@ -38,6 +38,10 @@ var (
 		"the workspace has no production environment to hold the domain",
 	)
 	errPlacementNotService = errors.New("domain placement has no service spec")
+	errDomainWithoutPort   = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"a service without a port receives no traffic, so it cannot have a domain",
+	)
 )
 
 type DomainServer struct {
@@ -466,6 +470,9 @@ func (s *DomainServer) checkResourceDomain(
 	spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 	if err != nil {
 		return "", "", fmt.Errorf("decode resource %s spec: %w", resourceID, err)
+	}
+	if spec.GetService().GetRouting().GetPort() == 0 {
+		return "", "", errDomainWithoutPort
 	}
 	placements, err := s.queries.ListResourceEnvironmentPlacements(
 		ctx,

@@ -401,6 +401,49 @@ test_s07_failed_rollout_keeps_the_old_version_serving() {
         test "$(rollout_deployment "$old_deployment" '.deployment.isActive // false')" = false
 }
 
+worker_app="e2e-worker"
+
+worker_status_field() {
+    loco_cli resource status "$worker_app" --output json | yq -p json -r "$1"
+}
+
+worker_is_running() {
+    test "$(worker_status_field '.resource.environmentStatuses[0].regions[0].deploymentStatus // ""')" = \
+        DEPLOYMENT_PHASE_RUNNING &&
+        test "$(worker_status_field '.resource.environmentStatuses[0].status')" = RESOURCE_STATUS_HEALTHY
+}
+
+test_s08_worker_without_a_port_runs() {
+    local worker_dir="$status_dir/$worker_app"
+    mkdir -p "$worker_dir"
+    cat >"$worker_dir/loco.yaml" <<YAML
+version: 1
+partial: ${worker_app}
+services:
+  ${worker_app}:
+    image: ${E2E_WORKER_IMAGE}
+    regions:
+      us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
+YAML
+    (cd "$worker_dir" && loco_cli deploy --yes) >"$status_dir/worker.out" 2>&1 || {
+        sed 's/^/    /' "$status_dir/worker.out"
+        return 1
+    }
+    assert_contains "loco deploy says the worker takes no traffic" "has no port, so it runs as a worker" \
+        cat "$status_dir/worker.out"
+
+    wait_for "${worker_app} to finish its rollout" 180 worker_is_running
+    assert "A worker that never listens reaches running" worker_is_running
+
+    local id selector
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '${worker_app}'")
+    selector="app=resource-${id}"
+    assert "The worker's pod has no readiness probe" \
+        test -z "$(sk -n "$status_namespace" get pods -l "$selector" -o jsonpath='{.items[*].spec.containers[0].readinessProbe}')"
+    assert "The worker gets no Kubernetes Service" \
+        test -z "$(sk -n "$status_namespace" get services "resource-${id}" "$worker_app" --ignore-not-found -o name)"
+}
+
 suite_diagnostics() {
     [ "$1" -ne 0 ] || return 0
     if [ -f "$status_dir/crash.out" ]; then

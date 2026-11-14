@@ -7,8 +7,8 @@
 package configv1
 
 import (
-	v11 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	v1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	v1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	v11 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -504,20 +504,18 @@ func (x *AuthConfig) GetScopes() string {
 // These values are used when users don't specify explicit configuration.
 type DefaultServiceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Default routing configuration
-	Routing *v1.RoutingConfig `protobuf:"bytes,1,opt,name=routing,proto3" json:"routing,omitempty"`
 	// Default health check configuration
-	HealthCheck *v11.HealthCheckConfig `protobuf:"bytes,2,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
+	HealthCheck *v1.HealthCheckConfig `protobuf:"bytes,1,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
 	// Default resource allocation
-	Cpu         string `protobuf:"bytes,3,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "0.25"
-	Memory      string `protobuf:"bytes,4,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
-	MinReplicas int32  `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
-	MaxReplicas int32  `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
+	Cpu         string `protobuf:"bytes,2,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "0.25"
+	Memory      string `protobuf:"bytes,3,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
+	MinReplicas int32  `protobuf:"varint,4,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
+	MaxReplicas int32  `protobuf:"varint,5,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
 	// Default observability configuration
-	Observability           *v1.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
-	DeployAttempts          int32                   `protobuf:"varint,8,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
-	DeployRetryDelaySeconds int32                   `protobuf:"varint,9,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
-	CpuTarget               int32                   `protobuf:"varint,10,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
+	Observability           *v11.ObservabilityConfig `protobuf:"bytes,6,opt,name=observability,proto3" json:"observability,omitempty"`
+	DeployAttempts          int32                    `protobuf:"varint,7,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
+	DeployRetryDelaySeconds int32                    `protobuf:"varint,8,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
+	CpuTarget               int32                    `protobuf:"varint,9,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -552,14 +550,7 @@ func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
 	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *DefaultServiceConfig) GetRouting() *v1.RoutingConfig {
-	if x != nil {
-		return x.Routing
-	}
-	return nil
-}
-
-func (x *DefaultServiceConfig) GetHealthCheck() *v11.HealthCheckConfig {
+func (x *DefaultServiceConfig) GetHealthCheck() *v1.HealthCheckConfig {
 	if x != nil {
 		return x.HealthCheck
 	}
@@ -594,7 +585,7 @@ func (x *DefaultServiceConfig) GetMaxReplicas() int32 {
 	return 0
 }
 
-func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
+func (x *DefaultServiceConfig) GetObservability() *v11.ObservabilityConfig {
 	if x != nil {
 		return x.Observability
 	}
@@ -668,20 +659,18 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xdd\x03\n" +
-	"\x14DefaultServiceConfig\x129\n" +
-	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
-	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
-	"\x03cpu\x18\x03 \x01(\tR\x03cpu\x12\x16\n" +
-	"\x06memory\x18\x04 \x01(\tR\x06memory\x12!\n" +
-	"\fmin_replicas\x18\x05 \x01(\x05R\vminReplicas\x12!\n" +
-	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12K\n" +
-	"\robservability\x18\a \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
-	"\x0fdeploy_attempts\x18\b \x01(\x05R\x0edeployAttempts\x12;\n" +
-	"\x1adeploy_retry_delay_seconds\x18\t \x01(\x05R\x17deployRetryDelaySeconds\x12\x1d\n" +
+	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xa2\x03\n" +
+	"\x14DefaultServiceConfig\x12H\n" +
+	"\fhealth_check\x18\x01 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
+	"\x03cpu\x18\x02 \x01(\tR\x03cpu\x12\x16\n" +
+	"\x06memory\x18\x03 \x01(\tR\x06memory\x12!\n" +
+	"\fmin_replicas\x18\x04 \x01(\x05R\vminReplicas\x12!\n" +
+	"\fmax_replicas\x18\x05 \x01(\x05R\vmaxReplicas\x12K\n" +
+	"\robservability\x18\x06 \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
+	"\x0fdeploy_attempts\x18\a \x01(\x05R\x0edeployAttempts\x12;\n" +
+	"\x1adeploy_retry_delay_seconds\x18\b \x01(\x05R\x17deployRetryDelaySeconds\x12\x1d\n" +
 	"\n" +
-	"cpu_target\x18\n" +
-	" \x01(\x05R\tcpuTarget2a\n" +
+	"cpu_target\x18\t \x01(\x05R\tcpuTarget2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 
@@ -699,16 +688,15 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 
 var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_loco_config_v1_config_proto_goTypes = []any{
-	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
-	(*CountLimits)(nil),            // 2: loco.config.v1.CountLimits
-	(*SizeLimits)(nil),             // 3: loco.config.v1.SizeLimits
-	(*OrgLink)(nil),                // 4: loco.config.v1.OrgLink
-	(*AuthConfig)(nil),             // 5: loco.config.v1.AuthConfig
-	(*DefaultServiceConfig)(nil),   // 6: loco.config.v1.DefaultServiceConfig
-	(*v1.RoutingConfig)(nil),       // 7: loco.resource.v1.RoutingConfig
-	(*v11.HealthCheckConfig)(nil),  // 8: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil), // 9: loco.resource.v1.ObservabilityConfig
+	(*GetConfigRequest)(nil),        // 0: loco.config.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),       // 1: loco.config.v1.GetConfigResponse
+	(*CountLimits)(nil),             // 2: loco.config.v1.CountLimits
+	(*SizeLimits)(nil),              // 3: loco.config.v1.SizeLimits
+	(*OrgLink)(nil),                 // 4: loco.config.v1.OrgLink
+	(*AuthConfig)(nil),              // 5: loco.config.v1.AuthConfig
+	(*DefaultServiceConfig)(nil),    // 6: loco.config.v1.DefaultServiceConfig
+	(*v1.HealthCheckConfig)(nil),    // 7: loco.deployment.v1.HealthCheckConfig
+	(*v11.ObservabilityConfig)(nil), // 8: loco.resource.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
 	6, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
@@ -716,16 +704,15 @@ var file_loco_config_v1_config_proto_depIdxs = []int32{
 	4, // 2: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
 	3, // 3: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
 	2, // 4: loco.config.v1.GetConfigResponse.count_limits:type_name -> loco.config.v1.CountLimits
-	7, // 5: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
-	8, // 6: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	9, // 7: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
-	0, // 8: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1, // 9: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	7, // 5: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	8, // 6: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
+	0, // 7: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1, // 8: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }

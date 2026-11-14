@@ -380,9 +380,11 @@ func liveState(
 	spec := resourceSpec.GetService()
 
 	state := configplan.State{
-		Port:    spec.GetRouting().GetPort(),
 		Health:  liveHealth(spec.GetHealthCheck()),
 		Regions: make(map[string]configplan.Region, len(spec.GetRegions())),
+	}
+	if routing := spec.GetRouting(); routing != nil {
+		state.Port = routing.Port
 	}
 	if res.MaxApplyAttempts != nil || res.ApplyRetryDelaySeconds != nil {
 		state.Deploy = &locofile.Deploy{Attempts: res.MaxApplyAttempts, RetryDelay: res.ApplyRetryDelaySeconds}
@@ -452,7 +454,7 @@ func liveState(
 		}
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup
-		state.Port = servicedefaults.FirstSet(service.GetPort(), state.Port)
+		state.Port = service.Port
 		if service.GetRouting() != nil {
 			state.Routing = liveRouting(service.GetRouting())
 		}

@@ -61,9 +61,16 @@ service ResourceService {
   rpc TransferPartial(TransferPartialRequest) returns (TransferPartialResponse);
 }
 
-// RoutingConfig defines routing configuration for a resource.
+// RoutingConfig defines routing configuration for a resource. A service without a port is a
+// worker: it gets no Kubernetes Service, no route and no readiness probe.
 message RoutingConfig {
-  int32 port = 1; // application port
+  option (buf.validate.message).cel = {
+    id: "routing.path_prefix_requires_port"
+    message: "path_prefix needs a port: a service without a port receives no traffic"
+    expression: "has(this.port) || this.path_prefix == ''"
+  };
+
+  optional int32 port = 1; // application port
   string path_prefix = 2; // e.g., "/"
   int32 idle_timeout = 3; // seconds
 }
@@ -100,6 +107,12 @@ message RegionTarget {
 
 // ServiceSpec is the resource specification for SERVICE type resources.
 message ServiceSpec {
+  option (buf.validate.message).cel = {
+    id: "service.health_check_requires_port"
+    message: "health_check needs routing.port: the HTTP check probes the service port"
+    expression: "has(this.routing.port) || !has(this.health_check)"
+  };
+
   RoutingConfig routing = 1;
   ObservabilityConfig observability = 2;
   map<string, RegionTarget> regions = 3 [(buf.validate.field).map.min_pairs = 1]; // key = region name
@@ -175,6 +188,12 @@ message RegionStatus {
 
 // CreateResourceRequest is the request to create a new resource.
 message CreateResourceRequest {
+  option (buf.validate.message).cel = {
+    id: "create_resource.domain_requires_port"
+    message: "domain needs spec.service.routing.port: a service without a port receives no traffic"
+    expression: "!has(this.domain) || has(this.spec.service.routing.port)"
+  };
+
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string name = 2 [(buf.validate.field).string.max_len = 63];
   ResourceType type = 3 [(buf.validate.field).enum = {

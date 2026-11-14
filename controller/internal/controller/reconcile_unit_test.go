@@ -50,7 +50,7 @@ func testApplication() *locov1alpha1.Application {
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
 					Image: testImage,
-					Port:  8080,
+					Port:  new(int32(8080)),
 					Env: map[string]string{
 						"ZETA":  "1",
 						"ALPHA": "2",

@@ -151,7 +151,7 @@ func (f *imageSweepFixture) imageDeleted(t *testing.T, b sweptBuild) bool {
 
 func dockerfileService(buildID string) *deploymentv1.ServiceDeploymentSpec {
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
-	return &deploymentv1.ServiceDeploymentSpec{Build: build, Port: 8080}
+	return &deploymentv1.ServiceDeploymentSpec{Build: build, Port: new(int32(8080))}
 }
 
 func TestDeployingABuildWithADeletedImageFails(t *testing.T) {

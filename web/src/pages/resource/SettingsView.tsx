@@ -12,6 +12,7 @@ import { Notice } from "@/components/design/Notice";
 import { SaveBar } from "@/components/design/SaveBar";
 import { NEEDS_ADMIN } from "@/hooks/useMyScopes";
 import { servedDomains } from "@/lib/new-resource";
+import { isWorker } from "@/lib/resource-regions";
 import { sizeOptions } from "@/lib/sizing";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ import {
 } from "./settings-draft";
 import {
 	GeneralSection,
+	HEALTH_SECTION_ID,
 	HealthSection,
 	ImageSection,
 	RegionsSection,
@@ -49,7 +51,7 @@ const NAV = [
 	{ id: "set-size", label: "Size" },
 	{ id: "set-env", label: "Variables" },
 	{ id: "set-net", label: "Networking" },
-	{ id: "set-health", label: "Health check" },
+	{ id: HEALTH_SECTION_ID, label: "Health check" },
 	{ id: "set-regions", label: "Regions" },
 	{ id: "set-general", label: "General" },
 	{ id: "set-danger", label: "Danger zone" },
@@ -99,6 +101,7 @@ export function SettingsView({
 	const configQuery = useQuery(getConfig, {});
 	const sizes = sizeOptions(configQuery.data?.sizeLimits);
 	const managed = resource.partial !== undefined;
+	const worker = isWorker(resource);
 	const locked = managed || !canWrite;
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
 	const want = resolved(draft, base);
@@ -142,7 +145,7 @@ export function SettingsView({
 			)}
 			<div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[170px_minmax(0,1fr)]">
 				<nav aria-label="Settings sections" className="flex flex-row flex-wrap gap-0.5 md:sticky md:top-4 md:flex-col">
-					{NAV.map((n) => (
+					{NAV.filter((n) => !worker || n.id !== HEALTH_SECTION_ID).map((n) => (
 						<a
 							key={n.id}
 							href={`#${n.id}`}
@@ -183,11 +186,12 @@ export function SettingsView({
 						platformDomains={domainsQuery.data?.platformDomains ?? []}
 						regions={regionsQuery.data?.regions ?? []}
 						served={served}
+						worker={worker}
 						onDomainsChanged={() => {
 							onSaved({ tone: "info", title: "Domain updated", message: "It takes effect on the next deployment." });
 						}}
 					/>
-					<HealthSection {...props} />
+					{!worker && <HealthSection {...props} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
 					<GeneralSection {...props} />
 					<SettingsBlock id="set-danger" title="Danger zone">

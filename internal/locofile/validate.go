@@ -68,8 +68,16 @@ func validateService(path string, service Service) []error {
 	if service.Image != "" && (service.Dockerfile != "" || service.Context != "") {
 		errs = append(errs, &FieldError{Path: path, Err: ErrImageWithBuild})
 	}
-	if service.Routing != nil && service.Port == nil {
-		errs = append(errs, &FieldError{Path: path + ".port", Err: ErrPortRequired})
+	if service.Port == nil {
+		if service.Routing != nil {
+			errs = append(errs, &FieldError{Path: path + ".routing", Err: ErrPortRequired})
+		}
+		if len(service.Domains) > 0 {
+			errs = append(errs, &FieldError{Path: path + ".domains", Err: ErrPortRequired})
+		}
+		if service.Health != nil {
+			errs = append(errs, &FieldError{Path: path + ".health", Err: ErrPortRequired})
+		}
 	}
 	if len(service.Regions) == 0 {
 		errs = append(errs, &FieldError{Path: path + ".regions", Err: ErrNoRegions})

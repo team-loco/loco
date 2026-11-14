@@ -1,6 +1,6 @@
 fakeapi plan plan.json
 cd app
-exec loco deploy --name api --image ghcr.io/acme/api:1 --private --yes
+exec loco deploy --name api --image ghcr.io/acme/api:1 --port 8080 --private --yes
 stdout '^api has no public URL and takes no internet traffic\.$'
 ! stdout 'Packed'
 ! fakeapi called CreateBuild

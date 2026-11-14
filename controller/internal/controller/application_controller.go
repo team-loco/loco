@@ -520,7 +520,14 @@ func (r *ApplicationReconciler) ensureServiceAccount(ctx context.Context, app *l
 func (r *ApplicationReconciler) ensureService(ctx context.Context, app *locov1alpha1.Application) error {
 	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
 	namespace := r.workspaceNamespace(app)
-	containerPort := app.Spec.ServiceSpec.Deployment.Port
+	if app.Spec.ServiceSpec.Deployment.Port == nil {
+		svc := &corev1.Service{Name: name, Namespace: namespace}
+		if err := r.Delete(ctx, svc); err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("delete service %s/%s: %w", namespace, name, err)
+		}
+		return nil
+	}
+	containerPort := *app.Spec.ServiceSpec.Deployment.Port
 
 	slog.DebugContext(ctx, "ensuring service", "namespace", namespace, "name", name, "containerPort", containerPort)
 
@@ -693,8 +700,6 @@ func podTemplate(
 ) (*corev1ac.PodTemplateSpecApplyConfiguration, error) {
 	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
 	spec := app.Spec.ServiceSpec
-	containerPort := spec.Deployment.Port
-
 	resources, err := containerResources(spec.Resources)
 	if err != nil {
 		return nil, fmt.Errorf("resources: %w", err)
@@ -703,16 +708,11 @@ func podTemplate(
 	systemVars := systemEnvVars(app, namespace, telemetry, envSecret.Names)
 	plainVars := plainEnvVars(spec.Deployment.Env, systemVars)
 	envVars := slices.Concat(systemVars, plainVars)
-	port := corev1ac.ContainerPort().
-		WithName("http").
-		WithContainerPort(containerPort).
-		WithProtocol(corev1.ProtocolTCP)
 	containerSecurity := containerSecurityContext()
 	container := corev1ac.Container().
 		WithName(name).
 		WithImage(spec.Deployment.Image).
 		WithEnv(envVars...).
-		WithPorts(port).
 		WithResources(resources).
 		WithSecurityContext(containerSecurity)
 	podAnnotations := ownerAnnotations(app)
@@ -727,14 +727,24 @@ func podTemplate(
 		podAnnotations[locolabels.AnnotationEnvSecretRevision] = strconv.FormatInt(envSecret.Revision, 10)
 	}
 
-	if hc := spec.Deployment.HealthCheck; hc != nil {
-		livenessProbe := healthProbe(hc, containerPort)
-		readinessProbe := healthProbe(hc, containerPort)
-		container.WithLivenessProbe(livenessProbe).WithReadinessProbe(readinessProbe)
-	} else {
-		// Without a health check a started process would count as ready before it
-		// listens, receive traffic and let the rollout replace the old replicas.
-		container.WithReadinessProbe(listeningProbe(containerPort))
+	// A service without a port is a worker that never listens, so it gets no probe and counts
+	// as ready once it has run for minReadySeconds.
+	if spec.Deployment.Port != nil {
+		containerPort := *spec.Deployment.Port
+		port := corev1ac.ContainerPort().
+			WithName("http").
+			WithContainerPort(containerPort).
+			WithProtocol(corev1.ProtocolTCP)
+		container.WithPorts(port)
+		if hc := spec.Deployment.HealthCheck; hc != nil {
+			livenessProbe := healthProbe(hc, containerPort)
+			readinessProbe := healthProbe(hc, containerPort)
+			container.WithLivenessProbe(livenessProbe).WithReadinessProbe(readinessProbe)
+		} else {
+			// Without a health check a started process would count as ready before it
+			// listens, receive traffic and let the rollout replace the old replicas.
+			container.WithReadinessProbe(listeningProbe(containerPort))
+		}
 	}
 
 	podLabels := workloadLabels(app)

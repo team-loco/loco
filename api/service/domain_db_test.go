@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -68,6 +69,22 @@ func removeDomain(t *testing.T, f *deployFixture, domain string) error {
 	client := newDomainClient(t, f)
 	id := client.domainID(t, domain)
 	return client.removeByID(id)
+}
+
+func TestDomainNeedsAPort(t *testing.T) {
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+	if _, err := f.pool.Exec(
+		context.Background(),
+		`UPDATE resources SET spec = '{}' WHERE id = $1`,
+		f.resourceID,
+	); err != nil {
+		t.Fatalf("drop the port: %v", err)
+	}
+	err := client.add("worker." + testDomainPlatform)
+	if !errors.Is(err, errDomainWithoutPort) {
+		t.Fatalf("domain on a portless service error = %v, want %v", err, errDomainWithoutPort)
+	}
 }
 
 func TestConcurrentDomainAddAndRemoveKeepOnePrimary(t *testing.T) {

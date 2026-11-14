@@ -3,7 +3,7 @@
 stderr 'Invalid loco.yaml:'
 stderr 'partial: must be a DNS label'
 stderr 'services.web: image cannot be combined with dockerfile or context'
-stderr 'services.web.port: port is required when routing is set'
+stderr 'services.web.routing: needs port; a service without port is a worker and receives no traffic'
 stderr 'services.web.regions.us-east-1.autoscaling: autoscaling needs exactly one of cpuTarget or memoryTarget'
 stderr 'services.worker.regions: at least one region is required'
 ! stdout .

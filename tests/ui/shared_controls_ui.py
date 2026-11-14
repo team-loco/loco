@@ -38,7 +38,7 @@ workspace = state["workspaces"]["acme/shared"]
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
 resource = state.get("shared_controls_resource")
 if resource is None:
-    resource = evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {"workspaceId": workspace, "name": "controls-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
+    resource = evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {"workspaceId": workspace, "name": "controls-pilot", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
     state["shared_controls_resource"] = resource
     evidence.write_json(Path(args.state), state)
 sorted_resources = state.get("controls_resources")
@@ -46,7 +46,7 @@ if sorted_resources is None:
     sorted_resources = [
         evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {
             "workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {"service": {"regions": {"us-east-1": {"enabled": True, "cpu": cpu, "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}},
+            "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": cpu, "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}}}},
         })["resourceId"] for name, cpu in (("controls-alpha", "100m"), ("controls-zeta", "200m"))
     ]
     state["controls_resources"] = sorted_resources

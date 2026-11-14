@@ -100,7 +100,8 @@ message ServiceDeploymentSpec {
   optional int32 max_replicas = 6 [(buf.validate.field).int32.gte = 1]; // defaults from resource if omitted
   optional Scalers scalers = 7; // autoscaling config (defaults from resource if omitted)
   map<string, string> env = 8;
-  int32 port = 9 [(buf.validate.field).int32 = {
+  // port is the port the service listens on; without it the service is a worker.
+  optional int32 port = 9 [(buf.validate.field).int32 = {
     gte: 1
     lte: 65535
   }];
@@ -122,6 +123,11 @@ message ServiceDeploymentSpec {
     id: "replicas.min_lte_max"
     message: "min_replicas must be <= max_replicas"
     expression: "!has(this.min_replicas) || !has(this.max_replicas) || this.min_replicas <= this.max_replicas"
+  };
+  option (buf.validate.message).cel = {
+    id: "service_deployment.health_check_requires_port"
+    message: "health_check needs a port: the HTTP check probes the service port"
+    expression: "has(this.port) || !has(this.health_check)"
   };
 }
 

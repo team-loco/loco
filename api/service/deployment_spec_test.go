@@ -24,7 +24,7 @@ const (
 	testDefaultCPU          = "150m"
 	testDefaultMemory       = "192Mi"
 	testIdleTimeout         = 45
-	testDefaultPort         = 8000
+	testServicePort         = 8000
 	testHealthPath          = "/health"
 	testHealthInterval      = 30
 	testHealthTimeout       = 5
@@ -43,7 +43,6 @@ func testServiceDefaults() servicedefaults.Defaults {
 		MaxReplicas:              3,
 		PathPrefix:               "/",
 		IdleTimeout:              testIdleTimeout,
-		Port:                     testDefaultPort,
 		HealthPath:               testHealthPath,
 		HealthInterval:           testHealthInterval,
 		HealthTimeout:            testHealthTimeout,
@@ -69,7 +68,7 @@ func testResourceSpec() *resourcev1.ResourceSpec {
 
 func testDeploymentSpec(port int32) *deploymentv1.DeploymentSpec {
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testImage}
-	service := &deploymentv1.ServiceDeploymentSpec{Build: build, Port: port}
+	service := &deploymentv1.ServiceDeploymentSpec{Build: build, Port: &port}
 	return &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}}
 }
 
@@ -211,7 +210,7 @@ func TestDesiredSpecFillsOmittedValuesFromConfiguredDefaults(t *testing.T) {
 	region.Memory = ""
 	region.MinReplicas = 0
 	region.MaxReplicas = 0
-	resourceSpec.GetService().Routing = &resourcev1.RoutingConfig{Port: 8080}
+	resourceSpec.GetService().Routing = &resourcev1.RoutingConfig{Port: new(int32(8080))}
 
 	payload := applicationPayload(t, testDesiredSpecFrom(t, resourceSpec, testDeploymentSpec(8080)))
 	service := payload.AppSpec.ServiceSpec
@@ -266,7 +265,7 @@ func TestDesiredSpecRoutesTheHostnameWithDefaultsWhenRoutingIsUnset(t *testing.T
 
 func TestDesiredSpecWithoutAHostnameHasNoRouting(t *testing.T) {
 	resourceSpec := testResourceSpec()
-	resourceSpec.GetService().Routing = &resourcev1.RoutingConfig{Port: 8080}
+	resourceSpec.GetService().Routing = &resourcev1.RoutingConfig{Port: new(int32(8080))}
 
 	requestSpec := testDeploymentSpec(8080)
 	buildSpec := testDesiredSpecAt(t, "", resourceSpec, requestSpec)

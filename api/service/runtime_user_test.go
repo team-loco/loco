@@ -58,7 +58,7 @@ func TestRuntimeUserWireValidation(t *testing.T) {
 	for _, id := range []int64{-1, 0, 82, 1654, 2147483648} {
 		service := &deploymentv1.ServiceDeploymentSpec{
 			Build:      &deploymentv1.BuildSource{Type: "image"},
-			Port:       8080,
+			Port:       new(int32(8080)),
 			RunAsUser:  &id,
 			RunAsGroup: &id,
 		}

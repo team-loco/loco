@@ -87,7 +87,7 @@ export function baseline(
 		image: svc?.build?.image ?? "",
 		cpu: svc?.cpu ?? "",
 		memory: svc?.memory ?? "",
-		port: svc === undefined ? "" : svc.port.toString(),
+		port: svc?.port?.toString() ?? "",
 		healthPath: health?.path ?? "",
 		healthInterval: health === undefined ? "" : health.intervalSeconds.toString(),
 		healthTimeout: health === undefined ? "" : health.timeoutSeconds.toString(),

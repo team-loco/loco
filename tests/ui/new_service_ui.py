@@ -224,6 +224,10 @@ with sync_playwright() as playwright:
                 expect(drawer.get_by_text("Use at most 63 characters", exact=True)).to_be_visible()
                 subdomain.fill(name)
                 expect(drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)).to_be_visible()
+                # Nothing defaults a port, and a public service needs one.
+                port = drawer.get_by_role("textbox", name="Port", exact=True)
+                expect(port).to_have_value("")
+                port.fill("8080")
                 expect(drawer.get_by_role("button", name="Decrease minimum replicas", exact=True)).to_be_disabled()
                 drawer.get_by_role("button", name="Increase minimum replicas", exact=True).click()
                 if theme == "dark":
@@ -449,6 +453,7 @@ with sync_playwright() as playwright:
                 assert [(d["resourceId"], d["region"]) for d in deployments] == [(resource, "us-east-1")], deployments
                 spec = deployments[0]["spec"]["service"]
                 assert spec["build"]["image"] == pinned_image, spec
+                assert spec["port"] == 8080, spec
                 assert spec["minReplicas"] == 2 and spec["maxReplicas"] == (3 if theme == "dark" else 2), spec
                 assert spec["scalers"] == ({"enabled": True, "cpuTarget": 70} if theme == "dark" else {}), spec
                 assert spec["cpu"] == "500m" and spec["memory"] == "1Gi", spec

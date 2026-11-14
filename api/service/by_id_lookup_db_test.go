@@ -41,7 +41,7 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 	var stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream
 	file := []byte(planFileHeader + planFileSvc)
 	spec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{
-		Service: &deploymentv1.ServiceDeploymentSpec{Port: 8080},
+		Service: &deploymentv1.ServiceDeploymentSpec{Port: new(int32(8080))},
 	}}
 
 	lookups := []byIDLookup{

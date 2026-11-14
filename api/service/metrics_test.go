@@ -94,7 +94,7 @@ func TestMetricsEndpointWireValidation(t *testing.T) {
 }
 
 func TestRemovingMetricsOmitsEmptyObservability(t *testing.T) {
-	request := testDeploymentSpec(testDefaultPort)
+	request := testDeploymentSpec(testServicePort)
 	request.GetService().Metrics = &deploymentv1.MetricsEndpoint{}
 	desired := testDesiredSpecFrom(t, testResourceSpec(), request)
 	data, err := desired(uuid.New())

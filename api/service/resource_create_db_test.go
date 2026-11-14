@@ -43,7 +43,7 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 
 	region := &resourcev1.RegionTarget{Enabled: true, Cpu: testRegionCPU, Memory: testRegionMemory}
 	service := &resourcev1.ServiceSpec{
-		Routing: &resourcev1.RoutingConfig{Port: 8080},
+		Routing: &resourcev1.RoutingConfig{Port: new(int32(8080))},
 		Regions: map[string]*resourcev1.RegionTarget{testRegion: region},
 	}
 	spec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: service}}

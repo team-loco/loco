@@ -172,7 +172,7 @@ export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
 	push("replicas", from.replicas.toString(), to.replicas.toString());
 	push("cpu", f?.cpu ?? null, t?.cpu ?? null);
 	push("memory", f?.memory ?? null, t?.memory ?? null);
-	push("port", f?.port.toString() ?? null, t?.port.toString() ?? null);
+	push("port", f?.port?.toString() ?? null, t?.port?.toString() ?? null);
 	push("health", healthLine(from), healthLine(to));
 	const fEnv = f?.env ?? {};
 	const tEnv = t?.env ?? {};

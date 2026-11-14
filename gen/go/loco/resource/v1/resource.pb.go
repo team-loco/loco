@@ -149,10 +149,11 @@ func (ResourceStatus) EnumDescriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{1}
 }
 
-// RoutingConfig defines routing configuration for a resource.
+// RoutingConfig defines routing configuration for a resource. A service without a port is a
+// worker: it gets no Kubernetes Service, no route and no readiness probe.
 type RoutingConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Port          int32                  `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`                                  // application port
+	Port          *int32                 `protobuf:"varint,1,opt,name=port,proto3,oneof" json:"port,omitempty"`                            // application port
 	PathPrefix    string                 `protobuf:"bytes,2,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`     // e.g., "/"
 	IdleTimeout   int32                  `protobuf:"varint,3,opt,name=idle_timeout,json=idleTimeout,proto3" json:"idle_timeout,omitempty"` // seconds
 	unknownFields protoimpl.UnknownFields
@@ -190,8 +191,8 @@ func (*RoutingConfig) Descriptor() ([]byte, []int) {
 }
 
 func (x *RoutingConfig) GetPort() int32 {
-	if x != nil {
-		return x.Port
+	if x != nil && x.Port != nil {
+		return *x.Port
 	}
 	return 0
 }
@@ -2405,12 +2406,14 @@ var File_loco_resource_v1_resource_proto protoreflect.FileDescriptor
 
 const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
-	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\"g\n" +
-	"\rRoutingConfig\x12\x12\n" +
-	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1f\n" +
+	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\"\x94\x02\n" +
+	"\rRoutingConfig\x12\x17\n" +
+	"\x04port\x18\x01 \x01(\x05H\x00R\x04port\x88\x01\x01\x12\x1f\n" +
 	"\vpath_prefix\x18\x02 \x01(\tR\n" +
 	"pathPrefix\x12!\n" +
-	"\fidle_timeout\x18\x03 \x01(\x05R\vidleTimeout\"t\n" +
+	"\fidle_timeout\x18\x03 \x01(\x05R\vidleTimeout:\x9c\x01\xbaH\x98\x01\x1a\x95\x01\n" +
+	"!routing.path_prefix_requires_port\x12Fpath_prefix needs a port: a service without a port receives no traffic\x1a(has(this.port) || this.path_prefix == ''B\a\n" +
+	"\x05_port\"t\n" +
 	"\rLoggingConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12)\n" +
 	"\x10retention_period\x18\x02 \x01(\tR\x0fretentionPeriod\x12\x1e\n" +
@@ -2432,7 +2435,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x05 \x01(\x05R\vmaxReplicas\x12:\n" +
 	"\ascalers\x18\x06 \x01(\v2\x1b.loco.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
 	"\n" +
-	"\b_scalers\"\xa1\x03\n" +
+	"\b_scalers\"\xcb\x04\n" +
 	"\vServiceSpec\x129\n" +
 	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12K\n" +
 	"\robservability\x18\x02 \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12N\n" +
@@ -2440,7 +2443,8 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\fhealth_check\x18\x04 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x1aZ\n" +
 	"\fRegionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
-	"\x05value\x18\x02 \x01(\v2\x1e.loco.resource.v1.RegionTargetR\x05value:\x028\x01B\x0f\n" +
+	"\x05value\x18\x02 \x01(\v2\x1e.loco.resource.v1.RegionTargetR\x05value:\x028\x01:\xa7\x01\xbaH\xa3\x01\x1a\xa0\x01\n" +
+	"\"service.health_check_requires_port\x12Ghealth_check needs routing.port: the HTTP check probes the service port\x1a1has(this.routing.port) || !has(this.health_check)B\x0f\n" +
 	"\r_health_check\"\x0e\n" +
 	"\fDatabaseSpec\"\v\n" +
 	"\tCacheSpec\"\v\n" +
@@ -2495,7 +2499,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"reportedAt\x88\x01\x01B\n" +
 	"\n" +
 	"\b_messageB\x0e\n" +
-	"\f_reported_at\"\xaa\x03\n" +
+	"\f_reported_at\"\xea\x04\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12<\n" +
@@ -2503,7 +2507,8 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputH\x00R\x06domain\x88\x01\x01\x12:\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
 	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x124\n" +
-	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x02R\renvironmentId\x88\x01\x01B\t\n" +
+	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x02R\renvironmentId\x88\x01\x01:\xbd\x01\xbaH\xb9\x01\x1a\xb6\x01\n" +
+	"$create_resource.domain_requires_port\x12Tdomain needs spec.service.routing.port: a service without a port receives no traffic\x1a8!has(this.domain) || has(this.spec.service.routing.port)B\t\n" +
 	"\a_domainB\x0e\n" +
 	"\f_descriptionB\x11\n" +
 	"\x0f_environment_id\"9\n" +
@@ -2756,6 +2761,7 @@ func file_loco_resource_v1_resource_proto_init() {
 	if File_loco_resource_v1_resource_proto != nil {
 		return
 	}
+	file_loco_resource_v1_resource_proto_msgTypes[0].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[4].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[5].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[10].OneofWrappers = []any{

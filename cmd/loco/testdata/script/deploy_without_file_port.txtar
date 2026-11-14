@@ -1,0 +1,34 @@
+# with --port, deploying without loco.yaml gives the service a public hostname under a platform
+# domain the region serves.
+fakeapi resource app
+fakeapi plan plan.json
+cd app
+exec loco deploy --port 8080 --yes
+stdout '^app: https://app-[a-z]{4}\.onloco\.test$'
+fakeapi called ListPlatformDomains 'Bearer test-token'
+fakeapi called CheckDomainAvailability 'Bearer test-token'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
+-- app/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "app", "needsDeploy": true}
+  ]
+}

@@ -656,6 +656,10 @@ setup_public_image() {
     # A version that runs for a few seconds without listening and then exits, for failed rollouts.
     export E2E_CRASHING_IMAGE="localhost:${port}/public-image:e2e-crashing"
     go -C "$ROOT_DIR" run ./tools/e2e-mirror-image "$E2E_PUBLIC_IMAGE" "$E2E_CRASHING_IMAGE" sh -c "sleep 5; exit 1"
+    # A queue-worker stand-in that runs without ever listening on a port.
+    export E2E_WORKER_IMAGE="localhost:${port}/public-image:e2e-worker"
+    go -C "$ROOT_DIR" run ./tools/e2e-mirror-image "$E2E_PUBLIC_IMAGE" "$E2E_WORKER_IMAGE" \
+        sh -c 'trap "exit 0" TERM; while :; do sleep 1; done'
     for node in $(kind get nodes --name "$KIND_CLUSTER_NAME"); do
         docker exec "$node" mkdir -p "/etc/containerd/certs.d/localhost:${port}"
         printf '[host."http://%s:5000"]\n  capabilities = ["pull", "resolve"]\n' "$E2E_PUBLIC_REGISTRY_ALIAS" |

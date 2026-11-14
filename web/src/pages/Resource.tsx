@@ -26,7 +26,7 @@ import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
-import { configuredRegions } from "@/lib/resource-regions";
+import { configuredRegions, isWorker } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
@@ -392,7 +392,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							</EmptyState>
 						</Section>
 					)}
-					{deployed.length > 0 && environmentId !== undefined && (
+					{deployed.length > 0 && environmentId !== undefined && !isWorker(resource) && (
 						<TrafficSection
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}

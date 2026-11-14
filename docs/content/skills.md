@@ -16,7 +16,7 @@ Inspect the project before deploying. Decide whether it has one service (like a 
 
 ## Quick deploy
 
-For one service without `loco.yaml`, run `loco deploy`. Loco turns the directory name into a safe service name and assigns a hostname under a platform domain reported by the API, such as `web-fytr.onloco.app`. It uses `Dockerfile` and API defaults for the port, region, and resources. A terminal prompts for the service name and deployment confirmation. For an agent or CI, pass `--yes` and any values that differ from the defaults:
+For one service without `loco.yaml`, run `loco deploy`. Loco turns the directory name into a safe service name and uses `Dockerfile` and API defaults for the region and resources. Nothing defaults a port: pass `--port` for a service that listens, which also gets a hostname under a platform domain reported by the API, such as `web-fytr.onloco.app`. Without `--port` the service runs as a worker. A terminal prompts for the service name and deployment confirmation. For an agent or CI, pass `--yes` and any values that differ from the defaults:
 
 ```sh
 loco deploy --name web --port 8080 --env production --yes

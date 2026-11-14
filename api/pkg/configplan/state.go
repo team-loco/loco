@@ -45,7 +45,7 @@ type State struct {
 	Context    string
 	RunAsUser  *int64
 	RunAsGroup *int64
-	Port       int32
+	Port       *int32
 	Metrics    *locofile.Metrics
 	Health     *Health
 	Routing    *Routing
@@ -92,7 +92,7 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		RunAsUser:  service.RunAsUser,
 		RunAsGroup: service.RunAsGroup,
 		Image:      pinnedImage,
-		Port:       defaults.Port,
+		Port:       service.Port,
 		Domains:    CanonicalDomains(service.Domains),
 		Env:        maps.Clone(service.Env),
 		Secrets:    slices.Sorted(slices.Values(service.Secrets)),
@@ -108,9 +108,6 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		if service.Context != "" {
 			state.Context = service.Context
 		}
-	}
-	if service.Port != nil {
-		state.Port = *service.Port
 	}
 	if state.Metrics != nil && state.Metrics.Path == "" {
 		metrics := *state.Metrics
@@ -195,9 +192,11 @@ func flatten(state *State) map[string]string {
 		return map[string]string{}
 	}
 	fields := map[string]string{
-		pathPort:    formatInt(state.Port),
 		pathDomains: formatList(state.Domains),
 		pathSecrets: formatList(slices.Sorted(slices.Values(state.Secrets))),
+	}
+	if state.Port != nil {
+		fields[pathPort] = formatInt(*state.Port)
 	}
 	if state.RunAsUser != nil {
 		fields["runAsUser"] = strconv.FormatInt(*state.RunAsUser, 10)

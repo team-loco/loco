@@ -404,3 +404,33 @@ func TestApplyNeedsWorkspaceWrite(t *testing.T) {
 	_, err := applyFile(t, f, file, applyOptions{}, f.workspaceReadScopes(t))
 	wantCode(t, err, connect.CodePermissionDenied)
 }
+
+func TestApplyRunsAServiceWithoutAPortAsAWorker(t *testing.T) {
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	worker := planFileHeader + strings.Replace(
+		applyFileWorker,
+		"    port: 8080\n    domains: [worker.loco.test]\n",
+		"",
+		1,
+	)
+	applyOK(t, f, worker, applyOptions{})
+	wantCleanPlan(t, f, worker)
+	service := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
+	if service.Deployment.Port != nil || service.Routing != nil {
+		t.Fatalf("worker placement port = %v, routing = %+v, want neither", service.Deployment.Port, service.Routing)
+	}
+
+	f.finishRollouts(t)
+	web := planFileHeader + applyFileWorker
+	applyOK(t, f, web, applyOptions{})
+	wantCleanPlan(t, f, web)
+	service = f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
+	if service.Deployment.Port == nil || *service.Deployment.Port != 8080 || service.Routing == nil {
+		t.Fatalf(
+			"web placement port = %v, routing = %+v, want 8080 and a route",
+			service.Deployment.Port,
+			service.Routing,
+		)
+	}
+}

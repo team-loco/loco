@@ -20,9 +20,9 @@ import (
 
 const (
 	testPrimaryDomain = "svc.example.com"
-	otherRegionSpec   = `{"regions":{"eu-west-1":{"enabled":true,"cpu":"100m",` +
+	otherRegionSpec   = `{"routing":{"port":8080},"regions":{"eu-west-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
-	sameRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
+	sameRegionSpec = `{"routing":{"port":8080},"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 )
 
@@ -33,7 +33,7 @@ func createDeployment(
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}
-	service := &deploymentv1.ServiceDeploymentSpec{Build: build, Port: 8080}
+	service := &deploymentv1.ServiceDeploymentSpec{Build: build, Port: new(int32(8080))}
 	return createDeploymentWith(t, f, resourceSpec, service)
 }
 
@@ -158,8 +158,8 @@ func TestCreateDeploymentWithoutADomainHasNoRoute(t *testing.T) {
 	if service.Routing != nil {
 		t.Fatalf("routing = %+v, want none for a resource without a domain", service.Routing)
 	}
-	if service.Deployment.Port != 8080 {
-		t.Errorf("port = %d, want 8080", service.Deployment.Port)
+	if *service.Deployment.Port != 8080 {
+		t.Errorf("port = %d, want 8080", *service.Deployment.Port)
 	}
 }
 
@@ -180,7 +180,7 @@ func TestCreateDeploymentRefusesAClusterThatStoppedHeartbeating(t *testing.T) {
 		t.Fatalf("silence clusters: %v", err)
 	}
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}
-	_, err := deployService(t, f, &deploymentv1.ServiceDeploymentSpec{Build: build, Port: 8080})
+	_, err := deployService(t, f, &deploymentv1.ServiceDeploymentSpec{Build: build, Port: new(int32(8080))})
 	wantCode(t, err, connect.CodeFailedPrecondition)
 	if !strings.Contains(err.Error(), errNoActiveCluster.Error()) {
 		t.Fatalf("error = %v, want %v", err, errNoActiveCluster)
@@ -203,11 +203,12 @@ func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
 	}
 }
 
-const unboundedRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"cpu":"100m","memory":"64Mi"}}}`
+const unboundedRegionSpec = `{"routing":{"port":8080},` +
+	`"regions":{"us-east-1":{"enabled":true,"cpu":"100m","memory":"64Mi"}}}`
 
 func imageService() *deploymentv1.ServiceDeploymentSpec {
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}
-	return &deploymentv1.ServiceDeploymentSpec{Build: build, Port: 8080}
+	return &deploymentv1.ServiceDeploymentSpec{Build: build, Port: new(int32(8080))}
 }
 
 func desiredPayload(t *testing.T, f *deployFixture) locoControllerV1.PlacementPayload {
@@ -361,4 +362,25 @@ func TestCreateDeploymentAcceptsEnabledAutoscaling(t *testing.T) {
 		resources.Replicas.Max != 3 {
 		t.Fatalf("CRD resources = %+v", resources)
 	}
+}
+
+const workerRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
+	`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
+
+func TestCreateDeploymentWithoutAPortRunsAWorker(t *testing.T) {
+	f := newDeployFixture(t)
+	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}
+	worker := &deploymentv1.ServiceDeploymentSpec{Build: build}
+	if _, err := createDeploymentWith(t, f, workerRegionSpec, worker); err != nil {
+		t.Fatalf("create worker deployment: %v", err)
+	}
+	service := desiredPayload(t, f).AppSpec.ServiceSpec
+	if service.Deployment.Port != nil || service.Routing != nil {
+		t.Fatalf("worker port = %v, routing = %+v, want neither", service.Deployment.Port, service.Routing)
+	}
+
+	checked := &deploymentv1.ServiceDeploymentSpec{Build: build, HealthCheck: workerHealthCheck()}
+	f.finishRollouts(t)
+	_, err := createDeploymentWith(t, f, workerRegionSpec, checked)
+	wantCode(t, err, connect.CodeInvalidArgument)
 }

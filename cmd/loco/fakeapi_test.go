@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/internal/bearer"
@@ -32,7 +31,6 @@ const (
 	fakeAPIRefreshToken   = "test-refresh-token"
 	fakeAPIRefreshedToken = "refreshed-token"
 
-	fakeDefaultPort        = 8000
 	fakeDefaultCPU         = "100m"
 	fakeDefaultMemory      = "256Mi"
 	fakeDefaultMinReplicas = 1
@@ -210,7 +208,6 @@ func (c *fakeConfigService) GetConfig(
 	}
 	c.api.mu.Unlock()
 	defaults := &configv1.DefaultServiceConfig{
-		Routing:     &resourcev1.RoutingConfig{Port: fakeDefaultPort},
 		Cpu:         fakeDefaultCPU,
 		Memory:      fakeDefaultMemory,
 		MinReplicas: fakeDefaultMinReplicas,
