@@ -5,7 +5,7 @@
 <p align="center"><strong>Deploy from your terminal. Run on Kubernetes.</strong></p>
 
 <p align="center">
-Loco is an open-source, self-hostable platform that builds, deploys and scales containerized applications on Kubernetes. It is released under the MIT license, and the whole platform is in this repository.
+Loco is an open-source, self-hostable platform that builds, deploys and scales containerized applications on Kubernetes. It is fully open source under the MIT license.
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ Run `loco help` to list the commands your installed release supports.
 
 ## Self-hosting
 
-Self-hosting puts the control plane and the worker clusters under your team's control. The repository holds every platform component and the Helm charts for the control plane and worker clusters. The [self-hosting guide](https://docs.loco.build/operations/self-hosting/) lists the supported Kubernetes versions, installation inputs and upgrade steps.
+Self-hosting puts the control plane and the worker clusters under your team's control. This repository has the Helm charts for the control plane and worker clusters. The [self-hosting guide](https://docs.loco.build/operations/self-hosting/) lists the supported Kubernetes versions, installation inputs and upgrade steps.
 
 ## Documentation
 
