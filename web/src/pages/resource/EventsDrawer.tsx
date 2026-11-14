@@ -8,17 +8,15 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
-import { ActivityPanel } from "@/pages/settings/ActivityPanel";
 
 import { isWarning } from "./events";
 import { formatFullTime } from "./format";
 
-export type EventsTab = "all" | "warnings" | "activity";
+export type EventsTab = "all" | "warnings";
 
 const TABS: { value: EventsTab; label: string }[] = [
 	{ value: "all", label: "All" },
 	{ value: "warnings", label: "Warnings" },
-	{ value: "activity", label: "Activity" },
 ];
 
 function EventList({
@@ -86,10 +84,7 @@ export function EventsDrawer({
 	onOpenChange,
 	tab,
 	onTab,
-	resourceId,
 	resourceName,
-	orgId,
-	workspaceId,
 	events,
 	isLoading,
 	error,
@@ -100,10 +95,7 @@ export function EventsDrawer({
 	onOpenChange: (open: boolean) => void;
 	tab: EventsTab;
 	onTab: (tab: EventsTab) => void;
-	resourceId: string;
 	resourceName: string;
-	orgId: string;
-	workspaceId: string;
 	events: Event[];
 	isLoading: boolean;
 	error: unknown;
@@ -135,25 +127,13 @@ export function EventsDrawer({
 					</ToggleGroup>
 				</SheetHeader>
 				<SheetBody className="py-2">
-					{tab === "activity" ? (
-						<ActivityPanel
-							key={resourceId}
-							orgId={orgId}
-							workspaceId={workspaceId}
-							resourceId={resourceId}
-							title="Activity"
-							description={`Changes made to ${resourceName}, newest first.`}
-							names={new Map([[resourceId, resourceName]])}
-						/>
-					) : (
-						<EventList
-							nowMs={nowMs}
-							events={events}
-							warningsOnly={tab === "warnings"}
-							isLoading={isLoading}
-							error={error}
-						/>
-					)}
+					<EventList
+						nowMs={nowMs}
+						events={events}
+						warningsOnly={tab === "warnings"}
+						isLoading={isLoading}
+						error={error}
+					/>
 				</SheetBody>
 				{eventsHref !== undefined && (
 					<SheetFooter className="justify-between">
