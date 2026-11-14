@@ -273,6 +273,7 @@ export function MetricsView() {
 		return (
 			<>
 				<ViewHeader />
+				<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
 				<ErrorState
 					error={error}
 					what="metrics"

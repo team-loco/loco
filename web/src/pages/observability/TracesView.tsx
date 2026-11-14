@@ -312,6 +312,7 @@ function TraceSession({
 		return (
 			<>
 				{header}
+				<QueryBar valueCounts={valueCounts} />
 				<ErrorState error={browse.error} what="traces" rpc={listTraces} onRetry={browse.refetch} />
 			</>
 		);

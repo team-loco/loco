@@ -372,6 +372,7 @@ export function LogsView() {
 		return (
 			<>
 				{header}
+				<QueryBar valueCounts={valueCounts} />
 				<ErrorState error={logs.error} what="logs" rpc={queryLogs} onRetry={logs.refetch} />
 			</>
 		);

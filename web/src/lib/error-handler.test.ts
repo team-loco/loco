@@ -5,8 +5,8 @@ import { errorKind, type ErrorKind } from "./error-handler";
 
 describe("errorKind", () => {
 	const cases: [Code, ErrorKind | null][] = [
-		[Code.Unavailable, "unavailable"],
-		[Code.DeadlineExceeded, "unavailable"],
+		[Code.Unavailable, "internal"],
+		[Code.DeadlineExceeded, "internal"],
 		[Code.Internal, "internal"],
 		[Code.Unknown, "internal"],
 		[Code.InvalidArgument, "internal"],

@@ -50,9 +50,9 @@ export function errorKind(error: unknown): ErrorKind | null {
 	if (error.code === Code.Unauthenticated) return null;
 	if (error.code === Code.PermissionDenied) return "denied";
 	if (error.code === Code.ResourceExhausted) return "rate";
-	if (error.code === Code.Unavailable || error.code === Code.DeadlineExceeded) return "unavailable";
 	// connect-web reports a fetch that got no response, such as the API being down, as Unknown
-	// wrapping the browser's TypeError.
+	// wrapping the browser's TypeError. An Unavailable the API sends itself means the API is
+	// reachable and something behind it is down, so it gets the receipt instead.
 	if (error.code === Code.Unknown && error.cause instanceof TypeError) return "unavailable";
 	return "internal";
 }

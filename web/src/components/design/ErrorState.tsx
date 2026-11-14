@@ -11,7 +11,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useCopy } from "@/hooks/useCopy";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { errorKind, requestId } from "@/lib/error-handler";
+import { errorKind, getErrorMessage, requestId } from "@/lib/error-handler";
 import { userLabel } from "@/lib/user";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 import { roleOf } from "@/pages/team/model";
@@ -148,7 +148,12 @@ function Internal({
 				</div>
 			}
 			title={`Couldn’t load ${what}`}
-			subtitle="Something failed on Loco’s side. If retrying doesn’t help, send support the details."
+			subtitle={
+				// The API answered, so its message names the dependency that is down or too slow.
+				error instanceof ConnectError && (error.code === Code.Unavailable || error.code === Code.DeadlineExceeded)
+					? getErrorMessage(error)
+					: "Something failed on Loco’s side. If retrying doesn’t help, send support the details."
+			}
 		>
 			<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 				<RetryButton onRetry={onRetry} />

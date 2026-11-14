@@ -164,6 +164,7 @@ export function EventsView() {
 		return (
 			<>
 				{header}
+				<QueryBar valueCounts={valueCounts} />
 				<ErrorState error={error} what="events" rpc={listEvents} onRetry={refetch} />
 			</>
 		);
