@@ -16,6 +16,7 @@ import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTit
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
@@ -59,6 +60,7 @@ export function WebhookDrawer({
 	webhook: Webhook | null;
 	onClose: () => void;
 }) {
+	const shown = useHeldWhileClosed(webhook, webhook !== null);
 	return (
 		<Sheet
 			open={webhook !== null}
@@ -67,8 +69,8 @@ export function WebhookDrawer({
 			}}
 		>
 			<SheetContent size="wide">
-				{webhook !== null && (
-					<WebhookDetail key={webhook.id} workspaceId={workspaceId} workspaceName={workspaceName} webhook={webhook} />
+				{shown !== null && (
+					<WebhookDetail key={shown.id} workspaceId={workspaceId} workspaceName={workspaceName} webhook={shown} />
 				)}
 			</SheetContent>
 		</Sheet>

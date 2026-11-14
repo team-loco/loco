@@ -34,6 +34,7 @@ import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { useDrafts } from "@/hooks/useDrafts";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { parseDotEnv } from "@/lib/dotenv";
@@ -234,6 +235,8 @@ function ImageStep({
 	);
 }
 
+// The sheet stays mounted while closed so every open runs Base UI's starting-style transition;
+// the panel inside is keyed by draft so each draft starts with fresh state.
 export function DraftSheet({
 	orgId,
 	workspaceId,
@@ -243,9 +246,55 @@ export function DraftSheet({
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
-	draftId: string;
+	draftId: string | null;
 }) {
 	const [params, setParams] = useSearchParams();
+	const open = draftId !== null;
+	const heldId = useHeldWhileClosed(draftId, open);
+	const close = () => {
+		const next = new URLSearchParams(params);
+		next.delete(DRAFT_PARAM);
+		setParams(next);
+	};
+	return (
+		<Sheet
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) close();
+			}}
+		>
+			<SheetContent size="wide">
+				{heldId !== null && (
+					<DraftPanel
+						key={heldId}
+						orgId={orgId}
+						workspaceId={workspaceId}
+						env={env}
+						draftId={heldId}
+						open={open}
+						close={close}
+					/>
+				)}
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+function DraftPanel({
+	orgId,
+	workspaceId,
+	env,
+	draftId,
+	open,
+	close,
+}: {
+	orgId: string;
+	workspaceId: string;
+	env: Environment;
+	draftId: string;
+	open: boolean;
+	close: () => void;
+}) {
 	const store = useDrafts(orgId, workspaceId, env.id);
 	const taken = useTakenNames(orgId, workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
@@ -257,11 +306,6 @@ export function DraftSheet({
 	const [discarding, setDiscarding] = useState(false);
 	const [secretValues, setSecretValues] = useState<ReadonlyMap<string, string>>(() => new Map());
 	const [saveFailed, setSaveFailed] = useState(false);
-	const close = () => {
-		const next = new URLSearchParams(params);
-		next.delete(DRAFT_PARAM);
-		setParams(next);
-	};
 
 	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
@@ -289,6 +333,8 @@ export function DraftSheet({
 			);
 		}
 		if (draft === undefined) {
+			// Discarding or deploying removes the draft before the panel finishes sliding out.
+			if (!open) return <SheetBody />;
 			return (
 				<SheetBody>
 					<EmptyState title="This draft isn't here">
@@ -338,16 +384,9 @@ export function DraftSheet({
 		);
 	})();
 	return (
-		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) close();
-			}}
-		>
-			<SheetContent size="wide">
-				{deployment.run === null && header}
-				{body}
-			</SheetContent>
+		<>
+			{deployment.run === null && header}
+			{body}
 			{draft !== undefined && (
 				<ConfirmDialog
 					open={discarding}
@@ -364,7 +403,7 @@ export function DraftSheet({
 					}}
 				/>
 			)}
-		</Sheet>
+		</>
 	);
 }
 

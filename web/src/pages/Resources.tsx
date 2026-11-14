@@ -155,9 +155,7 @@ export function Resources() {
 					}}
 				/>
 			)}
-			{draftId !== null && active !== undefined && (
-				<DraftSheet key={draftId} orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />
-			)}
+			{active !== undefined && <DraftSheet orgId={orgId} workspaceId={workspaceId} env={active} draftId={draftId} />}
 		</Page>
 	);
 }

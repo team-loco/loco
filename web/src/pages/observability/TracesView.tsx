@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useGetTrace } from "@/hooks/useGetTrace";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useListTraces } from "@/hooks/useListTraces";
 import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
@@ -177,11 +178,12 @@ function TraceSession({
 	const allCount = useListTraces(countOf(TraceStatus.UNSPECIFIED));
 	const errorCount = useListTraces(countOf(TraceStatus.ERROR));
 	const openId = params.get("trace") ?? "";
+	const shownId = useHeldWhileClosed(openId, openId !== "");
 	const detail = useGetTrace({
 		workspaceId,
 		environmentId,
 		resourceIds: scopedResourceIds ?? [],
-		traceId: openId,
+		traceId: shownId,
 		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId) && scopeReady,
 	});
 
@@ -414,18 +416,17 @@ function TraceSession({
 					onLast={!loading && paging.page < pages - 1 ? go(pages - 1) : null}
 				/>
 			</section>
-			{openId !== "" && (
-				<TraceDrawer
-					traceId={openId}
-					trace={openTrace}
-					loading={detail.isLoading}
-					error={detail.error}
-					onRetry={() => {
-						void detail.refetch();
-					}}
-					onClose={close}
-				/>
-			)}
+			<TraceDrawer
+				open={openId !== ""}
+				traceId={shownId}
+				trace={openTrace}
+				loading={detail.isLoading}
+				error={detail.error}
+				onRetry={() => {
+					void detail.refetch();
+				}}
+				onClose={close}
+			/>
 		</>
 	);
 }

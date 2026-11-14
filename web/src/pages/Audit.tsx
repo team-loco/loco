@@ -21,6 +21,7 @@ import { Pager } from "@/components/design/Pager";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { agoLabel, msToTimestamp } from "@/lib/time";
 
@@ -106,6 +107,7 @@ export function Audit() {
 	const rows = events.map((e) => auditRow(e, users, names));
 	const selIdx = rows.findIndex((r) => r.event.id === params.get("event"));
 	const selected = rows[selIdx];
+	const heldEventId = useHeldWhileClosed(selected?.event.id, selected !== undefined);
 	const select = (index: number) => () => {
 		update({ event: rows[index]?.event.id ?? null });
 	};
@@ -264,7 +266,8 @@ export function Audit() {
 				</Section>
 			)}
 			<AuditDrawer
-				row={selected}
+				open={selected !== undefined}
+				row={rows.find((r) => r.event.id === heldEventId)}
 				nowMs={now}
 				onNewer={selIdx > 0 ? select(selIdx - 1) : null}
 				onOlder={selIdx >= 0 && selIdx < rows.length - 1 ? select(selIdx + 1) : null}

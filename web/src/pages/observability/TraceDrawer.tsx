@@ -240,6 +240,7 @@ function FlameGraph({
 }
 
 export function TraceDrawer({
+	open,
 	traceId,
 	trace,
 	loading,
@@ -247,6 +248,7 @@ export function TraceDrawer({
 	onRetry,
 	onClose,
 }: {
+	open: boolean;
 	traceId: string;
 	trace: TraceSummary | undefined;
 	loading: boolean;
@@ -271,9 +273,9 @@ export function TraceDrawer({
 	};
 	return (
 		<Sheet
-			open
-			onOpenChange={(open) => {
-				if (!open) onClose();
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) onClose();
 			}}
 		>
 			<SheetContent size="full" showCloseButton={false}>

@@ -36,7 +36,9 @@ export function ResourcesMap({
 	onShowTable: () => void;
 }) {
 	const data = useDashboardData(orgId, workspaceId, env);
+	// Kept after close so the panel keeps its contents while it slides out.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [open, setOpen] = useState(false);
 	const deployed = data.envResources.filter((r) => r.last !== undefined);
 	const selected = deployed.find((r) => r.resource.id === selectedId);
 	const envParam = { env: env.name };
@@ -59,15 +61,11 @@ export function ResourcesMap({
 					onShowTable={onShowTable}
 					onSelect={(item: EnvResource) => {
 						setSelectedId(item.resource.id);
+						setOpen(true);
 					}}
 				/>
 			)}
-			<Sheet
-				open={selected !== undefined}
-				onOpenChange={(open) => {
-					if (!open) setSelectedId(null);
-				}}
-			>
+			<Sheet open={open} onOpenChange={setOpen}>
 				{selected !== undefined && (
 					<SheetContent>
 						<SheetHeader>

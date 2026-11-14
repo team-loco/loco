@@ -20,6 +20,7 @@ function Item({ term, children }: { term: string; children: ReactNode }) {
 }
 
 export function AuditDrawer({
+	open,
 	row,
 	nowMs,
 	onNewer,
@@ -27,6 +28,7 @@ export function AuditDrawer({
 	onResource,
 	onClose,
 }: {
+	open: boolean;
 	row: AuditRow | undefined;
 	nowMs: number;
 	onNewer: (() => void) | null;
@@ -36,9 +38,9 @@ export function AuditDrawer({
 }) {
 	return (
 		<Sheet
-			open={row !== undefined}
-			onOpenChange={(open) => {
-				if (!open) onClose();
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) onClose();
 			}}
 		>
 			<SheetContent size="wide">
