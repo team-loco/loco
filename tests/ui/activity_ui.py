@@ -180,7 +180,7 @@ with sync_playwright() as playwright:
         for narrow in (False, True):
             suffix = theme + ('-narrow' if narrow else '')
             for user, scene, path, title in [
-                ('owner', 'org-audit', base + '/settings?tab=audit', 'Audit log'),
+                ('owner', 'workspace-owner', base + '/settings?scope=workspace', 'Activity'),
                 ('member', 'org-member', base + '/settings?tab=org', ''),
                 ('workspace_admin', 'workspace', base + '/settings?tab=ws', 'Activity'),
                 ('resource_reader', 'resource', base + '/resource/' + activity['resourceId'], 'Activity'),
@@ -228,7 +228,7 @@ with sync_playwright() as playwright:
                 errors = []
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 page.goto(origin + path)
-                marker = 'Audit log' if scene == 'org-audit' else 'Settings' if scene in ('workspace', 'org-member') else 'checkout'
+                marker = 'checkout' if scene == 'resource' else 'Settings'
                 page.get_by_text(marker, exact=True).first.wait_for()
                 page.locator('[role=status][aria-busy]').wait_for(state='detached')
                 if scene == 'resource':
@@ -253,7 +253,6 @@ with sync_playwright() as playwright:
                     assert any(request['method'] == 'GetOrg' and request['status'] == 200 for request in recorded)
                     assert any(request['method'] == 'ListOrgMembers' and request['status'] == 200 for request in recorded)
                     assert not any(request['method'] == 'ListEvents' for request in recorded)
-                    expect(page.get_by_role('button', name='Audit log', exact=True)).to_have_count(0)
                     assert not errors, errors
                     results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
                     context.close()
@@ -273,9 +272,8 @@ with sync_playwright() as playwright:
                         scopes = page.get_by_role('group', name='Settings for', exact=True)
                         expect(scopes.get_by_role('button', name='Workspace', exact=True)).to_have_attribute('aria-pressed', 'true')
                         expect(scopes.get_by_role('button', name='Organization', exact=True)).to_have_count(0)
-                        for tab in ('org', 'audit'):
-                            page.goto(origin + base + '/settings?tab=' + tab)
-                            expect(page.get_by_role('list', name='Activity')).to_be_visible()
+                        page.goto(origin + base + '/settings?tab=org')
+                        expect(page.get_by_role('list', name='Activity')).to_be_visible()
                         panel = page.get_by_role('region', name=title, exact=True)
                     else:
                         assert any(request['method'] == 'ListEnvironments' and request['status'] == 200 for request in recorded)

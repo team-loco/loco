@@ -1,0 +1,15 @@
+{
+  "users": {
+    "owner": {"email": "owner@acme.test", "name": "Olivia Owner"},
+    "workspace_admin": {"email": "workspace-admin@acme.test", "name": "Wren Workspace"},
+    "member": {"email": "member@acme.test", "name": "Max Member"}
+  },
+  "orgs": [
+    {"name": "acme", "owner": "owner", "members": ["workspace_admin", "member"], "workspaces": ["shared", "sibling", "private"]}
+  ],
+  "grants": [
+    {"user": "workspace_admin", "workspace": "acme/shared", "scopes": ["read", "write", "admin"]},
+    {"user": "workspace_admin", "workspace": "acme/sibling", "scopes": ["read", "write", "admin"]},
+    {"user": "member", "workspace": "acme/shared", "scopes": ["read", "write"]}
+  ]
+}
