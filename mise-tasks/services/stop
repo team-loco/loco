@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#MISE description="Stop the host services (API, observability proxy, web UI) that a Tilt which exited without stopping them left on this checkout's ports; does nothing while this checkout's Tilt runs"
+set -euo pipefail
+
+tilt_pattern="(^|/)tilt up --context kind-${KIND_CLUSTER}( |$)"
+exit_timeout_seconds=10
+
+if pgrep -f "$tilt_pattern" >/dev/null; then
+	exit 0
+fi
+
+ports=("${APP_PORT##*:}" "$OBS_PROXY_PORT" "$OBS_OTLP_GRPC_PORT" "$OBS_OTLP_HTTP_PORT" "$WEB_PORT")
+listeners() {
+	lsof -t -sTCP:LISTEN "${ports[@]/#/-iTCP:}" || true
+}
+
+pids=$(listeners)
+if [ -z "$pids" ]; then
+	exit 0
+fi
+echo "stopping services left running by an earlier tilt..."
+xargs kill <<<"$pids"
+for _ in $(seq "$exit_timeout_seconds"); do
+	[ -z "$(listeners)" ] && exit 0
+	sleep 1
+done
+echo "services still listen on ports ${ports[*]} after ${exit_timeout_seconds}s" >&2
+exit 1
