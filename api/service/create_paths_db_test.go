@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const dashboardService = "dashboard"
@@ -67,23 +65,18 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := &deploymentv1.ServiceDeploymentSpec{
+	f.resourceID = uuid.MustParse(created.GetResourceId())
+	if _, err = deployService(t, f, &deploymentv1.ServiceDeploymentSpec{
 		Build:       &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: resolved.GetImage()},
 		Cpu:         &cpu,
 		Memory:      &memory,
 		MinReplicas: &replicas,
 		MaxReplicas: &replicas,
 		Port:        &port,
-	}
-	if _, err = deployments.CreateDeployment(ctx, &deploymentv1.CreateDeploymentRequest{
-		ResourceId:    created.GetResourceId(),
-		Region:        testRegion,
-		EnvironmentId: f.envID.String(),
-		Spec:          &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	fromDashboard := f.servicePayload(t, uuid.MustParse(created.GetResourceId())).AppSpec.ServiceSpec
+	fromDashboard := desiredPayload(t, f).AppSpec.ServiceSpec
 
 	file, err := json.Marshal(fromFile)
 	if err != nil {
@@ -96,18 +89,4 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
 	if string(file) != string(dashboard) {
 		t.Fatalf("service spec from loco.yaml:\n%s\nfrom the dashboard:\n%s", file, dashboard)
 	}
-}
-
-func (f *deployFixture) servicePayload(t *testing.T, resourceID uuid.UUID) locoControllerV1.PlacementPayload {
-	t.Helper()
-	key := genDb.GetPlacementForResourceClusterParams{ResourceID: resourceID, ClusterID: f.clusterID}
-	placement, err := f.queries.GetPlacementForResourceCluster(context.Background(), key)
-	if err != nil {
-		t.Fatalf("get placement: %v", err)
-	}
-	var payload locoControllerV1.PlacementPayload
-	if err = json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
-		t.Fatalf("decode desired spec: %v", err)
-	}
-	return payload
 }
