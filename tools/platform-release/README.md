@@ -1,6 +1,6 @@
 # Platform releases
 
-Each Helm chart and CRD bundle is versioned on its own and published as an immutable OCI artifact. A Flux OCI bundle, released by hand, pins chart, CRD bundle and image digests for worker clusters.
+Each Helm chart and CRD bundle is versioned on its own and published as an immutable OCI artifact. A Flux OCI bundle, published with each release, pins chart, CRD bundle and image digests for worker clusters.
 
 ## Charts and CRD bundles
 
@@ -17,17 +17,21 @@ mise run lint:crd-versions
 
 Every push to `main` that touches charts, CRDs or this tooling runs `mise run release:artifacts`. It publishes each version the registry does not hold yet and skips a version already published with the same content. A version already published with different content fails the run. The manifest annotation `io.loco.platform.content` records a digest of the packaged files, so repackaging the same chart compares equal.
 
-## Platform bundle
+## Releases
 
-Publish a bundle from a main commit whose image builds and provenance attestations have completed and whose chart and CRD bundle versions are published:
+A release publishes one Loco version: the platform bundle `X.Y.Z` and release `vX.Y.Z`, whose assets are the `loco` and `locoadm` binaries, `checksums.txt` and the bundle's `release.json`. Nothing releases on push. Start one by hand from `main`:
 
 ```sh
-gh workflow run platform-release.yml --ref main \
-  -f version=0.7.0-rc.1 \
-  -f core_commit="$(git rev-parse origin/main)"
+gh workflow run release.yml --ref main \
+  -f commit="$(git rev-parse origin/main)" \
+  -f version=0.7.0
 ```
 
-`version` is the bundle's own version and accepts `X.Y.Z` and `X.Y.Z-rc.N`, without a `v` prefix. The bundle pins the chart and CRD bundle versions in the source at `core_commit` by digest, and fails when one of them is not published. Its `release.json` includes `configVersion`, binding those artifacts to the installation file format accepted by `locoadm`. It publishes nothing else. Configure the `platform-release` GitHub environment to permit only `main`. Publishing requires package write access; it never connects to Kubernetes.
+Both inputs are optional. `commit` defaults to the head of `main`; `version` takes `X.Y.Z` without a `v` prefix and defaults to the latest `v*` tag with its patch bumped. The binaries report `vX.Y.Z` as their version.
+
+Before publishing anything, the workflow fails unless the commit is on `main`, tag `vX.Y.Z` does not exist, the `Build` run for the commit's push succeeded, and the `CI` push run succeeded for every first-parent commit since the latest `v*` tag (only the commit itself when there is none). `CI` skips checks whose paths a push did not change, such as the installation e2e suite, so a later passing run does not clear an earlier failure. A push of several commits runs `CI` once, on its head, over all of them; the others need no run, but the released commit does. The failure lists each commit and its run's conclusion; re-running a failed run clears it. It then builds the binaries and publishes the bundle, which fails when bundle version `X.Y.Z` exists, a pinned chart or CRD bundle version is not published, or a `sha-<commit>` image lacks a linux/amd64 or linux/arm64 manifest or a provenance attestation. Last, it creates release `vX.Y.Z` as a draft, uploads its assets and publishes it, which tags the commit. A run that fails after the bundle is published leaves no tag; rerun it with the next version.
+
+The bundle pins the chart and CRD bundle versions in the source at the commit by digest. Its `release.json` includes `configVersion`, binding those artifacts to the installation file format accepted by `locoadm`. Configure the `platform-release` GitHub environment to permit only `main`. Publishing requires package write access; it never connects to Kubernetes.
 
 Artifacts use these repository paths under `ghcr.io/<owner>/<repository>`:
 
@@ -43,7 +47,7 @@ platform
 
 Install `loco-control-plane` separately in each control-plane region using its existing-Secret configuration. The worker-cluster Flux bundle records the chart artifact but does not install control-plane services on workers.
 
-Set these GHCR packages to public. Artifact publication fails until every published chart and CRD bundle permits anonymous pulls, and the bundle requires anonymous access to every artifact and image it pins. An existing bundle version fails publication.
+Set these GHCR packages to public. Artifact publication fails until every published chart and CRD bundle permits anonymous pulls, and the bundle requires anonymous access to every artifact and image it pins.
 
 The bundle publisher verifies each reused `sha-<commit>` image's GitHub attestation against the main source commit and `build-push.yml` signer. Helm dependency versions come from the chart lockfiles.
 

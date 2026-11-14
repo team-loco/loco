@@ -1,17 +1,7 @@
-name: Publish platform release
+name: Publish platform artifacts
 
 on:
   workflow_call:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Immutable platform bundle version, X.Y.Z or X.Y.Z-rc.N
-        required: true
-        type: string
-      core_commit:
-        description: Full main commit with completed image builds
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -74,63 +64,4 @@ jobs:
           artifacts = json.loads(Path('platform-artifacts.json').read_text())
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
               summary.writelines('- `' + reference + '`\n' for reference in artifacts.values())
-          PY
-
-  publish:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: platform-release
-    concurrency:
-      group: platform-release-publish
-    permissions:
-      contents: read
-      packages: write
-      attestations: read
-    env:
-      RELEASE_VERSION: ${{ inputs.version }}
-      CORE_COMMIT: ${{ inputs.core_commit }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Verify the requested source belongs to main
-        run: |
-          [[ "$CORE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
-          [[ "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.(0|[1-9][0-9]*))?$ ]]
-          git merge-base --is-ancestor "$CORE_COMMIT" origin/main
-          git checkout --detach "$CORE_COMMIT"
-
-      - uses: ./.github/actions/setup-tools
-
-      - name: Validate platform packaging
-        run: |
-          mise run test:platform-release
-          mise run test:platform-render
-
-      - name: Authenticate image provenance verification
-        env:
-          REGISTRY_USER: ${{ github.actor }}
-        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
-
-      - name: Publish the platform bundle
-        env:
-          RELEASE_REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          mise run release:platform -- --version "$RELEASE_VERSION" --commit "$CORE_COMMIT" --repository "${RELEASE_REPOSITORY,,}" | tee platform-release.json
-
-      - name: Report the immutable release
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          release = json.loads(Path('platform-release.json').read_text())
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Published `' + release['version'] + '` from `' + release['coreCommit'] + '`.\n\n')
-              summary.write('Bundle: `' + release['bundle'] + '`\n')
           PY
