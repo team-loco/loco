@@ -230,8 +230,10 @@ def validate_spec(spec):
         if not valid_crop:
             raise EvidenceError(f"shot {name}: crop is viewport, full, {{selector, padding}} or {{clip}}")
         for step in shot.get("steps", []):
-            if len(step) != 1 or next(iter(step)) not in ("click", "wait"):
-                raise EvidenceError(f"shot {name}: each step is {{click: selector}} or {{wait: selector}}")
+            if len(step) != 1 or next(iter(step)) not in ("click", "hover", "wait"):
+                raise EvidenceError(
+                    f"shot {name}: each step is {{click: selector}}, {{hover: selector}} or {{wait: selector}}"
+                )
     return shots
 
 
@@ -599,6 +601,8 @@ def capture(browser, state, shot, theme, narrow, target):
                 raise EvidenceError(f"{shot['name']}: selector {selector!r} never became visible") from None
             if action == "click":
                 locator.first.click()
+            elif action == "hover":
+                locator.first.hover()
             settle(page, wait_for_network=wait_for_network)
         applied = f"() => document.documentElement.classList.contains('dark') === {json.dumps(theme == 'dark')}"
         try:

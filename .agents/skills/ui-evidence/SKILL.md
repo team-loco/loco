@@ -21,7 +21,7 @@ mise exec -- uv run --script "$E" <command>
 1. Write a scenario JSON: the users, the organizations each owner creates with their
    workspaces and members, and workspace grants. Start from `scenario.example.json`.
 2. Write a shot spec JSON. Each shot names a user, a path, optional steps
-   (`{"click": selector}`, `{"wait": selector}`), a crop (`"viewport"`, `"full"`,
+   (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`), a crop (`"viewport"`, `"full"`,
    `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`) and `"narrow": true`
    for an extra 390-pixel-wide capture. Start from `shots.example.json`. Use a `clip` crop when
    before and after must line up: a selector crop follows the element's size.

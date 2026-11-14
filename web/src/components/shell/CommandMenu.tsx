@@ -56,7 +56,8 @@ import { useNavSections } from "./nav";
 
 const SHORTCUT_KEY = "k";
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
-export const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
+export const shortcutLabel = (key: string) => (IS_MAC ? `⌘${key}` : `Ctrl ${key}`);
+export const SHORTCUT_LABEL = shortcutLabel("K");
 const PLACEHOLDER = "Search resources, pages and actions";
 const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces", "Appearance"] as const;
 const BROWSE_LIMIT = 8;
