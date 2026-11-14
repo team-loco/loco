@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="web/public/favicon.svg" alt="Loco" width="96">
+  <img src="web/public/logo.svg" alt="Loco" width="240">
 </p>
-
-<h1 align="center">Loco</h1>
 
 Loco builds, deploys, and scales containerized applications on Kubernetes. Use the `loco` CLI to deploy from your terminal and the dashboard to inspect what is running.
 
