@@ -2,6 +2,8 @@
 host = "::"
 port = 8080
 root = "/public"
+# Served for every path outside the app rewrites below. Inside them the React
+# NotFound page renders instead, so keep public/404.html visually in step with it.
 page404 = "/public/404.html"
 health = true
 log-level = "info"

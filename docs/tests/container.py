@@ -8,6 +8,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import pytest
+from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
@@ -16,6 +17,9 @@ STARTUP_TIMEOUT = 30
 POLL_INTERVAL = 0.1
 REQUEST_TIMEOUT = 5
 NOT_FOUND_TITLE = "Page not found | Loco"
+NOT_FOUND_HEADING = "Nothing lives at this address"
+NOT_FOUND_VIEWPORTS = {"desktop": (1440, 900), "mobile": (390, 844)}
+NOT_FOUND_SCHEMES = ["light", "dark"]
 NOT_FOUND_PATH = "/config"
 SCHEMA_PATH = "/schemas/loco.v1.json"
 IMAGE = "loco-ui-docs-test"
@@ -42,6 +46,59 @@ def response(url, host=None):
     except HTTPError as error:
         with error:
             return (error.code, error.read().decode(), error.headers)
+
+
+def check_not_found_renders(address, hosts, out_dir):
+    # The page is served for unknown paths on every host, so it must load no
+    # subresource (the docs host has no /assets of the UI) and break no CSP rule.
+    problems = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            args=[
+                "--host-resolver-rules="
+                + ", ".join(f"MAP {host} {address}" for host in hosts)
+            ]
+        )
+        for host, path in hosts.items():
+            for viewport, size in NOT_FOUND_VIEWPORTS.items():
+                for scheme in NOT_FOUND_SCHEMES:
+                    page = browser.new_page(
+                        viewport={"width": size[0], "height": size[1]},
+                        color_scheme=scheme,
+                    )
+                    label = f"{host}{path} {viewport} {scheme}"
+                    page.on(
+                        "console",
+                        lambda message, label=label, url=f"http://{host}{path}": (
+                            message.type == "error"
+                            and message.location["url"] != url
+                            and problems.append(f"{label}: {message.text}")
+                        ),
+                    )
+                    page.on(
+                        "requestfailed",
+                        lambda request, label=label: problems.append(
+                            f"{label}: {request.url} failed"
+                        ),
+                    )
+                    page.on(
+                        "response",
+                        lambda reply, label=label: (
+                            reply.request.resource_type != "document"
+                            and reply.status >= 400
+                            and problems.append(f"{label}: {reply.url} {reply.status}")
+                        ),
+                    )
+                    page.goto(f"http://{host}{path}")
+                    assert page.locator("h1").inner_text() == NOT_FOUND_HEADING, label
+                    assert page.locator("a[href='/dashboard']").count() == 2, label
+                    assert (
+                        page.evaluate("document.documentElement.scrollWidth") <= size[0]
+                    ), label
+                    page.screenshot(path=out_dir / f"{host}-{viewport}-{scheme}.png")
+                    page.close()
+        browser.close()
+    assert problems == []
 
 
 def ui_routes():
@@ -180,5 +237,11 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             assert status == 404, f"{host}{path}"
             assert f"<title>{NOT_FOUND_TITLE}</title>" in body
             assert '<div id="root">' not in body
+            assert NOT_FOUND_HEADING in body
+        check_not_found_renders(
+            address,
+            {UI_HOST: NOT_FOUND_PATH, DOCS_HOST: NOT_FOUND_PATH},
+            tmp_path,
+        )
     finally:
         docker("stop", container)
