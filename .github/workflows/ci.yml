@@ -214,11 +214,10 @@ jobs:
     uses: ./.github/workflows/osv.yml
 
   platform-release:
-    name: Publish platform release
+    name: Publish platform artifacts
     needs: [changes]
     if: needs.changes.outputs.platform-release == 'true'
     permissions:
-      attestations: read
       contents: read
       packages: write
     uses: ./.github/workflows/platform-release.yml

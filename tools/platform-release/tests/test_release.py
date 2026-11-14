@@ -495,6 +495,14 @@ def test_bundle_publishes_only_itself(published_bundle):
     assert not [call for call in published_bundle.calls if call[0] == "helm"]
 
 
+def test_bundle_prints_the_published_release_manifest(publication, capsys):
+    release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+    data = publication.registry.publish.call_args.args[2]
+    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+        published = tar.extractfile("release.json").read()
+    assert json.loads(capsys.readouterr().out) == json.loads(published)
+
+
 def test_bundle_verifies_each_image_attestation_from_main(published_bundle):
     attestations = [
         call

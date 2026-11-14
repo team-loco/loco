@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tarfile
 import tempfile
 import urllib.error
@@ -362,11 +363,12 @@ def publish_bundle(version, commit, registry):
         repository, expected = reference.removeprefix('ghcr.io/').split('@')
         if public.manifest(repository, expected) != expected:
             raise RuntimeError('platform images must permit anonymous pulls')
-    data = archive(bundle(version, commit, refs, images))
-    result = registry.publish(names['platform'], version, data, {'version': version, 'coreCommit': commit})
+    files = bundle(version, commit, refs, images)
+    result = registry.publish(names['platform'], version, archive(files), {'version': version, 'coreCommit': commit})
     if public.manifest(names['platform'], result) != result:
         raise RuntimeError('published platform bundle must permit anonymous pulls')
-    print(json.dumps({'version': version, 'coreCommit': commit, 'bundle': 'ghcr.io/' + names['platform'] + '@' + result}, indent=2))
+    print('published ghcr.io/' + names['platform'] + ':' + version + '@' + result, file=sys.stderr)
+    print(files['release.json'].decode())
 
 
 def main():

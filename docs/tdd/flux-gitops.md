@@ -12,7 +12,7 @@ Local development does not change shape. Tilt still builds images and syncs the 
 
 ## Why GitOps, and why now
 
-Nothing in this repository deploys to a cluster today. A push to `main` runs `build.yml`, which tests, builds and pushes the images and then sends a `core-images-built` dispatch with the commit to the repository named by the `DEPLOY_DISPATCH_REPOSITORY` variable. `platform-release.yml` publishes every new chart and CRD bundle version to GHCR as an OCI artifact, and a hand-dispatched run of the same workflow publishes a platform bundle: Flux `OCIRepository`, `Kustomization` and `HelmRelease` objects that pin those artifacts and the images by digest (`tools/platform-release/README.md`). The namespaces, the `loco-worker-values` ConfigMap and the `loco-worker-secrets` Secret the bundle reads belong to each cluster's configuration, which lives outside this repository.
+Nothing in this repository deploys to a cluster today. A push to `main` runs `build.yml`, which tests, builds and pushes the images and then sends a `core-images-built` dispatch with the commit to the repository named by the `DEPLOY_DISPATCH_REPOSITORY` variable. `platform-release.yml` publishes every new chart and CRD bundle version to GHCR as an OCI artifact, and each hand-dispatched `release.yml` run publishes a platform bundle alongside the CLI release: Flux `OCIRepository`, `Kustomization` and `HelmRelease` objects that pin those artifacts and the images by digest (`tools/platform-release/README.md`). The namespaces, the `loco-worker-values` ConfigMap and the `loco-worker-secrets` Secret the bundle reads belong to each cluster's configuration, which lives outside this repository.
 
 The reason is where Loco is heading: a **control-plane cluster** (the `loco-control-plane` chart's API, UI, observability proxy and ClickHouse, plus Postgres and Valkey) and any number of **worker clusters** running customer workloads. A push model has to scale CI's credentials with the cluster count. Every new worker means another kubeconfig in CI, reachable from GitHub's runners. A pull model inverts that. Each cluster holds a read-only deploy key and reaches out to Git, the same direction the agent already uses to reach the API. No cluster has to accept inbound connections from CI.
 
@@ -79,7 +79,7 @@ Flux's controllers are pods, and pods need a CNI. Loco needs one that enforces N
 
 `HelmRelease` objects reference the umbrella charts straight from the `GitRepository` with `reconcileStrategy: Revision`, so a chart change on `main` deploys without a version bump. The cost is one Helm revision per commit to `main`, even for commits that do not touch `charts/`. Those upgrades render identical manifests, so nothing restarts, but `helm history` grows.
 
-`platform-release.yml` already publishes each chart version to GHCR as an OCI artifact, and the hand-released platform bundle pins those artifacts by digest. A worker cluster that should not track `main` can consume the bundle instead of the `GitRepository`, which also removes the per-commit Helm revisions.
+`platform-release.yml` already publishes each chart version to GHCR as an OCI artifact, and the platform bundle each release publishes pins those artifacts by digest. A worker cluster that should not track `main` can consume the bundle instead of the `GitRepository`, which also removes the per-commit Helm revisions.
 
 ## Images
 
