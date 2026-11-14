@@ -8,7 +8,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -75,12 +74,6 @@ func (s *ConfigServer) GetConfig(
 			CpuTarget:               s.defaults.CPUTarget,
 			DeployAttempts:          s.defaults.DeployAttempts,
 			DeployRetryDelaySeconds: s.defaults.DeployRetryDelay,
-			Observability: &resourcev1.ObservabilityConfig{
-				Logging: &resourcev1.LoggingConfig{
-					Enabled:    true,
-					Structured: false,
-				},
-			},
 		},
 	}, nil
 }

@@ -126,12 +126,6 @@ func TestParseRejects(t *testing.T) {
 			err:  errUnknownKey,
 		},
 		{
-			name: "observability on a service",
-			yaml: strings.Replace(minimalFile, "    image:", "    observability: { logging: true }\n    image:", 1),
-			err:  ErrNotSupportedYet,
-			path: "services.api.observability",
-		},
-		{
 			name: "unknown key",
 			yaml: minimalFile + "owner: me\n",
 			err:  errUnknownKey,

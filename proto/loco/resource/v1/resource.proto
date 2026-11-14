@@ -75,17 +75,6 @@ message RoutingConfig {
   int32 idle_timeout = 3; // seconds
 }
 
-// LoggingConfig defines logging configuration.
-message LoggingConfig {
-  bool enabled = 1;
-  bool structured = 2; // parse as JSON
-}
-
-// ObservabilityConfig defines observability settings.
-message ObservabilityConfig {
-  LoggingConfig logging = 1;
-}
-
 // RegionTarget defines the desired state for a specific region.
 message RegionTarget {
   bool enabled = 1;
@@ -105,9 +94,8 @@ message ServiceSpec {
   };
 
   RoutingConfig routing = 1;
-  ObservabilityConfig observability = 2;
-  map<string, RegionTarget> regions = 3 [(buf.validate.field).map.min_pairs = 1]; // key = region name
-  optional deployment.v1.HealthCheckConfig health_check = 4; // health check defaults
+  map<string, RegionTarget> regions = 2 [(buf.validate.field).map.min_pairs = 1]; // key = region name
+  optional deployment.v1.HealthCheckConfig health_check = 3; // health check defaults
 }
 
 // DatabaseSpec is the spec of the corresponding resource type.

@@ -309,7 +309,6 @@ func buildApplicationSpec(
 		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  converter.ProtoToResourcesSpec(deploymentService),
-			Obs:        converter.ProtoToObsSpec(resourceService.GetObservability()),
 			Routing: converter.ProtoToRoutingSpec(
 				deploymentRouting(resourceService, deploymentService),
 				hostname,

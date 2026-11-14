@@ -22,7 +22,6 @@ const (
 
 var (
 	reservedTopLevelKeys = []string{"databases", "caches", "queues", "buckets"}
-	reservedServiceKeys  = []string{"observability"}
 
 	errUnknownKey = errors.New("unknown key")
 
@@ -119,11 +118,6 @@ func rejectReservedKeys(raw map[string]any) error {
 		fields, ok := service.(map[string]any)
 		if !ok {
 			continue
-		}
-		for _, key := range reservedServiceKeys {
-			if _, found := fields[key]; found {
-				return &FieldError{Path: servicePath(name, key), Err: ErrNotSupportedYet}
-			}
 		}
 		environments, ok := fields[keyEnvironments].(map[string]any)
 		if !ok {

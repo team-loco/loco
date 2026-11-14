@@ -96,7 +96,6 @@ func (a *applier) updatedSpec(current *resourcev1.ServiceSpec, desired configpla
 		return spec
 	}
 	spec := serviceSpecFor(desired)
-	spec.Observability = current.GetObservability()
 	for name, target := range current.GetRegions() {
 		if _, kept := spec.GetRegions()[name]; kept {
 			continue

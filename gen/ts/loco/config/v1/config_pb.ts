@@ -6,15 +6,13 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { HealthCheckConfig, HealthCheckConfigJson } from "../../deployment/v1/deployment_pb";
 import { file_loco_deployment_v1_deployment } from "../../deployment/v1/deployment_pb";
-import type { ObservabilityConfig, ObservabilityConfigJson } from "../../resource/v1/resource_pb";
-import { file_loco_resource_v1_resource } from "../../resource/v1/resource_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi4gIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMivgMKC0NvdW50TGltaXRzEhUKDW9yZ3NfcGVyX3VzZXIYASABKAUSGgoSd29ya3NwYWNlc19wZXJfb3JnGAIgASgFEhcKD21lbWJlcnNfcGVyX29yZxgDIAEoBRIbChNpbnZpdGF0aW9uc19wZXJfb3JnGAQgASgFEiIKGmVudmlyb25tZW50c19wZXJfd29ya3NwYWNlGAUgASgFEh8KF3Jlc291cmNlc19wZXJfd29ya3NwYWNlGAYgASgFEh4KFndlYmhvb2tzX3Blcl93b3Jrc3BhY2UYByABKAUSGQoRdG9rZW5zX3Blcl9lbnRpdHkYCCABKAUSHAoUZG9tYWluc19wZXJfcmVzb3VyY2UYCSABKAUSHAoUc2VjcmV0c19wZXJfcmVzb3VyY2UYCiABKAUSGgoSZGVwbG95bWVudF9oaXN0b3J5GAsgASgFEhUKDWJ1aWxkX2hpc3RvcnkYDCABKAUSGgoSbG9nX3JldGVudGlvbl9kYXlzGA0gASgFEhwKFHRyYWNlX3JldGVudGlvbl9kYXlzGA4gASgFEh0KFW1ldHJpY19yZXRlbnRpb25fZGF5cxgPIAEoBSKcAQoKU2l6ZUxpbWl0cxIWCg5taW5fY3B1X21pbGxpcxgBIAEoBRIWCg5tYXhfY3B1X21pbGxpcxgCIAEoBRIYChBtaW5fbWVtb3J5X2J5dGVzGAMgASgDEhgKEG1heF9tZW1vcnlfYnl0ZXMYBCABKAMSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBSIlCgdPcmdMaW5rEg0KBWxhYmVsGAEgASgJEgsKA3VybBgCIAEoCSI/CgpBdXRoQ29uZmlnEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDgoGc2NvcGVzGAMgASgJIqsCChREZWZhdWx0U2VydmljZUNvbmZpZxI7CgxoZWFsdGhfY2hlY2sYASABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAIgASgJEg4KBm1lbW9yeRgDIAEoCRIUCgxtaW5fcmVwbGljYXMYBCABKAUSFAoMbWF4X3JlcGxpY2FzGAUgASgFEjwKDW9ic2VydmFiaWxpdHkYBiABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPZGVwbG95X2F0dGVtcHRzGAcgASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAggASgFEhIKCmNwdV90YXJnZXQYCSABKAUyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi4gIKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMivgMKC0NvdW50TGltaXRzEhUKDW9yZ3NfcGVyX3VzZXIYASABKAUSGgoSd29ya3NwYWNlc19wZXJfb3JnGAIgASgFEhcKD21lbWJlcnNfcGVyX29yZxgDIAEoBRIbChNpbnZpdGF0aW9uc19wZXJfb3JnGAQgASgFEiIKGmVudmlyb25tZW50c19wZXJfd29ya3NwYWNlGAUgASgFEh8KF3Jlc291cmNlc19wZXJfd29ya3NwYWNlGAYgASgFEh4KFndlYmhvb2tzX3Blcl93b3Jrc3BhY2UYByABKAUSGQoRdG9rZW5zX3Blcl9lbnRpdHkYCCABKAUSHAoUZG9tYWluc19wZXJfcmVzb3VyY2UYCSABKAUSHAoUc2VjcmV0c19wZXJfcmVzb3VyY2UYCiABKAUSGgoSZGVwbG95bWVudF9oaXN0b3J5GAsgASgFEhUKDWJ1aWxkX2hpc3RvcnkYDCABKAUSGgoSbG9nX3JldGVudGlvbl9kYXlzGA0gASgFEhwKFHRyYWNlX3JldGVudGlvbl9kYXlzGA4gASgFEh0KFW1ldHJpY19yZXRlbnRpb25fZGF5cxgPIAEoBSKcAQoKU2l6ZUxpbWl0cxIWCg5taW5fY3B1X21pbGxpcxgBIAEoBRIWCg5tYXhfY3B1X21pbGxpcxgCIAEoBRIYChBtaW5fbWVtb3J5X2J5dGVzGAMgASgDEhgKEG1heF9tZW1vcnlfYnl0ZXMYBCABKAMSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBSIlCgdPcmdMaW5rEg0KBWxhYmVsGAEgASgJEgsKA3VybBgCIAEoCSI/CgpBdXRoQ29uZmlnEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDgoGc2NvcGVzGAMgASgJIu0BChREZWZhdWx0U2VydmljZUNvbmZpZxI7CgxoZWFsdGhfY2hlY2sYASABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAIgASgJEg4KBm1lbW9yeRgDIAEoCRIUCgxtaW5fcmVwbGljYXMYBCABKAUSFAoMbWF4X3JlcGxpY2FzGAUgASgFEhcKD2RlcGxveV9hdHRlbXB0cxgGIAEoBRIiChpkZXBsb3lfcmV0cnlfZGVsYXlfc2Vjb25kcxgHIAEoBRISCgpjcHVfdGFyZ2V0GAggASgFMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -553,24 +551,17 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
   maxReplicas: number;
 
   /**
-   * Default observability configuration
-   *
-   * @generated from field: loco.resource.v1.ObservabilityConfig observability = 6;
-   */
-  observability?: ObservabilityConfig | undefined;
-
-  /**
-   * @generated from field: int32 deploy_attempts = 7;
+   * @generated from field: int32 deploy_attempts = 6;
    */
   deployAttempts: number;
 
   /**
-   * @generated from field: int32 deploy_retry_delay_seconds = 8;
+   * @generated from field: int32 deploy_retry_delay_seconds = 7;
    */
   deployRetryDelaySeconds: number;
 
   /**
-   * @generated from field: int32 cpu_target = 9;
+   * @generated from field: int32 cpu_target = 8;
    */
   cpuTarget: number;
 };
@@ -616,24 +607,17 @@ export type DefaultServiceConfigJson = {
   maxReplicas?: number;
 
   /**
-   * Default observability configuration
-   *
-   * @generated from field: loco.resource.v1.ObservabilityConfig observability = 6;
-   */
-  observability?: ObservabilityConfigJson;
-
-  /**
-   * @generated from field: int32 deploy_attempts = 7;
+   * @generated from field: int32 deploy_attempts = 6;
    */
   deployAttempts?: number;
 
   /**
-   * @generated from field: int32 deploy_retry_delay_seconds = 8;
+   * @generated from field: int32 deploy_retry_delay_seconds = 7;
    */
   deployRetryDelaySeconds?: number;
 
   /**
-   * @generated from field: int32 cpu_target = 9;
+   * @generated from field: int32 cpu_target = 8;
    */
   cpuTarget?: number;
 };

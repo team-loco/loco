@@ -149,21 +149,6 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 	}
 }
 
-// ProtoToObsSpec converts a proto ObservabilityConfig to a controller ObsSpec
-func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSpec {
-	if obs == nil {
-		return nil
-	}
-
-	logging := obs.GetLogging()
-	return &locoControllerV1.ObsSpec{
-		Logging: locoControllerV1.LoggingSpec{
-			Enabled:    logging.GetEnabled(),
-			Structured: logging.GetStructured(),
-		},
-	}
-}
-
 func ProtoToRoutingSpec(
 	routing *resourcev1.RoutingConfig,
 	hostname string,

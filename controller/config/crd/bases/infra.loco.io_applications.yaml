@@ -143,16 +143,6 @@ spec:
                     required:
                     - image
                     type: object
-                  obs:
-                    properties:
-                      logging:
-                        properties:
-                          enabled:
-                            type: boolean
-                          structured:
-                            type: boolean
-                        type: object
-                    type: object
                   resources:
                     description: Resources (CPU, Memory, Replicas, Scalers)
                     properties:
