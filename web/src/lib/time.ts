@@ -61,3 +61,13 @@ export function agoLabel(ms: number, nowMs: number): string {
 	if (days === 1) return "yesterday";
 	return `${days.toString()} days ago`;
 }
+
+/** A relative time short enough for a narrow column: "5m ago", "3h ago", "2d ago". */
+export function shortAgoLabel(ms: number, nowMs: number): string {
+	const mins = Math.max(0, Math.round((nowMs - ms) / 60_000));
+	if (mins < 1) return "now";
+	if (mins < 60) return `${mins.toString()}m ago`;
+	const hrs = Math.round(mins / 60);
+	if (hrs < 24) return `${hrs.toString()}h ago`;
+	return `${Math.round(hrs / 24).toString()}d ago`;
+}

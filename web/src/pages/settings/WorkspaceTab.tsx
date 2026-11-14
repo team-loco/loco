@@ -7,8 +7,9 @@ import {
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpRightIcon } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
@@ -21,13 +22,13 @@ import { SaveBar } from "@/components/design/SaveBar";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
+import { useAuditAccess } from "@/hooks/useAuditAccess";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
-import { workspacePath } from "@/lib/routes";
+import { auditPath, workspacePath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
 
-import { ActivityPanel } from "./ActivityPanel";
 import { EnvironmentsSection } from "./EnvironmentsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { WebhooksSection } from "./WebhooksSection";
@@ -69,6 +70,8 @@ export function WorkspaceTab({
 	const remove = useMutation(deleteWorkspace);
 
 	const [deleteOpen, setDeleteOpen] = useState(false);
+
+	const audit = useAuditAccess(orgId);
 
 	const ws = data?.workspace;
 	if (isLoading) return <SettingsSkeleton />;
@@ -138,7 +141,21 @@ export function WorkspaceTab({
 
 	return (
 		<div className="flex flex-col gap-[22px]">
-			<SettingsSection title="General" meta={<span className="font-mono">{ws.name}</span>}>
+			<SettingsSection
+				title="General"
+				meta={<span className="font-mono">{ws.name}</span>}
+				actions={
+					audit.reads(ws.id) ? (
+						<Link
+							to={`${auditPath(ws.orgId)}?range=90d&ws=${ws.id}`}
+							className="inline-flex items-center gap-1 text-[12.5px] text-fg2 no-underline hover:text-foreground"
+						>
+							Activity in audit log
+							<ArrowUpRightIcon className="size-3" />
+						</Link>
+					) : undefined
+				}
+			>
 				<SettingsCard className="flex flex-col gap-4 px-5 py-[18px]">
 					<Field label="Name" error={shownErr}>
 						<Input
@@ -198,16 +215,6 @@ export function WorkspaceTab({
 			/>
 
 			{canAdmin && <WebhooksSection orgId={ws.orgId} workspaceId={ws.id} workspaceName={ws.name} />}
-
-			{canAdmin && (
-				<ActivityPanel
-					key={ws.id}
-					orgId={orgId}
-					workspaceId={ws.id}
-					description={`Changes made to ${ws.name} and its resources, newest first.`}
-					names={new Map([[ws.id, ws.name]])}
-				/>
-			)}
 
 			<SettingsSection title="Danger zone">
 				<DangerZone

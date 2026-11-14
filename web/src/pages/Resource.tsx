@@ -35,6 +35,7 @@ import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
 import { DeleteDialogContent, RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { newestFirst, recentWarningCount } from "@/pages/resource/events";
+import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { shortId } from "@/pages/resource/format";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
@@ -99,6 +100,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		refresh,
 	} = useResourceData(resourceId);
 	const { resourceLevel, workspaceLevel } = useMyScopes();
+	const { environments } = useEnvironments();
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const configQuery = useQuery(getConfig, {});
 	const eventsQuery = useTanstackQuery({
@@ -415,6 +417,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						onRollback={openRollback}
 						onViewSpec={openSpec}
 					/>
+					<ActivityPanel
+						key={resource.id}
+						orgId={orgId}
+						workspaceId={resource.workspaceId}
+						resourceId={resource.id}
+						names={new Map(environments.map((e) => [e.id, e.name]))}
+						nowMs={nowMs}
+					/>
 				</div>
 			) : (
 				<SettingsView
@@ -447,10 +457,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				onOpenChange={setEventsOpen}
 				tab={eventsTab}
 				onTab={setEventsTab}
-				resourceId={resource.id}
 				resourceName={resource.name}
-				orgId={orgId}
-				workspaceId={resource.workspaceId}
 				events={events}
 				isLoading={eventsQuery.isLoading}
 				error={eventsQuery.error}
