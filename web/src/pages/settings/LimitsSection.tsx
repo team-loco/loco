@@ -4,58 +4,48 @@ import { CircleArrowUpIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
-import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { formatCount } from "@/lib/format";
-import { limitTone, limitUsage } from "@/lib/limits";
 import { userLabel } from "@/lib/user";
-import { cn } from "@/lib/utils";
 
 import { formatDay, SettingsCard, SettingsSection } from "./parts";
 
+type LimitKey = { [K in keyof CountLimits]-?: CountLimits[K] extends number ? K : never }[keyof CountLimits];
+
 type LimitRow = {
+	key: LimitKey;
 	label: string;
 	per: string;
-	/** The proto field, which GetOrgLimits lists in `overridden` when this organization's value was raised. */
-	field: string;
-	pick: (limits: CountLimits) => number;
 	/** The org-wide count against the limit; absent where the count is per workspace or resource. */
 	used?: number | undefined;
 };
 
-function InUse({ row, limit }: { row: LimitRow; limit: number | undefined }) {
-	if (row.used === undefined) return "—";
-	const tone = limitTone(limitUsage(row.used, limit, row.label, ""));
-	return <span className={cn(tone !== null && LIMIT_TONE_TEXT[tone])}>{formatCount(row.used)}</span>;
-}
-
-function Row({ row, limits }: { row: LimitRow; limits: OrgLimits | undefined }) {
-	const limit = limits?.limits === undefined ? undefined : row.pick(limits.limits);
-	return (
-		<TableRow>
-			<TableCell>{row.label}</TableCell>
-			<TableCell className="text-fg2">{row.per}</TableCell>
-			<TableCell className="font-mono text-fg2">
-				<InUse row={row} limit={limit} />
-			</TableCell>
-			<TableCell className="text-right font-mono">
-				<span className="inline-flex items-center justify-end gap-2">
-					{limits?.overridden.includes(row.field) === true && (
-						<Badge tone="info" size="sm">
-							Raised
-						</Badge>
-					)}
-					{limit === undefined ? "—" : formatCount(limit)}
-				</span>
-			</TableCell>
-		</TableRow>
-	);
-}
+/** GetOrgLimits lists a raised limit by its proto field name. */
+const protoField = (key: LimitKey) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 function Rows({ rows, limits }: { rows: readonly LimitRow[]; limits: OrgLimits | undefined }) {
-	return rows.map((row) => <Row key={row.field} row={row} limits={limits} />);
+	return rows.map((row) => {
+		const limit = limits?.limits?.[row.key];
+		return (
+			<TableRow key={row.key}>
+				<TableCell>{row.label}</TableCell>
+				<TableCell className="text-fg2">{row.per}</TableCell>
+				<TableCell className="font-mono text-fg2">{row.used === undefined ? "—" : formatCount(row.used)}</TableCell>
+				<TableCell className="text-right font-mono">
+					<span className="inline-flex items-center justify-end gap-2">
+						{limits?.overridden.includes(protoField(row.key)) === true && (
+							<Badge tone="info" size="sm">
+								Raised
+							</Badge>
+						)}
+						{limit === undefined ? "—" : formatCount(limit)}
+					</span>
+				</TableCell>
+			</TableRow>
+		);
+	});
 }
 
 function RaisedBanner({ org, limits, users }: { org: Organization; limits: OrgLimits; users: User[] }): ReactNode {
@@ -89,52 +79,19 @@ export function LimitsSection({
 }) {
 	const openInvitations = useOpenInvitations(org.id, useNow().getTime());
 	const limitRows: LimitRow[] = [
-		{
-			label: "Workspaces",
-			per: "Organization",
-			field: "workspaces_per_org",
-			pick: (l) => l.workspacesPerOrg,
-			used: workspaceCount,
-		},
-		{
-			label: "Members",
-			per: "Organization",
-			field: "members_per_org",
-			pick: (l) => l.membersPerOrg,
-			used: memberCount,
-		},
-		{
-			label: "Open invitations",
-			per: "Organization",
-			field: "invitations_per_org",
-			pick: (l) => l.invitationsPerOrg,
-			used: openInvitations,
-		},
-		{
-			label: "Environments",
-			per: "Workspace",
-			field: "environments_per_workspace",
-			pick: (l) => l.environmentsPerWorkspace,
-		},
-		{ label: "Resources", per: "Workspace", field: "resources_per_workspace", pick: (l) => l.resourcesPerWorkspace },
-		{ label: "Webhooks", per: "Workspace", field: "webhooks_per_workspace", pick: (l) => l.webhooksPerWorkspace },
-		{
-			label: "API tokens",
-			per: "User, organization, workspace or resource",
-			field: "tokens_per_entity",
-			pick: (l) => l.tokensPerEntity,
-		},
-		{ label: "Custom domains", per: "Resource", field: "domains_per_resource", pick: (l) => l.domainsPerResource },
-		{ label: "Secrets", per: "Resource", field: "secrets_per_resource", pick: (l) => l.secretsPerResource },
+		{ key: "workspacesPerOrg", label: "Workspaces", per: "Organization", used: workspaceCount },
+		{ key: "membersPerOrg", label: "Members", per: "Organization", used: memberCount },
+		{ key: "invitationsPerOrg", label: "Open invitations", per: "Organization", used: openInvitations },
+		{ key: "environmentsPerWorkspace", label: "Environments", per: "Workspace" },
+		{ key: "resourcesPerWorkspace", label: "Resources", per: "Workspace" },
+		{ key: "webhooksPerWorkspace", label: "Webhooks", per: "Workspace" },
+		{ key: "tokensPerEntity", label: "API tokens", per: "User, organization, workspace or resource" },
+		{ key: "domainsPerResource", label: "Custom domains", per: "Resource" },
+		{ key: "secretsPerResource", label: "Secrets", per: "Resource" },
 	];
 	const historyRows: LimitRow[] = [
-		{
-			label: "Deployments",
-			per: "Resource, per environment",
-			field: "deployment_history",
-			pick: (l) => l.deploymentHistory,
-		},
-		{ label: "Builds", per: "Resource", field: "build_history", pick: (l) => l.buildHistory },
+		{ key: "deploymentHistory", label: "Deployments", per: "Resource, per environment" },
+		{ key: "buildHistory", label: "Builds", per: "Resource" },
 	];
 	return (
 		<SettingsSection title="Limits">

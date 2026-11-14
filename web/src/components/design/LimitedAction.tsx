@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { type LimitTone, type LimitUsage, limitTone, usageLabel } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 
-export const LIMIT_TONE_TEXT: Record<LimitTone, string> = { warn: "text-warn-fg", bad: "text-bad-fg" };
+const LIMIT_TONE_TEXT: Record<LimitTone, string> = { warn: "text-warn-fg", bad: "text-bad-fg" };
 const TONE_PILL: Record<LimitTone, string> = { warn: "bg-warn-bg text-warn-fg", bad: "bg-bad-bg text-bad-fg" };
 
 /** "used / max" in amber or red from 90% of the limit; nothing below it. */
