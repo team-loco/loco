@@ -100,7 +100,6 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 						case: "service",
 						value: {
 							routing: { port },
-							...(defaults.observability !== undefined ? { observability: defaults.observability } : {}),
 							regions: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])),
 							...health,
 						},

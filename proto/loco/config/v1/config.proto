@@ -3,7 +3,6 @@ syntax = "proto3";
 package loco.config.v1;
 
 import "loco/deployment/v1/deployment.proto";
-import "loco/resource/v1/resource.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/config/v1;configv1";
 
@@ -89,10 +88,7 @@ message DefaultServiceConfig {
   string memory = 3; // e.g., "256Mi"
   int32 min_replicas = 4;
   int32 max_replicas = 5;
-
-  // Default observability configuration
-  resource.v1.ObservabilityConfig observability = 6;
-  int32 deploy_attempts = 7;
-  int32 deploy_retry_delay_seconds = 8;
-  int32 cpu_target = 9;
+  int32 deploy_attempts = 6;
+  int32 deploy_retry_delay_seconds = 7;
+  int32 cpu_target = 8;
 }

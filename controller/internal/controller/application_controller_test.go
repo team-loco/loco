@@ -84,12 +84,6 @@ var _ = Describe("Application Controller", func() {
 								PathPrefix:  "/",
 								IdleTimeout: 300,
 							},
-							Obs: &locov1alpha1.ObsSpec{
-								Logging: locov1alpha1.LoggingSpec{
-									Enabled:    true,
-									Structured: true,
-								},
-							},
 						},
 					},
 				}

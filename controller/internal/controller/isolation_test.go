@@ -8,8 +8,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
@@ -192,27 +190,6 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
 		err = k8sClient.Get(ctx, key, &networkingv1.NetworkPolicy{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
-	})
-
-	It("accepts removing the last observability setting through server-side apply", func() {
-		app := isolationTestApplication("ws-obs-apply", "obs-apply")
-		app.APIVersion = locov1alpha1.GroupVersion.String()
-		app.Kind = "Application"
-		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
-			Logging: locov1alpha1.LoggingSpec{Enabled: true},
-		}
-		for _, enabled := range []bool{true, false} {
-			if !enabled {
-				app.Spec.ServiceSpec.Obs = nil
-			}
-			object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
-			Expect(err).NotTo(HaveOccurred())
-			configuration := client.ApplyConfigurationFromUnstructured(&unstructured.Unstructured{Object: object})
-			applyErr := k8sClient.Apply(
-				ctx, configuration, client.FieldOwner("obs-apply-test"), client.ForceOwnership,
-			)
-			Expect(applyErr).To(Succeed())
-		}
 	})
 
 	It("runs the app without a service account token under restricted pod security", func() {

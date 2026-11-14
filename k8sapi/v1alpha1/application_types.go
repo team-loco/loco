@@ -72,15 +72,6 @@ type HealthCheckSpec struct {
 	StartupGracePeriod int32 `json:"startupGracePeriod,omitzero"` // seconds
 }
 
-type ObsSpec struct {
-	Logging LoggingSpec `json:"logging,omitzero"`
-}
-
-type LoggingSpec struct {
-	Enabled    bool `json:"enabled,omitzero"`
-	Structured bool `json:"structured,omitzero"`
-}
-
 // RoutingSpec exposes the service on the gateway at HostName.
 type RoutingSpec struct {
 	// +required
@@ -134,8 +125,6 @@ type ServiceSpec struct {
 
 	// Routing exposes the service to the internet. Without it the service gets no HTTPRoute and no gateway ingress.
 	Routing *RoutingSpec `json:"routing,omitempty"`
-
-	Obs *ObsSpec `json:"obs,omitempty"`
 }
 
 // ServiceDeploymentSpec contains service deployment-specific configuration

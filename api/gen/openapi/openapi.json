@@ -9149,11 +9149,6 @@
             "title": "max_replicas",
             "format": "int32"
           },
-          "observability": {
-            "title": "observability",
-            "description": "Default observability configuration",
-            "$ref": "#/components/schemas/loco.resource.v1.ObservabilityConfig"
-          },
           "deployAttempts": {
             "type": "integer",
             "title": "deploy_attempts",
@@ -12969,35 +12964,6 @@
         "additionalProperties": false,
         "description": "ListWorkspaceResourcesResponse is the response containing the list of resources."
       },
-      "loco.resource.v1.LoggingConfig": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "title": "enabled"
-          },
-          "structured": {
-            "type": "boolean",
-            "title": "structured",
-            "description": "parse as JSON"
-          }
-        },
-        "title": "LoggingConfig",
-        "additionalProperties": false,
-        "description": "LoggingConfig defines logging configuration."
-      },
-      "loco.resource.v1.ObservabilityConfig": {
-        "type": "object",
-        "properties": {
-          "logging": {
-            "title": "logging",
-            "$ref": "#/components/schemas/loco.resource.v1.LoggingConfig"
-          }
-        },
-        "title": "ObservabilityConfig",
-        "additionalProperties": false,
-        "description": "ObservabilityConfig defines observability settings."
-      },
       "loco.resource.v1.QueueSpec": {
         "type": "object",
         "title": "QueueSpec",
@@ -13468,10 +13434,6 @@
           "routing": {
             "title": "routing",
             "$ref": "#/components/schemas/loco.resource.v1.RoutingConfig"
-          },
-          "observability": {
-            "title": "observability",
-            "$ref": "#/components/schemas/loco.resource.v1.ObservabilityConfig"
           },
           "regions": {
             "type": "object",
@@ -15270,16 +15232,12 @@
       "description": "DeploymentService manages resource deployments."
     },
     {
-      "name": "loco.domain.v1.DomainService",
-      "description": "DomainService manages domains for resources."
-    },
-    {
-      "name": "loco.resource.v1.ResourceService",
-      "description": "ResourceService manages resource lifecycle and operations."
-    },
-    {
       "name": "loco.config.v1.ConfigService",
       "description": "ConfigService provides static configuration values. Clients can query this to show safe defaults."
+    },
+    {
+      "name": "loco.domain.v1.DomainService",
+      "description": "DomainService manages domains for resources."
     },
     {
       "name": "loco.event.v1.EventService"
@@ -15303,6 +15261,10 @@
     {
       "name": "loco.registry.v1.RegistryService",
       "description": "RegistryService issues the credentials worker clusters present to the registry token endpoint."
+    },
+    {
+      "name": "loco.resource.v1.ResourceService",
+      "description": "ResourceService manages resource lifecycle and operations."
     },
     {
       "name": "loco.secret.v1.SecretService",
