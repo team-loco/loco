@@ -9,11 +9,9 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
-import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
@@ -68,8 +66,6 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 }
 
 export function LogsView() {
-	const { activeOrgId } = useOrgWorkspace();
-	const limits = useOrgLimits(activeOrgId ?? "");
 	const {
 		workspaceId,
 		resources,
@@ -329,11 +325,6 @@ export function LogsView() {
 	};
 	const header = (
 		<ViewHeader
-			note={
-				limits !== undefined && (
-					<span className="text-[13px] text-fg3">Kept for {formatCount(limits.logRetentionDays)} days</span>
-				)
-			}
 			actions={
 				<>
 					{away && (

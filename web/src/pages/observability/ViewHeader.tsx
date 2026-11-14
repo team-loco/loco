@@ -20,7 +20,7 @@ export function viewTitle(view: ObservabilityView): string {
 	}
 }
 
-export function ViewHeader({ actions, note }: { actions?: ReactNode; note?: ReactNode }) {
+export function ViewHeader({ actions }: { actions?: ReactNode }) {
 	const { view } = useObs();
 	return (
 		<>
@@ -33,9 +33,7 @@ export function ViewHeader({ actions, note }: { actions?: ReactNode; note?: Reac
 						<TimePicker />
 					</div>
 				}
-			>
-				{note}
-			</PageHeader>
+			/>
 		</>
 	);
 }
