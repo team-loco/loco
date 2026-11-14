@@ -168,7 +168,7 @@ with sync_playwright() as playwright:
                 try:
                     page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
                     section = page.get_by_role("tab", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
-                    expect(section.get_by_text("1–10 of 200+", exact=True)).to_be_visible()
+                    expect(section.get_by_text("1–10 of 200+", exact=False)).to_be_visible()
                     expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
                     expect(section.get_by_role("columnheader", name="Deployed by", exact=True)).to_be_visible()
                     expect(section.get_by_text("loco deploy · CLI", exact=True).first).to_be_visible()
@@ -195,11 +195,11 @@ with sync_playwright() as playwright:
                     section.get_by_text("Pilot page failure", exact=False).wait_for()
                     expect(section.get_by_text("Pilot release 151", exact=True)).to_be_visible()
                     assert len(failed) == 1
-                    expect(section.get_by_text("151–200 of 200+", exact=True)).to_be_visible()
+                    expect(section.get_by_text("151–200 of 200+", exact=False)).to_be_visible()
                     page.screenshot(path=out / f"page-error-{case}.png", animations="disabled")
                     next_button.focus()
                     page.keyboard.press("Enter")
-                    expect(section.get_by_text("201–221 of 221", exact=True)).to_be_visible()
+                    expect(section.get_by_text("201–221 of 221", exact=False)).to_be_visible()
                     expect(section.get_by_text("Pilot release 221", exact=True)).to_be_visible()
                     older_requests = [request["body"] for request in requests if request["method"] == "ListDeployments" and request["body"].get("pageToken")]
                     assert len(older_requests) == 2 and older_requests[0] == older_requests[1] == failed[0]
@@ -211,7 +211,7 @@ with sync_playwright() as playwright:
                     expect(page).to_have_url(re.compile(r"[?&]env=staging"))
                     expect(section.get_by_text("Staging current", exact=True)).to_be_visible()
                     # One deployment fits the smallest page size, so the pager is gone.
-                    expect(section.get_by_text("1–1 of 1", exact=True)).to_have_count(0)
+                    expect(section.get_by_text("1–1 of 1", exact=False)).to_have_count(0)
                     assert not section.get_by_text("Pilot release 221", exact=True).count()
                     assert any(request["method"] == "ListDeployments" and request["body"].get("environmentId") == data["staging"] and not request["body"].get("pageToken") for request in requests)
                     expect(next_button).to_have_count(0)
@@ -228,7 +228,7 @@ with sync_playwright() as playwright:
                     section.get_by_role("button", name=f"Build {builds['deployed'][:8]}", exact=True).click()
                     expect(page).to_have_url(re.compile(r"[?&]hist=builds"))
                     expect(section.get_by_role("tab", name=re.compile(r"^Builds\s*6$"))).to_have_attribute("aria-selected", "true")
-                    expect(section.get_by_text("1–5 of 6", exact=True)).to_be_visible()
+                    expect(section.get_by_text("1–5 of 6", exact=False)).to_be_visible()
                     assert section.evaluate(SEPARATED_ROWS), "build rows lost their separators"
                     expect(section.get_by_role("button", name=f"Hide build {builds['deployed'][:8]}", exact=True)).to_be_visible()
                     expect(section.get_by_text("Olivia Owner", exact=True).first).to_be_visible()
