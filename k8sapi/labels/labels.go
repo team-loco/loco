@@ -12,9 +12,6 @@ const (
 	// keep in sync with the namespace selectors in charts/loco-worker/templates
 	LabelLocoApp             = "loco.io/app"
 	LabelPrivateServiceOwner = "loco.io/private-service-owner"
-	// keep in sync with the metrics scrape config in charts/loco-worker/values.yaml
-	LabelMetricsPort      = "loco.io/metrics-port"
-	AnnotationMetricsPath = "loco.io/metrics-path"
 
 	AnnotationApplicationNamespace = "loco.io/application-namespace"
 	AnnotationApplicationName      = "loco.io/application-name"

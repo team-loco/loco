@@ -173,14 +173,3 @@ func TestAutoscalingValidation(t *testing.T) {
 		})
 	}
 }
-
-func TestEnabledMetricsRequireAPath(t *testing.T) {
-	metrics := MetricsSpec{Enabled: true, Port: 9090}
-	if err := metrics.Validate(); !errors.Is(err, errMetricsPath) {
-		t.Fatalf("enabled metrics without a path error = %v, want %v", err, errMetricsPath)
-	}
-	metrics.Path = "/metrics"
-	if err := metrics.Validate(); err != nil {
-		t.Fatalf("metrics with a path rejected: %v", err)
-	}
-}

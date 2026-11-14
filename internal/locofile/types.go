@@ -24,7 +24,6 @@ type Service struct {
 	RunAsUser    *int64              `json:"runAsUser,omitempty"`
 	RunAsGroup   *int64              `json:"runAsGroup,omitempty"`
 	Port         *int32              `json:"port,omitempty"`
-	Metrics      *Metrics            `json:"metrics,omitempty"`
 	Health       *Health             `json:"health,omitempty"`
 	Routing      *Routing            `json:"routing,omitempty"`
 	Domains      []string            `json:"domains,omitempty"`
@@ -44,7 +43,6 @@ type Override struct {
 	RunAsUser  *int64            `json:"runAsUser,omitempty"`
 	RunAsGroup *int64            `json:"runAsGroup,omitempty"`
 	Port       *int32            `json:"port,omitempty"`
-	Metrics    *Metrics          `json:"metrics,omitempty"`
 	Health     *Health           `json:"health,omitempty"`
 	Routing    *Routing          `json:"routing,omitempty"`
 	Domains    []string          `json:"domains,omitempty"`
@@ -91,9 +89,4 @@ type Replicas struct {
 type Autoscaling struct {
 	CPUTarget    *int32 `json:"cpuTarget,omitempty"`
 	MemoryTarget *int32 `json:"memoryTarget,omitempty"`
-}
-
-type Metrics struct {
-	Port int32  `json:"port"`
-	Path string `json:"path,omitempty"`
 }

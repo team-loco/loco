@@ -436,12 +436,7 @@ func deploymentSpecFor(
 	build *deploymentv1.BuildSource,
 ) *deploymentv1.ServiceDeploymentSpec {
 	target := state.Regions[region]
-	metrics := &deploymentv1.MetricsEndpoint{}
-	if state.Metrics != nil {
-		metrics = &deploymentv1.MetricsEndpoint{Enabled: true, Port: state.Metrics.Port, Path: state.Metrics.Path}
-	}
 	return &deploymentv1.ServiceDeploymentSpec{
-		Metrics:     metrics,
 		RunAsUser:   state.RunAsUser,
 		RunAsGroup:  state.RunAsGroup,
 		Build:       build,

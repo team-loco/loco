@@ -152,17 +152,6 @@ spec:
                           structured:
                             type: boolean
                         type: object
-                      metrics:
-                        description: MetricsSpec defines metrics scraping info
-                        properties:
-                          enabled:
-                            type: boolean
-                          path:
-                            type: string
-                          port:
-                            format: int32
-                            type: integer
-                        type: object
                     type: object
                   resources:
                     description: Resources (CPU, Memory, Replicas, Scalers)

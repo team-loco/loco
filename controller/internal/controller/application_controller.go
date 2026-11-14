@@ -219,10 +219,6 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure private service: %w", err)
 	}
 
-	err = r.ensureMetricsIngressPolicy(ctx, app)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("ensure metrics ingress policy: %w", err)
-	}
 	err = r.ensureGatewayIngressPolicy(ctx, app)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure gateway ingress policy: %w", err)
@@ -356,7 +352,6 @@ func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov
 	objects := []client.Object{
 		&v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace},
 		&networkingv1.NetworkPolicy{Name: gatewayPolicyName, Namespace: namespace},
-		&networkingv1.NetworkPolicy{Name: getMetricsPolicyName(app), Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
 		&autoscalingv2.HorizontalPodAutoscaler{Name: name, Namespace: namespace},
 		&appsv1.Deployment{Name: name, Namespace: namespace},
@@ -750,7 +745,6 @@ func podTemplate(
 	podLabels := workloadLabels(app)
 	podLabels[labelAppKubernetesName] = name
 	podLabels[managed.LabelComponent] = componentApplication
-	addMetricsScrape(spec.Obs, podLabels, podAnnotations)
 	podSecurity := podSecurityContext()
 	if spec.Deployment.RunAsUser != nil {
 		podSecurity = podSecurity.WithRunAsUser(*spec.Deployment.RunAsUser)

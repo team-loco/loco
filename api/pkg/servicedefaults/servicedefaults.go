@@ -37,8 +37,6 @@ type Defaults struct {
 	HealthStartupGracePeriod int32
 	DeployAttempts           int32
 	DeployRetryDelay         int32
-	MetricsPort              int32
-	MetricsPath              string
 }
 
 // Resources is what a deployment runs with in one region.

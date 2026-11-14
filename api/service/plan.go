@@ -389,12 +389,6 @@ func liveState(
 	if res.MaxApplyAttempts != nil || res.ApplyRetryDelaySeconds != nil {
 		state.Deploy = &locofile.Deploy{Attempts: res.MaxApplyAttempts, RetryDelay: res.ApplyRetryDelaySeconds}
 	}
-	if metrics := spec.GetObservability().GetMetrics(); metrics.GetEnabled() {
-		state.Metrics = &locofile.Metrics{Port: metrics.GetPort(), Path: metrics.GetPath()}
-		if state.Metrics.Path == "" {
-			state.Metrics.Path = defaults.MetricsPath
-		}
-	}
 	if routing := spec.GetRouting(); routing.GetPathPrefix() != "" || routing.GetIdleTimeout() != 0 {
 		pathPrefix, idleTimeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
 		state.Routing = &configplan.Routing{PathPrefix: pathPrefix, IdleTimeout: idleTimeout}
@@ -445,12 +439,6 @@ func liveState(
 		}
 		if index > 0 {
 			continue
-		}
-		if metrics := service.GetMetrics(); metrics != nil {
-			state.Metrics = nil
-			if metrics.GetEnabled() {
-				state.Metrics = &locofile.Metrics{Port: metrics.GetPort(), Path: metrics.GetPath()}
-			}
 		}
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup

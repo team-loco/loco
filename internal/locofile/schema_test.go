@@ -236,7 +236,6 @@ func TestSchemaMatchesTypes(t *testing.T) {
 
 	defs := map[string]reflect.Type{}
 	nested := []reflect.Type{
-		reflect.TypeFor[Metrics](),
 		reflect.TypeFor[Health](),
 		reflect.TypeFor[Routing](),
 		reflect.TypeFor[Region](),

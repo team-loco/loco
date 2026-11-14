@@ -72,16 +72,8 @@ type HealthCheckSpec struct {
 	StartupGracePeriod int32 `json:"startupGracePeriod,omitzero"` // seconds
 }
 
-// MetricsSpec defines metrics scraping info
-type MetricsSpec struct {
-	Enabled bool   `json:"enabled,omitzero"`
-	Path    string `json:"path,omitempty"`
-	Port    int32  `json:"port,omitzero"`
-}
-
 type ObsSpec struct {
 	Logging LoggingSpec `json:"logging,omitzero"`
-	Metrics MetricsSpec `json:"metrics,omitzero"`
 }
 
 type LoggingSpec struct {

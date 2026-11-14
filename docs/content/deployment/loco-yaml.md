@@ -42,24 +42,6 @@ services:
 
 A service with `port` and without `domains` is private. Each entry of `domains` is one label under a platform domain, such as `storefront.example.com` under `example.com`. A platform domain is one a cluster serves: the cluster's agent reports it once the Gateway listeners for `*.<domain>` are accepted and programmed and the certificate covering it is ready. The plan rejects a hostname unless the cluster of every region the service runs in serves its platform domain, and names the clusters that do not. When a cluster stops serving a domain, assigned hostnames stay, and the region's status turns degraded with the hostnames it no longer serves. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Without `autoscaling`, the service runs `replicas.min` replicas. Set `autoscaling: { cpuTarget: 70 }` or `autoscaling: { memoryTarget: 80 }` on a region to scale between `replicas.min` and `replicas.max`. The target is a percentage of the container’s resource request, from 1 to 100. `loco.yaml` accepts exactly one target per region. Removing `autoscaling` returns the service to `replicas.min` replicas. Partial names are DNS labels. A service name is any label of at most 63 characters with a letter or digit; see [private service discovery](#private-service-discovery) for its slug. The API checks resource limits when it plans the file, and `GetConfig` reports them as `size_limits`.
 
-## Pull application metrics
-
-Declare a private HTTP endpoint to have Loco's OpenTelemetry Collector pull metrics from each running pod:
-
-```yaml
-services:
-  web:
-    metrics: { port: 9090, path: /metrics }
-```
-
-The endpoint serves Prometheus or OpenMetrics exposition. The collector converts samples into OpenTelemetry metrics and exports them to the control plane, which stores them in ClickHouse. Loco runs no Prometheus server. Query these metrics through the regional API, like metrics pushed over OTLP. Applications can continue to push OTLP without declaring this field; avoid exporting the same metric through both paths.
-
-`port` is required and must be between 1024 and 65535. `path` defaults to `/metrics`. It must be an absolute path without a query or fragment. The collector uses HTTP to reach the pod directly, so a metrics endpoint needs no public domain or Kubernetes Service port. Each node's collector discovers only its own pods. Workspace and resource attribution comes from Kubernetes metadata.
-
-Environment overrides can change the endpoint or set `metrics: null` to stop pulling. Applying a change updates the pod discovery metadata and the ingress rule for the collector. The chart's `otel-col-daemon.config.receivers.prometheus/applications.config.scrape_configs` configures the interval (30 seconds), timeout (10 seconds), sample limit (10,000 per scrape), and response body limit (10 MB).
-
-The controller restricts metrics ingress to the node collector, which it finds through the `loco-worker` value `otel-col-daemon.namespaceOverride`.
-
 ## Private service discovery
 
 Applications in the same workspace on the same cluster reach services that declare `port` through native Kubernetes DNS, such as `http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `loco-ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.

@@ -33,8 +33,6 @@ const (
 
 func testTelemetry() TelemetryConfig {
 	return TelemetryConfig{
-		ScrapeNamespace:  "loco-obs-node",
-		ScrapeCollector:  "otel-col-daemon",
 		Namespace:        testTelemetryNamespace,
 		CollectorService: testCollectorService,
 		GRPCPort:         testCollectorGRPCPort,
@@ -312,8 +310,6 @@ func TestTelemetryConfigRequiresEveryField(t *testing.T) {
 		"collector service": func(c *TelemetryConfig) { c.CollectorService = "" },
 		"grpc port":         func(c *TelemetryConfig) { c.GRPCPort = 0 },
 		"http port":         func(c *TelemetryConfig) { c.HTTPPort = 0 },
-		"scrape namespace":  func(c *TelemetryConfig) { c.ScrapeNamespace = "" },
-		"scrape collector":  func(c *TelemetryConfig) { c.ScrapeCollector = "" },
 	}
 	for name, change := range missing {
 		t.Run(name, func(t *testing.T) {

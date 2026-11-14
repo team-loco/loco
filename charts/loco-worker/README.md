@@ -90,7 +90,7 @@ The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTT
 | Collector | Collects |
 | --- | --- |
 | `otel-col-deploy` (StatefulSet) | OTLP from applications and Envoy |
-| `otel-col-daemon` (DaemonSet) | Container logs, kubelet and host metrics, pulled application metrics |
+| `otel-col-daemon` (DaemonSet) | Container logs, kubelet and host metrics |
 | `otel-col-cluster` (StatefulSet) | Kubernetes cluster metrics and events |
 
 ```yaml

@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -147,77 +146,6 @@ def test_disabling_log_checkpoints_drops_the_file_log_storage():
     )
     config = collector_relays(documents)["otel-col-daemon-agent"]
     assert "storage" not in config["receivers"]["file_log"]
-
-
-def _application_scrape(worker_relays):
-    config = worker_relays["otel-col-daemon-agent"]
-    (scrape,) = config["receivers"]["prometheus/applications"]["config"][
-        "scrape_configs"
-    ]
-    return scrape
-
-
-def test_application_scrapes_discover_only_pods_on_their_node(worker_relays):
-    (discovery,) = _application_scrape(worker_relays)["kubernetes_sd_configs"]
-    assert discovery["selectors"] == [
-        {
-            "role": "pod",
-            "field": "spec.nodeName=${env:OTEL_K8S_NODE_NAME}",
-            "label": "loco.io/metrics-port",
-        }
-    ]
-
-
-def test_application_scrapes_use_the_configured_limits(worker_relays):
-    scrape = _application_scrape(worker_relays)
-    limits = chart_values("loco-worker")["otel-col-daemon"]["config"]["receivers"]["prometheus/applications"]["config"]["scrape_configs"][0]
-    assert scrape["sample_limit"] == limits["sample_limit"]
-    assert scrape["body_size_limit"] == limits["body_size_limit"]
-
-
-def test_application_scrapes_ignore_target_labels_and_redirects(worker_relays):
-    scrape = _application_scrape(worker_relays)
-    assert not scrape["honor_labels"]
-    assert not scrape["follow_redirects"]
-
-
-def test_application_metrics_pipeline_reads_only_the_application_scrape(worker_relays):
-    pipeline = worker_relays["otel-col-daemon-agent"]["service"]["pipelines"]["metrics/applications"]
-    assert pipeline["receivers"] == ["prometheus/applications"]
-
-
-def test_application_metrics_drop_scraped_tenancy_before_enrichment(worker_relays):
-    processors = worker_relays["otel-col-daemon-agent"]["service"]["pipelines"]["metrics/applications"]["processors"]
-    enrichment = processors.index("k8s_attributes/pod_uid")
-    assert processors.index("resource/strip_tenancy") < enrichment
-    assert processors.index("transform/scrape_identity") < enrichment
-
-
-def test_application_scrape_addresses_support_ipv4_and_ipv6(
-    worker_relays, subtests
-):
-    scrape = _application_scrape(worker_relays)
-    rules = [
-        rule
-        for rule in scrape["relabel_configs"]
-        if rule.get("target_label") == "__address__"
-    ]
-    for pod_ip, expected in [
-        ("10.244.0.5", "10.244.0.5:9090"),
-        ("fd00::5", "[fd00::5]:9090"),
-    ]:
-        with subtests.test(pod_ip=pod_ip):
-            address = None
-            for rule in rules:
-                match = re.fullmatch(rule["regex"], f"{pod_ip};9090")
-                if match:
-                    replacement = rule["replacement"].replace("$$", "$")
-                    address = re.sub(
-                        "\\$\\{(\\d+)\\}",
-                        lambda capture: match.group(int(capture[1])),
-                        replacement,
-                    )
-            assert address == expected
 
 
 def test_all_collectors_render(worker_relays):

@@ -42,7 +42,7 @@ tests:
           value: [create, get, list, patch, update, watch]
         template: templates/controller/manager-role.yaml
 
-  - it: points at the collector Services, DaemonSet and Gateway the chart renders
+  - it: points at the collector Service and Gateway the chart renders
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -60,22 +60,6 @@ tests:
           path: metadata.namespace
           value: loco-obs
         template: charts/otel-col-deploy/templates/service.yaml
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: LOCO_METRICS_COLLECTOR_NAMESPACE, value: loco-obs-node}
-        template: templates/controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: LOCO_METRICS_COLLECTOR_SERVICE, value: otel-col-daemon}
-        template: templates/controller/deployment.yaml
-      - equal:
-          path: metadata.namespace
-          value: loco-obs-node
-        template: charts/otel-col-daemon/templates/daemonset.yaml
-      - equal:
-          path: spec.template.metadata.labels["app.kubernetes.io/name"]
-          value: otel-col-daemon
-        template: charts/otel-col-daemon/templates/daemonset.yaml
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_GATEWAY, value: eg}

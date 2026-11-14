@@ -19,9 +19,7 @@ func TestZeroScalarFieldsAreOmittedUnderJSONV2(t *testing.T) {
 			Replicas: ReplicasSpec{Min: 1, Max: 1},
 			Scalers:  ScalersSpec{CPUTarget: 50},
 		},
-		Obs: &ObsSpec{
-			Metrics: MetricsSpec{Path: "/metrics"},
-		},
+		Obs: &ObsSpec{},
 	}
 	values := []any{spec, ApplicationStatus{}}
 	absent := []string{

@@ -306,26 +306,10 @@ func buildApplicationSpec(
 			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in service spec", region)}
 		}
 		deploymentService := deploymentSpec.GetService()
-		obs := converter.ProtoToObsSpec(resourceService.GetObservability())
-		if metrics := deploymentService.GetMetrics(); metrics != nil {
-			if obs == nil && metrics.GetEnabled() {
-				obs = &locoControllerV1.ObsSpec{}
-			}
-			if obs != nil {
-				obs.Metrics = locoControllerV1.MetricsSpec{
-					Enabled: metrics.GetEnabled(),
-					Port:    metrics.GetPort(),
-					Path:    metrics.GetPath(),
-				}
-			}
-		}
-		if obs != nil && obs.Metrics.Enabled {
-			obs.Metrics.Path = servicedefaults.FirstSet(obs.Metrics.Path, defaults.MetricsPath)
-		}
 		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  converter.ProtoToResourcesSpec(deploymentService),
-			Obs:        obs,
+			Obs:        converter.ProtoToObsSpec(resourceService.GetObservability()),
 			Routing: converter.ProtoToRoutingSpec(
 				deploymentRouting(resourceService, deploymentService),
 				hostname,

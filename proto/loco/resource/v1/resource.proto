@@ -81,17 +81,9 @@ message LoggingConfig {
   bool structured = 2; // parse as JSON
 }
 
-// MetricsConfig defines metrics scraping configuration.
-message MetricsConfig {
-  bool enabled = 1;
-  string path = 2; // e.g., "/metrics"
-  int32 port = 3; // e.g., 9090
-}
-
 // ObservabilityConfig defines observability settings.
 message ObservabilityConfig {
   LoggingConfig logging = 1;
-  MetricsConfig metrics = 2;
 }
 
 // RegionTarget defines the desired state for a specific region.
