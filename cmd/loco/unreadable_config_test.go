@@ -15,7 +15,7 @@ func TestCommandsReportUnreadableConfig(t *testing.T) {
 		name string
 		args []string
 	}{
-		{name: whoamiCmd, args: []string{whoamiCmd, "--host", "http://127.0.0.1:1"}},
+		{name: "whoami", args: []string{"whoami", "--host", "http://127.0.0.1:1"}},
 		{name: "web", args: []string{"web", "--web-host", "http://127.0.0.1:1"}},
 	}
 	for _, tt := range tests {

@@ -7,9 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/host"
 )
 
 const (
@@ -17,7 +16,6 @@ const (
 	invalidTag     = "latest"
 	currentVersion = "v0.0.53"
 	newerVersion   = "v0.0.60"
-	whoamiCmd      = "whoami"
 )
 
 func TestUpgradeHint(t *testing.T) {
@@ -166,20 +164,17 @@ func TestCommandReportsServerMinimum(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
 			api := newFakeAPI()
 			api.minCLIVersion = minimum
 			srv := httptest.NewServer(api.handler())
 			t.Cleanup(srv.Close)
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv(host.LocoHostEnv, srv.URL)
 
 			env := NewEnv()
-			token := &keychain.UserToken{Host: srv.URL, Token: fakeAPIToken, ExpiresAt: time.Now().Add(time.Hour)}
-			env.Tokens = func() (keychain.TokenStore, error) { return &memoryTokenStore{token: token}, nil }
 			root := NewRootCmd(env)
 			root.Version = tt.current
-			root.SetOut(&bytes.Buffer{})
-			root.SetErr(&bytes.Buffer{})
-			root.SetArgs([]string{whoamiCmd, "--host=" + srv.URL})
+			root.SetArgs([]string{"config", "list"})
 			if err := root.Execute(); err != nil {
 				t.Fatal(err)
 			}

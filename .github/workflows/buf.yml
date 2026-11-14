@@ -95,6 +95,6 @@ jobs:
         if: steps.labels.outputs.breaking == 'true'
         run: |
           set -euo pipefail
-          tag=$(git ls-remote --tags --refs origin 'v*' | awk '{print $2}' | sed 's#refs/tags/##' | sort -V | tail -1)
+          tag=$(git ls-remote --tags --refs --sort=v:refname origin 'v*' | tail -1 | cut -d/ -f3)
           git fetch --no-tags --depth=1 origin "refs/tags/${tag}:refs/tags/${tag}"
           buf breaking --against ".git#tag=${tag}"
