@@ -81,6 +81,8 @@ func TestListEventsSearchAndActors(t *testing.T) {
 		{name: "actor email", query: "NER@ACME", want: []int64{primary[4], primary[0]}},
 		{name: "target", query: "CHECKOUT", want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
 		{name: "domain", query: "EXAMPLE", want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
+		{name: "overlapping actor and target", query: "a",
+			want: []int64{primary[4], primary[3], primary[2], primary[1], primary[0]}},
 		{name: "combined", ids: []string{tokenID.String()}, query: "search-request-b", want: []int64{primary[1]}},
 		{name: "literal wildcard", query: "%"},
 		{name: "request suffix is not prefix", query: "request-b"},

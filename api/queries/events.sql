@@ -16,14 +16,14 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND ((coalesce(cardinality(sqlc.arg('actor_ids')::uuid[]), 0) = 0 AND coalesce(cardinality(sqlc.arg('actor_types')::text[]), 0) = 0)
     OR e.actor_id = ANY(sqlc.arg('actor_ids')::uuid[])
     OR e.actor_type = ANY(sqlc.arg('actor_types')::text[]))
-  -- Separate candidate queries let each search index narrow the history before paging.
+  -- Separate candidates use each search index; ANY needs no cross-index deduplication.
   AND (sqlc.arg('query')::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
     AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
       OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
       OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
-  UNION
+  UNION ALL
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
@@ -52,7 +52,7 @@ WHERE e.org_id = sqlc.arg('org_id')
     AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
       OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
       OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
-  UNION
+  UNION ALL
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''
@@ -82,7 +82,7 @@ WHERE e.org_id = sqlc.arg('org_id')
     AND (candidate.request_id LIKE sqlc.arg('request_prefix')::text
       OR candidate.data->>'name' ILIKE sqlc.arg('substring')::text
       OR candidate.data->>'domain' ILIKE sqlc.arg('substring')::text)
-  UNION
+  UNION ALL
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = sqlc.arg('org_id') AND sqlc.arg('query')::text <> ''

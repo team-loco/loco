@@ -130,14 +130,14 @@ WHERE e.org_id = $1
   AND ((coalesce(cardinality($7::uuid[]), 0) = 0 AND coalesce(cardinality($8::text[]), 0) = 0)
     OR e.actor_id = ANY($7::uuid[])
     OR e.actor_type = ANY($8::text[]))
-  -- Separate candidate queries let each search index narrow the history before paging.
+  -- Separate candidates use each search index; ANY needs no cross-index deduplication.
   AND ($9::text = '' OR e.seq = ANY(ARRAY(
   SELECT candidate.seq FROM events candidate
   WHERE candidate.org_id = $1 AND $9::text <> ''
     AND (candidate.request_id LIKE $10::text
       OR candidate.data->>'name' ILIKE $11::text
       OR candidate.data->>'domain' ILIKE $11::text)
-  UNION
+  UNION ALL
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = $1 AND $9::text <> ''
@@ -241,7 +241,7 @@ WHERE e.org_id = $1
     AND (candidate.request_id LIKE $12::text
       OR candidate.data->>'name' ILIKE $13::text
       OR candidate.data->>'domain' ILIKE $13::text)
-  UNION
+  UNION ALL
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = $1 AND $11::text <> ''
@@ -348,7 +348,7 @@ WHERE e.org_id = $1
     AND (candidate.request_id LIKE $11::text
       OR candidate.data->>'name' ILIKE $12::text
       OR candidate.data->>'domain' ILIKE $12::text)
-  UNION
+  UNION ALL
   SELECT a.seq FROM users actor
   JOIN events a ON a.actor_type = 'user' AND a.actor_id = actor.id
   WHERE a.org_id = $1 AND $10::text <> ''
