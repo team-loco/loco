@@ -78,10 +78,7 @@ message ListEventsRequest {
   }];
   string request_id = 12 [
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
-    (buf.validate.field).string = {
-      uuid: true
-      len: 36
-    }
+    (buf.validate.field).string.uuid = true
   ];
 }
 

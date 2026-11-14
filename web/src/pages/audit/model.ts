@@ -82,7 +82,6 @@ export function matchesPageFilter(row: AuditRow, text: string): boolean {
 		row.label,
 		row.detail,
 		row.where,
-		row.resource,
 		row.environment,
 		row.event.requestId,
 	].some((value) => value.toLowerCase().includes(query));

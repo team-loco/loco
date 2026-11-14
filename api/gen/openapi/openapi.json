@@ -10779,8 +10779,6 @@
           "requestId": {
             "type": "string",
             "title": "request_id",
-            "maxLength": 36,
-            "minLength": 36,
             "format": "uuid"
           }
         },
