@@ -105,6 +105,16 @@ for (const output of result.outputs) {
 		await Bun.write(target, output);
 	}
 }
-await Bun.write(`${outdir}/${spaFallback}`, Bun.file(`${outdir}/index.html`));
+// Every path but / is answered with this copy: signed-in pages and unknown paths stay out of search
+// results, while the splash at / (index.html) stays indexable.
+const unindexed = new HTMLRewriter().on("head", {
+	element(head) {
+		head.append('<meta name="robots" content="noindex">', { html: true });
+	},
+});
+await Bun.write(
+	`${outdir}/${spaFallback}`,
+	await unindexed.transform(new Response(Bun.file(`${outdir}/index.html`))).text(),
+);
 await Bun.write(`${outdir}/404.html`, await staticNotFound());
 await Bun.write(`${outdir}/version.json`, JSON.stringify({ version }));

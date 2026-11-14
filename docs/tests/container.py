@@ -20,6 +20,7 @@ NOT_FOUND_HEADING = "Nothing lives at this address"
 NOT_FOUND_VIEWPORTS = {"desktop": (1440, 900), "mobile": (390, 844)}
 NOT_FOUND_SCHEMES = ["light", "dark"]
 UNKNOWN_PATH = "/foo"
+NOINDEX = '<meta name="robots" content="noindex">'
 MISSING_ASSET = "/assets/missing-abc.js"
 SCHEMA_PATH = "/schemas/loco.v1.json"
 IMAGE = "loco-ui-docs-test"
@@ -187,6 +188,9 @@ def test_image_serves_the_ui_and_docs(tmp_path):
         assert '<script src="/runtime-config.js">' in ui
         assert "Deploy with Loco" not in ui
         assert f'<meta name="loco-version" content="{VERSION}">' in ui
+        # The splash at / stays indexable; every other path gets the same page with noindex.
+        assert 'name="robots"' not in ui
+        spa = ui.replace("</head>", NOINDEX + "</head>")
         status, body, config_headers = response(url + "/runtime-config.js", UI_HOST)
         assert status == 200
         assert body == RUNTIME_CONFIG
@@ -207,8 +211,9 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             path = re.sub(":[^/]+", "test", route)
             status, body, _ = response(url + path, UI_HOST)
             assert status == 200, path
-            assert body == ui, path
-            assert response(url + path.rstrip("/") + "/", UI_HOST)[1] == ui, path
+            page = ui if path == "/" else spa
+            assert body == page, path
+            assert response(url + path.rstrip("/") + "/", UI_HOST)[1] == page, path
         for host, prefix in [(DOCS_HOST, ""), (UI_HOST, "/docs")]:
             base = url + prefix
             status, html, headers = response(base + "/", host)
@@ -246,7 +251,7 @@ def test_image_serves_the_ui_and_docs(tmp_path):
         for path in [UNKNOWN_PATH, UNKNOWN_PATH + "/bar", "/dashboard/missing"]:
             status, body, _ = response(url + path, UI_HOST)
             assert status == 200, path
-            assert body == ui, path
+            assert body == spa, path
         # Missing files and unknown documentation paths are real 404s with the
         # static page, never the UI.
         for host, path in [
