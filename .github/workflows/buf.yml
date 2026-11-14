@@ -63,9 +63,11 @@ jobs:
             echo "::notice::$GITHUB_REF moved from $GITHUB_SHA to $head; pushing $head to the Buf Schema Registry"
           fi
 
-      # A pull request labelled `break-buf` skips the breaking-change check. The
+      # A pull request labelled `break-buf` skips both breaking-change checks. The
       # label is read when the job runs, not from the event, and adding it does
-      # not start CI: add the label, then re-run the failed jobs.
+      # not start CI: add the label, then re-run the failed jobs. Released CLIs
+      # still call the old protos, so a breaking change ships with a CLI release
+      # and the API's MIN_CLI_VERSION raised to that release.
       - name: Read the break-buf label
         id: labels
         if: github.event_name == 'pull_request'
@@ -87,3 +89,12 @@ jobs:
           lint: true
           breaking: ${{ steps.labels.outputs.breaking == 'true' }}
           breaking_against_registry: true
+
+      # The installed CLI can lag main by many commits; compare with the newest release too.
+      - name: Check for breaking changes against the latest release
+        if: steps.labels.outputs.breaking == 'true'
+        run: |
+          set -euo pipefail
+          tag=$(git ls-remote --tags --refs origin 'v*' | awk '{print $2}' | sed 's#refs/tags/##' | sort -V | tail -1)
+          git fetch --no-tags --depth=1 origin "refs/tags/${tag}:refs/tags/${tag}"
+          buf breaking --against ".git#tag=${tag}"
