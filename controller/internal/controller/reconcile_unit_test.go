@@ -90,6 +90,7 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 		testWorkspaceNamespace(app),
 		envSecretMount{Mounted: true, Revision: 7},
 		testTelemetry(),
+		testMinReadySeconds,
 	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
@@ -104,6 +105,7 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 			testWorkspaceNamespace(app),
 			envSecretMount{Mounted: true, Revision: 7},
 			testTelemetry(),
+			testMinReadySeconds,
 		)
 		if err != nil {
 			t.Fatalf("desiredDeployment: %v", err)
@@ -125,6 +127,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		testWorkspaceNamespace(app),
 		envSecretMount{Mounted: true, Revision: 7},
 		testTelemetry(),
+		testMinReadySeconds,
 	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
@@ -161,7 +164,13 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		t.Errorf("replicas = %d, want 2", got)
 	}
 
-	dep, err = desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
+	dep, err = desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		testMinReadySeconds,
+	)
 	if err != nil {
 		t.Fatalf("desiredDeployment without a secret: %v", err)
 	}
@@ -177,7 +186,13 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
-	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
+	dep, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		testMinReadySeconds,
+	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -192,7 +207,13 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 
 func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
+	dep, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		testMinReadySeconds,
+	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -214,7 +235,13 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 func TestDesiredDeploymentRejectsInvalidQuantity(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources.CPU = "lots"
-	if _, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry()); err == nil {
+	if _, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		testMinReadySeconds,
+	); err == nil {
 		t.Fatal("expected an error for an unparsable cpu quantity")
 	}
 }
@@ -259,7 +286,13 @@ func TestDeploymentReady(t *testing.T) {
 
 func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
 	app := testApplication()
-	deployment, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
+	deployment, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		testMinReadySeconds,
+	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}

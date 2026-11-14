@@ -53,6 +53,8 @@ spec:
                       value: {{ include "loco-worker.gateway" . | quote }}
                     - name: LOCO_WORKSPACE_NAMESPACE_PREFIX
                       value: {{ .Values.global.workspaceNamespacePrefix | quote }}
+                    - name: LOCO_MIN_READY_SECONDS
+                      value: {{ .Values.controller.minReadySeconds | quote }}
                     - name: LOCO_REGISTRY_AUTH
                       value: {{ include "loco-worker.registryAuth" . | quote }}
                     {{- with .Values.registry.pullSecretName }}

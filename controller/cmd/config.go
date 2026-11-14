@@ -24,12 +24,17 @@ const (
 	envRegistryAuth           = "LOCO_REGISTRY_AUTH"
 	envGateway                = "LOCO_GATEWAY"
 	envWorkspacePrefix        = "LOCO_WORKSPACE_NAMESPACE_PREFIX"
+	envMinReadySeconds        = "LOCO_MIN_READY_SECONDS"
 	decimalBase               = 10
 	portBits                  = 16
+	int32Bits                 = 32
 )
 
-var errInvalidRegistryAuth = errors.New(
-	"must be " + locov1alpha1.RegistryAuthStatic + " or " + locov1alpha1.RegistryAuthToken,
+var (
+	errInvalidRegistryAuth = errors.New(
+		"must be " + locov1alpha1.RegistryAuthStatic + " or " + locov1alpha1.RegistryAuthToken,
+	)
+	errNegativeSeconds = errors.New("must not be negative")
 )
 
 type operatorConfig struct {
@@ -41,6 +46,8 @@ type operatorConfig struct {
 	WorkspaceNamespacePrefix string
 	RawBuildConfig           string
 	Telemetry                controller.TelemetryConfig
+	// MinReadySeconds is nil when unset; only the application reconciler requires it.
+	MinReadySeconds *int32
 }
 
 func newOperatorConfig() operatorConfig {
@@ -61,7 +68,23 @@ func newOperatorConfig() operatorConfig {
 		WorkspaceNamespacePrefix: os.Getenv(envWorkspacePrefix),
 		RawBuildConfig:           os.Getenv(builds.EnvConfig),
 		Telemetry:                telemetry,
+		MinReadySeconds:          secondsEnv(envMinReadySeconds),
 	}
+}
+
+func secondsEnv(name string) *int32 {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return nil
+	}
+	seconds, err := strconv.ParseInt(raw, decimalBase, int32Bits)
+	if err != nil {
+		panic(fmt.Errorf("%s: %w", name, err))
+	}
+	if seconds < 0 {
+		panic(fmt.Errorf("%s %d %w", name, seconds, errNegativeSeconds))
+	}
+	return new(int32(seconds))
 }
 
 func portEnv(name string) int32 {
