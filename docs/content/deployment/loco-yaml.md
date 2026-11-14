@@ -101,9 +101,11 @@ Choose IDs that can read the application and write its working directories. The 
 
 ## Health checks
 
-Omit `health` for process-only monitoring: Loco creates no liveness or readiness probes, and Kubernetes restarts exited containers. This is suitable for gRPC services and workers without an HTTP health endpoint. A running process is considered ready; use protocol-specific E2E checks to verify that it can serve requests or consume messages.
+Omit `health` for a TCP readiness check: a replica is ready once it accepts connections on `port`, Loco creates no liveness probe, and Kubernetes restarts exited containers. This suits gRPC and other TCP services without an HTTP health endpoint. A service that never listens on `port`, such as a queue worker, never becomes ready, and its deployment fails at the rollout's progress deadline; use protocol-specific E2E checks to verify that it can serve requests.
 
-Set `health: {}` to enable HTTP liveness and readiness checks with the API defaults, or configure `path`, `interval`, `timeout`, `failThreshold` and `startupGracePeriod`. An environment override with `health: null` removes an inherited check. Removing `health` from an existing service redeploys it without probes.
+Set `health: {}` to enable HTTP liveness and readiness checks with the API defaults, or configure `path`, `interval`, `timeout`, `failThreshold` and `startupGracePeriod`. An environment override with `health: null` removes an inherited check. Removing `health` from an existing service redeploys it with the TCP readiness check.
+
+A rollout starts new replicas next to the old ones, up to a quarter more than the desired count, and stops an old replica only after a new one has stayed ready for the worker cluster's `controller.minReadySeconds` (10 seconds by default). A new version that crashes, never accepts connections or fails its health check therefore receives no traffic and replaces no old replica: the deployment fails and the previous version keeps serving with all its replicas.
 
 Check the structure without calling the API:
 

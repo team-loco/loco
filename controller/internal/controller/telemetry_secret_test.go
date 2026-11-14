@@ -64,7 +64,7 @@ func mountTelemetryDeployment(
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), mount, testTelemetry())
+	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), mount, testTelemetry(), testMinReadySeconds)
 	if err != nil {
 		t.Fatal(err)
 	}

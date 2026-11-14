@@ -52,7 +52,13 @@ func telemetryTestApplication() *locov1alpha1.Application {
 
 func buildDeployment(t *testing.T, app *locov1alpha1.Application) *appsv1ac.DeploymentApplyConfiguration {
 	t.Helper()
-	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
+	dep, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		testMinReadySeconds,
+	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -115,7 +121,7 @@ func TestOTLPEndpointIsBuiltFromTheCollectorAddress(t *testing.T) {
 	telemetry.Namespace = "elsewhere"
 	telemetry.HTTPPort = 9999
 	app := telemetryTestApplication()
-	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, telemetry)
+	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, telemetry, testMinReadySeconds)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}

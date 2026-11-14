@@ -102,6 +102,15 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_OTEL_COLLECTOR_HTTP_PORT, value: "14318"}
 
+  - it: passes the rollout's min ready seconds to the Application controller
+    set:
+      controller.minReadySeconds: 25
+    template: templates/controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_MIN_READY_SECONDS, value: "25"}
+
   - it: names workspace namespaces with the prefix the values give
     set:
       global.workspaceNamespacePrefix: tenant-

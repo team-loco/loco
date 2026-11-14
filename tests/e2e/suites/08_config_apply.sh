@@ -181,21 +181,24 @@ config_probes_match() {
     id=$(e2e_psql "SELECT id FROM resources WHERE name = '${service}'")
     deployment=$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
         get deployment "resource-${id}" -o json) || return 1
+    # Without health the only probe is a TCP readiness check on the port.
     jq -e --argjson expected "$expected" \
         '.spec.template.spec.containers[0] |
-            (has("livenessProbe") == $expected) and (has("readinessProbe") == $expected)' \
+            (has("livenessProbe") == $expected) and
+            ((.readinessProbe | has("httpGet")) == $expected) and
+            ((.readinessProbe | has("tcpSocket")) != $expected)' \
         <<<"$deployment" >/dev/null
 }
 
 test_g05_health_checks_are_optional() {
     assert "configured health renders HTTP probes" config_probes_match "$config_web" true
-    assert "omitted health renders no probes" config_probes_match "$config_cache" false
+    assert "omitted health renders only a TCP readiness probe" config_probes_match "$config_cache" false
     config_edit ".services.${config_web}.environments.${config_env}.health = null"
     if ! assert "apply removes inherited health" config_run remove_health infra apply --env "$config_env" --yes; then
         config_show remove_health
         return 1
     fi
-    wait_for "the existing HTTP probes to be removed" 120 config_probes_match "$config_web" false
+    wait_for "the HTTP probes to give way to the TCP readiness probe" 120 config_probes_match "$config_web" false
     config_run health_clean infra plan --env "$config_env" || true
     assert "plan stays clean without health" config_out_contains health_clean "No changes"
 }

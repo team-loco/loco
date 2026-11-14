@@ -23,7 +23,8 @@ func RuntimeProblemMessage(reason string) (string, bool) {
 	case RuntimeUnschedulable:
 		return "The service cannot be scheduled. Check the region's capacity and the service's resource requests.", true
 	case RuntimeHealthCheckFailing:
-		return "The service is failing its health check. Check its health check settings and logs.", true
+		return "The service is failing its health check, or without one is not accepting connections on its port. " +
+			"Check its port, health check settings and logs.", true
 	default:
 		return "", false
 	}

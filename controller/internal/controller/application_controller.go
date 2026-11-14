@@ -86,6 +86,10 @@ type ApplicationReconciler struct {
 	Gateway                  string
 	WorkspaceNamespacePrefix string
 	Telemetry                TelemetryConfig
+	// MinReadySeconds is how long a new replica must stay ready before the rollout
+	// counts it and replaces an old one, so a replica that crashes soon after it
+	// starts never displaces the version that is serving.
+	MinReadySeconds int32
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -635,11 +639,17 @@ func healthProbe(hc *locov1alpha1.HealthCheckSpec, port int32) *corev1ac.ProbeAp
 		WithFailureThreshold(hc.FailThreshold)
 }
 
+func listeningProbe(port int32) *corev1ac.ProbeApplyConfiguration {
+	probePort := intstr.FromInt32(port)
+	return corev1ac.Probe().WithTCPSocket(corev1ac.TCPSocketAction().WithPort(probePort))
+}
+
 func desiredDeployment(
 	app *locov1alpha1.Application,
 	namespace string,
 	envSecret envSecretMount,
 	telemetry TelemetryConfig,
+	minReadySeconds int32,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
 	template, err := podTemplate(app, namespace, envSecret, telemetry)
@@ -650,13 +660,17 @@ func desiredDeployment(
 	selectorLabels := map[string]string{labelApp: name}
 	selector := metav1ac.LabelSelector().WithMatchLabels(selectorLabels)
 	surge := intstr.FromString("25%")
-	rollingUpdate := appsv1ac.RollingUpdateDeployment().WithMaxSurge(surge).WithMaxUnavailable(surge)
+	// No old replica stops before a new one is available, so a rollout that never
+	// becomes ready leaves the previous version serving at full capacity.
+	unavailable := intstr.FromInt32(0)
+	rollingUpdate := appsv1ac.RollingUpdateDeployment().WithMaxSurge(surge).WithMaxUnavailable(unavailable)
 	strategy := appsv1ac.DeploymentStrategy().
 		WithType(appsv1.RollingUpdateDeploymentStrategyType).
 		WithRollingUpdate(rollingUpdate)
 	deploymentSpec := appsv1ac.DeploymentSpec().
 		WithSelector(selector).
 		WithStrategy(strategy).
+		WithMinReadySeconds(minReadySeconds).
 		WithTemplate(template)
 
 	if !app.Spec.ServiceSpec.Resources.Scalers.Enabled {
@@ -717,6 +731,10 @@ func podTemplate(
 		livenessProbe := healthProbe(hc, containerPort)
 		readinessProbe := healthProbe(hc, containerPort)
 		container.WithLivenessProbe(livenessProbe).WithReadinessProbe(readinessProbe)
+	} else {
+		// Without a health check a started process would count as ready before it
+		// listens, receive traffic and let the rollout replace the old replicas.
+		container.WithReadinessProbe(listeningProbe(containerPort))
 	}
 
 	podLabels := workloadLabels(app)
@@ -749,7 +767,7 @@ func (r *ApplicationReconciler) ensureDeployment(
 	app *locov1alpha1.Application,
 	envSecret envSecretMount,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	dep, err := desiredDeployment(app, r.workspaceNamespace(app), envSecret, r.Telemetry)
+	dep, err := desiredDeployment(app, r.workspaceNamespace(app), envSecret, r.Telemetry, r.MinReadySeconds)
 	if err != nil {
 		return nil, err
 	}

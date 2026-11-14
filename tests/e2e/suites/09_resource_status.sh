@@ -81,6 +81,8 @@ status_revision_changed() {
 }
 
 test_s01_restart_preserves_deployment() {
+    # A replica reports ready before it has stayed ready long enough to finish the rollout.
+    wait_for "the first rollout to finish" 60 status_rollout_is_finished
     local before_revision before_deployment before_count
     before_revision=$(sk -n "$status_namespace" get deployment -l "$(status_app_selector)" -o 'jsonpath={.items[0].spec.template.metadata.annotations.loco\.io/placement-revision}')
     before_deployment=$(region_field deploymentId)
@@ -227,10 +229,188 @@ test_s05_suspension_stops_pods_and_resume_restores_them() {
     wait_for "the post-resume scaling rollout to finish" 180 status_rollout_is_finished
 }
 
+rollout_app="e2e-rollout"
+rollout_dir="$status_dir/$rollout_app"
+rollout_host="${rollout_app}.${E2E_PLATFORM_DOMAIN}"
+rollout_poller="e2e-rollout-poller"
+
+rollout_status_field() {
+    loco_cli resource status "$rollout_app" --output json | yq -p json -r "$1"
+}
+
+rollout_region_field() {
+    rollout_status_field ".resource.environmentStatuses[0].regions[0].$1 // \"\""
+}
+
+rollout_selector() {
+    echo "app=resource-$(e2e_psql "SELECT id FROM resources WHERE name = '${rollout_app}'")"
+}
+
+rollout_is_healthy_with_two_replicas() {
+    test "$(rollout_status_field '.resource.environmentStatuses[0].status')" = RESOURCE_STATUS_HEALTHY &&
+        test "$(rollout_region_field readyReplicas)/$(rollout_region_field desiredReplicas)" = 2/2
+}
+
+rollout_first_is_running() {
+    rollout_is_healthy_with_two_replicas && test "$(rollout_region_field deploymentStatus)" = DEPLOYMENT_PHASE_RUNNING
+}
+
+rollout_deploy() {
+    (cd "$rollout_dir" && loco_cli deploy --yes) >"$status_dir/$1.out" 2>&1 || {
+        sed 's/^/    /' "$status_dir/$1.out"
+        return 1
+    }
+}
+
+# Sends requests through the Envoy gateway from inside the cluster, one per line of output.
+rollout_start_poller() {
+    local gateway
+    gateway=$(sk -n "$E2E_LOCO_NAMESPACE" get services \
+        -l "gateway.envoyproxy.io/owning-gateway-name=eg,gateway.envoyproxy.io/owning-gateway-namespace=${E2E_LOCO_NAMESPACE}" \
+        -o jsonpath='{.items[0].metadata.name}')
+    sk -n "$E2E_LOCO_NAMESPACE" delete pod "$rollout_poller" --ignore-not-found --wait >/dev/null
+    sk apply -f - >/dev/null <<YAML
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${rollout_poller}
+  namespace: ${E2E_LOCO_NAMESPACE}
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: poller
+      image: ${E2E_PUBLIC_IMAGE}
+      command:
+        - sh
+        - -c
+        - |
+          while :; do
+            if wget -q -T 2 -O /dev/null --header "Host: ${rollout_host}" "http://${gateway}.${E2E_LOCO_NAMESPACE}.svc.cluster.local/"; then
+              echo ok
+            else
+              echo fail
+            fi
+            sleep 0.2
+          done
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+YAML
+}
+
+rollout_poller_count() {
+    sk -n "$E2E_LOCO_NAMESPACE" logs "$rollout_poller" | grep -cx "$1" || true
+}
+
+rollout_poller_serves() {
+    test "$(rollout_poller_count ok)" -ge 10
+}
+
+# Records each second, per ReplicaSet of the app, its pod-template-hash, desired and ready replicas.
+rollout_sample_replica_sets() {
+    local selector
+    selector=$(rollout_selector)
+    while :; do
+        sk -n "$status_namespace" get replicasets -l "$selector" -o json |
+            yq -p json -r '.items[] | [.metadata.labels["pod-template-hash"], .spec.replicas, (.status.readyReplicas // 0)] | join(" ")'
+        sleep 1
+    done
+}
+
+rollout_deployment_status() {
+    rollout_region_field deploymentStatus
+}
+
+rollout_failed() {
+    test "$(rollout_deployment_status)" = DEPLOYMENT_PHASE_FAILED
+}
+
+rollout_deployment() {
+    curl -sS --fail-with-body "${E2E_API_URL}/loco.deployment.v1.DeploymentService/GetDeployment" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" -H 'Content-Type: application/json' \
+        -d "{\"deploymentId\":\"$1\"}" | yq -p json -r "$2"
+}
+
+test_s07_failed_rollout_keeps_the_old_version_serving() {
+    mkdir -p "$rollout_dir"
+    cli_write_image_config "$rollout_dir" "$rollout_app" "$E2E_PUBLIC_IMAGE" 8080 "[${rollout_host}]"
+    # Without a health check the controller probes the port, the case that let a crashing
+    # replica count as ready before it.
+    yq -i ".services[\"${rollout_app}\"] |= (del(.health) | .regions[\"us-east-1\"].replicas = {\"min\": 2, \"max\": 2})" \
+        "$rollout_dir/loco.yaml"
+    rollout_deploy rollout-a
+    wait_for "${rollout_app} to finish its first rollout" 180 rollout_first_is_running
+    assert "The first deployment runs and serves from two ready replicas" rollout_first_is_running
+
+    local old_deployment old_hash
+    old_deployment=$(rollout_region_field deploymentId)
+    old_hash=$(sk -n "$status_namespace" get replicasets -l "$(rollout_selector)" \
+        -o jsonpath='{.items[0].metadata.labels.pod-template-hash}')
+
+    rollout_start_poller
+    wait_for "requests through the gateway to reach ${rollout_app}" 120 rollout_poller_serves
+    local served_before
+    served_before=$(rollout_poller_count ok)
+    rollout_sample_replica_sets >"$status_dir/rollout-replicasets.log" 2>&1 &
+    local sampler=$!
+
+    # The image's entrypoint renders this template to a directory and exits before nginx listens.
+    yq -i ".services[\"${rollout_app}\"].env = {\"NGINX_ENVSUBST_TEMPLATE_DIR\": \"/etc/nginx/conf.d\", \"NGINX_ENVSUBST_TEMPLATE_SUFFIX\": \"default.conf\"}" \
+        "$rollout_dir/loco.yaml"
+    rollout_deploy rollout-b
+    wait_for "the crashing deployment to fail" 240 rollout_failed
+    # Long enough for a replica that stayed ready past minReadySeconds to replace an old one.
+    sleep 30
+    kill "$sampler"
+    wait "$sampler" 2>/dev/null || true
+    sk -n "$E2E_LOCO_NAMESPACE" delete pod "$rollout_poller" --wait=false >/dev/null
+
+    local served failed
+    served=$(rollout_poller_count ok)
+    failed=$(rollout_poller_count fail)
+    sk -n "$E2E_LOCO_NAMESPACE" logs "$rollout_poller" >"$status_dir/rollout-poller.log" 2>&1 || true
+    assert "Requests kept reaching the app during the failed rollout (${served} succeeded)" \
+        test "$served" -gt "$served_before"
+    assert "No request failed during the failed rollout (${failed} failed)" test "$failed" -eq 0
+
+    local samples="$status_dir/rollout-replicasets.log"
+    assert "The replica samples cover the new ReplicaSet until the end" \
+        test "$(awk -v old="$old_hash" '$1 != old' "$samples" | wc -l)" -ge 30
+    assert "The old ReplicaSet never dropped below two ready replicas" \
+        test -z "$(awk -v old="$old_hash" '$1 == old && ($2 < 2 || $3 < 2)' "$samples")"
+    assert "The rollout started at most one new replica" \
+        test -z "$(awk -v old="$old_hash" '$1 != old && $2 > 1' "$samples")"
+    assert "At most one replica of the new version exists" \
+        test "$(sk -n "$status_namespace" get pods -l "$(rollout_selector)" -o json |
+            yq -p json -r "[.items[] | select(.metadata.labels[\"pod-template-hash\"] != \"${old_hash}\")] | length")" -le 1
+
+    local new_deployment
+    new_deployment=$(rollout_region_field deploymentId)
+    assert "The API reports the new deployment failed" \
+        test "$(rollout_deployment "$new_deployment" '.deployment.status')" = DEPLOYMENT_PHASE_FAILED
+    assert "The API reports the app healthy while the old replicas serve" rollout_is_healthy_with_two_replicas
+    # The API still treats the failed deployment as active and the serving one as replaced;
+    # https://github.com/team-loco/loco/issues/1774 tracks reporting the serving deployment.
+    assert "The failed deployment is the active one" \
+        test "$(rollout_deployment "$new_deployment" '.deployment.isActive // false')" = true
+    assert "The serving deployment is reported inactive" \
+        test "$(rollout_deployment "$old_deployment" '.deployment.isActive // false')" = false
+}
+
 suite_diagnostics() {
     [ "$1" -ne 0 ] || return 0
     if [ -f "$status_dir/crash.out" ]; then
         cat "$status_dir/crash.out"
+    fi
+    if [ -f "$status_dir/rollout-replicasets.log" ]; then
+        sort "$status_dir/rollout-replicasets.log" | uniq -c
+        grep -c fail "$status_dir/rollout-poller.log" || true
     fi
     e2e_psql "SELECT r.name, p.desired_revision, p.applied_revision, p.ready, p.ready_replicas, p.status_phase, p.status_message, p.runtime_reason, p.status_updated_at FROM placements p JOIN resources r ON r.id = p.resource_id WHERE r.name = 'e2e-runtime-crash'" || true
     runtime_event_list || true

@@ -32,6 +32,7 @@ func testApplicationConfig() operatorConfig {
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspacePrefix,
 		Telemetry:                testTelemetry(),
+		MinReadySeconds:          new(int32(10)),
 	}
 }
 
@@ -133,7 +134,7 @@ func TestApplicationReconcilerRequiresTheTelemetryConfig(t *testing.T) {
 	}
 }
 
-func TestApplicationReconcilerRequiresTheGatewayAndWorkspacePrefix(t *testing.T) {
+func TestApplicationReconcilerRequiresItsSettings(t *testing.T) {
 	withoutGateway := testApplicationConfig()
 	withoutGateway.Gateway = ""
 	if _, err := selectReconciler(reconcilerApplication, withoutGateway); !errors.Is(err, errGatewayMissing) {
@@ -143,6 +144,11 @@ func TestApplicationReconcilerRequiresTheGatewayAndWorkspacePrefix(t *testing.T)
 	withoutPrefix.WorkspaceNamespacePrefix = ""
 	if _, err := selectReconciler(reconcilerApplication, withoutPrefix); !errors.Is(err, errWorkspacePrefixMissing) {
 		t.Errorf("without a workspace prefix: err = %v, want %v", err, errWorkspacePrefixMissing)
+	}
+	withoutMinReady := testApplicationConfig()
+	withoutMinReady.MinReadySeconds = nil
+	if _, err := selectReconciler(reconcilerApplication, withoutMinReady); !errors.Is(err, errMinReadySecondsMissing) {
+		t.Errorf("without min ready seconds: err = %v, want %v", err, errMinReadySecondsMissing)
 	}
 }
 

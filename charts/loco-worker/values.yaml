@@ -222,6 +222,10 @@ controller:
   args:
     - --leader-elect
 
+  # Seconds a new application replica must stay ready before a rollout replaces an old one.
+  # @schema type: integer; minimum: 0
+  minReadySeconds: 10
+
   env: []
 
   # @schema skipProperties

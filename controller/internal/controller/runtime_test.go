@@ -111,6 +111,7 @@ func TestRuntimePodRoutesToApplication(t *testing.T) {
 		testWorkspaceNamespace(application),
 		envSecretMount{},
 		testTelemetry(),
+		testMinReadySeconds,
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -34,6 +34,33 @@ func TestOperatorConfigReadsTheGatewayAndWorkspacePrefix(t *testing.T) {
 	}
 }
 
+func TestOperatorConfigReadsMinReadySeconds(t *testing.T) {
+	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
+	t.Setenv(envMinReadySeconds, "0")
+	if got := newOperatorConfig().MinReadySeconds; got == nil || *got != 0 {
+		t.Errorf("MinReadySeconds = %v, want 0", got)
+	}
+	t.Setenv(envMinReadySeconds, "")
+	if got := newOperatorConfig().MinReadySeconds; got != nil {
+		t.Errorf("unset MinReadySeconds = %d, want nil", *got)
+	}
+}
+
+func TestOperatorConfigPanicsOnInvalidMinReadySeconds(t *testing.T) {
+	for _, value := range []string{"10s", "-1", "4294967296"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
+			t.Setenv(envMinReadySeconds, value)
+			defer func() {
+				if recover() == nil {
+					t.Errorf("newOperatorConfig accepted min ready seconds %q", value)
+				}
+			}()
+			newOperatorConfig()
+		})
+	}
+}
+
 func TestOperatorConfigLeavesUnsetPortsZero(t *testing.T) {
 	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 	t.Setenv(envOTelCollectorGRPCPort, "")
