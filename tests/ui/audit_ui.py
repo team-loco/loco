@@ -116,6 +116,7 @@ with sync_playwright() as p:
         evidence.settle(page)
         page.screenshot(path=out / f"drawer-{theme}.png", animations="disabled")
         drawer.get_by_role("button", name="Older event", exact=True).click()
+        expect(drawer.get_by_title("Copy request ID", exact=True)).not_to_have_text(request_id)
         request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
         expect(drawer.get_by_role("button", name="Newer event", exact=True)).to_be_enabled()
         page.keyboard.press("Escape")
@@ -140,6 +141,7 @@ with sync_playwright() as p:
         assert not searched.value.request.post_data_json.get("beforeSeq")
         assert searched.value.request.post_data_json["requestId"] == request_id
         expect(rows).to_have_count(1)
+        expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
         expect(page).to_have_url(re.compile(r"[?&]q=" + request_id))
         evidence.settle(page)
         page.screenshot(path=out / f"search-{theme}.png", animations="disabled")
