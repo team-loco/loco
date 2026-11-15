@@ -6,6 +6,7 @@ const NANOS_PER_MS = 1_000_000n;
 const NANOS_PER_MICROSECOND = 1_000n;
 
 export const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/;
+const SPAN_ID_PATTERN = /^[0-9a-f]{16}$/;
 
 function timestampNanos(ts: Timestamp | undefined): bigint {
 	return (ts?.seconds ?? 0n) * NANOS_PER_SECOND + BigInt(ts?.nanos ?? 0);
@@ -22,6 +23,15 @@ export function spanStart(span: TraceSpan): bigint {
 export function eventOffsetLabel(span: TraceSpan, event: TraceSpanEvent): string | null {
 	if (event.timestamp === undefined) return null;
 	return `+${durationLabel(timestampNanos(event.timestamp) - spanStart(span))}`;
+}
+
+// spanLinkSearch opens a linked span in the trace drawer, keeping the page's other query parameters.
+export function spanLinkSearch(search: string, traceId: string, spanId: string): string | null {
+	if (!TRACE_ID_PATTERN.test(traceId) || !SPAN_ID_PATTERN.test(spanId)) return null;
+	const params = new URLSearchParams(search);
+	params.set("trace", traceId);
+	params.set("span", spanId);
+	return `?${params.toString()}`;
 }
 
 export function durationLabel(nanos: bigint): string {

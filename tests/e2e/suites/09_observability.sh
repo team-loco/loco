@@ -437,6 +437,12 @@ check_ingress_trace() {
         "curl -X POST ${obs_get_trace} -H 'Authorization: Bearer <workspace token>' -d '${body}'" \
         "HTTP ${status}"$'\n'"${response}"
     test "$status" = "$obs_http_ok" || return 1
+    local linked
+    linked=$(SCOPE="$obs_fixture_scope" yq -p json -r '[.spans[] | select(.scopeName == strenv(SCOPE)) | .links[]? | select(
+        .traceId == "0102030405060708090a0b0c0d0e0f10" and .spanId == "0102030405060708" and .attributes."test.link" == "retry"
+    )] | length' <<<"$response")
+    ev "Spans with the fixture's link: ${linked}." ""
+    test "$linked" -gt 0 || return 1
     rows=$(yq -p json -r '.spans // [] | .[] | [.spanId, (.parentSpanId // ""), .scopeName, .workspaceId, .resourceId, (.resourceAttributes."loco.organization.id" // ""), .traceId] | @tsv' <<<"$response")
     awk -F'\t' -v scope="$obs_fixture_scope" -v ws="$obs_workspace_id" -v res="$obs_resource_id" -v org="$obs_organization_id" -v trace="$obs_trace_id" '
         NF {

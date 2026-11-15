@@ -30,6 +30,7 @@ import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { SpanEvents } from "./SpanEvents";
+import { SpanLinks } from "./SpanLinks";
 import { useObs } from "./context";
 import { failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo, type Zoom } from "./flame";
 import { fmtTs } from "./format";
@@ -80,7 +81,7 @@ function groupAttributes(span: TraceSpan, trace: TraceSummary, resourceName: str
 				["resource", resourceName ?? r["service.name"] ?? span.serviceName],
 				["replica", r["k8s.pod.name"] ?? ""],
 				["region", r["loco.region"] ?? ""],
-				["environment", r["loco.environment.name"] ?? ""],
+				["environment", r["deployment.environment.name"] ?? ""],
 			],
 		},
 		{
@@ -418,6 +419,7 @@ export function TraceDrawer({
 								</pre>
 							)}
 							<SpanEvents span={selected} />
+							<SpanLinks span={selected} />
 							<div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
 								<section aria-label="Span attributes" className="flex min-w-0 flex-col gap-3.5">
 									{groupAttributes(selected, trace, resourceById.get(selected.resourceId)?.name).map((g) => (
@@ -427,12 +429,10 @@ export function TraceDrawer({
 												{g.rows.map(([k, v]) => (
 													<div
 														key={k}
-														className="grid grid-cols-[150px_minmax(0,1fr)] gap-2.5 border-b border-line py-1.5 text-[12px] last:border-b-0"
+														className="grid grid-cols-[minmax(0,35%)_minmax(0,1fr)] gap-2.5 border-b border-line py-1.5 text-[12px] last:border-b-0"
 													>
-														<dt className="truncate font-mono text-fg3" title={k}>
-															{k}
-														</dt>
-														<dd className="m-0 font-mono break-all text-foreground">{v}</dd>
+														<dt className="font-mono break-words text-fg3 [overflow-wrap:anywhere]">{k}</dt>
+														<dd className="m-0 min-w-0 font-mono text-foreground [overflow-wrap:anywhere]">{v}</dd>
 													</div>
 												))}
 											</dl>

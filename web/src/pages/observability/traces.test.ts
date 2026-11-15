@@ -6,6 +6,7 @@ import {
 	durationLabel,
 	durationScale,
 	eventOffsetLabel,
+	spanLinkSearch,
 	spanTree,
 	summarizeTraces,
 	uniqueSpans,
@@ -29,6 +30,18 @@ describe("trace timing and hierarchy", () => {
 		const event = create(TraceSpanEventSchema, { timestamp: { seconds: 1_800_000_000n, nanos: 12_400_000 } });
 		expect(eventOffsetLabel(span("root"), event)).toBe("+12.40 ms");
 		expect(eventOffsetLabel(span("root"), create(TraceSpanEventSchema))).toBeNull();
+	});
+	test("opens a linked span with its trace and keeps other query parameters", () => {
+		const traceId = "0102030405060708090a0b0c0d0e0f10";
+		const params = new URLSearchParams(
+			spanLinkSearch("?env=staging&q=payment&trace=old&span=old", traceId, "fffefdfcfbfaf9f8") ?? "",
+		);
+		expect(params.get("trace")).toBe(traceId);
+		expect(params.get("span")).toBe("fffefdfcfbfaf9f8");
+		expect(params.get("env")).toBe("staging");
+		expect(params.get("q")).toBe("payment");
+		expect(spanLinkSearch("", "", "fffefdfcfbfaf9f8")).toBeNull();
+		expect(spanLinkSearch("", traceId, "")).toBeNull();
 	});
 	test("retains nanosecond offsets at epoch timestamps beyond safe integers", () => {
 		const root = span("root");
