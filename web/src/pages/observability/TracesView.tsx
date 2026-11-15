@@ -214,8 +214,9 @@ function TraceSession({
 	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
 	const query = queryStr(tokens, text);
+	// Set env in the same update: the redirect below reads the router search, which lags behind nuqs.
 	const open = (id: string) => {
-		void setParams({ trace: id, span: null });
+		void setParams({ trace: id, span: null, env: params.env ?? active?.name ?? null });
 	};
 	const close = () => {
 		void setParams({ trace: null, span: null });
