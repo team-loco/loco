@@ -8,24 +8,6 @@
         "existingSecret"
       ],
       "properties": {
-        "bootstrapToken": {
-          "type": "object",
-          "properties": {
-            "existingSecret": {
-              "type": "object",
-              "properties": {
-                "key": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
         "clickhouse": {
           "type": "object",
           "properties": {
@@ -104,6 +86,12 @@
         },
         "startupProbe": {
           "type": "object"
+        },
+        "systemAdmins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

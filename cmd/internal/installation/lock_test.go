@@ -49,7 +49,7 @@ func TestLockRefreshesStateAndProtectsReplacementHolder(t *testing.T) {
 					state := corev1.ConfigMap{
 						UID:    types.UID("state-id"),
 						Labels: map[string]string{installationOwner: testInstallation},
-						Data:   map[string]string{"clusterUID": testClusterUID, testBootstrapComplete: stateTrue},
+						Data:   map[string]string{"clusterUID": testClusterUID, testReleaseVersion: "fresh"},
 					}
 					if err := json.NewEncoder(w).Encode(&state); err != nil {
 						t.Error(err)
@@ -88,12 +88,12 @@ func TestLockRefreshesStateAndProtectsReplacementHolder(t *testing.T) {
 			stale := &corev1.ConfigMap{
 				UID:    types.UID("state-id"),
 				Labels: map[string]string{installationOwner: testInstallation},
-				Data:   map[string]string{"bootstrapComplete": "false"},
+				Data:   map[string]string{testReleaseVersion: "stale"},
 			}
 			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 			defer cancel()
 			err = kube.withLock(ctx, stale, func(_ context.Context, fresh *corev1.ConfigMap) error {
-				if fresh.Data["bootstrapComplete"] != stateTrue {
+				if fresh.Data[testReleaseVersion] != "fresh" {
 					t.Fatal("lock callback received stale state")
 				}
 				return nil

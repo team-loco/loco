@@ -786,67 +786,6 @@
         }
       }
     },
-    "/loco.bootstrap.v1.BootstrapService/Bootstrap": {
-      "post": {
-        "tags": [
-          "loco.bootstrap.v1.BootstrapService"
-        ],
-        "summary": "Bootstrap",
-        "operationId": "loco.bootstrap.v1.BootstrapService.Bootstrap",
-        "parameters": [
-          {
-            "name": "Connect-Protocol-Version",
-            "in": "header",
-            "description": "Define the version of the Connect protocol",
-            "schema": {
-              "$ref": "#/components/schemas/connect-protocol-version"
-            },
-            "example": 1
-          },
-          {
-            "name": "Connect-Timeout-Ms",
-            "in": "header",
-            "description": "Define the timeout, in ms",
-            "schema": {
-              "$ref": "#/components/schemas/connect-timeout-header"
-            },
-            "example": 1000
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/loco.bootstrap.v1.BootstrapRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/connect.error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/loco.bootstrap.v1.BootstrapResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/loco.build.v1.BuildService/CancelBuild": {
       "post": {
         "tags": [
@@ -8624,33 +8563,6 @@
         "title": "StartDeviceLoginResponse",
         "additionalProperties": false
       },
-      "loco.bootstrap.v1.BootstrapRequest": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "title": "token",
-            "minLength": 1
-          }
-        },
-        "title": "BootstrapRequest",
-        "additionalProperties": false
-      },
-      "loco.bootstrap.v1.BootstrapResponse": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "title": "user_id"
-          },
-          "tokens": {
-            "title": "tokens",
-            "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
-          }
-        },
-        "title": "BootstrapResponse",
-        "additionalProperties": false
-      },
       "loco.build.v1.Build": {
         "type": "object",
         "properties": {
@@ -15541,9 +15453,6 @@
     },
     {
       "name": "loco.auth.v1.AuthService"
-    },
-    {
-      "name": "loco.bootstrap.v1.BootstrapService"
     },
     {
       "name": "loco.build.v1.BuildService"

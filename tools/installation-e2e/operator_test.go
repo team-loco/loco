@@ -12,15 +12,15 @@ import (
 func TestOperatorFailureReportsOnlyKnownPhase(t *testing.T) {
 	const unknownPhase = "unknown"
 	for _, tc := range []struct{ name, output, phase string }{
-		{"known", "installation-e2e phase: pre-bootstrap-audit\ncredential-canary\n", "pre-bootstrap-audit"},
+		{"known", "installation-e2e phase: pre-login-audit\ncredential-canary\n", "pre-login-audit"},
 		{"unrecognized", "installation-e2e phase: credential-canary\n", unknownPhase},
-		{"tainted", "installation-e2e phase: pre-bootstrap-audit credential-canary\n", unknownPhase},
+		{"tainted", "installation-e2e phase: pre-login-audit credential-canary\n", unknownPhase},
 		{"last-known", "installation-e2e phase: preflight\n" +
-			"installation-e2e phase: pre-bootstrap-audit\n" +
-			"installation-e2e phase: credential-canary\n", "pre-bootstrap-audit"},
-		{"bootstrap-boundary", "installation-e2e phase: bootstrap-grant\ncredential-canary\n", phaseBootstrapGrant},
-		{"unknown-bootstrap", "installation-e2e phase: bootstrap-credential-canary\n", unknownPhase},
-		{"incomplete", "installation-e2e phase: pre-bootstrap-audit", unknownPhase},
+			"installation-e2e phase: pre-login-audit\n" +
+			"installation-e2e phase: credential-canary\n", "pre-login-audit"},
+		{"login-boundary", "installation-e2e phase: login-approved\ncredential-canary\n", phaseLoginApproved},
+		{"unknown-login", "installation-e2e phase: login-credential-canary\n", unknownPhase},
+		{"incomplete", "installation-e2e phase: pre-login-audit", unknownPhase},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeOperatorCommand(t, `#!/bin/sh
@@ -70,27 +70,27 @@ func fakeOperatorCommand(t *testing.T, script string) {
 	t.Setenv("PATH", bin)
 }
 
-func TestHostAcceptsOnlyKnownBootstrapFailureCategories(t *testing.T) {
+func TestHostAcceptsOnlyKnownLoginFailureCategories(t *testing.T) {
 	for _, tc := range []struct{ marker, category string }{
-		{bootstrapFailureUnavailable, bootstrapFailureUnavailable}, {bootstrapFailureIdentity, bootstrapFailureIdentity},
+		{loginFailureUnavailable, loginFailureUnavailable}, {loginFailureExpired, loginFailureExpired},
 		{"unknown", "unknown"}, {"unrecognized-category", ""}, {"api-unavailable credential-canary", ""},
 	} {
 		t.Run(tc.marker, func(t *testing.T) {
 			fakeOperatorCommand(t, `#!/bin/sh
-printf 'installation-e2e phase: bootstrap-grant\n'
-printf 'installation-e2e bootstrap failure: %s\n' "$BOOTSTRAP_FAILURE_TEST_MARKER"
+printf 'installation-e2e phase: login-approved\n'
+printf 'installation-e2e login failure: %s\n' "$LOGIN_FAILURE_TEST_MARKER"
 printf 'credential-canary' >&2
 exit 1
 `)
-			t.Setenv("BOOTSTRAP_FAILURE_TEST_MARKER", tc.marker)
+			t.Setenv("LOGIN_FAILURE_TEST_MARKER", tc.marker)
 			output, err := operatorWorkflow(t.Context(), t.TempDir())
 			if err == nil || len(output) != 0 || strings.Contains(err.Error(), "credential-canary") {
 				t.Fatal("host exposed failed child output")
 			}
-			if tc.category != "" && !strings.Contains(err.Error(), "bootstrap failure "+tc.category) {
+			if tc.category != "" && !strings.Contains(err.Error(), "login failure "+tc.category) {
 				t.Fatal("host dropped safe failure category")
 			}
-			if tc.category == "" && strings.Contains(err.Error(), "bootstrap failure") {
+			if tc.category == "" && strings.Contains(err.Error(), "login failure") {
 				t.Fatal("host accepted tainted category")
 			}
 		})

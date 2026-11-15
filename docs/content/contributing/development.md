@@ -70,7 +70,7 @@ Use the repository's tasks for builds, tests, code generation, and linting so lo
 
 ## Installation end-to-end suite
 
-The unreleased installation suite provisions its own kind cluster and external fixture services, then uses `locoadm` for control-plane installation, closed-signup first-admin authentication and worker enrollment:
+The unreleased installation suite provisions its own kind cluster and external fixture services, then uses `locoadm` for control-plane installation, the configured admin's sign-in under closed signup and worker attachment:
 
 ```sh
 mise run test:e2e-installation-runner
@@ -78,7 +78,7 @@ mise run e2e:installation --no-teardown
 mise run e2e:installation --skip-build
 ```
 
-The first command tests failure propagation, cleanup and the real HTTP login driver without a cluster. The cluster suite builds images for Docker's host architecture and publishes digest-pinned charts, images and CRDs to a fixture registry. An operator pod uses an explicit fixture kubeconfig; Dex authentication, generated installation credentials and worker identity follow the public commands. Application setup uses authenticated APIs, then `loco deploy` builds source and checks its HTTPS response. No SQL creates ordinary users, sessions or cluster registrations on this path.
+The first command tests failure propagation, cleanup and the device sign-in driver without a cluster. The cluster suite builds images for Docker's host architecture and publishes digest-pinned charts, images and CRDs to a fixture registry. An operator pod uses an explicit fixture kubeconfig; The operator signs in with `locoadm login --device`; the suite approves the code by calling the API's `ApproveDeviceLogin` with an ID token from the fixture Dex's password grant, the call the dashboard makes when a person approves. Generated installation credentials and worker identity follow the public commands. Application setup uses authenticated APIs, then `loco deploy` builds source and checks its HTTPS response. No SQL creates ordinary users, sessions or cluster registrations on this path.
 
 The pinned cloud-provider-kind controller publishes real LoadBalancer addresses. Fixture CoreDNS records route control-plane names and wildcard application names to those addresses. The fixture CA verifies the HTTPS certificate; these names represent operator-managed DNS inside the disposable environment and do not test Internet DNS propagation.
 

@@ -100,6 +100,8 @@ Operator commands in `locoadm` require the `system:admin` grant. The API grants 
 
 The API applies the list at startup. Removing an email revokes the grant from the account that claimed it; adding it back opens a new claim for the next verified sign-in with that email. A claimed entry stays spent when its account is deleted, so a new holder of the address gets nothing until the email is removed from the list and added back. Each claim and revocation records a `system_admin.claimed` or `system_admin.revoked` event with the email, issuer and subject.
 
+An [installation file](../reference/installation.md) lists them in `controlPlane.admins`; after `locoadm apply`, sign in with `locoadm login` as one of them.
+
 List admins only on an identity provider that verifies email addresses: whoever first signs in with a listed address the provider reports as verified becomes a system admin. Never enable Dex's `insecureSkipEmailVerified`. With GitHub Enterprise Server, Dex treats every email as verified.
 
 `BootstrapService.Bootstrap` requires both the installation's bootstrap token and an identity-provider JWT in the Authorization header. The API verifies the issuer, signature, audience, expiry and verified email before resolving or creating the first administrator, including when ordinary signup is closed. It returns a normal CLI session.

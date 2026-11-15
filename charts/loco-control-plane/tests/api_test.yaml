@@ -118,14 +118,14 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: APP_PORT, value: "0.0.0.0:8000"}
 
-  - it: reads the bootstrap token from an existing Secret
+  - it: lists the configured system admins
     set:
-      api.bootstrapToken.existingSecret: {name: loco-bootstrap, key: value}
+      api.systemAdmins: [ada@example.com, grace@example.com]
     template: templates/api-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_BOOTSTRAP_TOKEN, valueFrom: {secretKeyRef: {name: loco-bootstrap, key: value}}}
+          content: {name: LOCO_SYSTEM_ADMINS, value: "ada@example.com,grace@example.com"}
 
   - it: sets the invitation lifetime
     set:
@@ -144,12 +144,12 @@ tests:
           content: {name: INVITATION_TTL}
           any: true
 
-  - it: sets no bootstrap token by default
+  - it: lists no system admins by default
     template: templates/api-deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_BOOTSTRAP_TOKEN}
+          content: {name: LOCO_SYSTEM_ADMINS}
           any: true
 
   - it: admits the Gateway's Envoy pods and the ingest proxy to the API

@@ -21,6 +21,7 @@ func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
 		map[string]any{
 			"Version":       json.Number("1"),
 			"ClusterUID":    "external-kind-uid",
+			"Email":         fixtureEmail,
 			"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}},
 		},
 	)

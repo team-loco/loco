@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"time"
-
-	"github.com/team-loco/loco/cmd/internal/auth"
 
 	"github.com/spf13/cobra"
 
+	"github.com/team-loco/loco/cmd/internal/auth"
 	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 const operationTimeout = 30 * time.Minute
@@ -25,16 +27,13 @@ func Commands() []*cobra.Command {
 		var file string
 		var timeout time.Duration
 		command := &cobra.Command{
-			Use:   operation + " --file loco-install.yaml",
+			Use:   operation,
 			Short: operation + " the declarative installation",
 			Args:  cobra.NoArgs,
 		}
-		command.Flags().StringVar(&file, "file", "", "Installation YAML file")
+		command.Flags().StringVar(&file, "file", installation.DefaultFile, installation.FileFlagUsage)
 		command.Flags().
 			DurationVar(&timeout, "timeout", operationTimeout, "Maximum duration for installation operations")
-		if err := command.MarkFlagRequired("file"); err != nil {
-			panic(err)
-		}
 		command.RunE = func(cmd *cobra.Command, _ []string) error {
 			if timeout <= 0 {
 				return errTimeout
@@ -45,77 +44,104 @@ func Commands() []*cobra.Command {
 			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 			defer cancel()
-			if operation == "plan" {
-				release, releaseErr := installation.LoadRelease(
-					ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr(),
-				)
-				if releaseErr != nil {
-					return releaseErr
-				}
-				plan, planErr := installation.PlanInstallation(ctx, *config, release)
-				if planErr != nil {
-					return planErr
-				}
-				return json.NewEncoder(cmd.OutOrStdout()).Encode(plan)
+			switch operation {
+			case "plan":
+				return plan(ctx, cmd, *config, file)
+			case "status":
+				return status(ctx, cmd, *config)
+			default:
+				return apply(ctx, cmd, *config, file)
 			}
-			if operation == "status" {
-				var token string
-				ready, statusErr := installation.BootstrapComplete(ctx, *config)
-				if statusErr == nil && ready {
-					store, storeErr := keychain.ForCurrentUser()
-					if storeErr != nil {
-						return storeErr
-					}
-					session, sessionErr := auth.FreshToken(ctx, config.ControlPlane.APIURL, store)
-					if sessionErr != nil {
-						return sessionErr
-					}
-					token = session.Token
-				}
-				status, inspectErr := installation.StatusInstallation(ctx, *config, token)
-				if inspectErr != nil {
-					return inspectErr
-				}
-				return json.NewEncoder(cmd.OutOrStdout()).Encode(status)
-			}
-			release, err := installation.LoadRelease(ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr())
-			if err != nil {
-				return err
-			}
-			if err = installation.ApplyControlPlane(ctx, *config, release); err != nil {
-				return err
-			}
-			ready, err := installation.BootstrapComplete(ctx, *config)
-			if err != nil {
-				return err
-			}
-			if !ready {
-				_, err = fmt.Fprintln(
-					cmd.OutOrStdout(),
-					"Control plane is running. Run locoadm bootstrap --file",
-					file,
-					"--email <first-admin-email> to create the first administrator, then run apply again.",
-				)
-				return err
-			}
-			store, err := keychain.ForCurrentUser()
-			if err != nil {
-				return err
-			}
-			session, err := auth.FreshToken(ctx, config.ControlPlane.APIURL, store)
-			if err != nil {
-				return err
-			}
-			if err = installation.ApplyWorkers(ctx, *config, release, session.Token); err != nil {
-				return err
-			}
-			_, err = fmt.Fprintln(
-				cmd.OutOrStdout(),
-				"Control plane and configured workers are running. DNS and HTTPS verification remain required.",
-			)
-			return err
 		}
 		commands = append(commands, command)
 	}
 	return commands
+}
+
+func plan(ctx context.Context, cmd *cobra.Command, config installation.Config, file string) error {
+	release, err := installation.LoadRelease(ctx, config, file, cmd.Root().Version, cmd.ErrOrStderr())
+	if err != nil {
+		return err
+	}
+	planned, err := installation.PlanInstallation(ctx, config, release)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(cmd.OutOrStdout()).Encode(planned)
+}
+
+func status(ctx context.Context, cmd *cobra.Command, config installation.Config) error {
+	token, err := session(ctx, config.ControlPlane.APIURL)
+	if err != nil {
+		return err
+	}
+	inspected, err := installation.StatusInstallation(ctx, config, token)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(cmd.OutOrStdout()).Encode(inspected)
+}
+
+// apply installs or upgrades the control plane only; workers attach with locoadm cluster attach.
+func apply(ctx context.Context, cmd *cobra.Command, config installation.Config, file string) error {
+	release, err := installation.LoadRelease(ctx, config, file, cmd.Root().Version, cmd.ErrOrStderr())
+	if err != nil {
+		return err
+	}
+	if err = installation.ApplyControlPlane(ctx, config, release); err != nil {
+		return err
+	}
+	out := cmd.OutOrStdout()
+	if _, err = fmt.Fprintln(out, "Control plane is running. DNS and HTTPS verification remain required."); err != nil {
+		return err
+	}
+	if err = reportAdmins(ctx, out, config); err != nil {
+		return err
+	}
+	flag := ""
+	if file != installation.DefaultFile {
+		flag = " --file " + file
+	}
+	_, err = fmt.Fprintf(out, "Next:\n  locoadm login%s\n  locoadm cluster attach%s\n", flag, flag)
+	return err
+}
+
+// reportAdmins names the configured admins nobody has claimed. Without a system-admin session it
+// lists every configured admin, since only a system admin can read the claims.
+func reportAdmins(ctx context.Context, out io.Writer, config installation.Config) error {
+	token, err := session(ctx, config.ControlPlane.APIURL)
+	if err == nil && token != "" {
+		admins, adminErr := installation.UnclaimedAdmins(ctx, rpc.ForHost(config.ControlPlane.APIURL, token))
+		if adminErr == nil {
+			if len(admins.Unclaimed) == 0 {
+				_, err = fmt.Fprintln(out, "Every configured admin has signed in.")
+				return err
+			}
+			_, err = fmt.Fprintf(out, "Configured admins who have not signed in: %s\n",
+				strings.Join(admins.Unclaimed, ", "))
+			return err
+		}
+	}
+	_, err = fmt.Fprintf(
+		out,
+		"Configured admins: %s. The first verified sign-in with each email makes it a system admin.\n",
+		strings.Join(config.ControlPlane.Admins, ", "),
+	)
+	return err
+}
+
+// session returns the saved CLI session for apiURL, or "" when nobody has signed in.
+func session(ctx context.Context, apiURL string) (string, error) {
+	store, err := keychain.ForCurrentUser()
+	if err != nil {
+		return "", err
+	}
+	token, err := auth.FreshToken(ctx, apiURL, store)
+	if errors.Is(err, auth.ErrLoginRequired) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return token.Token, nil
 }

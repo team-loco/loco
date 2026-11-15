@@ -21,7 +21,7 @@ kubectl -n loco-system create secret generic regional-api-env \
   --from-env-file=/secure/loco-api.env
 ```
 
-`api.bootstrapToken.existingSecret` names the Secret key holding the one-time `LOCO_BOOTSTRAP_TOKEN` for `locoadm bootstrap`. Remove it after the first system admin exists; see [self-hosting](../../docs/content/operations/self-hosting.md#first-system-admin).
+`api.systemAdmins` lists the emails the API makes system admins on their first verified sign-in, as `LOCO_SYSTEM_ADMINS`; see [self-hosting](../../docs/content/operations/self-hosting.md#first-system-admin).
 
 `api.invitationTtl` sets `INVITATION_TTL`. Core sends no email; the inviter copies and shares the invitation link. Installations that want email consume `invitation.created` and `invitation.resent` through [`INSTALL_WEBHOOKS`](../../docs/content/operations/webhooks.md).
 

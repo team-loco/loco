@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
@@ -18,6 +19,7 @@ import (
 var (
 	errControlPlaneNotReady = errors.New("control-plane deployments are not ready")
 	errWorkerStatus         = errors.New("read authenticated worker status failed")
+	errAdminStatus          = errors.New("read system admins failed; sign in as a system admin with locoadm login")
 )
 
 type Status struct {
@@ -26,6 +28,7 @@ type Status struct {
 	ReleaseBundle    string         `json:"releaseBundle,omitempty"`
 	Phase            string         `json:"phase"`
 	RequiredDNS      []DNSRecord    `json:"requiredDNS"`
+	Admins           AdminStatus    `json:"admins"`
 	Workers          []WorkerStatus `json:"workers"`
 	PendingRemoval   []string       `json:"pendingRemoval,omitempty"`
 	RecoveryExported bool           `json:"recoveryExported"`
@@ -35,6 +38,14 @@ type DNSRecord struct {
 	Hostname string   `json:"hostname"`
 	Targets  []string `json:"targets"`
 }
+
+// AdminStatus lists the configured admin emails nobody has claimed. Checked is false without a
+// system-admin session, since only a system admin can read the claims.
+type AdminStatus struct {
+	Checked   bool     `json:"checked"`
+	Unclaimed []string `json:"unclaimed"`
+}
+
 type WorkerStatus struct {
 	Name      string `json:"name"`
 	ClusterID string `json:"clusterID"`
@@ -57,7 +68,7 @@ func StatusInstallation(ctx context.Context, config Config, token string) (Statu
 		return Status{}, err
 	}
 	status := Status{
-		Phase:            "bootstrap-required",
+		Phase:            "workers-pending",
 		RecoveryExported: state.Data["recoveryExported"] == stateTrue,
 		ReleaseVersion:   state.Data["releaseVersion"],
 		ReleaseCommit:    state.Data["releaseCommit"],
@@ -98,20 +109,14 @@ func StatusInstallation(ctx context.Context, config Config, token string) (Statu
 		}
 		return status, nil
 	}
-	if state.Data["bootstrapComplete"] != stateTrue {
-		return status, nil
-	}
-	status.Phase = "workers-pending"
 	if token == "" {
 		return status, nil
 	}
-	listed, err := rpc.ForHost(
-		config.ControlPlane.APIURL,
-		token,
-	).ClusterAdmin.ListClusters(
-		ctx,
-		&clusterv1.ListClustersRequest{},
-	)
+	clients := rpc.ForHost(config.ControlPlane.APIURL, token)
+	if status.Admins, err = UnclaimedAdmins(ctx, clients); err != nil {
+		return Status{}, err
+	}
+	listed, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
 	if err != nil {
 		return Status{}, errWorkerStatus
 	}
@@ -160,6 +165,15 @@ func StatusInstallation(ctx context.Context, config Config, token string) (Statu
 		status.Phase = "running"
 	}
 	return status, nil
+}
+
+// UnclaimedAdmins asks the API, as a system admin, which configured admin emails nobody has claimed.
+func UnclaimedAdmins(ctx context.Context, clients *rpc.Clients) (AdminStatus, error) {
+	listed, err := clients.SystemAdmin.ListSystemAdmins(ctx, &adminv1.ListSystemAdminsRequest{})
+	if err != nil {
+		return AdminStatus{}, errAdminStatus
+	}
+	return AdminStatus{Checked: true, Unclaimed: listed.GetUnclaimedEmails()}, nil
 }
 
 func (k *Kubernetes) gatewayTargets(ctx context.Context) ([]string, error) {

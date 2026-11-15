@@ -441,7 +441,7 @@ depends = ["helm:deps"]
 run = "python tests/e2e/cluster-metrics.py"
 
 [tasks."e2e:installation"]
-description = "Install through locoadm with real OIDC, closed bootstrap and an in-cluster staging worker, then build source and verify HTTPS; accepts --no-teardown and --skip-build"
+description = "Install through locoadm with real OIDC, a configured admin's sign-in under closed signup and an in-cluster staging worker, then build source and verify HTTPS; accepts --no-teardown and --skip-build"
 run = "go run ./tools/installation-e2e"
 
 [tasks."test:e2e-installation-runner"]

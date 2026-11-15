@@ -22,8 +22,6 @@ const (
 	credentialRandomBytes = 32
 	lockExpiryMargin      = time.Minute
 	lockCleanupTimeout    = 10 * time.Second
-	BootstrapSecret       = "loco-bootstrap"
-	BootstrapTokenKey     = "token"
 	installationState     = "loco-installation"
 	installationOwner     = "loco.build/installation"
 	installationID        = "loco.build/installation-id"
@@ -33,8 +31,6 @@ var (
 	errKubernetes            = errors.New("Kubernetes operation failed")
 	errForeignOwnership      = errors.New("resource belongs to another installation")
 	errSecretInvalid         = errors.New("existing secret is incomplete; restore its original material")
-	ErrBootstrapNotFound     = errors.New("bootstrap credential is missing")
-	errInstallationMissing   = errors.New("installation state is missing; run locoadm apply first")
 	errTargetChanged         = errors.New("Kubernetes target UID differs from the recorded installation")
 	errServerClockMissing    = errors.New("Kubernetes API server did not provide a clock sample")
 	errDeadlineRequired      = errors.New("installation apply requires a deadline")
@@ -75,36 +71,6 @@ func NewKubernetes(target KubernetesTarget) (*Kubernetes, error) {
 		return nil, errInitKubernetesAuth
 	}
 	return &Kubernetes{Core: core, Apps: apps, Authorization: authorization, Target: target}, nil
-}
-
-func (k *Kubernetes) ReadBootstrapToken(ctx context.Context, name string) (string, error) {
-	if _, targetErr := k.clusterUID(ctx); targetErr != nil {
-		return "", targetErr
-	}
-	state, err := k.Core.ConfigMaps(k.Target.Namespace).Get(ctx, installationState, metav1.GetOptions{})
-	if apierrors.IsNotFound(err) {
-		return "", errInstallationMissing
-	}
-	if err != nil {
-		return "", safeKubernetesError("read installation state", err)
-	}
-	if state.Labels[installationOwner] != name {
-		return "", errForeignOwnership
-	}
-	secret, err := k.Core.Secrets(k.Target.Namespace).Get(ctx, BootstrapSecret, metav1.GetOptions{})
-	if apierrors.IsNotFound(err) {
-		return "", ErrBootstrapNotFound
-	}
-	if err != nil {
-		return "", safeKubernetesError("read bootstrap credential", err)
-	}
-	if secret.Annotations[installationID] != string(state.UID) {
-		return "", errForeignOwnership
-	}
-	if len(secret.Data[BootstrapTokenKey]) < minimumCredentialLength {
-		return "", errSecretInvalid
-	}
-	return string(secret.Data[BootstrapTokenKey]), nil
 }
 
 func (k *Kubernetes) clusterUID(ctx context.Context) (string, error) {

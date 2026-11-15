@@ -30,12 +30,9 @@ api:
   port: 8000
   # @schema required; minLength: 1
   existingSecret: ""
-  # @schema additionalProperties: false
-  bootstrapToken:
-    # @schema additionalProperties: false
-    existingSecret:
-      name: ""
-      key: token
+  # Emails the API makes system admins on their first verified sign-in (LOCO_SYSTEM_ADMINS).
+  # @schema item: string
+  systemAdmins: []
   invitationTtl: ""
   # @schema additionalProperties: false
   registry:

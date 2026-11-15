@@ -63,6 +63,7 @@ func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, 
 		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "loco-install.yaml"),
 		map[string]any{
 			"Version":       manifest["configVersion"],
+			"Email":         fixtureEmail,
 			"PrivateEgress": allowances,
 			"ClusterUID":    strings.TrimSpace(string(uid)),
 		},

@@ -10,12 +10,12 @@ controlPlane:
     namespace: loco-system
   apiURL: https://api.example.com
   webURL: https://console.example.com
+  admins: [admin@example.com]
   database:
     secretRef: {name: loco-inputs, key: database-url}
   auth:
     issuer: https://auth.example.com
     clientId: loco
-    bootstrapRedirectURI: http://127.0.0.1:8400/callback
     signupMode: closed
   sourceBucket:
     endpoint: https://s3.example.com

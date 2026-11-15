@@ -66,7 +66,7 @@ func newClickHouseFixture(t *testing.T) *clickHouseFixture {
 		t.Fatal(err)
 	}
 	kube := Kubernetes{Core: core, Target: KubernetesTarget{Namespace: testNamespace}}
-	state := &corev1.ConfigMap{UID: types.UID("state-id"), Data: map[string]string{testBootstrapComplete: stateTrue}}
+	state := &corev1.ConfigMap{UID: types.UID("state-id"), Data: map[string]string{}}
 	inputs := map[string][]byte{}
 	for _, key := range []string{envDatabaseURL, envSourceAccess, envSourceSecret, envRegistryUser, envRegistryPassword} {
 		inputs[key] = []byte("fixture-input")

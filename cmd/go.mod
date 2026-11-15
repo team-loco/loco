@@ -11,8 +11,6 @@ require (
 	connectrpc.com/connect/v2 v2.0.2
 	filippo.io/age v1.3.2
 	github.com/charmbracelet/x/term v0.2.2
-	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/uuid v1.6.0
 	github.com/moby/patternmatcher v0.6.1
@@ -23,7 +21,6 @@ require (
 	github.com/zalando/go-keyring v0.2.8
 	go.yaml.in/yaml/v2 v2.4.5
 	golang.org/x/mod v0.43.0
-	golang.org/x/oauth2 v0.38.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	k8s.io/api v0.37.2
@@ -95,6 +92,7 @@ require (
 	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2 // indirect
 	golang.org/x/exp v0.0.0-20260820142414-ca536658362e // indirect
 	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect

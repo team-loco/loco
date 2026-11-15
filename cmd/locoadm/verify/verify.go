@@ -23,7 +23,7 @@ func Command() *cobra.Command {
 	var timeout time.Duration
 	var target installation.VerificationTarget
 	command := &cobra.Command{
-		Use:   "verify --file loco-install.yaml --worker name --environment id",
+		Use:   "verify --worker name --environment id",
 		Short: "Build disposable source, verify HTTPS and logs, then remove the probe",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

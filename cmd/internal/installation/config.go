@@ -42,6 +42,7 @@ type ControlPlane struct {
 	Kubernetes    KubernetesTarget `json:"kubernetes"    yaml:"kubernetes"`
 	APIURL        string           `json:"apiURL"        yaml:"apiURL"`
 	WebURL        string           `json:"webURL"        yaml:"webURL"`
+	Admins        []string         `json:"admins"        yaml:"admins"`
 	Database      Database         `json:"database"      yaml:"database"`
 	Auth          Auth             `json:"auth"          yaml:"auth"`
 	SourceBucket  Bucket           `json:"sourceBucket"  yaml:"sourceBucket"`
@@ -56,10 +57,9 @@ type Database struct {
 }
 
 type Auth struct {
-	ClientID             string `json:"clientId"             yaml:"clientId"`
-	BootstrapRedirectURI string `json:"bootstrapRedirectURI" yaml:"bootstrapRedirectURI"`
-	Issuer               string `json:"issuer"               yaml:"issuer"`
-	SignupMode           string `json:"signupMode"           yaml:"signupMode"`
+	ClientID   string `json:"clientId"   yaml:"clientId"`
+	Issuer     string `json:"issuer"     yaml:"issuer"`
+	SignupMode string `json:"signupMode" yaml:"signupMode"`
 }
 
 type Bucket struct {

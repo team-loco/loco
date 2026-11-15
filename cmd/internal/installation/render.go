@@ -3,20 +3,18 @@ package installation
 import "context"
 
 func renderInstallation(ctx context.Context, config Config, release releaseArtifacts) error {
-	for _, complete := range []bool{false, true} {
-		values, err := controlPlaneValues(config, release.manifest, complete)
-		if err != nil {
-			return err
-		}
-		if err := renderChart(
-			ctx,
-			config.ControlPlane.Kubernetes,
-			controlPlaneRelease,
-			release.controlPlane,
-			values,
-		); err != nil {
-			return err
-		}
+	values, err := controlPlaneValues(config, release.manifest)
+	if err != nil {
+		return err
+	}
+	if err = renderChart(
+		ctx,
+		config.ControlPlane.Kubernetes,
+		controlPlaneRelease,
+		release.controlPlane,
+		values,
+	); err != nil {
+		return err
 	}
 	gateway, err := gatewayChart(release.worker)
 	if err != nil {

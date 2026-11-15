@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,7 +29,7 @@ const (
 )
 
 var (
-	errBootstrapRequired      = errors.New("first administrator bootstrap is required")
+	errUnknownWorker          = errors.New("the installation file lists no worker with this name")
 	errWorkerState            = errors.New("worker registration, target or identity differs from installation state")
 	errWorkerEnrollmentStatus = errors.New("read worker enrollment status failed")
 	errWorkerRegistration     = errors.New("create or recover worker registration failed")
@@ -41,9 +42,18 @@ var workerRoles = map[string]clusterv1.ClusterRole{
 	"all":    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 }
 
-// ApplyWorkers requires an authenticated system-admin session established after
-// the first-admin checkpoint. Enrollment credentials never leave destination Secrets.
-func ApplyWorkers(ctx context.Context, config Config, resolved ResolvedRelease, token string) error {
+// ApplyWorkers attaches every worker in config, or only the one named only, with a system-admin
+// session token. A rerun upgrades an attached worker's chart without enrolling it again.
+// Enrollment credentials never leave destination Secrets.
+func ApplyWorkers(ctx context.Context, config Config, resolved ResolvedRelease, token, only string) error {
+	workers := config.Workers
+	if only != "" {
+		index := slices.IndexFunc(workers, func(worker Worker) bool { return worker.Name == only })
+		if index < 0 {
+			return fmt.Errorf("worker %s: %w", only, errUnknownWorker)
+		}
+		workers = workers[index : index+1]
+	}
 	release, err := loadArtifacts(ctx, resolved)
 	if err != nil {
 		return err
@@ -64,10 +74,7 @@ func ApplyWorkers(ctx context.Context, config Config, resolved ResolvedRelease, 
 		if releaseErr := validateRecordedRelease(lockedState.Data, release.manifest); releaseErr != nil {
 			return releaseErr
 		}
-		if lockedState.Data["bootstrapComplete"] != stateTrue {
-			return errBootstrapRequired
-		}
-		for _, worker := range config.Workers {
+		for _, worker := range workers {
 			kube, err := NewKubernetes(worker.Kubernetes)
 			if err != nil {
 				return err

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/mail"
 	"net/netip"
 	"net/url"
 	"os"
@@ -93,8 +94,13 @@ func validate(cfg Config) error {
 			return field(endpoint.path)
 		}
 	}
-	if !bootstrapRedirect(cp.Auth.BootstrapRedirectURI) {
-		return field("controlPlane.auth.bootstrapRedirectURI")
+	if len(cp.Admins) == 0 {
+		return field("controlPlane.admins")
+	}
+	for i, admin := range cp.Admins {
+		if address, err := mail.ParseAddress(admin); err != nil || address.Name != "" || address.Address != admin {
+			return field(fmt.Sprintf("controlPlane.admins[%d]", i))
+		}
 	}
 	if cp.Auth.SignupMode != "open" && cp.Auth.SignupMode != "closed" {
 		return field("controlPlane.auth.signupMode")
@@ -283,20 +289,6 @@ func certificate(value Certificates, path string) error {
 		return field(path + ".issuerRef.kind")
 	}
 	return nil
-}
-
-func bootstrapRedirect(value string) bool {
-	parsed, err := url.Parse(value)
-	if err != nil || parsed.Scheme != "http" || parsed.Hostname() != "127.0.0.1" || parsed.Path != "/callback" ||
-		parsed.RawPath != "" ||
-		parsed.User != nil ||
-		parsed.RawQuery != "" ||
-		parsed.ForceQuery ||
-		parsed.Fragment != "" {
-		return false
-	}
-	port, err := strconv.Atoi(parsed.Port())
-	return err == nil && port > 0 && port <= maxPort
 }
 
 func privateEgress(entries []PrivateEgress, path string) error {

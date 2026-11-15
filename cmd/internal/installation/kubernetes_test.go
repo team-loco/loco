@@ -143,7 +143,7 @@ func TestKubernetesErrorsDoNotExposeServerMessages(t *testing.T) {
 		t.Fatal(err)
 	}
 	client := Kubernetes{Core: core, Target: KubernetesTarget{ClusterUID: testClusterUID, Namespace: testNamespace}}
-	_, err = client.ReadBootstrapToken(t.Context(), testInstallation)
+	_, err = client.clusterUID(t.Context())
 	if err == nil || strings.Contains(err.Error(), canary) {
 		t.Fatalf("unsafe error: %v", err)
 	}
@@ -193,47 +193,5 @@ func TestSecretRecoversLostCreateAcknowledgement(t *testing.T) {
 	}
 	if string(got.Data[secretKeyField]) != testOriginal {
 		t.Fatal("lost acknowledgment replaced credential")
-	}
-}
-
-func TestBootstrapRejectsMalformedExistingToken(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", testJSON)
-		if strings.HasSuffix(r.URL.Path, "/namespaces/kube-system") {
-			if encodeErr := json.NewEncoder(w).
-				Encode(&corev1.Namespace{UID: types.UID(testClusterUID)}); encodeErr != nil {
-				t.Error(encodeErr)
-			}
-			return
-		}
-		if strings.Contains(r.URL.Path, "/configmaps/") {
-			state := &corev1.ConfigMap{
-				UID:    types.UID("state-id"),
-				Labels: map[string]string{installationOwner: testInstallation},
-			}
-			if err := json.NewEncoder(w).Encode(state); err != nil {
-				t.Error(err)
-			}
-			return
-		}
-		secret := &corev1.Secret{
-			Annotations: map[string]string{installationID: "state-id"},
-			Data:        map[string][]byte{BootstrapTokenKey: []byte("too-short")},
-		}
-		if err := json.NewEncoder(w).Encode(secret); err != nil {
-			t.Error(err)
-		}
-	}))
-	defer server.Close()
-	core, err := coreclient.NewForConfig(
-		&rest.Config{Host: server.URL, ContentType: testJSON},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	kube := Kubernetes{Core: core, Target: KubernetesTarget{ClusterUID: testClusterUID, Namespace: testNamespace}}
-	_, err = kube.ReadBootstrapToken(t.Context(), testInstallation)
-	if !errors.Is(err, errSecretInvalid) {
-		t.Fatalf("got %v, want invalid secret", err)
 	}
 }

@@ -4,9 +4,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/locoadm/admin"
-	"github.com/team-loco/loco/cmd/locoadm/bootstrap"
 	"github.com/team-loco/loco/cmd/locoadm/cluster"
 	"github.com/team-loco/loco/cmd/locoadm/install"
+	"github.com/team-loco/loco/cmd/locoadm/login"
 	"github.com/team-loco/loco/cmd/locoadm/org"
 	"github.com/team-loco/loco/cmd/locoadm/recovery"
 	"github.com/team-loco/loco/cmd/locoadm/user"
@@ -21,7 +21,7 @@ func NewRootCmd() *cobra.Command {
 	}
 	root.AddCommand(admin.BuildAdminCmd())
 	root.AddCommand(cluster.BuildClusterCmd())
-	root.AddCommand(bootstrap.BuildBootstrapCmd())
+	root.AddCommand(login.Command())
 	root.AddCommand(user.BuildUserCmd())
 	root.AddCommand(org.BuildOrgCmd())
 	root.AddCommand(install.Commands()...)
