@@ -105,7 +105,7 @@ func (q *Queries) ListSystemAdmins(ctx context.Context) ([]ListSystemAdminsRow, 
 }
 
 const listUnclaimedSystemAdminEmails = `-- name: ListUnclaimedSystemAdminEmails :many
-SELECT email FROM system_admin_claims WHERE user_id IS NULL ORDER BY email
+SELECT email FROM system_admin_claims WHERE claimed_at IS NULL ORDER BY email
 `
 
 func (q *Queries) ListUnclaimedSystemAdminEmails(ctx context.Context) ([]string, error) {

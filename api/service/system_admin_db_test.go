@@ -170,3 +170,17 @@ func TestConfigRemovalKeepsAGrantedAdmin(t *testing.T) {
 		t.Fatalf("sources after config removal = %v, want the grant only", got)
 	}
 }
+
+func TestListSystemAdminsKeepsADeletedAdminsEntryClaimed(t *testing.T) {
+	a, configAdmin := newSystemAdminAPI(t)
+	other := a.signUp(t, "other")
+	if err := grant(t, configAdmin, other); err != nil {
+		t.Fatalf("grant: %v", err)
+	}
+	if err := a.queries.DeleteUser(t.Context(), configAdmin.id); err != nil {
+		t.Fatalf("delete the claiming user: %v", err)
+	}
+	if got := listAdmins(t, other).GetUnclaimedEmails(); !slices.Equal(got, []string{unclaimedAdmin}) {
+		t.Fatalf("unclaimed emails = %v, want only %s", got, unclaimedAdmin)
+	}
+}

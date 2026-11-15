@@ -39,7 +39,7 @@ WHERE s.scope = 'admin' AND s.entity_type = 'system' AND s.entity_id = '00000000
 ORDER BY u.email;
 
 -- name: ListUnclaimedSystemAdminEmails :many
-SELECT email FROM system_admin_claims WHERE user_id IS NULL ORDER BY email;
+SELECT email FROM system_admin_claims WHERE claimed_at IS NULL ORDER BY email;
 
 -- name: LockSystemAdmins :many
 -- Locks every system:admin row so concurrent revocations cannot remove the last admin.
