@@ -176,6 +176,14 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			run: go(orgSettingsPath(activeOrgId, activeWorkspaceId)),
 		});
 	}
+	items.push({
+		id: "action-new-organization",
+		group: "Actions",
+		label: "New organization",
+		keywords: "create org",
+		icon: <Building2Icon />,
+		run: go("/organizations?new=1"),
+	});
 	items.push(
 		{
 			id: "page-organizations",
