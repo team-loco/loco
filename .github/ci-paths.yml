@@ -250,6 +250,7 @@ e2e-installation:
     - "tests/e2e/fixtures/build-app/**"
     - "tests/e2e/fixtures/public-image/**"
     - "tools/installation-e2e/**"
+    - "tools/internal/devicelogin/**"
     - "charts/cert-manager.yaml"
     - "dev/compose.cloud-provider-kind.yaml"
     - "dev/dex.yaml"
