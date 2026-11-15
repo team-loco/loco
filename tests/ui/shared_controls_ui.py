@@ -150,7 +150,7 @@ def log_paging(page, suffix):
     expect(page.get_by_role("button", name=re.compile(r"GET Paged line 30$"))).to_have_count(1)
     page.get_by_role("separator", name="Resize column Resource").focus()
     page.keyboard.press("ArrowRight")
-    expect(page).to_have_url(re.compile(r"widths=resource(%3A|:)156"))
+    expect(page).to_have_url(re.compile(r"widths=resource:156"))
     page.screenshot(path=str(out / f"log-paging-{suffix}.png"))
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
@@ -358,7 +358,7 @@ def metrics(page, suffix):
     by_region.get_by_role("button", name="Resource", exact=True).click()
     expect(by_region.get_by_role("columnheader", name="Resource ↑")).to_have_attribute("aria-sort", "ascending")
     by_region.get_by_role("row").filter(has_text="controls-alpha").get_by_role("cell").nth(1).click()
-    expect(page).to_have_url(re.compile(r"resource(%3A|:)controls-alpha"))
+    expect(page).to_have_url(re.compile(r"resource:controls-alpha"))
     page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
     expect(chart.locator(".recharts-line")).to_be_visible()
     chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})

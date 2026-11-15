@@ -132,7 +132,7 @@ export interface Query {
 	text: string;
 }
 
-// q holds the query text; r is a comma list of resource names that older links use.
+// q holds the query text; r is a comma list of resource names that resource links set.
 export const QUERY_PARSERS = {
 	q: createParser<Query>({
 		parse: parseQuery,

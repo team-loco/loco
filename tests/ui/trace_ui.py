@@ -232,7 +232,7 @@ with sync_playwright() as p:
     expect(page.get_by_text('1–25 of 67', exact=True)).to_be_visible()
     expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]')).to_have_count(25)
     page.get_by_role('separator', name='Resize column Root span').press('ArrowRight')
-    expect(page).to_have_url(re.compile(r'widths=span(%3A|:)276'))
+    expect(page).to_have_url(re.compile(r'widths=span:276'))
     expect(page.get_by_role('region', name='Trace list').get_by_role('button', name=re.compile(r'^Spans'))).to_have_count(0)
     page.get_by_role('button', name='Next page', exact=True).click()
     evidence.settle(page)
