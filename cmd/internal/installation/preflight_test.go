@@ -81,7 +81,10 @@ func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
 	config := Config{
 		Name: testInstallation,
 		ControlPlane: ControlPlane{
-			Kubernetes: KubernetesTarget{ClusterUID: testClusterUID, Context: testFixture, Namespace: "control-plane"},
+			Kubernetes: KubernetesTarget{
+				ClusterUID: testClusterUID, Context: testFixture, Namespace: "control-plane",
+			},
+			Certificates: Certificates{Issuer: &Issuer{Name: testIssuer}},
 		},
 		Workers: []Worker{
 			{
@@ -92,6 +95,7 @@ func TestPlanRejectsForeignWorkerWithoutWrites(t *testing.T) {
 					Context:    testFixture,
 					Namespace:  testWorkerNamespace,
 				},
+				Certificates: Certificates{Issuer: &Issuer{Name: "loco-worker-issuer"}},
 			},
 		},
 	}

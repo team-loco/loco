@@ -147,7 +147,7 @@ func validate(cfg Config) error {
 		if err := privateEgress(w.Builds.PrivateEgress, path+".builds.privateEgress"); err != nil {
 			return err
 		}
-		if err := certificate(w.Certificates, path+".certificates"); err != nil {
+		if err := workerCertificate(w, cp, path+".certificates"); err != nil {
 			return err
 		}
 	}
@@ -285,8 +285,29 @@ func target(value KubernetesTarget, path string) error {
 	return nil
 }
 func certificate(value Certificates, path string) error {
-	if value.IssuerRef.Kind != "Issuer" && value.IssuerRef.Kind != "ClusterIssuer" {
+	if (value.IssuerRef == nil) == (value.Issuer == nil) {
+		return fmt.Errorf("%s: set exactly one of issuerRef or issuer: %w", path, errInvalid)
+	}
+	if value.Issuer != nil && !dnsName(value.Issuer.Name) {
+		return field(path + ".issuer.name")
+	}
+	if value.IssuerRef != nil && value.IssuerRef.Kind != "Issuer" && value.IssuerRef.Kind != kindClusterIssuer {
 		return field(path + ".issuerRef.kind")
+	}
+	return nil
+}
+
+func workerCertificate(w Worker, cp ControlPlane, path string) error {
+	if err := certificate(w.Certificates, path); err != nil {
+		return err
+	}
+	// Two chart releases cannot both own one ClusterIssuer.
+	if w.Kubernetes.ClusterUID == cp.Kubernetes.ClusterUID && w.Certificates.Issuer != nil &&
+		cp.Certificates.Issuer != nil && w.Certificates.Issuer.Name == cp.Certificates.Issuer.Name {
+		return fmt.Errorf(
+			"%s.issuer.name: the control plane declares this issuer on the same cluster; use issuerRef: %w",
+			path, errInvalid,
+		)
 	}
 	return nil
 }

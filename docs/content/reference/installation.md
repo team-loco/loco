@@ -17,7 +17,7 @@ locoadm verify --worker staging-us --environment ENVIRONMENT_UUID
 
 Every `locoadm` command that reads the installation file reads `loco-install.yaml` in the current directory; `--file` names another file. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/loco-install.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
-Every field below except `release` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
+Every field below except `release` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS and Kubernetes clusters; this file does not provision those services. Certificate issuers come from the operator or, for a self-signed issuer, from the Loco charts.
 
 | Field | Value |
 | --- | --- |
@@ -42,7 +42,8 @@ Every field below except `release` is required, including explicit boolean setti
 | `controlPlane.openbao.snapshots` | Backup storage: `endpoint`, `region`, `bucket`, `credentialsSecretRef.name` |
 | `controlPlane.observability.enabled` | `true`; disabled observability is unsupported |
 | `controlPlane.observability.ingestURL` | Public OTLP ingest URL |
-| `controlPlane.certificates.issuerRef` | Existing issuer's `name` and `kind` (`Issuer` or `ClusterIssuer`) |
+| `controlPlane.certificates.issuerRef` | Existing issuer's `name` and `kind` (`Issuer` or `ClusterIssuer`); set this or `issuer` |
+| `controlPlane.certificates.issuer` | `{name, selfSigned: {}}`: a self-signed ClusterIssuer the control-plane chart creates and owns; set this or `issuerRef` |
 | `workers[].name` | Unique worker identity, a lowercase Kubernetes DNS label |
 | `workers[].kubernetes` | Existing `context`, pinned `clusterUID` and destination `namespace` |
 | `workers[].region` | Region registered with the API |
@@ -52,9 +53,12 @@ Every field below except `release` is required, including explicit boolean setti
 | `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
 | `workers[].metricsServer.enabled` | `false` uses an existing `metrics.k8s.io` provider instead of installing metrics-server |
 | `workers[].metricsServer.kubeletInsecureTLS` | `true` skips kubelet certificate verification for clusters without CA-signed kubelet serving certificates |
-| `workers[].certificates.issuerRef` | Existing issuer's `name` and `kind` |
+| `workers[].certificates.issuerRef` | Existing issuer's `name` and `kind`; set this or `issuer` |
+| `workers[].certificates.issuer` | `{name, selfSigned: {}}`: a self-signed ClusterIssuer the worker chart creates and owns; set this or `issuerRef` |
 
 URLs use HTTP or HTTPS and contain no user information, query string or fragment. Use HTTPS for public services. HTTP permits isolated local fixtures. Domains contain lowercase DNS labels. Input Secret names resolve in the control-plane context and namespace; certificate issuer references resolve at their declared target.
+
+A declared `issuer` lets a fresh install finish in one `apply`, because the chart creates the ClusterIssuer after cert-manager is installed. `selfSigned` is the only issuer type the file can declare, and clients do not trust its certificates; reference an ACME or CA issuer you manage with `issuerRef`. A worker on the control plane's cluster cannot declare an issuer with the control plane's issuer name, since one ClusterIssuer belongs to one chart release; reference it with `issuerRef: {name: <name>, kind: ClusterIssuer}` instead. Plan and apply stop when a ClusterIssuer with the declared name exists and that chart release does not own it.
 
 Register one public OIDC client for authorization code with PKCE. Allow the dashboard's `webURL` origin followed by `/auth/callback`. Operators sign in through the dashboard too: `locoadm login` has the dashboard approve the CLI session, so the dashboard sends this client's ID token to the API, which validates its audience against `clientId`.
 
@@ -103,7 +107,7 @@ Use separate registry identities: the API identity reads and deletes build image
 
 ## Apply and resume
 
-The initial installer requires a cluster-admin context for every target and checks that permission with a non-persistent SelfSubjectAccessReview; it creates no operator grant. Apply renders the pinned charts without Secrets before changing any target. It validates destinations, preserves owned credentials, establishes a destination lock, applies pinned CRDs and waits for them, and installs prerequisite controllers before installing the control plane. Compatible existing prerequisite controllers are reused only after their current replicas are available; cert-manager controller, webhook and cainjector are all gated. The Gateway controller comes from the pinned worker chart and uses its `GatewayNamespace` deployment configuration. Reused controllers must have that mode, the pinned controller identity and the default all-namespace watch scope in their mounted configuration so they handle Loco's Gateways and keep proxies inside the namespace application ingress policies allow. Apply rejects incompatible configuration rather than changing an existing controller. Cert-manager comes from its pinned release artifact. If the configured certificate issuer does not exist or is not Ready, apply stops with an issuer-required checkpoint. Create that issuer and run apply again. API, dashboard and ingest URLs must use the same HTTP or HTTPS scheme.
+The initial installer requires a cluster-admin context for every target and checks that permission with a non-persistent SelfSubjectAccessReview; it creates no operator grant. Apply renders the pinned charts without Secrets before changing any target. It validates destinations, preserves owned credentials, establishes a destination lock, applies pinned CRDs and waits for them, and installs prerequisite controllers before installing the control plane. Compatible existing prerequisite controllers are reused only after their current replicas are available; cert-manager controller, webhook and cainjector are all gated. The Gateway controller comes from the pinned worker chart and uses its `GatewayNamespace` deployment configuration. Reused controllers must have that mode, the pinned controller identity and the default all-namespace watch scope in their mounted configuration so they handle Loco's Gateways and keep proxies inside the namespace application ingress policies allow. Apply rejects incompatible configuration rather than changing an existing controller. Cert-manager comes from its pinned release artifact. If a referenced certificate issuer (`issuerRef`) does not exist or is not Ready, apply stops with an issuer-required checkpoint. Create that issuer and run apply again. API, dashboard and ingest URLs must use the same HTTP or HTTPS scheme.
 
 Apply installs or upgrades the control plane and never needs an API session. It then reports the configured admins nobody has claimed (every configured admin when no system-admin session is saved) and the next two commands:
 

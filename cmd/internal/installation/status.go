@@ -104,7 +104,8 @@ func StatusInstallation(ctx context.Context, config Config, token string) (Statu
 			return Status{}, err
 		}
 		status.Phase = "installing"
-		if errors.Is(validateIssuer(ctx, kube, config.ControlPlane.Certificates.IssuerRef), ErrIssuerRequired) {
+		if ref := config.ControlPlane.Certificates.IssuerRef; ref != nil &&
+			errors.Is(validateIssuer(ctx, kube, *ref), ErrIssuerRequired) {
 			status.Phase = "issuer-required"
 		}
 		return status, nil

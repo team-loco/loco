@@ -18,6 +18,7 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		SourceBucket:  Bucket{Bucket: canary, Endpoint: "https://s3.example.com", Region: canary},
 		Registry:      Registry{Endpoint: "https://registry.example.com"},
 		Observability: Observability{IngestURL: "https://ingest.example.com"},
+		Certificates:  Certificates{IssuerRef: &IssuerRef{Name: "operator-issuer", Kind: kindClusterIssuer}},
 	}}
 	data, err := controlPlaneValues(config, releaseFixture())
 	if err != nil {
@@ -67,6 +68,7 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		Role:          "builds",
 		AppsDomain:    "apps.example.com",
 		Builds:        Builds{PrivateEgress: []PrivateEgress{{CIDR: "10.0.0.1/32", Port: 443}}},
+		Certificates:  config.ControlPlane.Certificates,
 	}
 	rendered, err := workerValues(config, worker, releaseFixture())
 	if err != nil {
@@ -118,7 +120,7 @@ func TestWorkerMetricsServerValues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			worker := Worker{MetricsServer: tt.spec}
+			worker := Worker{MetricsServer: tt.spec, Certificates: config.Workers[0].Certificates}
 			rendered, err := workerValues(*config, worker, releaseFixture())
 			if err != nil {
 				t.Fatal(err)

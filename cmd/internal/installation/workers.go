@@ -180,7 +180,7 @@ func (k *Kubernetes) applyWorker(
 	if err := prerequisites(ctx, k, release, true); err != nil {
 		return err
 	}
-	if err := validateIssuer(ctx, k, worker.Certificates.IssuerRef); err != nil {
+	if err := checkIssuer(ctx, k, worker.Certificates, workerRelease); err != nil {
 		return err
 	}
 	values, valuesErr := workerValues(config, worker, release.manifest)

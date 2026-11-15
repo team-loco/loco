@@ -302,8 +302,18 @@
         "certificates": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "issuerRef"
+          "description": "Set exactly one of issuerRef or issuer.",
+          "oneOf": [
+            {
+              "required": [
+                "issuerRef"
+              ]
+            },
+            {
+              "required": [
+                "issuer"
+              ]
+            }
           ],
           "properties": {
             "issuerRef": {
@@ -325,6 +335,27 @@
                     "Issuer",
                     "ClusterIssuer"
                   ]
+                }
+              },
+              "description": "An Issuer or ClusterIssuer you create and manage."
+            },
+            "issuer": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "A ClusterIssuer the Loco chart release creates and owns.",
+              "required": [
+                "name",
+                "selfSigned"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "selfSigned": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {}
                 }
               }
             }
@@ -436,8 +467,18 @@
           "certificates": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "issuerRef"
+            "description": "Set exactly one of issuerRef or issuer.",
+            "oneOf": [
+              {
+                "required": [
+                  "issuerRef"
+                ]
+              },
+              {
+                "required": [
+                  "issuer"
+                ]
+              }
             ],
             "properties": {
               "issuerRef": {
@@ -459,6 +500,27 @@
                       "Issuer",
                       "ClusterIssuer"
                     ]
+                  }
+                },
+                "description": "An Issuer or ClusterIssuer you create and manage."
+              },
+              "issuer": {
+                "type": "object",
+                "additionalProperties": false,
+                "description": "A ClusterIssuer the Loco chart release creates and owns.",
+                "required": [
+                  "name",
+                  "selfSigned"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "selfSigned": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {}
                   }
                 }
               }

@@ -146,7 +146,7 @@ func PlanInstallation(ctx context.Context, config Config, resolved ResolvedRelea
 	if err := prerequisites(ctx, kube, release, false); err != nil {
 		plan.Blocked = append(plan.Blocked, err.Error())
 	}
-	if err := validateIssuer(ctx, kube, config.ControlPlane.Certificates.IssuerRef); err != nil {
+	if err := checkIssuer(ctx, kube, config.ControlPlane.Certificates, controlPlaneRelease); err != nil {
 		plan.Blocked = append(plan.Blocked, err.Error())
 	}
 	for _, worker := range config.Workers {
@@ -157,7 +157,7 @@ func PlanInstallation(ctx context.Context, config Config, resolved ResolvedRelea
 		if prerequisiteErr := prerequisites(ctx, target, release, false); prerequisiteErr != nil {
 			plan.Blocked = append(plan.Blocked, fmt.Sprintf("worker %s: %v", worker.Name, prerequisiteErr))
 		}
-		if issuerErr := validateIssuer(ctx, target, worker.Certificates.IssuerRef); issuerErr != nil {
+		if issuerErr := checkIssuer(ctx, target, worker.Certificates, workerRelease); issuerErr != nil {
 			plan.Blocked = append(plan.Blocked, fmt.Sprintf("worker %s: %v", worker.Name, issuerErr))
 		}
 	}
@@ -209,7 +209,7 @@ func ApplyControlPlane(ctx context.Context, config Config, resolved ResolvedRele
 		if err := prerequisites(ctx, kube, release, true); err != nil {
 			return err
 		}
-		if err := validateIssuer(ctx, kube, config.ControlPlane.Certificates.IssuerRef); err != nil {
+		if err := checkIssuer(ctx, kube, config.ControlPlane.Certificates, controlPlaneRelease); err != nil {
 			return err
 		}
 		values, valuesErr := controlPlaneValues(config, release.manifest)
