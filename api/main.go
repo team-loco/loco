@@ -205,7 +205,7 @@ func run() error {
 	}
 	mux := http.NewServeMux()
 	registerHandlers(mux, baseServer, authenticatedServer, d)
-	mountRPCServers(mux, baseServer, authenticatedServer, ac.RPCReadMaxBytes)
+	mountRPCServers(mux, baseServer, authenticatedServer)
 	mountOpenAPI(mux, ac.Version)
 
 	var background sync.WaitGroup
@@ -603,7 +603,7 @@ func getLoggerHandler(ac *APIConfig) slog.Handler {
 	return charmLog.NewWithOptions(os.Stderr, charmLog.Options{ReportCaller: true, ReportTimestamp: true})
 }
 
-func mountRPCServers(mux *http.ServeMux, baseServer, authenticatedServer *connect.Server, readMaxBytes int32) {
+func mountRPCServers(mux *http.ServeMux, baseServer, authenticatedServer *connect.Server) {
 	grpcreflect.Register(authenticatedServer, grpcreflect.WithNamer(grpcreflect.NamerFunc(func() []string {
 		var names []string
 		seen := map[string]bool{}
@@ -618,6 +618,6 @@ func mountRPCServers(mux *http.ServeMux, baseServer, authenticatedServer *connec
 		}
 		return names
 	})))
-	connecthttp.Mount(mux, baseServer, connecthttp.WithReadMaxBytes(int(readMaxBytes)))
-	connecthttp.Mount(mux, authenticatedServer, connecthttp.WithReadMaxBytes(int(readMaxBytes)))
+	connecthttp.Mount(mux, baseServer)
+	connecthttp.Mount(mux, authenticatedServer)
 }

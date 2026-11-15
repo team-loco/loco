@@ -90,8 +90,6 @@ The API caps how many of each thing can exist, so one account cannot fill the co
 | Domains | resource in one environment | 10 | `LOCO_LIMIT_DOMAINS_PER_RESOURCE` |
 | Secrets | service in one environment | 256 | `LOCO_SECRETS_MAX_PER_SERVICE` |
 
-`SetSecrets` and `DeleteSecrets` accept at most 256 entries per request. This request cap applies independently of the configured secret count limit; larger sets require multiple requests.
-
 An invitation is refused while the organization is at its member or open-invitation limit. A user signing in with an open invitation to an organization at its member limit signs in without joining it, and the invitation stays open until it expires.
 
 Deployments and builds are not capped; the API deletes the oldest instead. Creating a deployment deletes the resource's deployments in that environment past the newest `LOCO_LIMIT_DEPLOYMENT_HISTORY` (100), except active and unfinished deployments and those a cluster still runs. Creating a build deletes the resource's builds past the newest `LOCO_LIMIT_BUILD_HISTORY` (100) once the image and source sweepers have deleted their image and source; with `LOCO_IMAGE_RETENTION=0` succeeded builds are kept. Their events stay in the audit log until `EVENTS_RETENTION` removes them.

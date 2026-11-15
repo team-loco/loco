@@ -14,12 +14,15 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/reqctx"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 const (
@@ -207,6 +210,77 @@ func TestSetSecretsEnforcesLimits(t *testing.T) {
 	}
 	if names := f.names(t); len(names) != 2 {
 		t.Fatalf("names after the refused set = %v, want the two from before", names)
+	}
+}
+
+func (f *secretFixture) raiseSecretLimit(t *testing.T, value int32) {
+	t.Helper()
+	counts := &configv1.CountLimits{}
+	limits.SecretsPerResource.Set(counts, value)
+	admin := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
+		Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: f.ownerID},
+		Scopes: []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin}},
+	})
+	_, err := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults()).SetOrgLimits(
+		admin,
+		&orgv1.SetOrgLimitsRequest{
+			OrgId:      f.orgID.String(),
+			Limits:     counts,
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{string(limits.SecretsPerResource.Field)}},
+			Reason:     "test",
+		},
+	)
+	if err != nil {
+		t.Fatalf("raise secret limit: %v", err)
+	}
+}
+
+func TestSecretRequestsOverTheLimitChangeNothing(t *testing.T) {
+	f := newSecretFixture(t)
+	server := f.server(t, newTestKeyProvider(t, "k1"))
+	f.set(t, server, map[string]string{"A": "1"})
+	over := []string{"A", "B", "C", "D"}
+	values := map[string]string{}
+	for _, name := range over {
+		values[name] = "1"
+	}
+	_, setErr := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
+		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Values: values,
+	})
+	_, deleteErr := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
+		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: over,
+	})
+	for _, err := range []error{setErr, deleteErr} {
+		if code := wireCode(err); code != connect.CodeResourceExhausted {
+			t.Errorf("%d names: code = %v, want ResourceExhausted", len(over), code)
+		}
+	}
+	if names := f.names(t); len(names) != 1 {
+		t.Fatalf("names after the refused requests = %v, want only A", names)
+	}
+	if f.eventCount(t, events.SecretDeleted) != 0 {
+		t.Fatal("a refused delete recorded an event")
+	}
+}
+
+func TestRaisedOrgLimitAllowsLargerSecretRequests(t *testing.T) {
+	f := newSecretFixture(t)
+	server := f.server(t, newTestKeyProvider(t, "k1"))
+	f.raiseSecretLimit(t, testMaxSecrets+2)
+	names := []string{"A", "B", "C", "D", "E"}
+	values := map[string]string{}
+	for _, name := range names {
+		values[name] = "1"
+	}
+	f.set(t, server, values)
+	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
+		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: names,
+	})
+	if err != nil {
+		t.Fatalf("delete %d names under the raised limit: %v", len(names), err)
+	}
+	if remaining := f.names(t); len(remaining) != 0 {
+		t.Fatalf("names after the delete = %v, want none", remaining)
 	}
 }
 

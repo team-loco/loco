@@ -35,7 +35,7 @@ func TestRPCServersKeepPublicSplitAndReflectBoth(t *testing.T) {
 	configv1connect.RegisterConfigServiceHandler(base, &publicConfig{})
 	userv1connect.RegisterUserServiceHandler(authenticated, &userv1connect.UnimplementedUserServiceHandler{})
 	mux := http.NewServeMux()
-	mountRPCServers(mux, base, authenticated, defaultRPCReadMaxBytes)
+	mountRPCServers(mux, base, authenticated)
 	srv := httptest.NewUnstartedServer(mux)
 	srv.EnableHTTP2 = true
 	srv.StartTLS()
@@ -61,7 +61,7 @@ func TestReflectionListsBothRPCServers(t *testing.T) {
 	configv1connect.RegisterConfigServiceHandler(base, &publicConfig{})
 	userv1connect.RegisterUserServiceHandler(authenticated, &userv1connect.UnimplementedUserServiceHandler{})
 	mux := http.NewServeMux()
-	mountRPCServers(mux, base, authenticated, defaultRPCReadMaxBytes)
+	mountRPCServers(mux, base, authenticated)
 	srv := httptest.NewUnstartedServer(mux)
 	srv.EnableHTTP2 = true
 	srv.StartTLS()

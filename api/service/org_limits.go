@@ -189,7 +189,7 @@ func (s *OrgServer) orgLimitsToProto(row genDb.OrgLimitOverride) *orgv1.OrgLimit
 // checkOrgLimit refuses adding records to existing ones past the organization's limit.
 func checkOrgLimit(
 	ctx context.Context,
-	qtx *genDb.Queries,
+	qtx genDb.Querier,
 	defaults *configv1.CountLimits,
 	limit limits.Limit,
 	orgID uuid.UUID,
@@ -205,7 +205,7 @@ func checkOrgLimit(
 // checkResourceLimit is checkOrgLimit for the organization of a resource.
 func checkResourceLimit(
 	ctx context.Context,
-	qtx *genDb.Queries,
+	qtx genDb.Querier,
 	defaults *configv1.CountLimits,
 	limit limits.Limit,
 	resourceID uuid.UUID,
