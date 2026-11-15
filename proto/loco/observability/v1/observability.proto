@@ -357,10 +357,18 @@ message TraceSpan {
   // Events recorded during the span in emission order; an exception carries
   // exception.type, exception.message and exception.stacktrace attributes.
   repeated TraceSpanEvent events = 18;
+  // Spans this span links to, in emission order; they can belong to other traces.
+  repeated TraceSpanLink links = 19;
 }
 
 message TraceSpanEvent {
   string name = 1;
   google.protobuf.Timestamp timestamp = 2;
+  map<string, string> attributes = 3;
+}
+
+message TraceSpanLink {
+  string trace_id = 1;
+  string span_id = 2;
   map<string, string> attributes = 3;
 }

@@ -129,6 +129,12 @@ func shutdown(logger *slog.Logger, providers ...*sdktrace.TracerProvider) {
 	}
 }
 
+// The fixed link target lets the e2e suite check that GetTrace returns span links.
+var (
+	linkedTraceID = trace.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	linkedSpanID  = trace.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
+)
+
 func healthz(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
@@ -143,6 +149,13 @@ func (a *app) serve(w http.ResponseWriter, r *http.Request) {
 	attributes := trace.WithAttributes(method, path)
 	_, span := a.tracer.Start(parent, spanName, kind, attributes)
 	defer span.End()
+	span.AddLink(trace.Link{
+		SpanContext: trace.NewSpanContext(trace.SpanContextConfig{
+			TraceID: linkedTraceID,
+			SpanID:  linkedSpanID,
+		}),
+		Attributes: []attribute.KeyValue{attribute.String("test.link", "retry")},
+	})
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := fmt.Fprintln(w, "ok"); err != nil {

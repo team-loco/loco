@@ -11853,6 +11853,14 @@
             },
             "title": "events",
             "description": "Events recorded during the span in emission order; an exception carries\n exception.type, exception.message and exception.stacktrace attributes."
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.TraceSpanLink"
+            },
+            "title": "links",
+            "description": "Spans this span links to, in emission order; they can belong to other traces."
           }
         },
         "title": "TraceSpan",
@@ -11879,6 +11887,29 @@
           }
         },
         "title": "TraceSpanEvent",
+        "additionalProperties": false
+      },
+      "loco.observability.v1.TraceSpanLink": {
+        "type": "object",
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "title": "trace_id"
+          },
+          "spanId": {
+            "type": "string",
+            "title": "span_id"
+          },
+          "attributes": {
+            "type": "object",
+            "title": "attributes",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          }
+        },
+        "title": "TraceSpanLink",
         "additionalProperties": false
       },
       "loco.observability.v1.TraceStatus": {

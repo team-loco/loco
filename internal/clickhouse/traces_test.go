@@ -13,7 +13,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const knownTraceID = "0123456789abcdef0123456789abcdef"
+const (
+	knownTraceID = "0123456789abcdef0123456789abcdef"
+	otherTraceID = "fedcba9876543210fedcba9876543210"
+)
 
 func TestGetTraceReturnsAllScopedSpans(t *testing.T) {
 	f, list := newTraceSummaryFixture(t)
@@ -85,10 +88,11 @@ func TestGetTraceReturnsAllScopedSpans(t *testing.T) {
 		t.Fatalf("list page: %v", summaries)
 	}
 }
-func TestTraceSpansCarryEvents(t *testing.T) {
+func TestTraceSpansCarryEventsAndLinks(t *testing.T) {
 	f := newQueryFixture(t)
 	timestamp := f.start.Add(time.Minute + time.Nanosecond)
 	exceptionTime := timestamp.Add(time.Millisecond + time.Nanosecond)
+	link := map[string]string{"messaging.operation": "process"}
 	exception := map[string]string{
 		"exception.type":       "ValueError",
 		"exception.message":    "bad input",
@@ -97,7 +101,7 @@ func TestTraceSpansCarryEvents(t *testing.T) {
 	batch, err := f.conn.PrepareBatch(
 		t.Context(),
 		"INSERT INTO otel_traces (Timestamp, TraceId, SpanId, ResourceAttributes, "+
-			"Events.Timestamp, Events.Name, Events.Attributes)",
+			"Events.Timestamp, Events.Name, Events.Attributes, Links.TraceId, Links.SpanId, Links.TraceState, Links.Attributes)",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -108,6 +112,10 @@ func TestTraceSpansCarryEvents(t *testing.T) {
 		[]time.Time{timestamp, exceptionTime},
 		[]string{"retry", "exception"},
 		[]map[string]string{{}, exception},
+		[]string{knownTraceID, otherTraceID},
+		[]string{"2222222222222222", "3333333333333333"},
+		[]string{"", "vendor=state"},
+		[]map[string]string{{}, link},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -134,6 +142,14 @@ func TestTraceSpansCarryEvents(t *testing.T) {
 		events[1].GetName() != "exception" || !events[1].GetTimestamp().AsTime().Equal(exceptionTime) ||
 		!maps.Equal(events[1].GetAttributes(), exception) {
 		t.Errorf("events = %v", events)
+	}
+	links := response.GetSpans()[0].GetLinks()
+	if len(links) != 2 ||
+		links[0].GetTraceId() != knownTraceID || links[0].GetSpanId() != "2222222222222222" ||
+		len(links[0].GetAttributes()) != 0 ||
+		links[1].GetTraceId() != otherTraceID || links[1].GetSpanId() != "3333333333333333" ||
+		!maps.Equal(links[1].GetAttributes(), link) {
+		t.Errorf("links = %v", links)
 	}
 }
 

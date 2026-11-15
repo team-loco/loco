@@ -33,6 +33,12 @@ spans[10]['events'] = [
     {'name': 'retry.scheduled', 'timestamp': stamp(168.2 + 12.4), 'attributes': {'attempt': '1'}},
     {'name': 'exception', 'timestamp': stamp(168.2 + 90), 'attributes': {'exception.type': 'TimeoutError', 'exception.message': 'Authorization timed out', 'exception.stacktrace': 'TimeoutError: Authorization timed out\n    at authorize (payments.ts:42:7)\n    at checkout (checkout.ts:18:3)'}},
 ]
+linked_trace = '1' * 32
+linked_span = '2' * 16
+spans[11]['links'] = [
+    {'traceId': trace, 'spanId': spans[5]['spanId'], 'attributes': {'link.reason': 'retry'}},
+    {'traceId': linked_trace, 'spanId': linked_span, 'attributes': {}},
+]
 recorded = []
 mode = ['normal']
 
@@ -59,6 +65,9 @@ def handle(route):
             summaries += [dict(summaries[1], traceId=f'{index + 1000:032x}', rootSpanName=f'Paged trace {index}') for index in range(60)]
         offset = body.get('offset', 0)
         route.fulfill(json={'totalCount': str(len(summaries)), 'summaries': summaries[offset:offset + body['limit']]})
+        return
+    if body.get('traceId') == linked_trace:
+        route.fulfill(json={'spans': [dict(spans[5], traceId=linked_trace, spanId=linked_span, parentSpanId='', name='Linked product lookup')]})
         return
     route.fulfill(json={'spans': spans})
 out = Path(args.out)
@@ -103,6 +112,24 @@ with session(out) as browser:
     drawer.get_by_role('button', name='More for this trace', exact=True).click()
     page.get_by_role('menuitem', name='Copy trace ID', exact=True).click()
     assert page.evaluate('navigator.clipboard.readText()') == trace
+    page.get_by_text('Copied trace ID', exact=True).wait_for(state='hidden')
+    linking_span = flame.get_by_role('button', name=re.compile(r'^payment Charge · attempt 2,'))
+    linking_span.click()
+    links = drawer.get_by_role('region', name='Span links')
+    expect(links.get_by_role('listitem')).to_have_count(2)
+    expect(links).to_contain_text('link.reason')
+    expect(links).to_contain_text(linked_trace)
+    links.get_by_role('link', name='Open linked span', exact=True).first.click()
+    expect(page).to_have_url(re.compile('span=' + spans[5]['spanId']))
+    expect(drawer.get_by_role('region', name='Selected span')).to_contain_text('GetProduct · OLJCESPC7Z')
+    linking_span.click()
+    links.get_by_role('link', name='Open linked span', exact=True).nth(1).click()
+    wait_for_query(page, lambda query: query.get('trace') == [linked_trace] and query.get('span') == [linked_span])
+    page.get_by_role('dialog', name='Linked product lookup', exact=True).wait_for()
+    page.go_back()
+    drawer.wait_for()
+    flame.get_by_role('button', name=failing).click()
+    expect(page).to_have_url(re.compile('span=' + spans[10]['spanId']))
     assert not errors, errors
     previous_url = page.url
     previous_request = dict(next(row for row in reversed(recorded) if "startTime" in row))

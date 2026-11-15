@@ -53,6 +53,8 @@ func (c *Client) GetTrace(
 		var eventTimes []time.Time
 		var eventNames []string
 		var eventAttributes []map[string]string
+		var linkTraceIDs, linkSpanIDs []string
+		var linkAttributes []map[string]string
 		if err := rows.Scan(
 			&timestamp,
 			&span.TraceId,
@@ -74,11 +76,15 @@ func (c *Client) GetTrace(
 			&eventTimes,
 			&eventNames,
 			&eventAttributes,
+			&linkTraceIDs,
+			&linkSpanIDs,
+			&linkAttributes,
 		); err != nil {
 			return nil, fmt.Errorf("scan trace span: %w", err)
 		}
 		span.StartTime = timestamppb.New(timestamp)
 		span.Events = spanEvents(eventTimes, eventNames, eventAttributes)
+		span.Links = spanLinks(linkTraceIDs, linkSpanIDs, linkAttributes)
 		response.Spans = append(response.Spans, span)
 	}
 	if err := rows.Err(); err != nil {
@@ -96,7 +102,8 @@ func buildGetTraceQueries(req *observabilityv1.GetTraceRequest, timeout time.Dur
 	lookup := "SELECT count(), min(Start), max(End) FROM otel_traces_trace_id_ts WHERE " + predicates + settings
 	query := "SELECT Timestamp, TraceId, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, " +
 		"Duration, StatusCode, StatusMessage, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes, " +
-		"SpanAttributes, ScopeName, ScopeVersion, Events.Timestamp, Events.Name, Events.Attributes " +
+		"SpanAttributes, ScopeName, ScopeVersion, Events.Timestamp, Events.Name, Events.Attributes, " +
+		"Links.TraceId, Links.SpanId, Links.Attributes " +
 		"FROM otel_traces WHERE " + predicates +
 		" AND Timestamp >= fromUnixTimestamp64Nano(?) AND Timestamp < fromUnixTimestamp64Nano(?)" +
 		" ORDER BY Timestamp ASC, SpanId ASC" + settings
@@ -114,4 +121,17 @@ func spanEvents(times []time.Time, names []string, attributes []map[string]strin
 		}
 	}
 	return events
+}
+
+// spanLinks zips the Links nested columns, whose arrays ClickHouse keeps equal in length.
+func spanLinks(traceIDs, spanIDs []string, attributes []map[string]string) []*observabilityv1.TraceSpanLink {
+	links := make([]*observabilityv1.TraceSpanLink, len(traceIDs))
+	for i, traceID := range traceIDs {
+		links[i] = &observabilityv1.TraceSpanLink{
+			TraceId:    traceID,
+			SpanId:     spanIDs[i],
+			Attributes: attributes[i],
+		}
+	}
+	return links
 }
