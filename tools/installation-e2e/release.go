@@ -351,19 +351,44 @@ func (f *fixture) pullPrebuilt(ctx context.Context) error {
 		names = append(names, component.name)
 	}
 	for _, name := range names {
-		image := f.prebuilt(name)
-		if _, checkErr := command(
-			ctx,
-			f.root,
-			nil,
-			"docker",
-			"pull",
-			"--platform",
-			f.platform,
-			image,
-		); checkErr != nil {
-			return fmt.Errorf("pull %s: %w", image, checkErr)
+		if checkErr := f.pullPlatformImage(ctx, f.prebuilt(name)); checkErr != nil {
+			return checkErr
 		}
+	}
+	return nil
+}
+
+// pullPlatformImage pulls the manifest of the fixture's platform from image's index by digest
+// and tags it as image. Pulling a multi-platform tag with --platform can resolve another
+// platform's manifest.
+func (f *fixture) pullPlatformImage(ctx context.Context, image string) error {
+	raw, checkErr := command(ctx, f.root, nil, "docker", "buildx", "imagetools", "inspect", "--raw", image)
+	if checkErr != nil {
+		return fmt.Errorf("inspect %s: %w", image, checkErr)
+	}
+	var index struct {
+		Manifests []struct {
+			Digest   string `json:"digest"`
+			Platform struct {
+				OS           string `json:"os"`
+				Architecture string `json:"architecture"`
+			} `json:"platform"`
+		} `json:"manifests"`
+	}
+	if checkErr = json.Unmarshal(raw, &index); checkErr != nil {
+		return fmt.Errorf("decode the manifest of %s: %w", image, checkErr)
+	}
+	pull := image
+	for _, manifest := range index.Manifests {
+		if manifest.Platform.OS+"/"+manifest.Platform.Architecture == f.platform {
+			pull = image[:strings.LastIndex(image, ":")] + "@" + manifest.Digest
+		}
+	}
+	if _, checkErr = command(ctx, f.root, nil, "docker", "pull", "-q", pull); checkErr != nil {
+		return fmt.Errorf("pull %s: %w", pull, checkErr)
+	}
+	if _, checkErr = command(ctx, f.root, nil, "docker", "tag", pull, image); checkErr != nil {
+		return fmt.Errorf("tag %s: %w", image, checkErr)
 	}
 	return nil
 }

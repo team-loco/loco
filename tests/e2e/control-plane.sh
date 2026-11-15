@@ -68,10 +68,9 @@ if [[ -n ${E2E_IMAGES:-} ]]; then
         pull_prebuilt "${E2E_IMAGES//\*/$image}" "loco-$image:e2e"
     done
 elif [[ $SKIP_BUILD == false ]]; then
-    docker build -t loco-api-failover:e2e --build-arg VERSION="$VERSION" -f "$ROOT_DIR/tests/e2e/fixtures/api-failover/Dockerfile" "$ROOT_DIR"
-    docker build -t loco-api:e2e --build-arg VERSION="$VERSION" -f "$ROOT_DIR/api/Dockerfile" "$ROOT_DIR"
-    docker build -t loco-ui:e2e --build-arg VERSION="$VERSION" --build-arg PUBLIC_API_URL=https://api.loco.build --build-arg PUBLIC_APP_ENV=PRODUCTION -f "$ROOT_DIR/web/Dockerfile" "$ROOT_DIR"
-    docker build -t loco-obs-proxy:e2e --build-arg VERSION="$VERSION" -f "$ROOT_DIR/observability-proxy/Dockerfile" "$ROOT_DIR"
+    # docker-bake.hcl tags each image REGISTRY-<target>:TAG; the Docker image store holds no provenance.
+    REGISTRY=loco TAG=e2e VERSION="$VERSION" docker buildx bake -f "$ROOT_DIR/docker-bake.hcl" --load --provenance=false \
+        api-failover api ui obs-proxy
 fi
 if ! kind get clusters | grep -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
