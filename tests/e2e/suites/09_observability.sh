@@ -757,7 +757,7 @@ obs_crash_replay() (
     config="$obs_dir/crash-config.json"
     forward_log="$obs_dir/crash-forward.log"
     forward_pid=""
-    flush_seconds=60
+    flush_seconds=30
     records=50
     marker="collector-crash-$(obs_random_hex "$obs_marker_bytes")"
     obs_kube -n "$E2E_OBS_NAMESPACE" get configmap "$collector" -o json >"$config"
