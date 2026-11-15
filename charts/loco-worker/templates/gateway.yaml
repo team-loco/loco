@@ -140,6 +140,10 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   http3: {}
+  {{- with .Values.envoyProxy.tls.minVersion }}
+  tls:
+    minVersion: {{ . | quote }}
+  {{- end }}
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway

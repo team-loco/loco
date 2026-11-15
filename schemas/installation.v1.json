@@ -360,6 +360,22 @@
               }
             }
           }
+        },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minVersion"
+          ],
+          "properties": {
+            "minVersion": {
+              "type": "string",
+              "enum": [
+                "1.2",
+                "1.3"
+              ]
+            }
+          }
         }
       }
     },
@@ -541,6 +557,22 @@
               "enabled",
               "kubeletInsecureTLS"
             ]
+          },
+          "tls": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "minVersion"
+            ],
+            "properties": {
+              "minVersion": {
+                "type": "string",
+                "enum": [
+                  "1.2",
+                  "1.3"
+                ]
+              }
+            }
           }
         }
       }

@@ -60,4 +60,19 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: {{ $.Release.Namespace }}
     {{- end }}
+{{- with .Values.gateway.tls.minVersion }}
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: {{ $.Values.gateway.name }}
+  namespace: {{ $.Values.gatewayNamespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $.Values.gateway.name }}
+  tls:
+    minVersion: {{ . | quote }}
+{{- end }}
 {{- end }}

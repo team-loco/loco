@@ -19,6 +19,9 @@ var (
 )
 
 const (
+	fixtureAPIHost      = "api.installation.test"
+	fixtureWebHost      = "console.installation.test"
+	fixtureIngestHost   = "ingest.installation.test"
 	fixtureAppsDomain   = "apps.installation.test"
 	gatewayReadyTimeout = 2 * time.Minute
 )
@@ -109,7 +112,7 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 		return err
 	}
 	core := string(output)
-	names := []string{"api.installation.test", "console.installation.test", "ingest.installation.test"}
+	names := []string{fixtureAPIHost, fixtureWebHost, fixtureIngestHost}
 	if worker {
 		names = []string{"ready." + fixtureAppsDomain}
 		// The zone is separate from the control-plane hosts. Product verification chooses

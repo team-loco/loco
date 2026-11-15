@@ -67,6 +67,11 @@ controlPlaneHostname: api.loco.build
 
 # @schema additionalProperties: false
 gateway:
+  # @schema additionalProperties: false
+  tls:
+    # -- Minimum client TLS version; empty keeps Envoy Gateway defaults.
+    # @schema type: string; enum: ["", "1.2", "1.3"]
+    minVersion: ""
   create: true
   name: loco-control-plane
   className: loco-control-plane

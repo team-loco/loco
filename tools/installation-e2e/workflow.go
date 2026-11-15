@@ -28,6 +28,7 @@ const (
 	phaseSourceVerify    = "source-verify"
 	phaseNetworkPolicy   = "network-policy"
 	phaseRecovery        = "recovery"
+	phaseTLSMinimum      = "tls-minimum"
 	phaseCompletionAudit = "completion-audit"
 )
 
@@ -103,7 +104,7 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
 			phasePrefix + phaseSourceDeploy, phasePrefix + phaseSourceHTTPS,
 			phasePrefix + phaseSourceVerify, phasePrefix + phaseNetworkPolicy,
-			phasePrefix + phaseRecovery, phasePrefix + phaseCompletionAudit,
+			phasePrefix + phaseRecovery, phasePrefix + phaseTLSMinimum, phasePrefix + phaseCompletionAudit,
 		}, candidate) {
 			o.phase = candidate[len(phasePrefix):]
 			if _, writeErr := fmt.Fprintln(os.Stderr, candidate); writeErr != nil {

@@ -139,3 +139,63 @@ func TestWorkerMetricsServerValues(t *testing.T) {
 		})
 	}
 }
+
+func TestTLSMinimumConfiguration(t *testing.T) {
+	for _, cp := range []string{"", tls12, tls13} {
+		for _, worker := range []string{"", tls12, tls13} {
+			t.Run(cp+"/"+worker, func(t *testing.T) {
+				source := string(example(t))
+				if cp != "" {
+					source = strings.Replace(
+						source,
+						"controlPlane:\n",
+						"controlPlane:\n  tls: {minVersion: \""+cp+"\"}\n",
+						1,
+					)
+				}
+				if worker != "" {
+					source = strings.Replace(
+						source,
+						"    appsDomain:",
+						"    tls: {minVersion: \""+worker+"\"}\n    appsDomain:",
+						1,
+					)
+				}
+				config, err := Parse([]byte(source))
+				if err != nil {
+					t.Fatal(err)
+				}
+				cpValues, err := controlPlaneValues(*config, releaseFixture())
+				if err != nil {
+					t.Fatal(err)
+				}
+				wValues, err := workerValues(*config, config.Workers[0], releaseFixture())
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, check := range []struct {
+					data      []byte
+					key, want string
+				}{
+					{cpValues, "gateway", cp}, {wValues, "envoyProxy", worker},
+				} {
+					var values map[string]json.RawMessage
+					if err := yaml.Unmarshal(check.data, &values); err != nil {
+						t.Fatal(err)
+					}
+					var value struct {
+						TLS struct {
+							MinVersion string `json:"minVersion"`
+						} `json:"tls"`
+					}
+					if err := json.Unmarshal(values[check.key], &value); err != nil {
+						t.Fatal(err)
+					}
+					if got := value.TLS.MinVersion; got != check.want {
+						t.Fatalf("%s TLS minimum = %q, want %q", check.key, got, check.want)
+					}
+				}
+			})
+		}
+	}
+}

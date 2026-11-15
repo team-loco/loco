@@ -214,3 +214,29 @@ tests:
         documentSelector: {path: kind, value: Gateway}
       - hasDocuments: {count: 0}
         template: templates/obs-proxy-ingest-route.yaml
+
+  - it: requires TLS 1.3 on the whole Gateway when configured
+    set:
+      gateway.tls.minVersion: "1.3"
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: ClientTrafficPolicy}
+    asserts:
+      - equal:
+          path: spec.tls.minVersion
+          value: "1.3"
+      - equal:
+          path: spec.targetRefs
+          value: [{group: gateway.networking.k8s.io, kind: Gateway, name: loco-control-plane}]
+
+  - it: leaves the default TLS policy to Envoy Gateway
+    template: templates/gateway.yaml
+    asserts:
+      - hasDocuments: {count: 3}
+
+  - it: creates no TLS policy for an existing Gateway
+    set:
+      gateway.create: false
+      gateway.tls.minVersion: "1.3"
+    template: templates/gateway.yaml
+    asserts:
+      - hasDocuments: {count: 0}
