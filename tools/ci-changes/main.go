@@ -1,11 +1,15 @@
 // Command ci-changes decides which workflows .github/workflows/ci.yml calls for
 // a pull request or push, from the changed files and .github/ci-paths.yml, and
-// writes one `<workflow>=true|false` line per workflow to $GITHUB_OUTPUT.
+// writes one `<workflow>=true|false` line per workflow to $GITHUB_OUTPUT. A
+// workflow whose pass marker for the checked-out inputs exists in a cache the
+// run can read is reported false; `markers` maps each workflow that runs and
+// may reuse a pass to the cache key its pass writes.
 package main
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -28,14 +32,21 @@ func main() {
 	event := flag.String("event", "", "pull_request or push")
 	base := flag.String("base", "", "pull request base commit, or the commit before a push")
 	head := flag.String("head", "", "pull request head commit, or the pushed commit")
+	markerRefs := flag.String("marker-refs", "",
+		"comma-separated refs whose caches the run can read; empty looks up no pass markers")
 	flag.Parse()
-	if err := run(context.Background(), *config, *event, *base, *head, os.Getenv("GITHUB_OUTPUT")); err != nil {
+	var lookup markerLookup
+	if *markerRefs != "" {
+		lookup = cacheLookup(os.Getenv("GITHUB_API_URL"), os.Getenv("GITHUB_REPOSITORY"), os.Getenv("GH_TOKEN"),
+			strings.Split(*markerRefs, ","))
+	}
+	if err := run(context.Background(), *config, *event, *base, *head, os.Getenv("GITHUB_OUTPUT"), lookup); err != nil {
 		slog.Error("select workflows", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, configPath, event, base, head, outputPath string) error {
+func run(ctx context.Context, configPath, event, base, head, outputPath string, lookup markerLookup) error {
 	filters, err := loadFilters(configPath)
 	if err != nil {
 		return err
@@ -44,12 +55,24 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string) 
 	if err != nil {
 		return err
 	}
+	own := selectOwn(filters, event, files)
+	keys, err := markerKeys(ctx, ".", filters, own)
+	if err != nil {
+		return err
+	}
+	if lookup != nil {
+		for _, workflow := range passed(ctx, lookup, keys) {
+			slog.Info("reusing a pass for the same inputs", "workflow", workflow, "marker", keys[workflow])
+			own[workflow] = false
+			delete(keys, workflow)
+		}
+	}
 	output, err := os.OpenFile(outputPath, os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec // the runner names this file
 	if err != nil {
 		return fmt.Errorf("open $GITHUB_OUTPUT: %w", err)
 	}
 	defer output.Close()
-	return writeSelection(io.MultiWriter(output, os.Stdout), selectWorkflows(filters, event, files))
+	return writeSelection(io.MultiWriter(output, os.Stdout), withUsers(filters, own), keys)
 }
 
 // filter is one event's ordered pattern list; a later pattern overrides an
@@ -70,29 +93,41 @@ type workflowFilter struct {
 	// usedBy lists the workflows that need this one's output, such as the
 	// images it builds; it runs whenever any of them does.
 	usedBy []string
+	// reuse reports whether a pass for the same inputs stands in for a run.
+	reuse bool
 }
 
 const usedByKey = "for"
+
+type rawWorkflow struct {
+	PullRequest []string `yaml:"pull_request"`
+	Push        []string `yaml:"push"`
+	For         []string `yaml:"for"`
+	Reuse       *bool    `yaml:"reuse"`
+}
 
 func loadFilters(path string) (filters, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	var raw map[string]map[string][]string
+	var raw map[string]yaml.Node
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	result := filters{}
-	for workflow, events := range raw {
-		w := workflowFilter{events: map[string]filter{}}
-		for event, patterns := range events {
-			if event == usedByKey {
-				w.usedBy = patterns
+	for workflow, node := range raw {
+		var entry rawWorkflow
+		if err := decodeStrict(&node, &entry); err != nil {
+			return nil, fmt.Errorf("%s: %s: %w", path, workflow, err)
+		}
+		w := workflowFilter{events: map[string]filter{}, usedBy: entry.For, reuse: len(entry.For) == 0}
+		if entry.Reuse != nil {
+			w.reuse = *entry.Reuse && w.reuse
+		}
+		for event, patterns := range map[string][]string{"pull_request": entry.PullRequest, "push": entry.Push} {
+			if patterns == nil {
 				continue
-			}
-			if event != "pull_request" && event != "push" {
-				return nil, fmt.Errorf("%s: %s: unknown event %q", path, workflow, event)
 			}
 			f, err := compileFilter(patterns)
 			if err != nil {
@@ -153,29 +188,57 @@ func git(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
+// decodeStrict decodes node into out and rejects keys out has no field for.
+func decodeStrict(node *yaml.Node, out any) error {
+	data, err := yaml.Marshal(node)
+	if err != nil {
+		return err
+	}
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	return decoder.Decode(out)
+}
+
 // selectWorkflows reports, for every workflow, whether a changed file matches
 // its filter for the event or a workflow that uses it runs. Nil files select
 // every workflow with a filter for the event.
 func selectWorkflows(all filters, event string, files []string) map[string]bool {
+	return withUsers(all, selectOwn(all, event, files))
+}
+
+// selectOwn reports, for every workflow, whether a changed file matches its
+// filter for the event.
+func selectOwn(all filters, event string, files []string) map[string]bool {
 	selected := map[string]bool{}
 	for workflow, w := range all {
 		f, ok := w.events[event]
 		selected[workflow] = ok && (files == nil || slices.ContainsFunc(files, f.matches))
 	}
+	return selected
+}
+
+// withUsers also selects each workflow a selected workflow uses.
+func withUsers(all filters, own map[string]bool) map[string]bool {
+	selected := maps.Clone(own)
 	for workflow, w := range all {
 		selected[workflow] = selected[workflow] || slices.ContainsFunc(w.usedBy, func(user string) bool {
-			return selected[user]
+			return own[user]
 		})
 	}
 	return selected
 }
 
-func writeSelection(w io.Writer, selected map[string]bool) error {
+func writeSelection(w io.Writer, selected map[string]bool, markers map[string]string) error {
 	var b strings.Builder
 	for _, workflow := range slices.Sorted(maps.Keys(selected)) {
 		fmt.Fprintf(&b, "%s=%t\n", workflow, selected[workflow])
 	}
-	_, err := io.WriteString(w, b.String())
+	encoded, err := json.Marshal(markers)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(&b, "markers=%s\n", encoded)
+	_, err = io.WriteString(w, b.String())
 	return err
 }
 

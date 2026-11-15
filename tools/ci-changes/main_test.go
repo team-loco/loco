@@ -123,7 +123,7 @@ func TestLoadRejectsUnknownEvents(t *testing.T) {
 	config := filepath.Join(t.TempDir(), "paths.yml")
 	require.NoError(t, os.WriteFile(config, []byte("docs:\n  pull-request: [docs/**]\n"), 0o600))
 	_, err := loadFilters(config)
-	assert.ErrorContains(t, err, `unknown event "pull-request"`)
+	assert.ErrorContains(t, err, "field pull-request not found")
 }
 
 func TestChangedFiles(t *testing.T) {

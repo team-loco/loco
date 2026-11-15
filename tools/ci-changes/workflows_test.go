@@ -15,7 +15,6 @@ import (
 
 const (
 	workflowsDir = "../../.github/workflows"
-	ciWorkflow   = "ci.yml"
 	gateJob      = "gate"
 )
 
@@ -39,7 +38,7 @@ func ciJobs(t *testing.T) map[string]ciJob {
 	var ci struct {
 		Jobs map[string]ciJob `yaml:"jobs"`
 	}
-	readYAML(t, filepath.Join(workflowsDir, ciWorkflow), &ci)
+	readYAML(t, filepath.Join(workflowsDir, ciWorkflowFile), &ci)
 	return ci.Jobs
 }
 
@@ -74,7 +73,13 @@ func TestGateNeedsEveryJob(t *testing.T) {
 	gate := jobs[gateJob]
 	require.Equal(t, "CI Gate", gate.Name, "branch protection requires the check by this name")
 	assert.Equal(t, "always()", gate.If)
-	assert.ElementsMatch(t, slices.Collect(maps.Keys(jobs)), append(gate.Needs, gateJob))
+	var before []string
+	for id, job := range jobs {
+		if !slices.Contains(job.Needs, gateJob) {
+			before = append(before, id)
+		}
+	}
+	assert.ElementsMatch(t, before, append(gate.Needs, gateJob), "every job but those after the gate")
 }
 
 // TestCICallsEveryReusableWorkflow keeps a reusable workflow from being added
@@ -90,7 +95,7 @@ func TestCICallsEveryReusableWorkflow(t *testing.T) {
 			On map[string]any `yaml:"on"`
 		}
 		readYAML(t, filepath.Join(workflowsDir, entry.Name()), &workflow)
-		if entry.Name() == ciWorkflow {
+		if entry.Name() == ciWorkflowFile {
 			continue
 		}
 		assert.NotContains(t, workflow.On, "pull_request",

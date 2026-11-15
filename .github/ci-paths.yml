@@ -6,6 +6,13 @@
 # workflow without a list for an event never runs on that event. A workflow's
 # `for` list names the workflows that use its output; it runs whenever one of
 # them runs.
+#
+# A pass of a workflow on the same inputs stands in for running it: the tree
+# entries of the files its pull_request paths match (its push paths when it has
+# none), its workflow file, ci.yml and mise.lock. `reuse: false` marks a
+# workflow whose result depends on more than those files, such as the pull
+# request it comments on, what it publishes or an advisory database; a
+# workflow with a `for` list never reuses a pass.
 
 auth-conformance:
   pull_request: &auth-conformance
@@ -21,6 +28,7 @@ auth-conformance:
   push: *auth-conformance
 
 buf:
+  reuse: false
   pull_request: &buf
     - "**.proto"
     - "**/buf.yaml"
@@ -127,6 +135,7 @@ docker:
   push: *docker
 
 docs-drift:
+  reuse: false
   pull_request:
     - "cmd/**"
     - "api/**"
@@ -288,6 +297,7 @@ go-lint-and-test:
   push: *go-lint-and-test
 
 govulncheck:
+  reuse: false
   pull_request: &govulncheck
     - "tests/pyproject.toml"
     - "tests/uv.lock"
@@ -329,6 +339,7 @@ obs-chart:
   push: *obs-chart
 
 osv:
+  reuse: false
   pull_request: &osv
     - "**/Dockerfile"
     - "**/go.mod"
@@ -344,6 +355,7 @@ osv:
   push: *osv
 
 platform-release:
+  reuse: false
   pull_request:
     - "tests/pyproject.toml"
     - "tests/uv.lock"

@@ -1,9 +1,11 @@
 # Runs every check for a pull request or a push to main, and reports one
 # result, the CI Gate job, which branch protection requires. Each check is a
 # reusable workflow called only when the changes job finds a file matching its
-# list in .github/ci-paths.yml; a skipped call passes the gate. Path filters on
-# the called workflows' own triggers would leave a required check without a
-# result whenever they skipped it.
+# list in .github/ci-paths.yml; a skipped call passes the gate. A check whose
+# pass marker for the same inputs is in a cache this run can read is skipped
+# too; the pass-markers job saves one for each check that ran and passed. Path
+# filters on the called workflows' own triggers would leave a required check
+# without a result whenever they skipped it.
 name: CI
 
 on:
@@ -54,6 +56,7 @@ jobs:
       transit-conformance: ${{ steps.select.outputs.transit-conformance }}
       web: ${{ steps.select.outputs.web }}
       workflows: ${{ steps.select.outputs.workflows }}
+      markers: ${{ steps.select.outputs.markers }}
     steps:
       # Protection reads only the newest head's CI Gate, so a run for a head the
       # PR has replaced is wasted runner time. Only older runs are cancelled: a
@@ -86,12 +89,16 @@ jobs:
         with:
           go-cache: ci-changes
 
+      # A run restores caches of its own ref, a pull request's base branch and
+      # the default branch.
       - name: Select the workflows the changed files need
         id: select
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: go run ./tools/ci-changes -event "$GITHUB_EVENT_NAME" -base "$BASE" -head "$HEAD"
+          GH_TOKEN: ${{ github.token }}
+          MARKER_REFS: ${{ github.ref }}${{ github.base_ref && format(',refs/heads/{0}', github.base_ref) || '' }},refs/heads/${{ github.event.repository.default_branch }}
+        run: go run ./tools/ci-changes -event "$GITHUB_EVENT_NAME" -base "$BASE" -head "$HEAD" -marker-refs "$MARKER_REFS"
 
   auth-conformance:
     name: Auth Conformance
@@ -287,7 +294,18 @@ jobs:
     # gate, since a skipped job counts as passing.
     if: always()
     runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.passed.outputs.passed }}
     steps:
+      - name: List the checks that ran and passed
+        id: passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          MARKERS: ${{ needs.changes.outputs.markers || '{}' }}
+        run: |
+          passed=$(jq -c --argjson needs "$NEEDS" '[to_entries[] | select($needs[.key].result == "success") | {check: .key, key: .value}]' <<<"$MARKERS")
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+
       # Only success and skipped pass: a job the runner abandons reports
       # "abandoned", and if changes never ran every check is skipped.
       - name: Fail unless changes ran and every check passed or was skipped
@@ -296,3 +314,23 @@ jobs:
         run: |
           jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
           jq -e '.changes.result == "success" and all(.[]; .result == "success" or .result == "skipped")' <<<"$NEEDS" > /dev/null
+
+  pass-markers:
+    name: Pass Marker ${{ matrix.check }}
+    needs: [gate]
+    if: always() && needs.gate.outputs.passed != '' && needs.gate.outputs.passed != '[]'
+    runs-on: ubuntu-latest
+    permissions: {}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.gate.outputs.passed) }}
+    steps:
+      - name: Write the marker
+        env:
+          KEY: ${{ matrix.key }}
+        run: printf '%s\n' "$KEY" > pass-marker
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: pass-marker
+          key: ${{ matrix.key }}
