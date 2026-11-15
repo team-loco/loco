@@ -5,3 +5,11 @@ info:
   version: (unbuilt)
   description: Deploy applications and manage workspaces, environments, and resources through Loco's Connect RPC API.
 paths: {}
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: An API token from `loco token create`, or the session token from `loco token show --raw`.
+security:
+  - bearer: []

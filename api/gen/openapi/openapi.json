@@ -7461,6 +7461,13 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token from `loco token create`, or the session token from `loco token show --raw`."
+      }
+    },
     "schemas": {
       "connect-protocol-version": {
         "type": "number",
@@ -15434,7 +15441,11 @@
       }
     }
   },
-  "security": [],
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
   "tags": [
     {
       "name": "loco.admin.v1.SystemAdminService",
