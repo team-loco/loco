@@ -2,14 +2,18 @@ import { createClient } from "@connectrpc/connect";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { DeploymentPhase, DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentService, type DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+
+import { isInFlight } from "@/lib/deployment-utils";
+import { maybeTsMs } from "@/lib/time";
 
 export interface DeploymentWatch {
 	phase: DeploymentPhase | undefined;
 	message: string;
+	updatedMs: number | undefined;
 }
 
-const IDLE: DeploymentWatch = { phase: undefined, message: "" };
+const IDLE: DeploymentWatch = { phase: undefined, message: "", updatedMs: undefined };
 const ID_SEPARATOR = ",";
 
 export function useDeploymentWatch(deploymentIds: readonly string[]): (id: string | undefined) => DeploymentWatch {
@@ -24,9 +28,12 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 		const watch = async (deploymentId: string) => {
 			try {
 				for await (const ev of client.watchDeployment({ deploymentId }, { signal: controller.signal })) {
-					setStates((prev) => ({ ...prev, [deploymentId]: { phase: ev.status, message: ev.message } }));
+					setStates((prev) => ({
+						...prev,
+						[deploymentId]: { phase: ev.status, message: ev.message, updatedMs: maybeTsMs(ev.timestamp) },
+					}));
 					void queryClient.invalidateQueries();
-					if (ev.status === DeploymentPhase.RUNNING) break;
+					if (!isInFlight(ev.status)) break;
 				}
 			} catch {
 				return;

@@ -58,7 +58,7 @@ import {
 import { ReplicasPanel } from "@/pages/resource/ReplicasPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
-import { RolloutProgress } from "@/pages/resource/RolloutProgress";
+import { DeploymentProgress } from "@/pages/resource/DeploymentProgress";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
@@ -381,7 +381,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							onRollback={openRollback}
 						/>
 					)}
-					<RolloutProgress regions={regions} />
+					<DeploymentProgress
+						regions={regions}
+						environmentName={environment?.environmentName ?? ""}
+						logsHref={obsLink("logs")}
+						canWrite={canWrite}
+						onRollback={openRollback}
+					/>
 					{deployed.length > 0 && environmentId !== undefined ? (
 						<ReplicasPanel
 							nowMs={nowMs}
