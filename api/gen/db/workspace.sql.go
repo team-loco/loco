@@ -186,22 +186,36 @@ func (q *Queries) ListWorkspaceResourcesForDeletion(ctx context.Context, workspa
 }
 
 const listWorkspacesForUser = `-- name: ListWorkspacesForUser :many
-SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
-FROM workspaces w
-JOIN organizations o ON o.id = w.org_id
-WHERE EXISTS (
-    SELECT 1 FROM user_scopes us
-    WHERE us.user_id = $1
-      AND us.scope = 'read'
-      AND ((us.entity_type = 'workspace' AND us.entity_id = w.id)
-        OR (us.entity_type = 'organization' AND us.entity_id = w.org_id))
-  )
-  AND ($3::text IS NULL
-       OR (w.created_at, w.id) < (
-         $4::timestamptz,
-         $3::uuid
-       ))
-ORDER BY w.created_at DESC, w.id DESC
+SELECT v.id, v.org_id, o.name AS org_name, v.name, v.description, v.created_by, v.created_at, v.updated_at
+FROM (
+    SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+    FROM user_scopes us
+    JOIN workspaces w ON w.id = us.entity_id
+    WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'workspace'
+      AND ($3::text IS NULL
+           OR (w.created_at, w.id) < (
+             $4::timestamptz,
+             $3::uuid
+           ))
+    UNION
+    SELECT ow.id, ow.org_id, ow.name, ow.description, ow.created_by, ow.created_at, ow.updated_at
+    FROM user_scopes us
+    CROSS JOIN LATERAL (
+        SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+        FROM workspaces w
+        WHERE w.org_id = us.entity_id
+          AND ($3::text IS NULL
+               OR (w.created_at, w.id) < (
+                 $4::timestamptz,
+                 $3::uuid
+               ))
+        ORDER BY w.created_at DESC, w.id DESC
+        LIMIT $2
+    ) ow
+    WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'organization'
+) v
+JOIN organizations o ON o.id = v.org_id
+ORDER BY v.created_at DESC, v.id DESC
 LIMIT $2
 `
 
