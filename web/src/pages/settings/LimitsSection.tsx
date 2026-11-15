@@ -1,3 +1,5 @@
+import { useQuery } from "@connectrpc/connect-query";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { CountLimits } from "@gen/loco/config/v1/config_pb";
 import type { Organization, OrgLimits, User } from "@gen/loco/org/v1/org_pb";
 import { CircleArrowUpIcon } from "lucide-react";
@@ -84,6 +86,12 @@ export function LimitsSection({
 	workspaceCount: number | undefined;
 	memberCount: number | undefined;
 }) {
+	const { data: config } = useQuery(getConfig, {});
+	const retention = config?.historyRetention;
+	const eventDays =
+		retention?.events === undefined
+			? undefined
+			: (Number(retention.events.seconds) + retention.events.nanos / 1e9) / 86_400;
 	const openInvitations = useOpenInvitations(org.id, useNow().getTime());
 	const limitRows: LimitRow[] = [
 		{ key: "workspacesPerOrg", label: "Workspaces", per: "Organization", used: workspaceCount },
@@ -126,6 +134,33 @@ export function LimitsSection({
 							</TableCell>
 						</TableRow>
 						<Rows rows={historyRows} limits={limits} />
+						{[
+							{
+								label: "Build images",
+								per: "Resource, plus images in use",
+								value:
+									retention === undefined
+										? "—"
+										: retention.buildImagesPerResource === 0
+											? "Cleanup disabled"
+											: formatCount(retention.buildImagesPerResource),
+							},
+							{
+								label: "Events and webhook deliveries",
+								per: "Organization",
+								value:
+									eventDays === undefined
+										? "—"
+										: `${new Intl.NumberFormat(undefined, { maximumSignificantDigits: 9 }).format(eventDays)} days`,
+							},
+						].map((row) => (
+							<TableRow key={row.label}>
+								<TableCell>{row.label}</TableCell>
+								<TableCell className="text-fg2">{row.per}</TableCell>
+								<TableCell className="font-mono text-fg2">—</TableCell>
+								<TableCell className="text-right font-mono">{row.value}</TableCell>
+							</TableRow>
+						))}
 					</TableBody>
 				</Table>
 			</SettingsCard>

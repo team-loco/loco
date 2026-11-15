@@ -26,6 +26,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
@@ -48,6 +49,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
@@ -401,6 +403,10 @@ func newDeps(
 			ac.OrgLinks,
 			ac.Tokens.MaxAPITokenDuration,
 			ac.CountLimits,
+			&configv1.HistoryRetention{
+				BuildImagesPerResource: ac.ImageSweep.Retention,
+				Events:                 durationpb.New(ac.EventsRetention),
+			},
 		),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
 		systemAdmin:  service.NewSystemAdminServer(pool, queries),

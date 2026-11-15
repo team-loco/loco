@@ -21,6 +21,7 @@ type ConfigServer struct {
 	auth                *configv1.AuthConfig
 	orgLinks            []*configv1.OrgLink
 	counts              *configv1.CountLimits
+	historyRetention    *configv1.HistoryRetention
 }
 
 func NewConfigServer(
@@ -30,6 +31,7 @@ func NewConfigServer(
 	orgLinks []OrgLink,
 	apiTokenMaxLifetime time.Duration,
 	counts *configv1.CountLimits,
+	historyRetention *configv1.HistoryRetention,
 ) *ConfigServer {
 	var authConfig *configv1.AuthConfig
 	if ic, ok := auth.WebIssuer(issuers); ok {
@@ -43,6 +45,7 @@ func NewConfigServer(
 		auth:                authConfig,
 		apiTokenMaxLifetime: apiTokenMaxLifetime,
 		counts:              counts,
+		historyRetention:    historyRetention,
 	}
 }
 
@@ -58,6 +61,7 @@ func (s *ConfigServer) GetConfig(
 		Auth:                       s.auth,
 		OrgLinks:                   s.orgLinks,
 		CountLimits:                s.counts,
+		HistoryRetention:           s.historyRetention,
 		SizeLimits: &configv1.SizeLimits{
 			MinCpuMillis:   locoControllerV1.MinCPUMillis,
 			MaxCpuMillis:   locoControllerV1.MaxCPUMillis,

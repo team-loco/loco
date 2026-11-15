@@ -9424,9 +9424,32 @@
             "title": "count_limits",
             "description": "count_limits are the install's defaults; GetOrgLimits reports an organization's own.",
             "$ref": "#/components/schemas/loco.config.v1.CountLimits"
+          },
+          "historyRetention": {
+            "title": "history_retention",
+            "description": "history_retention applies across the installation and cannot be overridden per organization.",
+            "$ref": "#/components/schemas/loco.config.v1.HistoryRetention"
           }
         },
         "title": "GetConfigResponse",
+        "additionalProperties": false
+      },
+      "loco.config.v1.HistoryRetention": {
+        "type": "object",
+        "properties": {
+          "buildImagesPerResource": {
+            "type": "integer",
+            "title": "build_images_per_resource",
+            "format": "int32",
+            "description": "build_images_per_resource keeps the newest build images, plus images still in use.\n Zero disables image cleanup."
+          },
+          "events": {
+            "title": "events",
+            "description": "events also covers webhook delivery records, which are deleted with their event.",
+            "$ref": "#/components/schemas/google.protobuf.Duration"
+          }
+        },
+        "title": "HistoryRetention",
         "additionalProperties": false
       },
       "loco.config.v1.OrgLink": {
