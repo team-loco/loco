@@ -687,8 +687,7 @@ build_image() {
     local repository=$1 dockerfile=$2 binary=$3 context="$RUN_DIR/images/$1" target
     # E2E_IMAGES names prebuilt images, with * standing for the image name.
     if [ -n "${E2E_IMAGES:-}" ]; then
-        docker pull -q "${E2E_IMAGES//\*/${repository#loco-}}"
-        docker tag "${E2E_IMAGES//\*/${repository#loco-}}" "${repository}:e2e-${RUN_ID}"
+        pull_prebuilt "${E2E_IMAGES//\*/${repository#loco-}}" "${repository}:e2e-${RUN_ID}"
         return
     fi
     target=$(awk '$1 == "COPY" && $2 == "--from=builder" { print $3 }' "$ROOT_DIR/$dockerfile")

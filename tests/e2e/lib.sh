@@ -24,6 +24,19 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_step()  { echo -e "${BLUE}[STEP]${NC}  $*"; }
 
+# pull_prebuilt <reference> <tag> pulls the reference's manifest for the Docker host's platform and tags it.
+pull_prebuilt() {
+    local reference=$1 tag=$2 arch digest
+    arch=$(docker version --format '{{.Server.Arch}}')
+    digest=$(docker buildx imagetools inspect --raw "$reference" |
+        jq -r --arg arch "$arch" '.manifests[]? | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest')
+    if [ -n "$digest" ]; then
+        reference="${reference%:*}@$digest"
+    fi
+    docker pull -q "$reference"
+    docker tag "$reference" "$tag"
+}
+
 log_group() {
     if [ "${GITHUB_ACTIONS:-}" = true ]; then
         echo "::group::$*"

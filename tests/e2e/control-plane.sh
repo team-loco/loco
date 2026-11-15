@@ -65,8 +65,7 @@ trap cleanup EXIT
 VERSION=${E2E_VERSION:-e2e}
 if [[ -n ${E2E_IMAGES:-} ]]; then
     for image in api-failover api ui obs-proxy; do
-        docker pull -q "${E2E_IMAGES//\*/$image}"
-        docker tag "${E2E_IMAGES//\*/$image}" "loco-$image:e2e"
+        pull_prebuilt "${E2E_IMAGES//\*/$image}" "loco-$image:e2e"
     done
 elif [[ $SKIP_BUILD == false ]]; then
     docker build -t loco-api-failover:e2e --build-arg VERSION="$VERSION" -f "$ROOT_DIR/tests/e2e/fixtures/api-failover/Dockerfile" "$ROOT_DIR"
