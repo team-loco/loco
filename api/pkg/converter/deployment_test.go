@@ -92,15 +92,14 @@ func TestRuntimeUserSurvivesDeploymentMerge(t *testing.T) {
 
 func TestObservabilityUsesResourceSettingsAndExplicitDeploymentOverrides(t *testing.T) {
 	resource := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{
-		Observability: &deploymentv1.ObservabilityConfig{Logs: new(false), AutoinjectOtelEnvVars: new(true)},
+		Observability: &deploymentv1.ObservabilityConfig{InjectOtel: new(true)},
 		Regions:       map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}},
 	}}}
 	for _, inject := range []bool{true, false} {
 		request := &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
 				Observability: &deploymentv1.ObservabilityConfig{
-					Traces:                new(false),
-					AutoinjectOtelEnvVars: new(inject),
+					InjectOtel: new(inject),
 				},
 			}},
 		}
@@ -109,11 +108,10 @@ func TestObservabilityUsesResourceSettingsAndExplicitDeploymentOverrides(t *test
 			t.Fatal(err)
 		}
 		settings := merged.GetService().GetObservability()
-		if settings.Logs == nil || settings.GetLogs() || !settings.GetMetrics() || settings.GetTraces() ||
-			settings.GetAutoinjectOtelEnvVars() != inject {
+		if settings.InjectOtel == nil || settings.GetInjectOtel() != inject {
 			t.Fatalf("snapshot=%v", settings)
 		}
-		if got := ProtoToServiceDeploymentSpec(merged).AutoinjectOtelEnvVars; got != inject {
+		if got := ProtoToServiceDeploymentSpec(merged).Observability.InjectOtel; got != inject {
 			t.Fatalf("pod SDK injection=%v want=%v", got, inject)
 		}
 	}

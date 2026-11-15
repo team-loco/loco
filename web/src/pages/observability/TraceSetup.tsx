@@ -57,8 +57,8 @@ export function TraceSetup() {
 				</TabsContent>
 			))}
 			<p className="m-0 border-t border-line px-3.5 py-2 text-[12px] text-fg2">
-				Keep trace collection enabled in resource settings. Configure your SDK endpoint, or enable SDK environment
-				configuration there.
+				Loco configures the collector connection by default. Add instrumentation to your app, or configure its SDK
+				endpoint yourself.
 			</p>
 		</Tabs>
 	);

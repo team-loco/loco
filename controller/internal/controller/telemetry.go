@@ -67,56 +67,27 @@ func formatPort(port int32) string {
 func openTelemetryEnvVars(
 	app *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
 ) []corev1.EnvVar {
-	if !app.Spec.ServiceSpec.Deployment.AutoinjectOtelEnvVars {
+	if !app.Spec.ServiceSpec.Deployment.Observability.InjectOtel {
 		return nil
 	}
-	endpoint := telemetry.otlpHTTPEndpoint()
-	serviceName := app.Spec.Slug
-	settings := [][]corev1.EnvVar{
-		{
-			{Name: envOTLPEndpoint, Value: endpoint},
-			{Name: envOTLPProtocol, Value: otlpProtocolHTTP},
-		},
-		{{Name: envOTelServiceName, Value: serviceName}},
-		resourceAttributeVars(app),
-	}
-	userEnv := app.Spec.ServiceSpec.Deployment.Env
-	var vars []corev1.EnvVar
-	for _, setting := range settings {
-		if userSetsAny(userEnv, secretNames, setting) {
-			continue
+	for name := range app.Spec.ServiceSpec.Deployment.Env {
+		if configuresOpenTelemetry(name) {
+			return nil
 		}
-		// OTEL_SERVICE_NAME takes precedence over service.name in OTEL_RESOURCE_ATTRIBUTES.
-		// A secret's attributes cannot be inspected without copying its value into the pod spec.
-		if len(setting) > 0 && setting[0].Name == envOTelServiceName && userResourceServiceName(userEnv, secretNames) {
-			continue
-		}
-		vars = append(vars, setting...)
 	}
-	return vars
+	if slices.ContainsFunc(secretNames, configuresOpenTelemetry) {
+		return nil
+	}
+	return append(resourceAttributeVars(app),
+		corev1.EnvVar{Name: envOTLPEndpoint, Value: telemetry.otlpHTTPEndpoint()},
+		corev1.EnvVar{Name: envOTLPProtocol, Value: otlpProtocolHTTP},
+		corev1.EnvVar{Name: envOTelServiceName, Value: app.Spec.Slug},
+	)
 }
 
-func userSetsAny(userEnv map[string]string, secretNames []string, setting []corev1.EnvVar) bool {
-	for _, envVar := range setting {
-		_, plain := userEnv[envVar.Name]
-		if plain || slices.Contains(secretNames, envVar.Name) {
-			return true
-		}
-	}
-	return false
-}
-
-func userResourceServiceName(userEnv map[string]string, secretNames []string) bool {
-	if slices.Contains(secretNames, envOTelResourceAttributes) {
-		return true
-	}
-	for attribute := range strings.SplitSeq(userEnv[envOTelResourceAttributes], attributeSeparator) {
-		key, _, _ := strings.Cut(attribute, attributeAssignment)
-		if strings.TrimSpace(key) == "service.name" {
-			return true
-		}
-	}
-	return false
+func configuresOpenTelemetry(name string) bool {
+	return strings.HasPrefix(name, "OTEL_EXPORTER_OTLP_") ||
+		name == envOTelServiceName || name == envOTelResourceAttributes
 }
 
 func resourceAttributeVars(app *locov1alpha1.Application) []corev1.EnvVar {

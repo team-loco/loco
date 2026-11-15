@@ -324,7 +324,7 @@ function TraceSession({
 				<ObsHero
 					view="traces"
 					title="Send your first trace"
-					body="Instrument your app and keep trace collection enabled. Configure its SDK to export to Loco, or enable SDK environment configuration in resource settings."
+					body="Instrument your app to send traces. Loco configures the collector connection by default; you can also configure your SDK directly."
 					action={<WidenRangeButton />}
 				>
 					<TraceSetup />

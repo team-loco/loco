@@ -9951,38 +9951,17 @@
       "loco.deployment.v1.ObservabilityConfig": {
         "type": "object",
         "properties": {
-          "logs": {
+          "injectOtel": {
             "type": [
               "boolean",
               "null"
             ],
-            "title": "logs"
-          },
-          "metrics": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "title": "metrics"
-          },
-          "traces": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "title": "traces"
-          },
-          "autoinjectOtelEnvVars": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "title": "autoinject_otel_env_vars"
+            "title": "inject_otel"
           }
         },
         "title": "ObservabilityConfig",
         "additionalProperties": false,
-        "description": "ObservabilityConfig controls collection by Loco separately from application SDK configuration.\n Omitted signal switches default to true; omitted autoinject_otel_env_vars defaults to false."
+        "description": "ObservabilityConfig controls automatic application SDK environment configuration.\n Omitted inject_otel defaults to true."
       },
       "loco.deployment.v1.Port": {
         "type": "object",
@@ -11134,19 +11113,6 @@
             "title": "retention",
             "description": "retention applies to the workspace's records: its organization's retention limits.",
             "$ref": "#/components/schemas/loco.ingest.v1.Retention"
-          },
-          "resourceId": {
-            "type": "string",
-            "title": "resource_id"
-          },
-          "environmentId": {
-            "type": "string",
-            "title": "environment_id"
-          },
-          "observability": {
-            "title": "observability",
-            "description": "The latest effective collection policy for this resource placement interval.",
-            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "PlacementWindow",
@@ -13753,7 +13719,7 @@
           },
           "observability": {
             "title": "observability",
-            "description": "Collection defaults on; application SDK environment injection defaults off.",
+            "description": "Application SDK environment injection defaults to true.",
             "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },

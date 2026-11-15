@@ -53,12 +53,9 @@ type Override struct {
 	Regions       map[string]Region `json:"regions,omitempty"`
 }
 
-// Observability controls collection by Loco and optional SDK environment configuration.
+// Observability controls automatic application SDK environment configuration.
 type Observability struct {
-	Logs                  *bool `json:"logs,omitempty"`
-	Metrics               *bool `json:"metrics,omitempty"`
-	Traces                *bool `json:"traces,omitempty"`
-	AutoinjectOtelEnvVars *bool `json:"autoinjectOtelEnvVars,omitempty"`
+	InjectOtel *bool `json:"injectOtel,omitempty"`
 }
 
 // Health is the service health check.

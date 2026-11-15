@@ -303,10 +303,6 @@ CREATE TABLE
         resource_id UUID NOT NULL,
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
-        environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
-        collect_logs BOOLEAN NOT NULL,
-        collect_metrics BOOLEAN NOT NULL,
-        collect_traces BOOLEAN NOT NULL,
         placed_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         removed_at TIMESTAMPTZ,
         CHECK (removed_at IS NULL OR removed_at >= placed_at)

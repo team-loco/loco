@@ -202,7 +202,7 @@
               "type": "null"
             }
           ],
-          "description": "Collection switches default on; SDK environment injection defaults off."
+          "description": "Automatic OpenTelemetry SDK environment configuration, enabled by default."
         }
       },
       "additionalProperties": false,
@@ -506,19 +506,13 @@
         },
         "observability": {
           "$ref": "#/$defs/Observability",
-          "description": "Collection switches default on; SDK environment injection defaults off."
+          "description": "Automatic OpenTelemetry SDK environment configuration, enabled by default."
         }
       },
       "dependentRequired": {
-        "domains": [
-          "port"
-        ],
-        "health": [
-          "port"
-        ],
-        "routing": [
-          "port"
-        ]
+        "domains": ["port"],
+        "health": ["port"],
+        "routing": ["port"]
       },
       "additionalProperties": false,
       "type": "object"
@@ -527,21 +521,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "logs": {
+        "injectOtel": {
           "type": "boolean",
-          "description": "Collect resource logs, including stdout and SDK logs. Defaults to true."
-        },
-        "metrics": {
-          "type": "boolean",
-          "description": "Collect resource metrics. Defaults to true."
-        },
-        "traces": {
-          "type": "boolean",
-          "description": "Collect resource traces, including ingress spans. Defaults to true."
-        },
-        "autoinjectOtelEnvVars": {
-          "type": "boolean",
-          "description": "Supply SDK environment defaults. Defaults to false."
+          "description": "Inject OpenTelemetry SDK environment defaults. Defaults to true."
         }
       }
     },
@@ -549,33 +531,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "logs": {
+        "injectOtel": {
           "type": [
             "boolean",
             "null"
           ],
-          "description": "Collect resource logs, including stdout and SDK logs. Defaults to true."
-        },
-        "metrics": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "Collect resource metrics. Defaults to true."
-        },
-        "traces": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "Collect resource traces, including ingress spans. Defaults to true."
-        },
-        "autoinjectOtelEnvVars": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "Supply SDK environment defaults. Defaults to false."
+          "description": "Override SDK environment injection; null removes this setting from the resolved configuration."
         }
       }
     }

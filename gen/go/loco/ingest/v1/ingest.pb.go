@@ -7,7 +7,6 @@
 package ingestv1
 
 import (
-	v1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -209,10 +208,6 @@ type PlacementWindow struct {
 	RemovedAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
 	// retention applies to the workspace's records: its organization's retention limits.
 	Retention     *Retention `protobuf:"bytes,4,opt,name=retention,proto3" json:"retention,omitempty"`
-	ResourceId    string     `protobuf:"bytes,5,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	EnvironmentId string     `protobuf:"bytes,6,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	// The latest effective collection policy for this resource placement interval.
-	Observability *v1.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,27 +266,6 @@ func (x *PlacementWindow) GetRemovedAt() *timestamppb.Timestamp {
 func (x *PlacementWindow) GetRetention() *Retention {
 	if x != nil {
 		return x.Retention
-	}
-	return nil
-}
-
-func (x *PlacementWindow) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
-}
-
-func (x *PlacementWindow) GetEnvironmentId() string {
-	if x != nil {
-		return x.EnvironmentId
-	}
-	return ""
-}
-
-func (x *PlacementWindow) GetObservability() *v1.ObservabilityConfig {
-	if x != nil {
-		return x.Observability
 	}
 	return nil
 }
@@ -361,7 +335,7 @@ var File_loco_ingest_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_loco_ingest_v1_ingest_proto_rawDesc = "" +
 	"\n" +
-	"\x1bloco/ingest/v1/ingest.proto\x12\x0eloco.ingest.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\"\x13\n" +
+	"\x1bloco/ingest/v1/ingest.proto\x12\x0eloco.ingest.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
 	"\x11IssueTokenRequest\"e\n" +
 	"\x12IssueTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x129\n" +
@@ -370,17 +344,13 @@ const file_loco_ingest_v1_ingest_proto_rawDesc = "" +
 	"\x1bListPlacementWindowsRequest\"\x92\x01\n" +
 	"\x1cListPlacementWindowsResponse\x129\n" +
 	"\awindows\x18\x01 \x03(\v2\x1f.loco.ingest.v1.PlacementWindowR\awindows\x127\n" +
-	"\tretention\x18\x02 \x01(\v2\x19.loco.ingest.v1.RetentionR\tretention\"\xf8\x02\n" +
+	"\tretention\x18\x02 \x01(\v2\x19.loco.ingest.v1.RetentionR\tretention\"\xe1\x01\n" +
 	"\x0fPlacementWindow\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x127\n" +
 	"\tplaced_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bplacedAt\x129\n" +
 	"\n" +
 	"removed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x127\n" +
-	"\tretention\x18\x04 \x01(\v2\x19.loco.ingest.v1.RetentionR\tretention\x12\x1f\n" +
-	"\vresource_id\x18\x05 \x01(\tR\n" +
-	"resourceId\x12%\n" +
-	"\x0eenvironment_id\x18\x06 \x01(\tR\renvironmentId\x12M\n" +
-	"\robservability\x18\a \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\"f\n" +
+	"\tretention\x18\x04 \x01(\v2\x19.loco.ingest.v1.RetentionR\tretention\"f\n" +
 	"\tRetention\x12\x19\n" +
 	"\blog_days\x18\x01 \x01(\x05R\alogDays\x12\x1d\n" +
 	"\n" +
@@ -413,7 +383,6 @@ var file_loco_ingest_v1_ingest_proto_goTypes = []any{
 	(*PlacementWindow)(nil),              // 4: loco.ingest.v1.PlacementWindow
 	(*Retention)(nil),                    // 5: loco.ingest.v1.Retention
 	(*timestamppb.Timestamp)(nil),        // 6: google.protobuf.Timestamp
-	(*v1.ObservabilityConfig)(nil),       // 7: loco.deployment.v1.ObservabilityConfig
 }
 var file_loco_ingest_v1_ingest_proto_depIdxs = []int32{
 	6, // 0: loco.ingest.v1.IssueTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
@@ -422,16 +391,15 @@ var file_loco_ingest_v1_ingest_proto_depIdxs = []int32{
 	6, // 3: loco.ingest.v1.PlacementWindow.placed_at:type_name -> google.protobuf.Timestamp
 	6, // 4: loco.ingest.v1.PlacementWindow.removed_at:type_name -> google.protobuf.Timestamp
 	5, // 5: loco.ingest.v1.PlacementWindow.retention:type_name -> loco.ingest.v1.Retention
-	7, // 6: loco.ingest.v1.PlacementWindow.observability:type_name -> loco.deployment.v1.ObservabilityConfig
-	0, // 7: loco.ingest.v1.IngestService.IssueToken:input_type -> loco.ingest.v1.IssueTokenRequest
-	2, // 8: loco.ingest.v1.IngestService.ListPlacementWindows:input_type -> loco.ingest.v1.ListPlacementWindowsRequest
-	1, // 9: loco.ingest.v1.IngestService.IssueToken:output_type -> loco.ingest.v1.IssueTokenResponse
-	3, // 10: loco.ingest.v1.IngestService.ListPlacementWindows:output_type -> loco.ingest.v1.ListPlacementWindowsResponse
-	9, // [9:11] is the sub-list for method output_type
-	7, // [7:9] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	0, // 6: loco.ingest.v1.IngestService.IssueToken:input_type -> loco.ingest.v1.IssueTokenRequest
+	2, // 7: loco.ingest.v1.IngestService.ListPlacementWindows:input_type -> loco.ingest.v1.ListPlacementWindowsRequest
+	1, // 8: loco.ingest.v1.IngestService.IssueToken:output_type -> loco.ingest.v1.IssueTokenResponse
+	3, // 9: loco.ingest.v1.IngestService.ListPlacementWindows:output_type -> loco.ingest.v1.ListPlacementWindowsResponse
+	8, // [8:10] is the sub-list for method output_type
+	6, // [6:8] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_loco_ingest_v1_ingest_proto_init() }

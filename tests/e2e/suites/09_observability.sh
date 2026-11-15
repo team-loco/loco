@@ -296,34 +296,12 @@ obs_telemetry_env_matches() {
         grep -qxF "OTEL_SERVICE_NAME=${service}" <<<"$env"
 }
 
-test_o02_enables_application_telemetry_explicitly() {
-    local env marker query status
+test_o02_configures_application_telemetry_by_default() {
     wait_for "the default fixture to be Ready" "$obs_route_timeout_seconds" cli_application_is_ready "$obs_app" || return 1
-    env=$(obs_container_env) || return 1
-    assert "application SDK configuration is absent by default" \
-        test -z "$(grep '^OTEL_' <<<"$env")" || return 1
-    wait_for "the unconfigured fixture to serve" "$obs_route_timeout_seconds" obs_route_serves || return 1
-    marker="telemetry-default-off-$(obs_random_hex "$obs_marker_bytes")"
-    status=$(obs_gateway_status "${E2E_GATEWAY_URL}/${marker}")
-    assert "the app serves without SDK configuration" test "$status" = "$obs_http_ok" || return 1
-    query="SELECT count() FROM otel_logs WHERE ResourceId = '${obs_resource_id}' AND position(Body, 'msg=request') > 0 AND position(Body, 'path=/${marker}') > 0"
-    assert "stdout collection works without application telemetry opt-in" \
-        wait_for "the fixture stdout log" "$obs_telemetry_timeout_seconds" obs_event_arrived "$query" || return 1
-
-    obs_app="$obs_app" yq -i '.services[strenv(obs_app)].observability.autoinjectOtelEnvVars = true' "$obs_app_dir/loco.yaml"
-    obs_apply_config telemetry-enable || return 1
-    wait_for "the opted-in SDK configuration" "$obs_route_timeout_seconds" obs_telemetry_env_matches "$obs_app" || return 1
-    obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" \
-        --timeout="${obs_route_timeout_seconds}s" || return 1
-    assert "the opted-in SDK reads the collector endpoint" \
-        wait_for "the fixture's startup log" "$obs_route_timeout_seconds" obs_fixture_logs_endpoint || return 1
-    {
-        printf '## Application telemetry opt-in\n\n'
-        printf 'The fixture serves and stdout reaches storage before opt-in. Setting `observability.autoinjectOtelEnvVars: true` configures its SDK with service name `%s` and endpoint `%s`.\n\n' "$obs_app" "$obs_collector_endpoint"
-        printf '```console\n'
-        obs_fixture_logs | grep -F 'otlp_endpoint=' || true
-        printf '```\n\n'
-    } >>"$obs_evidence"
+    assert "the default SDK configuration points at the collector" \
+        wait_for "the default SDK configuration" "$obs_route_timeout_seconds" obs_telemetry_env_matches "$obs_app" || return 1
+    assert "the SDK reads the injected collector endpoint" \
+        wait_for "the fixture startup log" "$obs_route_timeout_seconds" obs_fixture_logs_endpoint || return 1
 }
 
 test_o03_cluster_events_are_collected_once() {
@@ -748,10 +726,10 @@ test_o15_proxy_isolation() {
     obs_check trace_proxy_isolation check_trace_proxy_isolation
 }
 
-test_o16_disables_injection_and_keeps_user_configuration() {
+test_o16_user_configuration_suppresses_the_injected_bundle() {
     local service="${obs_app}-custom" marker query status
     obs_app="$obs_app" service="$service" endpoint="$obs_collector_endpoint" yq -i '
-        .services[strenv(obs_app)].observability.autoinjectOtelEnvVars = false |
+        .services[strenv(obs_app)].observability.injectOtel = true |
         .services[strenv(obs_app)].env = {
             "OTEL_EXPORTER_OTLP_ENDPOINT": strenv(endpoint),
             "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
@@ -761,50 +739,31 @@ test_o16_disables_injection_and_keeps_user_configuration() {
     wait_for "the user-owned SDK configuration" "$obs_route_timeout_seconds" obs_telemetry_env_matches "$service" || return 1
     obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" \
         --timeout="${obs_route_timeout_seconds}s" || return 1
-    assert "disabling injection removes its resource attributes" \
+    assert "a user endpoint suppresses the injected resource attributes" \
         test -z "$(obs_container_env | grep '^OTEL_RESOURCE_ATTRIBUTES=')" || return 1
     marker="telemetry-custom-$(obs_random_hex "$obs_marker_bytes")"
     status=$(obs_gateway_status "${E2E_GATEWAY_URL}/${marker}")
     assert "the custom-configured app serves" test "$status" = "$obs_http_ok" || return 1
     query="SELECT count() FROM otel_traces WHERE ResourceId = '${obs_resource_id}' AND ServiceName = '${service}' AND SpanName = 'GET /${marker}'"
-    assert "the user's SDK configuration exports after opt-out" \
+    assert "the user's SDK configuration exports while injection is enabled" \
         wait_for "the custom-named trace" "$obs_telemetry_timeout_seconds" obs_event_arrived "$query"
 }
 
-# A protobuf export exercises the same authenticated policy gate as collector exports.
-obs_collection_disabled() {
-    local marker=$1 token response="$obs_dir/policy-response.binpb" request="$obs_dir/policy-request.binpb" status
-    token=$(obs_kube -n "$E2E_OBS_NAMESPACE" get secret "$E2E_INGEST_TOKEN_SECRET" \
-        -o jsonpath="{.data.${E2E_INGEST_TOKEN_SECRET_KEY}}" | base64 -d) || return 1
-    "$obs_dir/otlplog" -workspace "$obs_workspace_id" -resource "$obs_resource_id" -body "$marker" >"$request" || return 1
-    status=$(curl -sS --max-time "$obs_curl_timeout_seconds" -o "$response" -w '%{http_code}' \
-        -H 'Content-Type: application/x-protobuf' -H "Authorization: Bearer $token" \
-        --data-binary "@$request" "http://127.0.0.1:${E2E_OTLP_HTTP_PORT}/v1/logs") || return 1
-    test "$status" = "$obs_http_ok" && test "$("$obs_dir/otlplog" -rejected <"$response")" -eq 1
-}
-
-test_o17_collection_switches_leave_sdk_and_history_intact() {
-    local marker status trace_query log_query
-    marker="collection-disabled-$(obs_random_hex "$obs_marker_bytes")"
-    go -C "$E2E_ROOT_DIR/observability-proxy" build -o "$obs_dir/otlplog" ./tools/otlplog || return 1
-    obs_app="$obs_app" yq -i '.services[strenv(obs_app)].observability.logs = false |
-        .services[strenv(obs_app)].observability.metrics = false |
-        .services[strenv(obs_app)].observability.traces = false' "$obs_app_dir/loco.yaml"
-    obs_apply_config collection-disable || return 1
-    assert "collection policy reaches authenticated ingest" \
-        wait_for "resource collection to be disabled" "$obs_telemetry_timeout_seconds" obs_collection_disabled "$marker-probe" || return 1
-    assert "collection switches preserve user SDK configuration" obs_telemetry_env_matches "${obs_app}-custom" || return 1
+test_o17_disables_injection_without_disabling_collection() {
+    local marker query status env
+    obs_app="$obs_app" yq -i '.services[strenv(obs_app)].observability.injectOtel = false |
+        .services[strenv(obs_app)].env = {}' "$obs_app_dir/loco.yaml"
+    obs_apply_config telemetry-disable || return 1
+    obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" \
+        --timeout="${obs_route_timeout_seconds}s" || return 1
+    env=$(obs_container_env) || return 1
+    assert "injectOtel false injects no SDK variables" test -z "$(grep '^OTEL_' <<<"$env")" || return 1
+    marker="injection-disabled-$(obs_random_hex "$obs_marker_bytes")"
     status=$(obs_gateway_status "${E2E_GATEWAY_URL}/${marker}")
-    assert "the app serves with collection disabled" test "$status" = "$obs_http_ok" || return 1
-    # The known trace remains available after new collection stops.
-    trace_query="SELECT count() FROM otel_traces WHERE TraceId = '${obs_trace_id}' AND ResourceId = '${obs_resource_id}'"
-    assert "previously stored traces remain queryable" test "$(obs_ch "$trace_query" TabSeparated)" -gt 0 || return 1
-    # Policy is source-independent: both app stdout and gateway records for this request are excluded.
-    log_query="SELECT count() FROM otel_logs WHERE ResourceId = '${obs_resource_id}' AND position(Body, '${marker}') > 0"
-    trace_query="SELECT count() FROM otel_traces WHERE ResourceId = '${obs_resource_id}' AND position(SpanAttributes['url.path'], '${marker}') > 0"
-    assert "disabled log collection rejects resource records" obs_collection_disabled "$marker-check" || return 1
-    assert "new resource logs are absent" test "$(obs_ch "$log_query" TabSeparated)" -eq 0 || return 1
-    assert "new SDK and ingress spans are absent" test "$(obs_ch "$trace_query" TabSeparated)" -eq 0
+    assert "the app serves without SDK configuration" test "$status" = "$obs_http_ok" || return 1
+    query="SELECT count() FROM otel_logs WHERE ResourceId = '${obs_resource_id}' AND position(Body, 'msg=request') > 0 AND position(Body, 'path=/${marker}') > 0"
+    assert "stdout collection continues after injection is disabled" \
+        wait_for "the fixture stdout log" "$obs_telemetry_timeout_seconds" obs_event_arrived "$query"
 }
 
 obs_crash_forward_ready() {

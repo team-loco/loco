@@ -146,13 +146,15 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 	}
 
 	return &locoControllerV1.ServiceDeploymentSpec{
-		AutoinjectOtelEnvVars: serviceSpec.GetObservability().GetAutoinjectOtelEnvVars(),
-		RunAsUser:             serviceSpec.RunAsUser,
-		RunAsGroup:            serviceSpec.RunAsGroup,
-		Image:                 serviceSpec.GetBuild().GetImage(),
-		Port:                  serviceSpec.Port,
-		HealthCheck:           healthCheck,
-		Env:                   serviceSpec.GetEnv(),
+		Observability: locoControllerV1.ObservabilityConfig{
+			InjectOtel: observabilityconfig.Resolve(nil, serviceSpec.GetObservability()).InjectOtel,
+		},
+		RunAsUser:   serviceSpec.RunAsUser,
+		RunAsGroup:  serviceSpec.RunAsGroup,
+		Image:       serviceSpec.GetBuild().GetImage(),
+		Port:        serviceSpec.Port,
+		HealthCheck: healthCheck,
+		Env:         serviceSpec.GetEnv(),
 	}
 }
 

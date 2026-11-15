@@ -10,8 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/internal/observabilityconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -26,22 +24,7 @@ func placeApplication(
 	if err != nil {
 		return fmt.Errorf("upsert placement: %w", err)
 	}
-	if params.DeploymentID == nil {
-		return fmt.Errorf("placement %s has no deployment", params.ResourceID)
-	}
-	deployment, err := qtx.GetDeploymentByID(ctx, *params.DeploymentID)
-	if err != nil {
-		return fmt.Errorf("get placement deployment: %w", err)
-	}
-	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, genDb.ResourceTypeService)
-	if err != nil {
-		return fmt.Errorf("decode placement deployment: %w", err)
-	}
-	collection := observabilityconfig.Resolve(nil, spec.GetService().GetObservability())
-	window := genDb.OpenPlacementWindowParams{
-		ResourceID: params.ResourceID, ClusterID: params.ClusterID, EnvironmentID: params.EnvironmentID,
-		CollectLogs: collection.Logs, CollectMetrics: collection.Metrics, CollectTraces: collection.Traces,
-	}
+	window := genDb.OpenPlacementWindowParams{ResourceID: params.ResourceID, ClusterID: params.ClusterID}
 	if err := qtx.OpenPlacementWindow(ctx, window); err != nil {
 		return fmt.Errorf("open placement window: %w", err)
 	}

@@ -179,27 +179,22 @@ This command skips all source builds and uploads, including builds for other ser
 
 ## Observability
 
-Each resource controls collection by signal, separately from application SDK configuration:
+Loco configures instrumented applications to export telemetry to its collector by default. Disable automatic SDK environment configuration for a resource or an environment:
 
 ```yaml
 services:
   checkout:
     observability:
-      logs: true
-      metrics: true
-      traces: true
-      autoinjectOtelEnvVars: false
+      injectOtel: true
     environments:
       staging:
         observability:
-          traces: false
+          injectOtel: false
 ```
 
-`logs`, `metrics` and `traces` default to `true`. Logs include application stdout and SDK logs; metrics include application, resource and gateway metrics; traces include application and ingress spans. Setting a signal to `false` stops new records for that resource at Loco's ingest boundary after its configured policy cache refreshes. Previously stored data remains queryable. Build diagnostics, deployment status and control-plane events are independent of these switches.
+`injectOtel` defaults to `true`. Loco supplies the collector endpoint, protocol, service name and resource attributes as one set. If a plain environment variable or declared secret name matches `OTEL_EXPORTER_OTLP_*`, `OTEL_SERVICE_NAME` or `OTEL_RESOURCE_ATTRIBUTES`, Loco injects none of that set. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL` or sampler settings, do not suppress injection. See [Runtime environment](../operations/applications.md#runtime-environment) for the supplied values.
 
-`autoinjectOtelEnvVars` defaults to `false`. When `true`, Loco supplies collector connection and identity defaults to an instrumented application's OpenTelemetry SDK. Application code must already include the SDK and instrumentation. User-supplied environment variables and secrets take precedence; see [Runtime environment](../operations/applications.md#runtime-environment) for the exact variables and override rules.
-
-The settings are independent: a manually configured SDK can send data to Loco with environment injection off, and disabling collection never rewrites the SDK's configuration or its exports to another backend. Signal switches also do not change the environment injection preference. Environment overrides merge individual fields. Saving observability settings creates a deployment snapshot and rolls out the resource.
+Application code must already include the SDK and instrumentation. Setting `injectOtel` to `false` leaves SDK configuration to the application; it does not disable telemetry collection. Environment overrides replace the resource's injection preference. Saving the setting creates a deployment snapshot and rolls out the resource.
 
 ## Variables and secrets
 

@@ -27,25 +27,13 @@ export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 const IMAGE_BUILD = "image";
 const WHOLE = /^\d+$/;
 
-export const OBSERVABILITY_KEYS = ["logs", "metrics", "traces", "autoinjectOtelEnvVars"] as const;
-
-export type ObservabilitySettings = Required<Pick<ObservabilityConfig, (typeof OBSERVABILITY_KEYS)[number]>>;
+export type ObservabilitySettings = Required<Pick<ObservabilityConfig, "injectOtel">>;
 
 function observabilitySettings(config: ObservabilityConfig | undefined): ObservabilitySettings {
-	if (
-		config?.logs === undefined ||
-		config.metrics === undefined ||
-		config.traces === undefined ||
-		config.autoinjectOtelEnvVars === undefined
-	) {
+	if (config?.injectOtel === undefined) {
 		throw new Error("The API returned incomplete observability settings");
 	}
-	return {
-		logs: config.logs,
-		metrics: config.metrics,
-		traces: config.traces,
-		autoinjectOtelEnvVars: config.autoinjectOtelEnvVars,
-	};
+	return { injectOtel: config.injectOtel };
 }
 
 export interface SettingsDraft {
@@ -182,7 +170,7 @@ export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	count += Object.keys(draft.secrets ?? {}).length;
 	count += (draft.removedSecrets ?? []).length;
 	if (next.isPublic !== base.isPublic) count++;
-	count += OBSERVABILITY_KEYS.filter((key) => next.observability[key] !== base.observability[key]).length;
+	if (next.observability.injectOtel !== base.observability.injectOtel) count++;
 	return count;
 }
 

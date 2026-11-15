@@ -30,7 +30,7 @@ const FEATURES: readonly { icon: LucideIcon; title: string; body: string; tech: 
 	{
 		icon: Activity,
 		title: "Logs, traces and metrics",
-		body: "Choose which logs, metrics and traces Loco collects. Configure your SDK directly or opt in to automatic OpenTelemetry environment variables.",
+		body: "Inspect logs, metrics and traces together. Loco configures the OpenTelemetry collector connection by default, and respects your own exporter configuration.",
 		tech: "OpenTelemetry · ClickHouse",
 	},
 	{

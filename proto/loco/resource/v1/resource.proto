@@ -96,7 +96,7 @@ message ServiceSpec {
   RoutingConfig routing = 1;
   map<string, RegionTarget> regions = 2 [(buf.validate.field).map.min_pairs = 1]; // key = region name
   optional deployment.v1.HealthCheckConfig health_check = 3; // health check defaults
-  // Collection defaults on; application SDK environment injection defaults off.
+  // Application SDK environment injection defaults to true.
   deployment.v1.ObservabilityConfig observability = 4;
 }
 

@@ -17,8 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/team-loco/loco/internal/observabilityconfig"
-
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectinprocess"
 	"github.com/go-jose/go-jose/v4"
@@ -111,10 +109,7 @@ func registryFixtureFor(t *testing.T, f *deployFixture, config RegistryConfig) *
 
 func (f *registryFixture) openWindow(t *testing.T, clusterID uuid.UUID) {
 	t.Helper()
-	collection := observabilityconfig.Defaults()
-	params := genDb.OpenPlacementWindowParams{ClusterID: clusterID, ResourceID: f.resourceID, EnvironmentID: f.envID,
-		CollectLogs: collection.Logs, CollectMetrics: collection.Metrics, CollectTraces: collection.Traces,
-	}
+	params := genDb.OpenPlacementWindowParams{ClusterID: clusterID, ResourceID: f.resourceID}
 	if err := f.queries.OpenPlacementWindow(t.Context(), params); err != nil {
 		t.Fatal(err)
 	}

@@ -56,9 +56,9 @@ By default, the controller sets these variables in every application container:
 | `LOCO_REGION`, `LOCO_ENVIRONMENT` | the region and environment the deployment targets |
 | `LOCO_INTERNAL_DOMAIN`, `LOCO_PUBLIC_DOMAIN` | the in-cluster hostname, and the public hostname or an empty string |
 
-The `LOCO_*` variables cannot be overridden. Application SDK environment configuration is opt-in: set `observability.autoinjectOtelEnvVars: true` in `loco.yaml`, or enable automatic environment configuration in the resource's Observability settings. The default is `false`. Signal collection has separate `observability.logs`, `metrics` and `traces` switches, each defaulting to `true`.
+The `LOCO_*` variables cannot be overridden. Automatic application SDK environment configuration is enabled by default. Set `observability.injectOtel: false` in `loco.yaml`, or turn off **Configure SDK environment** in the resource's Observability settings, to manage SDK configuration yourself.
 
-When automatic environment configuration is enabled, Loco supplies these defaults to instrumented applications whose SDK supports environment configuration:
+When automatic environment configuration is enabled, Loco supplies these variables to instrumented applications whose SDK supports environment configuration:
 
 | Variable | Value |
 |---|---|
@@ -66,11 +66,9 @@ When automatic environment configuration is enabled, Loco supplies these default
 | `OTEL_SERVICE_NAME` | the resource's logical name (its slug), such as `checkout` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
 
-An `OTEL_*` variable under `env`, or named in `secrets` and set with `loco env`, replaces the matching default. Plain values take precedence when the same name also appears in `secrets`. Endpoint and protocol form a pair: setting either suppresses both defaults, so supply both when changing the connection. Signal-specific endpoint and protocol variables retain the SDK's standard precedence. Loco also leaves the service-name default unset when plain resource attributes define `service.name`, or when resource attributes come from a secret; the [OpenTelemetry specification](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) gives `OTEL_SERVICE_NAME` precedence over that attribute.
+Loco injects this entire set only when no plain environment variable or declared secret name matches `OTEL_EXPORTER_OTLP_*`, `OTEL_SERVICE_NAME` or `OTEL_RESOURCE_ATTRIBUTES`. Any matching name suppresses all four defaults, including signal-specific exporter variables and resource attributes that define `service.name`. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL` and `OTEL_TRACES_SAMPLER`, do not suppress injection. Plain values take precedence when the same name also appears in `secrets`.
 
-Setting `autoinjectOtelEnvVars` to `false` removes injected defaults on rollout and preserves user-supplied variables and secrets. It does not disable an SDK configured by the application or its image. Collection switches filter new resource records at authenticated ingest, regardless of whether they originate from stdout, an SDK, resource metrics or the gateway. They never change the application's SDK configuration. Stored data, build diagnostics, deployment status and control-plane events remain available.
-
-Collection policy travels with the control plane's authenticated placement windows and takes effect after the ingest proxy's `INGEST_PLACEMENT_CACHE_TTL`. A closed placement retains its last policy for queued records in that placement interval. Unmanaged dependencies that have no Loco resource ID continue to be associated with their workspace and collected.
+Setting `injectOtel` to `false` removes the injected set on rollout and preserves user-supplied variables and secrets. It does not disable an SDK configured by the application or its image, or stop Loco from collecting telemetry sent to it. Loco does not inspect configuration inside the application or its image.
 
 For data sent to Loco, the collector attaches workspace, environment and resource IDs from pod labels and drops application-supplied values for those IDs.
 

@@ -31,7 +31,7 @@ const EAST = "us-east-1";
 const WEST = "eu-west-1";
 const IMAGE = "ghcr.io/acme/shop:1.4.0";
 const SERVED = ["loco.example.com"];
-const OBSERVABILITY = { logs: true, metrics: true, traces: true, autoinjectOtelEnvVars: false };
+const OBSERVABILITY = { injectOtel: true };
 
 function deployment(id: string, regionName: string, replicas = 2): Deployment {
 	return create(DeploymentSchema, {
@@ -107,35 +107,26 @@ function plan(draft: SettingsDraft) {
 }
 
 describe("planSave", () => {
-	test("collection and SDK environment configuration are independent", () => {
+	test("SDK environment configuration redeploys every running region and preserves application variables", () => {
 		expect(base.observability).toEqual(OBSERVABILITY);
-		for (const key of ["logs", "metrics", "traces", "autoinjectOtelEnvVars"] as const) {
-			const observability = { ...OBSERVABILITY, [key]: !OBSERVABILITY[key] };
-			expect(changeCount({ observability }, base)).toBe(1);
-			const changed = plan({ observability });
-			expect(changed.map((d) => d.region)).toEqual([EAST, WEST]);
-			for (const d of changed) {
-				const svc = getServiceSpec(create(DeploymentSchema, { spec: d.spec }));
-				expect(svc?.observability).toEqual(create(ObservabilityConfigSchema, observability));
-				expect(svc?.env).toEqual({ LOG_LEVEL: "info" });
-			}
+		const observability = { injectOtel: false };
+		expect(changeCount({ observability }, base)).toBe(1);
+		const changed = plan({ observability });
+		expect(changed.map((d) => d.region)).toEqual([EAST, WEST]);
+		for (const d of changed) {
+			const svc = getServiceSpec(create(DeploymentSchema, { spec: d.spec }));
+			expect(svc?.observability).toEqual(create(ObservabilityConfigSchema, observability));
+			expect(svc?.env).toEqual({ LOG_LEVEL: "info" });
 		}
 		expect(changeCount({ observability: OBSERVABILITY }, base)).toBe(0);
-		const disabled = { logs: false, metrics: false, traces: false, autoinjectOtelEnvVars: false };
-		expect(changeCount({ observability: disabled }, base)).toBe(3);
-		for (const d of plan({ observability: disabled })) {
-			expect(getServiceSpec(create(DeploymentSchema, { spec: d.spec }))?.observability).toEqual(
-				create(ObservabilityConfigSchema, disabled),
-			);
-		}
 	});
 
 	test("an undeployed resource uses the API observability defaults", () => {
 		const configured = create(DefaultServiceConfigSchema, {
 			...defaults,
-			observability: create(ObservabilityConfigSchema, { ...OBSERVABILITY, logs: false }),
+			observability: create(ObservabilityConfigSchema, { injectOtel: false }),
 		});
-		expect(baseline("shop", "", [], [EAST], true, configured).observability.logs).toBe(false);
+		expect(baseline("shop", "", [], [EAST], true, configured).observability.injectOtel).toBe(false);
 	});
 
 	test("changing one region's image clears its own source commit", () => {

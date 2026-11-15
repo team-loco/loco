@@ -497,16 +497,13 @@ func (x *BuildSource) GetBuildId() string {
 	return ""
 }
 
-// ObservabilityConfig controls collection by Loco separately from application SDK configuration.
-// Omitted signal switches default to true; omitted autoinject_otel_env_vars defaults to false.
+// ObservabilityConfig controls automatic application SDK environment configuration.
+// Omitted inject_otel defaults to true.
 type ObservabilityConfig struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Logs                  *bool                  `protobuf:"varint,1,opt,name=logs,proto3,oneof" json:"logs,omitempty"`
-	Metrics               *bool                  `protobuf:"varint,2,opt,name=metrics,proto3,oneof" json:"metrics,omitempty"`
-	Traces                *bool                  `protobuf:"varint,3,opt,name=traces,proto3,oneof" json:"traces,omitempty"`
-	AutoinjectOtelEnvVars *bool                  `protobuf:"varint,4,opt,name=autoinject_otel_env_vars,json=autoinjectOtelEnvVars,proto3,oneof" json:"autoinject_otel_env_vars,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InjectOtel    *bool                  `protobuf:"varint,1,opt,name=inject_otel,json=injectOtel,proto3,oneof" json:"inject_otel,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ObservabilityConfig) Reset() {
@@ -539,30 +536,9 @@ func (*ObservabilityConfig) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ObservabilityConfig) GetLogs() bool {
-	if x != nil && x.Logs != nil {
-		return *x.Logs
-	}
-	return false
-}
-
-func (x *ObservabilityConfig) GetMetrics() bool {
-	if x != nil && x.Metrics != nil {
-		return *x.Metrics
-	}
-	return false
-}
-
-func (x *ObservabilityConfig) GetTraces() bool {
-	if x != nil && x.Traces != nil {
-		return *x.Traces
-	}
-	return false
-}
-
-func (x *ObservabilityConfig) GetAutoinjectOtelEnvVars() bool {
-	if x != nil && x.AutoinjectOtelEnvVars != nil {
-		return *x.AutoinjectOtelEnvVars
+func (x *ObservabilityConfig) GetInjectOtel() bool {
+	if x != nil && x.InjectOtel != nil {
+		return *x.InjectOtel
 	}
 	return false
 }
@@ -1996,17 +1972,11 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12t\n" +
 	"\x05image\x18\x02 \x01(\tB^\xbaH[\xd8\x01\x01rV2T^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+)?(@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
 	"\bbuild_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\abuildId\x88\x01\x01B\v\n" +
-	"\t_build_id\"\xe5\x01\n" +
-	"\x13ObservabilityConfig\x12\x17\n" +
-	"\x04logs\x18\x01 \x01(\bH\x00R\x04logs\x88\x01\x01\x12\x1d\n" +
-	"\ametrics\x18\x02 \x01(\bH\x01R\ametrics\x88\x01\x01\x12\x1b\n" +
-	"\x06traces\x18\x03 \x01(\bH\x02R\x06traces\x88\x01\x01\x12<\n" +
-	"\x18autoinject_otel_env_vars\x18\x04 \x01(\bH\x03R\x15autoinjectOtelEnvVars\x88\x01\x01B\a\n" +
-	"\x05_logsB\n" +
-	"\n" +
-	"\b_metricsB\t\n" +
-	"\a_tracesB\x1b\n" +
-	"\x19_autoinject_otel_env_vars\"\xf5\t\n" +
+	"\t_build_id\"K\n" +
+	"\x13ObservabilityConfig\x12$\n" +
+	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
+	"injectOtel\x88\x01\x01B\x0e\n" +
+	"\f_inject_otel\"\xf5\t\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +

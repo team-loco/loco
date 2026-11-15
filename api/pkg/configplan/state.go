@@ -92,8 +92,7 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 	observability := observabilityconfig.Defaults()
 	if settings := service.Observability; settings != nil {
 		observability = observabilityconfig.Resolve(nil, &deploymentv1.ObservabilityConfig{
-			Logs: settings.Logs, Metrics: settings.Metrics, Traces: settings.Traces,
-			AutoinjectOtelEnvVars: settings.AutoinjectOtelEnvVars,
+			InjectOtel: settings.InjectOtel,
 		})
 	}
 	state := State{
@@ -196,12 +195,9 @@ func flatten(state *State) map[string]string {
 		return map[string]string{}
 	}
 	fields := map[string]string{
-		"observability.logs":                  strconv.FormatBool(state.Observability.Logs),
-		"observability.metrics":               strconv.FormatBool(state.Observability.Metrics),
-		"observability.traces":                strconv.FormatBool(state.Observability.Traces),
-		"observability.autoinjectOtelEnvVars": strconv.FormatBool(state.Observability.AutoinjectOtelEnvVars),
-		pathDomains:                           formatList(state.Domains),
-		pathSecrets:                           formatList(slices.Sorted(slices.Values(state.Secrets))),
+		"observability.injectOtel": strconv.FormatBool(state.Observability.InjectOtel),
+		pathDomains:                formatList(state.Domains),
+		pathSecrets:                formatList(slices.Sorted(slices.Values(state.Secrets))),
 	}
 	if state.Port != nil {
 		fields[pathPort] = formatInt(*state.Port)

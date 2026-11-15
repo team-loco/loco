@@ -302,7 +302,7 @@ type ServiceSpec struct {
 	Routing     *RoutingConfig           `protobuf:"bytes,1,opt,name=routing,proto3" json:"routing,omitempty"`
 	Regions     map[string]*RegionTarget `protobuf:"bytes,2,rep,name=regions,proto3" json:"regions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // key = region name
 	HealthCheck *v1.HealthCheckConfig    `protobuf:"bytes,3,opt,name=health_check,json=healthCheck,proto3,oneof" json:"health_check,omitempty"`                                          // health check defaults
-	// Collection defaults on; application SDK environment injection defaults off.
+	// Application SDK environment injection defaults to true.
 	Observability *v1.ObservabilityConfig `protobuf:"bytes,4,opt,name=observability,proto3" json:"observability,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

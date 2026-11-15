@@ -222,12 +222,9 @@ WHERE placements.resource_id = r.id
   AND NOT placements.desired_deleted
 RETURNING placements.id, placements.cluster_id, placements.desired_revision;
 -- name: OpenPlacementWindow :exec
-INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, environment_id, collect_logs, collect_metrics, collect_traces)
-SELECT r.id, sqlc.arg(cluster_id), r.workspace_id, sqlc.arg(environment_id),
-    sqlc.arg(collect_logs), sqlc.arg(collect_metrics), sqlc.arg(collect_traces)
-FROM resources r WHERE r.id = sqlc.arg(resource_id)
-ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO UPDATE
-SET collect_logs = EXCLUDED.collect_logs, collect_metrics = EXCLUDED.collect_metrics, collect_traces = EXCLUDED.collect_traces;
+INSERT INTO placement_windows (resource_id, cluster_id, workspace_id)
+SELECT r.id, sqlc.arg(cluster_id), r.workspace_id FROM resources r WHERE r.id = sqlc.arg(resource_id)
+ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO NOTHING;
 
 -- name: ClosePlacementWindow :exec
 UPDATE placement_windows
@@ -235,8 +232,7 @@ SET removed_at = NOW()
 WHERE resource_id = $1 AND cluster_id = $2 AND removed_at IS NULL;
 
 -- name: ListClusterPlacementWindows :many
-SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at, pw.resource_id, pw.environment_id,
-    pw.collect_logs, pw.collect_metrics, pw.collect_traces
+SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at
 FROM placement_windows pw
 JOIN workspaces w ON w.id = pw.workspace_id
 WHERE pw.cluster_id = $1

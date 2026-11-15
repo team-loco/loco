@@ -70,10 +70,6 @@ spec:
                   deployment:
                     description: Deployment info (current or requested)
                     properties:
-                      autoinjectOtelEnvVars:
-                        description: AutoinjectOtelEnvVars supplies OpenTelemetry
-                          SDK environment defaults.
-                        type: boolean
                       env:
                         additionalProperties:
                           type: string
@@ -126,6 +122,18 @@ spec:
                       image:
                         minLength: 1
                         type: string
+                      observability:
+                        default: {}
+                        description: ObservabilityConfig controls automatic application
+                          SDK environment configuration.
+                        properties:
+                          injectOtel:
+                            default: true
+                            description: InjectOtel supplies SDK environment defaults
+                              unless the application configures its own exporter or
+                              resource.
+                            type: boolean
+                        type: object
                       port:
                         description: |-
                           Port is the port the service listens on. Without it the service is a worker: it gets no

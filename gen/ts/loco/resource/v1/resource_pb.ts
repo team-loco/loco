@@ -203,7 +203,7 @@ export type ServiceSpec = Message<"loco.resource.v1.ServiceSpec"> & {
   healthCheck?: HealthCheckConfig | undefined;
 
   /**
-   * Collection defaults on; application SDK environment injection defaults off.
+   * Application SDK environment injection defaults to true.
    *
    * @generated from field: loco.deployment.v1.ObservabilityConfig observability = 4;
    */
@@ -236,7 +236,7 @@ export type ServiceSpecJson = {
   healthCheck?: HealthCheckConfigJson;
 
   /**
-   * Collection defaults on; application SDK environment injection defaults off.
+   * Application SDK environment injection defaults to true.
    *
    * @generated from field: loco.deployment.v1.ObservabilityConfig observability = 4;
    */

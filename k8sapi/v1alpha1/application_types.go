@@ -127,11 +127,19 @@ type ServiceSpec struct {
 	Routing *RoutingSpec `json:"routing,omitempty"`
 }
 
+// ObservabilityConfig controls automatic application SDK environment configuration.
+type ObservabilityConfig struct {
+	// InjectOtel supplies SDK environment defaults unless the application configures its own exporter or resource.
+	// +optional
+	// +kubebuilder:default=true
+	InjectOtel bool `json:"injectOtel"`
+}
+
 // ServiceDeploymentSpec contains service deployment-specific configuration
 type ServiceDeploymentSpec struct {
-	// AutoinjectOtelEnvVars supplies OpenTelemetry SDK environment defaults.
 	// +optional
-	AutoinjectOtelEnvVars bool `json:"autoinjectOtelEnvVars,omitempty"`
+	// +kubebuilder:default={}
+	Observability ObservabilityConfig `json:"observability"`
 
 	// +required
 	// +kubebuilder:validation:MinLength=1
