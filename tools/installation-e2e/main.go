@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -109,6 +110,13 @@ func command(ctx context.Context, dir string, input []byte, program string, args
 			}
 			_, writeErr := fmt.Fprintln(os.Stderr, verificationFailurePrefix+category)
 			err = errors.Join(err, writeErr)
+		}
+		if err != nil && len(args) > 0 && (args[0] == "plan" || args[0] == "validate") {
+			for _, line := range strings.Split(string(stderr.Bytes()), "\n") {
+				if strings.HasPrefix(line, "Error:") || strings.HasPrefix(line, "Warning:") {
+					fmt.Fprintln(os.Stderr, "DIAG "+strings.Join(args, " ")+": "+line)
+				}
+			}
 		}
 		out = append(stdout.Bytes(), stderr.Bytes()...)
 		if stdout.exceeded || stderr.exceeded {
