@@ -599,12 +599,12 @@ var File_loco_secret_v1_secret_proto protoreflect.FileDescriptor
 
 const file_loco_secret_v1_secret_proto_rawDesc = "" +
 	"\n" +
-	"\x1bloco/secret/v1/secret.proto\x12\x0eloco.secret.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x02\n" +
+	"\x1bloco/secret/v1/secret.proto\x12\x0eloco.secret.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x02\n" +
 	"\x11SetSecretsRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12/\n" +
-	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12g\n" +
-	"\x06values\x18\x03 \x03(\v2-.loco.secret.v1.SetSecretsRequest.ValuesEntryB \xbaH\x1d\x9a\x01\x1a\b\x01\"\x16r\x142\x12^[A-Z_][A-Z0-9_]*$R\x06values\x1a9\n" +
+	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12j\n" +
+	"\x06values\x18\x03 \x03(\v2-.loco.secret.v1.SetSecretsRequest.ValuesEntryB#\xbaH \x9a\x01\x1d\b\x01\x10\x80\x02\"\x16r\x142\x12^[A-Z_][A-Z0-9_]*$R\x06values\x1a9\n" +
 	"\vValuesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
@@ -613,12 +613,12 @@ const file_loco_secret_v1_secret_proto_rawDesc = "" +
 	"\aversion\x18\x02 \x01(\x05R\aversion\"k\n" +
 	"\x12SetSecretsResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x129\n" +
-	"\bversions\x18\x02 \x03(\v2\x1d.loco.secret.v1.SecretVersionR\bversions\"\xaa\x01\n" +
+	"\bversions\x18\x02 \x03(\v2\x1d.loco.secret.v1.SecretVersionR\bversions\"\xad\x01\n" +
 	"\x14DeleteSecretsRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12/\n" +
-	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x126\n" +
-	"\x05names\x18\x03 \x03(\tB \xbaH\x1d\x92\x01\x1a\b\x01\"\x16r\x142\x12^[A-Z_][A-Z0-9_]*$R\x05names\"3\n" +
+	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x129\n" +
+	"\x05names\x18\x03 \x03(\tB#\xbaH \x92\x01\x1d\b\x01\x10\x80\x02\"\x16r\x142\x12^[A-Z_][A-Z0-9_]*$R\x05names\"3\n" +
 	"\x15DeleteSecretsResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\"p\n" +
 	"\x12ListSecretsRequest\x12)\n" +

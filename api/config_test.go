@@ -104,6 +104,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("CACHE_TYPE", "")
 	t.Setenv("CACHE_ADDR", "")
 	t.Setenv("LOCO_SOURCE_MAX_BYTES", "")
+	t.Setenv("LOCO_RPC_READ_MAX_BYTES", "")
 	t.Setenv("LOCO_SOURCE_BUCKET", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_REGION", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", "")
@@ -278,6 +279,9 @@ func TestNewAPIConfigReadsSystemAdmins(t *testing.T) {
 func TestNewAPIConfigDefaults(t *testing.T) {
 	clearAPIConfigEnv(t)
 	ac := newAPIConfig()
+	if ac.RPCReadMaxBytes != defaultRPCReadMaxBytes {
+		t.Errorf("RPC read max bytes = %d, want %d", ac.RPCReadMaxBytes, defaultRPCReadMaxBytes)
+	}
 	if ac.CacheType != cacheTypeMemory {
 		t.Errorf("cache type = %q, want %q", ac.CacheType, cacheTypeMemory)
 	}
@@ -640,6 +644,12 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		env  map[string]string
 		want error
 	}{
+		{"zero RPC read max bytes", map[string]string{"LOCO_RPC_READ_MAX_BYTES": "0"}, envconfig.ErrNotPositive},
+		{
+			"invalid RPC read max bytes",
+			map[string]string{"LOCO_RPC_READ_MAX_BYTES": "large"},
+			envconfig.ErrInvalidInt32,
+		},
 		{"valkey without address", map[string]string{"CACHE_TYPE": cacheTypeValkey}, errCacheAddrMissing},
 		{"unknown cache type", map[string]string{"CACHE_TYPE": "redis"}, errUnknownCacheType},
 		{"non-numeric source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "lots"}, errInvalidSourceBytes},
@@ -1273,4 +1283,12 @@ func TestNewAPIConfigTokenMaximum(t *testing.T) {
 		}
 	}()
 	newAPIConfig()
+}
+
+func TestNewAPIConfigReadsRPCReadLimit(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_RPC_READ_MAX_BYTES", "1024")
+	if got := newAPIConfig().RPCReadMaxBytes; got != 1024 {
+		t.Fatalf("RPC read max bytes = %d, want 1024", got)
+	}
 }

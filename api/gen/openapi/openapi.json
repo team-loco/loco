@@ -13797,6 +13797,7 @@
               "pattern": "^[A-Z_][A-Z0-9_]*$"
             },
             "title": "names",
+            "maxItems": 256,
             "minItems": 1
           }
         },
@@ -13958,6 +13959,7 @@
           "values": {
             "type": "object",
             "title": "values",
+            "maxProperties": 256,
             "minProperties": 1,
             "additionalProperties": {
               "type": "string",

@@ -205,7 +205,7 @@ func newTracedServer(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	mountRPCServers(mux, base, authenticated)
+	mountRPCServers(mux, base, authenticated, defaultRPCReadMaxBytes)
 	tracedMux := withServerTracing(mux)
 	srv := httptest.NewUnstartedServer(tracedMux)
 	srv.EnableHTTP2 = true
