@@ -423,6 +423,8 @@ func (cp *controlPlane) request(t *testing.T, method, host, path, body string, h
 		t.Fatal(err)
 	}
 	request.Host = host
+	// A kept-alive connection stays on the Envoy listener it opened on, which a changed Gateway drains.
+	request.Close = true
 	maps.Copy(request.Header, header)
 	if body != "" && request.Header.Get(contentTypeHeader) == "" {
 		request.Header.Set(contentTypeHeader, jsonContent)
