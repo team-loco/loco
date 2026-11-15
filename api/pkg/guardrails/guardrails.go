@@ -21,6 +21,7 @@ var (
 	errSinceInFuture       = errors.New("since is in the future")
 	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
 	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
+	errInvalidJSONPath     = errors.New("JSON field paths must be object keys joined by single dots")
 )
 
 // Limits bounds what one query may ask for.
@@ -109,8 +110,10 @@ type logFilters interface {
 	GetEnvironmentId() string
 	GetResourceIds() []string
 	GetExcludedResourceIds() []string
-	GetLabels() map[string]string
-	GetExcludedLabels() map[string]string
+	GetLabels() []*observabilityv1.LogFieldFilter
+	GetExcludedLabels() []*observabilityv1.LogFieldFilter
+	GetJsonFields() []*observabilityv1.LogFieldFilter
+	GetExcludedJsonFields() []*observabilityv1.LogFieldFilter
 	GetRegions() []string
 	GetExcludedRegions() []string
 }
@@ -120,18 +123,29 @@ func validateLogFilters(req logFilters) error {
 	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), resourceIDs); err != nil {
 		return err
 	}
-	if err := validateLabels(req.GetLabels(), req.GetExcludedLabels()); err != nil {
+	if err := validateLabels(slices.Concat(req.GetLabels(), req.GetExcludedLabels())); err != nil {
+		return err
+	}
+	if err := validateJSONPaths(slices.Concat(req.GetJsonFields(), req.GetExcludedJsonFields())); err != nil {
 		return err
 	}
 	return validateRegions(req.GetRegions(), req.GetExcludedRegions())
 }
 
-func validateLabels(groups ...map[string]string) error {
-	for _, labels := range groups {
-		for key := range labels {
-			if strings.HasPrefix(key, reservedAttributePrefix) && !strings.HasPrefix(key, kubernetesLabelPrefix) {
-				return fmt.Errorf("%w: %q", errReservedLabelKey, key)
-			}
+func validateLabels(labels []*observabilityv1.LogFieldFilter) error {
+	for _, label := range labels {
+		key := label.GetKey()
+		if strings.HasPrefix(key, reservedAttributePrefix) && !strings.HasPrefix(key, kubernetesLabelPrefix) {
+			return fmt.Errorf("%w: %q", errReservedLabelKey, key)
+		}
+	}
+	return nil
+}
+
+func validateJSONPaths(fields []*observabilityv1.LogFieldFilter) error {
+	for _, field := range fields {
+		if slices.Contains(strings.Split(field.GetKey(), "."), "") {
+			return fmt.Errorf("%w: %q", errInvalidJSONPath, field.GetKey())
 		}
 	}
 	return nil

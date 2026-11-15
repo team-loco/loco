@@ -42,19 +42,8 @@ message QueryLogsRequest {
   // Filter by severity levels (e.g., ["ERROR", "WARN"]).
   repeated string levels = 6 [(buf.validate.field).repeated.max_items = 100];
 
-  // Filter by resource attribute key-value pairs.
-  map<string, string> labels = 7 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
+  // Filter by resource attributes.
+  repeated LogFieldFilter labels = 7 [(buf.validate.field).repeated.max_items = 100];
 
   // Max rows to return (clamped by guardrails).
   int32 limit = 8 [(buf.validate.field).int32 = {
@@ -99,45 +88,12 @@ message QueryLogsRequest {
   }];
   // Severity levels whose logs are left out.
   repeated string excluded_levels = 15 [(buf.validate.field).repeated.max_items = 100];
-  // Leaves out logs whose resource attributes match any of these key-value pairs.
-  map<string, string> excluded_labels = 16 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
-  // Filter by log record attribute key-value pairs (e.g., http.response.status_code).
-  map<string, string> log_attributes = 17 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
-  // Leaves out logs whose log record attributes match any of these key-value pairs.
-  map<string, string> excluded_log_attributes = 18 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
+  // Leaves out logs whose resource attributes match any of these filters.
+  repeated LogFieldFilter excluded_labels = 16 [(buf.validate.field).repeated.max_items = 100];
+  // Filter by log record attributes (e.g., http.response.status_code).
+  repeated LogFieldFilter log_attributes = 17 [(buf.validate.field).repeated.max_items = 100];
+  // Leaves out logs whose log record attributes match any of these filters.
+  repeated LogFieldFilter excluded_log_attributes = 18 [(buf.validate.field).repeated.max_items = 100];
   // OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none.
   repeated string trace_ids = 19 [(buf.validate.field).repeated = {
     max_items: 100
@@ -158,12 +114,33 @@ message QueryLogsRequest {
       }
     }
   }];
+  // Filter by fields of a JSON object body. A key is a dot-separated path of object keys, such as
+  // user.id; a string field matches its text and any other field its JSON text.
+  repeated LogFieldFilter json_fields = 21 [(buf.validate.field).repeated.max_items = 100];
+  // Leaves out logs whose JSON body fields match any of these filters.
+  repeated LogFieldFilter excluded_json_fields = 22 [(buf.validate.field).repeated.max_items = 100];
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
     expression: "this.start_time <= this.end_time"
   };
+}
+
+// LogFieldFilter selects logs whose field named key holds any of values. In an excluded_ list it
+// leaves out logs whose field holds any of values; a log without the field is kept.
+message LogFieldFilter {
+  string key = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  repeated string values = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {max_len: 4096}
+    }
+  }];
 }
 
 // LogOrder defines the sort order for historical log queries.
@@ -219,19 +196,8 @@ message TailLogsRequest {
   string search = 3;
   // Filter by severity levels (e.g., ["ERROR", "WARN"]).
   repeated string levels = 4 [(buf.validate.field).repeated.max_items = 100];
-  // Filter by resource attribute key-value pairs.
-  map<string, string> labels = 5 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
+  // Filter by resource attributes.
+  repeated LogFieldFilter labels = 5 [(buf.validate.field).repeated.max_items = 100];
   google.protobuf.Timestamp since = 6;
   repeated string regions = 7 [(buf.validate.field).repeated = {
     max_items: 100
@@ -265,45 +231,12 @@ message TailLogsRequest {
   }];
   // Severity levels whose logs are left out.
   repeated string excluded_levels = 11 [(buf.validate.field).repeated.max_items = 100];
-  // Leaves out logs whose resource attributes match any of these key-value pairs.
-  map<string, string> excluded_labels = 12 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
-  // Filter by log record attribute key-value pairs (e.g., http.response.status_code).
-  map<string, string> log_attributes = 13 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
-  // Leaves out logs whose log record attributes match any of these key-value pairs.
-  map<string, string> excluded_log_attributes = 14 [(buf.validate.field).map = {
-    max_pairs: 100
-    keys: {
-      string: {
-        min_len: 1
-        max_len: 256
-      }
-    }
-    values: {
-      string: {max_len: 4096}
-    }
-  }];
+  // Leaves out logs whose resource attributes match any of these filters.
+  repeated LogFieldFilter excluded_labels = 12 [(buf.validate.field).repeated.max_items = 100];
+  // Filter by log record attributes (e.g., http.response.status_code).
+  repeated LogFieldFilter log_attributes = 13 [(buf.validate.field).repeated.max_items = 100];
+  // Leaves out logs whose log record attributes match any of these filters.
+  repeated LogFieldFilter excluded_log_attributes = 14 [(buf.validate.field).repeated.max_items = 100];
   // OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none.
   repeated string trace_ids = 15 [(buf.validate.field).repeated = {
     max_items: 100
@@ -324,6 +257,11 @@ message TailLogsRequest {
       }
     }
   }];
+  // Filter by fields of a JSON object body. A key is a dot-separated path of object keys, such as
+  // user.id; a string field matches its text and any other field its JSON text.
+  repeated LogFieldFilter json_fields = 17 [(buf.validate.field).repeated.max_items = 100];
+  // Leaves out logs whose JSON body fields match any of these filters.
+  repeated LogFieldFilter excluded_json_fields = 18 [(buf.validate.field).repeated.max_items = 100];
 }
 
 // TailLogsResponse is a server-streamed event (log entry or heartbeat).

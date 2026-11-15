@@ -83,7 +83,7 @@ func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
 	allowed := []string{"loco.io/build-id", "app.loco.io/component", "service.name"}
 
 	for _, key := range reserved {
-		labels := map[string]string{key: testWorkspaceID}
+		labels := []*observabilityv1.LogFieldFilter{{Key: key, Values: []string{testWorkspaceID}}}
 		logs := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Labels = labels })
 		if !errors.Is(logs, errReservedLabelKey) {
 			t.Errorf("logs label %q = %v, want errReservedLabelKey", key, logs)
@@ -94,7 +94,7 @@ func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
 		}
 	}
 	for _, key := range allowed {
-		labels := map[string]string{key: "value"}
+		labels := []*observabilityv1.LogFieldFilter{{Key: key, Values: []string{"value"}}}
 		if err := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Labels = labels }); err != nil {
 			t.Errorf("logs label %q rejected: %v", key, err)
 		}
@@ -282,9 +282,13 @@ func TestEveryTenantQueryRequiresCanonicalUUIDScope(t *testing.T) {
 func TestExcludedLogFiltersFollowTheirIncludeRules(t *testing.T) {
 	now := time.Now()
 	const trace = "0123456789abcdef0123456789abcdef"
+	field := func(key string, values ...string) []*observabilityv1.LogFieldFilter {
+		return []*observabilityv1.LogFieldFilter{{Key: key, Values: values}}
+	}
 	type filters struct {
 		excludedResources, excludedLevels, traces, excludedTraces []string
-		excludedLabels, attributes, excludedAttributes            map[string]string
+		excludedLabels, attributes, excludedAttributes            []*observabilityv1.LogFieldFilter
+		jsonFields, excludedJSONFields                            []*observabilityv1.LogFieldFilter
 	}
 	cases := map[string]struct {
 		filters filters
@@ -293,14 +297,16 @@ func TestExcludedLogFiltersFollowTheirIncludeRules(t *testing.T) {
 		"every filter": {filters: filters{
 			excludedResources:  []string{testEnvironmentID},
 			excludedLevels:     []string{"DEBUG", ""},
-			excludedLabels:     map[string]string{"k8s.pod.name": "web-1"},
-			attributes:         map[string]string{"http.request.method": "GET"},
-			excludedAttributes: map[string]string{"url.path": "/healthz"},
+			excludedLabels:     field("k8s.pod.name", "web-1", "web-2"),
+			attributes:         field("http.request.method", "GET", "POST"),
+			excludedAttributes: field("url.path", "/healthz"),
+			jsonFields:         field("user.id", "42"),
+			excludedJSONFields: field("level", "debug", "trace"),
 			traces:             []string{trace},
 			excludedTraces:     []string{trace},
 		}},
 		"reserved excluded label": {
-			filters: filters{excludedLabels: map[string]string{"loco.workspace.id": "x"}},
+			filters: filters{excludedLabels: field("loco.workspace.id", "x")},
 			want:    errReservedLabelKey,
 		},
 		"uppercase excluded resource": {
@@ -313,9 +319,12 @@ func TestExcludedLogFiltersFollowTheirIncludeRules(t *testing.T) {
 			filters: filters{excludedTraces: []string{strings.Repeat("0", len(trace))}},
 			want:    errProtoRule,
 		},
-		"empty log attribute key": {
-			filters: filters{excludedAttributes: map[string]string{"": "x"}},
-			want:    errProtoRule,
+		"empty log attribute key": {filters: filters{excludedAttributes: field("", "x")}, want: errProtoRule},
+		"filter without values":   {filters: filters{attributes: field("method")}, want: errProtoRule},
+		"empty JSON path segment": {filters: filters{jsonFields: field("user..id", "42")}, want: errInvalidJSONPath},
+		"trailing JSON path dot": {
+			filters: filters{excludedJSONFields: field("user.", "42")},
+			want:    errInvalidJSONPath,
 		},
 	}
 	for name, tc := range cases {
@@ -323,11 +332,13 @@ func TestExcludedLogFiltersFollowTheirIncludeRules(t *testing.T) {
 		queried := logsRequest(func(r *observabilityv1.QueryLogsRequest) {
 			r.ExcludedResourceIds, r.ExcludedLevels, r.ExcludedLabels = f.excludedResources, f.excludedLevels, f.excludedLabels
 			r.LogAttributes, r.ExcludedLogAttributes = f.attributes, f.excludedAttributes
+			r.JsonFields, r.ExcludedJsonFields = f.jsonFields, f.excludedJSONFields
 			r.TraceIds, r.ExcludedTraceIds = f.traces, f.excludedTraces
 		})
 		tailed := tailRequest(now, func(r *observabilityv1.TailLogsRequest) {
 			r.ExcludedResourceIds, r.ExcludedLevels, r.ExcludedLabels = f.excludedResources, f.excludedLevels, f.excludedLabels
 			r.LogAttributes, r.ExcludedLogAttributes = f.attributes, f.excludedAttributes
+			r.JsonFields, r.ExcludedJsonFields = f.jsonFields, f.excludedJSONFields
 			r.TraceIds, r.ExcludedTraceIds = f.traces, f.excludedTraces
 		})
 		for request, err := range map[string]error{"QueryLogs": queried, "TailLogs": tailed} {

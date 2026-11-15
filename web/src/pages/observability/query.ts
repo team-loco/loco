@@ -253,11 +253,11 @@ export function buildBackendQuery(
 	const resourceIds =
 		resSet === null ? (scopedResourceIds ?? []) : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
 
-	const labels: Record<string, string> = {};
+	const labels: ParsedQuery["labels"] = [];
 	const replica = byKey("replica")[0];
-	if (replica !== undefined) labels["k8s.pod.name"] = replica.value;
+	if (replica !== undefined) labels.push({ key: "k8s.pod.name", values: [replica.value] });
 	const build = byKey("build")[0];
-	if (build !== undefined) labels[BUILD_ID_LABEL] = build.value;
+	if (build !== undefined) labels.push({ key: BUILD_ID_LABEL, values: [build.value] });
 
 	const impossible =
 		levelSet?.length === 0 || resNames?.length === 0 || (scopedResourceIds !== null && resourceIds.length === 0);

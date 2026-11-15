@@ -324,9 +324,11 @@ func TestQueryLogsScopesToWorkspace(t *testing.T) {
 			name: "label shared across workspaces",
 			query: LogQuery{
 				WorkspaceID: testWorkspaceID,
-				Labels:      map[string]string{testSharedLabelKey: testSharedLabelValue},
-				Limit:       testFullPage,
-				Order:       newest,
+				Labels: []*observabilityv1.LogFieldFilter{
+					{Key: testSharedLabelKey, Values: []string{testSharedLabelValue}},
+				},
+				Limit: testFullPage,
+				Order: newest,
 			},
 			want: wantBodies(testWorkspaceID, nil, newest),
 		},
@@ -334,9 +336,11 @@ func TestQueryLogsScopesToWorkspace(t *testing.T) {
 			name: "label naming another workspace",
 			query: LogQuery{
 				WorkspaceID: testWorkspaceID,
-				Labels:      map[string]string{workspaceAttributeKey: testOtherWorkspaceID},
-				Limit:       testFullPage,
-				Order:       newest,
+				Labels: []*observabilityv1.LogFieldFilter{
+					{Key: workspaceAttributeKey, Values: []string{testOtherWorkspaceID}},
+				},
+				Limit: testFullPage,
+				Order: newest,
 			},
 		},
 	}

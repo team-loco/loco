@@ -33,10 +33,12 @@ type LogQuery struct {
 	Search                string
 	Levels                []string
 	ExcludedLevels        []string
-	Labels                map[string]string
-	ExcludedLabels        map[string]string
-	LogAttributes         map[string]string
-	ExcludedLogAttributes map[string]string
+	Labels                []*observabilityv1.LogFieldFilter
+	ExcludedLabels        []*observabilityv1.LogFieldFilter
+	LogAttributes         []*observabilityv1.LogFieldFilter
+	ExcludedLogAttributes []*observabilityv1.LogFieldFilter
+	JSONFields            []*observabilityv1.LogFieldFilter
+	ExcludedJSONFields    []*observabilityv1.LogFieldFilter
 	TraceIDs              []string
 	ExcludedTraceIDs      []string
 	Regions               []string
@@ -222,20 +224,20 @@ func logFilters(q LogQuery, b logBinder) []string {
 		whereParts = append(whereParts, "position(Body, "+b.str(q.Search)+") > 0")
 	}
 
-	for _, filter := range []struct {
-		column  string
-		pairs   map[string]string
+	resourceAttribute := func(key string) string { return "ResourceAttributes[" + b.str(key) + "]" }
+	logAttribute := func(key string) string { return "LogAttributes[" + b.str(key) + "]" }
+	jsonField := func(key string) string { return jsonBodyField(key, b) }
+	for _, group := range []struct {
+		field   func(key string) string
+		filters []*observabilityv1.LogFieldFilter
 		exclude bool
 	}{
-		{"ResourceAttributes", q.Labels, false}, {"ResourceAttributes", q.ExcludedLabels, true},
-		{"LogAttributes", q.LogAttributes, false}, {"LogAttributes", q.ExcludedLogAttributes, true},
+		{resourceAttribute, q.Labels, false}, {resourceAttribute, q.ExcludedLabels, true},
+		{logAttribute, q.LogAttributes, false}, {logAttribute, q.ExcludedLogAttributes, true},
+		{jsonField, q.JSONFields, false}, {jsonField, q.ExcludedJSONFields, true},
 	} {
-		operator := " = "
-		if filter.exclude {
-			operator = " != "
-		}
-		for key, value := range filter.pairs {
-			whereParts = append(whereParts, filter.column+"["+b.str(key)+"]"+operator+b.str(value))
+		for _, filter := range group.filters {
+			whereParts = append(whereParts, logIn(group.field(filter.GetKey()), filter.GetValues(), group.exclude, b))
 		}
 	}
 
@@ -265,6 +267,20 @@ func logFilters(q LogQuery, b logBinder) []string {
 	}
 
 	return whereParts
+}
+
+// jsonBodyField reads a dot-separated object path from a JSON body, a string as its text and anything else as JSON.
+func jsonBodyField(key string, b logBinder) string {
+	path := func() string {
+		segments := strings.Split(key, ".")
+		placeholders := make([]string, len(segments))
+		for i, segment := range segments {
+			placeholders[i] = b.str(segment)
+		}
+		return strings.Join(placeholders, ", ")
+	}
+	return "if(JSONType(Body, " + path() + ") = 'String', JSONExtractString(Body, " + path() +
+		"), JSONExtractRaw(Body, " + path() + "))"
 }
 
 func logIn(column string, values []string, exclude bool, b logBinder) string {

@@ -629,9 +629,11 @@ type fakeProxyService struct {
 	api *fakeAPI
 }
 
-func fakeLogLines(labels map[string]string, resourceIDs []string) []string {
-	if buildID := labels["loco.io/build-id"]; buildID != "" {
-		return []string{"#1 [internal] load build definition from Dockerfile", "#5 DONE " + buildID}
+func fakeLogLines(labels []*observabilityv1.LogFieldFilter, resourceIDs []string) []string {
+	for _, label := range labels {
+		if label.GetKey() == "loco.io/build-id" && len(label.GetValues()) > 0 {
+			return []string{"#1 [internal] load build definition from Dockerfile", "#5 DONE " + label.GetValues()[0]}
+		}
 	}
 	if len(resourceIDs) > 0 {
 		return []string{"listening on :8080", "GET /healthz 200"}

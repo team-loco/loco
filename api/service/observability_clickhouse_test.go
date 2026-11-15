@@ -314,8 +314,9 @@ func TestGetTraceReadsTheWholeTraceInTheWorkspace(t *testing.T) {
 type logFilters struct {
 	resources, excludedResources []string
 	excludedLevels               []string
-	labels, excludedLabels       map[string]string
-	attributes, excludedAttrs    map[string]string
+	labels, excludedLabels       []*observabilityv1.LogFieldFilter
+	attributes, excludedAttrs    []*observabilityv1.LogFieldFilter
+	jsonFields, excludedJSON     []*observabilityv1.LogFieldFilter
 	traces, excludedTraces       []string
 }
 
@@ -325,12 +326,12 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 	f := newObservabilityFixture(t)
 	const (
 		traceA = "0123456789abcdef0123456789abcdef"
+		traceB = "fedcba9876543210fedcba9876543210"
 		team   = "team"
 		method = "http.request.method"
 		get    = "GET"
-		traceB = "fedcba9876543210fedcba9876543210"
-		web1   = "web get"
-		web2   = "web post"
+		web1   = `{"msg":"web get","user":{"id":"42"},"attempt":1}`
+		web2   = `{"msg":"web post","user":{"id":"7"},"attempt":2}`
 		worker = "worker error"
 	)
 	at := time.Now().UTC().Add(-time.Minute)
@@ -368,6 +369,9 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 	cfg.Limits.MaxLimit = 100
 	client := observabilityTestClient(t, NewObservabilityServer(ch, f.authorizer, cfg), f.callers)
 	web, other := f.resource.String(), f.otherResource.String()
+	field := func(key string, values ...string) []*observabilityv1.LogFieldFilter {
+		return []*observabilityv1.LogFieldFilter{{Key: key, Values: values}}
+	}
 
 	for name, tc := range map[string]struct {
 		filters logFilters
@@ -375,20 +379,25 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 	}{
 		"trace":                  {logFilters{traces: []string{traceA}}, []string{web1}},
 		"excluded trace":         {logFilters{excludedTraces: []string{traceA}}, []string{web2, worker}},
-		"log attribute":          {logFilters{attributes: map[string]string{method: get}}, []string{web1}},
-		"excluded log attribute": {logFilters{excludedAttrs: map[string]string{method: get}}, []string{web2, worker}},
+		"log attribute":          {logFilters{attributes: field(method, get)}, []string{web1}},
+		"log attribute values":   {logFilters{attributes: field(method, get, "POST")}, []string{web1, web2}},
+		"excluded log attribute": {logFilters{excludedAttrs: field(method, get)}, []string{web2, worker}},
 		"excluded level":         {logFilters{excludedLevels: []string{"DEBUG"}}, []string{web1, worker}},
 		"excluded resource":      {logFilters{excludedResources: []string{other}}, []string{web1, web2}},
-		"excluded label":         {logFilters{excludedLabels: map[string]string{team: "a"}}, []string{web2}},
+		"excluded label":         {logFilters{excludedLabels: field(team, "a")}, []string{web2}},
+		"excluded label values":  {logFilters{excludedLabels: field(team, "b", "c")}, []string{web1, worker}},
+		"JSON string field":      {logFilters{jsonFields: field("user.id", "42")}, []string{web1}},
+		"JSON number field":      {logFilters{jsonFields: field("attempt", "2")}, []string{web2}},
+		"excluded JSON values":   {logFilters{excludedJSON: field("user.id", "42", "7")}, []string{worker}},
 		"included and excluded": {
-			logFilters{resources: []string{web}, labels: map[string]string{team: "b"}, excludedLevels: []string{"INFO"}},
+			logFilters{resources: []string{web}, labels: field(team, "b"), excludedLevels: []string{"INFO"}},
 			[]string{web2},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctx := callerContext(t, workspaceReader)
-			fl := tc.filters
+			fl, want := tc.filters, slices.Sorted(slices.Values(tc.want))
 			queried, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
 				WorkspaceId:           f.workspace.String(),
 				StartTime:             timestamppb.New(at),
@@ -401,14 +410,16 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 				ExcludedLabels:        fl.excludedLabels,
 				LogAttributes:         fl.attributes,
 				ExcludedLogAttributes: fl.excludedAttrs,
+				JsonFields:            fl.jsonFields,
+				ExcludedJsonFields:    fl.excludedJSON,
 				TraceIds:              fl.traces,
 				ExcludedTraceIds:      fl.excludedTraces,
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := logBodies(queried.GetEntries()); !slices.Equal(got, tc.want) {
-				t.Errorf("QueryLogs bodies = %v, want %v", got, tc.want)
+			if got := logBodies(queried.GetEntries()); !slices.Equal(got, want) {
+				t.Errorf("QueryLogs bodies = %v, want %v", got, want)
 			}
 			stream, err := client.TailLogs(ctx, &observabilityv1.TailLogsRequest{
 				WorkspaceId:           f.workspace.String(),
@@ -420,6 +431,8 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 				ExcludedLabels:        fl.excludedLabels,
 				LogAttributes:         fl.attributes,
 				ExcludedLogAttributes: fl.excludedAttrs,
+				JsonFields:            fl.jsonFields,
+				ExcludedJsonFields:    fl.excludedJSON,
 				TraceIds:              fl.traces,
 				ExcludedTraceIds:      fl.excludedTraces,
 			})
@@ -438,8 +451,8 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 				}
 				tailed = append(tailed, message.GetEntry())
 			}
-			if got := logBodies(tailed); !slices.Equal(got, tc.want) {
-				t.Errorf("TailLogs bodies = %v, want %v", got, tc.want)
+			if got := logBodies(tailed); !slices.Equal(got, want) {
+				t.Errorf("TailLogs bodies = %v, want %v", got, want)
 			}
 		})
 	}

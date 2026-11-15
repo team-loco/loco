@@ -84,7 +84,7 @@ func TestBuildTailLogQueryBindsEveryValueByName(t *testing.T) {
 		ResourceIDs:   []string{testResourceID},
 		Start:         time.Now().Add(-time.Hour),
 		Search:        search,
-		Labels:        map[string]string{"app.loco.io/component": "api"},
+		Labels:        []*observabilityv1.LogFieldFilter{{Key: "app.loco.io/component", Values: []string{"api"}}},
 		Regions:       []string{"us-*"},
 		Limit:         testPageSize,
 	}, testQueryTimeout, TailLogCursor{"all_1/2": 3})
@@ -119,17 +119,21 @@ func TestBuildLogsQueryBindsIncludedAndExcludedFilterValues(t *testing.T) {
 		End:                   time.Now(),
 		ExcludedResourceIDs:   []string{testResourceID},
 		ExcludedLevels:        []string{"DEBUG"},
-		ExcludedLabels:        map[string]string{"k8s.pod.name": "web-1"},
-		LogAttributes:         map[string]string{"http.request.method": "GET"},
-		ExcludedLogAttributes: map[string]string{"url.path": "/healthz"},
-		TraceIDs:              []string{trace},
-		ExcludedTraceIDs:      []string{trace},
-		Limit:                 testPageSize,
+		ExcludedLabels:        []*observabilityv1.LogFieldFilter{{Key: "k8s.pod.name", Values: []string{"web-1"}}},
+		LogAttributes:         []*observabilityv1.LogFieldFilter{{Key: "http.request.method", Values: []string{"GET"}}},
+		ExcludedLogAttributes: []*observabilityv1.LogFieldFilter{{Key: "url.path", Values: []string{"/healthz"}}},
+		JSONFields: []*observabilityv1.LogFieldFilter{
+			{Key: "customer.tier", Values: []string{"gold", "silver"}},
+		},
+		TraceIDs:         []string{trace},
+		ExcludedTraceIDs: []string{trace},
+		Limit:            testPageSize,
 	}, testQueryTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, value := range []string{testResourceID, "DEBUG", "web-1", "GET", "/healthz", trace} {
+	bound := []string{testResourceID, "DEBUG", "web-1", "GET", "/healthz", trace, "customer", "tier", "gold", "silver"}
+	for _, value := range bound {
 		if strings.Contains(query, value) {
 			t.Errorf("value %q interpolated into SQL: %s", value, query)
 		}

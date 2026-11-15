@@ -35,7 +35,7 @@ describe("regional telemetry filters", () => {
 			parsed: {
 				search: "timeout",
 				levels: [],
-				labels: {},
+				labels: [],
 				regions: ["US-*", "eu-west-1"],
 				excludedRegions: ["us-west-*"],
 			},
@@ -132,7 +132,7 @@ describe("build log filters", () => {
 		const { tokens, text } = parseQuery("@resource:api @build:b-123");
 		const raw = create(ResourceSchema, { id: "r1", name: "api" });
 		const query = buildBackendQuery(tokens, text, [{ id: "r1", name: "api", color: "", regions: [], raw }], null);
-		expect(query.parsed.labels).toEqual({ [BUILD_ID_LABEL]: "b-123" });
+		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["b-123"] }]);
 		expect(query.resourceIds).toEqual(["r1"]);
 		expect(query.allEnvironments).toBe(true);
 	});
@@ -141,7 +141,7 @@ describe("build log filters", () => {
 		const { tokens } = parseQuery("@build:a @build:b -@build:c");
 		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, false]);
 		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([false, false, false]);
-		expect(buildBackendQuery(tokens, "", [], null).parsed.labels).toEqual({ [BUILD_ID_LABEL]: "a" });
+		expect(buildBackendQuery(tokens, "", [], null).parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["a"] }]);
 	});
 });
 

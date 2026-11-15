@@ -21,7 +21,7 @@ const logOptions = {
 	environmentId: workspaceId,
 	resourceIds: [],
 	spanMs: HOUR_MS,
-	parsedQuery: { search: "", levels: [], labels: {}, regions: ["us-*"], excludedRegions: ["us-west-*"] },
+	parsedQuery: { search: "", levels: [], labels: [], regions: ["us-*"], excludedRegions: ["us-west-*"] },
 };
 
 describe("regional control-plane queries", () => {

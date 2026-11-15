@@ -81,10 +81,12 @@ type logFilterRequest interface {
 	GetSearch() string
 	GetLevels() []string
 	GetExcludedLevels() []string
-	GetLabels() map[string]string
-	GetExcludedLabels() map[string]string
-	GetLogAttributes() map[string]string
-	GetExcludedLogAttributes() map[string]string
+	GetLabels() []*observabilityv1.LogFieldFilter
+	GetExcludedLabels() []*observabilityv1.LogFieldFilter
+	GetLogAttributes() []*observabilityv1.LogFieldFilter
+	GetExcludedLogAttributes() []*observabilityv1.LogFieldFilter
+	GetJsonFields() []*observabilityv1.LogFieldFilter
+	GetExcludedJsonFields() []*observabilityv1.LogFieldFilter
 	GetTraceIds() []string
 	GetExcludedTraceIds() []string
 	GetRegions() []string
@@ -104,6 +106,8 @@ func logQuery(req logFilterRequest) chClient.LogQuery {
 		ExcludedLabels:        req.GetExcludedLabels(),
 		LogAttributes:         req.GetLogAttributes(),
 		ExcludedLogAttributes: req.GetExcludedLogAttributes(),
+		JSONFields:            req.GetJsonFields(),
+		ExcludedJSONFields:    req.GetExcludedJsonFields(),
 		TraceIDs:              req.GetTraceIds(),
 		ExcludedTraceIDs:      req.GetExcludedTraceIds(),
 		Regions:               req.GetRegions(),
