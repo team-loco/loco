@@ -259,6 +259,34 @@ e2e-installation:
     - ".github/workflows/images.yml"
     - "docker-bake.hcl"
 
+go-lint-and-test:
+  pull_request: &go-lint-and-test
+    - "api/**"
+    - "cmd/**"
+    - "internal/**"
+    - "tools/**"
+    - "controller/**"
+    - "agent/**"
+    - "builder/**"
+    - "observability-proxy/**"
+    - "k8sapi/**"
+    - "controller/Makefile"
+    - "mise-tasks/test/counter-metrics"
+    - "mise-tasks/test/lib/ports.sh"
+    - "charts/loco-control-plane/values.yaml"
+    - "charts/loco-worker/values.yaml"
+    - "go.mod"
+    - "go.sum"
+    - "gen/go/**"
+    - ".github/actions/go-changes/**"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+    - ".golangci.yml"
+    - "mise-tasks/lint/go"
+    - ".github/workflows/go-lint-and-test.yml"
+  push: *go-lint-and-test
+
 govulncheck:
   pull_request: &govulncheck
     - "tests/pyproject.toml"
@@ -279,29 +307,6 @@ images:
   # build.yml publishes the images of every push to main.
   push:
     - "**"
-
-lint:
-  pull_request: &lint
-    - "api/**"
-    - "cmd/**"
-    - "internal/**"
-    - "tools/**"
-    - "controller/**"
-    - "agent/**"
-    - "builder/**"
-    - "k8sapi/**"
-    - "observability-proxy/**"
-    - "go.mod"
-    - "go.sum"
-    - ".golangci.yml"
-    - "mise-tasks/lint/go"
-    - "gen/go/**"
-    - ".github/actions/go-changes/**"
-    - "mise.toml"
-    - "mise.lock"
-    - ".github/actions/setup-tools/**"
-    - ".github/workflows/lint.yml"
-  push: *lint
 
 local-stack:
   pull_request: &local-stack
@@ -368,32 +373,6 @@ platform-release:
     - "charts/**"
     - "controller/config/crd/bases/**"
     - ".github/workflows/platform-release.yml"
-
-test:
-  pull_request: &test
-    - "api/**"
-    - "cmd/**"
-    - "internal/**"
-    - "tools/**"
-    - "controller/**"
-    - "agent/**"
-    - "builder/**"
-    - "observability-proxy/**"
-    - "k8sapi/**"
-    - "controller/Makefile"
-    - "mise-tasks/test/counter-metrics"
-    - "mise-tasks/test/lib/ports.sh"
-    - "charts/loco-control-plane/values.yaml"
-    - "charts/loco-worker/values.yaml"
-    - "go.mod"
-    - "go.sum"
-    - "gen/go/**"
-    - ".github/actions/go-changes/**"
-    - "mise.toml"
-    - "mise.lock"
-    - ".github/actions/setup-tools/**"
-    - ".github/workflows/test.yml"
-  push: *test
 
 transit-conformance:
   pull_request: &transit-conformance
