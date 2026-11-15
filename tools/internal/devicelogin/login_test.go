@@ -1,13 +1,14 @@
 package devicelogin
 
 import (
-	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestPasswordGrantAndDeviceApproval(t *testing.T) {
@@ -20,7 +21,13 @@ func TestPasswordGrantAndDeviceApproval(t *testing.T) {
 			if err := r.ParseForm(); err != nil {
 				t.Error(err)
 			}
-			for key, want := range map[string]string{"grant_type": "password", "client_id": "loco", "username": "dev@loco.test", "password": "loco-dev", "scope": "openid email profile"} {
+			for key, want := range map[string]string{
+				"grant_type": "password",
+				"client_id":  "loco",
+				"username":   "dev@loco.test",
+				"password":   "loco-dev",
+				"scope":      "openid email profile",
+			} {
 				if got := r.Form.Get(key); got != want {
 					t.Errorf("%s = %q, want %q", key, got, want)
 				}
@@ -84,9 +91,13 @@ func TestProviderAndApprovalErrorsKeepResponsesPrivate(t *testing.T) {
 			}
 		})
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, canary, http.StatusBadGateway) }))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, canary, http.StatusBadGateway)
+	}))
 	defer server.Close()
-	for _, err := range []error{func() error { _, err := (Identity{Issuer: server.URL}).Token(t.Context()); return err }(), Approve(t.Context(), server.URL, canary, "ABCD-EFGH")} {
+	_, tokenErr := (Identity{Issuer: server.URL}).Token(t.Context())
+	approvalErr := Approve(t.Context(), server.URL, canary, "ABCD-EFGH")
+	for _, err := range []error{tokenErr, approvalErr} {
 		if err == nil || strings.Contains(err.Error(), canary) {
 			t.Fatalf("unsafe error = %v", err)
 		}

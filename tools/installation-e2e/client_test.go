@@ -19,9 +19,9 @@ func fixtureTokenServer(t *testing.T, idToken string) *httptest.Server {
 		if checkErr := r.ParseForm(); checkErr != nil {
 			t.Error(checkErr)
 		}
-		if r.URL.Path != "/token" || r.Form.Get("grant_type") != formPassword ||
+		if r.URL.Path != "/token" || r.Form.Get("grant_type") != "password" ||
 			r.Form.Get("client_id") != fixtureClient || r.Form.Get("username") != fixtureEmail ||
-			r.Form.Get(formPassword) != fixturePassword || !strings.Contains(r.Form.Get("scope"), "openid") {
+			r.Form.Get("password") != fixturePassword || !strings.Contains(r.Form.Get("scope"), "openid") {
 			http.Error(w, "unexpected token request", http.StatusBadRequest)
 			return
 		}

@@ -24,11 +24,7 @@ import (
 )
 
 var (
-	errDeviceApproval  = errors.New("approve the device code with the fixture IdP token failed")
-	errAdminsUnclaimed = errors.New("status reports configured admins nobody claimed after sign-in")
-)
-
-var (
+	errAdminsUnclaimed              = errors.New("status reports configured admins nobody claimed after sign-in")
 	errFixtureCAInvalid             = errors.New("invalid fixture CA certificate")
 	errFixtureCAPEM                 = errors.New("fixture CA certificate is not PEM")
 	errFreshOperatorIdentityChanged = errors.New(
@@ -55,11 +51,9 @@ const (
 	fixtureEmail    = "dev@loco.test"
 	fixturePassword = "loco-dev"
 	// fixtureIssuer and fixtureAPIURL match tests/e2e/fixtures/installation/loco-install.yaml.
-	fixtureIssuer = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
-	fixtureAPIURL = "http://api.installation.test"
-	fixtureClient = "loco"
-	// formPassword names both the OAuth password grant and its password field.
-	formPassword           = "password"
+	fixtureIssuer          = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
+	fixtureAPIURL          = "http://api.installation.test"
+	fixtureClient          = "loco"
 	clientFile             = "/installation/loco-install.yaml"
 	clientTimeout          = 45 * time.Minute
 	fixtureWorkloadTimeout = 5 * time.Minute
@@ -254,7 +248,7 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 	}()
 	cmd := exec.CommandContext(ctx, "locoadm", "login", "--file", clientFile, "--device")
 	cmd.Stderr = &stderr
-	var transcript io.Writer = io.Discard
+	transcript := io.Discard
 	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
 		cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
 		transcript = auditWriter{audit, "CLI output (stdout)"}
@@ -278,7 +272,10 @@ func approveDeviceCode(ctx context.Context, code string) error {
 }
 
 func fixtureIDToken(ctx context.Context, issuer string) (string, error) {
-	token, err := (devicelogin.Identity{Issuer: issuer, ClientID: fixtureClient, Email: fixtureEmail, Password: fixturePassword}).Token(ctx)
+	identity := devicelogin.Identity{
+		Issuer: issuer, ClientID: fixtureClient, Email: fixtureEmail, Password: fixturePassword,
+	}
+	token, err := identity.Token(ctx)
 	if err != nil {
 		return "", err
 	}
