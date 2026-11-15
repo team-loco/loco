@@ -193,11 +193,3 @@ WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 -- name: DeleteAPITokenByNameAndEntity :exec
 DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 
--- name: GetSessionIdentityByRefreshHash :one
-SELECT st.id, st.user_id, i.id AS identity_id, i.issuer, i.subject
-FROM session_tokens st
-JOIN identities i ON i.id = st.identity_id
-WHERE st.refresh_token_hash = $1;
-
--- name: DeleteSessionTokensForIdentity :exec
-DELETE FROM session_tokens WHERE identity_id = $1;

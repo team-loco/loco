@@ -29,19 +29,12 @@ type Resolver struct {
 	pool                   *pgxpool.Pool
 	queries                *genDb.Queries
 	policy                 SignupPolicy
-	emailVerifiers         EmailVerifiers
 	systemAdmins           SystemAdmins
 	counts                 *configv1.CountLimits
 	lastUsedUpdateInterval time.Duration
 }
 
 type ResolverOption func(*Resolver)
-
-func WithEmailVerifiers(verifiers EmailVerifiers) ResolverOption {
-	return func(r *Resolver) {
-		r.emailVerifiers = verifiers
-	}
-}
 
 // WithSystemAdmins grants system:admin to the first verified sign-in with each listed email.
 func WithSystemAdmins(admins SystemAdmins) ResolverOption {
@@ -80,11 +73,6 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, []Clai
 		return genDb.User{}, nil, err
 	}
 
-	verified, err := r.emailVerified(ctx, id, nil)
-	if err != nil {
-		return genDb.User{}, nil, fmt.Errorf("%w: verify the email for issuer %s: %w", ErrResolve, id.Issuer, err)
-	}
-	id.EmailVerified = verified
 	user, claimed, err = r.provision(ctx, id)
 	if !isUniqueViolation(err) && !errors.Is(err, ErrEmailTaken) {
 		return user, claimed, err
@@ -109,29 +97,27 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []Cla
 		return genDb.User{}, nil, err
 	}
 	user := row.User
-	verified := r.returningEmailVerified(ctx, id, row.Identity)
 	email := nullableString(id.Email)
 	storedVerified := row.Identity.EmailVerified && row.Identity.Email != nil && *row.Identity.Email == id.Email
-	if verified && email != nil && !storedVerified {
+	if id.EmailVerified && email != nil && !storedVerified {
 		user, err = r.recordVerifiedEmail(ctx, user, id)
 		if err != nil {
 			return genDb.User{}, nil, err
 		}
 	} else if time.Since(row.Identity.LastLoginAt) >= r.lastUsedUpdateInterval ||
-		row.Identity.EmailVerified != verified || !equalEmail(row.Identity.Email, email) {
+		row.Identity.EmailVerified != id.EmailVerified || !equalEmail(row.Identity.Email, email) {
 		if touchErr := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
 			Issuer:        id.Issuer,
 			Subject:       id.Subject,
 			Email:         email,
-			EmailVerified: verified,
+			EmailVerified: id.EmailVerified,
 		}); touchErr != nil {
 			slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", touchErr)
 		}
 	}
-	if !verified || email == nil {
+	if !id.EmailVerified || email == nil {
 		return user, nil, nil
 	}
-	id.EmailVerified = true
 	if claimErr := r.claimSystemAdminOnSignIn(ctx, user, id); claimErr != nil {
 		return genDb.User{}, nil, claimErr
 	}
@@ -317,30 +303,6 @@ func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, 
 	}
 	slog.InfoContext(ctx, "moved the account email to the identity's verified address", "userId", user.ID)
 	return moved, nil
-}
-
-func (r *Resolver) returningEmailVerified(ctx context.Context, id Identity, stored genDb.Identity) bool {
-	verified, err := r.emailVerified(ctx, id, &stored)
-	if err != nil {
-		slog.WarnContext(ctx, "failed to check the email with the identity provider; treating it as unverified",
-			"issuer", id.Issuer, "error", err)
-		return false
-	}
-	return verified
-}
-
-func (r *Resolver) emailVerified(ctx context.Context, id Identity, stored *genDb.Identity) (bool, error) {
-	lookup, ok := r.emailVerifiers[id.Issuer]
-	if !ok {
-		return id.EmailVerified, nil
-	}
-	if id.Email == "" {
-		return false, nil
-	}
-	if stored != nil && stored.EmailVerified && stored.Email != nil && *stored.Email == id.Email {
-		return true, nil
-	}
-	return lookup.EmailVerified(ctx, id.Subject, id.Email)
 }
 
 func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []ClaimedOrg, error) {

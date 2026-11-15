@@ -213,15 +213,6 @@ func (q *Queries) DeleteSessionTokenByAccessHash(ctx context.Context, accessToke
 	return err
 }
 
-const deleteSessionTokensForIdentity = `-- name: DeleteSessionTokensForIdentity :exec
-DELETE FROM session_tokens WHERE identity_id = $1
-`
-
-func (q *Queries) DeleteSessionTokensForIdentity(ctx context.Context, identityID *uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteSessionTokensForIdentity, identityID)
-	return err
-}
-
 const getAPIToken = `-- name: GetAPIToken :one
 SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
 FROM api_tokens
@@ -329,34 +320,6 @@ func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash
 		&i.IpAddress,
 		&i.UserAgent,
 		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const getSessionIdentityByRefreshHash = `-- name: GetSessionIdentityByRefreshHash :one
-SELECT st.id, st.user_id, i.id AS identity_id, i.issuer, i.subject
-FROM session_tokens st
-JOIN identities i ON i.id = st.identity_id
-WHERE st.refresh_token_hash = $1
-`
-
-type GetSessionIdentityByRefreshHashRow struct {
-	ID         uuid.UUID `json:"id"`
-	UserID     uuid.UUID `json:"userId"`
-	IdentityID uuid.UUID `json:"identityId"`
-	Issuer     string    `json:"issuer"`
-	Subject    string    `json:"subject"`
-}
-
-func (q *Queries) GetSessionIdentityByRefreshHash(ctx context.Context, refreshTokenHash string) (GetSessionIdentityByRefreshHashRow, error) {
-	row := q.db.QueryRow(ctx, getSessionIdentityByRefreshHash, refreshTokenHash)
-	var i GetSessionIdentityByRefreshHashRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.IdentityID,
-		&i.Issuer,
-		&i.Subject,
 	)
 	return i, err
 }

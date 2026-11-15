@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -31,25 +30,11 @@ const (
 	testState  = "state-0123456789"
 )
 
-type stubAdmin struct {
-	state auth.IdentityState
-	err   error
-}
-
-func (a *stubAdmin) State(context.Context, string) (auth.IdentityState, error) {
-	return a.state, a.err
-}
-
-func (*stubAdmin) Delete(context.Context, string) error {
-	return nil
-}
-
 type authFixture struct {
 	server  *AuthServer
 	client  authv1connect.AuthServiceClient
 	machine *tvm.VendingMachine
 	queries *genDb.Queries
-	admin   *stubAdmin
 	webCtx  context.Context
 	clock   time.Time
 }
@@ -86,10 +71,9 @@ func newAuthFixture(t *testing.T) *authFixture {
 	f := &authFixture{
 		machine: machine,
 		queries: queries,
-		admin:   &stubAdmin{state: auth.IdentityActive},
 		clock:   time.Now(),
 	}
-	f.server = NewAuthServer(pool, queries, machine, store, auth.Admins{testIssuer: f.admin}, "https://app.loco.test/")
+	f.server = NewAuthServer(pool, queries, machine, store, "https://app.loco.test/")
 	f.server.now = func() time.Time { return f.clock }
 	rpcServer := connect.NewServer()
 	authv1connect.RegisterAuthServiceHandler(rpcServer, f.server)
@@ -346,7 +330,7 @@ func (f *authFixture) login(t *testing.T) *authv1.CLITokens {
 	return exchanged.GetTokens()
 }
 
-func TestCLIRefreshChecksIdentity(t *testing.T) {
+func TestCLIRefreshIssuesWorkingTokens(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
 
@@ -355,39 +339,9 @@ func TestCLIRefreshChecksIdentity(t *testing.T) {
 		RefreshToken: tokens.GetRefreshToken(),
 	})
 	if err != nil {
-		t.Fatalf("refresh while active: %v", err)
+		t.Fatalf("refresh: %v", err)
 	}
 	f.assertWorks(t, refreshed.GetTokens())
-
-	f.admin.err = errors.New("provider down")
-	refreshed, err = f.server.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
-		RefreshToken: refreshed.GetTokens().GetRefreshToken(),
-	})
-	if err != nil {
-		t.Fatalf("refresh while provider is down: %v", err)
-	}
-
-	f.admin.err = nil
-	f.admin.state = auth.IdentityDisabled
-	current := refreshed.GetTokens()
-	_, err = f.server.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
-		RefreshToken: current.GetRefreshToken(),
-	})
-	if codeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("refresh of a disabled identity: %v", err)
-	}
-	if _, tokenErr := f.machine.GetToken(t.Context(), current.GetAccessToken()); tokenErr == nil {
-		t.Fatal("access token of a disabled identity still works")
-	}
-
-	f.admin.state = auth.IdentityMissing
-	other := f.login(t)
-	_, err = f.server.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
-		RefreshToken: other.GetRefreshToken(),
-	})
-	if codeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("refresh of a deleted identity: %v", err)
-	}
 }
 
 type commitCheckingCache struct {

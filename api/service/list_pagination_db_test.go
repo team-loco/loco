@@ -114,7 +114,7 @@ func TestUserPagingSurvivesDeletingTheCursorRow(t *testing.T) {
 		}
 		newestFirst = append([]string{id.String()}, newestFirst...)
 	}
-	server := NewUserServer(f.pool, f.queries, nil, nil)
+	server := NewUserServer(f.pool, f.queries, nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
 	scoped := reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
 	list := func(t *testing.T, token string) ([]string, string) {

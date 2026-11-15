@@ -47,7 +47,7 @@ func TestCheckPermissionReportsDatabaseFailure(t *testing.T) {
 func TestGetUserByEmailReportsDatabaseFailure(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.ClosedPool(t)
-	server := NewUserServer(pool, genDb.New(pool), nil, nil)
+	server := NewUserServer(pool, genDb.New(pool), nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	_, err := server.GetUser(ctx, &userv1.GetUserRequest{Key: &userv1.GetUserRequest_Email{Email: "a@example.com"}})
@@ -59,7 +59,7 @@ func TestGetUserByEmailReportsDatabaseFailure(t *testing.T) {
 func TestSetUserStatusByEmailReportsDatabaseFailure(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.ClosedPool(t)
-	server := NewUserServer(pool, genDb.New(pool), nil, nil)
+	server := NewUserServer(pool, genDb.New(pool), nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	_, err := server.SetUserStatus(ctx, &userv1.SetUserStatusRequest{

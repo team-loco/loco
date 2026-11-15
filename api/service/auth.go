@@ -17,7 +17,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/auth"
@@ -45,7 +44,6 @@ var (
 	ErrDeviceCodeExpired  = errors.New("this device code has expired; run loco login --device again")
 	ErrUserCodeInvalid    = errors.New("that code is invalid or has expired")
 	ErrApproveFromWeb     = errors.New("approve CLI sign-ins from the Loco web app")
-	ErrSignInRevoked      = errors.New("your sign-in is no longer valid; run loco login")
 	ErrDevicePollTooFast  = errors.New("slow down: poll less often")
 	ErrAuthStoreAvailable = errors.New("sign-in is temporarily unavailable")
 )
@@ -55,7 +53,6 @@ type AuthServer struct {
 	queries genDb.Querier
 	machine *tvm.VendingMachine
 	cache   cache.Cache
-	admins  auth.Admins
 	webURL  string
 	now     func() time.Time
 }
@@ -65,7 +62,6 @@ func NewAuthServer(
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
 	store cache.Cache,
-	admins auth.Admins,
 	webURL string,
 ) *AuthServer {
 	return &AuthServer{
@@ -73,7 +69,6 @@ func NewAuthServer(
 		queries: queries,
 		machine: machine,
 		cache:   store,
-		admins:  admins,
 		webURL:  strings.TrimSuffix(webURL, "/"),
 		now:     time.Now,
 	}
@@ -442,19 +437,7 @@ func (s *AuthServer) RefreshCLIToken(
 	ctx context.Context,
 	req *authv1.RefreshCLITokenRequest,
 ) (*authv1.RefreshCLITokenResponse, error) {
-	refresh := req.GetRefreshToken()
-	session, err := s.machine.SessionIdentity(ctx, refresh)
-	switch {
-	case err == nil:
-		if revokeErr := s.checkIdentity(ctx, session); revokeErr != nil {
-			return nil, revokeErr
-		}
-	case errors.Is(err, pgx.ErrNoRows):
-	default:
-		return nil, fmt.Errorf("get session identity: %w", err)
-	}
-
-	access, newRefresh, err := s.machine.Refresh(ctx, refresh)
+	access, newRefresh, err := s.machine.Refresh(ctx, req.GetRefreshToken())
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
@@ -466,43 +449,6 @@ func (s *AuthServer) RefreshCLIToken(
 		RefreshToken: newRefresh,
 		ExpiresIn:    int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
 	}}, nil
-}
-
-func (s *AuthServer) checkIdentity(ctx context.Context, session genDb.GetSessionIdentityByRefreshHashRow) error {
-	admin, ok := s.admins.For(session.Issuer)
-	if !ok {
-		return nil
-	}
-	state, err := admin.State(ctx, session.Subject)
-	if err != nil {
-		slog.WarnContext(ctx, "could not check identity with its provider; allowing refresh",
-			"issuer", session.Issuer, "error", err)
-		return nil
-	}
-	if state == auth.IdentityActive {
-		return nil
-	}
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if revokeErr := s.machine.WithQueries(qtx).RevokeIdentitySessions(ctx, session.IdentityID); revokeErr != nil {
-			return revokeErr
-		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.IdentityRevoked,
-			ActorType:   events.ActorSystem,
-			SubjectType: events.SubjectUser,
-			SubjectID:   new(session.UserID),
-			Data: map[string]any{
-				events.FieldIssuer: session.Issuer,
-				events.FieldReason: "disabled at identity provider",
-			},
-		})
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to revoke sessions of a disabled identity", "error", err)
-		return authStoreUnavailable(err)
-	}
-	slog.InfoContext(ctx, "refresh refused for a disabled identity", "userId", session.UserID, "issuer", session.Issuer)
-	return rpcerr.New(connect.CodeUnauthenticated, ErrSignInRevoked)
 }
 
 // authStoreUnavailable reports a sign-in store failure the client can retry; err stays private.

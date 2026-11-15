@@ -46,7 +46,6 @@ var (
 	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
 	errInvalidOrgLinks        = errors.New("ORG_LINKS is invalid")
 	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
-	errAdminTokenMissing      = errors.New("AUTH_ISSUERS admin tokenEnv names an unset variable")
 	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
 	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
@@ -509,15 +508,6 @@ func newAuthIssuers() []auth.IssuerConfig {
 	issuers, err := auth.ParseIssuers(raw)
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidAuthIssuers, err))
-	}
-	for _, ic := range issuers {
-		if ic.Admin == nil {
-			continue
-		}
-		ic.Admin.Token = envconfig.String(ic.Admin.TokenEnv, "")
-		if ic.Admin.Token == "" {
-			panic(fmt.Errorf("%w: issuer %s: %q", errAdminTokenMissing, ic.Issuer, ic.Admin.TokenEnv))
-		}
 	}
 	return issuers
 }

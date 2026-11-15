@@ -20,7 +20,6 @@ const (
 	UserCreated          = "user.created"
 	UserUpdated          = "user.updated"
 	UserDeleted          = "user.deleted"
-	IdentityRevoked      = "identity.revoked"
 	SystemAdminClaimed   = "system_admin.claimed"
 	SystemAdminRevoked   = "system_admin.revoked"
 	SystemAdminGranted   = "system_admin.granted"

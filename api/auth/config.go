@@ -15,19 +15,10 @@ const (
 )
 
 var (
-	ErrIssuerRequired              = errors.New("issuer is required")
-	ErrAudienceRequired            = errors.New("audience is required")
-	ErrEmailVerificationNeedsAdmin = errors.New("emailVerification admin needs an admin client")
-	ErrEmailVerificationConflict   = errors.New("emailVerification admin cannot be combined with emailAuthoritative")
-	ErrWebClientIDRequired         = errors.New("web.clientId is required")
-	errNoJWKSURI                   = errors.New("discovery document has no jwks_uri")
-)
-
-type EmailVerification string
-
-const (
-	EmailVerificationClaim EmailVerification = "claim"
-	EmailVerificationAdmin EmailVerification = "admin"
+	ErrIssuerRequired      = errors.New("issuer is required")
+	ErrAudienceRequired    = errors.New("audience is required")
+	ErrWebClientIDRequired = errors.New("web.clientId is required")
+	errNoJWKSURI           = errors.New("discovery document has no jwks_uri")
 )
 
 type ClaimPaths struct {
@@ -44,15 +35,13 @@ type WebConfig struct {
 }
 
 type IssuerConfig struct {
-	Name               string            `json:"name"`
-	Issuer             string            `json:"issuer"`
-	JWKSURL            string            `json:"jwksUrl"`
-	Audience           string            `json:"audience"`
-	Claims             ClaimPaths        `json:"claims"`
-	EmailVerification  EmailVerification `json:"emailVerification"`
-	EmailAuthoritative bool              `json:"emailAuthoritative"`
-	Web                *WebConfig        `json:"web,omitempty"`
-	Admin              *AdminConfig      `json:"admin,omitempty"`
+	Name               string     `json:"name"`
+	Issuer             string     `json:"issuer"`
+	JWKSURL            string     `json:"jwksUrl"`
+	Audience           string     `json:"audience"`
+	Claims             ClaimPaths `json:"claims"`
+	EmailAuthoritative bool       `json:"emailAuthoritative"`
+	Web                *WebConfig `json:"web,omitempty"`
 }
 
 func ParseIssuers(raw string) ([]IssuerConfig, error) {
@@ -107,12 +96,6 @@ func (ic *IssuerConfig) applyDefaults() error {
 	if ic.Claims.AvatarURL == "" {
 		ic.Claims.AvatarURL = "picture"
 	}
-	if ic.Admin != nil && ic.Admin.URL == "" {
-		ic.Admin.URL = ic.Issuer
-	}
-	if err := ic.checkEmailVerification(); err != nil {
-		return err
-	}
 	if ic.Web != nil {
 		return ic.Web.applyDefaults()
 	}
@@ -127,26 +110,6 @@ func (w *WebConfig) applyDefaults() error {
 		w.Scopes = defaultWebScopes
 	}
 	return nil
-}
-
-func (ic *IssuerConfig) checkEmailVerification() error {
-	switch ic.EmailVerification {
-	case "":
-		ic.EmailVerification = EmailVerificationClaim
-		return nil
-	case EmailVerificationClaim:
-		return nil
-	case EmailVerificationAdmin:
-		if ic.Admin == nil {
-			return ErrEmailVerificationNeedsAdmin
-		}
-		if ic.EmailAuthoritative {
-			return ErrEmailVerificationConflict
-		}
-		return nil
-	default:
-		return fmt.Errorf("unknown emailVerification %q", ic.EmailVerification)
-	}
 }
 
 func WebIssuer(issuers []IssuerConfig) (IssuerConfig, bool) {

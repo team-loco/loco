@@ -38,7 +38,7 @@ func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	if _, err = qtx.LockUserForMembership(ctx, userID); err != nil {
 		t.Fatal(err)
 	}
-	server := NewUserServer(f.pool, f.queries, nil, nil)
+	server := NewUserServer(f.pool, f.queries, nil)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
 	}
@@ -68,7 +68,7 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
-	server := NewUserServer(f.pool, f.queries, nil, nil)
+	server := NewUserServer(f.pool, f.queries, nil)
 
 	for _, tt := range []struct {
 		name    string
@@ -144,7 +144,7 @@ func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
 	}})
-	server := NewUserServer(f.pool, f.queries, nil, nil)
+	server := NewUserServer(f.pool, f.queries, nil)
 
 	if _, err := server.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID.String()}); err != nil {
 		t.Fatal(err)
