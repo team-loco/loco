@@ -12,6 +12,7 @@ stdout '^Started deployment dep-db for db in us-east-1\.$'
 ! stdout 'dep-web'
 ! stdout '\x1b\['
 fakeapi called Apply 'Bearer test-token'
+! fakeapi called WatchDeployment
 fakeapi applied 7
 
 # a plan without changes applies nothing.
