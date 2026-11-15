@@ -61,6 +61,12 @@ def last_page_request():
 def handle(route):
     body = route.request.post_data_json
     recorded.append(body)
+    if mode[0] == 'drawer-error' and route.request.url.endswith('/GetTrace'):
+        route.fulfill(status=500, content_type='application/json', body=json.dumps({'code': 'internal', 'message': 'Trace read failed'}))
+        return
+    if mode[0] == 'drawer-empty' and route.request.url.endswith('/GetTrace'):
+        route.fulfill(json={'spans': []})
+        return
     if mode[0] == 'error':
         route.fulfill(status=503, content_type='application/json', body=json.dumps({'code': 'unavailable', 'message': 'Trace storage is temporarily unavailable'}))
         return
@@ -182,6 +188,23 @@ with session(out) as browser:
     if drawer.count():
         drawer.get_by_role('button', name='Close', exact=True).click()
         expect(drawer).to_have_count(0)
+    mode[0] = 'drawer-error'
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    failed_drawer = page.get_by_role('dialog', name='Trace ' + trace[:8] + '…' + trace[-4:])
+    expect(failed_drawer.get_by_role('heading', name='Couldn’t load this trace')).to_be_visible()
+    expect(failed_drawer.get_by_text('ObservabilityService/GetTrace', exact=True)).to_be_visible()
+    mode[0] = 'normal'
+    failed_drawer.get_by_role('button', name='Retry', exact=True).click()
+    expect(drawer).to_be_visible()
+    drawer.get_by_role('button', name='Close', exact=True).click()
+    mode[0] = 'drawer-empty'
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    gone = page.get_by_role('dialog')
+    expect(gone.get_by_role('heading', name='This trace is no longer available')).to_be_visible()
+    limits = evidence.rpc(state['api_url'], state['users']['owner']['token'], 'loco.org.v1.OrgService/GetOrgLimits', {'orgId': org_id})['limits']['limits']
+    expect(gone.get_by_text(f"Traces are kept for {limits['traceRetentionDays']} days. It may also have been dropped before it was stored.", exact=True)).to_be_visible()
+    gone.get_by_role('button', name='Back to traces', exact=True).click()
+    expect(gone).to_have_count(0)
     mode[0] = 'empty'
     page.get_by_role('button', name='Refresh', exact=True).click()
     page.get_by_text('Send your first trace', exact=True).wait_for()

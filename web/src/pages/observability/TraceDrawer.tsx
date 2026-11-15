@@ -1,4 +1,8 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
+import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
+import { EmptyHero } from "@/components/design/EmptyHero";
+import { ErrorState } from "@/components/design/ErrorState";
+import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { Spinner } from "@/components/design/Spinner";
 import { useState } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
@@ -351,11 +355,12 @@ export function TraceDrawer({
 	trace: TraceSummary | undefined;
 	loading: boolean;
 	error: Error | null;
-	onRetry: () => void;
+	onRetry: () => Promise<unknown>;
 	onClose: () => void;
 }) {
 	const timePref = useTimePreferences();
 	const { orgId, workspaceId, resourceById, goTo } = useObs();
+	const limits = useOrgLimits(orgId);
 	const [spanId, setSpanId] = useQueryState("span", { history: "replace" });
 	const [copied, copy] = useCopy();
 	const linked = trace?.spans.find((s) => s.spanId === spanId);
@@ -382,7 +387,9 @@ export function TraceDrawer({
 					<div className="flex min-w-0 flex-col gap-1">
 						<div className="flex min-w-0 items-center gap-2.5">
 							<SheetTitle className="truncate font-mono">
-								{trace === undefined || trace.root.name === "" ? "Trace" : trace.root.name}
+								{trace === undefined || trace.root.name === ""
+									? `Trace ${traceId.slice(0, 8)}…${traceId.slice(-4)}`
+									: trace.root.name}
 							</SheetTitle>
 							{trace !== undefined && (
 								<Badge
@@ -459,15 +466,18 @@ export function TraceDrawer({
 						</div>
 					)}
 					{!loading && error !== null && (
-						<div role="alert" className="flex flex-wrap items-center justify-between gap-3 py-6">
-							<span className="text-bad-fg">{getErrorMessage(error, "Failed to load the trace")}</span>
-							<Button variant="outline" onClick={onRetry}>
-								Retry
-							</Button>
-						</div>
+						<ErrorState error={error} what="this trace" rpc={ObservabilityService.method.getTrace} onRetry={onRetry} />
 					)}
 					{!loading && error === null && trace === undefined && (
-						<p className="py-6 text-fg3">No spans for this trace.</p>
+						<EmptyHero
+							art={<ScrollTextIcon className="size-8 text-fg3" />}
+							title="This trace is no longer available"
+							subtitle={`${limits === undefined ? "" : `Traces are kept for ${String(limits.traceRetentionDays)} days. `}It may also have been dropped before it was stored.`}
+						>
+							<Button variant="outline" onClick={onClose}>
+								Back to traces
+							</Button>
+						</EmptyHero>
 					)}
 					{trace !== undefined && selected !== undefined && (
 						<>

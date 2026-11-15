@@ -388,9 +388,7 @@ function TraceSession({
 				trace={openTrace}
 				loading={detail.isLoading}
 				error={detail.error}
-				onRetry={() => {
-					void detail.refetch();
-				}}
+				onRetry={async () => await detail.refetch()}
 				onClose={close}
 			/>
 		</>
