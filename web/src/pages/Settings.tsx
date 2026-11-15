@@ -93,7 +93,7 @@ export function Settings() {
 	// A transition keeps the current scope on screen while the Personal scope's theme stylesheets load.
 	const selectScope = (next: SettingsScope) => {
 		startTransition(() => {
-			void setParams({ scope: next });
+			void setParams({ scope: next, q: null, page: null, size: null });
 		});
 	};
 
