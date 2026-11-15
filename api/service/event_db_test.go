@@ -304,10 +304,18 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 			t.Errorf("rollback: %v", rollbackErr)
 		}
 	}()
-	if recordErr := events.Record(ctx, genDb.New(open), events.Event{Type: events.WorkspaceCreated}); recordErr != nil {
+	if recordErr := events.Record(
+		ctx,
+		genDb.New(open),
+		events.Event{Type: events.WorkspaceCreated, ActorType: events.ActorSystem},
+	); recordErr != nil {
 		t.Fatalf("record in open transaction: %v", recordErr)
 	}
-	if recordErr := events.Record(ctx, f.queries, events.Event{Type: events.WorkspaceUpdated}); recordErr != nil {
+	if recordErr := events.Record(
+		ctx,
+		f.queries,
+		events.Event{Type: events.WorkspaceUpdated, ActorType: events.ActorSystem},
+	); recordErr != nil {
 		t.Fatalf("record committed: %v", recordErr)
 	}
 
@@ -349,7 +357,7 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	if recordErr := events.Record(
 		t.Context(),
 		f.queries,
-		events.Event{Type: events.WorkspaceDeleted},
+		events.Event{Type: events.WorkspaceDeleted, ActorType: events.ActorSystem},
 	); recordErr != nil {
 		t.Fatalf("record after reconnect: %v", recordErr)
 	}

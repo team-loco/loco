@@ -499,7 +499,7 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"actor_name\x18\x0e \x01(\tR\tactorName\x12\x1f\n" +
 	"\vresource_id\x18\x0f \x01(\tR\n" +
 	"resourceId\x12%\n" +
-	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xd0\x04\n" +
+	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xc5\x04\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
@@ -515,8 +515,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12.\n" +
 	"\tactor_ids\x18\n" +
-	" \x03(\tB\x11\xbaH\x0e\x92\x01\v\x102\x18\x01\"\x05r\x03\xb0\x01\x01R\bactorIds\x12I\n" +
-	"\vactor_types\x18\v \x03(\tB(\xbaH%\x92\x01\"\x10\x03\x18\x01\"\x1cr\x1aR\x06systemR\x05agentR\tanonymousR\n" +
+	" \x03(\tB\x11\xbaH\x0e\x92\x01\v\x102\x18\x01\"\x05r\x03\xb0\x01\x01R\bactorIds\x12>\n" +
+	"\vactor_types\x18\v \x03(\tB\x1d\xbaH\x1a\x92\x01\x17\x10\x02\x18\x01\"\x11r\x0fR\x06systemR\x05agentR\n" +
 	"actorTypes\x12*\n" +
 	"\n" +
 	"request_id\x18\f \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\trequestId\"j\n" +

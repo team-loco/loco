@@ -62,11 +62,10 @@ export const ACTOR_KINDS: Record<string, string> = {
 	resource: "Resource token",
 	system: "Loco",
 	agent: "Cluster agent",
-	anonymous: "Anonymous",
 };
 
-/** The Actor filter selects these by type: Loco and anonymous actors have no ID, and cluster agents are one choice. */
-export const TYPE_ACTORS = ["system", "agent", "anonymous"];
+/** The Actor filter selects these by type: Loco has no actor ID, and cluster agents are one choice. */
+export const TYPE_ACTORS = ["system", "agent"];
 
 // Error receipts copy complete UUIDs minted in internal/rpc/requestid.go.
 export function requestIdFilter(text: string): string {
