@@ -57,14 +57,20 @@ export function errorKind(error: unknown): ErrorKind | null {
 	return "internal";
 }
 
-export function toastConnectError(error: unknown, fallback = "An unexpected error occurred."): void {
+export function toastConnectError(
+	error: unknown,
+	fallback = "An unexpected error occurred.",
+	options?: { duration: number },
+): void {
 	const id = error instanceof ConnectError && error.code === Code.Internal ? requestId(error) : null;
 	if (id === null) {
-		toast.error(getErrorMessage(error, fallback), { duration: 5000 });
+		toast.error(getErrorMessage(error, fallback), {
+			duration: options?.duration ?? 5000,
+		});
 		return;
 	}
 	toast.error(fallback, {
-		duration: 7000,
+		duration: options?.duration ?? 7000,
 		description: (
 			<span className="flex flex-col items-start">
 				Something failed on Loco’s side. Send support this request ID.

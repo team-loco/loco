@@ -1,9 +1,26 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { BoxIcon, ChevronDownIcon, ClockIcon, GitBranchIcon, HistoryIcon, LayersIcon, UserIcon } from "lucide-react";
+import {
+	BoxIcon,
+	ChevronDownIcon,
+	ClockIcon,
+	GitBranchIcon,
+	HistoryIcon,
+	LayersIcon,
+	PlayIcon,
+	PauseIcon,
+} from "lucide-react";
 import { useState } from "react";
-import { parseAsArrayOf, parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import {
+	createParser,
+	parseAsArrayOf,
+	parseAsInteger,
+	parseAsNumberLiteral,
+	parseAsString,
+	parseAsStringLiteral,
+	useQueryStates,
+} from "nuqs";
 import { useParams } from "react-router";
 
 import { Button } from "@/components/design/Button";
@@ -28,7 +45,7 @@ import { useNow } from "@/hooks/useNow";
 import { agoLabel, msToTimestamp } from "@/lib/time";
 
 import { AuditDrawer } from "./audit/AuditDrawer";
-import { EventFilter } from "./audit/AuditFilters";
+import { ActorFilter, EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
 import {
 	ACTOR_KINDS,
@@ -45,7 +62,14 @@ import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
 const NOW_TICK_MS = 60_000;
 
+const sequenceParser = createParser<bigint>({
+	parse: (value) =>
+		/^\d+$/.test(value) && BigInt(value) > 0n && BigInt(value) <= 9223372036854775807n ? BigInt(value) : null,
+	serialize: (value) => value.toString(),
+});
 const AUDIT_PARAMS = {
+	before: parseAsArrayOf(sequenceParser).withDefault([]),
+	live: parseAsInteger.withDefault(0),
 	range: parseAsStringLiteral(RANGES.map((r) => r.value)).withDefault(DEFAULT_RANGE.value),
 	types: parseAsArrayOf(parseAsStringLiteral(AUDIT_EVENT_TYPES)).withDefault([]),
 	q: parseAsString.withDefault(""),
@@ -59,7 +83,9 @@ const AUDIT_PARAMS = {
 
 export function Audit() {
 	const { orgId = "" } = useParams<{ orgId: string }>();
-	const [params, setParams] = useQueryStates(AUDIT_PARAMS, { history: "replace" });
+	const [params, setParams] = useQueryStates(AUDIT_PARAMS, {
+		history: "replace",
+	});
 	const transport = useTransport();
 	const access = useAuditAccess(orgId);
 	const { orgs, workspaces, activeWorkspaceId } = useOrgWorkspace();
@@ -81,8 +107,8 @@ export function Audit() {
 	const resourceId = workspaceId === "" ? "" : params.res;
 	const environmentId = workspaceId === "" ? "" : params.env;
 
-	// The cursor stack belongs to one set of filters; changing any of them starts from the newest page.
 	const filterKey = JSON.stringify([
+		orgId,
 		range.value,
 		types,
 		workspaceId,
@@ -92,8 +118,11 @@ export function Audit() {
 		requestId,
 		actor,
 	]);
-	const [cursor, setCursor] = useState<{ key: string; stack: bigint[] }>({ key: filterKey, stack: [] });
-	const stack = cursor.key === filterKey ? cursor.stack : [];
+	const stack = params.before;
+	const live = params.live === 1 && stack.length === 0;
+	const setFilters = (next: Partial<{ [K in keyof typeof params]: (typeof params)[K] | null }>) => {
+		void setParams({ ...next, before: null });
+	};
 	const query = useQuery(
 		listEvents,
 		{
@@ -109,10 +138,21 @@ export function Audit() {
 			beforeSeq: stack.at(-1) ?? 0n,
 			startTime: msToTimestamp(openedAt - range.ms),
 		},
-		{ enabled: orgId !== "" && !access.isLoading, placeholderData: keepPreviousData },
+		{
+			enabled: orgId !== "" && !access.isLoading,
+			placeholderData: keepPreviousData,
+			refetchInterval: live ? 5000 : false,
+		},
 	);
-	const members = useTanstackQuery({ ...orgMembersOptions(transport, orgId), enabled: access.org });
+	const members = useTanstackQuery({
+		...orgMembersOptions(transport, orgId),
+		enabled: access.org,
+	});
 
+	const [baseline, setBaseline] = useState<{ key: string; seq: bigint } | null>(null);
+	if (query.data !== undefined && !query.isPlaceholderData && baseline?.key !== filterKey) {
+		setBaseline({ key: filterKey, seq: query.data.events[0]?.seq ?? 0n });
+	}
 	const events = query.data?.events ?? [];
 	const known = new Set(choices.map((w) => w.id));
 	const details = useWorkspaceDetails([
@@ -128,14 +168,25 @@ export function Audit() {
 	]);
 	const loadedRows = events.map((e) => auditRow(e, users, names));
 	const rows = loadedRows.filter((row) => matchesPageFilter(row, search));
-	const actors = new Map<string, string>([
-		...[...users].map(([id, u]): [string, string] => [id, [u.name, u.email].filter(Boolean).join(" · ")]),
+	const actors = new Map<string, { id: string; name: string; detail: string; group: string }>([
+		...[...users].map(([id, u]) => [id, { id, name: u.name || u.email, detail: u.email, group: "People" }] as const),
 		...loadedRows
 			.filter((r) => r.event.actorId !== "" && !TYPE_ACTORS.includes(r.event.actorType))
-			.map((r): [string, string] => [r.event.actorId, [r.actor.name, r.actor.detail].filter(Boolean).join(" · ")]),
-		...TYPE_ACTORS.map((t): [string, string] => [t, ACTOR_KINDS[t] ?? t]),
+			.map(
+				(r) =>
+					[
+						r.event.actorId,
+						{
+							id: r.event.actorId,
+							name: r.actor.name,
+							detail: r.actor.detail,
+							group: r.event.actorType === "user" ? "People" : "Tokens",
+						},
+					] as const,
+			),
+		...TYPE_ACTORS.map((t) => [t, { id: t, name: ACTOR_KINDS[t] ?? t, detail: "", group: "Loco" }] as const),
 	]);
-	if (actor !== "" && !actors.has(actor)) actors.set(actor, actor);
+	if (actor !== "" && !actors.has(actor)) actors.set(actor, { id: actor, name: actor, detail: "", group: "People" });
 	const selIdx = rows.findIndex((r) => r.event.id === params.event);
 	const selected = rows[selIdx];
 	const heldEventId = useHeldWhileClosed(selected?.event.id, selected !== undefined);
@@ -160,27 +211,41 @@ export function Audit() {
 			<PageHeader
 				title="Audit log"
 				actions={
-					<DropdownMenu>
-						<DropdownMenuTrigger render={<Button variant="outline" className="px-2.5" />}>
-							<ClockIcon className="text-fg3" />
-							{range.label}
-							<ChevronDownIcon className="size-3 text-fg3" />
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-[200px]">
-							<DropdownMenuRadioGroup
-								value={range.value}
-								onValueChange={(v: string) => {
-									void setParams({ range: RANGES.find((r) => r.value === v)?.value ?? null });
-								}}
-							>
-								{RANGES.map((r) => (
-									<DropdownMenuRadioItem key={r.value} value={r.value}>
-										{r.label}
-									</DropdownMenuRadioItem>
-								))}
-							</DropdownMenuRadioGroup>
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<>
+						<Button
+							variant="outline"
+							aria-pressed={live}
+							onClick={() => {
+								void setParams({ live: live ? null : 1, before: null });
+							}}
+						>
+							{live ? <PauseIcon /> : <PlayIcon />}
+							{live ? "Pause" : "Live"}
+						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger render={<Button variant="outline" className="px-2.5" />}>
+								<ClockIcon className="text-fg3" />
+								{range.label}
+								<ChevronDownIcon className="size-3 text-fg3" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-[200px]">
+								<DropdownMenuRadioGroup
+									value={range.value}
+									onValueChange={(v: string) => {
+										setFilters({
+											range: RANGES.find((r) => r.value === v)?.value ?? null,
+										});
+									}}
+								>
+									{RANGES.map((r) => (
+										<DropdownMenuRadioItem key={r.value} value={r.value}>
+											{r.label}
+										</DropdownMenuRadioItem>
+									))}
+								</DropdownMenuRadioGroup>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</>
 				}
 			/>
 			{query.error !== null ? (
@@ -192,30 +257,20 @@ export function Audit() {
 							aria-label="Filter this page"
 							placeholder="Filter this page"
 							onClear={() => {
-								void setParams({ q: null, event: null });
+								setFilters({ q: null, event: null });
 							}}
 							value={search}
 							onChange={(event) => {
-								void setParams({ q: event.target.value, event: null });
+								setFilters({ q: event.target.value, event: null });
 							}}
 						/>
 					}
 					filters={
 						<>
-							<PickFilter
-								icon={<UserIcon />}
-								label="Actor"
-								placeholder="Find a person or token"
-								items={[...actors].map(([id, name]) => ({ id, name }))}
-								value={actor}
-								onChange={(id) => {
-									void setParams({ actor: id, event: null });
-								}}
-							/>
 							<EventFilter
 								types={types}
 								onChange={(next) => {
-									void setParams({ types: next, event: null });
+									setFilters({ types: next, event: null });
 								}}
 							/>
 							{(access.org || choices.length > 1) && (
@@ -227,7 +282,7 @@ export function Audit() {
 									value={workspaceId}
 									clearable={access.org}
 									onChange={(id) => {
-										void setParams({ ws: id, res: null, env: null, event: null });
+										setFilters({ ws: id, res: null, env: null, event: null });
 									}}
 								/>
 							)}
@@ -240,7 +295,7 @@ export function Audit() {
 										value={resourceId}
 										placeholder="Find a resource"
 										onChange={(id) => {
-											void setParams({ res: id, event: null });
+											setFilters({ res: id, event: null });
 										}}
 									/>
 									<PickFilter
@@ -249,16 +304,24 @@ export function Audit() {
 										items={details.environmentsOf.get(workspaceId) ?? []}
 										value={environmentId}
 										onChange={(id) => {
-											void setParams({ env: id, event: null });
+											setFilters({ env: id, event: null });
 										}}
 									/>
 								</>
 							)}
+							<ActorFilter
+								items={[...actors.values()]}
+								value={actor}
+								onChange={(id) => {
+									setFilters({ actor: id, event: null });
+								}}
+							/>
 						</>
 					}
 				>
 					<AuditTable
 						rows={rows}
+						highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
 						loading={loading}
 						selectedId={selected?.event.id ?? null}
 						nowMs={now}
@@ -277,7 +340,15 @@ export function Audit() {
 									<Button
 										variant="outline"
 										onClick={() => {
-											void setParams({ types: null, ws: access.org ? null : wsParam, res: null, env: null });
+											setFilters({
+												types: null,
+												ws: access.org ? null : wsParam,
+												res: null,
+												env: null,
+												actor: null,
+												q: null,
+												event: null,
+											});
 										}}
 									>
 										Clear filters
@@ -296,7 +367,10 @@ export function Audit() {
 						pageSizes={PAGE_SIZES}
 						pageSize={size}
 						onPageSize={(n) => {
-							void setParams({ size: PAGE_SIZES.find((s) => s === n) ?? null, event: null });
+							setFilters({
+								size: PAGE_SIZES.find((s) => s === n) ?? null,
+								event: null,
+							});
 						}}
 						firstLabel="Newest events"
 						prevLabel="Newer events"
@@ -304,21 +378,25 @@ export function Audit() {
 						onFirst={
 							stack.length > 0
 								? () => {
-										setCursor({ key: filterKey, stack: [] });
+										void setParams({ before: null });
 									}
 								: null
 						}
 						onPrev={
 							stack.length > 0
 								? () => {
-										setCursor({ key: filterKey, stack: stack.slice(0, -1) });
+										void setParams({ before: stack.slice(0, -1) });
 									}
 								: null
 						}
 						onNext={
 							nextBeforeSeq !== 0n
 								? () => {
-										setCursor({ key: filterKey, stack: [...stack, nextBeforeSeq] });
+										void setParams({
+											before: [...stack, nextBeforeSeq],
+											live: null,
+											event: null,
+										});
 									}
 								: null
 						}
@@ -334,7 +412,7 @@ export function Audit() {
 				onActor={() => {
 					if (selected !== undefined) {
 						const e = selected.event;
-						void setParams({
+						setFilters({
 							actor: TYPE_ACTORS.includes(e.actorType) ? e.actorType : e.actorId,
 							event: null,
 						});
@@ -344,7 +422,7 @@ export function Audit() {
 					selected === undefined || selected.event.resourceId === "" || !known.has(selected.event.workspaceId)
 						? null
 						: () => {
-								void setParams({
+								setFilters({
 									ws: selected.event.workspaceId,
 									res: selected.event.resourceId,
 									env: null,

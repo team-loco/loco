@@ -25,6 +25,13 @@ def prepare_activity(evidence, state):
     evidence.psql(state['container'], 'INSERT INTO user_scopes(user_id,scope,entity_type,entity_id) VALUES ' + values + ';')
     for index in range(53):
         call('loco.resource.v1.ResourceService/UpdateResource', {'resourceId': resource, 'description': f'Checkout activity revision {index}'})
+    environments = call('loco.environment.v1.EnvironmentService/ListEnvironments', {'workspaceId': workspace})['environments']
+    production = next(e['id'] for e in environments if e['type'] == 'ENVIRONMENT_TYPE_PRODUCTION')
+    staging = next(e['id'] for e in environments if e['name'] == 'staging')
+    evidence.psql(state['container'], f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id)
+        SELECT 'resource.restarted','{org}','{workspace}','{resource}','{production}','user','{state['users']['owner']['id']}' FROM generate_series(1,23);
+        INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,data)
+        VALUES('secret.set','{org}','{workspace}','{resource}','{staging}','user','{state['users']['owner']['id']}','{{"names":["STAGING_ONLY"]}}');""")
     evidence.rpc(api, state['users']['workspace_admin']['token'], 'loco.workspace.v1.WorkspaceService/UpdateWorkspace', {'workspaceId': workspace, 'description': 'Commerce services managed by the checkout team'})
     return {'orgId': org, 'workspaceId': workspace, 'siblingId': sibling, 'resourceId': resource, 'siblingResourceId': sibling_resource, 'otherOrgId': other, 'otherWorkspaceId': other_workspace}
 

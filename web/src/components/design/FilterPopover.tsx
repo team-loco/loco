@@ -14,6 +14,7 @@ export function FilterPopover({
 	onClear,
 	placeholder,
 	children,
+	footer,
 }: {
 	icon: ReactNode;
 	label: string;
@@ -21,6 +22,7 @@ export function FilterPopover({
 	mono?: boolean;
 	onClear?: (() => void) | undefined;
 	placeholder?: string | undefined;
+	footer?: ReactNode;
 	children: (close: () => void) => ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
@@ -51,6 +53,11 @@ export function FilterPopover({
 							})}
 						</CommandList>
 					</Command>
+					{footer !== undefined && (
+						<div className="flex items-center justify-between border-t border-line2 px-3 py-2 text-[12px] text-fg3">
+							{footer}
+						</div>
+					)}
 				</PopoverContent>
 			</Popover>
 			{clearable && (

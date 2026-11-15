@@ -6,6 +6,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/design/Button";
+import { CodeBlock } from "@/components/design/CodeBlock";
 import { CopyId } from "@/components/design/CopyId";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { agoLabel } from "@/lib/time";
@@ -130,9 +131,9 @@ export function AuditDrawer({
 							)}
 							<div className="flex flex-col gap-1.5">
 								<span className="text-[12.5px] text-fg3">Raw event</span>
-								<pre className="m-0 max-h-[320px] overflow-auto rounded-lg border border-line bg-panel px-3.5 py-3 font-mono text-[12px] leading-[1.55]">
+								<CodeBlock language="json" className="max-h-[320px]">
 									{toJsonString(EventSchema, row.event, { prettySpaces: 2 })}
-								</pre>
+								</CodeBlock>
 							</div>
 						</SheetBody>
 					</>

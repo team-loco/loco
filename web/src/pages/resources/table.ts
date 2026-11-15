@@ -18,9 +18,17 @@ export const ALL = "all";
 export const NOT_DEPLOYED = "not-deployed";
 export const PAGE_SIZES = [25, 50, 100] as const;
 
-export const STATUS_FILTERS: { value: string; label: string; status?: ResourceStatus }[] = [
+export const STATUS_FILTERS: {
+	value: string;
+	label: string;
+	status?: ResourceStatus;
+}[] = [
 	{ value: "degraded", label: "Degraded", status: ResourceStatus.DEGRADED },
-	{ value: "unavailable", label: "Unavailable", status: ResourceStatus.UNAVAILABLE },
+	{
+		value: "unavailable",
+		label: "Unavailable",
+		status: ResourceStatus.UNAVAILABLE,
+	},
 	{ value: "deploying", label: "Deploying", status: ResourceStatus.DEPLOYING },
 	{ value: NOT_DEPLOYED, label: "Not deployed" },
 ];
@@ -69,9 +77,10 @@ function newestFirst(a: Deployment, b: Deployment): number {
 function envCell(resource: Resource, environment: Environment, deployments: Deployment[]): EnvCell | undefined {
 	const status = environmentStatus(resource, environment.id);
 	const first = status?.regions[0];
-	if (status === undefined || first === undefined) return undefined;
+	if (status === undefined) return undefined;
 	const active =
-		deployments.find((d) => d.id === first.deploymentId) ?? deployments.find((d) => d.environmentId === environment.id);
+		deployments.find((d) => d.id === first?.deploymentId) ??
+		deployments.find((d) => d.environmentId === environment.id);
 	const image = active === undefined ? "" : deploymentImage(active);
 	return {
 		status: status.status,
@@ -140,6 +149,7 @@ export function draftRows(
 }
 
 export function cellSummary(cell: EnvCell): string {
+	if (cell.regions.length === 0) return "no region";
 	const [first = "", ...rest] = cell.regions;
 	const more = rest.length > 0 ? ` +${rest.length.toString()}` : "";
 	return `${cell.ready.toString()}/${cell.desired.toString()} · ${first}${more}`;
@@ -215,9 +225,10 @@ export function statusCounts(rows: ListRow[], filter: Filter): Map<string, numbe
 export function regionCounts(rows: ListRow[], filter: Filter): { region: string; count: number }[] {
 	const base = filterRows(rows, { ...filter, status: ALL, region: ALL });
 	const regions = new Set(rows.flatMap((r) => [...r.cells.values()].flatMap((c) => c.regions)));
-	return [...regions]
-		.toSorted()
-		.map((region) => ({ region, count: base.filter((r) => matchesRegion(r, region)).length }));
+	return [...regions].toSorted().map((region) => ({
+		region,
+		count: base.filter((r) => matchesRegion(r, region)).length,
+	}));
 }
 
 export function linkEnvironment(row: ResourceRow, environments: Environment[], active: Environment | undefined) {
@@ -243,7 +254,10 @@ export const FILTER_PARSERS = {
 };
 
 function defaultSort(columns: readonly TableColumn[]): ColumnSort {
-	return { id: columns.find((c) => c.id.startsWith(ENV_PREFIX))?.id ?? "name", desc: false };
+	return {
+		id: columns.find((c) => c.id.startsWith(ENV_PREFIX))?.id ?? "name",
+		desc: false,
+	};
 }
 
 function hideable(columns: readonly TableColumn[]): TableColumn[] {

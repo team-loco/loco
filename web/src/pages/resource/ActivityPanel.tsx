@@ -22,7 +22,6 @@ const SKELETON_ROWS = [0, 1, 2];
 function ActivityRow({ event, names, nowMs }: { event: Event; names: ReadonlyMap<string, string>; nowMs: number }) {
 	const actor = auditActor(event, names);
 	const target = auditDetail(event, NO_USERS) ?? "";
-	const environment = names.get(event.environmentId) ?? "";
 	return (
 		<li className="flex min-h-[42px] items-center gap-2.5 border-b border-line2 text-[13px] last:border-b-0">
 			{event.actorType === "user" ? (
@@ -41,11 +40,6 @@ function ActivityRow({ event, names, nowMs }: { event: Event; names: ReadonlyMap
 				{actor.name} <span className="text-fg2">{auditLabel(event.type).toLowerCase()}</span>
 				{target !== "" && <span className="font-mono text-[12px]"> {target}</span>}
 			</span>
-			{environment !== "" && (
-				<span className="shrink-0 rounded-[5px] border border-line px-1.5 text-[11px] text-fg3 max-sm:hidden">
-					{environment}
-				</span>
-			)}
 			<span className="w-16 shrink-0 text-right font-mono text-[12px] text-fg3">
 				{shortAgoLabel(tsMs(event.createdAt), nowMs)}
 			</span>
@@ -58,20 +52,30 @@ export function ActivityPanel({
 	orgId,
 	workspaceId,
 	resourceId,
+	environmentId,
 	names,
 	nowMs,
 }: {
 	orgId: string;
 	workspaceId: string;
 	resourceId: string;
+	environmentId: string | undefined;
 	names: ReadonlyMap<string, string>;
 	nowMs: number;
 }) {
 	const audit = useAuditAccess(orgId);
 	const query = useInfiniteQuery(
 		listEvents,
-		{ orgId, workspaceId, resourceId, pageSize: PAGE_SIZE, beforeSeq: 0n },
 		{
+			orgId,
+			workspaceId,
+			resourceId,
+			environmentId: environmentId ?? "",
+			pageSize: PAGE_SIZE,
+			beforeSeq: 0n,
+		},
+		{
+			enabled: environmentId !== undefined,
 			pageParamKey: "beforeSeq",
 			getNextPageParam: (last) => (last.nextBeforeSeq === 0n ? undefined : last.nextBeforeSeq),
 		},
@@ -84,7 +88,7 @@ export function ActivityPanel({
 			actions={
 				audit.reads(workspaceId) ? (
 					<Link
-						to={`${auditPath(orgId)}?range=90d&ws=${workspaceId}&res=${resourceId}`}
+						to={`${auditPath(orgId)}?range=90d&ws=${workspaceId}&res=${resourceId}&env=${environmentId ?? ""}`}
 						className="inline-flex items-center gap-1 text-[12.5px] text-fg2 no-underline hover:text-foreground"
 					>
 						View all in audit log

@@ -67,6 +67,7 @@ def log_levels(page):
 
 def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    page.wait_for_load_state("networkidle")
     live = page.get_by_role("button", name=re.compile(r"^(Live|Starting…)"))
     expect(live).to_have_attribute("aria-pressed", "false")
     # Hold the latest-logs request so the button stays in its pending state.

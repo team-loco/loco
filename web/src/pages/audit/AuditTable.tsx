@@ -1,7 +1,8 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
+import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
 import { Skeleton } from "@/components/design/Skeleton";
 import { agoLabel, formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -9,7 +10,8 @@ import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { dayLabel, type AuditRow } from "./model";
 
-const GRID = "grid grid-cols-[110px_200px_minmax(300px,1fr)_220px] items-center gap-x-5";
+const GRID = "grid items-center gap-x-5";
+const HEADINGS = ["Time", "Actor", "Action", "Where"] as const;
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 const TOKEN_ACTORS = new Set(["organization", "workspace", "resource"]);
 
@@ -35,26 +37,50 @@ function ActorBadge({ row }: { row: AuditRow }) {
 
 export function AuditTable({
 	rows,
+	highlightAfter,
 	loading,
 	selectedId,
 	nowMs,
 	onSelect,
 }: {
 	rows: readonly AuditRow[];
+	highlightAfter?: bigint | undefined;
 	loading: boolean;
 	selectedId: string | null;
 	nowMs: number;
 	onSelect: (id: string) => void;
 }) {
 	const timePref = useTimePreferences();
+	const [widths, setWidths] = useState([110, 200, 300, 220]);
+	const gridStyle = {
+		gridTemplateColumns: widths
+			.map((width, index) => (index === 2 ? `minmax(${width}px,1fr)` : `${width}px`))
+			.join(" "),
+	};
+	const minWidth = widths.reduce((sum, width) => sum + width, 100);
+
 	return (
 		<div className="overflow-x-auto [scrollbar-width:thin]">
-			<div className="min-w-[930px]">
-				<div data-slot="table-header" className={cn(GRID, "h-10 border-b border-line2 px-5 text-[12.5px] text-fg3")}>
-					<span>Time</span>
-					<span>Actor</span>
-					<span>Action</span>
-					<span>Where</span>
+			<div style={{ minWidth }}>
+				<div
+					style={gridStyle}
+					data-slot="table-header"
+					className={cn(GRID, "h-10 border-b border-line2 px-5 text-[12.5px] text-fg3")}
+				>
+					{HEADINGS.map((label, index) => (
+						<span key={label} className="relative flex h-full items-center">
+							{label}
+							<ColumnResizeHandle
+								label={label}
+								width={widths[index] ?? 90}
+								min={90}
+								max={640}
+								onWidth={(width) => {
+									setWidths((current) => current.map((value, i) => (i === index ? width : value)));
+								}}
+							/>
+						</span>
+					))}
 				</div>
 				{loading &&
 					SKELETON_ROWS.map((i) => (
@@ -75,6 +101,7 @@ export function AuditTable({
 									<li>
 										<button
 											type="button"
+											style={gridStyle}
 											aria-pressed={selected}
 											onClick={() => {
 												onSelect(row.event.id);
@@ -84,6 +111,9 @@ export function AuditTable({
 												"min-h-[52px] w-full border-b border-line2 px-5 py-2.5 text-left text-[13px] hover:bg-(--row-hover) focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 												(i === rows.length - 1 || dayLabel(rows[i + 1]?.ms ?? 0, nowMs, timePref) !== day) &&
 													"border-b-0",
+												highlightAfter !== undefined &&
+													row.event.seq > highlightAfter &&
+													"motion-safe:animate-[audit-event-in_2s_ease-out]",
 												selected && "bg-background shadow-[inset_0_0_0_1px_var(--line2)]",
 											)}
 										>

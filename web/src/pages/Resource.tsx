@@ -58,7 +58,7 @@ import {
 import { ReplicasPanel } from "@/pages/resource/ReplicasPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
-import { RolloutProgress } from "@/pages/resource/RolloutProgress";
+import { DeploymentProgress } from "@/pages/resource/DeploymentProgress";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
@@ -184,7 +184,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const obsLink = (obsView: "logs" | "metrics" | "events"): string | undefined =>
-		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, obsView, { ...envParam, r: [resource.name] }) : undefined;
+		hasWs
+			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
+					...envParam,
+					r: [resource.name],
+				})
+			: undefined;
 	const switcher = hasWs
 		? (resourcesQuery.data?.resources ?? []).map((r) => ({
 				id: r.id,
@@ -235,7 +240,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			toast.success(`Restarting ${resource.name}`);
 			void refresh();
 		} catch (err) {
-			toastConnectError(err, "Failed to restart replicas");
+			toastConnectError(err, `Couldn’t restart ${resource.name}`, {
+				duration: Infinity,
+			});
 		}
 	};
 
@@ -245,7 +252,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setRedeploying(false);
 		setModal(null);
 		if (failures.length > 0) {
-			setNotice({ tone: "bad", title: `Redeploying ${resource.name} failed`, message: failures.join(" · ") });
+			setNotice({
+				tone: "bad",
+				title: `Redeploying ${resource.name} failed`,
+				message: failures.join(" · "),
+			});
 			return;
 		}
 		const tags = [...new Set(currents.map((d) => depTag(d)))].join(", ");
@@ -260,7 +271,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		const failures = await redeployFrom([target]);
 		setModal(null);
 		if (failures.length > 0) {
-			setNotice({ tone: "bad", title: `Rolling back ${resource.name} failed`, message: failures.join(" · ") });
+			setNotice({
+				tone: "bad",
+				title: `Rolling back ${resource.name} failed`,
+				message: failures.join(" · "),
+			});
 			return;
 		}
 		setNotice({
@@ -366,7 +381,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							onRollback={openRollback}
 						/>
 					)}
-					<RolloutProgress regions={regions} />
+					<DeploymentProgress
+						regions={regions}
+						environmentName={environment?.environmentName ?? ""}
+						logsHref={obsLink("logs")}
+						canWrite={canWrite}
+						onRollback={openRollback}
+					/>
 					{deployed.length > 0 && environmentId !== undefined ? (
 						<ReplicasPanel
 							nowMs={nowMs}
@@ -423,6 +444,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						orgId={orgId}
 						workspaceId={resource.workspaceId}
 						resourceId={resource.id}
+						environmentId={environmentId}
 						names={new Map(environments.map((e) => [e.id, e.name]))}
 						nowMs={nowMs}
 					/>
