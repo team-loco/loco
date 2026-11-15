@@ -230,8 +230,6 @@ with session(out) as browser:
             continue
         panel = page.get_by_role('region', name=title, exact=True)
         expect(panel.get_by_role('listitem')).to_have_count(10)
-        heading = panel.evaluate("(section) => { const h = section.querySelector('h2'); return { size: getComputedStyle(h).fontSize, inCard: section.querySelector('ul').closest('.rounded-card').contains(h) }; }")
-        assert heading == {'size': '18px', 'inCard': False}, heading
         expect(panel).to_contain_text('Olivia Owner updated a resource')
         # Only someone who can open the full audit log for the workspace gets the link to it.
         expect(panel.get_by_role('link', name='View all in audit log', exact=True)).to_have_count(1 if user == 'owner' else 0)

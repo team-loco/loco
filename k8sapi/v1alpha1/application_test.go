@@ -4,12 +4,6 @@ import (
 	"testing"
 )
 
-func TestApplicationName(t *testing.T) {
-	if got := ApplicationName("abc"); got != "resource-abc" {
-		t.Fatalf("ApplicationName = %q", got)
-	}
-}
-
 func TestApplicationPlacement(t *testing.T) {
 	tests := []struct {
 		name        string

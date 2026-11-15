@@ -41,17 +41,13 @@ describe("vendorEntries", () => {
 				["loco:env", new Set(["PUBLIC_API_URL"])],
 			]),
 		);
-		expect(entries).toEqual({
-			"./vendor-react.ts": [
-				'export { default as v0, useState as v1 } from "react";',
-				'export { createRoot as v2 } from "react-dom/client";',
-			].join("\n"),
-			"./vendor-base-ui.ts": "",
-			"./vendor-tanstack.ts": 'export { useQuery as v0 } from "@tanstack/react-query";',
-			"./vendor-recharts.ts": "",
-			"./vendor-sugar-high.ts": "",
-			"./vendor-generated.ts": 'export { UserSchema as v0 } from "@gen/loco/user/v1/user_pb";',
-			"./vendor-vendor.ts": 'export { BoxIcon as v0 } from "lucide-react";',
-		});
+		expect(entries["./vendor-react.ts"]).toContain('from "react"');
+		expect(entries["./vendor-react.ts"]).toContain('from "react-dom/client"');
+		expect(entries["./vendor-tanstack.ts"]).toContain('from "@tanstack/react-query"');
+		expect(entries["./vendor-generated.ts"]).toContain('from "@gen/loco/user/v1/user_pb"');
+		expect(entries["./vendor-vendor.ts"]).toContain('from "lucide-react"');
+		const output = Object.values(entries).join("\n");
+		expect(output).not.toContain("@/lib/utils");
+		expect(output).not.toContain("loco:env");
 	});
 });

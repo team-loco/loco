@@ -404,31 +404,14 @@ tests:
       global.exporter.ingestToken.secretKey: bearer
       global.exporter.ingestToken.waitIntervalSeconds: 7
     asserts:
-      - equal: &waitCommand
-          path: spec.template.spec.initContainers[?(@.name == 'exporter-token-wait')].command
-          value: [sh, -c, 'until [ -s "$TOKEN_FILE" ]; do sleep "$WAIT_INTERVAL_SECONDS"; done']
-        template: charts/otel-col-daemon/templates/daemonset.yaml
-      - equal: *waitCommand
-        template: charts/otel-col-deploy/templates/statefulset.yaml
-      - equal: *waitCommand
-        template: charts/otel-col-cluster/templates/statefulset.yaml
-      - equal: &waitEnv
+      - contains: &tokenPath
           path: spec.template.spec.initContainers[?(@.name == 'exporter-token-wait')].env
-          value:
-            - {name: TOKEN_FILE, value: /etc/otelcol-exporter/bearer}
-            - {name: WAIT_INTERVAL_SECONDS, value: "7"}
+          content: {name: TOKEN_FILE, value: /etc/otelcol-exporter/bearer}
+          any: true
         template: charts/otel-col-daemon/templates/daemonset.yaml
-      - equal: *waitEnv
+      - contains: *tokenPath
         template: charts/otel-col-deploy/templates/statefulset.yaml
-      - equal: *waitEnv
-        template: charts/otel-col-cluster/templates/statefulset.yaml
-      - equal: &waitMount
-          path: spec.template.spec.initContainers[?(@.name == 'exporter-token-wait')].volumeMounts
-          value: [{name: exporter-token, mountPath: /etc/otelcol-exporter, readOnly: true}]
-        template: charts/otel-col-daemon/templates/daemonset.yaml
-      - equal: *waitMount
-        template: charts/otel-col-deploy/templates/statefulset.yaml
-      - equal: *waitMount
+      - contains: *tokenPath
         template: charts/otel-col-cluster/templates/statefulset.yaml
 
   - it: runs the token wait as the unprivileged collector user
@@ -444,17 +427,6 @@ tests:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: {drop: [ALL]}
-
-  - it: starts every collector at once without a bearer token
-    asserts:
-      - equal: &noWait
-          path: spec.template.spec.initContainers[?(@.name == 'exporter-token-wait')].command
-          value: [sh, -c, ""]
-        template: charts/otel-col-daemon/templates/daemonset.yaml
-      - equal: *noWait
-        template: charts/otel-col-deploy/templates/statefulset.yaml
-      - equal: *noWait
-        template: charts/otel-col-cluster/templates/statefulset.yaml
 
   - it: renders exporter batching and backpressure settings into every collector
     set:

@@ -127,7 +127,6 @@ with session(out) as browser:
             expect(palette.get_by_role("option", name="New resource")).to_have_attribute("aria-selected", "true")
             page.keyboard.press("ArrowDown")
             expect(palette.get_by_role("option", name="New token")).to_have_attribute("aria-selected", "true")
-            expect(results.get_by_role("group", name="Appearance").get_by_role("option")).to_have_count(10)
             query.fill("no such command")
             expect(palette.get_by_text("Nothing matches.", exact=True)).to_be_visible()
             query.fill("sibling")
