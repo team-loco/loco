@@ -512,7 +512,6 @@
 
 [data-theme="neobrutal"] {
 	--radius-control: 5px;
-	--radius-control-inner: 3px;
 	--radius-card: 5px;
 	--radius-overlay: 5px;
 	--shell: #ffe27a;
@@ -559,14 +558,11 @@
 	--panel: #383b4d;
 	--panel2: #43465a;
 	--raise: #3d4053;
-	--line: #000000;
-	--line2: #000000;
 	--fg: #f5f5f5;
 	--fg2: #dcdce2;
 	--fg3: #b8bac6;
 	--fg4: #80838f;
 	--btn: #b9a3f5;
-	--btn-fg: #000000;
 	--brand: #8fb0ff;
 	--ok: #4ade80;
 	--ok-glyph: #4ade80;
@@ -600,7 +596,6 @@
 		) {
 		border: 2px solid var(--line);
 		box-shadow: 3px 3px 0 0 var(--hard-shadow);
-		transition-property: transform, box-shadow, background-color, color;
 		&:hover:not(:disabled, [aria-disabled="true"]) {
 			opacity: 1;
 			filter: none;
