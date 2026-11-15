@@ -1,5 +1,5 @@
 import { ArrowRightIcon, RocketIcon } from "lucide-react";
-import { useState } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { Link, useNavigate } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -25,6 +25,10 @@ import {
 import { startedLabel } from "./format";
 
 const COLUMNS = 7;
+const DEPLOYS_VALUES = [ALL_DEPLOYMENTS, ...DEPLOYMENT_FILTERS.map((f) => f.value)];
+const deploysParser = parseAsStringLiteral(DEPLOYS_VALUES)
+	.withDefault(ALL_DEPLOYMENTS)
+	.withOptions({ history: "replace" });
 
 export function RecentDeployments({
 	deployments,
@@ -40,7 +44,7 @@ export function RecentDeployments({
 	nowMs: number;
 }) {
 	const navigate = useNavigate();
-	const [filter, setFilter] = useState(ALL_DEPLOYMENTS);
+	const [filter, setFilter] = useQueryState("deploys", deploysParser);
 	const recent = withinWindow(deployments, nowMs);
 	const counts = deploymentCounts(recent);
 	const rows = filterDeployments(recent, filter);
@@ -52,7 +56,8 @@ export function RecentDeployments({
 			className="max-w-full overflow-x-auto"
 			value={[filter]}
 			onValueChange={(v: string[]) => {
-				if (v[0] !== undefined) setFilter(v[0]);
+				const next = DEPLOYS_VALUES.find((f) => f === v[0]);
+				if (next !== undefined) void setFilter(next);
 			}}
 		>
 			<ToggleGroupItem value={ALL_DEPLOYMENTS} count={recent.length}>

@@ -5,6 +5,7 @@ import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon, PlusIcon } from "lucide-react";
 import { useState, type MouseEvent } from "react";
+import { parseAsString, useQueryState } from "nuqs";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
@@ -74,7 +75,7 @@ export function OrgTab({
 	const update = useMutation(updateOrg);
 	const remove = useMutation(deleteOrg);
 
-	const [query, setQuery] = useState("");
+	const [query, setQuery] = useQueryState("q", parseAsString.withDefault("").withOptions({ history: "replace" }));
 	const [newOpen, setNewOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -230,7 +231,7 @@ export function OrgTab({
 						placeholder="Search workspaces"
 						value={query}
 						onChange={(e) => {
-							setQuery(e.target.value);
+							void setQuery(e.target.value);
 							paged.reset();
 						}}
 					/>

@@ -2,9 +2,9 @@ import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
 import { maybeTsMs } from "@/lib/time";
 
-export type MetricRange = "1h" | "6h" | "24h";
+export const METRIC_RANGES = ["1h", "6h", "24h"] as const;
 
-export const METRIC_RANGES: MetricRange[] = ["1h", "6h", "24h"];
+export type MetricRange = (typeof METRIC_RANGES)[number];
 
 export const RANGE_MS: Record<MetricRange, number> = {
 	"1h": 3_600_000,

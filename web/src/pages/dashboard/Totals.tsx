@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useTraffic } from "@/hooks/useTraffic";
 import { latestTraffic, errorShare, trafficValue } from "@/lib/traffic";
-import { RANGE_MS, METRIC_RANGES, type MetricRange } from "@/pages/resource/metric";
+import { RANGE_MS, METRIC_RANGES } from "@/pages/resource/metric";
 import { getErrorMessage } from "@/lib/error-handler";
 import { ChevronDownIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -171,6 +171,7 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 	);
 }
 
+const rangeParser = parseAsStringLiteral(METRIC_RANGES).withDefault("24h").withOptions({ history: "replace" });
 export function Totals({
 	value,
 	hrefFor,
@@ -182,7 +183,7 @@ export function Totals({
 	workspaceId: string;
 	environmentId: string;
 }) {
-	const [range, setRange] = useState<MetricRange>("24h");
+	const [range, setRange] = useQueryState("range", rangeParser);
 	const traffic = useTraffic({ workspaceId, environmentId, resourceIds: [], spanMs: RANGE_MS[range] });
 	const latest = latestTraffic(traffic.points);
 	const cards = [
@@ -199,7 +200,7 @@ export function Totals({
 					value={[range]}
 					onValueChange={(values) => {
 						const next = METRIC_RANGES.find((r) => r === values[0]);
-						if (next !== undefined) setRange(next);
+						if (next !== undefined) void setRange(next);
 					}}
 				>
 					{METRIC_RANGES.map((r) => (

@@ -9,7 +9,7 @@ import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTit
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
-import { usePagedRows } from "@/lib/paging";
+import { pagedRows, type Paging } from "@/lib/paging";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 
@@ -97,7 +97,11 @@ function AccessRows({
 	const rows = workspaces.filter(
 		(w) => (show === "all" || granted.has(w.id)) && (query === "" || w.name.toLowerCase().includes(query)),
 	);
-	const paged = usePagedRows(rows, PAGE_SIZES);
+	const [paging, setPaging] = useState<Paging>({ page: 0, size: PAGE_SIZES[0] });
+	const paged = pagedRows(rows, paging, setPaging, PAGE_SIZES);
+	const resetPage = () => {
+		setPaging((current) => ({ ...current, page: 0 }));
+	};
 
 	const apply = async (workspaceId: string, current: ScopeName[], level: Level) => {
 		const plan = levelPlan(current, level);
@@ -124,7 +128,7 @@ function AccessRows({
 					onValueChange={(v: string[]) => {
 						if (v[0] === "has" || v[0] === "all") {
 							setShow(v[0]);
-							paged.reset();
+							resetPage();
 						}
 					}}
 				>
@@ -139,11 +143,11 @@ function AccessRows({
 					value={q}
 					onChange={(e) => {
 						setQ(e.target.value);
-						paged.reset();
+						resetPage();
 					}}
 					onClear={() => {
 						setQ("");
-						paged.reset();
+						resetPage();
 					}}
 					placeholder="Find a workspace"
 					aria-label="Find a workspace"

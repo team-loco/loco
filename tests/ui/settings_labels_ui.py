@@ -195,6 +195,11 @@ with sync_playwright() as playwright:
                         page.unroute(org_list_rpc)
                         page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
                         page.wait_for_url(f"{state['ui_url']}/organizations")
+                        page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
+                        expect(page.get_by_placeholder("Search workspaces", exact=True)).to_have_value("zzz")
+                        page.get_by_role("group", name="Settings for").get_by_role("button", name="Workspace", exact=True).click()
+                        page.wait_for_url(re.compile(r"[?&]scope=workspace"))
+                        assert "q=" not in page.url, page.url
                     for tab in ("ws", "org"):
                         try:
                             page.goto(state["ui_url"] + base + "?scope=" + ("workspace" if tab == "ws" else "org"))

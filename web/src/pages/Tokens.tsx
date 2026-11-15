@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { parseAsStringLiteral, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
@@ -45,6 +45,7 @@ const TOKEN_DOCS = `${DOCS_URL}/operations/access/#deploy-from-ci-with-an-api-to
 const TOKENS_PARAMS = {
 	owner: parseAsStringLiteral(OWNER_KEYS).withDefault("workspace"),
 	[NEW_PARAM]: parseAsStringLiteral(["1"]),
+	q: parseAsString.withDefault(""),
 };
 
 function firstRun(owner: Owner): { title: string; body: string; snippet: string[] } {
@@ -88,7 +89,7 @@ function SnippetArt({ lines }: { lines: string[] }) {
 }
 
 export function Tokens() {
-	const [{ owner: ownerKey, [NEW_PARAM]: createLinked }, setParams] = useQueryStates(TOKENS_PARAMS, {
+	const [{ owner: ownerKey, [NEW_PARAM]: createLinked, q }, setParams] = useQueryStates(TOKENS_PARAMS, {
 		history: "replace",
 	});
 	const data = useTokenData();
@@ -97,7 +98,6 @@ export function Tokens() {
 	const config = useQuery(getConfig, {});
 	const queryClient = useQueryClient();
 	const now = useNow(NOW_TICK_MS).getTime();
-	const [q, setQ] = useState("");
 	const [draft, setDraft] = useState<CreateDraft | null>(null);
 	const [revoking, setRevoking] = useState<Token | null>(null);
 
@@ -176,7 +176,7 @@ export function Tokens() {
 						<Button
 							variant="outline"
 							onClick={() => {
-								setQ("");
+								void setParams({ q: null });
 							}}
 						>
 							<XIcon />
@@ -239,11 +239,11 @@ export function Tokens() {
 					<SearchInput
 						value={q}
 						onChange={(e) => {
-							setQ(e.target.value);
+							void setParams({ q: e.target.value });
 							paged.reset();
 						}}
 						onClear={() => {
-							setQ("");
+							void setParams({ q: null });
 							paged.reset();
 						}}
 						placeholder="Search by name, creator or access"
