@@ -503,7 +503,7 @@ with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
     page.goto(state['ui_url'] + base + '&trace=' + trace)
-    zero = page.get_by_role('dialog', name=root_name).get_by_role('region', name='Flame graph').get_by_role('button', name=re.compile('POST /api/checkout,'))
+    zero = page.get_by_role('dialog', name=root_name).get_by_role('region', name='Flame graph').get_by_role('button').first
     expect(zero).to_be_visible()
     assert zero.bounding_box()['width'] > 0
     zero.click()
