@@ -152,6 +152,8 @@ with sync_playwright() as p:
         page.wait_for_url(f"**{audit_path}?range=90d&ws={sibling}")
         expect(page.get_by_role("button", name="Past 90 days", exact=True)).to_be_visible()
         expect(page.get_by_role("button", name="sibling", exact=True)).to_be_visible()
+        # The previous page's ListEvents response can land after the clear and read as the first load.
+        page.wait_for_load_state("networkidle")
         calls.clear()
         page.goto(state["ui_url"] + f"{audit_path}?ws={sibling}&res={state['audit']['inventory']}")
         expect(page.get_by_role("button", name="inventory", exact=True)).to_be_visible()
