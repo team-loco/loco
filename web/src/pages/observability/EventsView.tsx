@@ -15,7 +15,7 @@ import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { formatCount } from "@/lib/format";
 import { resolveWindow } from "@/lib/obs-time";
-import { pagedRows, type Paging } from "@/lib/paging";
+import { pagedRows, pagingParsers, type Paging } from "@/lib/paging";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -26,12 +26,12 @@ import { eventSummary, eventTitle, groupEvents, severityStyle, type EventGroup, 
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
-import { PAGE_SIZES, pagingParsers } from "./shared";
+import { PAGE_SIZES } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
 const DEFAULT_PAGE_SIZE = 25;
-const EVENTS_PARAMS = { ...pagingParsers(DEFAULT_PAGE_SIZE), live: parseAsStringLiteral(["0"]) };
+const EVENTS_PARAMS = { ...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE), live: parseAsStringLiteral(["0"]) };
 const POLL_MS = 10_000;
 const NOW_TICK_MS = 30_000;
 

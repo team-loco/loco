@@ -1,7 +1,7 @@
 import { createContext, use, type ReactNode } from "react";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
-import { parseAsString, useQueryStates, type Nullable, type Values } from "nuqs";
+import { parseAsString, useQueryStates } from "nuqs";
 import { useNavigate } from "react-router";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
@@ -27,8 +27,6 @@ const OBS_PARAMS = {
 	log: parseAsString,
 };
 const CLEARED_VIEW_STATE = { page: null, at: null, trace: null, span: null, log: null };
-
-type ObsPatch = Partial<Nullable<Values<typeof OBS_PARAMS>>>;
 
 export function seriesColor(index: number): string {
 	return `var(--series-${String(index % SERIES_COLORS)})`;
@@ -66,8 +64,6 @@ interface ObsContextValue {
 	tokens: Token[];
 	text: string;
 	setQuery: (tokens: Token[], text: string) => void;
-	/** Sets the shared window, query and view-state params in one history entry. */
-	update: (patch: ObsPatch) => void;
 	goTo: (view: ObservabilityView, opts?: GoToOptions) => void;
 }
 
@@ -112,14 +108,11 @@ export function ObsProvider({
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
 	const scopedResourceIds = grants === "workspace" ? null : resources.map((r) => r.id);
 
-	const update = (patch: ObsPatch) => {
-		void setParams(patch);
-	};
 	const setRange = (w: TimeWindow) => {
-		update({ ...windowValues(w), ...CLEARED_VIEW_STATE });
+		void setParams({ ...windowValues(w), ...CLEARED_VIEW_STATE });
 	};
 	const setQuery = (nextTokens: Token[], nextText: string) => {
-		update({ ...queryValues(nextTokens, nextText), page: null, log: null });
+		void setParams({ ...queryValues(nextTokens, nextText), page: null, log: null });
 	};
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
@@ -150,7 +143,6 @@ export function ObsProvider({
 		tokens,
 		text,
 		setQuery,
-		update,
 		goTo,
 	};
 

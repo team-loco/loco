@@ -4,9 +4,6 @@ import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XI
 import { HistogramSlider } from "@/components/design/Slider";
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
-import { parseAsNumberLiteral } from "nuqs";
-
-import { pageParser } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 
 export function Dot({ className, color, size = 7 }: { className?: string; color?: string; size?: number }) {
@@ -228,13 +225,6 @@ export function PanelNav({
 }
 
 export const PAGE_SIZES = [25, 50, 100];
-
-export function pagingParsers(defaultSize: number, sizes: readonly number[] = PAGE_SIZES) {
-	return {
-		page: pageParser.withDefault(0),
-		size: parseAsNumberLiteral(sizes).withDefault(defaultSize),
-	};
-}
 
 export function DetailPanel({ label, header, children }: { label: string; header: ReactNode; children: ReactNode }) {
 	return (

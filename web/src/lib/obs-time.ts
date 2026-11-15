@@ -1,4 +1,4 @@
-import { createParser } from "nuqs";
+import { createParser, type inferParserType } from "nuqs";
 
 import { DAY_MS, formatHourMinute, formatMonthDay } from "./time";
 
@@ -86,15 +86,14 @@ export const WINDOW_PARSERS = {
 	to: msParser,
 };
 
-export function toWindow(
-	{ range, from, to }: { range: number | null; from: number | null; to: number | null },
-	maxMs: number,
-): TimeWindow {
+type WindowParams = inferParserType<typeof WINDOW_PARSERS>;
+
+export function toWindow({ range, from, to }: WindowParams, maxMs: number): TimeWindow {
 	if (from !== null && to !== null && to > from) return { kind: "absolute", from: Math.max(from, to - maxMs), to };
 	return { kind: "relative", spanMs: Math.min(range ?? DEFAULT_SPAN_MS, maxMs) };
 }
 
-export function windowValues(window: TimeWindow): { range: number | null; from: number | null; to: number | null } {
+export function windowValues(window: TimeWindow): WindowParams {
 	return window.kind === "relative"
 		? { range: window.spanMs, from: null, to: null }
 		: { range: null, from: window.from, to: window.to };

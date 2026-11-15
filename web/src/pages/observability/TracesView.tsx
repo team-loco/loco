@@ -17,8 +17,8 @@ import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useListTraces } from "@/hooks/useListTraces";
 import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
-import { resolveWindow, windowValues, type TimeWindow } from "@/lib/obs-time";
-import { pageRangeLabel, type Paging } from "@/lib/paging";
+import { resolveWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
+import { pageRangeLabel, pagingParsers, type Paging } from "@/lib/paging";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +31,7 @@ import {
 	durationBounds,
 	liveTokens,
 	passes,
+	QUERY_PARSERS,
 	queryStr,
 	queryValues,
 	sameToken,
@@ -38,7 +39,7 @@ import {
 	type Token,
 } from "./query";
 import { QueryBar } from "./QueryBar";
-import { PAGE_SIZES, pagingParsers } from "./shared";
+import { PAGE_SIZES } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
 import { TraceScatter, type ScatterZoom } from "./TraceScatter";
 import { TraceSetup } from "./TraceSetup";
@@ -48,7 +49,9 @@ import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, timestampMs, uniqueSp
 
 const DEFAULT_PAGE_SIZE = 25;
 const TRACES_PARAMS = {
-	...pagingParsers(DEFAULT_PAGE_SIZE),
+	...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE),
+	...WINDOW_PARSERS,
+	...QUERY_PARSERS,
 	sort: parseAsStringLiteral(["duration"]),
 	dir: parseAsStringLiteral(["asc"]),
 	trace: parseAsString.withDefault(""),
@@ -114,18 +117,8 @@ function TraceSession({
 	zoomPrev: ZoomState | null;
 	setZoomPrev: (zoom: ZoomState | null) => void;
 }) {
-	const {
-		workspaceId,
-		resources,
-		resourcesLoading,
-		scopedResourceIds,
-		resourceById,
-		range,
-		tokens,
-		text,
-		setQuery,
-		update,
-	} = useObs();
+	const { workspaceId, resources, resourcesLoading, scopedResourceIds, resourceById, range, tokens, text, setQuery } =
+		useObs();
 	const { search } = useLocation();
 	const [params, setParams] = useQueryStates(TRACES_PARAMS);
 	const setPaging = (next: Paging) => {
@@ -248,7 +241,7 @@ function TraceSession({
 	const zoom = (z: ScatterZoom) => {
 		setZoomPrev(zoomPrev ?? { range, durations: tokens.filter((t) => t.key === "duration") });
 		const rest = tokens.filter((t) => t.key !== "duration");
-		update({
+		void setParams({
 			...windowValues({ kind: "absolute", from: z.from, to: z.to }),
 			...queryValues([...rest, durationToken(">=", z.minMs), durationToken("<=", z.maxMs)], text),
 			page: null,
@@ -258,7 +251,11 @@ function TraceSession({
 		if (zoomPrev === null) return;
 		const rest = tokens.filter((t) => t.key !== "duration");
 		setZoomPrev(null);
-		update({ ...windowValues(zoomPrev.range), ...queryValues([...rest, ...zoomPrev.durations], text), page: null });
+		void setParams({
+			...windowValues(zoomPrev.range),
+			...queryValues([...rest, ...zoomPrev.durations], text),
+			page: null,
+		});
 	};
 	const sortBy = (column: TraceSummarySort) => {
 		const flip = column === sort && !ascending;

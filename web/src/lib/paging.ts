@@ -1,4 +1,4 @@
-import { createParser } from "nuqs";
+import { createParser, parseAsNumberLiteral } from "nuqs";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
 // A zero-based page index, written to the URL counting from one.
@@ -9,6 +9,10 @@ export const pageParser = createParser<number>({
 	},
 	serialize: (page) => String(page + 1),
 });
+
+export function pagingParsers(sizes: readonly number[], defaultSize: number) {
+	return { page: pageParser.withDefault(0), size: parseAsNumberLiteral(sizes).withDefault(defaultSize) };
+}
 
 export function pageSlice<T>(rows: T[], page: number, size: number): { rows: T[]; page: number; pages: number } {
 	const pages = Math.max(1, Math.ceil(rows.length / size));
