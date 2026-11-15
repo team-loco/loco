@@ -1,6 +1,6 @@
 import { CopyIcon, RocketIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
 import { createContext, use } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
@@ -38,7 +38,6 @@ export interface ResourceCellValues {
 	environments: Environment[];
 	active: Environment | undefined;
 	nowMs: number;
-	search: URLSearchParams;
 }
 
 export const ResourceCellContext = createContext<ResourceCellValues | null>(null);
@@ -88,7 +87,8 @@ function DraftCellView({ row }: { row: DraftRow }) {
 }
 
 function NameCell({ row }: { row: ListRow }) {
-	const { orgId, workspaceId, search } = useCells();
+	const { orgId, workspaceId } = useCells();
+	const { search } = useLocation();
 	const draft = isDraftRow(row);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">

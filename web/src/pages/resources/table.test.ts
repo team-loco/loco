@@ -5,6 +5,7 @@ import { dataTableFeatures, sortOptions, type DataTableInstance } from "@/compon
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { describe, expect, test } from "bun:test";
+import { createLoader, createSerializer } from "nuqs";
 import { DeploymentSchema, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { EnvironmentSchema } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceSchema, ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -16,6 +17,7 @@ import { resourceColumns } from "./columns";
 import {
 	ALL,
 	buildRows,
+	FILTER_URL_KEYS,
 	cellSummary,
 	draftRows,
 	filterRows,
@@ -23,11 +25,10 @@ import {
 	linkEnvironment,
 	NOT_DEPLOYED,
 	nameOrder,
-	readTableState,
 	regionCounts,
 	replicasLabel,
 	statusCounts,
-	writeTableState,
+	tableParsers,
 	type Filter,
 	type ListRow,
 } from "./table";
@@ -390,43 +391,43 @@ describe("URL state", () => {
 		image: false,
 		created: false,
 	};
+	const parsers = tableParsers(columns);
+	const load = createLoader(parsers, { urlKeys: FILTER_URL_KEYS });
+	const serialize = createSerializer(parsers, { urlKeys: FILTER_URL_KEYS });
 
 	test("defaults leave the URL alone and keep unrelated params", () => {
-		const params = new URLSearchParams("env=staging");
-		const state = readTableState(params, columns);
-		expect(state.sorting).toEqual({ id: "env-production", desc: false });
-		expect(state.visibility).toEqual(shown);
-		expect(writeTableState(params, state, columns).toString()).toBe("env=staging");
+		const state = load("?env=staging");
+		expect(state.sort).toEqual({ id: "env-production", desc: false });
+		expect(state.cols).toEqual(shown);
+		expect(serialize("?env=staging", state)).toBe("?env=staging");
 	});
 
 	test("round-trips filters, sort, page, size and columns", () => {
-		const params = new URLSearchParams();
 		const state = {
-			filter: { query: "api", status: "degraded", region: "us-east-1" },
-			sorting: { id: "created", desc: true },
+			query: "api",
+			status: "degraded",
+			region: "us-east-1",
+			sort: { id: "created", desc: true },
 			page: 2,
-			size: 50,
-			visibility: { ...shown, "env-production": false, size: false, cost: false, image: true },
+			size: 50 as const,
+			cols: { ...shown, "env-production": false, size: false, cost: false, image: true },
 		};
-		const written = writeTableState(params, state, columns);
-		expect(written.get("cols")).toBe("env-staging,image");
-		expect(readTableState(written, columns)).toEqual(state);
+		const written = serialize(state);
+		expect(new URLSearchParams(written).get("cols")).toBe("env-staging,image");
+		expect(load(written)).toEqual(state);
 	});
 
 	test("ignores values the table cannot show", () => {
-		const state = readTableState(
-			new URLSearchParams("status=bogus&sort=image.asc&size=7&page=0&cols=nope,size"),
-			columns,
-		);
-		expect(state.filter.status).toBe(ALL);
-		expect(state.sorting.id).toBe("env-production");
+		const state = load("?status=bogus&sort=image.asc&size=7&page=0&cols=nope,size");
+		expect(state.status).toBe(ALL);
+		expect(state.sort.id).toBe("env-production");
 		expect(state.size).toBe(25);
 		expect(state.page).toBe(0);
-		expect(Object.entries(state.visibility).filter(([, on]) => on)).toEqual([["size", true]]);
+		expect(Object.entries(state.cols).filter(([, on]) => on)).toEqual([["size", true]]);
 	});
 
 	test("an empty column list hides every optional column", () => {
-		const { visibility } = readTableState(new URLSearchParams("cols="), columns);
-		expect(Object.values(visibility).some((on) => on)).toBe(false);
+		const { cols } = load("?cols=");
+		expect(Object.values(cols).some((on) => on)).toBe(false);
 	});
 });
