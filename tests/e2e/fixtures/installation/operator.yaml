@@ -12,7 +12,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata: {name: installation, namespace: installation-fixtures}
 data:
-  installation.yaml: |
+  loco-install.yaml: |
 {{ indent .Installation 4 }}
   release.json: |
 {{ indent .Release 4 }}

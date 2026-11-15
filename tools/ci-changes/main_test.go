@@ -104,7 +104,7 @@ func TestInstallationInputsSelectOnlyInstallationE2E(t *testing.T) {
 		"charts/cert-manager.yaml",
 		"dev/compose.cloud-provider-kind.yaml",
 		"dev/dex.yaml",
-		"examples/installation/installation.yaml",
+		"examples/installation/loco-install.yaml",
 		"web/Dockerfile",
 		"web/sws.toml",
 	} {

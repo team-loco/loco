@@ -11,26 +11,24 @@ import (
 )
 
 const (
-	phasePrefix                   = "installation-e2e phase: "
-	phasePreflight                = "preflight"
-	phaseControlPlane             = "control-plane"
-	phasePreBootstrapAudit        = "pre-bootstrap-audit"
-	phaseBootstrap                = "bootstrap"
-	phaseBootstrapAuthorization   = "bootstrap-authorization"
-	phaseBootstrapBrowser         = "bootstrap-browser"
-	phaseBootstrapBrowserComplete = "bootstrap-browser-complete"
-	phaseBootstrapGrant           = "bootstrap-grant"
-	phasePostBootstrapAudit       = "post-bootstrap-audit"
-	phaseWorkers                  = "workers"
-	phaseRepeatApply              = "repeat-apply"
-	phaseFreshHome                = "fresh-home"
-	phaseWorkloads                = "workloads"
-	phaseSourceDeploy             = "source-deploy"
-	phaseSourceHTTPS              = "source-https"
-	phaseSourceVerify             = "source-verify"
-	phaseNetworkPolicy            = "network-policy"
-	phaseRecovery                 = "recovery"
-	phaseCompletionAudit          = "completion-audit"
+	phasePrefix          = "installation-e2e phase: "
+	phasePreflight       = "preflight"
+	phaseControlPlane    = "control-plane"
+	phasePreLoginAudit   = "pre-login-audit"
+	phaseLogin           = "login"
+	phaseLoginApprove    = "login-approve"
+	phaseLoginApproved   = "login-approved"
+	phasePostLoginAudit  = "post-login-audit"
+	phaseWorkers         = "workers"
+	phaseRepeatApply     = "repeat-apply"
+	phaseFreshHome       = "fresh-home"
+	phaseWorkloads       = "workloads"
+	phaseSourceDeploy    = "source-deploy"
+	phaseSourceHTTPS     = "source-https"
+	phaseSourceVerify    = "source-verify"
+	phaseNetworkPolicy   = "network-policy"
+	phaseRecovery        = "recovery"
+	phaseCompletionAudit = "completion-audit"
 )
 
 var errOperatorOutputLimit = errors.New("operator output exceeded capture limit")
@@ -86,8 +84,8 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 		}
 		candidate := string(data[o.lineStart:index])
 		o.lineStart = index + 1
-		if category, ok := strings.CutPrefix(candidate, bootstrapFailurePrefix); ok && knownBootstrapFailure(category) {
-			o.failure = "bootstrap failure " + category
+		if category, ok := strings.CutPrefix(candidate, loginFailurePrefix); ok && knownLoginFailure(category) {
+			o.failure = "login failure " + category
 		}
 		category, isVerification := strings.CutPrefix(candidate, verificationFailurePrefix)
 		if isVerification && knownVerificationFailure(category) {
@@ -98,10 +96,9 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 		}
 		if slices.Contains([]string{
 			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
-			phasePrefix + phasePreBootstrapAudit, phasePrefix + phaseBootstrap,
-			phasePrefix + phaseBootstrapAuthorization, phasePrefix + phaseBootstrapBrowser,
-			phasePrefix + phaseBootstrapBrowserComplete, phasePrefix + phaseBootstrapGrant,
-			phasePrefix + phasePostBootstrapAudit,
+			phasePrefix + phasePreLoginAudit, phasePrefix + phaseLogin,
+			phasePrefix + phaseLoginApprove, phasePrefix + phaseLoginApproved,
+			phasePrefix + phasePostLoginAudit,
 			phasePrefix + phaseWorkers, phasePrefix + phaseRepeatApply,
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
 			phasePrefix + phaseSourceDeploy, phasePrefix + phaseSourceHTTPS,

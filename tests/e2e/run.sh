@@ -88,7 +88,6 @@ INGEST_TOKEN_SECRET_KEY=$(yq '.global.exporter.ingestToken.secretKey' "$WORKER_V
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
-BOOTSTRAP_TOKEN=$(openssl rand -hex 32)
 
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
@@ -114,7 +113,6 @@ export E2E_AUTH_ISSUER="http://127.0.0.1:${AUTH_PORT}/dex"
 export E2E_AUTH_STATE="$RUN_DIR/auth-state.json"
 export DEX_PORT="127.0.0.1:${AUTH_PORT}"
 export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
-export E2E_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"
 export E2E_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET"
 export E2E_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY"
 
@@ -876,7 +874,7 @@ start_api() {
 
     AUTH_ISSUERS="[{\"issuer\":\"${E2E_AUTH_ISSUER}\",\"audience\":\"loco-e2e\",\"emailVerification\":\"claim\"}]" \
     AUTH_SIGNUP_MODE=open \
-    LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
+    LOCO_SYSTEM_ADMINS=loco-admin@test.local \
     DATABASE_URL="$E2E_DATABASE_URL" \
     CACHE_TYPE=in-memory \
     APP_PORT="$(api_bind_address):$API_PORT" \

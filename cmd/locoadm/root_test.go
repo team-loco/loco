@@ -7,12 +7,14 @@ import (
 	"testing"
 )
 
+const clusterCommand = "cluster"
+
 func TestRootCommandRegistersCluster(t *testing.T) {
 	root := NewRootCmd()
 	if root.Use != "locoadm" {
 		t.Errorf("Use = %q", root.Use)
 	}
-	cluster, _, err := root.Find([]string{"cluster"})
+	cluster, _, err := root.Find([]string{clusterCommand})
 	if err != nil || cluster.Name() != "cluster" {
 		t.Fatalf("cluster command: %v, %v", cluster, err)
 	}
@@ -20,7 +22,7 @@ func TestRootCommandRegistersCluster(t *testing.T) {
 	for _, operation := range cluster.Commands() {
 		operations = append(operations, operation.Name())
 	}
-	want := "create join-token list pause remove restore resume"
+	want := "attach create join-token list pause remove restore resume"
 	if got := strings.Join(operations, " "); got != want {
 		t.Errorf("cluster operations = %q, want %q", got, want)
 	}

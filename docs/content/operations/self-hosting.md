@@ -96,9 +96,15 @@ Your team supplies DNS records, certificate issuance, persistent storage, backup
 
 ## First system admin
 
-Operator commands in `locoadm` require the `system:admin` grant. `BootstrapService.Bootstrap` requires both the installation's bootstrap token and an identity-provider JWT in the Authorization header. The API verifies the issuer, signature, audience, expiry and verified email before resolving or creating the first administrator, including when ordinary signup is closed. It returns a normal CLI session.
+Operator commands in `locoadm` require the `system:admin` grant. The API grants it to the emails in `LOCO_SYSTEM_ADMINS`, a comma-separated list such as `LOCO_SYSTEM_ADMINS=ada@example.com,grace@example.com`. Each entry is a one-time claim: the first sign-in whose verified email matches an unclaimed entry grants `system:admin` to that account, including when signup is closed. The grant then belongs to the account and the one identity (issuer and subject) it signs in through. The API does not consult the email for it again, so a later account with the same address gets nothing.
 
-Bootstrap creates the user, grants system administration and closes bootstrap in one transaction. Concurrent attempts produce one administrator. A restart, a lost response or removal of an administrator never reopens bootstrap. The unreleased [installation workflow](../reference/installation.md#apply-and-resume) uses `locoadm bootstrap --file installation.yaml --email admin@example.com` to sign in, save a CLI session, remove the temporary bootstrap reference from every API replica, and delete its Secret. Repeat the command as an existing system administrator to resume interrupted cleanup.
+The API applies the list at startup. Removing an email revokes the grant from the account that claimed it; adding it back opens a new claim for the next verified sign-in with that email. A claimed entry stays spent when its account is deleted, so a new holder of the address gets nothing until the email is removed from the list and added back. Each claim and revocation records a `system_admin.claimed` or `system_admin.revoked` event with the email, issuer and subject.
+
+An [installation file](../reference/installation.md) lists them in `controlPlane.admins`; after `locoadm apply`, sign in with `locoadm login` as one of them.
+
+List admins only on an identity provider that verifies email addresses: whoever first signs in with a listed address the provider reports as verified becomes a system admin. Never enable Dex's `insecureSkipEmailVerified`. With GitHub Enterprise Server, Dex treats every email as verified.
+
+After the first admin signs in, `locoadm admin` manages the rest (`SystemAdminService`, system admins only). `locoadm admin grant <user-id>` makes an existing user a system admin; the user must have signed in once, and the grant attaches to that user, never to an email address. `locoadm admin revoke <user-id>` removes a grant. It refuses an admin who claimed a configured email (remove the email from `LOCO_SYSTEM_ADMINS` instead) and the last system admin. A user with both a claim and a grant keeps `system:admin` when the email leaves the list. `locoadm admin list` prints each admin's user ID, email, identity issuer and subject, and source (`config`, `grant` or both), plus the configured emails nobody has claimed. Grants and revocations record `system_admin.granted` and `system_admin.revoked` events with the acting admin, the user and the source.
 
 ## Upgrades
 

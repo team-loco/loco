@@ -21,6 +21,6 @@ func BuildValidateCmd() *cobra.Command {
 			return err
 		},
 	}
-	command.Flags().StringVar(&file, "file", "installation.yaml", "Installation file")
+	command.Flags().StringVar(&file, "file", installation.DefaultFile, installation.FileFlagUsage)
 	return command
 }

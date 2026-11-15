@@ -12,49 +12,31 @@ import (
 	"testing"
 )
 
-func TestDexLoginFollowsFormAndMaintainsCookie(t *testing.T) {
-	completed := false
+// fixtureTokenServer stands in for Dex's token endpoint and issues idToken for the fixture user.
+func fixtureTokenServer(t *testing.T, idToken string) *httptest.Server {
+	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/auth":
-			//nolint:gosec // This local HTTP login-driver fixture deliberately exercises a non-TLS cookie jar.
-			http.SetCookie(
-				w,
-				&http.Cookie{
-					Name:     "fixture",
-					Value:    "authorization",
-					HttpOnly: true,
-					SameSite: http.SameSiteStrictMode,
-				},
-			)
-			http.Redirect(w, r, "/login", http.StatusFound)
-		case "/login":
-			fmt.Fprint(
-				w,
-				`<form action="/complete" method="post"><input name="login">`+
-					`<input name="password" type="password"><input name="state" value="kept"></form>`,
-			)
-		case "/complete":
-			if checkErr := r.ParseForm(); checkErr != nil {
-				t.Error(checkErr)
-			}
-			cookie, err := r.Cookie("fixture")
-			if err != nil || cookie.Value != "authorization" || r.Form.Get("login") != fixtureEmail ||
-				r.Form.Get("password") != fixturePassword ||
-				r.Form.Get("state") != "kept" {
-				t.Error("lost login form, cookie or credentials")
-			}
-			completed = true
-		default:
-			t.Errorf("unexpected request %s", r.URL.Path)
+		if checkErr := r.ParseForm(); checkErr != nil {
+			t.Error(checkErr)
 		}
+		if r.URL.Path != "/token" || r.Form.Get("grant_type") != formPassword ||
+			r.Form.Get("client_id") != fixtureClient || r.Form.Get("username") != fixtureEmail ||
+			r.Form.Get(formPassword) != fixturePassword || !strings.Contains(r.Form.Get("scope"), "openid") {
+			http.Error(w, "unexpected token request", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"access_token":"provider-access","token_type":"bearer","id_token":%q}`, idToken)
 	}))
-	defer server.Close()
-	if checkErr := completeDexLogin(t.Context(), server.URL+"/auth"); checkErr != nil {
-		t.Fatal(checkErr)
-	}
-	if !completed {
-		t.Fatal("login driver did not submit IdP form")
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestFixtureIDTokenUsesThePasswordGrant(t *testing.T) {
+	server := fixtureTokenServer(t, "fixture-id-token")
+	token, err := fixtureIDToken(t.Context(), server.URL)
+	if err != nil || token != "fixture-id-token" {
+		t.Fatalf("ID token = %q (%v), want fixture-id-token", token, err)
 	}
 }
 
@@ -64,7 +46,7 @@ func TestIdPFailureDoesNotDiscloseResponse(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, canary, http.StatusBadGateway) }),
 	)
 	defer server.Close()
-	err := completeDexLogin(t.Context(), server.URL)
+	_, err := fixtureIDToken(t.Context(), server.URL)
 	if err == nil || strings.Contains(err.Error(), canary) {
 		t.Fatalf("unsafe IdP error: %v", err)
 	}

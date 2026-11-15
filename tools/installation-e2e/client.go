@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"os/exec"
@@ -22,29 +21,20 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/html"
-
+	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
 var (
-	errBootstrapAuthentication        = errors.New("authenticated bootstrap failed")
-	errBootstrapAuthenticationMissing = errors.New("bootstrap did not start IdP authentication")
-	errBootstrapDrain                 = errors.New("drain bootstrap output failed")
-	errBootstrapOutputLimit           = errors.New("bootstrap output exceeded scanner limit")
-	errBootstrapStop                  = errors.New("stop bootstrap subprocess failed")
-)
-
-var (
-	errProviderAuthenticationIncomplete = errors.New("fixture IdP authentication did not complete")
-	errProviderAuthorizationURL         = errors.New("invalid fixture IdP authorization URL")
-	errProviderFormAction               = errors.New("invalid fixture IdP form action")
-	errProviderLoginForm                = errors.New("fixture IdP did not offer its password login form")
-	errProviderLoginOpen                = errors.New("open fixture IdP login failed")
-	errProviderLoginRead                = errors.New("read fixture IdP form failed")
-	errProviderLoginSubmit              = errors.New("submit fixture IdP login failed")
-	errProviderSubmissionURL            = errors.New("invalid fixture IdP submission URL")
+	errLogin            = errors.New("locoadm login failed")
+	errLoginCodeMissing = errors.New("locoadm login printed no device code")
+	errLoginDrain       = errors.New("drain locoadm login output failed")
+	errLoginOutputLimit = errors.New("locoadm login output exceeded scanner limit")
+	errLoginStop        = errors.New("stop locoadm login failed")
+	errProviderToken    = errors.New("fixture IdP did not issue an ID token")
+	errDeviceApproval   = errors.New("approve the device code with the fixture IdP token failed")
+	errAdminsUnclaimed  = errors.New("status reports configured admins nobody claimed after sign-in")
 )
 
 var (
@@ -71,9 +61,15 @@ var (
 )
 
 const (
-	fixtureEmail           = "dev@loco.test"
-	fixturePassword        = "loco-dev"
-	clientFile             = "/installation/installation.yaml"
+	fixtureEmail    = "dev@loco.test"
+	fixturePassword = "loco-dev"
+	// fixtureIssuer and fixtureAPIURL match tests/e2e/fixtures/installation/loco-install.yaml.
+	fixtureIssuer = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
+	fixtureAPIURL = "http://api.installation.test"
+	fixtureClient = "loco"
+	// formPassword names both the OAuth password grant and its password field.
+	formPassword           = "password"
+	clientFile             = "/installation/loco-install.yaml"
 	clientTimeout          = 45 * time.Minute
 	fixtureWorkloadTimeout = 5 * time.Minute
 	httpsReadyTimeout      = 2 * time.Minute
@@ -135,29 +131,32 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if dnsErr := configureGatewayDNS(ctx, controlNamespace, false); dnsErr != nil {
 		return dnsErr
 	}
-	operatorPhase(phasePreBootstrapAudit)
-	if checkErr := audit.inspect(ctx, "before bootstrap"); checkErr != nil {
+	operatorPhase(phasePreLoginAudit)
+	if checkErr := audit.inspect(ctx, "before login"); checkErr != nil {
 		return checkErr
 	}
-	operatorPhase(phaseBootstrap)
-	if checkErr := bootstrap(ctx); checkErr != nil {
+	operatorPhase(phaseLogin)
+	if checkErr := signIn(ctx, approveDeviceCode); checkErr != nil {
 		return checkErr
 	}
-	operatorPhase(phasePostBootstrapAudit)
-	if checkErr := audit.inspect(ctx, "bootstrap complete"); checkErr != nil {
+	operatorPhase(phasePostLoginAudit)
+	if checkErr := audit.inspect(ctx, "login complete"); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := requireAdminsClaimed(ctx); checkErr != nil {
 		return checkErr
 	}
 	operatorPhase(phaseWorkers)
 	if _, targetErr := locoadm(ctx, "cluster", "list"); targetErr != nil {
-		return fmt.Errorf("saved bootstrap target: %w", targetErr)
+		return fmt.Errorf("saved login target: %w", targetErr)
 	}
-	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
+	if _, checkErr := locoadm(ctx, "cluster", "attach", "--file", clientFile); checkErr != nil {
 		return checkErr
 	}
 	if dnsErr := configureGatewayDNS(ctx, workerNamespace, true); dnsErr != nil {
 		return dnsErr
 	}
-	if checkErr := audit.inspect(ctx, "workers applied"); checkErr != nil {
+	if checkErr := audit.inspect(ctx, "workers attached"); checkErr != nil {
 		return checkErr
 	}
 	operatorPhase(phaseRepeatApply)
@@ -165,7 +164,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if err != nil {
 		return err
 	}
-	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
+	if checkErr := applyAndAttach(ctx); checkErr != nil {
 		return checkErr
 	}
 	if checkErr := audit.inspect(ctx, "repeat apply complete"); checkErr != nil {
@@ -178,35 +177,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if before != after {
 		return errReapplyIdentityChanged
 	}
-	// A fresh local credential store must recover the existing administrator and clean up,
-	// rather than requiring an IdP token or an internal installation token copied by hand.
-	operatorPhase(phaseFreshHome)
-	originalHome := os.Getenv("HOME")
-	if checkErr := os.Setenv("HOME", "/tmp/operator-second"); checkErr != nil {
-		return checkErr
-	}
-	if checkErr := bootstrap(ctx); checkErr != nil {
-		return fmt.Errorf("resume from fresh operator state: %w", checkErr)
-	}
-	operatorPhase(phasePostBootstrapAudit)
-	if checkErr := audit.inspect(ctx, "fresh bootstrap complete"); checkErr != nil {
-		return checkErr
-	}
-	operatorPhase(phaseFreshHome)
-	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
-		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
-	}
-	if checkErr := audit.inspect(ctx, "fresh apply complete"); checkErr != nil {
-		return checkErr
-	}
-	after, err = identitySnapshot(ctx)
-	if err != nil {
-		return err
-	}
-	if before != after {
-		return errFreshOperatorIdentityChanged
-	}
-	if checkErr := os.Setenv("HOME", originalHome); checkErr != nil {
+	if checkErr := freshOperator(ctx, audit, before); checkErr != nil {
 		return checkErr
 	}
 	operatorPhase(phaseWorkloads)
@@ -221,24 +192,75 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	return nil
 }
 
-func bootstrap(ctx context.Context) (result error) {
+// freshOperator checks that a fresh local credential store signs in again and reapplies
+// without replacing installation credentials or the worker identity.
+func freshOperator(ctx context.Context, audit *leakAudit, before string) error {
+	operatorPhase(phaseFreshHome)
+	originalHome := os.Getenv("HOME")
+	if checkErr := os.Setenv("HOME", "/tmp/operator-second"); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := signIn(ctx, approveDeviceCode); checkErr != nil {
+		return fmt.Errorf("sign in from fresh operator state: %w", checkErr)
+	}
+	operatorPhase(phasePostLoginAudit)
+	if checkErr := audit.inspect(ctx, "fresh login complete"); checkErr != nil {
+		return checkErr
+	}
+	operatorPhase(phaseFreshHome)
+	if checkErr := applyAndAttach(ctx); checkErr != nil {
+		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
+	}
+	if checkErr := audit.inspect(ctx, "fresh apply complete"); checkErr != nil {
+		return checkErr
+	}
+	after, err := identitySnapshot(ctx)
+	if err != nil {
+		return err
+	}
+	if before != after {
+		return errFreshOperatorIdentityChanged
+	}
+	return os.Setenv("HOME", originalHome)
+}
+
+func applyAndAttach(ctx context.Context) error {
+	if _, err := locoadm(ctx, "apply", "--file", clientFile); err != nil {
+		return err
+	}
+	_, err := locoadm(ctx, "cluster", "attach", "--file", clientFile)
+	return err
+}
+
+func requireAdminsClaimed(ctx context.Context) error {
+	output, err := locoadm(ctx, "status", "--file", clientFile)
+	if err != nil {
+		return err
+	}
+	var status struct {
+		Admins struct {
+			Checked   bool     `json:"checked"`
+			Unclaimed []string `json:"unclaimed"`
+		} `json:"admins"`
+	}
+	if json.Unmarshal(output, &status) != nil || !status.Admins.Checked || len(status.Admins.Unclaimed) != 0 {
+		return errAdminsUnclaimed
+	}
+	return nil
+}
+
+var deviceCodeLine = regexp.MustCompile(`^Open \S+ and enter the code (\S+)$`)
+
+// signIn runs locoadm login --device and approves its code with approve, as a person would
+// approve it in the dashboard.
+func signIn(ctx context.Context, approve func(context.Context, string) error) (result error) {
 	var stderr boundedOutput
 	defer func() {
 		if result != nil {
-			fmt.Fprintln(os.Stderr, bootstrapFailurePrefix+classifyBootstrapFailure(stderr.Bytes()))
+			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
 		}
 	}()
-	operatorPhase(phaseBootstrapAuthorization)
-	cmd := exec.CommandContext(
-		ctx,
-		"locoadm",
-		"bootstrap",
-		"--file",
-		clientFile,
-		"--email",
-		fixtureEmail,
-		"--no-browser",
-	)
+	cmd := exec.CommandContext(ctx, "locoadm", "login", "--file", clientFile, "--device")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -250,144 +272,99 @@ func bootstrap(ctx context.Context) (result error) {
 		cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
 	}
 	if checkErr := cmd.Start(); checkErr != nil {
-		return fmt.Errorf("start bootstrap: %w", checkErr)
+		return fmt.Errorf("start locoadm login: %w", checkErr)
 	}
 	var output io.Reader = stdout
 	if auditing {
 		output = io.TeeReader(stdout, auditWriter{audit, "CLI output (stdout)"})
 	}
 	scanner := bufio.NewScanner(output)
-	var authorization string
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
-			authorization = line
-			break
+	code := ""
+	for code == "" && scanner.Scan() {
+		if match := deviceCodeLine.FindStringSubmatch(scanner.Text()); match != nil {
+			code = match[1]
 		}
 	}
 	if scanner.Err() != nil {
-		return errors.Join(errBootstrapOutputLimit, stopBootstrap(cmd, output))
+		return errors.Join(errLoginOutputLimit, stopLogin(cmd, output))
 	}
-	if authorization == "" {
-		return errors.Join(errBootstrapAuthenticationMissing, cmd.Wait())
+	if code == "" {
+		return errors.Join(errLoginCodeMissing, cmd.Wait())
 	}
-	operatorPhase(phaseBootstrapBrowser)
-	if checkErr := completeDexLogin(ctx, authorization); checkErr != nil {
-		return errors.Join(checkErr, stopBootstrap(cmd, output))
+	operatorPhase(phaseLoginApprove)
+	if checkErr := approve(ctx, code); checkErr != nil {
+		return errors.Join(checkErr, stopLogin(cmd, output))
 	}
-	operatorPhase(phaseBootstrapBrowserComplete)
-	// Continue through the scanner: it may already hold bytes past the URL.
-	for scanner.Scan() {
-		if scanner.Text() == "Verified administrator: "+fixtureEmail {
-			operatorPhase(phaseBootstrapGrant)
-		}
-	}
+	operatorPhase(phaseLoginApproved)
 	_, copyErr := io.Copy(io.Discard, output)
-	waitErr := cmd.Wait()
-	if scanner.Err() != nil || copyErr != nil || waitErr != nil {
-		return errBootstrapAuthentication
+	if waitErr := cmd.Wait(); copyErr != nil || waitErr != nil {
+		return errLogin
 	}
 	return nil
 }
 
-func stopBootstrap(cmd *exec.Cmd, output io.Reader) error {
+func stopLogin(cmd *exec.Cmd, output io.Reader) error {
 	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return errBootstrapStop
+		return errLoginStop
 	}
-	// Capture queued stdout before Wait closes the pipe on failed authentication.
+	// Capture queued stdout before Wait closes the pipe.
 	_, drainErr := io.Copy(io.Discard, output)
 	stopErr := stopProcess(cmd)
 	if drainErr != nil {
-		return errors.Join(errBootstrapDrain, stopErr)
+		return errors.Join(errLoginDrain, stopErr)
 	}
 	return stopErr
 }
 
-func completeDexLogin(ctx context.Context, authorization string) error {
-	jar, err := cookiejar.New(nil)
+// approveDeviceCode signs in to the fixture IdP and approves the code through the API's
+// ApproveDeviceLogin, the call the dashboard makes when a person approves a sign-in.
+func approveDeviceCode(ctx context.Context, code string) error {
+	idToken, err := fixtureIDToken(ctx, fixtureIssuer)
 	if err != nil {
 		return err
 	}
-	client := &http.Client{Jar: jar, Timeout: time.Minute}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, authorization, nil)
+	_, err = rpc.ForHost(fixtureAPIURL, idToken).Auth.ApproveDeviceLogin(
+		ctx, &authv1.ApproveDeviceLoginRequest{UserCode: code},
+	)
 	if err != nil {
-		return errProviderAuthorizationURL
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		return errProviderLoginOpen
-	}
-	defer response.Body.Close()
-	document, err := html.Parse(io.LimitReader(response.Body, fixtureResponseLimit))
-	if err != nil {
-		return errProviderLoginRead
-	}
-	action, values, ok := loginForm(document)
-	if !ok {
-		return errProviderLoginForm
-	}
-	target, err := response.Request.URL.Parse(action)
-	if err != nil {
-		return errProviderFormAction
-	}
-	values.Set("login", fixtureEmail)
-	values.Set("password", fixturePassword)
-	request, err = http.NewRequestWithContext(ctx, http.MethodPost, target.String(), strings.NewReader(values.Encode()))
-	if err != nil {
-		return errProviderSubmissionURL
-	}
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	result, err := client.Do(request)
-	if err != nil {
-		return errProviderLoginSubmit
-	}
-	defer result.Body.Close()
-	if result.StatusCode != http.StatusOK {
-		return errProviderAuthenticationIncomplete
+		return errDeviceApproval
 	}
 	return nil
 }
 
-func loginForm(node *html.Node) (string, url.Values, bool) {
-	if node.Type == html.ElementNode && node.Data == "form" {
-		action := ""
-		for _, attribute := range node.Attr {
-			if attribute.Key == "action" {
-				action = attribute.Val
-			}
-		}
-		values := url.Values{}
-		var inputs func(*html.Node)
-		inputs = func(n *html.Node) {
-			if n.Type == html.ElementNode && n.Data == "input" {
-				name, value := "", ""
-				for _, attribute := range n.Attr {
-					switch attribute.Key {
-					case "name":
-						name = attribute.Val
-					case "value":
-						value = attribute.Val
-					}
-				}
-				if name != "" {
-					values.Set(name, value)
-				}
-			}
-			for child := n.FirstChild; child != nil; child = child.NextSibling {
-				inputs(child)
-			}
-		}
-		inputs(node)
-		if values.Has("login") && values.Has("password") {
-			return action, values, true
-		}
+// fixtureIDToken signs in through the fixture IdP's password grant.
+func fixtureIDToken(ctx context.Context, issuer string) (string, error) {
+	form := url.Values{
+		"grant_type": {formPassword},
+		"client_id":  {fixtureClient},
+		"username":   {fixtureEmail},
+		formPassword: {fixturePassword},
+		"scope":      {"openid email profile"},
 	}
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if action, values, ok := loginForm(child); ok {
-			return action, values, true
-		}
+	request, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, issuer+"/token", strings.NewReader(form.Encode()),
+	)
+	if err != nil {
+		return "", errProviderToken
 	}
-	return "", nil, false
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := (&http.Client{Timeout: time.Minute}).Do(request)
+	if err != nil {
+		return "", errProviderToken
+	}
+	defer response.Body.Close()
+	var tokens struct {
+		IDToken string `json:"id_token"`
+	}
+	if response.StatusCode != http.StatusOK ||
+		json.NewDecoder(io.LimitReader(response.Body, fixtureResponseLimit)).Decode(&tokens) != nil ||
+		tokens.IDToken == "" {
+		return "", errProviderToken
+	}
+	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
+		audit.add([]byte(tokens.IDToken))
+	}
+	return tokens.IDToken, nil
 }
 
 func identitySnapshot(ctx context.Context) (string, error) {

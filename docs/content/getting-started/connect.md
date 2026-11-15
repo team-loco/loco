@@ -10,6 +10,8 @@ The default API host is `https://api.loco.build`; the default dashboard is `http
 
 An account that belongs to no organization gets one on its first sign-in from the CLI or the dashboard, named after the account (`Ada's Org`, or `ada@example.com's Org` without a profile name), with a `default` workspace.
 
+An account signs in through the identity that created it: the same identity-provider account each time. A sign-in through a different identity, such as another provider or another account at the same provider, whose email already belongs to an account is refused with `An account with this email already exists.`
+
 ## Staging
 
 ```sh

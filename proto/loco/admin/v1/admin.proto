@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package loco.admin.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/admin/v1;adminv1";
+
+// SystemAdminService lists, grants and revokes system:admin. Every RPC requires system admin.
+service SystemAdminService {
+  // ListSystemAdmins lists the system admins and the configured emails nobody has claimed.
+  rpc ListSystemAdmins(ListSystemAdminsRequest) returns (ListSystemAdminsResponse);
+  // GrantSystemAdmin makes an existing user a system admin.
+  rpc GrantSystemAdmin(GrantSystemAdminRequest) returns (GrantSystemAdminResponse);
+  // RevokeSystemAdmin removes a grant made with GrantSystemAdmin. It refuses to remove the
+  // last system admin and an admin that holds the role only through configuration.
+  rpc RevokeSystemAdmin(RevokeSystemAdminRequest) returns (RevokeSystemAdminResponse);
+}
+
+// SystemAdminSource says why a user holds system:admin.
+enum SystemAdminSource {
+  SYSTEM_ADMIN_SOURCE_UNSPECIFIED = 0;
+  // The user claimed an email listed in the API's LOCO_SYSTEM_ADMINS.
+  SYSTEM_ADMIN_SOURCE_CONFIG = 1;
+  // A system admin granted the role with GrantSystemAdmin.
+  SYSTEM_ADMIN_SOURCE_GRANT = 2;
+}
+
+message SystemAdmin {
+  string user_id = 1;
+  string email = 2;
+  // issuer and subject identify the identity the user signs in through.
+  string issuer = 3;
+  string subject = 4;
+  repeated SystemAdminSource sources = 5;
+}
+
+message ListSystemAdminsRequest {}
+
+message ListSystemAdminsResponse {
+  repeated SystemAdmin admins = 1;
+  // unclaimed_emails are configured emails no user has claimed yet.
+  repeated string unclaimed_emails = 2;
+}
+
+message GrantSystemAdminRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GrantSystemAdminResponse {}
+
+message RevokeSystemAdminRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RevokeSystemAdminResponse {}

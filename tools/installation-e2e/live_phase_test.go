@@ -16,7 +16,7 @@ func TestOperatorForwardsOnlyCompleteKnownPhasesBeforeExit(t *testing.T) {
 	fakeOperatorCommand(t, `#!/bin/sh
 printf '%s' "$OPERATOR_TEST_OUTPUT"
 while [ ! -f "$OPERATOR_TEST_ACK" ]; do /bin/sleep 0.01; done
-printf 'installation-e2e bootstrap failure: api-unavailable\n'
+printf 'installation-e2e login failure: api-unavailable\n'
 printf 'installation-e2e phase: workers'
 exit 1
 `)
@@ -64,7 +64,7 @@ exit 1
 	if forwarded := <-output; forwarded != want {
 		t.Errorf("forwarded output = %q, want only %q before operator exit", forwarded, want)
 	}
-	if runErr == nil || !strings.Contains(runErr.Error(), "phase network-policy, bootstrap failure api-unavailable") {
+	if runErr == nil || !strings.Contains(runErr.Error(), "phase network-policy, login failure api-unavailable") {
 		t.Errorf("operator failure lost its safe phase/category: %v", runErr)
 	}
 }

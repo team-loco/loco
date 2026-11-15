@@ -16,8 +16,7 @@ var controlPlaneTemplate = template.Must(template.New("control-plane").Funcs(val
 api:
   image: {{with image .Manifest "api"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
   existingSecret: loco-api-env
-  bootstrapToken:
-    existingSecret: {name: {{quote .Bootstrap}}, key: token}
+  systemAdmins: [{{range $i, $admin := .Config.ControlPlane.Admins}}{{if $i}}, {{end}}{{quote $admin}}{{end}}]
   env:
     WEB_URL: {{quote .Config.ControlPlane.WebURL}}
     CORS_ALLOWED_ORIGINS: {{quote .Config.ControlPlane.WebURL}}
@@ -58,7 +57,7 @@ obsProxy:
     hostname: {{quote .IngestHost}}
 `))
 
-func controlPlaneValues(config Config, manifest Manifest, completed bool) ([]byte, error) {
+func controlPlaneValues(config Config, manifest Manifest) ([]byte, error) {
 	cp := config.ControlPlane
 	issuer, err := json.Marshal(
 		[]map[string]any{
@@ -73,17 +72,13 @@ func controlPlaneValues(config Config, manifest Manifest, completed bool) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	bootstrap := ""
-	if !completed {
-		bootstrap = BootstrapSecret
-	}
 	data := struct {
-		Config                                                        Config
-		Manifest                                                      Manifest
-		Issuer, Bootstrap, APIHost, WebHost, IngestHost, RegistryHost string
-		TLS                                                           bool
+		Config                                             Config
+		Manifest                                           Manifest
+		Issuer, APIHost, WebHost, IngestHost, RegistryHost string
+		TLS                                                bool
 	}{
-		Config: config, Manifest: manifest, Issuer: string(issuer), Bootstrap: bootstrap,
+		Config: config, Manifest: manifest, Issuer: string(issuer),
 		APIHost: validatedURL(cp.APIURL).Hostname(), WebHost: validatedURL(cp.WebURL).Hostname(),
 		IngestHost: validatedURL(cp.Observability.IngestURL).Hostname(), RegistryHost: registryHost(cp.Registry),
 		TLS: validatedURL(cp.APIURL).Scheme == schemeHTTPS,

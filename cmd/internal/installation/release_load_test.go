@@ -84,7 +84,7 @@ func TestLoadReleaseDefaultsToReleaseBuildVersion(t *testing.T) {
 		"", "(devel)", "e2e", "sha-0123456789abcdef0123456789abcdef01234567",
 		"v0.0.0-20261114120000-0123456789ab", "v1.2.3+dirty",
 	} {
-		_, err := LoadRelease(t.Context(), Config{}, "installation.yaml", cliVersion, io.Discard)
+		_, err := LoadRelease(t.Context(), Config{}, "loco-install.yaml", cliVersion, io.Discard)
 		if !errors.Is(err, errNoRelease) {
 			t.Errorf("locoadm %q: got %v, want a request for release.version or release.manifest", cliVersion, err)
 		}
@@ -106,7 +106,7 @@ func TestLoadReleaseWarnsOnVersionMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := Config{Release: &Release{Manifest: releaseFile}}
-	file := filepath.Join(directory, "installation.yaml")
+	file := filepath.Join(directory, "loco-install.yaml")
 	for cliVersion, warned := range map[string]bool{"v0.7.0": false, "v0.8.0": true} {
 		var warnings bytes.Buffer
 		resolved, err := LoadRelease(t.Context(), config, file, cliVersion, &warnings)

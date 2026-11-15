@@ -140,3 +140,11 @@ func TestWorkerRejectsChangedRegistryCredential(t *testing.T) {
 		t.Fatalf("got %v, want changed or incomplete registry credential rejected", err)
 	}
 }
+
+func TestApplyWorkersRejectsAWorkerTheFileDoesNotList(t *testing.T) {
+	config := Config{Workers: []Worker{{Name: testStaging}}}
+	err := ApplyWorkers(t.Context(), config, ResolvedRelease{}, "operator-session", "production")
+	if !errors.Is(err, errUnknownWorker) {
+		t.Fatalf("got %v, want %v", err, errUnknownWorker)
+	}
+}

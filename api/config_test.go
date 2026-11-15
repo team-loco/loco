@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/guardrails"
 	"github.com/team-loco/loco/api/pkg/registryclient"
@@ -19,7 +20,6 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
-	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/envconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -196,7 +196,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	}
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
-	t.Setenv(bootstrapEnv, "")
+	t.Setenv(systemAdminsEnv, "")
 	t.Setenv("INVITATION_TTL", "")
 	t.Setenv(otlpEndpointEnv, "")
 	t.Setenv(otlpTracesEndpointEnv, "")
@@ -263,19 +263,18 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 	}
 }
 
-func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {
+func TestNewAPIConfigReadsSystemAdmins(t *testing.T) {
 	clearAPIConfigEnv(t)
-	if ac := newAPIConfig(); ac.BootstrapTokenHash != nil {
-		t.Fatalf("bootstrap token hash = %x without a token", ac.BootstrapTokenHash)
+	if ac := newAPIConfig(); len(ac.SystemAdmins) != 0 {
+		t.Fatalf("system admins = %v without %s", ac.SystemAdmins, systemAdminsEnv)
 	}
-	token := bearer.New("")
-	t.Setenv(bootstrapEnv, token)
+	t.Setenv(systemAdminsEnv, "Ada@Example.test, grace@example.test,ada@example.test")
 	ac := newAPIConfig()
-	if !slices.Equal(ac.BootstrapTokenHash, service.HashBootstrapToken(token)) {
-		t.Fatalf("bootstrap token hash = %x", ac.BootstrapTokenHash)
+	want := auth.SystemAdmins{"ada@example.test", "grace@example.test"}
+	if !slices.Equal(ac.SystemAdmins, want) {
+		t.Fatalf("system admins = %v, want %v", ac.SystemAdmins, want)
 	}
 }
-
 func TestNewAPIConfigDefaults(t *testing.T) {
 	clearAPIConfigEnv(t)
 	ac := newAPIConfig()
@@ -770,11 +769,13 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			map[string]string{orgLinksEnv: `[{"label":"Support","url":"https://support.loco.test/{userId}"}]`},
 			errInvalidOrgLinks,
 		},
+		{"system admin that is not an email", map[string]string{systemAdminsEnv: "admin"}, errInvalidSystemAdmins},
 		{
-			"short bootstrap token",
-			map[string]string{bootstrapEnv: bearer.New("")[:minBootstrapTokenLength-1]},
-			errShortBootstrapToken,
+			"system admin with a display name",
+			map[string]string{systemAdminsEnv: "Ada <ada@example.test>"},
+			errInvalidSystemAdmins,
 		},
+		{"empty system admin entry", map[string]string{systemAdminsEnv: "ada@example.test,"}, errInvalidSystemAdmins},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
 		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},

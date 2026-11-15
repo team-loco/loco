@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -66,25 +67,64 @@ func TestResolveProvisionsOnceAndGrantsSelfScopes(t *testing.T) {
 	}
 }
 
-func TestResolveLinksVerifiedEmailToExistingUser(t *testing.T) {
+func TestResolveRefusesASecondIdentityWithTheSameEmail(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t), limits.Defaults())
+	q := genDb.New(pool)
 
-	github, _, err := r.Resolve(t.Context(), Identity{
-		Issuer: "https://github.com", Subject: "42", Email: "dev@example.test", EmailVerified: true,
-	})
+	original := Identity{Issuer: otherIssuerURL, Subject: "42", Email: "one@example.test", EmailVerified: true}
+	user, _, err := r.Resolve(t.Context(), original)
 	if err != nil {
-		t.Fatalf("github resolve: %v", err)
+		t.Fatalf("original resolve: %v", err)
 	}
-	saml, _, err := r.Resolve(t.Context(), identity("saml-user", "dev@example.test", true))
-	if err != nil {
-		t.Fatalf("saml resolve: %v", err)
+	for _, second := range []Identity{
+		identity("other-issuer", "one@example.test", true),
+		{Issuer: otherIssuerURL, Subject: "43", Email: "one@example.test", EmailVerified: true},
+	} {
+		_, _, err = r.Resolve(t.Context(), second)
+		if !errors.Is(err, ErrEmailTaken) {
+			t.Fatalf("second identity %s %s err = %v, want %v", second.Issuer, second.Subject, err, ErrEmailTaken)
+		}
+		_, err = q.GetUserByIdentity(t.Context(), genDb.GetUserByIdentityParams{
+			Issuer: second.Issuer, Subject: second.Subject,
+		})
+		if !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("second identity %s %s stored: %v", second.Issuer, second.Subject, err)
+		}
 	}
-	if saml.ID != github.ID {
-		t.Fatalf("verified email created a second user: %s vs %s", saml.ID, github.ID)
+	again, _, err := r.Resolve(t.Context(), original)
+	if err != nil || again.ID != user.ID {
+		t.Fatalf("original identity resolved %s (%v), want %s", again.ID, err, user.ID)
 	}
 }
 
+func TestResolveConcurrentIdentitiesWithOneEmailCreateOneUser(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	r := NewResolver(pool, open(t), limits.Defaults())
+
+	const n = 8
+	errs := make([]error, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Go(func() {
+			id := identity(fmt.Sprintf("race-%d", i), "race@example.test", true)
+			_, _, errs[i] = r.Resolve(context.Background(), id)
+		})
+	}
+	wg.Wait()
+	created := 0
+	for i, err := range errs {
+		switch {
+		case err == nil:
+			created++
+		case !errors.Is(err, ErrEmailTaken):
+			t.Fatalf("resolve %d: %v, want nil or %v", i, err, ErrEmailTaken)
+		}
+	}
+	if created != 1 {
+		t.Fatalf("%d identities signed in, want 1", created)
+	}
+}
 func TestResolveRejectsUnverifiedEmailCollision(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	r := NewResolver(pool, open(t), limits.Defaults())
@@ -133,30 +173,6 @@ func TestResolveUnverifiedIdentityNeverCreatesAnAccount(t *testing.T) {
 	}
 }
 
-func TestResolveDoesNotLinkIntoAccountWithUnverifiedIdentity(t *testing.T) {
-	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
-	q := genDb.New(pool)
-
-	if _, _, err := r.Resolve(t.Context(), identity("first", "dev@example.test", true)); err != nil {
-		t.Fatalf("first resolve: %v", err)
-	}
-	if _, _, err := r.Resolve(t.Context(), identity("first", "dev@example.test", false)); err != nil {
-		t.Fatalf("first identity, now unverified: %v", err)
-	}
-
-	_, _, err := r.Resolve(t.Context(), identity("second", "dev@example.test", true))
-	if !errors.Is(err, ErrEmailTaken) {
-		t.Fatalf("link into unverified account err = %v, want %v", err, ErrEmailTaken)
-	}
-	_, err = q.GetUserByIdentity(t.Context(), genDb.GetUserByIdentityParams{
-		Issuer: testIssuerURL, Subject: "second",
-	})
-	if !errors.Is(err, pgx.ErrNoRows) {
-		t.Fatalf("second identity stored: %v", err)
-	}
-}
-
 func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	policy, err := ParseSignupPolicy("closed")
@@ -190,9 +206,6 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 	r := NewResolver(pool, closed, limits.Defaults())
 	if _, _, err := r.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("existing identity blocked: %v", err)
-	}
-	if _, _, err := r.Resolve(t.Context(), identity("s2", "dev@example.test", true)); err != nil {
-		t.Fatalf("verified link to existing user blocked: %v", err)
 	}
 }
 
@@ -258,16 +271,6 @@ func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
 	if err != nil || stored.Email != newAccountEmail {
 		t.Fatalf("account email = %q %v, want %s", stored.Email, err, newAccountEmail)
 	}
-
-	other, _, err := r.Resolve(t.Context(), Identity{
-		Issuer: otherIssuerURL, Subject: "elsewhere", Email: newAccountEmail, EmailVerified: true,
-	})
-	if err != nil {
-		t.Fatalf("other issuer at the new address: %v", err)
-	}
-	if other.ID != user.ID {
-		t.Fatalf("other issuer at the new address created user %s, want %s", other.ID, user.ID)
-	}
 }
 
 func TestResolveUnverifiedEmailChangeKeepsTheAccountEmail(t *testing.T) {
@@ -327,26 +330,6 @@ func TestResolveVerifiedEmailChangeKeepsAnAddressAnotherUserHas(t *testing.T) {
 	kept, err := q.GetUserByID(t.Context(), holder.ID)
 	if err != nil || kept.Email != "taken@example.test" {
 		t.Fatalf("holder email = %q %v, want taken@example.test", kept.Email, err)
-	}
-}
-
-func TestResolveEmailChangeKeepsAnAccountEmailAnotherIdentityConfirms(t *testing.T) {
-	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
-
-	user, _, err := r.Resolve(t.Context(), identity("first", "shared@example.test", true))
-	if err != nil {
-		t.Fatalf("signup: %v", err)
-	}
-	if _, _, linkErr := r.Resolve(t.Context(), identity("second", "shared@example.test", true)); linkErr != nil {
-		t.Fatalf("link: %v", linkErr)
-	}
-	resolved, _, err := r.Resolve(t.Context(), identity("second", "moved@example.test", true))
-	if err != nil {
-		t.Fatalf("sign-in with a changed email: %v", err)
-	}
-	if resolved.ID != user.ID || resolved.Email != "shared@example.test" {
-		t.Fatalf("resolved user = %s %s, want %s shared@example.test", resolved.ID, resolved.Email, user.ID)
 	}
 }
 
@@ -650,17 +633,6 @@ func TestResolveClosedModeExistingUserClaimsInvitations(t *testing.T) {
 	}
 	if len(claimed) != 1 || claimed[0].OrgID != signIn || !f.isMember(t, user.ID, signIn) {
 		t.Fatalf("existing identity claimed %+v, want %s", claimed, signIn)
-	}
-
-	linked := f.org(t, "linked")
-	f.invite(t, linked, inviteeEmail, invitationTTL)
-	other := Identity{Issuer: otherIssuerURL, Subject: "other", Email: inviteeEmail, EmailVerified: true}
-	resolved, claimed, err := r.Resolve(t.Context(), other)
-	if err != nil {
-		t.Fatalf("new identity for an existing user: %v", err)
-	}
-	if resolved.ID != user.ID || len(claimed) != 1 || claimed[0].OrgID != linked || !f.isMember(t, user.ID, linked) {
-		t.Fatalf("linked identity resolved %s and claimed %+v, want %s and %s", resolved.ID, claimed, user.ID, linked)
 	}
 }
 

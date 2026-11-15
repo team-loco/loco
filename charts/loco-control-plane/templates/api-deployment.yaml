@@ -81,14 +81,9 @@ spec:
             - name: LOCO_SECRETS_TRANSIT_CA_FILE
               value: {{ include "loco-control-plane.openbaoCAFile" . }}
             {{- end }}
-            {{- with .Values.api.bootstrapToken.existingSecret }}
-            {{- if .name }}
-            - name: LOCO_BOOTSTRAP_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .name | quote }}
-                  key: {{ .key | quote }}
-            {{- end }}
+            {{- with .Values.api.systemAdmins }}
+            - name: LOCO_SYSTEM_ADMINS
+              value: {{ join "," . | quote }}
             {{- end }}
             {{- with .Values.api.invitationTtl }}
             - name: INVITATION_TTL

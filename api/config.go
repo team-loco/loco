@@ -50,7 +50,7 @@ var (
 	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
 	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
-	errShortBootstrapToken    = errors.New(bootstrapEnv + " is too short")
+	errInvalidSystemAdmins    = errors.New(systemAdminsEnv + " is invalid")
 	errInvalidIngestKey       = errors.New("LOCO_INGEST_TRANSIT_KEY is invalid")
 	errInvalidRegistryAuth    = errors.New("LOCO_REGISTRY_AUTH must be static or token")
 	errInvalidRegistryKey     = errors.New("LOCO_REGISTRY_TRANSIT_KEY is invalid")
@@ -147,8 +147,7 @@ const (
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 	defaultInvitationTTL             = 168 * time.Hour
 
-	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
-	minBootstrapTokenLength    = 32
+	systemAdminsEnv            = "LOCO_SYSTEM_ADMINS"
 	defaultIngestTokenLifetime = time.Hour
 
 	defaultRegistryAccessTokenLifetime    = 5 * time.Minute
@@ -238,7 +237,7 @@ type APIConfig struct {
 	SecretLimits          service.SecretConfig
 	CountLimits           *configv1.CountLimits
 	HeartbeatInterval     time.Duration
-	BootstrapTokenHash    []byte
+	SystemAdmins          auth.SystemAdmins
 	TracingEnabled        bool
 }
 
@@ -273,7 +272,7 @@ func newAPIConfig() *APIConfig {
 	registryAuth := newRegistryAuthConfig(registry, registryHost, secrets.Key, ingestConfig.TransitKey)
 	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
 	heartbeatInterval := envconfig.PositiveDuration("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
-	bootstrapTokenHash := newBootstrapTokenHash()
+	systemAdmins := newSystemAdmins()
 	tracingEnabled := newTracingEnabled()
 	webURL := envconfig.String("WEB_URL", "")
 	invitations := newInvitationConfig(webURL)
@@ -329,7 +328,7 @@ func newAPIConfig() *APIConfig {
 		SecretLimits:          secretLimits,
 		CountLimits:           newCountLimits(),
 		HeartbeatInterval:     heartbeatInterval,
-		BootstrapTokenHash:    bootstrapTokenHash,
+		SystemAdmins:          systemAdmins,
 		TracingEnabled:        tracingEnabled,
 	}
 }
@@ -431,15 +430,12 @@ func newInvitationConfig(webURL string) service.InvitationConfig {
 	}
 }
 
-func newBootstrapTokenHash() []byte {
-	token := envconfig.String(bootstrapEnv, "")
-	if token == "" {
-		return nil
+func newSystemAdmins() auth.SystemAdmins {
+	admins, err := auth.ParseSystemAdmins(listEnv(systemAdminsEnv))
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidSystemAdmins, err))
 	}
-	if len(token) < minBootstrapTokenLength {
-		panic(fmt.Errorf("%w: use at least %d characters", errShortBootstrapToken, minBootstrapTokenLength))
-	}
-	return service.HashBootstrapToken(token)
+	return admins
 }
 
 func newTransitConfig() transit.Config {

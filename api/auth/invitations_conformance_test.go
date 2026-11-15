@@ -49,9 +49,9 @@ const (
 	erinEmail  = "erin@dex.test"
 	erinPass   = "erinpw"
 
-	adminSubject = "bootstrap-admin"
+	adminSubject = "configured-admin"
 	adminEmail   = "admin@loco.test"
-	adminIssuer  = "https://bootstrap.loco.test"
+	adminIssuer  = "https://admin.loco.test"
 
 	signupModeClosed = "closed"
 	signupModeOpen   = "open"
@@ -60,11 +60,12 @@ const (
 )
 
 type journeyAPI struct {
-	pool    *pgxpool.Pool
-	queries *genDb.Queries
-	url     string
-	admin   *rpc.Clients
-	adminID uuid.UUID
+	pool     *pgxpool.Pool
+	queries  *genDb.Queries
+	verifier *auth.Verifier
+	url      string
+	admin    *rpc.Clients
+	adminID  uuid.UUID
 }
 
 func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
@@ -107,39 +108,43 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults()).Resolve(t.Context(), auth.Identity{
-		Issuer: adminIssuer, Subject: adminSubject, Email: adminEmail, EmailVerified: true,
-	})
-	if err != nil {
-		t.Fatalf("bootstrap admin: %v", err)
+	admins := auth.SystemAdmins{adminEmail}
+	if err = auth.SyncSystemAdmins(t.Context(), pool, admins); err != nil {
+		t.Fatalf("configure the system admin: %v", err)
 	}
-	if scopeErr := queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
-		UserID: admin.ID, Scope: genDb.ScopeAdmin, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil,
-	}); scopeErr != nil {
-		t.Fatalf("grant system admin: %v", scopeErr)
+	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults(), auth.WithSystemAdmins(admins)).
+		Resolve(t.Context(), auth.Identity{
+			Issuer: adminIssuer, Subject: adminSubject, Email: adminEmail, EmailVerified: true,
+		})
+	if err != nil {
+		t.Fatalf("configured admin sign-in: %v", err)
 	}
 	session, _, err := machine.IssueSession(t.Context(), admin.ID, nil, netip.Addr{}, "journey")
 	if err != nil {
 		t.Fatalf("admin session: %v", err)
 	}
 	return &journeyAPI{
-		pool:    pool,
-		queries: queries,
-		url:     httpServer.URL,
-		admin:   rpc.NewHTTPClients(http.DefaultClient, httpServer.URL, session),
-		adminID: admin.ID,
+		pool:     pool,
+		queries:  queries,
+		verifier: verifier,
+		url:      httpServer.URL,
+		admin:    rpc.NewHTTPClients(http.DefaultClient, httpServer.URL, session),
+		adminID:  admin.ID,
 	}
 }
 
-func (a *journeyAPI) existingAccount(t *testing.T, email string) {
+// existingAccount creates the account for the Dex identity behind email while signup is open.
+func (a *journeyAPI) existingAccount(t *testing.T, email, password string) {
 	t.Helper()
 	openPolicy, err := auth.ParseSignupPolicy(signupModeOpen)
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	if _, _, err = auth.NewResolver(a.pool, openPolicy, limits.Defaults()).Resolve(t.Context(), auth.Identity{
-		Issuer: adminIssuer, Subject: email, Email: email, EmailVerified: true,
-	}); err != nil {
+	id, err := a.verifier.Verify(t.Context(), passwordGrant(dexTokenURL, dexClientToken, email, password)(t))
+	if err != nil {
+		t.Fatalf("verify the Dex token for %s: %v", email, err)
+	}
+	if _, _, err = auth.NewResolver(a.pool, openPolicy, limits.Defaults()).Resolve(t.Context(), id); err != nil {
 		t.Fatalf("existing account for %s: %v", email, err)
 	}
 }
@@ -172,8 +177,8 @@ type sentInvitations struct {
 
 func TestInvitationsJourney(t *testing.T) {
 	api := newJourneyAPI(t, signupModeClosed)
-	api.existingAccount(t, carolEmail)
-	api.existingAccount(t, daveEmail)
+	api.existingAccount(t, carolEmail, carolPass)
+	api.existingAccount(t, daveEmail, davePass)
 	ctx := t.Context()
 
 	org, err := api.admin.Org.CreateOrg(ctx, &orgv1.CreateOrgRequest{Name: new(journeyOrgName)})

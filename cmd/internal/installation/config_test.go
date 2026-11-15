@@ -9,7 +9,7 @@ import (
 
 func example(t *testing.T) []byte {
 	t.Helper()
-	data, err := os.ReadFile("../../../examples/installation/installation.yaml")
+	data, err := os.ReadFile("../../../examples/installation/loco-install.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,16 +36,14 @@ func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
 		"missing boolean": strings.Replace(
 			valid, "metricsServer: {enabled: true, kubeletInsecureTLS: false}", "metricsServer: {}", 1,
 		),
-		"null object":  strings.Replace(valid, "builds: {privateEgress: []}", "builds: null", 1),
-		"unknown role": strings.Replace(valid, "role: all", "role: everything", 1),
-		"wrong scalar": strings.Replace(valid, "clientId: loco", "clientId: 123", 1),
-		"bootstrap remote": strings.Replace(
-			valid,
-			"http://127.0.0.1:8400/callback",
-			"http://"+canary+".example.com:8400/callback",
-			1,
+		"null object":     strings.Replace(valid, "builds: {privateEgress: []}", "builds: null", 1),
+		"unknown role":    strings.Replace(valid, "role: all", "role: everything", 1),
+		"wrong scalar":    strings.Replace(valid, "clientId: loco", "clientId: 123", 1),
+		"no admins":       strings.Replace(valid, "admins: [admin@example.com]", "admins: []", 1),
+		"admin not email": strings.Replace(valid, "admins: [admin@example.com]", "admins: ["+canary+"]", 1),
+		"admin with name": strings.Replace(
+			valid, "admins: [admin@example.com]", `admins: ["Ada <admin@example.com>"]`, 1,
 		),
-		"bootstrap dynamic port": strings.Replace(valid, ":8400/callback", ":0/callback", 1),
 		"registry port": strings.Replace(
 			valid,
 			"endpoint: https://registry.example.com",

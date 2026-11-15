@@ -12,9 +12,11 @@ loco config --help
 
 | Command | Purpose |
 | --- | --- |
-| `locoadm validate --file installation.yaml` | Validate the unreleased [installation file](installation.md) contract |
-| `locoadm plan`, `locoadm apply`, `locoadm status` | Plan, install and inspect the installation selected by `--file` |
-| `locoadm bootstrap --file installation.yaml --email admin@example.com` | Create the first administrator through the installation's identity provider and save its CLI session |
+| `locoadm validate` | Validate the unreleased [installation file](installation.md) contract, `loco-install.yaml` unless `--file` names another |
+| `locoadm plan`, `locoadm apply`, `locoadm status` | Plan, install the control plane of, and inspect the installation file |
+| `locoadm login` | Sign in to the installation file's API with the same session as `loco login`; a configured admin's first sign-in makes it a system admin |
+| `locoadm cluster attach [worker-name]` | Register, enroll and install the installation file's workers |
+| `locoadm admin list`, `grant <user-id>`, `revoke <user-id>` | List, grant and revoke [system admins](../operations/self-hosting.md#first-system-admin) |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
 | `locoadm recovery export` | Encrypt seal material and individual recovery shares for separate custodians |
 | `locoadm org limits get`, `set`, `unset` | Show or override an organization's [count limits](../operations/access.md#count-limits) |

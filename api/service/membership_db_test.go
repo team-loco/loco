@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/gen/go/loco/admin/v1/adminv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -90,6 +91,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, invitations, limits.Defaults()))
 	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries, limits.Defaults()))
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine, auth.Admins{}))
+	adminv1connect.RegisterSystemAdminServiceHandler(server, NewSystemAdminServer(pool, queries))
 	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute, limits.Defaults())
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)
 	mux := http.NewServeMux()

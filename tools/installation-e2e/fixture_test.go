@@ -12,7 +12,7 @@ import (
 )
 
 func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
-	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "installation.yaml")
+	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "loco-install.yaml")
 	if _, err := renderFixtureFile(path, map[string]any{"Version": 1}); err == nil {
 		t.Fatal("missing external cluster identity was accepted")
 	}
@@ -21,6 +21,7 @@ func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
 		map[string]any{
 			"Version":       json.Number("1"),
 			"ClusterUID":    "external-kind-uid",
+			"Email":         fixtureEmail,
 			"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}},
 		},
 	)

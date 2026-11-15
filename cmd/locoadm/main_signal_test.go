@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/ui"
 
 	"github.com/team-loco/loco/cmd/internal/installation"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 )
 
 const (
@@ -32,7 +33,7 @@ func TestSignalsCancelRunningCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := filepath.Abs("../../examples/installation/installation.yaml")
+	file, err := filepath.Abs("../../examples/installation/loco-install.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,8 +69,9 @@ users:
 			ctx, cancel := context.WithTimeout(t.Context(), signalTestTimeout)
 			defer cancel()
 			child := exec.CommandContext(ctx, executable, "-test.run=^TestLocoadmSignalChild$", "--",
-				"bootstrap", "--file", file, "--email", "admin@example.com", "--no-browser")
-			child.Env = append(os.Environ(), signalHelperEnv+"=1", "KUBECONFIG="+kubeconfig)
+				"status", "--file", file)
+			child.Env = append(os.Environ(), signalHelperEnv+"=1", "KUBECONFIG="+kubeconfig,
+				"HOME="+t.TempDir(), keychain.StoreEnvVar+"=file")
 			if err := child.Start(); err != nil {
 				t.Fatal(err)
 			}

@@ -123,8 +123,7 @@ func PlanInstallation(ctx context.Context, config Config, resolved ResolvedRelea
 			"validate target ownership and prerequisites",
 			"preserve or create internal credentials",
 			"install pinned control-plane release",
-			"bootstrap first administrator",
-			"attach configured workers",
+			"attach configured workers with locoadm cluster attach",
 		},
 	}
 	if _, err = kube.clusterUID(ctx); err != nil {
@@ -165,8 +164,7 @@ func PlanInstallation(ctx context.Context, config Config, resolved ResolvedRelea
 	return plan, nil
 }
 
-// ApplyControlPlane stops at the human authentication checkpoint. It requires no
-// API session to establish the control plane itself.
+// ApplyControlPlane installs or upgrades the control plane. It requires no API session.
 func ApplyControlPlane(ctx context.Context, config Config, resolved ResolvedRelease) error {
 	release, err := loadArtifacts(ctx, resolved)
 	if err != nil {
@@ -201,10 +199,8 @@ func ApplyControlPlane(ctx context.Context, config Config, resolved ResolvedRele
 		lockedState.Data["releaseVersion"] = release.manifest.Version
 		lockedState.Data["releaseCommit"] = release.manifest.CoreCommit
 		lockedState.Data["releaseBundle"] = release.bundle
-		var updateErr error
-		lockedState, updateErr = kube.Core.ConfigMaps(kube.Target.Namespace).
-			Update(ctx, lockedState, metav1.UpdateOptions{})
-		if updateErr != nil {
+		if _, updateErr := kube.Core.ConfigMaps(kube.Target.Namespace).
+			Update(ctx, lockedState, metav1.UpdateOptions{}); updateErr != nil {
 			return safeKubernetesError("record credential establishment", updateErr)
 		}
 		if err := kube.applyCRDs(ctx, release.crds); err != nil {
@@ -216,73 +212,12 @@ func ApplyControlPlane(ctx context.Context, config Config, resolved ResolvedRele
 		if err := validateIssuer(ctx, kube, config.ControlPlane.Certificates.IssuerRef); err != nil {
 			return err
 		}
-		values, valuesErr := controlPlaneValues(
-			config,
-			release.manifest,
-			lockedState.Data["bootstrapComplete"] == stateTrue,
-		)
+		values, valuesErr := controlPlaneValues(config, release.manifest)
 		if valuesErr != nil {
 			return valuesErr
 		}
 		if err := installChart(ctx, kube.Target, controlPlaneRelease, release.controlPlane, values); err != nil {
 			return err
-		}
-		return nil
-	})
-}
-
-func CompleteBootstrap(ctx context.Context, config Config, resolved ResolvedRelease) error {
-	release, err := loadArtifacts(ctx, resolved)
-	if err != nil {
-		return err
-	}
-	kube, err := NewKubernetes(config.ControlPlane.Kubernetes)
-	if err != nil {
-		return err
-	}
-	state, err := kube.state(ctx, config.Name)
-	if err != nil {
-		return err
-	}
-	return kube.withLock(ctx, state, func(ctx context.Context, lockedState *corev1.ConfigMap) error {
-		if releaseErr := validateRecordedRelease(lockedState.Data, release.manifest); releaseErr != nil {
-			return releaseErr
-		}
-		values, valuesErr := controlPlaneValues(config, release.manifest, true)
-		if valuesErr != nil {
-			return valuesErr
-		}
-		if err := installChart(
-			ctx,
-			kube.Target,
-			controlPlaneRelease,
-			release.controlPlane,
-			values,
-		); err != nil {
-			return err
-		}
-		// Persist completion before deleting the temporary credential, so a resumed apply
-		// cannot reintroduce it after a crash or a lost acknowledgement.
-		lockedState.Data["bootstrapComplete"] = stateTrue
-		if _, err := kube.Core.ConfigMaps(kube.Target.Namespace).
-			Update(ctx, lockedState, metav1.UpdateOptions{}); err != nil {
-			return safeKubernetesError("record bootstrap completion", err)
-		}
-		secret, err := kube.Core.Secrets(kube.Target.Namespace).Get(ctx, BootstrapSecret, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		if err != nil {
-			return safeKubernetesError("read bootstrap credential", err)
-		}
-		if secret.Annotations[installationID] != string(lockedState.UID) {
-			return errForeignOwnership
-		}
-		uid := secret.UID
-		if err := kube.Core.Secrets(kube.Target.Namespace).
-			Delete(ctx, BootstrapSecret, metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid}}); err != nil &&
-			!apierrors.IsNotFound(err) {
-			return safeKubernetesError("remove bootstrap credential", err)
 		}
 		return nil
 	})
@@ -342,9 +277,6 @@ func (k *Kubernetes) ensureCredentials(
 		"loco-clickhouse-reader",
 		clickhouse.OperatorName,
 	}
-	if state.Data["bootstrapComplete"] != stateTrue {
-		names = append(names, BootstrapSecret)
-	}
 	for _, name := range names {
 		_, err = k.Core.Secrets(k.Target.Namespace).Get(ctx, name, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) && (len(existing.Items) > 0 || state.Data["credentialsEstablished"] == stateTrue) {
@@ -382,25 +314,6 @@ func (k *Kubernetes) ensureCredentials(
 	}
 	for key, value := range apiData {
 		if !bytes.Equal(apiSecret.Data[key], value) {
-			return errSecretInvalid
-		}
-	}
-	if state.Data["bootstrapComplete"] != stateTrue {
-		token, err := randomCredential()
-		if err != nil {
-			return err
-		}
-		bootstrap, tokenErr := k.ensureSecret(
-			ctx,
-			state,
-			BootstrapSecret,
-			[]string{BootstrapTokenKey},
-			map[string][]byte{BootstrapTokenKey: token},
-		)
-		if tokenErr != nil {
-			return tokenErr
-		}
-		if len(bootstrap.Data[BootstrapTokenKey]) < minimumCredentialLength {
 			return errSecretInvalid
 		}
 	}
@@ -521,18 +434,6 @@ func command(ctx context.Context, operation string, input []byte, program string
 		return fmt.Errorf("%s: subprocess failed: %w", operation, err)
 	}
 	return nil
-}
-
-func BootstrapComplete(ctx context.Context, config Config) (bool, error) {
-	kube, err := NewKubernetes(config.ControlPlane.Kubernetes)
-	if err != nil {
-		return false, err
-	}
-	state, err := kube.state(ctx, config.Name)
-	if err != nil {
-		return false, err
-	}
-	return state.Data["bootstrapComplete"] == stateTrue, nil
 }
 
 func installChart(ctx context.Context, target KubernetesTarget, name string, chart, values []byte) error {

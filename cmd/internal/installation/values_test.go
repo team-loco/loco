@@ -13,18 +13,20 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	const canary = "quoted\"\nmalicious: injected"
 	config := Config{ControlPlane: ControlPlane{
 		APIURL: "https://api.example.com", WebURL: "https://console.example.com",
+		Admins:        []string{"ada@example.com", canary},
 		Auth:          Auth{Issuer: "https://auth.example.com", ClientID: canary},
 		SourceBucket:  Bucket{Bucket: canary, Endpoint: "https://s3.example.com", Region: canary},
 		Registry:      Registry{Endpoint: "https://registry.example.com"},
 		Observability: Observability{IngestURL: "https://ingest.example.com"},
 	}}
-	data, err := controlPlaneValues(config, releaseFixture(), false)
+	data, err := controlPlaneValues(config, releaseFixture())
 	if err != nil {
 		t.Fatal(err)
 	}
 	var values struct {
 		API struct {
-			Env map[string]string `json:"env"`
+			Env          map[string]string `json:"env"`
+			SystemAdmins []string          `json:"systemAdmins"`
 		} `json:"api"`
 	}
 	var full map[string]any
@@ -38,6 +40,9 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 		t.Fatal(decodeErr)
 	}
 
+	if !reflect.DeepEqual(values.API.SystemAdmins, config.ControlPlane.Admins) {
+		t.Fatalf("system admins = %q, want %q", values.API.SystemAdmins, config.ControlPlane.Admins)
+	}
 	if values.API.Env["LOCO_SOURCE_BUCKET_REGION"] != canary {
 		t.Fatal("quoted value did not survive rendering")
 	}

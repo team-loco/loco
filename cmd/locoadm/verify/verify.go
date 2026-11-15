@@ -23,7 +23,7 @@ func Command() *cobra.Command {
 	var timeout time.Duration
 	var target installation.VerificationTarget
 	command := &cobra.Command{
-		Use:   "verify --file installation.yaml --worker name --environment id",
+		Use:   "verify --worker name --environment id",
 		Short: "Build disposable source, verify HTTPS and logs, then remove the probe",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -55,7 +55,7 @@ func Command() *cobra.Command {
 			return json.MarshalWrite(cmd.OutOrStdout(), status)
 		},
 	}
-	command.Flags().StringVar(&file, "file", "installation.yaml", "Installation configuration file")
+	command.Flags().StringVar(&file, "file", installation.DefaultFile, installation.FileFlagUsage)
 	command.Flags().StringVar(&target.Worker, "worker", "", "Build-enabled worker to verify")
 	command.Flags().
 		StringVar(&target.EnvironmentID, "environment", "", "Authorized environment for the disposable probe")

@@ -6,11 +6,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -208,32 +205,21 @@ func TestAuditCredentialURLs(t *testing.T) {
 		})
 	}
 }
-func TestAuditBootstrapOutput(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/login" {
-			fmt.Fprint(w, `<form action="/complete"><input name="login"><input name="password"></form>`)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
+func TestAuditLoginOutput(t *testing.T) {
 	for _, status := range []string{"0", "9"} {
 		t.Run(status, func(t *testing.T) {
-			dir := t.TempDir()
-			script := "#!/bin/sh\nprintf '%s\\n' '" + server.URL + "/login' 'stdout-" + testCanary + "'\n" +
-				"printf '%s' 'stderr-" + testCanary + "' >&2\nexit " + status + "\n"
-			if err := os.WriteFile(filepath.Join(dir, "locoadm"), []byte(script), 0700); err != nil {
-				t.Fatal(err)
-			}
-			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			fakeLocoadm(t, deviceCodeOutput+"stdout-"+testCanary+"\\n", "stderr-"+testCanary, "exit "+status)
 			audit := newLeakAudit()
 			ctx := context.WithValue(t.Context(), auditKey{}, audit)
-			err := bootstrap(ctx)
+			var err error
+			captureStderr(t, func() {
+				err = signIn(ctx, func(context.Context, string) error { return nil })
+			})
 			if (err == nil) != (status == "0") {
-				t.Fatal("unexpected bootstrap exit")
+				t.Fatal("unexpected login exit")
 			}
 			if err != nil && strings.Contains(err.Error(), testCanary) {
-				t.Fatal("bootstrap error exposes canary")
+				t.Fatal("login error exposes canary")
 			}
 			audit.add([]byte("stdout-" + testCanary))
 			assertAuditLeak(t, audit, "CLI output (stdout)")

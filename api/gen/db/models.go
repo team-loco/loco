@@ -752,10 +752,14 @@ type SessionToken struct {
 	CreatedAt        time.Time   `json:"createdAt"`
 }
 
-type SystemBootstrap struct {
-	Singleton      bool       `json:"singleton"`
-	BootstrappedBy *uuid.UUID `json:"bootstrappedBy"`
-	BootstrappedAt time.Time  `json:"bootstrappedAt"`
+type SystemAdminClaim struct {
+	Email     string     `json:"email"`
+	UserID    *uuid.UUID `json:"userId"`
+	ClaimedAt *time.Time `json:"claimedAt"`
+}
+
+type SystemAdminGrant struct {
+	UserID uuid.UUID `json:"userId"`
 }
 
 type User struct {
