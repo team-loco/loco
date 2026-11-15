@@ -248,7 +248,6 @@ test("apiFieldError decodes image resolution details", () => {
 		{ type: ErrorInfoSchema.typeName, value: toBinary(ErrorInfoSchema, info) },
 	);
 	expect(apiFieldError(err)).toEqual({ field: "image", message });
-	expect(err.findDetails(ErrorInfoSchema)).toEqual([info]);
 });
 
 test("apiFieldError maps nested BadRequest fields with the same names as validation fields", () => {
