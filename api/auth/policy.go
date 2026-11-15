@@ -25,7 +25,7 @@ var (
 		Message: "Verify your email address with your identity provider, then sign in again.",
 	}
 	ErrEmailTaken = &SignupRejectedError{
-		Message: "An account with this email already exists. Sign in the way you did before.",
+		Message: "An account with this email already exists.",
 	}
 )
 
