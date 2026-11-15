@@ -28,6 +28,22 @@ def descriptions(field):
     return field.evaluate("(node) => (node.getAttribute('aria-describedby') || '').split(/\\s+/).filter(Boolean).map(id => { const hint = document.getElementById(id); if (!hint) throw new Error('Missing describedby target'); return hint.textContent; })")
 
 
+def check_time_preferences(page):
+    section = page.get_by_role("region", name="Date and time", exact=True)
+    zone = section.get_by_role("group", name="Time zone", exact=True)
+    zone.get_by_role("button", name="UTC", exact=True).click()
+    clock = section.get_by_role("group", name="Clock", exact=True)
+    clock.get_by_role("button", name="12-hour", exact=True).click()
+    expect(section.locator("time")).to_have_text(re.compile(r".*\d+:\d{2}:\d{2}\.\d{3} (AM|PM) UTC"))
+    assert page.evaluate("localStorage.getItem('loco-tz')") == "utc"
+    assert page.evaluate("localStorage.getItem('loco-clock')") == "12"
+    page.reload()
+    expect(section.get_by_role("button", name="UTC", exact=True)).to_have_attribute("aria-pressed", "true")
+    expect(section.get_by_role("button", name="12-hour", exact=True)).to_have_attribute("aria-pressed", "true")
+    clock.get_by_role("button", name="24-hour", exact=True).click()
+    expect(section.locator("time")).to_have_text(re.compile(r".*\d{2}:\d{2}:\d{2}\.\d{3} UTC"))
+
+
 def check_webhooks(page):
     new_webhook = page.get_by_role("button", name="New webhook", exact=True)
     new_webhook.click()
@@ -224,6 +240,8 @@ with session(out) as browser:
                         page.screenshot(path=out / f"failure-{user}-{tab}.png", animations="disabled")
                     (out / "failure.json").write_text(json.dumps({"user": user, "tab": tab, "error": repr(error), "errors": errors, "completed": results}, indent=2))
                     raise
+            page.goto(state["ui_url"] + base + "?scope=account")
+            check_time_preferences(page)
             context.close()
     finally:
         browser.close()

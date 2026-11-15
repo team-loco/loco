@@ -1,3 +1,5 @@
+import { formatHourMinute, parseClockInput } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState } from "react";
 import { CalendarIcon } from "lucide-react";
 
@@ -5,7 +7,7 @@ import { Button } from "@/components/design/Button";
 import { Calendar } from "@/components/design/Calendar";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
-import { joinLocalInput, toLocalInput } from "@/lib/obs-time";
+import { joinLocalInput, toLocalInput, fromLocalInput } from "@/lib/obs-time";
 
 export function DateTimePicker({
 	label,
@@ -17,6 +19,7 @@ export function DateTimePicker({
 	onChange: (value: string) => void;
 }) {
 	const [open, setOpen] = useState(false);
+	const pref = useTimePreferences();
 	const [day = "", time = ""] = value.split("T");
 	const parsed = new Date(`${day}T00:00`);
 	const selected = Number.isNaN(parsed.getTime()) ? undefined : parsed;
@@ -39,22 +42,50 @@ export function DateTimePicker({
 						autoFocus
 						required
 						onSelect={(date) => {
-							const [nextDay = ""] = toLocalInput(date.getTime()).split("T", 1);
+							const [nextDay = ""] = toLocalInput(date.getTime(), { zone: "local", clock: "24" }).split("T", 1);
 							onChange(joinLocalInput(nextDay, time || "00:00"));
 							setOpen(false);
 						}}
 					/>
 				</PopoverContent>
 			</Popover>
-			<Input
-				type="time"
-				aria-label={`${label} time`}
-				value={time}
-				onChange={(event) => {
-					onChange(joinLocalInput(day, event.target.value));
-				}}
-				className="h-8 w-[104px] shrink-0 font-mono"
-			/>
+			<ClockInput key={`${pref.zone}:${pref.clock}`} label={label} day={day} time={time} onChange={onChange} />
 		</div>
+	);
+}
+
+function ClockInput({
+	label,
+	day,
+	time,
+	onChange,
+}: {
+	label: string;
+	day: string;
+	time: string;
+	onChange: (value: string) => void;
+}) {
+	const pref = useTimePreferences();
+	const [draft, setDraft] = useState<string | null>(null);
+	const ms = fromLocalInput(joinLocalInput(day, time));
+	const shown = Number.isFinite(ms) ? formatHourMinute(ms) : time;
+	const invalid = draft !== null && parseClockInput(draft, pref) === null;
+	return (
+		<Input
+			type="text"
+			aria-label={`${label} time`}
+			aria-invalid={invalid}
+			placeholder={pref.clock === "12" ? "1:00 PM" : "13:00"}
+			value={draft ?? shown}
+			onChange={(event) => {
+				const value = event.target.value;
+				setDraft(value);
+				onChange(joinLocalInput(day, parseClockInput(value, pref) ?? ""));
+			}}
+			onBlur={() => {
+				if (!invalid) setDraft(null);
+			}}
+			className="h-8 w-[116px] shrink-0 font-mono"
+		/>
 	);
 }

@@ -18,7 +18,7 @@ import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
 import { pageRangeLabel, pagingParsers, type Paging } from "@/lib/paging";
-import { formatClock } from "@/lib/time";
+import { formatClock, formatIsoDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { widthsParser, type ColumnKey, type ColumnWidths } from "./columns";
@@ -226,7 +226,7 @@ function TraceSession({
 	const close = () => {
 		void setParams({ trace: null, span: null });
 	};
-	const crossesDay = new Date(bounds.from).toDateString() !== new Date(bounds.to).toDateString();
+	const crossesDay = formatIsoDate(bounds.from) !== formatIsoDate(bounds.to);
 	const valueCounts = (key: FieldKey): [string, number][] => {
 		if (key === "resource") return resources.map((r) => [r.name, 0]);
 		if (key === "status")

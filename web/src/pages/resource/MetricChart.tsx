@@ -112,6 +112,7 @@ export function MetricChart({
 							domain={[from, to]}
 							ticks={timeAxis(from, to)}
 							tickFormatter={(time: number) => formatMetricTime(time, from, to)}
+							interval="preserveStartEnd"
 							tickLine={false}
 							axisLine={false}
 							minTickGap={24}

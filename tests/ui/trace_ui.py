@@ -143,7 +143,7 @@ with session(out) as browser:
     drawer.get_by_role('button', name='Close', exact=True).click()
     expect(drawer).to_have_count(0)
     spans.pop()
-    page.get_by_role('button', name='Past hour', exact=True).click()
+    page.get_by_role('button', name=re.compile(r'^Past hour ')).click()
     page.get_by_role('group', name='Presets').get_by_role('button', name='Past 15 minutes', exact=False).click()
     expect(page).to_have_url(re.compile(r'[?&]range=15m'))
     page.go_back()

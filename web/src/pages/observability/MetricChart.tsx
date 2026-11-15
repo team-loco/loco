@@ -230,6 +230,7 @@ export function MetricChart({
 								domain={[from, to]}
 								ticks={ticks}
 								tickFormatter={tickLabel}
+								interval="preserveStartEnd"
 								tickLine={false}
 								axisLine={{ stroke: "var(--line)" }}
 								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}

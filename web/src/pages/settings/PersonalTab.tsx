@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { accountBlockers } from "./account";
+import { DateTimeSection } from "./DateTimeSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
@@ -127,6 +128,8 @@ export function PersonalTab({
 			</SettingsSection>
 
 			<AppearanceSection />
+
+			<DateTimeSection />
 
 			<SettingsSection title="Access">
 				<SettingsCard>

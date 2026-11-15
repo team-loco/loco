@@ -4,6 +4,8 @@ import { createLoader, createSerializer } from "nuqs";
 import { DAY_MS } from "./time";
 
 import {
+	toLocalInput,
+	fromLocalInput,
 	checkCustomRange,
 	formatSpan,
 	HOUR_MS,
@@ -119,4 +121,11 @@ describe("moving the time range", () => {
 		expect(joinLocalInput("", "12:00")).toBe("");
 		expect(joinLocalInput("2026-11-08", "12:00")).toBe("2026-11-08T12:00");
 	});
+});
+
+test("absolute UTC inputs round-trip the selected instant", () => {
+	const pref = { zone: "utc", clock: "12" } as const;
+	const instant = Date.UTC(2026, 10, 12, 13, 4);
+	expect(toLocalInput(instant, pref)).toBe("2026-11-12T13:04");
+	expect(fromLocalInput(toLocalInput(instant, pref), pref)).toBe(instant);
 });

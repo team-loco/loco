@@ -24,6 +24,8 @@ import { notFound } from "@/lib/not-found";
 import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
+import { useTimePreferences } from "@/lib/use-time-preferences";
+
 import { pageImporters } from "@/lib/lazy-pages";
 
 const Dashboard = lazy(async () => ({ default: (await pageImporters.Dashboard()).Dashboard }));
@@ -116,6 +118,7 @@ function ProfileRedirect() {
 }
 
 function AppRoutes() {
+	useTimePreferences();
 	return (
 		<Suspense fallback={<AppLoading />}>
 			<Routes>

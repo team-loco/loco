@@ -1,3 +1,4 @@
+import { TimeAxis } from "@/components/design/TimeAxis";
 import { createParser, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
@@ -19,7 +20,7 @@ import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { pagingParsers } from "@/lib/paging";
 import { createLogHistory, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
-import { formatHourMinute, msToTimestamp } from "@/lib/time";
+import { msToTimestamp } from "@/lib/time";
 import { msParser, windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
@@ -436,11 +437,7 @@ export function LogsView() {
 								setRange({ kind: "absolute", from: from + i * bw, to: from + (i + 1) * bw });
 							}}
 						/>
-						<div className="flex justify-between font-mono text-[10.5px] text-fg4">
-							<span>{formatHourMinute(from)}</span>
-							<span>{formatHourMinute(from + (to - from) / 2)}</span>
-							<span>{tail || !away ? "now" : formatHourMinute(to)}</span>
-						</div>
+						<TimeAxis from={from} to={to} />
 						<span className="flex items-center gap-1.5 text-[12px] text-fg3">
 							Bars count the {formatCount(rows.length)} loaded lines. Volume over the whole range
 							<SoonTag />

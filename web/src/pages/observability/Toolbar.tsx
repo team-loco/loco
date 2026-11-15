@@ -1,3 +1,6 @@
+import { TimeZoneControl } from "@/components/design/TimeZoneControl";
+import { timeZoneLabel } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState } from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, PauseIcon, PlayIcon } from "lucide-react";
 
@@ -27,6 +30,8 @@ import { useObs } from "./context";
 
 export function TimePicker() {
 	const { range, setRange, maxMs } = useObs();
+	const pref = useTimePreferences();
+	const [openedAt] = useState(Date.now);
 	const [open, setOpen] = useState(false);
 	const [text, setText] = useState("");
 	const [from, setFrom] = useState("");
@@ -90,6 +95,7 @@ export function TimePicker() {
 				<PopoverTrigger className="flex items-center gap-[7px] border-x border-line2 px-2.5 text-[13px] whitespace-nowrap hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset aria-expanded:bg-panel">
 					<ClockIcon className="size-3.5 text-fg3" />
 					{windowLabel(range)}
+					<span className="font-mono text-[11px] text-fg3">{timeZoneLabel(resolveWindow(range, openedAt).to)}</span>
 					<ChevronDownIcon className="size-3.5 text-fg3" />
 				</PopoverTrigger>
 				<PopoverContent align="end" aria-label="Time range" className="w-[340px] gap-2.5 p-3">
@@ -166,6 +172,18 @@ export function TimePicker() {
 						<Button size="sm" onClick={applyCustom}>
 							Apply
 						</Button>
+					</div>
+					<div className="flex flex-col gap-2 border-t border-line pt-2.5">
+						<span className="text-[12px] text-fg3">Time zone</span>
+						<TimeZoneControl
+							onChange={(zone) => {
+								const next = { ...pref, zone };
+								const start = fromLocalInput(from, pref);
+								const end = fromLocalInput(to, pref);
+								if (Number.isFinite(start)) setFrom(toLocalInput(start, next));
+								if (Number.isFinite(end)) setTo(toLocalInput(end, next));
+							}}
+						/>
 					</div>
 				</PopoverContent>
 			</Popover>

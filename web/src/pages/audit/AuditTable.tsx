@@ -2,7 +2,7 @@ import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
 import { Fragment } from "react";
 
 import { Skeleton } from "@/components/design/Skeleton";
-import { agoLabel } from "@/lib/time";
+import { agoLabel, formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
@@ -84,11 +84,7 @@ export function AuditTable({
 											)}
 										>
 											<span className="font-mono text-[12px] text-fg2" title={agoLabel(row.ms, nowMs)}>
-												{new Date(row.ms).toLocaleTimeString([], {
-													hour: "numeric",
-													minute: "2-digit",
-													second: "2-digit",
-												})}
+												{formatClock(row.ms)}
 											</span>
 											<span className="flex min-w-0 items-center gap-[9px]">
 												<ActorBadge row={row} />

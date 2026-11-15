@@ -15,7 +15,7 @@ describe("compute chart axes", () => {
 	});
 	test("spreads ticks across the requested range, independent of sparse samples", () => {
 		const ticks = timeAxis(FROM, FROM + HOUR_MS);
-		expect(ticks).toEqual([FROM, FROM + HOUR_MS / 4, FROM + HOUR_MS / 2, FROM + (HOUR_MS * 3) / 4, FROM + HOUR_MS]);
+		expect(ticks).toEqual([FROM, ...Array.from({ length: 6 }, (_, i) => FROM + ((i + 1) * HOUR_MS) / 6)]);
 	});
 	test("keeps subpercent utilization and exact zero legible", () => {
 		expect(formatPercent(0)).toBe("0%");
@@ -23,7 +23,7 @@ describe("compute chart axes", () => {
 		expect(formatPercent(23.8)).toBe("24%");
 	});
 	test("distinguishes times within the same date for a day-long window", () => {
-		expect(formatMetricTime(FROM, FROM, FROM + DAY_MS)).toBe("10/19 12:00");
-		expect(formatMetricTime(FROM + HOUR_MS, FROM, FROM + DAY_MS)).toBe("10/19 13:00");
+		expect(formatMetricTime(FROM, FROM, FROM + DAY_MS)).toBe("12:00");
+		expect(formatMetricTime(FROM + HOUR_MS, FROM, FROM + DAY_MS)).toBe("13:00");
 	});
 });

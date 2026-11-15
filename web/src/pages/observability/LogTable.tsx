@@ -17,8 +17,8 @@ import { bodyParts, fmtTs, jsonPreview, levelStyle } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import type { LogRow } from "./rows";
 
-const TIME_WIDTH = 176;
-const COMPACT_TIME_WIDTH = 124;
+const TIME_WIDTH = 204;
+const COMPACT_TIME_WIDTH = 152;
 const MESSAGE_MIN = "minmax(260px,1fr)";
 const ADD_WIDTH = 36;
 

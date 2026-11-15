@@ -1,6 +1,6 @@
 import { createParser, type inferParserType } from "nuqs";
 
-import { DAY_MS, formatHourMinute, formatMonthDay } from "./time";
+import { DAY_MS, formatHourMinute, formatMonthDay, formatIsoDate, timePreferences, type TimePreferences } from "./time";
 
 export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
@@ -144,7 +144,7 @@ export function customRangeMessage(error: CustomRangeError, maxMs: number): stri
 }
 
 function sameDay(a: number, b: number): boolean {
-	return new Date(a).toDateString() === new Date(b).toDateString();
+	return formatIsoDate(a) === formatIsoDate(b);
 }
 
 function dayClock(ms: number): string {
@@ -162,16 +162,17 @@ export function stepSeconds(spanMs: number): number {
 	return Math.max(MIN_STEP_SECONDS, Math.ceil(raw / MIN_STEP_SECONDS) * MIN_STEP_SECONDS);
 }
 
-export function toLocalInput(ms: number): string {
+export function toLocalInput(ms: number, pref = timePreferences()): string {
 	const d = new Date(ms);
-	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${String(d.getFullYear())}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	const hour = pref.zone === "utc" ? d.getUTCHours() : d.getHours();
+	const minute = pref.zone === "utc" ? d.getUTCMinutes() : d.getMinutes();
+	return `${formatIsoDate(ms, pref)}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 export function joinLocalInput(day: string, time: string): string {
 	return day === "" ? "" : `${day}T${time}`;
 }
 
-export function fromLocalInput(value: string): number {
-	return value === "" ? Number.NaN : new Date(value).getTime();
+export function fromLocalInput(value: string, pref: TimePreferences = timePreferences()): number {
+	return value === "" ? Number.NaN : new Date(pref.zone === "utc" ? `${value}Z` : value).getTime();
 }
