@@ -1,4 +1,5 @@
 import type { ColumnSort, ColumnVisibilityState } from "@tanstack/react-table";
+import { createParser, parseAsNumberLiteral, parseAsString, parseAsStringLiteral } from "nuqs";
 import type { Deployment, ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -9,6 +10,8 @@ import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus, primaryDomain, statusRank } from "@/lib/resource-status";
+import { pageParser } from "@/lib/paging";
+import { sortParser } from "@/lib/sort-parser";
 import { tsMs } from "@/lib/time";
 
 export const ALL = "all";
@@ -229,25 +232,15 @@ export interface TableColumn {
 	meta?: { defaultHidden?: boolean };
 }
 
-export interface TableState {
-	filter: Filter;
-	sorting: ColumnSort;
-	page: number;
-	size: number;
-	visibility: ColumnVisibilityState;
-}
-
-const PARAM = {
-	query: "q",
-	status: "status",
-	region: "region",
-	sort: "sort",
-	page: "page",
-	size: "size",
-	cols: "cols",
-};
-const SORT_SEPARATOR = ".";
 const COLS_SEPARATOR = ",";
+
+export const FILTER_URL_KEYS = { query: "q" };
+
+export const FILTER_PARSERS = {
+	query: parseAsString.withDefault(""),
+	status: parseAsStringLiteral([ALL, ...STATUS_FILTERS.map((f) => f.value)]).withDefault(ALL),
+	region: parseAsString.withDefault(ALL),
+};
 
 function defaultSort(columns: readonly TableColumn[]): ColumnSort {
 	return { id: columns.find((c) => c.id.startsWith(ENV_PREFIX))?.id ?? "name", desc: false };
@@ -268,72 +261,23 @@ function defaultVisibility(columns: readonly TableColumn[]): ColumnVisibilitySta
 	return Object.fromEntries(hideable(columns).map((c) => [c.id, c.meta?.defaultHidden !== true]));
 }
 
-function parseSort(raw: string | null, columns: readonly TableColumn[]): ColumnSort {
-	const at = raw?.lastIndexOf(SORT_SEPARATOR) ?? -1;
-	if (raw === null || at === -1) return defaultSort(columns);
-	const id = raw.slice(0, at);
-	const dir = raw.slice(at + 1);
-	if (!columns.some((c) => c.id === id && c.enableSorting !== false) || (dir !== "asc" && dir !== "desc")) {
-		return defaultSort(columns);
-	}
-	return { id, desc: dir === "desc" };
+export function sortableIds(columns: readonly TableColumn[]): string[] {
+	return columns.filter((c) => c.enableSorting !== false).map((c) => c.id);
 }
 
-function sortParam(sort: ColumnSort): string {
-	return `${sort.id}${SORT_SEPARATOR}${sort.desc ? "desc" : "asc"}`;
-}
-
-function positiveInt(raw: string | null): number | undefined {
-	const n = Number(raw);
-	return Number.isInteger(n) && n > 0 ? n : undefined;
-}
-
-export function readTableState(params: URLSearchParams, columns: readonly TableColumn[]): TableState {
-	const status = params.get(PARAM.status) ?? ALL;
-	const size = positiveInt(params.get(PARAM.size));
-	const cols = params.get(PARAM.cols);
-	const wanted = cols === null ? null : new Set(cols.split(COLS_SEPARATOR));
+export function tableParsers(columns: readonly TableColumn[]) {
 	return {
-		filter: {
-			query: params.get(PARAM.query) ?? "",
-			status: STATUS_FILTERS.some((f) => f.value === status) ? status : ALL,
-			region: params.get(PARAM.region) ?? ALL,
-		},
-		sorting: parseSort(params.get(PARAM.sort), columns),
-		page: (positiveInt(params.get(PARAM.page)) ?? 1) - 1,
-		size: PAGE_SIZES.find((s) => s === size) ?? PAGE_SIZES[0],
-		visibility:
-			wanted === null
-				? defaultVisibility(columns)
-				: Object.fromEntries(hideable(columns).map((c) => [c.id, wanted.has(c.id)])),
+		...FILTER_PARSERS,
+		sort: sortParser(sortableIds(columns), defaultSort(columns)),
+		page: pageParser.withDefault(0),
+		size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
+		cols: createParser<ColumnVisibilityState>({
+			parse: (raw) => {
+				const wanted = new Set(raw.split(COLS_SEPARATOR));
+				return Object.fromEntries(hideable(columns).map((c) => [c.id, wanted.has(c.id)]));
+			},
+			serialize: (visibility) => visibleIds(columns, visibility),
+			eq: (a, b) => visibleIds(columns, a) === visibleIds(columns, b),
+		}).withDefault(defaultVisibility(columns)),
 	};
-}
-
-function putParam(params: URLSearchParams, key: string, value: string, fallback: string) {
-	if (value === fallback) params.delete(key);
-	else params.set(key, value);
-}
-
-export function writeFilter(params: URLSearchParams, filter: Filter): URLSearchParams {
-	const next = new URLSearchParams(params);
-	putParam(next, PARAM.query, filter.query, "");
-	putParam(next, PARAM.status, filter.status, ALL);
-	putParam(next, PARAM.region, filter.region, ALL);
-	return next;
-}
-
-export function writeTableState(
-	params: URLSearchParams,
-	state: TableState,
-	columns: readonly TableColumn[],
-): URLSearchParams {
-	const next = writeFilter(params, state.filter);
-	const put = (key: string, value: string, fallback: string) => {
-		putParam(next, key, value, fallback);
-	};
-	put(PARAM.sort, sortParam(state.sorting), sortParam(defaultSort(columns)));
-	put(PARAM.page, String(state.page + 1), "1");
-	put(PARAM.size, String(state.size), String(PAGE_SIZES[0]));
-	put(PARAM.cols, visibleIds(columns, state.visibility), visibleIds(columns, defaultVisibility(columns)));
-	return next;
 }

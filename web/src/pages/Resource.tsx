@@ -2,7 +2,8 @@ import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
@@ -28,7 +29,7 @@ import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
 import { configuredRegions, isWorker } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
-import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
+import { buildLogsPath, observabilityPath, resourcePath, withEnv, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
@@ -39,7 +40,7 @@ import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { shortId } from "@/pages/resource/format";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
-import type { MetricRange } from "@/pages/resource/metric";
+import { METRIC_RANGES } from "@/pages/resource/metric";
 import {
 	activeDeploymentPlaces,
 	buildRegions,
@@ -59,20 +60,21 @@ import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { RolloutProgress } from "@/pages/resource/RolloutProgress";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
-import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView";
+import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 
 const EVENTS_REFRESH_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 
-type View = "overview" | SettingsFocus;
+const VIEWS = ["overview", ...SETTINGS_FOCUSES] as const;
+type View = (typeof VIEWS)[number];
 
-function parseView(value: string | null): View {
-	if (value === "settings") return "settings";
-	if (value === "variables") return "settings";
-	if (value === "scaling") return "scaling";
-	return "overview";
-}
+const RESOURCE_PARAMS = {
+	tab: parseAsStringLiteral(VIEWS).withDefault("overview"),
+	env: parseAsString,
+	range: parseAsStringLiteral(METRIC_RANGES).withDefault("1h"),
+	region: parseAsString,
+};
 
 export function Resource() {
 	const { resourceId = "" } = useParams<{ resourceId: string }>();
@@ -85,7 +87,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const transport = useTransport();
-	const [params, setParams] = useSearchParams();
+	const [{ tab: view, env, range, region: selectedRegion }, setParams] = useQueryStates(RESOURCE_PARAMS, {
+		history: "replace",
+	});
 	const {
 		resource,
 		environmentId,
@@ -122,8 +126,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		enabled: canListResources,
 	});
 
-	const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-	const [range, setRange] = useState<MetricRange>("1h");
 	const [modal, setModal] = useState<ModalState | null>(null);
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
@@ -134,12 +136,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const del = useMutation(deleteResource);
 	const restart = useMutation(restartResource);
 
-	const view = parseView(params.get("tab"));
 	const setView = (next: View) => {
-		const p = new URLSearchParams(params);
-		if (next === "overview") p.delete("tab");
-		else p.set("tab", next);
-		setParams(p, { replace: true });
+		void setParams({ tab: next });
 	};
 
 	if (isLoading || configQuery.isPending) return <ResourceSkeleton />;
@@ -183,18 +181,17 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const canWrite = level >= scopeLevel(Scope.WRITE);
 	const canDelete = level >= scopeLevel(Scope.ADMIN);
 
-	const env = params.get("env");
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const obsLink = (obsView: "logs" | "metrics" | "events"): string | undefined =>
-		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, obsView, { ...envParam, r: resource.name }) : undefined;
+		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, obsView, { ...envParam, r: [resource.name] }) : undefined;
 	const switcher = hasWs
 		? (resourcesQuery.data?.resources ?? []).map((r) => ({
 				id: r.id,
 				name: r.name,
 				description: r.description ?? "",
 				status: environmentStatus(r, environmentId)?.status,
-				href: `${resourcePath(activeOrgId, activeWorkspaceId, r.id)}${env !== null ? `?env=${encodeURIComponent(env)}` : ""}`,
+				href: resourcePath(activeOrgId, activeWorkspaceId, r.id, { env }),
 			}))
 		: [];
 
@@ -282,7 +279,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					setModal(null);
 					if (hasWs) {
 						const home = workspacePath(activeOrgId, activeWorkspaceId);
-						void navigate(env !== null ? `${home}?env=${encodeURIComponent(env)}` : home);
+						void navigate(withEnv(home, env));
 					}
 				},
 				onError: (err) => {
@@ -379,9 +376,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							environment={environment}
 							regions={regions}
 							selected={selectedRegion}
-							onSelect={setSelectedRegion}
+							onSelect={(region) => {
+								void setParams({ region });
+							}}
 							range={range}
-							onRange={setRange}
+							onRange={(next) => {
+								void setParams({ range: next });
+							}}
 							markers={markers}
 							metricsHref={obsLink("metrics")}
 						/>

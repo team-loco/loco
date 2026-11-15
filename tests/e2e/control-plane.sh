@@ -61,11 +61,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ $SKIP_BUILD == false ]]; then
-    docker build -t loco-api-failover:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/tests/e2e/fixtures/api-failover/Dockerfile" "$ROOT_DIR"
-    docker build -t loco-api:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/api/Dockerfile" "$ROOT_DIR"
-    docker build -t loco-ui:e2e --build-arg VERSION=e2e --build-arg PUBLIC_API_URL=https://api.loco.build --build-arg PUBLIC_APP_ENV=PRODUCTION -f "$ROOT_DIR/web/Dockerfile" "$ROOT_DIR"
-    docker build -t loco-obs-proxy:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/observability-proxy/Dockerfile" "$ROOT_DIR"
+# E2E_IMAGES names prebuilt images, with * standing for the image name; E2E_VERSION is the version the images report.
+VERSION=${E2E_VERSION:-e2e}
+if [[ -n ${E2E_IMAGES:-} ]]; then
+    for image in api-failover api ui obs-proxy; do
+        docker pull -q "${E2E_IMAGES//\*/$image}"
+        docker tag "${E2E_IMAGES//\*/$image}" "loco-$image:e2e"
+    done
+elif [[ $SKIP_BUILD == false ]]; then
+    docker build -t loco-api-failover:e2e --build-arg VERSION="$VERSION" -f "$ROOT_DIR/tests/e2e/fixtures/api-failover/Dockerfile" "$ROOT_DIR"
+    docker build -t loco-api:e2e --build-arg VERSION="$VERSION" -f "$ROOT_DIR/api/Dockerfile" "$ROOT_DIR"
+    docker build -t loco-ui:e2e --build-arg VERSION="$VERSION" --build-arg PUBLIC_API_URL=https://api.loco.build --build-arg PUBLIC_APP_ENV=PRODUCTION -f "$ROOT_DIR/web/Dockerfile" "$ROOT_DIR"
+    docker build -t loco-obs-proxy:e2e --build-arg VERSION="$VERSION" -f "$ROOT_DIR/observability-proxy/Dockerfile" "$ROOT_DIR"
 fi
 if ! kind get clusters | grep -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
@@ -171,7 +178,7 @@ done
 API_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/port-forward.log" | head -1)
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/health"
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/openapi.json" >"$RUN_DIR/openapi.json"
-yq -e -p json '.openapi == "3.1.0" and .info.version == "e2e" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
+VERSION="$VERSION" yq -e -p json '.openapi == "3.1.0" and .info.version == strenv(VERSION) and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/api-docs.html"
 grep -F 'Scalar.createApiReference(' "$RUN_DIR/api-docs.html" >/dev/null
 grep -F 'url: "/openapi.json"' "$RUN_DIR/api-docs.html" >/dev/null

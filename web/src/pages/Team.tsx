@@ -9,7 +9,8 @@ import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { ExternalLinkIcon, LayersIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { useParams, useSearchParams } from "react-router";
+import { parseAsInteger, parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useParams } from "react-router";
 import { toast } from "sonner";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -45,9 +46,19 @@ const NOW_TICK_MS = 60_000;
 const ACCESS_DOCS = `${DOCS_URL}/operations/access/`;
 const SCOPE_OF: Record<ScopeName, Scope> = { read: Scope.READ, write: Scope.WRITE, admin: Scope.ADMIN };
 
+const TEAM_PARAMS = {
+	view: parseAsStringLiteral(VIEWS.map((v) => v.key)).withDefault("all"),
+	q: parseAsString.withDefault(""),
+	ws: parseAsString.withDefault(""),
+	access: parseAsString,
+	invite: parseAsStringLiteral(["1"]),
+	page: parseAsInteger.withDefault(0),
+	size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
+};
+
 export function Team() {
 	const { orgId = "" } = useParams<{ orgId: string }>();
-	const [params, setParams] = useSearchParams();
+	const [params, setParams] = useQueryStates(TEAM_PARAMS, { history: "replace" });
 	const { user } = useAuth();
 	const meId = user?.id ?? "";
 	const scopes = useMyScopes();
@@ -59,39 +70,19 @@ export function Team() {
 	const remove = useMutation(removeOrgMember);
 	const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null);
 	const [roleChange, setRoleChange] = useState<{ userId: string; name: string; role: Role } | null>(null);
-	const view = VIEWS.find((v) => v.key === params.get("view"))?.key ?? "all";
-	const q = params.get("q") ?? "";
-	const wsFilter = params.get("ws") ?? "";
-	const accessId = params.get("access");
+	const { view, q, ws: wsFilter, access: accessId, size } = params;
 	const [revoking, setRevoking] = useState<Invitation | null>(null);
 
 	const canInvite = scopes.holds(orgId, "", Scope.ADMIN);
 	const canChangeRoles = scopes.holds(orgId, "", Scope.ADMIN);
 	const orgName = data.org?.name ?? "";
-	const inviteOpen = canInvite && params.get("invite") === "1";
+	const inviteOpen = canInvite && params.invite !== null;
 	const rows = buildRows(data.members, data.invitations, view, q, meId, wsFilter);
-	const update = (patch: Record<string, string | null>) => {
-		setParams(
-			(prev) => {
-				const p = new URLSearchParams(prev);
-				for (const [k, v] of Object.entries(patch)) {
-					if (v === null || v === "") p.delete(k);
-					else p.set(k, v);
-				}
-				return p;
-			},
-			{ replace: true },
-		);
-	};
-	const size = PAGE_SIZES.find((n) => n.toString() === params.get("size")) ?? PAGE_SIZES[0];
 	const paged = pagedRows(
 		rows,
-		{ page: Number(params.get("page") ?? 0) || 0, size },
+		{ page: params.page, size },
 		(next) => {
-			update({
-				page: next.page === 0 ? null : next.page.toString(),
-				size: next.size === PAGE_SIZES[0] ? null : next.size.toString(),
-			});
+			void setParams({ page: next.page, size: PAGE_SIZES.find((n) => n === next.size) ?? null });
 		},
 		PAGE_SIZES,
 	);
@@ -108,7 +99,7 @@ export function Team() {
 	const justYou = !data.isLoading && data.members.length <= 1 && data.invitations.length === 0;
 
 	const setInviteOpen = (open: boolean) => {
-		update({ invite: open ? "1" : null });
+		void setParams({ invite: open ? "1" : null });
 	};
 
 	const doResend = async (invitation: Invitation) => {
@@ -186,7 +177,7 @@ export function Team() {
 					<Button
 						variant="outline"
 						onClick={() => {
-							update({ q: null, ...resetPage });
+							void setParams({ q: null, ...resetPage });
 						}}
 					>
 						<XIcon />
@@ -221,7 +212,7 @@ export function Team() {
 							if (target !== undefined) setRemoving({ userId: target.id, name: userLabel(target) });
 						},
 						onAccess: (m: Member) => {
-							update({ access: m.member.user?.id ?? null });
+							void setParams({ access: m.member.user?.id ?? null });
 						},
 						onCopyLink: (invitation) => {
 							void navigator.clipboard.writeText(invitation.link).then(() => {
@@ -247,7 +238,11 @@ export function Team() {
 						</p>
 						<span className="mt-1 flex flex-wrap justify-center gap-2">
 							{inviteButton}
-							<Button variant="outline" render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}>
+							<Button
+								variant="outline"
+								nativeButton={false}
+								render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}
+							>
 								Read the docs
 								<ExternalLinkIcon className="text-fg3" />
 							</Button>
@@ -285,7 +280,7 @@ export function Team() {
 								onValueChange={(v: string[]) => {
 									const next = VIEWS.find((x) => x.key === v[0]);
 									if (next === undefined) return;
-									update({ view: next.key === "all" ? null : next.key, ...resetPage });
+									void setParams({ view: next.key, ...resetPage });
 								}}
 							>
 								{VIEWS.map((v) => (
@@ -302,7 +297,7 @@ export function Team() {
 								counts={workspaceCounts}
 								value={wsFilter}
 								onChange={(ws) => {
-									update({ ws, ...resetPage });
+									void setParams({ ws, ...resetPage });
 								}}
 							/>
 						</>
@@ -311,7 +306,7 @@ export function Team() {
 						<SearchInput
 							value={q}
 							onChange={(e) => {
-								update({ q: e.target.value, ...resetPage });
+								void setParams({ q: e.target.value, ...resetPage });
 							}}
 							placeholder="Search by name or email"
 							aria-label="Search people"
@@ -337,7 +332,7 @@ export function Team() {
 				workspaces={data.workspaces}
 				holds={(workspaceId, s) => scopes.holds(orgId, workspaceId, SCOPE_OF[s])}
 				onClose={() => {
-					update({ access: null });
+					void setParams({ access: null });
 				}}
 				onChanged={data.invalidateAccess}
 			/>

@@ -9,17 +9,30 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Run Tests
-    uses: ./.github/workflows/test.yml
-
-  docs-check:
-    name: Check Documentation
-    uses: ./.github/workflows/docs.yml
+  # CI builds every image for the commit and tests it; publishing waits for
+  # that run to pass.
+  ci:
+    name: Wait for CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      actions: read
+    steps:
+      - name: Wait for the CI run of this push to pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          until run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=push&head_sha=$COMMIT" \
+            --jq '.workflow_runs[0].id // empty') && [ -n "$run" ]; do
+            sleep 10
+          done
+          gh run watch "$run" --repo "$GITHUB_REPOSITORY" --interval 30 --exit-status > /dev/null
 
   push-image:
-    name: Build and Push ${{ matrix.name }} Image
-    needs: [test, docs-check]
+    name: Publish ${{ matrix.name }} Image
+    needs: ci
     permissions:
       contents: read
       packages: write
@@ -31,49 +44,23 @@ jobs:
         include:
           - name: Controller
             image: controller
-            dockerfile: ./controller/Dockerfile
-
           - name: API
             image: api
-            dockerfile: ./api/Dockerfile
-
           - name: Agent
             image: agent
-            dockerfile: ./agent/Dockerfile
-
           - name: Builder
             image: builder
-            dockerfile: ./builder/Dockerfile
-
           - name: Observability Proxy
             image: obs-proxy
-            dockerfile: ./observability-proxy/Dockerfile
-
           - name: UI
             image: ui
-            dockerfile: ./web/Dockerfile
-            build_args: |
-              DOCS_ENVIRONMENT=production
-              PUBLIC_API_URL=https://api.loco.build
-              PUBLIC_APP_ENV=PRODUCTION
-
           - name: Staging UI
             image: ui
-            dockerfile: ./web/Dockerfile
-            tag_suffix: ",suffix=-staging"
-            cache_scope: ui-staging
-            build_args: |
-              DOCS_ENVIRONMENT=staging
-              PUBLIC_API_URL=https://api.staging.loco.build
-              PUBLIC_APP_ENV=STAGING
+            tag_suffix: -staging
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-${{ matrix.image }}
-      context: .
-      dockerfile: ${{ matrix.dockerfile }}
-      cache_scope: ${{ matrix.cache_scope || matrix.image }}
       tag_suffix: ${{ matrix.tag_suffix || '' }}
-      build_args: ${{ matrix.build_args || '' }}
 
   notify-deploy:
     name: Notify the Deployment Repository

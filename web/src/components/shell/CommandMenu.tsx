@@ -16,7 +16,8 @@ import {
 	WaypointsIcon,
 } from "lucide-react";
 import { createContext, use, useEffect, useState, type ReactNode } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { useQueryState } from "nuqs";
+import { useLocation, useNavigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -83,7 +84,7 @@ const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode 
 function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
 	const { pathname, search } = useLocation();
-	const [params] = useSearchParams();
+	const [env] = useQueryState("env");
 	const { mode, setMode, color, setColor } = useTheme();
 	const { active: activeEnv } = useEnvironments();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
@@ -94,7 +95,6 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		enabled: open && activeOrgId !== null && activeWorkspaceId !== null,
 	});
 
-	const env = params.get("env");
 	const envParams: Record<string, string> = env !== null ? { env } : {};
 	const go = (to: string) => () => {
 		void navigate(to);
@@ -129,7 +129,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 					label: `${v.label} for ${r.name}`,
 					keywords: `${v.view} ${r.slug}`,
 					icon: v.icon,
-					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: r.name })),
+					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: [r.name] })),
 					searchOnly: true,
 				});
 			}

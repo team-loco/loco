@@ -3,7 +3,9 @@
 # a workflow's `paths` filter: `*` stays within a directory, `**` crosses
 # directories, `?` makes the preceding character optional, `{a,b}` matches
 # either word, and a later `!pattern` excludes what earlier patterns matched. A
-# workflow without a list for an event never runs on that event.
+# workflow without a list for an event never runs on that event. A workflow's
+# `for` list names the workflows that use its output; it runs whenever one of
+# them runs.
 
 auth-conformance:
   pull_request: &auth-conformance
@@ -63,6 +65,8 @@ charts:
     - "mise.lock"
     - ".github/actions/setup-tools/**"
     - ".github/workflows/charts.yml"
+    - ".github/workflows/images.yml"
+    - "docker-bake.hcl"
   push: *charts
 
 controller-helm-chart:
@@ -89,6 +93,8 @@ docker:
     - "**/*compose*.yaml"
     - "**/*compose*.yml"
     - ".github/workflows/docker.yml"
+    - ".github/workflows/images.yml"
+    - "docker-bake.hcl"
     - "mise-tasks/lint/versions"
     - "mise-tasks/test/platform-binaries"
     - "tools/platform-images/**"
@@ -202,6 +208,8 @@ e2e:
     - "mise.lock"
     - ".github/actions/setup-tools/**"
     - ".github/workflows/e2e.yml"
+    - ".github/workflows/images.yml"
+    - "docker-bake.hcl"
 
 e2e-installation:
   pull_request:
@@ -248,6 +256,8 @@ e2e-installation:
     - "mise.lock"
     - ".github/actions/setup-tools/**"
     - ".github/workflows/e2e-installation.yml"
+    - ".github/workflows/images.yml"
+    - "docker-bake.hcl"
 
 govulncheck:
   pull_request: &govulncheck
@@ -263,6 +273,12 @@ govulncheck:
     - ".github/actions/setup-tools/**"
     - ".github/workflows/govulncheck.yml"
   push: *govulncheck
+
+images:
+  for: [charts, docker, e2e, e2e-installation, osv]
+  # build.yml publishes the images of every push to main.
+  push:
+    - "**"
 
 lint:
   pull_request: &lint
@@ -332,6 +348,8 @@ osv:
     - "bun.lock"
     - "osv-scanner.toml"
     - ".github/workflows/osv.yml"
+    - ".github/workflows/images.yml"
+    - "docker-bake.hcl"
   push: *osv
 
 platform-release:

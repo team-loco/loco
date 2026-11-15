@@ -1,6 +1,7 @@
+import { createSerializer, type inferParserType, parseAsArrayOf, parseAsString, parseAsStringLiteral } from "nuqs";
 import { matchPath } from "react-router";
 
-import { formatSpan, QUERY_MAX_MS } from "./obs-time";
+import { msParser, QUERY_MAX_MS, WINDOW_PARSERS } from "./obs-time";
 
 export function workspacePath(orgId: string, workspaceId: string, sub = ""): string {
 	const base = `/org/${orgId}/wks/${workspaceId}`;
@@ -9,19 +10,21 @@ export function workspacePath(orgId: string, workspaceId: string, sub = ""): str
 
 export const WORKSPACE_ROUTE = "/org/:orgId/wks/:workspaceId/*";
 
+const serializeEnv = createSerializer({ env: parseAsString });
+
 export function switchWorkspacePath(pathname: string, search: string, orgId: string, workspaceId: string): string {
 	const rest = matchPath(WORKSPACE_ROUTE, pathname)?.params["*"] ?? "";
 	if (rest === "" || rest.startsWith("resource/")) return workspacePath(orgId, workspaceId);
-	const params = new URLSearchParams(search);
-	params.delete("env");
-	const query = params.toString();
-	return `${workspacePath(orgId, workspaceId, rest)}${query === "" ? "" : `?${query}`}`;
+	return `${workspacePath(orgId, workspaceId, rest)}${serializeEnv(search, { env: null })}`;
 }
 
-export type SettingsScope = "org" | "workspace" | "account";
+export const SETTINGS_SCOPES = ["org", "workspace", "account"] as const;
+export type SettingsScope = (typeof SETTINGS_SCOPES)[number];
+
+const serializeScope = createSerializer({ scope: parseAsStringLiteral(SETTINGS_SCOPES) });
 
 export function settingsPath(orgId: string, workspaceId: string, scope: SettingsScope): string {
-	return `${workspacePath(orgId, workspaceId, "settings")}?scope=${scope}`;
+	return `${workspacePath(orgId, workspaceId, "settings")}${serializeScope({ scope })}`;
 }
 
 export function orgSettingsPath(orgId: string, workspaceId: string | null): string {
@@ -38,8 +41,19 @@ export function accountSettingsPath(orgId: string | null, workspaceId: string | 
 	return orgId !== null && workspaceId !== null ? settingsPath(orgId, workspaceId, "account") : PROFILE_PATH;
 }
 
-export function resourcePath(orgId: string, workspaceId: string, resourceId: string): string {
-	return workspacePath(orgId, workspaceId, `resource/${resourceId}`);
+const serializeResourceLink = createSerializer({ tab: parseAsString, env: parseAsString });
+
+export function resourcePath(
+	orgId: string,
+	workspaceId: string,
+	resourceId: string,
+	link: { tab?: string; env?: string | null } = {},
+): string {
+	return serializeResourceLink(workspacePath(orgId, workspaceId, `resource/${resourceId}`), link);
+}
+
+export function withEnv(path: string, env: string | null): string {
+	return serializeEnv(path, { env });
 }
 
 export function resourcesPath(orgId: string, workspaceId: string): string {
@@ -52,35 +66,56 @@ export function inResourcesSection(pathname: string, orgId: string, workspaceId:
 }
 
 export const NEW_RESOURCE_PARAM = "new";
-const NEW_RESOURCE_FLAG = "1";
-
-export function newResourcePath(orgId: string, workspaceId: string, params: Record<string, string> = {}): string {
-	const search = new URLSearchParams(params);
-	search.set(NEW_RESOURCE_PARAM, NEW_RESOURCE_FLAG);
-	return `${resourcesPath(orgId, workspaceId)}?${search.toString()}`;
-}
-
 export const DRAFT_PARAM = "draft";
 
-export function draftSearch(params: URLSearchParams, draftId: string): string {
-	const next = new URLSearchParams(params);
-	next.delete(NEW_RESOURCE_PARAM);
-	next.set(DRAFT_PARAM, draftId);
-	return `?${next.toString()}`;
+const serializeNewResource = createSerializer({ [NEW_RESOURCE_PARAM]: parseAsString, [DRAFT_PARAM]: parseAsString });
+
+export function newResourcePath(
+	orgId: string,
+	workspaceId: string,
+	params: string | Record<string, string> = {},
+): string {
+	return `${resourcesPath(orgId, workspaceId)}${serializeNewResource(new URLSearchParams(params), { [NEW_RESOURCE_PARAM]: "1" })}`;
 }
 
-export type ObservabilityView = "logs" | "metrics" | "traces" | "events";
+export function draftSearch(search: string | URLSearchParams, draftId: string): string {
+	return serializeNewResource(search, { [NEW_RESOURCE_PARAM]: null, [DRAFT_PARAM]: draftId });
+}
+
+export const RESOURCE_VIEWS = ["table", "map"] as const;
+export type ResourceView = (typeof RESOURCE_VIEWS)[number];
+export const resourceViewParser = parseAsStringLiteral(RESOURCE_VIEWS).withDefault("table");
+
+export const OBSERVABILITY_VIEWS = ["logs", "metrics", "traces", "events"] as const;
+export type ObservabilityView = (typeof OBSERVABILITY_VIEWS)[number];
+export const observabilityViewParser = parseAsStringLiteral(OBSERVABILITY_VIEWS).withDefault("logs");
+
+const OBSERVABILITY_LINK = {
+	env: parseAsString,
+	...WINDOW_PARSERS,
+	q: parseAsString,
+	r: parseAsArrayOf(parseAsString),
+	at: msParser,
+	trace: parseAsString,
+	span: parseAsString,
+};
+
+const serializeObservability = createSerializer({
+	view: parseAsStringLiteral(OBSERVABILITY_VIEWS),
+	...OBSERVABILITY_LINK,
+});
+
+export type ObservabilityLink = Partial<inferParserType<typeof OBSERVABILITY_LINK>>;
 
 export function observabilityPath(
 	orgId: string,
 	workspaceId: string,
 	view: ObservabilityView,
-	params: Record<string, string> = {},
+	link: ObservabilityLink = {},
 ): string {
-	const search = new URLSearchParams({ view, ...params });
-	return `${workspacePath(orgId, workspaceId, "observability")}?${search.toString()}`;
+	return `${workspacePath(orgId, workspaceId, "observability")}${serializeObservability({ view, ...link })}`;
 }
 
 export function buildLogsPath(orgId: string, workspaceId: string, buildId: string): string {
-	return observabilityPath(orgId, workspaceId, "logs", { q: `build:${buildId}`, range: formatSpan(QUERY_MAX_MS) });
+	return observabilityPath(orgId, workspaceId, "logs", { q: `build:${buildId}`, range: QUERY_MAX_MS });
 }

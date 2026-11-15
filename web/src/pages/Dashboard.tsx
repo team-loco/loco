@@ -1,4 +1,5 @@
-import { Link, useSearchParams } from "react-router";
+import { useQueryState } from "nuqs";
+import { Link } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, Section } from "@/components/design/Page";
@@ -39,13 +40,12 @@ export function Dashboard() {
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
 	const data = useDashboardData(activeOrgId, activeWorkspaceId, active);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
-	const [params] = useSearchParams();
 
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
-	const draftId = params.get(DRAFT_PARAM);
-	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id);
+	const [draftId] = useQueryState(DRAFT_PARAM);
+	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id, { env: active?.name ?? null });
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
 	const heading = <h1 className="sr-only">Dashboard</h1>;

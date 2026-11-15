@@ -3,7 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
-import { useState } from "react";
+import { useQueryState } from "nuqs";
 import { Link, useNavigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
@@ -18,8 +18,8 @@ import { formatPercent, percentAxis } from "@/lib/compute-chart";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { isUnimplemented } from "@/lib/error-handler";
 import { imageVersion } from "@/lib/image";
-import { aroundWindow, resolveWindow, windowSpan } from "@/lib/obs-time";
-import { logAnchor } from "@/lib/log-history";
+import { sortParser } from "@/lib/sort-parser";
+import { aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { formatHourMinute, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,9 @@ const WARN_PERCENT = 85;
 // A click this close to a deploy line, as a share of the range, offers that deploy.
 const DEPLOY_PICK_SHARE = 0.02;
 
-type SortKey = "resource" | "region" | "replicas" | "cpu" | "mem";
+const SORT_KEYS = ["resource", "region", "replicas", "cpu", "mem"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+const metricSortParser = sortParser(SORT_KEYS, { id: "cpu", desc: true }).withOptions({ history: "replace" });
 
 interface DeployMarker extends ChartMarker {
 	tag: string;
@@ -191,10 +193,9 @@ function Meter({ value }: { value: number | undefined }) {
 }
 
 export function MetricsView() {
-	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, maxMs, params, goTo, setQuery, text } =
-		useObs();
+	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, maxMs, goTo, setQuery, text } = useObs();
 	const navigate = useNavigate();
-	const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "cpu", desc: true });
+	const [sort, setSort] = useQueryState("sort", metricSortParser);
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const now = useNow(NOW_TICK_MS);
 	const { from, to } = resolveWindow(range, now.getTime());
@@ -205,7 +206,7 @@ export function MetricsView() {
 	const cpu = useComputeSeries(CPU, rows, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, spanMs, endMs);
 	const deployMarkers = useDeployMarkers(visible, environment?.id ?? "", from, to);
-	const focusTs = logAnchor(params.get("at"));
+	const [focusTs] = useQueryState("at", msParser);
 	const markers: ChartMarker[] = [
 		...deployMarkers,
 		...(focusTs !== null && focusTs >= from && focusTs <= to
@@ -294,6 +295,7 @@ export function MetricsView() {
 					action={
 						<>
 							<Button
+								nativeButton={false}
 								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.name } : {})} />}
 							>
 								<PlusIcon />
@@ -308,7 +310,7 @@ export function MetricsView() {
 	}
 
 	const sortValue = (p: Placement): string | number => {
-		switch (sort.key) {
+		switch (sort.id) {
 			case "resource":
 				return p.resource.name;
 			case "region":
@@ -330,17 +332,17 @@ export function MetricsView() {
 	const header = (key: SortKey, label: string, className?: string) => (
 		<th
 			className={cn("px-3 font-normal", className)}
-			aria-sort={sort.key !== key ? "none" : sort.desc ? "descending" : "ascending"}
+			aria-sort={sort.id !== key ? "none" : sort.desc ? "descending" : "ascending"}
 		>
 			<button
 				type="button"
 				onClick={() => {
-					setSort({ key, desc: sort.key === key ? !sort.desc : key !== "resource" && key !== "region" });
+					void setSort({ id: key, desc: sort.id === key ? !sort.desc : key !== "resource" && key !== "region" });
 				}}
 				className="rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 			>
 				{label}
-				{sort.key === key && (sort.desc ? " ↓" : " ↑")}
+				{sort.id === key && (sort.desc ? " ↓" : " ↑")}
 			</button>
 		</th>
 	);

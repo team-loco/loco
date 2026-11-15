@@ -22,6 +22,10 @@ CREATE INDEX events_org_actor_seq_idx ON events (org_id, actor_id, seq DESC);
 CREATE INDEX events_org_actor_type_seq_idx ON events (org_id, actor_type, seq DESC);
 CREATE INDEX events_org_request_idx ON events (org_id, request_id);
 
+CREATE INDEX events_org_type_seq_idx ON events (org_id, type, seq DESC);
+CREATE INDEX events_workspace_type_seq_idx ON events (workspace_id, type, seq DESC);
+CREATE INDEX events_org_environment_seq_idx ON events (org_id, environment_id, seq DESC);
+
 CREATE INDEX events_workspace_seq_idx ON events (workspace_id, seq DESC);
 CREATE INDEX events_resource_seq_idx ON events (resource_id, seq DESC);
 CREATE INDEX events_org_seq_idx ON events (org_id, seq DESC);
@@ -98,6 +102,7 @@ CREATE TABLE webhook_deliveries (
 CREATE INDEX webhook_deliveries_event_seq_idx ON webhook_deliveries (event_seq);
 CREATE INDEX webhook_deliveries_due_idx ON webhook_deliveries (next_attempt_at) WHERE status = 'pending';
 CREATE INDEX webhook_deliveries_webhook_idx ON webhook_deliveries (webhook_id, created_at DESC, id DESC);
+CREATE INDEX webhook_deliveries_webhook_status_idx ON webhook_deliveries (webhook_id, status, created_at DESC, id DESC);
 
 -- +goose StatementBegin
 CREATE FUNCTION events_enqueue_webhooks() RETURNS trigger AS $$

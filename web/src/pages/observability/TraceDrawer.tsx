@@ -1,5 +1,6 @@
 import { Spinner } from "@/components/design/Spinner";
 import { useState } from "react";
+import { useQueryState } from "nuqs";
 import { Link } from "react-router";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import {
@@ -256,9 +257,9 @@ export function TraceDrawer({
 	onRetry: () => void;
 	onClose: () => void;
 }) {
-	const { orgId, workspaceId, resourceById, params, setParam } = useObs();
+	const { orgId, workspaceId, resourceById } = useObs();
+	const [spanId, setSpanId] = useQueryState("span", { history: "replace" });
 	const [copied, copy] = useCopy();
-	const spanId = params.get("span");
 	const linked = trace?.spans.find((s) => s.spanId === spanId);
 	const selected = linked ?? trace?.root;
 	const missing = spanId !== null && trace !== undefined && linked === undefined;
@@ -269,7 +270,7 @@ export function TraceDrawer({
 	const code = trace === undefined ? "" : rootStatusCode(trace.root);
 	const rootPod = trace?.root.resourceAttributes["k8s.pod.name"] ?? "";
 	const select = (span: TraceSpan) => {
-		setParam("span", span.spanId, true);
+		void setSpanId(span.spanId);
 	};
 	return (
 		<Sheet

@@ -1,7 +1,7 @@
 import { functionalUpdate, useTable, type RowSelectionState } from "@tanstack/react-table";
 import { SearchXIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useQueryStates } from "nuqs";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
 import { Button } from "@/components/design/Button";
@@ -16,18 +16,17 @@ import { BulkActions } from "./BulkActions";
 import { ResourceCellContext, resourceColumns } from "./columns";
 import {
 	ALL,
+	FILTER_URL_KEYS,
 	filterRows,
 	isDraftRow,
 	nameOrder,
 	PAGE_SIZES,
-	readTableState,
 	regionCounts,
 	STATUS_FILTERS,
 	statusCounts,
-	writeTableState,
+	tableParsers,
 	type ListRow,
 	type ResourceRow,
-	type TableState,
 } from "./table";
 
 function rowId(row: ListRow): string {
@@ -49,26 +48,21 @@ export function ResourceTable({
 	workspaceId: string;
 	nowMs: number;
 }) {
-	const [params, setParams] = useSearchParams();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const columns = useMemo(() => resourceColumns(environments), [environments]);
-	const state = readTableState(params, columns);
-	const { filter } = state;
+	const parsers = useMemo(() => tableParsers(columns), [columns]);
+	const [state, setState] = useQueryStates(parsers, { history: "replace", urlKeys: FILTER_URL_KEYS });
+	const filter = { query: state.query, status: state.status, region: state.region };
 
-	const update = (patch: Partial<TableState>) => {
-		setParams((prev) => writeTableState(prev, { ...readTableState(prev, columns), ...patch }, columns), {
-			replace: true,
-		});
-	};
-	const setFilter = (patch: Partial<TableState["filter"]>) => {
-		update({ filter: { ...filter, ...patch }, page: 0 });
+	const setFilter = (patch: Partial<typeof filter>) => {
+		void setState({ ...patch, page: null });
 	};
 	const clearFilters = () => {
-		update({ filter: { query: "", status: ALL, region: ALL }, page: 0 });
+		void setState({ query: null, status: null, region: null, page: null });
 	};
 
 	const data = nameOrder(filterRows(rows, filter));
-	const sorting = [state.sorting];
+	const sorting = [state.sort];
 	const pagination = pageWithin({ pageIndex: state.page, pageSize: state.size }, data.length);
 	const table = useTable({
 		...sortOptions,
@@ -77,18 +71,18 @@ export function ResourceTable({
 		data,
 		getRowId: rowId,
 		enableRowSelection: (row) => !isDraftRow(row.original),
-		state: { sorting, columnVisibility: state.visibility, pagination, rowSelection },
+		state: { sorting, columnVisibility: state.cols, pagination, rowSelection },
 		autoResetPageIndex: false,
 		onSortingChange: (updater) => {
 			const next = functionalUpdate(updater, sorting)[0];
-			if (next !== undefined) update({ sorting: next, page: 0 });
+			if (next !== undefined) void setState({ sort: next, page: null });
 		},
 		onColumnVisibilityChange: (updater) => {
-			update({ visibility: functionalUpdate(updater, state.visibility) });
+			void setState({ cols: functionalUpdate(updater, state.cols) });
 		},
 		onPaginationChange: (updater) => {
 			const next = functionalUpdate(updater, pagination);
-			update({ page: next.pageIndex, size: next.pageSize });
+			void setState({ page: next.pageIndex, size: PAGE_SIZES.find((n) => n === next.pageSize) ?? null });
 		},
 		onRowSelectionChange: setRowSelection,
 	});
@@ -164,7 +158,7 @@ export function ResourceTable({
 
 	return (
 		<Section filters={some ? bulk : filters} search={some ? undefined : search}>
-			<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs, search: params }}>
+			<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs }}>
 				<DataTable
 					table={table}
 					className="table-fixed"

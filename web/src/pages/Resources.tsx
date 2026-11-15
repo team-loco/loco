@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { useSearchParams } from "react-router";
+import { parseAsString, useQueryStates } from "nuqs";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
@@ -16,7 +16,14 @@ import { useNow } from "@/hooks/useNow";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
 import { limitReason, limitUsage } from "@/lib/limits";
-import { DRAFT_PARAM, draftSearch, NEW_RESOURCE_PARAM, newResourcePath } from "@/lib/routes";
+import {
+	DRAFT_PARAM,
+	NEW_RESOURCE_PARAM,
+	newResourcePath,
+	RESOURCE_VIEWS,
+	resourceViewParser,
+	type ResourceView,
+} from "@/lib/routes";
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
 import { DraftSheet, NewService } from "@/pages/resources/NewService";
 import { ResourcesEmpty } from "@/pages/resources/ResourcesEmpty";
@@ -26,22 +33,25 @@ import { buildRows, draftRows } from "@/pages/resources/table";
 
 const NOW_TICK_MS = 60_000;
 const SKELETON_ROWS = 6;
-const TABLE_VIEW = "table";
-const MAP_VIEW = "map";
-const VIEW_PARAM = "view";
+const RESOURCES_PARAMS = {
+	view: resourceViewParser,
+	[DRAFT_PARAM]: parseAsString,
+	[NEW_RESOURCE_PARAM]: parseAsString,
+};
 
-function ViewToggle({ view, onView }: { view: string; onView: (view: string) => void }) {
+function ViewToggle({ view, onView }: { view: ResourceView; onView: (view: ResourceView) => void }) {
 	return (
 		<ToggleGroup
 			variant="segmented"
 			aria-label="View"
 			value={[view]}
 			onValueChange={(v: string[]) => {
-				if (v[0] !== undefined) onView(v[0]);
+				const next = RESOURCE_VIEWS.find((r) => r === v[0]);
+				if (next !== undefined) onView(next);
 			}}
 		>
-			<ToggleGroupItem value={TABLE_VIEW}>Table</ToggleGroupItem>
-			<ToggleGroupItem value={MAP_VIEW}>Map</ToggleGroupItem>
+			<ToggleGroupItem value="table">Table</ToggleGroupItem>
+			<ToggleGroupItem value="map">Map</ToggleGroupItem>
 		</ToggleGroup>
 	);
 }
@@ -51,7 +61,7 @@ export function Resources() {
 	const { environments, active, isLoading: envsLoading } = useEnvironments();
 	const data = useWorkspaceDeployments(activeOrgId, activeWorkspaceId);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
-	const [params, setParams] = useSearchParams();
+	const [params, setParams] = useQueryStates(RESOURCES_PARAMS);
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
@@ -65,13 +75,9 @@ export function Resources() {
 			: limitUsage(data.resources.length, limits?.resourcesPerWorkspace, "resources", "workspace");
 	const createBlocked = limitReason(usage);
 	const total = data.resources.length + drafts.length;
-	const draftId = params.get(DRAFT_PARAM);
-	const view = params.get(VIEW_PARAM) === MAP_VIEW ? MAP_VIEW : TABLE_VIEW;
-	const setView = (next: string) => {
-		const p = new URLSearchParams(params);
-		if (next === MAP_VIEW) p.set(VIEW_PARAM, MAP_VIEW);
-		else p.delete(VIEW_PARAM);
-		setParams(p);
+	const { view, [DRAFT_PARAM]: draftId } = params;
+	const setView = (next: ResourceView) => {
+		void setParams({ view: next });
 	};
 	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.name });
 
@@ -91,14 +97,14 @@ export function Resources() {
 			);
 		}
 		if (total === 0) return <ResourcesEmpty environmentId={active?.id} newHref={serviceHref} />;
-		if (view === MAP_VIEW && active !== undefined) {
+		if (view === "map" && active !== undefined) {
 			return (
 				<ResourcesMap
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={active}
 					onShowTable={() => {
-						setView(TABLE_VIEW);
+						setView("table");
 					}}
 				/>
 			);
@@ -139,19 +145,17 @@ export function Resources() {
 				}
 			/>
 			{body}
-			{params.has(NEW_RESOURCE_PARAM) && !envsLoading && (
+			{params[NEW_RESOURCE_PARAM] !== null && !envsLoading && (
 				<NewService
 					key={active?.id}
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={active}
 					onClose={() => {
-						const next = new URLSearchParams(params);
-						next.delete(NEW_RESOURCE_PARAM);
-						setParams(next);
+						void setParams({ [NEW_RESOURCE_PARAM]: null });
 					}}
 					onCreated={(id) => {
-						setParams(new URLSearchParams(draftSearch(params, id)));
+						void setParams({ [NEW_RESOURCE_PARAM]: null, [DRAFT_PARAM]: id });
 					}}
 				/>
 			)}

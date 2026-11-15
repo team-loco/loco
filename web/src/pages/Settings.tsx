@@ -4,8 +4,9 @@ import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
-import { useState, type MouseEvent } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { startTransition, useState, type MouseEvent } from "react";
+import { useQueryStates } from "nuqs";
+import { useNavigate, useParams } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 
@@ -18,11 +19,11 @@ import { ResourceAccess } from "@/components/ResourceAccess";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { settingsPath, type SettingsScope } from "@/lib/routes";
+import { SETTINGS_SCOPES, settingsPath, type SettingsScope } from "@/lib/routes";
 
 import { OrgTab } from "./settings/OrgTab";
 import { PersonalTab } from "./settings/PersonalTab";
-import { SCOPES, scopeFromParams } from "./settings/scope";
+import { SETTINGS_PARAMS } from "./settings/scope";
 import { useResourceCounts } from "./settings/useResourceCounts";
 import { SettingsSkeleton, type WorkspaceDraft, WorkspaceTab } from "./settings/WorkspaceTab";
 
@@ -45,10 +46,9 @@ function DirtyDot() {
 
 export function Settings() {
 	const { orgId = "", workspaceId = "" } = useParams<{ orgId: string; workspaceId: string }>();
-	const [params, setParams] = useSearchParams();
+	const [{ scope: requested }, setParams] = useQueryStates(SETTINGS_PARAMS, { history: "replace" });
 	const navigate = useNavigate();
 	const { user } = useAuth();
-	const requested = scopeFromParams(params);
 	const [drafts, setDrafts] = useState<Drafts>(NO_DRAFTS);
 	const [leaveTo, setLeaveTo] = useState<string | null>(null);
 
@@ -90,11 +90,11 @@ export function Settings() {
 	const accountDirty = drafts.account !== null && user !== null && drafts.account !== user.name;
 	const anyDirty = wsDirty || orgDirty || accountDirty;
 
+	// A transition keeps the current scope on screen while the Personal scope's theme stylesheets load.
 	const selectScope = (next: SettingsScope) => {
-		const p = new URLSearchParams(params);
-		p.delete("tab");
-		p.set("scope", next);
-		setParams(p, { replace: true });
+		startTransition(() => {
+			void setParams({ scope: next, q: null, page: null, size: null });
+		});
 	};
 
 	const openWorkspace = (event: MouseEvent, w: Workspace) => {
@@ -118,7 +118,7 @@ export function Settings() {
 				className="w-max max-w-full"
 				value={[scope]}
 				onValueChange={(v: string[]) => {
-					const next = SCOPES.find((s) => s === v[0]);
+					const next = SETTINGS_SCOPES.find((s) => s === v[0]);
 					if (next !== undefined) selectScope(next);
 				}}
 			>

@@ -2,7 +2,9 @@ import { ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resourc
 
 import { DRAFT_RANK, draftIsPublic, draftRegions, type Draft } from "@/lib/drafts";
 import { primaryDomain, statusRank } from "@/lib/resource-status";
-import { STATUS_FILTERS as RESOURCES_STATUS_FILTERS, writeFilter } from "@/pages/resources/table";
+import { createSerializer } from "nuqs";
+
+import { FILTER_PARSERS, FILTER_URL_KEYS, STATUS_FILTERS as RESOURCES_STATUS_FILTERS } from "@/pages/resources/table";
 
 import type { EnvResource, RegionReplicas } from "./useDashboardData";
 
@@ -108,8 +110,13 @@ export function filterRows<T extends DashboardItem>(items: T[], filter: RowFilte
 		.toSorted((a, b) => itemName(a).localeCompare(itemName(b)));
 }
 
+const serializeFilter = createSerializer(FILTER_PARSERS, { urlKeys: FILTER_URL_KEYS });
+
 export function viewAllSearch(envName: string, filter: RowFilter): string {
 	const status = RESOURCES_STATUS_FILTERS.some((f) => f.value === filter.status) ? filter.status : ALL;
-	const params = new URLSearchParams({ env: envName });
-	return writeFilter(params, { query: filter.query.trim(), status, region: filter.region }).toString();
+	return serializeFilter(new URLSearchParams({ env: envName }), {
+		query: filter.query.trim(),
+		status,
+		region: filter.region,
+	});
 }

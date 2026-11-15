@@ -241,7 +241,7 @@ with sync_playwright() as playwright:
                     section.get_by_role("button", name=f"Show build {builds['failed'][:8]}", exact=True).click()
                     expect(section.get_by_text("RUN go build ./cmd/api exited with code 1", exact=True)).to_be_visible()
                     expect(section.get_by_text(BUILD_LOG[1][1], exact=True)).to_be_visible()
-                    expect(section.get_by_role("link", name="Open in Logs", exact=True)).to_have_attribute("href", re.compile(f"q=build%3A{builds['failed']}"))
+                    expect(section.get_by_role("link", name="Open in Logs", exact=True)).to_have_attribute("href", re.compile(f"q=build:{builds['failed']}"))
                     log_requests = [body for body in log_queries if body.get("labels", {}).get("loco.io/build-id") == builds["failed"]]
                     assert log_requests and not log_requests[0].get("environmentId") and log_requests[0].get("order") == "LOG_ORDER_OLDEST_FIRST", log_queries
                     expect(section.get_by_role("button", name="Cancel build", exact=True)).to_have_count(0)
@@ -307,7 +307,7 @@ with sync_playwright() as playwright:
                     expect(networking.get_by_role("button", name="Add", exact=True)).to_be_disabled()
                     page.screenshot(path=out / f"domains-{case}.png", animations="disabled")
                     stage = "owner-settings"
-                    page.goto(state["ui_url"] + base + "/settings?tab=ws")
+                    page.goto(state["ui_url"] + base + "/settings?scope=workspace")
                     owner_name = page.get_by_placeholder("storefront", exact=True)
                     expect(owner_name).to_be_enabled()
                     owner_name.fill("shared-edited")
@@ -322,7 +322,7 @@ with sync_playwright() as playwright:
                     active_page, active_context = member_page, member_context
                     stage, user = "reader-settings", "member"
                     member_page.on("pageerror", lambda error: errors.append(str(error)))
-                    member_page.goto(state["ui_url"] + base + "/settings?tab=ws")
+                    member_page.goto(state["ui_url"] + base + "/settings?scope=workspace")
                     expect(member_page.get_by_placeholder("storefront", exact=True)).to_be_disabled()
                     expect(member_page.get_by_role("button", name="Save", exact=True)).to_have_count(0)
                     member_page.screenshot(path=out / f"reader-settings-{case}.png", animations="disabled")

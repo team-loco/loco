@@ -1,4 +1,5 @@
-import { Navigate, useSearchParams } from "react-router";
+import { useQueryState } from "nuqs";
+import { Navigate } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useSignIn } from "@/auth/SignIn";
@@ -16,7 +17,7 @@ import { SplashNav } from "./splash/SplashNav";
 export function Splash() {
 	const { isAuthenticated, isPending } = useAuth();
 	const { signIn, redirecting } = useSignIn();
-	const [searchParams] = useSearchParams();
+	const [loginHint] = useQueryState("login_hint");
 
 	if (isAuthenticated) {
 		return <Navigate to="/dashboard" replace />;
@@ -27,7 +28,7 @@ export function Splash() {
 	}
 
 	const startSignIn = () => {
-		void signIn(null, searchParams.get("login_hint"));
+		void signIn(null, loginHint);
 	};
 
 	return (

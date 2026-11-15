@@ -16,8 +16,10 @@ import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-q
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router";
+import { NuqsAdapter } from "nuqs/adapters/react-router/v8";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useEnvironmentInUrl } from "@/hooks/useEnvironment";
 import { notFound } from "@/lib/not-found";
 import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
@@ -71,10 +73,12 @@ const persister = createAsyncStoragePersister({
 
 const transport = createTransport();
 
+// Non-shallow updates keep React Router's location in step, and push matches its setSearchParams default.
+const NUQS_DEFAULTS = { shallow: false, history: "push" } as const;
+
 function NewResourceRedirect() {
 	const { orgId = "", workspaceId = "" } = useParams();
-	const params = Object.fromEntries(new URLSearchParams(useLocation().search));
-	return <Navigate to={newResourcePath(orgId, workspaceId, params)} replace />;
+	return <Navigate to={newResourcePath(orgId, workspaceId, useLocation().search)} replace />;
 }
 
 function OrgRedirect({ to }: { to: "team" | "settings" }) {
@@ -87,6 +91,11 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const ws = workspaces.find((w) => w.orgId === org)?.id;
 	if (ws === undefined) return <Navigate to="/organizations" replace />;
 	return <Navigate to={settingsPath(org, ws, "org")} replace />;
+}
+
+function WorkspaceRoutes() {
+	useEnvironmentInUrl();
+	return <Outlet />;
 }
 
 function NoRoute(): never {
@@ -184,7 +193,7 @@ function AppRoutes() {
 					/>
 					<Route path="/org/:orgId/settings" element={<OrgRedirect to="settings" />} />
 
-					<Route path="/org/:orgId/wks/:workspaceId">
+					<Route path="/org/:orgId/wks/:workspaceId" element={<WorkspaceRoutes />}>
 						<Route
 							path=""
 							element={
@@ -237,20 +246,22 @@ function AppRoutes() {
 export default function App() {
 	return (
 		<BrowserRouter>
-			<TransportProvider transport={transport}>
-				<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
-					<AppLoaderProvider>
-						<AuthProvider>
-							<ThemeProvider>
-								<Toaster />
-								<ErrorBoundary>
-									<AppRoutes />
-								</ErrorBoundary>
-							</ThemeProvider>
-						</AuthProvider>
-					</AppLoaderProvider>
-				</PersistQueryClientProvider>
-			</TransportProvider>
+			<NuqsAdapter defaultOptions={NUQS_DEFAULTS}>
+				<TransportProvider transport={transport}>
+					<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+						<AppLoaderProvider>
+							<AuthProvider>
+								<ThemeProvider>
+									<Toaster />
+									<ErrorBoundary>
+										<AppRoutes />
+									</ErrorBoundary>
+								</ThemeProvider>
+							</AuthProvider>
+						</AppLoaderProvider>
+					</PersistQueryClientProvider>
+				</TransportProvider>
+			</NuqsAdapter>
 		</BrowserRouter>
 	);
 }

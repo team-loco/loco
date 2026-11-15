@@ -69,8 +69,8 @@ def mock_telemetry(context):
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
 
-def query_param(page):
-    return urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query).get("q", [""])[0]
+def wait_for_query(page, check):
+    page.wait_for_url(lambda url: check(urllib.parse.parse_qs(urllib.parse.urlparse(url).query)))
 
 
 def log_levels(page, suffix):
@@ -81,11 +81,11 @@ def log_levels(page, suffix):
     expect(warn).to_have_attribute("aria-pressed", "true")
     error.click()
     expect(error).to_have_attribute("aria-pressed", "true")
-    assert query_param(page) == "@level:warn @level:error", query_param(page)
+    wait_for_query(page, lambda query: query.get("q") == ["@level:warn @level:error"])
     warn.focus()
     page.keyboard.press("Space")
     expect(warn).to_have_attribute("aria-pressed", "false")
-    assert query_param(page) == "@level:error", query_param(page)
+    wait_for_query(page, lambda query: query.get("q") == ["@level:error"])
     page.screenshot(path=str(out / f"log-levels-{suffix}.png"))
 
 
@@ -123,7 +123,7 @@ def log_paging(page, suffix):
     expect(page.get_by_role("button", name="Newest", exact=True)).to_be_disabled()
     page.get_by_role("button", name="Oldest", exact=True).click()
     expect(pager_label).to_have_text("101–120 of 120 loaded")
-    assert "page=last" in page.url, page.url
+    wait_for_query(page, lambda query: query.get("page") == ["last"])
     expect(page.get_by_role("button", name="Oldest", exact=True)).to_be_disabled()
     page.get_by_role("button", name="Newest", exact=True).click()
     expect(pager_label).to_have_text("1–25 of 120 loaded")
@@ -131,11 +131,11 @@ def log_paging(page, suffix):
     expect(pager_label).to_have_text("26–50 of 120 loaded")
     page.get_by_role("group", name="Rows per page").get_by_role("button", name="250", exact=True).click()
     expect(pager_label).to_have_text("1–120 of 120 loaded")
-    assert "size=250" in page.url, page.url
+    wait_for_query(page, lambda query: query.get("size") == ["250"])
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&size=25&page=2")
     expect(pager_label).to_have_text("26–50 of 120 loaded")
     page.get_by_role("button", name=re.compile(r"Paged line 30$")).click()
-    assert "log=" in page.url, page.url
+    wait_for_query(page, lambda query: "log" in query)
     page.reload()
     detail = page.get_by_role("complementary", name="Log line")
     expect(detail).to_contain_text("Paged line 30")
@@ -146,11 +146,11 @@ def log_paging(page, suffix):
     page.get_by_role("button", name="Add a column", exact=True).click()
     page.get_by_role("menuitemcheckbox", name="Method", exact=True).click()
     page.keyboard.press("Escape")
-    assert "method" in urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["cols"][0], page.url
+    wait_for_query(page, lambda query: "method" in query.get("cols", [""])[0])
     expect(page.get_by_role("button", name=re.compile(r"GET Paged line 30$"))).to_have_count(1)
     page.get_by_role("separator", name="Resize column Resource").focus()
     page.keyboard.press("ArrowRight")
-    expect(page).to_have_url(re.compile(r"widths=resource%3A156"))
+    expect(page).to_have_url(re.compile(r"widths=resource:156"))
     page.screenshot(path=str(out / f"log-paging-{suffix}.png"))
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
@@ -197,13 +197,12 @@ def query_enter(page, suffix):
     search.press("Enter")
     expect(suggestions).not_to_be_visible()
     expect(search).to_have_value("")
-    assert query_param(page) == "@level:warn", query_param(page)
+    wait_for_query(page, lambda query: query.get("q") == ["@level:warn"])
     search.press_sequentially("checkout ")
     expect(suggestions).to_be_visible()
     search.press("Enter")
     expect(suggestions).not_to_be_visible()
-    expect(page).to_have_url(re.compile(r"checkout"))
-    assert query_param(page) == "@level:warn checkout", query_param(page)
+    wait_for_query(page, lambda query: query.get("q") == ["@level:warn checkout"])
 
 
 def query_suggestions(page, suffix):
@@ -326,6 +325,7 @@ def resources(page, suffix):
         expect(header).to_have_attribute("aria-sort", "descending")
         expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
         if route:
+            expect(page).to_have_url(re.compile(r"[?&]sort=name\.desc"))
             page.reload()
             expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
             table.locator("..").screenshot(path=str(out / f"resource-sorting-{suffix}.png"), animations="disabled")
@@ -358,7 +358,7 @@ def metrics(page, suffix):
     by_region.get_by_role("button", name="Resource", exact=True).click()
     expect(by_region.get_by_role("columnheader", name="Resource ↑")).to_have_attribute("aria-sort", "ascending")
     by_region.get_by_role("row").filter(has_text="controls-alpha").get_by_role("cell").nth(1).click()
-    expect(page).to_have_url(re.compile(r"resource%3Acontrols-alpha"))
+    expect(page).to_have_url(re.compile(r"resource:controls-alpha"))
     page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
     expect(chart.locator(".recharts-line")).to_be_visible()
     chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})

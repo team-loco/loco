@@ -11,6 +11,10 @@ from pathlib import Path
 import re
 import urllib.parse
 from playwright.sync_api import expect, sync_playwright
+
+
+def wait_for_query(page, check):
+    page.wait_for_url(lambda url: check(urllib.parse.parse_qs(urllib.parse.urlparse(url).query)))
 sys.dont_write_bytecode = True
 repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description='Exercise the production trace viewer with fixture trace responses')
@@ -105,13 +109,14 @@ with sync_playwright() as p:
             open_trace = page.get_by_role('region', name='Trace list').get_by_role('button', name='Open trace ' + root_name, exact=True)
             open_trace.wait_for()
             expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
+            wait_for_query(page, lambda query: query.get('env') == ['production'] and query.get('view') == ['traces'])
             expect(page.get_by_role('button', name=re.compile(r'^All\s*7$'))).to_be_visible()
             suffix = f"{theme}{('-narrow' if narrow else '')}"
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
             expect(open_trace).to_have_attribute('aria-pressed', 'false')
             open_trace.click(position={'x': 20, 'y': 10})
             drawer = page.get_by_role('dialog', name=root_name)
-            assert 'trace=' + trace in page.url
+            wait_for_query(page, lambda query: query.get('trace') == [trace])
             evidence.settle(page)
             assert drawer.evaluate('(element) => element.contains(document.activeElement)')
             if not narrow:
@@ -121,7 +126,7 @@ with sync_playwright() as p:
             flame.get_by_role('button', name=failing).click()
             evidence.settle(page)
             expect(flame.get_by_role('button', name=failing)).to_have_attribute('aria-pressed', 'true')
-            assert 'span=' + spans[10]['spanId'] in page.url
+            wait_for_query(page, lambda query: query.get('span') == [spans[10]['spanId']])
             expect(drawer.get_by_role('region', name='Selected span').get_by_role('heading', name='POST /payments/authorize', exact=True)).to_be_visible()
             expect(drawer.get_by_text('Payment authorization timed out after 90 ms', exact=True)).to_be_visible()
             events = drawer.get_by_role('region', name='Span events')
@@ -148,7 +153,7 @@ with sync_playwright() as p:
                 previous_request = dict(next(row for row in reversed(recorded) if "startTime" in row))
                 page.keyboard.press('Escape')
                 expect(drawer).to_have_count(0)
-                assert 'trace=' not in page.url
+                wait_for_query(page, lambda query: 'trace' not in query)
                 spans.append(dict(spans[5], spanId='0000000000000f01', name='Late exported span'))
                 open_trace.click()
                 evidence.settle(page)
@@ -160,10 +165,10 @@ with sync_playwright() as p:
                 page.get_by_role('button', name='Past hour', exact=True).click()
                 page.get_by_role('group', name='Presets').get_by_role('button', name='Past 15 minutes', exact=False).click()
                 evidence.settle(page)
-                assert 'range=15m' in page.url
+                wait_for_query(page, lambda query: query.get('range') == ['15m'])
                 page.go_back()
                 evidence.settle(page)
-                assert 'range=15m' not in page.url
+                wait_for_query(page, lambda query: query.get('range') != ['15m'])
                 page.goto(previous_url)
                 evidence.settle(page)
                 expect(flame.get_by_role('button', name=failing)).to_have_attribute('aria-pressed', 'true')
@@ -228,7 +233,7 @@ with sync_playwright() as p:
     expect(page.get_by_text('1–25 of 67', exact=True)).to_be_visible()
     expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]')).to_have_count(25)
     page.get_by_role('separator', name='Resize column Root span').press('ArrowRight')
-    expect(page).to_have_url(re.compile(r'widths=span%3A276'))
+    expect(page).to_have_url(re.compile(r'widths=span:276'))
     expect(page.get_by_role('region', name='Trace list').get_by_role('button', name=re.compile(r'^Spans'))).to_have_count(0)
     page.get_by_role('button', name='Next page', exact=True).click()
     evidence.settle(page)
@@ -269,21 +274,15 @@ with sync_playwright() as p:
     page.mouse.move(box['x'] + 2, box['y'] + 2)
     page.mouse.down()
     page.mouse.move(box['x'] + box['width'] - 2, box['y'] + box['height'] * 0.8, steps=5)
-    page.mouse.up()
+    with page.expect_request(lambda request: request.url.endswith('/ListTraces') and {'minDurationNanos', 'maxDurationNanos'} <= set(request.post_data_json)):
+        page.mouse.up()
     evidence.settle(page)
+    wait_for_query(page, lambda query: 'from' in query and 'to' in query)
     zoomed = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)
-    assert 'from' in zoomed and 'to' in zoomed, page.url
     assert '@duration:>=' in zoomed['q'][0] and '@duration:<=' in zoomed['q'][0], zoomed
-    # The zoom's request can land after the page settles, so wait for it.
-    for _ in range(50):
-        if 'minDurationNanos' in last_page_request() and 'maxDurationNanos' in last_page_request():
-            break
-        page.wait_for_timeout(100)
-    assert 'minDurationNanos' in last_page_request() and 'maxDurationNanos' in last_page_request()
     page.get_by_role('button', name='Reset zoom', exact=True).click()
     evidence.settle(page)
-    assert '@duration' not in urllib.parse.unquote(page.url)
-    assert 'from=' not in page.url
+    wait_for_query(page, lambda query: 'from' not in query and '@duration' not in query.get('q', [''])[0])
     expect(page.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
     page.goto(state['ui_url'] + base + '&q=products')
     evidence.settle(page)
@@ -302,8 +301,8 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace)
     evidence.settle(page)
+    wait_for_query(page, lambda query: query.get('env') == ['staging'] and query.get('trace') == [trace])
     shared_url = page.url
-    assert 'env=staging' in shared_url
     assert recorded[-1]['scope']['environmentId'] == staging
     context.close()
     context = browser.new_context()
@@ -342,15 +341,17 @@ with sync_playwright() as p:
     context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
     page = context.new_page()
+    page.clock.install()
+    recent_save_ms = 1500
     search = page.get_by_role('combobox', name='Search and filter')
     suggestions = page.get_by_role('listbox', name='Suggestions')
     recent = suggestions.get_by_role('option').filter(has_text='checkout')
     page.goto(state['ui_url'] + base + '&q=checkout')
     evidence.settle(page)
-    page.wait_for_timeout(2500)
+    page.clock.run_for(recent_save_ms)
     page.goto(state['ui_url'] + base + '&q=quick')
     page.get_by_role('button', name='Clear', exact=True).click()
-    page.wait_for_timeout(2500)
+    page.clock.run_for(recent_save_ms)
     search.click()
     expect(recent).to_have_count(1)
     expect(suggestions.get_by_role('option').filter(has_text='quick')).to_have_count(0)
@@ -376,7 +377,7 @@ with sync_playwright() as p:
     expect(page.get_by_role('button', name='Pin search')).to_have_count(0)
     page.goto(state['ui_url'] + base + '&q=checkout')
     evidence.settle(page)
-    page.wait_for_timeout(2500)
+    page.clock.run_for(recent_save_ms)
     page.get_by_role('button', name='Pin search').click()
     expect(page.locator('[data-sonner-toast]').filter(has_text='Pinned')).to_be_visible()
     page.goto(state['ui_url'] + base)

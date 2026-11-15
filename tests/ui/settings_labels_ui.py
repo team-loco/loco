@@ -7,6 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -140,7 +141,7 @@ def check_environments(page):
 
 
 def check_create_dialogs(page):
-    for path, button, field in (("/organizations", "New organization", "Name"), (base + "?tab=org", "New workspace", "Name"), ("/tokens", "New token", "Name")):
+    for path, button, field in (("/organizations", "New organization", "Name"), (base + "?scope=org", "New workspace", "Name"), ("/tokens", "New token", "Name")):
         page.goto(state["ui_url"] + path)
         opener = page.get_by_role("button", name=button, exact=True).first
         opener.click()
@@ -195,9 +196,17 @@ with sync_playwright() as playwright:
                         page.unroute(org_list_rpc)
                         page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
                         page.wait_for_url(f"{state['ui_url']}/organizations")
+                        page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
+                        expect(page.get_by_placeholder("Search workspaces", exact=True)).to_have_value("zzz")
+                        workspace_scope = page.get_by_role("group", name="Settings for").get_by_role("button", name="Workspace", exact=True)
+                        workspace_scope.click()
+                        page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("scope", ["workspace"]) == ["workspace"])
+                        expect(workspace_scope).to_have_attribute("aria-pressed", "true")
+                        expect(page.get_by_placeholder("storefront", exact=True)).to_be_visible()
+                        assert "q=" not in page.url, page.url
                     for tab in ("ws", "org"):
                         try:
-                            page.goto(state["ui_url"] + base + "?tab=" + tab)
+                            page.goto(state["ui_url"] + base + "?scope=" + ("workspace" if tab == "ws" else "org"))
                             page.get_by_placeholder("storefront" if tab == "ws" else "team-loco").wait_for()
                             name = page.get_by_role("textbox", name="Name", exact=True)
                             assert name.count() == 1

@@ -181,8 +181,8 @@ with sync_playwright() as playwright:
             suffix = theme + ('-narrow' if narrow else '')
             for user, scene, path, title in [
                 ('owner', 'resource-owner', base + '/resource/' + activity['resourceId'], 'Activity'),
-                ('member', 'org-member', base + '/settings?tab=org', ''),
-                ('workspace_admin', 'workspace', base + '/settings?tab=ws', 'Activity'),
+                ('member', 'org-member', base + '/settings?scope=org', ''),
+                ('workspace_admin', 'workspace', base + '/settings?scope=workspace', 'Activity'),
                 ('resource_reader', 'resource', base + '/resource/' + activity['resourceId'], 'Activity'),
             ]:
                 context = browser.new_context(viewport={'width': 390, 'height': 844} if narrow else {'width': 1440, 'height': 1000}, color_scheme=theme)
@@ -313,7 +313,7 @@ with sync_playwright() as playwright:
                     page.get_by_role('menuitem', name='staging', exact=False).click()
                     page.keyboard.press('Escape')
                     expect(environment_switcher).to_contain_text('staging')
-                    assert 'env=staging' in page.url
+                    page.wait_for_url(lambda url: urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get('env') == ['staging'])
                     page.get_by_title('Switch workspace', exact=True).click()
                     page.get_by_role('menuitem', name='sibling', exact=False).click()
                     page.keyboard.press('Escape')

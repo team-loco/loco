@@ -1,3 +1,5 @@
+import { createParser, parseAsArrayOf, parseAsString } from "nuqs";
+
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 
 import type { ObservabilityView } from "@/lib/routes";
@@ -125,22 +127,28 @@ export function parseQuery(q: string): { tokens: Token[]; text: string } {
 	return { tokens, text };
 }
 
-export function readQuery(params: URLSearchParams): { tokens: Token[]; text: string } {
-	const parsed = parseQuery(params.get("q") ?? "");
-	const named = (params.get("r") ?? "")
-		.split(",")
-		.filter(Boolean)
-		.map((value): Token => ({ neg: false, key: "resource", value }));
-	return { tokens: [...named, ...parsed.tokens], text: parsed.text };
+export interface Query {
+	tokens: Token[];
+	text: string;
 }
 
-export function writeQuery(params: URLSearchParams, tokens: Token[], text: string): URLSearchParams {
-	const next = new URLSearchParams(params);
-	next.delete("r");
-	const q = queryStr(tokens, text);
-	if (q === "") next.delete("q");
-	else next.set("q", q);
-	return next;
+// q holds the query text; r is a comma list of resource names that resource links set.
+export const QUERY_PARSERS = {
+	q: createParser<Query>({
+		parse: parseQuery,
+		serialize: ({ tokens, text }) => queryStr(tokens, text),
+		eq: (a, b) => queryStr(a.tokens, a.text) === queryStr(b.tokens, b.text),
+	}).withDefault({ tokens: [], text: "" }),
+	r: parseAsArrayOf(parseAsString).withDefault([]),
+};
+
+export function queryValues(tokens: Token[], text: string): { q: Query; r: null } {
+	return { q: { tokens, text }, r: null };
+}
+
+export function toQuery({ q, r }: { q: Query; r: string[] }): Query {
+	const named = r.filter(Boolean).map((value): Token => ({ neg: false, key: "resource", value }));
+	return { tokens: [...named, ...q.tokens], text: q.text };
 }
 
 export function sameToken(a: Token, b: Token): boolean {

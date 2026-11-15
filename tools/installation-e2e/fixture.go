@@ -53,13 +53,15 @@ const (
 type fixture struct {
 	root, dir, name, kubeconfig, registryURL string
 	skip                                     bool
-	forward                                  *exec.Cmd
-	cloudManaged                             bool
-	platform                                 string
-	dockerPluginDirs                         []string
+	// images names prebuilt images, with * standing for the image name.
+	images           string
+	forward          *exec.Cmd
+	cloudManaged     bool
+	platform         string
+	dockerPluginDirs []string
 }
 
-func newFixture(root string, skip bool) (*fixture, error) {
+func newFixture(root string, skip bool, images string) (*fixture, error) {
 	digest := sha256.Sum256([]byte(root))
 	name := "loco-installation-" + hex.EncodeToString(digest[:4])
 	directory := filepath.Join(root, "tests", "e2e", "runs", name)
@@ -72,6 +74,7 @@ func newFixture(root string, skip bool) (*fixture, error) {
 		name:       name,
 		kubeconfig: filepath.Join(directory, "kubeconfig"),
 		skip:       skip,
+		images:     images,
 	}, nil
 }
 
@@ -245,7 +248,7 @@ func (f *fixture) cleanup(ctx context.Context, keep bool) error {
 		)
 	}
 	if kindErr == nil {
-		removeErr = os.RemoveAll(f.dir)
+		removeErr = os.RemoveAll(f.dir) //nolint:gosec // newFixture derives the directory from the checkout root.
 	}
 	return errors.Join(stopErr, kindErr, cloudErr, removeErr)
 }
