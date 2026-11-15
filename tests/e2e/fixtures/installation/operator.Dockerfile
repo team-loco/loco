@@ -33,6 +33,7 @@ RUN wget -qO /kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/$
  && chmod +x /kubectl
 
 FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82
+WORKDIR /tmp
 COPY --from=operator-tools /helm /kubectl /usr/local/libexec/
 RUN ln -s /usr/local/bin/installation-e2e /usr/local/bin/helm \
  && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
