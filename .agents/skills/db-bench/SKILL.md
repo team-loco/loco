@@ -97,7 +97,8 @@ Append one bullet per lesson under the topic it belongs to. Add a topic when non
   one-row primary-key lookup reads about 0.06 ms per request; treat smaller differences as noise.
 - Container memory as `docker stats` reports it is mostly page cache: WAL segments and data
   files earlier sizes left behind. It read 868 MB at N=1 right after a 1M delete. The `anon`
-  line of `memory.stat` tracks the request instead: 10 MB for one secret name, 27 MB for 100k.
+  line of `memory.stat` tracks the request instead: `delete-secrets` reads 6 MB for one name
+  and 277 MB for 1M.
 - The 100 ms memory sampler misses spikes in requests shorter than that.
 
 ### Planner
