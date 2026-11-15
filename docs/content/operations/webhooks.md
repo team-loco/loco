@@ -1,4 +1,6 @@
-# Webhooks
+---
+title: "Webhooks"
+---
 
 Install webhooks deliver platform events to operator-configured HTTP(S) consumers. Configure `INSTALL_WEBHOOKS` on the API with a JSON array of objects containing `url`, `secret`, and `eventTypes`; an empty `eventTypes` array receives every event. Each signing secret is `whsec_` followed by standard base64 encoding of exactly 32 bytes. Keep these credentials in the API environment Secret.
 

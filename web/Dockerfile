@@ -12,6 +12,7 @@ RUN apk add --no-cache brotli=${BROTLI_VERSION}
 COPY package.json bun.lock ./
 COPY web/package.json ./web/
 COPY gen/ts/package.json ./gen/ts/
+COPY docs/package.json ./docs/
 RUN bun install --frozen-lockfile
 
 COPY gen/ts ./gen/ts
@@ -37,29 +38,18 @@ RUN find web/dist -type f -size +1k \( \
     \) -exec brotli -f -k -q 11 {} \;
 
 
-FROM --platform=$BUILDPLATFORM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS docs-uv
-
-FROM --platform=$BUILDPLATFORM python:3.14.8-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS docs-builder
-COPY --from=docs-uv /uv /usr/local/bin/uv
+FROM builder AS docs-builder
 WORKDIR /app/docs
-COPY docs/pyproject.toml docs/uv.lock ./
-RUN uv sync --frozen --no-dev
-COPY docs/zensical.toml ./
-COPY docs/scripts ./scripts
-COPY docs/content ./content
-COPY docs/overrides ./overrides
-COPY web/public/favicon.svg /app/web/public/favicon.svg
-COPY web/public/logo.svg /app/web/public/logo.svg
-COPY web/sws.toml /app/web/sws.toml
+COPY docs ./
 ARG DOCS_ENVIRONMENT=production
-RUN uv run --frozen --no-dev python scripts/build.py build "$DOCS_ENVIRONMENT" \
-    && uv run --frozen --no-dev python scripts/package.py
+RUN bun run build "$DOCS_ENVIRONMENT"
 
 FROM ghcr.io/static-web-server/static-web-server:2.44.1@sha256:94618e3d17802265a21926217e6f9e7832b311b6fbf5933684001739fafed06a
 
 COPY --from=docs-builder /app/docs/.sws.toml /etc/sws.toml
 COPY --from=builder /app/web/dist /public
-COPY --from=docs-builder /app/docs/site /public/docs
+COPY --from=docs-builder /app/docs/site /documentation
+COPY --from=docs-builder /app/docs/site-mounted /public/docs
 COPY --from=docs-builder /app/docs/site/skills.md /public/skills.md
 COPY schemas/loco.v1.json /public/schemas/loco.v1.json
 

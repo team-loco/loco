@@ -1,0 +1,9 @@
+{
+  "title": "Contribute",
+  "pages": [
+    "development",
+    "browser-testing",
+    "documentation"
+  ],
+  "defaultOpen": true
+}

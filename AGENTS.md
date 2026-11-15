@@ -100,7 +100,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   tracked file. New pins start at the latest release. Container images carry a tag and a
   digest; a version a Dockerfile or Makefile pins outside a `FROM` line takes a
   `# renovate: datasource=... depName=...` line above it. `mise run lint:versions` checks the
-  images, and that docs/pyproject.toml requires the Python minor version mise.toml pins.
+  images, and that tests/pyproject.toml requires the Python minor version mise.toml pins.
 - **A build reports the version it was tagged as.** Every Go binary reads it from
   `-ldflags "-X main.version=..."`, which each Dockerfile fills from the `VERSION` build arg.
   `images.yml` passes the tag `ci.yml` publishes (`sha-<commit>`), the CLI release its git

@@ -48,7 +48,7 @@ for suite in ${suites[@]+"${suites[@]}"}; do
 	fi
 done
 
-evidence=(uv run --frozen --project docs python .agents/skills/ui-evidence/scripts/evidence.py)
+evidence=(uv run --frozen --project tests python .agents/skills/ui-evidence/scripts/evidence.py)
 start=$SECONDS
 "${evidence[@]}" build
 # The suites share one OpenBao. It holds only the seeded transit keys; each API
@@ -64,7 +64,7 @@ failed=()
 for suite in ${suites[@]+"${suites[@]}"}; do
 	echo "::group::$suite"
 	start=$SECONDS
-	if uv run --frozen --project docs python "tests/ui/$suite.py"; then
+	if uv run --frozen --project tests python "tests/ui/$suite.py"; then
 		echo "$suite passed in $((SECONDS - start))s"
 	else
 		echo "$suite failed in $((SECONDS - start))s" >&2

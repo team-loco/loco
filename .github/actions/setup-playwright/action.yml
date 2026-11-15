@@ -1,5 +1,5 @@
 name: Setup Playwright
-description: Install Chromium for the Playwright version locked in the docs project, with its system libraries. The browser cache is saved only on main, the one ref whose caches pull requests and merge groups can restore.
+description: Install Chromium for the Playwright version locked in the shared test project, with its system libraries. The browser cache is saved only on main, the one ref whose caches pull requests and merge groups can restore.
 
 runs:
   using: composite
@@ -7,7 +7,7 @@ runs:
     - name: Read the Playwright version
       id: playwright
       shell: bash
-      run: echo "version=$(uv run --frozen --project docs python -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
+      run: echo "version=$(uv run --frozen --project tests python -c 'from importlib.metadata import version; print(version("playwright"))')" >> "$GITHUB_OUTPUT"
 
     - if: github.ref == 'refs/heads/main'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -24,4 +24,4 @@ runs:
     # Installs the system libraries even when the browser came from the cache.
     - name: Install browser
       shell: bash
-      run: uv run --frozen --project docs playwright install --with-deps chromium
+      run: uv run --frozen --project tests playwright install --with-deps chromium

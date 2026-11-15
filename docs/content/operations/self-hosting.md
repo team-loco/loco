@@ -1,4 +1,6 @@
-# Self-hosting
+---
+title: "Self-hosting"
+---
 
 A self-hosted Loco installation puts platform operation under your team's control. The repository contains the platform components and Helm charts; production operation requires instance-specific configuration.
 

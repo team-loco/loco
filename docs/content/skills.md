@@ -1,9 +1,8 @@
 ---
+title: "Deploy to Loco"
 name: loco-deploy
 description: Deploy an application to Loco's multi-tenant platform with the CLI. Use when a user asks to deploy or update an application on Loco.
 ---
-
-# Deploy to Loco
 
 Install the CLI on Linux or macOS (amd64 or arm64), then sign in:
 

@@ -22,7 +22,7 @@ update with the file and section that owns it.
 1. The diff. Commit messages, the PR body and tests give context; the diff is the source of
    truth. Default to `git diff origin/main...HEAD` plus `git status` and `git diff` for
    uncommitted work. Use the branch, range, diff file or PR number the caller supplies instead.
-2. `docs/zensical.toml`, whose `nav` lists every published page.
+2. `docs/content/**/meta.json`, which defines the published navigation.
 3. Every page under `docs/content/` that plausibly owns the changed behaviour, in full, plus
    `README.md` when the change touches the CLI, loco.yaml or local development. Headings and grep hits are not enough; the stale sentence is usually in
    the middle of a paragraph.
@@ -31,7 +31,7 @@ update with the file and section that owns it.
 
 ## Documentation in scope
 
-The published site is the Zensical project in `docs/`; `docs/content/` holds its Markdown.
+The published site is the Fumadocs project in `docs/`; `docs/content/` holds its Markdown.
 Pages state released behaviour and label unreleased workflows with a release notice.
 
 - `docs/content/index.md`: overview, the "Where to start" table, release notices.
@@ -56,14 +56,13 @@ Pages state released behaviour and label unreleased workflows with a release not
   components. Affected by adding, removing or renaming a component or module.
 - `docs/content/reference/cli-api.md`: the CLI command table, the Buf Schema Registry link,
   `mise run gen`.
-- `docs/content/reference/ai.md`: `llms.txt` exports. Affected only by `docs/zensical.toml`
-  plugin changes.
+- `docs/content/reference/ai.md`: `llms.txt` exports. Affected by the Fumadocs LLM routes and content-source configuration.
 - `docs/content/contributing/development.md`: `mise run setup`, `mise run tilt`, `dev/api.env`,
   the local ports `8000` and `5173`, `./bin/loco login --host`, the tasks it names.
 - `charts/TESTING.md`: the chart test tasks (`lint:charts`, `chart:schema`, `test:charts`,
   `test:collectors`), `.ct.yaml`, the helm-unittest suite layout and the TDD order.
 - `docs/content/contributing/documentation.md`: docs tasks, build rules, theme files, hosting,
-  `web/sws.toml`, `docs/scripts/package.py`.
+  `web/sws.toml`, `docs/build.ts`.
 - `README.md`: quick start (installer flags, `loco login`, `loco init`, `loco validate`, `loco
   deploy` and `--image`, source packing rules, `loco resource` and `loco builds` subcommands),
   the examples list, the contributing section (mise, Tilt, Dex on `localhost:5556`, the local
@@ -71,7 +70,7 @@ Pages state released behaviour and label unreleased workflows with a release not
 - `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,
   chart tags). The rest of `AGENTS.md` is process guidance, not product documentation.
-- `docs/zensical.toml` only when a page is added, removed or renamed.
+- `docs/content/**/meta.json` only when a page is added, removed or renamed.
 
 Out of scope: `docs/tdd/**`, `docs/dependencies.md`, `docs/DESIGN.md`, `experiments/**`, `controller/README.md` and `web/README.md` (scaffold
 boilerplate), `.agents/skills/**`, generated code (`gen/**`, `api/gen/**`,
@@ -110,7 +109,7 @@ is a candidate; judge what a reader can see, not the directory.
   development workflow, task names, local ports and credentials.
 - `web/src/**`: dashboard behaviour that a page names (the new-service form's Networking
   choice, `/version.json`). Most UI changes have no documentation and are not drift.
-- `web/Dockerfile`, `web/sws.toml`, `docs/scripts/**`, `docs/zensical.toml`: how the docs are
+- `web/Dockerfile`, `web/sws.toml`, `docs/build.ts`, `docs/vite.config.ts`: how the docs are
   built and served, documented in `contributing/documentation.md`.
 
 ## What counts as drift
@@ -125,7 +124,7 @@ Strong candidates:
 - A requirement changes: image user, ports, required environment, cluster dependencies.
 - A component, module or chart is added, removed or renamed, so a table or component list is
   wrong.
-- A page is added, removed or renamed without a matching `docs/zensical.toml` change.
+- A page is added, removed or renamed without a matching navigation metadata change.
 - An unreleased workflow ships or an unreleased command changes, so a release notice is wrong.
 
 Not drift:
@@ -179,7 +178,7 @@ When one page links to another for the detail, update the page that owns the det
    level, sentence style, admonition and code block style. Describe current behaviour, never
    the change. Keep release notices on unreleased workflows.
 6. In fix mode, verify: `mise run docs:build` (strict, fails on warnings) and `mise run
-   test:docs` when a `docs/` file changed. Report a verification you could not run instead of
+   docs:build` when a `docs/` file changed. Report a verification you could not run instead of
    skipping it silently.
 7. When it is unclear whether a change is observable or which page owns it, say so. In
    report-only mode, report drift only when you can name the change and the exact stale or

@@ -1,18 +1,14 @@
-# Deploy with Loco
+---
+title: "Deploy with Loco"
+---
 
 Loco builds, deploys, and scales containerized applications on Kubernetes. Use the CLI to work with your applications and the dashboard to inspect their state.
 
-<div class="loco-intro" markdown>
+> From your terminal. Onto Kubernetes.
+>
+> Loco handles application orchestration across regions, with HTTPS routing, resource controls, and observability.
 
-From your terminal.<br>Onto Kubernetes.
-{ .loco-headline }
-
-Loco handles application orchestration across regions, with HTTPS routing, resource controls, and observability.
-
-[Install the CLI](getting-started/install.md){ .md-button .md-button--primary }
-[Choose a deployment mode](deployment/modes.md){ .md-button }
-
-</div>
+[Install the CLI](getting-started/install.md) · [Choose a deployment mode](deployment/modes.md)
 
 ## Where to start
 

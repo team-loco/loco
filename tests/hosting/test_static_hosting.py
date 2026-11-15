@@ -258,9 +258,10 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             status, body, _ = response(base + "/deployment/modes/", host)
             assert status == 200
             assert "Multi-tenant SaaS" in body
-            status, _, asset_headers = response(base + "/assets/loco.css", host)
+            logo = re.search(r'src="([^"]+)"[^>]*alt="Loco"', html).group(1)
+            status, _, asset_headers = response(url + logo, host)
             assert status == 200
-            assert asset_headers["Cache-Control"] == "no-cache"
+            assert "immutable" in asset_headers["Cache-Control"]
             status, skill, skill_headers = response(base + "/skills.md", host)
             assert status == 200
             assert skill == (ROOT / "docs/content/skills.md").read_text()

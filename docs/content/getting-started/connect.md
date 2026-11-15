@@ -1,4 +1,6 @@
-# Connect to Loco
+---
+title: "Connect to Loco"
+---
 
 A CLI session belongs to a Loco API host. Sign in to the instance that operates your applications:
 

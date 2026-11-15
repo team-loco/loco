@@ -1,4 +1,6 @@
-# Organizations and access
+---
+title: "Organizations and access"
+---
 
 An organization holds workspaces, and a user works in a workspace only after they accept an invitation to its organization and an organization admin grants them that workspace.
 

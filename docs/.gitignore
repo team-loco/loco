@@ -1,8 +1,6 @@
-.venv/
-.cache/
 site/
-.generated.toml
-__pycache__/
-content/assets/favicon.svg
-overrides/partials/logo.html
+site-mounted/
+build/
+.react-router/
 .sws.toml
+premium-audit.json

@@ -1,4 +1,6 @@
-# Architecture
+---
+title: "Architecture"
+---
 
 Loco separates its control plane from the regional components that run applications. The CLI and dashboard call the API, and the regional agent connects the cluster to the control plane.
 
