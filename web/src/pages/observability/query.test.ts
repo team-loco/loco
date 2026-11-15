@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createLoader, createSerializer } from "nuqs";
-import { create } from "@bufbuild/protobuf";
+import { create, toBinary } from "@bufbuild/protobuf";
+import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
 import {
@@ -221,11 +222,20 @@ describe("log queries", () => {
 
 	test("reads the API's parse error and its position", () => {
 		const error = new ConnectError("quote values that contain : at position 7", Code.InvalidArgument);
+		const violations = create(BadRequestSchema, {
+			fieldViolations: [{ field: "query", description: "quote values that contain :" }],
+		});
+		const info = create(ErrorInfoSchema, { reason: "LOG_QUERY_SYNTAX", metadata: { position: "7" } });
+		error.details.push(
+			{ type: BadRequestSchema.typeName, value: toBinary(BadRequestSchema, violations) },
+			{ type: ErrorInfoSchema.typeName, value: toBinary(ErrorInfoSchema, info) },
+		);
 		expect(queryError(error, "@path:/a:b")).toEqual({
 			query: "@path:/a:b",
 			message: "quote values that contain :",
 			position: 7,
 		});
+		expect(queryError(new ConnectError("bad at position 3", Code.InvalidArgument), "x")).toBeNull();
 		expect(queryError(new ConnectError("boom", Code.Internal), "x")).toBeNull();
 	});
 

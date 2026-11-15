@@ -1,5 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createParser, parseAsArrayOf, parseAsString } from "nuqs";
+import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
 
 import type { ObservabilityView } from "@/lib/routes";
 
@@ -86,7 +87,7 @@ export function hasBoolean(text: string): boolean {
 	return BOOLEAN_RE.test(text.replace(QUOTED_RE, '""'));
 }
 
-// keep in sync with the built-in fields and reserved keys in internal/logquery
+// keep in sync with the built-in fields and reserved keys in internal/clickhouse/log_filter.go
 const BUILTIN_KEYS = new Set(["level", "trace", "resource", "replica", "build", "region"]);
 
 /** Why an attribute key can't be filtered with @key:value, or null when it can. */
@@ -246,14 +247,17 @@ export interface QueryError {
 	position: number;
 }
 
-// keep in sync with SyntaxError.Error in internal/logquery
-const QUERY_ERROR_RE = /^(.*) at position (\d+)$/;
-
 /** Reads the API's rejection of query, or null when error is not one. */
 export function queryError(error: Error, query: string): QueryError | null {
 	if (!(error instanceof ConnectError) || error.code !== Code.InvalidArgument) return null;
-	const m = QUERY_ERROR_RE.exec(error.rawMessage);
-	return m === null ? null : { query, message: m[1] ?? "", position: Number(m[2]) };
+	const violation = error
+		.findDetails(BadRequestSchema)
+		.flatMap((d) => d.fieldViolations)
+		.find((v) => v.field === "query");
+	const info = error.findDetails(ErrorInfoSchema).find((d) => d.reason === "LOG_QUERY_SYNTAX");
+	const position = Number(info?.metadata["position"]);
+	if (violation === undefined || !Number.isInteger(position)) return null;
+	return { query, message: violation.description, position };
 }
 
 export interface BackendQuery {
