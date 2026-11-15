@@ -5,7 +5,9 @@
 # pass marker for the same inputs is in a cache this run can read is skipped
 # too; the pass-markers job saves one for each check that ran and passed. Path
 # filters on the called workflows' own triggers would leave a required check
-# without a result whenever they skipped it.
+# without a result whenever they skipped it. After a push to main passes the
+# gate, the publish jobs tag the images Images built and notify the
+# deployment repository.
 name: CI
 
 on:
@@ -314,6 +316,53 @@ jobs:
         run: |
           jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
           jq -e '.changes.result == "success" and all(.[]; .result == "success" or .result == "skipped")' <<<"$NEEDS" > /dev/null
+
+  publish:
+    name: Publish ${{ matrix.name }} Image
+    needs: [images, gate]
+    if: github.event_name == 'push' && needs.gate.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Controller
+            image: controller
+          - name: API
+            image: api
+          - name: Agent
+            image: agent
+          - name: Builder
+            image: builder
+          - name: Observability Proxy
+            image: obs-proxy
+          - name: UI
+            image: ui
+          - name: Staging UI
+            image: ui
+            tag_suffix: -staging
+    uses: ./.github/workflows/build-push.yml
+    with:
+      image_name: ${{ github.repository }}-${{ matrix.image }}
+      tag_suffix: ${{ matrix.tag_suffix || '' }}
+
+  notify-deploy:
+    name: Notify the Deployment Repository
+    needs: [gate, publish]
+    if: vars.DEPLOY_DISPATCH_REPOSITORY != ''
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Send the built commit
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          REPOSITORY: ${{ vars.DEPLOY_DISPATCH_REPOSITORY }}
+          COMMIT: ${{ github.sha }}
+        run: gh api "repos/$REPOSITORY/dispatches" -f event_type=core-images-built -f "client_payload[commit]=$COMMIT"
 
   pass-markers:
     name: Pass Marker ${{ matrix.check }}

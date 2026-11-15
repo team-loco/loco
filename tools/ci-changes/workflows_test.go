@@ -54,11 +54,14 @@ func calledWorkflows(jobs map[string]ciJob) map[string]string {
 	return called
 }
 
+// TestEveryCalledWorkflowHasAFilter covers the checks the gate waits for, not
+// the jobs after it.
 func TestEveryCalledWorkflowHasAFilter(t *testing.T) {
 	filters, err := loadFilters("../../.github/ci-paths.yml")
 	require.NoError(t, err)
 	jobs := ciJobs(t)
 	called := calledWorkflows(jobs)
+	maps.DeleteFunc(called, func(id, _ string) bool { return !slices.Contains(jobs[gateJob].Needs, id) })
 
 	assert.ElementsMatch(t, slices.Collect(maps.Keys(filters)), slices.Collect(maps.Keys(called)))
 	for id, file := range called {
@@ -82,9 +85,8 @@ func TestGateNeedsEveryJob(t *testing.T) {
 	assert.ElementsMatch(t, before, append(gate.Needs, gateJob), "every job but those after the gate")
 }
 
-// TestCICallsEveryReusableWorkflow keeps a reusable workflow from being added
-// outside the gate. build-push.yml is the one exception: build.yml calls it to
-// publish images from main.
+// TestCICallsEveryReusableWorkflow keeps a reusable workflow from running
+// outside ci.yml.
 func TestCICallsEveryReusableWorkflow(t *testing.T) {
 	entries, err := os.ReadDir(workflowsDir)
 	require.NoError(t, err)
@@ -101,7 +103,7 @@ func TestCICallsEveryReusableWorkflow(t *testing.T) {
 		assert.NotContains(t, workflow.On, "pull_request",
 			"%s: only ci.yml runs for pull requests, so the gate covers every check", entry.Name())
 		_, isReusable := workflow.On["workflow_call"]
-		if !isReusable || entry.Name() == "build-push.yml" {
+		if !isReusable {
 			continue
 		}
 		reusable = append(reusable, entry.Name())

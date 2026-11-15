@@ -42,7 +42,7 @@ group "default" {
   targets = ["controller", "api", "agent", "builder", "obs-proxy", "ui", "api-failover", "installation-operator"]
 }
 
-# The images build.yml publishes from main.
+# The images ci.yml publishes from main.
 group "release" {
   targets = ["default", "ui-staging"]
 }
