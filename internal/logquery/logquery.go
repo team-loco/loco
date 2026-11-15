@@ -307,12 +307,11 @@ func (p *parser) bareValue(field *Field) error {
 		return &SyntaxError{Position: start + 1, Message: "quote values that contain :"}
 	case strings.Contains(value, ".."):
 		low, high, _ := strings.Cut(value, "..")
-		var err error
-		if field.Low, err = number(low, start); err != nil {
-			return err
-		}
-		if field.High, err = number(high, start+utf8.RuneCountInString(low)+2); err != nil {
-			return err
+		var lowErr, highErr error
+		field.Low, lowErr = number(low, start)
+		field.High, highErr = number(high, start)
+		if lowErr != nil || highErr != nil {
+			return &SyntaxError{Position: start + 1, Message: "write a range as 1..9, or quote values that contain .."}
 		}
 		if field.Low > field.High {
 			return &SyntaxError{Position: start + 1, Message: "range starts above its end"}

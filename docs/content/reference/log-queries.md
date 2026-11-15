@@ -32,7 +32,7 @@ The built-in fields take precedence over attributes with the same name. Keys sta
 
 When a line's message is a single-line JSON object, its fields are also attributes, named by their path: `{"user":{"id":"42"},"roles":["admin"]}` gives `@user.id:42` and `@roles[0]:admin`. Attributes the line already has keep their values.
 
-A value that contains a space, a colon, a quote or a parenthesis must be quoted: `@path:"/a:b"`. A quoted value matches exactly.
+A value that contains a space, a colon, `..`, a quote or a parenthesis must be quoted: `@path:"/a:b"`, `@path:"../etc"`. A quoted value matches exactly.
 
 ## Prefixes
 
