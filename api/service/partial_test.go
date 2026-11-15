@@ -26,6 +26,7 @@ func (q resourceOwnerQuerier) GetWorkspaceOrganizationIDByResourceID(
 }
 
 func TestTransferPartialRequiresAdmin(t *testing.T) {
+	t.Parallel()
 	resourceID := uuid.Must(uuid.NewV7())
 	workspaceID := uuid.Must(uuid.NewV7())
 	orgID := uuid.Must(uuid.NewV7())

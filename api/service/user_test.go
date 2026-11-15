@@ -12,6 +12,7 @@ import (
 )
 
 func TestWhoAmIDeniesCallerWithoutUserRead(t *testing.T) {
+	t.Parallel()
 	workspaceToken := reqctx.Principal{
 		Entity: genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: uuid.New()},
 	}

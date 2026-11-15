@@ -8,6 +8,7 @@ import (
 )
 
 func TestBuildSourceImagePattern(t *testing.T) {
+	t.Parallel()
 	digest := "@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"
 	valid := []string{
 		"nginx:1.31",

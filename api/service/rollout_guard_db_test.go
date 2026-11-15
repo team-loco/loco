@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -48,6 +49,7 @@ func (f *deployFixture) reportRollout(t *testing.T, phase string, ready bool) {
 }
 
 func TestScaleRejectsAnActiveRollout(t *testing.T) {
+	t.Parallel()
 	for _, phase := range []string{"pending", "deploying"} {
 		t.Run(phase, func(t *testing.T) {
 			f := newDeployFixture(t)
@@ -70,6 +72,7 @@ func TestScaleRejectsAnActiveRollout(t *testing.T) {
 }
 
 func TestDeploymentRejectsAnActiveRollout(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -79,6 +82,7 @@ func TestDeploymentRejectsAnActiveRollout(t *testing.T) {
 }
 
 func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, stripeKey, stripeValue)
@@ -144,6 +148,7 @@ func (f *deployFixture) rolloutSnapshot(t *testing.T) string {
 }
 
 func TestSecretWritesRejectAnActiveRolloutWithoutChangingState(t *testing.T) {
+	t.Parallel()
 	for _, operation := range []string{"set", rolloutDeleteOperation} {
 		t.Run(operation, func(t *testing.T) {
 			f := newDeployFixture(t)
@@ -184,6 +189,7 @@ func TestSecretWritesRejectAnActiveRolloutWithoutChangingState(t *testing.T) {
 }
 
 func TestUnchangedSecretRemainsANoopDuringRollout(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, stripeKey, stripeValue)
@@ -206,6 +212,7 @@ func TestUnchangedSecretRemainsANoopDuringRollout(t *testing.T) {
 }
 
 func TestScaleAllowsRecoveryAfterFailedRollout(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -217,6 +224,7 @@ func TestScaleAllowsRecoveryAfterFailedRollout(t *testing.T) {
 }
 
 func TestConcurrentAPIInstancesAcceptOnlyOneScale(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -228,7 +236,7 @@ func TestConcurrentAPIInstancesAcceptOnlyOneScale(t *testing.T) {
 	for replicas := int32(2); replicas <= 3; replicas++ {
 		go func() { results <- scaleResource(t, f, replicas) }()
 	}
-	f.waitForLockWaiters(t, 2)
+	dbtest.WaitForLockWaiters(t, f.pool, 2)
 	release()
 	accepted, rejected := 0, 0
 	for range 2 {
@@ -251,6 +259,7 @@ func TestConcurrentAPIInstancesAcceptOnlyOneScale(t *testing.T) {
 }
 
 func TestScaleGuardRespectsTheRequestedRegion(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -282,6 +291,7 @@ func TestScaleGuardRespectsTheRequestedRegion(t *testing.T) {
 }
 
 func TestLaterHealthDegradationDoesNotBlockChanges(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -294,6 +304,7 @@ func TestLaterHealthDegradationDoesNotBlockChanges(t *testing.T) {
 }
 
 func TestApplyRejectsRuntimeChangesDuringRollout(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + applyFileWorker
@@ -346,6 +357,7 @@ func (f *deployFixture) finishRollouts(t *testing.T) {
 }
 
 func TestOtherEnvironmentRolloutDoesNotBlockScale(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.deployToProductionAndStaging(t)
 	f.reportRollout(t, testPhaseReady, true)
@@ -366,6 +378,7 @@ func TestOtherEnvironmentRolloutDoesNotBlockScale(t *testing.T) {
 }
 
 func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -396,6 +409,7 @@ func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
 }
 
 func TestFailedSecretRotationAllowsAnotherSecretChange(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, stripeKey, stripeValue)

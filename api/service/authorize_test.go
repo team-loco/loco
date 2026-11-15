@@ -14,6 +14,7 @@ import (
 )
 
 func TestAuthorize(t *testing.T) {
+	t.Parallel()
 	orgID := uuid.New()
 	orgRead := []genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeRead}}
 	cases := []struct {
@@ -40,6 +41,7 @@ func TestAuthorize(t *testing.T) {
 }
 
 func TestAuthorizeAllowsCoveredAction(t *testing.T) {
+	t.Parallel()
 	orgID := uuid.New()
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeRead}}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
@@ -49,6 +51,7 @@ func TestAuthorizeAllowsCoveredAction(t *testing.T) {
 }
 
 func TestAuthorizeKeepsLookupFailuresOutOfPermissionDenied(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{})
 	err := authorize(ctx, authz.New(pool, genDb.New(pool)), actions.GetResource, uuid.New())
@@ -58,6 +61,7 @@ func TestAuthorizeKeepsLookupFailuresOutOfPermissionDenied(t *testing.T) {
 }
 
 func TestAuthorizeSystem(t *testing.T) {
+	t.Parallel()
 	systemAdmin := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin}}
 	orgAdmin := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: uuid.New(), Scope: genDb.ScopeAdmin},

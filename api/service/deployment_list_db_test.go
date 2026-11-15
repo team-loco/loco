@@ -72,6 +72,7 @@ func deploymentIDs(deployments []*deploymentv1.Deployment) []string {
 }
 
 func TestListDeploymentsFiltersByEnvironmentAcrossPages(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.addStagingEnvironment(t)
 	f.setStagingTier(t, f.otherCluster)
@@ -117,6 +118,7 @@ func TestListDeploymentsFiltersByEnvironmentAcrossPages(t *testing.T) {
 }
 
 func TestListDeploymentsWorkspaceEnvironment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	resource, err := f.queries.GetResourceByID(ctx, f.resourceID)
@@ -250,6 +252,7 @@ func TestListDeploymentsWorkspaceEnvironment(t *testing.T) {
 }
 
 func TestListDeploymentsScopeAndWindowValidation(t *testing.T) {
+	t.Parallel()
 	id := uuid.NewString()
 	for _, request := range []*deploymentv1.ListDeploymentsRequest{
 		{},

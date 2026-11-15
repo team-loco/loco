@@ -14,6 +14,7 @@ import (
 )
 
 func TestListEventsRequestIDAndActors(t *testing.T) {
+	t.Parallel()
 	f := newScopedAuditFixture(t)
 	principal, _ := reqctx.PrincipalFrom(f.owner)
 	orgID := uuid.MustParse(f.orgID)
@@ -126,6 +127,7 @@ func TestListEventsRequestIDAndActors(t *testing.T) {
 }
 
 func TestAuditFiltersValidation(t *testing.T) {
+	t.Parallel()
 	for _, id := range []string{"", uuid.NewString()} {
 		req := &eventv1.ListEventsRequest{OrgId: uuid.NewString(), RequestId: id}
 		if err := protovalidate.Validate(req); err != nil {
@@ -146,6 +148,7 @@ func TestAuditFiltersValidation(t *testing.T) {
 }
 
 func TestAuditRequestIDTimeBoundsAtEveryScope(t *testing.T) {
+	t.Parallel()
 	f := newScopedAuditFixture(t)
 	principal, _ := reqctx.PrincipalFrom(f.owner)
 	orgID := uuid.MustParse(f.orgID)

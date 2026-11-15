@@ -278,6 +278,7 @@ func testConfig() tvm.Config {
 }
 
 func TestSessionCarriesLiveUserScopes(t *testing.T) {
+	t.Parallel()
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
 	access, _ := session(t, machine, user3UUID)
 	principal, err := machine.GetToken(t.Context(), access)
@@ -321,6 +322,7 @@ func (rq racingRefreshQueries) RotateSessionToken(
 }
 
 func TestRefreshRotatesTokens(t *testing.T) {
+	t.Parallel()
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
 	_, refreshToken := session(t, machine, user1UUID)
 
@@ -338,6 +340,7 @@ func TestRefreshRotatesTokens(t *testing.T) {
 }
 
 func TestRefreshLosingRaceRevokesSession(t *testing.T) {
+	t.Parallel()
 	tq := newTestingQueries()
 	machine := tvm.NewVendingMachine(nil, racingRefreshQueries{tq}, testConfig())
 	_, refreshToken := session(t, machine, user1UUID)
@@ -351,6 +354,7 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 }
 
 func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(pool, queries.New(pool), tvm.Config{})
 	for _, token := range []string{"loco_s_unknown", "loco_k_unknown"} {
@@ -378,6 +382,7 @@ func (c cleanupQueries) DeleteExpiredSessionTokens(context.Context) error {
 }
 
 func TestRunCleanupSweepsUntilContextIsCanceled(t *testing.T) {
+	t.Parallel()
 	q := cleanupQueries{newTestingQueries(), make(chan struct{}, 1)}
 	machine := tvm.NewVendingMachine(nil, q, testConfig())
 	ctx, cancel := context.WithCancel(t.Context())

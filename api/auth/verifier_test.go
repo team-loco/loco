@@ -12,6 +12,7 @@ import (
 )
 
 func TestVerifyMapsNestedClaims(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
 
@@ -32,6 +33,7 @@ func TestVerifyMapsNestedClaims(t *testing.T) {
 }
 
 func TestVerifyRejectsBadTokens(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	other := authtest.NewIssuer(t)
 	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
@@ -74,6 +76,7 @@ func TestVerifyRejectsBadTokens(t *testing.T) {
 }
 
 func TestVerifyRejectsWrongAudienceForParsedConfig(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	issuers, err := ParseIssuers(`[{"issuer":"` + ti.URL() + `","audience":"loco"}]`)
 	if err != nil {
@@ -95,6 +98,7 @@ func TestVerifyRejectsWrongAudienceForParsedConfig(t *testing.T) {
 }
 
 func TestVerifyPicksUpRotatedKeys(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
 
@@ -110,6 +114,7 @@ func TestVerifyPicksUpRotatedKeys(t *testing.T) {
 }
 
 func TestVerifyUnverifiedEmailUnlessAuthoritative(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	token := ti.Sign("k1", ti.Claims("u", "u@corp.test", false))
 
@@ -134,6 +139,7 @@ func TestVerifyUnverifiedEmailUnlessAuthoritative(t *testing.T) {
 }
 
 func TestVerifyIgnoresVerificationClaimForAdminVerifiedIssuer(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	config := testConfig(ti)
 	config.EmailVerification = EmailVerificationAdmin
@@ -148,6 +154,7 @@ func TestVerifyIgnoresVerificationClaimForAdminVerifiedIssuer(t *testing.T) {
 }
 
 func TestLooksLikeJWT(t *testing.T) {
+	t.Parallel()
 	for token, want := range map[string]bool{
 		"a.b.c":         true,
 		"loco_s_x.y.z":  false,
@@ -163,6 +170,7 @@ func TestLooksLikeJWT(t *testing.T) {
 }
 
 func TestVerifyDiscoversKeys(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	config := testConfig(ti)
 	config.JWKSURL = ""
@@ -174,6 +182,7 @@ func TestVerifyDiscoversKeys(t *testing.T) {
 }
 
 func TestVerifyRefusesDiscoveryForAnotherIssuer(t *testing.T) {
+	t.Parallel()
 	ti := authtest.NewIssuer(t)
 	impostor := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

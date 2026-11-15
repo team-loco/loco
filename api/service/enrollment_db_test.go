@@ -180,6 +180,7 @@ func requireCode(t *testing.T, err error, want connect.Code, what string) {
 }
 
 func TestJoinTokenEnrollsExactlyOneAgentUnderConcurrency(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	clusterID, token := e.createCluster(t)
 	if fingerprint := e.fingerprint(t, clusterID); fingerprint != "" {
@@ -231,6 +232,7 @@ func TestJoinTokenEnrollsExactlyOneAgentUnderConcurrency(t *testing.T) {
 }
 
 func TestEnrollmentRejectsExpiredUnknownAndForeignTokens(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	ctx := t.Context()
 	clusterID, token := e.createCluster(t)
@@ -271,6 +273,7 @@ func TestEnrollmentRejectsExpiredUnknownAndForeignTokens(t *testing.T) {
 }
 
 func TestReEnrollmentRotatesTheKeyAndClosesTheStream(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	clusterID, token := e.createCluster(t)
 	clusterKey := uuid.New()
@@ -299,6 +302,7 @@ func TestReEnrollmentRotatesTheKeyAndClosesTheStream(t *testing.T) {
 }
 
 func TestRemovedClusterIsRevoked(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	ctx := t.Context()
 	stream := openSync(ctx, t, e.agent, e.clusterID)
@@ -336,6 +340,7 @@ func TestRemovedClusterIsRevoked(t *testing.T) {
 }
 
 func TestAssertionChecks(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	ctx := t.Context()
 	replica := startSyncServer(t, e.deployFixture)

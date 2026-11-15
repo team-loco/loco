@@ -39,6 +39,7 @@ func fakeFactories() AdminFactories {
 }
 
 func TestNewAdminsBuildsFromFactory(t *testing.T) {
+	t.Parallel()
 	client := &http.Client{}
 	admins, err := NewAdmins(client, []IssuerConfig{
 		{Issuer: adminIssuer, Admin: &AdminConfig{
@@ -66,6 +67,7 @@ func TestNewAdminsBuildsFromFactory(t *testing.T) {
 }
 
 func TestNewAdminsRejectsUnknownType(t *testing.T) {
+	t.Parallel()
 	if _, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
 		Issuer: adminIssuer, Admin: &AdminConfig{Type: "okta", TokenEnv: "X", Token: adminToken},
 	}}, fakeFactories()); err == nil {
@@ -74,6 +76,7 @@ func TestNewAdminsRejectsUnknownType(t *testing.T) {
 }
 
 func TestNewEmailVerifiersNeedsAnAdmin(t *testing.T) {
+	t.Parallel()
 	_, err := NewEmailVerifiers([]IssuerConfig{{
 		Issuer: emailVerifierIssuer, EmailVerification: EmailVerificationAdmin,
 	}}, Admins{})

@@ -21,6 +21,7 @@ import (
 )
 
 func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	issuer := authtest.NewIssuer(t)
 	verifier := auth.NewVerifier(http.DefaultClient, []auth.IssuerConfig{{

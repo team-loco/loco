@@ -165,6 +165,7 @@ func (f *secretFixture) upsertFor(t *testing.T, resourceID uuid.UUID, names []st
 }
 
 func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	ctx := t.Context()
 
@@ -222,6 +223,7 @@ func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
 }
 
 func TestSecretQueriesRejectNamesThatAreNotEnvVarIdentifiers(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	err := f.queries.UpsertSecrets(t.Context(), genDb.UpsertSecretsParams{
 		ResourceID:     f.resourceID,
@@ -240,6 +242,7 @@ func TestSecretQueriesRejectNamesThatAreNotEnvVarIdentifiers(t *testing.T) {
 }
 
 func TestEnvironmentKeyInsertOnceAndRewrap(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	params := genDb.InsertEnvironmentKeyParams{
@@ -292,6 +295,7 @@ func TestEnvironmentKeyInsertOnceAndRewrap(t *testing.T) {
 }
 
 func TestDeletingAnEnvironmentDropsItsKeyAndSecrets(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	if _, err := f.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
@@ -320,6 +324,7 @@ func TestDeletingAnEnvironmentDropsItsKeyAndSecrets(t *testing.T) {
 }
 
 func TestDeletingAResourceDropsOnlyItsSecrets(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	prod := f.environmentID
@@ -352,6 +357,7 @@ func TestDeletingAResourceDropsOnlyItsSecrets(t *testing.T) {
 }
 
 func TestTheSameNameOnTwoResourcesIsTwoRows(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	worker := f.resource(t, f.workspaceID, workerService)
@@ -432,6 +438,7 @@ func TestEnvironmentKeyRowLockBlocksASecondWriterUntilItsTimeout(t *testing.T) {
 }
 
 func TestSecretsRecordTheirFormatVersion(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	key, err := f.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
@@ -517,6 +524,7 @@ func (d *deployFixture) placeWithSecrets(t *testing.T, resourceID, clusterID uui
 }
 
 func TestListPlacementSecretSizesCountsTheNamesAPlacementDeclares(t *testing.T) {
+	t.Parallel()
 	d := newDeployFixture(t)
 	ctx := t.Context()
 	d.upsertSecrets(t, d.resourceID, []string{firstKey, secondKey, "UNUSED"}, []int{20, 30, 40})
@@ -544,6 +552,7 @@ func TestListPlacementSecretSizesCountsTheNamesAPlacementDeclares(t *testing.T) 
 }
 
 func TestListPlacementSecretSizesReportsEachPlacementOnItsOwn(t *testing.T) {
+	t.Parallel()
 	d := newDeployFixture(t)
 	d.upsertSecrets(t, d.resourceID, []string{firstKey}, []int{20})
 	for _, clusterID := range []uuid.UUID{d.clusterID, d.otherCluster} {
@@ -567,6 +576,7 @@ func TestListPlacementSecretSizesReportsEachPlacementOnItsOwn(t *testing.T) {
 }
 
 func TestListPlacementSecretSizesCountsOnlyThePlacementsOwnResource(t *testing.T) {
+	t.Parallel()
 	d := newDeployFixture(t)
 	worker := d.otherResource(t, workerService)
 	d.upsertSecrets(t, d.resourceID, []string{firstKey}, []int{20})

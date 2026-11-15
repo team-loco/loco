@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -116,6 +117,7 @@ func wantSuspendedError(t *testing.T, err error) {
 }
 
 func TestSuspendAndResumeRequireSystemAdmin(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	orgID := f.organizationID(t)
 	orgAdmin := secretAuthzContext(t, genDb.EntityScope{
@@ -149,6 +151,7 @@ func TestSuspendAndResumeRequireSystemAdmin(t *testing.T) {
 }
 
 func TestSuspendOrgOfAnUnknownOrganizationIsNotFound(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	req := &orgv1.SuspendOrgRequest{OrgId: uuid.NewString(), Reason: testSuspensionReason}
@@ -157,6 +160,7 @@ func TestSuspendOrgOfAnUnknownOrganizationIsNotFound(t *testing.T) {
 }
 
 func TestSuspendAndResumeAreIdempotent(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatalf("deploy: %v", err)
@@ -201,6 +205,7 @@ func TestSuspendAndResumeAreIdempotent(t *testing.T) {
 }
 
 func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	server := f.agentServer()
@@ -269,6 +274,7 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 }
 
 func TestSecretChangeWhileSuspendedKeepsTheDeploymentStatus(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	deploymentID, err := f.deploy(ctx, staticSpec)
@@ -309,6 +315,7 @@ func TestSecretChangeWhileSuspendedKeepsTheDeploymentStatus(t *testing.T) {
 }
 
 func TestDeploymentsAreRejectedWhileSuspended(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -334,6 +341,7 @@ func TestDeploymentsAreRejectedWhileSuspended(t *testing.T) {
 }
 
 func TestApplyIsRejectedWhileSuspended(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.mustSuspend(t)
@@ -346,6 +354,7 @@ func TestApplyIsRejectedWhileSuspended(t *testing.T) {
 }
 
 func TestDeployCommittedWhileSuspendWaitsIsStopped(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	tx, err := f.pool.Begin(ctx)
@@ -379,7 +388,7 @@ func TestDeployCommittedWhileSuspendWaitsIsStopped(t *testing.T) {
 		_, suspendErr := f.suspend(t, testSuspensionReason)
 		done <- suspendErr
 	}()
-	f.waitForLockWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	if err := tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -397,6 +406,7 @@ func TestDeployCommittedWhileSuspendWaitsIsStopped(t *testing.T) {
 }
 
 func TestSuspensionCancelsBuildsAndRefusesNewOnes(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	queued := f.insertBuild(t, genDb.BuildStatusQueued)
 	running := f.insertBuild(t, genDb.BuildStatusRunning)

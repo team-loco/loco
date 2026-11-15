@@ -40,6 +40,7 @@ func optionalAuditCount(t *testing.T, f *deployFixture) int {
 }
 
 func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
 	if _, err := f.pool.Exec(ctx, "UPDATE environments SET description='before' WHERE id=$1", f.envID); err != nil {
@@ -86,6 +87,7 @@ func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
 }
 
 func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
@@ -130,6 +132,7 @@ func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 }
 
 func TestOptionalWorkspaceDescriptionClears(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
 	id := f.workspaceID(t)
@@ -172,6 +175,7 @@ func TestOptionalWorkspaceDescriptionClears(t *testing.T) {
 }
 
 func TestOptionalProfileNameAndAvatarPreserveOmittedValues(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
 	user, err := f.queries.CreateUser(
@@ -213,6 +217,7 @@ func TestOptionalProfileNameAndAvatarPreserveOmittedValues(t *testing.T) {
 }
 
 func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
 	id, err := f.queries.GetOrganizationIDByWorkspaceID(ctx, f.workspaceID(t))
@@ -227,6 +232,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 }
 
 func TestOptionalOrganizationOmittedFieldsRequireExistingRow(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
 	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
@@ -259,6 +265,7 @@ func TestOptionalOrganizationOmittedFieldsRequireExistingRow(t *testing.T) {
 }
 
 func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
 	workspaceID := f.workspaceID(t)

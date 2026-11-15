@@ -13,6 +13,7 @@ import (
 )
 
 func TestBuildServiceDisabledWithoutConfig(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	resourceID := uuid.NewString()
 	buildID := uuid.NewString()
@@ -51,6 +52,7 @@ func TestBuildServiceDisabledWithoutConfig(t *testing.T) {
 }
 
 func TestBuildToProtoReportsADeletedImage(t *testing.T) {
+	t.Parallel()
 	deletedAt := time.Now()
 	if buildToProto(genDb.Build{ImageDeletedAt: &deletedAt}).GetImageDeletedAt() == nil {
 		t.Fatal("a build with a deleted image reports none")

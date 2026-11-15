@@ -43,6 +43,7 @@ func (o *membershipOrg) invite(t *testing.T, email string) *orgv1.Invitation {
 }
 
 func TestInvitationEventsCarryEmailDetails(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	const inviterName = "Invitation Owner"
 	if _, err := o.api.pool.Exec(
@@ -123,6 +124,7 @@ func TestInvitationEventsCarryEmailDetails(t *testing.T) {
 }
 
 func TestInviteRejections(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	o.invite(t, invitationEmail)
 	tests := []struct {
@@ -148,6 +150,7 @@ func TestInviteRejections(t *testing.T) {
 }
 
 func TestInvitationAuthorization(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
@@ -207,6 +210,7 @@ func TestInvitationAuthorization(t *testing.T) {
 }
 
 func TestRevokedInvitationLeavesTheList(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	invitation := o.invite(t, invitationEmail)
 
@@ -232,6 +236,7 @@ func TestRevokedInvitationLeavesTheList(t *testing.T) {
 }
 
 func TestClaimedInvitationCannotBeRevokedOrResent(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	invitation := o.invite(t, invitationEmail)
 	o.api.signUp(t, "bob")
@@ -262,6 +267,7 @@ func (o *membershipOrg) expire(t *testing.T, invitation *orgv1.Invitation) {
 }
 
 func TestListShowsAnExpiredInvitationAsExpired(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	invitation := o.invite(t, invitationEmail)
 	o.expire(t, invitation)
@@ -281,6 +287,7 @@ func TestListShowsAnExpiredInvitationAsExpired(t *testing.T) {
 }
 
 func TestInviteAgainReplacesAnExpiredInvitation(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	expired := o.invite(t, invitationEmail)
 	o.expire(t, expired)
@@ -312,6 +319,7 @@ func TestInviteAgainReplacesAnExpiredInvitation(t *testing.T) {
 }
 
 func TestConcurrentInvitesOverAnExpiredInvitationCreateOne(t *testing.T) {
+	t.Parallel()
 	o := newInvitationOrg(t)
 	o.expire(t, o.invite(t, invitationEmail))
 

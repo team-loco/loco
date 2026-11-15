@@ -13,6 +13,7 @@ import (
 )
 
 func TestGetResourceFailsOnCorruptSpec(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	var workspaceID uuid.UUID
@@ -37,6 +38,7 @@ func TestGetResourceFailsOnCorruptSpec(t *testing.T) {
 }
 
 func TestCreateResourceRejectsNonServiceType(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	var workspaceID uuid.UUID

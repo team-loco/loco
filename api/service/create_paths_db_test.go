@@ -17,6 +17,7 @@ const dashboardService = "dashboard"
 // The dashboard creates a service with CreateResource and CreateDeployment, loco.yaml with
 // PlanService.Apply; the cluster must run the same service either way.
 func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+`  worker:

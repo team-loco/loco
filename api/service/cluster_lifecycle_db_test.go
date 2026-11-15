@@ -14,6 +14,7 @@ import (
 )
 
 func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	firstReplica := startSyncServer(t, f)
@@ -94,6 +95,7 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 }
 
 func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	ctx := t.Context()
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
@@ -131,6 +133,7 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 }
 
 func TestPauseWaitsForAnInFlightAssignment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	tx, err := f.pool.Begin(ctx)

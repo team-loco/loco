@@ -330,6 +330,7 @@ func (f *imageSweepFixture) blockFirstDelete(t *testing.T) (<-chan struct{}, fun
 }
 
 func TestImageSweepKeepsTheNewestBuilds(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 2)
 	oldest := f.succeeded(t)
 	older := f.succeeded(t)
@@ -353,6 +354,7 @@ func TestImageSweepKeepsTheNewestBuilds(t *testing.T) {
 }
 
 func TestImageSweepKeepsImagesInUse(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	history := f.succeeded(t)
 	deployed := f.succeeded(t)
@@ -390,6 +392,7 @@ func TestImageSweepKeepsImagesInUse(t *testing.T) {
 }
 
 func TestImageSweepKeepsDigestsSharedWithKeptBuilds(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	shared := fakeDigest("aaaa", 0)
 	old := f.succeededWith(t, shared, fakeDigest("cccc", 0))
@@ -402,6 +405,7 @@ func TestImageSweepKeepsDigestsSharedWithKeptBuilds(t *testing.T) {
 }
 
 func TestImageSweepRetriesFailedDeletes(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	old := f.succeeded(t)
 	f.succeeded(t)
@@ -423,6 +427,7 @@ func TestImageSweepRetriesFailedDeletes(t *testing.T) {
 }
 
 func TestImageSweepPurgesOrphanedRepositories(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	live := f.succeeded(t)
 
@@ -472,6 +477,7 @@ func TestImageSweepPurgesOrphanedRepositories(t *testing.T) {
 }
 
 func TestConcurrentImageSweepsRunOnce(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	old := f.succeeded(t)
 	f.succeeded(t)
@@ -593,6 +599,7 @@ func (f *imageSweepFixture) wantTagsKept(t *testing.T, builds ...taggedBuild) {
 }
 
 func TestImageSweepDeletesTagsOfUnfinishedBuilds(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	kept := f.succeeded(t)
 	now := time.Now()
@@ -636,6 +643,7 @@ VALUES ($1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfile', $5, $6, $7)`,
 }
 
 func TestImageSweepBoundsTagDeletesPerRun(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	f.succeeded(t)
 	old := time.Now().Add(-testTagOld)
@@ -672,6 +680,7 @@ func (f *imageSweepFixture) deletedResourceRepository(t *testing.T) string {
 }
 
 func TestImageSweepToleratesEmptyRepositories(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t, 1)
 	kept := f.succeeded(t)
 	emptyLive := sweptRepository(t, f.workspaceID, f.otherResource(t))

@@ -132,6 +132,7 @@ func testDesiredSpec(t *testing.T, port int32) desiredSpecFunc {
 }
 
 func TestDesiredSpecAcceptsValidSpec(t *testing.T) {
+	t.Parallel()
 	buildSpec := testDesiredSpec(t, 8080)
 	if _, err := buildSpec(uuid.New()); err != nil {
 		t.Fatalf("valid spec rejected: %v", err)
@@ -139,6 +140,7 @@ func TestDesiredSpecAcceptsValidSpec(t *testing.T) {
 }
 
 func TestDesiredSpecRejectsInvalidSpecAsInvalidArgument(t *testing.T) {
+	t.Parallel()
 	buildSpec := testDesiredSpec(t, 80)
 	_, specErr := buildSpec(uuid.New())
 	if specErr == nil {
@@ -154,6 +156,7 @@ func TestDesiredSpecRejectsInvalidSpecAsInvalidArgument(t *testing.T) {
 }
 
 func TestDesiredSpecRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
+	t.Parallel()
 	resourceSpec := testResourceSpec()
 	deploymentSpec := mergedTestSpec(t, resourceSpec, testDeploymentSpec(8080))
 	buildSpec := desiredApplicationSpec(
@@ -173,11 +176,13 @@ func TestDesiredSpecRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 }
 
 func TestDesiredSpecKeepsOtherSpecFailuresInternal(t *testing.T) {
+	t.Parallel()
 	boom := errors.New("boom")
 	wantServerFailure(t, errors.Join(errDesiredSpec, boom))
 }
 
 func TestDeployRejectsInvalidSpecWithoutWritingADeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 
@@ -203,6 +208,7 @@ func applicationPayload(t *testing.T, buildSpec desiredSpecFunc) locoControllerV
 }
 
 func TestDesiredSpecFillsOmittedValuesFromConfiguredDefaults(t *testing.T) {
+	t.Parallel()
 	resourceSpec := testResourceSpec()
 	region := resourceSpec.GetService().GetRegions()[testRegion]
 	region.Cpu = ""
@@ -227,6 +233,7 @@ func TestDesiredSpecFillsOmittedValuesFromConfiguredDefaults(t *testing.T) {
 }
 
 func TestDesiredSpecPrefersExplicitValues(t *testing.T) {
+	t.Parallel()
 	resourceSpec := testResourceSpec()
 	resourceSpec.GetService().Routing = &resourcev1.RoutingConfig{PathPrefix: "/api", IdleTimeout: 120}
 	requestSpec := testDeploymentSpec(8080)
@@ -254,6 +261,7 @@ func TestDesiredSpecPrefersExplicitValues(t *testing.T) {
 }
 
 func TestDesiredSpecRoutesTheHostnameWithDefaultsWhenRoutingIsUnset(t *testing.T) {
+	t.Parallel()
 	buildSpec := testDesiredSpec(t, 8080)
 	payload := applicationPayload(t, buildSpec)
 	want := &locoControllerV1.RoutingSpec{HostName: testHostname, PathPrefix: "/", IdleTimeout: testIdleTimeout}
@@ -263,6 +271,7 @@ func TestDesiredSpecRoutesTheHostnameWithDefaultsWhenRoutingIsUnset(t *testing.T
 }
 
 func TestDesiredSpecWithoutAHostnameHasNoRouting(t *testing.T) {
+	t.Parallel()
 	resourceSpec := testResourceSpec()
 	resourceSpec.GetService().Routing = &resourcev1.RoutingConfig{Port: new(int32(8080))}
 
@@ -275,6 +284,7 @@ func TestDesiredSpecWithoutAHostnameHasNoRouting(t *testing.T) {
 }
 
 func TestValidateQuantitiesRejectsInvalidValues(t *testing.T) {
+	t.Parallel()
 	valid := mergedTestSpec(t, testResourceSpec(), testDeploymentSpec(8080)).GetService()
 	if err := validateQuantities(valid); err != nil {
 		t.Fatalf("valid quantities rejected: %v", err)
@@ -296,6 +306,7 @@ func TestValidateQuantitiesRejectsInvalidValues(t *testing.T) {
 }
 
 func TestDeployRejectsAnOutOfRangeQuantityAsInvalidArgument(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 
@@ -311,6 +322,7 @@ func TestDeployRejectsAnOutOfRangeQuantityAsInvalidArgument(t *testing.T) {
 }
 
 func TestDesiredSpecCarriesTheSlug(t *testing.T) {
+	t.Parallel()
 	payload := applicationPayload(t, testDesiredSpec(t, 7070))
 	encoded, err := json.Marshal(payload.AppSpec)
 	if err != nil {

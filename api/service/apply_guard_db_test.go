@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -24,12 +25,9 @@ const (
     regions:
       us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
-	emptyServicesFile      = "version: 1\npartial: web\nservices: {}\n"
-	guardWorker            = "worker"
-	lockTimeout            = 2 * time.Second
-	interleavingRuns       = 10
-	lockPollInterval       = 10 * time.Millisecond
-	writersPerInterleaving = 2
+	emptyServicesFile = "version: 1\npartial: web\nservices: {}\n"
+	guardWorker       = "worker"
+	lockTimeout       = 2 * time.Second
 )
 
 func (f *deployFixture) setPartial(t *testing.T, name, partial string) {
@@ -54,6 +52,7 @@ func (f *deployFixture) useLockTimeout(t *testing.T) {
 }
 
 func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + applyFileImageOnly
@@ -99,6 +98,7 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 }
 
 func TestApplyOfAnEmptyServicesMapDeletesOnlyThePartialsServices(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.addResource(t, planOld, planPartial)
@@ -138,6 +138,7 @@ func TestApplyOfAnEmptyServicesMapDeletesOnlyThePartialsServices(t *testing.T) {
 }
 
 func TestApplyCommitsNothingForInvalidValues(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + `  worker:
@@ -159,6 +160,7 @@ func TestApplyCommitsNothingForInvalidValues(t *testing.T) {
 }
 
 func TestApplyDeleteInOneEnvironmentKeepsTheOther(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.setPartial(t, planSvc, planPartial)
@@ -223,48 +225,50 @@ func (f *deployFixture) holdResourceLock(t *testing.T) func() {
 	}
 }
 
-func (f *deployFixture) waitForLockWaiters(t *testing.T, want int) {
+// queueBehindGate queues the writers at the held lock in the given order.
+func (f *deployFixture) queueBehindGate(t *testing.T, wg *sync.WaitGroup, writers ...func()) {
 	t.Helper()
-	query := `SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-	deadline := time.Now().Add(lockTimeout)
-	for time.Now().Before(deadline) {
-		var waiting int
-		if err := f.pool.QueryRow(context.Background(), query).Scan(&waiting); err != nil {
-			t.Fatalf("count lock waiters: %v", err)
-		}
-		if waiting >= want {
-			return
-		}
-		time.Sleep(lockPollInterval)
+	for i, writer := range writers {
+		wg.Go(writer)
+		dbtest.WaitForLockWaiters(t, f.pool, i+1)
 	}
-	t.Fatalf("fewer than %d transactions waited on a lock", want)
 }
 
 func TestApplyAndTransferPartialDoNotDeadlock(t *testing.T) {
-	for range interleavingRuns {
-		f := newDeployFixture(t)
-		f.prepareApply(t)
-		f.setPartial(t, planSvc, planPartial)
-		f.useLockTimeout(t)
-		release := f.holdResourceLock(t)
+	for _, applyFirst := range []bool{true, false} {
+		t.Run("apply first "+strconv.FormatBool(applyFirst), func(t *testing.T) {
+			f := newDeployFixture(t)
+			f.prepareApply(t)
+			f.setPartial(t, planSvc, planPartial)
+			f.useLockTimeout(t)
+			release := f.holdResourceLock(t)
 
-		var wg sync.WaitGroup
-		var applyErr, transferErr error
-		wg.Go(func() {
-			_, applyErr = applyFile(t, f, emptyServicesFile, applyOptions{confirmDestructive: true}, f.adminScopes(t))
-		})
-		wg.Go(func() {
-			transferErr = transferPartial(t, f, planOtherPartial)
-		})
-		f.waitForLockWaiters(t, writersPerInterleaving)
-		release()
-		wg.Wait()
+			var applyErr, transferErr error
+			apply := func() {
+				_, applyErr = applyFile(
+					t,
+					f,
+					emptyServicesFile,
+					applyOptions{confirmDestructive: true},
+					f.adminScopes(t),
+				)
+			}
+			transfer := func() { transferErr = transferPartial(t, f, planOtherPartial) }
+			var wg sync.WaitGroup
+			if applyFirst {
+				f.queueBehindGate(t, &wg, apply, transfer)
+			} else {
+				f.queueBehindGate(t, &wg, transfer, apply)
+			}
+			release()
+			wg.Wait()
 
-		if applyErr != nil && connect.CodeOf(applyErr) != connect.CodeFailedPrecondition {
-			t.Fatalf("Apply = %v, want success or a stale-revision refusal", applyErr)
-		}
-		if transferErr != nil && connect.CodeOf(transferErr) != connect.CodeNotFound {
-			t.Fatalf("TransferPartial = %v, want success or not found after the delete", transferErr)
-		}
+			if applyErr != nil && wireCode(applyErr) != connect.CodeFailedPrecondition {
+				t.Fatalf("Apply = %v, want success or a stale-revision refusal", applyErr)
+			}
+			if transferErr != nil && wireCode(transferErr) != connect.CodeNotFound {
+				t.Fatalf("TransferPartial = %v, want success or not found after the delete", transferErr)
+			}
+		})
 	}
 }

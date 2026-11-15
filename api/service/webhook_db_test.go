@@ -184,6 +184,7 @@ func TestWebhookLifecycle(t *testing.T) {
 }
 
 func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
+	t.Parallel()
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	admin := f.member(t, "admin", genDb.ScopeAdmin)
@@ -245,6 +246,7 @@ func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
 }
 
 func TestWebhookLimitIsPerWorkspace(t *testing.T) {
+	t.Parallel()
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	create := &webhookv1.CreateWebhookRequest{WorkspaceId: f.workspaceID, Url: receiverURL}
@@ -271,6 +273,7 @@ func TestWebhookLimitIsPerWorkspace(t *testing.T) {
 }
 
 func TestWebhookChangesFailWithoutTheirEvent(t *testing.T) {
+	t.Parallel()
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	if _, err := f.pool.Exec(t.Context(), failEventInsertsSQL); err != nil {
@@ -288,6 +291,7 @@ func TestWebhookChangesFailWithoutTheirEvent(t *testing.T) {
 }
 
 func TestWorkspaceWebhookAPIHidesInstallWebhooks(t *testing.T) {
+	t.Parallel()
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	secret, err := webhooksig.NewSecret()
@@ -424,6 +428,7 @@ func TestUpdateWebhookReroutesPendingDeliveriesAndFiltersNewEvents(t *testing.T)
 }
 
 func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
+	t.Parallel()
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
@@ -493,6 +498,7 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 }
 
 func TestRedeliverWebhookDeliveryRequeuesFinishedDeliveries(t *testing.T) {
+	t.Parallel()
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	hook := func(url string) string {
@@ -549,6 +555,7 @@ func TestRedeliverWebhookDeliveryRequeuesFinishedDeliveries(t *testing.T) {
 }
 
 func TestSendTestEventReachesOnlyItsWebhook(t *testing.T) {
+	t.Parallel()
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
 	secret, err := webhooksig.NewSecret()

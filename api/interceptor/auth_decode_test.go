@@ -13,6 +13,7 @@ import (
 )
 
 func TestAuthRejectsBeforeDecode(t *testing.T) {
+	t.Parallel()
 	server := connect.NewServer(NewAuthInterceptor(nil, nil, nil, nil).Interceptor())
 	orgv1connect.RegisterOrgServiceHandler(server, &orgv1connect.UnimplementedOrgServiceHandler{})
 	mux := http.NewServeMux()

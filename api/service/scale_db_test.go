@@ -38,6 +38,7 @@ func scaleResourceIn(t *testing.T, f *deployFixture, environmentID uuid.UUID, re
 }
 
 func TestScaleResourceRejectsReplicasTheControllerRejects(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -57,6 +58,7 @@ func TestScaleResourceRejectsReplicasTheControllerRejects(t *testing.T) {
 
 // A deployment spec the API stored and cannot read back is a server fault, not the caller's.
 func TestScaleResourceWithAnUnreadableStoredSpecIsAServerFailure(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -71,6 +73,7 @@ func TestScaleResourceWithAnUnreadableStoredSpecIsAServerFailure(t *testing.T) {
 }
 
 func TestScaleResourceWritesTheReplicasIntoTheDesiredSpec(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -88,6 +91,7 @@ func TestScaleResourceWritesTheReplicasIntoTheDesiredSpec(t *testing.T) {
 }
 
 func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		domain   string
 		wantHost string
@@ -122,6 +126,7 @@ func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
 }
 
 func TestScaleResourceKeepsTheWorkspaceOrganization(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -161,6 +166,7 @@ func (f *deployFixture) activeDeployment(t *testing.T, environmentID uuid.UUID) 
 }
 
 func TestScaleResourceScalesOnlyTheRequestedEnvironment(t *testing.T) {
+	t.Parallel()
 	for _, scaledName := range []string{statusProduction, stagingName} {
 		t.Run(scaledName, func(t *testing.T) {
 			f := newDeployFixture(t)
@@ -198,6 +204,7 @@ func TestScaleResourceScalesOnlyTheRequestedEnvironment(t *testing.T) {
 }
 
 func TestScaleResourceRefusesAnEnvironmentWithoutADeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.addStagingEnvironment(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
@@ -213,6 +220,7 @@ func TestScaleResourceRefusesAnEnvironmentWithoutADeployment(t *testing.T) {
 }
 
 func TestScaleResourceRefusesAnEnvironmentOfAnotherWorkspace(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("deploy production: %v", err)

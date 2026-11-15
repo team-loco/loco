@@ -14,6 +14,7 @@ import (
 )
 
 func TestWorkspacePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"organization", "user"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newDeployFixture(t)

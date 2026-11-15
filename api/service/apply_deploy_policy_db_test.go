@@ -115,6 +115,7 @@ func failApplyUntilFailed(t *testing.T, f *deployFixture, attempts, delay int32)
 }
 
 func TestApplyStoresTheDeployPolicyAndApplyRetriesFollowIt(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := workerFileWith(applyFileDeploy)
@@ -128,6 +129,7 @@ func TestApplyStoresTheDeployPolicyAndApplyRetriesFollowIt(t *testing.T) {
 }
 
 func TestApplyWithoutADeployPolicyUsesTheAPIDefaults(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
@@ -139,6 +141,7 @@ func TestApplyWithoutADeployPolicyUsesTheAPIDefaults(t *testing.T) {
 }
 
 func TestChangingTheDeployPolicyDoesNotRedeploy(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, workerFileWith(applyFileDeploy), applyOptions{})

@@ -13,6 +13,7 @@ import (
 const testPhaseReady = "Ready"
 
 func TestDiffInventory(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		rev  placementRevision
@@ -115,6 +116,7 @@ func TestDiffInventory(t *testing.T) {
 }
 
 func TestPlacementMessage(t *testing.T) {
+	t.Parallel()
 	placement := genDb.Placement{
 		ID:              uuid.New(),
 		ResourceID:      uuid.New(),
@@ -144,6 +146,7 @@ func TestPlacementMessage(t *testing.T) {
 }
 
 func TestDeploymentTransitionForStatus(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		status *agentv1.PlacementStatus

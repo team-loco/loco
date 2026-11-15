@@ -14,6 +14,7 @@ import (
 )
 
 func TestOrgPaginationSurvivesDeletingTheCursorRow(t *testing.T) {
+	t.Parallel()
 	f := newEventFixture(t)
 	original, err := f.queries.GetOrgByID(t.Context(), uuid.MustParse(f.orgID))
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -20,6 +21,7 @@ const webhookQuotaContenders = 2
 var defaultWebhookLimit = int64(limits.WebhooksPerWorkspace.Value(limits.Defaults()))
 
 func TestConcurrentWebhookCreationRespectsWorkspaceLimit(t *testing.T) {
+	t.Parallel()
 	for _, isolation := range []pgx.TxIsoLevel{pgx.ReadCommitted, pgx.RepeatableRead} {
 		t.Run(string(isolation), func(t *testing.T) { testWebhookQuota(t, isolation) })
 	}
@@ -61,8 +63,7 @@ func testWebhookQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 	for range webhookQuotaContenders {
 		go func() { _, createErr := server.CreateWebhook(f.owner, request); results <- createErr }()
 	}
-	pid := holder.Conn().PgConn().PID()
-	f.waitForWebhookWaiters(t, pid, webhookQuotaContenders)
+	dbtest.WaitForLockWaiters(t, f.pool, webhookQuotaContenders)
 	otherCtx, cancel := context.WithTimeout(f.owner, testLockTimeout)
 	defer cancel()
 	if _, otherErr := server.CreateWebhook(
@@ -111,27 +112,4 @@ WHERE workspace_id=$1 AND type=$2`
 	if recorded != defaultWebhookLimit {
 		t.Fatalf("recorded %d webhook creation events, want %d", recorded, defaultWebhookLimit)
 	}
-}
-
-func (f *webhookFixture) waitForWebhookWaiters(t *testing.T, pid uint32, want int) {
-	t.Helper()
-	const waiting = `WITH RECURSIVE blocked AS (
- SELECT pid FROM pg_stat_activity
- WHERE datname=current_database() AND $1=ANY(pg_blocking_pids(pid))
- UNION
- SELECT a.pid FROM pg_stat_activity a JOIN blocked b ON b.pid=ANY(pg_blocking_pids(a.pid))
- WHERE a.datname=current_database()
-) SELECT count(*) FROM blocked`
-	deadline := time.Now().Add(testLockTimeout)
-	for time.Now().Before(deadline) {
-		var count int
-		if err := f.pool.QueryRow(t.Context(), waiting, int32(pid)).Scan(&count); err != nil {
-			t.Fatal(err)
-		}
-		if count == want {
-			return
-		}
-		time.Sleep(lockWaiterPoll)
-	}
-	t.Fatalf("%d webhook requests did not wait on the controlled workspace lock", want)
 }

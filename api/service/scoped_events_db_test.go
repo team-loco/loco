@@ -117,6 +117,7 @@ func auditScope(t *testing.T, entityType genDb.EntityType, entityID uuid.UUID, s
 }
 
 func TestListEventsUsesNarrowestScopeAndParents(t *testing.T) {
+	t.Parallel()
 	f := newScopedAuditFixture(t)
 	orgID := uuid.MustParse(f.orgID)
 	for _, tc := range []struct {
@@ -253,6 +254,7 @@ func TestListEventsUsesNarrowestScopeAndParents(t *testing.T) {
 }
 
 func TestListEventsChecksWorkspaceAuthorizationBeforeParents(t *testing.T) {
+	t.Parallel()
 	f := newScopedAuditFixture(t)
 	ctx := auditScope(t, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeAdmin)
 	wrongOrg := &eventv1.ListEventsRequest{OrgId: f.otherOrgID.String(), WorkspaceId: f.workspaceID.String()}
@@ -279,6 +281,7 @@ func TestListEventsChecksWorkspaceAuthorizationBeforeParents(t *testing.T) {
 }
 
 func TestListEventsPagesMatchingHistoryAndRetainsDeletedResource(t *testing.T) {
+	t.Parallel()
 	f := newScopedAuditFixture(t)
 	ctx := auditScope(t, genDb.EntityTypeResource, f.resourceID, genDb.ScopeRead)
 	request := &eventv1.ListEventsRequest{OrgId: f.orgID, ResourceId: f.resourceID.String(), PageSize: 2,

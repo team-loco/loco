@@ -13,6 +13,7 @@ import (
 )
 
 func TestRegistryKeyServesThePublicKeyAsPKIXPEM(t *testing.T) {
+	t.Parallel()
 	pinned, _, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)

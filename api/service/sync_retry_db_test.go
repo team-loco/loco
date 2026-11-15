@@ -30,6 +30,7 @@ func (f *deployFixture) expireRetry(t *testing.T) {
 }
 
 func TestPermanentApplyFailuresWaitBeforeAnotherInventorySendsThem(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setApplyRetryPolicy(t, 3, nil)
 	server := f.agentServer()
@@ -82,6 +83,7 @@ func TestPermanentApplyFailuresWaitBeforeAnotherInventorySendsThem(t *testing.T)
 }
 
 func TestRetryingApplyErrorsDoNotDeferDelivery(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
@@ -107,6 +109,7 @@ func TestRetryingApplyErrorsDoNotDeferDelivery(t *testing.T) {
 }
 
 func TestCurrentInventoryRecoversDuringApplyBackoff(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
@@ -135,6 +138,7 @@ func TestCurrentInventoryRecoversDuringApplyBackoff(t *testing.T) {
 }
 
 func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setApplyRetryPolicy(t, 2, nil)
 	server := f.agentServer()
@@ -201,6 +205,7 @@ func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
 }
 
 func TestResourceRetryDelayOverridesTheDefault(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	delaySeconds := int32(60)
 	f.setApplyRetryPolicy(t, 3, &delaySeconds)

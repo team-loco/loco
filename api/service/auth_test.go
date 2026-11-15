@@ -7,6 +7,7 @@ import (
 )
 
 func TestClientAddress(t *testing.T) {
+	t.Parallel()
 	const (
 		peer        = "10.0.0.5:4321"
 		peerAddress = "10.0.0.5"

@@ -121,6 +121,7 @@ func signedIngestToken(t *testing.T, key ingesttest.Signer, clusterID uuid.UUID,
 }
 
 func TestIngestTokenExchange(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	key := newIngestKey(t, testCurrentIngestKey)
 	client := ingestClient(newIngestServer(f, signingWith(key)))
@@ -163,6 +164,7 @@ func TestIngestTokenExchange(t *testing.T) {
 }
 
 func TestIngestJWKSPublishesCurrentAndPreviousKeys(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	previous := newIngestKey(t, testPreviousIngestKey)
 	current := newIngestKey(t, testCurrentIngestKey)
@@ -225,6 +227,7 @@ func windowSummary(windows []*ingestv1.PlacementWindow) (open, closed int) {
 }
 
 func TestPlacementWindowsFollowPlacements(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	key := newIngestKey(t, testCurrentIngestKey)
@@ -314,6 +317,7 @@ func TestPlacementWindowsFollowPlacements(t *testing.T) {
 }
 
 func TestIngestKeysUnavailableWhileTheSignerIs(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	key := newIngestKey(t, testCurrentIngestKey)
 	signer := signingWith(key)
@@ -330,6 +334,7 @@ func TestIngestKeysUnavailableWhileTheSignerIs(t *testing.T) {
 }
 
 func TestPlacementWindowsCarryTheOrganizationsRetention(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatal(err)

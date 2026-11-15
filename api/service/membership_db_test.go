@@ -195,6 +195,7 @@ func userOrgIDs(t *testing.T, user membershipUser) []string {
 }
 
 func TestOrgMemberSeesOrgButNoWorkspace(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
@@ -243,6 +244,7 @@ func TestOrgMemberSeesOrgButNoWorkspace(t *testing.T) {
 }
 
 func TestOnlyOrgAdminsManageOrgMembers(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	outsider := o.api.signUp(t, "outsider")
@@ -267,6 +269,7 @@ func TestOnlyOrgAdminsManageOrgMembers(t *testing.T) {
 }
 
 func TestRemoveOrgMemberRevokesTheirGrantsInTheOrg(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
@@ -321,6 +324,7 @@ VALUES ($1, 'svc', 'svc', 'service', '', '{}', 1) RETURNING id`, uuid.MustParse(
 }
 
 func TestWorkspaceOnlyMemberListsWorkspaceUnderItsOrg(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
@@ -350,6 +354,7 @@ func workspaceNames(list []*workspacev1.Workspace) []string {
 }
 
 func TestCreateMemberRequiresOrgMembership(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	outsider := o.api.signUp(t, "outsider")
 	request := &workspacev1.CreateMemberRequest{
@@ -385,6 +390,7 @@ func TestCreateMemberRequiresOrgMembership(t *testing.T) {
 }
 
 func TestWorkspaceOnlyMemberSeesOnlyTheirWorkspace(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
@@ -435,6 +441,7 @@ func TestWorkspaceOnlyMemberSeesOnlyTheirWorkspace(t *testing.T) {
 }
 
 func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
@@ -485,6 +492,7 @@ func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
 }
 
 func TestOrgReaderSeesEveryWorkspaceInTheOrg(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	_, err := o.api.pool.Exec(t.Context(), `
 INSERT INTO workspaces (org_id, name, created_by) VALUES ($1, 'ungranted', $2)`,

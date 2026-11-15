@@ -38,6 +38,7 @@ func getEnvironment(t *testing.T, f *deployFixture) *environmentv1.Environment {
 }
 
 func TestEnvironmentRevisionFollowsWrites(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if rev := getEnvironment(t, f).GetRevision(); rev != 0 {
 		t.Fatalf("revision = %d on a new environment, want 0", rev)
@@ -72,6 +73,7 @@ func TestEnvironmentRevisionFollowsWrites(t *testing.T) {
 }
 
 func TestRejectedScaleLeavesTheRevisionAlone(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -99,6 +101,7 @@ func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.Update
 }
 
 func TestEnvironmentRenameAndRetypeBumpTheRevision(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 
 	description := "only the description"

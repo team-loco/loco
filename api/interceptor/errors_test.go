@@ -90,6 +90,7 @@ func captureLogs(t *testing.T) *bytes.Buffer {
 }
 
 func TestPublicHandlerErrorsKeepServerCause(t *testing.T) {
+	t.Parallel()
 	for _, cause := range []error{errPrivateFailure, context.Canceled, context.DeadlineExceeded} {
 		wrapped := NewErrorInterceptor()(
 			func(context.Context, connect.Spec, connect.ServerStream) error { return cause },

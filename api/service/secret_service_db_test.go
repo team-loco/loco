@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -132,6 +133,7 @@ func (f *secretFixture) eventData(t *testing.T, eventType string) (map[string]an
 }
 
 func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
@@ -191,6 +193,7 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 }
 
 func TestSetSecretsEnforcesLimits(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
@@ -285,6 +288,7 @@ func TestRaisedOrgLimitAllowsLargerSecretRequests(t *testing.T) {
 }
 
 func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{"A": "1", "B": "2"})
@@ -327,6 +331,7 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 }
 
 func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	f.set(t, f.server(t, newTestKeyProvider(t, "k1")), map[string]string{"A": "1"})
 	admin := secretAuthzContext(t, genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin})
@@ -379,6 +384,7 @@ func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
 }
 
 func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
@@ -392,6 +398,7 @@ func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 }
 
 func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	other := f.environment(t, f.workspace(t, "warehouse"), "prod")
@@ -416,6 +423,7 @@ func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
 }
 
 func TestTwoServicesHoldTheSameNameApart(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
@@ -447,7 +455,6 @@ const (
 	betaKey        = "BETA"
 	unusedKey      = "OTHER"
 	concurrentSets = 6
-	lockWaiterPoll = 10 * time.Millisecond
 )
 
 func (f *secretFixture) serverWith(t *testing.T, provider secretkeys.Provider, config SecretConfig) *SecretServer {
@@ -531,6 +538,7 @@ func (f *secretFixture) eventCount(t *testing.T, eventType string) int {
 }
 
 func TestConcurrentSetsOfOneNameGetConsecutiveVersionsAndStayDecryptable(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
@@ -577,6 +585,7 @@ func TestConcurrentSetsOfOneNameGetConsecutiveVersionsAndStayDecryptable(t *test
 }
 
 func TestSetSecretsOfAnUnchangedValueChangesNothing(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
@@ -644,6 +653,7 @@ func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 }
 
 func TestDeleteSecretsRefusesANameTheServiceDeclares(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.declare(t, f.resourceID, alphaKey)
@@ -668,6 +678,7 @@ func TestDeleteSecretsRefusesANameTheServiceDeclares(t *testing.T) {
 }
 
 func TestDeleteSecretsIgnoresANameAnotherServiceDeclares(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	worker := f.resource(t, f.workspaceID, workerService)
@@ -685,6 +696,7 @@ func TestDeleteSecretsIgnoresANameAnotherServiceDeclares(t *testing.T) {
 }
 
 func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{alphaKey: "1"})
@@ -707,7 +719,7 @@ func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing
 		})
 		result <- setErr
 	}()
-	f.waitForLockWaiter(t)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	if deleteErr := held.DeleteResource(t.Context(), f.resourceID); deleteErr != nil {
 		t.Fatalf("delete resource: %v", deleteErr)
 	}
@@ -717,24 +729,6 @@ func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing
 	if code := wireCode(<-result); code != connect.CodeNotFound {
 		t.Fatalf("set on a deleted resource: code = %v, want NotFound", code)
 	}
-}
-
-func (f *secretFixture) waitForLockWaiter(t *testing.T) {
-	t.Helper()
-	const waiting = `SELECT count(*) FROM pg_stat_activity
-WHERE datname = current_database() AND wait_event_type = 'Lock'`
-	deadline := time.Now().Add(testLockTimeout)
-	for time.Now().Before(deadline) {
-		var count int
-		if err := f.pool.QueryRow(t.Context(), waiting).Scan(&count); err != nil {
-			t.Fatalf("lock waiters: %v", err)
-		}
-		if count > 0 {
-			return
-		}
-		time.Sleep(lockWaiterPoll)
-	}
-	t.Fatal("SetSecrets never waited on the environment lock")
 }
 
 func (f *secretFixture) resourceTokenContext(t *testing.T) context.Context {
@@ -748,6 +742,7 @@ func (f *secretFixture) resourceTokenContext(t *testing.T) context.Context {
 }
 
 func TestResourceTokenManagesOnlyItsOwnServicesSecrets(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	worker := f.resource(t, f.workspaceID, workerService)
@@ -840,6 +835,7 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 }
 
 func TestSetSecretsFailsClosedOnAnUnknownFormatVersion(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{alphaKey: "1"})
@@ -892,6 +888,7 @@ func (f *secretFixture) tokenContext(t *testing.T, entity genDb.Entity, scopes [
 }
 
 func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	ctx := f.workspaceTokenContext(t)
@@ -979,6 +976,7 @@ func (f *secretFixture) placementRevision(t *testing.T, id uuid.UUID) (int64, *s
 }
 
 func TestSecretChangesRollThePlacementsThatDeclareTheName(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	withStripe := f.placement(t, f.resourceID, []string{stripeKey, databaseURL})
@@ -999,6 +997,7 @@ func TestSecretChangesRollThePlacementsThatDeclareTheName(t *testing.T) {
 }
 
 func TestASecretChangeRollsOnlyTheServiceThatHoldsIt(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	worker := f.resource(t, f.workspaceID, workerService)

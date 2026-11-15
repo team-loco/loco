@@ -44,6 +44,7 @@ func (f *deployFixture) assertResourceAuditContext(t *testing.T, resourceID uuid
 }
 
 func TestImperativeChildAuditEventsRetainResource(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	if err := client.add(testPrimaryDomain); err != nil {
@@ -87,6 +88,7 @@ func TestImperativeChildAuditEventsRetainResource(t *testing.T) {
 }
 
 func TestApplyChildAuditEventsRetainResource(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})

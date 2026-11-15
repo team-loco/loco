@@ -12,6 +12,7 @@ import (
 )
 
 func TestApplyRuntimeUserPersistsAndClears(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	base := planFileHeader + applyFileWorker
@@ -55,6 +56,7 @@ func TestApplyRuntimeUserPersistsAndClears(t *testing.T) {
 }
 
 func TestRuntimeUserWireValidation(t *testing.T) {
+	t.Parallel()
 	for _, id := range []int64{-1, 0, 82, 1654, 2147483648} {
 		service := &deploymentv1.ServiceDeploymentSpec{
 			Build:      &deploymentv1.BuildSource{Type: "image"},

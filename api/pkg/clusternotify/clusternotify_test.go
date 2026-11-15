@@ -32,6 +32,7 @@ func notify(ctx context.Context, db genDb.DBTX, clusterID uuid.UUID) error {
 }
 
 func TestListenerWakesOnlyOnCommittedNotifyForItsCluster(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.NewPool(t)
 	n := startNotifier(t, pool)
 	ctx := context.Background()
@@ -74,6 +75,7 @@ func TestListenerWakesOnlyOnCommittedNotifyForItsCluster(t *testing.T) {
 }
 
 func TestListenersHoldNoPoolConnections(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.NewPool(t)
 	n := startNotifier(t, pool)
 	ctx := context.Background()
@@ -104,6 +106,7 @@ func TestListenersHoldNoPoolConnections(t *testing.T) {
 }
 
 func TestListenerSurvivesListenConnectionLoss(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.NewPool(t)
 	n := startNotifier(t, pool)
 	ctx := context.Background()
@@ -145,6 +148,7 @@ func TestListenerSurvivesListenConnectionLoss(t *testing.T) {
 }
 
 func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.NewPool(t)
 	config := pool.Config().ConnConfig
 	notifier := clusternotify.New(config, time.Hour)
@@ -178,6 +182,7 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 }
 
 func TestCancelledContextClosesListenConnectionBeforeWaitReturns(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.NewPool(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()

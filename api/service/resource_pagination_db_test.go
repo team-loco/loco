@@ -15,6 +15,7 @@ import (
 )
 
 func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})

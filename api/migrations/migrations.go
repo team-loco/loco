@@ -12,8 +12,10 @@ import (
 	"github.com/pressly/goose/v3/lock"
 )
 
+// Files holds the schema migrations goose applies in version order.
+//
 //go:embed *.sql
-var files embed.FS
+var Files embed.FS
 
 func Up(ctx context.Context, databaseURL string) error {
 	db, err := sql.Open("pgx", databaseURL)
@@ -27,7 +29,7 @@ func Up(ctx context.Context, databaseURL string) error {
 		return fmt.Errorf("create migration lock: %w", err)
 	}
 
-	provider, err := goose.NewProvider(goose.DialectPostgres, db, files, goose.WithSessionLocker(locker))
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, Files, goose.WithSessionLocker(locker))
 	if err != nil {
 		return fmt.Errorf("load migrations: %w", err)
 	}

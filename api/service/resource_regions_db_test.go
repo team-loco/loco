@@ -78,6 +78,7 @@ func prepareRegionUpdate(t *testing.T) *deployFixture {
 }
 
 func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
+	t.Parallel()
 	for _, action := range []string{regionResize, "off", "omit", regionClear} {
 		t.Run(action, func(t *testing.T) {
 			f := prepareRegionUpdate(t)
@@ -152,6 +153,7 @@ func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
 }
 
 func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
+	t.Parallel()
 	for _, test := range []string{"partial", "sizing", "unknown", "tier"} {
 		t.Run(test, func(t *testing.T) {
 			f := prepareRegionUpdate(t)
@@ -181,6 +183,7 @@ func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 }
 
 func TestUpdateResourceRegionsValidatesEveryEnvironmentAtomically(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.deployToProductionAndStaging(t)
 	f.finishRollouts(t)
@@ -214,6 +217,7 @@ VALUES('extra-staging',$1,'kind',true,false,'healthy',NOW(),'staging')`,
 }
 
 func TestUpdateResourceMetadataDoesNotNeedSpecRevision(t *testing.T) {
+	t.Parallel()
 	f := prepareRegionUpdate(t)
 	if err := f.queries.SetResourcePartial(
 		t.Context(),
@@ -227,6 +231,7 @@ func TestUpdateResourceMetadataDoesNotNeedSpecRevision(t *testing.T) {
 }
 
 func TestScaleResourceInvalidatesLoadedRegionRevision(t *testing.T) {
+	t.Parallel()
 	f := prepareRegionUpdate(t)
 	targets, revision := regionTargets(t, f)
 	if err := scaleResource(t, f, 2); err != nil {
@@ -236,6 +241,7 @@ func TestScaleResourceInvalidatesLoadedRegionRevision(t *testing.T) {
 }
 
 func TestApplyBumpsResourceSpecRevision(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
@@ -249,6 +255,7 @@ func TestApplyBumpsResourceSpecRevision(t *testing.T) {
 }
 
 func TestRegionUpdateUsesActiveRuntimeAndPreservesItsCommit(t *testing.T) {
+	t.Parallel()
 	f := prepareRegionUpdate(t)
 	targets, revision := regionTargets(t, f)
 	targets[otherRegion] = proto.CloneOf(targets[testRegion])
@@ -295,6 +302,7 @@ WHERE resource_id = $1 AND region = $2`
 }
 
 func TestUpdateResourceRegionsDeploysAutoscaling(t *testing.T) {
+	t.Parallel()
 	f := prepareRegionUpdate(t)
 	targets, revision := regionTargets(t, f)
 	autoscaled := proto.CloneOf(targets[testRegion])

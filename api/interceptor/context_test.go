@@ -37,6 +37,7 @@ func (*contextTestServer) GetConfig(
 }
 
 func TestContextInterceptorUnaryResponseHeaders(t *testing.T) {
+	t.Parallel()
 	server := connect.NewServer(NewContextInterceptor().Interceptor())
 	configv1connect.RegisterConfigServiceHandler(server, &contextTestServer{})
 	mux := http.NewServeMux()

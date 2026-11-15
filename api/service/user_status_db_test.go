@@ -35,6 +35,7 @@ func setStatus(
 }
 
 func TestSetUserStatusSuspendsAndReinstates(t *testing.T) {
+	t.Parallel()
 	a := newMembershipAPI(t)
 	admin := a.signUp(t, "sysadmin")
 	if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
@@ -97,6 +98,7 @@ func TestSetUserStatusSuspendsAndReinstates(t *testing.T) {
 }
 
 func TestSetUserStatusRejectsInvalidRequests(t *testing.T) {
+	t.Parallel()
 	a := newMembershipAPI(t)
 	admin := a.signUp(t, "sysadmin")
 	if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
@@ -117,6 +119,7 @@ func TestSetUserStatusRejectsInvalidRequests(t *testing.T) {
 }
 
 func TestWhoAmIReturnsClaimedOrgs(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	scopes, err := authz.New(o.api.pool, o.api.queries).UserScopes(t.Context(), member.id)

@@ -8,6 +8,7 @@ import (
 )
 
 func TestProtocolAutoscaling(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		scalers *deploymentv1.Scalers
 		valid   bool
@@ -31,6 +32,7 @@ func TestProtocolAutoscaling(t *testing.T) {
 }
 
 func TestProtocolAutoscalingReplicaBounds(t *testing.T) {
+	t.Parallel()
 	for name, bounds := range map[string][2]int32{"valid": {1, 3}, "zero min": {0, 3}, "max below min": {3, 2}} {
 		t.Run(name, func(t *testing.T) {
 			service := &deploymentv1.ServiceDeploymentSpec{

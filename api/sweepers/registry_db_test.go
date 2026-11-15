@@ -12,6 +12,7 @@ import (
 )
 
 func TestRegistrySweepDeletesDeadCredentials(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t)
 	exec := func(query string, args ...any) {
 		t.Helper()

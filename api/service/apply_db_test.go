@@ -164,6 +164,7 @@ func seedOwnedAsLive(t *testing.T, f *deployFixture) string {
 }
 
 func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + applyFileWorker
@@ -233,6 +234,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 }
 
 func TestApplyCarriesTheWorkspaceOrganization(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
@@ -244,6 +246,7 @@ func TestApplyCarriesTheWorkspaceOrganization(t *testing.T) {
 }
 
 func TestApplyCreatesASourceServiceWithoutADeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + applyFileSource
@@ -275,6 +278,7 @@ func TestApplyCreatesASourceServiceWithoutADeployment(t *testing.T) {
 }
 
 func TestApplyImportsAnUnownedServiceOnConfirmation(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.setRoutedSpec(t)
@@ -318,6 +322,7 @@ func TestApplyImportsAnUnownedServiceOnConfirmation(t *testing.T) {
 }
 
 func TestApplyDeletesAnOwnedServiceOnConfirmation(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := seedOwnedAsLive(t, f)
 	f.addResource(t, planOld, planPartial)
@@ -362,6 +367,7 @@ func TestApplyDeletesAnOwnedServiceOnConfirmation(t *testing.T) {
 }
 
 func TestApplyRefusesAStaleRevision(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := seedOwnedAsLive(t, f)
 	f.addResource(t, planOld, planPartial)
@@ -377,6 +383,7 @@ func TestApplyRefusesAStaleRevision(t *testing.T) {
 }
 
 func TestApplyRefusesAPlanWithErrors(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + `  worker:
@@ -399,6 +406,7 @@ func TestApplyRefusesAPlanWithErrors(t *testing.T) {
 }
 
 func TestApplyNeedsWorkspaceWrite(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := seedOwnedAsLive(t, f)
 	_, err := applyFile(t, f, file, applyOptions{}, f.workspaceReadScopes(t))
@@ -406,6 +414,7 @@ func TestApplyNeedsWorkspaceWrite(t *testing.T) {
 }
 
 func TestApplyRunsAServiceWithoutAPortAsAWorker(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	worker := planFileHeader + strings.Replace(

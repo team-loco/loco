@@ -36,6 +36,7 @@ func getResourceEnv(
 }
 
 func TestGetResourceEnvReturnsThePlainEnvOfTheEnvironmentsDeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + applyFileWorker
@@ -65,6 +66,7 @@ func TestGetResourceEnvReturnsThePlainEnvOfTheEnvironmentsDeployment(t *testing.
 }
 
 func TestGetResourceEnvReturnsTheSecretNamesTheDeploymentDeclares(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
@@ -88,6 +90,7 @@ func TestGetResourceEnvReturnsTheSecretNamesTheDeploymentDeclares(t *testing.T) 
 }
 
 func TestGetResourceEnvOfAnotherWorkspacesEnvironmentIsNotFound(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	var otherEnv uuid.UUID
 	err := f.pool.QueryRow(context.Background(), `

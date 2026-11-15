@@ -14,14 +14,17 @@ import (
 )
 
 func TestCreateResourceWithoutADomain(t *testing.T) {
+	t.Parallel()
 	testCreateResourceDomain(t, false, false)
 }
 
 func TestCreateResourceWithAPlatformDomain(t *testing.T) {
+	t.Parallel()
 	testCreateResourceDomain(t, true, false)
 }
 
 func TestCreateResourceWithAStagingPlatformDomain(t *testing.T) {
+	t.Parallel()
 	testCreateResourceDomain(t, true, true)
 }
 

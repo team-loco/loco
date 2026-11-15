@@ -22,6 +22,7 @@ func (q orgLookupQuerier) GetOrganizationIDByWorkspaceID(_ context.Context, _ uu
 }
 
 func TestCreateMemberRejectsScopesTheCallerDoesNotHold(t *testing.T) {
+	t.Parallel()
 	wsID := uuid.Must(uuid.NewV7())
 	querier := orgLookupQuerier{orgID: uuid.Must(uuid.NewV7())}
 	server := NewWorkspaceServer(nil, querier, limits.Defaults())

@@ -101,6 +101,7 @@ func wantBuildRefused(t *testing.T, realm *registryFixture, credential, reposito
 }
 
 func TestTokenModeBuildCredentialGrantsItsRepositoryUntilTheBuildFinishes(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	realm := registryFixtureFor(t, f.deployFixture, testRegistryConfig())
 	server := f.tokenModeServer(f.queries)
@@ -151,6 +152,7 @@ func TestTokenModeBuildCredentialGrantsItsRepositoryUntilTheBuildFinishes(t *tes
 }
 
 func TestStaticModeStartBuildCarriesNoRegistryCredential(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
@@ -165,6 +167,7 @@ func TestStaticModeStartBuildCarriesNoRegistryCredential(t *testing.T) {
 }
 
 func TestBuildCredentialWriteFailureKeepsTheBuildQueued(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	realm := registryFixtureFor(t, f.deployFixture, testRegistryConfig())
 	failures := 1
@@ -194,6 +197,7 @@ func TestBuildCredentialWriteFailureKeepsTheBuildQueued(t *testing.T) {
 }
 
 func TestBuildThatLeavesTheQueueBeforeItsCredentialIsNotSent(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	id := f.queued(t)
 	canceling := &hookedBuildCredential{Querier: f.queries, before: func() error {

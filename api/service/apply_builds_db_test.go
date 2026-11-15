@@ -86,6 +86,7 @@ func createSourceWorker(t *testing.T, f *deployFixture) string {
 }
 
 func TestApplyDeploysASourceServiceFromTheNamedBuild(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := createSourceWorker(t, f)
 	buildID := f.addSucceededBuild(t, applyWorker, applyBuildDockerfile, defaultBuildContext)
@@ -125,6 +126,7 @@ func TestApplyDeploysASourceServiceFromTheNamedBuild(t *testing.T) {
 }
 
 func TestApplyRefusesBuildsThatCannotDeployTheService(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := createSourceWorker(t, f)
 	otherService := f.addSucceededBuild(t, planSvc, testDockerfile, defaultBuildContext)
@@ -237,6 +239,7 @@ func seedProvisionWorkspace(t *testing.T, f *deployFixture) string {
 }
 
 func TestApplyProvisionCreatesOnlyTheNamedSourceServices(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := seedProvisionWorkspace(t, f)
 	before := plannedKinds(t, f, file)
@@ -283,6 +286,7 @@ func TestApplyProvisionCreatesOnlyTheNamedSourceServices(t *testing.T) {
 }
 
 func TestApplyProvisionCreatesAnImageServiceWithoutDeployingIt(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := seedProvisionWorkspace(t, f)
 
@@ -302,6 +306,7 @@ func TestApplyProvisionCreatesAnImageServiceWithoutDeployingIt(t *testing.T) {
 }
 
 func TestApplyProvisionRefusesServicesThePlanDoesNotCreate(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := seedProvisionWorkspace(t, f)
 

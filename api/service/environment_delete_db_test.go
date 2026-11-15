@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -15,6 +16,7 @@ import (
 )
 
 func TestDeleteEnvironmentRefusesADeploymentThatCommitsWhileItWaits(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	workspaceID := f.workspaceID(t)
@@ -45,7 +47,7 @@ func TestDeleteEnvironmentRefusesADeploymentThatCommitsWhileItWaits(t *testing.T
 		)
 		deleted <- deleteErr
 	}()
-	f.waitForLockWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	if _, err = qtx.CreateDeployment(ctx, f.paramsFor(f.clusterID)); err != nil {
 		t.Fatal(err)
 	}

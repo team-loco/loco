@@ -78,6 +78,7 @@ func (f *deployFixture) setLimit(t *testing.T, limit limits.Limit, value int32) 
 }
 
 func TestConcurrentWorkspaceCreatesStopAtTheLimit(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.WorkspacesPerOrg, 2)
 	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
@@ -115,6 +116,7 @@ func TestConcurrentWorkspaceCreatesStopAtTheLimit(t *testing.T) {
 }
 
 func TestOrgLimitOverrideRaisesAndLowersACap(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	ctx := f.orgAdmin(t)
@@ -157,6 +159,7 @@ func TestOrgLimitOverrideRaisesAndLowersACap(t *testing.T) {
 }
 
 func TestGetOrgLimitsReportsOverridesToMembers(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	req := &orgv1.GetOrgLimitsRequest{OrgId: f.organizationID(t)}
@@ -195,6 +198,7 @@ func TestGetOrgLimitsReportsOverridesToMembers(t *testing.T) {
 }
 
 func TestSetOrgLimitsRequiresSystemAdmin(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	req := &orgv1.SetOrgLimitsRequest{
@@ -211,6 +215,7 @@ func TestSetOrgLimitsRequiresSystemAdmin(t *testing.T) {
 }
 
 func TestSetOrgLimitsRefusesOrgsPerUser(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	_, err := server.SetOrgLimits(systemAdminContext(t), &orgv1.SetOrgLimitsRequest{
@@ -223,6 +228,7 @@ func TestSetOrgLimitsRefusesOrgsPerUser(t *testing.T) {
 }
 
 func TestSetOrgLimitsRequiresAReason(t *testing.T) {
+	t.Parallel()
 	for name, reason := range map[string]string{"empty": "", "too long": strings.Repeat("x", 501)} {
 		req := &orgv1.SetOrgLimitsRequest{
 			OrgId:      uuid.NewString(),
@@ -237,6 +243,7 @@ func TestSetOrgLimitsRequiresAReason(t *testing.T) {
 }
 
 func TestSetOrgLimitsRecordsTheReasonAndValues(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.WebhooksPerWorkspace, 40)
 
@@ -261,6 +268,7 @@ func TestSetOrgLimitsRecordsTheReasonAndValues(t *testing.T) {
 }
 
 func TestApplyPastTheResourceLimitChangesNothing(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.setLimit(t, limits.ResourcesPerWorkspace, 1)
@@ -274,6 +282,7 @@ func TestApplyPastTheResourceLimitChangesNothing(t *testing.T) {
 }
 
 func TestApplyPastTheDomainLimitChangesNothing(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.setLimit(t, limits.DomainsPerResource, 1)
@@ -292,6 +301,7 @@ func TestApplyPastTheDomainLimitChangesNothing(t *testing.T) {
 }
 
 func TestCreateOrgStopsAtTheCreatorsLimit(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	counts := limits.Defaults()
 	limits.OrgsPerUser.Set(counts, 1)

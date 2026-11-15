@@ -75,6 +75,7 @@ VALUES ($1, $2, 'kind', true, true, 'healthy', NOW(), $3)`
 }
 
 func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	clusterID, token := e.createCluster(t)
 	key := newAgentKey(t)
@@ -108,6 +109,7 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 }
 
 func TestRegisterRejectsAnInvalidDomain(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	_, token := e.createCluster(t)
 	key := newAgentKey(t)
@@ -121,6 +123,7 @@ func TestRegisterRejectsAnInvalidDomain(t *testing.T) {
 }
 
 func TestPlanRejectsADomainOneRegionsClusterDoesNotServe(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.serveDomains(t, testPlatformDomain)
 	f.addRegionCluster(t, domainsOtherPlatform)
@@ -151,6 +154,7 @@ func TestPlanRejectsADomainOneRegionsClusterDoesNotServe(t *testing.T) {
 }
 
 func TestPlanRejectsADomainNoClusterServes(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	file := planFileHeader + strings.Replace(planFileNew, "routing: {}", "domains: [new.loco.test]", 1)
@@ -166,6 +170,7 @@ func TestPlanRejectsADomainNoClusterServes(t *testing.T) {
 }
 
 func TestCreateResourceDomainNamesTheClustersMissingTheDomain(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	f.addRegionCluster(t, domainsOtherPlatform)
@@ -182,6 +187,7 @@ func TestCreateResourceDomainNamesTheClustersMissingTheDomain(t *testing.T) {
 }
 
 func TestCreateResourceDomainNeedsTheDomainOnTheClusterThatRunsIt(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	if _, err := f.deployTo(context.Background(), f.otherCluster, staticSpec); err != nil {
@@ -197,6 +203,7 @@ func TestCreateResourceDomainNeedsTheDomainOnTheClusterThatRunsIt(t *testing.T) 
 }
 
 func TestPlatformSubdomainIsUniquePerDomain(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	f.serveDomains(t, testDomainPlatform, domainsOtherPlatform)
@@ -220,6 +227,7 @@ VALUES ($1, $2, 'api-copy.example.com', 'platform_provided', 'api', 'example.com
 }
 
 func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	f.setClusterDomains(t, f.clusterID, domainsFirst, domainsSecond)
@@ -270,6 +278,7 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 }
 
 func TestAClusterThatStopsServingADomainKeepsTheHostnameAndDegradesTheRegion(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.setClusterDomains(t, f.clusterID, testDomainPlatform)
 	insert := `

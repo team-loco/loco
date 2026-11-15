@@ -106,6 +106,7 @@ func unreachableAuthorizer(t *testing.T) *authz.Authorizer {
 }
 
 func TestObservabilityIsUnavailableWithoutClickHouse(t *testing.T) {
+	t.Parallel()
 	client := observabilityTestClient(
 		t,
 		NewObservabilityServer(nil, unreachableAuthorizer(t), observabilityTestConfig),
@@ -123,6 +124,7 @@ func TestObservabilityIsUnavailableWithoutClickHouse(t *testing.T) {
 }
 
 func TestQueriesWithMalformedIDsFailBeforeThePermissionCheck(t *testing.T) {
+	t.Parallel()
 	server := NewObservabilityServer(unreachableClickHouse(t), unreachableAuthorizer(t), observabilityTestConfig)
 	client := observabilityTestClient(t, server, nil)
 	now := time.Now()
@@ -160,6 +162,7 @@ func TestQueriesWithMalformedIDsFailBeforeThePermissionCheck(t *testing.T) {
 }
 
 func TestTraceSummaryValidation(t *testing.T) {
+	t.Parallel()
 	server := NewObservabilityServer(unreachableClickHouse(t), unreachableAuthorizer(t), observabilityTestConfig)
 	client := observabilityTestClient(t, server, nil)
 	for _, tc := range []struct {
@@ -194,6 +197,7 @@ func TestTraceSummaryValidation(t *testing.T) {
 }
 
 func TestGetTraceRequiresTraceID(t *testing.T) {
+	t.Parallel()
 	server := NewObservabilityServer(unreachableClickHouse(t), unreachableAuthorizer(t), observabilityTestConfig)
 	client := observabilityTestClient(t, server, nil)
 	malformed := []string{"", "abcd", "00000000000000000000000000000000", strings.ToUpper(observabilityTestTraceID)}
@@ -209,6 +213,7 @@ func TestGetTraceRequiresTraceID(t *testing.T) {
 }
 
 func TestTailLoopEndsTheStreamWhenAPollFails(t *testing.T) {
+	t.Parallel()
 	server := NewObservabilityServer(unreachableClickHouse(t), nil, ObservabilityConfig{})
 	start := time.Now()
 	err := server.tailLoop(

@@ -25,6 +25,7 @@ type byIDLookup struct {
 }
 
 func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	created, err := createDeployment(t, f, sameRegionSpec)
 	if err != nil {

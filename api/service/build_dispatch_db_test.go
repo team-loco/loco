@@ -83,6 +83,7 @@ func sourceKeyFor(id string) string {
 }
 
 func TestQueuedBuildIsSentOnceWithAFreshSourceURLAndTheLastCache(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 
@@ -138,6 +139,7 @@ WHERE id = $1`, previous, testImageDigest, testCacheDigest); err != nil {
 }
 
 func TestBuildStatusMovesTheBuildThroughItsPhases(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
@@ -213,6 +215,7 @@ func TestBuildStatusMovesTheBuildThroughItsPhases(t *testing.T) {
 }
 
 func TestSucceededWithoutADigestFailsTheBuild(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, _ := f.dispatchSession()
 	id := f.queued(t)
@@ -229,6 +232,7 @@ func TestSucceededWithoutADigestFailsTheBuild(t *testing.T) {
 }
 
 func TestFailedAndCanceledStatusesRecordTheMessage(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, _ := f.dispatchSession()
 
@@ -258,6 +262,7 @@ func TestFailedAndCanceledStatusesRecordTheMessage(t *testing.T) {
 }
 
 func TestInvalidBuildStatusIsIgnored(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, _ := f.dispatchSession()
 	id := f.queued(t)
@@ -271,6 +276,7 @@ func TestInvalidBuildStatusIsIgnored(t *testing.T) {
 }
 
 func TestCancelingASentBuildCancelsItOnTheCluster(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
@@ -307,6 +313,7 @@ func TestCancelingASentBuildCancelsItOnTheCluster(t *testing.T) {
 }
 
 func TestASupersededBuildIsCanceledAndItsReplacementStarted(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	first := f.queued(t)
@@ -334,6 +341,7 @@ func TestASupersededBuildIsCanceledAndItsReplacementStarted(t *testing.T) {
 }
 
 func TestStatusForABuildTheControlPlaneCanceledCancelsIt(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
@@ -399,6 +407,7 @@ SELECT id FROM r`, f.resourceID).Scan(&id)
 }
 
 func TestInventoryRecoversBuildsAfterAReconnect(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 
@@ -463,6 +472,7 @@ func TestInventoryRecoversBuildsAfterAReconnect(t *testing.T) {
 }
 
 func TestSyncStreamDeliversQueuedAndCanceledBuilds(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	client := startSyncServerWithSources(t, f.deployFixture, f.bucket)
 	ctx := t.Context()
@@ -490,6 +500,7 @@ func TestSyncStreamDeliversQueuedAndCanceledBuilds(t *testing.T) {
 }
 
 func TestBuildDispatchWithoutASourceBucketSendsNothing(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	f.queued(t)
 	serverConfig := testAgentConfig()
@@ -509,6 +520,7 @@ func TestBuildDispatchWithoutASourceBucketSendsNothing(t *testing.T) {
 }
 
 func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)

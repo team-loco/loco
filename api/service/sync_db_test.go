@@ -25,6 +25,7 @@ func applied(placementID uuid.UUID, revision int64) *agentv1.Applied {
 }
 
 func TestLateAckNeverAcksNewerRevision(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -61,6 +62,7 @@ func TestLateAckNeverAcksNewerRevision(t *testing.T) {
 }
 
 func TestApplyErrorFailsDeploymentOnlyWhenNotRetrying(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setApplyRetryPolicy(t, 1, nil)
 	ctx := context.Background()
@@ -95,6 +97,7 @@ func TestApplyErrorFailsDeploymentOnlyWhenNotRetrying(t *testing.T) {
 }
 
 func TestDeletedPlacementIsKeptUntilTheDeleteIsAcked(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -136,6 +139,7 @@ func TestDeletedPlacementIsKeptUntilTheDeleteIsAcked(t *testing.T) {
 }
 
 func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -176,6 +180,7 @@ func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 }
 
 func TestInventoryResendsOnlyWhatDiffers(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -338,6 +343,7 @@ func nextResult(t *testing.T, results <-chan syncResult) syncResult {
 }
 
 func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := startSyncServer(t, f)
 	ctx := t.Context()
@@ -373,6 +379,7 @@ func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
 }
 
 func TestSyncStreamDeliversChangesFromNotifyAlone(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	notifier := clusternotify.New(f.pool.Config().ConnConfig, time.Hour)
@@ -393,6 +400,7 @@ func TestSyncStreamDeliversChangesFromNotifyAlone(t *testing.T) {
 }
 
 func TestSyncStreamDeliversChangesFromPollAlone(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	// Never started, so no notification reaches the stream.
@@ -410,6 +418,7 @@ func TestSyncStreamDeliversChangesFromPollAlone(t *testing.T) {
 }
 
 func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := startSyncServer(t, f)
 	ctx, info := connect.NewClientContext(t.Context())

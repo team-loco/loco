@@ -23,6 +23,7 @@ func newTestPool(t *testing.T, databaseURL string) *pgxpool.Pool {
 }
 
 func TestPoolSetsTheStatementTimeout(t *testing.T) {
+	t.Parallel()
 	databaseURL := os.Getenv("LOCO_TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("LOCO_TEST_DATABASE_URL not set")

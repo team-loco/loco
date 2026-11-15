@@ -43,6 +43,7 @@ func TestApplyRefusedLogsADetailThatCannotBeEncoded(t *testing.T) {
 }
 
 func TestErrorInterceptorMapsDomainErrorsToCodes(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		err         error
 		wantCode    connect.Code
@@ -107,6 +108,7 @@ func wantServerFailure(t *testing.T, err error) {
 }
 
 func TestUniqueViolationMatchesOnlyItsConstraint(t *testing.T) {
+	t.Parallel()
 	violation := func(constraint string) error {
 		return fmt.Errorf("insert: %w", &pgconn.PgError{Code: "23505", ConstraintName: constraint})
 	}

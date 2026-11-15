@@ -13,6 +13,7 @@ import (
 )
 
 func TestAuthenticateSkipsPublicProcedures(t *testing.T) {
+	t.Parallel()
 	i := NewAuthInterceptor(nil, nil, nil, nil)
 	ctx, err := i.authenticate(t.Context(), authv1connect.AuthServiceRefreshCLITokenProcedure, http.Header{})
 	if err != nil {
@@ -24,6 +25,7 @@ func TestAuthenticateSkipsPublicProcedures(t *testing.T) {
 }
 
 func TestAuthenticateRejectsMissingToken(t *testing.T) {
+	t.Parallel()
 	i := NewAuthInterceptor(nil, nil, nil, nil)
 	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, http.Header{})
 	if code := connect.CodeOf(err); code != connect.CodeUnauthenticated {
@@ -32,6 +34,7 @@ func TestAuthenticateRejectsMissingToken(t *testing.T) {
 }
 
 func TestAuthenticateReportsDatabaseFailure(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(pool, genDb.New(pool), tvm.Config{})
 	i := NewAuthInterceptor(machine, nil, nil, nil)

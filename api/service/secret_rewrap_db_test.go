@@ -51,6 +51,7 @@ func (f *secretFixture) revision(t *testing.T) int64 {
 }
 
 func TestRewrapEnvironmentKeysActsOnTheNamedEnvironmentOnly(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	old := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, old, map[string]string{alphaKey: "1"})
@@ -73,6 +74,7 @@ func TestRewrapEnvironmentKeysActsOnTheNamedEnvironmentOnly(t *testing.T) {
 }
 
 func TestRewrapEnvironmentKeysSkipsAKeyOfAnotherProvider(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{alphaKey: "1"})
@@ -88,6 +90,7 @@ func TestRewrapEnvironmentKeysSkipsAKeyOfAnotherProvider(t *testing.T) {
 }
 
 func TestRewrapWithANewDEKRequiresAnEnvironment(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.RewrapEnvironmentKeys(
@@ -102,6 +105,7 @@ func TestRewrapWithANewDEKRequiresAnEnvironment(t *testing.T) {
 }
 
 func TestRewrapWithANewDEKReencryptsWithoutBumpingVersions(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
@@ -166,6 +170,7 @@ func (p *hookedProvider) Unwrap(ctx context.Context, wrapped secretkeys.WrappedK
 }
 
 func TestSetSecretsRetriesWhenADEKRotationReplacesTheKey(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	f.set(t, f.server(t, provider), map[string]string{alphaKey: "1"})
@@ -186,6 +191,7 @@ func TestSetSecretsRetriesWhenADEKRotationReplacesTheKey(t *testing.T) {
 }
 
 func TestRewrapWithANewDEKKeepsTheValuesOfTwoServicesThatShareAName(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)

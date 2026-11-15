@@ -13,6 +13,7 @@ import (
 )
 
 func TestApplyPreservesOptionalHealth(t *testing.T) {
+	t.Parallel()
 	const region = "us-east-1"
 	health := configplan.Health(testServiceDefaults().Health())
 	for _, tc := range []struct {
@@ -53,6 +54,7 @@ func TestApplyPreservesOptionalHealth(t *testing.T) {
 }
 
 func TestApplyRemovesHealthFromResourceDeploymentAndPlacement(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	without := planFileHeader + applyFileWorker
@@ -101,6 +103,7 @@ func TestApplyRemovesHealthFromResourceDeploymentAndPlacement(t *testing.T) {
 }
 
 func TestApplyHealthIsIsolatedAcrossEnvironments(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	staging := f.prepareStaging(t)

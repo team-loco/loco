@@ -16,6 +16,7 @@ import (
 )
 
 func TestGetResourceReportsDatabaseFailure(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	server := NewResourceServer(pool, genDb.New(pool), testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
@@ -29,6 +30,7 @@ func TestGetResourceReportsDatabaseFailure(t *testing.T) {
 }
 
 func TestCheckPermissionReportsDatabaseFailure(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	server := NewTokenServer(pool, genDb.New(pool), nil, limits.Defaults())
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{}})
@@ -43,6 +45,7 @@ func TestCheckPermissionReportsDatabaseFailure(t *testing.T) {
 }
 
 func TestGetUserByEmailReportsDatabaseFailure(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	server := NewUserServer(pool, genDb.New(pool), nil, nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
@@ -54,6 +57,7 @@ func TestGetUserByEmailReportsDatabaseFailure(t *testing.T) {
 }
 
 func TestSetUserStatusByEmailReportsDatabaseFailure(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	server := NewUserServer(pool, genDb.New(pool), nil, nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}}

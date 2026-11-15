@@ -34,6 +34,7 @@ func getResourceByName(
 }
 
 func TestGetResourceByName(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	var workspaceID uuid.UUID
 	if err := f.pool.QueryRow(context.Background(), `SELECT workspace_id FROM resources WHERE id = $1`, f.resourceID).

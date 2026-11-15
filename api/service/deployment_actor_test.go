@@ -10,6 +10,7 @@ import (
 )
 
 func TestDeploymentCreationRequiresAPrincipal(t *testing.T) {
+	t.Parallel()
 	t.Run("direct", func(t *testing.T) {
 		_, err := (&DeploymentServer{}).CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{})
 		wantCode(t, err, connect.CodeUnauthenticated)

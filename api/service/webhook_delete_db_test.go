@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	"github.com/team-loco/loco/api/limits"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
@@ -40,7 +41,7 @@ func TestConcurrentWebhookDeletionRecordsOneEvent(t *testing.T) {
 	for range webhookDeleteContenders {
 		go func() { _, deleteErr := server.DeleteWebhook(f.owner, request); results <- deleteErr }()
 	}
-	f.waitForWebhookWaiters(t, holder.Conn().PgConn().PID(), webhookDeleteContenders)
+	dbtest.WaitForLockWaiters(t, f.pool, webhookDeleteContenders)
 	if rollbackErr := holder.Rollback(t.Context()); rollbackErr != nil {
 		t.Fatal(rollbackErr)
 	}

@@ -9,6 +9,7 @@ import (
 )
 
 func TestPlanRequestValidation(t *testing.T) {
+	t.Parallel()
 	envID := uuid.NewString()
 	file := []byte("version: 1\n")
 	valid := &planv1.PlanRequest{File: file, EnvironmentId: envID}

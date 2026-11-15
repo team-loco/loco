@@ -262,6 +262,7 @@ func wantStatus(t *testing.T, b *buildv1.Build, want buildv1.BuildStatus) {
 }
 
 func TestBuildLifecycle(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 
 	created := f.create(t, 100)
@@ -319,6 +320,7 @@ func TestBuildLifecycle(t *testing.T) {
 }
 
 func TestStartBuildCancelsOtherActiveBuilds(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 
 	first := f.create(t, 10).GetBuildId()
@@ -354,6 +356,7 @@ func TestStartBuildCancelsOtherActiveBuilds(t *testing.T) {
 }
 
 func TestConcurrentStartBuildsLeaveOneQueued(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 
 	const builds = 6
@@ -386,6 +389,7 @@ func TestConcurrentStartBuildsLeaveOneQueued(t *testing.T) {
 }
 
 func TestStartBuildPicksTheOldestEligibleCluster(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 
 	exec := func(sql string, args ...any) {
@@ -432,6 +436,7 @@ func TestStartBuildPicksTheOldestEligibleCluster(t *testing.T) {
 }
 
 func TestCreateBuildRejectsOversizedSource(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	resourceID := f.resourceID.String()
 	req := &buildv1.CreateBuildRequest{
@@ -444,6 +449,7 @@ func TestCreateBuildRejectsOversizedSource(t *testing.T) {
 }
 
 func TestBuildRequiresResourceScope(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	created := f.create(t, 10)
 	buildID := created.GetBuildId()
@@ -469,6 +475,7 @@ func TestBuildRequiresResourceScope(t *testing.T) {
 }
 
 func TestListBuildsPages(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	created := map[string]bool{}
 	for range 3 {
@@ -507,6 +514,7 @@ func TestListBuildsPages(t *testing.T) {
 }
 
 func TestPinDockerfileBuildFromDatabase(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	succeeded := f.create(t, 10).GetBuildId()
 	if _, err := f.pool.Exec(
@@ -577,6 +585,7 @@ func TestPinDockerfileBuildFromDatabase(t *testing.T) {
 }
 
 func TestSucceededBuildRequiresDigest(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	buildID := f.create(t, 10).GetBuildId()
 	_, err := f.pool.Exec(f.ctx, `UPDATE builds SET status = 'succeeded' WHERE id = $1`, buildID)
@@ -586,6 +595,7 @@ func TestSucceededBuildRequiresDigest(t *testing.T) {
 }
 
 func TestCreateBuildStoresTheContext(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 
 	withoutContext := f.create(t, 1)
@@ -609,6 +619,7 @@ func TestCreateBuildStoresTheContext(t *testing.T) {
 }
 
 func TestCreateBuildStoresTheGitCommit(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 
 	withoutGit := f.get(t, f.create(t, 1).GetBuildId())
@@ -653,6 +664,7 @@ func TestCreateBuildStoresTheGitCommit(t *testing.T) {
 }
 
 func TestCreateBuildClipsALongCommitMessage(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	subject := strings.Repeat("€", maxGitCommitMessageRunes+1)
 	req := &buildv1.CreateBuildRequest{

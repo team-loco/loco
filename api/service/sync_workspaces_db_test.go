@@ -11,6 +11,7 @@ import (
 )
 
 func TestWorkspaceInventoryRetainsEmptyWorkspacesAndRetriesDeletedWorkspaces(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{

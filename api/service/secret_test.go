@@ -48,6 +48,7 @@ func secretAuthzContext(t *testing.T, scopes ...genDb.EntityScope) context.Conte
 }
 
 func TestSecretServiceAuthorization(t *testing.T) {
+	t.Parallel()
 	workspaceID := uuid.Must(uuid.NewV7())
 	env := genDb.Environment{ID: uuid.Must(uuid.NewV7()), WorkspaceID: workspaceID}
 	resource := genDb.Resource{ID: uuid.Must(uuid.NewV7()), WorkspaceID: workspaceID}
