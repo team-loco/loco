@@ -3,7 +3,8 @@
 // writes one `<workflow>=true|false` line per workflow to $GITHUB_OUTPUT. A
 // workflow whose pass marker for the checked-out inputs exists in a cache the
 // run can read is reported false; `markers` maps each workflow that runs and
-// may reuse a pass to the cache key its pass writes.
+// may reuse a pass to the cache key its pass writes. `go-modules` lists the
+// directories of the Go modules whose lint and tests the changes need.
 package main
 
 import (
@@ -55,6 +56,10 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 		return err
 	}
 	own := selectOwn(filters, event, files)
+	modules, err := loadModules(ctx, ".")
+	if err != nil {
+		return err
+	}
 	keys, err := markerKeys(ctx, ".", filters, own)
 	if err != nil {
 		return err
@@ -71,7 +76,7 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 		return fmt.Errorf("open $GITHUB_OUTPUT: %w", err)
 	}
 	defer output.Close()
-	return writeSelection(io.MultiWriter(output, os.Stdout), withUsers(filters, own), keys)
+	return writeSelection(io.MultiWriter(output, os.Stdout), withUsers(filters, own), keys, modules.affected(files))
 }
 
 // filter is one event's ordered pattern list; a later pattern overrides an
@@ -208,17 +213,22 @@ func withUsers(all filters, own map[string]bool) map[string]bool {
 	return selected
 }
 
-func writeSelection(w io.Writer, selected map[string]bool, markers map[string]string) error {
+func writeSelection(w io.Writer, selected map[string]bool, markers map[string]string, goModules []string) error {
 	var b strings.Builder
 	for _, workflow := range slices.Sorted(maps.Keys(selected)) {
 		fmt.Fprintf(&b, "%s=%t\n", workflow, selected[workflow])
 	}
-	encoded, err := json.Marshal(markers)
-	if err != nil {
-		return err
+	for _, output := range []struct {
+		name  string
+		value any
+	}{{"markers", markers}, {"go-modules", goModules}} {
+		encoded, err := json.Marshal(output.value)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(&b, "%s=%s\n", output.name, encoded)
 	}
-	fmt.Fprintf(&b, "markers=%s\n", encoded)
-	_, err = io.WriteString(w, b.String())
+	_, err := io.WriteString(w, b.String())
 	return err
 }
 

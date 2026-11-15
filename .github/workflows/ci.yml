@@ -59,6 +59,7 @@ jobs:
       web: ${{ steps.select.outputs.web }}
       workflows: ${{ steps.select.outputs.workflows }}
       markers: ${{ steps.select.outputs.markers }}
+      go-modules: ${{ steps.select.outputs.go-modules }}
     steps:
       # Protection reads only the newest head's CI Gate, so a run for a head the
       # PR has replaced is wasted runner time. Only older runs are cancelled: a
@@ -199,6 +200,8 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/go-lint-and-test.yml
+    with:
+      modules: ${{ needs.changes.outputs.go-modules }}
 
   govulncheck:
     name: Go Vulnerabilities

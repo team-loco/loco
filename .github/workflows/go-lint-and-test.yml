@@ -2,6 +2,11 @@ name: Go Lint and Tests
 
 on:
   workflow_call:
+    inputs:
+      modules:
+        description: JSON list of the directories of the Go modules the changes affect.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -14,46 +19,24 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: go
           lint-cache: true
 
-      - id: changes
-        uses: ./.github/actions/go-changes
-        with:
-          matrix: |
-            - working-directory: api
-            - working-directory: cmd
-              test-task: test:cli
-            - working-directory: "."
-              test-task: test:shared
-            - working-directory: controller
-              test-task: test:controller
-            - working-directory: agent
-              test-task: test:agent
-            - working-directory: builder
-              test-task: test:builder
-            - working-directory: k8sapi
-              test-task: test:k8sapi
-            - working-directory: observability-proxy
-              test-task: test:counter-metrics
-            # The E2E workflow runs the end-to-end packages against their platforms.
-            - working-directory: tests/e2e
-
-      # Every selected module is linted and tested even after one fails.
+      # Every affected module is linted and tested even after one fails. The E2E
+      # workflow runs the tests/e2e packages against their platforms.
       - name: Lint and test each module the changes affect
         env:
-          MODULES: ${{ steps.changes.outputs.matrix }}
+          MODULES: ${{ inputs.modules }}
         run: |
           set -uo pipefail
           status=0
-          mapfile -t entries < <(jq -r '.include[] | [."working-directory", (."test-task" // "")] | @tsv' <<<"$MODULES")
-          for entry in "${entries[@]}"; do
-            IFS=$'\t' read -r module task <<<"$entry"
+          for entry in api "cmd test:cli" ". test:shared" "controller test:controller" "agent test:agent" \
+            "builder test:builder" "k8sapi test:k8sapi" "observability-proxy test:counter-metrics" tests/e2e; do
+            read -r module task <<<"$entry"
+            jq -e --arg module "$module" 'any(.[]; . == $module)' <<<"$MODULES" >/dev/null || continue
             echo "::group::Lint $module"
             mise run lint:go "$module" || { echo "::error::golangci-lint failed in $module"; status=1; }
             echo "::endgroup::"
@@ -71,6 +54,7 @@ jobs:
 
   api:
     name: API Tests
+    if: contains(fromJSON(inputs.modules), 'api')
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -107,24 +91,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - id: changes
-        uses: ./.github/actions/go-changes
-        with:
-          matrix: "[]"
 
       - uses: ./.github/actions/setup-tools
-        if: steps.changes.outputs.api == 'true'
         with:
           go-cache: test-api
 
       - name: Run tests
-        if: steps.changes.outputs.api == 'true'
         run: mise run test:api
         timeout-minutes: 10
 
       - name: Display coverage
-        if: always() && steps.changes.outputs.api == 'true'
+        if: always()
         run: cd api && go tool cover -func=coverage.out
