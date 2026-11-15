@@ -91,10 +91,25 @@ jobs:
           breaking_against_registry: true
 
       # The installed CLI can lag main by many commits; compare with the newest release too.
+      # Main can hold unreleased break-buf changes, so only breaks this pull request adds fail.
       - name: Check for breaking changes against the latest release
         if: steps.labels.outputs.breaking == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           tag=$(git ls-remote --tags --refs --sort=v:refname origin 'v*' | tail -1 | cut -d/ -f3)
-          git fetch --no-tags --depth=1 origin "refs/tags/${tag}:refs/tags/${tag}"
-          buf breaking --against ".git#tag=${tag}"
+          git fetch --no-tags --depth=1 origin "refs/tags/${tag}:refs/tags/${tag}" "$BASE_SHA"
+          breaks() {
+            local rc=0
+            buf breaking "$@" --against ".git#tag=${tag}" --error-format json > "$RUNNER_TEMP/breaks.json" || rc=$?
+            if [ "$rc" -ne 0 ] && [ "$rc" -ne 100 ]; then exit "$rc"; fi
+            jq -c 'del(.start_line, .start_column, .end_line, .end_column)' "$RUNNER_TEMP/breaks.json" | sort
+          }
+          breaks ".git#ref=${BASE_SHA}" > "$RUNNER_TEMP/base.txt"
+          breaks > "$RUNNER_TEMP/head.txt"
+          added=$(comm -13 "$RUNNER_TEMP/base.txt" "$RUNNER_TEMP/head.txt")
+          if [ -n "$added" ]; then
+            jq -r '"::error file=\(.path)::\(.message)"' <<<"$added"
+            exit 1
+          fi
