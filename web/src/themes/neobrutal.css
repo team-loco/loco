@@ -234,7 +234,7 @@
 		border: 1.5px solid color-mix(in oklch, var(--ink) 35%, transparent);
 		box-shadow: none;
 	}
-	& :is([data-slot="badge"], [title="Copy request ID"]) {
+	& :is([data-slot="badge"], [data-request-id] [data-slot="button"]) {
 		border: 2px solid var(--ink);
 		border-radius: 5px;
 		background: var(--raise);

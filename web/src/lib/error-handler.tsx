@@ -72,7 +72,7 @@ export function toastConnectError(
 	toast.error(fallback, {
 		duration: options?.duration ?? 7000,
 		description: (
-			<span className="flex flex-col items-start">
+			<span data-request-id className="flex flex-col items-start">
 				Something failed on Loco’s side. Send support this request ID.
 				<CopyId
 					value={id}
