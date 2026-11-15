@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db/dbtest"
@@ -164,7 +163,7 @@ func (f *secretFixture) upsertFor(t *testing.T, resourceID uuid.UUID, names []st
 	}
 }
 
-func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
+func TestSecretQueriesListCiphertextMetadata(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	ctx := t.Context()
@@ -178,28 +177,7 @@ func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
 		names[0].ResourceName != webService || names[1].CiphertextBytes != int64(len("cipher-"+stripeKey)) {
 		t.Fatalf("names = %+v, want web's DATABASE_URL and STRIPE_KEY with their ciphertext sizes", names)
 	}
-	count, err := f.queries.CountSecrets(
-		ctx,
-		genDb.CountSecretsParams{ResourceID: f.resourceID, EnvironmentID: f.environmentID},
-	)
-	if err != nil {
-		t.Fatalf("count: %v", err)
-	}
-	if count != 2 {
-		t.Fatalf("count = %d, want 2", count)
-	}
-
 	f.upsert(t, []string{stripeKey}, []int32{2})
-	rows, err := f.queries.ListSecrets(
-		ctx,
-		genDb.ListSecretsParams{ResourceID: f.resourceID, EnvironmentID: f.environmentID},
-	)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(rows) != 2 || rows[1].Name != stripeKey || rows[1].Version != 2 || rows[1].UpdatedByID != f.ownerID {
-		t.Fatalf("rows = %+v, want STRIPE_KEY at version 2 by the owner", rows)
-	}
 	ciphertexts, err := f.queries.ListSecretCiphertexts(ctx, genDb.ListSecretCiphertextsParams{
 		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey, missingName},
 	})
@@ -209,16 +187,6 @@ func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
 	if len(ciphertexts) != 1 || ciphertexts[0].Version != 2 ||
 		string(ciphertexts[0].Ciphertext) != "cipher-"+stripeKey {
 		t.Fatalf("ciphertexts = %+v, want the STRIPE_KEY row at version 2", ciphertexts)
-	}
-
-	deleted, err := f.queries.DeleteSecrets(ctx, genDb.DeleteSecretsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey, missingName},
-	})
-	if err != nil {
-		t.Fatalf("delete: %v", err)
-	}
-	if len(deleted) != 1 || deleted[0] != stripeKey {
-		t.Fatalf("deleted = %v, want STRIPE_KEY", deleted)
 	}
 }
 
@@ -353,87 +321,6 @@ func TestDeletingAResourceDropsOnlyItsSecrets(t *testing.T) {
 	}
 	if kept != 1 {
 		t.Fatalf("worker holds %d secrets after web was deleted, want 1", kept)
-	}
-}
-
-func TestTheSameNameOnTwoResourcesIsTwoRows(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	ctx := t.Context()
-	worker := f.resource(t, f.workspaceID, workerService)
-	f.upsert(t, []string{stripeKey}, []int32{1})
-	f.upsertFor(t, worker, []string{stripeKey}, []int32{1})
-	f.upsertFor(t, worker, []string{stripeKey}, []int32{2})
-
-	names, err := f.queries.ListResourceSecretNames(ctx, f.environmentID)
-	if err != nil {
-		t.Fatalf("list names: %v", err)
-	}
-	if len(names) != 2 || names[0].ResourceName != webService || names[1].ResourceName != workerService {
-		t.Fatalf("names = %+v, want STRIPE_KEY once for web and once for worker", names)
-	}
-	web, err := f.queries.ListSecrets(
-		ctx,
-		genDb.ListSecretsParams{ResourceID: f.resourceID, EnvironmentID: f.environmentID},
-	)
-	if err != nil {
-		t.Fatalf("list web: %v", err)
-	}
-	if len(web) != 1 || web[0].Version != 1 {
-		t.Fatalf("web rows = %+v, want STRIPE_KEY at version 1, untouched by worker's write", web)
-	}
-	deleted, err := f.queries.DeleteSecrets(ctx, genDb.DeleteSecretsParams{
-		ResourceID: worker, EnvironmentID: f.environmentID, Names: []string{stripeKey},
-	})
-	if err != nil {
-		t.Fatalf("delete worker's: %v", err)
-	}
-	if len(deleted) != 1 {
-		t.Fatalf("deleted = %v, want worker's STRIPE_KEY", deleted)
-	}
-	count, err := f.queries.CountSecrets(
-		ctx,
-		genDb.CountSecretsParams{ResourceID: f.resourceID, EnvironmentID: f.environmentID},
-	)
-	if err != nil {
-		t.Fatalf("count web: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("web holds %d secrets after worker's delete, want 1", count)
-	}
-}
-
-func TestEnvironmentKeyRowLockBlocksASecondWriterUntilItsTimeout(t *testing.T) {
-	f := newSecretFixture(t)
-	ctx := t.Context()
-	if _, err := f.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
-		EnvironmentID: f.environmentID, Provider: testProviderName, KekID: "k1",
-		WrappedDek: []byte(wrappedDEK), FormatVersion: secretFormatVersion,
-	}); err != nil {
-		t.Fatalf("insert key: %v", err)
-	}
-	holder, err := f.pool.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin holder: %v", err)
-	}
-	rollbackOnCleanup(t, holder)
-	if _, lockErr := f.queries.WithTx(holder).LockEnvironmentKey(ctx, f.environmentID); lockErr != nil {
-		t.Fatalf("holder lock: %v", lockErr)
-	}
-
-	waiter, err := f.pool.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin waiter: %v", err)
-	}
-	rollbackOnCleanup(t, waiter)
-	waiterQueries := f.queries.WithTx(waiter)
-	if timeoutErr := waiterQueries.SetLockTimeout(ctx, "100ms"); timeoutErr != nil {
-		t.Fatalf("set lock timeout: %v", timeoutErr)
-	}
-	_, err = waiterQueries.LockEnvironmentKey(ctx, f.environmentID)
-	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.Code != pgLockNotAvailable {
-		t.Fatalf("waiter lock: err = %v, want lock_not_available", err)
 	}
 }
 

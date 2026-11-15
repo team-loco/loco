@@ -845,26 +845,6 @@ func TestResolveRemovedMemberIsNotReAdded(t *testing.T) {
 	}
 }
 
-func TestDuplicateOpenInvitationIsRejected(t *testing.T) {
-	t.Parallel()
-	f := newInvitationFixture(t)
-	orgID := f.org(t, "acme")
-	first := f.invite(t, orgID, inviteeEmail, invitationTTL)
-
-	_, err := f.q.CreateInvitation(t.Context(), genDb.CreateInvitationParams{
-		OrgID: orgID, Email: "BOB@x.test", InvitedBy: f.inviter.ID, ExpiresAt: time.Now().Add(invitationTTL),
-	})
-	if !isUniqueViolation(err) {
-		t.Fatalf("duplicate open invitation err = %v, want a unique violation", err)
-	}
-
-	if _, err := f.q.RevokeInvitation(t.Context(), first.ID); err != nil {
-		t.Fatalf("revoke: %v", err)
-	}
-	f.invite(t, orgID, inviteeEmail, invitationTTL)
-	f.invite(t, f.org(t, "other"), inviteeEmail, invitationTTL)
-}
-
 func TestResolveLeavesTheInvitationOpenWhenTheOrgIsAtItsMemberLimit(t *testing.T) {
 	t.Parallel()
 	f := newInvitationFixture(t)

@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/builder/internal/extract"
 	"github.com/team-loco/loco/builder/internal/ocilayout"
 	"github.com/team-loco/loco/builder/internal/registry"
+	"github.com/team-loco/loco/internal/buildinfo"
 )
 
 const terminationLogPerm = 0o600
@@ -23,11 +24,13 @@ type result struct {
 	CacheDigest string `json:"cacheDigest,omitempty"`
 }
 
+var version string
+
 func main() {
 	handler := slog.NewTextHandler(os.Stderr, nil)
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
-	builderVersion := buildVersion()
+	builderVersion := buildinfo.Version(version)
 	slog.Info("starting loco builder", "version", builderVersion)
 
 	cfg, err := newConfig(os.Args[1:], os.Getenv)

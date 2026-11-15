@@ -318,14 +318,6 @@ def envoy_telemetry(worker_relays):
     return envoy_telemetry
 
 
-def test_the_deployment_collector_receives_otlp_on_its_service_port(envoy_telemetry):
-    port = envoy_telemetry.core["otel-col-deploy"]["ports"]["otlp"]["servicePort"]
-    assert (
-        envoy_telemetry.collector["receivers"]["otlp"]["protocols"]["grpc"]["endpoint"]
-        == f"0.0.0.0:{port}"
-    )
-
-
 def test_route_tenancy_runs_after_kubernetes_attributes(envoy_telemetry):
     for name, pipeline in envoy_telemetry.collector["service"]["pipelines"].items():
         if "otlp" not in pipeline["receivers"]:

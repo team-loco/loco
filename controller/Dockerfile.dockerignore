@@ -3,4 +3,7 @@
 !k8sapi
 **/node_modules
 **/dist
+!go.mod
+!go.sum
+!internal
 **/*_test.go

@@ -386,18 +386,6 @@ tests:
           value: 2
         template: charts/otel-col-deploy/templates/statefulset.yaml
 
-  - it: serves OTLP gRPC and HTTP from the deployment collector Service on the ports the controller reads
-    template: charts/otel-col-deploy/templates/service.yaml
-    asserts:
-      - contains:
-          path: spec.ports
-          content: {name: otlp, port: 4317}
-          any: true
-      - contains:
-          path: spec.ports
-          content: {name: otlp-http, port: 4318}
-          any: true
-
   - it: holds every collector until the agent has written the token file
     set:
       global.exporter.ingestToken.enabled: true

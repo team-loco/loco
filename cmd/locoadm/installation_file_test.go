@@ -22,6 +22,8 @@ import (
 )
 
 // writeInstallation writes the example installation file to dir with its API URL set to apiURL.
+const clusterCommand = "cluster"
+
 func writeInstallation(t *testing.T, dir, apiURL string) {
 	t.Helper()
 	data, err := os.ReadFile("../../examples/installation/" + installation.DefaultFile)

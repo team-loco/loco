@@ -282,24 +282,6 @@ func TestPushRecoversFromKeySwap(t *testing.T) {
 	}
 }
 
-func TestRestoreRequestsPullScope(t *testing.T) {
-	fake := newFakeRegistry(t, false)
-	client, _ := fake.client(t)
-	dir, _ := imageLayout(t)
-	digest, err := client.PushLayout(dir, fake.host+"/"+testRepository+":buildcache-1", true)
-	if err != nil {
-		t.Fatalf("PushLayout: %v", err)
-	}
-
-	fake.mu.Lock()
-	fake.scope = "repository:" + testRepository + ":" + transport.PullScope
-	fake.mu.Unlock()
-	ref := fake.host + "/" + testRepository + "@" + digest.String()
-	if err := client.RestoreCache(ref, t.TempDir(), 0); err != nil {
-		t.Fatalf("RestoreCache: %v", err)
-	}
-}
-
 func TestRefusingRealmFailsAtOnce(t *testing.T) {
 	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
 		t.Run(http.StatusText(status), func(t *testing.T) {

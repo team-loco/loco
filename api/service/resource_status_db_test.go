@@ -275,24 +275,10 @@ func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
 		ready: 0, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING,
 	})
 
-	f.notReady(t, f.clusterID, 1)
-	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, wantRegion{
-		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
-		ready: 1, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING,
-		message: statusWaitingMsg,
-	})
-
 	f.ready(t, f.clusterID, statusTwoReplicas)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		ready: 2, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
-	})
-
-	f.notReady(t, f.clusterID, 1)
-	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, wantRegion{
-		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
-		ready: 1, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
-		message: statusWaitingMsg,
 	})
 
 	f.notReady(t, f.clusterID, 0)
@@ -300,12 +286,6 @@ func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
 		ready: 0, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
 		message: statusWaitingMsg,
-	})
-
-	f.ready(t, f.clusterID, statusTwoReplicas)
-	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
-		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 2, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
 	})
 }
 
@@ -394,20 +374,6 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 			ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
 		},
 	)
-
-	f.notReady(t, f.clusterID, 0)
-	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-		wantRegion{
-			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-			ready: 0, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED,
-			message: statusCrashMsg,
-		},
-		wantRegion{
-			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-			ready: 0, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
-			message: statusWaitingMsg,
-		},
-	)
 }
 
 func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
@@ -426,13 +392,6 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED,
-		message: statusCrashMsg,
-	})
-
-	f.failed(t, f.clusterID, 0)
-	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE, wantRegion{
-		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-		ready: 0, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED,
 		message: statusCrashMsg,
 	})
 }

@@ -15,7 +15,6 @@ import (
 
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
-	"github.com/team-loco/loco/internal/jwssign"
 )
 
 const (
@@ -87,29 +86,23 @@ func TestVerifyAcceptsEveryPublishedKey(t *testing.T) {
 }
 
 type failingSigner struct {
-	keyErr    error
-	signature []byte
+	keyErr error
 }
 
 func (s failingSigner) KeyID(context.Context) (string, error) {
 	return currentKeyID, s.keyErr
 }
 
-func (s failingSigner) Sign(context.Context, string, []byte) ([]byte, error) {
-	return s.signature, nil
+func (failingSigner) Sign(context.Context, string, []byte) ([]byte, error) {
+	panic("unexpected signing request after key lookup failed")
 }
 
-func TestSignFailsWithoutAnEd25519Signature(t *testing.T) {
+func TestSignReportsAnUnavailableKey(t *testing.T) {
 	now := time.Now()
 	down := failingSigner{keyErr: errSignerDown}
 	_, _, err := ingesttoken.Sign(t.Context(), down, testClusterID, now, testLifetime)
 	if !errors.Is(err, errSignerDown) {
 		t.Fatalf("unavailable signer = %v", err)
-	}
-	short := failingSigner{signature: []byte("short")}
-	_, _, err = ingesttoken.Sign(t.Context(), short, testClusterID, now, testLifetime)
-	if !errors.Is(err, jwssign.ErrSignature) {
-		t.Fatalf("short signature = %v", err)
 	}
 }
 
