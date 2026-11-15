@@ -2,7 +2,8 @@ import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { createParser, parseAsString, useQueryStates } from "nuqs";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
@@ -67,12 +68,14 @@ const CLOCK_TICK_MS = 60_000;
 
 type View = "overview" | SettingsFocus;
 
-function parseView(value: string | null): View {
-	if (value === "settings") return "settings";
-	if (value === "variables") return "settings";
-	if (value === "scaling") return "scaling";
-	return "overview";
-}
+const RESOURCE_PARAMS = {
+	tab: createParser<View>({
+		parse: (value) =>
+			value === "settings" || value === "variables" ? "settings" : value === "scaling" ? "scaling" : null,
+		serialize: (view) => view,
+	}).withDefault("overview"),
+	env: parseAsString,
+};
 
 export function Resource() {
 	const { resourceId = "" } = useParams<{ resourceId: string }>();
@@ -85,7 +88,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const transport = useTransport();
-	const [params, setParams] = useSearchParams();
+	const [{ tab: view, env }, setParams] = useQueryStates(RESOURCE_PARAMS);
 	const {
 		resource,
 		environmentId,
@@ -134,12 +137,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const del = useMutation(deleteResource);
 	const restart = useMutation(restartResource);
 
-	const view = parseView(params.get("tab"));
 	const setView = (next: View) => {
-		const p = new URLSearchParams(params);
-		if (next === "overview") p.delete("tab");
-		else p.set("tab", next);
-		setParams(p, { replace: true });
+		void setParams({ tab: next }, { history: "replace" });
 	};
 
 	if (isLoading || configQuery.isPending) return <ResourceSkeleton />;
@@ -183,7 +182,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const canWrite = level >= scopeLevel(Scope.WRITE);
 	const canDelete = level >= scopeLevel(Scope.ADMIN);
 
-	const env = params.get("env");
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const obsLink = (obsView: "logs" | "metrics" | "events"): string | undefined =>

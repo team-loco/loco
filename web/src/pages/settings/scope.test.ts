@@ -1,12 +1,16 @@
 import { expect, test } from "bun:test";
+import { createLoader } from "nuqs";
 
-import { scopeFromParams } from "./scope";
+import { requestedScope, SETTINGS_PARAMS } from "./scope";
 
-test("scopeFromParams reads scope and maps the old tab values", () => {
-	expect(scopeFromParams(new URLSearchParams("scope=org"))).toBe("org");
-	expect(scopeFromParams(new URLSearchParams("scope=account"))).toBe("account");
-	expect(scopeFromParams(new URLSearchParams("tab=ws"))).toBe("workspace");
-	expect(scopeFromParams(new URLSearchParams("tab=org"))).toBe("org");
-	expect(scopeFromParams(new URLSearchParams("scope=bogus&tab=org"))).toBe("org");
-	expect(scopeFromParams(new URLSearchParams(""))).toBe("workspace");
+const loadScope = createLoader(SETTINGS_PARAMS);
+
+test("requestedScope reads scope and maps the old tab values", () => {
+	const scopeOf = (search: string) => requestedScope(loadScope(search));
+	expect(scopeOf("?scope=org")).toBe("org");
+	expect(scopeOf("?scope=account")).toBe("account");
+	expect(scopeOf("?tab=ws")).toBe("workspace");
+	expect(scopeOf("?tab=org")).toBe("org");
+	expect(scopeOf("?scope=bogus&tab=org")).toBe("org");
+	expect(scopeOf("")).toBe("workspace");
 });

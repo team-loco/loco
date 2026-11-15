@@ -2,7 +2,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { EnvironmentType, type Environment } from "@gen/loco/environment/v1/environment_pb";
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { useQueryState } from "nuqs";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -15,7 +15,7 @@ const storageKey = (workspaceId: string) => `loco:env:v1:${workspaceId}`;
 export function useEnvironments() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const scopes = useMyScopes();
-	const [params, setParams] = useSearchParams();
+	const [envParam, setEnvParam] = useQueryState("env");
 	const grants =
 		activeOrgId !== null && activeWorkspaceId !== null
 			? scopes.resourceGrants(activeOrgId, activeWorkspaceId)
@@ -38,8 +38,7 @@ export function useEnvironments() {
 	);
 	const environments = data?.environments ?? [];
 
-	const requested =
-		params.get("env") ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
+	const requested = envParam ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
 	const active: Environment | undefined =
 		environments.find((e) => e.name === requested || e.id === requested) ??
 		environments.find((e) => e.type === EnvironmentType.PRODUCTION) ??
@@ -47,9 +46,7 @@ export function useEnvironments() {
 
 	const setActive = (env: Environment) => {
 		if (activeWorkspaceId !== null) writeStorage(storageKey(activeWorkspaceId), env.name);
-		const next = new URLSearchParams(params);
-		next.set("env", env.name);
-		setParams(next);
+		void setEnvParam(env.name);
 	};
 
 	return {

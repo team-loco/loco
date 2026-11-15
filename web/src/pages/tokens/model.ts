@@ -5,11 +5,11 @@ import { scopeLevel } from "@/hooks/useMyScopes";
 import { pluralize } from "@/lib/format";
 import { DAY_MS, maybeTsMs } from "@/lib/time";
 
-export type OwnerKey = "org" | "workspace" | "personal";
 export type NodeKind = "org" | "ws" | "res" | "user" | "system";
 export type Level = 1 | 2 | 3;
 
-export const OWNER_KEYS: OwnerKey[] = ["org", "workspace", "personal"];
+export const OWNER_KEYS = ["org", "workspace", "personal"] as const;
+export type OwnerKey = (typeof OWNER_KEYS)[number];
 export const OWNER_TITLE: Record<OwnerKey, string> = {
 	org: "Organization",
 	workspace: "Workspace",

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { useSearchParams } from "react-router";
+import { useQueryState } from "nuqs";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
@@ -248,13 +248,11 @@ export function DraftSheet({
 	env: Environment;
 	draftId: string | null;
 }) {
-	const [params, setParams] = useSearchParams();
+	const [, setDraftParam] = useQueryState(DRAFT_PARAM);
 	const open = draftId !== null;
 	const heldId = useHeldWhileClosed(draftId, open);
 	const close = () => {
-		const next = new URLSearchParams(params);
-		next.delete(DRAFT_PARAM);
-		setParams(next);
+		void setDraftParam(null);
 	};
 	return (
 		<Sheet

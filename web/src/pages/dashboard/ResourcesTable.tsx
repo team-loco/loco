@@ -6,7 +6,8 @@ import { TRAFFIC_METRICS, latestTraffic, trafficPoints, trafficValue, type Traff
 import { useTable, type PaginationState, type SortingState } from "@tanstack/react-table";
 import { ArrowRightIcon, SearchXIcon, XIcon } from "lucide-react";
 import { createContext, use, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useQueryState } from "nuqs";
+import { Link, useLocation } from "react-router";
 import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -28,7 +29,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
-import { draftSearch, resourcesPath } from "@/lib/routes";
+import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -52,9 +53,6 @@ import type { EnvResource } from "./useDashboardData";
 
 const PAGE_SIZE = 25;
 const MAX_PIPS = 8;
-const VIEW_PARAM = "view";
-const MAP_VIEW = "map";
-const TABLE_VIEW = "table";
 
 function replicaTotal(item: DashboardItem): number {
 	return isDraftItem(item) ? 0 : item.totalReplicas;
@@ -326,14 +324,9 @@ export function ResourcesTable({
 		}),
 	);
 	const trafficData = trafficPoints([traffic.data ?? []]);
-	const [params, setParams] = useSearchParams();
-	const isMap = params.get(VIEW_PARAM) === MAP_VIEW;
-	const setView = (view: string) => {
-		const next = new URLSearchParams(params);
-		if (view === MAP_VIEW) next.set(VIEW_PARAM, MAP_VIEW);
-		else next.delete(VIEW_PARAM);
-		setParams(next, { replace: true });
-	};
+	const { search: locationSearch } = useLocation();
+	const [view, setView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
+	const isMap = view === "map";
 	const [filter, setFilter] = useState<RowFilter>({ status: ALL, type: ALL, region: ALL, query: "" });
 	const [sorting, setSorting] = useState<SortingState>([{ id: "status", desc: false }]);
 	const [paging, setPaging] = useState<PaginationState>({ pageIndex: 0, pageSize: PAGE_SIZE });
@@ -389,13 +382,14 @@ export function ResourcesTable({
 			<ToggleGroup
 				variant="segmented"
 				aria-label="View"
-				value={[isMap ? MAP_VIEW : TABLE_VIEW]}
+				value={[view]}
 				onValueChange={(v: string[]) => {
-					if (v[0] !== undefined) setView(v[0]);
+					const next = RESOURCE_VIEWS.find((r) => r === v[0]);
+					if (next !== undefined) void setView(next);
 				}}
 			>
-				<ToggleGroupItem value={TABLE_VIEW}>Table</ToggleGroupItem>
-				<ToggleGroupItem value={MAP_VIEW}>Map</ToggleGroupItem>
+				<ToggleGroupItem value="table">Table</ToggleGroupItem>
+				<ToggleGroupItem value="map">Map</ToggleGroupItem>
 			</ToggleGroup>
 			<Button
 				variant="outline"
@@ -478,7 +472,7 @@ export function ResourcesTable({
 	);
 
 	const itemHref = (item: DashboardItem) =>
-		isDraftItem(item) ? draftSearch(params, item.draft.id) : hrefFor(item.resource.id);
+		isDraftItem(item) ? draftSearch(locationSearch, item.draft.id) : hrefFor(item.resource.id);
 
 	return (
 		<Section title="Resources" count={items.length} actions={actions} filters={filters} search={search}>
@@ -492,7 +486,7 @@ export function ResourcesTable({
 						environmentId={environmentId}
 						hrefFor={itemHref}
 						onShowTable={() => {
-							setView(TABLE_VIEW);
+							void setView("table");
 						}}
 					/>
 				)

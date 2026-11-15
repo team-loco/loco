@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { useSearchParams } from "react-router";
+import { parseAsStringLiteral, useQueryStates } from "nuqs";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
@@ -42,9 +42,10 @@ const NOW_TICK_MS = 60_000;
 const NEW_PARAM = "new";
 const TOKEN_DOCS = `${DOCS_URL}/operations/access/#deploy-from-ci-with-an-api-token`;
 
-function parseOwner(value: string | null): OwnerKey {
-	return OWNER_KEYS.find((k) => k === value) ?? "workspace";
-}
+const TOKENS_PARAMS = {
+	owner: parseAsStringLiteral(OWNER_KEYS).withDefault("workspace"),
+	[NEW_PARAM]: parseAsStringLiteral(["1"]),
+};
 
 function firstRun(owner: Owner): { title: string; body: string; snippet: string[] } {
 	switch (owner.key) {
@@ -87,8 +88,9 @@ function SnippetArt({ lines }: { lines: string[] }) {
 }
 
 export function Tokens() {
-	const [params, setParams] = useSearchParams();
-	const ownerKey = parseOwner(params.get("owner"));
+	const [{ owner: ownerKey, [NEW_PARAM]: createLinked }, setParams] = useQueryStates(TOKENS_PARAMS, {
+		history: "replace",
+	});
 	const data = useTokenData();
 	const { activeOrgId } = useOrgWorkspace();
 	const limits = useOrgLimits(activeOrgId ?? "");
@@ -116,15 +118,7 @@ export function Tokens() {
 	const anyLoading = data.scopesLoading || OWNER_KEYS.some((k) => data.owners[k].isLoading);
 
 	const setOwner = (next: OwnerKey) => {
-		setParams(
-			(prev) => {
-				const p = new URLSearchParams(prev);
-				if (next === "workspace") p.delete("owner");
-				else p.set("owner", next);
-				return p;
-			},
-			{ replace: true },
-		);
+		void setParams({ owner: next });
 		paged.reset();
 	};
 
@@ -146,7 +140,7 @@ export function Tokens() {
 
 	// The command palette links to ?new=1 to open the create drawer.
 	const shownDraft =
-		draft ?? (params.get(NEW_PARAM) === "1" && owner.canCreate ? { owner: ownerKey, name: "", items: [] } : null);
+		draft ?? (createLinked !== null && owner.canCreate ? { owner: ownerKey, name: "", items: [] } : null);
 
 	const openCreate = () => {
 		setDraft({ owner: ownerKey, name: "", items: [] });
@@ -311,16 +305,7 @@ export function Tokens() {
 				now={now}
 				onClose={() => {
 					setDraft(null);
-					if (params.has(NEW_PARAM)) {
-						setParams(
-							(prev) => {
-								const p = new URLSearchParams(prev);
-								p.delete(NEW_PARAM);
-								return p;
-							},
-							{ replace: true },
-						);
-					}
+					void setParams({ [NEW_PARAM]: null });
 				}}
 				onCreated={(created) => {
 					if (created !== ownerKey) setOwner(created);

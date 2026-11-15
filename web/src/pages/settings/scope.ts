@@ -1,13 +1,14 @@
-import type { SettingsScope } from "@/lib/routes";
+import { parseAsString, parseAsStringLiteral } from "nuqs";
 
-export const SCOPES: readonly SettingsScope[] = ["org", "workspace", "account"];
+import { SETTINGS_SCOPES, type SettingsScope } from "@/lib/routes";
+
+export const SETTINGS_PARAMS = { scope: parseAsStringLiteral(SETTINGS_SCOPES), tab: parseAsString };
 
 const LEGACY_TABS: ReadonlyMap<string, SettingsScope> = new Map([
 	["ws", "workspace"],
 	["org", "org"],
 ]);
 
-export function scopeFromParams(params: URLSearchParams): SettingsScope {
-	const scope = SCOPES.find((s) => s === params.get("scope"));
-	return scope ?? LEGACY_TABS.get(params.get("tab") ?? "") ?? "workspace";
+export function requestedScope({ scope, tab }: { scope: SettingsScope | null; tab: string | null }): SettingsScope {
+	return scope ?? LEGACY_TABS.get(tab ?? "") ?? "workspace";
 }

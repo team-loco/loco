@@ -11,7 +11,8 @@ import {
 	WaypointsIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useLocation, useSearchParams } from "react-router";
+import { parseAsString, useQueryStates } from "nuqs";
+import { useLocation } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
@@ -20,6 +21,7 @@ import {
 	auditPath,
 	inResourcesSection,
 	observabilityPath,
+	observabilityViewParser,
 	resourcesPath,
 	workspacePath,
 	type ObservabilityView,
@@ -46,15 +48,15 @@ const OBSERVABILITY_PAGES: { view: ObservabilityView; name: string; icon: ReactN
 	{ view: "events", name: "Events", icon: <BellIcon /> },
 ];
 
+const NAV_PARAMS = { env: parseAsString, view: observabilityViewParser };
+
 export function useNavSections(): NavSection[] {
 	const { pathname } = useLocation();
-	const [params] = useSearchParams();
+	const [{ env, view }] = useQueryStates(NAV_PARAMS);
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
-	const env = params.get("env");
 	const envParams: Record<string, string> = env !== null ? { env } : {};
 	const withEnv = (path: string) => (env !== null ? `${path}?env=${encodeURIComponent(env)}` : path);
-	const view = params.get("view") ?? "logs";
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
 	const onObs = wsBase !== null && pathname.startsWith(`${wsBase}/observability`);

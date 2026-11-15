@@ -1,3 +1,4 @@
+import { createSerializer, parseAsString, parseAsStringLiteral } from "nuqs";
 import { matchPath } from "react-router";
 
 import { formatSpan, QUERY_MAX_MS } from "./obs-time";
@@ -18,7 +19,8 @@ export function switchWorkspacePath(pathname: string, search: string, orgId: str
 	return `${workspacePath(orgId, workspaceId, rest)}${query === "" ? "" : `?${query}`}`;
 }
 
-export type SettingsScope = "org" | "workspace" | "account";
+export const SETTINGS_SCOPES = ["org", "workspace", "account"] as const;
+export type SettingsScope = (typeof SETTINGS_SCOPES)[number];
 
 export function settingsPath(orgId: string, workspaceId: string, scope: SettingsScope): string {
 	return `${workspacePath(orgId, workspaceId, "settings")}?scope=${scope}`;
@@ -62,14 +64,19 @@ export function newResourcePath(orgId: string, workspaceId: string, params: Reco
 
 export const DRAFT_PARAM = "draft";
 
-export function draftSearch(params: URLSearchParams, draftId: string): string {
-	const next = new URLSearchParams(params);
-	next.delete(NEW_RESOURCE_PARAM);
-	next.set(DRAFT_PARAM, draftId);
-	return `?${next.toString()}`;
+const draftSerializer = createSerializer({ [NEW_RESOURCE_PARAM]: parseAsString, [DRAFT_PARAM]: parseAsString });
+
+export function draftSearch(search: string | URLSearchParams, draftId: string): string {
+	return draftSerializer(search, { [NEW_RESOURCE_PARAM]: null, [DRAFT_PARAM]: draftId });
 }
 
-export type ObservabilityView = "logs" | "metrics" | "traces" | "events";
+export const RESOURCE_VIEWS = ["table", "map"] as const;
+export type ResourceView = (typeof RESOURCE_VIEWS)[number];
+export const resourceViewParser = parseAsStringLiteral(RESOURCE_VIEWS).withDefault("table");
+
+export const OBSERVABILITY_VIEWS = ["logs", "metrics", "traces", "events"] as const;
+export type ObservabilityView = (typeof OBSERVABILITY_VIEWS)[number];
+export const observabilityViewParser = parseAsStringLiteral(OBSERVABILITY_VIEWS).withDefault("logs");
 
 export function observabilityPath(
 	orgId: string,
