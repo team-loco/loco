@@ -1,0 +1,128 @@
+name: Go Lint and Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+
+  modules:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: go
+          lint-cache: true
+
+      - id: changes
+        uses: ./.github/actions/go-changes
+        with:
+          matrix: |
+            - working-directory: api
+            - working-directory: cmd
+              test-task: test:cli
+            - working-directory: "."
+              test-task: test:shared
+            - working-directory: controller
+              test-task: test:controller
+            - working-directory: agent
+              test-task: test:agent
+            - working-directory: builder
+              test-task: test:builder
+            - working-directory: k8sapi
+              test-task: test:k8sapi
+            - working-directory: observability-proxy
+              test-task: test:counter-metrics
+
+      # Every selected module is linted and tested even after one fails.
+      - name: Lint and test each module the changes affect
+        env:
+          MODULES: ${{ steps.changes.outputs.matrix }}
+        run: |
+          set -uo pipefail
+          status=0
+          mapfile -t entries < <(jq -r '.include[] | [."working-directory", (."test-task" // "")] | @tsv' <<<"$MODULES")
+          for entry in "${entries[@]}"; do
+            IFS=$'\t' read -r module task <<<"$entry"
+            echo "::group::Lint $module"
+            mise run lint:go "$module" || { echo "::error::golangci-lint failed in $module"; status=1; }
+            echo "::endgroup::"
+            if [ -n "$task" ]; then
+              echo "::group::Test $module"
+              mise run "$task" || { echo "::error::$task failed"; status=1; }
+              echo "::endgroup::"
+            fi
+          done
+          exit "$status"
+
+      - name: Check the API docs scripts against the files their URLs serve
+        if: ${{ !cancelled() }}
+        run: mise run lint:sri
+
+  api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        env:
+          POSTGRES_USER: loco_test
+          POSTGRES_PASSWORD: loco_test
+          POSTGRES_DB: loco_test
+          POSTGRES_INITDB_ARGS: --set fsync=off --set synchronous_commit=off --set full_page_writes=off
+        ports:
+          - 5432:5432
+        options: >-
+          --tmpfs /var/lib/postgresql
+          --health-cmd "pg_isready -U loco_test -d loco_test"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+
+      valkey:
+        image: valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      LOCO_TEST_DATABASE_URL: postgres://loco_test:loco_test@localhost:5432/loco_test?sslmode=disable
+      LOCO_TEST_VALKEY_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - id: changes
+        uses: ./.github/actions/go-changes
+        with:
+          matrix: "[]"
+
+      - uses: ./.github/actions/setup-tools
+        if: steps.changes.outputs.api == 'true'
+        with:
+          go-cache: test-api
+
+      - name: Run tests
+        if: steps.changes.outputs.api == 'true'
+        run: mise run test:api
+        timeout-minutes: 10
+
+      - name: Display coverage
+        if: always() && steps.changes.outputs.api == 'true'
+        run: cd api && go tool cover -func=coverage.out

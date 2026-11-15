@@ -241,7 +241,7 @@ func TestUnitTestChangesSkipE2E(t *testing.T) {
 	} {
 		t.Run(path, func(t *testing.T) {
 			selected := selectWorkflows(filters, "pull_request", []string{path})
-			assert.True(t, selected["test"])
+			assert.True(t, selected["go-lint-and-test"])
 			assert.False(t, selected["e2e"])
 			assert.False(t, selected["e2e-installation"])
 

@@ -105,9 +105,12 @@ jobs:
             python3 tools/platform-images/verify.py image "$image" "$PLATFORM"
           done
 
-  base-image-versions:
-    name: Image Pins
+  dockerfiles:
+    name: Dockerfile Checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -120,26 +123,14 @@ jobs:
       - name: Check image digests and Dockerfile base images against mise.toml
         run: mise run lint:versions
 
-  hadolint:
-    name: Hadolint
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: ./.github/actions/setup-tools
-
       - name: Lint Dockerfiles
+        if: ${{ !cancelled() }}
         env:
           LINT_DOCKER_FORMAT: sarif
         run: mise run lint:docker > hadolint.sarif
 
       - name: Upload results
-        if: always()
+        if: ${{ !cancelled() && hashFiles('hadolint.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: hadolint.sarif

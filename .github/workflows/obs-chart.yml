@@ -8,8 +8,8 @@ permissions:
 
 jobs:
 
-  retention:
-    name: Observability Retention
+  charts:
+    name: Observability Charts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -17,11 +17,6 @@ jobs:
       - name: Check that every ClickHouse table the chart creates has a TTL
         run: mise run test:obs-retention
 
-  tenancy:
-    name: Observability Tenancy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-tools
       - name: Check that the collectors take tenancy only from pod labels
+        if: ${{ !cancelled() }}
         run: mise run test:obs-tenancy

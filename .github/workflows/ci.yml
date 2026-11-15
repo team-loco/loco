@@ -45,14 +45,13 @@ jobs:
       docs: ${{ steps.select.outputs.docs }}
       e2e: ${{ steps.select.outputs.e2e }}
       e2e-installation: ${{ steps.select.outputs.e2e-installation }}
+      go-lint-and-test: ${{ steps.select.outputs.go-lint-and-test }}
       govulncheck: ${{ steps.select.outputs.govulncheck }}
       images: ${{ steps.select.outputs.images }}
-      lint: ${{ steps.select.outputs.lint }}
       local-stack: ${{ steps.select.outputs.local-stack }}
       obs-chart: ${{ steps.select.outputs.obs-chart }}
       osv: ${{ steps.select.outputs.osv }}
       platform-release: ${{ steps.select.outputs.platform-release }}
-      test: ${{ steps.select.outputs.test }}
       transit-conformance: ${{ steps.select.outputs.transit-conformance }}
       web: ${{ steps.select.outputs.web }}
       workflows: ${{ steps.select.outputs.workflows }}
@@ -184,6 +183,14 @@ jobs:
     with:
       images: ${{ needs.images.outputs.images }}
 
+  go-lint-and-test:
+    name: Go Lint and Tests
+    needs: [changes]
+    if: needs.changes.outputs.go-lint-and-test == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/go-lint-and-test.yml
+
   govulncheck:
     name: Go Vulnerabilities
     needs: [changes]
@@ -200,14 +207,6 @@ jobs:
       contents: read
       packages: write
     uses: ./.github/workflows/images.yml
-
-  lint:
-    name: Lint
-    needs: [changes]
-    if: needs.changes.outputs.lint == 'true'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/lint.yml
 
   local-stack:
     name: Local Stack
@@ -247,14 +246,6 @@ jobs:
       packages: write
     uses: ./.github/workflows/platform-release.yml
 
-  test:
-    name: Tests
-    needs: [changes]
-    if: needs.changes.outputs.test == 'true'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/test.yml
-
   transit-conformance:
     name: Transit Conformance
     needs: [changes]
@@ -292,14 +283,13 @@ jobs:
       - docs
       - e2e
       - e2e-installation
+      - go-lint-and-test
       - govulncheck
       - images
-      - lint
       - local-stack
       - obs-chart
       - osv
       - platform-release
-      - test
       - transit-conformance
       - web
       - workflows

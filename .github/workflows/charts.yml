@@ -13,8 +13,8 @@ permissions:
 
 jobs:
 
-  lint:
-    name: Lint Charts
+  checks:
+    name: Chart Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,26 +25,11 @@ jobs:
       - name: Lint the charts changed since main with ct
         run: mise run lint:charts
 
-  test:
-    name: Test Charts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-tools
       - name: Run each chart's helm-unittest suites
+        if: ${{ !cancelled() }}
         run: mise run test:charts
-
-  collectors:
-    name: Test Collector Configuration
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-tools
       - name: Test the collector configuration and log severity
+        if: ${{ !cancelled() }}
         run: mise run test:collectors
 
   certificates:

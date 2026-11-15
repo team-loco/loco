@@ -95,7 +95,7 @@ def test_toolchain_and_selector_changes_select_every_module(
     for path in (
         "mise.toml",
         ".github/actions/go-changes/select.py",
-        ".github/workflows/test.yml",
+        ".github/workflows/go-lint-and-test.yml",
     ):
         with subtests.test(path=path):
             assert _selected(module_dependencies, path) == set(module_dependencies)
