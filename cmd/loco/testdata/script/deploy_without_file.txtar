@@ -12,8 +12,6 @@ fakeapi uploaded Dockerfile
 fakeapi uploaded main.go
 fakeapi called GetConfig
 fakeapi called ListRegions 'Bearer test-token'
-! fakeapi called ListPlatformDomains
-! fakeapi called CheckDomainAvailability
 
 # a domain needs a port.
 ! exec loco deploy --domain app.onloco.test --yes

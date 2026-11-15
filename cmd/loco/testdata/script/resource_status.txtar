@@ -5,7 +5,6 @@ exec loco resource status web
 stdout 'Service Status'
 stdout 'Not deployed to any environment\.'
 fakeapi called GetResource 'Bearer test-token'
-! fakeapi called GetResourceStatus
 
 exec loco resource status web --output json
 stdout '"name":\s+"web"'

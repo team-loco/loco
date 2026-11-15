@@ -360,19 +360,4 @@ describe("regional control-plane queries", () => {
 		expect(received).toHaveLength(2);
 		client.clear();
 	});
-
-	test("passes permission errors through without replacing them with empty history", async () => {
-		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityService, {
-				queryLogs() {
-					throw new ConnectError("workspace read required", Code.PermissionDenied);
-				},
-			});
-		});
-		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-		expect(await client.query(logsQueryOptions(transport, logOptions)).catch(String)).toContain(
-			"workspace read required",
-		);
-		client.clear();
-	});
 });

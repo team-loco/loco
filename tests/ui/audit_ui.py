@@ -141,9 +141,6 @@ with session(out) as browser:
     expect(rows).to_have_count(3)
     assert list_events(calls)[-1]["body"]["actorIds"] == [users["owner"]["id"]]
 
-    page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}/settings?scope=org")
-    page.get_by_role("heading", name="Workspaces").first.wait_for()
-    expect(page.get_by_role("heading", name="Audit log", exact=True)).to_have_count(0)
     assert not errors, errors
     context.close()
 

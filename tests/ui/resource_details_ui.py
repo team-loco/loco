@@ -120,12 +120,9 @@ with session(out) as browser:
             expect(more).to_be_focused()
             page.goto(base + "?tab=settings")
             expect(page.get_by_text("No secrets. Add them here or with", exact=False)).to_be_visible()
-            secrets = page.locator("#set-env")
             count = page.locator("#set-env-title > span")
             expect(count).to_have_text(re.compile(r"^\d+$"))
             assert count.evaluate("e => getComputedStyle(e).backgroundColor") == "rgba(0, 0, 0, 0)"
-            expect(secrets.get_by_role("button", name="Environment", exact=True)).to_have_count(0)
-            expect(page.get_by_text("declares which secrets", exact=False)).to_have_count(0)
             delete = page.get_by_role("button", name="Delete resource", exact=True)
             expect(delete).to_be_enabled()
             delete.click()

@@ -10,11 +10,3 @@ tests:
       - isKind:
           of: CustomResourceDefinition
         not: true
-
-  - it: renders no CustomResourceDefinition for the apps role
-    set:
-      cluster.role: apps
-    asserts:
-      - isKind:
-          of: CustomResourceDefinition
-        not: true

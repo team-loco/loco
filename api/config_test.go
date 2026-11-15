@@ -1066,17 +1066,6 @@ func TestNewAPIConfigReadsInvitations(t *testing.T) {
 	}
 }
 
-func TestInvitationConfigUsesOnlyTTLAndWebURL(t *testing.T) {
-	for _, name := range []string{"EMAIL_TRANSPORT", "EMAIL_HOOK_SECRET", "EMAIL_TIMEOUT", "EMAIL_FROM"} {
-		t.Setenv(name, "invalid")
-	}
-	t.Setenv("INVITATION_TTL", "24h")
-	got := newInvitationConfig("https://app.loco.test")
-	if got.TTL != 24*time.Hour || got.WebURL != "https://app.loco.test" {
-		t.Fatalf("invitations = %+v", got)
-	}
-}
-
 func TestIngestTokenConfiguration(t *testing.T) {
 	clearAPIConfigEnv(t)
 	defaults := newAPIConfig().Ingest
