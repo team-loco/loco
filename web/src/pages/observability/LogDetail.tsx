@@ -25,16 +25,15 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { SearchInput } from "@/components/design/SearchInput";
-import { SoonTag } from "@/components/design/SoonTag";
 import { useCopy } from "@/hooks/useCopy";
 import { AROUND_MS, aroundWindow, MINUTE_MS } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-import { rowAttributes, type ColumnKey } from "./columns";
+import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
-import { bodyParts, fmtTs, levelStyle } from "./format";
-import { sameToken, type FieldKey, type Token } from "./query";
+import { bodyParts, flattenJson, fmtTs, JSON_FIELD_PREFIX, levelStyle } from "./format";
+import { reservedLabelReason, REQUEST_FILTER_ATTRIBUTES, sameToken, type FieldKey, type Token } from "./query";
 import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
 
@@ -44,26 +43,47 @@ const AROUND_LABEL = `±${String(AROUND_MS / MINUTE_MS)} minutes`;
 interface Attribute {
 	key: string;
 	value: string;
-	field?: FieldKey | undefined;
+	/** The token filtering on this value, or why the value can't be filtered. */
+	filter: { key: FieldKey; value: string } | string;
 	column?: ColumnKey | undefined;
 }
+
+const REQUEST_FIELD_BY_ATTRIBUTE = new Map(
+	Object.entries(REQUEST_FILTER_ATTRIBUTES).map(([field, attribute]) => [attribute, field as FieldKey]),
+);
 
 function attributes(row: LogRow): Attribute[] {
 	const e = row.entry;
 	const list: Attribute[] = [
-		{ key: "timestamp", value: new Date(row.ts).toISOString() },
-		{ key: "level", value: row.level, field: "level", column: "level" },
-		{ key: "resource", value: row.resourceName, field: "resource", column: "resource" },
-		{ key: "replica", value: row.pod, field: "replica", column: "replica" },
-		{ key: "region", value: row.region, field: "region", column: "region" },
-		{ key: "trace_id", value: e.traceId, column: "trace" },
-		{ key: "span_id", value: e.spanId },
+		{ key: "timestamp", value: new Date(row.ts).toISOString(), filter: "Use the time range to pick a time" },
+		{ key: "level", value: row.level, filter: { key: "level", value: row.level }, column: "level" },
+		{
+			key: "resource",
+			value: row.resourceName,
+			filter: { key: "resource", value: row.resourceName },
+			column: "resource",
+		},
+		{ key: "replica", value: row.pod, filter: { key: "replica", value: row.pod }, column: "replica" },
+		{ key: "region", value: row.region, filter: { key: "region", value: row.region }, column: "region" },
+		{ key: "trace_id", value: e.traceId, filter: { key: "trace", value: e.traceId }, column: "trace" },
+		{ key: "span_id", value: e.spanId, filter: "Filter by trace_id to see the request" },
 	];
-	for (const [key, value] of Object.entries(rowAttributes(row))) {
+	const extra = new Map<string, Attribute>();
+	for (const [key, value] of Object.entries(e.resourceAttributes)) {
 		if (key === "k8s.pod.name" || key === "loco.region") continue;
-		list.push({ key, value, column: key });
+		const filter = reservedLabelReason(key) ?? { key: "label" as const, value: `${key}=${value}` };
+		extra.set(key, { key, value, filter, column: key });
 	}
-	return list.filter((a) => a.value !== "");
+	for (const [key, value] of Object.entries(e.logAttributes)) {
+		const field = REQUEST_FIELD_BY_ATTRIBUTE.get(key);
+		const filter = field === undefined ? { key: "attr" as const, value: `${key}=${value}` } : { key: field, value };
+		extra.set(key, { key, value, filter, column: key });
+	}
+	for (const [key, value] of Object.entries(row.json !== null ? flattenJson(row.json) : {})) {
+		const filter = { key: "json" as const, value: `${key.slice(JSON_FIELD_PREFIX.length)}=${value}` };
+		extra.set(key, { key, value, filter, column: key });
+	}
+	return [...list, ...extra.values()].filter((a) => a.value !== "");
 }
 
 export function LogDetail({
@@ -200,13 +220,21 @@ export function LogDetail({
 								<ChartLineIcon />
 								<ItemText label="Metrics around this line" sub={`${row.resourceName}, ${AROUND_LABEL}`} />
 							</DropdownMenuItem>
-							<DropdownMenuItem disabled>
-								<ScrollTextIcon />
-								Logs in this trace
-								<span className="ml-auto">
-									<SoonTag />
-								</span>
-							</DropdownMenuItem>
+							{e.traceId !== "" && (
+								<DropdownMenuItem
+									className="items-start"
+									onClick={() => {
+										goTo("logs", {
+											range: aroundWindow(row.ts, Date.now()),
+											tokens: [{ neg: false, key: "trace", value: e.traceId }],
+											focusTs: row.ts,
+										});
+									}}
+								>
+									<ScrollTextIcon />
+									<ItemText label="Logs in this trace" sub="Every line of this request" />
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								onClick={() => {
@@ -279,7 +307,7 @@ export function LogDetail({
 									copy(`a:${a.key}`, a.value, `Copied ${a.key}`);
 								}}
 								onFilter={(neg) => {
-									if (a.field !== undefined) addTok({ neg, key: a.field, value: a.value });
+									if (typeof a.filter !== "string") addTok({ neg, ...a.filter });
 								}}
 								onColumn={() => {
 									if (a.column !== undefined && !columns.includes(a.column)) onColumns([...columns, a.column]);
@@ -287,10 +315,6 @@ export function LogDetail({
 							/>
 						))}
 					</div>
-					<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-						Filtering and excluding by other attributes
-						<SoonTag />
-					</span>
 				</div>
 				<div className="flex flex-col gap-2">
 					<span className="text-[12.5px] text-fg3">JSON</span>
@@ -310,8 +334,6 @@ function ItemText({ label, sub }: { label: string; sub: string }) {
 	);
 }
 
-const EXCLUDABLE = new Set<FieldKey>(["level", "resource", "region"]);
-
 function AttributeRow({
 	attribute,
 	copied,
@@ -327,9 +349,8 @@ function AttributeRow({
 	onFilter: (neg: boolean) => void;
 	onColumn: () => void;
 }) {
-	const { key, value, field } = attribute;
-	const canInclude = field !== undefined;
-	const canExclude = field !== undefined && EXCLUDABLE.has(field);
+	const { key, value, filter } = attribute;
+	const reason = typeof filter === "string" ? filter : null;
 	return (
 		<div className="group/attr grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line py-1.5 last:border-b-0">
 			<span className="truncate font-mono text-[12px] text-fg3" title={key}>
@@ -345,8 +366,8 @@ function AttributeRow({
 			</span>
 			<span className="flex gap-0.5 opacity-60 group-focus-within/attr:opacity-100 group-hover/attr:opacity-100">
 				<AttrAction
-					label={canInclude ? `Only ${key} ${value}` : `Filtering by ${key} isn't supported yet`}
-					disabled={!canInclude}
+					label={reason ?? `Only ${key} ${value}`}
+					disabled={reason !== null}
 					onClick={() => {
 						onFilter(false);
 					}}
@@ -354,8 +375,8 @@ function AttributeRow({
 					<PlusIcon />
 				</AttrAction>
 				<AttrAction
-					label={canExclude ? `Hide ${key} ${value}` : `Excluding ${key} isn't supported yet`}
-					disabled={!canExclude}
+					label={reason ?? `Hide ${key} ${value}`}
+					disabled={reason !== null}
 					onClick={() => {
 						onFilter(true);
 					}}

@@ -5,6 +5,7 @@ package guardrails
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ var (
 	errSinceInFuture       = errors.New("since is in the future")
 	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
 	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
+	errInvalidJSONPath     = errors.New("JSON field paths must be object keys joined by single dots")
 )
 
 // Limits bounds what one query may ask for.
@@ -37,13 +39,7 @@ const (
 
 // ValidateLogsRequest validates the query parameters for a logs request.
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, limits Limits) error {
-	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
-		return err
-	}
-	if err := validateLabels(req.GetLabels()); err != nil {
-		return err
-	}
-	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
+	if err := validateLogFilters(req); err != nil {
 		return err
 	}
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
@@ -59,13 +55,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, limits Lim
 
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, limits Limits, now time.Time) error {
-	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
-		return err
-	}
-	if err := validateLabels(req.GetLabels()); err != nil {
-		return err
-	}
-	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
+	if err := validateLogFilters(req); err != nil {
 		return err
 	}
 	if req.GetSince() == nil {
@@ -114,10 +104,48 @@ func validateCanonicalIDs(workspaceID, environmentID string, resourceIDs []strin
 	return nil
 }
 
-func validateLabels(labels map[string]string) error {
-	for key := range labels {
+// logFilters holds the filters QueryLogsRequest and TailLogsRequest share.
+type logFilters interface {
+	GetWorkspaceId() string
+	GetEnvironmentId() string
+	GetResourceIds() []string
+	GetExcludedResourceIds() []string
+	GetLabels() []*observabilityv1.LogFieldFilter
+	GetExcludedLabels() []*observabilityv1.LogFieldFilter
+	GetJsonFields() []*observabilityv1.LogFieldFilter
+	GetExcludedJsonFields() []*observabilityv1.LogFieldFilter
+	GetRegions() []string
+	GetExcludedRegions() []string
+}
+
+func validateLogFilters(req logFilters) error {
+	resourceIDs := slices.Concat(req.GetResourceIds(), req.GetExcludedResourceIds())
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), resourceIDs); err != nil {
+		return err
+	}
+	if err := validateLabels(slices.Concat(req.GetLabels(), req.GetExcludedLabels())); err != nil {
+		return err
+	}
+	if err := validateJSONPaths(slices.Concat(req.GetJsonFields(), req.GetExcludedJsonFields())); err != nil {
+		return err
+	}
+	return validateRegions(req.GetRegions(), req.GetExcludedRegions())
+}
+
+func validateLabels(labels []*observabilityv1.LogFieldFilter) error {
+	for _, label := range labels {
+		key := label.GetKey()
 		if strings.HasPrefix(key, reservedAttributePrefix) && !strings.HasPrefix(key, kubernetesLabelPrefix) {
 			return fmt.Errorf("%w: %q", errReservedLabelKey, key)
+		}
+	}
+	return nil
+}
+
+func validateJSONPaths(fields []*observabilityv1.LogFieldFilter) error {
+	for _, field := range fields {
+		if slices.Contains(strings.Split(field.GetKey(), "."), "") {
+			return fmt.Errorf("%w: %q", errInvalidJSONPath, field.GetKey())
 		}
 	}
 	return nil

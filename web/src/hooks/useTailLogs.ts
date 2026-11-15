@@ -38,11 +38,7 @@ export function tailLogsRequest({
 		workspaceId,
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
-		search: parsedQuery.search,
-		levels: parsedQuery.levels,
-		labels: parsedQuery.labels,
-		regions: parsedQuery.regions ?? [],
-		excludedRegions: parsedQuery.excludedRegions ?? [],
+		...parsedQuery,
 		since: sinceMs === undefined ? undefined : msToTimestamp(sinceMs),
 	};
 }

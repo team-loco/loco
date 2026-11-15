@@ -84,7 +84,7 @@ func TestBuildTailLogQueryBindsEveryValueByName(t *testing.T) {
 		ResourceIDs:   []string{testResourceID},
 		Start:         time.Now().Add(-time.Hour),
 		Search:        search,
-		Labels:        map[string]string{"app.loco.io/component": "api"},
+		Labels:        []*observabilityv1.LogFieldFilter{{Key: "app.loco.io/component", Values: []string{"api"}}},
 		Regions:       []string{"us-*"},
 		Limit:         testPageSize,
 	}, testQueryTimeout, TailLogCursor{"all_1/2": 3})
@@ -107,6 +107,50 @@ func TestBuildTailLogQueryBindsEveryValueByName(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("missing parameter %q: %v", value, parameters)
+		}
+	}
+}
+
+func TestBuildLogsQueryBindsIncludedAndExcludedFilterValues(t *testing.T) {
+	const trace = "0123456789abcdef0123456789abcdef"
+	query, args, err := buildLogPageQuery(LogQuery{
+		WorkspaceID:           testWorkspaceID,
+		Start:                 time.Now().Add(-time.Hour),
+		End:                   time.Now(),
+		ExcludedResourceIDs:   []string{testResourceID},
+		ExcludedLevels:        []string{"DEBUG"},
+		ExcludedLabels:        []*observabilityv1.LogFieldFilter{{Key: "k8s.pod.name", Values: []string{"web-1"}}},
+		LogAttributes:         []*observabilityv1.LogFieldFilter{{Key: "http.request.method", Values: []string{"GET"}}},
+		ExcludedLogAttributes: []*observabilityv1.LogFieldFilter{{Key: "url.path", Values: []string{"/healthz"}}},
+		JSONFields: []*observabilityv1.LogFieldFilter{
+			{Key: "customer.tier", Values: []string{"gold", "silver"}, Prefixes: []string{"plat"}},
+		},
+		TraceIDs:         []string{trace},
+		ExcludedTraceIDs: []string{trace},
+		Limit:            testPageSize,
+	}, testQueryTimeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound := []string{
+		testResourceID,
+		"DEBUG",
+		"web-1",
+		"GET",
+		"/healthz",
+		trace,
+		"customer",
+		"tier",
+		"gold",
+		"silver",
+		"plat",
+	}
+	for _, value := range bound {
+		if strings.Contains(query, value) {
+			t.Errorf("value %q interpolated into SQL: %s", value, query)
+		}
+		if !slices.Contains(args, any(value)) {
+			t.Errorf("missing argument %q: %v", value, args)
 		}
 	}
 }

@@ -11353,6 +11353,39 @@
         "additionalProperties": false,
         "description": "LogEntry represents a single log record."
       },
+      "loco.observability.v1.LogFieldFilter": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 4096
+            },
+            "title": "values",
+            "maxItems": 100
+          },
+          "prefixes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 4096,
+              "minLength": 1
+            },
+            "title": "prefixes",
+            "maxItems": 100
+          }
+        },
+        "title": "LogFieldFilter",
+        "additionalProperties": false,
+        "description": "LogFieldFilter selects logs whose field named key equals any of values or starts with any of\n prefixes, case-sensitively. In an excluded_ list it leaves those logs out; a log without the\n field is kept.\nlog_field_filter.values_or_prefixes // a log field filter needs at least one value or prefix\n"
+      },
       "loco.observability.v1.LogOrder": {
         "type": "string",
         "title": "LogOrder",
@@ -11463,16 +11496,17 @@
               "type": "string"
             },
             "title": "levels",
+            "maxItems": 100,
             "description": "Filter by severity levels (e.g., [\"ERROR\", \"WARN\"])."
           },
           "labels": {
-            "type": "object",
-            "title": "labels",
-            "additionalProperties": {
-              "type": "string",
-              "title": "value"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
             },
-            "description": "Filter by resource attribute key-value pairs."
+            "title": "labels",
+            "maxItems": 100,
+            "description": "Filter by resource attributes."
           },
           "limit": {
             "type": "integer",
@@ -11516,6 +11550,102 @@
             "type": "string",
             "title": "environment_id",
             "format": "uuid"
+          },
+          "excludedResourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "excluded_resource_ids",
+            "maxItems": 100,
+            "description": "Resource IDs whose logs are left out."
+          },
+          "excludedLevels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "excluded_levels",
+            "maxItems": 100,
+            "description": "Severity levels whose logs are left out."
+          },
+          "excludedLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "excluded_labels",
+            "maxItems": 100,
+            "description": "Leaves out logs whose resource attributes match any of these filters."
+          },
+          "logAttributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "log_attributes",
+            "maxItems": 100,
+            "description": "Filter by log record attributes (e.g., http.response.status_code)."
+          },
+          "excludedLogAttributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "excluded_log_attributes",
+            "maxItems": 100,
+            "description": "Leaves out logs whose log record attributes match any of these filters."
+          },
+          "traceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none."
+          },
+          "excludedTraceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "excluded_trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs whose logs are left out."
+          },
+          "jsonFields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "json_fields",
+            "maxItems": 100,
+            "description": "Filter by fields of a JSON object body. A key is a dot-separated path of object keys, such as\n user.id; a string field matches its text and any other field its JSON text."
+          },
+          "excludedJsonFields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "excluded_json_fields",
+            "maxItems": 100,
+            "description": "Leaves out logs whose JSON body fields match any of these filters."
           }
         },
         "title": "QueryLogsRequest",
@@ -11672,16 +11802,17 @@
               "type": "string"
             },
             "title": "levels",
+            "maxItems": 100,
             "description": "Filter by severity levels (e.g., [\"ERROR\", \"WARN\"])."
           },
           "labels": {
-            "type": "object",
-            "title": "labels",
-            "additionalProperties": {
-              "type": "string",
-              "title": "value"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
             },
-            "description": "Filter by resource attribute key-value pairs."
+            "title": "labels",
+            "maxItems": 100,
+            "description": "Filter by resource attributes."
           },
           "since": {
             "title": "since",
@@ -11711,6 +11842,102 @@
             "type": "string",
             "title": "environment_id",
             "format": "uuid"
+          },
+          "excludedResourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "excluded_resource_ids",
+            "maxItems": 100,
+            "description": "Resource IDs whose logs are left out."
+          },
+          "excludedLevels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "excluded_levels",
+            "maxItems": 100,
+            "description": "Severity levels whose logs are left out."
+          },
+          "excludedLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "excluded_labels",
+            "maxItems": 100,
+            "description": "Leaves out logs whose resource attributes match any of these filters."
+          },
+          "logAttributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "log_attributes",
+            "maxItems": 100,
+            "description": "Filter by log record attributes (e.g., http.response.status_code)."
+          },
+          "excludedLogAttributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "excluded_log_attributes",
+            "maxItems": 100,
+            "description": "Leaves out logs whose log record attributes match any of these filters."
+          },
+          "traceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none."
+          },
+          "excludedTraceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "excluded_trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs whose logs are left out."
+          },
+          "jsonFields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "json_fields",
+            "maxItems": 100,
+            "description": "Filter by fields of a JSON object body. A key is a dot-separated path of object keys, such as\n user.id; a string field matches its text and any other field its JSON text."
+          },
+          "excludedJsonFields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogFieldFilter"
+            },
+            "title": "excluded_json_fields",
+            "maxItems": 100,
+            "description": "Leaves out logs whose JSON body fields match any of these filters."
           }
         },
         "title": "TailLogsRequest",

@@ -30,7 +30,16 @@ import { LogDetail } from "./LogDetail";
 import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
 import { coversWholeRange, CopyCommand, NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
-import { buildBackendQuery, LEVELS, queryStr, sameToken, type FieldKey, type Level, type Token } from "./query";
+import {
+	buildBackendQuery,
+	LEVELS,
+	queryStr,
+	REQUEST_FILTER_ATTRIBUTES,
+	sameToken,
+	type FieldKey,
+	type Level,
+	type Token,
+} from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
 import { PAGE_SIZES, VolumeBars, type VolumeBucket } from "./shared";
@@ -293,6 +302,9 @@ export function LogsView() {
 			if (key === "region") add(r.region);
 			if (key === "replica") add(r.pod);
 			if (key === "build") add(r.build);
+			if (key === "trace") add(r.entry.traceId);
+			const attribute = REQUEST_FILTER_ATTRIBUTES[key];
+			if (attribute !== undefined) add(r.entry.logAttributes[attribute] ?? "");
 		}
 		return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
 	};

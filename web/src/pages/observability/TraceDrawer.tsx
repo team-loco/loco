@@ -1,5 +1,6 @@
 import { Spinner } from "@/components/design/Spinner";
 import { useState } from "react";
+import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { useQueryState } from "nuqs";
 import { Link } from "react-router";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -23,18 +24,22 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetTitle } from "@/components/design/Sheet";
-import { SoonTag } from "@/components/design/SoonTag";
 import { useCopy } from "@/hooks/useCopy";
+import { useEnvironments } from "@/hooks/useEnvironment";
+import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { getErrorMessage } from "@/lib/error-handler";
+import { AROUND_MS, aroundWindow } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
+import { formatClock, msToTimestamp } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { SpanEvents } from "./SpanEvents";
 import { SpanLinks } from "./SpanLinks";
 import { useObs } from "./context";
 import { failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo, type Zoom } from "./flame";
-import { fmtTs } from "./format";
-import { replicaOf } from "./rows";
+import { fmtTs, levelStyle } from "./format";
+import type { Token } from "./query";
+import { replicaOf, toRows } from "./rows";
 import { traceServiceColor, traceServiceLabel } from "./trace-service";
 import { axisLabel, durationLabel, spanError, spanStart, type TraceSummary } from "./traces";
 
@@ -47,6 +52,7 @@ const PERCENT = 100;
 const NANOS_PER_MS = 1_000_000n;
 const TICK_SCALE = 1_000_000;
 const SERVER_ERROR = 500;
+const TRACE_LOG_LIMIT = 50;
 
 function rootStatusCode(span: TraceSpan): string {
 	return span.spanAttributes["http.response.status_code"] ?? span.spanAttributes["http.status_code"] ?? "";
@@ -241,6 +247,94 @@ function FlameGraph({
 	);
 }
 
+function traceToken(traceId: string): Token {
+	return { neg: false, key: "trace", value: traceId };
+}
+
+function TraceLogs({ trace }: { trace: TraceSummary }) {
+	const { workspaceId, scopedResourceIds, resourceById, goTo } = useObs();
+	const { active } = useEnvironments();
+	const [now] = useState(Date.now);
+	const startMs = Number(trace.start / NANOS_PER_MS);
+	const endMs = startMs + Number(trace.duration / NANOS_PER_MS);
+	const from = startMs - AROUND_MS;
+	const to = Math.min(now, endMs + AROUND_MS);
+	const logs = useQueryLogs({
+		workspaceId,
+		environmentId: active?.id ?? "",
+		resourceIds: scopedResourceIds ?? [],
+		spanMs: to - from,
+		parsedQuery: { traceIds: [trace.id] },
+		order: LogOrder.OLDEST_FIRST,
+		startTime: msToTimestamp(from),
+		endTime: msToTimestamp(to),
+		limit: TRACE_LOG_LIMIT,
+	});
+	const rows = toRows(logs.entries, resourceById);
+	const more = logs.newerCursor !== "";
+	return (
+		<section aria-label="Logs in this trace" className="flex min-w-0 flex-col gap-1.5">
+			<span className="text-[12.5px] text-fg3">
+				Logs in this trace
+				{rows.length > 0 && (
+					<span className="ml-1.5 font-mono text-[11.5px]">{`${String(rows.length)}${more ? "+" : ""}`}</span>
+				)}
+			</span>
+			{logs.isLoading && (
+				<p role="status" className="m-0 flex items-center gap-2 text-[12px] text-fg3">
+					<Spinner className="size-3.5" />
+					Loading logs…
+				</p>
+			)}
+			{!logs.isLoading && logs.error !== null && (
+				<p role="alert" className="m-0 text-[12px] text-bad-fg">
+					{getErrorMessage(logs.error, "Failed to load the trace's logs")}
+				</p>
+			)}
+			{!logs.isLoading && logs.error === null && rows.length === 0 && (
+				<p className="m-0 text-[12px] text-fg3">No log lines carry this trace ID.</p>
+			)}
+			{rows.length > 0 && (
+				<ol className="m-0 flex list-none flex-col p-0">
+					{rows.map((row) => (
+						<li key={row.key}>
+							<button
+								type="button"
+								onClick={() => {
+									goTo("logs", {
+										range: aroundWindow(row.ts, Date.now()),
+										tokens: [traceToken(trace.id)],
+										focusTs: row.ts,
+									});
+								}}
+								className="grid w-full grid-cols-[64px_52px_minmax(0,1fr)] items-baseline gap-2.5 rounded-sm border-b border-line px-1.5 py-1.5 text-left font-mono text-[12px] last:border-b-0 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+							>
+								<span className="text-fg3">{formatClock(row.ts)}</span>
+								<span className={cn("truncate", levelStyle(row.level).body)}>{row.label}</span>
+								<span className="min-w-0">
+									<span className="text-fg3">{row.resourceName} </span>
+									<span className="[overflow-wrap:anywhere]">{row.entry.body}</span>
+								</span>
+							</button>
+						</li>
+					))}
+				</ol>
+			)}
+			{more && (
+				<Button
+					variant="link"
+					className="h-auto self-start p-0 text-[12px]"
+					onClick={() => {
+						goTo("logs", { range: { kind: "absolute", from, to }, tokens: [traceToken(trace.id)] });
+					}}
+				>
+					All lines in Logs
+				</Button>
+			)}
+		</section>
+	);
+}
+
 export function TraceDrawer({
 	open,
 	traceId,
@@ -258,7 +352,7 @@ export function TraceDrawer({
 	onRetry: () => void;
 	onClose: () => void;
 }) {
-	const { orgId, workspaceId, resourceById } = useObs();
+	const { orgId, workspaceId, resourceById, goTo } = useObs();
 	const [spanId, setSpanId] = useQueryState("span", { history: "replace" });
 	const [copied, copy] = useCopy();
 	const linked = trace?.spans.find((s) => s.spanId === spanId);
@@ -338,12 +432,14 @@ export function TraceDrawer({
 										Open {resource.name}
 									</DropdownMenuItem>
 								)}
-								<DropdownMenuItem disabled>
+								<DropdownMenuItem
+									onClick={() => {
+										const startMs = trace === undefined ? Date.now() : Number(trace.start / NANOS_PER_MS);
+										goTo("logs", { range: aroundWindow(startMs, Date.now()), tokens: [traceToken(traceId)] });
+									}}
+								>
 									<ScrollTextIcon />
 									Logs for this trace
-									<span className="ml-auto">
-										<SoonTag />
-									</span>
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
@@ -439,13 +535,7 @@ export function TraceDrawer({
 										</div>
 									))}
 								</section>
-								<section aria-label="Logs in this trace" className="flex flex-col gap-1.5">
-									<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
-										Logs in this trace
-										<SoonTag />
-									</span>
-									<p className="m-0 text-[12px] text-fg3">Log queries can't filter by trace ID yet.</p>
-								</section>
+								<TraceLogs trace={trace} />
 							</div>
 						</>
 					)}

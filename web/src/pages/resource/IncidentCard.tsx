@@ -18,7 +18,6 @@ import { ABSENT, specChanges } from "./spec";
 
 const LOG_LINES = 6;
 const ERROR_LEVEL = "ERROR";
-const NO_LEVELS: string[] = [];
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
@@ -45,7 +44,7 @@ function RegionLogs({
 		environmentId,
 		resourceIds: [resourceId],
 		spanMs: HOUR_MS,
-		parsedQuery: { search: "", levels: NO_LEVELS, labels: {}, regions: [region] },
+		parsedQuery: { regions: [region] },
 		limit: LOG_LINES,
 	});
 	const lines = logs.entries.toReversed();

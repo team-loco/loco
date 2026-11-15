@@ -22,20 +22,30 @@ const (
 
 var ErrInvalidLogCursor = errors.New("invalid log cursor")
 
+// LogQuery selects log rows. Each Excluded field leaves out the rows its include counterpart would select.
 type LogQuery struct {
-	WorkspaceID     string
-	EnvironmentID   string
-	ResourceIDs     []string
-	Start           time.Time
-	End             time.Time
-	Search          string
-	Levels          []string
-	Labels          map[string]string
-	Regions         []string
-	ExcludedRegions []string
-	Limit           int32
-	Cursor          string
-	Order           observabilityv1.LogOrder
+	WorkspaceID           string
+	EnvironmentID         string
+	ResourceIDs           []string
+	ExcludedResourceIDs   []string
+	Start                 time.Time
+	End                   time.Time
+	Search                string
+	Levels                []string
+	ExcludedLevels        []string
+	Labels                []*observabilityv1.LogFieldFilter
+	ExcludedLabels        []*observabilityv1.LogFieldFilter
+	LogAttributes         []*observabilityv1.LogFieldFilter
+	ExcludedLogAttributes []*observabilityv1.LogFieldFilter
+	JSONFields            []*observabilityv1.LogFieldFilter
+	ExcludedJSONFields    []*observabilityv1.LogFieldFilter
+	TraceIDs              []string
+	ExcludedTraceIDs      []string
+	Regions               []string
+	ExcludedRegions       []string
+	Limit                 int32
+	Cursor                string
+	Order                 observabilityv1.LogOrder
 }
 
 type logPage struct {
@@ -194,22 +204,41 @@ func logFilters(q LogQuery, b logBinder) []string {
 		whereParts = append(whereParts, environmentColumn+" = "+b.str(q.EnvironmentID))
 	}
 
-	if len(q.ResourceIDs) > 0 {
-		whereParts = append(whereParts, logIn(resourceColumn, q.ResourceIDs, b))
-	}
-
 	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
 
-	if len(q.Levels) > 0 {
-		whereParts = append(whereParts, logIn("SeverityText", q.Levels, b))
+	for _, filter := range []struct {
+		column  string
+		values  []string
+		exclude bool
+	}{
+		{resourceColumn, q.ResourceIDs, false}, {resourceColumn, q.ExcludedResourceIDs, true},
+		{"SeverityText", q.Levels, false}, {"SeverityText", q.ExcludedLevels, true},
+		{"TraceId", q.TraceIDs, false}, {"TraceId", q.ExcludedTraceIDs, true},
+	} {
+		if len(filter.values) > 0 {
+			whereParts = append(whereParts, logIn(filter.column, filter.values, filter.exclude, b))
+		}
 	}
 
 	if q.Search != "" {
 		whereParts = append(whereParts, "position(Body, "+b.str(q.Search)+") > 0")
 	}
 
-	for k, v := range q.Labels {
-		whereParts = append(whereParts, "ResourceAttributes["+b.str(k)+"] = "+b.str(v))
+	resourceAttribute := func(key string) string { return "ResourceAttributes[" + b.str(key) + "]" }
+	logAttribute := func(key string) string { return "LogAttributes[" + b.str(key) + "]" }
+	jsonField := func(key string) string { return jsonBodyField(key, b) }
+	for _, group := range []struct {
+		field   func(key string) string
+		filters []*observabilityv1.LogFieldFilter
+		exclude bool
+	}{
+		{resourceAttribute, q.Labels, false}, {resourceAttribute, q.ExcludedLabels, true},
+		{logAttribute, q.LogAttributes, false}, {logAttribute, q.ExcludedLogAttributes, true},
+		{jsonField, q.JSONFields, false}, {jsonField, q.ExcludedJSONFields, true},
+	} {
+		for _, filter := range group.filters {
+			whereParts = append(whereParts, logFieldMatch(group.field, filter, group.exclude, b))
+		}
 	}
 
 	for _, group := range []struct {
@@ -240,12 +269,51 @@ func logFilters(q LogQuery, b logBinder) []string {
 	return whereParts
 }
 
-func logIn(column string, values []string, b logBinder) string {
+// logFieldMatch renders field once per comparison, since each rendering binds its own parameters.
+func logFieldMatch(
+	field func(key string) string,
+	filter *observabilityv1.LogFieldFilter,
+	exclude bool,
+	b logBinder,
+) string {
+	var clauses []string
+	if len(filter.GetValues()) > 0 {
+		clauses = append(clauses, logIn(field(filter.GetKey()), filter.GetValues(), false, b))
+	}
+	for _, prefix := range filter.GetPrefixes() {
+		clauses = append(clauses, "startsWith("+field(filter.GetKey())+", "+b.str(prefix)+")")
+	}
+	clause := "(" + strings.Join(clauses, " OR ") + ")"
+	if exclude {
+		clause = "NOT " + clause
+	}
+	return clause
+}
+
+// jsonBodyField reads a dot-separated object path from a JSON body, a string as its text and anything else as JSON.
+func jsonBodyField(key string, b logBinder) string {
+	path := func() string {
+		segments := strings.Split(key, ".")
+		placeholders := make([]string, len(segments))
+		for i, segment := range segments {
+			placeholders[i] = b.str(segment)
+		}
+		return strings.Join(placeholders, ", ")
+	}
+	return "if(JSONType(Body, " + path() + ") = 'String', JSONExtractString(Body, " + path() +
+		"), JSONExtractRaw(Body, " + path() + "))"
+}
+
+func logIn(column string, values []string, exclude bool, b logBinder) string {
 	placeholders := make([]string, len(values))
 	for i, value := range values {
 		placeholders[i] = b.str(value)
 	}
-	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ","))
+	operator := "IN"
+	if exclude {
+		operator = "NOT IN"
+	}
+	return fmt.Sprintf("%s %s (%s)", column, operator, strings.Join(placeholders, ","))
 }
 
 func inFilter(column string, values []string) (string, []any) {

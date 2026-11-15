@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -111,6 +112,8 @@ func TestObservability(t *testing.T) {
 	t.Run("forged tenancy attributes are replaced", o.forgedAttributes)
 
 	t.Run("QueryLogs is scoped to the workspace and its regions", o.scopedLogs)
+
+	t.Run("QueryLogs filters access logs by log attributes", o.attributeLogs)
 
 	t.Run("QueryMetrics returns the fixture's counters to its workspace only", o.counterMetrics)
 
@@ -872,6 +875,39 @@ func (o *observed) scopedLogs(t *testing.T) {
 			}
 			if len(logs.GetEntries()) != 0 {
 				return fmt.Errorf("excluding region %s returned %d entries", region, len(logs.GetEntries()))
+			}
+			return nil
+		},
+	)
+}
+
+func (o *observed) attributeLogs(t *testing.T) {
+	excluded := []string{fmt.Sprintf("/?e2e=%s-1", o.marker), fmt.Sprintf("/?e2e=%s-2", o.marker)}
+	platform.Eventually(
+		t,
+		telemetryTimeout,
+		"QueryLogs to return the GET access logs except the excluded paths",
+		func(ctx context.Context) error {
+			request := o.logsRequest(o.w.ID, o.resourceID)
+			request.Search = ""
+			request.LogAttributes = []*observabilityv1.LogFieldFilter{{Key: "method", Values: []string{http.MethodGet}}}
+			request.ExcludedLogAttributes = []*observabilityv1.LogFieldFilter{{Key: "path", Values: excluded}}
+			logs, err := o.own.Observability.QueryLogs(ctx, request)
+			if err != nil {
+				return err
+			}
+			var marked int
+			for _, entry := range logs.GetEntries() {
+				attributes := entry.GetLogAttributes()
+				if attributes["method"] != http.MethodGet || slices.Contains(excluded, attributes["path"]) {
+					return fmt.Errorf("entry outside the filters: %v", attributes)
+				}
+				if strings.HasPrefix(attributes["path"], "/?e2e="+o.marker+"-") {
+					marked++
+				}
+			}
+			if marked != requestCount-len(excluded) {
+				return fmt.Errorf("%d access logs of the marked requests, want %d", marked, requestCount-len(excluded))
 			}
 			return nil
 		},

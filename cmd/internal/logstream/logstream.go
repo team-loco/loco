@@ -29,11 +29,12 @@ const (
 type Filter struct {
 	WorkspaceID string
 	ResourceIDs []string
-	Labels      map[string]string
+	Labels      []*observabilityv1.LogFieldFilter
 }
 
 func BuildFilter(workspaceID, buildID string) Filter {
-	return Filter{WorkspaceID: workspaceID, Labels: map[string]string{labelBuildID: buildID}}
+	labels := []*observabilityv1.LogFieldFilter{{Key: labelBuildID, Values: []string{buildID}}}
+	return Filter{WorkspaceID: workspaceID, Labels: labels}
 }
 
 type Emit func(entry *observabilityv1.LogEntry) error

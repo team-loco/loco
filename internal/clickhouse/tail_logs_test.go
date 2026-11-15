@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
 const tailTestCursorBlocks = 20000
@@ -68,7 +70,7 @@ func TestTailPageFiltersDuplicatesAndLargeCursorAcrossMerges(t *testing.T) {
 		Start:           timestamp,
 		Search:          search,
 		Levels:          []string{testSeverity},
-		Labels:          map[string]string{testSharedLabelKey: search},
+		Labels:          []*observabilityv1.LogFieldFilter{{Key: testSharedLabelKey, Values: []string{search}}},
 		Regions:         []string{testUSRegionPattern},
 		ExcludedRegions: []string{"us-west-*"},
 		Limit:           testFullPage,
