@@ -8,11 +8,9 @@ import {
 	LinkIcon,
 	LogOutIcon,
 	ArrowUpRightIcon,
-	PlusIcon,
-	Settings2Icon,
 	UserIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
@@ -50,9 +48,8 @@ import { colorThemes, modes, nextMode, parseColorTheme, type Mode } from "@/lib/
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
-import { accountSettingsPath, orgSettingsPath, workspacePath } from "@/lib/routes";
+import { accountSettingsPath, workspacePath } from "@/lib/routes";
 
-import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 import { useNavSections } from "./nav";
 import { SidebarToggle } from "./SidebarToggle";
 import { ThemeIcon } from "./ThemeIcon";
@@ -88,7 +85,6 @@ export function AppSidebar() {
 	const dark = theme === "dark";
 	const colorName = colorThemes.find((t) => t.id === color)?.name ?? "";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const { data: config } = useQuery(getConfig, {});
 
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
@@ -206,16 +202,6 @@ export function AppSidebar() {
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>
-							{activeOrgId !== null && (
-								<MenuLink
-									icon={<Settings2Icon />}
-									onClick={() => {
-										void navigate(orgSettingsPath(activeOrgId, activeWorkspaceId));
-									}}
-								>
-									Organization settings
-								</MenuLink>
-							)}
 							<MenuLink
 								icon={<Building2Icon />}
 								onClick={() => {
@@ -223,14 +209,6 @@ export function AppSidebar() {
 								}}
 							>
 								Organizations
-							</MenuLink>
-							<MenuLink
-								icon={<PlusIcon />}
-								onClick={() => {
-									setCreating("org");
-								}}
-							>
-								New organization
 							</MenuLink>
 						</MenuGroup>
 						<MenuSeparator />
@@ -289,13 +267,6 @@ export function AppSidebar() {
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</SidebarFooter>
-
-			<CreateScopeDialog
-				kind={creating}
-				onOpenChange={(open) => {
-					if (!open) setCreating(null);
-				}}
-			/>
 		</Sidebar>
 	);
 }
