@@ -12,6 +12,9 @@ import { Waterfall } from "./Waterfall";
 import { SpanList } from "./SpanList";
 import { boundedZoom, zoomAround } from "./plot";
 
+import type { LogRow } from "../rows";
+import { LogMarkers } from "./LogMarkers";
+
 type View = "flame" | "waterfall" | "list";
 const laneBounds = (element: HTMLElement) =>
 	(element.querySelector<HTMLElement>("[data-trace-lane]") ?? element).getBoundingClientRect();
@@ -23,6 +26,13 @@ export function TracePlot({
 	zoom,
 	onZoom,
 	highlight,
+	logs,
+	highlightedLogs,
+	linkedSpan,
+	onHoverSpan,
+	onHoverTime,
+	onHoverLog,
+	onOpenLog,
 }: {
 	trace: TraceSummary;
 	selected: TraceSpan;
@@ -31,11 +41,19 @@ export function TracePlot({
 	zoom: Zoom;
 	onZoom: (zoom: Zoom) => void;
 	highlight: string | null;
+	logs: LogRow[];
+	highlightedLogs: Set<string>;
+	linkedSpan: string | null;
+	onHoverSpan: (id: string | null) => void;
+	onHoverTime: (fraction: number | null) => void;
+	onHoverLog: (row: LogRow | null) => void;
+	onOpenLog: (row: LogRow) => void;
 }) {
 	const [view, setView] = useState<View>("flame");
 	const [cursor, setCursor] = useState<{ left: number; fraction: number } | null>(null);
 	const dragRef = useRef<{ x: number; zoom: Zoom } | null>(null);
 	const suppressClickRefRef = useRef(false);
+	const markers = { trace, zoom, logs, highlighted: highlightedLogs, onHover: onHoverLog, onOpen: onOpenLog };
 	const width = zoom.b - zoom.a;
 	const offset = (f: number) => durationLabel(BigInt(Math.round(Number(trace.duration) * f)));
 	return (
@@ -44,6 +62,7 @@ export function TracePlot({
 				<ToggleGroup
 					variant="segmented"
 					aria-label="Trace view"
+					className="tv-view-tabs"
 					value={[view]}
 					onValueChange={(values) => {
 						const next = values[0];
@@ -111,6 +130,9 @@ export function TracePlot({
 					onPointerMove={(e) => {
 						const rect = laneBounds(e.currentTarget);
 						const fraction = (e.clientX - rect.left) / rect.width;
+						const spanId = (e.target as HTMLElement).closest<HTMLElement>("[data-span-id]")?.dataset["spanId"];
+						if (spanId !== undefined) onHoverSpan(spanId);
+						else onHoverTime(fraction < 0 || fraction > 1 ? null : zoom.a + fraction * width);
 						setCursor(
 							fraction < 0 || fraction > 1
 								? null
@@ -153,6 +175,8 @@ export function TracePlot({
 					}}
 					onPointerLeave={() => {
 						setCursor(null);
+						onHoverSpan(null);
+						onHoverTime(null);
 					}}
 				>
 					{view === "flame" ? (
@@ -164,6 +188,9 @@ export function TracePlot({
 							zoom={zoom}
 							setZoom={onZoom}
 							highlight={highlight}
+							markers={<LogMarkers {...markers} />}
+							linkedSpan={linkedSpan}
+							onHoverSpan={onHoverSpan}
 						/>
 					) : (
 						<Waterfall
@@ -174,6 +201,9 @@ export function TracePlot({
 							zoom={zoom}
 							onZoom={onZoom}
 							highlight={highlight}
+							markers={<LogMarkers {...markers} />}
+							linkedSpan={linkedSpan}
+							onHoverSpan={onHoverSpan}
 						/>
 					)}
 					{cursor !== null && (

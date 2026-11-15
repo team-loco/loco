@@ -170,3 +170,43 @@
 [data-theme="neobrutal"] .tv-mseg + .tv-mseg {
 	border-left: 2px solid var(--ink);
 }
+
+[data-theme="neobrutal"] :is(.tv-mini, .tv-waterfall, .tv-table) {
+	box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+[data-theme="neobrutal"] .tv-span-bar {
+	border-radius: 0;
+	box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+[data-theme="neobrutal"] .tv-waterfall-row:has([aria-pressed="true"]) {
+	background: var(--tint);
+}
+
+[data-theme="neobrutal"] .tv-stab[data-active] {
+	border-bottom-color: var(--brand);
+}
+
+[data-theme="neobrutal"] .tv-view-tabs [aria-pressed="true"] {
+	box-shadow: inset 0 -2px var(--brand);
+}
+
+[data-theme="neobrutal"] .tv-log-marker {
+	min-height: 0;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+[data-theme="neobrutal"] .tv-log-marker:is(:hover, :focus-visible) {
+	box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+[data-theme="neobrutal"] .tv-bottom {
+	border-top: 2px solid var(--ink);
+}
+
+[data-theme="neobrutal"] .tv-infra-chart .recharts-area-curve {
+	stroke-width: 2.5;
+}

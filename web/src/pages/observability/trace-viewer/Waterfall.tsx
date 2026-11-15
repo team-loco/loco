@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
@@ -16,6 +17,9 @@ export function Waterfall({
 	onSelect,
 	highlight,
 	label,
+	markers,
+	linkedSpan,
+	onHoverSpan,
 }: {
 	trace: TraceSummary;
 	selected: TraceSpan;
@@ -23,6 +27,9 @@ export function Waterfall({
 	onZoom: (zoom: Zoom) => void;
 	onSelect: (span: TraceSpan) => void;
 	highlight: string | null;
+	markers: ReactNode;
+	linkedSpan: string | null;
+	onHoverSpan: (id: string | null) => void;
 	label: (span: TraceSpan) => string;
 }) {
 	const { color } = useTraceResources();
@@ -82,16 +89,20 @@ export function Waterfall({
 						}
 					}}
 				/>
-				<div data-trace-lane className="relative h-4 min-w-[100px] flex-1">
-					{ticks.map((t) => (
-						<span
-							key={String(t.nanos)}
-							className="absolute -translate-x-1/2"
-							style={{ left: `${String(t.left * 100)}%` }}
-						>
-							{durationLabel(t.nanos)}
-						</span>
-					))}
+				<div data-trace-lane className="relative min-w-[100px] flex-1">
+					<div className="relative h-4">
+						{" "}
+						{ticks.map((t) => (
+							<span
+								key={String(t.nanos)}
+								className="absolute -translate-x-1/2"
+								style={{ left: `${String(t.left * 100)}%` }}
+							>
+								{durationLabel(t.nanos)}
+							</span>
+						))}
+					</div>
+					{markers}
 				</div>
 			</div>
 			{rows.map((row, index) => {
@@ -105,10 +116,12 @@ export function Waterfall({
 				return (
 					<div
 						key={span.spanId}
+						data-span-id={span.spanId}
 						className={cn(
 							"tv-waterfall-row flex min-h-8 items-stretch border-b border-line last:border-0",
 							selected.spanId === span.spanId && "bg-panel2",
 							highlight !== null && traceResourceKey(span) !== highlight && "opacity-30",
+							linkedSpan === span.spanId && "ring-2 ring-inset ring-info",
 						)}
 					>
 						<div
@@ -159,6 +172,12 @@ export function Waterfall({
 									}
 								}}
 								data-span={span.spanId}
+								onFocus={() => {
+									onHoverSpan(span.spanId);
+								}}
+								onBlur={() => {
+									onHoverSpan(null);
+								}}
 								className={cn(
 									"min-w-0 truncate text-left font-mono text-[11.5px] hover:underline focus-visible:ring-2 focus-visible:ring-ring",
 									spanError(span) && "text-bad-fg",

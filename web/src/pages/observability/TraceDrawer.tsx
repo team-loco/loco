@@ -14,9 +14,7 @@ import { Button } from "@/components/design/Button";
 
 import { Sheet, SheetBody, SheetContent } from "@/components/design/Sheet";
 
-import { TracePlot } from "./trace-viewer/TracePlot";
-import { TraceLogs } from "./trace-viewer/TraceLogs";
-import { SpanPanel } from "./trace-viewer/SpanPanel";
+import { TraceContent } from "./trace-viewer/TraceContent";
 import { TraceColors } from "./trace-viewer/TraceColors";
 import { TraceHeader } from "./trace-viewer/TraceHeader";
 
@@ -79,7 +77,7 @@ export function TraceDrawer({
 						onHover={setHovered}
 						onPin={setPinned}
 					/>
-					<SheetBody className="gap-4">
+					<SheetBody className="gap-4 min-[1100px]:overflow-hidden">
 						{loading && (
 							<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
 								<Spinner className="size-4" />
@@ -106,21 +104,16 @@ export function TraceDrawer({
 							</EmptyHero>
 						)}
 						{trace !== undefined && selected !== undefined && (
-							<div className="grid min-w-0 gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
-								<div className="flex min-w-0 flex-col gap-4">
-									<TracePlot
-										trace={trace}
-										selected={selected}
-										onSelect={select}
-										label={label}
-										zoom={zoom}
-										onZoom={setZoom}
-										highlight={highlight}
-									/>
-									<TraceLogs trace={trace} />
-								</div>
-								<SpanPanel trace={trace} selected={selected} missing={missing} select={select} label={label} />
-							</div>
+							<TraceContent
+								trace={trace}
+								selected={selected}
+								missing={missing}
+								select={select}
+								label={label}
+								zoom={zoom}
+								onZoom={setZoom}
+								highlight={highlight}
+							/>
 						)}
 					</SheetBody>
 				</SheetContent>

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
 import { cn } from "@/lib/utils";
@@ -19,6 +20,9 @@ export function FlameGraph({
 	zoom,
 	setZoom,
 	highlight,
+	markers,
+	linkedSpan,
+	onHoverSpan,
 }: {
 	trace: TraceSummary;
 	selected: TraceSpan;
@@ -27,6 +31,9 @@ export function FlameGraph({
 	zoom: Zoom;
 	setZoom: (zoom: Zoom) => void;
 	highlight: string | null;
+	markers: ReactNode;
+	linkedSpan: string | null;
+	onHoverSpan: (id: string | null) => void;
 }) {
 	const { color: resourceColor } = useTraceResources();
 	const { blocks, depth } = flameLayout(trace, zoom);
@@ -49,6 +56,7 @@ export function FlameGraph({
 					</span>
 				))}
 			</div>
+			{markers}
 			<div className="relative overflow-hidden" style={{ height: depth * ROW_PX }}>
 				{ticks.map((t) => (
 					<span
@@ -65,6 +73,13 @@ export function FlameGraph({
 					return (
 						<button
 							key={b.span.spanId}
+							data-span-id={b.span.spanId}
+							onFocus={() => {
+								onHoverSpan(b.span.spanId);
+							}}
+							onBlur={() => {
+								onHoverSpan(null);
+							}}
 							type="button"
 							aria-pressed={on}
 							aria-label={`${label(b.span)} ${b.span.name}, ${durationLabel(b.span.durationNanos)}${err ? ", error" : ""}`}
@@ -81,6 +96,7 @@ export function FlameGraph({
 								!related.has(b.span.spanId) && "opacity-45",
 								highlight !== null && traceResourceKey(b.span) !== highlight && "opacity-20",
 								on && "shadow-[inset_0_0_0_1.5px_var(--fg)]",
+								linkedSpan === b.span.spanId && "ring-2 ring-info",
 							)}
 							style={{
 								left: `${String(b.left * PERCENT)}%`,
