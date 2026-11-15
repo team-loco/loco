@@ -428,6 +428,7 @@ with session(out) as browser:
     for row in spans:
         row['resourceId'] = workspace_id
         row['resourceAttributes'].update({'k8s.pod.name': 'checkout-abc-123', 'k8s.node.name': 'worker-1', 'k8s.pod.start_time': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(start - 3600)), 'loco.region': 'us-east-1'})
+    spans[6]['resourceAttributes'].pop('k8s.pod.name')
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
     log_entries = [
         {'timestamp':stamp(172), 'severity':'ERROR','body':'Payment request failed','resourceId':workspace_id,'traceId':trace,'spanId':spans[10]['spanId']},
@@ -463,6 +464,9 @@ with session(out) as browser:
     drawer.get_by_role('button', name='Expand bottom panel').click()
     drawer.get_by_role('tab', name='Infrastructure', exact=True).click()
     infrastructure = drawer.get_by_role('region', name='Trace infrastructure')
+    expect(infrastructure.get_by_text('No replica identity was recorded for this span.', exact=True)).to_be_visible()
+    infrastructure.get_by_role('button', name='Choose replica', exact=True).click()
+    page.get_by_role('menuitem').first.click()
     expect(infrastructure.get_by_text('worker-1', exact=True)).to_be_visible()
     expect(infrastructure.get_by_text(re.compile('Up for .* when this ran'))).to_be_visible()
     expect(infrastructure.get_by_role('button', name=re.compile('Replica events'))).to_be_disabled()
@@ -470,6 +474,19 @@ with session(out) as browser:
     expect(infrastructure.get_by_label('Memory for checkout-abc-123, ten minutes around trace')).to_be_visible()
     assert len(metric_requests) == 2
     assert all(request['attributes'] == {'k8s.pod.name':'checkout-abc-123'} for request in metric_requests)
+    drawer.get_by_role('tab', name=re.compile('^Logs ')).click()
+    marker.click()
+    drawer.get_by_role('complementary', name='Log line').get_by_role('button', name='Only level error', exact=True).click()
+    wait_for_query(page, lambda query: query.get('view') == ['logs'] and '@trace:' + trace in query.get('q', [''])[0] and '@level:error' in query.get('q', [''])[0])
+    page.set_viewport_size({'width':390,'height':844})
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    drawer = page.get_by_role('dialog', name=root_name)
+    narrow_flame = drawer.get_by_role('region', name='Flame graph')
+    expect(narrow_flame.get_by_role('button', name=failing)).to_be_visible()
+    assert narrow_flame.bounding_box()['height'] > 100
+    message = drawer.get_by_role('button', name='Open log: Payment request failed').locator(':scope > span').last
+    assert message.bounding_box()['width'] > 200
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
     spans[:] = original_spans
     mode[0] = 'many'

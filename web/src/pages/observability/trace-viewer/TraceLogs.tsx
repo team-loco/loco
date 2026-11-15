@@ -162,6 +162,13 @@ export function TraceLogs({
 							{opened !== null ? (
 								<LogDetail
 									row={opened}
+									onFilterToken={(token) => {
+										goTo("logs", {
+											range: { kind: "absolute", from: logs.from, to: logs.to },
+											tokens: token.key === "trace" ? [token] : [{ key: "trace", value: trace.id, neg: false }, token],
+											focusTs: opened.ts,
+										});
+									}}
 									words={[]}
 									columns={columns}
 									onColumns={setColumns}
@@ -186,9 +193,11 @@ export function TraceLogs({
 									)}
 									{!logs.isLoading && logs.error === null && rows.length === 0 && (
 										<p className="px-3 py-4 text-[12px] text-fg3">
-											{scope === "span"
-												? "No logs from this span or its children."
-												: "No log lines carry this trace ID."}
+											{more
+												? "No matching lines among the loaded logs. Open in Logs to search the full trace."
+												: scope === "span"
+													? "No logs from this span or its children."
+													: "No log lines carry this trace ID."}
 										</p>
 									)}
 									<ol className="m-0 list-none p-0">
@@ -214,14 +223,14 @@ export function TraceLogs({
 														onOpen(row);
 													}}
 													className={cn(
-														"tv-log-row grid w-full grid-cols-[minmax(90px,128px)_66px_44px_minmax(0,1fr)] items-baseline gap-2 border-b border-line px-3 py-1.5 text-left font-mono text-[11px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+														"tv-log-row grid w-full grid-cols-[minmax(0,1fr)_80px_44px] sm:grid-cols-[minmax(90px,128px)_66px_44px_minmax(0,1fr)] items-baseline gap-2 border-b border-line px-3 py-1.5 text-left font-mono text-[11px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 														highlighted.has(row.key) && "bg-info/10 shadow-[inset_3px_0_0_var(--info)]",
 													)}
 												>
 													<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
 													<span className="text-fg3">+{durationLabel(BigInt(row.ts) * 1_000_000n - trace.start)}</span>
 													<span className={levelStyle(row.level).body}>{row.label}</span>
-													<span className="min-w-0 [overflow-wrap:anywhere]">
+													<span className="col-span-3 min-w-0 sm:col-span-1 [overflow-wrap:anywhere]">
 														<span className="mr-2 inline-flex items-center gap-1 text-fg3">
 															<i className="size-1.5 rounded-full" style={{ background: row.color }} />
 															{row.resourceName}

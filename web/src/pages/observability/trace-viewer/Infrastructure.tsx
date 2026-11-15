@@ -19,7 +19,8 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { formatHourMinute, tsMs } from "@/lib/time";
 import { timeAxis } from "@/lib/compute-chart";
 import { useObs } from "../context";
-import { durationLabel, type TraceSummary } from "../traces";
+import type { TraceSummary } from "../traces";
+import { formatDuration } from "@/pages/resource/format";
 import { traceServiceLabel } from "../trace-service";
 
 const WINDOW_MS = 10 * 60_000;
@@ -66,8 +67,6 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 			}),
 		),
 	});
-	if (pod === "")
-		return <p className="px-5 py-4 text-[12px] text-fg3">No replica identity was recorded for this span.</p>;
 	const podStart = span.resourceAttributes["k8s.pod.start_time"];
 	const started = podStart === undefined ? NaN : Date.parse(podStart);
 	const facts = [
@@ -76,13 +75,13 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 		[
 			"Uptime",
 			Number.isFinite(started) && started <= start
-				? `Up for ${durationLabel(BigInt(Math.round((start - started) * 1_000_000)))} when this ran`
+				? `Up for ${formatDuration(start - started)} when this ran`
 				: "Not recorded",
 		],
 	];
 	return (
 		<section aria-label="Trace infrastructure" className="flex min-w-0 flex-col gap-4 px-5 py-4">
-			{replicas.length > 1 && (
+			{(replicas.length > 1 || (replicas.length > 0 && pod === "")) && (
 				<DropdownMenu>
 					<DropdownMenuTrigger
 						render={
@@ -94,7 +93,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 							/>
 						}
 					>
-						{pod}
+						{pod || "Choose replica"}
 					</DropdownMenuTrigger>
 					<DropdownMenuContent>
 						{replicas.map((s) => (
@@ -110,103 +109,109 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 					</DropdownMenuContent>
 				</DropdownMenu>
 			)}
-			<dl className="m-0 grid grid-cols-1 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-3">
-				{facts.map(([key, value]) => (
-					<div key={key}>
-						<dt className="text-fg3">{key}</dt>
-						<dd className="m-0 break-all font-mono">{value}</dd>
-					</div>
-				))}
-			</dl>
-			<div className="grid min-w-0 gap-5 sm:grid-cols-2">
-				{METRICS.map((m, i) => {
-					const query = queries[i];
-					const points = (query?.data ?? [])
-						.flatMap((s) => s.points.map((p) => ({ time: tsMs(p.timestamp), value: p.value * 100 })))
-						.toSorted((a, b) => a.time - b.time);
-					const limit = i === 0 ? service?.cpu : service?.memory;
-					return (
-						<div key={m.title} className="min-w-0">
-							<div className="mb-2 flex items-center gap-2 text-[12px]">
-								<span>{m.title}</span>
-								<span className="ml-auto text-fg3">
-									% of limit{limit !== undefined && limit !== "" ? ` · configured ${limit}` : ""}
-								</span>
+			{pod === "" ? (
+				<p className="m-0 text-[12px] text-fg3">No replica identity was recorded for this span.</p>
+			) : (
+				<>
+					<dl className="m-0 grid grid-cols-1 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-3">
+						{facts.map(([key, value]) => (
+							<div key={key}>
+								<dt className="text-fg3">{key}</dt>
+								<dd className="m-0 break-all font-mono">{value}</dd>
 							</div>
-							{query?.isLoading === true ? (
-								<div role="status" className="flex h-32 items-center justify-center gap-2 text-fg3">
-									<Spinner />
-									Loading metrics…
-								</div>
-							) : query?.error !== null && query?.error !== undefined ? (
-								<p role="alert" className="text-bad-fg">
-									{getErrorMessage(query.error, "Couldn’t load replica metrics")}
-								</p>
-							) : points.length === 0 ? (
-								<div className="flex h-32 items-center justify-center rounded-md border border-dashed border-line text-[12px] text-fg3">
-									No metrics in this range
-								</div>
-							) : (
-								<ChartContainer
-									config={CHART_CONFIG}
-									className="tv-infra-chart h-36 w-full"
-									aria-label={`${m.title} for ${pod}, ten minutes around trace`}
-								>
-									<ComposedChart data={points} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-										<CartesianGrid vertical={false} stroke="var(--line)" />
-										<XAxis
-											dataKey="time"
-											type="number"
-											domain={[from, to]}
-											ticks={timeAxis(from, to)}
-											tickFormatter={formatHourMinute}
-											tickLine={false}
-											axisLine={false}
-											minTickGap={30}
-										/>
-										<YAxis
-											domain={[0, "auto"]}
-											tickFormatter={(n: number) => `${String(n)}%`}
-											tickLine={false}
-											axisLine={false}
-											width={44}
-										/>
-										<ReferenceArea x1={start} x2={end} fill="var(--fg3)" fillOpacity={0.18} />
-										<ReferenceLine
-											ifOverflow="extendDomain"
-											y={100}
-											stroke="var(--fg3)"
-											strokeDasharray="4 4"
-											label={{ value: "limit", fill: "var(--fg3)", fontSize: 10 }}
-										/>
-										<ChartTooltip
-											content={
-												<ChartTooltipContent
-													labelFormatter={(label) => formatHourMinute(Number(label))}
-													formatter={(value) => `${Number(value).toFixed(1)}%`}
+						))}
+					</dl>
+					<div className="grid min-w-0 gap-5 sm:grid-cols-2">
+						{METRICS.map((m, i) => {
+							const query = queries[i];
+							const points = (query?.data ?? [])
+								.flatMap((s) => s.points.map((p) => ({ time: tsMs(p.timestamp), value: p.value * 100 })))
+								.toSorted((a, b) => a.time - b.time);
+							const limit = i === 0 ? service?.cpu : service?.memory;
+							return (
+								<div key={m.title} className="min-w-0">
+									<div className="mb-2 flex items-center gap-2 text-[12px]">
+										<span>{m.title}</span>
+										<span className="ml-auto text-fg3">
+											% of limit{limit !== undefined && limit !== "" ? ` · configured ${limit}` : ""}
+										</span>
+									</div>
+									{query?.isLoading === true ? (
+										<div role="status" className="flex h-32 items-center justify-center gap-2 text-fg3">
+											<Spinner />
+											Loading metrics…
+										</div>
+									) : query?.error !== null && query?.error !== undefined ? (
+										<p role="alert" className="text-bad-fg">
+											{getErrorMessage(query.error, "Couldn’t load replica metrics")}
+										</p>
+									) : points.length === 0 ? (
+										<div className="flex h-32 items-center justify-center rounded-md border border-dashed border-line text-[12px] text-fg3">
+											No metrics in this range
+										</div>
+									) : (
+										<ChartContainer
+											config={CHART_CONFIG}
+											className="tv-infra-chart h-36 w-full"
+											aria-label={`${m.title} for ${pod}, ten minutes around trace`}
+										>
+											<ComposedChart data={points} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+												<CartesianGrid vertical={false} stroke="var(--line)" />
+												<XAxis
+													dataKey="time"
+													type="number"
+													domain={[from, to]}
+													ticks={timeAxis(from, to)}
+													tickFormatter={formatHourMinute}
+													tickLine={false}
+													axisLine={false}
+													minTickGap={30}
 												/>
-											}
-										/>
-										<Area
-											type="monotone"
-											dataKey="value"
-											stroke="var(--series-0)"
-											fill="var(--series-0)"
-											fillOpacity={0.12}
-											isAnimationActive={false}
-										/>
-									</ComposedChart>
-								</ChartContainer>
-							)}
-						</div>
-					);
-				})}
-			</div>
-			<div className="flex items-center gap-2 text-[12px] text-fg3">
-				<Button variant="ghost" size="sm" disabled>
-					Replica events, ±10 min <SoonTag />
-				</Button>
-			</div>
+												<YAxis
+													domain={[0, "auto"]}
+													tickFormatter={(n: number) => `${String(n)}%`}
+													tickLine={false}
+													axisLine={false}
+													width={44}
+												/>
+												<ReferenceArea x1={start} x2={end} fill="var(--fg3)" fillOpacity={0.18} />
+												<ReferenceLine
+													ifOverflow="extendDomain"
+													y={100}
+													stroke="var(--fg3)"
+													strokeDasharray="4 4"
+													label={{ value: "limit", fill: "var(--fg3)", fontSize: 10 }}
+												/>
+												<ChartTooltip
+													content={
+														<ChartTooltipContent
+															labelFormatter={(label) => formatHourMinute(Number(label))}
+															formatter={(value) => `${Number(value).toFixed(1)}%`}
+														/>
+													}
+												/>
+												<Area
+													type="monotone"
+													dataKey="value"
+													stroke="var(--series-0)"
+													fill="var(--series-0)"
+													fillOpacity={0.12}
+													isAnimationActive={false}
+												/>
+											</ComposedChart>
+										</ChartContainer>
+									)}
+								</div>
+							);
+						})}
+					</div>
+					<div className="flex items-center gap-2 text-[12px] text-fg3">
+						<Button variant="ghost" size="sm" disabled>
+							Replica events, ±10 min <SoonTag />
+						</Button>
+					</div>
+				</>
+			)}
 		</section>
 	);
 }

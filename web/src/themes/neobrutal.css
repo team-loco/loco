@@ -210,3 +210,8 @@
 [data-theme="neobrutal"] .tv-infra-chart .recharts-area-curve {
 	stroke-width: 2.5;
 }
+
+[data-theme="neobrutal"] .tv-mini > i {
+	border-radius: 0;
+	box-shadow: inset 0 0 0 1px var(--ink);
+}

@@ -92,10 +92,14 @@ export function Waterfall({
 				<div data-trace-lane className="relative min-w-[100px] flex-1">
 					<div className="relative h-4">
 						{" "}
-						{ticks.map((t) => (
+						{ticks.map((t, index) => (
 							<span
 								key={String(t.nanos)}
-								className="absolute -translate-x-1/2"
+								className={cn(
+									"absolute whitespace-nowrap",
+									index > 0 && index < ticks.length - 1 && "hidden sm:block",
+									index === 0 ? "" : index === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
+								)}
 								style={{ left: `${String(t.left * 100)}%` }}
 							>
 								{durationLabel(t.nanos)}

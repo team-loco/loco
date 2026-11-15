@@ -76,9 +76,12 @@ export function TraceContent({
 		setCollapsed(false);
 	};
 	return (
-		<div ref={rootRef} className="grid min-h-0 min-w-0 flex-1 gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
+		<div
+			ref={rootRef}
+			className="flex min-w-0 flex-col gap-5 min-[1100px]:grid min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]"
+		>
 			<div className="flex min-h-0 min-w-0 flex-col gap-3">
-				<div className="min-h-0 min-w-0 flex-1 overflow-auto pb-1">
+				<div className="min-w-0 shrink-0 pb-1 min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:shrink min-[1100px]:overflow-auto">
 					<TracePlot
 						trace={trace}
 						selected={selected}
@@ -110,7 +113,7 @@ export function TraceContent({
 					onCollapsed={setCollapsed}
 				/>
 			</div>
-			<div className="min-h-0 overflow-auto">
+			<div className="min-[1100px]:min-h-0 min-[1100px]:overflow-auto">
 				<SpanPanel trace={trace} selected={selected} missing={missing} select={select} label={label} />
 			</div>
 		</div>

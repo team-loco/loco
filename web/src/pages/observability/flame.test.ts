@@ -161,3 +161,14 @@ test("self time subtracts the union of children clipped to the parent", () => {
 	]);
 	expect(selfTime(summary, parent)).toBe(300n);
 });
+
+test("ranks distinct resources separately when service names match", () => {
+	const spans = [
+		span("one", "", 0, 100n, { resourceId: "resource-one", serviceName: "api" }),
+		span("two", "", 0, 200n, { resourceId: "resource-two", serviceName: "api" }),
+	];
+	const summary = summarizeTraces(spans)[0];
+	if (summary === undefined) throw new Error("Missing trace");
+	expect(serviceShares(summary)).toHaveLength(2);
+	expect(serviceShares(summary).find((s) => s.key === "resource-two")?.nanos).toBe(200n);
+});

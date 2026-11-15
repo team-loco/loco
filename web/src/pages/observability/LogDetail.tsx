@@ -77,6 +77,7 @@ export function LogDetail({
 	onPrev,
 	onNext,
 	onClose,
+	onFilterToken,
 }: {
 	row: LogRow;
 	words: string[];
@@ -85,6 +86,7 @@ export function LogDetail({
 	onPrev: (() => void) | null;
 	onNext: (() => void) | null;
 	onClose: () => void;
+	onFilterToken?: (token: Token) => void;
 }) {
 	const timePref = useTimePreferences();
 	const { tokens, text, setQuery, goTo, orgId, workspaceId, resourceById } = useObs();
@@ -99,6 +101,10 @@ export function LogDetail({
 		(a) => aq === "" || a.key.toLowerCase().includes(aq) || a.value.toLowerCase().includes(aq),
 	);
 	const addTok = (t: Token) => {
+		if (onFilterToken !== undefined) {
+			onFilterToken(t);
+			return;
+		}
 		if (tokens.some((x) => sameToken(x, t))) return;
 		setQuery([...tokens.filter((x) => !(x.key === t.key && x.value === t.value)), t], text);
 	};

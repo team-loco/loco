@@ -91,7 +91,7 @@ export function FlameGraph({
 								setZoom(zoomTo(trace, b.span));
 							}}
 							className={cn(
-								"@container absolute h-6 min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+								"tv-span-bar @container absolute h-6 min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 								err && "text-bad-fg",
 								!related.has(b.span.spanId) && "opacity-45",
 								highlight !== null && traceResourceKey(b.span) !== highlight && "opacity-20",
