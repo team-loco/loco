@@ -27,6 +27,7 @@ IMAGE = "loco-ui-docs-test"
 UI_HOST = "loco.build"
 DOCS_HOST = "docs.loco.build"
 API_HOST = "api.loco.build"
+HTTP_ISSUER_HOST = "dex.loco.localhost:5556"
 VERSION = "sha-test"
 RUNTIME_CONFIG = 'window.locoConfig = {"apiURL":"/api"};\n'
 
@@ -119,6 +120,31 @@ def check_unknown_path_opens_ui(address, paths):
             page.wait_for_url(f"http://{UI_HOST}/login")
             assert page.title() == "Sign in | Loco", path
             page.close()
+        browser.close()
+
+
+def check_dashboard_reaches_http_issuer(address):
+    # Local and lab installs run Dex over plain HTTP on its own origin, and the
+    # dashboard fetches the issuer's discovery document from the browser.
+    discovery = f"http://{HTTP_ISSUER_HOST}/dex/.well-known/openid-configuration"
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            args=[f"--host-resolver-rules=MAP {UI_HOST} {address}"]
+        )
+        page = browser.new_page()
+        page.route(
+            discovery,
+            lambda route: route.fulfill(
+                json={"issuer": f"http://{HTTP_ISSUER_HOST}/dex"},
+                headers={"Access-Control-Allow-Origin": f"http://{UI_HOST}"},
+            ),
+        )
+        page.goto(f"http://{UI_HOST}/login")
+        issuer = page.evaluate(
+            "url => fetch(url).then(reply => reply.json()).then(body => body.issuer)",
+            discovery,
+        )
+        assert issuer == f"http://{HTTP_ISSUER_HOST}/dex"
         browser.close()
 
 
@@ -277,5 +303,6 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             tmp_path,
         )
         check_unknown_path_opens_ui(address, [UNKNOWN_PATH, UNKNOWN_PATH + "/bar"])
+        check_dashboard_reaches_http_issuer(address)
     finally:
         docker("stop", container)
