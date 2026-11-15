@@ -313,7 +313,7 @@ with sync_playwright() as playwright:
                     page.get_by_role('menuitem', name='staging', exact=False).click()
                     page.keyboard.press('Escape')
                     expect(environment_switcher).to_contain_text('staging')
-                    assert 'env=staging' in page.url
+                    page.wait_for_url(lambda url: urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get('env') == ['staging'])
                     page.get_by_title('Switch workspace', exact=True).click()
                     page.get_by_role('menuitem', name='sibling', exact=False).click()
                     page.keyboard.press('Escape')
