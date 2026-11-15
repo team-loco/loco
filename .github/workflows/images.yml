@@ -70,6 +70,23 @@ jobs:
         if: env.PUSH == 'true'
         run: mise run images:binaries bin/images "$VERSION"
 
+      - name: Stage the operator fixture tools
+        id: operator-tools
+        if: env.PUSH == 'true' && matrix.arch == 'amd64'
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          if [ "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" != "linux/$ARCH" ]; then
+            echo "Operator tools require a native Linux runner matching the image architecture" >&2
+            exit 1
+          fi
+          mkdir -p bin/operator-tools
+          for tool in helm kubectl; do
+            cp "$(mise which "$tool")" "bin/operator-tools/$tool"
+            python3 tools/platform-images/verify.py binary "bin/operator-tools/$tool" "linux/$ARCH"
+          done
+
       - name: Build and push the Go images
         id: push
         if: env.PUSH == 'true'
@@ -83,6 +100,7 @@ jobs:
           if [ "$ARCH" = amd64 ]; then
             read -ra fixtures <<<"$FIXTURE_IMAGES"
             targets+=("${fixtures[@]}")
+            export OPERATOR_TOOLS=bin/operator-tools
           fi
           tag=$TAG
           if [ "$EVENT" = push ]; then

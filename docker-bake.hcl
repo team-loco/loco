@@ -30,6 +30,11 @@ variable "BINARIES" {
   default = ""
 }
 
+# Native Linux helm and kubectl installed and verified by mise on the CI runner.
+variable "OPERATOR_TOOLS" {
+  default = ""
+}
+
 # The operator fixture's tool versions, from mise.toml.
 variable "HELM_VERSION" {
   default = ""
@@ -123,6 +128,7 @@ target "installation-operator" {
   inherits   = ["_image", "_go"]
   dockerfile = "tests/e2e/fixtures/installation/operator.Dockerfile"
   tags       = ["${REGISTRY}-installation-operator:${TAG}"]
+  contexts   = { for name in OPERATOR_TOOLS == "" ? [] : ["operator-tools"] : name => OPERATOR_TOOLS }
   args = {
     HELM_VERSION    = HELM_VERSION
     KUBECTL_VERSION = KUBECTL_VERSION

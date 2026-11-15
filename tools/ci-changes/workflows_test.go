@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/binary"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -110,4 +112,96 @@ func TestCICallsEveryReusableWorkflow(t *testing.T) {
 		assert.NotContains(t, workflow.On, "push", "%s: ci.yml runs it on push", entry.Name())
 	}
 	assert.ElementsMatch(t, reusable, slices.Collect(maps.Values(called)))
+}
+
+func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				ID  string `yaml:"id"`
+				Run string `yaml:"run"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	readYAML(t, filepath.Join(workflowsDir, "images.yml"), &workflow)
+	var script string
+	for _, step := range workflow.Jobs["go"].Steps {
+		if step.ID == "operator-tools" {
+			script = step.Run
+		}
+	}
+	require.NotEmpty(t, script, "the operator fixture needs the pinned runner tools")
+	verifier, err := os.ReadFile("../platform-images/verify.py")
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name        string
+		hostOS      string
+		hostArch    string
+		machine     uint16
+		interpreter bool
+		wantError   string
+	}{
+		{"native Linux", "linux", "amd64", 62, false, ""},
+		{"Darwin host", "darwin", "amd64", 62, false, "native Linux runner"},
+		{"cross compilation", "linux", "arm64", 62, false, "native Linux runner"},
+		{"wrong binary architecture", "linux", "amd64", 183, false, "does not match amd64"},
+		{"dynamic binary", "linux", "amd64", 62, true, "statically linked"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			bin := filepath.Join(dir, "bin")
+			pinned := filepath.Join(dir, "pinned")
+			verifyDir := filepath.Join(dir, "tools", "platform-images")
+			for _, path := range []string{bin, pinned, verifyDir} {
+				require.NoError(t, os.MkdirAll(path, 0o700))
+			}
+			require.NoError(t, os.WriteFile(filepath.Join(verifyDir, "verify.py"), verifier, 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(bin, "go"), []byte(`#!/bin/sh
+case "$2" in
+GOHOSTOS) printf '%s\n' "$OPERATOR_TEST_OS" ;;
+GOHOSTARCH) printf '%s\n' "$OPERATOR_TEST_ARCH" ;;
+*) exit 1 ;;
+esac
+`), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(bin, "mise"), []byte(`#!/bin/sh
+[ "$1" = which ] || exit 1
+printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
+`), 0o700))
+			elf := make([]byte, 128)
+			copy(elf, "\x7fELF\x02\x01")
+			binary.LittleEndian.PutUint16(elf[18:], tc.machine)
+			binary.LittleEndian.PutUint64(elf[32:], 64)
+			binary.LittleEndian.PutUint16(elf[54:], 56)
+			binary.LittleEndian.PutUint16(elf[56:], 1)
+			if tc.interpreter {
+				binary.LittleEndian.PutUint32(elf[64:], 3)
+			}
+			for _, tool := range []string{"helm", "kubectl"} {
+				require.NoError(t, os.WriteFile(filepath.Join(pinned, tool), elf, 0o700))
+				require.NoError(t, os.WriteFile(filepath.Join(bin, tool), []byte("unverified PATH tool"), 0o700))
+			}
+			require.NoError(t, os.WriteFile(filepath.Join(pinned, "unrelated.conf"), []byte("excluded"), 0o600))
+			cmd := exec.CommandContext(t.Context(), "bash", "-c", script)
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+				"ARCH=amd64", "OPERATOR_TEST_OS="+tc.hostOS, "OPERATOR_TEST_ARCH="+tc.hostArch,
+				"OPERATOR_TEST_TOOLS="+pinned)
+			output, err := cmd.CombinedOutput()
+			if tc.wantError != "" {
+				require.Error(t, err, string(output))
+				assert.Contains(t, string(output), tc.wantError)
+				return
+			}
+			require.NoError(t, err, string(output))
+			staged, err := os.ReadDir(filepath.Join(bin, "operator-tools"))
+			require.NoError(t, err)
+			require.Len(t, staged, 2)
+			assert.Equal(t, []string{"helm", "kubectl"}, []string{staged[0].Name(), staged[1].Name()})
+			for _, file := range staged {
+				data, readErr := os.ReadFile(filepath.Join(bin, "operator-tools", file.Name()))
+				require.NoError(t, readErr)
+				assert.Equal(t, elf, data, file.Name())
+			}
+		})
+	}
 }
