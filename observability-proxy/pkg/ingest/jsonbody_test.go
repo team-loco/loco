@@ -43,6 +43,11 @@ func TestExportedLogsCarryTheirJSONBodyFieldsAsAttributes(t *testing.T) {
 			body: `{"` + strings.Repeat("k", maxBodyFieldKey+1) + `":"v","short":"v"}`,
 			want: map[string]string{"short": "v"},
 		},
+		{
+			name: "colliding paths keep the first in key order",
+			body: `{"a.b":"literal","a":{"b":"nested"}}`,
+			want: map[string]string{"a.b": "nested"},
+		},
 		{name: "plain text", body: "GET /healthz 200", want: map[string]string{}},
 		{name: "JSON array", body: `[{"a":1}]`, want: map[string]string{}},
 		{name: "two objects", body: `{"a":1} {"b":2}`, want: map[string]string{}},

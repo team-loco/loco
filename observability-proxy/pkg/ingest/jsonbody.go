@@ -20,7 +20,8 @@ const (
 
 // flattenJSONBodies copies the fields of each single-line JSON object body into the record's
 // attributes, keyed by dotted path (user.id) with array elements by index (roles.0). Attributes
-// the record already has are kept, and the body is left as it is.
+// the record already has are kept, and the body is left as it is. When two fields flatten to the
+// same path, such as "a.b" and {"a":{"b":...}}, the first in sorted key order wins.
 func flattenJSONBodies(logs plog.Logs) {
 	for _, resourceLogs := range logs.ResourceLogs().All() {
 		for _, scopeLogs := range resourceLogs.ScopeLogs().All() {
@@ -73,20 +74,26 @@ func flattenJSONValue(path string, value any, fields map[string]string) {
 	}
 	switch value := value.(type) {
 	case map[string]any:
-		for key, nested := range value {
-			flattenJSONValue(child(key), nested, fields)
+		for _, key := range slices.Sorted(maps.Keys(value)) {
+			flattenJSONValue(child(key), value[key], fields)
 		}
 	case []any:
 		for index, nested := range value {
 			flattenJSONValue(child(strconv.Itoa(index)), nested, fields)
 		}
 	case string:
-		fields[path] = value
+		setField(fields, path, value)
 	case json.Number:
-		fields[path] = value.String()
+		setField(fields, path, value.String())
 	case bool:
-		fields[path] = strconv.FormatBool(value)
+		setField(fields, path, strconv.FormatBool(value))
 	case nil:
-		fields[path] = "null"
+		setField(fields, path, "null")
+	}
+}
+
+func setField(fields map[string]string, path, value string) {
+	if _, taken := fields[path]; !taken {
+		fields[path] = value
 	}
 }
