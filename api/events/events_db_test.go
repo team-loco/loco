@@ -86,8 +86,18 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 		t.Fatal("events could be updated")
 	}
 
-	deleted, err := q.DeleteEventsBefore(ctx, time.Now().Add(time.Minute))
-	if err != nil || deleted != 2 {
+	deleted, err := q.DeleteEventsBefore(ctx, genDb.DeleteEventsBeforeParams{
+		Cutoff:    time.Now().Add(time.Minute),
+		BatchSize: 1,
+	})
+	if err != nil || deleted != 1 {
+		t.Fatalf("one batch deleted %d (%v)", deleted, err)
+	}
+	deleted, err = q.DeleteEventsBefore(ctx, genDb.DeleteEventsBeforeParams{
+		Cutoff:    time.Now().Add(time.Minute),
+		BatchSize: 10,
+	})
+	if err != nil || deleted != 1 {
 		t.Fatalf("retention deleted %d (%v)", deleted, err)
 	}
 }
@@ -146,5 +156,26 @@ func TestRetentionRunRecordsARootSpan(t *testing.T) {
 	}
 	if ended[0].Parent().IsValid() {
 		t.Fatalf("retention span has parent %v", ended[0].Parent())
+	}
+}
+
+func TestDeleteExpiredRemovesEveryBatchAndSparesRecentEvents(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	q := genDb.New(pool)
+	expired := 2*events.RetentionBatchSize + 1
+	_, err := pool.Exec(t.Context(), `
+		INSERT INTO events (type, actor_type, created_at)
+		SELECT 'org.created', 'system', now() - interval '2 hours' FROM generate_series(1, $1)`, expired)
+	if err != nil {
+		t.Fatalf("insert expired events: %v", err)
+	}
+	_, err = pool.Exec(t.Context(), "INSERT INTO events (type, actor_type) VALUES ('org.created', 'system')")
+	if err != nil {
+		t.Fatalf("insert recent event: %v", err)
+	}
+	events.DeleteExpired(t.Context(), q, time.Hour)
+	var left int
+	if err = pool.QueryRow(t.Context(), "SELECT count(*) FROM events").Scan(&left); err != nil || left != 1 {
+		t.Fatalf("events left = %d (%v), want the recent one", left, err)
 	}
 }

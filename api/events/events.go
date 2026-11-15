@@ -85,6 +85,9 @@ const (
 const (
 	retentionSpan    = "events.retention"
 	deletedAttribute = "loco.events.deleted"
+
+	// Each batch is one statement; its cascade into webhook_deliveries must finish within the statement timeout.
+	retentionBatchSize = 5000
 )
 
 // Sources of a system:admin grant, recorded as FieldSource.
@@ -258,7 +261,20 @@ func RunRetention(ctx context.Context, q genDb.Querier, keep time.Duration, ever
 
 func deleteExpired(ctx context.Context, q genDb.Querier, keep time.Duration) {
 	ctx, span := tracing.StartRoot(ctx, retentionSpan)
-	deleted, err := q.DeleteEventsBefore(ctx, time.Now().Add(-keep))
+	cutoff := time.Now().Add(-keep)
+	var deleted int64
+	var err error
+	for ctx.Err() == nil {
+		var batch int64
+		batch, err = q.DeleteEventsBefore(ctx, genDb.DeleteEventsBeforeParams{
+			Cutoff:    cutoff,
+			BatchSize: retentionBatchSize,
+		})
+		deleted += batch
+		if err != nil || batch < retentionBatchSize {
+			break
+		}
+	}
 	span.SetAttributes(attribute.Int64(deletedAttribute, deleted))
 	tracing.End(span, err)
 	switch {
