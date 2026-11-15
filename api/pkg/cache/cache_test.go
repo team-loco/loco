@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -38,23 +39,25 @@ func TestMemoryCacheReadsItsOwnWrites(t *testing.T) {
 }
 
 func TestMemoryCacheHonoursPerEntryTTL(t *testing.T) {
-	ctx := context.Background()
-	c := newTestMemory(t)
+	synctest.Test(t, func(t *testing.T) {
+		ctx := context.Background()
+		c := newTestMemory(t)
 
-	if err := c.Set(ctx, "short", []byte("1"), 20*time.Millisecond); err != nil {
-		t.Fatal(err)
-	}
+		if err := c.Set(ctx, "short", []byte("1"), 20*time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
 
-	got, err := c.Get(ctx, "short")
-	if err != nil || string(got) != "1" {
-		t.Fatalf("Get(short) = %q, %v", got, err)
-	}
+		got, err := c.Get(ctx, "short")
+		if err != nil || string(got) != "1" {
+			t.Fatalf("Get(short) = %q, %v", got, err)
+		}
 
-	time.Sleep(40 * time.Millisecond)
+		time.Sleep(40 * time.Millisecond)
 
-	if _, getErr := c.Get(ctx, "short"); !errors.Is(getErr, ErrNotFound) {
-		t.Fatalf("Get(short) after ttl err = %v, want ErrNotFound", getErr)
-	}
+		if _, getErr := c.Get(ctx, "short"); !errors.Is(getErr, ErrNotFound) {
+			t.Fatalf("Get(short) after ttl err = %v, want ErrNotFound", getErr)
+		}
+	})
 }
 
 func TestMemoryCacheRejectsOversizedEntry(t *testing.T) {

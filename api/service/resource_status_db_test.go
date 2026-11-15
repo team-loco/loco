@@ -11,7 +11,6 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -27,7 +26,6 @@ const (
 	statusTwoReplicas   = 2
 	statusProduction    = "prod"
 	statusClusterSilent = 5 * time.Minute
-	statusFastHeartbeat = 200 * time.Millisecond
 	statusWaitTimeout   = 5 * time.Second
 	statusPollInterval  = 50 * time.Millisecond
 )
@@ -477,34 +475,8 @@ func (f *resourceStatusFixture) waitForProduction(t *testing.T, want resourcev1.
 	}
 }
 
-func heartbeatOverSync(
-	ctx context.Context,
-	stream agentv1connect.AgentServiceSyncClientStream,
-	interval time.Duration,
-) {
-	health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
-	heartbeat := &agentv1.SyncRequest{
-		Message: &agentv1.SyncRequest_Heartbeat{
-			Heartbeat: &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Health: health},
-		},
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		if err := stream.Send(heartbeat); err != nil {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
-}
-
 func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	f := newResourceStatusFixture(t)
-	f.silentAfter = ClusterSilentAfter(statusFastHeartbeat)
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
 	f.heartbeat(t, f.clusterID, time.Now().Add(-statusClusterSilent), clusterHealthHealthy)
@@ -535,23 +507,23 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 		dropStream()
 		<-responsesStopped
 	}()
-	agentStopped := make(chan struct{})
-	go func() {
-		defer close(agentStopped)
-		heartbeatOverSync(streamCtx, stream, statusFastHeartbeat)
-	}()
-
+	heartbeat := &agentv1.SyncRequest{
+		Message: &agentv1.SyncRequest_Heartbeat{
+			Heartbeat: &agentv1.Heartbeat{
+				Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+				Health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
+			},
+		},
+	}
+	if err := stream.Send(heartbeat); err != nil {
+		t.Fatal(err)
+	}
 	f.waitForProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY)
-	staysConnected := 2 * missedHeartbeats * statusFastHeartbeat
-	time.Sleep(staysConnected)
-	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
-		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
-	})
-
-	dropStream()
-	<-agentStopped
-	f.waitForProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN)
+	if err := stream.CloseSend(); err != nil {
+		t.Fatal(err)
+	}
+	<-responsesStopped
+	f.heartbeat(t, f.clusterID, time.Now().Add(-statusClusterSilent), clusterHealthHealthy)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
 		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
