@@ -7,12 +7,15 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -53,11 +56,13 @@ var (
 	errVerificationCleanup        = errors.New("verification resource cleanup failed")
 	errVerificationSecretDelivery = fmt.Errorf("verify deployed secret delivery: %w", errVerification)
 	errVerificationSecretStorage  = fmt.Errorf("verify encrypted secret storage: %w", errVerification)
+	errVerificationCAFile         = errors.New("CA file contains no PEM certificate")
 )
 
 type VerificationTarget struct {
 	Worker        string
 	EnvironmentID string
+	CAFile        string
 }
 
 // VerifySource creates and deletes only its own disposable resource in the selected environment.
@@ -68,6 +73,10 @@ func VerifySource(
 	token string,
 	target VerificationTarget,
 ) (Status, error) {
+	probe, err := verificationClient(target.CAFile)
+	if err != nil {
+		return Status{}, err
+	}
 	status, err := StatusInstallation(ctx, config, token)
 	if err != nil {
 		return Status{}, err
@@ -113,7 +122,7 @@ func VerifySource(
 	if baseErr != nil {
 		return Status{}, baseErr
 	}
-	if err := verifyApplication(ctx, clients, worker, environment.GetEnvironment(), base); err != nil {
+	if err := verifyApplication(ctx, clients, probe, worker, environment.GetEnvironment(), base); err != nil {
 		return Status{}, err
 	}
 	status.Phase = "verified"
@@ -123,6 +132,7 @@ func VerifySource(
 func verifyApplication(
 	ctx context.Context,
 	clients *rpc.Clients,
+	probe *http.Client,
 	worker Worker,
 	environment *environmentv1.Environment,
 	base string,
@@ -244,10 +254,10 @@ func verifyApplication(
 	}); applyErr != nil {
 		return errVerification
 	}
-	if probeErr := verificationProbe(ctx, "https://"+domain, marker); probeErr != nil {
+	if probeErr := verificationProbe(ctx, probe, "https://"+domain, marker); probeErr != nil {
 		return probeErr
 	}
-	if probeErr := verificationProbe(ctx, "https://"+domain+"/cgi-bin/proof", secretProof); probeErr != nil {
+	if probeErr := verificationProbe(ctx, probe, "https://"+domain+"/cgi-bin/proof", secretProof); probeErr != nil {
 		return errVerificationSecretDelivery
 	}
 	request := &observabilityv1.QueryLogsRequest{
@@ -364,9 +374,30 @@ func verificationBuild(ctx context.Context, clients *rpc.Clients, id string) err
 	}
 }
 
-func verificationProbe(ctx context.Context, url, marker string) error {
-	client := rpc.NewHTTPClient()
-	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+func verificationClient(caFile string) (*http.Client, error) {
+	var roots *x509.CertPool
+	if caFile != "" {
+		data, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("read CA file: %w", err)
+		}
+		roots, err = x509.SystemCertPool()
+		if err != nil {
+			return nil, fmt.Errorf("load system certificate roots: %w", err)
+		}
+		if !roots.AppendCertsFromPEM(data) {
+			return nil, errVerificationCAFile
+		}
+	}
+	return &http.Client{
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}},
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}, nil
+}
+
+func verificationProbe(ctx context.Context, client *http.Client, url, marker string) error {
 	for {
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {

@@ -124,6 +124,7 @@ func TestVerificationCleansProvisionedResourceAfterFailure(t *testing.T) {
 			err := verifyApplication(
 				ctx,
 				rpc.ForHost(httpServer.URL, "fixture-session"),
+				httpServer.Client(),
 				Worker{
 					Region: "us-east-1", AppsDomain: "apps.example.com",
 					MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
