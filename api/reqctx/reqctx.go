@@ -30,8 +30,10 @@ type Principal struct {
 	Scopes    []genDb.EntityScope
 	ActorType genDb.DeploymentActorType
 	ActorID   uuid.UUID
-	Method    genDb.DeploymentMethod
-	Token     string
+	// UserID is the user accountable for the call: the session's user, or the API token's creator.
+	UserID uuid.UUID
+	Method genDb.DeploymentMethod
+	Token  string
 }
 
 // WithRequest keeps the ID in rpc's context value, so outgoing RPC clients forward it.

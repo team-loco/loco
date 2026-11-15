@@ -14,6 +14,7 @@ import (
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/converter"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -508,7 +509,7 @@ func (s *AgentServer) markApplied(ctx context.Context, clusterID, placementID uu
 		if marked.DeploymentID == nil || marked.Suspended {
 			return nil
 		}
-		return qtx.AdvanceDeploymentStatus(ctx, genDb.AdvanceDeploymentStatusParams{
+		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
 			Status:       genDb.DeploymentStatusDeploying,
 			Message:      "Applied to the cluster",
 			ID:           *marked.DeploymentID,
@@ -605,7 +606,7 @@ func (s *AgentServer) recordApplyError(
 		if !row.ApplyFailed || row.DesiredDeleted || row.Suspended || row.DeploymentID == nil {
 			return nil
 		}
-		return qtx.AdvanceDeploymentStatus(ctx, genDb.AdvanceDeploymentStatusParams{
+		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
 			Status:  genDb.DeploymentStatusFailed,
 			Message: errMessage,
 			ID:      *row.DeploymentID,
@@ -703,7 +704,7 @@ func (s *AgentServer) recordStatus(
 			return nil
 		}
 		transition := deploymentTransitionForStatus(status)
-		return qtx.AdvanceDeploymentStatus(ctx, genDb.AdvanceDeploymentStatusParams{
+		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
 			Status:       transition.status,
 			Message:      status.GetMessage(),
 			ID:           *row.DeploymentID,
@@ -713,6 +714,52 @@ func (s *AgentServer) recordStatus(
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record placement status", "placement_id", placementID, "error", err)
 	}
+}
+
+// advanceDeploymentStatus records deployment.failed when the update moves the deployment into
+// failed; a repeated report finds it already failed and changes no row.
+func advanceDeploymentStatus(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	params genDb.AdvanceDeploymentStatusParams,
+) error {
+	changed, err := qtx.AdvanceDeploymentStatus(ctx, params)
+	if err != nil {
+		return fmt.Errorf("advance deployment status: %w", err)
+	}
+	if changed == 0 || params.Status != genDb.DeploymentStatusFailed {
+		return nil
+	}
+	d, err := qtx.GetDeploymentFailure(ctx, params.ID)
+	if err != nil {
+		return fmt.Errorf("get failed deployment: %w", err)
+	}
+	spec, err := converter.DeserializeDeploymentSpec(d.Spec, d.ResourceType)
+	if err != nil {
+		return fmt.Errorf("decode spec of deployment %s: %w", params.ID, err)
+	}
+	data := map[string]any{
+		events.FieldDeploymentID:  params.ID.String(),
+		events.FieldResourceID:    d.ResourceID.String(),
+		events.FieldEnvironmentID: d.EnvironmentID.String(),
+		events.FieldRegion:        d.Region,
+		events.FieldMessage:       d.Message,
+		events.FieldResourceName:  d.ResourceName,
+	}
+	if buildID := spec.GetService().GetBuild().GetBuildId(); buildID != "" {
+		data[events.FieldBuildID] = buildID
+	}
+	events.AddCreator(data, d.CreatorID, d.CreatorEmail, d.CreatorName)
+	return events.Record(ctx, qtx, events.Event{
+		Type:          events.DeploymentFailed,
+		ActorType:     string(d.ActorType),
+		ActorID:       &d.ActorID,
+		ResourceID:    &d.ResourceID,
+		EnvironmentID: &d.EnvironmentID,
+		SubjectType:   events.SubjectDeployment,
+		SubjectID:     &params.ID,
+		Data:          data,
+	})
 }
 
 type deploymentTransition struct {

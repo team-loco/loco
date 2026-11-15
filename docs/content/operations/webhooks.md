@@ -35,6 +35,22 @@ The enclosing event includes `orgId`, `subject.type` (`invitation`), and `subjec
 
 `invitation.created` records a new invitation. `invitation.resent` extends an open invitation's expiry, including an expired invitation that has not been revoked or claimed, and records the renewed expiry. Both changes and their events commit together. Claimed or revoked invitations cannot be resent. Invitation responses always include the link to copy; webhook delivery results do not change an invitation.
 
+## Failure events
+
+`deployment.failed` records a deployment entering the failed status in one region, once per transition. `build.failed` records a failed build. Their `actor` is whoever created the deployment or build: `user` with the user ID, or `api_token` with the token ID. `build.succeeded` carries the same actor. Both carry these `data` fields:
+
+| Field | Value |
+| --- | --- |
+| `resourceId` | Resource ID |
+| `resource_name` | Resource name |
+| `buildId` | Build ID; on `deployment.failed`, only when the deployment runs a build |
+| `message` | Failure message |
+| `creator_id` | ID of the user who created it, or of the user who created the API token |
+| `creator_name` | That user's name, or an empty string when unset |
+| `creator_email` | That user's email address |
+
+The `creator_*` fields are absent when that user no longer exists, and on `deployment.failed` also when the API token no longer exists. `deployment.failed` also carries `deploymentId`, `environmentId` and `region`. `build.failed` also carries `reason`: `source_upload_expired` when the source was not uploaded before its upload URL expired, otherwise `build_failed`.
+
 ## User deletion
 
 `user.deleted` records a deleted Loco user. Its `subject.id` is the user ID, and its `data.identities` lists the sign-in identities removed with the user, each with the `issuer` and `subject` that the identity provider put in its tokens. Loco erases those identities when the user is deleted, so a consumer that removes the matching accounts at an identity provider takes them from this list. A retried delivery carries the same list.

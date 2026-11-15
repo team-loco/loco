@@ -372,7 +372,7 @@ func (f *buildFixture) insertBuild(t *testing.T, status genDb.BuildStatus) strin
 INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, image_digest, created_by)
 VALUES ($1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', 'registry.loco.test/x', $6, $7)`,
-		id, resourceID, f.clusterID, status, key, digest, uuid.New(),
+		id, resourceID, f.clusterID, status, key, digest, f.userID,
 	); err != nil {
 		t.Fatalf("insert build: %v", err)
 	}

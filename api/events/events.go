@@ -58,6 +58,7 @@ const (
 	ResourceRestarted    = "resource.restarted"
 	ResourcePartial      = "resource.partial_transferred"
 	DeploymentCreated    = "deployment.created"
+	DeploymentFailed     = "deployment.failed"
 	DeploymentDeleted    = "deployment.deleted"
 	BuildCreated         = "build.created"
 	BuildStarted         = "build.started"
@@ -98,6 +99,12 @@ const (
 
 const ActorSystem = "system"
 
+// Machine-readable causes of build.failed, recorded as FieldReason.
+const (
+	BuildFailureUploadExpired = "source_upload_expired"
+	BuildFailureBuild         = "build_failed"
+)
+
 const (
 	SubjectUser        = "user"
 	SubjectOrg         = "organization"
@@ -118,6 +125,7 @@ const (
 	FieldAction        = "action"
 	FieldDomain        = "domain"
 	FieldResourceID    = "resourceId"
+	FieldDeploymentID  = "deploymentId"
 	FieldBuildID       = "buildId"
 	FieldImageDigest   = "imageDigest"
 	FieldMessage       = "message"
@@ -137,6 +145,10 @@ const (
 	FieldOrgName       = "org_name"
 	FieldInviterName   = "inviter_name"
 	FieldInviterEmail  = "inviter_email"
+	FieldResourceName  = "resource_name"
+	FieldCreatorID     = "creator_id"
+	FieldCreatorName   = "creator_name"
+	FieldCreatorEmail  = "creator_email"
 	FieldExpiresAt     = "expires_at"
 	FieldLink          = "link"
 	FieldScopes        = "scopes"
@@ -285,10 +297,20 @@ func deleteExpired(ctx context.Context, q genDb.Querier, keep time.Duration) {
 	}
 }
 
-func RecordBuildFailure(ctx context.Context, q genDb.Querier, buildID, resourceID uuid.UUID, message string) error {
-	return RecordBuildOutcome(ctx, q, buildID, resourceID, BuildFailed, map[string]any{FieldMessage: message})
+func RecordBuildFailure(
+	ctx context.Context,
+	q genDb.Querier,
+	buildID, resourceID uuid.UUID,
+	reason, message string,
+) error {
+	return RecordBuildOutcome(ctx, q, buildID, resourceID, BuildFailed, map[string]any{
+		FieldReason:  reason,
+		FieldMessage: message,
+	})
 }
 
+// RecordBuildOutcome attributes the event to the build's creator. build.failed also names the
+// resource and carries the creator's contact details.
 func RecordBuildOutcome(
 	ctx context.Context,
 	q genDb.Querier,
@@ -296,14 +318,41 @@ func RecordBuildOutcome(
 	kind string,
 	data map[string]any,
 ) error {
+	creator, err := q.GetBuildCreator(ctx, buildID)
+	if err != nil {
+		return fmt.Errorf("get build creator: %w", err)
+	}
+	actorType, actorID := string(genDb.DeploymentActorTypeUser), creator.CreatedBy
+	if creator.ApiTokenID != nil {
+		actorType, actorID = string(genDb.DeploymentActorTypeApiToken), *creator.ApiTokenID
+	}
 	data[FieldBuildID] = buildID.String()
 	data[FieldResourceID] = resourceID.String()
+	if kind == BuildFailed {
+		data[FieldResourceName] = creator.ResourceName
+		AddCreator(data, creator.CreatorID, creator.CreatorEmail, creator.CreatorName)
+	}
 	return Record(ctx, q, Event{
 		Type:        kind,
-		ActorType:   ActorSystem,
+		ActorType:   actorType,
+		ActorID:     &actorID,
 		ResourceID:  new(resourceID),
 		SubjectType: SubjectBuild,
 		SubjectID:   new(buildID),
 		Data:        data,
 	})
+}
+
+// AddCreator adds the creating user's ID and contact details to data. A nil id means the user no
+// longer exists, and the fields are left out.
+func AddCreator(data map[string]any, id *uuid.UUID, email, name *string) {
+	if id == nil {
+		return
+	}
+	data[FieldCreatorID] = id.String()
+	data[FieldCreatorEmail] = *email
+	data[FieldCreatorName] = ""
+	if name != nil {
+		data[FieldCreatorName] = *name
+	}
 }

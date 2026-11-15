@@ -137,7 +137,9 @@ func (s *SourceSweeper) expireUploads(ctx context.Context) (int, error) {
 			return err
 		}
 		for _, row := range rows {
-			if err := events.RecordBuildFailure(ctx, qtx, row.ID, row.ResourceID, sourceUploadExpired); err != nil {
+			if err := events.RecordBuildFailure(
+				ctx, qtx, row.ID, row.ResourceID, events.BuildFailureUploadExpired, sourceUploadExpired,
+			); err != nil {
 				return err
 			}
 		}

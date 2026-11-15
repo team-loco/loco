@@ -98,7 +98,7 @@ SELECT * FROM deployments
 WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC;
 
--- name: AdvanceDeploymentStatus :exec
+-- name: AdvanceDeploymentStatus :execrows
 UPDATE deployments
 SET status = sqlc.arg(status),
     message = sqlc.arg(message),
@@ -121,6 +121,17 @@ WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
 SELECT * FROM deployments
 WHERE environment_id = $1 AND is_active = true
 ORDER BY resource_id, created_at DESC;
+
+-- name: GetDeploymentFailure :one
+-- creator_* is NULL when the creating user, or the API token that names it, no longer exists.
+SELECT d.resource_id, d.environment_id, d.region, d.spec, d.message, d.actor_type, d.actor_id,
+       r.name AS resource_name, r.type AS resource_type,
+       u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
+FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users u ON u.id = CASE WHEN d.actor_type = 'user' THEN d.actor_id ELSE t.created_by END
+WHERE d.id = $1;
 
 -- name: GetDeploymentActor :one
 SELECT COALESCE(u.name, t.name, '')::text AS name,

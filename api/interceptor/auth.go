@@ -132,6 +132,7 @@ func (i *authInterceptor) authenticateProviderToken(
 		Token:     token,
 		ActorType: genDb.DeploymentActorTypeUser,
 		ActorID:   user.ID,
+		UserID:    user.ID,
 		Method:    genDb.DeploymentMethodWeb,
 	})
 	return auth.WithLogin(c, auth.Login{Identity: identity, ClaimedOrgs: claimed}), nil

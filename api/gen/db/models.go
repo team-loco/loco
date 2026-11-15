@@ -481,6 +481,7 @@ type Build struct {
 	CacheDigest      *string     `json:"cacheDigest"`
 	Message          string      `json:"message"`
 	CreatedBy        uuid.UUID   `json:"createdBy"`
+	ApiTokenID       *uuid.UUID  `json:"apiTokenId"`
 	CreatedAt        time.Time   `json:"createdAt"`
 	StartedAt        *time.Time  `json:"startedAt"`
 	FinishedAt       *time.Time  `json:"finishedAt"`

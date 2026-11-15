@@ -303,7 +303,9 @@ func (s *AgentServer) failClusterBuilds(ctx context.Context, params genDb.FailCl
 			return err
 		}
 		for _, row := range rows {
-			if err := events.RecordBuildFailure(ctx, qtx, row.ID, row.ResourceID, params.Message); err != nil {
+			if err := events.RecordBuildFailure(
+				ctx, qtx, row.ID, row.ResourceID, events.BuildFailureBuild, params.Message,
+			); err != nil {
 				return err
 			}
 		}
@@ -476,7 +478,9 @@ func (s *AgentServer) recordFinishedBuild(
 			data := map[string]any{events.FieldImageDigest: *params.ImageDigest}
 			return events.RecordBuildOutcome(ctx, qtx, row.ID, row.ResourceID, events.BuildSucceeded, data)
 		case genDb.BuildStatusFailed:
-			return events.RecordBuildFailure(ctx, qtx, row.ID, row.ResourceID, publicFailure)
+			return events.RecordBuildFailure(
+				ctx, qtx, row.ID, row.ResourceID, events.BuildFailureBuild, publicFailure,
+			)
 		default:
 			return nil
 		}

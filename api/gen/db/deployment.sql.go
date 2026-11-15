@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const advanceDeploymentStatus = `-- name: AdvanceDeploymentStatus :exec
+const advanceDeploymentStatus = `-- name: AdvanceDeploymentStatus :execrows
 UPDATE deployments
 SET status = $1,
     message = $2,
@@ -33,14 +33,17 @@ type AdvanceDeploymentStatusParams struct {
 	FromStatuses []string         `json:"fromStatuses"`
 }
 
-func (q *Queries) AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error {
-	_, err := q.db.Exec(ctx, advanceDeploymentStatus,
+func (q *Queries) AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, advanceDeploymentStatus,
 		arg.Status,
 		arg.Message,
 		arg.ID,
 		arg.FromStatuses,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const createDeployment = `-- name: CreateDeployment :one
@@ -186,6 +189,53 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 		&i.StartedAt,
 		&i.CompletedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getDeploymentFailure = `-- name: GetDeploymentFailure :one
+SELECT d.resource_id, d.environment_id, d.region, d.spec, d.message, d.actor_type, d.actor_id,
+       r.name AS resource_name, r.type AS resource_type,
+       u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
+FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users u ON u.id = CASE WHEN d.actor_type = 'user' THEN d.actor_id ELSE t.created_by END
+WHERE d.id = $1
+`
+
+type GetDeploymentFailureRow struct {
+	ResourceID    uuid.UUID           `json:"resourceId"`
+	EnvironmentID uuid.UUID           `json:"environmentId"`
+	Region        string              `json:"region"`
+	Spec          []byte              `json:"spec"`
+	Message       string              `json:"message"`
+	ActorType     DeploymentActorType `json:"actorType"`
+	ActorID       uuid.UUID           `json:"actorId"`
+	ResourceName  string              `json:"resourceName"`
+	ResourceType  ResourceType        `json:"resourceType"`
+	CreatorID     *uuid.UUID          `json:"creatorId"`
+	CreatorEmail  *string             `json:"creatorEmail"`
+	CreatorName   *string             `json:"creatorName"`
+}
+
+// creator_* is NULL when the creating user, or the API token that names it, no longer exists.
+func (q *Queries) GetDeploymentFailure(ctx context.Context, id uuid.UUID) (GetDeploymentFailureRow, error) {
+	row := q.db.QueryRow(ctx, getDeploymentFailure, id)
+	var i GetDeploymentFailureRow
+	err := row.Scan(
+		&i.ResourceID,
+		&i.EnvironmentID,
+		&i.Region,
+		&i.Spec,
+		&i.Message,
+		&i.ActorType,
+		&i.ActorID,
+		&i.ResourceName,
+		&i.ResourceType,
+		&i.CreatorID,
+		&i.CreatorEmail,
+		&i.CreatorName,
 	)
 	return i, err
 }
