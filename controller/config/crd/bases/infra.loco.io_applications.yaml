@@ -90,6 +90,12 @@ spec:
                         - name
                         - revision
                         type: object
+                      files:
+                        additionalProperties:
+                          type: string
+                        description: Files maps an absolute container path to the
+                          content of the read-only file mounted there.
+                        type: object
                       healthCheck:
                         description: HealthCheckSpec describes readiness/liveness
                           checks

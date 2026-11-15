@@ -198,3 +198,22 @@ loco env set --service web --env production STRIPE_API_KEY=sk_live_...
 ```
 
 The plan reports each listed name the service does not hold in the environment as an error. A value can only be set on a service that exists, so when a new service's only plan errors are its secrets, `loco deploy` and `loco infra apply` create it without building or deploying it, print the `loco env set` command for its secrets, and exit with an error. Run the command again once the values are set.
+
+## Files
+
+`files` mounts configuration files into the service's container, for software that reads settings only from a file. Each key is the absolute path where the container sees the file, and each value is its content:
+
+```yaml
+services:
+  product-catalog:
+    image: ghcr.io/open-telemetry/demo:3.1.0-product-catalog
+    env:
+      OTEL_CONFIG_FILE: /otel-config.yml
+    files:
+      /otel-config.yml: |
+        file_format: "1.0"
+```
+
+Loco stores the files in a ConfigMap and mounts each one read-only at its path; the rest of the directory keeps what the image holds there. A path must be clean and absolute, cannot be `/`, cannot sit inside another file's path, and cannot overlap `/proc`, `/sys`, `/dev`, `/etc/hosts`, `/etc/hostname` or `/etc/resolv.conf`. A service mounts at most 20 files, holding at most 256 KiB of content together; `GetConfig` reports the limits as `max_files` and `max_files_bytes` in `size_limits`. An environment override merges files by path, and `null` removes one.
+
+The plan shows each changed file by its size and SHA-256 prefix, not its content. Changing, adding or removing a file rolls out new pods without rebuilding the image. File content appears in the deployment's configuration, so keep secrets in `secrets`. Upgrade the API, controller and Application CRD together before using this field.

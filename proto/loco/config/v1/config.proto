@@ -55,7 +55,7 @@ message CountLimits {
   int32 metric_retention_days = 15;
 }
 
-// SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must
+// SizeLimits are the inclusive bounds a service's CPU, memory, replica counts and files must
 // fall within; requests outside them are rejected.
 message SizeLimits {
   int32 min_cpu_millis = 1;
@@ -64,6 +64,10 @@ message SizeLimits {
   int64 max_memory_bytes = 4;
   int32 min_replicas = 5;
   int32 max_replicas = 6;
+  // max_files is how many files a service can mount.
+  int32 max_files = 7;
+  // max_files_bytes is the total size of the content of a service's files.
+  int32 max_files_bytes = 8;
 }
 
 message OrgLink {

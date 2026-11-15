@@ -1,6 +1,9 @@
 package configplan
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
@@ -21,6 +24,7 @@ const (
 	pathDomains = "domains"
 	pathEnv     = "env"
 	pathSecrets = "secrets"
+	pathFiles   = "files"
 	pathRegions = "regions"
 	pathEnabled = "enabled"
 	pathDeploy  = "deploy"
@@ -51,6 +55,7 @@ type State struct {
 	Domains    []string
 	Env        map[string]string
 	Secrets    []string
+	Files      map[string]string
 	Regions    map[string]Region
 	Deploy     *locofile.Deploy
 }
@@ -94,6 +99,7 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		Domains:    CanonicalDomains(service.Domains),
 		Env:        maps.Clone(service.Env),
 		Secrets:    slices.Sorted(slices.Values(service.Secrets)),
+		Files:      maps.Clone(service.Files),
 		Regions:    make(map[string]Region, len(service.Regions)),
 		Deploy:     service.Deploy,
 	}
@@ -226,6 +232,9 @@ func flatten(state *State) map[string]string {
 	for key, value := range state.Env {
 		fields[pathEnv+"."+key] = value
 	}
+	for path, content := range state.Files {
+		fields[pathFiles+"."+path] = fileSummary(content)
+	}
 	for name, region := range state.Regions {
 		prefix := pathRegions + "." + name + "."
 		fields[prefix+"cpu"] = region.CPU
@@ -263,6 +272,12 @@ func diff(before, after *State) []Change {
 		changes = append(changes, Change{Path: path, Before: beforeFields[path], After: afterFields[path]})
 	}
 	return changes
+}
+
+// fileSummary keeps whole files out of the plan output.
+func fileSummary(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return fmt.Sprintf("%d bytes, sha256 %s", len(content), hex.EncodeToString(sum[:6]))
 }
 
 func formatInt(value int32) string {

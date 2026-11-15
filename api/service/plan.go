@@ -447,6 +447,7 @@ func liveState(
 			state.Routing = liveRouting(service.GetRouting())
 		}
 		state.Health = liveHealth(service.GetHealthCheck())
+		state.Files = service.GetFiles()
 		build := service.GetBuild()
 		switch build.GetType() {
 		case buildSourceTypeImage:

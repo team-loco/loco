@@ -2,6 +2,8 @@ package service
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -118,6 +120,25 @@ func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 		if err := spec.Validate(); err == nil {
 			t.Errorf("%s: %+v accepted", name, spec)
 		}
+	}
+
+	files := func(count int, bytes int) map[string]string {
+		out := make(map[string]string, count)
+		for i := range count {
+			out["/config/"+strconv.Itoa(i)] = ""
+		}
+		out["/config/0"] = strings.Repeat("x", bytes)
+		return out
+	}
+	maxFiles, maxBytes := int(sizes.GetMaxFiles()), int(sizes.GetMaxFilesBytes())
+	if err := locoControllerV1.ValidateFiles(files(maxFiles, maxBytes)); err != nil {
+		t.Errorf("files at the limits rejected: %v", err)
+	}
+	if locoControllerV1.ValidateFiles(files(maxFiles+1, 0)) == nil {
+		t.Error("one file too many accepted")
+	}
+	if locoControllerV1.ValidateFiles(files(1, maxBytes+1)) == nil {
+		t.Error("one byte too many accepted")
 	}
 }
 

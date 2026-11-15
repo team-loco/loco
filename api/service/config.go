@@ -64,6 +64,8 @@ func (s *ConfigServer) GetConfig(
 			MaxMemoryBytes: locoControllerV1.MaxMemoryBytes,
 			MinReplicas:    locoControllerV1.MinReplicas,
 			MaxReplicas:    locoControllerV1.MaxReplicas,
+			MaxFiles:       locoControllerV1.MaxFiles,
+			MaxFilesBytes:  locoControllerV1.MaxFilesBytes,
 		},
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			HealthCheck:             healthCheckFor(&health),

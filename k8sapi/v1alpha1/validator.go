@@ -170,6 +170,9 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 	if err := ValidateEnv(spec.Env); err != nil {
 		return err
 	}
+	if err := ValidateFiles(spec.Files); err != nil {
+		return err
+	}
 
 	if spec.EnvSecretRef != nil {
 		return validateEnvSecretRef(spec.EnvSecretRef)

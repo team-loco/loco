@@ -40,6 +40,7 @@ func validateDesired(name string, desired State) []Error {
 		add(pathRouting, locoControllerV1.ValidateRoute(desired.Routing.PathPrefix, desired.Routing.IdleTimeout))
 	}
 	add(pathEnv, locoControllerV1.ValidateEnv(desired.Env))
+	add(pathFiles, locoControllerV1.ValidateFiles(desired.Files))
 	return errs
 }
 

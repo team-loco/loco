@@ -327,7 +327,7 @@ func (x *CountLimits) GetMetricRetentionDays() int32 {
 	return 0
 }
 
-// SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must
+// SizeLimits are the inclusive bounds a service's CPU, memory, replica counts and files must
 // fall within; requests outside them are rejected.
 type SizeLimits struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -337,8 +337,12 @@ type SizeLimits struct {
 	MaxMemoryBytes int64                  `protobuf:"varint,4,opt,name=max_memory_bytes,json=maxMemoryBytes,proto3" json:"max_memory_bytes,omitempty"`
 	MinReplicas    int32                  `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
 	MaxReplicas    int32                  `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// max_files is how many files a service can mount.
+	MaxFiles int32 `protobuf:"varint,7,opt,name=max_files,json=maxFiles,proto3" json:"max_files,omitempty"`
+	// max_files_bytes is the total size of the content of a service's files.
+	MaxFilesBytes int32 `protobuf:"varint,8,opt,name=max_files_bytes,json=maxFilesBytes,proto3" json:"max_files_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SizeLimits) Reset() {
@@ -409,6 +413,20 @@ func (x *SizeLimits) GetMinReplicas() int32 {
 func (x *SizeLimits) GetMaxReplicas() int32 {
 	if x != nil {
 		return x.MaxReplicas
+	}
+	return 0
+}
+
+func (x *SizeLimits) GetMaxFiles() int32 {
+	if x != nil {
+		return x.MaxFiles
+	}
+	return 0
+}
+
+func (x *SizeLimits) GetMaxFilesBytes() int32 {
+	if x != nil {
+		return x.MaxFilesBytes
 	}
 	return 0
 }
@@ -662,7 +680,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\rbuild_history\x18\f \x01(\x05R\fbuildHistory\x12,\n" +
 	"\x12log_retention_days\x18\r \x01(\x05R\x10logRetentionDays\x120\n" +
 	"\x14trace_retention_days\x18\x0e \x01(\x05R\x12traceRetentionDays\x122\n" +
-	"\x15metric_retention_days\x18\x0f \x01(\x05R\x13metricRetentionDays\"\xf2\x01\n" +
+	"\x15metric_retention_days\x18\x0f \x01(\x05R\x13metricRetentionDays\"\xb7\x02\n" +
 	"\n" +
 	"SizeLimits\x12$\n" +
 	"\x0emin_cpu_millis\x18\x01 \x01(\x05R\fminCpuMillis\x12$\n" +
@@ -670,7 +688,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x10min_memory_bytes\x18\x03 \x01(\x03R\x0eminMemoryBytes\x12(\n" +
 	"\x10max_memory_bytes\x18\x04 \x01(\x03R\x0emaxMemoryBytes\x12!\n" +
 	"\fmin_replicas\x18\x05 \x01(\x05R\vminReplicas\x12!\n" +
-	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\"1\n" +
+	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12\x1b\n" +
+	"\tmax_files\x18\a \x01(\x05R\bmaxFiles\x12&\n" +
+	"\x0fmax_files_bytes\x18\b \x01(\x05R\rmaxFilesBytes\"1\n" +
 	"\aOrgLink\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\"Y\n" +

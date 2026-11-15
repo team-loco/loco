@@ -65,6 +65,7 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 			&corev1.Namespace{}:                      managedObjects,
 			&corev1.Secret{}:                         secrets,
 			&corev1.Service{}:                        managedObjects,
+			&corev1.ConfigMap{}:                      managedObjects,
 			&corev1.ServiceAccount{}:                 managedObjects,
 			&appsv1.Deployment{}:                     managedObjects,
 			&autoscalingv2.HorizontalPodAutoscaler{}: managedObjects,

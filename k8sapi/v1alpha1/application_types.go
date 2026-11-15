@@ -151,6 +151,9 @@ type ServiceDeploymentSpec struct {
 	HealthCheck  *HealthCheckSpec  `json:"healthCheck,omitempty"`
 	Env          map[string]string `json:"env,omitempty"`
 	EnvSecretRef *EnvSecretRef     `json:"envSecretRef,omitempty"`
+	// Files maps an absolute container path to the content of the read-only file mounted there.
+	// +optional
+	Files map[string]string `json:"files,omitempty"`
 }
 
 // EnvSecretRef names the Secret in the Application's namespace that holds the service's secret values

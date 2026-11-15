@@ -50,6 +50,7 @@ func appObjects(app *locov1alpha1.Application) []client.Object {
 		&corev1.Service{Name: name, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
+		&corev1.ConfigMap{Name: getFilesConfigMapName(app), Namespace: namespace},
 	}
 }
 

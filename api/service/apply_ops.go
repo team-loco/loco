@@ -447,6 +447,7 @@ func deploymentSpecFor(
 		MaxReplicas: &target.MaxReplicas,
 		Scalers:     scalersFor(target.Autoscaling),
 		Env:         state.Env,
+		Files:       state.Files,
 		Port:        state.Port,
 		Routing:     deploymentRoutingFor(state.Routing),
 	}

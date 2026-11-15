@@ -9465,11 +9465,23 @@
             "type": "integer",
             "title": "max_replicas",
             "format": "int32"
+          },
+          "maxFiles": {
+            "type": "integer",
+            "title": "max_files",
+            "format": "int32",
+            "description": "max_files is how many files a service can mount."
+          },
+          "maxFilesBytes": {
+            "type": "integer",
+            "title": "max_files_bytes",
+            "format": "int32",
+            "description": "max_files_bytes is the total size of the content of a service's files."
           }
         },
         "title": "SizeLimits",
         "additionalProperties": false,
-        "description": "SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must\n fall within; requests outside them are rejected."
+        "description": "SizeLimits are the inclusive bounds a service's CPU, memory, replica counts and files must\n fall within; requests outside them are rejected."
       },
       "loco.deployment.v1.BuildSource": {
         "type": "object",
@@ -10161,6 +10173,15 @@
             "title": "run_as_group",
             "format": "int64",
             "description": "int64.lte = 2147483647\nint64.gt = 0\n"
+          },
+          "files": {
+            "type": "object",
+            "title": "files",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            },
+            "description": "files maps an absolute path in the container to the content of the read-only file mounted\n there. GetConfig's size_limits bound their count and total size. Never put secrets here."
           }
         },
         "title": "ServiceDeploymentSpec",

@@ -97,6 +97,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
@@ -191,6 +192,10 @@ func (r *ApplicationReconciler) reconcileResources(
 	err = r.ensureServiceAccount(ctx, app)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure service account: %w", err)
+	}
+
+	if err = r.ensureFilesConfigMap(ctx, app); err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure files: %w", err)
 	}
 
 	dep, err := r.ensureDeployment(ctx, app, envSecret)
@@ -357,6 +362,7 @@ func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov
 		&appsv1.Deployment{Name: name, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
+		&corev1.ConfigMap{Name: getFilesConfigMapName(app), Namespace: namespace},
 	}
 	for _, obj := range objects {
 		err := r.Delete(ctx, obj)
@@ -752,7 +758,9 @@ func podTemplate(
 	if spec.Deployment.RunAsGroup != nil {
 		podSecurity = podSecurity.WithRunAsGroup(*spec.Deployment.RunAsGroup)
 	}
+	filesVolumes := mountFiles(app, container)
 	podSpec := corev1ac.PodSpec().
+		WithVolumes(filesVolumes...).
 		WithServiceAccountName(name).
 		WithAutomountServiceAccountToken(false).
 		WithSecurityContext(podSecurity).
@@ -889,6 +897,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
 		Watches(&corev1.Pod{}, applicationHandler).
 		Watches(&corev1.Service{}, applicationHandler).
+		Watches(&corev1.ConfigMap{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)

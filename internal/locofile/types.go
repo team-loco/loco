@@ -29,6 +29,7 @@ type Service struct {
 	Domains      []string            `json:"domains,omitempty"`
 	Env          map[string]string   `json:"env,omitempty"`
 	Secrets      []string            `json:"secrets,omitempty"`
+	Files        map[string]string   `json:"files,omitempty"`
 	Regions      map[string]Region   `json:"regions,omitempty"`
 	Deploy       *Deploy             `json:"deploy,omitempty"`
 	Environments map[string]Override `json:"environments,omitempty"`
@@ -48,6 +49,7 @@ type Override struct {
 	Domains    []string          `json:"domains,omitempty"`
 	Env        map[string]string `json:"env,omitempty"`
 	Secrets    []string          `json:"secrets,omitempty"`
+	Files      map[string]string `json:"files,omitempty"`
 	Regions    map[string]Region `json:"regions,omitempty"`
 }
 

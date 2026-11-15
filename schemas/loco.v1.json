@@ -148,6 +148,19 @@
           ],
           "description": "Environment variables to merge. null removes one."
         },
+        "files": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Files to merge, by absolute path. null removes one."
+        },
         "secrets": {
           "items": {
             "type": "string"
@@ -447,6 +460,13 @@
           },
           "type": "object",
           "description": "Plain environment variables with their values."
+        },
+        "files": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "description": "Read-only files mounted into the container: absolute path to content. Never put secrets here."
         },
         "secrets": {
           "items": {

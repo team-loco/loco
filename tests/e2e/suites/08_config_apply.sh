@@ -203,6 +203,35 @@ test_g05_health_checks_are_optional() {
     assert "plan stays clean without health" config_out_contains health_clean "No changes"
 }
 
+config_file_reads() {
+    local id
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '${config_cache}'")
+    test "$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
+        exec "deployment/resource-${id}" -- cat /etc/loco-e2e/config.yml 2>/dev/null)" = "$1"
+}
+
+test_g05_files_mount_and_update_without_a_build() {
+    config_edit ".services.${config_cache}.files[\"/etc/loco-e2e/config.yml\"] = \"level: one\""
+    if ! assert "apply adds the file" config_run files_add infra apply --env "$config_env" --yes; then
+        config_show files_add
+        return 1
+    fi
+    wait_for "the container to read the file" 120 config_file_reads "level: one"
+    config_run files_clean infra plan --env "$config_env" || true
+    assert "plan stays clean with the file" config_out_contains files_clean "No changes"
+    wait_for "the file deployment to finish" 60 config_deployment_running
+    config_edit ".services.${config_cache}.files[\"/etc/loco-e2e/config.yml\"] = \"level: two\""
+    config_run files_plan infra plan --env "$config_env" || true
+    assert "the plan changes the file" config_out_contains files_plan "files./etc/loco-e2e/config.yml"
+    assert "the plan omits the content" bash -c "! grep -q 'level: two' '$config_dir/files_plan.out'"
+    if ! assert "apply changes the file" config_run files_change infra apply --env "$config_env" --yes; then
+        config_show files_change
+        return 1
+    fi
+    wait_for "the container to read the new content" 120 config_file_reads "level: two"
+    wait_for "the changed file deployment to finish" 60 config_deployment_running
+}
+
 test_g06_replicas_change_is_one_update() {
     config_edit ".services.${config_cache}.regions.us-east-1.replicas.max = 2"
     config_run scale_plan infra plan --env "$config_env" || true

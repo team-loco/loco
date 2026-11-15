@@ -35,6 +35,13 @@ tests:
           value: [get, list, watch]
         template: templates/controller/manager-role.yaml
 
+  - it: lets the Application controller manage the ConfigMaps that hold service files
+    asserts:
+      - equal:
+          path: rules[?(@.resources[?(@ == 'configmaps')])].verbs
+          value: [create, delete, get, list, patch, watch]
+        template: templates/controller/manager-role.yaml
+
   - it: keeps namespace deletion with the agent
     asserts:
       - equal:
