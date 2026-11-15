@@ -152,6 +152,8 @@ Read [charts/AGENTS.md](charts/AGENTS.md) before chart work.
 - **Types and validation**: `internal/locofile` (`types.go`, `validate.go`, `merge.go` for
   environment overrides). `schemas/loco.v1.json` is the JSON Schema editors load;
   `TestSchemaMatchesTypes` reflects over the types and fails when the schema drifts.
+  `TestSchemaSizeBoundsMatchResourceValidation` in `api/pkg/configplan` fails when the schema's
+  CPU, memory and replica bounds drift from `k8sapi/v1alpha1/validator.go`.
 - **Commands**: `loco infra init|validate|plan|apply|transfer` and `loco deploy`. A file belongs to
   one `partial`; `transfer` moves a service between partials. `deploy` builds the source services
   once and calls `PlanService.Apply`.

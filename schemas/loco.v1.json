@@ -273,14 +273,16 @@
             "string",
             "null"
           ],
-          "description": "CPU per replica in Kubernetes quantity form such as 250m."
+          "pattern": "^((1\\d{2}|[2-9]\\d{2}|1\\d{3}|2000)m|0?\\.[1-9]\\d*|1(\\.\\d+)?|2(\\.0+)?)$",
+          "description": "CPU per replica, from 100m to 2000m, as whole millicores such as 250m or cores such as 0.5."
         },
         "memory": {
           "type": [
             "string",
             "null"
           ],
-          "description": "Memory per replica in Kubernetes quantity form such as 512Mi."
+          "pattern": "^((3[2-9]|[4-9]\\d|[1-9]\\d{2}|[1-3]\\d{3}|40[0-8]\\d|409[0-6])Mi|([1-3](\\.\\d+)?|4(\\.0+)?)Gi)$",
+          "description": "Memory per replica, from 32Mi to 4Gi, as whole mebibytes such as 512Mi or gibibytes such as 1.5Gi."
         },
         "replicas": {
           "anyOf": [
@@ -315,7 +317,8 @@
             "integer",
             "null"
           ],
-          "minimum": 0,
+          "minimum": 1,
+          "maximum": 10,
           "description": "Fewest replicas."
         },
         "max": {
@@ -323,7 +326,8 @@
             "integer",
             "null"
           ],
-          "minimum": 0,
+          "minimum": 1,
+          "maximum": 10,
           "description": "Most replicas."
         }
       },
@@ -355,11 +359,13 @@
       "properties": {
         "cpu": {
           "type": "string",
-          "description": "CPU per replica in Kubernetes quantity form such as 250m."
+          "pattern": "^((1\\d{2}|[2-9]\\d{2}|1\\d{3}|2000)m|0?\\.[1-9]\\d*|1(\\.\\d+)?|2(\\.0+)?)$",
+          "description": "CPU per replica, from 100m to 2000m, as whole millicores such as 250m or cores such as 0.5."
         },
         "memory": {
           "type": "string",
-          "description": "Memory per replica in Kubernetes quantity form such as 512Mi."
+          "pattern": "^((3[2-9]|[4-9]\\d|[1-9]\\d{2}|[1-3]\\d{3}|40[0-8]\\d|409[0-6])Mi|([1-3](\\.\\d+)?|4(\\.0+)?)Gi)$",
+          "description": "Memory per replica, from 32Mi to 4Gi, as whole mebibytes such as 512Mi or gibibytes such as 1.5Gi."
         },
         "replicas": {
           "$ref": "#/$defs/Replicas",
@@ -377,12 +383,14 @@
       "properties": {
         "min": {
           "type": "integer",
-          "minimum": 0,
+          "minimum": 1,
+          "maximum": 10,
           "description": "Fewest replicas."
         },
         "max": {
           "type": "integer",
-          "minimum": 0,
+          "minimum": 1,
+          "maximum": 10,
           "description": "Most replicas."
         }
       },
