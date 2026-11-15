@@ -55,6 +55,11 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
 	}
 	if err != nil {
+		for _, line := range strings.Split(string(output.Bytes()), "\n") {
+			if strings.HasPrefix(line, "DIAG ") || strings.HasPrefix(line, "initial ") {
+				fmt.Fprintln(os.Stderr, "OUT "+line)
+			}
+		}
 		if output.failure != "" {
 			return nil, fmt.Errorf(
 				"operator phase %s, %s: kubectl failed: %w", output.phase, output.failure, err,
