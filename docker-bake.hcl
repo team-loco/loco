@@ -64,44 +64,22 @@ target "_platform" {
   attest    = ["type=provenance,mode=max"]
 }
 
-target "controller" {
+target "service" {
+  name = svc.name
+  matrix = {
+    svc = [
+      { name = "controller", dir = "controller" },
+      { name = "api", dir = "api" },
+      { name = "agent", dir = "agent" },
+      { name = "builder", dir = "builder" },
+      { name = "obs-proxy", dir = "observability-proxy" },
+    ]
+  }
   inherits   = ["_platform"]
-  dockerfile = "controller/Dockerfile"
-  tags       = ["${REGISTRY}-controller:${TAG}"]
-  cache-from = [cache("controller")]
-  cache-to   = WRITE_CACHE ? ["${cache("controller")},mode=max"] : []
-}
-
-target "api" {
-  inherits   = ["_platform"]
-  dockerfile = "api/Dockerfile"
-  tags       = ["${REGISTRY}-api:${TAG}"]
-  cache-from = [cache("api")]
-  cache-to   = WRITE_CACHE ? ["${cache("api")},mode=max"] : []
-}
-
-target "agent" {
-  inherits   = ["_platform"]
-  dockerfile = "agent/Dockerfile"
-  tags       = ["${REGISTRY}-agent:${TAG}"]
-  cache-from = [cache("agent")]
-  cache-to   = WRITE_CACHE ? ["${cache("agent")},mode=max"] : []
-}
-
-target "builder" {
-  inherits   = ["_platform"]
-  dockerfile = "builder/Dockerfile"
-  tags       = ["${REGISTRY}-builder:${TAG}"]
-  cache-from = [cache("builder")]
-  cache-to   = WRITE_CACHE ? ["${cache("builder")},mode=max"] : []
-}
-
-target "obs-proxy" {
-  inherits   = ["_platform"]
-  dockerfile = "observability-proxy/Dockerfile"
-  tags       = ["${REGISTRY}-obs-proxy:${TAG}"]
-  cache-from = [cache("obs-proxy")]
-  cache-to   = WRITE_CACHE ? ["${cache("obs-proxy")},mode=max"] : []
+  dockerfile = "${svc.dir}/Dockerfile"
+  tags       = ["${REGISTRY}-${svc.name}:${TAG}"]
+  cache-from = [cache(svc.name)]
+  cache-to   = WRITE_CACHE ? ["${cache(svc.name)},mode=max"] : []
 }
 
 target "ui" {
