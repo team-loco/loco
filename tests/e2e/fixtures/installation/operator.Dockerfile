@@ -1,12 +1,13 @@
 # The installation suite's operator pod: locoadm, loco and the suite's helm and
 # kubectl wrappers. HELM_VERSION and KUBECTL_VERSION come from mise.toml.
 FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82
+SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 ARG HELM_VERSION
 ARG KUBECTL_VERSION
+WORKDIR /tmp
 RUN wget -qO /tmp/helm.tgz "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
  && wget -qO /tmp/helm.sha "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz.sha256sum" \
- && cd /tmp \
  && sed -i 's|helm-v[^ ]*|helm.tgz|' helm.sha \
  && sha256sum -c helm.sha \
  && tar -xzf helm.tgz \
