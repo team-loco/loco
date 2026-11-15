@@ -79,6 +79,8 @@ const BARE_TOKEN_RE = /^(pod|replica|build):(\S+)$/;
 const QUOTED_RE = /"(?:[^"\\]|\\.)*"/g;
 const BOOLEAN_RE = /(^|\s)(AND|OR)(?=\s|$)|[()]/;
 const BARE_VALUE_RE = /^[^\s"():*<>]+$/;
+const FIELD_RE = new RegExp(String.raw`-?@${KEY}:${VALUE}`, "g");
+const WORD_RE = /(-?)("(?:[^"\\]|\\.)*"|[^\s"()]+)/g;
 
 export const BUILD_ID_LABEL = "loco.io/build-id";
 
@@ -109,6 +111,13 @@ export function quoteValue(value: string): string {
 /** Reads a query value as the text it matches, without quotes. */
 export function unquoteValue(value: string): string {
 	return value.startsWith('"') ? value.slice(1, -1).replace(/\\(["\\])/g, "$1") : value;
+}
+
+/** The free-text terms of text that matching log bodies contain, for highlighting. */
+export function searchWords(text: string): string[] {
+	return [...text.replace(FIELD_RE, " ").matchAll(WORD_RE)].flatMap(([, neg, word = ""]) =>
+		neg !== "" || word === "AND" || word === "OR" ? [] : [unquoteValue(word)],
+	);
 }
 
 function tokStr(t: Token): string {

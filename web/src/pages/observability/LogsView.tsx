@@ -38,6 +38,7 @@ import {
 	queryError,
 	queryStr,
 	sameToken,
+	searchWords,
 	type FieldKey,
 	type Level,
 	type Token,
@@ -49,7 +50,6 @@ import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
 const BATCH = 1000;
-const WHITESPACE = /\s+/;
 const BUCKETS = 60;
 const DEFAULT_PAGE_SIZE = 50;
 const LOG_PAGE_SIZES = [...PAGE_SIZES, 250];
@@ -311,7 +311,7 @@ export function LogsView() {
 	};
 
 	const panelOpen = selRow !== undefined;
-	const freeWords = text.split(WHITESPACE).filter(Boolean);
+	const freeWords = searchWords(text);
 	const error = logs.error ?? (tail ? tailState.error : null);
 	const query = queryStr(tokens, text);
 	const setColumns = (next: ColumnKey[]) => {

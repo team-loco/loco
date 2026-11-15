@@ -15,6 +15,7 @@ import {
 	queryError,
 	queryKeyReason,
 	queryStr,
+	searchWords,
 	quoteValue,
 	QUERY_PARSERS,
 	queryValues,
@@ -218,6 +219,14 @@ describe("log queries", () => {
 		expect(queryKeyReason("loco.workspace.id")).toContain("Loco sets");
 		expect(queryKeyReason("level")).toContain("built-in");
 		expect(queryKeyReason("has space")).toContain("can't be written");
+	});
+
+	test("highlights the free text a query searches for", () => {
+		expect(searchWords('timeout (@level:error OR "payment failed") -retry -@path:"a b" AND x')).toEqual([
+			"timeout",
+			"payment failed",
+			"x",
+		]);
 	});
 
 	test("reads the API's parse error and its position", () => {
