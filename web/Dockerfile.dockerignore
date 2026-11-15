@@ -29,7 +29,9 @@ docs/**
 !docs/react-router.config.ts
 !docs/app/
 !docs/app/**
+!docs/public
 !docs/content/
+!docs/public
 !docs/content/**
 
 tests/

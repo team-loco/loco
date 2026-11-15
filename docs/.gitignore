@@ -2,6 +2,5 @@ site/
 site-mounted/
 build/
 .react-router/
-public/assets/
 .sws.toml
 premium-audit.json
