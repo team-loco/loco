@@ -24,6 +24,14 @@ export const queryMetrics = ObservabilityService.method.queryMetrics;
 export const listTraces = ObservabilityService.method.listTraces;
 
 /**
+ * QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,
+ * per time bucket.
+ *
+ * @generated from rpc loco.observability.v1.ObservabilityService.QueryTraceBuckets
+ */
+export const queryTraceBuckets = ObservabilityService.method.queryTraceBuckets;
+
+/**
  * @generated from rpc loco.observability.v1.ObservabilityService.GetTrace
  */
 export const getTrace = ObservabilityService.method.getTrace;

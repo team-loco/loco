@@ -149,6 +149,23 @@ func (s *ObservabilityServer) ListTraces(
 	return response, nil
 }
 
+func (s *ObservabilityServer) QueryTraceBuckets(
+	ctx context.Context,
+	req *observabilityv1.QueryTraceBucketsRequest,
+) (*observabilityv1.QueryTraceBucketsResponse, error) {
+	if err := guardrails.ValidateTraceBucketsRequest(req, s.cfg.Limits); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+	if err := s.authorizeRead(ctx, req.GetScope().GetWorkspaceId(), req.GetScope().GetResourceIds()); err != nil {
+		return nil, err
+	}
+	response, err := s.clickhouse.QueryTraceBuckets(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("query trace buckets: %w", err)
+	}
+	return response, nil
+}
+
 func (s *ObservabilityServer) GetTrace(
 	ctx context.Context,
 	req *observabilityv1.GetTraceRequest,

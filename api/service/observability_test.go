@@ -37,7 +37,7 @@ const (
 )
 
 var observabilityTestConfig = ObservabilityConfig{
-	Limits:          guardrails.Limits{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour},
+	Limits:          guardrails.Limits{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, MaxBuckets: 60},
 	MaxTailDuration: time.Minute,
 }
 
@@ -191,6 +191,37 @@ func TestTraceSummaryValidation(t *testing.T) {
 			_, err := client.ListTraces(callerContext(t, observabilityTestCaller), req)
 			if connect.CodeOf(err) != connect.CodeInvalidArgument {
 				t.Fatalf("error: %v", err)
+			}
+		})
+	}
+}
+
+func TestTraceBucketValidation(t *testing.T) {
+	t.Parallel()
+	server := NewObservabilityServer(unreachableClickHouse(t), unreachableAuthorizer(t), observabilityTestConfig)
+	client := observabilityTestClient(t, server, nil)
+	end := time.Now().Truncate(time.Minute)
+	for _, tc := range []struct {
+		name     string
+		interval int32
+		span     time.Duration
+		code     connect.Code
+	}{
+		{"no interval", 0, time.Minute, connect.CodeInvalidArgument},
+		{"at the bucket limit", 1, 59 * time.Second, connect.CodeInternal},
+		{"over the bucket limit", 1, time.Minute, connect.CodeInvalidArgument},
+		{"over the time range", 60, 2 * time.Hour, connect.CodeInvalidArgument},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &observabilityv1.QueryTraceBucketsRequest{
+				Scope:           &observabilityv1.TraceScope{WorkspaceId: observabilityTestWorkspace},
+				StartTime:       timestamppb.New(end.Add(-tc.span)),
+				EndTime:         timestamppb.New(end),
+				IntervalSeconds: tc.interval,
+			}
+			_, err := client.QueryTraceBuckets(callerContext(t, observabilityTestCaller), req)
+			if connect.CodeOf(err) != tc.code {
+				t.Fatalf("error = %v, want %v", err, tc.code)
 			}
 		})
 	}

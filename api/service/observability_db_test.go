@@ -120,6 +120,19 @@ func readCalls() map[string]readCall {
 			})
 			return err
 		},
+		"QueryTraceBuckets": func(
+			ctx context.Context,
+			client observabilityClient,
+			workspace string,
+			resources []string,
+		) error {
+			start, end := window()
+			_, err := client.QueryTraceBuckets(ctx, &observabilityv1.QueryTraceBucketsRequest{
+				Scope:     &observabilityv1.TraceScope{WorkspaceId: workspace, ResourceIds: resources},
+				StartTime: start, EndTime: end, IntervalSeconds: 60,
+			})
+			return err
+		},
 		"GetTrace": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			_, err := client.GetTrace(ctx, &observabilityv1.GetTraceRequest{
 				Scope:   &observabilityv1.TraceScope{WorkspaceId: workspace, ResourceIds: resources},

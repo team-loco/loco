@@ -113,6 +113,7 @@ const (
 	defaultObservabilityLimit        = 1000
 	defaultObservabilityMaxLimit     = 10000
 	defaultObservabilityMaxTimeRange = 24 * time.Hour
+	defaultObservabilityMaxBuckets   = 1440
 	defaultObservabilityMaxTail      = 30 * time.Minute
 
 	defaultAPITokenMaxLifetime        = 365 * 24 * time.Hour
@@ -367,6 +368,7 @@ func newObservabilityConfig() service.ObservabilityConfig {
 				"LOCO_OBSERVABILITY_MAX_TIME_RANGE",
 				defaultObservabilityMaxTimeRange,
 			),
+			MaxBuckets: positiveInt32Env("LOCO_OBSERVABILITY_MAX_BUCKETS", defaultObservabilityMaxBuckets),
 		},
 		MaxTailDuration: envconfig.PositiveDuration(
 			"LOCO_OBSERVABILITY_MAX_TAIL_DURATION",

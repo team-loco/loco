@@ -10,7 +10,7 @@ import (
 )
 
 func TestHistoryQueriesValidateTimestampPresenceAndPrecision(t *testing.T) {
-	cfg := Limits{MaxTimeRange: testMaxRange}
+	cfg := Limits{MaxTimeRange: testMaxRange, MaxBuckets: math.MaxInt32}
 	checks := []struct {
 		name     string
 		validate func(start, end *timestamppb.Timestamp) error
@@ -33,6 +33,15 @@ func TestHistoryQueriesValidateTimestampPresenceAndPrecision(t *testing.T) {
 				EndTime:   end,
 			}
 			return validated(req, func() error { return ValidateListTracesRequest(req, cfg) })
+		}},
+		{name: "trace buckets", validate: func(start, end *timestamppb.Timestamp) error {
+			req := &observabilityv1.QueryTraceBucketsRequest{
+				Scope:           &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+				StartTime:       start,
+				EndTime:         end,
+				IntervalSeconds: 1,
+			}
+			return validated(req, func() error { return ValidateTraceBucketsRequest(req, cfg) })
 		}},
 	}
 	now := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)

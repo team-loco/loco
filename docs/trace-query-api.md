@@ -1,8 +1,8 @@
 # Trace queries
 
-`ObservabilityService.ListTraces` returns one summary per trace for the traces list. `GetTrace` returns every stored span of one trace for the drawer. The regional control-plane API serves both RPCs from its ClickHouse; they share workspace/resource authorization and ClickHouse tenancy filtering.
+`ObservabilityService.ListTraces` returns one summary per trace for the traces list. `QueryTraceBuckets` counts the same traces per time bucket for the traces overview charts. `GetTrace` returns every stored span of one trace for the drawer. The regional control-plane API serves these RPCs from its ClickHouse; they share workspace/resource authorization and ClickHouse tenancy filtering.
 
-Both requests require a `scope` with a workspace ID. Optional resource IDs and an environment ID narrow the visible spans. A caller needs workspace READ, or must name resources and have READ on every one. Scope IDs must be lowercase UUIDs; a resource from another workspace returns no rows.
+Every request requires a `scope` with a workspace ID. Optional resource IDs and an environment ID narrow the visible spans. A caller needs workspace READ, or must name resources and have READ on every one. Scope IDs must be lowercase UUIDs; a resource from another workspace returns no rows.
 
 ## List traces
 
@@ -24,6 +24,20 @@ Summaries contain trace ID, root span name, service, resource, start time, obser
 
 The response contains `summaries` and `totalCount`. Sorting defaults to start time descending; duration sorting and ascending order are available. Trace ID breaks ties. Paging applies after grouping, so a page cannot split a trace. Counts and pages reflect live ingestion rather than a pinned snapshot.
 
+## Trace buckets
+
+```json
+{
+  "scope": {"workspaceId": "11111111-2222-3333-4444-555555555555"},
+  "startTime": "2026-10-14T12:00:00Z",
+  "endTime": "2026-10-14T13:00:00Z",
+  "status": "TRACE_STATUS_ERROR",
+  "intervalSeconds": 60
+}
+```
+
+`QueryTraceBuckets` takes the time window, trace ID, duration, status and root-name filters of `ListTraces`, and groups the traces it would list by the `intervalSeconds` bucket their start falls in. Buckets start at multiples of the interval since the Unix epoch. The response holds every bucket from the one containing `startTime` to the one containing `endTime`, in time order; each carries its start time, trace count, error count and the p50 and p95 trace durations, all zero for a bucket without traces. `total` carries the same counts and percentiles over the whole range. Percentiles interpolate between durations, and ClickHouse samples them once a bucket holds more than 8192 traces. A range spanning more than `LOCO_OBSERVABILITY_MAX_BUCKETS` (1440) buckets is rejected as `INVALID_ARGUMENT`.
+
 ## Get a trace
 
 ```json
@@ -39,4 +53,4 @@ Nanosecond durations and counts use protobuf JSON decimal strings. Clients prese
 
 ## Validation
 
-`mise run test:obs-proxy` exercises real ClickHouse grouping, filters, counts, ordering, page boundaries, whole-trace retrieval, ingestion and tenancy. `mise run test:api` covers both RPCs' validation, authorization and whole-trace reads through the API. `mise run e2e:observability` checks a known gateway-to-app trace through `GetTrace`, its one-row `ListTraces` summary and workspace isolation.
+`mise run test:obs-proxy` exercises real ClickHouse grouping, filters, counts, ordering, page boundaries, whole-trace retrieval, ingestion and tenancy. `mise run test:api` covers the RPCs' validation, authorization, bucket limit and whole-trace reads through the API. `mise run e2e:observability` checks a known gateway-to-app trace through `GetTrace`, its one-row `ListTraces` summary, its `QueryTraceBuckets` count and workspace isolation.

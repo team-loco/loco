@@ -3397,6 +3397,68 @@
         }
       }
     },
+    "/loco.observability.v1.ObservabilityService/QueryTraceBuckets": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityService"
+        ],
+        "summary": "QueryTraceBuckets",
+        "description": "QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,\n per time bucket.",
+        "operationId": "loco.observability.v1.ObservabilityService.QueryTraceBuckets",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.QueryTraceBucketsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.QueryTraceBucketsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.observability.v1.ObservabilityService/TailLogs": {
       "post": {
         "tags": [
@@ -11796,6 +11858,96 @@
         "additionalProperties": false,
         "description": "QueryMetricsResponse contains the aggregated metric data."
       },
+      "loco.observability.v1.QueryTraceBucketsRequest": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "title": "scope",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceScope"
+          },
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endTime": {
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "traceId": {
+            "type": "string",
+            "not": {
+              "type": "string",
+              "enum": [
+                "00000000000000000000000000000000"
+              ]
+            },
+            "title": "trace_id",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "minDurationNanos": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "min_duration_nanos",
+            "format": "int64"
+          },
+          "maxDurationNanos": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "max_duration_nanos",
+            "format": "int64"
+          },
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceStatus"
+          },
+          "rootNameTerms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "root_name_terms"
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "title": "interval_seconds",
+            "minimum": 1,
+            "format": "int32",
+            "description": "Bucket width in seconds. Buckets start at multiples of it since the Unix epoch, and the\n range may span at most the API's bucket limit."
+          }
+        },
+        "title": "QueryTraceBucketsRequest",
+        "required": [
+          "scope",
+          "startTime",
+          "endTime"
+        ],
+        "additionalProperties": false,
+        "description": "duration.min_lte_max // min_duration_nanos must be less than or equal to max_duration_nanos\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+      },
+      "loco.observability.v1.QueryTraceBucketsResponse": {
+        "type": "object",
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.TraceBucket"
+            },
+            "title": "buckets"
+          },
+          "total": {
+            "title": "total",
+            "description": "Summarizes every trace in the range, without a start_time.",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceBucket"
+          }
+        },
+        "title": "QueryTraceBucketsResponse",
+        "additionalProperties": false,
+        "description": "QueryTraceBucketsResponse holds every bucket from the one containing start_time to the one\n containing end_time, in time order; a bucket without traces has zero counts and durations."
+      },
       "loco.observability.v1.TailLogsRequest": {
         "type": "object",
         "properties": {
@@ -11990,6 +12142,38 @@
         "title": "TailLogsResponse",
         "additionalProperties": false,
         "description": "TailLogsResponse is a server-streamed event (log entry or heartbeat).\n\nAt most one of `entry`, `heartbeat` may be set."
+      },
+      "loco.observability.v1.TraceBucket": {
+        "type": "object",
+        "properties": {
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "traceCount": {
+            "type": "string",
+            "title": "trace_count",
+            "format": "int64"
+          },
+          "errorCount": {
+            "type": "string",
+            "title": "error_count",
+            "format": "int64"
+          },
+          "p50DurationNanos": {
+            "type": "string",
+            "title": "p50_duration_nanos",
+            "format": "int64"
+          },
+          "p95DurationNanos": {
+            "type": "string",
+            "title": "p95_duration_nanos",
+            "format": "int64"
+          }
+        },
+        "title": "TraceBucket",
+        "additionalProperties": false,
+        "description": "TraceBucket summarizes the traces that start within one bucket. Durations are the\n TraceSummary.duration_nanos of those traces."
       },
       "loco.observability.v1.TraceScope": {
         "type": "object",

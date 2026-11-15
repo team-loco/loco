@@ -1509,6 +1509,249 @@ func (x *ListTracesResponse) GetTotalCount() uint64 {
 	return 0
 }
 
+type QueryTraceBucketsRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Scope            *TraceScope            `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	StartTime        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime          *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	TraceId          string                 `protobuf:"bytes,4,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	MinDurationNanos *uint64                `protobuf:"varint,5,opt,name=min_duration_nanos,json=minDurationNanos,proto3,oneof" json:"min_duration_nanos,omitempty"`
+	MaxDurationNanos *uint64                `protobuf:"varint,6,opt,name=max_duration_nanos,json=maxDurationNanos,proto3,oneof" json:"max_duration_nanos,omitempty"`
+	Status           TraceStatus            `protobuf:"varint,7,opt,name=status,proto3,enum=loco.observability.v1.TraceStatus" json:"status,omitempty"`
+	RootNameTerms    []string               `protobuf:"bytes,8,rep,name=root_name_terms,json=rootNameTerms,proto3" json:"root_name_terms,omitempty"`
+	// Bucket width in seconds. Buckets start at multiples of it since the Unix epoch, and the
+	// range may span at most the API's bucket limit.
+	IntervalSeconds int32 `protobuf:"varint,9,opt,name=interval_seconds,json=intervalSeconds,proto3" json:"interval_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *QueryTraceBucketsRequest) Reset() {
+	*x = QueryTraceBucketsRequest{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryTraceBucketsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryTraceBucketsRequest) ProtoMessage() {}
+
+func (x *QueryTraceBucketsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryTraceBucketsRequest.ProtoReflect.Descriptor instead.
+func (*QueryTraceBucketsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *QueryTraceBucketsRequest) GetScope() *TraceScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *QueryTraceBucketsRequest) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *QueryTraceBucketsRequest) GetEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndTime
+	}
+	return nil
+}
+
+func (x *QueryTraceBucketsRequest) GetTraceId() string {
+	if x != nil {
+		return x.TraceId
+	}
+	return ""
+}
+
+func (x *QueryTraceBucketsRequest) GetMinDurationNanos() uint64 {
+	if x != nil && x.MinDurationNanos != nil {
+		return *x.MinDurationNanos
+	}
+	return 0
+}
+
+func (x *QueryTraceBucketsRequest) GetMaxDurationNanos() uint64 {
+	if x != nil && x.MaxDurationNanos != nil {
+		return *x.MaxDurationNanos
+	}
+	return 0
+}
+
+func (x *QueryTraceBucketsRequest) GetStatus() TraceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return TraceStatus_TRACE_STATUS_UNSPECIFIED
+}
+
+func (x *QueryTraceBucketsRequest) GetRootNameTerms() []string {
+	if x != nil {
+		return x.RootNameTerms
+	}
+	return nil
+}
+
+func (x *QueryTraceBucketsRequest) GetIntervalSeconds() int32 {
+	if x != nil {
+		return x.IntervalSeconds
+	}
+	return 0
+}
+
+// QueryTraceBucketsResponse holds every bucket from the one containing start_time to the one
+// containing end_time, in time order; a bucket without traces has zero counts and durations.
+type QueryTraceBucketsResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Buckets []*TraceBucket         `protobuf:"bytes,1,rep,name=buckets,proto3" json:"buckets,omitempty"`
+	// Summarizes every trace in the range, without a start_time.
+	Total         *TraceBucket `protobuf:"bytes,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryTraceBucketsResponse) Reset() {
+	*x = QueryTraceBucketsResponse{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryTraceBucketsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryTraceBucketsResponse) ProtoMessage() {}
+
+func (x *QueryTraceBucketsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryTraceBucketsResponse.ProtoReflect.Descriptor instead.
+func (*QueryTraceBucketsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *QueryTraceBucketsResponse) GetBuckets() []*TraceBucket {
+	if x != nil {
+		return x.Buckets
+	}
+	return nil
+}
+
+func (x *QueryTraceBucketsResponse) GetTotal() *TraceBucket {
+	if x != nil {
+		return x.Total
+	}
+	return nil
+}
+
+// TraceBucket summarizes the traces that start within one bucket. Durations are the
+// TraceSummary.duration_nanos of those traces.
+type TraceBucket struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	StartTime        *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	TraceCount       uint64                 `protobuf:"varint,2,opt,name=trace_count,json=traceCount,proto3" json:"trace_count,omitempty"`
+	ErrorCount       uint64                 `protobuf:"varint,3,opt,name=error_count,json=errorCount,proto3" json:"error_count,omitempty"`
+	P50DurationNanos uint64                 `protobuf:"varint,4,opt,name=p50_duration_nanos,json=p50DurationNanos,proto3" json:"p50_duration_nanos,omitempty"`
+	P95DurationNanos uint64                 `protobuf:"varint,5,opt,name=p95_duration_nanos,json=p95DurationNanos,proto3" json:"p95_duration_nanos,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *TraceBucket) Reset() {
+	*x = TraceBucket{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TraceBucket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TraceBucket) ProtoMessage() {}
+
+func (x *TraceBucket) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TraceBucket.ProtoReflect.Descriptor instead.
+func (*TraceBucket) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *TraceBucket) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *TraceBucket) GetTraceCount() uint64 {
+	if x != nil {
+		return x.TraceCount
+	}
+	return 0
+}
+
+func (x *TraceBucket) GetErrorCount() uint64 {
+	if x != nil {
+		return x.ErrorCount
+	}
+	return 0
+}
+
+func (x *TraceBucket) GetP50DurationNanos() uint64 {
+	if x != nil {
+		return x.P50DurationNanos
+	}
+	return 0
+}
+
+func (x *TraceBucket) GetP95DurationNanos() uint64 {
+	if x != nil {
+		return x.P95DurationNanos
+	}
+	return 0
+}
+
 type GetTraceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         *TraceScope            `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -1519,7 +1762,7 @@ type GetTraceRequest struct {
 
 func (x *GetTraceRequest) Reset() {
 	*x = GetTraceRequest{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1531,7 +1774,7 @@ func (x *GetTraceRequest) String() string {
 func (*GetTraceRequest) ProtoMessage() {}
 
 func (x *GetTraceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1544,7 +1787,7 @@ func (x *GetTraceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTraceRequest.ProtoReflect.Descriptor instead.
 func (*GetTraceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{14}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetTraceRequest) GetScope() *TraceScope {
@@ -1570,7 +1813,7 @@ type GetTraceResponse struct {
 
 func (x *GetTraceResponse) Reset() {
 	*x = GetTraceResponse{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1582,7 +1825,7 @@ func (x *GetTraceResponse) String() string {
 func (*GetTraceResponse) ProtoMessage() {}
 
 func (x *GetTraceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1595,7 +1838,7 @@ func (x *GetTraceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTraceResponse.ProtoReflect.Descriptor instead.
 func (*GetTraceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{15}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetTraceResponse) GetSpans() []*TraceSpan {
@@ -1621,7 +1864,7 @@ type TraceSummary struct {
 
 func (x *TraceSummary) Reset() {
 	*x = TraceSummary{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[16]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1633,7 +1876,7 @@ func (x *TraceSummary) String() string {
 func (*TraceSummary) ProtoMessage() {}
 
 func (x *TraceSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[16]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1646,7 +1889,7 @@ func (x *TraceSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceSummary.ProtoReflect.Descriptor instead.
 func (*TraceSummary) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{16}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TraceSummary) GetTraceId() string {
@@ -1735,7 +1978,7 @@ type TraceSpan struct {
 
 func (x *TraceSpan) Reset() {
 	*x = TraceSpan{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[17]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1747,7 +1990,7 @@ func (x *TraceSpan) String() string {
 func (*TraceSpan) ProtoMessage() {}
 
 func (x *TraceSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[17]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1760,7 +2003,7 @@ func (x *TraceSpan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceSpan.ProtoReflect.Descriptor instead.
 func (*TraceSpan) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{17}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TraceSpan) GetTraceId() string {
@@ -1907,7 +2150,7 @@ type TraceSpanEvent struct {
 
 func (x *TraceSpanEvent) Reset() {
 	*x = TraceSpanEvent{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[18]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1919,7 +2162,7 @@ func (x *TraceSpanEvent) String() string {
 func (*TraceSpanEvent) ProtoMessage() {}
 
 func (x *TraceSpanEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[18]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1932,7 +2175,7 @@ func (x *TraceSpanEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceSpanEvent.ProtoReflect.Descriptor instead.
 func (*TraceSpanEvent) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{18}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *TraceSpanEvent) GetName() string {
@@ -1967,7 +2210,7 @@ type TraceSpanLink struct {
 
 func (x *TraceSpanLink) Reset() {
 	*x = TraceSpanLink{}
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[19]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1979,7 +2222,7 @@ func (x *TraceSpanLink) String() string {
 func (*TraceSpanLink) ProtoMessage() {}
 
 func (x *TraceSpanLink) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_proto_msgTypes[19]
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1992,7 +2235,7 @@ func (x *TraceSpanLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceSpanLink.ProtoReflect.Descriptor instead.
 func (*TraceSpanLink) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{19}
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *TraceSpanLink) GetTraceId() string {
@@ -2169,7 +2412,34 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x12ListTracesResponse\x12A\n" +
 	"\tsummaries\x18\x01 \x03(\v2#.loco.observability.v1.TraceSummaryR\tsummaries\x12\x1f\n" +
 	"\vtotal_count\x18\x02 \x01(\x04R\n" +
-	"totalCount\"\xa6\x01\n" +
+	"totalCount\"\xb3\a\n" +
+	"\x18QueryTraceBucketsRequest\x12?\n" +
+	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12A\n" +
+	"\n" +
+	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
+	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12U\n" +
+	"\btrace_id\x18\x04 \x01(\tB:\xbaH7\xd8\x01\x01r22\x0e^[0-9a-f]{32}$Z 00000000000000000000000000000000R\atraceId\x121\n" +
+	"\x12min_duration_nanos\x18\x05 \x01(\x04H\x00R\x10minDurationNanos\x88\x01\x01\x121\n" +
+	"\x12max_duration_nanos\x18\x06 \x01(\x04H\x01R\x10maxDurationNanos\x88\x01\x01\x12D\n" +
+	"\x06status\x18\a \x01(\x0e2\".loco.observability.v1.TraceStatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06status\x12&\n" +
+	"\x0froot_name_terms\x18\b \x03(\tR\rrootNameTerms\x122\n" +
+	"\x10interval_seconds\x18\t \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds:\xc6\x02\xbaH\xc2\x02\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\x1a\xd1\x01\n" +
+	"\x14duration.min_lte_max\x12Cmin_duration_nanos must be less than or equal to max_duration_nanos\x1at!has(this.min_duration_nanos) || !has(this.max_duration_nanos) || this.min_duration_nanos <= this.max_duration_nanosB\x15\n" +
+	"\x13_min_duration_nanosB\x15\n" +
+	"\x13_max_duration_nanos\"\x93\x01\n" +
+	"\x19QueryTraceBucketsResponse\x12<\n" +
+	"\abuckets\x18\x01 \x03(\v2\".loco.observability.v1.TraceBucketR\abuckets\x128\n" +
+	"\x05total\x18\x02 \x01(\v2\".loco.observability.v1.TraceBucketR\x05total\"\xe6\x01\n" +
+	"\vTraceBucket\x129\n" +
+	"\n" +
+	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12\x1f\n" +
+	"\vtrace_count\x18\x02 \x01(\x04R\n" +
+	"traceCount\x12\x1f\n" +
+	"\verror_count\x18\x03 \x01(\x04R\n" +
+	"errorCount\x12,\n" +
+	"\x12p50_duration_nanos\x18\x04 \x01(\x04R\x10p50DurationNanos\x12,\n" +
+	"\x12p95_duration_nanos\x18\x05 \x01(\x04R\x10p95DurationNanos\"\xa6\x01\n" +
 	"\x0fGetTraceRequest\x12?\n" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12R\n" +
 	"\btrace_id\x18\x02 \x01(\tB7\xbaH4r22\x0e^[0-9a-f]{32}$Z 00000000000000000000000000000000R\atraceId\"J\n" +
@@ -2247,13 +2517,14 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\vTraceStatus\x12\x1c\n" +
 	"\x18TRACE_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fTRACE_STATUS_OK\x10\x01\x12\x16\n" +
-	"\x12TRACE_STATUS_ERROR\x10\x022\xfe\x03\n" +
+	"\x12TRACE_STATUS_ERROR\x10\x022\xf6\x04\n" +
 	"\x14ObservabilityService\x12^\n" +
 	"\tQueryLogs\x12'.loco.observability.v1.QueryLogsRequest\x1a(.loco.observability.v1.QueryLogsResponse\x12]\n" +
 	"\bTailLogs\x12&.loco.observability.v1.TailLogsRequest\x1a'.loco.observability.v1.TailLogsResponse0\x01\x12g\n" +
 	"\fQueryMetrics\x12*.loco.observability.v1.QueryMetricsRequest\x1a+.loco.observability.v1.QueryMetricsResponse\x12a\n" +
 	"\n" +
-	"ListTraces\x12(.loco.observability.v1.ListTracesRequest\x1a).loco.observability.v1.ListTracesResponse\x12[\n" +
+	"ListTraces\x12(.loco.observability.v1.ListTracesRequest\x1a).loco.observability.v1.ListTracesResponse\x12v\n" +
+	"\x11QueryTraceBuckets\x12/.loco.observability.v1.QueryTraceBucketsRequest\x1a0.loco.observability.v1.QueryTraceBucketsResponse\x12[\n" +
 	"\bGetTrace\x12&.loco.observability.v1.GetTraceRequest\x1a'.loco.observability.v1.GetTraceResponseBHZFgithub.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1b\x06proto3"
 
 var (
@@ -2269,44 +2540,47 @@ func file_loco_observability_v1_observability_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_observability_v1_observability_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_loco_observability_v1_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_loco_observability_v1_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_loco_observability_v1_observability_proto_goTypes = []any{
-	(LogOrder)(0),                 // 0: loco.observability.v1.LogOrder
-	(TraceSummarySort)(0),         // 1: loco.observability.v1.TraceSummarySort
-	(TraceStatus)(0),              // 2: loco.observability.v1.TraceStatus
-	(*QueryLogsRequest)(nil),      // 3: loco.observability.v1.QueryLogsRequest
-	(*LogFieldFilter)(nil),        // 4: loco.observability.v1.LogFieldFilter
-	(*QueryLogsResponse)(nil),     // 5: loco.observability.v1.QueryLogsResponse
-	(*LogEntry)(nil),              // 6: loco.observability.v1.LogEntry
-	(*TailLogsRequest)(nil),       // 7: loco.observability.v1.TailLogsRequest
-	(*TailLogsResponse)(nil),      // 8: loco.observability.v1.TailLogsResponse
-	(*Heartbeat)(nil),             // 9: loco.observability.v1.Heartbeat
-	(*QueryMetricsRequest)(nil),   // 10: loco.observability.v1.QueryMetricsRequest
-	(*QueryMetricsResponse)(nil),  // 11: loco.observability.v1.QueryMetricsResponse
-	(*MetricSeries)(nil),          // 12: loco.observability.v1.MetricSeries
-	(*MetricPoint)(nil),           // 13: loco.observability.v1.MetricPoint
-	(*TraceScope)(nil),            // 14: loco.observability.v1.TraceScope
-	(*ListTracesRequest)(nil),     // 15: loco.observability.v1.ListTracesRequest
-	(*ListTracesResponse)(nil),    // 16: loco.observability.v1.ListTracesResponse
-	(*GetTraceRequest)(nil),       // 17: loco.observability.v1.GetTraceRequest
-	(*GetTraceResponse)(nil),      // 18: loco.observability.v1.GetTraceResponse
-	(*TraceSummary)(nil),          // 19: loco.observability.v1.TraceSummary
-	(*TraceSpan)(nil),             // 20: loco.observability.v1.TraceSpan
-	(*TraceSpanEvent)(nil),        // 21: loco.observability.v1.TraceSpanEvent
-	(*TraceSpanLink)(nil),         // 22: loco.observability.v1.TraceSpanLink
-	nil,                           // 23: loco.observability.v1.LogEntry.ResourceAttributesEntry
-	nil,                           // 24: loco.observability.v1.LogEntry.LogAttributesEntry
-	nil,                           // 25: loco.observability.v1.QueryMetricsRequest.AttributesEntry
-	nil,                           // 26: loco.observability.v1.MetricSeries.LabelsEntry
-	nil,                           // 27: loco.observability.v1.TraceSpan.ResourceAttributesEntry
-	nil,                           // 28: loco.observability.v1.TraceSpan.SpanAttributesEntry
-	nil,                           // 29: loco.observability.v1.TraceSpanEvent.AttributesEntry
-	nil,                           // 30: loco.observability.v1.TraceSpanLink.AttributesEntry
-	(*timestamppb.Timestamp)(nil), // 31: google.protobuf.Timestamp
+	(LogOrder)(0),                     // 0: loco.observability.v1.LogOrder
+	(TraceSummarySort)(0),             // 1: loco.observability.v1.TraceSummarySort
+	(TraceStatus)(0),                  // 2: loco.observability.v1.TraceStatus
+	(*QueryLogsRequest)(nil),          // 3: loco.observability.v1.QueryLogsRequest
+	(*LogFieldFilter)(nil),            // 4: loco.observability.v1.LogFieldFilter
+	(*QueryLogsResponse)(nil),         // 5: loco.observability.v1.QueryLogsResponse
+	(*LogEntry)(nil),                  // 6: loco.observability.v1.LogEntry
+	(*TailLogsRequest)(nil),           // 7: loco.observability.v1.TailLogsRequest
+	(*TailLogsResponse)(nil),          // 8: loco.observability.v1.TailLogsResponse
+	(*Heartbeat)(nil),                 // 9: loco.observability.v1.Heartbeat
+	(*QueryMetricsRequest)(nil),       // 10: loco.observability.v1.QueryMetricsRequest
+	(*QueryMetricsResponse)(nil),      // 11: loco.observability.v1.QueryMetricsResponse
+	(*MetricSeries)(nil),              // 12: loco.observability.v1.MetricSeries
+	(*MetricPoint)(nil),               // 13: loco.observability.v1.MetricPoint
+	(*TraceScope)(nil),                // 14: loco.observability.v1.TraceScope
+	(*ListTracesRequest)(nil),         // 15: loco.observability.v1.ListTracesRequest
+	(*ListTracesResponse)(nil),        // 16: loco.observability.v1.ListTracesResponse
+	(*QueryTraceBucketsRequest)(nil),  // 17: loco.observability.v1.QueryTraceBucketsRequest
+	(*QueryTraceBucketsResponse)(nil), // 18: loco.observability.v1.QueryTraceBucketsResponse
+	(*TraceBucket)(nil),               // 19: loco.observability.v1.TraceBucket
+	(*GetTraceRequest)(nil),           // 20: loco.observability.v1.GetTraceRequest
+	(*GetTraceResponse)(nil),          // 21: loco.observability.v1.GetTraceResponse
+	(*TraceSummary)(nil),              // 22: loco.observability.v1.TraceSummary
+	(*TraceSpan)(nil),                 // 23: loco.observability.v1.TraceSpan
+	(*TraceSpanEvent)(nil),            // 24: loco.observability.v1.TraceSpanEvent
+	(*TraceSpanLink)(nil),             // 25: loco.observability.v1.TraceSpanLink
+	nil,                               // 26: loco.observability.v1.LogEntry.ResourceAttributesEntry
+	nil,                               // 27: loco.observability.v1.LogEntry.LogAttributesEntry
+	nil,                               // 28: loco.observability.v1.QueryMetricsRequest.AttributesEntry
+	nil,                               // 29: loco.observability.v1.MetricSeries.LabelsEntry
+	nil,                               // 30: loco.observability.v1.TraceSpan.ResourceAttributesEntry
+	nil,                               // 31: loco.observability.v1.TraceSpan.SpanAttributesEntry
+	nil,                               // 32: loco.observability.v1.TraceSpanEvent.AttributesEntry
+	nil,                               // 33: loco.observability.v1.TraceSpanLink.AttributesEntry
+	(*timestamppb.Timestamp)(nil),     // 34: google.protobuf.Timestamp
 }
 var file_loco_observability_v1_observability_proto_depIdxs = []int32{
-	31, // 0: loco.observability.v1.QueryLogsRequest.start_time:type_name -> google.protobuf.Timestamp
-	31, // 1: loco.observability.v1.QueryLogsRequest.end_time:type_name -> google.protobuf.Timestamp
+	34, // 0: loco.observability.v1.QueryLogsRequest.start_time:type_name -> google.protobuf.Timestamp
+	34, // 1: loco.observability.v1.QueryLogsRequest.end_time:type_name -> google.protobuf.Timestamp
 	4,  // 2: loco.observability.v1.QueryLogsRequest.labels:type_name -> loco.observability.v1.LogFieldFilter
 	0,  // 3: loco.observability.v1.QueryLogsRequest.order:type_name -> loco.observability.v1.LogOrder
 	4,  // 4: loco.observability.v1.QueryLogsRequest.excluded_labels:type_name -> loco.observability.v1.LogFieldFilter
@@ -2315,11 +2589,11 @@ var file_loco_observability_v1_observability_proto_depIdxs = []int32{
 	4,  // 7: loco.observability.v1.QueryLogsRequest.json_fields:type_name -> loco.observability.v1.LogFieldFilter
 	4,  // 8: loco.observability.v1.QueryLogsRequest.excluded_json_fields:type_name -> loco.observability.v1.LogFieldFilter
 	6,  // 9: loco.observability.v1.QueryLogsResponse.entries:type_name -> loco.observability.v1.LogEntry
-	31, // 10: loco.observability.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	23, // 11: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
-	24, // 12: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
+	34, // 10: loco.observability.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	26, // 11: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
+	27, // 12: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
 	4,  // 13: loco.observability.v1.TailLogsRequest.labels:type_name -> loco.observability.v1.LogFieldFilter
-	31, // 14: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
+	34, // 14: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
 	4,  // 15: loco.observability.v1.TailLogsRequest.excluded_labels:type_name -> loco.observability.v1.LogFieldFilter
 	4,  // 16: loco.observability.v1.TailLogsRequest.log_attributes:type_name -> loco.observability.v1.LogFieldFilter
 	4,  // 17: loco.observability.v1.TailLogsRequest.excluded_log_attributes:type_name -> loco.observability.v1.LogFieldFilter
@@ -2327,47 +2601,56 @@ var file_loco_observability_v1_observability_proto_depIdxs = []int32{
 	4,  // 19: loco.observability.v1.TailLogsRequest.excluded_json_fields:type_name -> loco.observability.v1.LogFieldFilter
 	6,  // 20: loco.observability.v1.TailLogsResponse.entry:type_name -> loco.observability.v1.LogEntry
 	9,  // 21: loco.observability.v1.TailLogsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
-	31, // 22: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
-	31, // 23: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
-	31, // 24: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
-	25, // 25: loco.observability.v1.QueryMetricsRequest.attributes:type_name -> loco.observability.v1.QueryMetricsRequest.AttributesEntry
+	34, // 22: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
+	34, // 23: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
+	34, // 24: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
+	28, // 25: loco.observability.v1.QueryMetricsRequest.attributes:type_name -> loco.observability.v1.QueryMetricsRequest.AttributesEntry
 	12, // 26: loco.observability.v1.QueryMetricsResponse.series:type_name -> loco.observability.v1.MetricSeries
-	26, // 27: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
+	29, // 27: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
 	13, // 28: loco.observability.v1.MetricSeries.points:type_name -> loco.observability.v1.MetricPoint
-	31, // 29: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
+	34, // 29: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
 	14, // 30: loco.observability.v1.ListTracesRequest.scope:type_name -> loco.observability.v1.TraceScope
-	31, // 31: loco.observability.v1.ListTracesRequest.start_time:type_name -> google.protobuf.Timestamp
-	31, // 32: loco.observability.v1.ListTracesRequest.end_time:type_name -> google.protobuf.Timestamp
+	34, // 31: loco.observability.v1.ListTracesRequest.start_time:type_name -> google.protobuf.Timestamp
+	34, // 32: loco.observability.v1.ListTracesRequest.end_time:type_name -> google.protobuf.Timestamp
 	2,  // 33: loco.observability.v1.ListTracesRequest.status:type_name -> loco.observability.v1.TraceStatus
 	1,  // 34: loco.observability.v1.ListTracesRequest.sort:type_name -> loco.observability.v1.TraceSummarySort
-	19, // 35: loco.observability.v1.ListTracesResponse.summaries:type_name -> loco.observability.v1.TraceSummary
-	14, // 36: loco.observability.v1.GetTraceRequest.scope:type_name -> loco.observability.v1.TraceScope
-	20, // 37: loco.observability.v1.GetTraceResponse.spans:type_name -> loco.observability.v1.TraceSpan
-	31, // 38: loco.observability.v1.TraceSummary.start_time:type_name -> google.protobuf.Timestamp
-	2,  // 39: loco.observability.v1.TraceSummary.status:type_name -> loco.observability.v1.TraceStatus
-	31, // 40: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
-	27, // 41: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
-	28, // 42: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
-	21, // 43: loco.observability.v1.TraceSpan.events:type_name -> loco.observability.v1.TraceSpanEvent
-	22, // 44: loco.observability.v1.TraceSpan.links:type_name -> loco.observability.v1.TraceSpanLink
-	31, // 45: loco.observability.v1.TraceSpanEvent.timestamp:type_name -> google.protobuf.Timestamp
-	29, // 46: loco.observability.v1.TraceSpanEvent.attributes:type_name -> loco.observability.v1.TraceSpanEvent.AttributesEntry
-	30, // 47: loco.observability.v1.TraceSpanLink.attributes:type_name -> loco.observability.v1.TraceSpanLink.AttributesEntry
-	3,  // 48: loco.observability.v1.ObservabilityService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
-	7,  // 49: loco.observability.v1.ObservabilityService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
-	10, // 50: loco.observability.v1.ObservabilityService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
-	15, // 51: loco.observability.v1.ObservabilityService.ListTraces:input_type -> loco.observability.v1.ListTracesRequest
-	17, // 52: loco.observability.v1.ObservabilityService.GetTrace:input_type -> loco.observability.v1.GetTraceRequest
-	5,  // 53: loco.observability.v1.ObservabilityService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
-	8,  // 54: loco.observability.v1.ObservabilityService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
-	11, // 55: loco.observability.v1.ObservabilityService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
-	16, // 56: loco.observability.v1.ObservabilityService.ListTraces:output_type -> loco.observability.v1.ListTracesResponse
-	18, // 57: loco.observability.v1.ObservabilityService.GetTrace:output_type -> loco.observability.v1.GetTraceResponse
-	53, // [53:58] is the sub-list for method output_type
-	48, // [48:53] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	22, // 35: loco.observability.v1.ListTracesResponse.summaries:type_name -> loco.observability.v1.TraceSummary
+	14, // 36: loco.observability.v1.QueryTraceBucketsRequest.scope:type_name -> loco.observability.v1.TraceScope
+	34, // 37: loco.observability.v1.QueryTraceBucketsRequest.start_time:type_name -> google.protobuf.Timestamp
+	34, // 38: loco.observability.v1.QueryTraceBucketsRequest.end_time:type_name -> google.protobuf.Timestamp
+	2,  // 39: loco.observability.v1.QueryTraceBucketsRequest.status:type_name -> loco.observability.v1.TraceStatus
+	19, // 40: loco.observability.v1.QueryTraceBucketsResponse.buckets:type_name -> loco.observability.v1.TraceBucket
+	19, // 41: loco.observability.v1.QueryTraceBucketsResponse.total:type_name -> loco.observability.v1.TraceBucket
+	34, // 42: loco.observability.v1.TraceBucket.start_time:type_name -> google.protobuf.Timestamp
+	14, // 43: loco.observability.v1.GetTraceRequest.scope:type_name -> loco.observability.v1.TraceScope
+	23, // 44: loco.observability.v1.GetTraceResponse.spans:type_name -> loco.observability.v1.TraceSpan
+	34, // 45: loco.observability.v1.TraceSummary.start_time:type_name -> google.protobuf.Timestamp
+	2,  // 46: loco.observability.v1.TraceSummary.status:type_name -> loco.observability.v1.TraceStatus
+	34, // 47: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
+	30, // 48: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
+	31, // 49: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
+	24, // 50: loco.observability.v1.TraceSpan.events:type_name -> loco.observability.v1.TraceSpanEvent
+	25, // 51: loco.observability.v1.TraceSpan.links:type_name -> loco.observability.v1.TraceSpanLink
+	34, // 52: loco.observability.v1.TraceSpanEvent.timestamp:type_name -> google.protobuf.Timestamp
+	32, // 53: loco.observability.v1.TraceSpanEvent.attributes:type_name -> loco.observability.v1.TraceSpanEvent.AttributesEntry
+	33, // 54: loco.observability.v1.TraceSpanLink.attributes:type_name -> loco.observability.v1.TraceSpanLink.AttributesEntry
+	3,  // 55: loco.observability.v1.ObservabilityService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
+	7,  // 56: loco.observability.v1.ObservabilityService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
+	10, // 57: loco.observability.v1.ObservabilityService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
+	15, // 58: loco.observability.v1.ObservabilityService.ListTraces:input_type -> loco.observability.v1.ListTracesRequest
+	17, // 59: loco.observability.v1.ObservabilityService.QueryTraceBuckets:input_type -> loco.observability.v1.QueryTraceBucketsRequest
+	20, // 60: loco.observability.v1.ObservabilityService.GetTrace:input_type -> loco.observability.v1.GetTraceRequest
+	5,  // 61: loco.observability.v1.ObservabilityService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
+	8,  // 62: loco.observability.v1.ObservabilityService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
+	11, // 63: loco.observability.v1.ObservabilityService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
+	16, // 64: loco.observability.v1.ObservabilityService.ListTraces:output_type -> loco.observability.v1.ListTracesResponse
+	18, // 65: loco.observability.v1.ObservabilityService.QueryTraceBuckets:output_type -> loco.observability.v1.QueryTraceBucketsResponse
+	21, // 66: loco.observability.v1.ObservabilityService.GetTrace:output_type -> loco.observability.v1.GetTraceResponse
+	61, // [61:67] is the sub-list for method output_type
+	55, // [55:61] is the sub-list for method input_type
+	55, // [55:55] is the sub-list for extension type_name
+	55, // [55:55] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_loco_observability_v1_observability_proto_init() }
@@ -2380,13 +2663,14 @@ func file_loco_observability_v1_observability_proto_init() {
 		(*TailLogsResponse_Heartbeat)(nil),
 	}
 	file_loco_observability_v1_observability_proto_msgTypes[12].OneofWrappers = []any{}
+	file_loco_observability_v1_observability_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_observability_v1_observability_proto_rawDesc), len(file_loco_observability_v1_observability_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   28,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
