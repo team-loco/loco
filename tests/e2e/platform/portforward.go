@@ -16,13 +16,13 @@ var forwarding = regexp.MustCompile(`Forwarding from 127\.0\.0\.1:([0-9]+)`)
 
 // PortForward forwards a free local port to remotePort of target in namespace until the test
 // ends, and returns the local port.
-func (p *Platform) PortForward(tb testing.TB, namespace, target string, remotePort int) int {
+func (c *Cluster) PortForward(tb testing.TB, namespace, target string, remotePort int) int {
 	tb.Helper()
 	cmd := exec.CommandContext(
 		tb.Context(),
 		"kubectl",
 		"--context",
-		p.kubeContext,
+		c.kubeContext,
 		"-n",
 		namespace,
 		"port-forward",
@@ -31,7 +31,7 @@ func (p *Platform) PortForward(tb testing.TB, namespace, target string, remotePo
 		target,
 		":"+strconv.Itoa(remotePort),
 	)
-	cmd.Env = p.env
+	cmd.Env = c.env
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		tb.Fatal(err)

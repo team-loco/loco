@@ -68,4 +68,4 @@ The same directory holds the two tests helm-unittest cannot express: one compare
 
 ## Installation tests
 
-The e2e suites install the charts on kind: `mise run e2e:control-plane`, `mise run e2e:certificates` and `mise run e2e:cluster-metrics` for the charts on their own, and `mise run e2e` for loco-worker with the whole platform.
+The e2e suites install the charts on kind: `mise run e2e controlplane` for the charts on their own, and `mise run e2e builds`, `apps` or `telemetry` for loco-worker with the whole platform.

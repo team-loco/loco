@@ -309,28 +309,18 @@ env = { _.source = "dev/stack.sh" }
 run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
-description = "Run an end-to-end shard of tests/e2e (builds, apps or telemetry) in this worktree's own kind cluster and compose project, or only its tests matching [test], a go test -run pattern. --keep leaves the platform running, and a later run reuses its cluster and resets its state; --skip-build reuses its images and binaries. E2E_RUN_ID overrides the run, E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report"
+description = "Run an end-to-end shard of tests/e2e (builds, apps, telemetry or controlplane) in this worktree's own kind cluster and compose project, or only its tests matching [test], a go test -run pattern. --keep leaves the platform running, and a later run reuses its cluster and resets its state; --skip-build reuses its images and binaries. E2E_RUN_ID overrides the run, E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report"
 usage = '''
-arg "<shard>" help="the test package: builds, apps or telemetry"
+arg "<shard>" help="the test package: builds, apps, telemetry or controlplane"
 arg "[test]" help="a go test -run pattern"
 flag "--keep" help="leave the platform running for another run"
 flag "--skip-build" help="reuse the images and binaries of the last run"
 '''
 run = 'E2E_KEEP=${usage_keep:-false} E2E_SKIP_BUILD=${usage_skip_build:-false} go -C tests/e2e test -v -count=1 -timeout 60m "./${usage_shard}" -run "${usage_test:-.}"'
 
-[tasks."e2e:control-plane"]
-description = "Install the control-plane Helm chart with Kubernetes Postgres and ClickHouse fixtures; takes --no-teardown and --skip-build, and E2E_IMAGES and E2E_VERSION like e2e"
-depends = ["helm:deps"]
-run = "./tests/e2e/control-plane.sh"
-
-[tasks."e2e:certificates"]
-description = "Issue local Gateway certificates through cert-manager using the core chart; takes --no-teardown"
-depends = ["helm:deps"]
-run = "./tests/e2e/certificates.sh"
-
 [tasks."e2e:teardown"]
 description = "Remove this worktree's run of an end-to-end shard (or E2E_RUN_ID's): its kind cluster, containers, compose project and state"
-usage = 'arg "<shard>" help="the test package: builds, apps or telemetry"'
+usage = 'arg "<shard>" help="the test package: builds, apps, telemetry or controlplane"'
 run = 'E2E_TEARDOWN_ONLY=true go -C tests/e2e test -count=1 -run "^$" "./${usage_shard}"'
 
 [tasks."docs:build"]
@@ -388,11 +378,6 @@ run = "uv run --locked --project tests pytest tools/platform-images/tests"
 description = "Run a local ClickHouse container and serve the observability proxy against it: the proxy migrates the schema and ingests OTLP from the kind collectors, and the API reads it"
 env = { _.source = "dev/stack.sh" }
 run = "./mise-tasks/obs/serve"
-
-[tasks."e2e:cluster-metrics"]
-description = "Verify configurable Kubernetes platform telemetry in an isolated kind cluster"
-depends = ["helm:deps"]
-run = "python tests/e2e/cluster-metrics.py"
 
 [tasks."e2e:installation"]
 description = "Install through locoadm with real OIDC, a configured admin's sign-in under closed signup and an in-cluster staging worker, then build source and verify HTTPS; accepts --no-teardown and --skip-build"

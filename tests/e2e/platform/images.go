@@ -84,7 +84,7 @@ func (i *images) build(ctx context.Context) error {
 
 func (i *images) buildImage(ctx context.Context, spec imageSpec) error {
 	if prebuilt := os.Getenv("E2E_IMAGES"); prebuilt != "" {
-		return i.p.pullPrebuilt(
+		return i.p.PullPrebuilt(
 			ctx,
 			strings.ReplaceAll(prebuilt, "*", strings.TrimPrefix(spec.repository, "loco-")),
 			i.tag(spec),
@@ -128,14 +128,14 @@ func builderCopyTarget(dockerfile string) (string, error) {
 	return "", fmt.Errorf("%s copies nothing from the builder stage", dockerfile)
 }
 
-// pullPrebuilt pulls the Docker host platform's manifest of reference by digest and tags it, so a
+// PullPrebuilt pulls the Docker host platform's manifest of reference by digest and tags it, so a
 // multi-platform index never resolves to another platform's image.
-func (p *Platform) pullPrebuilt(ctx context.Context, reference, tag string) error {
-	arch, err := p.Command(ctx, "docker", "version", "--format", "{{.Server.Arch}}")
+func (c *Cluster) PullPrebuilt(ctx context.Context, reference, tag string) error {
+	arch, err := c.Command(ctx, "docker", "version", "--format", "{{.Server.Arch}}")
 	if err != nil {
 		return err
 	}
-	raw, err := p.Command(ctx, "docker", "buildx", "imagetools", "inspect", "--raw", reference)
+	raw, err := c.Command(ctx, "docker", "buildx", "imagetools", "inspect", "--raw", reference)
 	if err != nil {
 		return err
 	}
@@ -157,10 +157,10 @@ func (p *Platform) pullPrebuilt(ctx context.Context, reference, tag string) erro
 			pull = reference[:strings.LastIndex(reference, ":")] + "@" + manifest.Digest
 		}
 	}
-	if _, err = p.Command(ctx, "docker", "pull", "-q", pull); err != nil {
+	if _, err = c.Command(ctx, "docker", "pull", "-q", pull); err != nil {
 		return err
 	}
-	_, err = p.Command(ctx, "docker", "tag", pull, tag)
+	_, err = c.Command(ctx, "docker", "tag", pull, tag)
 	return err
 }
 

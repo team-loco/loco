@@ -3,7 +3,6 @@ package platform
 import (
 	"context"
 	"os"
-	"slices"
 	"strings"
 )
 
@@ -11,24 +10,8 @@ const logTailLines = 200
 
 // teardown removes the run: its kind cluster, containers, compose project, images and directory.
 func (p *Platform) teardown(ctx context.Context) error {
-	logf("Tearing down run %s", p.run)
-	clusters, err := p.Command(ctx, "kind", "get", "clusters")
-	if err != nil {
+	if err := p.deleteCluster(ctx); err != nil {
 		return err
-	}
-	if slices.Contains(strings.Fields(clusters), p.cluster) {
-		if _, err := p.Command(
-			ctx,
-			"kind",
-			"delete",
-			"cluster",
-			"--name",
-			p.cluster,
-			"--kubeconfig",
-			p.kubeconfig,
-		); err != nil {
-			return err
-		}
 	}
 	if _, err := p.Command(
 		ctx,
