@@ -83,6 +83,7 @@ CREATE TABLE webhooks (
     )
 );
 
+CREATE INDEX webhooks_created_by_idx ON webhooks (created_by);
 CREATE INDEX webhooks_workspace_idx ON webhooks (workspace_id);
 CREATE UNIQUE INDEX webhooks_install_url_idx ON webhooks (url) WHERE kind = 'install';
 

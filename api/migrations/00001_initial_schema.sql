@@ -70,6 +70,8 @@ CREATE TABLE
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
+CREATE INDEX idx_org_limit_overrides_updated_by ON org_limit_overrides (updated_by);
+
 -- Workspaces table
 CREATE TABLE
     IF NOT EXISTS workspaces (
