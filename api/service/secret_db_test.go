@@ -60,7 +60,7 @@ func newSecretFixture(t *testing.T) *secretFixture {
 		pool:     pool,
 		queries:  queries,
 		machine:  machine,
-		resolver: auth.NewResolver(pool, policy, limits.Defaults()),
+		resolver: auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
 	}
 	f.ownerID = f.signUp(t, "owner", "owner@secrets.test")
 	ownerCtx := scoped(t, queries, f.ownerID)

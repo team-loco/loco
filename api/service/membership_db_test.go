@@ -102,7 +102,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 		pool:     pool,
 		queries:  queries,
 		machine:  machine,
-		resolver: auth.NewResolver(pool, policy, limits.Defaults()),
+		resolver: auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
 		url:      srv.URL,
 	}
 }

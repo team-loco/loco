@@ -307,7 +307,7 @@ func newDeps(
 	}
 	verifier := auth.NewVerifier(authClient, ac.AuthIssuers)
 	resolver := auth.NewResolver(
-		pool, ac.SignupPolicy, ac.CountLimits,
+		pool, ac.SignupPolicy, ac.CountLimits, ac.Tokens.LastUsedUpdateInterval,
 		auth.WithEmailVerifiers(emailVerifiers), auth.WithSystemAdmins(ac.SystemAdmins),
 	)
 	if err = auth.SyncSystemAdmins(ctx, pool, ac.SystemAdmins); err != nil {

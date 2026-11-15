@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -25,12 +26,13 @@ type ClaimedOrg struct {
 }
 
 type Resolver struct {
-	pool           *pgxpool.Pool
-	queries        *genDb.Queries
-	policy         SignupPolicy
-	emailVerifiers EmailVerifiers
-	systemAdmins   SystemAdmins
-	counts         *configv1.CountLimits
+	pool                   *pgxpool.Pool
+	queries                *genDb.Queries
+	policy                 SignupPolicy
+	emailVerifiers         EmailVerifiers
+	systemAdmins           SystemAdmins
+	counts                 *configv1.CountLimits
+	lastUsedUpdateInterval time.Duration
 }
 
 type ResolverOption func(*Resolver)
@@ -53,9 +55,16 @@ func NewResolver(
 	pool *pgxpool.Pool,
 	policy SignupPolicy,
 	counts *configv1.CountLimits,
+	lastUsedUpdateInterval time.Duration,
 	opts ...ResolverOption,
 ) *Resolver {
-	r := &Resolver{pool: pool, queries: genDb.New(pool), policy: policy, counts: counts}
+	r := &Resolver{
+		pool:                   pool,
+		queries:                genDb.New(pool),
+		policy:                 policy,
+		counts:                 counts,
+		lastUsedUpdateInterval: lastUsedUpdateInterval,
+	}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -100,24 +109,24 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []Cla
 		return genDb.User{}, nil, err
 	}
 	user := row.User
-	verified, err := r.returningEmailVerified(ctx, id)
-	if err != nil {
-		return genDb.User{}, nil, err
-	}
+	verified := r.returningEmailVerified(ctx, id, row.Identity)
 	email := nullableString(id.Email)
-	storedVerified := row.IdentityEmailVerified && row.IdentityEmail != nil && *row.IdentityEmail == id.Email
+	storedVerified := row.Identity.EmailVerified && row.Identity.Email != nil && *row.Identity.Email == id.Email
 	if verified && email != nil && !storedVerified {
 		user, err = r.recordVerifiedEmail(ctx, user, id)
 		if err != nil {
 			return genDb.User{}, nil, err
 		}
-	} else if touchErr := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
-		Issuer:        id.Issuer,
-		Subject:       id.Subject,
-		Email:         email,
-		EmailVerified: verified,
-	}); touchErr != nil {
-		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", touchErr)
+	} else if time.Since(row.Identity.LastLoginAt) >= r.lastUsedUpdateInterval ||
+		row.Identity.EmailVerified != verified || !equalEmail(row.Identity.Email, email) {
+		if touchErr := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
+			Issuer:        id.Issuer,
+			Subject:       id.Subject,
+			Email:         email,
+			EmailVerified: verified,
+		}); touchErr != nil {
+			slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", touchErr)
+		}
 	}
 	if !verified || email == nil {
 		return user, nil, nil
@@ -310,21 +319,14 @@ func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, 
 	return moved, nil
 }
 
-func (r *Resolver) returningEmailVerified(ctx context.Context, id Identity) (bool, error) {
-	if _, ok := r.emailVerifiers[id.Issuer]; !ok {
-		return r.emailVerified(ctx, id, nil)
-	}
-	stored, err := r.queries.GetIdentity(ctx, genDb.GetIdentityParams{Issuer: id.Issuer, Subject: id.Subject})
-	if err != nil {
-		return false, fmt.Errorf("%w: load identity: %w", ErrResolve, err)
-	}
+func (r *Resolver) returningEmailVerified(ctx context.Context, id Identity, stored genDb.Identity) bool {
 	verified, err := r.emailVerified(ctx, id, &stored)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to check the email with the identity provider; treating it as unverified",
 			"issuer", id.Issuer, "error", err)
-		return false, nil
+		return false
 	}
-	return verified, nil
+	return verified
 }
 
 func (r *Resolver) emailVerified(ctx context.Context, id Identity, stored *genDb.Identity) (bool, error) {
@@ -463,4 +465,8 @@ func nullableString(s string) *string {
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+func equalEmail(a, b *string) bool {
+	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
 }

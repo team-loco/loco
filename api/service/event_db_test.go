@@ -61,7 +61,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	owner, _, err := auth.NewResolver(pool, policy, limits.Defaults()).Resolve(t.Context(), auth.Identity{
+	owner, _, err := auth.NewResolver(pool, policy, limits.Defaults(), time.Hour).Resolve(t.Context(), auth.Identity{
 		Issuer: testIssuer, Subject: "owner", Email: auditOwnerEmail, EmailVerified: true,
 	})
 	if err != nil {

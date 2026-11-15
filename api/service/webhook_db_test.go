@@ -50,7 +50,7 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 		pool:     pool,
 		queries:  queries,
 		provider: newTestKeyProvider(t, "k1"),
-		resolver: auth.NewResolver(pool, policy, limits.Defaults()),
+		resolver: auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
 	}
 	owner := f.signUp(t, "owner", "owner@corp.test")
 	ownerCtx := scoped(t, queries, owner)
