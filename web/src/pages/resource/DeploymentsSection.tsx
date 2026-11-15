@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
-import { nextPage, pagedRows, useUrlPaging } from "@/lib/paging";
+import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
@@ -36,9 +36,9 @@ import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
 
 const BASE_COLUMNS = 7;
+const DEFAULT_PAGE_SIZE = 10;
 const BUILD_PAGE_SIZE = 5;
-const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE] as const;
-const BUILD_PAGE_KEYS = { page: "bpage", size: "bsize" };
+const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
 const HISTS = ["deploys", "builds"] as const;
 const histParser = parseAsStringLiteral(HISTS).withDefault("deploys").withOptions({ history: "replace" });
 
@@ -196,9 +196,9 @@ export function DeploymentsSection({
 	nowMs: number;
 }) {
 	const transport = useTransport();
-	const [pagination, setPagination] = useUrlPaging(PAGE_SIZES);
+	const [pagination, setPagination] = useState<Paging>({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [open, setOpen] = useState<string | null>(null);
-	const [buildPaging, setBuildPaging] = useUrlPaging(BUILD_PAGE_SIZES, BUILD_PAGE_KEYS);
+	const [buildPaging, setBuildPaging] = useState<Paging>({ page: 0, size: BUILD_PAGE_SIZE });
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
 	const builds = useResourceBuilds(resourceId);
 	const { activeOrgId } = useOrgWorkspace();

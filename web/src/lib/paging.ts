@@ -91,31 +91,26 @@ export function pagedRows<T>(
 	};
 }
 
-const DEFAULT_URL_KEYS = {};
-
-/** Keeps a page and size in the URL, under page and size unless urlKeys renames them. */
-export function useUrlPaging(
-	sizes: readonly [number, ...number[]],
-	urlKeys: { page?: string; size?: string } = DEFAULT_URL_KEYS,
-): [Paging, Dispatch<SetStateAction<Paging>>] {
-	const parsers = useMemo(() => pagingParsers(sizes, sizes[0]), [sizes]);
-	const [paging, setParams] = useQueryStates(parsers, { history: "replace", urlKeys });
-	const setPaging: Dispatch<SetStateAction<Paging>> = (update) => {
-		void setParams((current) => (typeof update === "function" ? update(current) : update));
-	};
-	return [paging, setPaging];
-}
-
+/** Pages rows held in memory, keeping the page and size in the URL. */
 export function usePagedRows<T>(
 	all: T[],
 	sizes: readonly [number, ...number[]],
 	empty?: string,
 ): PagedRows<T> & { reset: () => void } {
-	const [paging, setPaging] = useUrlPaging(sizes);
+	const parsers = useMemo(() => pagingParsers(sizes, sizes[0]), [sizes]);
+	const [paging, setPaging] = useQueryStates(parsers, { history: "replace" });
 	return {
-		...pagedRows(all, paging, setPaging, sizes, empty),
+		...pagedRows(
+			all,
+			paging,
+			(next) => {
+				void setPaging(next);
+			},
+			sizes,
+			empty,
+		),
 		reset: () => {
-			setPaging((current) => ({ ...current, page: 0 }));
+			void setPaging({ page: null });
 		},
 	};
 }
