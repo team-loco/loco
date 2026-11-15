@@ -10767,12 +10767,11 @@
               "type": "string",
               "enum": [
                 "system",
-                "agent",
-                "anonymous"
+                "agent"
               ]
             },
             "title": "actor_types",
-            "maxItems": 3,
+            "maxItems": 2,
             "uniqueItems": true,
             "description": "IDs and types are alternatives so people and system actors can be selected together."
           },

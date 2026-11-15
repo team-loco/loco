@@ -212,7 +212,10 @@ func (f *fixture) webhook(t *testing.T, workspace uuid.UUID, types ...string) (g
 func (f *fixture) record(t *testing.T, workspace uuid.UUID, eventType string) {
 	t.Helper()
 	if err := events.Record(context.Background(), f.queries, events.Event{
-		Type: eventType, WorkspaceID: &workspace, Data: map[string]any{events.FieldName: orgName},
+		ActorType:   events.ActorSystem,
+		Type:        eventType,
+		WorkspaceID: &workspace,
+		Data:        map[string]any{events.FieldName: orgName},
 	}); err != nil {
 		t.Fatalf("record: %v", err)
 	}
@@ -264,11 +267,15 @@ func TestEventsFanOutToMatchingWebhooks(t *testing.T) {
 	if err := events.Record(
 		t.Context(),
 		f.queries,
-		events.Event{Type: events.OrgUpdated, OrgID: &f.orgID},
+		events.Event{ActorType: events.ActorSystem, Type: events.OrgUpdated, OrgID: &f.orgID},
 	); err != nil {
 		t.Fatalf("org event: %v", err)
 	}
-	if err := events.Record(t.Context(), f.queries, events.Event{Type: events.ClusterRegistered}); err != nil {
+	if err := events.Record(
+		t.Context(),
+		f.queries,
+		events.Event{Type: events.ClusterRegistered, ActorType: events.ActorSystem},
+	); err != nil {
 		t.Fatalf("org-less event: %v", err)
 	}
 
@@ -304,7 +311,7 @@ func TestEventsFanOutToMatchingWebhooks(t *testing.T) {
 		t.Fatalf("payload data = %s (%v)", p.Data, err)
 	}
 	if p.WorkspaceID == nil || *p.WorkspaceID != f.workspaceID || p.OrgID == nil || *p.OrgID != f.orgID ||
-		p.Actor.Type != events.ActorAnonymous || p.Type == "" {
+		p.Actor.Type != events.ActorSystem || p.Type == "" {
 		t.Fatalf("payload = %+v", p)
 	}
 	for _, row := range f.deliveries(t, all.ID) {
