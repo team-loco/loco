@@ -115,6 +115,7 @@ func TestCICallsEveryReusableWorkflow(t *testing.T) {
 }
 
 func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
+	const targetArch = "amd64"
 	var workflow struct {
 		Jobs map[string]struct {
 			Steps []struct {
@@ -141,11 +142,11 @@ func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
 		interpreter bool
 		wantError   string
 	}{
-		{"native Linux", "linux", "amd64", 62, false, ""},
-		{"Darwin host", "darwin", "amd64", 62, false, "native Linux runner"},
+		{"native Linux", "linux", targetArch, 62, false, ""},
+		{"Darwin host", "darwin", targetArch, 62, false, "native Linux runner"},
 		{"cross compilation", "linux", "arm64", 62, false, "native Linux runner"},
-		{"wrong binary architecture", "linux", "amd64", 183, false, "does not match amd64"},
-		{"dynamic binary", "linux", "amd64", 62, true, "statically linked"},
+		{"wrong binary architecture", "linux", targetArch, 183, false, "does not match amd64"},
+		{"dynamic binary", "linux", targetArch, 62, true, "statically linked"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -184,7 +185,7 @@ printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 			cmd := exec.CommandContext(t.Context(), "bash", "-c", script)
 			cmd.Dir = dir
 			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-				"ARCH=amd64", "OPERATOR_TEST_OS="+tc.hostOS, "OPERATOR_TEST_ARCH="+tc.hostArch,
+				"ARCH="+targetArch, "OPERATOR_TEST_OS="+tc.hostOS, "OPERATOR_TEST_ARCH="+tc.hostArch,
 				"OPERATOR_TEST_TOOLS="+pinned)
 			output, err := cmd.CombinedOutput()
 			if tc.wantError != "" {
