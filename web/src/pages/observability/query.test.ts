@@ -60,8 +60,7 @@ describe("omnibar tokens per view", () => {
 		const { tokens } = parseQuery("@resource:web @level:error -@replica:web-1 @trace:abc -@trace:def");
 		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, true, true, true, true]);
 		expect(tokenSupport("metrics", tokens).map((s) => s.ok)).toEqual([true, false, false, false, false]);
-		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([true, false, false, true, false]);
-		expect(tokenSupport("traces", tokens)[4]?.reason).toBe("Excluding @trace isn't supported yet");
+		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([true, true, true, true, true]);
 	});
 
 	test("reads resource links and replica shortcuts from the URL", () => {
