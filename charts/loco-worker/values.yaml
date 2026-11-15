@@ -616,7 +616,8 @@ otel-col-daemon:
             - k8s.cronjob.name
             - k8s.statefulset.name
             - k8s.statefulset.uid
-            - container.image.tag
+            - container.image.tags
+            - container.image.repo_digests
             - container.image.name
             - k8s.cluster.uid
           labels:
