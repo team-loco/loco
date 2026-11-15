@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Zoom } from "../flame";
+import { zoomTo, type Zoom } from "../flame";
 import { durationLabel, spanStart, spanTree, spanError, type TraceSummary } from "../traces";
 import { traceServiceColor } from "../trace-service";
 import { offsetTicks } from "./plot";
@@ -80,7 +80,7 @@ export function Waterfall({
 						}
 					}}
 				/>
-				<div className="relative h-4 min-w-[100px] flex-1">
+				<div data-trace-lane className="relative h-4 min-w-[100px] flex-1">
 					{ticks.map((t) => (
 						<span
 							key={String(t.nanos)}
@@ -179,8 +179,7 @@ export function Waterfall({
 								onSelect(span);
 							}}
 							onDoubleClick={() => {
-								const pad = (end - start) * 0.04;
-								onZoom({ a: Math.max(0, start - pad), b: Math.min(1, Math.max(start + 0.002, end + pad)) });
+								onZoom(zoomTo(trace, span));
 							}}
 						>
 							{ticks.map((t) => (

@@ -13,6 +13,8 @@ import { SpanList } from "./SpanList";
 import { boundedZoom, zoomAround } from "./plot";
 
 type View = "flame" | "waterfall" | "list";
+const laneBounds = (element: HTMLElement) =>
+	(element.querySelector<HTMLElement>("[data-trace-lane]") ?? element).getBoundingClientRect();
 export function TracePlot({
 	trace,
 	selected,
@@ -31,8 +33,9 @@ export function TracePlot({
 	highlight: string | null;
 }) {
 	const [view, setView] = useState<View>("flame");
-	const [cursor, setCursor] = useState<number | null>(null);
-	const dragRef = useRef<{ x: number; zoom: Zoom; moved: boolean } | null>(null);
+	const [cursor, setCursor] = useState<{ left: number; fraction: number } | null>(null);
+	const dragRef = useRef<{ x: number; zoom: Zoom } | null>(null);
+	const suppressClickRefRef = useRef(false);
 	const width = zoom.b - zoom.a;
 	const offset = (f: number) => durationLabel(BigInt(Math.round(Number(trace.duration) * f)));
 	return (
@@ -89,7 +92,7 @@ export function TracePlot({
 							)
 								return;
 							e.preventDefault();
-							const rect = element.getBoundingClientRect();
+							const rect = laneBounds(element);
 							if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))
 								onZoom(boundedZoom(zoom.a + ((e.deltaX || e.deltaY) / rect.width) * width, width));
 							else onZoom(zoomAround(zoom, (e.clientX - rect.left) / rect.width, e.deltaY));
@@ -100,17 +103,27 @@ export function TracePlot({
 						};
 					}}
 					onPointerDown={(e) => {
-						if (width >= 1 || e.button !== 0) return;
-						dragRef.current = { x: e.clientX, zoom, moved: false };
+						if (width >= 1 || e.button !== 0 || (e.target as HTMLElement).closest('[role="separator"]') !== null)
+							return;
+						suppressClickRefRef.current = false;
+						dragRef.current = { x: e.clientX, zoom };
 					}}
 					onPointerMove={(e) => {
-						const rect = e.currentTarget.getBoundingClientRect();
-						setCursor(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+						const rect = laneBounds(e.currentTarget);
+						const fraction = (e.clientX - rect.left) / rect.width;
+						setCursor(
+							fraction < 0 || fraction > 1
+								? null
+								: {
+										left: e.clientX - e.currentTarget.getBoundingClientRect().left,
+										fraction,
+									},
+						);
 						const drag = dragRef.current;
-						if (drag !== null) {
+						if (drag !== null && e.buttons === 1) {
 							const delta = e.clientX - drag.x;
 							if (Math.abs(delta) > 3) {
-								drag.moved = true;
+								suppressClickRefRef.current = true;
 								e.currentTarget.setPointerCapture(e.pointerId);
 								onZoom(
 									boundedZoom(
@@ -121,18 +134,22 @@ export function TracePlot({
 							}
 						}
 					}}
-					onPointerUp={(e) => {
-						if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+					onPointerUp={() => {
+						dragRef.current = null;
 					}}
 					onLostPointerCapture={() => {
-						if (dragRef.current !== null && !dragRef.current.moved) dragRef.current = null;
+						dragRef.current = null;
+					}}
+					onPointerCancel={() => {
+						dragRef.current = null;
+						suppressClickRefRef.current = false;
 					}}
 					onClickCapture={(e) => {
-						if (dragRef.current?.moved === true) {
+						if (suppressClickRefRef.current) {
 							e.preventDefault();
 							e.stopPropagation();
 						}
-						dragRef.current = null;
+						suppressClickRefRef.current = false;
 					}}
 					onPointerLeave={() => {
 						setCursor(null);
@@ -163,15 +180,15 @@ export function TracePlot({
 						<div
 							aria-hidden
 							className="pointer-events-none absolute inset-y-0 z-10 border-l border-fg3"
-							style={{ left: `${String(cursor * 100)}%` }}
+							style={{ left: cursor.left }}
 						>
 							<span
 								className={cn(
 									"absolute top-0 rounded-sm border border-line bg-background px-1 py-0.5 font-mono text-[10px]",
-									cursor > 0.8 ? "right-1" : "left-1",
+									cursor.fraction > 0.8 ? "right-1" : "left-1",
 								)}
 							>
-								{offset(zoom.a + cursor * width)}
+								{offset(zoom.a + cursor.fraction * width)}
 							</span>
 						</div>
 					)}

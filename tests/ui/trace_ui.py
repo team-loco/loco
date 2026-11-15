@@ -177,6 +177,14 @@ with session(out) as browser:
     page.mouse.move(plot.bounding_box()['x'] + 100, plot.bounding_box()['y'] + 50, steps=4)
     page.mouse.up()
     assert overview.get_attribute('aria-valuetext') != window
+    plot.hover(position={'x': 160, 'y': 50})
+    page.mouse.down()
+    page.mouse.move(plot.bounding_box()['x'] + 140, plot.bounding_box()['y'] + 50, steps=2)
+    plot.dispatch_event('pointercancel', {'pointerId': 1})
+    canceled_window = overview.get_attribute('aria-valuetext')
+    page.mouse.move(plot.bounding_box()['x'] + 100, plot.bounding_box()['y'] + 50, steps=2)
+    assert overview.get_attribute('aria-valuetext') == canceled_window
+    page.mouse.up()
     drawer.get_by_role('button', name='Reset zoom', exact=True).click()
     drawer.get_by_role('button', name='Waterfall', exact=True).click()
     waterfall = drawer.get_by_role('region', name='Waterfall')
