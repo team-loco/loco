@@ -46,3 +46,12 @@ test("exports exact nanoseconds, resource metadata, events and links as OTLP JSO
 		],
 	});
 });
+
+for (const statusCode of ["Error", "STATUS_CODE_ERROR", "2"]) {
+	test(`exports error status ${statusCode} and prefixed span kind`, () => {
+		const span = create(TraceSpanSchema, { statusCode, kind: "SPAN_KIND_CLIENT" });
+		expect(JSON.parse(traceJson([span]))).toMatchObject({
+			resourceSpans: [{ scopeSpans: [{ spans: [{ kind: 3, status: { code: 2 } }] }] }],
+		});
+	});
+}

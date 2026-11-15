@@ -3,7 +3,7 @@ import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
 import { cn } from "@/lib/utils";
 
-import { flameLayout, lineage, selfTime, zoomTo, type Zoom } from "../flame";
+import { MIN_BLOCK, flameLayout, lineage, selfTime, zoomTo, type Zoom } from "../flame";
 
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
@@ -99,8 +99,8 @@ export function FlameGraph({
 								linkedSpan === b.span.spanId && "ring-2 ring-info",
 							)}
 							style={{
-								left: `${String(b.left * PERCENT)}%`,
-								width: `${String(b.width * PERCENT)}%`,
+								left: `${String(Math.min(b.left, 1 - MIN_BLOCK) * PERCENT)}%`,
+								width: `${String(Math.max(MIN_BLOCK, b.width) * PERCENT)}%`,
 								top: b.depth * ROW_PX,
 								background: `color-mix(in oklab, ${color} ${err ? "26%" : "34%"}, var(--bg))`,
 							}}

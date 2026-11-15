@@ -3,6 +3,8 @@ import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { traceResourceKey } from "./trace-service";
 import { spanError, spanStart, spanTree, type TraceSummary } from "./traces";
 
+export const MIN_BLOCK = 0.0025;
+
 const FRACTION_SCALE = 1_000_000n;
 const ZOOM_PADDING = 0.04;
 export const MIN_ZOOM_WIDTH = 0.002;
@@ -34,9 +36,11 @@ export function flameLayout(trace: TraceSummary, zoom: Zoom): { blocks: FlameBlo
 	for (const { span } of spanTree(trace.spans)) {
 		const start = spanStart(span);
 		const end = start + span.durationNanos;
+		const minimum = BigInt(Math.max(1, Math.ceil(Number(trace.duration) * MIN_BLOCK)));
+		const occupiedEnd = start + (span.durationNanos > minimum ? span.durationNanos : minimum);
 		let row = (placed.get(span.parentSpanId) ?? -1) + 1;
-		while (rows[row]?.some((other) => start < other.end && other.start < end)) row++;
-		(rows[row] ??= []).push({ start, end });
+		while (rows[row]?.some((other) => start < other.end && other.start < occupiedEnd)) row++;
+		(rows[row] ??= []).push({ start, end: occupiedEnd });
 		placed.set(span.spanId, row);
 		const from = fraction(start - trace.start, trace.duration);
 		const to = fraction(end - trace.start, trace.duration);

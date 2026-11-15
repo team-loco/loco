@@ -73,6 +73,9 @@ def handle(route):
     if mode[0] == 'drawer-error' and route.request.url.endswith('/GetTrace'):
         route.fulfill(status=500, content_type='application/json', body=json.dumps({'code': 'internal', 'message': 'Trace read failed'}))
         return
+    if mode[0] == 'zero' and route.request.url.endswith('/GetTrace'):
+        route.fulfill(json={'spans': [dict(spans[0], durationNanos='0')]})
+        return
     if mode[0] == 'drawer-empty' and route.request.url.endswith('/GetTrace'):
         route.fulfill(json={'spans': []})
         return
@@ -496,6 +499,17 @@ with session(out) as browser:
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
     spans[:] = original_spans
+    mode[0] = 'zero'
+    context, page, errors = open_page(browser, state=state)
+    context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    zero = page.get_by_role('dialog', name=root_name).get_by_role('region', name='Flame graph').get_by_role('button', name=re.compile('POST /api/checkout,'))
+    expect(zero).to_be_visible()
+    assert zero.bounding_box()['width'] > 0
+    zero.click()
+    expect(page).to_have_url(re.compile('span=' + spans[0]['spanId']))
+    assert not errors, errors
+    context.close()
     mode[0] = 'many'
     context, page, _ = open_page(browser, state=state)
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*',handle)

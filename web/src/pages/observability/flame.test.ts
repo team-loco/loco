@@ -176,3 +176,10 @@ test("ranks distinct resources separately when service names match", () => {
 	expect(serviceShares(summary)).toHaveLength(2);
 	expect(serviceShares(summary).find((s) => s.key === "resource-two")?.nanos).toBe(200n);
 });
+
+test("zero-duration spans reserve separate clickable rows", () => {
+	const summary = summaryOf([span("one", "", 0, 0n), span("two", "", 0, 0n)]);
+	const layout = flameLayout(summary, FULL_ZOOM);
+	expect(layout.blocks.map((block) => block.depth)).toEqual([0, 1]);
+	expect(layout.depth).toBe(2);
+});
