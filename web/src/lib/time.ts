@@ -119,7 +119,10 @@ export function timeAxis(from: number, to: number, pref = timePreferences()): nu
 		while (local.getTime() <= to) {
 			if (local.getTime() >= from) ticks.push(local.getTime());
 			if (pref.zone === "utc") local.setUTCDate(local.getUTCDate() + days);
-			else local.setDate(local.getDate() + days);
+			else {
+				local.setDate(local.getDate() + days);
+				local.setHours(0, 0, 0, 0);
+			}
 		}
 	}
 	return ticks;
