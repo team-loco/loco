@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatMetricTime, formatPercent, percentAxis, timeAxis } from "./compute-chart";
-import { DAY_MS } from "./time";
-
-const FROM = new Date(2026, 9, 19, 12).getTime();
-const HOUR_MS = DAY_MS / 24;
+import { formatPercent, percentAxis } from "./compute-chart";
 
 describe("compute chart axes", () => {
 	test("keeps a comparable 0–100% scale for low usage and labels intermediate levels", () => {
@@ -13,17 +9,9 @@ describe("compute chart axes", () => {
 	test("retains utilization over 100% without clipping or irregular axis levels", () => {
 		expect(percentAxis(147)).toEqual({ maximum: 200, ticks: [0, 50, 100, 150, 200] });
 	});
-	test("spreads ticks across the requested range, independent of sparse samples", () => {
-		const ticks = timeAxis(FROM, FROM + HOUR_MS);
-		expect(ticks).toEqual([FROM, ...Array.from({ length: 6 }, (_, i) => FROM + ((i + 1) * HOUR_MS) / 6)]);
-	});
 	test("keeps subpercent utilization and exact zero legible", () => {
 		expect(formatPercent(0)).toBe("0%");
 		expect(formatPercent(0.25)).toBe("0.3%");
 		expect(formatPercent(23.8)).toBe("24%");
-	});
-	test("distinguishes times within the same date for a day-long window", () => {
-		expect(formatMetricTime(FROM, FROM, FROM + DAY_MS)).toBe("12:00");
-		expect(formatMetricTime(FROM + HOUR_MS, FROM, FROM + DAY_MS)).toBe("13:00");
 	});
 });

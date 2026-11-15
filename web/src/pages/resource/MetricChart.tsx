@@ -5,8 +5,8 @@ import { Area, ComposedChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis }
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Skeleton } from "@/components/design/Skeleton";
-import { DAY_MS } from "@/lib/time";
-import { formatMetricTime, formatPercent, percentAxis, timeAxis } from "@/lib/compute-chart";
+import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
+import { formatPercent, percentAxis } from "@/lib/compute-chart";
 
 import { formatFullTime } from "./format";
 import { scaleBand, usageSummary, type BandPoint } from "./metric";
@@ -114,7 +114,7 @@ export function MetricChart({
 							scale="time"
 							domain={[from, to]}
 							ticks={timeAxis(from, to, timePref)}
-							tickFormatter={(time: number) => formatMetricTime(time, from, to, timePref)}
+							tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
 							interval="preserveStartEnd"
 							tickLine={false}
 							axisLine={false}
