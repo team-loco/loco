@@ -29,7 +29,10 @@ function fraction(part: bigint, total: bigint): number {
 }
 
 export function flameLayout(trace: TraceSummary, zoom: Zoom): { blocks: FlameBlock[]; depth: number } {
-	const width = zoom.b - zoom.a;
+	return zoomLayout(traceLayout(trace), zoom);
+}
+
+export function traceLayout(trace: TraceSummary): { blocks: FlameBlock[]; depth: number } {
 	const blocks: FlameBlock[] = [];
 	const rows: { start: bigint; end: bigint }[][] = [];
 	const placed = new Map<string, number>();
@@ -44,15 +47,26 @@ export function flameLayout(trace: TraceSummary, zoom: Zoom): { blocks: FlameBlo
 		placed.set(span.spanId, row);
 		const from = fraction(start - trace.start, trace.duration);
 		const to = fraction(end - trace.start, trace.duration);
-		if (to < zoom.a || from > zoom.b) continue;
-		const left = Math.max(0, (from - zoom.a) / width);
-		const right = Math.min(1, (to - zoom.a) / width);
-		blocks.push({ span, depth: row, left, width: Math.max(0, right - left) });
+		blocks.push({ span, depth: row, left: from, width: Math.max(0, to - from) });
 	}
 	return { blocks, depth: rows.length };
 }
 
-function childrenOf(trace: TraceSummary): Map<string, TraceSpan[]> {
+export function zoomLayout(layout: ReturnType<typeof traceLayout>, zoom: Zoom) {
+	const width = zoom.b - zoom.a;
+	return {
+		depth: layout.depth,
+		blocks: layout.blocks
+			.filter((block) => block.left + block.width >= zoom.a && block.left <= zoom.b)
+			.map((block) => {
+				const left = Math.max(0, (block.left - zoom.a) / width);
+				const right = Math.min(1, (block.left + block.width - zoom.a) / width);
+				return { ...block, left, width: Math.max(0, right - left) };
+			}),
+	};
+}
+
+export function childrenOf(trace: TraceSummary): Map<string, TraceSpan[]> {
 	const map = new Map<string, TraceSpan[]>();
 	for (const span of trace.spans) {
 		if (span.parentSpanId === span.spanId) continue;
@@ -64,9 +78,17 @@ function childrenOf(trace: TraceSummary): Map<string, TraceSpan[]> {
 }
 
 export function selfTime(trace: TraceSummary, span: TraceSpan): bigint {
+	return spanSelfTime(span, childrenOf(trace).get(span.spanId) ?? []);
+}
+
+export function spanSelfTimes(trace: TraceSummary, children = childrenOf(trace)): Map<string, bigint> {
+	return new Map(trace.spans.map((span) => [span.spanId, spanSelfTime(span, children.get(span.spanId) ?? [])]));
+}
+
+function spanSelfTime(span: TraceSpan, children: TraceSpan[]): bigint {
 	const start = spanStart(span);
 	const end = start + span.durationNanos;
-	const intervals = (childrenOf(trace).get(span.spanId) ?? [])
+	const intervals = children
 		.map((child) => ({
 			start: spanStart(child) < start ? start : spanStart(child),
 			end: spanStart(child) + child.durationNanos > end ? end : spanStart(child) + child.durationNanos,
@@ -89,11 +111,13 @@ export interface ServiceShare {
 	share: number;
 }
 
-export function serviceShares(trace: TraceSummary): ServiceShare[] {
+export function serviceShares(trace: TraceSummary, times = spanSelfTimes(trace)): ServiceShare[] {
 	const totals = new Map<string, bigint>();
 	for (const span of trace.spans) {
 		const key = traceResourceKey(span);
-		totals.set(key, (totals.get(key) ?? 0n) + selfTime(trace, span));
+		const time = times.get(span.spanId);
+		if (time === undefined) throw new Error("Missing span self time");
+		totals.set(key, (totals.get(key) ?? 0n) + time);
 	}
 	const sum = [...totals.values()].reduce((a, b) => a + b, 0n);
 	return [...totals].map(([key, nanos]) => ({ key, nanos, share: fraction(nanos, sum) }));

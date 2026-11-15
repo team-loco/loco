@@ -1,10 +1,10 @@
+import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { zoomTo, type Zoom } from "../flame";
-import { durationLabel, spanStart, spanTree, spanError, type TraceSummary } from "../traces";
+import { durationLabel, spanStart, spanError, type TraceSummary } from "../traces";
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
 import { offsetTicks } from "./plot";
@@ -32,18 +32,21 @@ export function Waterfall({
 	onHoverSpan: (id: string | null) => void;
 	label: (span: TraceSpan) => string;
 }) {
-	const { color } = useTraceResources();
+	const { color, tree: all, children: childrenById } = useTraceResources();
 	const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 	const [nameWidth, setNameWidth] = useState(240);
 	const resizeRef = useRef<{ x: number; width: number } | null>(null);
-	const all = spanTree(trace.spans);
-	const hidden = new Set<string>();
-	const rows = all.filter((row) => {
-		if (hidden.has(row.span.parentSpanId)) hidden.add(row.span.spanId);
-		const visible = !hidden.has(row.span.spanId);
-		if (collapsed.has(row.span.spanId)) hidden.add(row.span.spanId);
-		return visible;
-	});
+
+	const rows = useMemo(() => {
+		const hidden = new Set<string>();
+		return all.filter((row) => {
+			if (hidden.has(row.span.parentSpanId)) hidden.add(row.span.spanId);
+			const visible = !hidden.has(row.span.spanId);
+			if (collapsed.has(row.span.spanId)) hidden.add(row.span.spanId);
+			return visible;
+		});
+	}, [all, collapsed]);
+
 	const toggle = (id: string) => {
 		setCollapsed((prev) => {
 			const next = new Set(prev);
@@ -111,7 +114,7 @@ export function Waterfall({
 			</div>
 			{rows.map((row, index) => {
 				const span = row.span;
-				const children = all.filter((r) => r.span.parentSpanId === span.spanId && r.span.spanId !== span.spanId).length;
+				const children = childrenById.get(span.spanId)?.length ?? 0;
 				const start = Number(spanStart(span) - trace.start) / Number(trace.duration || 1n);
 				const end = start + Number(span.durationNanos) / Number(trace.duration || 1n);
 				const left = Math.max(0, (start - zoom.a) / width);

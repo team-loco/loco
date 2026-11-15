@@ -17,3 +17,11 @@ test("offset ticks use round boundaries inside the zoomed window", () => {
 	expect(ticks.every((t) => t.left >= 0 && t.left <= 1)).toBe(true);
 	expect(offsetTicks(0n, { a: 0, b: 1 })).toEqual([]);
 });
+
+test("nanosecond windows have unique integral tick offsets", () => {
+	for (const duration of [1n, 2n, 100n, 1000n]) {
+		const ticks = offsetTicks(duration, { a: 0, b: 0.002 });
+		expect(new Set(ticks.map((t) => t.nanos)).size).toBe(ticks.length);
+		expect(ticks.every((t) => t.nanos >= 0n)).toBe(true);
+	}
+});

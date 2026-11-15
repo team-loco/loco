@@ -3,7 +3,6 @@ import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ZoomOutIcon } from "lucide-react";
 import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { cn } from "@/lib/utils";
 import { FULL_ZOOM, type Zoom } from "../flame";
 import { durationLabel, type TraceSummary } from "../traces";
 import { Minimap } from "./Minimap";
@@ -50,7 +49,8 @@ export function TracePlot({
 	onOpenLog: (row: LogRow) => void;
 }) {
 	const [view, setView] = useState<View>("flame");
-	const [cursor, setCursor] = useState<{ left: number; fraction: number } | null>(null);
+	const hoverRef = useRef<string | null>(null);
+	const cursorRef = useRef<HTMLDivElement>(null);
 	const dragRef = useRef<{ x: number; zoom: Zoom } | null>(null);
 	const suppressClickRefRef = useRef(false);
 	const markers = { trace, zoom, logs, highlighted: highlightedLogs, onHover: onHoverLog, onOpen: onOpenLog };
@@ -92,7 +92,7 @@ export function TracePlot({
 					</>
 				)}
 			</div>
-			<Minimap trace={trace} zoom={zoom} onZoom={onZoom} highlight={highlight} />
+			<Minimap zoom={zoom} onZoom={onZoom} highlight={highlight} />
 			{view === "list" ? (
 				<SpanList trace={trace} />
 			) : (
@@ -102,14 +102,7 @@ export function TracePlot({
 					ref={(element) => {
 						if (element === null) return;
 						const wheel = (e: WheelEvent) => {
-							if (
-								view === "waterfall" &&
-								!e.ctrlKey &&
-								!e.metaKey &&
-								!e.shiftKey &&
-								Math.abs(e.deltaX) < Math.abs(e.deltaY)
-							)
-								return;
+							if (!e.ctrlKey && !e.metaKey && !e.shiftKey && Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
 							e.preventDefault();
 							const rect = laneBounds(element);
 							if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))
@@ -130,17 +123,27 @@ export function TracePlot({
 					onPointerMove={(e) => {
 						const rect = laneBounds(e.currentTarget);
 						const fraction = (e.clientX - rect.left) / rect.width;
+
+						const cursor = cursorRef.current;
+						if (cursor !== null) {
+							cursor.hidden = fraction < 0 || fraction > 1;
+							cursor.style.left = `${String(e.clientX - e.currentTarget.getBoundingClientRect().left)}px`;
+							const readout = cursor.firstElementChild as HTMLSpanElement;
+							readout.textContent = offset(zoom.a + fraction * width);
+							readout.style.left = fraction > 0.8 ? "auto" : "4px";
+							readout.style.right = fraction > 0.8 ? "4px" : "auto";
+						}
+
 						const spanId = (e.target as HTMLElement).closest<HTMLElement>("[data-span-id]")?.dataset["spanId"];
-						if (spanId !== undefined) onHoverSpan(spanId);
-						else onHoverTime(fraction < 0 || fraction > 1 ? null : zoom.a + fraction * width);
-						setCursor(
-							fraction < 0 || fraction > 1
-								? null
-								: {
-										left: e.clientX - e.currentTarget.getBoundingClientRect().left,
-										fraction,
-									},
-						);
+						if (spanId !== undefined) {
+							if (hoverRef.current !== spanId) {
+								hoverRef.current = spanId;
+								onHoverSpan(spanId);
+							}
+						} else {
+							hoverRef.current = null;
+							onHoverTime(fraction < 0 || fraction > 1 ? null : zoom.a + fraction * width);
+						}
 						const drag = dragRef.current;
 						if (drag !== null && e.buttons === 1) {
 							const delta = e.clientX - drag.x;
@@ -174,7 +177,9 @@ export function TracePlot({
 						suppressClickRefRef.current = false;
 					}}
 					onPointerLeave={() => {
-						setCursor(null);
+						hoverRef.current = null;
+						if (cursorRef.current !== null) cursorRef.current.hidden = true;
+
 						onHoverSpan(null);
 						onHoverTime(null);
 					}}
@@ -206,22 +211,15 @@ export function TracePlot({
 							onHoverSpan={onHoverSpan}
 						/>
 					)}
-					{cursor !== null && (
-						<div
-							aria-hidden
-							className="pointer-events-none absolute inset-y-0 z-10 border-l border-fg3"
-							style={{ left: cursor.left }}
-						>
-							<span
-								className={cn(
-									"absolute top-0 rounded-sm border border-line bg-background px-1 py-0.5 font-mono text-[10px]",
-									cursor.fraction > 0.8 ? "right-1" : "left-1",
-								)}
-							>
-								{offset(zoom.a + cursor.fraction * width)}
-							</span>
-						</div>
-					)}
+
+					<div
+						ref={cursorRef}
+						hidden
+						aria-hidden
+						className="pointer-events-none absolute inset-y-0 z-10 border-l border-fg3"
+					>
+						<span className="absolute top-0 rounded-sm border border-line bg-background px-1 py-0.5 font-mono text-[10px]" />
+					</div>
 				</div>
 			)}
 		</div>

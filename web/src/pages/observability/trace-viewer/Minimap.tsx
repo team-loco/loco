@@ -1,8 +1,7 @@
 import type { KeyboardEvent, PointerEvent } from "react";
-import { flameLayout, type Zoom } from "../flame";
+import { type Zoom } from "../flame";
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
-import type { TraceSummary } from "../traces";
 import { cn } from "@/lib/utils";
 import { boundedZoom } from "./plot";
 
@@ -12,18 +11,16 @@ function moveWindow(zoom: Zoom, center: number): Zoom {
 }
 
 export function Minimap({
-	trace,
 	zoom,
 	onZoom,
 	highlight,
 }: {
-	trace: TraceSummary;
 	zoom: Zoom;
 	onZoom: (zoom: Zoom) => void;
 	highlight: string | null;
 }) {
-	const { color: resourceColor } = useTraceResources();
-	const { blocks, depth } = flameLayout(trace, { a: 0, b: 1 });
+	const { color: resourceColor, layout } = useTraceResources();
+	const { blocks, depth } = layout;
 	const move = (e: PointerEvent<HTMLDivElement>) => {
 		const rect = e.currentTarget.getBoundingClientRect();
 		onZoom(moveWindow(zoom, (e.clientX - rect.left) / rect.width));

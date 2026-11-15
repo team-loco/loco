@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import type { ReactNode } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
 import { cn } from "@/lib/utils";
 
-import { MIN_BLOCK, flameLayout, lineage, selfTime, zoomTo, type Zoom } from "../flame";
+import { MIN_BLOCK, zoomLayout, lineage, zoomTo, type Zoom } from "../flame";
 
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
@@ -35,9 +36,9 @@ export function FlameGraph({
 	linkedSpan: string | null;
 	onHoverSpan: (id: string | null) => void;
 }) {
-	const { color: resourceColor } = useTraceResources();
-	const { blocks, depth } = flameLayout(trace, zoom);
-	const related = lineage(trace, selected.spanId);
+	const { color: resourceColor, layout, selfTime } = useTraceResources();
+	const { blocks, depth } = useMemo(() => zoomLayout(layout, zoom), [layout, zoom]);
+	const related = useMemo(() => lineage(trace, selected.spanId), [trace, selected.spanId]);
 	const ticks = offsetTicks(trace.duration, zoom);
 	return (
 		<section aria-label="Flame graph" className="flex flex-col gap-1.5 rounded-card bg-panel px-3.5 pt-3 pb-3.5">
@@ -83,7 +84,7 @@ export function FlameGraph({
 							type="button"
 							aria-pressed={on}
 							aria-label={`${label(b.span)} ${b.span.name}, ${durationLabel(b.span.durationNanos)}${err ? ", error" : ""}`}
-							title={`${b.span.name}\n${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(trace, b.span))}\nDouble-click to zoom`}
+							title={`${b.span.name}\n${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(b.span))}\nDouble-click to zoom`}
 							onClick={() => {
 								onSelect(b.span);
 							}}

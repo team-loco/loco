@@ -18,7 +18,7 @@ export function offsetTicks(duration: bigint, zoom: Zoom): { left: number; nanos
 	if (total <= 0) return [];
 	const target = (total * width) / 5;
 	const magnitude = 10 ** Math.floor(Math.log10(target));
-	const step = ([1, 2, 5, 10].find((n) => n * magnitude >= target) ?? 10) * magnitude;
+	const step = Math.max(1, ([1, 2, 5, 10].find((n) => n * magnitude >= target) ?? 10) * magnitude);
 	const ticks = [];
 	for (let value = Math.ceil((total * zoom.a) / step) * step; value <= total * zoom.b; value += step) {
 		ticks.push({ left: (value / total - zoom.a) / width, nanos: BigInt(Math.round(value)) });
