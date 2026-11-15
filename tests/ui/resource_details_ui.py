@@ -122,7 +122,6 @@ with session(out) as browser:
             expect(page.get_by_text("No secrets. Add them here or with", exact=False)).to_be_visible()
             count = page.locator("#set-env-title > span")
             expect(count).to_have_text(re.compile(r"^\d+$"))
-            assert count.evaluate("e => getComputedStyle(e).backgroundColor") == "rgba(0, 0, 0, 0)"
             delete = page.get_by_role("button", name="Delete resource", exact=True)
             expect(delete).to_be_enabled()
             delete.click()

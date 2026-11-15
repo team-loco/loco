@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -98,122 +99,25 @@ var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
 
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
-	t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_TTL", "")
-	t.Setenv("LOCO_AGENT_ASSERTION_MAX_LIFETIME", "")
-	t.Setenv("DATABASE_LISTEN_URL", "")
-	t.Setenv("CACHE_TYPE", "")
-	t.Setenv("CACHE_ADDR", "")
-	t.Setenv("LOCO_SOURCE_MAX_BYTES", "")
-	t.Setenv("LOCO_SOURCE_BUCKET", "")
-	t.Setenv("LOCO_SOURCE_BUCKET_REGION", "")
-	t.Setenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", "")
-	t.Setenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY", "")
-	t.Setenv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE", "")
-	t.Setenv("LOCO_DEFAULT_CPU_TARGET", "")
-	t.Setenv("LOCO_DEFAULT_CPU", "")
-	t.Setenv("LOCO_DEFAULT_MEMORY", "")
-	t.Setenv("LOCO_DEFAULT_MIN_REPLICAS", "")
-	t.Setenv(maxReplicasEnv, "")
-	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "")
-	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "")
-	t.Setenv("LOCO_SCHEMA_URL", "")
-	t.Setenv("LOCO_DEFAULT_HEALTH_PATH", "")
-	t.Setenv("LOCO_DEFAULT_HEALTH_INTERVAL", "")
-	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "")
-	t.Setenv("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", "")
-	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "")
-	t.Setenv("LOCO_DEFAULT_DEPLOY_ATTEMPTS", "")
-	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "")
-	t.Setenv(registryHostEnv, "")
-	t.Setenv("LOCO_REGISTRY_PREFIX", "")
-	t.Setenv(registryURLEnv, "")
-	t.Setenv(registryUserEnv, "")
-	t.Setenv(registryPassEnv, "")
-	t.Setenv("LOCO_REGISTRY_TIMEOUT", "")
-	t.Setenv("LOCO_IMAGE_RETENTION", "")
-	t.Setenv("LOCO_IMAGE_SWEEP_INTERVAL", "")
-	t.Setenv("LOCO_IMAGE_SWEEP_BUILD_BATCH", "")
-	t.Setenv("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", "")
-	t.Setenv("LOCO_IMAGE_SWEEP_TAG_BATCH", "")
-	t.Setenv("LOCO_IMAGE_SWEEP_TAG_MIN_AGE", "")
-	t.Setenv("LOCO_SOURCE_SWEEP_INTERVAL", "")
-	t.Setenv("LOCO_SOURCE_SWEEP_UPLOAD_GRACE", "")
-	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE", "")
-	t.Setenv("LOCO_SOURCE_SWEEP_BUILD_BATCH", "")
-	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", "")
-	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", "")
-	t.Setenv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", "")
-	t.Setenv(retentionEnv, "")
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		for _, prefix := range []string{
+			"LOCO_", "DATABASE_", "CACHE_", "CLICKHOUSE_", "OTEL_", "APP_", "WEB_", "WEBHOOK_",
+			"AUTH_", "INSTALL_", "MIN_CLI_", "ORG_", "INVITATION_", "EVENTS_", "LOG_", "CORS_", "PPROF_",
+		} {
+			if strings.HasPrefix(name, prefix) {
+				t.Setenv(name, "")
+				break
+			}
+		}
+	}
 	t.Setenv("DATABASE_URL", testDatabaseURL)
-	t.Setenv("DATABASE_MAX_CONNS", "")
-	t.Setenv("DATABASE_MIN_CONNS", "")
-	t.Setenv("DATABASE_STATEMENT_TIMEOUT", "")
-	t.Setenv("LOCO_API_TOKEN_MAX_LIFETIME", "")
-	t.Setenv("LOCO_SESSION_ACCESS_TOKEN_LIFETIME", "")
-	t.Setenv("LOCO_SESSION_REFRESH_TOKEN_LIFETIME", "")
-	t.Setenv("LOCO_TOKEN_LAST_USED_INTERVAL", "")
-	t.Setenv("LOCO_TOKEN_CLEANUP_INTERVAL", "")
-	t.Setenv("LOCO_IMAGE_RESOLVE_TIMEOUT", "")
-	t.Setenv("LOCO_RPC_TIMEOUT", "")
-	t.Setenv("LOCO_SHUTDOWN_DRAIN_TIMEOUT", "")
-	t.Setenv("LOCO_PLACEMENT_POLL_INTERVAL", "")
-	t.Setenv(webhookTimeoutEnv, "")
-	t.Setenv(webhookBatchEnv, "")
-	t.Setenv(webhookRetryEnv, "")
-	t.Setenv(webhookPollEnv, "")
-	t.Setenv(installHooksEnv, "")
-	t.Setenv(orgLinksEnv, "")
-	t.Setenv(authIssuersEnv, "")
-	t.Setenv("AUTH_SIGNUP_MODE", "")
-	t.Setenv("MIN_CLI_VERSION", "")
 	t.Setenv(testAdminEnv, "")
 	t.Setenv(transitAddrEnv, testTransitAddr)
-	t.Setenv(transitMountEnv, "")
 	t.Setenv(transitKeyEnv, testTransitKey)
 	t.Setenv(transitMethodEnv, transit.AuthToken)
 	t.Setenv(transitAuthEnv, testTransitAuth)
-	t.Setenv(transitKubeMount, "")
-	t.Setenv(transitKubeRole, "")
-	t.Setenv(transitKubeJWTFile, "")
-	t.Setenv(transitCAEnv, "")
-	t.Setenv(transitTimeEnv, "")
-	t.Setenv(transitStartupEnv, "")
-	t.Setenv(transitMarginEnv, "")
-	t.Setenv(transitRetryEnv, "")
-	t.Setenv(transitCacheEnv, "")
 	t.Setenv(ingestKeyEnv, testIngestKey)
-	t.Setenv(ingestLifetimeEnv, "")
-	t.Setenv(registryAuthEnv, "")
-	t.Setenv(registryKeyEnv, "")
-	t.Setenv(registryVersionEnv, "")
-	t.Setenv(registryServiceEnv, "")
-	t.Setenv(registryAccessEnv, "")
-	t.Setenv(registryPullEnv, "")
-	t.Setenv(registrySweepEnv, "")
-	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
-	for _, limit := range limits.All {
-		t.Setenv(limit.Env, "")
-	}
-	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
-	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
-	t.Setenv(systemAdminsEnv, "")
-	t.Setenv("INVITATION_TTL", "")
-	t.Setenv(otlpEndpointEnv, "")
-	t.Setenv(otlpTracesEndpointEnv, "")
-	for _, name := range observabilityEnv {
-		t.Setenv(name, "")
-	}
-}
-
-var observabilityEnv = []string{
-	clickHouseURLEnv,
-	clickHouseDBEnv,
-	clickHouseConnsEnv,
-	clickHouseTimeoutEnv,
-	"LOCO_OBSERVABILITY_DEFAULT_LIMIT",
-	maxLimitEnv,
-	maxTimeRangeEnv,
-	"LOCO_OBSERVABILITY_MAX_TAIL_DURATION",
 }
 
 func TestNewAPIConfigReadsObservability(t *testing.T) {

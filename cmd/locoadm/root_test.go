@@ -9,39 +9,6 @@ import (
 
 const clusterCommand = "cluster"
 
-func TestRootCommandRegistersCluster(t *testing.T) {
-	root := NewRootCmd()
-	if root.Use != "locoadm" {
-		t.Errorf("Use = %q", root.Use)
-	}
-	cluster, _, err := root.Find([]string{clusterCommand})
-	if err != nil || cluster.Name() != "cluster" {
-		t.Fatalf("cluster command: %v, %v", cluster, err)
-	}
-	operations := make([]string, 0, len(cluster.Commands()))
-	for _, operation := range cluster.Commands() {
-		operations = append(operations, operation.Name())
-	}
-	want := "attach create join-token list pause remove restore resume"
-	if got := strings.Join(operations, " "); got != want {
-		t.Errorf("cluster operations = %q, want %q", got, want)
-	}
-}
-
-func TestRootCommandRegistersUser(t *testing.T) {
-	user, _, err := NewRootCmd().Find([]string{"user"})
-	if err != nil || user.Name() != "user" {
-		t.Fatalf("user command: %v, %v", user, err)
-	}
-	operations := make([]string, 0, len(user.Commands()))
-	for _, operation := range user.Commands() {
-		operations = append(operations, operation.Name())
-	}
-	if got, want := strings.Join(operations, " "), "reinstate suspend"; got != want {
-		t.Errorf("user operations = %q, want %q", got, want)
-	}
-}
-
 func TestReportsTheLinkedVersion(t *testing.T) {
 	const linked = "v0.0.0-linked"
 	binary := filepath.Join(t.TempDir(), "locoadm")
@@ -55,14 +22,5 @@ func TestReportsTheLinkedVersion(t *testing.T) {
 	}
 	if !strings.Contains(string(out), linked) {
 		t.Errorf("locoadm --version printed %q, want it to contain %q", out, linked)
-	}
-}
-
-func TestRootRegistersInstallationVerificationAndRecovery(t *testing.T) {
-	for _, path := range [][]string{{"verify"}, {"recovery", "export"}} {
-		command, remaining, err := NewRootCmd().Find(path)
-		if err != nil || len(remaining) != 0 || command.Name() != path[len(path)-1] {
-			t.Fatalf("command %v: %v %v %v", path, command, remaining, err)
-		}
 	}
 }

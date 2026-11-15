@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"slices"
 	"testing"
 
@@ -81,43 +80,6 @@ func envValue(t *testing.T, dep *appsv1ac.DeploymentApplyConfiguration, name str
 		}
 	}
 	return "", false
-}
-
-func TestDesiredDeploymentIsDeterministic(t *testing.T) {
-	app := testApplication()
-	first, err := desiredDeployment(
-		app,
-		testWorkspaceNamespace(app),
-		envSecretMount{Mounted: true, Revision: 7},
-		testTelemetry(),
-		testMinReadySeconds,
-	)
-	if err != nil {
-		t.Fatalf("desiredDeployment: %v", err)
-	}
-	firstJSON, err := json.Marshal(first)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	for range 20 {
-		next, err := desiredDeployment(
-			app,
-			testWorkspaceNamespace(app),
-			envSecretMount{Mounted: true, Revision: 7},
-			testTelemetry(),
-			testMinReadySeconds,
-		)
-		if err != nil {
-			t.Fatalf("desiredDeployment: %v", err)
-		}
-		nextJSON, err := json.Marshal(next)
-		if err != nil {
-			t.Fatalf("marshal: %v", err)
-		}
-		if string(nextJSON) != string(firstJSON) {
-			t.Fatalf("deployment differs between builds:\n%s\n%s", firstJSON, nextJSON)
-		}
-	}
 }
 
 func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {

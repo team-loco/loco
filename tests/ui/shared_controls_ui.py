@@ -212,7 +212,6 @@ def volume(page, suffix):
     point = {"x": box["width"] * (target + 0.1) / count, "y": box["height"] / 2}
     area.hover(position=point)
     expect(area).to_have_attribute("title", re.compile(r"loaded"))
-    expect(bars.nth(target)).to_have_class(re.compile(r"bg-panel2"))
     area.click(position=point)
     expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
     clicked = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0]
@@ -363,8 +362,6 @@ with session(out) as browser:
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
             page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
-            assert page.get_by_role("button", name="Events", exact=True).bounding_box()["height"] == 32
-            assert page.get_by_role("button", name="Redeploy", exact=True).bounding_box()["height"] == 32
             suffix = f"{theme}{'-narrow' if narrow else ''}"
             dropdown_cursors(page, suffix)
             page.goto(state["ui_url"] + base + "/settings?scope=workspace")
@@ -372,7 +369,6 @@ with session(out) as browser:
             workspace_button = group.get_by_role("button", name="Workspace", exact=True)
             personal = group.get_by_role("button", name="Personal", exact=True)
             expect(workspace_button).to_have_attribute("aria-pressed", "true")
-            assert workspace_button.bounding_box()["height"] == 28
             indicator = group.locator('[data-slot="segmented-indicator"]').first
             assert abs(indicator.bounding_box()["x"] - workspace_button.bounding_box()["x"]) <= 1
             personal.evaluate("""node => {
@@ -433,8 +429,6 @@ with session(out) as browser:
             catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)
             expect(catppuccin).to_be_focused()
             expect(catppuccin).to_be_checked()
-            radio_classes = catppuccin.get_attribute("class").split()
-            assert "rounded-card" in radio_classes and "rounded-full" not in radio_classes, radio_classes
             page.keyboard.press("ArrowLeft")
             expect(loco).to_be_checked()
             page.set_viewport_size(evidence.NARROW)

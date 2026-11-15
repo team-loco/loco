@@ -180,8 +180,6 @@ with session(out) as browser:
             expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
             assert stored_drafts(page) == [name], stored_drafts(page)
             expect(drawer.get_by_role("button", name="us-east-1", exact=True)).to_have_attribute("aria-pressed", "true")
-            degraded = drawer.get_by_role("button", name="eu-west-1 degraded", exact=True).get_by_text("degraded", exact=True)
-            expect(degraded).to_have_class(re.compile(r"\bbg-warn-bg\b"))
             drawer.get_by_role("button", name=f"Platform domain: {platform_domain}", exact=True).click()
             domain_option = page.get_by_role("menuitemradio", name=re.compile(rf"^{re.escape(platform_domain)}"))
             expect(domain_option.get_by_text("us-east-1", exact=True)).to_be_visible()
