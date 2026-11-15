@@ -107,7 +107,10 @@ func (s *Service) logsSignal() signal[plogotlp.ExportRequest, plogotlp.ExportRes
 		payload:     plogotlp.ExportRequest.Logs,
 		filter:      (*tenancyFilter).logs,
 		count:       plog.Logs.LogRecordCount,
-		consume:     s.consumers.Logs.ConsumeLogs,
+		consume: func(ctx context.Context, logs plog.Logs) error {
+			flattenJSONBodies(logs)
+			return s.consumers.Logs.ConsumeLogs(ctx, logs)
+		},
 		reject: func(response plogotlp.ExportResponse, rejected int64, message string) {
 			response.PartialSuccess().SetRejectedLogRecords(rejected)
 			response.PartialSuccess().SetErrorMessage(message)
