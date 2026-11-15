@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
-	"slices"
 	"strings"
 	"time"
 
@@ -236,8 +234,8 @@ func logFilters(q LogQuery, b logBinder) []string {
 		if filter.exclude {
 			operator = " != "
 		}
-		for _, key := range slices.Sorted(maps.Keys(filter.pairs)) {
-			whereParts = append(whereParts, filter.column+"["+b.str(key)+"]"+operator+b.str(filter.pairs[key]))
+		for key, value := range filter.pairs {
+			whereParts = append(whereParts, filter.column+"["+b.str(key)+"]"+operator+b.str(value))
 		}
 	}
 

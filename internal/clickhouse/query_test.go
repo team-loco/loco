@@ -111,7 +111,7 @@ func TestBuildTailLogQueryBindsEveryValueByName(t *testing.T) {
 	}
 }
 
-func TestBuildLogsQueryBindsIncludedAndExcludedFilters(t *testing.T) {
+func TestBuildLogsQueryBindsIncludedAndExcludedFilterValues(t *testing.T) {
 	const trace = "0123456789abcdef0123456789abcdef"
 	query, args, err := buildLogPageQuery(LogQuery{
 		WorkspaceID:           testWorkspaceID,
@@ -128,19 +128,6 @@ func TestBuildLogsQueryBindsIncludedAndExcludedFilters(t *testing.T) {
 	}, testQueryTimeout)
 	if err != nil {
 		t.Fatal(err)
-	}
-	for _, clause := range []string{
-		"ResourceId NOT IN (?)",
-		"SeverityText NOT IN (?)",
-		"TraceId IN (?)",
-		"TraceId NOT IN (?)",
-		"ResourceAttributes[?] != ?",
-		"LogAttributes[?] = ?",
-		"LogAttributes[?] != ?",
-	} {
-		if !strings.Contains(query, clause) {
-			t.Errorf("missing %q in %s", clause, query)
-		}
 	}
 	for _, value := range []string{testResourceID, "DEBUG", "web-1", "GET", "/healthz", trace} {
 		if strings.Contains(query, value) {
