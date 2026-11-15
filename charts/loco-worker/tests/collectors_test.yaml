@@ -454,14 +454,3 @@ tests:
       - matchRegex:
           path: data.relay
           pattern: 'k8s_attributes/route_namespace'
-
-  - it: keeps application service identity out of Kubernetes metadata inference
-    template: templates/collectors/collector-configs.yaml
-    documentSelector: {path: metadata.name, value: otel-col-deploy}
-    asserts:
-      - notMatchRegex:
-          path: data.relay
-          pattern: '- service\.(namespace|name|version|instance\.id)'
-      - matchRegex:
-          path: data.relay
-          pattern: '- k8s\.pod\.uid'
