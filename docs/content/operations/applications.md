@@ -66,7 +66,7 @@ When automatic environment configuration is enabled, Loco supplies these variabl
 | `OTEL_SERVICE_NAME` | the resource's logical name (its slug), such as `checkout` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
 
-Loco injects this entire set only when no plain environment variable or declared secret name matches `OTEL_EXPORTER_OTLP_*`, `OTEL_SERVICE_NAME` or `OTEL_RESOURCE_ATTRIBUTES`. Any matching name suppresses all four defaults, including signal-specific exporter variables and resource attributes that define `service.name`. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL` and `OTEL_TRACES_SAMPLER`, do not suppress injection. Plain values take precedence when the same name also appears in `secrets`.
+A plain environment variable or declared secret with the same name replaces that one default; Loco still injects the other three. Other OpenTelemetry variables, such as signal-specific exporter settings like `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, `OTEL_LOG_LEVEL` and `OTEL_TRACES_SAMPLER`, leave all four defaults in place. Plain values take precedence when the same name also appears in `secrets`.
 
 Setting `injectOtel` to `false` removes the injected set on rollout and preserves user-supplied variables and secrets. It does not disable an SDK configured by the application or its image, or stop Loco from collecting telemetry sent to it. Loco does not inspect configuration inside the application or its image.
 

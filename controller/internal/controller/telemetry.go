@@ -70,24 +70,16 @@ func openTelemetryEnvVars(
 	if !app.Spec.ServiceSpec.Deployment.Observability.InjectOtel {
 		return nil
 	}
-	for name := range app.Spec.ServiceSpec.Deployment.Env {
-		if configuresOpenTelemetry(name) {
-			return nil
-		}
-	}
-	if slices.ContainsFunc(secretNames, configuresOpenTelemetry) {
-		return nil
-	}
-	return append(resourceAttributeVars(app),
+	defaults := append(resourceAttributeVars(app),
 		corev1.EnvVar{Name: envOTLPEndpoint, Value: telemetry.otlpHTTPEndpoint()},
 		corev1.EnvVar{Name: envOTLPProtocol, Value: otlpProtocolHTTP},
 		corev1.EnvVar{Name: envOTelServiceName, Value: app.Spec.Slug},
 	)
-}
-
-func configuresOpenTelemetry(name string) bool {
-	return strings.HasPrefix(name, "OTEL_EXPORTER_OTLP_") ||
-		name == envOTelServiceName || name == envOTelResourceAttributes
+	// A variable the application sets as plain env or a secret replaces only the default of the same name.
+	return slices.DeleteFunc(defaults, func(v corev1.EnvVar) bool {
+		_, plain := app.Spec.ServiceSpec.Deployment.Env[v.Name]
+		return plain || slices.Contains(secretNames, v.Name)
+	})
 }
 
 func resourceAttributeVars(app *locov1alpha1.Application) []corev1.EnvVar {

@@ -121,7 +121,7 @@ func TestObservability(t *testing.T) {
 
 	t.Run("reads are isolated between workspaces", o.isolation)
 
-	t.Run("a user SDK configuration suppresses the injected bundle", o.userSDKConfiguration)
+	t.Run("a user SDK variable replaces only its injected default", o.userSDKConfiguration)
 
 	t.Run("disabling injection keeps collection", o.injectionDisabled)
 
@@ -1026,19 +1026,16 @@ func (o *observed) userSDKConfiguration(t *testing.T) {
 	custom := otelApp + "-custom"
 	service := file.Services[otelApp]
 	service.Observability = &locofile.Observability{InjectOtel: new(true)}
-	service.Env = map[string]string{
-		"OTEL_EXPORTER_OTLP_ENDPOINT": p.CollectorEndpoint(),
-		"OTEL_EXPORTER_OTLP_PROTOCOL": otlpProtobuf,
-		"OTEL_SERVICE_NAME":           custom,
-	}
+	service.Env = map[string]string{"OTEL_SERVICE_NAME": custom}
 	file.Services[otelApp] = service
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "infra", "apply", "--yes", "--wait")
 	if err := telemetryEnvMatches(t.Context(), w, resourceID, custom); err != nil {
 		t.Error(err)
 	}
-	if _, ok := containerEnv(t, w, resourceID)["OTEL_RESOURCE_ATTRIBUTES"]; ok {
-		t.Error("a user endpoint keeps the injected resource attributes")
+	attributes := containerEnv(t, w, resourceID)["OTEL_RESOURCE_ATTRIBUTES"]
+	if !strings.Contains(attributes, "loco.deployment.id=") {
+		t.Errorf("a user service name drops the injected resource attributes: %q", attributes)
 	}
 	path := "/telemetry-custom-" + randomHex(6)
 	if status, err := gatewayStatus(t.Context(), host, path, ""); err != nil || status != http.StatusOK {
