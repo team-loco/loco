@@ -34,12 +34,14 @@ type observabilityFixture struct {
 	otherResource  uuid.UUID
 	callers        map[string][]genDb.EntityScope
 	authorizer     *authz.Authorizer
+	queries        *genDb.Queries
 }
 
 func newObservabilityFixture(t *testing.T) *observabilityFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
-	f := &observabilityFixture{authorizer: authz.New(pool, genDb.New(pool))}
+	queries := genDb.New(pool)
+	f := &observabilityFixture{authorizer: authz.New(pool, queries), queries: queries}
 	row := pool.QueryRow(context.Background(), `
 WITH u AS (
     INSERT INTO users (email) VALUES ('observability@example.com') RETURNING id
@@ -73,7 +75,7 @@ func (f *observabilityFixture) client(t *testing.T, clickhouse *chClient.Client)
 	t.Helper()
 	return observabilityTestClient(
 		t,
-		NewObservabilityServer(clickhouse, f.authorizer, observabilityTestConfig),
+		NewObservabilityServer(clickhouse, f.authorizer, f.queries, observabilityTestConfig),
 		f.callers,
 	)
 }

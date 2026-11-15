@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/logquery"
 )
 
 const tailTestCursorBlocks = 20000
@@ -64,16 +64,18 @@ func TestTailPageFiltersDuplicatesAndLargeCursorAcrossMerges(t *testing.T) {
 		t.Fatal(sendErr)
 	}
 	query := LogQuery{
-		WorkspaceID:     testWorkspaceID,
-		EnvironmentID:   testEnvironmentID,
-		ResourceIDs:     []string{testResourceID},
-		Start:           timestamp,
-		Search:          search,
-		Levels:          []string{testSeverity},
-		Labels:          []*observabilityv1.LogFieldFilter{{Key: testSharedLabelKey, Values: []string{search}}},
-		Regions:         []string{testUSRegionPattern},
-		ExcludedRegions: []string{"us-west-*"},
-		Limit:           testFullPage,
+		WorkspaceID:   testWorkspaceID,
+		EnvironmentID: testEnvironmentID,
+		ResourceIDs:   []string{testResourceID},
+		Start:         timestamp,
+		Filter: logquery.And{Terms: []logquery.Expr{
+			logquery.Text{Value: search},
+			logquery.Field{Key: LevelField, Value: testSeverity},
+			logquery.Field{Key: testSharedLabelKey, Value: search},
+			logquery.Field{Key: RegionField, Match: logquery.Prefix, Value: testUSPrefix},
+			logquery.Not{Term: logquery.Field{Key: RegionField, Match: logquery.Prefix, Value: "us-west-"}},
+		}},
+		Limit: testFullPage,
 	}
 	large := TailLogCursor{}
 	for i := range tailTestCursorBlocks {

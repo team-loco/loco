@@ -3,6 +3,7 @@
   "pages": [
     "architecture",
     "cli-api",
+    "log-queries",
     "installation",
     "ai"
   ],

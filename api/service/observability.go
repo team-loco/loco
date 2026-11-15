@@ -16,6 +16,7 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/logquery"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -37,15 +38,17 @@ type ObservabilityServer struct {
 	// clickhouse is nil when the installation has no ClickHouse; every call is then Unavailable.
 	clickhouse *chClient.Client
 	authz      *authz.Authorizer
+	queries    *genDb.Queries
 	cfg        ObservabilityConfig
 }
 
 func NewObservabilityServer(
 	clickhouse *chClient.Client,
 	authorizer *authz.Authorizer,
+	queries *genDb.Queries,
 	cfg ObservabilityConfig,
 ) *ObservabilityServer {
-	return &ObservabilityServer{clickhouse: clickhouse, authz: authorizer, cfg: cfg}
+	return &ObservabilityServer{clickhouse: clickhouse, authz: authorizer, queries: queries, cfg: cfg}
 }
 
 func (s *ObservabilityServer) QueryLogs(
@@ -55,10 +58,10 @@ func (s *ObservabilityServer) QueryLogs(
 	if err := guardrails.ValidateLogsRequest(req, s.cfg.Limits); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
-	if err := s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
+	query, err := s.logQuery(ctx, req)
+	if err != nil {
 		return nil, err
 	}
-	query := logQuery(req)
 	query.Start, query.End = req.GetStartTime().AsTime(), req.GetEndTime().AsTime()
 	query.Limit = guardrails.ClampLimit(req.GetLimit(), s.cfg.Limits)
 	query.Cursor, query.Order = req.GetCursor(), req.GetOrder()
@@ -72,47 +75,54 @@ func (s *ObservabilityServer) QueryLogs(
 	return response, nil
 }
 
-// logFilterRequest holds the filters QueryLogsRequest and TailLogsRequest share.
+// logFilterRequest holds the scope and query QueryLogsRequest and TailLogsRequest share.
 type logFilterRequest interface {
 	GetWorkspaceId() string
 	GetEnvironmentId() string
 	GetResourceIds() []string
-	GetExcludedResourceIds() []string
-	GetSearch() string
-	GetLevels() []string
-	GetExcludedLevels() []string
-	GetLabels() []*observabilityv1.LogFieldFilter
-	GetExcludedLabels() []*observabilityv1.LogFieldFilter
-	GetLogAttributes() []*observabilityv1.LogFieldFilter
-	GetExcludedLogAttributes() []*observabilityv1.LogFieldFilter
-	GetJsonFields() []*observabilityv1.LogFieldFilter
-	GetExcludedJsonFields() []*observabilityv1.LogFieldFilter
-	GetTraceIds() []string
-	GetExcludedTraceIds() []string
-	GetRegions() []string
-	GetExcludedRegions() []string
+	GetQuery() string
 }
 
-func logQuery(req logFilterRequest) chClient.LogQuery {
-	return chClient.LogQuery{
-		WorkspaceID:           req.GetWorkspaceId(),
-		EnvironmentID:         req.GetEnvironmentId(),
-		ResourceIDs:           req.GetResourceIds(),
-		ExcludedResourceIDs:   req.GetExcludedResourceIds(),
-		Search:                req.GetSearch(),
-		Levels:                req.GetLevels(),
-		ExcludedLevels:        req.GetExcludedLevels(),
-		Labels:                req.GetLabels(),
-		ExcludedLabels:        req.GetExcludedLabels(),
-		LogAttributes:         req.GetLogAttributes(),
-		ExcludedLogAttributes: req.GetExcludedLogAttributes(),
-		JSONFields:            req.GetJsonFields(),
-		ExcludedJSONFields:    req.GetExcludedJsonFields(),
-		TraceIDs:              req.GetTraceIds(),
-		ExcludedTraceIDs:      req.GetExcludedTraceIds(),
-		Regions:               req.GetRegions(),
-		ExcludedRegions:       req.GetExcludedRegions(),
+// logQuery parses the request's query, authorizes the caller and returns the scope and filter to read.
+func (s *ObservabilityServer) logQuery(ctx context.Context, req logFilterRequest) (chClient.LogQuery, error) {
+	filter, err := logquery.Parse(req.GetQuery())
+	if err == nil {
+		err = chClient.ValidateLogFilter(filter)
 	}
+	if err != nil {
+		return chClient.LogQuery{}, rpcerr.New(connect.CodeInvalidArgument, err)
+	}
+	if err = s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
+		return chClient.LogQuery{}, err
+	}
+	query := chClient.LogQuery{
+		WorkspaceID:   req.GetWorkspaceId(),
+		EnvironmentID: req.GetEnvironmentId(),
+		ResourceIDs:   req.GetResourceIds(),
+		Filter:        filter,
+	}
+	if logquery.Uses(filter, chClient.ResourceField) {
+		if query.Resources, err = s.resourceNames(ctx, req.GetWorkspaceId()); err != nil {
+			return chClient.LogQuery{}, err
+		}
+	}
+	return query, nil
+}
+
+func (s *ObservabilityServer) resourceNames(ctx context.Context, workspaceID string) ([]chClient.ResourceName, error) {
+	workspace, err := parseID("workspace_id", workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.queries.ListWorkspaceResourceNames(ctx, workspace)
+	if err != nil {
+		return nil, fmt.Errorf("list resource names: %w", err)
+	}
+	names := make([]chClient.ResourceName, len(rows))
+	for i, row := range rows {
+		names[i] = chClient.ResourceName{ID: row.ID.String(), Name: row.Name}
+	}
+	return names, nil
 }
 
 func (s *ObservabilityServer) QueryMetrics(

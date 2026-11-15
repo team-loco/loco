@@ -30,7 +30,8 @@ func newLogsCmd() *cobra.Command {
 Examples:
   loco resource logs myapp
   loco resource logs myapp --follow
-  loco resource logs myapp --since 6h --lines 500 --output json`,
+  loco resource logs myapp --since 6h --lines 500 --output json
+  loco resource logs myapp --query '@level:error -@path:/healthz'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runResourceLogs(cmd, args[0])
@@ -43,12 +44,14 @@ Examples:
 	cmd.Flags().Int32P("lines", "n", defaultLogLines, "Number of recent lines to show (0 = every line in --since)")
 	cmd.Flags().Duration("since", defaultLogWindow, "How far back to look, up to 24h")
 	cmd.Flags().StringP("output", "o", outputText, "Output format (text, json)")
+	cmd.Flags().StringP("query", "q", "", "Only lines matching this log query, such as '@level:error timeout'")
 	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
 }
 
 type logOptions struct {
+	query  string
 	follow bool
 	json   bool
 	lines  int32
@@ -59,6 +62,11 @@ type logOptions struct {
 func readLogOptions(cmd *cobra.Command, out io.Writer) (logOptions, error) {
 	var opts logOptions
 	var err error
+	if cmd.Flags().Lookup("query") != nil {
+		if opts.query, err = cmd.Flags().GetString("query"); err != nil {
+			return opts, err
+		}
+	}
 	if opts.follow, err = cmd.Flags().GetBool("follow"); err != nil {
 		return opts, fmt.Errorf("error reading follow flag: %w", err)
 	}
@@ -129,7 +137,7 @@ func runResourceLogs(cmd *cobra.Command, name string) error {
 		return err
 	}
 
-	filter := logstream.Filter{WorkspaceID: t.WorkspaceID, ResourceIDs: []string{resource.GetId()}}
+	filter := logstream.Filter{WorkspaceID: t.WorkspaceID, ResourceIDs: []string{resource.GetId()}, Query: opts.query}
 	end := time.Now()
 	start := end.Add(-opts.since)
 	logs := &logstream.Client{Observability: t.Clients.Observability}

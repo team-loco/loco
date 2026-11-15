@@ -9,6 +9,13 @@ fakeapi called QueryLogs 'Bearer test-token'
 exec loco resource logs app --output json
 stdout '"body":"listening on :8080"'
 
+exec loco resource logs app --query healthz
+stdout 'GET /healthz 200'
+! stdout 'listening on :8080'
+
+! exec loco resource logs app --query '(@level:error'
+stderr 'unclosed \( at position 1'
+
 ! exec loco resource logs app --since 48h
 stderr '(?i)the API reads logs at most 24h back'
 

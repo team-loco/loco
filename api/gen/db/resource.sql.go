@@ -509,6 +509,37 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 	return items, nil
 }
 
+const listWorkspaceResourceNames = `-- name: ListWorkspaceResourceNames :many
+SELECT r.id, r.name
+FROM resources r
+WHERE r.workspace_id = $1
+`
+
+type ListWorkspaceResourceNamesRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) ListWorkspaceResourceNames(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourceNamesRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceResourceNames, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkspaceResourceNamesRow
+	for rows.Next() {
+		var i ListWorkspaceResourceNamesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
 SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/internal/logquery"
+
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
@@ -324,11 +326,9 @@ func TestQueryLogsScopesToWorkspace(t *testing.T) {
 			name: "label shared across workspaces",
 			query: LogQuery{
 				WorkspaceID: testWorkspaceID,
-				Labels: []*observabilityv1.LogFieldFilter{
-					{Key: testSharedLabelKey, Values: []string{testSharedLabelValue}},
-				},
-				Limit: testFullPage,
-				Order: newest,
+				Filter:      logquery.Field{Key: testSharedLabelKey, Value: testSharedLabelValue},
+				Limit:       testFullPage,
+				Order:       newest,
 			},
 			want: wantBodies(testWorkspaceID, nil, newest),
 		},
@@ -336,11 +336,9 @@ func TestQueryLogsScopesToWorkspace(t *testing.T) {
 			name: "label naming another workspace",
 			query: LogQuery{
 				WorkspaceID: testWorkspaceID,
-				Labels: []*observabilityv1.LogFieldFilter{
-					{Key: workspaceAttributeKey, Values: []string{testOtherWorkspaceID}},
-				},
-				Limit: testFullPage,
-				Order: newest,
+				Filter:      logquery.Field{Key: workspaceAttributeKey, Value: testOtherWorkspaceID},
+				Limit:       testFullPage,
+				Order:       newest,
 			},
 		},
 	}
@@ -598,27 +596,24 @@ func TestQueryLogsFiltersRecordedRegionsBeforePagination(t *testing.T) {
 		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
 	} {
 		cases := []struct {
-			name              string
-			regions, excluded []string
-			resources         []string
+			name, filter string
+			resources    []string
 		}{
-			{"case insensitive prefix", []string{"US-*"}, nil, []string{testResourceID}},
-			{"exclude region", nil, []string{testWorkerRegion}, []string{testResourceID}},
+			{"case insensitive prefix", "@region:US-*", []string{testResourceID}},
+			{"exclude region", "-@region:" + testWorkerRegion, []string{testResourceID}},
 			{
 				"include OR then exclude",
-				[]string{testUSRegionPattern, "eu-*"},
-				[]string{testUSRegionPattern},
+				"(@region:" + testUSRegionPattern + " OR @region:eu-*) -@region:" + testUSRegionPattern,
 				[]string{testWorkerResourceID},
 			},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				query := LogQuery{
-					WorkspaceID:     testWorkspaceID,
-					Regions:         tc.regions,
-					ExcludedRegions: tc.excluded,
-					Limit:           testPageSize,
-					Order:           order,
+					WorkspaceID: testWorkspaceID,
+					Filter:      mustParse(t, tc.filter),
+					Limit:       testPageSize,
+					Order:       order,
 				}
 				got := f.allPages(t, query)
 				want := wantBodies(testWorkspaceID, tc.resources, order)

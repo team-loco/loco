@@ -42,6 +42,10 @@ func (b namedBinder) add(value, format string) string {
 
 func (b namedBinder) str(value string) string { return b.add(value, "{%s:String}") }
 
+func (b namedBinder) float(value float64) string {
+	return b.add(strconv.FormatFloat(value, 'g', -1, 64), "{%s:Float64}")
+}
+
 func (b namedBinder) num(value int64) string {
 	return b.add(strconv.FormatInt(value, 10), "{%s:Int64}")
 }

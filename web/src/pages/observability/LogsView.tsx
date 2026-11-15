@@ -103,12 +103,12 @@ export function LogsView() {
 	const [focusActive, setFocusActive] = useState(anchor !== null);
 	const [windowEnd, setWindowEnd] = useState(Date.now);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
-	const backend = buildBackendQuery(tokens, text, resources, scopedResourceIds);
+	const backend = buildBackendQuery(tokens, text, scopedResourceIds);
 	const spanMs = windowSpan(range);
 	const queryKey = JSON.stringify([
 		workspaceId,
 		environmentId,
-		backend.parsed,
+		backend.query,
 		backend.resourceIds,
 		backend.impossible,
 		range,
@@ -151,7 +151,7 @@ export function LogsView() {
 		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
 		spanMs,
-		parsedQuery: backend.parsed,
+		query: backend.query,
 		cursor,
 		order: history.current.order,
 		startTime: msToTimestamp(historyFrom),
@@ -165,7 +165,7 @@ export function LogsView() {
 		environmentId,
 		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
-		parsedQuery: backend.parsed,
+		query: backend.query,
 		enabled: tail && cursor === "" && !backend.impossible,
 	});
 
@@ -202,7 +202,7 @@ export function LogsView() {
 		const latestKey = JSON.stringify([
 			workspaceId,
 			environmentId,
-			backend.parsed,
+			backend.query,
 			backend.resourceIds,
 			backend.impossible,
 			range,

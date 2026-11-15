@@ -7,9 +7,11 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -89,14 +91,14 @@ func insertLogs(
 
 func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
 	t.Parallel()
-	server := NewObservabilityServer(newTestClickHouse(t), nil, ObservabilityConfig{})
+	server := NewObservabilityServer(newTestClickHouse(t), nil, nil, ObservabilityConfig{})
 	ctx, cancel := context.WithCancel(t.Context())
 	time.AfterFunc(tailLoopCancelDelay, cancel)
 
 	start := time.Now()
 	err := server.tailLoop(
 		ctx,
-		tailLogQuery(&observabilityv1.TailLogsRequest{}, time.Now()),
+		tailQuery("", "", time.Now()),
 		func(*observabilityv1.TailLogsResponse) error { return nil },
 	)
 	if err != nil {
@@ -110,13 +112,12 @@ func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
 func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 	t.Parallel()
 	client := newTestClickHouse(t)
-	server := NewObservabilityServer(client, nil, ObservabilityConfig{})
+	server := NewObservabilityServer(client, nil, nil, ObservabilityConfig{})
 	timestamp := time.Now().UTC().Add(-time.Minute)
 	attrs := map[string]string{workspaceAttribute: tailTestWorkspace, environmentAttribute: tailTestEnvironment}
 	insertLogs(t, client, timestamp, "same log", attrs, tailTestBurstSize)
 	insertLogs(t, client, timestamp, "build log", map[string]string{workspaceAttribute: tailTestWorkspace}, 1)
 
-	request := &observabilityv1.TailLogsRequest{WorkspaceId: tailTestWorkspace, EnvironmentId: tailTestEnvironment}
 	cursor := chClient.TailLogCursor{}
 	var sends int
 	var sendErr error
@@ -128,7 +129,7 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 		return nil
 	}
 	poll := func(ctx context.Context) (int, error) {
-		return server.pollTailLogs(ctx, tailLogQuery(request, timestamp), cursor, send)
+		return server.pollTailLogs(ctx, tailQuery(tailTestWorkspace, tailTestEnvironment, timestamp), cursor, send)
 	}
 	expect := func(want int) {
 		t.Helper()
@@ -172,18 +173,17 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 func TestTailPollDeliversLateRecordsAcrossPartitionsAndMerges(t *testing.T) {
 	t.Parallel()
 	client := newTestClickHouse(t)
-	server := NewObservabilityServer(client, nil, ObservabilityConfig{})
+	server := NewObservabilityServer(client, nil, nil, ObservabilityConfig{})
 	midnight := time.Now().UTC().Truncate(24 * time.Hour)
 	since := midnight.Add(-time.Minute)
 	attrs := map[string]string{workspaceAttribute: tailTestWorkspace}
-	request := &observabilityv1.TailLogsRequest{WorkspaceId: tailTestWorkspace}
 	cursor := chClient.TailLogCursor{}
 	poll := func(want string) {
 		t.Helper()
 		var bodies []string
 		_, err := server.pollTailLogs(
 			t.Context(),
-			tailLogQuery(request, since),
+			tailQuery(tailTestWorkspace, "", since),
 			cursor,
 			func(entry *observabilityv1.LogEntry) error { bodies = append(bodies, entry.GetBody()); return nil },
 		)
@@ -205,7 +205,7 @@ func TestTailPollDeliversLateRecordsAcrossPartitionsAndMerges(t *testing.T) {
 	poll("late same partition")
 	sent, err := server.pollTailLogs(
 		t.Context(),
-		tailLogQuery(request, since),
+		tailQuery(tailTestWorkspace, "", since),
 		cursor,
 		func(*observabilityv1.LogEntry) error { t.Error("tail repeated a delivered row"); return nil },
 	)
@@ -322,29 +322,21 @@ func TestGetTraceReadsTheWholeTraceInTheWorkspace(t *testing.T) {
 	}
 }
 
-// logFilters holds the filter fields of a log request, to set alike on QueryLogs and TailLogs.
-type logFilters struct {
-	resources, excludedResources []string
-	excludedLevels               []string
-	labels, excludedLabels       []*observabilityv1.LogFieldFilter
-	attributes, excludedAttrs    []*observabilityv1.LogFieldFilter
-	jsonFields, excludedJSON     []*observabilityv1.LogFieldFilter
-	traces, excludedTraces       []string
+// tailQuery is the query TailLogs polls for a workspace and environment from since.
+func tailQuery(workspace, environment string, since time.Time) chClient.LogQuery {
+	return chClient.LogQuery{WorkspaceID: workspace, EnvironmentID: environment, Start: since, Limit: tailPageSize}
 }
 
-func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
+func TestQueryAndTailLogsApplyEveryQueryAlike(t *testing.T) {
 	t.Parallel()
 	ch := newTestClickHouse(t)
 	f := newObservabilityFixture(t)
 	const (
 		traceA = "0123456789abcdef0123456789abcdef"
 		traceB = "fedcba9876543210fedcba9876543210"
-		team   = "team"
-		method = "http.request.method"
-		get    = "GET"
-		web1   = `{"msg":"web get","user":{"id":"42"},"attempt":1}`
-		web2   = `{"msg":"web post","user":{"id":"7"},"attempt":2}`
-		worker = "worker error"
+		web1   = `{"msg":"web get","user":{"id":"42"},"roles":["admin"]}`
+		web2   = `{"msg":"web post","user":{"id":"7"}}`
+		worker = "worker error timeout"
 	)
 	at := time.Now().UTC().Add(-time.Minute)
 	batch, err := ch.Conn().PrepareBatch(
@@ -355,22 +347,23 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, row := range []struct {
-		body, severity, trace, team, method string
-		resource                            uuid.UUID
+		body, severity, trace, team, pod, region string
+		resource                                 uuid.UUID
+		attributes                               map[string]string
 	}{
-		{web1, "INFO", traceA, "a", get, f.resource},
-		{web2, "DEBUG", traceB, "b", "POST", f.resource},
-		{worker, "ERROR", "", "a", "", f.otherResource},
+		{web1, "INFO", traceA, "a", "web-1", "us-central-1", f.resource, map[string]string{
+			"method": "GET", "status": "200", "user.id": "42", "roles.0": "admin",
+		}},
+		{web2, "DEBUG", traceB, "b", "web-2", "eu-west-1", f.resource, map[string]string{
+			"method": "POST", "status": "503", "user.id": "7", "path": "/api/orders", "team": "b-log",
+		}},
+		{worker, "ERROR", "", "a", "worker-1", "us-west-2", f.otherResource, map[string]string{}},
 	} {
 		attrs := map[string]string{
 			workspaceAttribute: f.workspace.String(), resourceAttribute: row.resource.String(),
-			retentionAttribute: "1", team: row.team,
+			retentionAttribute: "1", "team": row.team, "k8s.pod.name": row.pod, "loco.region": row.region,
 		}
-		logAttrs := map[string]string{}
-		if row.method != "" {
-			logAttrs[method] = row.method
-		}
-		if appendErr := batch.Append(at, row.severity, row.body, attrs, row.trace, logAttrs); appendErr != nil {
+		if appendErr := batch.Append(at, row.severity, row.body, attrs, row.trace, row.attributes); appendErr != nil {
 			t.Fatal(appendErr)
 		}
 	}
@@ -379,84 +372,52 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 	}
 	cfg := observabilityTestConfig
 	cfg.Limits.MaxLimit = 100
-	client := observabilityTestClient(t, NewObservabilityServer(ch, f.authorizer, cfg), f.callers)
-	web, other := f.resource.String(), f.otherResource.String()
-	field := func(key string, values ...string) []*observabilityv1.LogFieldFilter {
-		return []*observabilityv1.LogFieldFilter{{Key: key, Values: values}}
-	}
-	prefixed := func(key string, values []string, prefixes ...string) []*observabilityv1.LogFieldFilter {
-		return []*observabilityv1.LogFieldFilter{{Key: key, Values: values, Prefixes: prefixes}}
-	}
+	client := observabilityTestClient(t, NewObservabilityServer(ch, f.authorizer, f.queries, cfg), f.callers)
 
-	for name, tc := range map[string]struct {
-		filters logFilters
-		want    []string
-	}{
-		"trace":                  {logFilters{traces: []string{traceA}}, []string{web1}},
-		"excluded trace":         {logFilters{excludedTraces: []string{traceA}}, []string{web2, worker}},
-		"log attribute":          {logFilters{attributes: field(method, get)}, []string{web1}},
-		"log attribute values":   {logFilters{attributes: field(method, get, "POST")}, []string{web1, web2}},
-		"excluded log attribute": {logFilters{excludedAttrs: field(method, get)}, []string{web2, worker}},
-		"excluded level":         {logFilters{excludedLevels: []string{"DEBUG"}}, []string{web1, worker}},
-		"excluded resource":      {logFilters{excludedResources: []string{other}}, []string{web1, web2}},
-		"excluded label":         {logFilters{excludedLabels: field(team, "a")}, []string{web2}},
-		"excluded label values":  {logFilters{excludedLabels: field(team, "b", "c")}, []string{web1, worker}},
-		"JSON string field":      {logFilters{jsonFields: field("user.id", "42")}, []string{web1}},
-		"JSON number field":      {logFilters{jsonFields: field("attempt", "2")}, []string{web2}},
-		"excluded JSON values":   {logFilters{excludedJSON: field("user.id", "42", "7")}, []string{worker}},
-		"log attribute prefix":   {logFilters{attributes: prefixed(method, nil, "PO")}, []string{web2}},
-		"excluded JSON prefix":   {logFilters{excludedJSON: prefixed("user.id", nil, "4")}, []string{web2, worker}},
-		"label value or prefix":  {logFilters{labels: prefixed(team, []string{"c"}, "b")}, []string{web2}},
-		"excluded label value or prefix": {
-			logFilters{excludedLabels: prefixed(team, []string{"c"}, "b")},
-			[]string{web1, worker},
-		},
-		"included and excluded": {
-			logFilters{resources: []string{web}, labels: field(team, "b"), excludedLevels: []string{"INFO"}},
-			[]string{web2},
-		},
+	for query, want := range map[string][]string{
+		"":                                  {web1, web2, worker},
+		"@trace:" + strings.ToUpper(traceA): {web1},
+		"-@trace:" + traceA:                 {web2, worker},
+		"@method:GET OR @method:POST":       {web1, web2},
+		"-@method:GET":                      {web2, worker},
+		"@status:>=500":                     {web2},
+		"@status:200..299":                  {web1},
+		"-@status:>=500":                    {web1, worker},
+		"@level:debug":                      {web2},
+		"-@level:info":                      {web2, worker},
+		"@resource:WEB":                     {web1, web2},
+		"-@resource:work*":                  {web1, web2},
+		"@resource:missing":                 {},
+		"@region:US-*":                      {web1, worker},
+		"-@region:us-*":                     {web2},
+		"@replica:web-*":                    {web1, web2},
+		"@user.id:42":                       {web1},
+		"@roles[0]:admin":                   {web1},
+		"@team:a":                           {web1, worker},
+		"@team:b":                           {},
+		"@team:b-log":                       {web2},
+		"timeout":                           {worker},
+		`"web post"`:                        {web2},
+		"@path:/api/*":                      {web2},
+		"(@level:error OR @level:debug) -@path:/api/*": {worker},
+		"@level:info OR @level:debug -@method:POST":    {web1},
 	} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(query, func(t *testing.T) {
 			t.Parallel()
 			ctx := callerContext(t, workspaceReader)
-			fl, want := tc.filters, slices.Sorted(slices.Values(tc.want))
+			sorted := slices.Sorted(slices.Values(want))
 			queried, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
-				WorkspaceId:           f.workspace.String(),
-				StartTime:             timestamppb.New(at),
-				EndTime:               timestamppb.New(at),
-				Limit:                 100,
-				ResourceIds:           fl.resources,
-				ExcludedResourceIds:   fl.excludedResources,
-				ExcludedLevels:        fl.excludedLevels,
-				Labels:                fl.labels,
-				ExcludedLabels:        fl.excludedLabels,
-				LogAttributes:         fl.attributes,
-				ExcludedLogAttributes: fl.excludedAttrs,
-				JsonFields:            fl.jsonFields,
-				ExcludedJsonFields:    fl.excludedJSON,
-				TraceIds:              fl.traces,
-				ExcludedTraceIds:      fl.excludedTraces,
+				WorkspaceId: f.workspace.String(), StartTime: timestamppb.New(at), EndTime: timestamppb.New(at),
+				Limit: 100, Query: query,
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := logBodies(queried.GetEntries()); !slices.Equal(got, want) {
-				t.Errorf("QueryLogs bodies = %v, want %v", got, want)
+			if got := logBodies(queried.GetEntries()); !slices.Equal(got, sorted) {
+				t.Errorf("QueryLogs bodies = %v, want %v", got, sorted)
 			}
 			stream, err := client.TailLogs(ctx, &observabilityv1.TailLogsRequest{
-				WorkspaceId:           f.workspace.String(),
-				Since:                 timestamppb.New(at),
-				ResourceIds:           fl.resources,
-				ExcludedResourceIds:   fl.excludedResources,
-				ExcludedLevels:        fl.excludedLevels,
-				Labels:                fl.labels,
-				ExcludedLabels:        fl.excludedLabels,
-				LogAttributes:         fl.attributes,
-				ExcludedLogAttributes: fl.excludedAttrs,
-				JsonFields:            fl.jsonFields,
-				ExcludedJsonFields:    fl.excludedJSON,
-				TraceIds:              fl.traces,
-				ExcludedTraceIds:      fl.excludedTraces,
+				WorkspaceId: f.workspace.String(), Since: timestamppb.New(at), Query: query,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -473,10 +434,41 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 				}
 				tailed = append(tailed, message.GetEntry())
 			}
-			if got := logBodies(tailed); !slices.Equal(got, want) {
-				t.Errorf("TailLogs bodies = %v, want %v", got, want)
+			if got := logBodies(tailed); !slices.Equal(got, sorted) {
+				t.Errorf("TailLogs bodies = %v, want %v", got, sorted)
 			}
 		})
+	}
+}
+
+func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
+	t.Parallel()
+	ch := newTestClickHouse(t)
+	f := newObservabilityFixture(t)
+	client := f.client(t, ch)
+	ctx := callerContext(t, workspaceReader)
+	now := timestamppb.Now()
+	_, queryErr := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
+		WorkspaceId: f.workspace.String(), StartTime: now, EndTime: now, Query: "@path:/a:b",
+	})
+	stream, err := client.TailLogs(ctx, &observabilityv1.TailLogsRequest{
+		WorkspaceId: f.workspace.String(), Query: "(@level:error",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	_, tailErr := stream.Receive()
+	for rpc, tc := range map[string]struct {
+		err  error
+		want string
+	}{
+		"QueryLogs": {queryErr, "quote values that contain : at position 7"},
+		"TailLogs":  {tailErr, "unclosed ( at position 1"},
+	} {
+		if connect.CodeOf(tc.err) != connect.CodeInvalidArgument || !strings.Contains(tc.err.Error(), tc.want) {
+			t.Errorf("%s error = %v, want InvalidArgument with %q", rpc, tc.err, tc.want)
+		}
 	}
 }
 

@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/logquery"
+
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"go.yaml.in/yaml/v2"
@@ -261,9 +263,10 @@ func verifyApplication(
 		return errVerificationSecretDelivery
 	}
 	request := &observabilityv1.QueryLogsRequest{
-		WorkspaceId: environment.GetWorkspaceId(), EnvironmentId: environment.GetId(), Search: marker,
-		ResourceIds: []string{resourceID}, Regions: []string{worker.Region},
-		StartTime: started,
+		WorkspaceId: environment.GetWorkspaceId(), EnvironmentId: environment.GetId(),
+		Query:       logquery.Quote(marker) + " @region:" + logquery.Quote(worker.Region),
+		ResourceIds: []string{resourceID},
+		StartTime:   started,
 	}
 	if logsErr := verificationLogs(ctx, clients, request, marker); logsErr != nil {
 		return logsErr

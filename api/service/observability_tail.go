@@ -31,22 +31,17 @@ func (s *ObservabilityServer) TailLogs(
 	if err := guardrails.ValidateTailRequest(req, s.cfg.Limits, started); err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
-	if err := s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
+	query, err := s.logQuery(ctx, req)
+	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.MaxTailDuration)
 	defer cancel()
-	since := started.Add(-defaultTailLookback)
+	query.Start, query.Limit = started.Add(-defaultTailLookback), tailPageSize
 	if req.GetSince() != nil {
-		since = req.GetSince().AsTime()
+		query.Start = req.GetSince().AsTime()
 	}
-	return s.tailLoop(ctx, tailLogQuery(req, since), stream.Send)
-}
-
-func tailLogQuery(req *observabilityv1.TailLogsRequest, since time.Time) chClient.LogQuery {
-	query := logQuery(req)
-	query.Start, query.Limit = since, tailPageSize
-	return query
+	return s.tailLoop(ctx, query, stream.Send)
 }
 
 // tailLoop polls until the tail's deadline or the client goes away, both of which end the stream

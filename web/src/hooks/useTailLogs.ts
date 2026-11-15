@@ -2,7 +2,6 @@ import { useState, useEffect, useEffectEvent } from "react";
 import { createClient } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import { ObservabilityService, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
-import type { ParsedQuery } from "@/lib/obs-query-parser";
 import { msToTimestamp } from "@/lib/time";
 
 const MAX_TAIL_ENTRIES = 500;
@@ -12,7 +11,8 @@ interface UseTailLogsOptions {
 	environmentId: string;
 	allEnvironments?: boolean;
 	resourceIds: string[];
-	parsedQuery: ParsedQuery;
+	/** A log query; the API parses it. */
+	query: string;
 	sinceMs?: number | undefined;
 	enabled?: boolean;
 }
@@ -31,14 +31,14 @@ export function tailLogsRequest({
 	environmentId,
 	allEnvironments = false,
 	resourceIds,
-	parsedQuery,
+	query,
 	sinceMs,
 }: UseTailLogsOptions) {
 	return {
 		workspaceId,
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
-		...parsedQuery,
+		query,
 		since: sinceMs === undefined ? undefined : msToTimestamp(sinceMs),
 	};
 }

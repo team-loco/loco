@@ -1,22 +1,10 @@
 import { createParser, parseAsArrayOf, parseAsString } from "nuqs";
 
-import type { ParsedQuery } from "@/lib/obs-query-parser";
-
 import type { ObservabilityView } from "@/lib/routes";
-
-import type { ObsResource } from "./context";
-import { TRACE_ID_PATTERN } from "./traces";
 
 export type Level = "error" | "warn" | "info" | "debug";
 
 export const LEVELS: Level[] = ["error", "warn", "info", "debug"];
-
-const LEVEL_VARIANTS: Record<Level, string[]> = {
-	error: ["ERROR", "error", "Error", "FATAL", "fatal", "Fatal", "CRITICAL", "critical", "Critical"],
-	warn: ["WARN", "warn", "Warn", "WARNING", "warning", "Warning"],
-	info: ["", "INFO", "info", "Info", "Information", "NOTICE", "notice"],
-	debug: ["DEBUG", "debug", "Debug", "TRACE", "trace", "Trace"],
-};
 
 export function levelOf(severity: string): Level {
 	const s = severity.toLowerCase();
@@ -272,91 +260,26 @@ export function durationBounds(tokens: Token[]): DurationBounds | null {
 }
 
 export interface BackendQuery {
-	parsed: ParsedQuery;
+	query: string;
 	resourceIds: string[];
 	allEnvironments: boolean;
 	impossible: boolean;
 }
 
-export function buildBackendQuery(
-	tokens: Token[],
-	text: string,
-	resources: ObsResource[],
-	scopedResourceIds: string[] | null,
-): BackendQuery {
-	const byKey = (k: FieldKey, neg: boolean) => liveTokens("logs", tokens, k).filter((t) => t.neg === neg);
-	const values = (k: FieldKey, neg: boolean) => byKey(k, neg).map((t) => t.value);
-
-	const levelSet = narrow(LEVELS, byKey("level", false));
-	const levelVariants = (set: Level[]) => set.flatMap((l) => LEVEL_VARIANTS[l]);
-	const excludedLevelSet = LEVELS.filter((l) => byKey("level", true).some((t) => matches(l, t.value)));
-
-	const resNames = narrow(
-		resources.map((r) => r.name),
-		byKey("resource", false),
-	);
-	const resSet = resNames === null ? null : new Set(resNames);
-	const resourceIds =
-		resSet === null ? (scopedResourceIds ?? []) : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
-	const excludedNames = byKey("resource", true);
-	const excludedResourceIds = resources
-		.filter((r) => excludedNames.some((t) => matches(r.name, t.value)))
-		.map((r) => r.id);
-
-	// Tokens on one key become one filter that matches any of their values; a trailing * makes a prefix.
-	const fieldFilters = (neg: boolean, fixed: Partial<Record<FieldKey, string>>, pairKey: FieldKey) => {
-		const byField = new Map<string, { key: string; values: string[]; prefixes: string[] }>();
-		const add = (key: string, value: string) => {
-			const filter = byField.get(key) ?? { key, values: [], prefixes: [] };
-			if (value.endsWith("*")) {
-				if (value.length > 1) filter.prefixes.push(value.slice(0, -1));
-			} else {
-				filter.values.push(value);
-			}
-			if (filter.values.length + filter.prefixes.length > 0) byField.set(key, filter);
-		};
-		for (const [field, attribute] of Object.entries(fixed) as [FieldKey, string][]) {
-			for (const t of byKey(field, neg)) add(attribute, t.value);
-		}
-		for (const t of byKey(pairKey, neg)) {
-			const pair = attributePair(t.value);
-			if (pair !== null) add(pair.key, pair.value);
-		}
-		return [...byField.values()];
-	};
-	const labelFields: Partial<Record<FieldKey, string>> = { replica: "k8s.pod.name", build: BUILD_ID_LABEL };
-
-	const traceIds = values("trace", false).map((v) => v.toLowerCase());
-	const excludedTraceIds = values("trace", true)
-		.map((v) => v.toLowerCase())
-		.filter((v) => TRACE_ID_PATTERN.test(v));
-
-	const impossible =
-		levelSet?.length === 0 ||
-		resNames?.length === 0 ||
-		(scopedResourceIds !== null && resourceIds.length === 0) ||
-		traceIds.some((v) => !TRACE_ID_PATTERN.test(v));
-
+/** The logs request for a query: the API parses its text; the scope comes from the caller's grants. */
+export function buildBackendQuery(tokens: Token[], text: string, scopedResourceIds: string[] | null): BackendQuery {
+	const terms = tokens.map((t) => {
+		const pair = PAIR_FIELDS.has(t.key) ? attributePair(t.value) : null;
+		if (pair === null) return t;
+		const value = /^[^\s"():]+$/.test(pair.value) ? pair.value : JSON.stringify(pair.value);
+		return { ...t, key: pair.key as FieldKey, value };
+	});
+	const resourceIds = scopedResourceIds ?? [];
 	return {
-		parsed: {
-			search: text.trim(),
-			levels: levelSet === null ? [] : levelVariants(levelSet),
-			excludedLevels: levelVariants(excludedLevelSet),
-			labels: fieldFilters(false, labelFields, "label"),
-			excludedLabels: fieldFilters(true, labelFields, "label"),
-			logAttributes: fieldFilters(false, REQUEST_FILTER_ATTRIBUTES, "attr"),
-			excludedLogAttributes: fieldFilters(true, REQUEST_FILTER_ATTRIBUTES, "attr"),
-			jsonFields: fieldFilters(false, {}, "json"),
-			excludedJsonFields: fieldFilters(true, {}, "json"),
-			traceIds,
-			excludedTraceIds,
-			regions: values("region", false),
-			excludedRegions: values("region", true),
-			excludedResourceIds,
-		},
+		query: queryStr(terms, text),
 		resourceIds,
-		allEnvironments: byKey("build", false).length > 0,
-		impossible,
+		allEnvironments: tokens.some((t) => t.key === "build" && !t.neg),
+		impossible: scopedResourceIds !== null && resourceIds.length === 0,
 	};
 }
 
