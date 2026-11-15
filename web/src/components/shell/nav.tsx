@@ -23,6 +23,7 @@ import {
 	observabilityPath,
 	observabilityViewParser,
 	resourcesPath,
+	withEnv,
 	workspacePath,
 	type ObservabilityView,
 } from "@/lib/routes";
@@ -56,7 +57,6 @@ export function useNavSections(): NavSection[] {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	const envParams: Record<string, string> = env !== null ? { env } : {};
-	const withEnv = (path: string) => (env !== null ? `${path}?env=${encodeURIComponent(env)}` : path);
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
 	const onObs = wsBase !== null && pathname.startsWith(`${wsBase}/observability`);
@@ -69,7 +69,7 @@ export function useNavSections(): NavSection[] {
 					name: "Dashboard",
 					icon: <LayoutGridIcon />,
 					keywords: "home overview",
-					to: wsBase !== null ? withEnv(wsBase) : undefined,
+					to: wsBase !== null ? withEnv(wsBase, env) : undefined,
 					active: pathname === wsBase,
 					preload: pageImporters.Dashboard,
 				},
@@ -77,7 +77,7 @@ export function useNavSections(): NavSection[] {
 					name: "Resources",
 					icon: <BoxesIcon />,
 					keywords: "services inventory",
-					to: hasWs ? withEnv(resourcesPath(activeOrgId, activeWorkspaceId)) : undefined,
+					to: hasWs ? withEnv(resourcesPath(activeOrgId, activeWorkspaceId), env) : undefined,
 					active: hasWs && inResourcesSection(pathname, activeOrgId, activeWorkspaceId),
 					preload: pageImporters.Resources,
 				},
@@ -129,7 +129,7 @@ export function useNavSections(): NavSection[] {
 					name: "Settings",
 					icon: <Settings2Icon />,
 					keywords: "workspace environments",
-					to: wsBase !== null ? withEnv(`${wsBase}/settings`) : undefined,
+					to: wsBase !== null ? withEnv(`${wsBase}/settings`, env) : undefined,
 					active: pathname.endsWith("/settings"),
 					preload: pageImporters.Settings,
 				},

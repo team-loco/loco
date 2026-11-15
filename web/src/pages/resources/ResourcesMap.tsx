@@ -44,9 +44,7 @@ export function ResourcesMap({
 	const envParam = { env: env.name };
 	const version = selected?.last === undefined ? "—" : imageVersion(deploymentImage(selected.last));
 	const hrefFor = (item: DashboardItem) =>
-		isDraftItem(item)
-			? ""
-			: `${resourcePath(orgId, workspaceId, item.resource.id)}?env=${encodeURIComponent(env.name)}`;
+		isDraftItem(item) ? "" : resourcePath(orgId, workspaceId, item.resource.id, { env: env.name });
 
 	return (
 		<Section>

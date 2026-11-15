@@ -3,6 +3,7 @@ import { EnvironmentType, type Environment } from "@gen/loco/environment/v1/envi
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
+import { useEffect } from "react";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -56,6 +57,16 @@ export function useEnvironments() {
 		setActive,
 		isLoading: scopes.isLoading || granted.isLoading || environmentsLoading,
 	};
+}
+
+/** Writes the active environment into the URL once environments load, so every workspace URL names one. */
+export function useEnvironmentInUrl() {
+	const { active, isLoading } = useEnvironments();
+	const [env, setEnv] = useQueryState("env");
+	const name = active?.name;
+	useEffect(() => {
+		if (!isLoading && name !== undefined && env !== name) void setEnv(name, { history: "replace" });
+	}, [isLoading, name, env, setEnv]);
 }
 
 export function environmentTypeLabel(type: EnvironmentType): string {

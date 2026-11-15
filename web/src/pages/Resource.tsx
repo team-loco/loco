@@ -29,7 +29,7 @@ import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
 import { configuredRegions, isWorker } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
-import { buildLogsPath, observabilityPath, resourcePath, workspacePath } from "@/lib/routes";
+import { buildLogsPath, observabilityPath, resourcePath, withEnv, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
@@ -191,7 +191,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				name: r.name,
 				description: r.description ?? "",
 				status: environmentStatus(r, environmentId)?.status,
-				href: `${resourcePath(activeOrgId, activeWorkspaceId, r.id)}${env !== null ? `?env=${encodeURIComponent(env)}` : ""}`,
+				href: resourcePath(activeOrgId, activeWorkspaceId, r.id, { env }),
 			}))
 		: [];
 
@@ -279,7 +279,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					setModal(null);
 					if (hasWs) {
 						const home = workspacePath(activeOrgId, activeWorkspaceId);
-						void navigate(env !== null ? `${home}?env=${encodeURIComponent(env)}` : home);
+						void navigate(withEnv(home, env));
 					}
 				},
 				onError: (err) => {

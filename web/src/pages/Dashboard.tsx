@@ -45,7 +45,7 @@ export function Dashboard() {
 	const workspaceId = activeWorkspaceId ?? "";
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const [draftId] = useQueryState(DRAFT_PARAM);
-	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id);
+	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id, { env: active?.name ?? null });
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
 	const heading = <h1 className="sr-only">Dashboard</h1>;
