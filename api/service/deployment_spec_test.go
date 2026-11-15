@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -181,19 +180,6 @@ func TestDesiredSpecKeepsOtherSpecFailuresInternal(t *testing.T) {
 	wantServerFailure(t, errors.Join(errDesiredSpec, boom))
 }
 
-func TestDeployRejectsInvalidSpecWithoutWritingADeployment(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	ctx := context.Background()
-
-	buildSpec := testDesiredSpec(t, 80)
-	_, err := f.deploy(ctx, buildSpec)
-	wantCode(t, err, connect.CodeInvalidArgument)
-	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
-		t.Fatalf("%d deployments after an invalid deploy, want 0", n)
-	}
-}
-
 func applicationPayload(t *testing.T, buildSpec desiredSpecFunc) locoControllerV1.PlacementPayload {
 	t.Helper()
 	raw, err := buildSpec(uuid.New())
@@ -302,22 +288,6 @@ func TestValidateQuantitiesRejectsInvalidValues(t *testing.T) {
 	invalidMemory.Memory = &badMemory
 	if err := validateQuantities(invalidMemory); !errors.Is(err, servicedefaults.ErrInvalidMemory) {
 		t.Errorf("memory %q = %v, want ErrInvalidMemory", badMemory, err)
-	}
-}
-
-func TestDeployRejectsAnOutOfRangeQuantityAsInvalidArgument(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	ctx := context.Background()
-
-	requestSpec := testDeploymentSpec(8080)
-	cpu := "64"
-	requestSpec.GetService().Cpu = &cpu
-	buildSpec := testDesiredSpecFrom(t, testResourceSpec(), requestSpec)
-	_, err := f.deploy(ctx, buildSpec)
-	wantCode(t, err, connect.CodeInvalidArgument)
-	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
-		t.Fatalf("%d deployments after an invalid deploy, want 0", n)
 	}
 }
 

@@ -5,6 +5,7 @@ go 1.27.4
 require (
 	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
+	github.com/team-loco/loco v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0-00010101000000-000000000000
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
@@ -110,3 +111,6 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
+
+
+replace github.com/team-loco/loco => ../

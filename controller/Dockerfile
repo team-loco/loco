@@ -4,6 +4,7 @@ ARG TARGETARCH
 
 WORKDIR /workspace
 
+COPY go.mod go.sum ./
 COPY controller/go.mod controller/go.sum ./controller/
 COPY k8sapi/go.mod k8sapi/go.sum ./k8sapi/
 
@@ -11,6 +12,7 @@ WORKDIR /workspace/controller
 RUN go mod download || go mod download
 
 WORKDIR /workspace
+COPY internal/buildinfo ./internal/buildinfo
 COPY k8sapi ./k8sapi
 COPY controller ./controller
 

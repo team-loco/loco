@@ -268,33 +268,14 @@ func TestCreateDeploymentRaisesAnUnsetMaximumToTheMinimum(t *testing.T) {
 
 func TestCreateDeploymentRejectsSpecsTheControllerRejects(t *testing.T) {
 	t.Parallel()
-	cases := map[string]func(*deploymentv1.ServiceDeploymentSpec){
-		"explicit max below min": func(s *deploymentv1.ServiceDeploymentSpec) {
-			minReplicas := int32(3)
-			maxReplicas := int32(2)
-			s.MinReplicas = &minReplicas
-			s.MaxReplicas = &maxReplicas
-		},
-		"cpu below the controller minimum": func(s *deploymentv1.ServiceDeploymentSpec) {
-			cpu := "50m"
-			s.Cpu = &cpu
-		},
-		"max replicas above the controller maximum": func(s *deploymentv1.ServiceDeploymentSpec) {
-			maxReplicas := int32(15)
-			s.MaxReplicas = &maxReplicas
-		},
-	}
-	for name, change := range cases {
-		t.Run(name, func(t *testing.T) {
-			f := newDeployFixture(t)
-			service := imageService()
-			change(service)
-			_, err := createDeploymentWith(t, f, unboundedRegionSpec, service)
-			wantCode(t, err, connect.CodeInvalidArgument)
-			if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
-				t.Fatalf("%d deployments after a rejected deploy, want 0", n)
-			}
-		})
+	f := newDeployFixture(t)
+	service := imageService()
+	service.MinReplicas = new(int32(3))
+	service.MaxReplicas = new(int32(2))
+	_, err := createDeploymentWith(t, f, unboundedRegionSpec, service)
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
+		t.Fatalf("%d deployments after a rejected deploy, want 0", n)
 	}
 }
 

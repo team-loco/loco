@@ -32,6 +32,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/team-loco/loco/internal/buildinfo"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
@@ -48,6 +49,8 @@ func init() {
 	utilruntime.Must(locov1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
+
+var version string
 
 func main() {
 	var metricsAddr string
@@ -72,7 +75,7 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	managerVersion := buildVersion()
+	managerVersion := buildinfo.Version(version)
 	setupLog.Info("starting loco controller", "version", managerVersion)
 
 	metricsServerOptions := metricsserver.Options{
