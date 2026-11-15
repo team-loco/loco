@@ -1,3 +1,4 @@
+import { traceBounds } from "./trace-time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -49,8 +50,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 	const spec = resource?.raw.spec?.spec;
 	const service =
 		spec?.case === "service" ? spec.value.regions[span.resourceAttributes["loco.region"] ?? ""] : undefined;
-	const start = Number(trace.start / 1_000_000n);
-	const end = start + Number(trace.duration) / 1_000_000;
+	const { start, end } = traceBounds(trace);
 	const from = start - WINDOW_MS;
 	const to = end + WINDOW_MS;
 	const queries = useQueries({

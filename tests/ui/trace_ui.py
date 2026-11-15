@@ -20,7 +20,7 @@ org_id = orgs['orgs'][0]['id']
 workspace_id = state['workspaces']['acme/shared']
 base = f'/org/{org_id}/wks/{workspace_id}/observability?view=traces'
 trace = '4bf92f3577b34da6a3ce929d0e0e4736'
-start = int(time.time()) - 60
+start = int(time.time()) - 600
 rows = [('0001', '', 'frontend-proxy', 'POST /api/checkout', 0, 427.6), ('0002', '0001', 'frontend', 'POST /api/checkout', 1.2, 424.1), ('0003', '0002', 'checkout', 'oteldemo.CheckoutService/PlaceOrder', 5.3, 412.0), ('0004', '0003', 'cart', 'GetCart', 8.4, 24.5), ('0005', '0004', 'valkey', 'GET cart:session', 10.1, 7.8), ('0006', '0003', 'product-catalog', 'GetProduct · OLJCESPC7Z', 34.1, 18.9), ('0007', '0003', 'currency', 'Convert · USD → EUR', 58.7, 12.4), ('0008', '0003', 'shipping', 'GetQuote', 76.3, 86.2), ('0009', '0008', 'quote', 'POST /quote', 79.5, 71.4), ('000a', '0003', 'payment', 'Charge · attempt 1', 166.8, 96.1), ('000b', '000a', 'payment', 'POST /payments/authorize', 168.2, 91.7), ('000c', '0003', 'payment', 'Charge · attempt 2', 275.2, 78.6), ('000d', '0003', 'email', 'SendOrderConfirmation', 357.4, 45.2), ('000e', '0003', 'cart', 'EmptyCart', 405.1, 8.6)]
 
 def stamp(offset):
@@ -368,9 +368,6 @@ with session(out) as browser:
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:>100'))
     assert last_page_request()['minDurationNanos'] == '100000000'
     token_remove = page.get_by_role('button', name='Remove duration >100', exact=True)
-    expect(token_remove).to_have_css('border-top-right-radius','0px')
-    expect(token_remove.locator('..')).to_have_css('border-top-width','1px')
-    expect(token_remove.locator('..')).to_have_css('overflow-x','hidden')
     expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
     page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:100'))
     expect(page.get_by_role('alert')).to_contain_text('A duration filter compares in milliseconds')

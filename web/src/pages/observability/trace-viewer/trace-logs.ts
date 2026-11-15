@@ -1,3 +1,4 @@
+import { traceBounds } from "./trace-time";
 import { useState } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { useEnvironments } from "@/hooks/useEnvironment";
@@ -14,8 +15,7 @@ export function useTraceLogs(trace: TraceSummary) {
 	const { workspaceId, scopedResourceIds, resourceById } = useObs();
 	const { active } = useEnvironments();
 	const [now] = useState(Date.now);
-	const start = Number(trace.start / 1_000_000n);
-	const end = start + Number(trace.duration) / 1_000_000;
+	const { start, end } = traceBounds(trace);
 	const from = start - AROUND_MS;
 	const to = Math.min(now, end + AROUND_MS);
 	const query = useQueryLogs({
