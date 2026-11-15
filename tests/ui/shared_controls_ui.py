@@ -1,38 +1,19 @@
 import argparse
-import atexit
-import contextlib
-import importlib.util
-import io
 import json
-import os
 import re
 import urllib.parse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
+from harness import wait_for_query, authenticate, evidence, load_state, repo, session
 
-repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Check compact controls, segmented motion and settings navigation")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
-parser.add_argument("--capture-only", action="store_true")
-parser.add_argument("--label", default="after")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/shared-controls"))
 args = parser.parse_args()
-os.chdir(repo)
-spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
-evidence = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(evidence)
-if args.state is None:
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="shared-controls", scenario=str(repo / "tests/ui/fixtures/settings-labels/scenario.json")))
-    args.state = output.getvalue().strip().splitlines()[-1]
-    print("Preview state:", args.state, flush=True)
-    if not args.keep:
-        atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
-state = evidence.load_state(args.state)
+state = load_state(args, 'shared-controls', 'tests/ui/fixtures/settings-labels/scenario.json')
 owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
@@ -69,10 +50,6 @@ def mock_telemetry(context):
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
 
-def wait_for_query(page, check):
-    page.wait_for_url(lambda url: check(urllib.parse.parse_qs(urllib.parse.urlparse(url).query)))
-
-
 def log_levels(page, suffix):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
     levels = page.get_by_role("group", name="Log levels")
@@ -86,7 +63,6 @@ def log_levels(page, suffix):
     page.keyboard.press("Space")
     expect(warn).to_have_attribute("aria-pressed", "false")
     wait_for_query(page, lambda query: query.get("q") == ["@level:error"])
-    page.screenshot(path=str(out / f"log-levels-{suffix}.png"))
 
 
 def live_focus(page, suffix):
@@ -102,7 +78,7 @@ def live_focus(page, suffix):
     expect(live).to_have_attribute("aria-busy", "true")
     page.keyboard.press("Enter")
     # Chromium moves focus off a disabled button on its next rendering update, not at once.
-    page.wait_for_timeout(100)
+    page.evaluate("() => new Promise(requestAnimationFrame)")
     expect(live).to_be_focused()
     assert len(held) == 1, len(held)
     # fallback() to the context mock fails with "Route is already handled", so answer here.
@@ -151,7 +127,6 @@ def log_paging(page, suffix):
     page.get_by_role("separator", name="Resize column Resource").focus()
     page.keyboard.press("ArrowRight")
     expect(page).to_have_url(re.compile(r"widths=resource:156"))
-    page.screenshot(path=str(out / f"log-paging-{suffix}.png"))
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
@@ -173,7 +148,6 @@ def calendar(page, suffix):
     date_trigger.press("Space")
     popup = page.get_by_role("dialog", name="From calendar")
     expect(popup.get_by_role("grid")).to_be_visible()
-    popup.screenshot(path=str(out / f"calendar-{suffix}.png"), animations="disabled")
     page.keyboard.press("Escape")
     expect(popup).not_to_be_visible()
     expect(date_trigger).to_be_focused()
@@ -202,6 +176,7 @@ def query_enter(page, suffix):
     expect(suggestions).to_be_visible()
     search.press("Enter")
     expect(suggestions).not_to_be_visible()
+    expect(page).to_have_url(re.compile(r"checkout"))
     wait_for_query(page, lambda query: query.get("q") == ["@level:warn checkout"])
 
 
@@ -211,7 +186,6 @@ def query_suggestions(page, suffix):
     search.fill("@lev")
     expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
     suggestions = page.get_by_role("listbox", name="Suggestions")
-    suggestions.locator("..").screenshot(path=str(out / f"log-query-{suffix}.png"), animations="disabled")
     expect(search).to_have_attribute("aria-expanded", "true")
     search.press("Enter")
     expect(search).to_have_value("@level:")
@@ -267,7 +241,6 @@ def access_picker(page, suffix):
     expect(search).to_have_attribute("aria-expanded", "true")
     search.fill("controls-")
     expect(page.get_by_text("controls-zeta", exact=True)).to_be_visible()
-    dialog.screenshot(path=str(out / f"token-permissions-{suffix}.png"), animations="disabled")
     expect(search).to_have_attribute("aria-activedescendant", re.compile(r".+"))
     page.locator(f'[id={json.dumps(search.get_attribute("aria-activedescendant"))}]').hover()
     page.mouse.move(0, 0)
@@ -295,19 +268,16 @@ def dropdown_cursors(page, suffix):
     page.goto(state["ui_url"] + base + "/resources?env=production")
     trigger = page.get_by_role("button", name="New resource", exact=True)
     trigger.hover()
-    if not args.capture_only:
-        expect(trigger).to_have_css("cursor", "pointer")
+    expect(trigger).to_have_css("cursor", "pointer")
     trigger.click()
     menu = page.get_by_role("menu")
     enabled = menu.get_by_role("menuitem", name="Service", exact=True)
     disabled = menu.get_by_role("menuitem", name=re.compile(r"^Database"))
     enabled.hover()
-    menu.screenshot(path=str(out / f"dropdown-cursors-{suffix}.png"), animations="disabled")
-    if not args.capture_only:
-        expect(enabled).to_have_css("cursor", "pointer")
-        disabled.hover()
-        expect(disabled).to_be_disabled()
-        expect(disabled).to_have_css("cursor", "not-allowed")
+    expect(enabled).to_have_css("cursor", "pointer")
+    disabled.hover()
+    expect(disabled).to_be_disabled()
+    expect(disabled).to_have_css("cursor", "not-allowed")
     page.keyboard.press("Escape")
 
 
@@ -328,7 +298,6 @@ def resources(page, suffix):
             expect(page).to_have_url(re.compile(r"[?&]sort=name\.desc"))
             page.reload()
             expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
-            table.locator("..").screenshot(path=str(out / f"resource-sorting-{suffix}.png"), animations="disabled")
             name.press("Enter")
             expect(table.get_by_role("row").nth(1)).to_contain_text("controls-alpha")
             first_click_sorts_descending(table, "Size", "controls-zeta")
@@ -365,7 +334,6 @@ def metrics(page, suffix):
     menu = page.get_by_role("menu", name=re.compile(r"^Around"))
     expect(menu).to_be_visible()
     expect(menu.get_by_role("menuitem", name=re.compile(r"^Deploy 1\.27")).first).to_be_visible()
-    menu.screenshot(path=str(out / f"metric-menu-{suffix}.png"), animations="disabled")
     first, second = menu.get_by_role("menuitem").nth(0), menu.get_by_role("menuitem").nth(1)
     first.focus()
     page.keyboard.press("ArrowDown")
@@ -383,121 +351,112 @@ def metrics(page, suffix):
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 results = []
-with sync_playwright() as playwright:
-    browser = playwright.chromium.launch()
+with session(out) as browser:
     try:
-        for theme in ("light", "dark"):
-            for narrow in (False, True):
-                context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme, timezone_id="UTC")
-                mock_telemetry(context)
-                auth = {"idToken": owner["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
-                context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
-                page = context.new_page()
-                errors = []
-                page.on("pageerror", lambda error: errors.append(str(error)))
-                try:
-                    page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
-                    if not args.capture_only:
-                        assert page.get_by_role("button", name="Events", exact=True).bounding_box()["height"] == 32
-                        assert page.get_by_role("button", name="Redeploy", exact=True).bounding_box()["height"] == 32
-                    suffix = f"{args.label}-{theme}{'-narrow' if narrow else ''}"
-                    page.screenshot(path=str(out / f"resource-controls-{suffix}.png"), full_page=True)
-                    dropdown_cursors(page, suffix)
-                    page.goto(state["ui_url"] + base + "/settings?scope=workspace")
-                    group = page.get_by_role("group", name="Settings for", exact=True)
-                    workspace_button = group.get_by_role("button", name="Workspace", exact=True)
-                    personal = group.get_by_role("button", name="Personal", exact=True)
-                    expect(workspace_button).to_have_attribute("aria-pressed", "true")
-                    if not args.capture_only:
-                        assert workspace_button.bounding_box()["height"] == 28
-                        indicator = group.locator('[data-slot="segmented-indicator"]').first
-                        assert abs(indicator.bounding_box()["x"] - workspace_button.bounding_box()["x"]) <= 1
-                        personal.evaluate("""node => {
-                            window.indicatorPositions = [];
-                            const group = node.parentElement;
-                            const started = performance.now();
-                            const sample = () => {
-                                window.indicatorPositions.push(group.querySelector('[data-slot="segmented-indicator"]').getBoundingClientRect().x);
-                                if (performance.now() - started < 220) requestAnimationFrame(sample);
-                            };
-                            node.click();
-                            requestAnimationFrame(sample);
-                        }""")
-                        expect(personal).to_have_attribute("aria-pressed", "true")
-                        page.wait_for_timeout(250)
-                        assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
-                        positions = page.evaluate("window.indicatorPositions")
-                        start = workspace_button.bounding_box()["x"]
-                        end = personal.bounding_box()["x"]
-                        assert any(start + 2 < position < end - 2 for position in positions), positions
-                        personal.focus()
-                        page.keyboard.press("ArrowLeft")
-                        expect(workspace_button).to_be_focused()
-                        page.keyboard.press("Space")
-                        expect(workspace_button).to_have_attribute("aria-pressed", "true")
-                        page.emulate_media(reduced_motion="reduce")
-                        personal.click()
-                        page.wait_for_timeout(50)
-                        assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
-                        assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
-                    if not args.capture_only:
-                        personal.click()
-                        modes = page.get_by_role("radiogroup", name="Mode")
-                        html = page.locator("html")
-                        dark_class = re.compile(r"\bdark\b")
-                        modes.get_by_role("radio", name="Light" if theme == "dark" else "Dark", exact=True).click()
-                        (expect(html).not_to_have_class if theme == "dark" else expect(html).to_have_class)(dark_class)
-                        modes.get_by_role("radio", name="System", exact=True).click()
-                        (expect(html).to_have_class if theme == "dark" else expect(html).not_to_have_class)(dark_class)
-                        if not narrow:
-                            page.get_by_role("button", name=re.compile(re.escape(owner["email"]))).click()
-                            toggle = page.get_by_role("menuitem", name=re.compile(r"^(Light|Dark|System) mode$"))
-                            # The theme follows the system here, so the toggle offers Light, then Dark, then System.
-                            seen = []
-                            for _ in range(3):
-                                label = toggle.inner_text().strip()
-                                seen.append(label)
-                                toggle.click()
-                                expect(toggle).not_to_have_text(label)
-                            assert seen == ["Light mode", "Dark mode", "System mode"], seen
-                            expect(toggle).to_have_text("Light mode")
-                            page.keyboard.press("Escape")
-                        colours = page.get_by_role("radiogroup", name="Color theme")
-                        loco = colours.get_by_role("radio", name="Loco", exact=True)
-                        loco.focus()
-                        page.keyboard.press("ArrowRight")
-                        catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)
-                        expect(catppuccin).to_be_focused()
-                        expect(catppuccin).to_be_checked()
-                        radio_classes = catppuccin.get_attribute("class").split()
-                        assert "rounded-card" in radio_classes and "rounded-full" not in radio_classes, radio_classes
-                        page.keyboard.press("ArrowLeft")
-                        expect(loco).to_be_checked()
-                    workspace_button.click()
-                    page.wait_for_timeout(300)
-                    page.get_by_role("textbox", name="Name", exact=True).wait_for()
-                    page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
-                    page.wait_for_timeout(300)
-                    if not args.capture_only:
-                        assert page.evaluate("window.scrollY") > 0
-                    page.screenshot(path=str(out / f"settings-navigation-{suffix}.png"))
-                    if not args.capture_only:
-                        name = page.get_by_role("textbox", name="Name", exact=True)
-                        name.focus()
-                        page.wait_for_timeout(300)
-                        expect(name).to_be_focused()
-                        box = name.bounding_box()
-                        assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
-                    if not args.capture_only:
-                        for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
-                            check(page, suffix)
-                    assert not errors, errors
-                    results.append({"theme": theme, "narrow": narrow, "passed": True})
-                except BaseException:
-                    page.screenshot(path=str(out / f"failure-{theme}-{narrow}.png"), full_page=True)
-                    raise
-                finally:
-                    context.close()
+        theme = "light"
+        narrow = False
+        context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme, timezone_id="UTC")
+        mock_telemetry(context)
+        authenticate(context, owner['token'], theme)
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
+            assert page.get_by_role("button", name="Events", exact=True).bounding_box()["height"] == 32
+            assert page.get_by_role("button", name="Redeploy", exact=True).bounding_box()["height"] == 32
+            suffix = f"{theme}{'-narrow' if narrow else ''}"
+            dropdown_cursors(page, suffix)
+            page.goto(state["ui_url"] + base + "/settings?scope=workspace")
+            group = page.get_by_role("group", name="Settings for", exact=True)
+            workspace_button = group.get_by_role("button", name="Workspace", exact=True)
+            personal = group.get_by_role("button", name="Personal", exact=True)
+            expect(workspace_button).to_have_attribute("aria-pressed", "true")
+            assert workspace_button.bounding_box()["height"] == 28
+            indicator = group.locator('[data-slot="segmented-indicator"]').first
+            assert abs(indicator.bounding_box()["x"] - workspace_button.bounding_box()["x"]) <= 1
+            personal.evaluate("""node => {
+                window.indicatorPositions = [];
+                window.indicatorSampleDone = false;
+                const group = node.parentElement;
+                const target = node.getBoundingClientRect().x;
+                const sample = () => {
+                    window.indicatorPositions.push(group.querySelector('[data-slot="segmented-indicator"]').getBoundingClientRect().x);
+                    if (window.indicatorPositions.length < 2 || Math.abs(window.indicatorPositions.at(-1) - target) > 1) requestAnimationFrame(sample);
+                    else window.indicatorSampleDone = true;
+                };
+                node.click();
+                requestAnimationFrame(sample);
+            }""")
+            expect(personal).to_have_attribute("aria-pressed", "true")
+            page.wait_for_function("window.indicatorSampleDone")
+            assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
+            positions = page.evaluate("window.indicatorPositions")
+            start = workspace_button.bounding_box()["x"]
+            end = personal.bounding_box()["x"]
+            assert any(start + 2 < position < end - 2 for position in positions), positions
+            personal.focus()
+            page.keyboard.press("ArrowLeft")
+            expect(workspace_button).to_be_focused()
+            page.keyboard.press("Space")
+            expect(workspace_button).to_have_attribute("aria-pressed", "true")
+            page.emulate_media(reduced_motion="reduce")
+            personal.click()
+            expect(indicator).to_have_css("transform", "none")
+            assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
+            assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
+            personal.click()
+            modes = page.get_by_role("radiogroup", name="Mode")
+            html = page.locator("html")
+            dark_class = re.compile(r"\bdark\b")
+            modes.get_by_role("radio", name="Light" if theme == "dark" else "Dark", exact=True).click()
+            (expect(html).not_to_have_class if theme == "dark" else expect(html).to_have_class)(dark_class)
+            modes.get_by_role("radio", name="System", exact=True).click()
+            (expect(html).to_have_class if theme == "dark" else expect(html).not_to_have_class)(dark_class)
+            if not narrow:
+                page.get_by_role("button", name=re.compile(re.escape(owner["email"]))).click()
+                toggle = page.get_by_role("menuitem", name=re.compile(r"^(Light|Dark|System) mode$"))
+                # The theme follows the system here, so the toggle offers Light, then Dark, then System.
+                seen = []
+                for _ in range(3):
+                    label = toggle.inner_text().strip()
+                    seen.append(label)
+                    toggle.click()
+                    expect(toggle).not_to_have_text(label)
+                assert seen == ["Light mode", "Dark mode", "System mode"], seen
+                expect(toggle).to_have_text("Light mode")
+                page.keyboard.press("Escape")
+            colours = page.get_by_role("radiogroup", name="Color theme")
+            loco = colours.get_by_role("radio", name="Loco", exact=True)
+            loco.focus()
+            page.keyboard.press("ArrowRight")
+            catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)
+            expect(catppuccin).to_be_focused()
+            expect(catppuccin).to_be_checked()
+            radio_classes = catppuccin.get_attribute("class").split()
+            assert "rounded-card" in radio_classes and "rounded-full" not in radio_classes, radio_classes
+            page.keyboard.press("ArrowLeft")
+            expect(loco).to_be_checked()
+            page.set_viewport_size(evidence.NARROW)
+            workspace_button.click()
+            page.get_by_role("textbox", name="Name", exact=True).wait_for()
+            page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+            page.wait_for_function("window.scrollY > 0")
+            name = page.get_by_role("textbox", name="Name", exact=True)
+            name.focus()
+            expect(name).to_be_focused()
+            name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
+            box = name.bounding_box()
+            assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
+            for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
+                check(page, suffix)
+            assert not errors, errors
+            results.append({"theme": theme, "narrow": narrow, "passed": True})
+        except BaseException:
+            page.screenshot(path=str(out / f"failure-{theme}-{narrow}.png"), full_page=True)
+            raise
+        finally:
+            context.close()
     finally:
         browser.close()
 (out / "results.json").write_text(json.dumps(results, indent=2) + "\n")

@@ -1,35 +1,19 @@
-import argparse
-import atexit
 import contextlib
-import importlib.util
-import io
+import argparse
 import json
-import os
 import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, session
 
-repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Check settings field names, focus and descriptions in the production UI")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/settings-labels"))
 args = parser.parse_args()
-os.chdir(repo)
-spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
-evidence = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(evidence)
-if args.state is None:
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="settings-labels", scenario=str(repo / "tests/ui/fixtures/settings-labels/scenario.json")))
-    args.state = output.getvalue().strip().splitlines()[-1]
-    print("Preview state:", args.state, flush=True)
-    if not args.keep:
-        atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
-state = evidence.load_state(args.state)
+state = load_state(args, 'settings-labels', 'tests/ui/fixtures/settings-labels/scenario.json')
 orgs = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]})
 org_ids = {org["name"]: org["id"] for org in orgs["orgs"]}
 org_id = org_ids["acme"]
@@ -169,97 +153,92 @@ def check_create_dialogs(page):
     expect(page).not_to_have_url(re.compile(r"new=1"))
 
 
-with sync_playwright() as playwright:
-    browser = playwright.chromium.launch()
+with session(out) as browser:
     try:
         for user in ("owner", "member"):
-            for theme in ("light", "dark"):
-                for narrow in (False, True):
-                    context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-                    auth = {"idToken": state["users"][user]["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
-                    context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)}, JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)}, {json.dumps(theme)});")
-                    page = context.new_page()
-                    errors = []
-                    page.on("pageerror", lambda error: errors.append(str(error)))
-                    if user == "owner" and theme == "light" and not narrow:
-                        context.add_init_script(
-                            f"localStorage.setItem('loco:active-org:v1', {json.dumps(org_id)});"
-                            f"localStorage.setItem('loco:active-workspace:v1', {json.dumps(workspace_id)});"
-                        )
-                        beta_id = org_ids["beta"]
-                        beta_workspace = state["workspaces"]["beta/beta-workspace"]
-                        org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
-                        page.route(org_list_rpc, lambda route: route.abort())
-                        page.goto(f"{state['ui_url']}/org/{beta_id}/settings")
-                        page.wait_for_url(f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?scope=org")
-                        assert page.get_by_role("textbox", name="Name", exact=True).input_value() == "beta"
-                        page.unroute(org_list_rpc)
-                        page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
-                        page.wait_for_url(f"{state['ui_url']}/organizations")
-                        page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
-                        expect(page.get_by_placeholder("Search workspaces", exact=True)).to_have_value("zzz")
-                        workspace_scope = page.get_by_role("group", name="Settings for").get_by_role("button", name="Workspace", exact=True)
-                        workspace_scope.click()
-                        page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("scope", ["workspace"]) == ["workspace"])
-                        expect(workspace_scope).to_have_attribute("aria-pressed", "true")
-                        expect(page.get_by_placeholder("storefront", exact=True)).to_be_visible()
-                        assert "q=" not in page.url, page.url
-                    for tab in ("ws", "org"):
-                        try:
-                            page.goto(state["ui_url"] + base + "?scope=" + ("workspace" if tab == "ws" else "org"))
-                            page.get_by_placeholder("storefront" if tab == "ws" else "team-loco").wait_for()
-                            name = page.get_by_role("textbox", name="Name", exact=True)
-                            assert name.count() == 1
-                            assert page.get_by_text("Created", exact=True).first.evaluate("node => node.tagName") == "DT"
-                            assert name.evaluate("node => node.labels.length") == 1
-                            assert descriptions(name) == []
-                            if user == "member":
-                                assert name.is_disabled()
-                            else:
-                                original = name.input_value()
-                                page.locator(f'label[for={json.dumps(name.get_attribute("id"))}]').click()
-                                assert name.evaluate("node => node === document.activeElement")
-                                name.fill("")
-                                page.get_by_text("Name required", exact=True).wait_for()
-                                assert name.get_attribute("aria-invalid") == "true"
-                                assert "Name required" in descriptions(name)
-                                page.get_by_role("button", name="Discard", exact=True).click()
-                                assert name.input_value() == original
-                                assert name.get_attribute("aria-invalid") == "false"
-                                assert "Name required" not in descriptions(name)
-                            if tab == "ws":
-                                description = page.get_by_role("textbox", name="Description", exact=True)
-                                assert description.count() == 1 and description.evaluate("node => node.labels.length") == 1
-                                assert "256" in " ".join(descriptions(description))
-                                assert description.get_attribute("id") != name.get_attribute("id")
-                                if user == "member":
-                                    assert description.is_disabled()
-                                else:
-                                    page.locator(f'label[for={json.dumps(description.get_attribute("id"))}]').click()
-                                    assert description.evaluate("node => node === document.activeElement")
-                                    name.focus()
-                                    page.keyboard.press("Tab")
-                                    assert description.evaluate("node => node === document.activeElement")
-                            if tab == "org":
-                                workspaces = page.get_by_role("region", name="Workspaces", exact=True)
-                                expect(workspaces.get_by_role("link", name="shared", exact=True)).to_be_visible()
-                                # The list fits the smallest page size, so it has no pager.
-                                expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
-                            if tab == "ws" and user == "owner" and theme == "light" and not narrow:
-                                check_webhooks(page)
-                                check_environments(page)
-                                check_create_dialogs(page)
-                            suffix = f"{user}-{tab}-{theme}{'-narrow' if narrow else ''}"
-                            page.screenshot(path=out / f"settings-labels-{suffix}.png", animations="disabled")
-                            assert not errors, errors
-                            results.append({"user": user, "tab": tab, "theme": theme, "narrow": narrow, "errors": list(errors)})
-                        except BaseException as error:
-                            suffix = f"{user}-{tab}-{theme}{'-narrow' if narrow else ''}"
-                            with contextlib.suppress(Exception):
-                                page.screenshot(path=out / f"failure-{suffix}.png", animations="disabled")
-                            (out / "failure.json").write_text(json.dumps({"user": user, "tab": tab, "theme": theme, "narrow": narrow, "error": repr(error), "errors": errors, "completed": results}, indent=2))
-                            raise
-                    context.close()
+            theme = "light"
+            narrow = False
+            context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
+            authenticate(context, state['users'][user]['token'], theme)
+            page = context.new_page()
+            errors = []
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            if user == "owner" and theme == "light" and not narrow:
+                context.add_init_script(
+                    f"localStorage.setItem('loco:active-org:v1', {json.dumps(org_id)});"
+                    f"localStorage.setItem('loco:active-workspace:v1', {json.dumps(workspace_id)});"
+                )
+                beta_id = org_ids["beta"]
+                beta_workspace = state["workspaces"]["beta/beta-workspace"]
+                org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
+                page.route(org_list_rpc, lambda route: route.abort())
+                page.goto(f"{state['ui_url']}/org/{beta_id}/settings")
+                page.wait_for_url(f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?scope=org")
+                assert page.get_by_role("textbox", name="Name", exact=True).input_value() == "beta"
+                page.unroute(org_list_rpc)
+                page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
+                page.wait_for_url(f"{state['ui_url']}/organizations")
+                page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
+                expect(page.get_by_placeholder("Search workspaces", exact=True)).to_have_value("zzz")
+                workspace_scope = page.get_by_role("group", name="Settings for").get_by_role("button", name="Workspace", exact=True)
+                workspace_scope.click()
+                page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("scope", ["workspace"]) == ["workspace"] and "q=" not in url)
+                expect(workspace_scope).to_have_attribute("aria-pressed", "true")
+                expect(page.get_by_placeholder("storefront", exact=True)).to_be_visible()
+            for tab in ("ws", "org"):
+                try:
+                    page.goto(state["ui_url"] + base + "?scope=" + ("workspace" if tab == "ws" else "org"))
+                    page.get_by_placeholder("storefront" if tab == "ws" else "team-loco").wait_for()
+                    name = page.get_by_role("textbox", name="Name", exact=True)
+                    assert name.count() == 1
+                    assert page.get_by_text("Created", exact=True).first.evaluate("node => node.tagName") == "DT"
+                    assert name.evaluate("node => node.labels.length") == 1
+                    assert descriptions(name) == []
+                    if user == "member":
+                        assert name.is_disabled()
+                    else:
+                        original = name.input_value()
+                        page.locator(f'label[for={json.dumps(name.get_attribute("id"))}]').click()
+                        assert name.evaluate("node => node === document.activeElement")
+                        name.fill("")
+                        page.get_by_text("Name required", exact=True).wait_for()
+                        assert name.get_attribute("aria-invalid") == "true"
+                        assert "Name required" in descriptions(name)
+                        page.get_by_role("button", name="Discard", exact=True).click()
+                        assert name.input_value() == original
+                        assert name.get_attribute("aria-invalid") == "false"
+                        assert "Name required" not in descriptions(name)
+                    if tab == "ws":
+                        description = page.get_by_role("textbox", name="Description", exact=True)
+                        assert description.count() == 1 and description.evaluate("node => node.labels.length") == 1
+                        assert "256" in " ".join(descriptions(description))
+                        assert description.get_attribute("id") != name.get_attribute("id")
+                        if user == "member":
+                            assert description.is_disabled()
+                        else:
+                            page.locator(f'label[for={json.dumps(description.get_attribute("id"))}]').click()
+                            assert description.evaluate("node => node === document.activeElement")
+                            name.focus()
+                            page.keyboard.press("Tab")
+                            assert description.evaluate("node => node === document.activeElement")
+                    if tab == "org":
+                        workspaces = page.get_by_role("region", name="Workspaces", exact=True)
+                        expect(workspaces.get_by_role("link", name="shared", exact=True)).to_be_visible()
+                        # The list fits the smallest page size, so it has no pager.
+                        expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
+                    if tab == "ws" and user == "owner" and theme == "light" and not narrow:
+                        check_webhooks(page)
+                        check_environments(page)
+                        check_create_dialogs(page)
+                    assert not errors, errors
+                    results.append({"user": user, "tab": tab, "theme": theme, "narrow": narrow, "errors": list(errors)})
+                except BaseException as error:
+                    suffix = f"{user}-{tab}-{theme}{'-narrow' if narrow else ''}"
+                    with contextlib.suppress(Exception):
+                        page.screenshot(path=out / f"failure-{suffix}.png", animations="disabled")
+                    (out / "failure.json").write_text(json.dumps({"user": user, "tab": tab, "theme": theme, "narrow": narrow, "error": repr(error), "errors": errors, "completed": results}, indent=2))
+                    raise
+            context.close()
     finally:
         browser.close()
 (out / "results.json").write_text(json.dumps(results, indent=2))

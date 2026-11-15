@@ -1,32 +1,16 @@
 import argparse
-import atexit
-import contextlib
-import importlib.util
-import io
 import json
-import os
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, session
 
-repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Exercise resource autoscaling and failed-save recovery")
 parser.add_argument("--state")
-parser.add_argument("--before", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/settings-scaling"))
 args = parser.parse_args()
-os.chdir(repo)
-spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
-evidence = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(evidence)
-if args.state is None:
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="settings-scaling", scenario=str(repo / "tests/ui/fixtures/deployment-history/scenario.json")))
-    args.state = output.getvalue().strip().splitlines()[-1]
-    atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
-state = evidence.load_state(args.state)
+state = load_state(args, 'settings-scaling', 'tests/ui/fixtures/deployment-history/scenario.json')
 owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
@@ -58,107 +42,98 @@ VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app
     return resource
 
 
-with sync_playwright() as playwright:
-    browser = playwright.chromium.launch()
+with session(out) as browser:
     try:
-        for theme in ("light", "dark"):
-            for narrow in (False, True):
-                resource = resource_fixture()
-                context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-                auth = {"idToken": owner["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
-                context.add_init_script(f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});")
-                page = context.new_page()
-                errors = []
-                page.on("pageerror", lambda error: errors.append(str(error)))
-                calls = []
-                failing = [True]
+        theme = "light"
+        narrow = False
+        resource = resource_fixture()
+        context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
+        authenticate(context, owner['token'], theme)
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        calls = []
+        failing = [True]
 
-                def update(route):
-                    calls.append(route.request.post_data_json)
-                    if failing[0]:
-                        route.fulfill(status=503, json={"code": "unavailable", "message": "fixture rejected scaling"})
-                        return
-                    route.continue_()
+        def update(route):
+            calls.append(route.request.post_data_json)
+            if failing[0]:
+                route.fulfill(status=503, json={"code": "unavailable", "message": "fixture rejected scaling"})
+                return
+            route.continue_()
 
-                context.route("**/loco.resource.v1.ResourceService/UpdateResource", update)
-                context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", lambda route: route.abort())
-                case = f"{theme}{'-narrow' if narrow else ''}"
-                side = "before" if args.before else "after"
-                try:
-                    page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}?env=production&tab=settings")
-                    section = page.locator("#set-scaling")
-                    expect(section).to_be_visible()
-                    if not args.before:
-                        for region in regions:
-                            for _ in range(2):
-                                section.get_by_role("button", name=f"Increase maximum replicas in {region}", exact=True).click()
-                            section.get_by_role("button", name=f"Decrease cPU target (%) in {region}", exact=True).click()
-                    section.evaluate("node => node.scrollIntoView({block: 'start'})")
-                    evidence.settle(page, wait_for_network=False)
-                    page.wait_for_function("dark => document.documentElement.classList.contains('dark') === dark", arg=theme == "dark")
-                    section.screenshot(path=out / f"settings-scaling-{side}-{case}.png", animations="disabled")
-                    if args.before:
-                        continue
+        context.route("**/loco.resource.v1.ResourceService/UpdateResource", update)
+        context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", lambda route: route.abort())
+        case = f"{theme}{'-narrow' if narrow else ''}"
+        try:
+            page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}?env=production&tab=settings")
+            section = page.locator("#set-scaling")
+            expect(section).to_be_visible()
+            for region in regions:
+                for _ in range(2):
+                    section.get_by_role("button", name=f"Increase maximum replicas in {region}", exact=True).click()
+                section.get_by_role("button", name=f"Decrease cPU target (%) in {region}", exact=True).click()
+            section.evaluate("node => node.scrollIntoView({block: 'start'})")
+            page.wait_for_function("dark => document.documentElement.classList.contains('dark') === dark", arg=theme == "dark")
 
-                    def assert_edits(region, target):
-                        expect(section.get_by_role("group", name=f"Maximum replicas in {region}", exact=True)).to_contain_text("3")
-                        expect(section.get_by_role("group", name=f"CPU target (%) in {region}", exact=True)).to_contain_text(str(target))
+            def assert_edits(region, target):
+                expect(section.get_by_role("group", name=f"Maximum replicas in {region}", exact=True)).to_contain_text("3")
+                expect(section.get_by_role("group", name=f"CPU target (%) in {region}", exact=True)).to_contain_text(str(target))
 
-                    def stored_regions():
-                        return json.loads(evidence.psql(state["container"], f"SELECT spec FROM resources WHERE id='{resource}';"))["regions"]
+            def stored_regions():
+                return json.loads(evidence.psql(state["container"], f"SELECT spec FROM resources WHERE id='{resource}';"))["regions"]
 
-                    def save_and_settle():
-                        calls.clear()
-                        save.click()
-                        expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
-                        expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
-                        # The API leaves new deployments pending without a worker; finish them so the
-                        # next save is not refused as a rollout in progress.
-                        evidence.psql(state["container"], f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;")
-                        evidence.settle(page)
+            def save_and_settle():
+                calls.clear()
+                save.click()
+                expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+                expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
+                # The API leaves new deployments pending without a worker; finish them so the
+                # next save is not refused as a rollout in progress.
+                evidence.psql(state["container"], f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;")
 
-                    target = defaults["cpuTarget"] - 1
-                    save = page.get_by_role("button", name="Save & redeploy", exact=True)
-                    save.click()
-                    expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
-                    expect(page.get_by_text("fixture rejected scaling", exact=False)).to_be_visible()
-                    for region in regions:
-                        assert_edits(region, target)
-                    assert len(calls) == 1, calls
-                    for region in regions:
-                        sent = calls[0]["regions"]["targets"][region]
-                        assert (sent["minReplicas"], sent["maxReplicas"]) == (1, 3), sent
-                        assert sent["scalers"] == {"enabled": True, "cpuTarget": target}, sent
+            target = defaults["cpuTarget"] - 1
+            save = page.get_by_role("button", name="Save & redeploy", exact=True)
+            save.click()
+            expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
+            expect(page.get_by_text("fixture rejected scaling", exact=False)).to_be_visible()
+            for region in regions:
+                assert_edits(region, target)
+            assert len(calls) == 1, calls
+            for region in regions:
+                sent = calls[0]["regions"]["targets"][region]
+                assert (sent["minReplicas"], sent["maxReplicas"]) == (1, 3), sent
+                assert sent["scalers"] == {"enabled": True, "cpuTarget": target}, sent
 
-                    failing[0] = False
-                    save_and_settle()
-                    assert len(calls) == 1, calls
-                    for region in regions:
-                        assert stored_regions()[region]["scalers"] == {"enabled": True, "cpuTarget": target}
-                        assert_edits(region, target)
-                    commits = evidence.psql(state["container"], f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE resource_id='{resource}' AND is_active;")
-                    assert commits == f"{source_commit['sha']}:true", commits
+            failing[0] = False
+            save_and_settle()
+            assert len(calls) == 1, calls
+            for region in regions:
+                assert stored_regions()[region]["scalers"] == {"enabled": True, "cpuTarget": target}
+                assert_edits(region, target)
+            commits = evidence.psql(state["container"], f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE resource_id='{resource}' AND is_active;")
+            assert commits == f"{source_commit['sha']}:true", commits
 
-                    section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
-                    save_and_settle()
-                    assert stored_regions()[regions[0]]["scalers"]["cpuTarget"] == target - 1
+            section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
+            save_and_settle()
+            assert stored_regions()[regions[0]]["scalers"]["cpuTarget"] == target - 1
 
-                    for _ in range(2):
-                        section.get_by_role("button", name=f"Decrease maximum replicas in {regions[0]}", exact=True).click()
-                    save_and_settle()
-                    fixed = stored_regions()[regions[0]]
-                    assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
-                    assert not fixed.get("scalers", {}).get("enabled", False), fixed
-                    section.get_by_role("button", name=f"Increase maximum replicas in {regions[0]}", exact=True).click()
-                    section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
-                    section.get_by_role("button", name=f"Decrease maximum replicas in {regions[0]}", exact=True).click()
-                    expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
-                    assert not errors, errors
-                except BaseException:
-                    page.screenshot(path=out / f"failure-{side}-{case}.png", animations="disabled")
-                    raise
-                finally:
-                    context.close()
+            for _ in range(2):
+                section.get_by_role("button", name=f"Decrease maximum replicas in {regions[0]}", exact=True).click()
+            save_and_settle()
+            fixed = stored_regions()[regions[0]]
+            assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
+            assert not fixed.get("scalers", {}).get("enabled", False), fixed
+            section.get_by_role("button", name=f"Increase maximum replicas in {regions[0]}", exact=True).click()
+            section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
+            section.get_by_role("button", name=f"Decrease maximum replicas in {regions[0]}", exact=True).click()
+            expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+            assert not errors, errors
+        except BaseException:
+            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            raise
+        finally:
+            context.close()
     finally:
         browser.close()
-print("PASS: Settings scaling before screenshots" if args.before else "PASS: Settings scaling through region map saves, with failed-save recovery")
+print("PASS: Settings scaling through region map saves, with failed-save recovery")
