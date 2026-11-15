@@ -14,7 +14,7 @@ import { Button } from "@/components/design/Button";
 
 import { Sheet, SheetBody, SheetContent } from "@/components/design/Sheet";
 
-import { TraceContent } from "./trace-viewer/TraceContent";
+import { TraceLogs } from "./trace-viewer/TraceLogs";
 import { TraceColors } from "./trace-viewer/TraceColors";
 import { TraceHeader } from "./trace-viewer/TraceHeader";
 
@@ -104,7 +104,7 @@ export function TraceDrawer({
 							</EmptyHero>
 						)}
 						{trace !== undefined && selected !== undefined && (
-							<TraceContent
+							<TraceLogs
 								trace={trace}
 								selected={selected}
 								missing={missing}

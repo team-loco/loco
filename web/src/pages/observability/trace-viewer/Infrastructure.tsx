@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { useQueries } from "@tanstack/react-query";
@@ -31,6 +32,7 @@ const METRICS = [
 const CHART_CONFIG = { value: { label: "Usage", color: "var(--series-0)" } };
 
 export function Infrastructure({ trace, selected }: { trace: TraceSummary; selected: TraceSpan }) {
+	const timePref = useTimePreferences();
 	const { workspaceId, resourceById } = useObs();
 	const { active } = useEnvironments();
 	const transport = useTransport();
@@ -162,7 +164,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 													type="number"
 													domain={[from, to]}
 													ticks={timeAxis(from, to)}
-													tickFormatter={formatHourMinute}
+													tickFormatter={(ms: number) => formatHourMinute(ms, timePref)}
 													tickLine={false}
 													axisLine={false}
 													minTickGap={30}
@@ -185,7 +187,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
-															labelFormatter={(label) => formatHourMinute(Number(label))}
+															labelFormatter={(label) => formatHourMinute(Number(label), timePref)}
 															formatter={(value) => `${Number(value).toFixed(1)}%`}
 														/>
 													}

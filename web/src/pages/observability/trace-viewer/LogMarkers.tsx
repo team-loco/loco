@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import type { Zoom } from "../flame";
 import type { LogRow } from "../rows";
 import { levelStyle } from "../format";
@@ -13,6 +14,7 @@ export interface LogMarkerProps {
 	onOpen: (row: LogRow) => void;
 }
 export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: LogMarkerProps) {
+	const timePref = useTimePreferences();
 	return (
 		<div aria-label="Trace log markers" className="relative h-3 shrink-0">
 			{logs.map((row) => {
@@ -23,8 +25,8 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 					<button
 						type="button"
 						key={row.key}
-						aria-label={`Log at ${formatClock(row.ts, true)}: ${row.entry.body}`}
-						title={`${formatClock(row.ts, true)} · ${row.entry.body}`}
+						aria-label={`Log at ${formatClock(row.ts, true, timePref)}: ${row.entry.body}`}
+						title={`${formatClock(row.ts, true, timePref)} · ${row.entry.body}`}
 						onMouseEnter={() => {
 							onHover(row);
 						}}

@@ -4,11 +4,13 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { AROUND_MS } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
+import { useTraceResources } from "./TraceColors";
 import { useObs } from "../context";
 import { toRows } from "../rows";
 import type { TraceSummary } from "../traces";
 
 export function useTraceLogs(trace: TraceSummary) {
+	const { color } = useTraceResources();
 	const { workspaceId, scopedResourceIds, resourceById } = useObs();
 	const { active } = useEnvironments();
 	const [now] = useState(Date.now);
@@ -27,7 +29,14 @@ export function useTraceLogs(trace: TraceSummary) {
 		endTime: msToTimestamp(to),
 		limit: 50,
 	});
-	return { ...query, rows: toRows(query.entries, resourceById), from, to };
+	const rows = toRows(query.entries, resourceById).map((row) => {
+		const linked = trace.spans.find(
+			(span) =>
+				span.spanId === row.entry.spanId || (row.entry.spanId === "" && span.resourceId === row.entry.resourceId),
+		);
+		return linked === undefined ? row : { ...row, color: color(linked) };
+	});
+	return { ...query, rows, from, to };
 }
 export function descendantIds(trace: TraceSummary, id: string): Set<string> {
 	const children = new Map<string, string[]>();

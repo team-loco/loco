@@ -10,7 +10,7 @@ import { SpanEvents } from "../SpanEvents";
 import { SpanLinks } from "../SpanLinks";
 import { failingSpan, selfTime } from "../flame";
 import { durationLabel, spanError, spanStart, type TraceSummary } from "../traces";
-import { traceServiceColor } from "../trace-service";
+import { useTraceResources } from "./TraceColors";
 import { spanAttributes, ATTRIBUTE_TABS } from "./attributes";
 
 export function SpanPanel({
@@ -26,6 +26,7 @@ export function SpanPanel({
 	select: (span: TraceSpan) => void;
 	label: (span: TraceSpan) => string;
 }) {
+	const { color } = useTraceResources();
 	const cause = failingSpan(trace, selected);
 	const tabs = spanAttributes(selected);
 	const facts: [string, string][] = [
@@ -45,7 +46,7 @@ export function SpanPanel({
 			)}
 			<section aria-label="Selected span" className="flex min-w-0 flex-col gap-1.5">
 				<div className="flex min-w-0 items-center gap-2">
-					<i className="size-2 shrink-0 rounded-full" style={{ background: traceServiceColor(selected.serviceName) }} />
+					<i className="size-2 shrink-0 rounded-full" style={{ background: color(selected) }} />
 					<h3 className="m-0 min-w-0 break-words font-mono text-[14px] [overflow-wrap:anywhere]">
 						{selected.name === "" ? "Unnamed span" : selected.name}
 					</h3>

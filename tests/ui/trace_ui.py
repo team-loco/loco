@@ -434,7 +434,11 @@ with session(out) as browser:
         {'timestamp':stamp(172), 'severity':'ERROR','body':'Payment request failed','resourceId':workspace_id,'traceId':trace,'spanId':spans[10]['spanId']},
         {'timestamp':stamp(35), 'severity':'INFO','body':'Product lookup complete','resourceId':workspace_id,'traceId':trace,'spanId':spans[5]['spanId']},
     ]
-    context.route('**/loco.observability.v1.ObservabilityService/QueryLogs', lambda route: route.fulfill(json={'entries':log_entries,'totalMatched':str(len(log_entries))}))
+    log_requests = []
+    def trace_logs(route):
+        log_requests.append(route.request.post_data_json)
+        route.fulfill(json={'entries':log_entries,'totalMatched':str(len(log_entries))})
+    context.route('**/loco.observability.v1.ObservabilityService/QueryLogs', trace_logs)
     metric_requests = []
     def metrics(route):
         metric_requests.append(route.request.post_data_json)
@@ -445,6 +449,7 @@ with session(out) as browser:
     log_rows = drawer.get_by_role('region', name='Logs in this trace')
     expect(log_rows.get_by_role('button', name='Open log: Payment request failed')).to_be_visible()
     failing_button = drawer.get_by_role('region', name='Flame graph').get_by_role('button', name=failing)
+    assert len(log_requests) == 1, log_requests
     before_shadow = failing_button.evaluate('(el) => getComputedStyle(el).boxShadow')
     log_rows.get_by_role('button', name='Open log: Payment request failed').hover()
     assert failing_button.evaluate('(el) => getComputedStyle(el).boxShadow') != before_shadow
@@ -475,6 +480,7 @@ with session(out) as browser:
     assert len(metric_requests) == 2
     assert all(request['attributes'] == {'k8s.pod.name':'checkout-abc-123'} for request in metric_requests)
     drawer.get_by_role('tab', name=re.compile('^Logs ')).click()
+    assert len(log_requests) == 1, log_requests
     marker.click()
     drawer.get_by_role('complementary', name='Log line').get_by_role('button', name='Only level error', exact=True).click()
     wait_for_query(page, lambda query: query.get('view') == ['logs'] and '@trace:' + trace in query.get('q', [''])[0] and '@level:error' in query.get('q', [''])[0])
