@@ -10,7 +10,7 @@ test("shortAgoLabel fits minutes, hours and days in a few characters", () => {
 	expect(shortAgoLabel(now - 2 * 86_400_000, now)).toBe("2d ago");
 });
 
-import { formatClock, formatFullTime, formatIsoDate, parseClockInput, timeAxis } from "./time";
+import { DAY_MS, formatAxisTime, formatClock, formatFullTime, formatIsoDate, parseClockInput, timeAxis } from "./time";
 
 const utc12 = { zone: "utc", clock: "12" } as const;
 const midnight = Date.UTC(2026, 10, 12);
@@ -63,4 +63,18 @@ test("daily ticks return to midnight after a midnight clock change", () => {
 		const d = new Date(tick);
 		expect(tick).toBe(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime());
 	}
+});
+
+test("spreads ticks across the requested range, independent of sparse samples", () => {
+	const from = new Date(2026, 9, 19, 12).getTime();
+	const hour = DAY_MS / 24;
+	const ticks = timeAxis(from, from + hour, { zone: "local", clock: "24" });
+	expect(ticks).toEqual([from, ...Array.from({ length: 6 }, (_, i) => from + ((i + 1) * hour) / 6)]);
+});
+
+test("labels a day-long window with clock times", () => {
+	const from = new Date(2026, 9, 19, 12).getTime();
+	const pref = { zone: "local", clock: "24" } as const;
+	expect(formatAxisTime(from, from, from + DAY_MS, pref)).toBe("12:00");
+	expect(formatAxisTime(from + DAY_MS / 24, from, from + DAY_MS, pref)).toBe("13:00");
 });

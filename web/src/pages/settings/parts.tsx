@@ -2,10 +2,10 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { Fragment, type ReactNode } from "react";
 
 import { Section } from "@/components/design/Page";
-import { formatMonthDay, formatMonthDayYear, formatIsoDate, maybeTsMs, timePreferences } from "@/lib/time";
+import { formatMonthDay, formatMonthDayYear, formatIsoDate, maybeTsMs, type TimePreferences } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-export function formatDay(ts: Timestamp | undefined, pref = timePreferences()): string {
+export function formatDay(ts: Timestamp | undefined, pref: TimePreferences): string {
 	const ms = maybeTsMs(ts);
 	if (ms === undefined) return "—";
 	const sameYear = formatIsoDate(ms, pref).slice(0, 4) === formatIsoDate(Date.now(), pref).slice(0, 4);

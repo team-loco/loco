@@ -1,5 +1,3 @@
-export { timeAxis, formatAxisTime as formatMetricTime } from "./time";
-
 const PERCENT = 100;
 const AXIS_INTERVALS = 4;
 

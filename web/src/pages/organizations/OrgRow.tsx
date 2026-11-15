@@ -9,9 +9,9 @@ import { RowMenu } from "@/components/design/RowMenu";
 import { TableCell, TableRow } from "@/components/design/Table";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { useCopy } from "@/hooks/useCopy";
-import { formatMonthDayYear, timePreferences } from "@/lib/time";
+import { formatMonthDayYear, type TimePreferences } from "@/lib/time";
 
-function formatCreated(org: Organization, pref = timePreferences()): string {
+function formatCreated(org: Organization, pref: TimePreferences): string {
 	const seconds = org.createdAt?.seconds;
 	if (seconds === undefined || seconds === 0n) {
 		return "Unknown";

@@ -1,6 +1,6 @@
 import type { Event } from "@gen/loco/event/v1/event_pb";
 
-import { DAY_MS, formatIsoDate, formatWeekdayDate, previousDay, timePreferences, tsMs } from "@/lib/time";
+import { DAY_MS, formatIsoDate, formatWeekdayDate, previousDay, type TimePreferences, tsMs } from "@/lib/time";
 import {
 	AUDIT_CATEGORIES,
 	auditActor,
@@ -48,7 +48,7 @@ export function toggleCategory(types: readonly string[], category: readonly stri
 	return category.every((t) => types.includes(t)) ? rest : [...rest, ...category];
 }
 
-export function dayLabel(ms: number, nowMs: number, pref = timePreferences()): string {
+export function dayLabel(ms: number, nowMs: number, pref: TimePreferences): string {
 	const day = formatIsoDate(ms, pref);
 	if (day === formatIsoDate(nowMs, pref)) return "Today";
 	if (day === formatIsoDate(previousDay(nowMs, pref), pref)) return "Yesterday";

@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
-import { formatClock, formatSlashDate, timePreferences } from "@/lib/time";
+import { formatClock, formatSlashDate, type TimePreferences } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import type { Level } from "./query";
 
-export function fmtTs(ms: number, withMs = false, pref = timePreferences()): string {
+export function fmtTs(ms: number, withMs: boolean, pref: TimePreferences): string {
 	return `${formatSlashDate(ms, pref)} ${formatClock(ms, withMs, pref)}`;
 }
 

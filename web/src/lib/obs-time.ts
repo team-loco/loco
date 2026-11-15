@@ -1,6 +1,6 @@
 import { createParser, type inferParserType } from "nuqs";
 
-import { DAY_MS, formatHourMinute, formatMonthDay, formatIsoDate, timePreferences, type TimePreferences } from "./time";
+import { DAY_MS, formatHourMinute, formatMonthDay, formatIsoDate, type TimePreferences } from "./time";
 
 export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
@@ -151,7 +151,7 @@ function dayClock(ms: number, pref: TimePreferences): string {
 	return `${formatMonthDay(ms, pref)} ${formatHourMinute(ms, pref)}`;
 }
 
-export function windowLabel(window: TimeWindow, pref = timePreferences()): string {
+export function windowLabel(window: TimeWindow, pref: TimePreferences): string {
 	if (window.kind === "relative") return spanLabel(window.spanMs);
 	const end = sameDay(window.from, window.to, pref) ? formatHourMinute(window.to, pref) : dayClock(window.to, pref);
 	return `${dayClock(window.from, pref)} – ${end}`;
@@ -162,7 +162,7 @@ export function stepSeconds(spanMs: number): number {
 	return Math.max(MIN_STEP_SECONDS, Math.ceil(raw / MIN_STEP_SECONDS) * MIN_STEP_SECONDS);
 }
 
-export function toLocalInput(ms: number, pref = timePreferences()): string {
+export function toLocalInput(ms: number, pref: TimePreferences): string {
 	const d = new Date(ms);
 	const hour = pref.zone === "utc" ? d.getUTCHours() : d.getHours();
 	const minute = pref.zone === "utc" ? d.getUTCMinutes() : d.getMinutes();
@@ -173,7 +173,7 @@ export function joinLocalInput(day: string, time: string): string {
 	return day === "" ? "" : `${day}T${time}`;
 }
 
-export function fromLocalInput(value: string, pref: TimePreferences = timePreferences()): number {
+export function fromLocalInput(value: string, pref: TimePreferences): number {
 	const ms = value === "" ? Number.NaN : new Date(pref.zone === "utc" ? `${value}Z` : value).getTime();
 	return Number.isFinite(ms) && toLocalInput(ms, pref) === value ? ms : Number.NaN;
 }

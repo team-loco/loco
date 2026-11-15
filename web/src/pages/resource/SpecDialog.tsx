@@ -1,5 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { timePreferences } from "@/lib/time";
+import type { TimePreferences } from "@/lib/time";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -22,7 +22,7 @@ import { diffLines, sideBySide, specText } from "./spec";
 const COPIED_MS = 1500;
 const JSON_TYPE = "application/json";
 
-function optionLabel(dep: Deployment, pref = timePreferences()): string {
+function optionLabel(dep: Deployment, pref: TimePreferences): string {
 	return [shortId(dep.id), dep.region, depTag(dep), formatStarted(startedMs(dep), pref)].join(" · ");
 }
 

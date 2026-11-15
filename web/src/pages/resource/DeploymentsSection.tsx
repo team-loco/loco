@@ -1,4 +1,4 @@
-import { timePreferences } from "@/lib/time";
+import type { TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
@@ -51,7 +51,7 @@ interface Row {
 	isCurrent: boolean;
 }
 
-function timeFact(ms: number | undefined, pref = timePreferences()): string {
+function timeFact(ms: number | undefined, pref: TimePreferences): string {
 	return ms === undefined ? "—" : formatFullTime(ms, false, pref);
 }
 

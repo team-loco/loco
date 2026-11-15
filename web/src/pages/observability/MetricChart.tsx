@@ -13,8 +13,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
-import { formatMetricTime, timeAxis } from "@/lib/compute-chart";
-import { DAY_MS } from "@/lib/time";
+import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
 
 import { fmtTs } from "./format";
 
@@ -202,7 +201,7 @@ export function MetricChart({
 	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
 	const config: ChartConfig = Object.fromEntries(series.map((s) => [s.key, { label: s.name, color: s.color }]));
 	const ticks = timeAxis(from, to, timePref);
-	const tickLabel = (value: number) => formatMetricTime(value, from, to, timePref);
+	const tickLabel = (value: number) => formatAxisTime(value, from, to, timePref);
 	const yTicks = Array.from({ length: Y_TICKS + 1 }, (_, i) => (max * i) / Y_TICKS);
 
 	return (

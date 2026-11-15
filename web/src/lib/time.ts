@@ -1,7 +1,5 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
-import { readStorage } from "./storage";
-
 export { timestampFromMs as msToTimestamp } from "@bufbuild/protobuf/wkt";
 
 export const DAY_MS = 86_400_000;
@@ -22,13 +20,6 @@ function pad(n: number, width = 2): string {
 export interface TimePreferences {
 	zone: "local" | "utc";
 	clock: "24" | "12";
-}
-
-export function timePreferences(): TimePreferences {
-	return {
-		zone: readStorage("loco-tz") === "utc" ? "utc" : "local",
-		clock: readStorage("loco-clock") === "12" ? "12" : "24",
-	};
 }
 
 function parts(ms: number, pref: TimePreferences) {
@@ -52,20 +43,20 @@ function clock(ms: number, seconds: boolean, withMs: boolean, pref: TimePreferen
 	return `${hour}:${pad(p.minute)}${seconds ? `:${pad(p.second)}` : ""}${withMs ? `.${pad(p.ms, 3)}` : ""}${h12 ? (p.hour < 12 ? " AM" : " PM") : ""}`;
 }
 
-export function formatHourMinute(ms: number, pref = timePreferences()): string {
+export function formatHourMinute(ms: number, pref: TimePreferences): string {
 	return clock(ms, false, false, pref);
 }
 
-export function formatClock(ms: number, withMs = false, pref = timePreferences()): string {
+export function formatClock(ms: number, withMs: boolean, pref: TimePreferences): string {
 	return clock(ms, true, withMs, pref);
 }
 
-export function formatSlashDate(ms: number, pref = timePreferences()): string {
+export function formatSlashDate(ms: number, pref: TimePreferences): string {
 	const p = parts(ms, pref);
 	return `${String(p.month + 1)}/${pad(p.day)}`;
 }
 
-export function formatIsoDate(ms: number, pref = timePreferences()): string {
+export function formatIsoDate(ms: number, pref: TimePreferences): string {
 	const p = parts(ms, pref);
 	return `${String(p.year)}-${pad(p.month + 1)}-${pad(p.day)}`;
 }
@@ -82,26 +73,26 @@ const localZoneFormat = new Intl.DateTimeFormat("en-US", { timeZoneName: "short"
 const localZone = localZoneFormat.resolvedOptions().timeZone;
 const dateFormats = { local: createDateFormats(localZone), utc: createDateFormats("UTC") };
 
-export function formatMonthDay(ms: number, pref = timePreferences()): string {
+export function formatMonthDay(ms: number, pref: TimePreferences): string {
 	return dateFormats[pref.zone].monthDay.format(ms);
 }
 
-export function formatMonthDayYear(ms: number, pref = timePreferences()): string {
+export function formatMonthDayYear(ms: number, pref: TimePreferences): string {
 	return dateFormats[pref.zone].monthDayYear.format(ms);
 }
 
-export function timeZoneLabel(ms: number, pref = timePreferences()): string {
+export function timeZoneLabel(ms: number, pref: TimePreferences): string {
 	if (pref.zone === "utc") return "UTC";
 	return localZoneFormat.formatToParts(ms).find((p) => p.type === "timeZoneName")?.value ?? localZone;
 }
 
-export function formatFullTime(ms: number, withMs = false, pref = timePreferences()): string {
+export function formatFullTime(ms: number, withMs: boolean, pref: TimePreferences): string {
 	return `${formatMonthDayYear(ms, pref)}, ${formatClock(ms, withMs, pref)} ${timeZoneLabel(ms, pref)}`;
 }
 
 const AXIS_MINUTES = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360, 720, 1440, 2880, 10080];
 
-export function timeAxis(from: number, to: number, pref = timePreferences()): number[] {
+export function timeAxis(from: number, to: number, pref: TimePreferences): number[] {
 	if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return [];
 	const step = AXIS_MINUTES.find((m) => (to - from) / (m * 60_000) <= 8) ?? 10080;
 	const ticks: number[] = [];
@@ -128,7 +119,7 @@ export function timeAxis(from: number, to: number, pref = timePreferences()): nu
 	return ticks;
 }
 
-export function formatAxisTime(ms: number, from: number, to: number, pref = timePreferences()): string {
+export function formatAxisTime(ms: number, from: number, to: number, pref: TimePreferences): string {
 	const p = parts(ms, pref);
 	return to - from > 4 * DAY_MS || (p.hour === 0 && p.minute === 0 && to - from > DAY_MS / 4)
 		? formatMonthDay(ms, pref)
@@ -157,7 +148,7 @@ export function shortAgoLabel(ms: number, nowMs: number): string {
 	return `${Math.round(hrs / 24).toString()}d ago`;
 }
 
-export function parseClockInput(value: string, pref = timePreferences()): string | null {
+export function parseClockInput(value: string, pref: TimePreferences): string | null {
 	const match = /^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i.exec(value.trim());
 	if (match === null) return null;
 	let hour = Number(match[1]);
@@ -170,11 +161,11 @@ export function parseClockInput(value: string, pref = timePreferences()): string
 	return `${pad(hour)}:${pad(minute)}`;
 }
 
-export function formatWeekdayDate(ms: number, pref = timePreferences()): string {
+export function formatWeekdayDate(ms: number, pref: TimePreferences): string {
 	return dateFormats[pref.zone].weekdayDate.format(ms);
 }
 
-export function previousDay(ms: number, pref = timePreferences()): number {
+export function previousDay(ms: number, pref: TimePreferences): number {
 	const d = new Date(ms);
 	if (pref.zone === "utc") d.setUTCDate(d.getUTCDate() - 1);
 	else d.setDate(d.getDate() - 1);
