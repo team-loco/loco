@@ -10,6 +10,6 @@ components:
     bearer:
       type: http
       scheme: bearer
-      description: An API token from `loco token create`, or the session token from `loco token show`.
+      description: An API token from `loco token create`, or the session token from `loco token show --raw`.
 security:
   - bearer: []

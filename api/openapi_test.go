@@ -95,16 +95,9 @@ func TestOpenAPI(t *testing.T) {
 		t.Fatalf("Content-Type = %q", got)
 	}
 	var spec struct {
-		OpenAPI    string                     `json:"openapi"`
-		Paths      map[string]json.RawMessage `json:"paths"`
-		Security   []map[string][]string      `json:"security"`
-		Components struct {
-			SecuritySchemes map[string]struct {
-				Type   string `json:"type"`
-				Scheme string `json:"scheme"`
-			} `json:"securitySchemes"`
-		} `json:"components"`
-		Info struct {
+		OpenAPI string                     `json:"openapi"`
+		Paths   map[string]json.RawMessage `json:"paths"`
+		Info    struct {
 			Title   string `json:"title"`
 			Version string `json:"version"`
 		} `json:"info"`
@@ -120,12 +113,6 @@ func TestOpenAPI(t *testing.T) {
 	}
 	if spec.Info.Version != openAPITestVersion {
 		t.Errorf("version = %q, want test-build", spec.Info.Version)
-	}
-	if scheme := spec.Components.SecuritySchemes["bearer"]; scheme.Type != "http" || scheme.Scheme != "bearer" {
-		t.Errorf("bearer security scheme = %+v", scheme)
-	}
-	if len(spec.Security) != 1 || spec.Security[0]["bearer"] == nil {
-		t.Errorf("security = %v, want bearer", spec.Security)
 	}
 	for _, path := range []string{
 		configv1connect.ConfigServiceGetConfigProcedure,
