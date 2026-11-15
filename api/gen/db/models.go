@@ -753,8 +753,9 @@ type SessionToken struct {
 }
 
 type SystemAdminClaim struct {
-	Email  string     `json:"email"`
-	UserID *uuid.UUID `json:"userId"`
+	Email     string     `json:"email"`
+	UserID    *uuid.UUID `json:"userId"`
+	ClaimedAt *time.Time `json:"claimedAt"`
 }
 
 type SystemBootstrap struct {

@@ -15,7 +15,7 @@ LEFT JOIN identities i ON i.user_id = removed.user_id;
 
 -- name: ClaimSystemAdmin :execrows
 UPDATE system_admin_claims s
-SET user_id = sqlc.arg('user_id')::uuid
+SET user_id = sqlc.arg('user_id')::uuid, claimed_at = NOW()
 WHERE s.email = sqlc.arg('email')
-    AND s.user_id IS NULL
+    AND s.claimed_at IS NULL
     AND NOT EXISTS (SELECT 1 FROM system_admin_claims c WHERE c.user_id = sqlc.arg('user_id'));

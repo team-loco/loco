@@ -36,9 +36,12 @@ CREATE TABLE system_bootstrap (
 
 -- One row per email in LOCO_SYSTEM_ADMINS. The first verified sign-in with the email claims
 -- the row and system:admin; after that the grant belongs to user_id, not to the email.
+-- claimed_at stays set when that user is deleted, so the entry never reopens for a new holder
+-- of the address; only removing the email from the list and adding it back opens a new claim.
 CREATE TABLE system_admin_claims (
     email TEXT PRIMARY KEY,
-    user_id UUID UNIQUE REFERENCES users(id) ON DELETE SET NULL
+    user_id UUID UNIQUE REFERENCES users(id) ON DELETE SET NULL,
+    claimed_at TIMESTAMPTZ
 );
 
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes

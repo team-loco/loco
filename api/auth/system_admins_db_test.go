@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 )
 
@@ -166,6 +167,32 @@ func TestResolveGrantsAClaimedEmailToNobodyElse(t *testing.T) {
 	}
 	if !isSystemAdmin(t, pool, first.ID) {
 		t.Fatal("claiming user lost system admin")
+	}
+}
+
+func TestResolveNeverReopensAClaimWhenTheClaimingUserIsDeleted(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	r := adminResolver(t, pool, "open", adminEmail)
+	first, _, err := r.Resolve(t.Context(), identity("first", adminEmail, true))
+	if err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	if err = genDb.New(pool).DeleteUser(t.Context(), first.ID); err != nil {
+		t.Fatalf("delete the claiming user: %v", err)
+	}
+
+	r = adminResolver(t, pool, "open", adminEmail)
+	next, _, err := r.Resolve(t.Context(), Identity{
+		Issuer: otherIssuerURL, Subject: "reassigned", Email: adminEmail, EmailVerified: true,
+	})
+	if err != nil {
+		t.Fatalf("new holder of the address signs in: %v", err)
+	}
+	if isSystemAdmin(t, pool, next.ID) {
+		t.Fatal("a deleted admin's address gave system admin to its new holder")
+	}
+	if claimed := adminEvents(t, pool, events.SystemAdminClaimed); len(claimed) != 1 {
+		t.Fatalf("%d claims, want only the first", len(claimed))
 	}
 }
 
