@@ -31,7 +31,6 @@ docs/**
 !docs/app/**
 !docs/public
 !docs/content/
-!docs/public
 !docs/content/**
 
 tests/
