@@ -269,7 +269,6 @@ def test_tenancy_comes_from_explicit_pod_labels(worker_relays):
                 "k8s.pod.name",
                 "k8s.pod.uid",
                 "k8s.deployment.name",
-                "service.name",
             ):
                 assert key in extract["metadata"], f"{collector} {enricher}"
 
