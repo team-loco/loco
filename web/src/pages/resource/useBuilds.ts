@@ -26,7 +26,7 @@ export function useBuildLog(workspaceId: string, buildId: string, source: BuildL
 		environmentId: "",
 		allEnvironments: true,
 		resourceIds: [],
-		parsedQuery: { search: "", levels: [], labels: [{ key: BUILD_ID_LABEL, values: [buildId] }] },
+		parsedQuery: { labels: [{ key: BUILD_ID_LABEL, values: [buildId] }] },
 	};
 	const range = source.kind === "query" ? source : { startMs: 0, endMs: 0 };
 	const query = useQueryLogs({
