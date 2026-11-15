@@ -125,5 +125,5 @@ global:
 
 ```sh
 mise run test:collectors
-mise run e2e:cluster-metrics
+mise run e2e controlplane TestClusterMetrics
 ```

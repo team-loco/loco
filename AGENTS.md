@@ -48,7 +48,7 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 - **`proto/loco/`**, **`gen/`**: Protobuf service definitions and generated Go/TypeScript types and clients; do not edit generated code directly.
 - **`internal/`**: Shared Go packages, including `loco.yaml` parsing and validation, RPC clients, authentication and session helpers, and the ClickHouse telemetry queries, schema migrations and migration lock. CLI-only packages live in `cmd/internal/`.
 - **`charts/`**: Helm charts for the control plane and worker clusters.
-- **`tests/e2e/`**: End-to-end tests in Go. Each shard package (`builds`, `apps`, `telemetry`) brings up one install on a kind cluster in its `TestMain` through `tests/e2e/platform`, and its tests share it, each in its own organization and workspace.
+- **`tests/e2e/`**: End-to-end tests in Go. Each shard package (`builds`, `apps`, `telemetry`) brings up one install on a kind cluster in its `TestMain` through `tests/e2e/platform`, and its tests share it, each in its own organization and workspace. The `controlplane` shard installs the charts on a bare kind cluster through `platform.Cluster`, each suite in its own namespaces.
 - **`tests/ui/`**: Dashboard suites that each start a throwaway API, database and production UI build and drive it with Playwright; `mise run test:ui` runs them.
 - **`tools/`**, **`mise-tasks/`**: Go development/release tools and mise task scripts for builds, generation, checks and local environments.
 - **`docs/content/`**, **`schemas/`**: User documentation and the JSON Schemas editors load, including `loco.yaml`'s, which `loco infra validate` embeds through the `schemas` package.

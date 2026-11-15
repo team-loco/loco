@@ -46,7 +46,7 @@ A snapshot restores only into an OpenBao with the same seal key, and after the r
 
 The API logs in again once the restored OpenBao rejects its token, without a restart.
 
-`mise run e2e:control-plane` runs these steps and checks that the API still decrypts a secret written before the snapshot.
+`mise run e2e controlplane TestControlPlane` runs these steps and checks that the API still decrypts a secret written before the snapshot.
 
 ## Transit
 
