@@ -275,7 +275,11 @@ export function Tokens() {
 							<LimitedAction usage={null} reason={createBlocked}>
 								{newTokenButton}
 							</LimitedAction>
-							<Button variant="outline" render={<a href={TOKEN_DOCS} target="_blank" rel="noopener noreferrer" />}>
+							<Button
+								variant="outline"
+								nativeButton={false}
+								render={<a href={TOKEN_DOCS} target="_blank" rel="noopener noreferrer" />}
+							>
 								Read the docs
 								<ExternalLinkIcon className="text-fg3" />
 							</Button>

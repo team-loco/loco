@@ -112,7 +112,7 @@ export function ObsHero({
 			{children}
 			<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 				{action}
-				<Button variant="outline" render={<a href={DOCS_PATH} target="_blank" rel="noreferrer" />}>
+				<Button variant="outline" nativeButton={false} render={<a href={DOCS_PATH} target="_blank" rel="noreferrer" />}>
 					Read the docs
 					<ArrowUpRightIcon />
 				</Button>
