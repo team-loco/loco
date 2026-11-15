@@ -38,23 +38,11 @@ RUN find web/dist -type f -size +1k \( \
     \) -exec brotli -f -k -q 11 {} \;
 
 
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS docs-bun
-
-FROM --platform=$BUILDPLATFORM python:3.14.8-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS docs-builder
+FROM builder AS docs-builder
 WORKDIR /app/docs
-COPY --from=docs-bun /usr/local/bin/bun /usr/local/bin/bun
-COPY package.json bun.lock /app/
-COPY web/package.json /app/web/
-COPY gen/ts/package.json /app/gen/ts/
-COPY docs/package.json /app/docs/
-RUN cd /app && bun install --frozen-lockfile
 COPY docs ./
-COPY web/public/favicon.svg /app/web/public/favicon.svg
-COPY web/public/logo.svg /app/web/public/logo.svg
-COPY web/sws.toml /app/web/sws.toml
 ARG DOCS_ENVIRONMENT=production
-RUN python scripts/build.py build "$DOCS_ENVIRONMENT" \
-    && python scripts/package.py "$DOCS_ENVIRONMENT"
+RUN bun run build "$DOCS_ENVIRONMENT"
 
 FROM ghcr.io/static-web-server/static-web-server:2.44.1@sha256:94618e3d17802265a21926217e6f9e7832b311b6fbf5933684001739fafed06a
 

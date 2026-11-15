@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "react-router build",
-    "dev": "react-router dev --host 127.0.0.1 --port 8001",
+    "build": "bun build.ts",
+    "dev": "VITE_DOCS_URL=https://docs.loco.build/ VITE_DOCS_ENVIRONMENT=production react-router dev --host 127.0.0.1 --port 8001",
     "typecheck": "react-router typegen && tsc --noEmit"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "@types/react-dom": "19.3.0",
     "tailwindcss": "4.3.5",
     "typescript": "7.0.2",
-    "vite": "8.3.8"
+    "vite": "8.3.8",
+    "@types/bun": "1.4.4"
   }
 }

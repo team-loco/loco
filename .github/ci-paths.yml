@@ -115,7 +115,6 @@ docker:
     - "tools/platform-images/**"
     - "mise.toml"
     - "mise.lock"
-    - "docs/pyproject.toml"
     - "bunfig.toml"
     - "renovate.json5"
     - ".github/actions/setup-tools/**"
@@ -133,11 +132,9 @@ docker:
     - "go.sum"
     - "package.json"
     - "bun.lock"
-    - "docs/uv.lock"
     - "docs/package.json"
     - "docs/app/**"
     - "docs/*.ts"
-    - "docs/scripts/**"
     - "docs/content/**"
     - "schemas/loco.v1.json"
   push: *docker
@@ -170,16 +167,10 @@ docs-drift:
 
 docs:
   pull_request: &docs
-    - "tests/pyproject.toml"
-    - "tests/uv.lock"
     - "docs/content/**"
-    - "docs/scripts/**"
-    - "docs/tests/**"
     - "docs/package.json"
     - "docs/app/**"
     - "docs/*.ts"
-    - "docs/pyproject.toml"
-    - "docs/uv.lock"
     - "web/**"
     - "gen/ts/**"
     - "schemas/loco.v1.json"
@@ -400,6 +391,10 @@ transit-conformance:
 
 web:
   pull_request: &web
+    - "tests/hosting/**"
+    - "docs/app/**"
+    - "docs/*.ts"
+    - "docs/package.json"
     - "web/**"
     - "tests/ui/**"
     - "mise-tasks/test/ui"

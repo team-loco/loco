@@ -50,11 +50,6 @@ source = "/{skills.md,docs/skills.md}"
 Content-Type = "text/markdown; charset=utf-8"
 Cache-Control = "no-cache"
 
-[[advanced.headers]]
-source = "/{docs/**,assets/favicon.svg,assets/logo.svg}"
-[advanced.headers.headers]
-Cache-Control = "no-cache"
-
 [[advanced.virtual-hosts]]
 host = "docs.loco.build"
 root = "/documentation"

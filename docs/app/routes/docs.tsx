@@ -41,7 +41,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         </div>
       )}
       <DocsPage toc={toc} tableOfContent={{ style: "normal" }}>
-        <title>{page.title} | Loco docs</title>
+        <title>{`${page.title} | Loco docs`}</title>
         <link rel="canonical" href={canonical} />
         <DocsTitle>{page.title}</DocsTitle>
         <a

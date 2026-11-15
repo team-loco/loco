@@ -324,24 +324,20 @@ usage = 'arg "<shard>" help="the test package: builds, apps, telemetry or contro
 run = 'E2E_TEARDOWN_ONLY=true go -C tests/e2e test -count=1 -run "^$" "./${usage_shard}"'
 
 [tasks."docs:build"]
-description = "Build production documentation with strict validation"
-run = "uv run --frozen --project docs python docs/scripts/build.py build production"
+description = "Build production documentation with Fumadocs"
+run = "bun run --cwd docs build production"
 
 [tasks."docs:build:staging"]
 description = "Build staging documentation with staging URLs and noindex"
-run = "uv run --frozen --project docs python docs/scripts/build.py build staging"
+run = "bun run --cwd docs build staging"
 
 [tasks."docs:serve"]
 description = "Preview documentation at http://127.0.0.1:8001"
-run = "uv run --frozen --project docs python docs/scripts/build.py serve"
+run = "bun run --cwd docs dev"
 
-[tasks."test:docs"]
-description = "Test production and staging documentation builds"
-run = "uv run --locked --project docs pytest docs/tests"
-
-[tasks."docs:check:container"]
+[tasks."test:hosting"]
 description = "Check the combined UI and documentation image"
-run = "uv run --locked --project docs pytest docs/tests/container.py"
+run = "uv run --locked --project tests pytest tests/hosting"
 
 [tasks."test:collectors"]
 description = "Test the collector configuration loco-worker renders into its relay ConfigMaps, and the log severity it collects with the chart-pinned OpenTelemetry Collector"

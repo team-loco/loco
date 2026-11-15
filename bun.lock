@@ -25,6 +25,7 @@
       "devDependencies": {
         "@react-router/dev": "8.5.1",
         "@tailwindcss/vite": "4.3.5",
+        "@types/bun": "1.4.4",
         "@types/mdx": "2.0.14",
         "@types/node": "26.6.6",
         "@types/react": "19.3.0",

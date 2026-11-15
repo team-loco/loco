@@ -1,15 +1,13 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
+import logo from "../../../web/public/logo.svg?url";
+
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       title: (
         <>
-          <img
-            src={`${import.meta.env.BASE_URL}assets/logo.svg`}
-            alt="Loco"
-            className="h-7 w-auto"
-          />
+          <img src={logo} alt="Loco" className="h-7 w-auto" />
           <span className="text-sm text-fd-muted-foreground">Docs</span>
         </>
       ),

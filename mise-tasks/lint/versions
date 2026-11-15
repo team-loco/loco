@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Check that every container image is pinned by tag and digest, that the Dockerfile base images use the Go, bun, uv and Python versions pinned in mise.toml, and that docs/pyproject.toml requires that Python minor version, and that Renovate waits the minimumReleaseAge bunfig.toml sets"
+#MISE description="Check that every container image is pinned by tag and digest, that the Dockerfile base images use the Go, bun, uv and Python versions pinned in mise.toml, and that tests/pyproject.toml requires that Python minor version, and that Renovate waits the minimumReleaseAge bunfig.toml sets"
 set -euo pipefail
 
 status=0
@@ -62,10 +62,10 @@ check ghcr.io/astral-sh/uv "$(yq -p toml -oy '.tools.uv' mise.toml)"
 python=$(yq -p toml -oy '.tools.python' mise.toml)
 check python "$python"
 IFS=. read -r python_major python_minor _ <<<"$python"
-requires_python=$(yq -p toml -oy '.project.requires-python' docs/pyproject.toml)
+requires_python=$(yq -p toml -oy '.project.requires-python' tests/pyproject.toml)
 want_requires_python=">=$python_major.$python_minor,<$python_major.$((python_minor + 1))"
 if [[ $requires_python != "$want_requires_python" ]]; then
-	echo "docs/pyproject.toml: requires-python $requires_python, but mise.toml pins python $python"
+	echo "tests/pyproject.toml: requires-python $requires_python, but mise.toml pins python $python"
 	status=1
 fi
 bun_release_age=$(yq -p toml -oy '.install.minimumReleaseAge' bunfig.toml)
@@ -75,6 +75,6 @@ if [[ $renovate_release_age != "$bun_release_age" ]]; then
 	status=1
 fi
 if [[ $status -eq 0 ]]; then
-	echo "Container images are pinned by tag and digest, Dockerfile base images and docs requires-python match mise.toml, and Renovate waits as long as bunfig.toml"
+	echo "Container images are pinned by tag and digest, Dockerfile base images and tests requires-python match mise.toml, and Renovate waits as long as bunfig.toml"
 fi
 exit $status

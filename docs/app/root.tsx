@@ -2,6 +2,7 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { RootProvider } from "fumadocs-ui/provider/react-router";
 import SearchDialog from "./components/search";
 import "./app.css";
+import favicon from "../../web/public/favicon.svg?url";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,10 +10,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link
-          rel="icon"
-          href={`${import.meta.env.BASE_URL}assets/favicon.svg`}
-        />
+        <link rel="icon" href={favicon} />
         {import.meta.env.VITE_DOCS_ENVIRONMENT === "staging" && (
           <meta name="robots" content="noindex, nofollow" />
         )}

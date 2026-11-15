@@ -9,7 +9,14 @@ export default {
   routeDiscovery: { mode: "initial" },
   basename,
   async prerender() {
-    const paths = ["/api/search", "/404"];
+    const paths = [
+      "/api/search",
+      "/404",
+      "/llms.txt",
+      "/llms-full.txt",
+      "/sitemap.xml",
+      "/robots.txt",
+    ];
     for await (const entry of glob("**/*.md", { cwd: "content" })) {
       paths.push(`/${getSlugs(entry).join("/")}`);
     }

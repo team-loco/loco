@@ -184,13 +184,13 @@
       matchDepNames: ["uv", "ghcr.io/astral-sh/uv"],
     },
     {
-      description: "One PR moves mise.toml, mise.lock, the docs-builder image and the docs requires-python with uv.lock together",
+      description: "One PR moves mise.toml, mise.lock, the shared tests requires-python with uv.lock together",
       groupName: "python",
       matchManagers: ["mise", "dockerfile", "pep621"],
       matchDepNames: ["python"],
     },
     {
-      description: "mise.lock and the docs-builder image need a python-build-standalone build and an official python image, which appear days after the CPython tag that mise reads. Docker Hub tags carry no release timestamp, so the age check applies to mise and pep621 only",
+      description: "mise.lock needs a python-build-standalone build, which appears days after the CPython tag that mise reads",
       matchManagers: ["mise", "pep621"],
       matchDepNames: ["python"],
       minimumReleaseAge: "7 days",

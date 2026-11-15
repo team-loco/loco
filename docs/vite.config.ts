@@ -4,6 +4,7 @@ import { defineConfig } from "vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 
 export default defineConfig({
+  publicDir: "content",
   base: process.env.DOCS_BASE_PATH || "/",
   plugins: [fumadocsMdx(), tailwindcss(), reactRouter()],
   resolve: {

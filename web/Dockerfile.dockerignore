@@ -22,16 +22,13 @@ observability-proxy/
 proto/
 charts/
 docs/**
-!docs/pyproject.toml
-!docs/uv.lock
+!docs/build.ts
 !docs/package.json
 !docs/tsconfig.json
 !docs/vite.config.ts
 !docs/react-router.config.ts
 !docs/app/
 !docs/app/**
-!docs/scripts/
-!docs/scripts/**
 !docs/content/
 !docs/content/**
 

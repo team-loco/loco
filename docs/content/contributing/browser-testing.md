@@ -18,7 +18,7 @@ Install the pinned tools and start Docker or OrbStack:
 
 ```sh
 mise run setup
-uv run --frozen --project docs playwright install chromium
+uv run --frozen --project tests playwright install chromium
 mise run test:ui deployment_history_ui
 ```
 
