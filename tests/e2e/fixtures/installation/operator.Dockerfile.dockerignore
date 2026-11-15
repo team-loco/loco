@@ -4,6 +4,7 @@
 !cmd
 !gen/go
 !internal
+!schemas
 !k8sapi
 !tools/installation-e2e
 !tests/e2e/fixtures/build-app
