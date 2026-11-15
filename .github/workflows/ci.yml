@@ -6,8 +6,7 @@
 # push to main, the pass-markers job saves one for each check that passed. Path
 # filters on the called workflows' own triggers would leave a required check
 # without a result whenever they skipped it. After a push to main passes the
-# gate, the publish jobs tag the images Images built and notify the
-# deployment repository.
+# gate, the publish jobs tag the images Images built.
 name: CI
 
 on:
@@ -354,20 +353,6 @@ jobs:
     with:
       image_name: ${{ github.repository }}-${{ matrix.image }}
       tag_suffix: ${{ matrix.tag_suffix || '' }}
-
-  notify-deploy:
-    name: Notify the Deployment Repository
-    needs: [gate, publish]
-    if: ${{ !cancelled() && vars.DEPLOY_DISPATCH_REPOSITORY != '' && needs.publish.result == 'success' }}
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Send the built commit
-        env:
-          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
-          REPOSITORY: ${{ vars.DEPLOY_DISPATCH_REPOSITORY }}
-          COMMIT: ${{ github.sha }}
-        run: gh api "repos/$REPOSITORY/dispatches" -f event_type=core-images-built -f "client_payload[commit]=$COMMIT"
 
   pass-markers:
     name: Pass Marker ${{ matrix.check }}
