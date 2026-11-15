@@ -74,7 +74,7 @@ const KEY = String.raw`[\w.\-/]+(?:\[\d+\])*`;
 const VALUE = String.raw`(?:"(?:[^"\\]|\\.)*"|[^\s"()]+)`;
 const TOKEN_RE = new RegExp(String.raw`(?<=^|\s)(-?)@(${KEY}):(${VALUE})(?=\s|$)`, "g");
 export const COMPLETED_TOKEN_RE = new RegExp(String.raw`(^|\s)(-?)@(${KEY}):(${VALUE})\s$`);
-export const QUERY_KEY_RE = new RegExp(String.raw`^${KEY}$`);
+const QUERY_KEY_RE = new RegExp(String.raw`^${KEY}$`);
 const BARE_TOKEN_RE = /^(pod|replica|build):(\S+)$/;
 const QUOTED_RE = /"(?:[^"\\]|\\.)*"/g;
 const BOOLEAN_RE = /(^|\s)(AND|OR)(?=\s|$)|[()]/;
