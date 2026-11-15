@@ -25,7 +25,7 @@ func Commands() []*cobra.Command {
 		var file string
 		var timeout time.Duration
 		command := &cobra.Command{
-			Use:   operation + " --file installation.yaml",
+			Use:   operation + " --file loco-install.yaml",
 			Short: operation + " the declarative installation",
 			Args:  cobra.NoArgs,
 		}

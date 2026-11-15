@@ -32,7 +32,7 @@ func TestSignalsCancelRunningCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := filepath.Abs("../../examples/installation/installation.yaml")
+	file, err := filepath.Abs("../../examples/installation/loco-install.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

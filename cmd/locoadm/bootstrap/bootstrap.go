@@ -35,7 +35,7 @@ func BuildBootstrapCmd() *cobra.Command {
 	var noBrowser bool
 	var timeout time.Duration
 	command := &cobra.Command{
-		Use:   "bootstrap --file installation.yaml --email admin@example.com",
+		Use:   "bootstrap --file loco-install.yaml --email admin@example.com",
 		Short: "Create the installation's first administrator through its identity provider",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

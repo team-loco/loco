@@ -1,21 +1,21 @@
 # Installation file
 
-`installation.yaml` describes a Loco installation on existing Kubernetes infrastructure. It keeps operator intent separate from application `loco.yaml` files.
+`loco-install.yaml` describes a Loco installation on existing Kubernetes infrastructure. It keeps operator intent separate from application `loco.yaml` files.
 
 !!! warning "Unreleased"
     The development CLI provides validation, a read-only plan, installation apply, administrator bootstrap and status. These commands target existing Kubernetes clusters. A running installation still requires a source deployment and HTTPS check before serving users.
 
 ```sh
-locoadm validate --file installation.yaml
-locoadm plan --file installation.yaml
-locoadm apply --file installation.yaml
-locoadm bootstrap --file installation.yaml --email admin@example.com
-locoadm apply --file installation.yaml
-locoadm status --file installation.yaml
-locoadm verify --file installation.yaml --worker staging-us --environment ENVIRONMENT_UUID
+locoadm validate --file loco-install.yaml
+locoadm plan --file loco-install.yaml
+locoadm apply --file loco-install.yaml
+locoadm bootstrap --file loco-install.yaml --email admin@example.com
+locoadm apply --file loco-install.yaml
+locoadm status --file loco-install.yaml
+locoadm verify --file loco-install.yaml --worker staging-us --environment ENVIRONMENT_UUID
 ```
 
-`validate`, `verify` and `recovery export` default to `installation.yaml`; `plan`, `apply`, `status` and `bootstrap` require `--file`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
+`validate`, `verify` and `recovery export` default to `loco-install.yaml`; `plan`, `apply`, `status` and `bootstrap` require `--file`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/loco-install.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
 Every field below except `release` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
 
@@ -103,7 +103,7 @@ Use separate registry identities: the API identity reads and deletes build image
 
 The initial installer requires a cluster-admin context for every target and checks that permission with a non-persistent SelfSubjectAccessReview; it creates no operator grant. Apply renders the pinned charts without Secrets before changing any target. It validates destinations, preserves owned credentials, establishes a destination lock, applies pinned CRDs and waits for them, and installs prerequisite controllers before installing the control plane. Compatible existing prerequisite controllers are reused only after their current replicas are available; cert-manager controller, webhook and cainjector are all gated. The Gateway controller comes from the pinned worker chart and uses its `GatewayNamespace` deployment configuration. Reused controllers must have that mode, the pinned controller identity and the default all-namespace watch scope in their mounted configuration so they handle Loco's Gateways and keep proxies inside the namespace application ingress policies allow. Apply rejects incompatible configuration rather than changing an existing controller. Cert-manager comes from its pinned release artifact. If the configured certificate issuer does not exist or is not Ready, apply stops with an issuer-required checkpoint. Create that issuer and run apply again. API, dashboard and ingest URLs must use the same HTTP or HTTPS scheme.
 
-The control plane installs before API authentication is required. Apply reports the first-administrator checkpoint when bootstrap remains open. Run `locoadm bootstrap --file installation.yaml --email admin@example.com` and sign in through the configured identity provider. The command reads the temporary bootstrap credential from Kubernetes, verifies the expected email through authorization code with PKCE, and stores the normal CLI session and installation URLs locally. It then removes the bootstrap reference from the API deployment, waits for its rollout, and deletes the temporary credential. `--no-browser` prints the sign-in URL; `--timeout` bounds the operation and defaults to 15 minutes. A fresh operator machine can repeat bootstrap by signing in as an existing system administrator to resume cleanup; it cannot create another administrator after bootstrap closes.
+The control plane installs before API authentication is required. Apply reports the first-administrator checkpoint when bootstrap remains open. Run `locoadm bootstrap --file loco-install.yaml --email admin@example.com` and sign in through the configured identity provider. The command reads the temporary bootstrap credential from Kubernetes, verifies the expected email through authorization code with PKCE, and stores the normal CLI session and installation URLs locally. It then removes the bootstrap reference from the API deployment, waits for its rollout, and deletes the temporary credential. `--no-browser` prints the sign-in URL; `--timeout` bounds the operation and defaults to 15 minutes. A fresh operator machine can repeat bootstrap by signing in as an existing system administrator to resume cleanup; it cannot create another administrator after bootstrap closes.
 
 Run apply again with the stored system-admin session to attach workers. Worker namespaces created by apply carry the restricted Pod Security policy. Existing worker namespaces must already match that policy; apply does not patch unrelated namespaces. Each worker registration request is persisted before its API call; a retry recovers the same registration. The agent creates and retains its private key through its existing Kubernetes identity store.
 
@@ -115,7 +115,7 @@ Status reports the installation phase, worker enrollment readiness and required 
 
 ## Source verification
 
-`locoadm verify --file installation.yaml --worker staging-us --environment ENVIRONMENT_UUID` uses the stored operator session and an existing authorized environment whose tier matches the worker. The worker must enable builds. DNS and a publicly trusted HTTPS certificate must already serve its application domain.
+`locoadm verify --file loco-install.yaml --worker staging-us --environment ENVIRONMENT_UUID` uses the stored operator session and an existing authorized environment whose tier matches the worker. The worker must enable builds. DNS and a publicly trusted HTTPS certificate must already serve its application domain.
 
 Verification provisions a uniquely named disposable service through the plan API, stores a random application secret, uploads source and waits for its build. It deploys that build in the worker's region and checks the HTTPS response, the SHA-256 hash of the delivered secret, and a unique log record through the observability query API. The generated source contains no secret value. The API schedules the build on an eligible build cluster; the command does not pin the build executor to the selected worker. Verification deletes its service after success or failure and reports cleanup errors. A process crash can leave a `verify-<UUID>` resource for an operator to remove.
 
@@ -126,7 +126,7 @@ The command reports `verified` only after every probe and cleanup succeeds. This
 `locoadm recovery export` reads the existing destination material, encrypts it in memory and writes only age ciphertext to a new directory:
 
 ```sh
-locoadm recovery export --file installation.yaml --output ./recovery-export \
+locoadm recovery export --file loco-install.yaml --output ./recovery-export \
   --recipient AGE_MATERIAL_RECIPIENT \
   --share-recipient AGE_FIRST_CUSTODIAN \
   --share-recipient AGE_SECOND_CUSTODIAN \

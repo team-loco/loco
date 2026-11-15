@@ -60,7 +60,7 @@ func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, 
 		}
 	}
 	installation, err := renderFixtureFile(
-		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "installation.yaml"),
+		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "loco-install.yaml"),
 		map[string]any{
 			"Version":       manifest["configVersion"],
 			"PrivateEgress": allowances,

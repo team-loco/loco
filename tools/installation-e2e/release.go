@@ -189,7 +189,7 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	configVersion, err := f.pin(ctx, "examples/installation/installation.yaml", ".version")
+	configVersion, err := f.pin(ctx, "examples/installation/loco-install.yaml", ".version")
 	if err != nil {
 		return nil, "", err
 	}

@@ -73,7 +73,7 @@ var (
 const (
 	fixtureEmail           = "dev@loco.test"
 	fixturePassword        = "loco-dev"
-	clientFile             = "/installation/installation.yaml"
+	clientFile             = "/installation/loco-install.yaml"
 	clientTimeout          = 45 * time.Minute
 	fixtureWorkloadTimeout = 5 * time.Minute
 	httpsReadyTimeout      = 2 * time.Minute

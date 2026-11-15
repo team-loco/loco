@@ -55,7 +55,7 @@ current-context: example-control-plane
 	command.SetArgs(
 		[]string{
 			"--file",
-			"../../../examples/installation/installation.yaml",
+			"../../../examples/installation/loco-install.yaml",
 			"--email",
 			bootstrapTestEmail,
 			"--timeout",
