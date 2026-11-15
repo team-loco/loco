@@ -1,0 +1,10 @@
+{
+  "title": "Reference",
+  "pages": [
+    "architecture",
+    "cli-api",
+    "installation",
+    "ai"
+  ],
+  "defaultOpen": true
+}

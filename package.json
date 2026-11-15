@@ -3,7 +3,8 @@
 	"private": true,
 	"workspaces": [
 		"web",
-		"gen/ts"
+		"gen/ts",
+		"docs"
 	],
 	"devDependencies": {
 		"@bufbuild/protoc-gen-es": "2.17.0",

@@ -20,7 +20,7 @@ colors:
   dark-secondary: "#c9c2ba"
   dark-border: "#2f2b27"
   dark-strong-border: "#403b35"
-  dark-primary: "#4a74d6"
+  dark-primary: "#8aa6e6"
   dark-link: "#8aa6e6"
   dark-logo: "#6f8ff2"
 typography:
@@ -52,11 +52,11 @@ The docs are a technical field guide for developers deploying applications and o
 
 Content is English, for the project's developer audience. The user brief defines three deployment modes; the main branch supplies released commands; the infrastructure PR stack supplies the explicitly labeled Go preview. Technical accuracy and readable command examples take precedence over promotional copy.
 
-`content/assets/loco.css` owns runtime tokens and maps them to Zensical's `--md-*` variables. This file records that mapping. The favicon comes from `web/public/favicon.svg`, and the inline wordmark is a copy of `web/public/logo.svg` made during each build. Generated assets stay out of Git. Colors mirror `web/src/index.css`; the site is independent of the dashboard bundle. Keep both light and dark palettes coherent with the dashboard. Avoid generic gradients, animated marketing blocks, and tile grids.
+`app/app.css` owns runtime tokens and maps them to Fumadocs' `--color-fd-*` variables. This file records that mapping. The favicon comes from `web/public/favicon.svg`, and the wordmark is a copy of `web/public/logo.svg` made during each build. Generated assets stay out of Git. Colors mirror `web/src/index.css`; the site is independent of the dashboard bundle. Keep both light and dark palettes coherent with the dashboard. Avoid generic gradients, animated marketing blocks, and tile grids.
 
 ## Colors
 
-Background, surface, raised, foreground, secondary, border, strong-border, primary, link, and logo map to `--bg`, `--bg2`, `--bg3`, `--fg`, `--fg2`, `--line`, `--line2`, `--accent`, `--link`, and `--logo`. Dark variants override the same tokens under Zensical's slate scheme. Primary buttons use white text in light mode and the dark background token in dark mode. Keyboard focus uses the link token. Forced colors preserve system scrollbars and button borders.
+Background, surface, raised, foreground, secondary, border, and primary map to Fumadocs background, card, muted, foreground, muted-foreground, border, and primary tokens. Strong borders supply scrollbar thumbs. The logo asset retains its own colors. Dark variants override the same tokens under the `.dark` class. Primary buttons use white text in light mode and the dark background token in dark mode. Keyboard focus uses the link token. Forced colors preserve system scrollbars and button borders.
 
 ## Typography
 
@@ -64,13 +64,13 @@ Avenir Next with Segoe UI fallback gives headings a distinct display face. Body 
 
 ## Layout
 
-One UI container serves the docs at their canonical hostname and at the dashboard’s `/docs/` path. Relative navigation preserves the active entry point. The 76rem grid contains desktop navigation, article, and a table of contents on wide screens. Sections expand by default. Neither scrolling nor changing pages hides desktop navigation. Below the upstream drawer breakpoint, Zensical owns the mobile navigation drawer. Tables and code scroll horizontally within their content containers.
+One UI container serves the docs at their canonical hostname and at the dashboard’s `/docs/` path. Separate prerendered builds with router basenames `/` and `/docs/` preserve the active entry point. The 76rem grid contains desktop navigation, article, and a table of contents on wide screens. Sections expand by default. Neither scrolling nor changing pages hides desktop navigation. Below the upstream drawer breakpoint, Fumadocs owns the mobile navigation drawer. Tables and code scroll horizontally within their content containers.
 
 Track unfinished work in the owning repository’s GitHub issues. Do not maintain parallel HTML notes or checklists.
 
 ## Elevation & Depth
 
-Warm surface tones and thin borders distinguish code, tables, and search. The header has a bottom border and no shadow. Zensical owns search overlays and their stacking behavior.
+Warm surface tones and thin borders distinguish code, tables, and search. The header has a bottom border and no shadow. Fumadocs owns search overlays and their stacking behavior.
 
 ## Shapes
 
@@ -78,7 +78,7 @@ Controls and code use a 6px radius. Navigation uses 4px. The blue introduction r
 
 ## Components
 
-Zensical owns navigation, search, theme switching, page actions, code-copy feedback, and mobile drawer behavior. Custom styling adapts those owners instead of replacing their event handling. Links have hover color and visible keyboard focus. Primary and secondary actions use the same geometry. The staging banner remains visible and links to production documentation.
+Fumadocs owns navigation, search, theme switching, page actions, code-copy feedback, and mobile drawer behavior. Custom styling adapts those owners instead of replacing their event handling. Links have hover color and visible keyboard focus. Primary and secondary actions use the same geometry. The staging banner remains visible and links to production documentation.
 
 The table of contents is visible on wide screens without hover or a toggle. Scrollbars have global track/thumb tokens and remain operable. Reduced motion disables animation and transitions. Documentation uses sentence case and real commands; unreleased interfaces carry a visible notice that also appears in Markdown exports.
 

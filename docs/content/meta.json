@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "index",
+    "getting-started",
+    "deployment",
+    "operations",
+    "reference",
+    "skills",
+    "contributing"
+  ]
+}

@@ -1,4 +1,6 @@
-# Use with AI
+---
+title: "Use with AI"
+---
 
 Loco's documentation includes Markdown exports for AI assistants and tools that ingest text. The exports come from the same pages as the rendered documentation.
 
@@ -17,12 +19,12 @@ curl -fsSL https://loco.build/skills.md
 | [`llms.txt`](../llms.txt) | Find pages by section and follow their Markdown links |
 | [`llms-full.txt`](../llms-full.txt) | Load the complete published documentation as text |
 | [`skills.md`](../skills.md) | Guide an agent through deploying an application to Loco |
-| Copy as Markdown | Copy the current page into an assistant |
+| View Markdown | Open the current page as Markdown |
 
-Use the page action beside the title to copy Markdown. Page-specific Markdown URLs appear in `llms.txt`.
+Use View Markdown below the title to open the source. Page-specific Markdown URLs appear in `llms.txt`.
 
 ## Match the release
 
 Ask the assistant to check the installed CLI's help before generating commands. Pages describe the main branch, which can be ahead of your release.
 
-These helpers use [Zensical's native `llmstxt` support](https://zensical.org/docs/compatibility/mkdocs/plugins/#llmstxt). They do not require an AI account or an API key. Copying a page uses your browser's clipboard; these docs do not send it to an AI provider.
+The build exports these files from the published Markdown sources. They require no AI account or API key.

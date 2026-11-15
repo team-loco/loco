@@ -56,17 +56,16 @@ def test_site_uses_the_web_favicon(built_site):
 
 
 def test_site_logo_is_the_web_logo(built_site):
-    logo = (DOCS / "overrides/partials/logo.html").read_text()
+    logo = (built_site.root / "assets/logo.svg").read_text()
     assert logo == (WEB / "public/logo.svg").read_text()
-    assert logo.strip() in built_site.html
+    assert "assets/logo.svg" in built_site.html
 
 
 def test_site_has_a_not_found_page(built_site):
     assert (built_site.root / "404.html").is_file()
 
 
-def test_site_links_resolve(built_site):
-    site = built_site.root
+def assert_site_links_resolve(site, prefix=""):
     for document in site.rglob("*.html"):
         links = Links()
         links.feed(document.read_text())
@@ -75,13 +74,33 @@ def test_site_links_resolve(built_site):
             if url.scheme or url.netloc or (not url.path):
                 continue
             path = (
-                site / unquote(url.path.lstrip("/"))
+                site / unquote(url.path.removeprefix(prefix).lstrip("/"))
                 if url.path.startswith("/")
                 else document.parent / unquote(url.path)
             )
+            if not path.exists() and path.suffix == "":
+                path = path / "index.html"
             assert path.exists(), (
                 f"{document.relative_to(site)} links to missing {target}"
             )
+
+
+def test_site_links_resolve(built_site):
+    assert_site_links_resolve(built_site.root)
+
+
+def test_dashboard_mount_has_prerendered_pages_and_resolving_links(built_site):
+    site = DOCS / "site-mounted"
+    html = (site / "index.html").read_text()
+    assert "Deploy with Loco" in html
+    assert 'href="/docs/getting-started/install"' in html
+    assert 'src="/docs/assets/logo.svg"' in html
+    assert_site_links_resolve(site, "/docs")
+    for source in (DOCS / "content").rglob("*.md"):
+        relative = source.relative_to(DOCS / "content").with_suffix("")
+        path = Path("index.html") if relative.as_posix() == "index" else relative / "index.html"
+        assert "<h1" in (built_site.root / path).read_text(), source
+        assert "<h1" in (site / path).read_text(), source
 
 
 def test_only_staging_is_hidden_from_crawlers(built_site):

@@ -1,0 +1,9 @@
+{
+  "title": "Deploy",
+  "pages": [
+    "modes",
+    "loco-yaml",
+    "environments"
+  ],
+  "defaultOpen": true
+}

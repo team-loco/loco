@@ -1,3 +1,5 @@
+import argparse
+from build import HOSTS
 import base64
 import hashlib
 from html.parser import HTMLParser
@@ -36,7 +38,7 @@ class InlineScripts(HTMLParser):
 
 def package():
     hashes = set()
-    for page in (DOCS / 'site').rglob('*.html'):
+    for page in [*(DOCS / 'site').rglob('*.html'), *(DOCS / 'site-mounted').rglob('*.html')]:
         parser = InlineScripts()
         parser.feed(page.read_text())
         for script in parser.scripts:
@@ -53,8 +55,9 @@ def package():
     allowed_scripts = ' '.join(sorted(hashes))
     replacement = policy.replace(SCRIPT_DIRECTIVE, f"script-src 'self' {allowed_scripts};")
     config = config.replace(json.dumps(policy), json.dumps(replacement))
-    project = tomllib.loads((DOCS / '.generated.toml').read_text())['project']
-    hostname = urlsplit(project['site_url']).hostname
+    parser = argparse.ArgumentParser()
+    parser.add_argument('environment', choices=HOSTS, default='production', nargs='?')
+    hostname = urlsplit(HOSTS[parser.parse_args().environment]).hostname
     sections = ','.join(sorted({'docs', *(entry.name for entry in (DOCS / 'site').iterdir() if entry.is_dir())}))
     config = config.replace('/{docs}', '/{' + sections + '}')
     config = config.replace('host = "docs.loco.build"', f'host = {json.dumps(hostname)}')

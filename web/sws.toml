@@ -51,13 +51,13 @@ Content-Type = "text/markdown; charset=utf-8"
 Cache-Control = "no-cache"
 
 [[advanced.headers]]
-source = "/{docs/**,assets/loco.css,assets/favicon.svg}"
+source = "/{docs/**,assets/favicon.svg,assets/logo.svg}"
 [advanced.headers.headers]
 Cache-Control = "no-cache"
 
 [[advanced.virtual-hosts]]
 host = "docs.loco.build"
-root = "/public/docs"
+root = "/documentation"
 
 # Unknown paths on the app host open the UI, so React's NotFound answers them, and
 # the first matching rewrite wins. A rewrite runs before the virtual host picks its

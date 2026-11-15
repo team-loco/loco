@@ -1,0 +1,11 @@
+{
+  "title": "Operate",
+  "pages": [
+    "applications",
+    "access",
+    "self-hosting",
+    "webhooks",
+    "secrets-key-provider"
+  ],
+  "defaultOpen": true
+}

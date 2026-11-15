@@ -153,6 +153,44 @@ def ui_routes():
     return re.findall('<Route\\s+path="(/[^\\"]*)"', route_source)
 
 
+def check_docs_renders(address, out_dir):
+    problems = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=[
+            f"--host-resolver-rules=MAP {UI_HOST} {address}, MAP {DOCS_HOST} {address}"
+        ])
+        for host, prefix in [(DOCS_HOST, ""), (UI_HOST, "/docs")]:
+            for scheme in NOT_FOUND_SCHEMES:
+                for narrow in [False, True]:
+                    width = 390 if narrow else 1440
+                    page = browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
+                    page.on("pageerror", lambda error: problems.append(str(error)))
+                    page.on("console", lambda message: message.type == "error" and problems.append(message.text))
+                    page.on("requestfailed", lambda request: problems.append(f"{request.url} failed"))
+                    page.goto(f"http://{host}{prefix}/")
+                    page.get_by_role("heading", name="Deploy with Loco", exact=True).wait_for()
+                    page.wait_for_function("document.documentElement.classList.contains('dark') === " + str(scheme == "dark").lower())
+                    assert page.evaluate("document.documentElement.scrollWidth") <= width
+                    page.screenshot(path=out_dir / f"{host}-after-{scheme}{'-narrow' if narrow else ''}.png", full_page=True)
+                    # Article links and router data must keep the active hosting path.
+                    page.get_by_role("link", name="Choose a deployment mode", exact=True).click()
+                    page.get_by_role("heading", name="Deployment modes", exact=True).wait_for()
+                    assert page.url.startswith(f"http://{host}{prefix}/deployment/modes")
+                    page.reload()
+                    page.get_by_role("heading", name="Deployment modes", exact=True).wait_for()
+                    page.keyboard.press("ControlOrMeta+k")
+                    search = page.get_by_role("dialog")
+                    search.get_by_role("textbox").fill("loco.yaml")
+                    search.get_by_role("link").first.wait_for()
+                    search.get_by_role("textbox").fill("zzzznonexistentquery")
+                    search.get_by_text("No results found").wait_for()
+                    page.keyboard.press("Escape")
+                    assert not search.is_visible()
+                    page.close()
+        browser.close()
+    assert problems == []
+
+
 def test_image_serves_the_ui_and_docs(tmp_path):
     docker(
         "buildx",
@@ -258,7 +296,7 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             status, body, _ = response(base + "/deployment/modes/", host)
             assert status == 200
             assert "Multi-tenant SaaS" in body
-            status, _, asset_headers = response(base + "/assets/loco.css", host)
+            status, _, asset_headers = response(base + "/assets/logo.svg", host)
             assert status == 200
             assert asset_headers["Cache-Control"] == "no-cache"
             status, skill, skill_headers = response(base + "/skills.md", host)
@@ -294,6 +332,7 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             assert f"<title>{NOT_FOUND_TITLE}</title>" in body
             assert '<div id="root">' not in body
             assert NOT_FOUND_HEADING in body
+        check_docs_renders(address, tmp_path)
         check_not_found_renders(
             address,
             [
