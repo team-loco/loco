@@ -1,9 +1,9 @@
-import { createFromSource } from 'fumadocs-core/search/server';
-import { source } from '@/lib/source.server';
+import { createFromSource } from "fumadocs-core/search/server";
+import { source } from "@/lib/source.server";
 
 const server = createFromSource(source, {
   // https://docs.orama.com/docs/orama-js/supported-languages
-  language: 'english',
+  language: "english",
 });
 
 export async function loader() {

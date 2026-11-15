@@ -27,8 +27,7 @@ def export_markdown(site, url, environment):
         index.append(f'- [{title}]({url}{relative.as_posix()})')
         full.append(markdown)
         path = relative.with_suffix('').as_posix()
-        if path == 'index':
-            path = ''
+        path = '' if path == 'index' else path + '/'
         locations.append(f'<url><loc>{escape(url + path)}</loc></url>')
     (site / 'llms.txt').write_text('\n'.join(index) + '\n')
     (site / 'llms-full.txt').write_text('\n\n'.join(full))

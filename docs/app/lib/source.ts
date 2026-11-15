@@ -1,6 +1,6 @@
-import { defineDocs } from 'fumadocs-mdx/macro';
+import { defineDocs } from "fumadocs-mdx/macro";
 
 export const docs = defineDocs({
-  dir: 'content',
+  dir: "content",
   docs: { async: true },
 });

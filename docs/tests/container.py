@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import pytest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
@@ -164,12 +164,14 @@ def check_docs_renders(address, out_dir):
                 for narrow in [False, True]:
                     width = 390 if narrow else 1440
                     page = browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
+                    # The container is tested over HTTP; provide the HTTPS-only clipboard API.
+                    page.add_init_script("Object.defineProperty(navigator, 'clipboard', {value: {writeText: async text => { window.copiedText = text; }}})")
                     page.on("pageerror", lambda error: problems.append(str(error)))
                     page.on("console", lambda message: message.type == "error" and problems.append(message.text))
                     page.on("requestfailed", lambda request: problems.append(f"{request.url} failed"))
                     page.goto(f"http://{host}{prefix}/")
                     page.get_by_role("heading", name="Deploy with Loco", exact=True).wait_for()
-                    page.wait_for_function("document.documentElement.classList.contains('dark') === " + str(scheme == "dark").lower())
+                    expect(page.locator("html")).to_have_class(scheme)
                     assert page.evaluate("document.documentElement.scrollWidth") <= width
                     page.screenshot(path=out_dir / f"{host}-after-{scheme}{'-narrow' if narrow else ''}.png", full_page=True)
                     # Article links and router data must keep the active hosting path.
@@ -180,12 +182,30 @@ def check_docs_renders(address, out_dir):
                     page.get_by_role("heading", name="Deployment modes", exact=True).wait_for()
                     page.keyboard.press("ControlOrMeta+k")
                     search = page.get_by_role("dialog")
-                    search.get_by_role("textbox").fill("loco.yaml")
-                    search.get_by_role("link").first.wait_for()
-                    search.get_by_role("textbox").fill("zzzznonexistentquery")
+                    search.get_by_role("combobox").fill("loco.yaml")
+                    search.get_by_role("option").first.wait_for()
+                    search.get_by_role("combobox").fill("zzzznonexistentquery")
                     search.get_by_text("No results found").wait_for()
                     page.keyboard.press("Escape")
-                    assert not search.is_visible()
+                    search.wait_for(state="hidden")
+                    page.keyboard.press("ControlOrMeta+k")
+                    search.get_by_role("combobox").fill("Deployment modes")
+                    search.get_by_role("option").first.click()
+                    search.wait_for(state="hidden")
+                    page.get_by_role("heading", name="Deployment modes", exact=True).wait_for()
+                    assert page.url.startswith(f"http://{host}{prefix}/deployment/modes")
+                    if narrow:
+                        page.get_by_role("button", name="Open Sidebar").click()
+                    page.get_by_role("button", name="Toggle Theme").first.click()
+                    expect(page.locator("html")).to_have_class("light" if scheme == "dark" else "dark")
+                    if narrow:
+                        page.get_by_role("link", name="CLI and API", exact=True).click()
+                        page.get_by_role("heading", name="CLI and API", exact=True).wait_for()
+                    else:
+                        page.goto(f"http://{host}{prefix}/getting-started/install/")
+                        page.get_by_role("button", name="Copy Text", exact=True).first.click()
+                        expected = page.locator("pre code").first.inner_text().strip()
+                        assert page.evaluate("window.copiedText").strip() == expected
                     page.close()
         browser.close()
     assert problems == []
