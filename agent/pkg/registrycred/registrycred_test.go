@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -340,72 +341,79 @@ func runManager(t *testing.T, f *fixture) <-chan struct{} {
 }
 
 func TestRunBacksOffAndRetriesAfterAnError(t *testing.T) {
-	stale := &corev1.Secret{
-		Name:      locoControllerV1.RegistryPullSecretName(testWorkspace),
-		Namespace: testNamespace,
-		Labels:    map[string]string{locoControllerV1.LabelRegistryPull: testWorkspace},
-	}
-	f := newFixture(t, testWait, stale, placedApplication())
-	f.issuer.failures = 2
-	f.issuer.code = connect.CodeUnavailable
+	synctest.Test(t, func(t *testing.T) {
+		stale := &corev1.Secret{
+			Name:      locoControllerV1.RegistryPullSecretName(testWorkspace),
+			Namespace: testNamespace,
+			Labels:    map[string]string{locoControllerV1.LabelRegistryPull: testWorkspace},
+		}
+		f := newFixture(t, testWait, stale, placedApplication())
+		f.issuer.failures = 2
+		f.issuer.code = connect.CodeUnavailable
 
-	runManager(t, f)
-	deadline := time.Now().Add(testWait)
-	for {
-		secret, err := f.secret(t, testWorkspace)
-		if err == nil && secret.Type == corev1.SecretTypeDockerConfigJson {
-			break
+		runManager(t, f)
+		deadline := time.Now().Add(testWait)
+		for {
+			secret, err := f.secret(t, testWorkspace)
+			if err == nil && secret.Type == corev1.SecretTypeDockerConfigJson {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("the Secret was not renewed after the outage: calls = %d", f.issuer.callCount())
+			}
+			time.Sleep(testPoll)
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("the Secret was not renewed after the outage: calls = %d", f.issuer.callCount())
+		if calls := f.issuer.callCount(); calls != 3 {
+			t.Fatalf("IssuePullCredential calls = %d, want two failures and one success", calls)
 		}
-		time.Sleep(testPoll)
-	}
-	if calls := f.issuer.callCount(); calls != 3 {
-		t.Fatalf("IssuePullCredential calls = %d, want two failures and one success", calls)
-	}
+	})
 }
 
 func TestRunKeepsCheckingWhileTheControlPlaneIsInStaticMode(t *testing.T) {
-	f := newFixture(t, time.Hour, placedApplication())
-	f.issuer.failures = 3
-	f.issuer.code = connect.CodeFailedPrecondition
+	synctest.Test(t, func(t *testing.T) {
+		f := newFixture(t, time.Hour, placedApplication())
+		f.issuer.failures = 3
+		f.issuer.code = connect.CodeFailedPrecondition
 
-	done := runManager(t, f)
-	deadline := time.Now().Add(testWait)
-	for {
-		if _, err := f.secret(t, testWorkspace); err == nil {
-			break
+		done := runManager(t, f)
+		deadline := time.Now().Add(testWait)
+		for {
+			if _, err := f.secret(t, testWorkspace); err == nil {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("no pull Secret after FailedPrecondition cleared: calls = %d", f.issuer.callCount())
+			}
+			time.Sleep(testPoll)
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("no pull Secret after FailedPrecondition cleared: calls = %d", f.issuer.callCount())
+		select {
+		case <-done:
+			t.Fatal("Run returned after FailedPrecondition")
+		default:
 		}
-		time.Sleep(testPoll)
-	}
-	select {
-	case <-done:
-		t.Fatal("Run returned after FailedPrecondition")
-	default:
-	}
-	if calls := f.issuer.callCount(); calls != f.issuer.failures+1 {
-		t.Fatalf("IssuePullCredential calls = %d, want %d", calls, f.issuer.failures+1)
-	}
+		if calls := f.issuer.callCount(); calls != f.issuer.failures+1 {
+			t.Fatalf("IssuePullCredential calls = %d, want %d", calls, f.issuer.failures+1)
+		}
+	})
 }
 
 func TestRunRenewsALifetimeShorterThanTwoIntervals(t *testing.T) {
-	f := newFixture(t, time.Hour, placedApplication())
-	f.manager.now = time.Now
-	f.issuer.now = time.Now
-	f.issuer.lifetime = testShortLifetime
+	synctest.Test(t, func(t *testing.T) {
+		f := newFixture(t, time.Hour, placedApplication())
+		f.manager.now = time.Now
+		f.issuer.now = time.Now
+		f.issuer.lifetime = testShortLifetime
 
-	runManager(t, f)
-	deadline := time.Now().Add(testWait)
-	for f.issuer.callCount() < testRenewals {
-		if time.Now().After(deadline) {
-			t.Fatalf("IssuePullCredential calls = %d within %s, want %d", f.issuer.callCount(), testWait, testRenewals)
+		runManager(t, f)
+		deadline := time.Now().Add(testWait)
+		for f.issuer.callCount() < testRenewals {
+			if time.Now().After(deadline) {
+				t.Fatalf("IssuePullCredential calls = %d within %s, want %d",
+					f.issuer.callCount(), testWait, testRenewals)
+			}
+			time.Sleep(testPoll)
 		}
-		time.Sleep(testPoll)
-	}
+	})
 }
 
 func TestEnsureWaitsForACheckThatDeletesTheSecret(t *testing.T) {

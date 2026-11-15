@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -266,27 +267,29 @@ func TestStaleRevisionIsDroppedSilently(t *testing.T) {
 }
 
 func TestOnePlacementIsNeverAppliedConcurrently(t *testing.T) {
-	ka := newKubeApplier(t)
-	ka.release = make(chan struct{})
-	ka.started = make(chan struct{}, 4)
-	r := newReports()
-	rec := New(ka.Applier, r.report, testConfig(4))
-	run(t, rec)
+	synctest.Test(t, func(t *testing.T) {
+		ka := newKubeApplier(t)
+		ka.release = make(chan struct{})
+		ka.started = make(chan struct{}, 4)
+		r := newReports()
+		rec := New(ka.Applier, r.report, testConfig(4))
+		run(t, rec)
 
-	rec.Submit(work(t, 1))
-	<-ka.started
-	rec.Submit(work(t, 2))
-	time.Sleep(100 * time.Millisecond)
-	if ka.overlap.Load() {
-		t.Fatal("two revisions of one placement were applied at the same time")
-	}
-	ka.release <- struct{}{}
-	if got := r.next(t); got.GetRevision() != 1 {
-		t.Fatalf("first report = %v, want revision 1", got)
-	}
-	<-ka.started
-	ka.release <- struct{}{}
-	if got := r.next(t); got.GetRevision() != 2 {
-		t.Fatalf("second report = %v, want revision 2", got)
-	}
+		rec.Submit(work(t, 1))
+		<-ka.started
+		rec.Submit(work(t, 2))
+		synctest.Wait()
+		if ka.overlap.Load() {
+			t.Fatal("two revisions of one placement were applied at the same time")
+		}
+		ka.release <- struct{}{}
+		if got := r.next(t); got.GetRevision() != 1 {
+			t.Fatalf("first report = %v, want revision 1", got)
+		}
+		<-ka.started
+		ka.release <- struct{}{}
+		if got := r.next(t); got.GetRevision() != 2 {
+			t.Fatalf("second report = %v, want revision 2", got)
+		}
+	})
 }

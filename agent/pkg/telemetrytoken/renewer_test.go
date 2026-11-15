@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -204,66 +205,78 @@ func TestRenewalDelayIsHalfTheRemainingLifetime(t *testing.T) {
 }
 
 func TestRenewerWritesEachTokenBeforeThePreviousExpires(t *testing.T) {
-	issuer := &scriptedIssuer{script: []step{{lifetime: testShortLifetime}, {lifetime: testShortLifetime}}}
-	kube := fake.NewClientset(existingSecrets()...)
-	startRenewer(t, issuer, kube)
+	synctest.Test(t, func(t *testing.T) {
+		issuer := &scriptedIssuer{script: []step{{lifetime: testShortLifetime}, {lifetime: testShortLifetime}}}
+		kube := fake.NewClientset(existingSecrets()...)
+		startRenewer(t, issuer, kube)
 
-	issued := waitForIssuances(t, issuer, 3)
-	for i := 1; i < len(issued); i++ {
-		if !issued[i].at.Before(issued[i-1].expiresAt) {
-			t.Fatalf("token %d issued at %s, after token %d expired at %s",
-				i, issued[i].at, i-1, issued[i-1].expiresAt)
+		issued := waitForIssuances(t, issuer, 3)
+		for i := 1; i < len(issued); i++ {
+			if !issued[i].at.Before(issued[i-1].expiresAt) {
+				t.Fatalf("token %d issued at %s, after token %d expired at %s",
+					i, issued[i].at, i-1, issued[i-1].expiresAt)
+			}
 		}
-	}
-	waitForStoredToken(t, kube, issued[2].token)
+		waitForStoredToken(t, kube, issued[2].token)
+	})
 }
 
 func TestRenewerRetriesAFailedRenewal(t *testing.T) {
-	issuer := &scriptedIssuer{script: []step{{fail: true}, {fail: true}, {fail: true}}}
-	kube := fake.NewClientset(existingSecrets()...)
-	startRenewer(t, issuer, kube)
+	synctest.Test(t, func(t *testing.T) {
+		issuer := &scriptedIssuer{script: []step{{fail: true}, {fail: true}, {fail: true}}}
+		kube := fake.NewClientset(existingSecrets()...)
+		startRenewer(t, issuer, kube)
 
-	issued := waitForIssuances(t, issuer, 1)
-	waitForStoredToken(t, kube, issued[0].token)
+		issued := waitForIssuances(t, issuer, 1)
+		waitForStoredToken(t, kube, issued[0].token)
+	})
 }
 
 func TestRenewerRecoversAfterTheTokenExpired(t *testing.T) {
-	outage := make([]step, 0, int(testShortLifetime/testRetryDelay)*2+1)
-	outage = append(outage, step{lifetime: testShortLifetime})
-	for range cap(outage) - 1 {
-		outage = append(outage, step{fail: true})
-	}
-	issuer := &scriptedIssuer{script: outage}
-	kube := fake.NewClientset(existingSecrets()...)
-	startRenewer(t, issuer, kube)
+	synctest.Test(t, func(t *testing.T) {
+		outage := make([]step, 0, int(testShortLifetime/testRetryDelay)*2+1)
+		outage = append(outage, step{lifetime: testShortLifetime})
+		for range cap(outage) - 1 {
+			outage = append(outage, step{fail: true})
+		}
+		issuer := &scriptedIssuer{script: outage}
+		kube := fake.NewClientset(existingSecrets()...)
+		startRenewer(t, issuer, kube)
 
-	issued := waitForIssuances(t, issuer, 2)
-	if !issued[1].at.After(issued[0].expiresAt) {
-		t.Fatalf("recovery token issued at %s, before the first expired at %s", issued[1].at, issued[0].expiresAt)
-	}
-	waitForStoredToken(t, kube, issued[1].token)
+		issued := waitForIssuances(t, issuer, 2)
+		if !issued[1].at.After(issued[0].expiresAt) {
+			t.Fatalf("recovery token issued at %s, before the first expired at %s", issued[1].at, issued[0].expiresAt)
+		}
+		waitForStoredToken(t, kube, issued[1].token)
+	})
 }
 
 func TestRenewerCreatesMissingSecrets(t *testing.T) {
-	issuer := &scriptedIssuer{}
-	kube := fake.NewClientset(existingSecret(testNamespace))
-	startRenewer(t, issuer, kube)
+	synctest.Test(t, func(t *testing.T) {
+		issuer := &scriptedIssuer{}
+		kube := fake.NewClientset(existingSecret(testNamespace))
+		startRenewer(t, issuer, kube)
 
-	issued := waitForIssuances(t, issuer, 1)
-	deadline := time.Now().Add(testWait)
-	for time.Now().Before(deadline) {
-		created, err := kube.CoreV1().Secrets(testNodeNamespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
-		if err == nil && string(created.Data[testSecretKey]) == issued[0].token {
-			kept, keptErr := kube.CoreV1().Secrets(testNamespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
-			if keptErr != nil || string(kept.Data[testSecretKey]) != issued[0].token ||
-				string(kept.Data[testOtherKey]) != testOtherValue {
-				t.Fatalf("existing Secret = %v, %v", kept, keptErr)
+		issued := waitForIssuances(t, issuer, 1)
+		deadline := time.Now().Add(testWait)
+		for time.Now().Before(deadline) {
+			created, err := kube.CoreV1().Secrets(testNodeNamespace).Get(
+				t.Context(), testSecretName, metav1.GetOptions{},
+			)
+			if err == nil && string(created.Data[testSecretKey]) == issued[0].token {
+				kept, keptErr := kube.CoreV1().Secrets(testNamespace).Get(
+					t.Context(), testSecretName, metav1.GetOptions{},
+				)
+				if keptErr != nil || string(kept.Data[testSecretKey]) != issued[0].token ||
+					string(kept.Data[testOtherKey]) != testOtherValue {
+					t.Fatalf("existing Secret = %v, %v", kept, keptErr)
+				}
+				return
 			}
-			return
+			time.Sleep(testPoll)
 		}
-		time.Sleep(testPoll)
-	}
-	t.Fatal("renewer did not create the missing Secret")
+		t.Fatal("renewer did not create the missing Secret")
+	})
 }
 
 func TestRenewerStopsWhenTheControlPlaneRejectsTheCredential(t *testing.T) {
