@@ -152,7 +152,6 @@ type buildFixture struct {
 	server *BuildServer
 	bucket *fakeBucket
 	ctx    context.Context
-	userID uuid.UUID
 }
 
 func newBuildFixture(t *testing.T) *buildFixture {
@@ -181,20 +180,15 @@ func newBuildFixture(t *testing.T) *buildFixture {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
 	}
-	var userID uuid.UUID
-	userQuery := `SELECT id FROM users WHERE email = $1`
-	if err := f.pool.QueryRow(ctx, userQuery, deployFixtureEmail).Scan(&userID); err != nil {
-		t.Fatalf("get fixture user: %v", err)
-	}
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{
-		Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
+		Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: f.userID},
 		Scopes:    scopes,
 		ActorType: genDb.DeploymentActorTypeUser,
-		ActorID:   userID,
-		UserID:    userID,
+		ActorID:   f.userID,
+		UserID:    f.userID,
 	})
 
-	return &buildFixture{deployFixture: f, server: server, bucket: bucket, ctx: ctx, userID: userID}
+	return &buildFixture{deployFixture: f, server: server, bucket: bucket, ctx: ctx}
 }
 
 func (f *buildFixture) create(t *testing.T, size int64) *buildv1.CreateBuildResponse {

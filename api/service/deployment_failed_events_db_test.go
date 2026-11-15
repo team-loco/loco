@@ -17,8 +17,6 @@ const (
 	failedDeployMessage = "the new version stopped before it became ready"
 	failedDeployUser    = "Deploy Owner"
 	failedDeployBuild   = "01a1de35-0000-7000-8000-000000000001"
-	// deployFixtureEmail is the email of the user newDeployFixture creates.
-	deployFixtureEmail = "test@example.com"
 )
 
 type deploymentFailedEvent struct {
@@ -83,18 +81,29 @@ func (f *deployFixture) deployAs(
 	return id
 }
 
-func (f *deployFixture) failedDeployUser(t *testing.T) uuid.UUID {
+func (f *deployFixture) nameUser(t *testing.T) {
+	t.Helper()
+	query := `UPDATE users SET name = $1 WHERE id = $2`
+	if _, err := f.pool.Exec(t.Context(), query, failedDeployUser, f.userID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// apiToken creates an API token on the fixture resource, created by the fixture user.
+func (f *deployFixture) apiToken(t *testing.T) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
 	if err := f.pool.QueryRow(t.Context(),
-		`UPDATE users SET name = $1 WHERE email = $2 RETURNING id`, failedDeployUser, deployFixtureEmail,
+		`INSERT INTO api_tokens (token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
+		 VALUES ('hash', 'ci', 'resource', $1, '[]', $2, NOW() + INTERVAL '1 day') RETURNING id`,
+		f.resourceID, f.userID,
 	).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	return id
 }
 
-func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any, id, creator uuid.UUID) {
+func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any, id uuid.UUID) {
 	t.Helper()
 	want := map[string]any{
 		events.FieldDeploymentID:  id.String(),
@@ -104,7 +113,7 @@ func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any
 		events.FieldRegion:        f.paramsFor(f.clusterID).Region,
 		events.FieldMessage:       failedDeployMessage,
 		events.FieldResourceName:  planSvc,
-		events.FieldCreatorID:     creator.String(),
+		events.FieldCreatorID:     f.userID.String(),
 		events.FieldCreatorEmail:  deployFixtureEmail,
 		events.FieldCreatorName:   failedDeployUser,
 	}
@@ -116,8 +125,8 @@ func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any
 func TestDeploymentFailedRecordedOnceAcrossRepeatedReports(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	userID := f.failedDeployUser(t)
-	id := f.deployAs(t, genDb.DeploymentActorTypeUser, userID)
+	f.nameUser(t)
+	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	placement := f.placement(t, f.clusterID)
 	report := &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
@@ -141,24 +150,17 @@ func TestDeploymentFailedRecordedOnceAcrossRepeatedReports(t *testing.T) {
 		t.Fatalf("deployment.failed events = %d, want 1", len(got))
 	}
 	ev := got[0]
-	if ev.actorType != string(genDb.DeploymentActorTypeUser) || ev.actorID != userID || ev.envID != f.envID {
+	if ev.actorType != string(genDb.DeploymentActorTypeUser) || ev.actorID != f.userID || ev.envID != f.envID {
 		t.Fatalf("deployment.failed actor = %s/%s, environment %s", ev.actorType, ev.actorID, ev.envID)
 	}
-	wantDeploymentFailedData(t, f, ev.data, id, userID)
+	wantDeploymentFailedData(t, f, ev.data, id)
 }
 
 func TestDeploymentFailedFromApplyErrorNamesTheTokenAndItsCreator(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	userID := f.failedDeployUser(t)
-	var tokenID uuid.UUID
-	if err := f.pool.QueryRow(t.Context(),
-		`INSERT INTO api_tokens (token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-		 VALUES ('hash', 'ci', 'resource', $1, '[]', $2, NOW() + INTERVAL '1 day') RETURNING id`,
-		f.resourceID, userID,
-	).Scan(&tokenID); err != nil {
-		t.Fatal(err)
-	}
+	f.nameUser(t)
+	tokenID := f.apiToken(t)
 	if _, err := f.pool.Exec(t.Context(),
 		`UPDATE resources SET max_apply_attempts = 1 WHERE id = $1`, f.resourceID); err != nil {
 		t.Fatal(err)
@@ -182,22 +184,21 @@ func TestDeploymentFailedFromApplyErrorNamesTheTokenAndItsCreator(t *testing.T) 
 	if ev.actorType != string(genDb.DeploymentActorTypeApiToken) || ev.actorID != tokenID {
 		t.Fatalf("deployment.failed actor = %s/%s, want api_token/%s", ev.actorType, ev.actorID, tokenID)
 	}
-	wantDeploymentFailedData(t, f, ev.data, id, userID)
+	wantDeploymentFailedData(t, f, ev.data, id)
 }
 
 func TestDeploymentFailedNotRecordedForOtherOutcomes(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	userID := f.failedDeployUser(t)
-	succeeded := f.deployAs(t, genDb.DeploymentActorTypeUser, userID)
+	succeeded := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	placement := f.placement(t, f.clusterID)
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
 		Ready:            true,
 	})
-	canceled := f.deployAs(t, genDb.DeploymentActorTypeUser, userID)
-	latest := f.deployAs(t, genDb.DeploymentActorTypeUser, userID)
+	canceled := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	latest := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	for id, want := range map[uuid.UUID]genDb.DeploymentStatus{
 		succeeded: genDb.DeploymentStatusSucceeded,
 		canceled:  genDb.DeploymentStatusCanceled,

@@ -180,14 +180,7 @@ func TestBuildMutationsFailWithoutTheirEvents(t *testing.T) {
 func TestTokenBuildFailureNamesTheTokenAndItsCreator(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
-	var tokenID uuid.UUID
-	if err := f.pool.QueryRow(t.Context(),
-		`INSERT INTO api_tokens (token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-		 VALUES ('hash', 'ci', 'resource', $1, '[]', $2, NOW() + INTERVAL '1 day') RETURNING id`,
-		f.resourceID, f.userID,
-	).Scan(&tokenID); err != nil {
-		t.Fatal(err)
-	}
+	tokenID := f.apiToken(t)
 	p, ok := reqctx.PrincipalFrom(f.ctx)
 	if !ok {
 		t.Fatal("fixture has no principal")
