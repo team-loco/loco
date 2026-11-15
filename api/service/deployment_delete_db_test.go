@@ -24,6 +24,7 @@ func (f *deployFixture) deploymentWriter(t *testing.T) (*DeploymentServer, conte
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 		limits.Defaults(),
+		8,
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},

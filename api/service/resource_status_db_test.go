@@ -434,6 +434,7 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 		limits.Defaults(),
+		8,
 	)
 	_, err = deployments.DeleteDeployment(deleteCtx, &deploymentv1.DeleteDeploymentRequest{
 		DeploymentId: deployment.ID.String(),
