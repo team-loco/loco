@@ -47,7 +47,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/admin/v1/adminv1connect"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
-	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
@@ -262,7 +261,6 @@ type deps struct {
 
 	config        *service.ConfigServer
 	clusterAdmin  *service.ClusterAdminServer
-	bootstrap     *service.BootstrapServer
 	systemAdmin   *service.SystemAdminServer
 	user          *service.UserServer
 	auth          *service.AuthServer
@@ -415,13 +413,10 @@ func newDeps(
 			ac.CountLimits,
 		),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
-		bootstrap: service.NewBootstrapServer(
-			pool, ac.BootstrapTokenHash, verifier, resolver, authServiceHandler,
-		),
-		systemAdmin: service.NewSystemAdminServer(pool, queries),
-		user:        service.NewUserServer(pool, queries, machine, admins),
-		auth:        authServiceHandler,
-		event:       service.NewEventServer(queries),
+		systemAdmin:  service.NewSystemAdminServer(pool, queries),
+		user:         service.NewUserServer(pool, queries, machine, admins),
+		auth:         authServiceHandler,
+		event:        service.NewEventServer(queries),
 		webhook: service.NewWebhookServer(
 			pool, queries, secretKeyProvider, ac.WebhooksAllowPrivate, ac.CountLimits,
 		),
@@ -510,7 +505,6 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 	})
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, d.config)
-	bootstrapv1connect.RegisterBootstrapServiceHandler(baseServer, d.bootstrap)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, d.agent)
 	ingestv1connect.RegisterIngestServiceHandler(baseServer, d.ingest)
 	registryv1connect.RegisterRegistryServiceHandler(baseServer, d.registry)
