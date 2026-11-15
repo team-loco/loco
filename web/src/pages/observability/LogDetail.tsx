@@ -33,8 +33,8 @@ import { cn } from "@/lib/utils";
 
 import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
-import { bodyParts, flattenJson, fmtTs, JSON_FIELD_PREFIX, levelStyle } from "./format";
-import { reservedLabelReason, REQUEST_FILTER_ATTRIBUTES, sameToken, type FieldKey, type Token } from "./query";
+import { bodyParts, fmtTs, levelStyle } from "./format";
+import { queryKeyReason, quoteValue, sameToken, type Token } from "./query";
 import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
 
@@ -44,45 +44,27 @@ const AROUND_LABEL = `±${String(AROUND_MS / MINUTE_MS)} minutes`;
 interface Attribute {
 	key: string;
 	value: string;
-	/** The token filtering on this value, or why the value can't be filtered. */
-	filter: { key: FieldKey; value: string } | string;
+	/** The query term matching this value, or why the value can't be filtered. */
+	filter: Omit<Token, "neg"> | string;
 	column?: ColumnKey | undefined;
 }
 
-const REQUEST_FIELD_BY_ATTRIBUTE = new Map(
-	Object.entries(REQUEST_FILTER_ATTRIBUTES).map(([field, attribute]) => [attribute, field as FieldKey]),
-);
-
 function attributes(row: LogRow): Attribute[] {
 	const e = row.entry;
+	const field = (key: string, value: string) => ({ key, value: quoteValue(value) });
 	const list: Attribute[] = [
 		{ key: "timestamp", value: new Date(row.ts).toISOString(), filter: "Use the time range to pick a time" },
-		{ key: "level", value: row.level, filter: { key: "level", value: row.level }, column: "level" },
-		{
-			key: "resource",
-			value: row.resourceName,
-			filter: { key: "resource", value: row.resourceName },
-			column: "resource",
-		},
-		{ key: "replica", value: row.pod, filter: { key: "replica", value: row.pod }, column: "replica" },
-		{ key: "region", value: row.region, filter: { key: "region", value: row.region }, column: "region" },
-		{ key: "trace_id", value: e.traceId, filter: { key: "trace", value: e.traceId }, column: "trace" },
+		{ key: "level", value: row.level, filter: field("level", row.level), column: "level" },
+		{ key: "resource", value: row.resourceName, filter: field("resource", row.resourceName), column: "resource" },
+		{ key: "replica", value: row.pod, filter: field("replica", row.pod), column: "replica" },
+		{ key: "region", value: row.region, filter: field("region", row.region), column: "region" },
+		{ key: "trace_id", value: e.traceId, filter: field("trace", e.traceId), column: "trace" },
 		{ key: "span_id", value: e.spanId, filter: "Filter by trace_id to see the request" },
 	];
 	const extra = new Map<string, Attribute>();
-	for (const [key, value] of Object.entries(e.resourceAttributes)) {
+	for (const [key, value] of Object.entries({ ...e.resourceAttributes, ...e.logAttributes })) {
 		if (key === "k8s.pod.name" || key === "loco.region") continue;
-		const filter = reservedLabelReason(key) ?? { key: "label" as const, value: `${key}=${value}` };
-		extra.set(key, { key, value, filter, column: key });
-	}
-	for (const [key, value] of Object.entries(e.logAttributes)) {
-		const field = REQUEST_FIELD_BY_ATTRIBUTE.get(key);
-		const filter = field === undefined ? { key: "attr" as const, value: `${key}=${value}` } : { key: field, value };
-		extra.set(key, { key, value, filter, column: key });
-	}
-	for (const [key, value] of Object.entries(row.json !== null ? flattenJson(row.json) : {})) {
-		const filter = { key: "json" as const, value: `${key.slice(JSON_FIELD_PREFIX.length)}=${value}` };
-		extra.set(key, { key, value, filter, column: key });
+		extra.set(key, { key, value, filter: queryKeyReason(key) ?? field(key, value), column: key });
 	}
 	return [...list, ...extra.values()].filter((a) => a.value !== "");
 }

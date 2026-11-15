@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { createLoader, createSerializer } from "nuqs";
 import { create } from "@bufbuild/protobuf";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
@@ -10,6 +11,10 @@ import {
 	durationBounds,
 	parseQuery,
 	pinnedKey,
+	queryError,
+	queryKeyReason,
+	queryStr,
+	quoteValue,
 	QUERY_PARSERS,
 	queryValues,
 	recentKey,
@@ -17,6 +22,7 @@ import {
 	shownRecent,
 	tokenSupport,
 	toQuery,
+	unquoteValue,
 	type RecentQuery,
 	type Token,
 } from "./query";
@@ -158,36 +164,69 @@ describe("trace duration filters", () => {
 	test("rejects a value without a comparison", () => {
 		expect(durationBounds(parseQuery("@duration:500").tokens)).toBeNull();
 	});
-	test("applies only to traces", () => {
-		expect(tokenSupport("logs", parseQuery("@duration:>500").tokens)[0]?.ok).toBe(false);
-	});
-});
-
-describe("log attribute, trace and exclusion filters", () => {
-	test("rejects malformed pairs and reserved labels", () => {
-		const { tokens } = parseQuery("@attr:novalue @json:=1 @label:loco.workspace.id=w @label:loco.io/build-id=b");
-		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([false, false, false, true]);
-	});
-
-	test("quotes values with spaces or quotes in the URL", () => {
-		const token: Token = { neg: true, key: "attr", value: 'user_agent=curl 8 "x"' };
-		const written = createSerializer(QUERY_PARSERS)("", queryValues([token], "slow"));
-		expect(readQuery(written).tokens).toEqual([token]);
-		expect(readQuery(written).text).toBe("slow");
+	test("applies to traces and is an attribute in logs", () => {
+		const { tokens } = parseQuery("@duration:>500");
+		expect(tokenSupport("metrics", tokens)[0]?.ok).toBe(false);
+		expect(tokenSupport("logs", tokens)[0]?.ok).toBe(true);
 	});
 });
 
 describe("log queries", () => {
-	test("sends the bar's filters as query text, writing attribute pairs as fields", () => {
+	test("makes any field a chip and sends the bar's text as the query", () => {
 		const { tokens, text } = parseQuery(
-			"@region:US-* -@level:debug @attr:http.status_code=500 -@label:team=a @json:user.id=42 @method:GET timeout",
+			'@region:US-* -@level:debug @http.status_code:>=500 @roles[0]:admin @path:"/a:b" timeout',
 		);
+		expect(tokens.map((t) => `${t.neg ? "-" : ""}${t.key}=${t.value}`)).toEqual([
+			"region=US-*",
+			"-level=debug",
+			"http.status_code=>=500",
+			"roles[0]=admin",
+			'path="/a:b"',
+		]);
 		expect(buildBackendQuery(tokens, text, null)).toEqual({
-			query: "@region:US-* -@level:debug @http.status_code:500 -@team:a @user.id:42 @method:GET timeout",
+			query: '@region:US-* -@level:debug @http.status_code:>=500 @roles[0]:admin @path:"/a:b" timeout',
 			resourceIds: [],
 			allEnvironments: false,
 			impossible: false,
 		});
+	});
+
+	test("keeps a query with AND, OR or parentheses whole, and groups it when a chip joins", () => {
+		const q = '(@level:error OR @status:>=500) -@path:/healthz "x OR y"';
+		expect(parseQuery(q)).toEqual({ tokens: [], text: q });
+		expect(parseQuery('@a:b "x OR (y)"').tokens).toHaveLength(1);
+		const token: Token = { neg: false, key: "trace", value: "abc" };
+		expect(queryStr([token], "@level:error OR @level:warn")).toBe("@trace:abc (@level:error OR @level:warn)");
+		expect(queryStr([token], "timeout")).toBe("@trace:abc timeout");
+	});
+
+	test("quotes values that would read as syntax, and round trips them through the URL", () => {
+		expect(quoteValue("GET")).toBe("GET");
+		for (const value of ['curl 8 "x"', "/a:b", "/api/*", ">5", "1..2", "(x)", ""]) {
+			expect(unquoteValue(quoteValue(value))).toBe(value);
+			expect(quoteValue(value).startsWith('"')).toBe(true);
+		}
+		const token: Token = { neg: true, key: "user_agent", value: quoteValue('curl 8 "x"') };
+		const written = createSerializer(QUERY_PARSERS)("", queryValues([token], "slow"));
+		expect(readQuery(written)).toEqual({ tokens: [token], text: "slow" });
+	});
+
+	test("says why an attribute key can't be filtered", () => {
+		expect(queryKeyReason("http.status_code")).toBeNull();
+		expect(queryKeyReason("loco.io/build-id")).toBeNull();
+		expect(queryKeyReason("loco.workspace.id")).toContain("Loco sets");
+		expect(queryKeyReason("level")).toContain("built-in");
+		expect(queryKeyReason("has space")).toContain("can't be written");
+	});
+
+	test("reads the API's parse error and its position", () => {
+		const error = new ConnectError("quote values that contain : at position 7", Code.InvalidArgument);
+		expect(queryError(error, "@path:/a:b")).toEqual({
+			query: "@path:/a:b",
+			message: "quote values that contain :",
+			position: 7,
+		});
+		expect(queryError(new ConnectError("boom", Code.Internal), "x")).toBeNull();
 	});
 
 	test("reads build logs across environments", () => {

@@ -35,14 +35,14 @@ import { coversWholeRange, CopyCommand, NoMatches, ObsHero, WidenRangeButton } f
 import {
 	buildBackendQuery,
 	LEVELS,
+	queryError,
 	queryStr,
-	REQUEST_FILTER_ATTRIBUTES,
 	sameToken,
 	type FieldKey,
 	type Level,
 	type Token,
 } from "./query";
-import { QueryBar } from "./QueryBar";
+import { QueryBar, QueryErrorLine } from "./QueryBar";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
 import { PAGE_SIZES, VolumeBars, type VolumeBucket } from "./shared";
 import { LiveButton } from "./Toolbar";
@@ -306,8 +306,6 @@ export function LogsView() {
 			if (key === "replica") add(r.pod);
 			if (key === "build") add(r.build);
 			if (key === "trace") add(r.entry.traceId);
-			const attribute = REQUEST_FILTER_ATTRIBUTES[key];
-			if (attribute !== undefined) add(r.entry.logAttributes[attribute] ?? "");
 		}
 		return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
 	};
@@ -363,6 +361,17 @@ export function LogsView() {
 					title="Logs aren't available here yet"
 					body="This installation has no log store connected. Anything your resources print to stdout or stderr shows up here once it does."
 				/>
+			</>
+		);
+	}
+
+	const rejected = error === null ? null : queryError(error, backend.query);
+	if (rejected !== null) {
+		return (
+			<>
+				{header}
+				<QueryBar valueCounts={valueCounts} />
+				<QueryErrorLine error={rejected} />
 			</>
 		);
 	}

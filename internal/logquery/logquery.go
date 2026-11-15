@@ -89,6 +89,7 @@ type SyntaxError struct {
 	Message  string
 }
 
+// keep in sync with QUERY_ERROR_RE in web/src/pages/observability/query.ts
 func (e *SyntaxError) Error() string {
 	return fmt.Sprintf("%s at position %d", e.Message, e.Position)
 }
