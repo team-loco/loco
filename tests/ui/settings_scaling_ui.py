@@ -3,8 +3,8 @@ import json
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, session
 
 parser = argparse.ArgumentParser(description="Exercise resource autoscaling and failed-save recovery")
 parser.add_argument("--state")
@@ -42,8 +42,7 @@ VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app
     return resource
 
 
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         theme = "light"
         narrow = False

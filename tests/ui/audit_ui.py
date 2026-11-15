@@ -2,8 +2,8 @@ import argparse
 import re
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import evidence, load_state, open_page as new_page, repo, launch
+from playwright.sync_api import expect
+from harness import evidence, load_state, open_page as new_page, repo, session
 
 parser = argparse.ArgumentParser(description="Check the audit log page for organization admins, workspace admins and members")
 parser.add_argument("--state")
@@ -55,8 +55,7 @@ def list_events(calls):
     return [call for call in calls if call["method"] == "ListEvents"]
 
 
-with sync_playwright() as p:
-    browser = launch(p, out)
+with session(out) as browser:
     theme = "light"
     # Organization admins read the whole organization from the sidebar entry.
     context, page, calls, errors = open_page(browser, "owner", theme, f"/org/{org}/wks/{shared}")

@@ -1,8 +1,8 @@
 import argparse
 import re
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, launch, repo
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, session, repo
 
 parser = argparse.ArgumentParser(description="Check organization role changes in the production UI")
 parser.add_argument("--state")
@@ -12,8 +12,7 @@ state = load_state(args, 'org-roles', 'tests/ui/fixtures/org-roles/scenario.json
 org = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]})["orgs"][0]
 path = state["ui_url"] + f"/org/{org['id']}/team"
 
-with sync_playwright() as p:
-    browser = launch(p, repo / "tests/ui/out/org_roles")
+with session(repo / "tests/ui/out/org_roles") as browser:
     theme = "light"
     context = browser.new_context(viewport=evidence.DESKTOP, color_scheme=theme)
     owner = state["users"]["owner"]

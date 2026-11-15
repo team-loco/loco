@@ -4,8 +4,8 @@ import json
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Check editing regions in resource settings")
 parser.add_argument("--state")
@@ -24,8 +24,7 @@ rpc = partial(api_rpc, state)
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
 production = next(env["id"] for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})["environments"] if env["name"] == "production")
 runtime = json.dumps({"build": {"type": "image", "image": "registry.example.com/shop:latest"}, "cpu": "500m", "memory": "512Mi", "minReplicas": 2, "maxReplicas": 2, "port": 8080})
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         theme = "light"
         resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": "regions-" + uuid.uuid4().hex[:8], "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 2, "maxReplicas": 2}}}}})["resourceId"]

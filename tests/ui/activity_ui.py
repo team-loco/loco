@@ -6,8 +6,8 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, session
 from activity_fixture import prepare_activity, verify_activity_access
 
 sys.dont_write_bytecode = True
@@ -138,8 +138,7 @@ def check_scoped_user(browser, theme):
     return checked
 
 
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     theme = "light"
     narrow = False
     for user, scene, path, title in [

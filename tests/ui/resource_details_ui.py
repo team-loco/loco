@@ -6,8 +6,8 @@ import re
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Check resource details against an isolated production dashboard")
 parser.add_argument("--state")
@@ -52,8 +52,7 @@ def metrics(route):
 
 
 results = []
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         theme = "light"
         narrow = False

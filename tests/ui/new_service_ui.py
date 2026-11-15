@@ -5,8 +5,8 @@ import re
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import evidence, load_state, open_page as new_page, repo, launch
+from playwright.sync_api import expect
+from harness import evidence, load_state, open_page as new_page, repo, session
 
 parser = argparse.ArgumentParser(description="Create and deploy a service from the resources page against an isolated API")
 parser.add_argument("--state")
@@ -47,8 +47,7 @@ def seeded_draft(name, image):
     return {"id": str(uuid.uuid4()), "name": name, "image": image, "createdMs": 0, "edits": {}}
 
 
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         context, page, errors = open_page(browser, "member", storage={drafts_key: json.dumps([seeded_draft("member-draft", "registry.example.com/acme/member:1")])})
         try:

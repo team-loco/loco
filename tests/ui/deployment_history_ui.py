@@ -8,8 +8,8 @@ import time
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Exercise deployment history against an isolated production API and database")
 parser.add_argument("--state")
@@ -110,8 +110,7 @@ assert rpc("deployment", "GetDeployment", {"deploymentId": data["releases"][-1]}
 org_id = next(org["id"] for org in evidence.rpc(state["api_url"], owner, "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]})["orgs"] if org["name"] == "acme")
 base = f"/org/{org_id}/wks/{workspace_id}"
 results = []
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         theme = "light"
         narrow = False

@@ -8,8 +8,8 @@ import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from playwright.sync_api import expect, sync_playwright
-from harness import evidence, load_state, open_page as new_page, repo, launch
+from playwright.sync_api import expect
+from harness import evidence, load_state, open_page as new_page, repo, session
 
 parser = argparse.ArgumentParser(description="Test the not-found page for signed-in and signed-out visitors against an isolated API")
 parser.add_argument("--state")
@@ -72,8 +72,7 @@ def fake_idp(context, user):
     context.route(re.compile(r"/loco\.[a-z0-9.]+\.v\d+\.\w+/\w+$"), api)
 
 
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     cases = []
     try:
         theme, narrow = "light", False

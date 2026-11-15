@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from playwright.sync_api import sync_playwright
+
 repo = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
 evidence = importlib.util.module_from_spec(spec)
@@ -39,20 +41,19 @@ def authenticate(context, token, theme="light", storage=None):
     )
 
 
-def launch(playwright, out):
-    browser = playwright.chromium.launch()
-    previous = sys.excepthook
-
-    def failure(kind, error, traceback):
-        out.mkdir(parents=True, exist_ok=True)
-        for index, context in enumerate(browser.contexts):
-            for number, page in enumerate(context.pages):
-                with contextlib.suppress(Exception):
-                    page.screenshot(path=out / f"failure-{index}-{number}.png", animations="disabled")
-        previous(kind, error, traceback)
-
-    sys.excepthook = failure
-    return browser
+@contextlib.contextmanager
+def session(out):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        try:
+            yield browser
+        except BaseException:
+            out.mkdir(parents=True, exist_ok=True)
+            for index, context in enumerate(browser.contexts):
+                for number, page in enumerate(context.pages):
+                    with contextlib.suppress(Exception):
+                        page.screenshot(path=out / f"failure-{index}-{number}.png", animations="disabled")
+            raise
 
 
 def open_page(browser, user="owner", theme="light", narrow=False, *, state, storage=None):

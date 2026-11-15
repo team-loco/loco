@@ -1,7 +1,7 @@
 import argparse
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, launch, repo
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, session, repo
 
 parser = argparse.ArgumentParser(description="Check invitation links in the production UI")
 parser.add_argument("--state")
@@ -11,8 +11,7 @@ state = load_state(args, 'invitations', 'tests/ui/fixtures/org-roles/scenario.js
 org = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]})["orgs"][0]
 path = state["ui_url"] + f"/org/{org['id']}/team"
 
-with sync_playwright() as p:
-    browser = launch(p, repo / "tests/ui/out/invitations")
+with session(repo / "tests/ui/out/invitations") as browser:
     theme = "light"
     width, viewport = "desktop", evidence.DESKTOP
     context = browser.new_context(viewport=viewport, color_scheme=theme)

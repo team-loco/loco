@@ -5,8 +5,8 @@ import urllib.parse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import wait_for_query, authenticate, evidence, load_state, repo, launch
+from playwright.sync_api import expect
+from harness import wait_for_query, authenticate, evidence, load_state, repo, session
 
 parser = argparse.ArgumentParser(description="Check compact controls, segmented motion and settings navigation")
 parser.add_argument("--state")
@@ -351,8 +351,7 @@ def metrics(page, suffix):
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 results = []
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         theme = "light"
         narrow = False

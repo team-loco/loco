@@ -2,8 +2,8 @@ import argparse
 import re
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, session
 
 parser = argparse.ArgumentParser(description="Exercise webhook management and server delivery paging in Chromium")
 parser.add_argument("--state")
@@ -30,8 +30,7 @@ def call(method, **body):
 
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-with sync_playwright() as p:
-    browser = launch(p, out)
+with session(out) as browser:
     theme = "light"
     narrow = False
     hook = call("CreateWebhook", url="https://hooks.invalid/loco", eventTypes=["resource.created"])["webhook"]

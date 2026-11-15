@@ -3,8 +3,8 @@ import argparse
 import json
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import load_state, open_page as new_page, repo, launch
+from playwright.sync_api import expect
+from harness import load_state, open_page as new_page, repo, session
 
 parser = argparse.ArgumentParser(description="Test the toast that offers a reload once a newer dashboard build is served")
 parser.add_argument("--state")
@@ -33,8 +33,7 @@ def check(page):
 
 
 cases = []
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         theme = "light"
         narrow = False

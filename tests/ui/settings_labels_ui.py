@@ -5,8 +5,8 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, session
 
 parser = argparse.ArgumentParser(description="Check settings field names, focus and descriptions in the production UI")
 parser.add_argument("--state")
@@ -153,8 +153,7 @@ def check_create_dialogs(page):
     expect(page).not_to_have_url(re.compile(r"new=1"))
 
 
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         for user in ("owner", "member"):
             theme = "light"

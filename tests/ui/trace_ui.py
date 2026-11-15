@@ -5,8 +5,8 @@ import time
 from pathlib import Path
 import re
 import urllib.parse
-from playwright.sync_api import expect, sync_playwright
-from harness import wait_for_query, authenticate, evidence, load_state, repo, launch
+from playwright.sync_api import expect
+from harness import wait_for_query, authenticate, evidence, load_state, repo, session
 sys.dont_write_bytecode = True
 parser = argparse.ArgumentParser(description='Exercise the production trace viewer with fixture trace responses')
 parser.add_argument('--state')
@@ -70,8 +70,7 @@ def handle(route):
     route.fulfill(json={'spans': spans})
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-with sync_playwright() as p:
-    browser = launch(p, out)
+with session(out) as browser:
     root_name = 'POST /api/checkout'
     failing = re.compile(r'^payment POST \/payments\/authorize, .*, error$')
     theme = "light"

@@ -4,8 +4,8 @@ import json
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, launch
+from playwright.sync_api import expect
+from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Check the bulk Scale dialog against an isolated production dashboard")
 parser.add_argument("--state")
@@ -38,8 +38,7 @@ limits = evidence.rpc(state["api_url"], owner["token"], "loco.config.v1.ConfigSe
 low, high = limits["minReplicas"], limits["maxReplicas"]
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production"
 results = []
-with sync_playwright() as playwright:
-    browser = launch(playwright, out)
+with session(out) as browser:
     try:
         theme = "light"
         narrow = False
