@@ -557,6 +557,10 @@ otel-col-daemon:
             action: delete
           - key: k8s.pod.uid
             action: delete
+          - key: k8s.pod.name
+            action: delete
+          - key: k8s.namespace.name
+            action: delete
           - key: gateway.envoyproxy.io/owning-gateway-name
             action: delete
           - key: gateway.envoyproxy.io/owning-gateway-namespace
@@ -628,6 +632,15 @@ otel-col-daemon:
               key: loco.io/workspace-id
               tag_name: loco.workspace.id
             - from: pod
+              key: loco.io/environment-id
+              tag_name: loco.environment.id
+            - from: namespace
+              key: loco.io/organization-id
+              tag_name: loco.organization.id
+            - from: namespace
+              key: loco.io/workspace-id
+              tag_name: loco.workspace.id
+            - from: namespace
               key: loco.io/environment-id
               tag_name: loco.environment.id
             - from: pod
@@ -796,6 +809,12 @@ otel-col-deploy:
         extract:
           metadata: []
           labels:
+            - from: namespace
+              key: loco.io/organization-id
+              tag_name: loco.organization.id
+            - from: namespace
+              key: loco.io/workspace-id
+              tag_name: loco.workspace.id
             - from: namespace
               key: loco.io/environment-id
               tag_name: loco.environment.id

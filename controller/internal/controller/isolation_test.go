@@ -21,12 +21,13 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 	return &locov1alpha1.Application{
 		Name: "isolation-" + resourceID, Namespace: testNamespace,
 		Spec: locov1alpha1.ApplicationSpec{
-			Type:          testAppType,
-			ResourceID:    resourceID,
-			Slug:          resourceID,
-			WorkspaceID:   workspaceID,
-			EnvironmentID: "env-production",
-			Region:        "us-east-1",
+			Type:           testAppType,
+			OrganizationID: testOrganizationID,
+			ResourceID:     resourceID,
+			Slug:           resourceID,
+			WorkspaceID:    workspaceID,
+			EnvironmentID:  "env-production",
+			Region:         "us-east-1",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
 					Image: testImage,
@@ -76,7 +77,7 @@ var _ = Describe("Workspace isolation", func() {
 		}
 	})
 
-	It("labels the workspace namespace for restricted pod security, its workspace and environment", func() {
+	It("labels the workspace namespace with ownership and restricted pod security", func() {
 		app := isolationTestApplication("ws-labels", "labels")
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 
@@ -87,6 +88,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/audit", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/warn", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelLocoApp, "true"))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelOrganizationID, testOrganizationID))
 		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, "ws-labels"))
 		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelEnvironmentID, "env-production"))
 		Expect(ns.Labels).NotTo(HaveKey(locolabels.LabelResourceID))

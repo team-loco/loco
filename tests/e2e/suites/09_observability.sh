@@ -766,6 +766,72 @@ test_o17_disables_injection_without_disabling_collection() {
         wait_for "the fixture stdout log" "$obs_telemetry_timeout_seconds" obs_event_arrived "$query"
 }
 
+obs_dependency_trace_arrived() {
+    local output response status
+    output=$(obs_trace_call "$obs_get_trace" "$obs_workspace_token" "$1") || return 1
+    status=$(tail -n 1 <<<"$output")
+    response=$(sed '$d' <<<"$output")
+    test "$status" = "$obs_http_ok" || return 1
+    test "$(yq -p json '.spans // [] | length' <<<"$response")" -eq 1 || return 1
+    test "$(yq -p json -r '.spans[0] | [.serviceName, .workspaceId, .environmentId, (.resourceId // ""), .resourceAttributes."loco.organization.id", (.resourceAttributes."loco.resource.id" // ""), .resourceAttributes."k8s.namespace.name"] | @tsv' <<<"$response")" = \
+        "$(printf '%s\t%s\t%s\t\t%s\t\t%s' "$2" "$obs_workspace_id" "$obs_environment_id" "$obs_organization_id" "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}")"
+}
+
+obs_dependency_telemetry() (
+    set -e
+    namespace="${E2E_WORKSPACE_PREFIX}${obs_workspace_id}"
+    dependency="obs-dependency-$(obs_random_hex "$obs_marker_bytes")"
+    forward_pid=""
+    forward_log="$obs_dir/dependency-forward.log"
+    trace_id=$(obs_random_hex "$obs_trace_id_bytes")
+    parent_id=$(obs_random_hex "$obs_span_id_bytes")
+    body=$(printf '{"scope":{"workspaceId":"%s"},"traceId":"%s"}' "$obs_workspace_id" "$trace_id")
+    obs_dependency_cleanup() {
+        result=$?
+        if [ -n "$forward_pid" ]; then
+            kill "$forward_pid" 2>/dev/null || true
+            wait "$forward_pid" 2>/dev/null || true
+        fi
+        obs_kube -n "$namespace" delete pod "$dependency" --ignore-not-found --wait=false || result=1
+        exit "$result"
+    }
+    trap obs_dependency_cleanup EXIT
+    # Reuse the built fixture and its pull credentials, without resource ownership labels.
+    obs_kube -n "$namespace" get deployment "resource-$obs_resource_id" -o json |
+        dependency="$dependency" namespace="$namespace" endpoint="$obs_collector_endpoint" \
+        forged_namespace="${E2E_WORKSPACE_PREFIX}${obs_second_workspace_id}" \
+        forged_workspace="$obs_second_workspace_id" forged_resource="$obs_resource_id" \
+        yq -p json -o json '{"apiVersion": "v1", "kind": "Pod", "metadata": {"name": strenv(dependency), "namespace": strenv(namespace)}, "spec": .spec.template.spec} |
+            .spec.containers[0].name = "dependency" |
+            .spec.containers[0].env = [
+                {"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": strenv(endpoint)},
+                {"name": "OTEL_EXPORTER_OTLP_PROTOCOL", "value": "http/protobuf"},
+                {"name": "OTEL_SERVICE_NAME", "value": strenv(dependency)},
+                {"name": "OTEL_RESOURCE_ATTRIBUTES", "value": "k8s.namespace.name=" + strenv(forged_namespace) + ",k8s.pod.name=forged-pod,loco.workspace.id=" + strenv(forged_workspace) + ",loco.resource.id=" + strenv(forged_resource)}
+            ]' | obs_kube create -f -
+    obs_kube -n "$namespace" wait --for=condition=Ready "pod/$dependency" --timeout="${obs_route_timeout_seconds}s"
+    obs_kube -n "$namespace" port-forward --address 127.0.0.1 "pod/$dependency" ":$obs_app_port" >"$forward_log" 2>&1 &
+    forward_pid=$!
+    wait_for "the dependency port-forward" "$obs_route_timeout_seconds" obs_crash_forward_ready "$forward_log"
+    port=$(awk '/Forwarding from 127.0.0.1:/ {split($3, address, ":"); print address[2]; exit}' "$forward_log")
+    curl --fail --silent --show-error --max-time "$obs_curl_timeout_seconds" \
+        -H "traceparent: 00-${trace_id}-${parent_id}-${obs_trace_flags_sampled}" "http://127.0.0.1:$port/dependency"
+    wait_for "the dependency trace with namespace ownership" "$obs_telemetry_timeout_seconds" \
+        obs_dependency_trace_arrived "$body" "$dependency"
+    output=$(obs_trace_call "$obs_get_trace" "$obs_second_token" "$body")
+    test "$(tail -n 1 <<<"$output")" = "$obs_http_forbidden"
+    body=$(printf '{"scope":{"workspaceId":"%s"},"traceId":"%s"}' "$obs_second_workspace_id" "$trace_id")
+    output=$(obs_trace_call "$obs_get_trace" "$obs_second_token" "$body")
+    test "$(tail -n 1 <<<"$output")" = "$obs_http_ok"
+    test "$(sed '$d' <<<"$output" | yq -p json '.spans // [] | length')" -eq 0
+    printf '\n## Dependency telemetry\n\nThe unlabeled dependency `%s` exports trace `%s` with its namespace organization, workspace and environment, without a resource ID. The second workspace cannot retrieve it.\n' \
+        "$dependency" "$trace_id" >>"$obs_evidence"
+)
+
+test_o18_dependency_telemetry() {
+    assert "dependency traces retain namespace ownership and workspace isolation" obs_dependency_telemetry
+}
+
 obs_crash_forward_ready() {
     grep -q 'Forwarding from 127.0.0.1:' "$1"
 }
@@ -847,12 +913,12 @@ obs_crash_replay() (
         "$pod" "$flush_seconds" "$records" "$marker" >>"$obs_evidence"
 )
 
-test_o18_replays_acknowledged_logs_after_collector_sigkill() {
+test_o19_replays_acknowledged_logs_after_collector_sigkill() {
     obs_crash_replay
     assert "all acknowledged logs survive a collector SIGKILL before batching flushes" true
 }
 
-test_o19_writes_the_summary() {
+test_o20_writes_the_summary() {
     {
         printf '## Summary\n\n| Check | Result |\n| --- | --- |\n'
         awk '{ printf "| %s | %s |\n", $1, $2 }' "$obs_results"
