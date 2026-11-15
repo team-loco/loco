@@ -249,10 +249,18 @@ func (s *UserServer) DeleteUser(
 		if deleteErr := qtx.DeleteUser(ctx, userID); deleteErr != nil {
 			return deleteUserReferenceError(deleteErr)
 		}
+		removed := make([]map[string]string, 0, len(identities))
+		for _, identity := range identities {
+			removed = append(removed, map[string]string{
+				events.FieldIssuer:  identity.Issuer,
+				events.FieldSubject: identity.Subject,
+			})
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.UserDeleted,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(userID),
+			Data:        map[string]any{events.FieldIdentities: removed},
 		})
 	})
 	if err != nil {

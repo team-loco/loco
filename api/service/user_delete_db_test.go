@@ -124,3 +124,35 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	var userID uuid.UUID
+	if err := f.pool.QueryRow(ctx, `INSERT INTO users (email) VALUES ('leaving@example.com') RETURNING id`).
+		Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `INSERT INTO identities (user_id, issuer, subject)
+		VALUES ($1, 'https://idp.example.com', 'sub-1')`, userID); err != nil {
+		t.Fatal(err)
+	}
+	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
+	}})
+	server := NewUserServer(f.pool, f.queries, nil, nil)
+
+	if _, err := server.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID.String()}); err != nil {
+		t.Fatal(err)
+	}
+
+	const listedQuery = `SELECT data->'identities' = '[{"issuer": "https://idp.example.com", "subject": "sub-1"}]'
+		FROM events WHERE type = 'user.deleted' AND subject_id = $1`
+	var listed bool
+	if err := f.pool.QueryRow(ctx, listedQuery, userID).Scan(&listed); err != nil {
+		t.Fatal(err)
+	}
+	if !listed {
+		t.Fatal("user.deleted does not list the removed https://idp.example.com/sub-1 identity")
+	}
+}
