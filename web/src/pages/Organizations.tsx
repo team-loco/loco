@@ -1,11 +1,9 @@
-import { useQuery } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQueryClient, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2, Plus } from "lucide-react";
-import { useState } from "react";
+import { parseAsInteger, useQueryState } from "nuqs";
 
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import type { Organization } from "@gen/loco/org/v1/org_pb";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
@@ -13,13 +11,20 @@ import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
+import { SoonTag } from "@/components/design/SoonTag";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { useMyScopes } from "@/hooks/useMyScopes";
+import { userOrgsOptions } from "@/hooks/userOrgs";
+import { usePagedRows } from "@/lib/paging";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { limitReason, limitUsage } from "@/lib/limits";
 
 import { CreateOrgDialog } from "./organizations/CreateOrgDialog";
-import { DeleteOrgDialog } from "./organizations/DeleteOrgDialog";
 import { OrgRow } from "./organizations/OrgRow";
+
+const PAGE_SIZES = [25, 50, 100] as const;
 
 function OrgListSkeleton() {
 	return (
@@ -39,20 +44,13 @@ function OrgListSkeleton() {
 export function Organizations() {
 	const { user } = useAuth();
 	const { activeOrgId, setActiveOrg } = useOrgWorkspace();
-	const [createOrgOpen, setCreateOrgOpen] = useState(false);
-	const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
-
+	const [createOrgOpen, setCreateOrgOpen] = useQueryState("new", parseAsInteger.withDefault(0));
+	const transport = useTransport();
+	const scopes = useMyScopes();
 	const queryClient = useQueryClient();
-	const {
-		data: orgsRes,
-		isLoading,
-		error,
-		refetch: refetchOrgs,
-	} = useQuery(listUserOrgs, user ? { userId: user.id } : undefined, {
-		enabled: !!user,
-	});
-
+	const { data: orgsRes, isLoading, error } = useTanstackQuery(userOrgsOptions(transport, user?.id ?? ""));
 	const orgs = orgsRes?.orgs ?? [];
+	const paged = usePagedRows(orgs, PAGE_SIZES);
 	const config = useQuery(getConfig, {});
 	const created = orgs.filter((org) => org.createdBy === user?.id).length;
 	const usage =
@@ -60,7 +58,7 @@ export function Organizations() {
 	const blocked = limitReason(usage);
 
 	const openCreate = () => {
-		setCreateOrgOpen(true);
+		void setCreateOrgOpen(1);
 	};
 
 	const handleCreateOrgSuccess = (orgId: string) => {
@@ -93,15 +91,48 @@ export function Organizations() {
 				</EmptyState>
 			);
 		}
-		return orgs.map((org) => (
-			<OrgRow
-				key={org.id}
-				org={org}
-				active={org.id === activeOrgId}
-				onSwitch={setActiveOrg}
-				onDelete={setDeleteTarget}
-			/>
-		));
+		return (
+			<>
+				<Table aria-label="Organizations">
+					<TableHeader>
+						<TableRow>
+							<TableHead>Organization</TableHead>
+							<TableHead>Your role</TableHead>
+							<TableHead className="hidden text-right min-[701px]:table-cell">
+								Workspaces <SoonTag />
+							</TableHead>
+							<TableHead className="hidden text-right min-[701px]:table-cell">
+								Members <SoonTag />
+							</TableHead>
+							<TableHead className="hidden min-[701px]:table-cell">Created</TableHead>
+							<TableHead>
+								<span className="sr-only">Actions</span>
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{paged.rows.map((org) => (
+							<OrgRow
+								key={org.id}
+								org={org}
+								active={org.id === activeOrgId}
+								onSwitch={setActiveOrg}
+								role={
+									org.createdBy === user?.id
+										? "Owner"
+										: scopes.isLoading
+											? undefined
+											: scopes.orgLevel(org.id) >= 3
+												? "Admin"
+												: "Member"
+								}
+							/>
+						))}
+					</TableBody>
+				</Table>
+				<Pager {...paged.pager} {...paged.ends} />
+			</>
+		);
 	};
 
 	const body = renderBody();
@@ -119,21 +150,15 @@ export function Organizations() {
 					</LimitedAction>
 				}
 			/>
-			<Section title="Your organizations" count={isLoading ? undefined : orgs.length}>
-				{body}
-			</Section>
+			<Section>{body}</Section>
 
-			<CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} onSuccess={handleCreateOrgSuccess} />
-			<DeleteOrgDialog
-				org={deleteTarget}
+			<CreateOrgDialog
+				open={createOrgOpen === 1}
 				onOpenChange={(open) => {
-					if (!open) {
-						setDeleteTarget(null);
-					}
+					void setCreateOrgOpen(open ? 1 : null);
 				}}
-				onSuccess={() => {
-					void refetchOrgs();
-				}}
+				onSuccess={handleCreateOrgSuccess}
+				existingNames={orgs.map((org) => org.name)}
 			/>
 		</Page>
 	);
