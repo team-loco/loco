@@ -5,6 +5,7 @@ package guardrails
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -37,13 +38,7 @@ const (
 
 // ValidateLogsRequest validates the query parameters for a logs request.
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, limits Limits) error {
-	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
-		return err
-	}
-	if err := validateLabels(req.GetLabels()); err != nil {
-		return err
-	}
-	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
+	if err := validateLogFilters(req); err != nil {
 		return err
 	}
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
@@ -59,13 +54,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, limits Lim
 
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, limits Limits, now time.Time) error {
-	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
-		return err
-	}
-	if err := validateLabels(req.GetLabels()); err != nil {
-		return err
-	}
-	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
+	if err := validateLogFilters(req); err != nil {
 		return err
 	}
 	if req.GetSince() == nil {
@@ -114,10 +103,35 @@ func validateCanonicalIDs(workspaceID, environmentID string, resourceIDs []strin
 	return nil
 }
 
-func validateLabels(labels map[string]string) error {
-	for key := range labels {
-		if strings.HasPrefix(key, reservedAttributePrefix) && !strings.HasPrefix(key, kubernetesLabelPrefix) {
-			return fmt.Errorf("%w: %q", errReservedLabelKey, key)
+// logFilters holds the filters QueryLogsRequest and TailLogsRequest share.
+type logFilters interface {
+	GetWorkspaceId() string
+	GetEnvironmentId() string
+	GetResourceIds() []string
+	GetExcludedResourceIds() []string
+	GetLabels() map[string]string
+	GetExcludedLabels() map[string]string
+	GetRegions() []string
+	GetExcludedRegions() []string
+}
+
+func validateLogFilters(req logFilters) error {
+	resourceIDs := slices.Concat(req.GetResourceIds(), req.GetExcludedResourceIds())
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), resourceIDs); err != nil {
+		return err
+	}
+	if err := validateLabels(req.GetLabels(), req.GetExcludedLabels()); err != nil {
+		return err
+	}
+	return validateRegions(req.GetRegions(), req.GetExcludedRegions())
+}
+
+func validateLabels(groups ...map[string]string) error {
+	for _, labels := range groups {
+		for key := range labels {
+			if strings.HasPrefix(key, reservedAttributePrefix) && !strings.HasPrefix(key, kubernetesLabelPrefix) {
+				return fmt.Errorf("%w: %q", errReservedLabelKey, key)
+			}
 		}
 	}
 	return nil

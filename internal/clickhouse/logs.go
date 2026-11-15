@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,20 +24,28 @@ const (
 
 var ErrInvalidLogCursor = errors.New("invalid log cursor")
 
+// LogQuery selects log rows. Each Excluded field leaves out the rows its include counterpart would select.
 type LogQuery struct {
-	WorkspaceID     string
-	EnvironmentID   string
-	ResourceIDs     []string
-	Start           time.Time
-	End             time.Time
-	Search          string
-	Levels          []string
-	Labels          map[string]string
-	Regions         []string
-	ExcludedRegions []string
-	Limit           int32
-	Cursor          string
-	Order           observabilityv1.LogOrder
+	WorkspaceID           string
+	EnvironmentID         string
+	ResourceIDs           []string
+	ExcludedResourceIDs   []string
+	Start                 time.Time
+	End                   time.Time
+	Search                string
+	Levels                []string
+	ExcludedLevels        []string
+	Labels                map[string]string
+	ExcludedLabels        map[string]string
+	LogAttributes         map[string]string
+	ExcludedLogAttributes map[string]string
+	TraceIDs              []string
+	ExcludedTraceIDs      []string
+	Regions               []string
+	ExcludedRegions       []string
+	Limit                 int32
+	Cursor                string
+	Order                 observabilityv1.LogOrder
 }
 
 type logPage struct {
@@ -194,22 +204,41 @@ func logFilters(q LogQuery, b logBinder) []string {
 		whereParts = append(whereParts, environmentColumn+" = "+b.str(q.EnvironmentID))
 	}
 
-	if len(q.ResourceIDs) > 0 {
-		whereParts = append(whereParts, logIn(resourceColumn, q.ResourceIDs, b))
-	}
-
 	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
 
-	if len(q.Levels) > 0 {
-		whereParts = append(whereParts, logIn("SeverityText", q.Levels, b))
+	for _, filter := range []struct {
+		column  string
+		values  []string
+		exclude bool
+	}{
+		{resourceColumn, q.ResourceIDs, false}, {resourceColumn, q.ExcludedResourceIDs, true},
+		{"SeverityText", q.Levels, false}, {"SeverityText", q.ExcludedLevels, true},
+		{"TraceId", q.TraceIDs, false}, {"TraceId", q.ExcludedTraceIDs, true},
+	} {
+		if len(filter.values) > 0 {
+			whereParts = append(whereParts, logIn(filter.column, filter.values, filter.exclude, b))
+		}
 	}
 
 	if q.Search != "" {
 		whereParts = append(whereParts, "position(Body, "+b.str(q.Search)+") > 0")
 	}
 
-	for k, v := range q.Labels {
-		whereParts = append(whereParts, "ResourceAttributes["+b.str(k)+"] = "+b.str(v))
+	for _, filter := range []struct {
+		column  string
+		pairs   map[string]string
+		exclude bool
+	}{
+		{"ResourceAttributes", q.Labels, false}, {"ResourceAttributes", q.ExcludedLabels, true},
+		{"LogAttributes", q.LogAttributes, false}, {"LogAttributes", q.ExcludedLogAttributes, true},
+	} {
+		operator := " = "
+		if filter.exclude {
+			operator = " != "
+		}
+		for _, key := range slices.Sorted(maps.Keys(filter.pairs)) {
+			whereParts = append(whereParts, filter.column+"["+b.str(key)+"]"+operator+b.str(filter.pairs[key]))
+		}
 	}
 
 	for _, group := range []struct {
@@ -240,12 +269,16 @@ func logFilters(q LogQuery, b logBinder) []string {
 	return whereParts
 }
 
-func logIn(column string, values []string, b logBinder) string {
+func logIn(column string, values []string, exclude bool, b logBinder) string {
 	placeholders := make([]string, len(values))
 	for i, value := range values {
 		placeholders[i] = b.str(value)
 	}
-	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ","))
+	operator := "IN"
+	if exclude {
+		operator = "NOT IN"
+	}
+	return fmt.Sprintf("%s %s (%s)", column, operator, strings.Join(placeholders, ","))
 }
 
 func inFilter(column string, values []string) (string, []any) {

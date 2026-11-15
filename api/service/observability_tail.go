@@ -44,18 +44,9 @@ func (s *ObservabilityServer) TailLogs(
 }
 
 func tailLogQuery(req *observabilityv1.TailLogsRequest, since time.Time) chClient.LogQuery {
-	return chClient.LogQuery{
-		WorkspaceID:     req.GetWorkspaceId(),
-		EnvironmentID:   req.GetEnvironmentId(),
-		ResourceIDs:     req.GetResourceIds(),
-		Start:           since,
-		Search:          req.GetSearch(),
-		Levels:          req.GetLevels(),
-		Labels:          req.GetLabels(),
-		Regions:         req.GetRegions(),
-		ExcludedRegions: req.GetExcludedRegions(),
-		Limit:           tailPageSize,
-	}
+	query := logQuery(req)
+	query.Start, query.Limit = since, tailPageSize
+	return query
 }
 
 // tailLoop polls until the tail's deadline or the client goes away, both of which end the stream

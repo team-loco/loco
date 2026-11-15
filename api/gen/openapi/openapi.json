@@ -11463,14 +11463,17 @@
               "type": "string"
             },
             "title": "levels",
+            "maxItems": 100,
             "description": "Filter by severity levels (e.g., [\"ERROR\", \"WARN\"])."
           },
           "labels": {
             "type": "object",
             "title": "labels",
+            "maxProperties": 100,
             "additionalProperties": {
               "type": "string",
-              "title": "value"
+              "title": "value",
+              "maxLength": 4096
             },
             "description": "Filter by resource attribute key-value pairs."
           },
@@ -11516,6 +11519,90 @@
             "type": "string",
             "title": "environment_id",
             "format": "uuid"
+          },
+          "excludedResourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "excluded_resource_ids",
+            "maxItems": 100,
+            "description": "Resource IDs whose logs are left out."
+          },
+          "excludedLevels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "excluded_levels",
+            "maxItems": 100,
+            "description": "Severity levels whose logs are left out."
+          },
+          "excludedLabels": {
+            "type": "object",
+            "title": "excluded_labels",
+            "maxProperties": 100,
+            "additionalProperties": {
+              "type": "string",
+              "title": "value",
+              "maxLength": 4096
+            },
+            "description": "Leaves out logs whose resource attributes match any of these key-value pairs."
+          },
+          "logAttributes": {
+            "type": "object",
+            "title": "log_attributes",
+            "maxProperties": 100,
+            "additionalProperties": {
+              "type": "string",
+              "title": "value",
+              "maxLength": 4096
+            },
+            "description": "Filter by log record attribute key-value pairs (e.g., http.response.status_code)."
+          },
+          "excludedLogAttributes": {
+            "type": "object",
+            "title": "excluded_log_attributes",
+            "maxProperties": 100,
+            "additionalProperties": {
+              "type": "string",
+              "title": "value",
+              "maxLength": 4096
+            },
+            "description": "Leaves out logs whose log record attributes match any of these key-value pairs."
+          },
+          "traceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none."
+          },
+          "excludedTraceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "excluded_trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs whose logs are left out."
           }
         },
         "title": "QueryLogsRequest",
@@ -11672,14 +11759,17 @@
               "type": "string"
             },
             "title": "levels",
+            "maxItems": 100,
             "description": "Filter by severity levels (e.g., [\"ERROR\", \"WARN\"])."
           },
           "labels": {
             "type": "object",
             "title": "labels",
+            "maxProperties": 100,
             "additionalProperties": {
               "type": "string",
-              "title": "value"
+              "title": "value",
+              "maxLength": 4096
             },
             "description": "Filter by resource attribute key-value pairs."
           },
@@ -11711,6 +11801,90 @@
             "type": "string",
             "title": "environment_id",
             "format": "uuid"
+          },
+          "excludedResourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "excluded_resource_ids",
+            "maxItems": 100,
+            "description": "Resource IDs whose logs are left out."
+          },
+          "excludedLevels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "excluded_levels",
+            "maxItems": 100,
+            "description": "Severity levels whose logs are left out."
+          },
+          "excludedLabels": {
+            "type": "object",
+            "title": "excluded_labels",
+            "maxProperties": 100,
+            "additionalProperties": {
+              "type": "string",
+              "title": "value",
+              "maxLength": 4096
+            },
+            "description": "Leaves out logs whose resource attributes match any of these key-value pairs."
+          },
+          "logAttributes": {
+            "type": "object",
+            "title": "log_attributes",
+            "maxProperties": 100,
+            "additionalProperties": {
+              "type": "string",
+              "title": "value",
+              "maxLength": 4096
+            },
+            "description": "Filter by log record attribute key-value pairs (e.g., http.response.status_code)."
+          },
+          "excludedLogAttributes": {
+            "type": "object",
+            "title": "excluded_log_attributes",
+            "maxProperties": 100,
+            "additionalProperties": {
+              "type": "string",
+              "title": "value",
+              "maxLength": 4096
+            },
+            "description": "Leaves out logs whose log record attributes match any of these key-value pairs."
+          },
+          "traceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none."
+          },
+          "excludedTraceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "not": {
+                "type": "string",
+                "enum": [
+                  "00000000000000000000000000000000"
+                ]
+              },
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "title": "excluded_trace_ids",
+            "maxItems": 100,
+            "description": "OpenTelemetry trace IDs whose logs are left out."
           }
         },
         "title": "TailLogsRequest",

@@ -40,10 +40,21 @@ message QueryLogsRequest {
   string search = 5;
 
   // Filter by severity levels (e.g., ["ERROR", "WARN"]).
-  repeated string levels = 6;
+  repeated string levels = 6 [(buf.validate.field).repeated.max_items = 100];
 
   // Filter by resource attribute key-value pairs.
-  map<string, string> labels = 7;
+  map<string, string> labels = 7 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
 
   // Max rows to return (clamped by guardrails).
   int32 limit = 8 [(buf.validate.field).int32 = {
@@ -78,6 +89,75 @@ message QueryLogsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+
+  // Resource IDs whose logs are left out.
+  repeated string excluded_resource_ids = 14 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {uuid: true}
+    }
+  }];
+  // Severity levels whose logs are left out.
+  repeated string excluded_levels = 15 [(buf.validate.field).repeated.max_items = 100];
+  // Leaves out logs whose resource attributes match any of these key-value pairs.
+  map<string, string> excluded_labels = 16 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
+  // Filter by log record attribute key-value pairs (e.g., http.response.status_code).
+  map<string, string> log_attributes = 17 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
+  // Leaves out logs whose log record attributes match any of these key-value pairs.
+  map<string, string> excluded_log_attributes = 18 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
+  // OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none.
+  repeated string trace_ids = 19 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        pattern: "^[0-9a-f]{32}$"
+        not_in: "00000000000000000000000000000000"
+      }
+    }
+  }];
+  // OpenTelemetry trace IDs whose logs are left out.
+  repeated string excluded_trace_ids = 20 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        pattern: "^[0-9a-f]{32}$"
+        not_in: "00000000000000000000000000000000"
+      }
+    }
+  }];
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
@@ -138,9 +218,20 @@ message TailLogsRequest {
   // Full-text search against log body.
   string search = 3;
   // Filter by severity levels (e.g., ["ERROR", "WARN"]).
-  repeated string levels = 4;
+  repeated string levels = 4 [(buf.validate.field).repeated.max_items = 100];
   // Filter by resource attribute key-value pairs.
-  map<string, string> labels = 5;
+  map<string, string> labels = 5 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
   google.protobuf.Timestamp since = 6;
   repeated string regions = 7 [(buf.validate.field).repeated = {
     max_items: 100
@@ -164,6 +255,75 @@ message TailLogsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+
+  // Resource IDs whose logs are left out.
+  repeated string excluded_resource_ids = 10 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {uuid: true}
+    }
+  }];
+  // Severity levels whose logs are left out.
+  repeated string excluded_levels = 11 [(buf.validate.field).repeated.max_items = 100];
+  // Leaves out logs whose resource attributes match any of these key-value pairs.
+  map<string, string> excluded_labels = 12 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
+  // Filter by log record attribute key-value pairs (e.g., http.response.status_code).
+  map<string, string> log_attributes = 13 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
+  // Leaves out logs whose log record attributes match any of these key-value pairs.
+  map<string, string> excluded_log_attributes = 14 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 256
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
+  // OpenTelemetry trace IDs to filter by. Empty means logs of any trace or none.
+  repeated string trace_ids = 15 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        pattern: "^[0-9a-f]{32}$"
+        not_in: "00000000000000000000000000000000"
+      }
+    }
+  }];
+  // OpenTelemetry trace IDs whose logs are left out.
+  repeated string excluded_trace_ids = 16 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        pattern: "^[0-9a-f]{32}$"
+        not_in: "00000000000000000000000000000000"
+      }
+    }
+  }];
 }
 
 // TailLogsResponse is a server-streamed event (log entry or heartbeat).

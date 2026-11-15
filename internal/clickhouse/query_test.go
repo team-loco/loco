@@ -110,3 +110,44 @@ func TestBuildTailLogQueryBindsEveryValueByName(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildLogsQueryBindsIncludedAndExcludedFilters(t *testing.T) {
+	const trace = "0123456789abcdef0123456789abcdef"
+	query, args, err := buildLogPageQuery(LogQuery{
+		WorkspaceID:           testWorkspaceID,
+		Start:                 time.Now().Add(-time.Hour),
+		End:                   time.Now(),
+		ExcludedResourceIDs:   []string{testResourceID},
+		ExcludedLevels:        []string{"DEBUG"},
+		ExcludedLabels:        map[string]string{"k8s.pod.name": "web-1"},
+		LogAttributes:         map[string]string{"http.request.method": "GET"},
+		ExcludedLogAttributes: map[string]string{"url.path": "/healthz"},
+		TraceIDs:              []string{trace},
+		ExcludedTraceIDs:      []string{trace},
+		Limit:                 testPageSize,
+	}, testQueryTimeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, clause := range []string{
+		"ResourceId NOT IN (?)",
+		"SeverityText NOT IN (?)",
+		"TraceId IN (?)",
+		"TraceId NOT IN (?)",
+		"ResourceAttributes[?] != ?",
+		"LogAttributes[?] = ?",
+		"LogAttributes[?] != ?",
+	} {
+		if !strings.Contains(query, clause) {
+			t.Errorf("missing %q in %s", clause, query)
+		}
+	}
+	for _, value := range []string{testResourceID, "DEBUG", "web-1", "GET", "/healthz", trace} {
+		if strings.Contains(query, value) {
+			t.Errorf("value %q interpolated into SQL: %s", value, query)
+		}
+		if !slices.Contains(args, any(value)) {
+			t.Errorf("missing argument %q: %v", value, args)
+		}
+	}
+}

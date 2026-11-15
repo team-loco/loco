@@ -278,3 +278,62 @@ func TestEveryTenantQueryRequiresCanonicalUUIDScope(t *testing.T) {
 		}
 	}
 }
+
+func TestExcludedLogFiltersFollowTheirIncludeRules(t *testing.T) {
+	now := time.Now()
+	const trace = "0123456789abcdef0123456789abcdef"
+	type filters struct {
+		excludedResources, excludedLevels, traces, excludedTraces []string
+		excludedLabels, attributes, excludedAttributes            map[string]string
+	}
+	cases := map[string]struct {
+		filters filters
+		want    error
+	}{
+		"every filter": {filters: filters{
+			excludedResources:  []string{testEnvironmentID},
+			excludedLevels:     []string{"DEBUG", ""},
+			excludedLabels:     map[string]string{"k8s.pod.name": "web-1"},
+			attributes:         map[string]string{"http.request.method": "GET"},
+			excludedAttributes: map[string]string{"url.path": "/healthz"},
+			traces:             []string{trace},
+			excludedTraces:     []string{trace},
+		}},
+		"reserved excluded label": {
+			filters: filters{excludedLabels: map[string]string{"loco.workspace.id": "x"}},
+			want:    errReservedLabelKey,
+		},
+		"uppercase excluded resource": {
+			filters: filters{excludedResources: []string{strings.ToUpper(testWorkspaceID)}},
+			want:    errNonCanonicalID,
+		},
+		"non-UUID excluded resource": {filters: filters{excludedResources: []string{malformedID}}, want: errProtoRule},
+		"uppercase trace":            {filters: filters{traces: []string{strings.ToUpper(trace)}}, want: errProtoRule},
+		"zero excluded trace": {
+			filters: filters{excludedTraces: []string{strings.Repeat("0", len(trace))}},
+			want:    errProtoRule,
+		},
+		"empty log attribute key": {
+			filters: filters{excludedAttributes: map[string]string{"": "x"}},
+			want:    errProtoRule,
+		},
+	}
+	for name, tc := range cases {
+		f := tc.filters
+		queried := logsRequest(func(r *observabilityv1.QueryLogsRequest) {
+			r.ExcludedResourceIds, r.ExcludedLevels, r.ExcludedLabels = f.excludedResources, f.excludedLevels, f.excludedLabels
+			r.LogAttributes, r.ExcludedLogAttributes = f.attributes, f.excludedAttributes
+			r.TraceIds, r.ExcludedTraceIds = f.traces, f.excludedTraces
+		})
+		tailed := tailRequest(now, func(r *observabilityv1.TailLogsRequest) {
+			r.ExcludedResourceIds, r.ExcludedLevels, r.ExcludedLabels = f.excludedResources, f.excludedLevels, f.excludedLabels
+			r.LogAttributes, r.ExcludedLogAttributes = f.attributes, f.excludedAttributes
+			r.TraceIds, r.ExcludedTraceIds = f.traces, f.excludedTraces
+		})
+		for request, err := range map[string]error{"QueryLogs": queried, "TailLogs": tailed} {
+			if tc.want == nil && err != nil || tc.want != nil && !errors.Is(err, tc.want) {
+				t.Errorf("%s with %s = %v, want %v", request, name, err, tc.want)
+			}
+		}
+	}
+}

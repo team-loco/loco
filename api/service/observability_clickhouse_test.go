@@ -309,3 +309,147 @@ func TestGetTraceReadsTheWholeTraceInTheWorkspace(t *testing.T) {
 		t.Fatalf("ListTraces: %v", list)
 	}
 }
+
+// logFilters holds the filter fields of a log request, to set alike on QueryLogs and TailLogs.
+type logFilters struct {
+	resources, excludedResources []string
+	excludedLevels               []string
+	labels, excludedLabels       map[string]string
+	attributes, excludedAttrs    map[string]string
+	traces, excludedTraces       []string
+}
+
+func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
+	t.Parallel()
+	ch := newTestClickHouse(t)
+	f := newObservabilityFixture(t)
+	const (
+		traceA = "0123456789abcdef0123456789abcdef"
+		team   = "team"
+		method = "http.request.method"
+		get    = "GET"
+		traceB = "fedcba9876543210fedcba9876543210"
+		web1   = "web get"
+		web2   = "web post"
+		worker = "worker error"
+	)
+	at := time.Now().UTC().Add(-time.Minute)
+	batch, err := ch.Conn().PrepareBatch(
+		t.Context(),
+		"INSERT INTO otel_logs (Timestamp, SeverityText, Body, ResourceAttributes, TraceId, LogAttributes)",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range []struct {
+		body, severity, trace, team, method string
+		resource                            uuid.UUID
+	}{
+		{web1, "INFO", traceA, "a", get, f.resource},
+		{web2, "DEBUG", traceB, "b", "POST", f.resource},
+		{worker, "ERROR", "", "a", "", f.otherResource},
+	} {
+		attrs := map[string]string{
+			workspaceAttribute: f.workspace.String(), resourceAttribute: row.resource.String(),
+			retentionAttribute: "1", team: row.team,
+		}
+		logAttrs := map[string]string{}
+		if row.method != "" {
+			logAttrs[method] = row.method
+		}
+		if appendErr := batch.Append(at, row.severity, row.body, attrs, row.trace, logAttrs); appendErr != nil {
+			t.Fatal(appendErr)
+		}
+	}
+	if sendErr := batch.Send(); sendErr != nil {
+		t.Fatal(sendErr)
+	}
+	cfg := observabilityTestConfig
+	cfg.Limits.MaxLimit = 100
+	client := observabilityTestClient(t, NewObservabilityServer(ch, f.authorizer, cfg), f.callers)
+	web, other := f.resource.String(), f.otherResource.String()
+
+	for name, tc := range map[string]struct {
+		filters logFilters
+		want    []string
+	}{
+		"trace":                  {logFilters{traces: []string{traceA}}, []string{web1}},
+		"excluded trace":         {logFilters{excludedTraces: []string{traceA}}, []string{web2, worker}},
+		"log attribute":          {logFilters{attributes: map[string]string{method: get}}, []string{web1}},
+		"excluded log attribute": {logFilters{excludedAttrs: map[string]string{method: get}}, []string{web2, worker}},
+		"excluded level":         {logFilters{excludedLevels: []string{"DEBUG"}}, []string{web1, worker}},
+		"excluded resource":      {logFilters{excludedResources: []string{other}}, []string{web1, web2}},
+		"excluded label":         {logFilters{excludedLabels: map[string]string{team: "a"}}, []string{web2}},
+		"included and excluded": {
+			logFilters{resources: []string{web}, labels: map[string]string{team: "b"}, excludedLevels: []string{"INFO"}},
+			[]string{web2},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx := callerContext(t, workspaceReader)
+			fl := tc.filters
+			queried, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
+				WorkspaceId:           f.workspace.String(),
+				StartTime:             timestamppb.New(at),
+				EndTime:               timestamppb.New(at),
+				Limit:                 100,
+				ResourceIds:           fl.resources,
+				ExcludedResourceIds:   fl.excludedResources,
+				ExcludedLevels:        fl.excludedLevels,
+				Labels:                fl.labels,
+				ExcludedLabels:        fl.excludedLabels,
+				LogAttributes:         fl.attributes,
+				ExcludedLogAttributes: fl.excludedAttrs,
+				TraceIds:              fl.traces,
+				ExcludedTraceIds:      fl.excludedTraces,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := logBodies(queried.GetEntries()); !slices.Equal(got, tc.want) {
+				t.Errorf("QueryLogs bodies = %v, want %v", got, tc.want)
+			}
+			stream, err := client.TailLogs(ctx, &observabilityv1.TailLogsRequest{
+				WorkspaceId:           f.workspace.String(),
+				Since:                 timestamppb.New(at),
+				ResourceIds:           fl.resources,
+				ExcludedResourceIds:   fl.excludedResources,
+				ExcludedLevels:        fl.excludedLevels,
+				Labels:                fl.labels,
+				ExcludedLabels:        fl.excludedLabels,
+				LogAttributes:         fl.attributes,
+				ExcludedLogAttributes: fl.excludedAttrs,
+				TraceIds:              fl.traces,
+				ExcludedTraceIds:      fl.excludedTraces,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stream.Close()
+			var tailed []*observabilityv1.LogEntry
+			for {
+				message, receiveErr := stream.Receive()
+				if receiveErr != nil {
+					t.Fatal(receiveErr)
+				}
+				if message.GetHeartbeat() != nil {
+					break
+				}
+				tailed = append(tailed, message.GetEntry())
+			}
+			if got := logBodies(tailed); !slices.Equal(got, tc.want) {
+				t.Errorf("TailLogs bodies = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func logBodies(entries []*observabilityv1.LogEntry) []string {
+	bodies := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		bodies = append(bodies, entry.GetBody())
+	}
+	slices.Sort(bodies)
+	return bodies
+}
