@@ -13,11 +13,21 @@ import (
 )
 
 const deleteEventsBefore = `-- name: DeleteEventsBefore :execrows
-DELETE FROM events WHERE created_at < $1
+DELETE FROM events
+WHERE seq IN (
+    SELECT e.seq FROM events e
+    WHERE e.created_at < $1
+    LIMIT $2
+)
 `
 
-func (q *Queries) DeleteEventsBefore(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteEventsBefore, createdAt)
+type DeleteEventsBeforeParams struct {
+	Cutoff    time.Time `json:"cutoff"`
+	BatchSize int32     `json:"batchSize"`
+}
+
+func (q *Queries) DeleteEventsBefore(ctx context.Context, arg DeleteEventsBeforeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteEventsBefore, arg.Cutoff, arg.BatchSize)
 	if err != nil {
 		return 0, err
 	}

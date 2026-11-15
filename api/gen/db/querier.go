@@ -78,7 +78,7 @@ type Querier interface {
 	DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedPlacementParams) (int64, error)
 	DeleteClusterRegistryCredentials(ctx context.Context, clusterID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
-	DeleteEventsBefore(ctx context.Context, createdAt time.Time) (int64, error)
+	DeleteEventsBefore(ctx context.Context, arg DeleteEventsBeforeParams) (int64, error)
 	DeleteExpiredAPITokens(ctx context.Context) error
 	DeleteExpiredPullRegistryCredentials(ctx context.Context) (int64, error)
 	// session is fully dead once the refresh token expires (access expiry alone is not enough)

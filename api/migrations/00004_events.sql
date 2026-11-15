@@ -95,6 +95,7 @@ CREATE TABLE webhook_deliveries (
     UNIQUE (webhook_id, event_seq)
 );
 
+CREATE INDEX webhook_deliveries_event_seq_idx ON webhook_deliveries (event_seq);
 CREATE INDEX webhook_deliveries_due_idx ON webhook_deliveries (next_attempt_at) WHERE status = 'pending';
 CREATE INDEX webhook_deliveries_webhook_idx ON webhook_deliveries (webhook_id, created_at DESC, id DESC);
 

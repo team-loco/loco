@@ -66,4 +66,9 @@ ORDER BY txid, seq
 LIMIT sqlc.arg('max_rows');
 
 -- name: DeleteEventsBefore :execrows
-DELETE FROM events WHERE created_at < $1;
+DELETE FROM events
+WHERE seq IN (
+    SELECT e.seq FROM events e
+    WHERE e.created_at < sqlc.arg('cutoff')
+    LIMIT sqlc.arg('batch_size')
+);
