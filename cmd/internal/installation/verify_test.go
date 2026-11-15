@@ -5,13 +5,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestVerificationUploadsGeneratedSource(t *testing.T) {
@@ -71,8 +74,49 @@ func TestVerificationProbeHonorsCancellation(t *testing.T) {
 	defer server.Close()
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if err := verificationProbe(ctx, server.URL, "fixture-marker"); !errors.Is(err, errVerification) {
+	if err := verificationProbe(ctx, server.Client(), server.URL, "fixture-marker"); !errors.Is(err, errVerification) {
 		t.Fatalf("canceled probe succeeded: %v", err)
+	}
+}
+
+func TestVerificationProbeTrustsCAFile(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if _, err := w.Write([]byte("fixture-marker")); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer server.Close()
+	caFile := filepath.Join(t.TempDir(), "ca.pem")
+	certificate := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	if err := os.WriteFile(caFile, certificate, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	system, err := verificationClient("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	probeErr := verificationProbe(ctx, system, server.URL, "fixture-marker")
+	if !errors.Is(probeErr, errVerificationHTTPS) {
+		t.Fatalf("probe trusted an unknown CA: %v", probeErr)
+	}
+	trusted, err := verificationClient(caFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if probeErr := verificationProbe(t.Context(), trusted, server.URL, "fixture-marker"); probeErr != nil {
+		t.Fatalf("probe with CA file: %v", probeErr)
+	}
+}
+
+func TestVerificationRejectsCAFileWithoutCertificate(t *testing.T) {
+	caFile := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caFile, []byte("not a certificate"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verificationClient(caFile); !errors.Is(err, errVerificationCAFile) {
+		t.Fatalf("accepted CA file without certificate: %v", err)
 	}
 }
 

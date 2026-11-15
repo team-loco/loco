@@ -75,7 +75,9 @@ func TestVerificationHTTPSFailureIdentifiesStageWithoutResponse(t *testing.T) {
 		cancel()
 	}))
 	defer endpoint.Close()
-	err := verificationProbe(ctx, endpoint.URL+"/"+verificationStageCanary, "private-expected-marker")
+	err := verificationProbe(
+		ctx, endpoint.Client(), endpoint.URL+"/"+verificationStageCanary, "private-expected-marker",
+	)
 	if !errors.Is(err, errVerification) || err.Error() != "verify HTTPS: installation source verification failed" {
 		t.Fatalf("missing fixed HTTPS stage: %v", err)
 	}

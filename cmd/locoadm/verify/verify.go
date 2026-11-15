@@ -59,6 +59,9 @@ func Command() *cobra.Command {
 	command.Flags().StringVar(&target.Worker, "worker", "", "Build-enabled worker to verify")
 	command.Flags().
 		StringVar(&target.EnvironmentID, "environment", "", "Authorized environment for the disposable probe")
+	command.Flags().StringVar(
+		&target.CAFile, "ca-file", "", "PEM certificates the HTTPS probes trust in addition to the system roots",
+	)
 	command.Flags().DurationVar(&timeout, "timeout", verificationTimeout, "Maximum duration of source verification")
 	for _, flag := range []string{"worker", "environment"} {
 		if err := command.MarkFlagRequired(flag); err != nil {
