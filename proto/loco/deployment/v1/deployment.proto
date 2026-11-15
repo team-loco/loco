@@ -90,6 +90,12 @@ message BuildSource {
   optional string build_id = 3 [(buf.validate.field).string.uuid = true];
 }
 
+// ObservabilityConfig controls automatic application SDK environment configuration.
+// Omitted inject_otel defaults to true.
+message ObservabilityConfig {
+  optional bool inject_otel = 1;
+}
+
 // ServiceDeploymentSpec is the deployment specification for SERVICE type resources.
 message ServiceDeploymentSpec {
   BuildSource build = 1 [(buf.validate.field).required = true];
@@ -117,6 +123,9 @@ message ServiceDeploymentSpec {
     gt: 0
     lte: 2147483647
   }];
+
+  // Defaults to the resource settings when omitted; stored in the deployment snapshot.
+  ObservabilityConfig observability = 13;
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"

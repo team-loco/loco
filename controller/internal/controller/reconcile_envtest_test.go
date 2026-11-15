@@ -11,6 +11,8 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -22,6 +24,34 @@ import (
 )
 
 var _ = Describe("Application reconcile", func() {
+	It("defaults SDK injection on and preserves an explicit opt-out", func() {
+		for _, tc := range []struct {
+			name     string
+			settings map[string]any
+			want     bool
+		}{
+			{name: "injection-omitted", want: true},
+			{name: "injection-empty", settings: map[string]any{}, want: true},
+			{name: "injection-disabled", settings: map[string]any{"injectOtel": false}},
+		} {
+			app := testApplication()
+			app.Name, app.Namespace = tc.name, testNamespace
+			obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+			Expect(err).NotTo(HaveOccurred())
+			raw := &unstructured.Unstructured{Object: obj}
+			raw.SetGroupVersionKind(locov1alpha1.GroupVersion.WithKind("Application"))
+			unstructured.RemoveNestedField(raw.Object, "spec", "serviceSpec", "deployment", "observability")
+			if tc.settings != nil {
+				Expect(unstructured.SetNestedMap(raw.Object, tc.settings,
+					"spec", "serviceSpec", "deployment", "observability")).To(Succeed())
+			}
+			Expect(k8sClient.Create(ctx, raw)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(raw), app)).To(Succeed())
+			Expect(app.Spec.ServiceSpec.Deployment.Observability.InjectOtel).To(Equal(tc.want))
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		}
+	})
+
 	It("converges without rewriting unchanged objects and cleans up on delete", func() {
 		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
 
@@ -44,10 +74,11 @@ var _ = Describe("Application reconcile", func() {
 				WorkspaceID: "ws",
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
-						Image:        "registry.example.com/app:v1",
-						Port:         new(int32(8080)),
-						Env:          map[string]string{"B": "2", "A": "1", "C": "3"},
-						EnvSecretRef: &locov1alpha1.EnvSecretRef{Name: "env-converge", Revision: 2},
+						Image:         "registry.example.com/app:v1",
+						Observability: locov1alpha1.ObservabilityConfig{InjectOtel: true},
+						Port:          new(int32(8080)),
+						Env:           map[string]string{"B": "2", "A": "1", "C": "3"},
+						EnvSecretRef:  &locov1alpha1.EnvSecretRef{Name: "env-converge", Revision: 2},
 					},
 					Resources: testResources(),
 				},
@@ -120,8 +151,8 @@ var _ = Describe("Application reconcile", func() {
 			Value: testCollectorEndpoint,
 		}))
 		Expect(container.Env).To(ContainElement(corev1.EnvVar{
-			Name:  envOTelHost,
-			Value: testCollectorHost,
+			Name:  envOTelServiceName,
+			Value: convergeName,
 		}))
 		plainStart := len(container.Env) - len(app.Spec.ServiceSpec.Deployment.Env)
 		Expect(container.Env[plainStart:]).To(Equal([]corev1.EnvVar{

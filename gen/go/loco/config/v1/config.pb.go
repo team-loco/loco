@@ -532,13 +532,14 @@ type DefaultServiceConfig struct {
 	// Default health check configuration
 	HealthCheck *v1.HealthCheckConfig `protobuf:"bytes,1,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
 	// Default resource allocation
-	Cpu                     string `protobuf:"bytes,2,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "0.25"
-	Memory                  string `protobuf:"bytes,3,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
-	MinReplicas             int32  `protobuf:"varint,4,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
-	MaxReplicas             int32  `protobuf:"varint,5,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
-	DeployAttempts          int32  `protobuf:"varint,6,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
-	DeployRetryDelaySeconds int32  `protobuf:"varint,7,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
-	CpuTarget               int32  `protobuf:"varint,8,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
+	Cpu                     string                  `protobuf:"bytes,2,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "0.25"
+	Memory                  string                  `protobuf:"bytes,3,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
+	MinReplicas             int32                   `protobuf:"varint,4,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
+	MaxReplicas             int32                   `protobuf:"varint,5,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
+	DeployAttempts          int32                   `protobuf:"varint,6,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
+	DeployRetryDelaySeconds int32                   `protobuf:"varint,7,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
+	CpuTarget               int32                   `protobuf:"varint,8,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
+	Observability           *v1.ObservabilityConfig `protobuf:"bytes,9,opt,name=observability,proto3" json:"observability,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -629,6 +630,13 @@ func (x *DefaultServiceConfig) GetCpuTarget() int32 {
 	return 0
 }
 
+func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
+	if x != nil {
+		return x.Observability
+	}
+	return nil
+}
+
 var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_loco_config_v1_config_proto_rawDesc = "" +
@@ -678,7 +686,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xd5\x02\n" +
+	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xa4\x03\n" +
 	"\x14DefaultServiceConfig\x12H\n" +
 	"\fhealth_check\x18\x01 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
 	"\x03cpu\x18\x02 \x01(\tR\x03cpu\x12\x16\n" +
@@ -688,7 +696,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x0fdeploy_attempts\x18\x06 \x01(\x05R\x0edeployAttempts\x12;\n" +
 	"\x1adeploy_retry_delay_seconds\x18\a \x01(\x05R\x17deployRetryDelaySeconds\x12\x1d\n" +
 	"\n" +
-	"cpu_target\x18\b \x01(\x05R\tcpuTarget2a\n" +
+	"cpu_target\x18\b \x01(\x05R\tcpuTarget\x12M\n" +
+	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 
@@ -706,14 +715,15 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 
 var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_loco_config_v1_config_proto_goTypes = []any{
-	(*GetConfigRequest)(nil),     // 0: loco.config.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),    // 1: loco.config.v1.GetConfigResponse
-	(*CountLimits)(nil),          // 2: loco.config.v1.CountLimits
-	(*SizeLimits)(nil),           // 3: loco.config.v1.SizeLimits
-	(*OrgLink)(nil),              // 4: loco.config.v1.OrgLink
-	(*AuthConfig)(nil),           // 5: loco.config.v1.AuthConfig
-	(*DefaultServiceConfig)(nil), // 6: loco.config.v1.DefaultServiceConfig
-	(*v1.HealthCheckConfig)(nil), // 7: loco.deployment.v1.HealthCheckConfig
+	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
+	(*CountLimits)(nil),            // 2: loco.config.v1.CountLimits
+	(*SizeLimits)(nil),             // 3: loco.config.v1.SizeLimits
+	(*OrgLink)(nil),                // 4: loco.config.v1.OrgLink
+	(*AuthConfig)(nil),             // 5: loco.config.v1.AuthConfig
+	(*DefaultServiceConfig)(nil),   // 6: loco.config.v1.DefaultServiceConfig
+	(*v1.HealthCheckConfig)(nil),   // 7: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil), // 8: loco.deployment.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
 	6, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
@@ -722,13 +732,14 @@ var file_loco_config_v1_config_proto_depIdxs = []int32{
 	3, // 3: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
 	2, // 4: loco.config.v1.GetConfigResponse.count_limits:type_name -> loco.config.v1.CountLimits
 	7, // 5: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	0, // 6: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1, // 7: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8, // 6: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.deployment.v1.ObservabilityConfig
+	0, // 7: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1, // 8: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }

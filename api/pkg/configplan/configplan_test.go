@@ -4,11 +4,13 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/observabilityconfig"
 )
 
 const (
@@ -68,13 +70,16 @@ func fileService() locofile.Service {
 
 func liveState() State {
 	return State{
-		Dockerfile: locofile.DefaultDockerfile,
-		Context:    locofile.DefaultContext,
-		Port:       new(int32(3000)),
-		Routing:    &Routing{PathPrefix: "/", IdleTimeout: 60},
-		Domains:    []string{appDomain},
-		Env:        map[string]string{logLevelKey: logLevelInfo},
-		Regions:    map[string]Region{testRegion: {CPU: testCPU, Memory: testMemory, MinReplicas: 1, MaxReplicas: 3}},
+		Observability: observabilityconfig.Defaults(),
+		Dockerfile:    locofile.DefaultDockerfile,
+		Context:       locofile.DefaultContext,
+		Port:          new(int32(3000)),
+		Routing:       &Routing{PathPrefix: "/", IdleTimeout: 60},
+		Domains:       []string{appDomain},
+		Env:           map[string]string{logLevelKey: logLevelInfo},
+		Regions: map[string]Region{
+			testRegion: {CPU: testCPU, Memory: testMemory, MinReplicas: 1, MaxReplicas: 3},
+		},
 	}
 }
 
@@ -162,6 +167,7 @@ func TestNewServiceIsACreateListingEveryField(t *testing.T) {
 		{Path: "dockerfile", After: locofile.DefaultDockerfile},
 		{Path: "domains", After: "[app.example.com]"},
 		{Path: logLevelPath, After: logLevelInfo},
+		{Path: "observability.injectOtel", After: strconv.FormatBool(true)},
 		{Path: "port", After: "3000"},
 		{Path: "regions.us-east-1.cpu", After: testCPU},
 		{Path: "regions.us-east-1.memory", After: testMemory},

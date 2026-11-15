@@ -20,9 +20,6 @@ const (
 	envOTelServiceName        = "OTEL_SERVICE_NAME"
 	envOTelResourceAttributes = "OTEL_RESOURCE_ATTRIBUTES"
 	otlpProtocolHTTP          = "http/protobuf"
-	envOTelHost               = "LOCO_OTEL_HOST"
-	envOTelGRPCPort           = "LOCO_OTEL_GRPC_PORT"
-	envOTelHTTPPort           = "LOCO_OTEL_HTTP_PORT"
 	collectorHostFormat       = "%s.%s.svc.cluster.local"
 	otlpHTTPScheme            = "http"
 	attributeEnvironmentName  = "deployment.environment.name"
@@ -67,49 +64,30 @@ func formatPort(port int32) string {
 	return strconv.Itoa(int(port))
 }
 
-func collectorEnvVars(telemetry TelemetryConfig) []corev1.EnvVar {
-	host := telemetry.collectorHost()
-	grpcPort := formatPort(telemetry.GRPCPort)
-	httpPort := formatPort(telemetry.HTTPPort)
-	return []corev1.EnvVar{
-		{Name: envOTelHost, Value: host},
-		{Name: envOTelGRPCPort, Value: grpcPort},
-		{Name: envOTelHTTPPort, Value: httpPort},
-	}
-}
-
 func openTelemetryEnvVars(
 	app *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
 ) []corev1.EnvVar {
-	endpoint := telemetry.otlpHTTPEndpoint()
-	serviceName := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	settings := [][]corev1.EnvVar{
-		{
-			{Name: envOTLPEndpoint, Value: endpoint},
-			{Name: envOTLPProtocol, Value: otlpProtocolHTTP},
-		},
-		{{Name: envOTelServiceName, Value: serviceName}},
-		resourceAttributeVars(app),
+	if !app.Spec.ServiceSpec.Deployment.Observability.InjectOtel {
+		return nil
 	}
-	userEnv := app.Spec.ServiceSpec.Deployment.Env
-	var vars []corev1.EnvVar
-	for _, setting := range settings {
-		if userSetsAny(userEnv, secretNames, setting) {
-			continue
+	for name := range app.Spec.ServiceSpec.Deployment.Env {
+		if configuresOpenTelemetry(name) {
+			return nil
 		}
-		vars = append(vars, setting...)
 	}
-	return vars
+	if slices.ContainsFunc(secretNames, configuresOpenTelemetry) {
+		return nil
+	}
+	return append(resourceAttributeVars(app),
+		corev1.EnvVar{Name: envOTLPEndpoint, Value: telemetry.otlpHTTPEndpoint()},
+		corev1.EnvVar{Name: envOTLPProtocol, Value: otlpProtocolHTTP},
+		corev1.EnvVar{Name: envOTelServiceName, Value: app.Spec.Slug},
+	)
 }
 
-func userSetsAny(userEnv map[string]string, secretNames []string, setting []corev1.EnvVar) bool {
-	for _, envVar := range setting {
-		_, plain := userEnv[envVar.Name]
-		if plain || slices.Contains(secretNames, envVar.Name) {
-			return true
-		}
-	}
-	return false
+func configuresOpenTelemetry(name string) bool {
+	return strings.HasPrefix(name, "OTEL_EXPORTER_OTLP_") ||
+		name == envOTelServiceName || name == envOTelResourceAttributes
 }
 
 func resourceAttributeVars(app *locov1alpha1.Application) []corev1.EnvVar {

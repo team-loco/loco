@@ -192,6 +192,17 @@
           "minimum": 1,
           "description": "Positive numeric primary GID for the application process. Omitted uses the image group.",
           "maximum": 2147483647
+        },
+        "observability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverrideObservability"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Automatic OpenTelemetry SDK environment configuration, enabled by default."
         }
       },
       "additionalProperties": false,
@@ -492,6 +503,10 @@
         "deploy": {
           "$ref": "#/$defs/Deploy",
           "description": "How often the API sends a deployment a cluster fails to apply before marking it failed. The API fills omitted fields. Applies to every environment."
+        },
+        "observability": {
+          "$ref": "#/$defs/Observability",
+          "description": "Automatic OpenTelemetry SDK environment configuration, enabled by default."
         }
       },
       "dependentRequired": {
@@ -501,6 +516,29 @@
       },
       "additionalProperties": false,
       "type": "object"
+    },
+    "Observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "injectOtel": {
+          "type": "boolean",
+          "description": "Inject OpenTelemetry SDK environment defaults. Defaults to true."
+        }
+      }
+    },
+    "OverrideObservability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "injectOtel": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Override SDK environment injection; null removes this setting from the resolved configuration."
+        }
+      }
     }
   },
   "properties": {

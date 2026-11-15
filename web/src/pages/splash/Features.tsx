@@ -30,7 +30,7 @@ const FEATURES: readonly { icon: LucideIcon; title: string; body: string; tech: 
 	{
 		icon: Activity,
 		title: "Logs, traces and metrics",
-		body: "Write logs to stdout. Every replica gets an OpenTelemetry endpoint for traces.",
+		body: "Inspect logs, metrics and traces together. Loco configures the OpenTelemetry collector connection by default, and respects your own exporter configuration.",
 		tech: "OpenTelemetry · ClickHouse",
 	},
 	{

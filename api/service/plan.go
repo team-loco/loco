@@ -25,6 +25,7 @@ import (
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/observabilityconfig"
 )
 
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
@@ -380,8 +381,9 @@ func liveState(
 	spec := resourceSpec.GetService()
 
 	state := configplan.State{
-		Health:  liveHealth(spec.GetHealthCheck()),
-		Regions: make(map[string]configplan.Region, len(spec.GetRegions())),
+		Observability: observabilityconfig.Resolve(spec.GetObservability(), nil),
+		Health:        liveHealth(spec.GetHealthCheck()),
+		Regions:       make(map[string]configplan.Region, len(spec.GetRegions())),
 	}
 	if routing := spec.GetRouting(); routing != nil {
 		state.Port = routing.Port
@@ -440,6 +442,7 @@ func liveState(
 		if index > 0 {
 			continue
 		}
+		state.Observability = observabilityconfig.Resolve(spec.GetObservability(), service.GetObservability())
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup
 		state.Port = service.Port

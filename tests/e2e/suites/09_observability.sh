@@ -40,7 +40,6 @@ obs_trace_id_bytes=16
 obs_span_id_bytes=8
 obs_marker_bytes=6
 
-obs_endpoint_reference='http://$(LOCO_OTEL_HOST):$(LOCO_OTEL_HTTP_PORT)'
 obs_chart_values="$E2E_ROOT_DIR/charts/loco-worker/values.yaml"
 obs_collector_host=$(yq '.["otel-col-deploy"] | .fullnameOverride + "." + .namespaceOverride + ".svc.cluster.local"' "$obs_chart_values")
 obs_collector_endpoint="http://${obs_collector_host}:$(yq '.["otel-col-deploy"].ports["otlp-http"].servicePort' "$obs_chart_values")"
@@ -208,8 +207,6 @@ obs_application_field() {
 
 obs_write_config() {
     cli_write_service_config "$obs_app_dir" "$obs_app" "$obs_app_port" /healthz
-    obs_app="$obs_app" endpoint="$obs_endpoint_reference" \
-        yq -i '.services[strenv(obs_app)].env.OTEL_EXPORTER_OTLP_ENDPOINT = strenv(endpoint)' "$obs_app_dir/loco.yaml"
 }
 
 obs_container_env() {
@@ -277,34 +274,37 @@ test_o01_deploys_the_fixture_through_loco() {
         printf '**Pod environment and labels**\n\n```console\n'
         obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" get pods -l "loco.io/resource-id=${obs_resource_id}" \
             -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{.metadata.labels}{"\n"}{range .spec.containers[*].env[*]}{.name}={.value}{"\n"}{end}{end}' |
-            grep -E '^(resource-|\{|OTEL_|LOCO_WORKSPACE|LOCO_OTEL_)' || true
+            grep -E '^(resource-|\{|OTEL_|LOCO_WORKSPACE)' || true
         printf '```\n\n'
     } >>"$obs_evidence"
 }
 
-test_o01_resolves_the_collector_reference() {
-    local env host_line reference_line
-    env=$(obs_container_env) || return 1
-    host_line=$(grep -n -x -F "LOCO_OTEL_HOST=${obs_collector_host}" <<<"$env" | cut -d: -f1)
-    reference_line=$(grep -n -x -F "OTEL_EXPORTER_OTLP_ENDPOINT=${obs_endpoint_reference}" <<<"$env" | cut -d: -f1)
-    assert "LOCO_OTEL_HOST is the collector Service ${obs_collector_host}" test -n "$host_line" || return 1
-    assert "loco.yaml's ${obs_endpoint_reference} follows LOCO_OTEL_HOST in the container env" \
-        test "${reference_line:-0}" -gt "$host_line" || return 1
-    assert "the fixture's OTLP endpoint expands to ${obs_collector_endpoint}" \
-        wait_for "the fixture's startup log" "$obs_route_timeout_seconds" obs_fixture_logs_endpoint || {
-        obs_fixture_logs | sed 's/^/    /'
+obs_apply_config() {
+    local name=$1 rc=0
+    (cd "$obs_app_dir" && loco_cli infra apply --yes) >"$obs_dir/${name}.out" 2>"$obs_dir/${name}.err" || rc=$?
+    if ! assert "${name} applies the runtime configuration" test "$rc" -eq 0; then
+        cat "$obs_dir/${name}.out" "$obs_dir/${name}.err"
         return 1
-    }
-    {
-        printf '## Collector reference\n\n'
-        printf 'loco.yaml sets `OTEL_EXPORTER_OTLP_ENDPOINT: %s`; the fixture logs the value it reads.\n\n' "$obs_endpoint_reference"
-        printf '```console\n'
-        obs_fixture_logs | grep -F 'otlp_endpoint=' || true
-        printf '```\n\n'
-    } >>"$obs_evidence"
+    fi
 }
 
-test_o02_cluster_events_are_collected_once() {
+obs_telemetry_env_matches() {
+    local service=$1 env
+    env=$(obs_container_env) || return 1
+    grep -qxF "OTEL_EXPORTER_OTLP_ENDPOINT=${obs_collector_endpoint}" <<<"$env" &&
+        grep -qxF 'OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf' <<<"$env" &&
+        grep -qxF "OTEL_SERVICE_NAME=${service}" <<<"$env"
+}
+
+test_o02_configures_application_telemetry_by_default() {
+    wait_for "the default fixture to be Ready" "$obs_route_timeout_seconds" cli_application_is_ready "$obs_app" || return 1
+    assert "the default SDK configuration points at the collector" \
+        wait_for "the default SDK configuration" "$obs_route_timeout_seconds" obs_telemetry_env_matches "$obs_app" || return 1
+    assert "the SDK reads the injected collector endpoint" \
+        wait_for "the fixture startup log" "$obs_route_timeout_seconds" obs_fixture_logs_endpoint || return 1
+}
+
+test_o03_cluster_events_are_collected_once() {
     local marker event_time rows query
     obs_kube -n "$E2E_OBS_NAMESPACE" rollout status statefulset/otel-col-deploy \
         --timeout="${obs_route_timeout_seconds}s" || return 1
@@ -356,7 +356,7 @@ obs_route_serves() {
     test "$(obs_gateway_status "${E2E_GATEWAY_URL}/healthz")" = "$obs_http_ok"
 }
 
-test_o02_sends_traffic_through_the_gateway() {
+test_o04_sends_traffic_through_the_gateway() {
     if [ -z "$obs_resource_id" ]; then
         log_error "  no deployed fixture; skipping traffic"
         obs_deadline=$(obs_now)
@@ -414,7 +414,7 @@ check_migrations() {
     test "$applied" = "$latest"
 }
 
-test_o03_migrations() {
+test_o05_migrations() {
     obs_check migrations check_migrations
 }
 
@@ -473,11 +473,11 @@ check_trace_summary() {
         test "$(yq -p json -r '.summaries[0].traceId' <<<"$response")" = "$obs_trace_id"
 }
 
-test_o04_trace_summary() {
+test_o06_trace_summary() {
     obs_check trace_summary check_trace_summary
 }
 
-test_o04_ingress_trace() {
+test_o07_ingress_trace() {
     obs_check ingress_trace check_ingress_trace
 }
 
@@ -491,7 +491,7 @@ check_app_logs() {
         $1 == ws && $2 == env && $3 == res && $4 == org { found = 1 } END { exit !found }' <<<"$rows"
 }
 
-test_o05_app_logs() {
+test_o08_app_logs() {
     obs_check app_logs check_app_logs
 }
 
@@ -506,7 +506,7 @@ check_access_logs() {
         $1 == ws && $2 == res { found = 1 } END { exit !found }' <<<"$rows"
 }
 
-test_o06_access_logs() {
+test_o09_access_logs() {
     obs_check access_logs check_access_logs
 }
 
@@ -533,7 +533,7 @@ check_envoy_metrics() {
         $1 ~ /upstream_rq/ && $2 == ws && $3 == res && $4 == env { found = 1 } END { exit !found }' <<<"$rows"
 }
 
-test_o07_envoy_metrics() {
+test_o10_envoy_metrics() {
     obs_check envoy_metrics check_envoy_metrics
 }
 
@@ -556,7 +556,7 @@ check_forged_attribute() {
     test "$forged" -eq 0 && test "$total" -gt 0 && test "$real" -eq "$total"
 }
 
-test_o08_forged_attribute() {
+test_o11_forged_attribute() {
     obs_check forged_attribute check_forged_attribute
 }
 
@@ -618,7 +618,7 @@ check_proxy_scoped() {
     test "$matches" -eq 0
 }
 
-test_o09_proxy_scoped() {
+test_o12_proxy_scoped() {
     obs_check proxy_scoped check_proxy_scoped
 }
 
@@ -644,7 +644,7 @@ check_proxy_counter() {
     test "$status" = "$obs_http_forbidden"
 }
 
-test_o09_proxy_counter() {
+test_o13_proxy_counter() {
     obs_check proxy_counter check_proxy_counter
 }
 
@@ -669,7 +669,7 @@ check_cluster_metrics() {
     done
 }
 
-test_o09_cluster_metrics_reach_the_api() {
+test_o14_cluster_metrics_reach_the_api() {
     obs_check cluster_metrics check_cluster_metrics
 }
 
@@ -721,19 +721,49 @@ check_trace_proxy_isolation() {
     test "$status" = "$obs_http_ok" && test "$count" -eq 0
 }
 
-test_o10_proxy_isolation() {
+test_o15_proxy_isolation() {
     obs_check proxy_isolation check_proxy_isolation
     obs_check trace_proxy_isolation check_trace_proxy_isolation
 }
 
-test_o13_writes_the_summary() {
-    {
-        printf '## Summary\n\n| Check | Result |\n| --- | --- |\n'
-        awk '{ printf "| %s | %s |\n", $1, $2 }' "$obs_results"
-        printf '\n'
-    } >>"$obs_evidence"
-    log_info "Evidence report: ${obs_evidence}"
-    assert "The evidence report lists every check" test "$(wc -l <"$obs_results")" -gt 0
+test_o16_user_configuration_suppresses_the_injected_bundle() {
+    local service="${obs_app}-custom" marker query status
+    obs_app="$obs_app" service="$service" endpoint="$obs_collector_endpoint" yq -i '
+        .services[strenv(obs_app)].observability.injectOtel = true |
+        .services[strenv(obs_app)].env = {
+            "OTEL_EXPORTER_OTLP_ENDPOINT": strenv(endpoint),
+            "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+            "OTEL_SERVICE_NAME": strenv(service)
+        }' "$obs_app_dir/loco.yaml"
+    obs_apply_config telemetry-disable || return 1
+    wait_for "the user-owned SDK configuration" "$obs_route_timeout_seconds" obs_telemetry_env_matches "$service" || return 1
+    obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" \
+        --timeout="${obs_route_timeout_seconds}s" || return 1
+    assert "a user endpoint suppresses the injected resource attributes" \
+        test -z "$(obs_container_env | grep '^OTEL_RESOURCE_ATTRIBUTES=')" || return 1
+    marker="telemetry-custom-$(obs_random_hex "$obs_marker_bytes")"
+    status=$(obs_gateway_status "${E2E_GATEWAY_URL}/${marker}")
+    assert "the custom-configured app serves" test "$status" = "$obs_http_ok" || return 1
+    query="SELECT count() FROM otel_traces WHERE ResourceId = '${obs_resource_id}' AND ServiceName = '${service}' AND SpanName = 'GET /${marker}'"
+    assert "the user's SDK configuration exports while injection is enabled" \
+        wait_for "the custom-named trace" "$obs_telemetry_timeout_seconds" obs_event_arrived "$query"
+}
+
+test_o17_disables_injection_without_disabling_collection() {
+    local marker query status env
+    obs_app="$obs_app" yq -i '.services[strenv(obs_app)].observability.injectOtel = false |
+        .services[strenv(obs_app)].env = {}' "$obs_app_dir/loco.yaml"
+    obs_apply_config telemetry-disable || return 1
+    obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" \
+        --timeout="${obs_route_timeout_seconds}s" || return 1
+    env=$(obs_container_env) || return 1
+    assert "injectOtel false injects no SDK variables" test -z "$(grep '^OTEL_' <<<"$env")" || return 1
+    marker="injection-disabled-$(obs_random_hex "$obs_marker_bytes")"
+    status=$(obs_gateway_status "${E2E_GATEWAY_URL}/${marker}")
+    assert "the app serves without SDK configuration" test "$status" = "$obs_http_ok" || return 1
+    query="SELECT count() FROM otel_logs WHERE ResourceId = '${obs_resource_id}' AND position(Body, 'msg=request') > 0 AND position(Body, 'path=/${marker}') > 0"
+    assert "stdout collection continues after injection is disabled" \
+        wait_for "the fixture stdout log" "$obs_telemetry_timeout_seconds" obs_event_arrived "$query"
 }
 
 obs_crash_forward_ready() {
@@ -817,7 +847,17 @@ obs_crash_replay() (
         "$pod" "$flush_seconds" "$records" "$marker" >>"$obs_evidence"
 )
 
-test_o12_replays_acknowledged_logs_after_collector_sigkill() {
+test_o18_replays_acknowledged_logs_after_collector_sigkill() {
     obs_crash_replay
     assert "all acknowledged logs survive a collector SIGKILL before batching flushes" true
+}
+
+test_o19_writes_the_summary() {
+    {
+        printf '## Summary\n\n| Check | Result |\n| --- | --- |\n'
+        awk '{ printf "| %s | %s |\n", $1, $2 }' "$obs_results"
+        printf '\n'
+    } >>"$obs_evidence"
+    log_info "Evidence report: ${obs_evidence}"
+    assert "The evidence report lists every check" test "$(wc -l <"$obs_results")" -gt 0
 }

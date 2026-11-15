@@ -37,6 +37,7 @@ import {
 	ScalingSection,
 	SettingsBlock,
 	SizeSection,
+	ObservabilitySection,
 } from "./SettingsSections";
 import { useSaveSettings } from "./useSaveSettings";
 import { VariablesSection } from "./VariablesSection";
@@ -51,6 +52,7 @@ const NAV = [
 	{ id: "set-scaling", label: "Scaling" },
 	{ id: "set-size", label: "Size" },
 	{ id: "set-env", label: "Variables" },
+	{ id: "set-observability", label: "Observability" },
 	{ id: "set-net", label: "Networking" },
 	{ id: HEALTH_SECTION_ID, label: "Health check" },
 	{ id: "set-regions", label: "Regions" },
@@ -180,6 +182,7 @@ export function SettingsView({
 						canReadWorkspace={canReadWorkspace}
 						onChange={change}
 					/>
+					<ObservabilitySection {...props} />
 					<NetworkingSection
 						{...props}
 						resourceId={resource.id}
@@ -189,7 +192,11 @@ export function SettingsView({
 						served={served}
 						worker={worker}
 						onDomainsChanged={() => {
-							onSaved({ tone: "info", title: "Domain updated", message: "It takes effect on the next deployment." });
+							onSaved({
+								tone: "info",
+								title: "Domain updated",
+								message: "It takes effect on the next deployment.",
+							});
 						}}
 					/>
 					{!worker && <HealthSection {...props} />}

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
-	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -18,9 +17,7 @@ const (
 	testCollectorService    = "collector"
 	testCollectorGRPCPort   = int32(14317)
 	testCollectorHTTPPort   = int32(14318)
-	testCollectorHost       = "collector.telemetry.svc.cluster.local"
 	testCollectorEndpoint   = "http://collector.telemetry.svc.cluster.local:14318"
-	testCollectorReference  = "$(LOCO_OTEL_HOST):$(LOCO_OTEL_GRPC_PORT)"
 	testEnvironmentName     = "production"
 	testDeploymentID        = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f"
 	testOrganizationID      = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e90"
@@ -41,6 +38,7 @@ func testTelemetry() TelemetryConfig {
 
 func telemetryTestApplication() *locov1alpha1.Application {
 	app := testApplication()
+	app.Spec.ServiceSpec.Deployment.Observability.InjectOtel = true
 	app.Spec.EnvironmentName = testEnvironmentName
 	app.Spec.DeploymentID = testDeploymentID
 	app.Spec.OrganizationID = testOrganizationID
@@ -99,17 +97,21 @@ func TestDesiredDeploymentPointsOpenTelemetryAtTheCollector(t *testing.T) {
 
 	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
 	requireEnv(t, dep, envOTLPProtocol, otlpProtocolHTTP)
-	requireEnv(t, dep, envOTelServiceName, testAppName(app))
+	requireEnv(t, dep, envOTelServiceName, app.Spec.Slug)
 	requireEnv(t, dep, envOTelResourceAttributes,
 		"deployment.environment.name=production,loco.deployment.id="+testDeploymentID)
 }
 
-func TestDesiredDeploymentInjectsTheCollectorAddress(t *testing.T) {
-	dep := buildDeployment(t, telemetryTestApplication())
-
-	requireEnv(t, dep, envOTelHost, testCollectorHost)
-	requireEnv(t, dep, envOTelGRPCPort, "14317")
-	requireEnv(t, dep, envOTelHTTPPort, "14318")
+func TestDisabledInjectionLeavesApplicationEnvironmentIntact(t *testing.T) {
+	app := telemetryTestApplication()
+	app.Spec.ServiceSpec.Deployment.Observability.InjectOtel = false
+	dep := buildDeployment(t, app)
+	for _, name := range []string{envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes} {
+		requireNoEnv(t, dep, name)
+	}
+	app.Spec.ServiceSpec.Deployment.Env[envOTLPEndpoint] = "https://telemetry.example.test"
+	dep = buildDeployment(t, app)
+	requireSingleEnv(t, dep, envOTLPEndpoint, "https://telemetry.example.test")
 }
 
 func TestOTLPEndpointIsBuiltFromTheCollectorAddress(t *testing.T) {
@@ -123,44 +125,7 @@ func TestOTLPEndpointIsBuiltFromTheCollectorAddress(t *testing.T) {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
 
-	host, _ := envValue(t, dep, envOTelHost)
-	port, _ := envValue(t, dep, envOTelHTTPPort)
-	requireEnv(t, dep, envOTLPEndpoint, "http://"+host+":"+port)
 	requireEnv(t, dep, envOTLPEndpoint, "http://other.elsewhere.svc.cluster.local:9999")
-}
-
-func TestUserEnvDoesNotOverrideTheCollectorAddress(t *testing.T) {
-	for _, name := range []string{envOTelHost, envOTelGRPCPort, envOTelHTTPPort} {
-		app := telemetryTestApplication()
-		app.Spec.ServiceSpec.Deployment.Env[name] = userEnvValue
-		dep := buildDeployment(t, app)
-		requireSingleEnv(t, dep, envOTelHost, testCollectorHost)
-		requireSingleEnv(t, dep, envOTelGRPCPort, "14317")
-		requireSingleEnv(t, dep, envOTelHTTPPort, "14318")
-	}
-}
-
-func TestSystemEnvPrecedesUserEnvSoUserValuesCanReferenceIt(t *testing.T) {
-	app := telemetryTestApplication()
-	app.Spec.ServiceSpec.Deployment.Env["AAA_COLLECTOR"] = testCollectorReference
-	app.Spec.ServiceSpec.Deployment.Env[envOTLPEndpoint] = "http://$(LOCO_OTEL_HOST):$(LOCO_OTEL_HTTP_PORT)"
-	dep := buildDeployment(t, app)
-
-	env := dep.Spec.Template.Spec.Containers[0].Env
-	userEnv := app.Spec.ServiceSpec.Deployment.Env
-	firstUser := slices.IndexFunc(env, func(envVar corev1ac.EnvVarApplyConfiguration) bool {
-		_, user := userEnv[*envVar.Name]
-		return user
-	})
-	if firstUser < 0 {
-		t.Fatalf("no user env in %v", env)
-	}
-	for _, envVar := range env[firstUser:] {
-		if _, user := userEnv[*envVar.Name]; !user {
-			t.Errorf("system env %s follows user env, so user values cannot reference it", *envVar.Name)
-		}
-	}
-	requireSingleEnv(t, dep, "AAA_COLLECTOR", testCollectorReference)
 }
 
 func TestResourceAttributesArePercentEncoded(t *testing.T) {
@@ -193,62 +158,35 @@ func TestUserTracingSamplerAndArgumentArePreserved(t *testing.T) {
 	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
 }
 
-func TestUserEnvOverridesInjectedOpenTelemetryEnv(t *testing.T) {
-	cases := []struct {
-		name     string
-		userEnv  string
-		replaced []string
-		kept     map[string]string
-	}{
-		{
-			name:     "service name",
-			userEnv:  envOTelServiceName,
-			replaced: []string{envOTelServiceName},
-			kept:     map[string]string{envOTLPEndpoint: testCollectorEndpoint},
-		},
-		{
-			name:     "endpoint replaces the protocol with it",
-			userEnv:  envOTLPEndpoint,
-			replaced: []string{envOTLPEndpoint, envOTLPProtocol},
-		},
-		{
-			name:     "protocol replaces the endpoint with it",
-			userEnv:  envOTLPProtocol,
-			replaced: []string{envOTLPEndpoint, envOTLPProtocol},
-		},
-		{
-			name:     "resource attributes",
-			userEnv:  envOTelResourceAttributes,
-			replaced: []string{envOTelResourceAttributes},
-		},
-		{
-			name:     "sampler argument does not inject a sampler",
-			userEnv:  envOTelTracesSamplerArg,
-			replaced: []string{envOTelTracesSamplerArg, envOTelTracesSampler},
-		},
-		{
-			name:     "sampler does not inject an argument",
-			userEnv:  envOTelTracesSampler,
-			replaced: []string{envOTelTracesSampler, envOTelTracesSamplerArg},
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+func TestUserExporterOrResourceSuppressesAllInjection(t *testing.T) {
+	for _, name := range []string{
+		envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes,
+		"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_METRICS_HEADERS", "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL",
+	} {
+		t.Run(name, func(t *testing.T) {
 			app := telemetryTestApplication()
-			app.Spec.ServiceSpec.Deployment.Env[tc.userEnv] = userEnvValue
+			app.Spec.ServiceSpec.Deployment.Env[name] = userEnvValue
 			dep := buildDeployment(t, app)
-
-			requireSingleEnv(t, dep, tc.userEnv, userEnvValue)
-			for _, name := range tc.replaced {
-				if name != tc.userEnv {
-					requireNoEnv(t, dep, name)
+			requireSingleEnv(t, dep, name, userEnvValue)
+			for _, injected := range []string{envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes} {
+				if injected != name {
+					requireNoEnv(t, dep, injected)
 				}
-			}
-			for name, want := range tc.kept {
-				requireEnv(t, dep, name, want)
 			}
 		})
 	}
+}
+
+func TestSDKDiagnosticsDoNotSuppressInjection(t *testing.T) {
+	app := telemetryTestApplication()
+	app.Spec.ServiceSpec.Deployment.Env["OTEL_LOG_LEVEL"] = "debug"
+	dep := buildDeployment(t, app)
+	requireSingleEnv(t, dep, "OTEL_LOG_LEVEL", "debug")
+	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
+	requireEnv(t, dep, envOTLPProtocol, otlpProtocolHTTP)
+	requireEnv(t, dep, envOTelServiceName, app.Spec.Slug)
+	requireEnv(t, dep, envOTelResourceAttributes,
+		"deployment.environment.name=production,loco.deployment.id="+testDeploymentID)
 }
 
 func TestUserEnvDoesNotOverrideLocoEnv(t *testing.T) {
@@ -303,5 +241,15 @@ func TestTelemetryConfigRequiresEveryField(t *testing.T) {
 				t.Errorf("Validate() = %v, want errTelemetryIncomplete", err)
 			}
 		})
+	}
+}
+
+func TestUserResourceServiceNameSuppressesAllInjection(t *testing.T) {
+	app := telemetryTestApplication()
+	app.Spec.ServiceSpec.Deployment.Env[envOTelResourceAttributes] = "service.name=custom"
+	dep := buildDeployment(t, app)
+	requireSingleEnv(t, dep, envOTelResourceAttributes, "service.name=custom")
+	for _, name := range []string{envOTLPEndpoint, envOTLPProtocol, envOTelServiceName} {
+		requireNoEnv(t, dep, name)
 	}
 }

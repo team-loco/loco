@@ -63,7 +63,13 @@ const SCATTER_LIMIT = 2000;
 const COUNT_LIMIT = 1;
 const DURATION_DIGITS = 3;
 
-const TRACE_COLUMNS: { key: ColumnKey; label: string; sort?: TraceSummarySort; right?: boolean; title?: string }[] = [
+const TRACE_COLUMNS: {
+	key: ColumnKey;
+	label: string;
+	sort?: TraceSummarySort;
+	right?: boolean;
+	title?: string;
+}[] = [
 	{ key: "when", label: "When", sort: TraceSummarySort.START_TIME },
 	{ key: "resource", label: "Resource" },
 	{ key: "span", label: "Root span" },
@@ -104,7 +110,11 @@ export function TracesView() {
 }
 
 function durationToken(op: ">=" | "<=", ms: number): Token {
-	return { neg: false, key: "duration", value: `${op}${String(Number(ms.toPrecision(DURATION_DIGITS)))}` };
+	return {
+		neg: false,
+		key: "duration",
+		value: `${op}${String(Number(ms.toPrecision(DURATION_DIGITS)))}`,
+	};
 }
 
 function TraceSession({
@@ -314,7 +324,7 @@ function TraceSession({
 				<ObsHero
 					view="traces"
 					title="Send your first trace"
-					body="Loco already collects traces. Add an OpenTelemetry SDK to your app and your traces will show up here."
+					body="Instrument your app to send traces. Loco configures the collector connection by default; you can also configure your SDK directly."
 					action={<WidenRangeButton />}
 				>
 					<TraceSetup />

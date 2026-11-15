@@ -81,18 +81,28 @@ func mountTelemetryDeployment(
 func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
 	for _, name := range []string{
 		envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes,
+		"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_METRICS_HEADERS", "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL",
 	} {
 		t.Run(name, func(t *testing.T) {
 			app := telemetryTestApplication()
 			r, _, _ := telemetrySecretFixture(t, app, name)
 			dep := mountTelemetryDeployment(t, r, app)
-			requireNoEnv(t, dep, name)
-			if name == envOTLPEndpoint || name == envOTLPProtocol {
-				requireNoEnv(t, dep, envOTLPEndpoint)
-				requireNoEnv(t, dep, envOTLPProtocol)
+			for _, injected := range []string{envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes} {
+				requireNoEnv(t, dep, injected)
 			}
 		})
 	}
+}
+
+func TestUnrelatedTelemetrySecretDoesNotSuppressInjection(t *testing.T) {
+	app := telemetryTestApplication()
+	r, _, _ := telemetrySecretFixture(t, app, "OTEL_LOG_LEVEL")
+	dep := mountTelemetryDeployment(t, r, app)
+	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
+	requireEnv(t, dep, envOTLPProtocol, otlpProtocolHTTP)
+	requireEnv(t, dep, envOTelServiceName, app.Spec.Slug)
+	requireEnv(t, dep, envOTelResourceAttributes,
+		"deployment.environment.name=production,loco.deployment.id="+testDeploymentID)
 }
 
 func TestMountedTelemetrySecretsKeepPlainAndLocoPrecedence(t *testing.T) {

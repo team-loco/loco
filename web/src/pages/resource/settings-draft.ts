@@ -4,6 +4,8 @@ import {
 	BuildSourceSchema,
 	DeploymentSpecSchema,
 	HealthCheckConfigSchema,
+	ObservabilityConfigSchema,
+	type ObservabilityConfig,
 	type DeploymentSpec,
 	type HealthCheckConfig,
 	type SourceCommit,
@@ -25,10 +27,20 @@ export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 const IMAGE_BUILD = "image";
 const WHOLE = /^\d+$/;
 
+export type ObservabilitySettings = Required<Pick<ObservabilityConfig, "injectOtel">>;
+
+function observabilitySettings(config: ObservabilityConfig | undefined): ObservabilitySettings {
+	if (config?.injectOtel === undefined) {
+		throw new Error("The API returned incomplete observability settings");
+	}
+	return { injectOtel: config.injectOtel };
+}
+
 export interface SettingsDraft {
 	name?: string;
 	description?: string;
 	image?: string;
+	observability?: ObservabilitySettings;
 	scaling?: Record<string, Scaling>;
 	cpu?: string;
 	memory?: string;
@@ -49,6 +61,7 @@ export interface Baseline {
 	name: string;
 	description: string;
 	image: string;
+	observability: ObservabilitySettings;
 	cpu: string;
 	memory: string;
 	port: string;
@@ -85,6 +98,7 @@ export function baseline(
 		name,
 		description,
 		image: svc?.build?.image ?? "",
+		observability: observabilitySettings(svc === undefined ? defaults.observability : svc.observability),
 		cpu: svc?.cpu ?? "",
 		memory: svc?.memory ?? "",
 		port: svc?.port?.toString() ?? "",
@@ -117,6 +131,7 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		name: draft.name ?? base.name,
 		description: draft.description ?? base.description,
 		image: draft.image ?? base.image,
+		observability: draft.observability ?? base.observability,
 		cpu: draft.cpu ?? base.cpu,
 		memory: draft.memory ?? base.memory,
 		port: draft.port ?? base.port,
@@ -155,6 +170,7 @@ export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	count += Object.keys(draft.secrets ?? {}).length;
 	count += (draft.removedSecrets ?? []).length;
 	if (next.isPublic !== base.isPublic) count++;
+	if (next.observability.injectOtel !== base.observability.injectOtel) count++;
 	return count;
 }
 
@@ -195,7 +211,8 @@ export function validateDraft(
 		errors.healthFailures = "A whole number, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
 	else if (regionMapChanged(draft, base) && planSave(regions, draft, base).length > 0)
-		errors.regions = "Save region, size and scaling changes separately from image, port, health and domain changes";
+		errors.regions =
+			"Save region, size and scaling changes separately from image, port, health, observability and domain changes";
 	if (domainsChange(draft, base) === "add") {
 		if (draft.platformDomain === undefined || !served.includes(draft.platformDomain))
 			errors.platformDomain = "No platform domain is served in every region";
@@ -235,6 +252,7 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 		svc.build = create(BuildSourceSchema, { type: IMAGE_BUILD, image: want.image.trim() });
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
+	if (draft.observability !== undefined) svc.observability = create(ObservabilityConfigSchema, want.observability);
 	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
 	return next;
 }

@@ -9370,6 +9370,10 @@
             "type": "integer",
             "title": "cpu_target",
             "format": "int32"
+          },
+          "observability": {
+            "title": "observability",
+            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "DefaultServiceConfig",
@@ -9944,6 +9948,21 @@
         "additionalProperties": false,
         "description": "ListDeploymentsResponse is the response containing deployment list."
       },
+      "loco.deployment.v1.ObservabilityConfig": {
+        "type": "object",
+        "properties": {
+          "injectOtel": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "inject_otel"
+          }
+        },
+        "title": "ObservabilityConfig",
+        "additionalProperties": false,
+        "description": "ObservabilityConfig controls automatic application SDK environment configuration.\n Omitted inject_otel defaults to true."
+      },
       "loco.deployment.v1.Port": {
         "type": "object",
         "properties": {
@@ -10168,6 +10187,11 @@
             "title": "run_as_group",
             "format": "int64",
             "description": "int64.lte = 2147483647\nint64.gt = 0\n"
+          },
+          "observability": {
+            "title": "observability",
+            "description": "Defaults to the resource settings when omitted; stored in the deployment snapshot.",
+            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "ServiceDeploymentSpec",
@@ -13692,6 +13716,11 @@
             ],
             "title": "health_check",
             "description": "health check defaults"
+          },
+          "observability": {
+            "title": "observability",
+            "description": "Application SDK environment injection defaults to true.",
+            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "ServiceSpec",

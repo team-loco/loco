@@ -91,4 +91,5 @@ message DefaultServiceConfig {
   int32 deploy_attempts = 6;
   int32 deploy_retry_delay_seconds = 7;
   int32 cpu_target = 8;
+  deployment.v1.ObservabilityConfig observability = 9;
 }

@@ -298,6 +298,34 @@ function regionNote(info: RegionInfo | undefined, deployed: boolean): ReactNode 
 	);
 }
 
+export function ObservabilitySection({ draft, base, locked, describedBy, onChange }: SectionProps) {
+	const next = draft.observability ?? base.observability;
+	return (
+		<SettingsBlock id="set-observability" title="Observability" hint="Changes apply on the next rollout.">
+			<div className="flex items-start justify-between gap-4">
+				<div className="flex min-w-0 flex-col gap-1">
+					<label htmlFor="observability-injectOtel" className="text-[13.5px] font-medium">
+						Configure SDK environment
+					</label>
+					<p id="observability-injectOtel-hint" className="m-0 text-[13px] text-fg3">
+						Use Loco's collector connection and identity defaults. Your OpenTelemetry exporter or identity variables
+						disable these defaults.
+					</p>
+				</div>
+				<Switch
+					id="observability-injectOtel"
+					checked={next.injectOtel}
+					disabled={locked}
+					aria-describedby={["observability-injectOtel-hint", describedBy].filter(Boolean).join(" ")}
+					onCheckedChange={(injectOtel: boolean) => {
+						onChange({ observability: { injectOtel } });
+					}}
+				/>
+			</div>
+		</SettingsBlock>
+	);
+}
+
 export function RegionsSection({
 	draft,
 	base,

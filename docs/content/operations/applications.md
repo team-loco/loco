@@ -55,14 +55,22 @@ By default, the controller sets these variables in every application container:
 | `LOCO_APP_NAME`, `LOCO_RESOURCE_ID`, `LOCO_WORKSPACE_ID`, `LOCO_DEPLOYMENT_ID` | the application's identifiers |
 | `LOCO_REGION`, `LOCO_ENVIRONMENT` | the region and environment the deployment targets |
 | `LOCO_INTERNAL_DOMAIN`, `LOCO_PUBLIC_DOMAIN` | the in-cluster hostname, and the public hostname or an empty string |
-| `LOCO_OTEL_HOST`, `LOCO_OTEL_GRPC_PORT`, `LOCO_OTEL_HTTP_PORT` | the region's OpenTelemetry collector hostname and its OTLP/gRPC and OTLP/HTTP ports |
+
+The `LOCO_*` variables cannot be overridden. Automatic application SDK environment configuration is enabled by default. Set `observability.injectOtel: false` in `loco.yaml`, or turn off **Configure SDK environment** in the resource's Observability settings, to manage SDK configuration yourself.
+
+When automatic environment configuration is enabled, Loco supplies these variables to instrumented applications whose SDK supports environment configuration:
+
+| Variable | Value |
+|---|---|
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` | the region's OpenTelemetry collector over OTLP/HTTP (`http/protobuf`) |
-| `OTEL_SERVICE_NAME` | the application's workload name, `resource-<resource id>` |
+| `OTEL_SERVICE_NAME` | the resource's logical name (its slug), such as `checkout` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
 
-An instrumented application whose OpenTelemetry SDK supports environment configuration uses these variables to export to Loco. The collector attaches the workspace, environment and resource IDs from the pod's labels and drops any values the application sends for them.
+Loco injects this entire set only when no plain environment variable or declared secret name matches `OTEL_EXPORTER_OTLP_*`, `OTEL_SERVICE_NAME` or `OTEL_RESOURCE_ATTRIBUTES`. Any matching name suppresses all four defaults, including signal-specific exporter variables and resource attributes that define `service.name`. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL` and `OTEL_TRACES_SAMPLER`, do not suppress injection. Plain values take precedence when the same name also appears in `secrets`.
 
-An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set with `loco env`, replaces Loco's connection or identity default when the name matches. Sampler variables pass directly to the SDK. Plain values take precedence when the same name also appears in `secrets`. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden. A plain value can reference them as `$(LOCO_OTEL_HOST)`; see [Variables and secrets](../deployment/loco-yaml.md#variables-and-secrets).
+Setting `injectOtel` to `false` removes the injected set on rollout and preserves user-supplied variables and secrets. It does not disable an SDK configured by the application or its image, or stop Loco from collecting telemetry sent to it. Loco does not inspect configuration inside the application or its image.
+
+For data sent to Loco, the collector attaches workspace, environment and resource IDs from pod labels and drops application-supplied values for those IDs.
 
 Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. In `CreateDeployment`, a nonempty environment map replaces the plain values. Omit `secret_bindings` to keep the current secret names. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings. To remove plain values, edit `loco.yaml` and apply it.
 

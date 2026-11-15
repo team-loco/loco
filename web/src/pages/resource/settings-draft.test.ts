@@ -6,6 +6,7 @@ import {
 	DeploymentSchema,
 	DeploymentSpecSchema,
 	HealthCheckConfigSchema,
+	ObservabilityConfigSchema,
 	ServiceDeploymentSpecSchema,
 	ScalersSchema,
 	type Deployment,
@@ -30,6 +31,7 @@ const EAST = "us-east-1";
 const WEST = "eu-west-1";
 const IMAGE = "ghcr.io/acme/shop:1.4.0";
 const SERVED = ["loco.example.com"];
+const OBSERVABILITY = { injectOtel: true };
 
 function deployment(id: string, regionName: string, replicas = 2): Deployment {
 	return create(DeploymentSchema, {
@@ -43,6 +45,7 @@ function deployment(id: string, regionName: string, replicas = 2): Deployment {
 			spec: {
 				case: "service",
 				value: create(ServiceDeploymentSpecSchema, {
+					observability: OBSERVABILITY,
 					build: { type: "image", image: IMAGE },
 					cpu: "250m",
 					memory: "512Mi",
@@ -66,7 +69,12 @@ function region(name: string, current: Deployment | undefined): RegionView {
 	return { name, status: undefined, history: current === undefined ? [] : [current], current };
 }
 
-const defaults = create(DefaultServiceConfigSchema, { cpuTarget: 65, minReplicas: 1, maxReplicas: 1 });
+const defaults = create(DefaultServiceConfigSchema, {
+	cpuTarget: 65,
+	minReplicas: 1,
+	maxReplicas: 1,
+	observability: OBSERVABILITY,
+});
 const scaling = (replicas: number, maxReplicas = replicas, cpuTarget = defaults.cpuTarget) => ({
 	replicas,
 	maxReplicas,
@@ -88,13 +96,39 @@ function target(cpu: string, replicas: number, enabled = true): RegionTarget {
 	});
 }
 
-const stored = { [EAST]: target("250m", 2), [WEST]: target("250m", 3), [SPARE]: target("1", 4, false) };
+const stored = {
+	[EAST]: target("250m", 2),
+	[WEST]: target("250m", 3),
+	[SPARE]: target("1", 4, false),
+};
 
 function plan(draft: SettingsDraft) {
 	return planSave(regions, draft, base);
 }
 
 describe("planSave", () => {
+	test("SDK environment configuration redeploys every running region and preserves application variables", () => {
+		expect(base.observability).toEqual(OBSERVABILITY);
+		const observability = { injectOtel: false };
+		expect(changeCount({ observability }, base)).toBe(1);
+		const changed = plan({ observability });
+		expect(changed.map((d) => d.region)).toEqual([EAST, WEST]);
+		for (const d of changed) {
+			const svc = getServiceSpec(create(DeploymentSchema, { spec: d.spec }));
+			expect(svc?.observability).toEqual(create(ObservabilityConfigSchema, observability));
+			expect(svc?.env).toEqual({ LOG_LEVEL: "info" });
+		}
+		expect(changeCount({ observability: OBSERVABILITY }, base)).toBe(0);
+	});
+
+	test("an undeployed resource uses the API observability defaults", () => {
+		const configured = create(DefaultServiceConfigSchema, {
+			...defaults,
+			observability: create(ObservabilityConfigSchema, { injectOtel: false }),
+		});
+		expect(baseline("shop", "", [], [EAST], true, configured).observability.injectOtel).toBe(false);
+	});
+
 	test("changing one region's image clears its own source commit", () => {
 		const first = deployment("one", EAST);
 		const second = deployment("two", WEST);
@@ -186,8 +220,14 @@ test("regionChanges names the regions a region map save rolls out and stops", ()
 
 test("the baseline shows a configured region that does not run here as on", () => {
 	const views = [region(EAST, deployment("east", EAST)), region(WEST, undefined)];
-	expect(baseline("shop", "", views, [EAST, WEST], true, defaults).regions).toEqual({ [EAST]: true, [WEST]: true });
-	expect(baseline("shop", "", views, [EAST], true, defaults).regions).toEqual({ [EAST]: true, [WEST]: false });
+	expect(baseline("shop", "", views, [EAST, WEST], true, defaults).regions).toEqual({
+		[EAST]: true,
+		[WEST]: true,
+	});
+	expect(baseline("shop", "", views, [EAST], true, defaults).regions).toEqual({
+		[EAST]: true,
+		[WEST]: false,
+	});
 });
 
 describe("changeCount", () => {
@@ -214,7 +254,7 @@ describe("validateDraft", () => {
 
 	test("saves region map changes apart from deployment changes", () => {
 		expect(validateDraft({ cpu: "1", image: "ghcr.io/acme/shop:1.5.0" }, base, regions, SERVED, 10).regions).toBe(
-			"Save region, size and scaling changes separately from image, port, health and domain changes",
+			"Save region, size and scaling changes separately from image, port, health, observability and domain changes",
 		);
 		expect(validateDraft({ cpu: "1", scaling: { [EAST]: scaling(4) } }, base, regions, SERVED, 10)).toEqual({});
 	});

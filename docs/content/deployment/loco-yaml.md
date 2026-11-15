@@ -177,16 +177,34 @@ loco deploy web --image ghcr.io/acme/web:release --env production --yes
 
 This command skips all source builds and uploads, including builds for other services. It still plans and applies the whole file with the normal import and destructive-operation confirmations. Other services can change, and new source services may still require their initial build. An unknown service, a service disabled in the selected environment, multiple service names or an empty image reference is an error. Image resolution errors stop the deploy before apply.
 
+## Observability
+
+Loco configures instrumented applications to export telemetry to its collector by default. Disable automatic SDK environment configuration for a resource or an environment:
+
+```yaml
+services:
+  checkout:
+    observability:
+      injectOtel: true
+    environments:
+      staging:
+        observability:
+          injectOtel: false
+```
+
+`injectOtel` defaults to `true`. Loco supplies the collector endpoint, protocol, service name and resource attributes as one set. If a plain environment variable or declared secret name matches `OTEL_EXPORTER_OTLP_*`, `OTEL_SERVICE_NAME` or `OTEL_RESOURCE_ATTRIBUTES`, Loco injects none of that set. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL` or sampler settings, do not suppress injection. See [Runtime environment](../operations/applications.md#runtime-environment) for the supplied values.
+
+Application code must already include the SDK and instrumentation. Setting `injectOtel` to `false` leaves SDK configuration to the application; it does not disable telemetry collection. Environment overrides replace the resource's injection preference. Saving the setting creates a deployment snapshot and rolls out the resource.
+
 ## Variables and secrets
 
 `env` holds plain values, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.
 
-A plain value can reference a variable Loco sets, listed in [Runtime environment](../operations/applications.md#runtime-environment), as `$(NAME)`; Kubernetes expands it when the container starts. Use it for software that takes the collector address in its own variables:
+A plain value can reference a variable Loco sets, listed in [Runtime environment](../operations/applications.md#runtime-environment), as `$(NAME)`; Kubernetes expands it when the container starts:
 
 ```yaml
 env:
-  OTEL_COLLECTOR_HOST: $(LOCO_OTEL_HOST)
-  OTEL_COLLECTOR_PORT_GRPC: $(LOCO_OTEL_GRPC_PORT)
+  DEPLOYMENT_REVISION: $(LOCO_DEPLOYMENT_ID)
 ```
 
 `$$(NAME)` produces a literal `$(NAME)`.
