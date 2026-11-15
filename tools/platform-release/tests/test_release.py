@@ -608,3 +608,111 @@ def test_other_worker_dependency_bump_leaves_gateway_crds_alone(repository):
 def test_repository_versions_are_valid():
     versions = release.versions()
     assert set(versions) == set(release.repositories(release.Registry("example/platform", "", ""))) - {"platform"}
+
+
+def test_local_registry_uses_http_and_basic_auth():
+    registry = release.Registry("example/platform", "push", "secret", "localhost:15000")
+    challenge = urllib.error.HTTPError(
+        "http://localhost:15000", 401, "auth", {"WWW-Authenticate": 'Basic realm="zot"'}, io.BytesIO(b"")
+    )
+    manifest = io.BytesIO(b'{"schemaVersion":2}')
+    manifest.headers = {}
+    with patch("urllib.request.urlopen", side_effect=[challenge, manifest]) as request:
+        registry.manifest("example/platform/chart", "0.7.0")
+    retried = request.call_args_list[1].args[0]
+    assert retried.full_url == "http://localhost:15000/v2/example/platform/chart/manifests/0.7.0"
+    assert retried.get_header("Authorization") == "Basic cHVzaDpzZWNyZXQ="
+
+
+def test_basic_challenge_without_credentials_fails():
+    registry = release.Registry("example/platform", "", "", "localhost:15000")
+    challenge = urllib.error.HTTPError(
+        "http://localhost:15000", 401, "auth", {"WWW-Authenticate": 'Basic realm="zot"'}, io.BytesIO(b"")
+    )
+    with patch("urllib.request.urlopen", side_effect=challenge):
+        with pytest.raises(RuntimeError, match="unexpected registry authentication challenge"):
+            registry.manifest("example/platform/chart", "0.7.0")
+
+
+def test_replacing_publish_skips_the_absence_checks(registry):
+    with (
+        patch.object(registry, "assert_absent") as absent,
+        patch.object(registry, "blob", return_value="sha256:" + "a" * 64),
+        patch.object(registry, "request") as request,
+        patch.object(registry, "manifest", side_effect=lambda *args: release.digest(request.call_args.kwargs["data"])),
+    ):
+        registry.publish("example/platform/chart", "0.0.0-local.gabc", release.archive({}), {}, replace=True)
+    absent.assert_not_called()
+
+
+def test_main_release_uses_the_newest_commit_with_every_image(publication, capsys):
+    older, newer = "c" * 40, "d" * 40
+    publication.registry.manifest.side_effect = lambda repository, reference, missing=False: (
+        None if missing and reference == "sha-" + newer and repository.endswith("-ui") else "sha256:" + "a" * 64
+    )
+    commands = partial(_command, publication)
+    with patch.object(release, "run", side_effect=lambda *args: f"{newer}\n{older}" if args[1] == "rev-list" else commands(*args)):
+        release.main_release(None, publication.registry)
+    lock = json.loads(capsys.readouterr().out)
+    assert lock["coreCommit"] == older
+    assert lock["version"] == "0.0.0-main.g" + older[:12]
+    assert set(lock["images"]) == set(release.IMAGES)
+    release.versions.assert_called_once_with(older)
+
+
+def test_main_release_verifies_each_image_attestation(publication):
+    with patch("builtins.print"):
+        release.main_release(publication.commit, publication.registry)
+    attestations = [call for call in publication.calls if call[:3] == ("gh", "attestation", "verify")]
+    assert len(attestations) == len(release.IMAGES)
+    assert ("git", "merge-base", "--is-ancestor", publication.commit, "origin/main") in publication.calls
+
+
+def test_main_release_publishes_nothing(publication):
+    with patch("builtins.print"):
+        release.main_release(publication.commit, publication.registry)
+    publication.registry.publish.assert_not_called()
+    publication.registry.ensure.assert_not_called()
+
+
+@pytest.fixture
+def local_release(publication, capsys):
+    publication.registry.host = "localhost:15000"
+    publication.registry.username = "push"
+    publication.registry.password = "secret"
+    commands = partial(_command, publication)
+    with patch.object(release, "run", side_effect=lambda *args: publication.commit if args[:2] == ("git", "rev-parse") else commands(*args)):
+        release.local_release(publication.registry, "registry.example.localhost:15000")
+    publication.lock = json.loads(capsys.readouterr().out)
+    return publication
+
+
+def test_local_release_replaces_each_artifact_at_the_local_version(local_release):
+    names = release.repositories(local_release.registry)
+    version = "0.0.0-local.g" + local_release.commit[:12]
+    published = {call.args[0]: (call.args[1], call.kwargs) for call in local_release.registry.publish.call_args_list}
+    assert published == {names[name]: (version, {"replace": True}) for name in VERSIONS}
+    local_release.registry.ensure.assert_not_called()
+
+
+def test_local_release_builds_and_pushes_each_image(local_release):
+    version = "0.0.0-local.g" + local_release.commit[:12]
+    builds = [call for call in local_release.calls if call[:2] == ("docker", "build")]
+    pushes = [call for call in local_release.calls if "push" in call and call[0] == "docker"]
+    assert [call[-2:] for call in builds] == [
+        ("localhost:15000/example/platform-" + name + ":" + version, ".") for name in release.IMAGES
+    ]
+    assert [call[-1] for call in pushes] == [
+        "localhost:15000/example/platform-" + name + ":" + version for name in release.IMAGES
+    ]
+    assert not [call for call in local_release.calls if call[:2] == ("gh", "attestation")]
+
+
+def test_local_release_names_everything_at_the_cluster_address(local_release):
+    assert local_release.lock["version"] == "0.0.0-local.g" + local_release.commit[:12]
+    assert local_release.lock["coreCommit"] == local_release.commit
+    references = [*local_release.lock["artifacts"].values(), *local_release.lock["images"].values()]
+    assert len(references) == len(VERSIONS) + len(release.IMAGES)
+    for reference in references:
+        assert reference.startswith("registry.example.localhost:15000/example/platform")
+        assert "@sha256:" in reference
