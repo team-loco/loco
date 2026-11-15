@@ -108,6 +108,7 @@ docker:
     - "docker-bake.hcl"
     - "mise-tasks/lint/versions"
     - "mise-tasks/test/platform-binaries"
+    - "mise-tasks/images/**"
     - "tools/platform-images/**"
     - "mise.toml"
     - "mise.lock"

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#MISE description="Build the static Linux binaries of the Go images for GOARCH, the host's by default, into the directory docker-bake.hcl's BINARIES names: images:binaries <dir> <version>"
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+	echo "usage: mise run images:binaries <dir> <version>" >&2
+	exit 2
+fi
+mkdir -p "$1"
+out=$(cd "$1" && pwd)
+root=$(git rev-parse --show-toplevel)
+stamp="-X main.version=$2"
+export CGO_ENABLED=0 GOOS=linux
+
+build() {
+	local module=$1 binary=$2 package=$3
+	shift 3
+	go -C "$root/$module" build "$@" -o "$out/$binary" "$package"
+}
+
+# One build at a time shares the compiled dependencies through the Go build cache.
+build controller manager ./cmd -ldflags "$stamp"
+build api loco-api . -ldflags "$stamp"
+build agent loco-agent . -ldflags "$stamp"
+build builder loco-builder . -trimpath -ldflags "$stamp"
+build observability-proxy loco-obs-proxy . -ldflags "$stamp"
+build tests/e2e/fixtures/api-failover api-failover . -ldflags "$stamp"
+build cmd locoadm ./locoadm -ldflags "$stamp"
+build cmd loco ./loco -ldflags "$stamp"
+build . installation-e2e ./tools/installation-e2e

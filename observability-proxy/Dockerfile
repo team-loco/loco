@@ -21,12 +21,12 @@ COPY internal ./internal
 WORKDIR /app/observability-proxy
 # Declared after the module download, which a new VERSION leaves cached.
 ARG VERSION
-RUN --mount=type=cache,target=/root/.cache/go-build go build -ldflags "-X main.version=${VERSION}" -o loco-obs-proxy .
+RUN --mount=type=cache,target=/root/.cache/go-build go build -ldflags "-X main.version=${VERSION}" -o /loco-obs-proxy .
 
 FROM gcr.io/distroless/static:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
 WORKDIR /
 
-COPY --from=builder /app/observability-proxy/loco-obs-proxy .
+COPY --from=builder /loco-obs-proxy /loco-obs-proxy
 USER 65532:65532
 
 ENTRYPOINT ["/loco-obs-proxy"]
