@@ -3,7 +3,6 @@ package platform
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -188,27 +187,6 @@ func (p *Platform) Application(ctx context.Context, resourceID string) (*v1alpha
 		return nil, err
 	}
 	return &application, nil
-}
-
-var errNotReady = errors.New("not Ready")
-
-// WaitReady waits until the workspace's resource name has an Application in phase Ready.
-func (w *Workspace) WaitReady(tb testing.TB, name string) {
-	tb.Helper()
-	Eventually(tb, readyTimeout, name+" to be Ready", func(ctx context.Context) error {
-		resource, err := w.Resource(ctx, name)
-		if err != nil {
-			return err
-		}
-		application, err := w.p.Application(ctx, resource.GetId())
-		if err != nil {
-			return err
-		}
-		if application.Status.Phase != "Ready" {
-			return fmt.Errorf("%w: phase %q", errNotReady, application.Status.Phase)
-		}
-		return nil
-	})
 }
 
 // WriteLocoFile writes file as dir/loco.yaml.

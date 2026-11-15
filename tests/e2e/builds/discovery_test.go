@@ -73,10 +73,7 @@ func TestDiscovery(t *testing.T) {
 	platform.WriteLocoFile(t, dir, file)
 
 	t.Run("deploys private HTTP and TCP services", func(t *testing.T) {
-		w.MustLoco(t, dir, "deploy", "--yes")
-		for _, name := range []string{cartName, callerName, "payment"} {
-			w.WaitReady(t, name)
-		}
+		w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 		var deployment appsv1.Deployment
 		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, "payment"))
 		container := deployment.Spec.Template.Spec.Containers[0]
@@ -294,9 +291,7 @@ func (d *discovery) otherWorkspace(t *testing.T) {
 			},
 		}},
 	)
-	other.MustLoco(t, otherDir, "deploy", "--yes")
-	other.WaitReady(t, cartName)
-	other.WaitReady(t, callerName)
+	other.MustLoco(t, otherDir, "deploy", "--yes", "--wait")
 	if out, err := callHTTP(
 		t.Context(),
 		other,

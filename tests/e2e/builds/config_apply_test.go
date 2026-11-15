@@ -65,7 +65,7 @@ func TestConfigApply(t *testing.T) {
 	}
 	apply := func(t *testing.T, args ...string) string {
 		t.Helper()
-		return loco(t, append([]string{"infra", "apply", "--env", platform.Production, "--yes"}, args...)...)
+		return loco(t, append([]string{"infra", "apply", "--env", platform.Production, "--yes", "--wait"}, args...)...)
 	}
 	edit := func(t *testing.T, change func(*locofile.File)) {
 		t.Helper()
@@ -91,7 +91,6 @@ func TestConfigApply(t *testing.T) {
 		}
 		requireMatch(t, out, "Started deployment .* for "+configCache)
 		requireDeploymentOrigin(t, w, repo, configCache, false)
-		w.WaitReady(t, configCache)
 		requireContains(t, plan(t), "needs deploy")
 	})
 
@@ -100,13 +99,11 @@ func TestConfigApply(t *testing.T) {
 			t.Fatal(err)
 		}
 		started := time.Now()
-		out := loco(t, "deploy", "--env", platform.Production, "--yes")
+		out := loco(t, "deploy", "--env", platform.Production, "--yes", "--wait")
 		t.Logf("loco deploy took %s", time.Since(started))
 		requireDeploymentOrigin(t, w, repo, configWeb, true)
 		requireContains(t, out, "Building "+configWeb+" from deploy/Dockerfile in services/web", "succeeded in",
 			configWeb+": https://"+platform.Host(configWeb))
-		w.WaitReady(t, configWeb)
-		w.WaitReady(t, configCache)
 	})
 
 	t.Run("a second plan is clean", func(t *testing.T) {
@@ -132,14 +129,7 @@ func TestConfigApply(t *testing.T) {
 		requireProbes(t, w, configCache, false)
 		removeOverrideHealth(t, repo, configWeb)
 		apply(t)
-		platform.Eventually(
-			t,
-			2*time.Minute,
-			"the HTTP probes to give way to the TCP readiness probe",
-			func(ctx context.Context) error {
-				return probesMatch(ctx, w, configWeb, false)
-			},
-		)
+		requireProbes(t, w, configWeb, false)
 		requireContains(t, plan(t), "No changes")
 		// The typed file cannot hold an explicit null; without health anywhere it plans the same.
 		edit(t, func(f *locofile.File) {
@@ -160,7 +150,6 @@ func TestConfigApply(t *testing.T) {
 	})
 
 	t.Run("scaling targets reach the worker", func(t *testing.T) {
-		waitCacheRunning(t, w)
 		for _, target := range []int32{70, 60} {
 			edit(t, func(f *locofile.File) {
 				setRegion(
@@ -178,7 +167,6 @@ func TestConfigApply(t *testing.T) {
 					return autoscalerMatches(ctx, w, target)
 				},
 			)
-			waitCacheRunning(t, w)
 		}
 		edit(t, func(f *locofile.File) { setRegion(f, configCache, func(r *locofile.Region) { r.Autoscaling = nil }) })
 		apply(t)
@@ -189,7 +177,6 @@ func TestConfigApply(t *testing.T) {
 			}
 			return nil
 		})
-		waitCacheRunning(t, w)
 	})
 
 	t.Run("removing a service deletes it", func(t *testing.T) {
@@ -373,22 +360,6 @@ func setRegion(f *locofile.File, service string, change func(*locofile.Region)) 
 	change(&region)
 	s.Regions[p.Region] = region
 	f.Services[service] = s
-}
-
-func waitCacheRunning(t *testing.T, w *platform.Workspace) {
-	t.Helper()
-	platform.Eventually(t, time.Minute, "the cache's active deployment to run", func(ctx context.Context) error {
-		var count int
-		if err := p.DB.QueryRow(ctx, `SELECT count(*) FROM deployments d JOIN resources r ON r.id = d.resource_id
-			WHERE r.workspace_id = $1 AND r.name = $2 AND d.is_active AND d.status = 'running'`,
-			w.ID, configCache).Scan(&count); err != nil {
-			return err
-		}
-		if count != 1 {
-			return fmt.Errorf("%d running active deployments", count)
-		}
-		return nil
-	})
 }
 
 func autoscalerMatches(ctx context.Context, w *platform.Workspace, target int32) error {

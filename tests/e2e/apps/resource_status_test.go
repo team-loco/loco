@@ -27,7 +27,6 @@ import (
 const (
 	statusTimeout     = 3 * time.Minute
 	revisionTimeout   = time.Minute
-	rolloutFailure    = 4 * time.Minute
 	suspensionReason  = "e2e suspension"
 	rolloutRejection  = "a deployment is rolling out; wait for it to finish before changing this service"
 	placementRevision = "loco.io/placement-revision"
@@ -86,13 +85,13 @@ func TestResourceStatus(t *testing.T) {
 			workerDir,
 			"deploy",
 			"--yes",
+			"--wait",
 		).Stdout; !strings.Contains(
 			out,
 			"has no port, so it runs as a worker",
 		) {
 			t.Errorf("loco deploy does not say the worker takes no traffic:\n%s", out)
 		}
-		waitRolloutFinished(t, w, worker)
 		workerID := w.ResourceID(t, worker)
 		for _, pod := range appPods(t, w, "app=resource-"+workerID) {
 			if pod.Spec.Containers[0].ReadinessProbe != nil {
@@ -213,17 +212,13 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 
 	file.Services[app] = withImage(file.Services[app], p.CrashingImage)
 	platform.WriteLocoFile(t, dir, file)
-	w.MustLoco(t, dir, "deploy", "--yes")
-	platform.Eventually(t, rolloutFailure, "the crashing deployment to fail", func(ctx context.Context) error {
-		current, err := statusOf(ctx, w, app)
-		if err != nil {
-			return err
-		}
-		if current.region.GetDeploymentStatus() != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED {
-			return fmt.Errorf("deployment %v", current.region.GetDeploymentStatus())
-		}
-		return nil
-	})
+	crashing := w.Loco(t.Context(), dir, nil, "deploy", "--yes", "--wait")
+	newDeployment := regionStatus(t, w, app).GetDeploymentId()
+	failure := fmt.Sprintf("deployment %s for %s in %s failed", newDeployment, app, p.Region)
+	if crashing.Err == nil || !strings.Contains(strings.Join(strings.Fields(crashing.Output()), " "), failure) {
+		t.Errorf("loco deploy --wait of the crashing version: %v, want an error naming %q:\n%s",
+			crashing.Err, failure, crashing.Output())
+	}
 	restarts, _ := newPodState(t, w, selector, oldHash)
 	// A replica that counted as available during another run would replace an old one.
 	platform.Eventually(t, 2*time.Minute, "the crashing version to start and exit again", func(context.Context) error {
@@ -267,7 +262,6 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	if newPods > 1 {
 		t.Errorf("%d replicas of the new version exist, want at most one", newPods)
 	}
-	newDeployment := regionStatus(t, w, app).GetDeploymentId()
 	if status := getDeployment(
 		t,
 		newDeployment,

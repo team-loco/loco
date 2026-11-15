@@ -59,7 +59,7 @@ func TestIngress(t *testing.T) {
 				Services: map[string]locofile.Service{name: platform.ImageService(p.PublicImage, domains...)},
 			},
 		)
-		return w.MustLoco(t, dir, "deploy", "--yes").Stdout
+		return w.MustLoco(t, dir, "deploy", "--yes", "--wait").Stdout
 	}
 
 	t.Run("deploys with and without a domain", func(t *testing.T) {
@@ -72,11 +72,6 @@ func TestIngress(t *testing.T) {
 		if domains := resourceDomains(t, w, private); len(domains) != 0 {
 			t.Errorf("the private resource has domains %v", domains)
 		}
-	})
-
-	t.Run("both apps become ready", func(t *testing.T) {
-		w.WaitReady(t, public)
-		w.WaitReady(t, private)
 	})
 
 	publicID, privateID := w.ResourceID(t, public), w.ResourceID(t, private)
@@ -169,7 +164,7 @@ func TestIngress(t *testing.T) {
 			return nil
 		})
 		requireObject(t, w, "networkpolicy", "resource-"+publicID+"-gateway", false)
-		w.WaitReady(t, public)
+		waitRolloutFinished(t, w, public)
 		if gatewayReaches(t, w, publicID, "lost") {
 			t.Error("a gateway pod still reaches the app that lost its domain")
 		}

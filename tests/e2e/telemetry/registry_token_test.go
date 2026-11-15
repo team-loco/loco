@@ -119,7 +119,7 @@ func deploySource(t *testing.T, w *platform.Workspace, app, label string) {
 		dir,
 		locofile.File{Partial: app, Services: map[string]locofile.Service{app: platform.SourceService()}},
 	)
-	w.MustLoco(t, dir, "deploy", "--yes")
+	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 }
 
 func writeSource(t *testing.T, dir, label string) {
@@ -389,7 +389,6 @@ func (r *registryRun) firstDeploys(t *testing.T) {
 		firstBuild[w] = latestBuild(t, w, app)
 	}
 	for w, app := range map[*platform.Workspace]string{a: appA, b: appB} {
-		w.WaitReady(t, app)
 		platform.Eventually(
 			t,
 			deployTimeout,
@@ -553,7 +552,6 @@ func (r *registryRun) secondDeploy(t *testing.T) {
 	) {
 		t.Errorf("the second build's fetch step did not import the cache:\n%s", logs)
 	}
-	a.WaitReady(t, appA)
 }
 
 func (r *registryRun) sweeper(t *testing.T) {
