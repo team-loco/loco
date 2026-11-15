@@ -8,8 +8,8 @@
 # them runs.
 #
 # A pass of a workflow on the same inputs stands in for running it: the tree
-# entries of the files its pull_request paths match (its push paths when it has
-# none), its workflow file, ci.yml and mise.lock. `reuse: false` marks a
+# entries of the files its pull_request paths match, its workflow file, ci.yml
+# and mise.lock. `reuse: false` marks a
 # workflow whose result depends on more than those files, such as the pull
 # request it comments on, what it publishes or an advisory database; a
 # workflow with a `for` list never reuses a pass.
@@ -25,6 +25,9 @@ auth-conformance:
     - "mise-tasks/test/auth-conformance"
     - "mise-tasks/test/auth-invitations"
     - ".github/workflows/auth-conformance.yml"
+    - ".github/actions/setup-tools/**"
+    - "mise.toml"
+    - "mise.lock"
   push: *auth-conformance
 
 buf:
@@ -180,6 +183,7 @@ docs:
     - "mise.lock"
     - ".github/workflows/docs.yml"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/setup-playwright/**"
   push: *docs
 
 e2e:
@@ -379,6 +383,9 @@ transit-conformance:
     - "charts/loco-control-plane/values.yaml"
     - "mise-tasks/test/transit-conformance"
     - ".github/workflows/transit-conformance.yml"
+    - ".github/actions/setup-tools/**"
+    - "mise.toml"
+    - "mise.lock"
   push: *transit-conformance
 
 web:
@@ -418,6 +425,7 @@ web:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/setup-playwright/**"
   push: *web
 
 workflows:

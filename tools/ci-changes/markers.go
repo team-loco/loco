@@ -1,19 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
-	"net/url"
+	"os/exec"
 	"slices"
 	"strings"
 	"sync"
-	"time"
 )
 
 const markerPrefix = "ci-pass-"
@@ -28,7 +26,7 @@ type markerLookup func(ctx context.Context, key string) (bool, error)
 
 // markerKeys returns, for each selected workflow that may reuse a pass, the
 // cache key of a pass on the checked-out tree: a hash of the workflow name and
-// the tree entries of its paths, its workflow file and markerInputs.
+// the tree entries of its pull request paths, its workflow file and markerInputs.
 func markerKeys(ctx context.Context, dir string, all filters, selected map[string]bool) (map[string]string, error) {
 	keys := map[string]string{}
 	var entries []treeEntry
@@ -42,18 +40,9 @@ func markerKeys(ctx context.Context, dir string, all filters, selected map[strin
 				return nil, err
 			}
 		}
-		keys[workflow] = markerKey(workflow, w.inputs(), entries)
+		keys[workflow] = markerKey(workflow, w.events["pull_request"], entries)
 	}
 	return keys, nil
-}
-
-// inputs is the filter a workflow's pass depends on: its pull request paths,
-// which describe what it checks, or its push paths when it has none.
-func (w workflowFilter) inputs() filter {
-	if f, ok := w.events["pull_request"]; ok {
-		return f
-	}
-	return w.events["push"]
 }
 
 type treeEntry struct {
@@ -121,36 +110,24 @@ type cacheEntry struct {
 }
 
 // cacheLookup finds a key among the caches of refs, the refs whose caches
-// this run could restore.
-func cacheLookup(apiURL, repository, token string, refs []string) markerLookup {
-	client := &http.Client{Timeout: 10 * time.Second}
+// this run could restore. gh reads the repository from GH_REPO and the token
+// from GH_TOKEN.
+func cacheLookup(refs []string) markerLookup {
 	return func(ctx context.Context, key string) (bool, error) {
 		for _, ref := range refs {
-			query := url.Values{"key": {key}, "ref": {ref}}
-			endpoint := fmt.Sprintf("%s/repos/%s/actions/caches?%s", apiURL, repository, query.Encode())
-			//nolint:gosec // the runner sets the API URL and repository
-			request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+			cmd := exec.CommandContext(ctx, "gh", "cache", "list", "--key", key, "--ref", ref, "--json", "key")
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			out, err := cmd.Output()
 			if err != nil {
-				return false, err
+				return false, fmt.Errorf("gh cache list --ref %s: %w: %s", ref, err, stderr.String())
 			}
-			request.Header.Set("Authorization", "Bearer "+token)
-			request.Header.Set("Accept", "application/vnd.github+json")
-			response, err := client.Do(request) //nolint:gosec // the runner sets the API URL and repository
-			if err != nil {
-				return false, err
+			var caches []cacheEntry
+			if err := json.Unmarshal(out, &caches); err != nil {
+				return false, fmt.Errorf("gh cache list --ref %s: %w", ref, err)
 			}
-			var body struct {
-				Caches []cacheEntry `json:"actions_caches"`
-			}
-			err = errors.Join(json.NewDecoder(response.Body).Decode(&body), response.Body.Close())
-			if response.StatusCode != http.StatusOK {
-				return false, fmt.Errorf("list caches of %s: %s", ref, response.Status)
-			}
-			if err != nil {
-				return false, err
-			}
-			// The key parameter matches by prefix.
-			if slices.ContainsFunc(body.Caches, func(c cacheEntry) bool { return c.Key == key }) {
+			// --key matches by prefix.
+			if slices.ContainsFunc(caches, func(c cacheEntry) bool { return c.Key == key }) {
 				return true, nil
 			}
 		}

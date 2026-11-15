@@ -78,13 +78,13 @@ review:
 	require.NoError(t, err)
 
 	assert.Equal(t, map[string]bool{release: true, review: false},
-		selectWorkflows(filters, "pull_request", []string{"mise.toml"}))
+		withUsers(filters, selectOwn(filters, "pull_request", []string{"mise.toml"})))
 	assert.Equal(t, map[string]bool{release: false, review: false},
-		selectWorkflows(filters, "push", []string{"mise.toml"}), "the push list omits mise.toml")
+		withUsers(filters, selectOwn(filters, "push", []string{"mise.toml"})), "the push list omits mise.toml")
 	assert.Equal(t, map[string]bool{release: true, review: false},
-		selectWorkflows(filters, "push", nil), "a workflow without a push list never runs on push")
+		withUsers(filters, selectOwn(filters, "push", nil)), "a workflow without a push list never runs on push")
 	assert.Equal(t, map[string]bool{release: false, review: false},
-		selectWorkflows(filters, "pull_request", []string{}))
+		withUsers(filters, selectOwn(filters, "pull_request", []string{})))
 }
 
 func TestWorkflowRunsWheneverAWorkflowItIsForRuns(t *testing.T) {
@@ -105,11 +105,11 @@ docs:
 	require.NoError(t, err)
 
 	assert.Equal(t, map[string]bool{images: true, e2e: false, charts: true, docs: false},
-		selectWorkflows(filters, "pull_request", []string{"charts/a.yaml"}))
+		withUsers(filters, selectOwn(filters, "pull_request", []string{"charts/a.yaml"})))
 	assert.Equal(t, map[string]bool{images: false, e2e: false, charts: false, docs: true},
-		selectWorkflows(filters, "pull_request", []string{"docs/a.md"}))
+		withUsers(filters, selectOwn(filters, "pull_request", []string{"docs/a.md"})))
 	assert.Equal(t, map[string]bool{images: true, e2e: false, charts: false, docs: false},
-		selectWorkflows(filters, "push", []string{"docs/a.md"}), "its own push list still applies")
+		withUsers(filters, selectOwn(filters, "push", []string{"docs/a.md"})), "its own push list still applies")
 }
 
 func TestLoadRejectsAnUnknownUser(t *testing.T) {
