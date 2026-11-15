@@ -447,9 +447,17 @@ func (p *Platform) setupPublicImages(ctx context.Context) error {
 	}
 	source := fromImage(p.root, "tests/e2e/fixtures/public-image/Dockerfile")
 	p.PublicImage = host + "/public-image:e2e"
+	p.AlternatePortImage = host + "/public-image:e2e-port-9090"
 	p.CrashingImage = host + "/public-image:e2e-crashing"
 	p.WorkerImage = host + "/public-image:e2e-worker"
 	if err = mirrorImage(ctx, source, p.PublicImage, nil); err != nil {
+		return err
+	}
+	if err = mirrorImage(ctx, p.PublicImage, p.AlternatePortImage, []string{"sh", "-ec",
+		`sed 's@/etc/nginx/conf.d/\*.conf@/tmp/e2e-server.conf@' /etc/nginx/nginx.conf > /tmp/e2e-nginx.conf
+sed 's/8080/9090/g' /etc/nginx/conf.d/default.conf > /tmp/e2e-server.conf
+exec nginx -c /tmp/e2e-nginx.conf -g 'daemon off;'`,
+	}); err != nil {
 		return err
 	}
 	if err = mirrorImage(ctx, p.PublicImage, p.CrashingImage, []string{"sh", "-c", "sleep 5; exit 1"}); err != nil {

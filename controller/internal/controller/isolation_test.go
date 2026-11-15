@@ -8,6 +8,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
@@ -175,7 +176,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(
 			policy.Spec.PodSelector.MatchLabels,
 		).To(Equal(map[string]string{labelApp: testAppName(app)}))
-		Expect(policy.Spec.Ingress[0].Ports[0].Port.IntVal).To(Equal(int32(8000)))
+		Expect(*policy.Spec.Ingress[0].Ports[0].Port).To(Equal(intstr.FromString("http")))
 		gatewayPods := policy.Spec.Ingress[0].From[0].PodSelector.MatchLabels
 		Expect(gatewayPods).To(HaveKeyWithValue(labelGatewayName, testGateway))
 		gatewayNamespace := policy.Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels

@@ -63,6 +63,7 @@ const (
 	envRegion               = "LOCO_REGION"
 	componentApplication    = "application"
 	servicePort             = int32(80)
+	applicationPortName     = "http"
 	deployingRequeue        = 15 * time.Second
 	envSecretRequeue        = 5 * time.Second
 	maxConcurrentReconciles = 4
@@ -529,9 +530,9 @@ func (r *ApplicationReconciler) ensureService(ctx context.Context, app *locov1al
 	labels := managedLabels(app)
 	annotations := ownerAnnotations(app)
 	selector := map[string]string{labelApp: name}
-	targetPort := intstr.FromInt32(containerPort)
+	targetPort := intstr.FromString(applicationPortName)
 	port := corev1ac.ServicePort().
-		WithName("http").
+		WithName(applicationPortName).
 		WithProtocol(corev1.ProtocolTCP).
 		WithPort(servicePort).
 		WithTargetPort(targetPort)
@@ -726,7 +727,7 @@ func podTemplate(
 	if spec.Deployment.Port != nil {
 		containerPort := *spec.Deployment.Port
 		port := corev1ac.ContainerPort().
-			WithName("http").
+			WithName(applicationPortName).
 			WithContainerPort(containerPort).
 			WithProtocol(corev1.ProtocolTCP)
 		container.WithPorts(port)

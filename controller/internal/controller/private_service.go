@@ -51,7 +51,7 @@ func (r *ApplicationReconciler) ensurePrivateService(ctx context.Context, app *l
 	}
 	namespace := r.workspaceNamespace(app)
 	port := *app.Spec.ServiceSpec.Deployment.Port
-	targetPort := intstr.FromInt32(port)
+	targetPort := intstr.FromString(applicationPortName)
 	ports := []corev1.ServicePort{
 		{Name: privateServiceDefaultPortName, Protocol: corev1.ProtocolTCP, Port: servicePort, TargetPort: targetPort},
 	}

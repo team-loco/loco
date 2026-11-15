@@ -68,11 +68,12 @@ type Platform struct {
 	RegistryRealm   string
 	RegistryService string
 	S3Endpoint      string
-	// PublicImage runs a web server on 8080; CrashingImage exits a few seconds after it starts
-	// without listening; WorkerImage runs without listening.
-	PublicImage   string
-	CrashingImage string
-	WorkerImage   string
+	// PublicImage runs a web server on 8080; AlternatePortImage runs it on 9090.
+	// CrashingImage exits a few seconds after it starts without listening; WorkerImage never listens.
+	PublicImage        string
+	AlternatePortImage string
+	CrashingImage      string
+	WorkerImage        string
 
 	// User and Admin call the API as the application user and the configured system admin.
 	User      *rpc.Clients
