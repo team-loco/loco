@@ -1,0 +1,46 @@
+# validate checks the file against the embedded JSON Schema, naming each field and the values it accepts.
+exec loco infra validate
+stdout 'loco.yaml is valid'
+
+! exec loco infra validate small.yaml
+stderr 'Invalid small.yaml:'
+stderr 'services.api.regions.us-east-1.cpu: "50m" is not accepted. CPU per replica, from 100m to 2000m'
+stderr 'services.api.environments.prod.regions.us-east-1.memory: "16Mi" is not accepted. Memory per replica, from 32Mi to'
+! stdout .
+
+! exec loco infra validate unknown.yaml
+stderr 'unknown key: services.api.regions.us-east-1.disk'
+! stdout .
+
+-- loco.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 32Mi, replicas: { min: 1, max: 10 } }
+    environments:
+      prod:
+        regions:
+          us-east-1: { cpu: "2", memory: 4Gi }
+-- small.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 50m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+    environments:
+      prod:
+        regions:
+          us-east-1: { memory: 16Mi }
+-- unknown.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, disk: 10Gi, replicas: { min: 1, max: 1 } }

@@ -51,9 +51,9 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 - **`tests/e2e/`**: End-to-end suites that build and exercise Loco on kind clusters.
 - **`tests/ui/`**: Dashboard suites that each start a throwaway API, database and production UI build and drive it with Playwright; `mise run test:ui` runs them.
 - **`tools/`**, **`mise-tasks/`**: Go development/release tools and mise task scripts for builds, generation, checks and local environments.
-- **`docs/content/`**, **`schemas/`**: User documentation and editor JSON Schemas, including `loco.yaml`.
+- **`docs/content/`**, **`schemas/`**: User documentation and the JSON Schemas editors load, including `loco.yaml`'s, which `loco infra validate` embeds through the `schemas` package.
 
-The root Go module holds only `internal/`, `gen/` and `tools/`; CLI-only dependencies belong in `cmd/go.mod`.
+The root Go module holds only `internal/`, `gen/`, `tools/` and `schemas/`; CLI-only dependencies belong in `cmd/go.mod`.
 
 ## Build/Lint/Test Commands
 

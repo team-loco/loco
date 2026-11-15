@@ -264,6 +264,7 @@ go-lint-and-test:
     - "api/**"
     - "cmd/**"
     - "internal/**"
+    - "schemas/**"
     - "tools/**"
     - "controller/**"
     - "agent/**"
