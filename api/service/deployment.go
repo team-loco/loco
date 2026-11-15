@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -29,7 +30,8 @@ import (
 )
 
 var (
-	ErrDeploymentNotFound = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
+	errDeploymentWatchLimit = rpcerr.NewCoded(connect.CodeResourceExhausted, "deployment watch stream limit reached")
+	ErrDeploymentNotFound   = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
 )
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
@@ -100,6 +102,9 @@ type DeploymentServer struct {
 	silentAfter    time.Duration
 	maxSecretBytes int32
 	counts         *configv1.CountLimits
+	watchLimit     int32
+	watchMu        sync.Mutex
+	watchStreams   map[genDb.Entity]int32
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -112,6 +117,7 @@ func NewDeploymentServer(
 	clusterSilentAfter time.Duration,
 	maxSecretBytes int32,
 	counts *configv1.CountLimits,
+	watchLimit int32,
 ) *DeploymentServer {
 	return &DeploymentServer{
 		db:             db,
@@ -123,6 +129,8 @@ func NewDeploymentServer(
 		silentAfter:    clusterSilentAfter,
 		maxSecretBytes: maxSecretBytes,
 		counts:         counts,
+		watchLimit:     watchLimit,
+		watchStreams:   make(map[genDb.Entity]int32),
 	}
 }
 
@@ -517,6 +525,15 @@ func (s *DeploymentServer) WatchDeployment(
 	req *deploymentv1.WatchDeploymentRequest,
 	stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream,
 ) error {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if !s.acquireWatch(p.Entity) {
+		return errDeploymentWatchLimit
+	}
+	defer s.releaseWatch(p.Entity)
+
 	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
@@ -554,6 +571,25 @@ func (s *DeploymentServer) WatchDeployment(
 			return ctx.Err()
 		case <-ticker.C:
 		}
+	}
+}
+
+func (s *DeploymentServer) acquireWatch(entity genDb.Entity) bool {
+	s.watchMu.Lock()
+	defer s.watchMu.Unlock()
+	if s.watchStreams[entity] >= s.watchLimit {
+		return false
+	}
+	s.watchStreams[entity]++
+	return true
+}
+
+func (s *DeploymentServer) releaseWatch(entity genDb.Entity) {
+	s.watchMu.Lock()
+	defer s.watchMu.Unlock()
+	s.watchStreams[entity]--
+	if s.watchStreams[entity] == 0 {
+		delete(s.watchStreams, entity)
 	}
 }
 

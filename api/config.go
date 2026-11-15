@@ -126,6 +126,7 @@ const (
 	defaultRPCTimeout            = 30 * time.Second
 	defaultShutdownDrainTimeout  = 30 * time.Second
 	defaultPlacementPollInterval = 5 * time.Second
+	defaultDeploymentWatchLimit  = 8
 
 	defaultWebhookTimeout      = 10 * time.Second
 	defaultWebhookBatch        = 50
@@ -200,6 +201,7 @@ type APIConfig struct {
 	Env                   string // Environment (e.g., dev, prod)
 	Database              db.Config
 	DatabaseListenConfig  *pgx.ConnConfig
+	MaxDeploymentWatches  int32
 	PlacementPollInterval time.Duration
 	Tokens                tvm.Config
 	TokenCleanupInterval  time.Duration
@@ -289,6 +291,7 @@ func newAPIConfig() *APIConfig {
 		Env:                   envconfig.String("APP_ENV", ""),
 		Database:              database,
 		DatabaseListenConfig:  databaseListenConfig,
+		MaxDeploymentWatches:  positiveInt32Env("LOCO_DEPLOYMENT_MAX_WATCH_STREAMS", defaultDeploymentWatchLimit),
 		PlacementPollInterval: envconfig.PositiveDuration("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
 		Tokens:                newTokenConfig(),
 		TokenCleanupInterval:  envconfig.PositiveDuration("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
