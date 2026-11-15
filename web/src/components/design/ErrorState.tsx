@@ -1,3 +1,5 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
+import { formatClock } from "@/lib/time";
 import type { DescMethod } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useTransport } from "@connectrpc/connect-query";
@@ -107,6 +109,7 @@ function Internal({
 	onRetry: () => Promise<unknown>;
 	className: string | undefined;
 }) {
+	const timePref = useTimePreferences();
 	const [copied, copy] = useCopy(1400);
 	const id = requestId(error);
 	const at = firstShown(error);
@@ -144,7 +147,7 @@ function Internal({
 						)}
 					{row("call", text(rpc))}
 					{row("code", text(code, "text-err"))}
-					{row("at", text(at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })))}
+					{row("at", text(formatClock(at.getTime(), false, timePref)))}
 				</div>
 			}
 			title={`Couldn’t load ${what}`}

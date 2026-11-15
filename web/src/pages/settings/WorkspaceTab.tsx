@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import {
@@ -61,6 +62,7 @@ export function WorkspaceTab({
 	draft: WorkspaceDraft | null;
 	onDraft: (draft: WorkspaceDraft | null) => void;
 }) {
+	const timePref = useTimePreferences();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const transport = useTransport();
@@ -86,7 +88,7 @@ export function WorkspaceTab({
 	const canAdmin = level >= 3;
 	const shownErr = dirty ? nameErr : null;
 	const creator = users.find((u) => u.id === ws.createdBy);
-	const createdDay = formatDay(ws.createdAt);
+	const createdDay = formatDay(ws.createdAt, timePref);
 	const created = creator ? `${createdDay} by ${userLabel(creator)}` : createdDay;
 
 	const nRes = resourceCount?.count ?? 0;

@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { Spinner } from "@/components/design/Spinner";
 import { useState } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
@@ -252,6 +253,7 @@ function traceToken(traceId: string): Token {
 }
 
 function TraceLogs({ trace }: { trace: TraceSummary }) {
+	const timePref = useTimePreferences();
 	const { workspaceId, scopedResourceIds, resourceById, goTo } = useObs();
 	const { active } = useEnvironments();
 	const [now] = useState(Date.now);
@@ -307,9 +309,9 @@ function TraceLogs({ trace }: { trace: TraceSummary }) {
 										focusTs: row.ts,
 									});
 								}}
-								className="grid w-full grid-cols-[64px_52px_minmax(0,1fr)] items-baseline gap-2.5 rounded-sm border-b border-line px-1.5 py-1.5 text-left font-mono text-[12px] last:border-b-0 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+								className="grid w-full grid-cols-[88px_52px_minmax(0,1fr)] items-baseline gap-2.5 rounded-sm border-b border-line px-1.5 py-1.5 text-left font-mono text-[12px] last:border-b-0 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 							>
-								<span className="text-fg3">{formatClock(row.ts)}</span>
+								<span className="text-fg3">{formatClock(row.ts, false, timePref)}</span>
 								<span className={cn("truncate", levelStyle(row.level).body)}>{row.label}</span>
 								<span className="min-w-0">
 									<span className="text-fg3">{row.resourceName} </span>
@@ -352,6 +354,7 @@ export function TraceDrawer({
 	onRetry: () => void;
 	onClose: () => void;
 }) {
+	const timePref = useTimePreferences();
 	const { orgId, workspaceId, resourceById, goTo } = useObs();
 	const [spanId, setSpanId] = useQueryState("span", { history: "replace" });
 	const [copied, copy] = useCopy();
@@ -403,7 +406,7 @@ export function TraceDrawer({
 										label(trace.root),
 										rootPod === "" ? "" : replicaOf(rootPod),
 										trace.root.resourceAttributes["loco.region"] ?? "",
-										fmtTs(Number(trace.start / NANOS_PER_MS), true),
+										fmtTs(Number(trace.start / NANOS_PER_MS), true, timePref),
 										`${String(trace.spans.length)} ${trace.spans.length === 1 ? "span" : "spans"}`,
 									]
 										.filter((part) => part !== "")

@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CopyIcon, RocketIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
 import { createContext, use } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -265,9 +266,7 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			sortFn: "basic",
 			sortDescFirst: true,
 			meta: { defaultHidden: true },
-			cell: ({ row: { original: row } }) => (
-				<Mono text={row.createdMs === 0 ? null : formatMonthDayYear(row.createdMs)} />
-			),
+			cell: ({ row: { original: row } }) => <CreatedTime ms={row.createdMs} />,
 		},
 		{
 			id: "actions",
@@ -280,4 +279,9 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			meta: { headClassName: "w-10 text-right", cellClassName: "text-right" },
 		},
 	];
+}
+
+function CreatedTime({ ms }: { ms: number }) {
+	const pref = useTimePreferences();
+	return <Mono text={ms === 0 ? null : formatMonthDayYear(ms, pref)} />;
 }

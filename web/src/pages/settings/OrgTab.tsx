@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
 import { deleteOrg, updateOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Organization, User } from "@gen/loco/org/v1/org_pb";
@@ -68,6 +69,7 @@ export function OrgTab({
 	onOpenWorkspace: (event: MouseEvent, workspace: Workspace) => void;
 	memberCount: number | undefined;
 }) {
+	const timePref = useTimePreferences();
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
 	const limitDetails = useOrgLimitDetails(org.id);
@@ -166,7 +168,7 @@ export function OrgTab({
 		</Button>
 	);
 	const creator = userName(org.createdBy);
-	const createdDay = formatDay(org.createdAt);
+	const createdDay = formatDay(org.createdAt, timePref);
 
 	return (
 		<div className="flex flex-col gap-[22px]">
@@ -262,7 +264,7 @@ export function OrgTab({
 						<TableBody>
 							{paged.rows.map((w) => {
 								const by = userName(w.createdBy);
-								const day = formatDay(w.createdAt);
+								const day = formatDay(w.createdAt, timePref);
 								return (
 									<TableRow key={w.id} className="relative hover:bg-panel2 [&>td]:h-[52px]">
 										<TableCell>

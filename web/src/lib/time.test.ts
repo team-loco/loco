@@ -47,3 +47,10 @@ test("daily local ticks stay at midnight through daylight saving changes", () =>
 	expect(ticks.every((t) => new Date(t).getHours() === 0 && new Date(t).getMinutes() === 0)).toBe(true);
 	expect(new Set(ticks.map((t) => formatIsoDate(t, { zone: "local", clock: "24" }))).size).toBe(8);
 });
+
+test("local date and clock stay together near a daylight saving boundary", () => {
+	const instant = new Date(2026, 2, 8, 3, 4, 5, 123).getTime();
+	const pref = { zone: "local", clock: "24" } as const;
+	expect(formatClock(instant, true, pref)).toBe("03:04:05.123");
+	expect(formatIsoDate(instant, pref)).toBe("2026-03-08");
+});

@@ -1,15 +1,15 @@
-import { formatFullTime as fullTime, formatHourMinute, formatMonthDay } from "@/lib/time";
+import { formatFullTime as fullTime, formatHourMinute, formatMonthDay, timePreferences } from "@/lib/time";
 
 export function shortId(id: string): string {
 	return id.slice(0, 8);
 }
 
-export function formatStarted(ms: number | undefined): string {
-	return ms === undefined ? "—" : `${formatMonthDay(ms)}, ${formatHourMinute(ms)}`;
+export function formatStarted(ms: number | undefined, pref = timePreferences()): string {
+	return ms === undefined ? "—" : `${formatMonthDay(ms, pref)}, ${formatHourMinute(ms, pref)}`;
 }
 
-export function formatFullTime(ms: number): string {
-	return fullTime(ms);
+export function formatFullTime(ms: number, withMs = false, pref = timePreferences()): string {
+	return fullTime(ms, withMs, pref);
 }
 
 export function formatDuration(ms: number): string {

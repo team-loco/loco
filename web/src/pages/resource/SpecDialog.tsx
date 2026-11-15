@@ -1,3 +1,5 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
+import { timePreferences } from "@/lib/time";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -20,8 +22,8 @@ import { diffLines, sideBySide, specText } from "./spec";
 const COPIED_MS = 1500;
 const JSON_TYPE = "application/json";
 
-function optionLabel(dep: Deployment): string {
-	return [shortId(dep.id), dep.region, depTag(dep), formatStarted(startedMs(dep))].join(" · ");
+function optionLabel(dep: Deployment, pref = timePreferences()): string {
+	return [shortId(dep.id), dep.region, depTag(dep), formatStarted(startedMs(dep), pref)].join(" · ");
 }
 
 function Picker({
@@ -35,6 +37,7 @@ function Picker({
 	value: Deployment;
 	onChange: (id: string) => void;
 }) {
+	const timePref = useTimePreferences();
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
@@ -47,14 +50,14 @@ function Picker({
 					/>
 				}
 			>
-				<span className="truncate">{optionLabel(value)}</span>
+				<span className="truncate">{optionLabel(value, timePref)}</span>
 				<ChevronDownIcon className="text-fg3" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="max-h-80 w-auto min-w-[320px]">
 				<DropdownMenuRadioGroup value={value.id} onValueChange={onChange}>
 					{deployments.map((d) => (
 						<DropdownMenuRadioItem key={d.id} value={d.id} className="font-mono text-[12px]">
-							{optionLabel(d)}
+							{optionLabel(d, timePref)}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>

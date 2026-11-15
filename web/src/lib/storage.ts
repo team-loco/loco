@@ -73,12 +73,13 @@ export function useStoredJSON<T>(
 
 export function useStoredValue(key: string, fallback: string): [string, (value: string) => boolean] {
 	const value = useSyncExternalStore(subscribe, () => readStorage(key) ?? fallback);
-	return [
-		value,
-		(next) => {
+	const update = useCallback(
+		(next: string) => {
 			const saved = writeStorage(key, next);
 			for (const listener of listeners) listener();
 			return saved;
 		},
-	];
+		[key],
+	);
+	return [value, update];
 }

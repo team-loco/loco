@@ -32,26 +32,17 @@ export function timePreferences(): TimePreferences {
 }
 
 function parts(ms: number, pref: TimePreferences) {
-	const d = new Date(ms);
-	return pref.zone === "utc"
-		? {
-				year: d.getUTCFullYear(),
-				month: d.getUTCMonth(),
-				day: d.getUTCDate(),
-				hour: d.getUTCHours(),
-				minute: d.getUTCMinutes(),
-				second: d.getUTCSeconds(),
-				ms: d.getUTCMilliseconds(),
-			}
-		: {
-				year: d.getFullYear(),
-				month: d.getMonth(),
-				day: d.getDate(),
-				hour: d.getHours(),
-				minute: d.getMinutes(),
-				second: d.getSeconds(),
-				ms: d.getMilliseconds(),
-			};
+	const instant = new Date(ms);
+	const d = pref.zone === "utc" ? instant : new Date(ms - instant.getTimezoneOffset() * 60_000);
+	return {
+		year: d.getUTCFullYear(),
+		month: d.getUTCMonth(),
+		day: d.getUTCDate(),
+		hour: d.getUTCHours(),
+		minute: d.getUTCMinutes(),
+		second: d.getUTCSeconds(),
+		ms: d.getUTCMilliseconds(),
+	};
 }
 
 function clock(ms: number, seconds: boolean, withMs: boolean, pref: TimePreferences): string {
@@ -79,26 +70,29 @@ export function formatIsoDate(ms: number, pref = timePreferences()): string {
 	return `${String(p.year)}-${pad(p.month + 1)}-${pad(p.day)}`;
 }
 
-function dateFormat(ms: number, options: Intl.DateTimeFormatOptions, pref: TimePreferences): string {
-	return new Intl.DateTimeFormat("en-US", { ...options, ...(pref.zone === "utc" ? { timeZone: "UTC" } : {}) }).format(
-		ms,
-	);
+function createDateFormats(timeZone: string) {
+	return {
+		monthDay: new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric" }),
+		monthDayYear: new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric", year: "numeric" }),
+		weekdayDate: new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", month: "short", day: "numeric" }),
+	};
 }
 
+const localZoneFormat = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" });
+const localZone = localZoneFormat.resolvedOptions().timeZone;
+const dateFormats = { local: createDateFormats(localZone), utc: createDateFormats("UTC") };
+
 export function formatMonthDay(ms: number, pref = timePreferences()): string {
-	return dateFormat(ms, { month: "short", day: "numeric" }, pref);
+	return dateFormats[pref.zone].monthDay.format(ms);
 }
 
 export function formatMonthDayYear(ms: number, pref = timePreferences()): string {
-	return dateFormat(ms, { month: "short", day: "numeric", year: "numeric" }, pref);
+	return dateFormats[pref.zone].monthDayYear.format(ms);
 }
 
 export function timeZoneLabel(ms: number, pref = timePreferences()): string {
 	if (pref.zone === "utc") return "UTC";
-	return (
-		new Intl.DateTimeFormat("en-US", { timeZoneName: "short" }).formatToParts(ms).find((p) => p.type === "timeZoneName")
-			?.value ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-	);
+	return localZoneFormat.formatToParts(ms).find((p) => p.type === "timeZoneName")?.value ?? localZone;
 }
 
 export function formatFullTime(ms: number, withMs = false, pref = timePreferences()): string {
@@ -174,7 +168,7 @@ export function parseClockInput(value: string, pref = timePreferences()): string
 }
 
 export function formatWeekdayDate(ms: number, pref = timePreferences()): string {
-	return dateFormat(ms, { weekday: "short", month: "short", day: "numeric" }, pref);
+	return dateFormats[pref.zone].weekdayDate.format(ms);
 }
 
 export function previousDay(ms: number, pref = timePreferences()): number {

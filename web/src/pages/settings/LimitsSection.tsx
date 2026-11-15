@@ -1,5 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import type { CountLimits } from "@gen/loco/config/v1/config_pb";
 import type { Organization, OrgLimits, User } from "@gen/loco/org/v1/org_pb";
 import { CircleArrowUpIcon } from "lucide-react";
@@ -58,6 +59,7 @@ function Rows({ rows, limits }: { rows: readonly LimitRow[]; limits: OrgLimits |
 }
 
 function RaisedBanner({ org, limits, users }: { org: Organization; limits: OrgLimits; users: User[] }): ReactNode {
+	const timePref = useTimePreferences();
 	const by = users.find((u) => u.id === limits.updatedBy);
 	return (
 		<div className="mx-5 mt-3.5 flex items-start gap-2.5 rounded-lg border border-line bg-background px-3 py-2.5 text-[13px]">
@@ -65,7 +67,7 @@ function RaisedBanner({ org, limits, users }: { org: Organization; limits: OrgLi
 			<div className="min-w-0">
 				<div>
 					Raised for {org.name} by {by === undefined ? "a Loco administrator" : userLabel(by)} on{" "}
-					{formatDay(limits.updatedAt)}
+					{formatDay(limits.updatedAt, timePref)}
 				</div>
 				{limits.reason !== "" && <div className="mt-0.5 text-[12.5px] text-fg2">{limits.reason}</div>}
 			</div>

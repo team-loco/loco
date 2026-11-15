@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
@@ -39,6 +40,7 @@ function RegionLogs({
 	resourceId: string;
 	region: string;
 }) {
+	const timePref = useTimePreferences();
 	const logs = useQueryLogs({
 		workspaceId,
 		environmentId,
@@ -73,7 +75,7 @@ function RegionLogs({
 								l.severity.toUpperCase() === ERROR_LEVEL && "bg-bad-bg",
 							)}
 						>
-							<span className="text-fg3">{ms === undefined ? "" : formatClock(ms)}</span>
+							<span className="text-fg3">{ms === undefined ? "" : formatClock(ms, false, timePref)}</span>
 							<span className="text-fg3">{l.severity}</span>
 							<span className="truncate" title={l.body}>
 								{l.body}

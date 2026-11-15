@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { CheckIcon } from "lucide-react";
@@ -18,7 +19,7 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
-import { toLocalInput } from "@/lib/obs-time";
+import { toLocalInput, fromLocalInput } from "@/lib/obs-time";
 import { DAY_MS, formatMonthDayYear } from "@/lib/time";
 
 import { AccessPicker } from "./AccessPicker";
@@ -148,12 +149,17 @@ function CreateForm({
 	onCancel: () => void;
 	onCreated: (owner: OwnerKey, name: string, secret: string) => void;
 }) {
+	const timePref = useTimePreferences();
 	const [ownerKey, setOwnerKey] = useState(draft.owner);
 	const [name, setName] = useState(() => sanitizeTokenName(draft.name));
 	const options = expiryOptions(maximum);
 	const [selected, setSelected] = useState<number | typeof CUSTOM>(() => defaultExpirySeconds(maximum));
-	const [customAt, setCustomAt] = useState(() => toLocalInput(now + CUSTOM_DEFAULT_MS));
-	const customMs = new Date(customAt).getTime();
+	const [custom, setCustom] = useState<{ ms: number; text: string | null }>(() => ({
+		ms: fromLocalInput(toLocalInput(now + CUSTOM_DEFAULT_MS, timePref), timePref),
+		text: null,
+	}));
+	const customMs = custom.ms;
+	const customAt = custom.text ?? toLocalInput(customMs, timePref);
 	const expiryErr = selected === CUSTOM ? customExpiryError(customMs, now, maximum) : null;
 	const seconds =
 		selected === CUSTOM ? Math.round((customMs - now) / MS_PER_SECOND) : Math.min(selected, Number(maximum));
@@ -280,9 +286,20 @@ function CreateForm({
 						))}
 						<ToggleGroupItem value={CUSTOM}>Custom</ToggleGroupItem>
 					</ToggleGroup>
-					{selected === CUSTOM && <DateTimePicker label="Expires at" value={customAt} onChange={setCustomAt} />}
+					{selected === CUSTOM && (
+						<DateTimePicker
+							label="Expires at"
+							value={customAt}
+							onChange={(value) => {
+								const ms = fromLocalInput(value, timePref);
+								setCustom({ ms, text: Number.isFinite(ms) ? null : value });
+							}}
+						/>
+					)}
 					{expiryErr === null ? (
-						<span className="text-[12.5px] text-fg3">Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND)}</span>
+						<span className="text-[12.5px] text-fg3">
+							Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND, timePref)}
+						</span>
 					) : (
 						<span className="text-[12.5px] text-bad-fg">{expiryErr}</span>
 					)}

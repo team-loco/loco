@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { Link } from "react-router";
 import type { RuntimeEvent as Event } from "@/lib/runtime-events";
 
@@ -32,6 +33,7 @@ function EventList({
 	error: unknown;
 	nowMs: number;
 }) {
+	const timePref = useTimePreferences();
 	if (isLoading) {
 		return (
 			<div className="flex flex-col gap-2">
@@ -68,7 +70,7 @@ function EventList({
 						</span>
 						<span
 							className="font-mono text-[11.5px] whitespace-nowrap text-fg3"
-							title={ms === undefined ? undefined : formatFullTime(ms)}
+							title={ms === undefined ? undefined : formatFullTime(ms, false, timePref)}
 						>
 							{ms === undefined ? "—" : agoLabel(ms, nowMs)}
 						</span>

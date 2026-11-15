@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
 import { Fragment } from "react";
 
@@ -45,6 +46,7 @@ export function AuditTable({
 	nowMs: number;
 	onSelect: (id: string) => void;
 }) {
+	const timePref = useTimePreferences();
 	return (
 		<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
 			<div className="min-w-[890px]">
@@ -63,11 +65,11 @@ export function AuditTable({
 				{!loading && (
 					<ul aria-label="Audit events" className="m-0 list-none p-0">
 						{rows.map((row, i) => {
-							const day = dayLabel(row.ms, nowMs);
+							const day = dayLabel(row.ms, nowMs, timePref);
 							const selected = row.event.id === selectedId;
 							return (
 								<Fragment key={row.event.id}>
-									{(i === 0 || dayLabel(rows[i - 1]?.ms ?? 0, nowMs) !== day) && (
+									{(i === 0 || dayLabel(rows[i - 1]?.ms ?? 0, nowMs, timePref) !== day) && (
 										<li className="sticky left-0 pt-4 pb-1.5 text-[12px] text-fg3">{day}</li>
 									)}
 									<li>
@@ -84,7 +86,7 @@ export function AuditTable({
 											)}
 										>
 											<span className="font-mono text-[12px] text-fg2" title={agoLabel(row.ms, nowMs)}>
-												{formatClock(row.ms)}
+												{formatClock(row.ms, false, timePref)}
 											</span>
 											<span className="flex min-w-0 items-center gap-[9px]">
 												<ActorBadge row={row} />

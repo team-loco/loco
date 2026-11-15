@@ -140,6 +140,29 @@ def time_presets(page):
     expect(time_range).not_to_be_visible()
 
 
+def time_preferences(browser):
+    context, page, errors = open_page(browser, state=state, timezone_id="America/New_York", storage={"loco-clock": "12"})
+    mock_telemetry(context)
+    start = int(datetime(2026, 11, 1, 6, 30, 12, 123000, tzinfo=UTC).timestamp() * 1000)
+    end = int(datetime(2026, 11, 1, 6, 45, 23, 456000, tzinfo=UTC).timestamp() * 1000)
+    page.goto(state["ui_url"] + base + f"/observability?view=logs&from={start}&to={end}")
+    page.get_by_role("button", name=re.compile(r" (AM|PM).* (EST|EDT)")).click()
+    picker = page.get_by_role("dialog", name="Time range")
+    start_input = picker.get_by_role("textbox", name="From time", exact=True)
+    expect(start_input).to_have_value(re.compile(r"\d+:\d{2} (AM|PM)"))
+    picker.get_by_role("group", name="Time zone", exact=True).get_by_role("button", name="UTC", exact=True).click()
+    expect(start_input).to_have_value("6:30 AM")
+    zone = picker.get_by_role("group", name="Time zone", exact=True)
+    zone.get_by_role("button", name=re.compile(r"^Local")).click()
+    expect(start_input).to_have_value("1:30 AM")
+    zone.get_by_role("button", name="UTC", exact=True).click()
+    picker.get_by_role("button", name="Apply", exact=True).click()
+    wait_for_query(page, lambda query: query.get("from") == [str(start)] and query.get("to") == [str(end)])
+    assert page.evaluate("localStorage.getItem('loco-tz')") == "utc"
+    assert not errors, errors
+    context.close()
+
+
 def calendar(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
@@ -348,6 +371,7 @@ with session(out) as browser:
     try:
         context, page, errors = open_page(browser, state=state, timezone_id="UTC")
         mock_telemetry(context)
+        time_preferences(browser)
         try:
             page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
             dropdown_cursors(page)

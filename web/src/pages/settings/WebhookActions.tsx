@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
 import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
 import { rotateWebhookSecret, sendTestEvent } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
@@ -25,6 +26,7 @@ export function WebhookActions({
 	webhook: Webhook;
 	onChanged: () => void;
 }) {
+	const timePref = useTimePreferences();
 	const [dialog, setDialog] = useState<"edit" | "rotate" | null>(null);
 	const close = () => {
 		setDialog(null);
@@ -69,8 +71,8 @@ export function WebhookActions({
 			</div>
 			{webhook.previousSecretExpiresAt !== undefined && (
 				<p className="m-0 text-[12.5px] text-fg3">
-					Previous secret expires {formatDay(webhook.previousSecretExpiresAt)} at{" "}
-					{formatClock(tsMs(webhook.previousSecretExpiresAt))}.
+					Previous secret expires {formatDay(webhook.previousSecretExpiresAt, timePref)} at{" "}
+					{formatClock(tsMs(webhook.previousSecretExpiresAt), false, timePref)}.
 				</p>
 			)}
 			<NewWebhookDialog

@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ClipboardPasteIcon, PlusIcon, Trash2Icon, Undo2Icon } from "lucide-react";
@@ -122,11 +123,12 @@ function SecretLine({
 	onValue: (value: string) => void;
 	onRemove: (removed: boolean) => void;
 }) {
+	const timePref = useTimePreferences();
 	const secret = row.secret;
 	const meta =
 		secret === undefined
 			? "No value stored"
-			: `v${secret.version.toString()} · set by ${setterLabel(secret, members)} · ${formatStarted(tsMs(secret.updatedAt))}`;
+			: `v${secret.version.toString()} · set by ${setterLabel(secret, members)} · ${formatStarted(tsMs(secret.updatedAt), timePref)}`;
 	return (
 		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_auto]">
 			<div className="flex min-w-0 flex-col gap-0.5">

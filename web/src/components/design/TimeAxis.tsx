@@ -1,8 +1,10 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 export function TimeAxis({ from, to }: { from: number; to: number }) {
-	const ticks = timeAxis(from, to);
+	const timePref = useTimePreferences();
+	const ticks = timeAxis(from, to, timePref);
 	return (
 		<div aria-hidden className="relative h-4 font-mono text-[10.5px] text-fg3">
 			{ticks.map((t, i) => (
@@ -14,7 +16,7 @@ export function TimeAxis({ from, to }: { from: number; to: number }) {
 					)}
 					style={{ left: `${String(((t - from) / (to - from)) * 100)}%` }}
 				>
-					{formatAxisTime(t, from, to)}
+					{formatAxisTime(t, from, to, timePref)}
 				</span>
 			))}
 		</div>

@@ -143,18 +143,18 @@ export function customRangeMessage(error: CustomRangeError, maxMs: number): stri
 	}
 }
 
-function sameDay(a: number, b: number): boolean {
-	return formatIsoDate(a) === formatIsoDate(b);
+function sameDay(a: number, b: number, pref: TimePreferences): boolean {
+	return formatIsoDate(a, pref) === formatIsoDate(b, pref);
 }
 
-function dayClock(ms: number): string {
-	return `${formatMonthDay(ms)} ${formatHourMinute(ms)}`;
+function dayClock(ms: number, pref: TimePreferences): string {
+	return `${formatMonthDay(ms, pref)} ${formatHourMinute(ms, pref)}`;
 }
 
-export function windowLabel(window: TimeWindow): string {
+export function windowLabel(window: TimeWindow, pref = timePreferences()): string {
 	if (window.kind === "relative") return spanLabel(window.spanMs);
-	const end = sameDay(window.from, window.to) ? formatHourMinute(window.to) : dayClock(window.to);
-	return `${dayClock(window.from)} – ${end}`;
+	const end = sameDay(window.from, window.to, pref) ? formatHourMinute(window.to, pref) : dayClock(window.to, pref);
+	return `${dayClock(window.from, pref)} – ${end}`;
 }
 
 export function stepSeconds(spanMs: number): number {
@@ -174,5 +174,6 @@ export function joinLocalInput(day: string, time: string): string {
 }
 
 export function fromLocalInput(value: string, pref: TimePreferences = timePreferences()): number {
-	return value === "" ? Number.NaN : new Date(pref.zone === "utc" ? `${value}Z` : value).getTime();
+	const ms = value === "" ? Number.NaN : new Date(pref.zone === "utc" ? `${value}Z` : value).getTime();
+	return Number.isFinite(ms) && toLocalInput(ms, pref) === value ? ms : Number.NaN;
 }

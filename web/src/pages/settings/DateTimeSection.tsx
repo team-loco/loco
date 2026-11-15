@@ -6,7 +6,8 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { SettingsCard, SettingsSection } from "./parts";
 
 export function DateTimeSection() {
-	const { clock, setClock } = useTimePreferences();
+	const pref = useTimePreferences();
+	const { clock, setClock } = pref;
 	const [now, setNow] = useState(Date.now);
 	return (
 		<SettingsSection title="Date and time" meta="saved in this browser">
@@ -40,7 +41,7 @@ export function DateTimeSection() {
 				<div className="flex flex-col gap-2">
 					<span className="text-[12.5px] text-fg3">Shown as</span>
 					<time className="font-mono text-[13px]" dateTime={new Date(now).toISOString()}>
-						{formatFullTime(now, true)}
+						{formatFullTime(now, true, pref)}
 					</time>
 				</div>
 			</SettingsCard>

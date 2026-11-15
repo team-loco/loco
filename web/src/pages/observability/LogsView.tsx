@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { TimeAxis } from "@/components/design/TimeAxis";
 import { createParser, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useState, type CSSProperties } from "react";
@@ -90,6 +91,7 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 }
 
 export function LogsView() {
+	const timePref = useTimePreferences();
 	const { workspaceId, resources, scopedResourceIds, resourceById, maxMs, range, setRange, tokens, text, setQuery } =
 		useObs();
 	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
@@ -240,7 +242,7 @@ export function LogsView() {
 	const buckets: VolumeBucket[] = counts.map((b, i) => {
 		const total = [...b.values()].reduce((a, n) => a + n, 0);
 		return {
-			label: `${fmtTs(from + i * bw)}, ${formatCount(total)} loaded ${total === 1 ? "line" : "lines"}`,
+			label: `${fmtTs(from + i * bw, false, timePref)}, ${formatCount(total)} loaded ${total === 1 ? "line" : "lines"}`,
 			segments: LEVELS.map((l) => ({ value: b.get(l) ?? 0, color: LEVEL_SERIES[l].color })),
 		};
 	});
@@ -388,7 +390,7 @@ export function LogsView() {
 							? "No logs around this time"
 							: coversWholeRange(range, maxMs)
 								? "No logs collected"
-								: `No logs in the ${windowLabel(range).toLowerCase()}`
+								: `No logs in the ${windowLabel(range, timePref).toLowerCase()}`
 					}
 					body="Anything your resources write to stdout or stderr lands here."
 					action={

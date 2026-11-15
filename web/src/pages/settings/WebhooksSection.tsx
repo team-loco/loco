@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { createConnectQueryKey, useMutation, useQuery } from "@connectrpc/connect-query";
 import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
 import {
@@ -193,6 +194,7 @@ function WebhookRow({
 	onOpen: () => void;
 	onDelete: () => void;
 }) {
+	const timePref = useTimePreferences();
 	const onRowClick = (e: MouseEvent<HTMLTableRowElement>) => {
 		const target = e.target;
 		if (!(target instanceof Element) || !e.currentTarget.contains(target) || target.closest("button") !== null) return;
@@ -223,7 +225,7 @@ function WebhookRow({
 				<DeliveryTicks workspaceId={workspaceId} webhookId={webhook.id} />
 			</TableCell>
 			<TableCell className="hidden font-mono text-[12px] whitespace-nowrap text-fg3 md:table-cell">
-				{formatDay(webhook.createdAt)}
+				{formatDay(webhook.createdAt, timePref)}
 			</TableCell>
 			<TableCell className="text-right">
 				<RowMenu label={`Actions for ${webhook.url}`}>

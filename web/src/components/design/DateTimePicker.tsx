@@ -67,8 +67,8 @@ function ClockInput({
 }) {
 	const pref = useTimePreferences();
 	const [draft, setDraft] = useState<string | null>(null);
-	const ms = fromLocalInput(joinLocalInput(day, time));
-	const shown = Number.isFinite(ms) ? formatHourMinute(ms) : time;
+	const ms = fromLocalInput(joinLocalInput(day, time), pref);
+	const shown = Number.isFinite(ms) ? formatHourMinute(ms, pref) : time;
 	const invalid = draft !== null && parseClockInput(draft, pref) === null;
 	return (
 		<Input
