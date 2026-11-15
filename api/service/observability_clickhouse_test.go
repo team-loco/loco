@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -461,14 +463,45 @@ func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
 	defer stream.Close()
 	_, tailErr := stream.Receive()
 	for rpc, tc := range map[string]struct {
-		err  error
-		want string
+		err      error
+		message  string
+		position string
 	}{
-		"QueryLogs": {queryErr, "quote values that contain : at position 7"},
-		"TailLogs":  {tailErr, "unclosed ( at position 1"},
+		"QueryLogs": {queryErr, "quote values that contain :", "7"},
+		"TailLogs":  {tailErr, "unclosed (", "1"},
 	} {
-		if connect.CodeOf(tc.err) != connect.CodeInvalidArgument || !strings.Contains(tc.err.Error(), tc.want) {
-			t.Errorf("%s error = %v, want InvalidArgument with %q", rpc, tc.err, tc.want)
+		connectErr, ok := errors.AsType[*connect.Error](tc.err)
+		if !ok || connectErr.Code() != connect.CodeInvalidArgument ||
+			connectErr.Message() != tc.message+" at position "+tc.position {
+			t.Errorf("%s error = %v, want InvalidArgument %q at %s", rpc, tc.err, tc.message, tc.position)
+			continue
+		}
+		var violation, position string
+		for _, detail := range connectErr.Details() {
+			value, err := connectproto.UnmarshalErrorDetail(detail)
+			if err != nil {
+				t.Fatalf("%s detail: %v", rpc, err)
+			}
+			switch value := value.(type) {
+			case *errdetails.BadRequest:
+				if fields := value.GetFieldViolations(); len(fields) == 1 && fields[0].GetField() == "query" {
+					violation = fields[0].GetDescription()
+				}
+			case *errdetails.ErrorInfo:
+				if value.GetReason() == logQueryReason {
+					position = value.GetMetadata()["position"]
+				}
+			}
+		}
+		if violation != tc.message || position != tc.position {
+			t.Errorf(
+				"%s details = violation %q at %q, want %q at %s",
+				rpc,
+				violation,
+				position,
+				tc.message,
+				tc.position,
+			)
 		}
 	}
 }
