@@ -1,45 +1,27 @@
+from functools import partial
 import argparse
-import atexit
 import base64
-import contextlib
 import hashlib
 import hmac
 import http.server
-import importlib.util
-import io
 import json
-import os
 import queue
 import threading
 import time
-from pathlib import Path
+from harness import call as api_call, evidence, load_state
 
-repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Send real webhook deliveries from a throwaway API to a local receiver")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 args = parser.parse_args()
-os.chdir(repo)
-spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
-evidence = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(evidence)
-if args.state is None:
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="webhooks", scenario=str(repo / "tests/ui/fixtures/webhooks/scenario.json")))
-    args.state = output.getvalue().strip().splitlines()[-1]
-    print("Preview state:", args.state, flush=True)
-    if not args.keep:
-        atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
-state = evidence.load_state(args.state)
+state = load_state(args, 'webhooks', 'tests/ui/fixtures/webhooks/scenario.json')
 token = state["users"]["owner"]["token"]
 workspace = state["workspaces"]["acme/shared"]
 DELIVERY_TIMEOUT_S = 30
 FAILING_PATH = "/failing"
 
 
-def call(method, body):
-    return evidence.rpc(state["api_url"], token, method, body)
+call = partial(api_call, state)
 
 
 class Receiver(http.server.BaseHTTPRequestHandler):

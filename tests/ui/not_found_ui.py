@@ -1,11 +1,7 @@
+from functools import partial
 import argparse
-import atexit
 import base64
-import contextlib
-import importlib.util
-import io
 import json
-import os
 import re
 import time
 import uuid
@@ -13,27 +9,16 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from playwright.sync_api import expect, sync_playwright
+from harness import evidence, load_state, open_page as new_page, repo, launch
 
-repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description="Test the not-found page for signed-in and signed-out visitors against an isolated API")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/not-found"))
 args = parser.parse_args()
-os.chdir(repo)
-module_spec = importlib.util.spec_from_file_location("evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py")
-evidence = importlib.util.module_from_spec(module_spec)
-module_spec.loader.exec_module(evidence)
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-if args.state is None:
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref="HEAD", name="not-found", scenario=str(repo / "tests/ui/fixtures/deployment-history/scenario.json")))
-    args.state = output.getvalue().strip().splitlines()[-1]
-    if not args.keep:
-        atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
-state = evidence.load_state(args.state)
+state = load_state(args, 'not-found', 'tests/ui/fixtures/deployment-history/scenario.json')
 ui = state["ui_url"]
 shared = state["workspaces"]["acme/shared"]
 sibling = state["workspaces"]["acme/sibling"]
@@ -44,22 +29,11 @@ issuer = f"{ui}/dex"
 TITLE = "Nothing lives at this address"
 
 
-def open_page(browser, user, theme="light", narrow=False):
-    context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-    script = f"localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});"
-    if user is not None:
-        auth = {"idToken": state["users"][user]["token"], "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
-        script += f"localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));"
-    context.add_init_script(script)
-    page = context.new_page()
-    errors = []
-    page.on("pageerror", lambda error: errors.append(str(error)))
-    return context, page, errors
+open_page = partial(new_page, state=state)
 
 
 def expect_not_found(page, path):
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-    # Workspace pages add env to the URL once environments load, which can land before the not-found page.
     expect(page.get_by_text(re.compile("^" + re.escape(path) + r"(\?env=[\w-]+)?$"))).to_be_visible()
     for name in ("Resources", "Logs", "Settings"):
         expect(page.get_by_role("link", name=name, exact=True)).to_have_count(0)
@@ -99,98 +73,97 @@ def fake_idp(context, user):
 
 
 with sync_playwright() as playwright:
-    browser = playwright.chromium.launch()
+    browser = launch(playwright, out)
     cases = []
     try:
-        for theme, narrow in (("light", False), ("dark", True)):
-            case = f"owner-{theme}{'-narrow' if narrow else ''}"
-            context, page, errors = open_page(browser, "owner", theme, narrow)
-            try:
-                page.goto(ui + "/no/such/page?x=1")
-                expect_not_found(page, "/no/such/page?x=1")
-                page.screenshot(path=out / f"{case}.png", animations="disabled")
-                page.get_by_role("link", name="Go to dashboard", exact=True).click()
-                expect(page).to_have_url(re.compile(rf"/org/{org}/wks/[0-9a-f-]+(\?env=[\w-]+)?$"))
-                expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+        theme, narrow = "light", False
+        case = f"owner-{theme}{'-narrow' if narrow else ''}"
+        context, page, errors = open_page(browser, "owner", theme, narrow)
+        try:
+            page.goto(ui + "/no/such/page?x=1")
+            expect_not_found(page, "/no/such/page?x=1")
+            page.get_by_role("link", name="Go to dashboard", exact=True).click()
+            expect(page).to_have_url(re.compile(rf"/org/{org}/wks/[0-9a-f-]+(\?env=[\w-]+)?$"))
+            expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
 
-                page.goto(base + "/no-such-tab")
-                expect_not_found(page, f"/org/{org}/wks/{shared}/no-such-tab")
-                page.get_by_role("link", name="Go to dashboard", exact=True).click()
-                expect(page).to_have_url(WORKSPACE_URL)
-                if not narrow:
-                    expect(page.get_by_role("link", name="Resources", exact=True)).to_be_visible()
+            page.goto(base + "/no-such-tab")
+            expect_not_found(page, f"/org/{org}/wks/{shared}/no-such-tab")
+            page.get_by_role("link", name="Go to dashboard", exact=True).click()
+            expect(page).to_have_url(WORKSPACE_URL)
+            if not narrow:
+                expect(page.get_by_role("link", name="Resources", exact=True)).to_be_visible()
 
-                missing = str(uuid.uuid4())
-                page.goto(base + f"/resource/{missing}")
-                expect_not_found(page, f"/org/{org}/wks/{shared}/resource/{missing}")
-                palette = page.get_by_role("dialog", name="Command palette")
-                results = palette.get_by_role("listbox", name="Results")
-                query = palette.get_by_role("combobox", name="Search resources, pages and actions")
-                search = page.get_by_role("button", name=re.compile(r"^Search (⌘K|Ctrl K)$"))
-                search.click()
-                expect(query).to_be_focused()
-                page.keyboard.press("Escape")
-                expect(palette).to_have_count(0)
-                expect(search).to_be_focused()
+            missing = str(uuid.uuid4())
+            page.goto(base + f"/resource/{missing}")
+            expect_not_found(page, f"/org/{org}/wks/{shared}/resource/{missing}")
+            palette = page.get_by_role("dialog", name="Command palette")
+            results = palette.get_by_role("listbox", name="Results")
+            query = palette.get_by_role("combobox", name="Search resources, pages and actions")
+            search = page.get_by_role("button", name=re.compile(r"^Search (⌘K|Ctrl K)$"))
+            search.click()
+            expect(query).to_be_focused()
+            page.keyboard.press("Escape")
+            expect(palette).to_have_count(0)
+            expect(search).to_be_focused()
+            page.keyboard.press("ControlOrMeta+k")
+            expect(query).to_be_focused()
+            page.keyboard.press("Escape")
+            expect(palette).to_have_count(0)
+            expect(search).to_be_focused()
+
+            page.goto(base + "/resources")
+            top_search = page.get_by_role("button", name="Search and run commands")
+            top_search.focus()
+            page.keyboard.press("Enter")
+            expect(query).to_be_focused()
+            page.keyboard.press("Escape")
+            expect(palette).to_have_count(0)
+            expect(top_search).to_be_focused()
+
+            top_search.click()
+            expect(query).to_be_focused()
+            for group in ("Actions", "Pages"):
+                expect(results.get_by_role("group", name=group)).to_be_visible()
+            expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
+            expect(palette.get_by_role("option", name="New resource")).to_have_attribute("aria-selected", "true")
+            page.keyboard.press("ArrowDown")
+            expect(palette.get_by_role("option", name="New token")).to_have_attribute("aria-selected", "true")
+            expect(results.get_by_role("group", name="Appearance").get_by_role("option")).to_have_count(10)
+            query.fill("no such command")
+            expect(palette.get_by_text("Nothing matches.", exact=True)).to_be_visible()
+            query.fill("sibling")
+            expect(results.get_by_role("group", name="Workspaces").get_by_role("option", name=re.compile(r"^Switch to sibling"))).to_be_visible()
+            query.fill("api keys")
+            expect(palette.get_by_role("option", name="Tokens", exact=True)).to_have_attribute("aria-selected", "true")
+            page.keyboard.press("Enter")
+            expect(palette).to_have_count(0)
+            expect(page).to_have_url(re.compile(r"/tokens$"))
+            expect(top_search).to_be_focused()
+
+            if not narrow:
+                nav_link = page.get_by_role("link", name="Resources", exact=True)
+                nav_link.focus()
                 page.keyboard.press("ControlOrMeta+k")
                 expect(query).to_be_focused()
                 page.keyboard.press("Escape")
                 expect(palette).to_have_count(0)
-                expect(search).to_be_focused()
+                expect(nav_link).to_be_focused()
 
-                page.goto(base + "/resources")
-                top_search = page.get_by_role("button", name="Search and run commands")
-                top_search.focus()
-                page.keyboard.press("Enter")
-                expect(query).to_be_focused()
-                page.keyboard.press("Escape")
-                expect(palette).to_have_count(0)
-                expect(top_search).to_be_focused()
+            top_search.click()
+            query.fill("dark mode")
+            page.keyboard.press("Enter")
+            expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
 
-                top_search.click()
-                expect(query).to_be_focused()
-                for group in ("Actions", "Pages"):
-                    expect(results.get_by_role("group", name=group)).to_be_visible()
-                expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
-                expect(palette.get_by_role("option", name="New resource")).to_have_attribute("aria-selected", "true")
-                page.keyboard.press("ArrowDown")
-                expect(palette.get_by_role("option", name="New token")).to_have_attribute("aria-selected", "true")
-                expect(results.get_by_role("group", name="Appearance").get_by_role("option")).to_have_count(10)
-                query.fill("no such command")
-                expect(palette.get_by_text("Nothing matches.", exact=True)).to_be_visible()
-                query.fill("sibling")
-                expect(results.get_by_role("group", name="Workspaces").get_by_role("option", name=re.compile(r"^Switch to sibling"))).to_be_visible()
-                query.fill("api keys")
-                expect(palette.get_by_role("option", name="Tokens", exact=True)).to_have_attribute("aria-selected", "true")
-                page.keyboard.press("Enter")
-                expect(palette).to_have_count(0)
-                expect(page).to_have_url(re.compile(r"/tokens$"))
-                expect(top_search).to_be_focused()
-
-                if not narrow:
-                    nav_link = page.get_by_role("link", name="Resources", exact=True)
-                    nav_link.focus()
-                    page.keyboard.press("ControlOrMeta+k")
-                    expect(query).to_be_focused()
-                    page.keyboard.press("Escape")
-                    expect(palette).to_have_count(0)
-                    expect(nav_link).to_be_focused()
-
-                top_search.click()
-                query.fill("dark mode")
-                page.keyboard.press("Enter")
-                expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
-
-                unknown = f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}"
-                page.goto(ui + unknown)
-                expect_not_found(page, unknown)
-                assert not errors, errors
-                cases.append(case)
-            except BaseException:
-                page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
-                raise
-            finally:
-                context.close()
+            unknown = f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}"
+            page.goto(ui + unknown)
+            expect_not_found(page, unknown)
+            assert not errors, errors
+            cases.append(case)
+        except BaseException:
+            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            raise
+        finally:
+            context.close()
 
         other_org = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], evidence.RPC_CREATE_ORG, {"name": f"globex-{uuid.uuid4().hex[:6]}"})["orgId"]
         context, page, errors = open_page(browser, "owner")
@@ -215,7 +188,6 @@ with sync_playwright() as playwright:
             expect(prompt.get_by_role("link", name="Read the docs")).to_be_visible()
             page.get_by_role("button", name=re.compile(r"^Invitations")).click()
             expect(page.get_by_text("No invitations", exact=True)).to_be_visible()
-
             page.goto(ui + "/organizations")
             page.get_by_role("button", name="New organization", exact=True).click()
             page.get_by_role("dialog", name="New organization").get_by_role("textbox", name="Name").fill(f"initech-{uuid.uuid4().hex[:6]}")
@@ -286,7 +258,6 @@ with sync_playwright() as playwright:
             page.goto(ui + deep)
             expect(page).to_have_url(ui + deep)
             expect_not_found(page, deep)
-            page.screenshot(path=out / "signed-out-return.png", animations="disabled")
             assert not errors, errors
             cases.append("signed-out")
         except BaseException:

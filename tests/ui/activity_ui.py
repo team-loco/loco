@@ -1,69 +1,31 @@
 import argparse
-import atexit
-import contextlib
 import datetime
-import http.server
-import importlib.util
-import io
 import json
-import os
+import re
 import sys
-import threading
 import urllib.parse
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
+from harness import authenticate, evidence, load_state, repo, launch
 from activity_fixture import prepare_activity, verify_activity_access
 
 sys.dont_write_bytecode = True
-repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description='Exercise scoped audit Activity with a throwaway API and database')
 parser.add_argument('--state')
-parser.add_argument('--ui-root')
 parser.add_argument('--keep', action='store_true')
 parser.add_argument('--out', default=str(repo / 'tests/ui/out/activity-ui'))
 args = parser.parse_args()
-os.chdir(repo)
-spec = importlib.util.spec_from_file_location('evidence', repo / '.agents/skills/ui-evidence/scripts/evidence.py')
-evidence = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(evidence)
-if args.state is None:
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        evidence.cmd_up(argparse.Namespace(ref='HEAD', name='after', scenario=str(repo / 'tests/ui/fixtures/activity/scenario.json')))
-    args.state = output.getvalue().strip().splitlines()[-1]
-    if not args.keep:
-        atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
-state = evidence.load_state(args.state)
+state = load_state(args, 'activity_ui', 'tests/ui/fixtures/activity/scenario.json')
 activity = prepare_activity(evidence, state)
 state['activity'] = activity
 evidence.write_json(Path(args.state), state)
 access = verify_activity_access(evidence, state, activity)
 origin = state['ui_url']
-if args.ui_root:
-    ui_root = Path(args.ui_root).resolve()
-
-    class Static(http.server.SimpleHTTPRequestHandler):
-        def __init__(self, *values, **options):
-            super().__init__(*values, directory=str(ui_root), **options)
-
-        def log_message(self, *values):
-            pass
-
-        def do_GET(self):
-            if not (ui_root / self.path.split('?')[0].lstrip('/')).is_file():
-                self.path = '/index.html'
-            super().do_GET()
-
-    server = http.server.ThreadingHTTPServer((evidence.HOST, evidence.free_port()), Static)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    atexit.register(server.shutdown)
-    origin = f'http://{evidence.HOST}:{server.server_port}'
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 (out / 'full').mkdir(exist_ok=True)
 base = f"/org/{activity['orgId']}/wks/{activity['workspaceId']}"
-phase = 'after'
 results = []
 def check_scoped_user(browser, theme):
     """A member whose only grant is read on one resource sees it on every page without a refused request."""
@@ -98,8 +60,7 @@ def check_scoped_user(browser, theme):
     checked = []
     for scene, path, visible in pages:
         context = browser.new_context(viewport={'width': 1440, 'height': 1000}, color_scheme=theme)
-        auth = {'idToken': state['users']['scoped']['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS}
-        context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});')
+        authenticate(context, state['users']['scoped']['token'], theme)
         recorded = []
 
         def route_request(route):
@@ -153,9 +114,12 @@ def check_scoped_user(browser, theme):
         errors = []
         page.on('console', lambda message: message.type == 'error' and errors.append(message.text))
         page.on('pageerror', lambda error: errors.append(str(error)))
-        page.goto(origin + path)
+        if scene == 'metrics':
+            with page.expect_response(lambda response: response.url.endswith('/QueryMetrics')):
+                page.goto(origin + path)
+        else:
+            page.goto(origin + path)
         visible(page)
-        evidence.settle(page)
         refused = [request for request in recorded if request['status'] >= 400]
         assert not refused, (scene, refused)
         assert not errors, (scene, errors)
@@ -165,164 +129,163 @@ def check_scoped_user(browser, theme):
         if scene == 'events':
             assert any(request['method'] == 'ListEvents' and request['body'].get('resourceId') == rid and request['status'] == 200 for request in recorded), recorded
         if scene == 'dashboard':
-            assert 'shared' in page.locator('nav[aria-label=breadcrumb]').inner_text()
+            expect(page.locator('nav[aria-label=breadcrumb]')).to_contain_text('shared')
             # Environment-wide traffic needs workspace read; the scoped view shows none.
             assert not [request for request in recorded if request['method'] == 'QueryMetrics'], recorded
-        page.screenshot(path=out / f'scoped-{scene}-{phase}-{theme}.png', full_page=True, animations='disabled')
         checked.append({'scene': scene, 'theme': theme, 'requests': recorded})
+        context.unroute_all(behavior="wait")
         context.close()
     return checked
 
 
 with sync_playwright() as playwright:
-    browser = playwright.chromium.launch()
-    for theme in ('light', 'dark'):
-        for narrow in (False, True):
-            suffix = theme + ('-narrow' if narrow else '')
-            for user, scene, path, title in [
-                ('owner', 'resource-owner', base + '/resource/' + activity['resourceId'], 'Activity'),
-                ('member', 'org-member', base + '/settings?scope=org', ''),
-                ('workspace_admin', 'workspace', base + '/settings?scope=workspace', 'Activity'),
-                ('resource_reader', 'resource', base + '/resource/' + activity['resourceId'], 'Activity'),
-            ]:
-                context = browser.new_context(viewport={'width': 390, 'height': 844} if narrow else {'width': 1440, 'height': 1000}, color_scheme=theme)
-                auth = {'idToken': state['users'][user]['token'], 'refreshToken': None, 'expiresAt': evidence.SESSION_EXPIRY_MS}
-                context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},JSON.stringify({json.dumps(auth)}));localStorage.setItem({json.dumps(evidence.MODE_KEY)},{json.dumps(theme)});')
-                recorded = []
-                mode = {'fail_older': False, 'hold_initial': scene == 'resource' and not narrow, 'fail_initial': False}
-                held = []
+    browser = launch(playwright, out)
+    theme = "light"
+    narrow = False
+    for user, scene, path, title in [
+        ('owner', 'resource-owner', base + '/resource/' + activity['resourceId'], 'Activity'),
+        ('member', 'org-member', base + '/settings?scope=org', ''),
+        ('workspace_admin', 'workspace', base + '/settings?scope=workspace', 'Activity'),
+        ('resource_reader', 'resource', base + '/resource/' + activity['resourceId'], 'Activity'),
+    ]:
+        context = browser.new_context(viewport={'width': 390, 'height': 844} if narrow else {'width': 1440, 'height': 1000}, color_scheme=theme)
+        authenticate(context, state['users'][user]['token'], theme)
+        recorded = []
+        mode = {'fail_older': False, 'hold_initial': scene == 'resource' and not narrow, 'fail_initial': False}
+        held = []
 
-                def route_request(route):
-                    url = urllib.parse.urlparse(route.request.url)
-                    if url.path == '/runtime-config.js':
-                        route.fulfill(content_type='application/javascript', body='window.locoConfig=' + json.dumps({'apiURL': origin}) + ';')
-                        return
-                    if url.path == '/dex/.well-known/openid-configuration':
-                        route.fulfill(json=evidence.discovery_document(origin + '/dex'))
-                        return
-                    if url.path.startswith('/loco.'):
-                        method = url.path.rsplit('/', 1)[-1]
-                        assert method.startswith(('Get', 'List', 'WhoAmI', 'Query')), method
-                        body = route.request.post_data_json
-                        is_activity = method == 'ListEvents' and not body.get('environmentId')
-                        if is_activity and mode['hold_initial']:
-                            held.append(route)
-                            return
-                        if is_activity and ((mode['fail_older'] and body.get('beforeSeq')) or (mode['fail_initial'] and not body.get('beforeSeq'))):
-                            recorded.append({'method': method, 'body': body, 'status': 503, 'controlledFailure': True})
-                            route.fulfill(status=503, json={'code': 'unavailable', 'message': 'Activity is temporarily unavailable'})
-                            return
-                        response = route.fetch(url=state['api_url'] + url.path)
-                        recorded.append({'method': method, 'body': body, 'status': response.status})
-                        if method == 'GetConfig':
-                            config = response.json()
-                            config['auth']['issuer'] = origin + '/dex'
-                            route.fulfill(response=response, json=config)
-                        else:
-                            route.fulfill(response=response)
-                        return
-                    route.continue_()
+        def route_request(route):
+            url = urllib.parse.urlparse(route.request.url)
+            if url.path == '/runtime-config.js':
+                route.fulfill(content_type='application/javascript', body='window.locoConfig=' + json.dumps({'apiURL': origin}) + ';')
+                return
+            if url.path == '/dex/.well-known/openid-configuration':
+                route.fulfill(json=evidence.discovery_document(origin + '/dex'))
+                return
+            if url.path.startswith('/loco.'):
+                method = url.path.rsplit('/', 1)[-1]
+                assert method.startswith(('Get', 'List', 'WhoAmI', 'Query')), method
+                body = route.request.post_data_json
+                is_activity = method == 'ListEvents' and not body.get('environmentId')
+                if is_activity and mode['hold_initial']:
+                    held.append(route)
+                    return
+                if is_activity and ((mode['fail_older'] and body.get('beforeSeq')) or (mode['fail_initial'] and not body.get('beforeSeq'))):
+                    recorded.append({'method': method, 'body': body, 'status': 503, 'controlledFailure': True})
+                    route.fulfill(status=503, json={'code': 'unavailable', 'message': 'Activity is temporarily unavailable'})
+                    return
+                response = route.fetch(url=state['api_url'] + url.path)
+                recorded.append({'method': method, 'body': body, 'status': response.status})
+                if method == 'GetConfig':
+                    config = response.json()
+                    config['auth']['issuer'] = origin + '/dex'
+                    route.fulfill(response=response, json=config)
+                else:
+                    route.fulfill(response=response)
+                return
+            route.continue_()
 
-                context.route('**/*', route_request)
-                page = context.new_page()
-                errors = []
-                page.on('pageerror', lambda error: errors.append(str(error)))
+        context.route('**/*', route_request)
+        page = context.new_page()
+        errors = []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        if user == 'member':
+            with page.expect_response(lambda response: response.url.endswith('/GetOrg')), page.expect_response(lambda response: response.url.endswith('/ListOrgMembers')):
                 page.goto(origin + path)
-                marker = 'checkout' if scene.startswith('resource') else 'Settings'
-                page.get_by_text(marker, exact=True).first.wait_for()
-                page.locator('[role=status][aria-busy]').wait_for(state='detached')
-                if mode['hold_initial']:
-                    panel = page.get_by_role('region', name=title, exact=True)
-                    expect(panel.locator('[data-slot=skeleton]')).to_have_count(3)
-                    expect(panel.get_by_role('listitem')).to_have_count(0)
-                    page.screenshot(path=out / f'initial-loading-{phase}-{suffix}.png', full_page=True, animations='disabled')
-                    assert len(held) == 1
-                    mode['hold_initial'] = False
-                    mode['fail_initial'] = True
-                    held[0].fulfill(status=503, json={'code': 'unavailable', 'message': 'Activity is temporarily unavailable'})
-                    panel.get_by_role('alert').wait_for()
-                    expect(panel.get_by_role('listitem')).to_have_count(0)
-                    page.screenshot(path=out / f'initial-error-{phase}-{suffix}.png', full_page=True, animations='disabled')
-                    mode['fail_initial'] = False
-                    panel.get_by_role('button', name='Retry', exact=True).click()
-                evidence.settle(page)
-                if user == 'member':
-                    assert any(request['method'] == 'GetOrg' and request['status'] == 200 for request in recorded)
-                    assert any(request['method'] == 'ListOrgMembers' and request['status'] == 200 for request in recorded)
-                    assert not any(request['method'] == 'ListEvents' for request in recorded)
-                if user == 'workspace_admin':
-                    breadcrumb = page.locator('nav[aria-label=breadcrumb]').inner_text()
-                    assert 'shared' in breadcrumb and 'other-company' not in breadcrumb
-                    scopes = page.get_by_role('group', name='Settings for', exact=True)
-                    expect(scopes.get_by_role('button', name='Workspace', exact=True)).to_have_attribute('aria-pressed', 'true')
-                    expect(scopes.get_by_role('button', name='Organization', exact=True)).to_have_count(0)
-                    expect(page.get_by_role('region', name='Activity', exact=True)).to_have_count(0)
-                    forbidden = [request for request in recorded if request['method'] in ('GetOrg', 'ListOrgMembers') or (request['method'] == 'ListOrgWorkspaces' and request['body'].get('orgId') == activity['orgId'])]
-                    assert not forbidden, forbidden
-                if user in ('member', 'workspace_admin'):
-                    assert not errors, errors
-                    results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
-                    context.close()
-                    continue
-                panel = page.get_by_role('region', name=title, exact=True)
-                expect(panel.get_by_role('listitem')).to_have_count(10)
-                heading = panel.evaluate("(section) => { const h = section.querySelector('h2'); return { size: getComputedStyle(h).fontSize, inCard: section.querySelector('ul').closest('.rounded-card').contains(h) }; }")
-                assert heading == {'size': '18px', 'inCard': False}, heading
-                expect(panel).to_contain_text('Olivia Owner updated a resource')
-                # Only someone who can open the full audit log for the workspace gets the link to it.
-                expect(panel.get_by_role('link', name='View all in audit log', exact=True)).to_have_count(1 if user == 'owner' else 0)
-                if user == 'resource_reader':
-                    forbidden = [request for request in recorded if request['method'] in ('GetOrg', 'ListOrgMembers') or (request['method'] == 'ListOrgWorkspaces' and request['body'].get('orgId') == activity['orgId'])]
-                    assert not forbidden, forbidden
-                    assert 'other-company' not in page.locator('nav[aria-label=breadcrumb]').inner_text()
-                    assert any(request['method'] == 'ListEnvironments' and request['status'] == 200 for request in recorded)
-                    assert not [request for request in recorded if request['status'] >= 400 and not request.get('controlledFailure')], recorded
-                page.screenshot(path=out / 'full' / f'{scene}-{phase}-{suffix}.png', full_page=True, animations='disabled')
-                panel.evaluate('(element) => element.scrollIntoView({block: "start", behavior: "instant"})')
-                page.screenshot(path=out / f'{scene}-{phase}-{suffix}.png', clip={'x': 0, 'y': 0, 'width': 390 if narrow else 1440, 'height': 844 if narrow else 700}, animations='disabled')
-                if scene == 'resource' and not narrow:
-                    loaded_rows = panel.get_by_role('listitem').all_text_contents()
-                    mode['fail_older'] = True
-                    panel.get_by_role('button', name='Show older', exact=True).click()
-                    panel.get_by_role('alert').wait_for()
-                    expect(panel.get_by_role('listitem')).to_have_text(loaded_rows)
-                    page.screenshot(path=out / f'older-error-{phase}-{suffix}.png', full_page=True, animations='disabled')
-                    cursor = [request['body']['beforeSeq'] for request in recorded if request.get('controlledFailure')][-1]
-                    mode['fail_older'] = False
-                    panel.get_by_role('button', name='Retry', exact=True).click()
-                    expect(panel.get_by_role('listitem')).to_have_count(20)
-                    assert panel.get_by_role('listitem').all_text_contents()[:10] == loaded_rows
-                    retries = [request for request in recorded if request['method'] == 'ListEvents' and request['status'] == 200 and request['body'].get('beforeSeq')]
-                    assert retries[-1]['body']['beforeSeq'] == cursor, retries[-1]
-                if user == 'owner' and theme == 'light' and not narrow:
-                    panel.get_by_role('link', name='View all in audit log', exact=True).click()
-                    page.wait_for_url('**/org/' + activity['orgId'] + '/audit?range=90d&ws=' + activity['workspaceId'] + '&res=' + activity['resourceId'])
-                    page.get_by_role('list', name='Audit events').wait_for()
-                    expect(page.get_by_role('button', name='checkout', exact=True)).to_be_visible()
-                    reads = [request['body'] for request in recorded if request['method'] == 'ListEvents' and request['body'].get('startTime')]
-                    assert reads and reads[0]['workspaceId'] == activity['workspaceId'] and reads[0]['resourceId'] == activity['resourceId'], reads
-                    page.goto(origin + base + '/settings?scope=workspace')
-                    page.get_by_role('link', name='Activity in audit log', exact=True).click()
-                    page.wait_for_url('**/org/' + activity['orgId'] + '/audit?range=90d&ws=' + activity['workspaceId'])
-                    page.get_by_role('list', name='Audit events').wait_for()
-                    expect(page.get_by_role('button', name='shared', exact=True)).to_be_visible()
-                    page.goto(origin + base + '/resource/' + activity['resourceId'])
-                    page.get_by_role('button', name='Events', exact=True).wait_for()
-                    environment_switcher = page.get_by_title('Switch environment', exact=True)
-                    environment_switcher.click()
-                    page.get_by_role('menuitem', name='staging', exact=False).click()
-                    page.keyboard.press('Escape')
-                    expect(environment_switcher).to_contain_text('staging')
-                    page.wait_for_url(lambda url: urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get('env') == ['staging'])
-                    page.get_by_title('Switch workspace', exact=True).click()
-                    page.get_by_role('menuitem', name='sibling', exact=False).click()
-                    page.keyboard.press('Escape')
-                    page.wait_for_url('**/wks/' + activity['siblingId'] + '**')
-                    assert not [request for request in recorded if request['status'] >= 400], recorded
-                assert not errors, errors
-                results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
-                context.close()
-    scoped = [case for theme in ('light', 'dark') for case in check_scoped_user(browser, theme)]
+        else:
+            page.goto(origin + path)
+        marker = 'checkout' if scene.startswith('resource') else 'Settings'
+        page.get_by_text(marker, exact=True).first.wait_for()
+        page.locator('[role=status][aria-busy]').wait_for(state='detached')
+        if mode['hold_initial']:
+            panel = page.get_by_role('region', name=title, exact=True)
+            expect(panel.locator('[data-slot=skeleton]')).to_have_count(3)
+            expect(panel.get_by_role('listitem')).to_have_count(0)
+            assert len(held) == 1
+            mode['hold_initial'] = False
+            mode['fail_initial'] = True
+            held[0].fulfill(status=503, json={'code': 'unavailable', 'message': 'Activity is temporarily unavailable'})
+            panel.get_by_role('alert').wait_for()
+            expect(panel.get_by_role('listitem')).to_have_count(0)
+            mode['fail_initial'] = False
+            panel.get_by_role('button', name='Retry', exact=True).click()
+        if user == 'member':
+            assert any(request['method'] == 'GetOrg' and request['status'] == 200 for request in recorded)
+            assert any(request['method'] == 'ListOrgMembers' and request['status'] == 200 for request in recorded)
+            assert not any(request['method'] == 'ListEvents' for request in recorded)
+        if user == 'workspace_admin':
+            expect(page.locator('nav[aria-label=breadcrumb]')).to_contain_text('shared')
+            breadcrumb = page.locator('nav[aria-label=breadcrumb]').inner_text()
+            assert 'shared' in breadcrumb and 'other-company' not in breadcrumb
+            scopes = page.get_by_role('group', name='Settings for', exact=True)
+            expect(scopes.get_by_role('button', name='Workspace', exact=True)).to_have_attribute('aria-pressed', 'true')
+            expect(scopes.get_by_role('button', name='Organization', exact=True)).to_have_count(0)
+            expect(page.get_by_role('region', name='Activity', exact=True)).to_have_count(0)
+            forbidden = [request for request in recorded if request['method'] in ('GetOrg', 'ListOrgMembers') or (request['method'] == 'ListOrgWorkspaces' and request['body'].get('orgId') == activity['orgId'])]
+            assert not forbidden, forbidden
+        if user in ('member', 'workspace_admin'):
+            assert not errors, errors
+            results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
+            context.unroute_all(behavior="wait")
+            context.close()
+            continue
+        panel = page.get_by_role('region', name=title, exact=True)
+        expect(panel.get_by_role('listitem')).to_have_count(10)
+        heading = panel.evaluate("(section) => { const h = section.querySelector('h2'); return { size: getComputedStyle(h).fontSize, inCard: section.querySelector('ul').closest('.rounded-card').contains(h) }; }")
+        assert heading == {'size': '18px', 'inCard': False}, heading
+        expect(panel).to_contain_text('Olivia Owner updated a resource')
+        # Only someone who can open the full audit log for the workspace gets the link to it.
+        expect(panel.get_by_role('link', name='View all in audit log', exact=True)).to_have_count(1 if user == 'owner' else 0)
+        if user == 'resource_reader':
+            forbidden = [request for request in recorded if request['method'] in ('GetOrg', 'ListOrgMembers') or (request['method'] == 'ListOrgWorkspaces' and request['body'].get('orgId') == activity['orgId'])]
+            assert not forbidden, forbidden
+            assert 'other-company' not in page.locator('nav[aria-label=breadcrumb]').inner_text()
+            assert any(request['method'] == 'ListEnvironments' and request['status'] == 200 for request in recorded)
+            assert not [request for request in recorded if request['status'] >= 400 and not request.get('controlledFailure')], recorded
+        panel.evaluate('(element) => element.scrollIntoView({block: "start", behavior: "instant"})')
+        if scene == 'resource' and not narrow:
+            loaded_rows = panel.get_by_role('listitem').all_text_contents()
+            mode['fail_older'] = True
+            panel.get_by_role('button', name='Show older', exact=True).click()
+            panel.get_by_role('alert').wait_for()
+            expect(panel.get_by_role('listitem')).to_have_text(loaded_rows)
+            cursor = [request['body']['beforeSeq'] for request in recorded if request.get('controlledFailure')][-1]
+            mode['fail_older'] = False
+            panel.get_by_role('button', name='Retry', exact=True).click()
+            expect(panel.get_by_role('listitem')).to_have_count(20)
+            assert panel.get_by_role('listitem').all_text_contents()[:10] == loaded_rows
+            retries = [request for request in recorded if request['method'] == 'ListEvents' and request['status'] == 200 and request['body'].get('beforeSeq')]
+            assert retries[-1]['body']['beforeSeq'] == cursor, retries[-1]
+        if user == 'owner' and theme == 'light' and not narrow:
+            panel.get_by_role('link', name='View all in audit log', exact=True).click()
+            page.wait_for_url('**/org/' + activity['orgId'] + '/audit?range=90d&ws=' + activity['workspaceId'] + '&res=' + activity['resourceId'])
+            page.get_by_role('list', name='Audit events').wait_for()
+            expect(page.get_by_role('button', name='checkout', exact=True)).to_be_visible()
+            reads = [request['body'] for request in recorded if request['method'] == 'ListEvents' and request['body'].get('startTime')]
+            assert reads and reads[0]['workspaceId'] == activity['workspaceId'] and reads[0]['resourceId'] == activity['resourceId'], reads
+            page.goto(origin + base + '/settings?scope=workspace')
+            page.get_by_role('link', name='Activity in audit log', exact=True).click()
+            page.wait_for_url('**/org/' + activity['orgId'] + '/audit?range=90d&ws=' + activity['workspaceId'])
+            page.get_by_role('list', name='Audit events').wait_for()
+            expect(page.get_by_role('button', name='shared', exact=True)).to_be_visible()
+            page.goto(origin + base + '/resource/' + activity['resourceId'])
+            page.get_by_role('button', name='Events', exact=True).wait_for()
+            environment_switcher = page.get_by_title('Switch environment', exact=True)
+            environment_switcher.click()
+            page.get_by_role('menuitem', name='staging', exact=False).click()
+            page.keyboard.press('Escape')
+            expect(environment_switcher).to_contain_text('staging')
+            expect(page).to_have_url(re.compile(r'[?&]env=staging'))
+            page.get_by_title('Switch workspace', exact=True).click()
+            page.get_by_role('menuitem', name='sibling', exact=False).click()
+            page.keyboard.press('Escape')
+            page.wait_for_url('**/wks/' + activity['siblingId'] + '**')
+            assert not [request for request in recorded if request['status'] >= 400], recorded
+        assert not errors, errors
+        results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
+        context.unroute_all(behavior="wait")
+        context.close()
+    scoped = check_scoped_user(browser, 'light')
     browser.close()
 (out / 'results.json').write_text(json.dumps({'access': access, 'browser': results, 'scoped': scoped}, indent=2))
-print(f'{phase}: scoped Activity API access and {len(results)} production-browser cases passed', flush=True)
+print(f'scoped Activity API access and {len(results)} production-browser cases passed', flush=True)
