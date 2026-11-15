@@ -135,33 +135,3 @@ export function spanTree(spans: TraceSpan[]): SpanRow[] {
 	for (const span of ordered) if (!visited.has(span.spanId)) walk(span);
 	return result;
 }
-
-const SCALE_FLOOR_MS = 0.5;
-const SCALE_LOW_CAP_MS = 10;
-const SCALE_HIGH_FLOOR_MS = 100;
-const SCALE_HEADROOM = 1.3;
-const DECADES_MS = [0.001, 0.01, 0.1, 1, 10, 100, 1_000, 10_000, 100_000, 1_000_000];
-
-export interface DurationScale {
-	ticks: { ms: number; y: number; label: string }[];
-	/** Vertical position from 0 (top) to 1 (bottom) of a duration in milliseconds. */
-	yOf: (ms: number) => number;
-	/** Duration in milliseconds at a vertical position, the inverse of yOf. */
-	msAt: (y: number) => number;
-}
-
-/** A log scale that always spans 10 ms to 100 ms so a few similar traces don't fill the chart. */
-export function durationScale(durationsMs: number[]): DurationScale {
-	const lo = Math.max(SCALE_FLOOR_MS, Math.min(SCALE_LOW_CAP_MS, ...durationsMs));
-	const hi = Math.max(SCALE_HIGH_FLOOR_MS, ...durationsMs) * SCALE_HEADROOM;
-	const logLo = Math.log(lo);
-	const logSpan = Math.log(hi) - logLo;
-	const yOf = (ms: number) => Math.min(1, Math.max(0, 1 - (Math.log(Math.max(ms, lo)) - logLo) / logSpan));
-	const msAt = (y: number) => Math.exp(logLo + (1 - y) * logSpan);
-	const ticks = DECADES_MS.filter((ms) => ms >= lo && ms <= hi).map((ms) => ({
-		ms,
-		y: yOf(ms),
-		label: durationLabel(BigInt(Math.round(ms * Number(NANOS_PER_MS)))).replace(/\.0+ /, " "),
-	}));
-	return { ticks, yOf, msAt };
-}
