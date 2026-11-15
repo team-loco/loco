@@ -16,6 +16,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/collector/pdata v1.71.0
 	go.yaml.in/yaml/v3 v3.0.6
+	golang.org/x/mod v0.41.0
 	golang.org/x/net v0.62.0
 	google.golang.org/protobuf v1.36.12
 	sigs.k8s.io/yaml v1.6.0
