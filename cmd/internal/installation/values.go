@@ -11,7 +11,7 @@ import (
 const schemeHTTP = "http"
 const schemeHTTPS = "https"
 
-var valuesFunctions = template.FuncMap{"quote": strconv.Quote, "image": imageValues}
+var valuesFunctions = template.FuncMap{"quote": strconv.Quote, "image": imageValues, "issuer": issuerValues}
 var controlPlaneTemplate = template.Must(template.New("control-plane").Funcs(valuesFunctions).Parse(`
 api:
   image: {{with image .Manifest "api"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
@@ -34,10 +34,7 @@ controlPlaneHostname: {{quote .APIHost}}
 gatewayNamespace: {{quote .Config.ControlPlane.Kubernetes.Namespace}}
 certManager:
   enabled: {{.TLS}}
-  issuer:
-    create: false
-    kind: {{quote .Config.ControlPlane.Certificates.IssuerRef.Kind}}
-    name: {{quote .Config.ControlPlane.Certificates.IssuerRef.Name}}
+  issuer: {{issuer .Config.ControlPlane.Certificates}}
 openbao:
   seal:
     static:
@@ -123,10 +120,7 @@ gateway-helm:
 env:
   CONTROL_PLANE_URL: {{quote .Config.ControlPlane.APIURL}}
 certManager:
-  issuer:
-    create: false
-    kind: {{quote .Worker.Certificates.IssuerRef.Kind}}
-    name: {{quote .Worker.Certificates.IssuerRef.Name}}
+  issuer: {{issuer .Worker.Certificates}}
 `))
 
 func workerValues(config Config, worker Worker, manifest Manifest) ([]byte, error) {

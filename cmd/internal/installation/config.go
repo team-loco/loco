@@ -89,9 +89,19 @@ type Observability struct {
 	IngestURL string `json:"ingestURL" yaml:"ingestURL"`
 }
 
+// Certificates sets exactly one of IssuerRef, an issuer the operator manages, or Issuer,
+// a ClusterIssuer the Loco chart release creates.
 type Certificates struct {
-	IssuerRef IssuerRef `json:"issuerRef" yaml:"issuerRef"`
+	IssuerRef *IssuerRef `json:"issuerRef,omitempty" yaml:"issuerRef,omitempty"`
+	Issuer    *Issuer    `json:"issuer,omitempty"    yaml:"issuer,omitempty"`
 }
+
+type Issuer struct {
+	Name       string     `json:"name"       yaml:"name"`
+	SelfSigned SelfSigned `json:"selfSigned" yaml:"selfSigned"`
+}
+
+type SelfSigned struct{}
 
 type IssuerRef struct {
 	Name string `json:"name" yaml:"name"`
