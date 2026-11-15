@@ -3,7 +3,7 @@
 set -euo pipefail
 
 status=0
-dockerfiles=$(git ls-files '*Dockerfile' | grep -v '^examples/')
+dockerfiles=$(git ls-files '*Dockerfile')
 
 check() {
 	local image=$1 want=$2 file line tag
