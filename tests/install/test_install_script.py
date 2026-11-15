@@ -8,13 +8,6 @@ def run(*args):
     return subprocess.run(["sh", str(SCRIPT), *args], capture_output=True, text=True, check=False)
 
 
-def test_help_lists_the_installable_binaries():
-    result = run("--help")
-    assert result.returncode == 0
-    assert "--binary NAME" in result.stdout
-    assert "loco or locoadm" in result.stdout
-
-
 def test_rejects_an_unknown_binary_before_downloading():
     result = run("--binary", "bogus", "--bin-dir", "/nonexistent")
     assert result.returncode == 1

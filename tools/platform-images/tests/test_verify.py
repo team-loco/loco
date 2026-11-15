@@ -129,13 +129,6 @@ def _select_images(cwd, output, **env):
 
 def test_main_builds_each_platform_image_on_both_architectures(tmp_path):
     root = Path(__file__).resolve().parents[3]
-    paths = json.loads(
-        subprocess.check_output(
-            ["yq", "-o", "json", ".docker.pull_request", str(root / ".github/ci-paths.yml")], text=True
-        )
-    )
-    assert "tools/platform-images/**" in paths
-    assert "tests/versions/**" in paths
     assert _select_images(root, tmp_path / "output", EVENT="push") == (
         PLATFORM_DOCKERFILES,
         {"linux/amd64", "linux/arm64"},

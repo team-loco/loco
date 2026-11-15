@@ -98,7 +98,6 @@ docker:
     - "mise-tasks/lint/versions"
     - "mise-tasks/test/platform-binaries"
     - "tools/platform-images/**"
-    - "tests/versions/**"
     - "mise.toml"
     - "mise.lock"
     - "docs/pyproject.toml"
@@ -298,7 +297,6 @@ govulncheck:
     - "mise.toml"
     - "mise.lock"
     - "mise-tasks/lint/govulncheck"
-    - "tests/govulncheck/**"
     - ".github/actions/setup-tools/**"
     - ".github/workflows/govulncheck.yml"
   push: *govulncheck
@@ -308,19 +306,6 @@ images:
   # build.yml publishes the images of every push to main.
   push:
     - "**"
-
-local-stack:
-  pull_request: &local-stack
-    - "tests/pyproject.toml"
-    - "tests/uv.lock"
-    - "dev/stack.sh"
-    - "dev/api.env"
-    - "tests/stack/**"
-    - "mise-tasks/helm/**"
-    - "dev/worker-chart.yaml"
-    - "charts/**"
-    - ".github/workflows/local-stack.yml"
-  push: *local-stack
 
 obs-chart:
   pull_request: &obs-chart
@@ -432,4 +417,5 @@ workflows:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/**"
+    - "tools/ci-changes/**"
   push: *workflows

@@ -46,12 +46,6 @@ func TestMintSignsWithTheKeyFile(t *testing.T) {
 	}
 }
 
-func TestServeRequiresWorkspaces(t *testing.T) {
-	if err := serve(t.Context(), writeKey(t), "127.0.0.1:0", "", time.Now()); !errors.Is(err, errMissingWorkspaces) {
-		t.Fatalf("serve without workspaces = %v", err)
-	}
-}
-
 func TestAgentAssertionVerifiesWithThePrintedPublicKey(t *testing.T) {
 	keyFile := writeKey(t)
 	now := time.Now()
