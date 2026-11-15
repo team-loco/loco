@@ -249,7 +249,7 @@ export function OrgTab({
 						{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
 					</div>
 				) : (
-					<Table flush>
+					<Table>
 						<TableHeader>
 							<TableRow>
 								<TableHead>Name</TableHead>
@@ -266,7 +266,7 @@ export function OrgTab({
 								const by = userName(w.createdBy);
 								const day = formatDay(w.createdAt, timePref);
 								return (
-									<TableRow key={w.id} className="relative hover:bg-panel2 [&>td]:h-[52px]">
+									<TableRow key={w.id} interactive className="relative">
 										<TableCell>
 											<Link
 												to={settingsPath(org.id, w.id, "workspace")}
@@ -299,7 +299,7 @@ export function OrgTab({
 						</TableBody>
 					</Table>
 				)}
-				<Pager {...paged.pager} {...paged.ends} />
+				<Pager {...paged.pager} {...paged.ends} className="pt-3 pb-3.5" />
 			</Section>
 
 			<LimitsSection

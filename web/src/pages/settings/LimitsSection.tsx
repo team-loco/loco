@@ -62,7 +62,7 @@ function RaisedBanner({ org, limits, users }: { org: Organization; limits: OrgLi
 	const timePref = useTimePreferences();
 	const by = users.find((u) => u.id === limits.updatedBy);
 	return (
-		<div className="mx-5 mt-3.5 flex items-start gap-2.5 rounded-lg border border-line bg-background px-3 py-2.5 text-[13px]">
+		<div className="flex items-start gap-2.5 border-b border-line2 bg-background px-5 py-3 text-[13px]">
 			<CircleArrowUpIcon className="mt-0.5 size-[15px] shrink-0 text-info-fg" />
 			<div className="min-w-0">
 				<div>
@@ -115,11 +115,11 @@ export function LimitsSection({
 	];
 	return (
 		<SettingsSection title="Limits">
-			<SettingsCard className="pb-1.5">
+			<SettingsCard>
 				{limits !== undefined && limits.overridden.length > 0 && (
 					<RaisedBanner org={org} limits={limits} users={users} />
 				)}
-				<Table flush>
+				<Table>
 					<TableHeader>
 						<TableRow>
 							<TableHead>Limit</TableHead>
@@ -130,8 +130,8 @@ export function LimitsSection({
 					</TableHeader>
 					<TableBody>
 						<Rows rows={limitRows} limits={limits} />
-						<TableRow>
-							<TableCell colSpan={4} className="pt-4 pb-1 text-[12.5px] text-fg3">
+						<TableRow data-subheader>
+							<TableCell colSpan={4} className="h-10 border-t border-line2 bg-panel2 py-0 text-[12.5px] text-fg3">
 								History kept
 							</TableCell>
 						</TableRow>

@@ -28,6 +28,23 @@ def descriptions(field):
     return field.evaluate("(node) => (node.getAttribute('aria-describedby') || '').split(/\\s+/).filter(Boolean).map(id => { const hint = document.getElementById(id); if (!hint) throw new Error('Missing describedby target'); return hint.textContent; })")
 
 
+def check_table_geometry(page):
+    for table in page.get_by_role("table").all():
+        if not table.is_visible():
+            continue
+        head = table.get_by_role("columnheader").first
+        assert abs(head.bounding_box()["height"] - 40) <= 1
+        assert head.evaluate("node => parseFloat(getComputedStyle(node).paddingLeft)") == 20
+        geometry = table.evaluate("node => { const table = node.getBoundingClientRect(); const card = node.closest('section.rounded-card').getBoundingClientRect(); return {left: table.left - card.left, right: card.right - table.right}; }")
+        assert geometry["left"] <= 2 and geometry["right"] <= 2, geometry
+        rows = table.locator("tbody tr")
+        for row in rows.all():
+            if row.inner_text().strip() == "History kept":
+                assert abs(row.bounding_box()["height"] - 40) <= 1
+            else:
+                assert row.bounding_box()["height"] >= 51
+
+
 def check_time_preferences(page):
     section = page.get_by_role("region", name="Date and time", exact=True)
     zone = section.get_by_role("group", name="Time zone", exact=True)
@@ -233,6 +250,7 @@ with session(out) as browser:
                         check_webhooks(page)
                         check_environments(page)
                         check_create_dialogs(page)
+                    check_table_geometry(page)
                     assert not errors, errors
                     results.append({"user": user, "tab": tab, "errors": list(errors)})
                 except BaseException as error:
@@ -240,6 +258,13 @@ with session(out) as browser:
                         page.screenshot(path=out / f"failure-{user}-{tab}.png", animations="disabled")
                     (out / "failure.json").write_text(json.dumps({"user": user, "tab": tab, "error": repr(error), "errors": errors, "completed": results}, indent=2))
                     raise
+            if user == "owner":
+                for theme in ("neobrutal", "catppuccin"):
+                    for mode in ("light", "dark"):
+                        page.evaluate("values => { localStorage.setItem('loco:color:v1', values[0]); localStorage.setItem('loco:mode:v1', values[1]); }", [theme, mode])
+                        page.goto(state["ui_url"] + base + "?scope=workspace")
+                        page.get_by_role("columnheader", name="Name", exact=True).wait_for()
+                        check_table_geometry(page)
             page.goto(state["ui_url"] + base + "?scope=account")
             check_time_preferences(page)
             context.close()

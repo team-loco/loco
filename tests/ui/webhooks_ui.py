@@ -44,6 +44,12 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     page.on("request", lambda req: requests.append((req.url.rsplit("/", 1)[-1], req.post_data_json)) if service in req.url else None)
     try:
         page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/settings?scope=workspace")
+        hook_button = page.get_by_role("button", name="Deliveries for https://hooks.invalid/loco", exact=True)
+        cells = hook_button.locator("xpath=ancestor::tr").get_by_role("cell")
+        deliveries_cell = cells.nth(2)
+        strip = deliveries_cell.get_by_role("img")
+        expect(strip).to_be_visible()
+        assert strip.bounding_box()["x"] + strip.bounding_box()["width"] <= deliveries_cell.bounding_box()["x"] + deliveries_cell.bounding_box()["width"]
         page.get_by_role("button", name="Deliveries for https://hooks.invalid/loco", exact=True).click()
         drawer = page.get_by_role("dialog", name="https://hooks.invalid/loco", exact=True)
         deliveries = drawer.get_by_role("list", name="Deliveries", exact=True)

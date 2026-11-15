@@ -207,7 +207,7 @@ function WebhookRow({
 	};
 
 	return (
-		<TableRow className="hover:bg-panel2" onClick={onRowClick}>
+		<TableRow onClick={onRowClick}>
 			<TableCell className="w-full max-w-0">
 				<button
 					type="button"
@@ -221,7 +221,7 @@ function WebhookRow({
 			<TableCell className="hidden text-[12.5px] whitespace-nowrap text-fg2 md:table-cell">
 				{eventsSummary(webhook.eventTypes)}
 			</TableCell>
-			<TableCell>
+			<TableCell className="max-w-[180px]">
 				<DeliveryTicks workspaceId={workspaceId} webhookId={webhook.id} />
 			</TableCell>
 			<TableCell className="hidden font-mono text-[12px] whitespace-nowrap text-fg3 md:table-cell">
@@ -263,13 +263,21 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 			<span
 				role="img"
 				aria-label={`${ticks.length.toString()} recent deliveries, ${label}`}
-				className="flex items-center gap-0.5"
+				className="flex min-w-0 flex-[0_1_118px] items-center gap-0.5 overflow-hidden"
 			>
 				{ticks.map((t) => (
-					<i key={t.id} title={t.tip} className={cn("block h-4 w-1 rounded-[1.5px]", TICK_CLASS[t.tick])} />
+					<i
+						key={t.id}
+						title={t.tip}
+						className={cn("block h-4 min-w-0.5 flex-[0_1_4px] rounded-[1.5px]", TICK_CLASS[t.tick])}
+					/>
 				))}
 			</span>
-			{errors > 0 && <span className="text-[12px] whitespace-nowrap text-warn-fg">{label}</span>}
+			{errors > 0 && (
+				<span title={label} className="min-w-0 truncate text-[12px] text-warn-fg">
+					{label}
+				</span>
+			)}
 		</span>
 	);
 }

@@ -52,7 +52,7 @@ Observability uses a compact query-first shell rather than the large operational
 
 Start operational screens with [Page, PageHeader and Section](web/src/components/design/Page.tsx). They own the content measure, responsive side padding, section gap and header/action wrapping. Keep page scope visible before the content it controls. Resource region/time controls belong above the regional charts; observability resource/time controls belong above results.
 
-Use space to distinguish levels, not to make every element a card. Section gaps separate tasks. Border dividers separate related rows inside one section. Use the shared [Table](web/src/components/design/Table.tsx) row/header spacing for comparable lists; retain the tighter dedicated trace geometry for telemetry. Do not enlarge every table row to match a settings form.
+Use space to distinguish levels, not to make every element a card. Section gaps separate tasks. Border dividers separate related rows inside one section. Use the shared [Table](web/src/components/design/Table.tsx) for comparable lists: edge-to-edge rows, 20px outer cell insets, 40px headers and a 52px minimum body row. Clickable rows use the shared `--row-hover` token. Retain the tighter dedicated trace geometry for telemetry. Do not enlarge every table row to match a settings form.
 
 [SettingsRow](web/src/pages/settings/parts.tsx) gives labels and hints a stable column on desktop, limits the form measure, then stacks labels above fields on narrow screens. Forms need more vertical space than telemetry rows so hints, validation and pending feedback do not collide.
 
