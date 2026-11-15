@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.config.v1;
 
+import "google/protobuf/duration.proto";
 import "loco/deployment/v1/deployment.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/config/v1;configv1";
@@ -23,6 +24,16 @@ message GetConfigResponse {
   SizeLimits size_limits = 7;
   // count_limits are the install's defaults; GetOrgLimits reports an organization's own.
   CountLimits count_limits = 8;
+  // history_retention applies across the installation and cannot be overridden per organization.
+  HistoryRetention history_retention = 9;
+}
+
+message HistoryRetention {
+  // build_images_per_resource keeps the newest build images, plus images still in use.
+  // Zero disables image cleanup.
+  int32 build_images_per_resource = 1;
+  // events also covers webhook delivery records, which are deleted with their event.
+  google.protobuf.Duration events = 2;
 }
 
 // CountLimits cap how many of each thing can exist. A create past a cap fails with

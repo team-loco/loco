@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/team-loco/loco/api/limits"
@@ -16,7 +18,7 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	t.Parallel()
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
-	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour, limits.Defaults())
+	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour, limits.Defaults(), nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -68,7 +70,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 		{Label: "Support", URL: "https://support.example.com/orgs/{orgId}"},
 		{Label: "Status", URL: "https://status.example.com"},
 	}
-	server := NewConfigServer("", "", testServiceDefaults(), nil, links, time.Hour, limits.Defaults())
+	server := NewConfigServer("", "", testServiceDefaults(), nil, links, time.Hour, limits.Defaults(), nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -85,7 +87,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 
 func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 	t.Parallel()
-	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, limits.Defaults())
+	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, limits.Defaults(), nil)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
@@ -128,12 +130,33 @@ func TestGetConfigReportsTheInstallCountLimits(t *testing.T) {
 	t.Parallel()
 	counts := limits.Defaults()
 	limits.ResourcesPerWorkspace.Set(counts, 7)
-	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, counts)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, counts, nil)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
 	}
 	if got := resp.GetCountLimits().GetResourcesPerWorkspace(); got != 7 {
 		t.Fatalf("resources per workspace = %d, want the configured 7", got)
+	}
+}
+
+func TestGetConfigReportsInstallHistoryRetention(t *testing.T) {
+	t.Parallel()
+	for name, images := range map[string]int32{"cleanup disabled": 0, "configured": 7} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			retention := &configv1.HistoryRetention{
+				BuildImagesPerResource: images,
+				Events:                 durationpb.New(36*time.Hour + 500*time.Millisecond),
+			}
+			server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, limits.Defaults(), retention)
+			resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !proto.Equal(resp.GetHistoryRetention(), retention) {
+				t.Fatalf("history retention = %v, want %v", resp.GetHistoryRetention(), retention)
+			}
+		})
 	}
 }
