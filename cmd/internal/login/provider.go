@@ -1,4 +1,4 @@
-package main
+package login
 
 import (
 	"context"
@@ -27,14 +27,10 @@ const (
 )
 
 var (
-	errLoginTimedOut             = errors.New("timed out waiting for the browser; run loco login again")
+	errLoginTimedOut             = errors.New("timed out waiting for the browser")
 	errLoginCanceled             = errors.New("login canceled")
-	errBrowserLoginNeedsTerminal = errors.New(
-		"browser sign-in needs a terminal; run loco login --device and approve the code on another device",
-	)
-	errDeviceLoginExpired = errors.New(
-		"the device code expired before sign-in was approved; run loco login --device again",
-	)
+	errBrowserLoginNeedsTerminal = errors.New("browser sign-in needs a terminal")
+	errDeviceLoginExpired        = errors.New("the device code expired before sign-in was approved")
 
 	errNoIdentityProvider = errors.New("this Loco server has no identity provider configured")
 	errNoOrganization     = errors.New("the server returned no organization for this account")
@@ -89,7 +85,7 @@ func browserLogin(
 				w,
 				http.StatusBadRequest,
 				"Sign-in failed",
-				"This link does not match the running loco login.",
+				"This link does not match the running sign-in.",
 			)
 			return
 		}
