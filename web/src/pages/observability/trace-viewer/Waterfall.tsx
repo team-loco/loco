@@ -4,7 +4,8 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { zoomTo, type Zoom } from "../flame";
 import { durationLabel, spanStart, spanTree, spanError, type TraceSummary } from "../traces";
-import { traceServiceColor } from "../trace-service";
+import { traceResourceKey } from "../trace-service";
+import { useTraceResources } from "./TraceColors";
 import { offsetTicks } from "./plot";
 
 export function Waterfall({
@@ -24,6 +25,7 @@ export function Waterfall({
 	highlight: string | null;
 	label: (span: TraceSpan) => string;
 }) {
+	const { color } = useTraceResources();
 	const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 	const [nameWidth, setNameWidth] = useState(240);
 	const resizeRef = useRef<{ x: number; width: number } | null>(null);
@@ -106,7 +108,7 @@ export function Waterfall({
 						className={cn(
 							"tv-waterfall-row flex min-h-8 items-stretch border-b border-line last:border-0",
 							selected.spanId === span.spanId && "bg-panel2",
-							highlight !== null && span.serviceName !== highlight && "opacity-30",
+							highlight !== null && traceResourceKey(span) !== highlight && "opacity-30",
 						)}
 					>
 						<div
@@ -129,10 +131,7 @@ export function Waterfall({
 									<ChevronDownIcon className="size-3" />
 								)}
 							</button>
-							<i
-								className="mr-1.5 size-2 shrink-0 rounded-full"
-								style={{ background: traceServiceColor(span.serviceName) }}
-							/>
+							<i className="mr-1.5 size-2 shrink-0 rounded-full" style={{ background: color(span) }} />
 							<button
 								type="button"
 								aria-pressed={selected.spanId === span.spanId}
@@ -199,13 +198,13 @@ export function Waterfall({
 							) : (
 								<span
 									className={cn(
-										"tv-span-bar absolute top-1.5 bottom-1.5 flex items-center overflow-hidden rounded-sm px-1 text-foreground",
+										"tv-span-bar absolute top-1.5 bottom-1.5 flex items-center truncate rounded-sm px-1 text-foreground",
 										selected.spanId === span.spanId && "ring-1 ring-foreground",
 									)}
 									style={{
 										left: `${String(left * 100)}%`,
-										width: `${String(Math.max(0.3, (right - left) * 100))}%`,
-										background: `color-mix(in oklab, ${spanError(span) ? "var(--err)" : traceServiceColor(span.serviceName)} 35%, var(--bg))`,
+										width: `${String((right - left) * 100)}%`,
+										background: `color-mix(in oklab, ${spanError(span) ? "var(--err)" : color(span)} 35%, var(--bg))`,
 									}}
 								>
 									{durationLabel(span.durationNanos)}

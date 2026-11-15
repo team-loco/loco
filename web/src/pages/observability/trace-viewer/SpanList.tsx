@@ -12,19 +12,25 @@ import { cn } from "@/lib/utils";
 import { selfTime } from "../flame";
 import { useObs } from "../context";
 import { durationLabel, type TraceSummary } from "../traces";
-import { traceServiceLabel, traceServiceColor } from "../trace-service";
+import { traceServiceLabel } from "../trace-service";
+
+import { useTraceResources } from "./TraceColors";
 
 interface Operation {
 	key: string;
 	name: string;
 	resource: string;
-	service: string;
+	color: string;
 	count: number;
 	average: number;
 	execution: number;
 	share: number;
 }
-export function operations(trace: TraceSummary, label: (span: TraceSummary["root"]) => string): Operation[] {
+export function operations(
+	trace: TraceSummary,
+	label: (span: TraceSummary["root"]) => string,
+	color: (span: TraceSummary["root"]) => string,
+): Operation[] {
 	const groups = new Map<string, Operation>();
 	for (const span of trace.spans) {
 		const key = JSON.stringify([span.resourceId || span.serviceName, span.name]);
@@ -32,7 +38,7 @@ export function operations(trace: TraceSummary, label: (span: TraceSummary["root
 			key,
 			name: span.name,
 			resource: label(span),
-			service: span.serviceName,
+			color: color(span),
 			count: 0,
 			average: 0,
 			execution: 0,
@@ -66,7 +72,7 @@ const COLUMNS: DataColumn<Operation>[] = [
 		size: 140,
 		cell: ({ row }) => (
 			<span className="flex items-center gap-1.5">
-				<i className="size-2 shrink-0 rounded-full" style={{ background: traceServiceColor(row.original.service) }} />
+				<i className="size-2 shrink-0 rounded-full" style={{ background: row.original.color }} />
 				{row.original.resource}
 			</span>
 		),
@@ -108,7 +114,7 @@ const COLUMNS: DataColumn<Operation>[] = [
 						className="block h-full"
 						style={{
 							width: `${String(row.original.share * 100)}%`,
-							background: traceServiceColor(row.original.service),
+							background: row.original.color,
 						}}
 					/>
 				</span>
@@ -120,10 +126,13 @@ const COLUMNS: DataColumn<Operation>[] = [
 const PAGE_SIZES = [25, 50, 100];
 export function SpanList({ trace }: { trace: TraceSummary }) {
 	const { resourceById } = useObs();
+	const { color } = useTraceResources();
 	const [search, setSearch] = useState("");
-	const data = operations(trace, (span) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name)).filter(
-		(g) => `${g.name} ${g.resource}`.toLowerCase().includes(search.toLowerCase()),
-	);
+	const data = operations(
+		trace,
+		(span) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name),
+		color,
+	).filter((g) => `${g.name} ${g.resource}`.toLowerCase().includes(search.toLowerCase()));
 	const table = useTable({
 		...sortOptions,
 		features: dataTableFeatures,

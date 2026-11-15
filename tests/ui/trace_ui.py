@@ -30,6 +30,15 @@ def span(row):
     sid, parent, service, name, offset, duration = row
     return {'traceId': trace, 'spanId': sid.zfill(16), 'parentSpanId': parent.zfill(16) if parent else '', 'name': name, 'kind': 'Server', 'serviceName': service, 'startTime': stamp(offset), 'durationNanos': str(int(duration * 1000000)), 'statusCode': 'Error' if sid in ('000a', '000b') else 'Ok', 'statusMessage': 'Payment authorization timed out after 90 ms' if sid == '000b' else '', 'spanAttributes': {'http.request.method': 'POST', 'http.response.status_code': '504' if sid == '000b' else '200', 'server.address': 'payments.internal', 'payment.attempt': '1'} if sid == '000b' else {'rpc.system': 'grpc', 'rpc.service': f'oteldemo.{service.title()}Service'}, 'resourceAttributes': {'service.name': service, 'service.version': '2.1.0', 'deployment.environment.name': 'production', 'cloud.region': 'us-east-1'}, 'scopeName': '@opentelemetry/instrumentation-http', 'scopeVersion': '0.210.0'}
 spans = [span(row) for row in rows]
+concurrent_spans = [span(row) for row in [
+    ('1000', '', 'frontend', 'GET /recommendations', 0, 10),
+    ('1001', '1000', 'product-catalog', 'Product lookup', 0.5, 8),
+    ('1002', '1001', 'product-catalog', 'grpc.oteldemo.ProductCatalogService/GetProduct', 1, 2.62),
+    ('1003', '1001', 'product-catalog', 'grpc.oteldemo.ProductCatalogService/GetProduct', 2, 3.98),
+    ('1004', '1002', 'cache', 'Read product cache', 2, 4),
+    ('1005', '1001', 'product-catalog', 'grpc.oteldemo.ProductCatalogService/GetProduct', 4, 3),
+]]
+
 spans[10]['events'] = [
     {'name': 'retry.scheduled', 'timestamp': stamp(168.2 + 12.4), 'attributes': {'attempt': '1'}},
     {'name': 'exception', 'timestamp': stamp(168.2 + 90), 'attributes': {'exception.type': 'TimeoutError', 'exception.message': 'Authorization timed out', 'exception.stacktrace': 'TimeoutError: Authorization timed out\n    at authorize (payments.ts:42:7)\n    at checkout (checkout.ts:18:3)'}},
@@ -75,6 +84,9 @@ def handle(route):
         return
     if route.request.url.endswith('/QueryTraceBuckets'):
         route.fulfill(json=trace_buckets(body))
+        return
+    if mode[0] == 'concurrent' and route.request.url.endswith('/GetTrace'):
+        route.fulfill(json={'spans': concurrent_spans})
         return
     if mode[0] == 'many' and not route.request.url.endswith('/ListTraces'):
         route.fulfill(json={'spans': spans + [dict(spans[5],spanId=f'{index + 256:016x}',name=f'Lookup {index}') for index in range(100)]})
@@ -467,6 +479,26 @@ with session(out) as browser:
     suggestions.get_by_role('button', name='Remove checkout').click()
     expect(recent).to_have_count(0)
     context.close()
+    mode[0] = 'concurrent'
+    for narrow in (False, True):
+        context, page, errors = open_page(browser, narrow=narrow, state=state)
+        context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
+        page.goto(state['ui_url'] + base + '&trace=' + trace)
+        drawer = page.get_by_role('dialog', name='GET /recommendations')
+        flame = drawer.get_by_role('region', name='Flame graph')
+        expect(flame.get_by_role('button')).to_have_count(len(concurrent_spans))
+        boxes = flame.get_by_role('button').evaluate_all('(buttons) => buttons.map(b => {const r=b.getBoundingClientRect(); return {x:r.x,y:r.y,right:r.right,bottom:r.bottom}})')
+        for i, a in enumerate(boxes):
+            for b in boxes[i+1:]:
+                assert a['bottom'] <= b['y'] or b['bottom'] <= a['y'] or a['right'] <= b['x'] + 0.1 or b['right'] <= a['x'] + 0.1, (a,b)
+        assert flame.get_by_role('button').evaluate_all("buttons => buttons.every(b => [...b.querySelectorAll('span')].every(s => {const r=s.getBoundingClientRect(),p=b.getBoundingClientRect();return r.width===0 || (r.x>=p.x-1 && r.right<=p.right+1 && r.y>=p.y-1 && r.bottom<=p.bottom+1)}))")
+        drawer.get_by_role('button', name='Waterfall', exact=True).click()
+        waterfall = drawer.get_by_role('region', name='Waterfall')
+        expect(waterfall.locator('[data-span]')).to_have_count(len(concurrent_spans))
+        assert waterfall.locator('[data-span]').evaluate_all("buttons => buttons.every(b => b.clientHeight === b.scrollHeight)")
+        assert waterfall.locator('button > span.absolute').evaluate_all("bars => bars.every(b => b.clientHeight >= b.scrollHeight)")
+        assert not errors, errors
+        context.close()
     browser.close()
 assert all((row.get('scope', {}).get('environmentId') for row in recorded))
 assert all((not row.get('scope', {}).get('resourceIds') for row in recorded if row.get('traceId')))
