@@ -1,0 +1,38 @@
+# --wait reports each deployment the apply started as it runs, and fails the command with the
+# message of one that fails.
+fakeapi plan plan.json
+fakeapi deployment dep-web failed
+! exec loco infra apply --yes --wait
+stdout '^Started deployment dep-api for api in us-east-1\.$'
+stdout '^Deployment dep-api for api in us-east-1 is running\.$'
+! stdout 'dep-web for web in us-east-1 is running'
+stderr 'deployment dep-web for web in us-east-1 failed: replicas crash on start'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "api", "changes": [{"path": "image", "after": "ghcr.io/acme/api:1"}]},
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "changes": [{"path": "env.TIER", "after": "prod"}]}
+  ]
+}
+-- loco.yaml --
+version: 1
+partial: web
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rogpeppe/go-internal/testscript"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -69,6 +71,8 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.addEnvironment(args[1])
 		api.mu.Unlock()
+	case "deployment":
+		setDeploymentOutcome(ts, api, neg, args)
 	case "restarted":
 		checkRestarted(ts, api, neg, args)
 	case "scaled":
@@ -120,6 +124,17 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 	default:
 		ts.Fatalf("fakeapi: unknown subcommand %q", args[0])
 	}
+}
+
+func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	requireArgs(ts, neg, args, 3, "fakeapi deployment <id> <running|failed|canceled|deploying>")
+	phase, ok := deploymentv1.DeploymentPhase_value["DEPLOYMENT_PHASE_"+strings.ToUpper(args[2])]
+	if !ok {
+		ts.Fatalf("fakeapi: unknown deployment phase %q", args[2])
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	api.platform.deploymentOutcomes[args[1]] = deploymentv1.DeploymentPhase(phase)
 }
 
 func requireArgs(ts *testscript.TestScript, neg bool, args []string, n int, usage string) {

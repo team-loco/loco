@@ -177,6 +177,12 @@ loco deploy web --image ghcr.io/acme/web:release --env production --yes
 
 This command skips all source builds and uploads, including builds for other services. It still plans and applies the whole file with the normal import and destructive-operation confirmations. Other services can change, and new source services may still require their initial build. An unknown service, a service disabled in the selected environment, multiple service names or an empty image reference is an error. Image resolution errors stop the deploy before apply.
 
+`apply` and `deploy` return once the API records the deployments they start; the cluster rolls them out afterwards. With `--wait` they return once every one of those deployments runs, meaning its replicas run the new configuration and are ready, and print a line for each. The command exits with an error when a deployment fails, or is canceled because its service stopped or was deleted during the rollout, so a script or CI job can stop on a failed rollout:
+
+```sh
+loco deploy --env production --yes --wait
+```
+
 ## Observability
 
 Loco configures instrumented applications to export telemetry to its collector by default. Disable automatic SDK environment configuration for a resource or an environment:

@@ -74,11 +74,17 @@ The plan is shown before anything changes. Destructive operations need
 --confirm-destructive and imports need --confirm-import. Without a terminal, --yes
 replaces the prompt.
 
+The command returns once the API records the deployments it starts. With --wait it returns
+once every one of them runs: its replicas run the deployed configuration and are ready. It
+exits with an error when one fails, or is canceled because its service stopped or was
+deleted.
+
 Examples:
   loco deploy
   loco deploy --name web --port 8080 --yes
   loco deploy --name worker --image ghcr.io/acme/worker:release --yes
   loco deploy --env staging --yes
+  loco deploy --env staging --yes --wait
   loco deploy web worker --file deploy/loco.yaml
   loco deploy web --image ghcr.io/acme/web:release --yes`,
 		RunE: runDeploy,
@@ -96,11 +102,16 @@ Examples:
 	cmd.Flags().BoolP("yes", "y", false, "Deploy without asking for confirmation")
 	cmd.Flags().Bool("confirm-destructive", false, confirmDestructiveUsage)
 	cmd.Flags().Bool("confirm-import", false, confirmImportUsage)
+	addWaitFlag(cmd)
 	return cmd
 }
 
 func runDeploy(cmd *cobra.Command, names []string) error {
 	confirm, err := readConfirmations(cmd)
+	if err != nil {
+		return err
+	}
+	wait, err := readWait(cmd)
 	if err != nil {
 		return err
 	}
@@ -202,7 +213,10 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil {
 		return writeErr
 	}
-	return writeReachability(os.Stdout, services)
+	if reachErr := writeReachability(os.Stdout, services); reachErr != nil || !wait {
+		return reachErr
+	}
+	return waitRunning(ctx, t, os.Stdout, applied.GetDeployments())
 }
 
 func deployTargets(

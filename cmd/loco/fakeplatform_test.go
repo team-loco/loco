@@ -21,6 +21,8 @@ import (
 
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -93,6 +95,8 @@ type fakePlatform struct {
 	revision          int64
 	restarts          []*resourcev1.RestartResourceRequest
 	scales            []*resourcev1.ScaleResourceRequest
+	// deploymentOutcomes holds the last status WatchDeployment sends per deployment ID.
+	deploymentOutcomes map[string]deploymentv1.DeploymentPhase
 }
 
 func newFakePlatform() *fakePlatform {
@@ -103,12 +107,13 @@ func newFakePlatform() *fakePlatform {
 			Name:        "production",
 			Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
 		}},
-		polls:       map[string]int{},
-		outcome:     outcomeSucceeded,
-		uploadMode:  uploadModeOK,
-		sourceLimit: 200 << 20,
-		uploads:     map[string]fakeUpload{},
-		secrets:     map[fakeSecretKey]fakeSecret{},
+		polls:              map[string]int{},
+		outcome:            outcomeSucceeded,
+		uploadMode:         uploadModeOK,
+		sourceLimit:        200 << 20,
+		uploads:            map[string]fakeUpload{},
+		secrets:            map[fakeSecretKey]fakeSecret{},
+		deploymentOutcomes: map[string]deploymentv1.DeploymentPhase{},
 	}
 }
 
@@ -121,6 +126,7 @@ func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	buildv1connect.RegisterBuildServiceHandler(server, &fakeBuildService{api: f})
 	observabilityv1connect.RegisterObservabilityServiceHandler(server, &fakeProxyService{api: f})
 	secretv1connect.RegisterSecretServiceHandler(server, &fakeSecretService{api: f})
+	deploymentv1connect.RegisterDeploymentServiceHandler(server, &fakeDeploymentService{api: f})
 	connecthttp.Mount(mux, server)
 
 	mux.HandleFunc(uploadPathPrefix, f.handleUpload)

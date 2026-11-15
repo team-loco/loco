@@ -65,8 +65,14 @@ A new service whose only plan errors are the secrets it declares is created with
 deployed; the command prints the loco env set command for its secrets and exits with an
 error, and the next apply deploys it.
 
+The command returns once the API records the deployments it starts. With --wait it returns
+once every one of them runs: its replicas run the applied configuration and are ready. It
+exits with an error when one fails, or is canceled because its service stopped or was
+deleted.
+
 Examples:
   loco infra apply
+  loco infra apply --wait
   loco infra apply --env staging --yes
   loco infra apply --yes --confirm-destructive`,
 		Args: cobra.MaximumNArgs(1),
@@ -78,6 +84,7 @@ Examples:
 	cmd.Flags().BoolP("yes", "y", false, "Apply without asking for confirmation")
 	cmd.Flags().Bool("confirm-destructive", false, confirmDestructiveUsage)
 	cmd.Flags().Bool("confirm-import", false, confirmImportUsage)
+	addWaitFlag(cmd)
 	return cmd
 }
 
@@ -95,6 +102,10 @@ func readConfirmations(cmd *cobra.Command) (confirmations, error) {
 
 func runApply(cmd *cobra.Command, path string) error {
 	confirm, err := readConfirmations(cmd)
+	if err != nil {
+		return err
+	}
+	wait, err := readWait(cmd)
 	if err != nil {
 		return err
 	}
@@ -135,7 +146,10 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	return writeApplied(os.Stdout, applied)
+	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil || !wait {
+		return writeErr
+	}
+	return waitRunning(ctx, t, os.Stdout, applied.GetDeployments())
 }
 
 func resolveServices(file *locofile.File, path, environment string) (map[string]locofile.Service, error) {
