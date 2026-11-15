@@ -297,6 +297,9 @@ local-stack:
     - "mise-tasks/helm/**"
     - "dev/worker-chart.yaml"
     - "charts/**"
+    - ".agents/skills/db-bench/**"
+    - "api/queries/**"
+    - "api/service/{event,position_cursor}.go"
     - ".github/workflows/local-stack.yml"
   push: *local-stack
 

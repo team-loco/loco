@@ -185,6 +185,14 @@ description = "Test how each checkout's local stack gets its slot, names and por
 depends = ["helm:deps"]
 run = "uv run --locked --project tests pytest tests/stack"
 
+[tasks."bench:db"]
+description = "Measure an API query's Postgres latency, CPU, buffers and plan as its rows grow from 1 to 1M, in a throwaway container: bench:db -- <scenario|all|list> [--ref REF | --compare BEFORE AFTER] [--sizes 1,10,...]"
+run = "uv run --script .agents/skills/db-bench/scripts/bench.py"
+
+[tasks."test:db-bench"]
+description = "Test the database benchmark's query parsing, scenario parameters, plan summaries and tables without Docker"
+run = "uv run --locked --project tests --with-requirements .agents/skills/db-bench/scripts/bench.py pytest .agents/skills/db-bench/scripts"
+
 [tasks."lint:sri"]
 description = "Check that each CDN script in the API docs carries the integrity hash of the file its URL serves"
 run = "go run ./tools/scriptsri api/docs.html"
