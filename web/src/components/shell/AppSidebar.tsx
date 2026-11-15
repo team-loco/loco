@@ -1,6 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import {
 	BookOpenIcon,
+	SearchIcon,
 	Building2Icon,
 	ChevronsUpDownIcon,
 	KeyRoundIcon,
@@ -41,10 +42,11 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { expandOrgLink } from "@/lib/org-links";
-import { colorThemes, modes, nextMode, parseColorTheme, type Mode } from "@/lib/theme";
+import { colorThemes, modes, parseColorTheme, type Mode } from "@/lib/theme";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
@@ -52,6 +54,9 @@ import { accountSettingsPath, workspacePath } from "@/lib/routes";
 
 import { useNavSections } from "./nav";
 import { SidebarToggle } from "./SidebarToggle";
+import { Kbd } from "@/components/design/Kbd";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { SHORTCUT_LABEL, useOpenPalette } from "./CommandMenu";
 import { ThemeIcon } from "./ThemeIcon";
 
 interface NavItem {
@@ -80,8 +85,9 @@ function preloadPage(load: (() => Promise<unknown>) | undefined) {
 export function AppSidebar() {
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
-	const { theme, mode, toggle, color, setColor } = useTheme();
-	const next = nextMode(mode);
+	const { theme, mode, setMode, color, setColor } = useTheme();
+	const openPalette = useOpenPalette();
+	const { isMobile, setOpenMobile } = useSidebar();
 	const dark = theme === "dark";
 	const colorName = colorThemes.find((t) => t.id === color)?.name ?? "";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
@@ -120,7 +126,22 @@ export function AppSidebar() {
 				<SidebarToggle className="absolute top-3 right-2.5" />
 			</SidebarHeader>
 
-			<SidebarContent className="gap-0 px-3 pt-4 pb-3">
+			<div className="px-3 pt-1">
+				<SidebarMenuButton
+					aria-label="Search and run commands"
+					aria-keyshortcuts="Meta+K Control+K"
+					className="h-[34px] border border-line bg-raise text-fg3 shadow-xs hover:bg-shell-hover"
+					onClick={() => {
+						if (isMobile) setOpenMobile(false);
+						openPalette();
+					}}
+				>
+					<SearchIcon aria-hidden />
+					<span className="flex-1">Search</span>
+					<Kbd>{SHORTCUT_LABEL}</Kbd>
+				</SidebarMenuButton>
+			</div>
+			<SidebarContent className="gap-0 px-3 pt-3 pb-3">
 				{sections.map((section) => (
 					<SidebarGroup key={section.label ?? "root"} className="p-0">
 						{section.label !== undefined && <SidebarGroupLabel>{section.label}</SidebarGroupLabel>}
@@ -222,9 +243,41 @@ export function AppSidebar() {
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>
-							<MenuLink icon={<ThemeIcon mode={MODE_ICONS[next]} />} onClick={toggle} closeOnClick={false}>
-								{`${modes.find((m) => m.id === next)?.name ?? ""} mode`}
-							</MenuLink>
+							<DropdownMenuItem
+								render={<div />}
+								closeOnClick={false}
+								className={menuItem}
+								onFocus={(event) => {
+									if (event.target === event.currentTarget) {
+										event.currentTarget.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+									}
+								}}
+							>
+								<span>Mode</span>
+								<ToggleGroup
+									aria-label="Mode"
+									data-mode-control
+									overshoot
+									variant="segmented"
+									value={[mode]}
+									onValueChange={(values) => {
+										const selected = modes.find((item) => item.id === values[0]);
+										if (selected !== undefined) setMode(selected.id);
+									}}
+								>
+									{modes.map((item) => (
+										<ToggleGroupItem
+											key={item.id}
+											value={item.id}
+											aria-label={item.name}
+											title={item.name}
+											className="h-6 w-[30px] px-0"
+										>
+											<ThemeIcon mode={MODE_ICONS[item.id]} active={mode === item.id} />
+										</ToggleGroupItem>
+									))}
+								</ToggleGroup>
+							</DropdownMenuItem>
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger className={cn(menuItem, "gap-2 [&>svg:last-child]:ml-0")}>
 									<span className="flex-1">Color theme</span>
