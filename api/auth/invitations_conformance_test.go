@@ -49,9 +49,9 @@ const (
 	erinEmail  = "erin@dex.test"
 	erinPass   = "erinpw"
 
-	adminSubject = "bootstrap-admin"
+	adminSubject = "configured-admin"
 	adminEmail   = "admin@loco.test"
-	adminIssuer  = "https://bootstrap.loco.test"
+	adminIssuer  = "https://admin.loco.test"
 
 	signupModeClosed = "closed"
 	signupModeOpen   = "open"
@@ -108,16 +108,16 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults()).Resolve(t.Context(), auth.Identity{
-		Issuer: adminIssuer, Subject: adminSubject, Email: adminEmail, EmailVerified: true,
-	})
-	if err != nil {
-		t.Fatalf("bootstrap admin: %v", err)
+	admins := auth.SystemAdmins{adminEmail}
+	if err = auth.SyncSystemAdmins(t.Context(), pool, admins); err != nil {
+		t.Fatalf("configure the system admin: %v", err)
 	}
-	if scopeErr := queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
-		UserID: admin.ID, Scope: genDb.ScopeAdmin, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil,
-	}); scopeErr != nil {
-		t.Fatalf("grant system admin: %v", scopeErr)
+	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults(), auth.WithSystemAdmins(admins)).
+		Resolve(t.Context(), auth.Identity{
+			Issuer: adminIssuer, Subject: adminSubject, Email: adminEmail, EmailVerified: true,
+		})
+	if err != nil {
+		t.Fatalf("configured admin sign-in: %v", err)
 	}
 	session, _, err := machine.IssueSession(t.Context(), admin.ID, nil, netip.Addr{}, "journey")
 	if err != nil {
