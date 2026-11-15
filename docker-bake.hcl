@@ -1,5 +1,5 @@
-# Every image CI builds for a commit, tagged REGISTRY-<target>:TAG, with each
-# image's registry build cache at REGISTRY-<target>:buildcache.
+# Every image CI builds for a commit, tagged REGISTRY-<target>:TAG, with the
+# UI's registry build cache at REGISTRY-ui:buildcache.
 # `docker buildx bake --load <target>` builds one locally.
 
 variable "REGISTRY" {
@@ -24,6 +24,12 @@ variable "WRITE_CACHE" {
   default = false
 }
 
+# A directory of the Go images' binaries from `mise run images:binaries`,
+# which the images copy without compiling in Docker.
+variable "BINARIES" {
+  default = ""
+}
+
 # The operator fixture's tool versions, from mise.toml.
 variable "HELM_VERSION" {
   default = ""
@@ -40,11 +46,6 @@ function "cache" {
 
 group "default" {
   targets = ["controller", "api", "agent", "builder", "obs-proxy", "ui", "api-failover", "installation-operator"]
-}
-
-# The images ci.yml publishes from main.
-group "release" {
-  targets = ["default", "ui-staging"]
 }
 
 # Filled with the OCI labels by docker/metadata-action in CI.
@@ -64,6 +65,12 @@ target "_platform" {
   attest    = ["type=provenance,mode=max"]
 }
 
+# Each Go Dockerfile's final stage copies its binary from the builder stage,
+# or from BINARIES when set.
+target "_go" {
+  contexts = { for name in BINARIES == "" ? [] : ["builder"] : name => BINARIES }
+}
+
 target "service" {
   name = svc.name
   matrix = {
@@ -75,11 +82,9 @@ target "service" {
       { name = "obs-proxy", dir = "observability-proxy" },
     ]
   }
-  inherits   = ["_platform"]
+  inherits   = ["_platform", "_go"]
   dockerfile = "${svc.dir}/Dockerfile"
   tags       = ["${REGISTRY}-${svc.name}:${TAG}"]
-  cache-from = [cache(svc.name)]
-  cache-to   = WRITE_CACHE ? ["${cache(svc.name)},mode=max"] : []
 }
 
 target "ui" {
@@ -109,21 +114,17 @@ target "ui-staging" {
 }
 
 target "api-failover" {
-  inherits   = ["_image"]
+  inherits   = ["_image", "_go"]
   dockerfile = "tests/e2e/fixtures/api-failover/Dockerfile"
   tags       = ["${REGISTRY}-api-failover:${TAG}"]
-  cache-from = [cache("api-failover")]
-  cache-to   = WRITE_CACHE ? ["${cache("api-failover")},mode=max"] : []
 }
 
 target "installation-operator" {
-  inherits   = ["_image"]
+  inherits   = ["_image", "_go"]
   dockerfile = "tests/e2e/fixtures/installation/operator.Dockerfile"
   tags       = ["${REGISTRY}-installation-operator:${TAG}"]
   args = {
     HELM_VERSION    = HELM_VERSION
     KUBECTL_VERSION = KUBECTL_VERSION
   }
-  cache-from = [cache("installation-operator")]
-  cache-to   = WRITE_CACHE ? ["${cache("installation-operator")},mode=max"] : []
 }

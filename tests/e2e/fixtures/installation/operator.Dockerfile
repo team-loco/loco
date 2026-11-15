@@ -1,5 +1,20 @@
 # The installation suite's operator pod: locoadm, loco and the suite's helm and
 # kubectl wrappers. HELM_VERSION and KUBECTL_VERSION come from mise.toml.
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82 AS builder
+ARG TARGETARCH
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=${TARGETARCH}
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY cmd/go.mod cmd/go.sum ./cmd/
+RUN go mod download && go -C cmd mod download
+COPY . .
+ARG VERSION
+RUN go -C cmd build -ldflags "-X main.version=${VERSION}" -o /locoadm ./locoadm \
+ && go -C cmd build -ldflags "-X main.version=${VERSION}" -o /loco ./loco \
+ && go build -o /installation-e2e ./tools/installation-e2e
+
 FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
@@ -19,15 +34,7 @@ RUN wget -qO /usr/local/libexec/kubectl "https://dl.k8s.io/release/v${KUBECTL_VE
  && echo "$(cat /tmp/kubectl.sha)  /usr/local/libexec/kubectl" | sha256sum -c - \
  && chmod +x /usr/local/libexec/kubectl \
  && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
-WORKDIR /src
-COPY go.mod go.sum ./
-COPY cmd/go.mod cmd/go.sum ./cmd/
-RUN go mod download && go -C cmd mod download
-COPY . .
-ARG VERSION
-RUN CGO_ENABLED=0 go -C cmd build -ldflags "-X main.version=${VERSION}" -o /usr/local/bin/locoadm ./locoadm \
- && CGO_ENABLED=0 go -C cmd build -ldflags "-X main.version=${VERSION}" -o /usr/local/bin/loco ./loco
-RUN CGO_ENABLED=0 go build -o /usr/local/bin/installation-e2e ./tools/installation-e2e
+COPY --from=builder /locoadm /loco /installation-e2e /usr/local/bin/
 COPY tests/e2e/fixtures/build-app /fixture/build-app
 COPY tests/e2e/fixtures/installation/network-probe.yaml /fixture/network-probe.yaml
 COPY tests/e2e/fixtures/installation/recovery.yaml /fixture/recovery.yaml

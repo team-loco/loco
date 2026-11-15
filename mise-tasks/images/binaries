@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#MISE description="Build the static Linux binaries of the Go images for GOARCH, the host's by default, into the directory docker-bake.hcl's BINARIES names: images:binaries <dir> <version>"
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+	echo "usage: mise run images:binaries <dir> <version>" >&2
+	exit 2
+fi
+mkdir -p "$1"
+out=$(cd "$1" && pwd)
+root=$(git rev-parse --show-toplevel)
+stamp="-X main.version=$2"
+export CGO_ENABLED=0 GOOS=linux
+
+build() {
+	local module=$1 binary=$2 package=$3
+	shift 3
+	go -C "$root/$module" build "$@" -o "$out/$binary" "$package"
+}
+
+pids=()
+build controller manager ./cmd -ldflags "$stamp" & pids+=("$!")
+build api loco-api . -ldflags "$stamp" & pids+=("$!")
+build agent loco-agent . -ldflags "$stamp" & pids+=("$!")
+build builder loco-builder . -trimpath -ldflags "$stamp" & pids+=("$!")
+build observability-proxy loco-obs-proxy . -ldflags "$stamp" & pids+=("$!")
+build tests/e2e/fixtures/api-failover api-failover . -ldflags "$stamp" & pids+=("$!")
+build cmd locoadm ./locoadm -ldflags "$stamp" & pids+=("$!")
+build cmd loco ./loco -ldflags "$stamp" & pids+=("$!")
+build . installation-e2e ./tools/installation-e2e & pids+=("$!")
+
+failed=0
+for pid in "${pids[@]}"; do
+	wait "$pid" || failed=1
+done
+exit "$failed"

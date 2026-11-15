@@ -20,11 +20,11 @@ WORKDIR /workspace/controller
 # Declared after the module download, which a new VERSION leaves cached.
 ARG VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags "-X main.version=${VERSION}" -o ../manager ./cmd
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags "-X main.version=${VERSION}" -o /manager ./cmd
 
 FROM gcr.io/distroless/static:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder /manager /manager
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
