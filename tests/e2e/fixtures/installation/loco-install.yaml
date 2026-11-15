@@ -39,6 +39,7 @@ workers:
   region: us-east-1
   tier: staging
   role: all
+  tls: {minVersion: "1.3"}
   appsDomain: apps.installation.test
   metricsServer: {enabled: true, kubeletInsecureTLS: true}
   builds: {privateEgress: {{ .PrivateEgress | json }}}

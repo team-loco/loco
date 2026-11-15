@@ -32,6 +32,9 @@ ui:
   image: {{with image .Manifest "ui"}}{repository: {{quote .repository}}, tag: {{quote .tag}}}{{end}}
 controlPlaneHostname: {{quote .APIHost}}
 gatewayNamespace: {{quote .Config.ControlPlane.Kubernetes.Namespace}}
+gateway:
+  tls:
+    minVersion: {{quote .Config.ControlPlane.TLS.MinVersion}}
 certManager:
   enabled: {{.TLS}}
   issuer: {{issuer .Config.ControlPlane.Certificates}}
@@ -88,6 +91,9 @@ func controlPlaneValues(config Config, manifest Manifest) ([]byte, error) {
 }
 
 var workerTemplate = template.Must(template.New("worker").Funcs(valuesFunctions).Parse(`
+envoyProxy:
+  tls:
+    minVersion: {{quote .Worker.TLS.MinVersion}}
 metrics-server:
   enabled: {{.Worker.MetricsServer.Enabled}}
   args: {{if .Worker.MetricsServer.KubeletInsecureTLS}}["--kubelet-insecure-tls"]{{else}}[]{{end}}

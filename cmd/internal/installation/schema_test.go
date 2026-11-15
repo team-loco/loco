@@ -44,11 +44,12 @@ func checkSchema(t *testing.T, typ reflect.Type, document schema) {
 		required := 0
 		for field := range typ.Fields() {
 			name, options, _ := strings.Cut(field.Tag.Get("json"), ",")
+			optional := options == "omitempty" || options == "omitzero"
 			property, ok := document.Properties[name]
-			if !ok || slices.Contains(document.Required, name) == (options == "omitempty") {
+			if !ok || slices.Contains(document.Required, name) == optional {
 				t.Fatalf("schema diverges from %s.%s", typ, name)
 			}
-			if options != "omitempty" {
+			if !optional {
 				required++
 			}
 			checkSchema(t, field.Type, property)

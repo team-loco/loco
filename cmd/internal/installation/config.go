@@ -38,7 +38,12 @@ type SecretKeyRef struct {
 	Key  string `json:"key"  yaml:"key"`
 }
 
+type TLS struct {
+	MinVersion string `json:"minVersion" yaml:"minVersion"`
+}
+
 type ControlPlane struct {
+	TLS           TLS              `json:"tls,omitzero"  yaml:"tls,omitempty"`
 	Kubernetes    KubernetesTarget `json:"kubernetes"    yaml:"kubernetes"`
 	APIURL        string           `json:"apiURL"        yaml:"apiURL"`
 	WebURL        string           `json:"webURL"        yaml:"webURL"`
@@ -109,6 +114,7 @@ type IssuerRef struct {
 }
 
 type Worker struct {
+	TLS           TLS              `json:"tls,omitzero"  yaml:"tls,omitempty"`
 	MetricsServer MetricsServer    `json:"metricsServer" yaml:"metricsServer"`
 	Name          string           `json:"name"          yaml:"name"`
 	Kubernetes    KubernetesTarget `json:"kubernetes"    yaml:"kubernetes"`

@@ -23,6 +23,8 @@ const (
 	maxDNSLabelLength = 63
 	maxDNSNameLength  = 253
 	maxPort           = 65535
+	tls12             = "1.2"
+	tls13             = "1.3"
 )
 
 var (
@@ -79,6 +81,9 @@ func validate(cfg Config) error {
 		return field("name")
 	}
 	cp := cfg.ControlPlane
+	if err := tlsMinimum(cp.TLS, "controlPlane.tls.minVersion"); err != nil {
+		return err
+	}
 	if err := target(cp.Kubernetes, "controlPlane.kubernetes"); err != nil {
 		return err
 	}
@@ -120,10 +125,17 @@ func validate(cfg Config) error {
 	if err := certificate(cp.Certificates, "controlPlane.certificates"); err != nil {
 		return err
 	}
+	return validateWorkers(cfg.Workers, cp)
+}
+
+func validateWorkers(workers []Worker, cp ControlPlane) error {
 	names := make(map[string]bool)
 	workerUIDs := make(map[string]bool)
-	for i, w := range cfg.Workers {
+	for i, w := range workers {
 		path := fmt.Sprintf("workers[%d]", i)
+		if err := tlsMinimum(w.TLS, path+".tls.minVersion"); err != nil {
+			return err
+		}
 		if !label(w.Name) || names[w.Name] {
 			return field(path + ".name")
 		}
@@ -327,6 +339,13 @@ func privateEgress(entries []PrivateEgress, path string) error {
 			return field(item)
 		}
 		seen[entry] = true
+	}
+	return nil
+}
+
+func tlsMinimum(value TLS, path string) error {
+	if value.MinVersion != "" && value.MinVersion != tls12 && value.MinVersion != tls13 {
+		return field(path)
 	}
 	return nil
 }

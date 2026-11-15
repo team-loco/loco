@@ -17,7 +17,7 @@ locoadm verify --worker staging-us --environment ENVIRONMENT_UUID
 
 Every `locoadm` command that reads the installation file reads `loco-install.yaml` in the current directory; `--file` names another file. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/loco-install.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
-Every field below except `release` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS and Kubernetes clusters; this file does not provision those services. Certificate issuers come from the operator or, for a self-signed issuer, from the Loco charts.
+Every field below except `release`, `controlPlane.tls` and `workers[].tls` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS and Kubernetes clusters; this file does not provision those services. Certificate issuers come from the operator or, for a self-signed issuer, from the Loco charts.
 
 | Field | Value |
 | --- | --- |
@@ -29,6 +29,7 @@ Every field below except `release` is required, including explicit boolean setti
 | `controlPlane.kubernetes.clusterUID` | Existing cluster's `kube-system` Namespace UID; pins the target independently of the context name |
 | `controlPlane.kubernetes.namespace` | Destination namespace, a lowercase Kubernetes DNS label |
 | `controlPlane.apiURL`, `controlPlane.webURL` | Public API and dashboard URLs |
+| `controlPlane.tls.minVersion` | Optional `"1.2"` or `"1.3"`; minimum TLS version for all control-plane Gateway HTTPS listeners; omitted keeps Envoy Gateway defaults |
 | `controlPlane.admins` | Emails that become system admins on their first verified sign-in; at least one |
 | `controlPlane.database.secretRef` | Database URL input Secret's `name` and `key` |
 | `controlPlane.auth.issuer` | OIDC issuer URL |
@@ -49,6 +50,7 @@ Every field below except `release` is required, including explicit boolean setti
 | `workers[].region` | Region registered with the API |
 | `workers[].tier` | `staging` or `production` |
 | `workers[].role` | `apps` runs only applications, `builds` only source builds, `all` both; installed as the worker chart's `cluster.role` |
+| `workers[].tls.minVersion` | Optional `"1.2"` or `"1.3"`; minimum TLS version for all application and platform HTTPS listeners on this worker; omitted keeps Envoy Gateway defaults |
 | `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
 | `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
 | `workers[].metricsServer.enabled` | `false` uses an existing `metrics.k8s.io` provider instead of installing metrics-server |

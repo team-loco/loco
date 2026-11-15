@@ -106,6 +106,10 @@ func clientAcceptance(ctx context.Context) (result error) {
 	if err := recoveryDrill(ctx); err != nil {
 		return err
 	}
+	operatorPhase(phaseTLSMinimum)
+	if err := verifyTLSMinimum(ctx); err != nil {
+		return err
+	}
 	fmt.Println("Installation passed: sign-in, source build, HTTPS, preserved identity and recovery.")
 	return nil
 }

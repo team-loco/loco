@@ -297,3 +297,31 @@ func TestReleaseNamesExactlyOneSource(t *testing.T) {
 		})
 	}
 }
+
+func TestRejectInvalidTLSMinimum(t *testing.T) {
+	for _, location := range []string{"controlPlane", "workers[]"} {
+		for _, value := range []string{`"1.1"`, `"bogus"`, tls13, `""`, `~`} {
+			t.Run(location+"/"+value, func(t *testing.T) {
+				source := string(example(t))
+				if location == "controlPlane" {
+					source = strings.Replace(
+						source,
+						"controlPlane:\n",
+						"controlPlane:\n  tls: {minVersion: "+value+"}\n",
+						1,
+					)
+				} else {
+					source = strings.Replace(
+						source,
+						"    appsDomain:",
+						"    tls: {minVersion: "+value+"}\n    appsDomain:",
+						1,
+					)
+				}
+				if _, err := Parse([]byte(source)); err == nil {
+					t.Fatal("accepted invalid TLS minimum")
+				}
+			})
+		}
+	}
+}
