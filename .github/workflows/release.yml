@@ -14,6 +14,10 @@ on:
         description: Version X.Y.Z without a v prefix; empty bumps the patch of the latest v* tag
         required: false
         type: string
+      summary:
+        description: What changed in this release, in plain prose; it opens the release notes above the list of merged pull requests
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}
@@ -45,9 +49,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INPUT_COMMIT: ${{ inputs.commit }}
           INPUT_VERSION: ${{ inputs.version }}
+          SUMMARY: ${{ inputs.summary }}
         run: |
           set -euo pipefail
           fail() { echo "::error::$*"; exit 1; }
+
+          [[ -n "${SUMMARY//[[:space:]]/}" ]] || fail "summary must describe what changed"
 
           commit=${INPUT_COMMIT:-$(git rev-parse origin/main)}
           [[ "$commit" =~ ^[a-f0-9]{40}$ ]] || fail "commit must be a full lowercase SHA: $commit"
@@ -181,9 +188,12 @@ jobs:
 
       # The release stays a draft, without its tag, until every asset is uploaded.
       - name: Tag the commit and publish the release
+        env:
+          SUMMARY: ${{ inputs.summary }}
         run: |
           gh release create "v$VERSION" \
             --target "$COMMIT" \
             --title "Release v$VERSION" \
+            --notes "$SUMMARY" \
             --generate-notes \
             bin/loco-* bin/locoadm-* bin/checksums.txt bin/release.json

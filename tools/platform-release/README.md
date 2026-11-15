@@ -24,10 +24,11 @@ A release publishes one Loco version: the platform bundle `X.Y.Z` and release `v
 ```sh
 gh workflow run release.yml --ref main \
   -f commit="$(git rev-parse origin/main)" \
-  -f version=0.7.0
+  -f version=0.7.0 \
+  -f summary="Dashboard sign-in works with plain-HTTP identity providers."
 ```
 
-Both inputs are optional. `commit` defaults to the head of `main`; `version` takes `X.Y.Z` without a `v` prefix and defaults to the latest `v*` tag with its patch bumped. The binaries report `vX.Y.Z` as their version.
+`summary` is required: plain prose saying what changed, which opens the release notes above the generated list of merged pull requests. `commit` defaults to the head of `main`; `version` takes `X.Y.Z` without a `v` prefix and defaults to the latest `v*` tag with its patch bumped. The binaries report `vX.Y.Z` as their version.
 
 Before publishing anything, the workflow fails unless the commit is on `main`, tag `vX.Y.Z` does not exist, the `Build` run for the commit's push succeeded, and the `CI` push run succeeded for every first-parent commit since the latest `v*` tag (only the commit itself when there is none). `CI` skips checks whose paths a push did not change, such as the installation e2e suite, so a later passing run does not clear an earlier failure. A push of several commits runs `CI` once, on its head, over all of them; the others need no run, but the released commit does. The failure lists each commit and its run's conclusion; re-running a failed run clears it. It then builds the binaries and publishes the bundle, which fails when bundle version `X.Y.Z` exists, a pinned chart or CRD bundle version is not published, or a `sha-<commit>` image lacks a linux/amd64 or linux/arm64 manifest or a provenance attestation. Last, it creates release `vX.Y.Z` as a draft, uploads its assets and publishes it, which tags the commit. A run that fails after the bundle is published leaves no tag; rerun it with the next version.
 
