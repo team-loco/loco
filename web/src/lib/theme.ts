@@ -18,7 +18,7 @@ export const colorThemes = [
 	{ id: "neobrutal", name: "Neobrutal" },
 ] as const;
 export type ColorTheme = (typeof colorThemes)[number]["id"];
-export const defaultColorTheme: ColorTheme = "loco";
+export const defaultColorTheme = "loco" satisfies ColorTheme;
 
 const modeKey = "loco:mode:v1";
 const colorKey = "loco:color:v1";

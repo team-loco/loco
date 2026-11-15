@@ -18,6 +18,7 @@ import {
 	type Mode,
 } from "./theme";
 import { ThemeContext } from "./theme-context";
+import { ThemeStylesheet } from "./theme-stylesheet";
 
 const THEME_SOUND_VOLUME = 0.9;
 
@@ -58,5 +59,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 	const contextValue = { theme: page.mode, mode, setMode: changeMode, toggle, color, setColor: changeColor };
 
-	return <ThemeContext value={contextValue}>{children}</ThemeContext>;
+	return (
+		<ThemeContext value={contextValue}>
+			<ThemeStylesheet color={page.color} />
+			{children}
+		</ThemeContext>
+	);
 }
