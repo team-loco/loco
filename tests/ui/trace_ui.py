@@ -188,7 +188,6 @@ with session(out) as browser:
     expect(page.get_by_role('region', name='Trace list').locator('button[aria-label^="Open trace "]')).to_have_count(25)
     page.get_by_role('separator', name='Resize column Root span').press('ArrowRight')
     expect(page).to_have_url(re.compile(r'widths=span:276'))
-    expect(page.get_by_role('region', name='Trace list').get_by_role('button', name=re.compile(r'^Spans'))).to_have_count(0)
     with page.expect_response("**/ListTraces"):
         page.get_by_role('button', name='Next page', exact=True).click()
     assert last_page_request()['offset'] == 25

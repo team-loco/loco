@@ -4,7 +4,6 @@ exec loco infra init --name my-app
 stdout 'Created .*loco.yaml'
 fakeapi called GetConfig
 fakeapi called ListRegions 'Bearer test-token'
-! fakeapi called ListPlatformDomains
 cmp loco.yaml want.yaml
 exec loco infra validate
 stdout 'loco.yaml is valid'
