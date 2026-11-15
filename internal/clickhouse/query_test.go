@@ -123,7 +123,7 @@ func TestBuildLogsQueryBindsIncludedAndExcludedFilterValues(t *testing.T) {
 		LogAttributes:         []*observabilityv1.LogFieldFilter{{Key: "http.request.method", Values: []string{"GET"}}},
 		ExcludedLogAttributes: []*observabilityv1.LogFieldFilter{{Key: "url.path", Values: []string{"/healthz"}}},
 		JSONFields: []*observabilityv1.LogFieldFilter{
-			{Key: "customer.tier", Values: []string{"gold", "silver"}},
+			{Key: "customer.tier", Values: []string{"gold", "silver"}, Prefixes: []string{"plat"}},
 		},
 		TraceIDs:         []string{trace},
 		ExcludedTraceIDs: []string{trace},
@@ -132,7 +132,19 @@ func TestBuildLogsQueryBindsIncludedAndExcludedFilterValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound := []string{testResourceID, "DEBUG", "web-1", "GET", "/healthz", trace, "customer", "tier", "gold", "silver"}
+	bound := []string{
+		testResourceID,
+		"DEBUG",
+		"web-1",
+		"GET",
+		"/healthz",
+		trace,
+		"customer",
+		"tier",
+		"gold",
+		"silver",
+		"plat",
+	}
 	for _, value := range bound {
 		if strings.Contains(query, value) {
 			t.Errorf("value %q interpolated into SQL: %s", value, query)

@@ -127,20 +127,35 @@ message QueryLogsRequest {
   };
 }
 
-// LogFieldFilter selects logs whose field named key holds any of values. In an excluded_ list it
-// leaves out logs whose field holds any of values; a log without the field is kept.
+// LogFieldFilter selects logs whose field named key equals any of values or starts with any of
+// prefixes, case-sensitively. In an excluded_ list it leaves those logs out; a log without the
+// field is kept.
 message LogFieldFilter {
   string key = 1 [(buf.validate.field).string = {
     min_len: 1
     max_len: 256
   }];
   repeated string values = 2 [(buf.validate.field).repeated = {
-    min_items: 1
     max_items: 100
     items: {
       string: {max_len: 4096}
     }
   }];
+  repeated string prefixes = 3 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        min_len: 1
+        max_len: 4096
+      }
+    }
+  }];
+
+  option (buf.validate.message).cel = {
+    id: "log_field_filter.values_or_prefixes"
+    message: "a log field filter needs at least one value or prefix"
+    expression: "size(this.values) + size(this.prefixes) > 0"
+  };
 }
 
 // LogOrder defines the sort order for historical log queries.

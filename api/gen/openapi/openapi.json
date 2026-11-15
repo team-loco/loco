@@ -11369,13 +11369,22 @@
               "maxLength": 4096
             },
             "title": "values",
-            "maxItems": 100,
-            "minItems": 1
+            "maxItems": 100
+          },
+          "prefixes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 4096,
+              "minLength": 1
+            },
+            "title": "prefixes",
+            "maxItems": 100
           }
         },
         "title": "LogFieldFilter",
         "additionalProperties": false,
-        "description": "LogFieldFilter selects logs whose field named key holds any of values. In an excluded_ list it\n leaves out logs whose field holds any of values; a log without the field is kept."
+        "description": "LogFieldFilter selects logs whose field named key equals any of values or starts with any of\n prefixes, case-sensitively. In an excluded_ list it leaves those logs out; a log without the\n field is kept.\nlog_field_filter.values_or_prefixes // a log field filter needs at least one value or prefix\n"
       },
       "loco.observability.v1.LogOrder": {
         "type": "string",

@@ -372,6 +372,9 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 	field := func(key string, values ...string) []*observabilityv1.LogFieldFilter {
 		return []*observabilityv1.LogFieldFilter{{Key: key, Values: values}}
 	}
+	prefixed := func(key string, values []string, prefixes ...string) []*observabilityv1.LogFieldFilter {
+		return []*observabilityv1.LogFieldFilter{{Key: key, Values: values, Prefixes: prefixes}}
+	}
 
 	for name, tc := range map[string]struct {
 		filters logFilters
@@ -389,6 +392,13 @@ func TestQueryAndTailLogsApplyEveryFilterAlike(t *testing.T) {
 		"JSON string field":      {logFilters{jsonFields: field("user.id", "42")}, []string{web1}},
 		"JSON number field":      {logFilters{jsonFields: field("attempt", "2")}, []string{web2}},
 		"excluded JSON values":   {logFilters{excludedJSON: field("user.id", "42", "7")}, []string{worker}},
+		"log attribute prefix":   {logFilters{attributes: prefixed(method, nil, "PO")}, []string{web2}},
+		"excluded JSON prefix":   {logFilters{excludedJSON: prefixed("user.id", nil, "4")}, []string{web2, worker}},
+		"label value or prefix":  {logFilters{labels: prefixed(team, []string{"c"}, "b")}, []string{web2}},
+		"excluded label value or prefix": {
+			logFilters{excludedLabels: prefixed(team, []string{"c"}, "b")},
+			[]string{web1, worker},
+		},
 		"included and excluded": {
 			logFilters{resources: []string{web}, labels: field(team, "b"), excludedLevels: []string{"INFO"}},
 			[]string{web2},

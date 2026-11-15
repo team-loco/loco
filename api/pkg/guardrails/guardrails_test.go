@@ -321,6 +321,15 @@ func TestExcludedLogFiltersFollowTheirIncludeRules(t *testing.T) {
 		},
 		"empty log attribute key": {filters: filters{excludedAttributes: field("", "x")}, want: errProtoRule},
 		"filter without values":   {filters: filters{attributes: field("method")}, want: errProtoRule},
+		"empty prefix": {
+			filters: filters{attributes: []*observabilityv1.LogFieldFilter{{Key: "path", Prefixes: []string{""}}}},
+			want:    errProtoRule,
+		},
+		"prefix only": {
+			filters: filters{
+				excludedAttributes: []*observabilityv1.LogFieldFilter{{Key: "path", Prefixes: []string{"/api/"}}},
+			},
+		},
 		"empty JSON path segment": {filters: filters{jsonFields: field("user..id", "42")}, want: errInvalidJSONPath},
 		"trailing JSON path dot": {
 			filters: filters{excludedJSONFields: field("user.", "42")},

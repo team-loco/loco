@@ -237,7 +237,7 @@ func logFilters(q LogQuery, b logBinder) []string {
 		{jsonField, q.JSONFields, false}, {jsonField, q.ExcludedJSONFields, true},
 	} {
 		for _, filter := range group.filters {
-			whereParts = append(whereParts, logIn(group.field(filter.GetKey()), filter.GetValues(), group.exclude, b))
+			whereParts = append(whereParts, logFieldMatch(group.field, filter, group.exclude, b))
 		}
 	}
 
@@ -267,6 +267,27 @@ func logFilters(q LogQuery, b logBinder) []string {
 	}
 
 	return whereParts
+}
+
+// logFieldMatch renders field once per comparison, since each rendering binds its own parameters.
+func logFieldMatch(
+	field func(key string) string,
+	filter *observabilityv1.LogFieldFilter,
+	exclude bool,
+	b logBinder,
+) string {
+	var clauses []string
+	if len(filter.GetValues()) > 0 {
+		clauses = append(clauses, logIn(field(filter.GetKey()), filter.GetValues(), false, b))
+	}
+	for _, prefix := range filter.GetPrefixes() {
+		clauses = append(clauses, "startsWith("+field(filter.GetKey())+", "+b.str(prefix)+")")
+	}
+	clause := "(" + strings.Join(clauses, " OR ") + ")"
+	if exclude {
+		clause = "NOT " + clause
+	}
+	return clause
 }
 
 // jsonBodyField reads a dot-separated object path from a JSON body, a string as its text and anything else as JSON.

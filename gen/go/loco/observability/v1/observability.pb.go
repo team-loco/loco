@@ -407,12 +407,14 @@ func (x *QueryLogsRequest) GetExcludedJsonFields() []*LogFieldFilter {
 	return nil
 }
 
-// LogFieldFilter selects logs whose field named key holds any of values. In an excluded_ list it
-// leaves out logs whose field holds any of values; a log without the field is kept.
+// LogFieldFilter selects logs whose field named key equals any of values or starts with any of
+// prefixes, case-sensitively. In an excluded_ list it leaves those logs out; a log without the
+// field is kept.
 type LogFieldFilter struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Values        []string               `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
+	Prefixes      []string               `protobuf:"bytes,3,rep,name=prefixes,proto3" json:"prefixes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -457,6 +459,13 @@ func (x *LogFieldFilter) GetKey() string {
 func (x *LogFieldFilter) GetValues() []string {
 	if x != nil {
 		return x.Values
+	}
+	return nil
+}
+
+func (x *LogFieldFilter) GetPrefixes() []string {
+	if x != nil {
+		return x.Prefixes
 	}
 	return nil
 }
@@ -2040,11 +2049,13 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\vjson_fields\x18\x15 \x03(\v2%.loco.observability.v1.LogFieldFilterB\b\xbaH\x05\x92\x01\x02\x10dR\n" +
 	"jsonFields\x12a\n" +
 	"\x14excluded_json_fields\x18\x16 \x03(\v2%.loco.observability.v1.LogFieldFilterB\b\xbaH\x05\x92\x01\x02\x10dR\x12excludedJsonFields:q\xbaHn\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"Y\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"\x99\x02\n" +
 	"\x0eLogFieldFilter\x12\x1c\n" +
 	"\x03key\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x03key\x12)\n" +
-	"\x06values\x18\x02 \x03(\tB\x11\xbaH\x0e\x92\x01\v\b\x01\x10d\"\x05r\x03\x18\x80 R\x06values\"\x94\x01\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x03key\x12'\n" +
+	"\x06values\x18\x02 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\x18\x80 R\x06values\x12-\n" +
+	"\bprefixes\x18\x03 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80 R\bprefixes:\x90\x01\xbaH\x8c\x01\x1a\x89\x01\n" +
+	"#log_field_filter.values_or_prefixes\x125a log field filter needs at least one value or prefix\x1a+size(this.values) + size(this.prefixes) > 0\"\x94\x01\n" +
 	"\x11QueryLogsResponse\x129\n" +
 	"\aentries\x18\x01 \x03(\v2\x1f.loco.observability.v1.LogEntryR\aentries\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
