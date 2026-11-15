@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
+from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Check the bulk Scale dialog against an isolated production dashboard")
 parser.add_argument("--state")
@@ -40,11 +40,7 @@ base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production"
 results = []
 with session(out) as browser:
     try:
-        theme = "light"
-        narrow = False
-        case = f"{theme}{'-narrow' if narrow else ''}"
-        context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-        authenticate(context, owner['token'], theme)
+        context, page, errors = open_page(browser, state=state)
         sent = []
 
         def scale(route):
@@ -52,9 +48,6 @@ with session(out) as browser:
             route.fulfill(content_type="application/json", body="{}")
 
         context.route("**/loco.resource.v1.ResourceService/ScaleResource", scale)
-        page = context.new_page()
-        errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
         try:
             page.goto(base)
             page.get_by_role("checkbox", name="Select scale-small").check()
@@ -98,9 +91,9 @@ with session(out) as browser:
                 assert request["environmentId"] == production, request
                 assert request["replicas"] == high and request["memory"] == "4Gi" and "cpu" not in request, request
             assert not errors, errors
-            results.append({"theme": theme, "narrow": narrow, "dialog": box})
+            results.append({"dialog": box})
         except BaseException:
-            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            page.screenshot(path=out / "failure.png", animations="disabled")
             raise
         finally:
             context.close()

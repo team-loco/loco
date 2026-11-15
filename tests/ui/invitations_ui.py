@@ -1,7 +1,7 @@
 import argparse
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, session, repo
+from harness import evidence, load_state, open_page, session, repo
 
 parser = argparse.ArgumentParser(description="Check invitation links in the production UI")
 parser.add_argument("--state")
@@ -12,15 +12,11 @@ org = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org
 path = state["ui_url"] + f"/org/{org['id']}/team"
 
 with session(repo / "tests/ui/out/invitations") as browser:
-    theme = "light"
-    width, viewport = "desktop", evidence.DESKTOP
-    context = browser.new_context(viewport=viewport, color_scheme=theme)
+    context, page, errors = open_page(browser, state=state)
     context.grant_permissions(["clipboard-read", "clipboard-write"], origin=state["ui_url"])
     owner = state["users"]["owner"]
-    authenticate(context, owner['token'], theme)
-    page = context.new_page()
     page.goto(path + "?invite=1")
-    email = f"invite-{theme}-{width}@acme.test"
+    email = "invite@acme.test"
     page.get_by_role("textbox", name="Emails").fill(email)
     page.get_by_role("button", name="Send invite", exact=True).click()
     expect(page.get_by_role("button", name="Copy link", exact=True)).to_be_visible()
@@ -39,6 +35,7 @@ with session(repo / "tests/ui/out/invitations") as browser:
     row.get_by_role("button", name=f"Actions for the invitation to {email}", exact=True).click()
     page.get_by_role("menuitem", name="Copy invite link", exact=True).click()
     assert page.evaluate("navigator.clipboard.readText()") == invitation["link"]
+    assert not errors, errors
     context.close()
     browser.close()
 print("Invitation create, copy, expiry and resend passed")

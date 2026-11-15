@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, session
+from harness import evidence, load_state, open_page, repo, session
 
 parser = argparse.ArgumentParser(description="Exercise resource autoscaling, observability settings and failed-save recovery")
 parser.add_argument("--state")
@@ -44,14 +44,8 @@ VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app
 
 with session(out) as browser:
     try:
-        theme = "light"
-        narrow = False
         resource = resource_fixture()
-        context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-        authenticate(context, owner['token'], theme)
-        page = context.new_page()
-        errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
+        context, page, errors = open_page(browser, state=state)
         calls = []
         failing = [True]
 
@@ -81,7 +75,6 @@ with session(out) as browser:
                 route.fulfill(json={"deploymentId": deployment})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment)
-        case = f"{theme}{'-narrow' if narrow else ''}"
         try:
             page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}?env=production&tab=settings")
             section = page.locator("#set-scaling")
@@ -91,7 +84,7 @@ with session(out) as browser:
                     section.get_by_role("button", name=f"Increase maximum replicas in {region}", exact=True).click()
                 section.get_by_role("button", name=f"Decrease cPU target (%) in {region}", exact=True).click()
             section.evaluate("node => node.scrollIntoView({block: 'start'})")
-            page.wait_for_function("dark => document.documentElement.classList.contains('dark') === dark", arg=theme == "dark")
+            page.wait_for_function("!document.documentElement.classList.contains('dark')")
 
             def assert_edits(region, target):
                 expect(section.get_by_role("group", name=f"Maximum replicas in {region}", exact=True)).to_contain_text("3")
@@ -171,7 +164,7 @@ with session(out) as browser:
             assert all(spec["observability"] == {"injectOtel": True} for spec in runtime), runtime
             assert not errors, errors
         except BaseException:
-            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            page.screenshot(path=out / "failure.png", animations="disabled")
             raise
         finally:
             context.close()

@@ -75,9 +75,7 @@ def fake_idp(context, user):
 with session(out) as browser:
     cases = []
     try:
-        theme, narrow = "light", False
-        case = f"owner-{theme}{'-narrow' if narrow else ''}"
-        context, page, errors = open_page(browser, "owner", theme, narrow)
+        context, page, errors = open_page(browser, "owner")
         try:
             page.goto(ui + "/no/such/page?x=1")
             expect_not_found(page, "/no/such/page?x=1")
@@ -89,8 +87,7 @@ with session(out) as browser:
             expect_not_found(page, f"/org/{org}/wks/{shared}/no-such-tab")
             page.get_by_role("link", name="Go to dashboard", exact=True).click()
             expect(page).to_have_url(WORKSPACE_URL)
-            if not narrow:
-                expect(page.get_by_role("link", name="Resources", exact=True)).to_be_visible()
+            expect(page.get_by_role("link", name="Resources", exact=True)).to_be_visible()
 
             missing = str(uuid.uuid4())
             page.goto(base + f"/resource/{missing}")
@@ -138,14 +135,13 @@ with session(out) as browser:
             expect(page).to_have_url(re.compile(r"/tokens$"))
             expect(top_search).to_be_focused()
 
-            if not narrow:
-                nav_link = page.get_by_role("link", name="Resources", exact=True)
-                nav_link.focus()
-                page.keyboard.press("ControlOrMeta+k")
-                expect(query).to_be_focused()
-                page.keyboard.press("Escape")
-                expect(palette).to_have_count(0)
-                expect(nav_link).to_be_focused()
+            nav_link = page.get_by_role("link", name="Resources", exact=True)
+            nav_link.focus()
+            page.keyboard.press("ControlOrMeta+k")
+            expect(query).to_be_focused()
+            page.keyboard.press("Escape")
+            expect(palette).to_have_count(0)
+            expect(nav_link).to_be_focused()
 
             top_search.click()
             query.fill("dark mode")
@@ -156,9 +152,9 @@ with session(out) as browser:
             page.goto(ui + unknown)
             expect_not_found(page, unknown)
             assert not errors, errors
-            cases.append(case)
+            cases.append("owner")
         except BaseException:
-            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            page.screenshot(path=out / "failure-owner.png", animations="disabled")
             raise
         finally:
             context.close()

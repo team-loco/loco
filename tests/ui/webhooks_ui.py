@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, session
+from harness import evidence, load_state, open_page, repo, session
 
 parser = argparse.ArgumentParser(description="Exercise webhook management and server delivery paging in Chromium")
 parser.add_argument("--state")
@@ -31,8 +31,6 @@ def call(method, **body):
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
-    theme = "light"
-    narrow = False
     hook = call("CreateWebhook", url="https://hooks.invalid/loco", eventTypes=["resource.created"])["webhook"]
     hook_id = hook["id"]
     # Seed runtime records through the real event-to-delivery trigger. Keep pending
@@ -41,12 +39,8 @@ with session(out) as browser:
 SELECT 'resource.created','{workspace}','system',NOW() - n * INTERVAL '1 minute' FROM generate_series(1,31) n;
 UPDATE webhook_deliveries SET status=CASE WHEN mod(event_seq,3)=0 THEN 'failed' WHEN mod(event_seq,3)=1 THEN 'succeeded' ELSE 'pending' END,
 next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver unavailable' WHERE webhook_id='{hook_id}';""")
-    context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-    authenticate(context, token, theme)
-    page = context.new_page()
-    errors = []
+    context, page, errors = open_page(browser, state=state)
     requests = []
-    page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda req: requests.append((req.url.rsplit("/", 1)[-1], req.post_data_json)) if service in req.url else None)
     try:
         page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/settings?scope=workspace")

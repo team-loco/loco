@@ -38,8 +38,8 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 
 
-def open_page(browser, user, theme, path):
-    context, page, errors = new_page(browser, user, theme, state=state)
+def open_page(browser, user, path):
+    context, page, errors = new_page(browser, user, state=state)
     calls = []
 
     def record(response):
@@ -56,9 +56,8 @@ def list_events(calls):
 
 
 with session(out) as browser:
-    theme = "light"
     # Organization admins read the whole organization from the sidebar entry.
-    context, page, calls, errors = open_page(browser, "owner", theme, f"/org/{org}/wks/{shared}")
+    context, page, calls, errors = open_page(browser, "owner", f"/org/{org}/wks/{shared}")
     page.get_by_role("link", name="Audit log", exact=True).click()
     page.wait_for_url("**" + audit_path)
     rows = page.get_by_role("list", name="Audit events").get_by_role("button")
@@ -145,7 +144,7 @@ with session(out) as browser:
     context.close()
 
     # Workspace admins read only the workspaces they administer, one at a time.
-    context, page, calls, errors = open_page(browser, "workspace_admin", theme, f"/org/{org}/wks/{shared}")
+    context, page, calls, errors = open_page(browser, "workspace_admin", f"/org/{org}/wks/{shared}")
     page.get_by_role("link", name="Audit log", exact=True).click()
     rows = page.get_by_role("list", name="Audit events").get_by_role("button")
     expect(rows.first).to_be_visible()
@@ -184,7 +183,7 @@ with session(out) as browser:
     context.close()
 
     # Members see no entry, and the page itself says only admins can read it.
-    context, page, calls, errors = open_page(browser, "member", theme, f"/org/{org}/wks/{shared}")
+    context, page, calls, errors = open_page(browser, "member", f"/org/{org}/wks/{shared}")
     page.get_by_role("link", name="Team", exact=True).wait_for()
     expect(page.get_by_role("link", name="Audit log", exact=True)).to_have_count(0)
     page.goto(state["ui_url"] + audit_path)

@@ -7,7 +7,7 @@ import urllib.parse
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, session
+from harness import evidence, load_state, open_page, repo, session
 from activity_fixture import prepare_activity, verify_activity_access
 
 sys.dont_write_bytecode = True
@@ -27,7 +27,8 @@ out.mkdir(parents=True, exist_ok=True)
 (out / 'full').mkdir(exist_ok=True)
 base = f"/org/{activity['orgId']}/wks/{activity['workspaceId']}"
 results = []
-def check_scoped_user(browser, theme):
+VIEWPORT = {'width': 1440, 'height': 1000}
+def check_scoped_user(browser):
     """A member whose only grant is read on one resource sees it on every page without a refused request."""
     rid = activity['resourceId']
     owner = state['users']['owner']['token']
@@ -59,8 +60,7 @@ def check_scoped_user(browser, theme):
     ]
     checked = []
     for scene, path, visible in pages:
-        context = browser.new_context(viewport={'width': 1440, 'height': 1000}, color_scheme=theme)
-        authenticate(context, state['users']['scoped']['token'], theme)
+        context, page, errors = open_page(browser, 'scoped', state=state, viewport=VIEWPORT)
         recorded = []
 
         def route_request(route):
@@ -110,10 +110,7 @@ def check_scoped_user(browser, theme):
                 route.fulfill(response=response)
 
         context.route('**/*', route_request)
-        page = context.new_page()
-        errors = []
         page.on('console', lambda message: message.type == 'error' and errors.append(message.text))
-        page.on('pageerror', lambda error: errors.append(str(error)))
         if scene == 'metrics':
             with page.expect_response(lambda response: response.url.endswith('/QueryMetrics')):
                 page.goto(origin + path)
@@ -132,25 +129,22 @@ def check_scoped_user(browser, theme):
             expect(page.locator('nav[aria-label=breadcrumb]')).to_contain_text('shared')
             # Environment-wide traffic needs workspace read; the scoped view shows none.
             assert not [request for request in recorded if request['method'] == 'QueryMetrics'], recorded
-        checked.append({'scene': scene, 'theme': theme, 'requests': recorded})
+        checked.append({'scene': scene, 'requests': recorded})
         context.unroute_all(behavior="wait")
         context.close()
     return checked
 
 
 with session(out) as browser:
-    theme = "light"
-    narrow = False
     for user, scene, path, title in [
         ('owner', 'resource-owner', base + '/resource/' + activity['resourceId'], 'Activity'),
         ('member', 'org-member', base + '/settings?scope=org', ''),
         ('workspace_admin', 'workspace', base + '/settings?scope=workspace', 'Activity'),
         ('resource_reader', 'resource', base + '/resource/' + activity['resourceId'], 'Activity'),
     ]:
-        context = browser.new_context(viewport={'width': 390, 'height': 844} if narrow else {'width': 1440, 'height': 1000}, color_scheme=theme)
-        authenticate(context, state['users'][user]['token'], theme)
+        context, page, errors = open_page(browser, user, state=state, viewport=VIEWPORT)
         recorded = []
-        mode = {'fail_older': False, 'hold_initial': scene == 'resource' and not narrow, 'fail_initial': False}
+        mode = {'fail_older': False, 'hold_initial': scene == 'resource', 'fail_initial': False}
         held = []
 
         def route_request(route):
@@ -185,9 +179,6 @@ with session(out) as browser:
             route.continue_()
 
         context.route('**/*', route_request)
-        page = context.new_page()
-        errors = []
-        page.on('pageerror', lambda error: errors.append(str(error)))
         if user == 'member':
             with page.expect_response(lambda response: response.url.endswith('/GetOrg')), page.expect_response(lambda response: response.url.endswith('/ListOrgMembers')):
                 page.goto(origin + path)
@@ -224,7 +215,7 @@ with session(out) as browser:
             assert not forbidden, forbidden
         if user in ('member', 'workspace_admin'):
             assert not errors, errors
-            results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
+            results.append({'user': user, 'scene': scene, 'requests': recorded, 'errors': errors})
             context.unroute_all(behavior="wait")
             context.close()
             continue
@@ -240,7 +231,7 @@ with session(out) as browser:
             assert any(request['method'] == 'ListEnvironments' and request['status'] == 200 for request in recorded)
             assert not [request for request in recorded if request['status'] >= 400 and not request.get('controlledFailure')], recorded
         panel.evaluate('(element) => element.scrollIntoView({block: "start", behavior: "instant"})')
-        if scene == 'resource' and not narrow:
+        if scene == 'resource':
             loaded_rows = panel.get_by_role('listitem').all_text_contents()
             mode['fail_older'] = True
             panel.get_by_role('button', name='Show older', exact=True).click()
@@ -253,7 +244,7 @@ with session(out) as browser:
             assert panel.get_by_role('listitem').all_text_contents()[:10] == loaded_rows
             retries = [request for request in recorded if request['method'] == 'ListEvents' and request['status'] == 200 and request['body'].get('beforeSeq')]
             assert retries[-1]['body']['beforeSeq'] == cursor, retries[-1]
-        if user == 'owner' and theme == 'light' and not narrow:
+        if user == 'owner':
             panel.get_by_role('link', name='View all in audit log', exact=True).click()
             page.wait_for_url('**/org/' + activity['orgId'] + '/audit?range=90d&ws=' + activity['workspaceId'] + '&res=' + activity['resourceId'])
             page.get_by_role('list', name='Audit events').wait_for()
@@ -279,10 +270,10 @@ with session(out) as browser:
             page.wait_for_url('**/wks/' + activity['siblingId'] + '**')
             assert not [request for request in recorded if request['status'] >= 400], recorded
         assert not errors, errors
-        results.append({'user': user, 'scene': scene, 'theme': theme, 'narrow': narrow, 'requests': recorded, 'errors': errors})
+        results.append({'user': user, 'scene': scene, 'requests': recorded, 'errors': errors})
         context.unroute_all(behavior="wait")
         context.close()
-    scoped = check_scoped_user(browser, 'light')
+    scoped = check_scoped_user(browser)
     browser.close()
 (out / 'results.json').write_text(json.dumps({'access': access, 'browser': results, 'scoped': scoped}, indent=2))
 print(f'scoped Activity API access and {len(results)} production-browser cases passed', flush=True)

@@ -32,13 +32,9 @@ def check(page):
         page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
 
 
-cases = []
 with session(out) as browser:
     try:
-        theme = "light"
-        narrow = False
-        case = f"{theme}{'-narrow' if narrow else ''}"
-        context, page, errors = open_page(browser, "owner", theme, narrow)
+        context, page, errors = open_page(browser, "owner")
         try:
             page.goto(ui + "/dashboard")
             expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
@@ -73,12 +69,11 @@ with session(out) as browser:
                 reload.click()
             assert page.evaluate("window.beforeReload") is None
             assert not errors, errors
-            cases.append(case)
         except BaseException:
-            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            page.screenshot(path=out / "failure.png", animations="disabled")
             raise
         finally:
             context.close()
     finally:
         browser.close()
-print(f"PASS: update-toast cases {', '.join(cases)}")
+print("PASS: update toast")

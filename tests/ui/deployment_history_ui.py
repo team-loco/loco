@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
+from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Exercise deployment history against an isolated production API and database")
 parser.add_argument("--state")
@@ -112,19 +112,11 @@ base = f"/org/{org_id}/wks/{workspace_id}"
 results = []
 with session(out) as browser:
     try:
-        theme = "light"
-        narrow = False
         evidence.psql(state["container"], f"UPDATE clusters SET last_heartbeat=NOW() WHERE id IN (SELECT cluster_id FROM deployments WHERE resource_id='{data["resource"]}');")
         evidence.psql(state["container"], f"UPDATE builds SET status='awaiting_upload', message='', finished_at=NULL WHERE id='{data["builds"]["awaiting"]}';")
-        case = f"{theme}{'-narrow' if narrow else ''}"
-        context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
+        context, page, errors = open_page(browser, state=state)
         context.set_default_timeout(evidence.STEP_TIMEOUT_MS)
-        auth = {"idToken": owner, "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS}
-        authenticate(context, owner, theme)
-        page = context.new_page()
-        errors = []
         requests = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
         page.on("request", lambda request: requests.append({"method": request.url.rsplit("/", 1)[-1], "body": request.post_data_json}) if ".DeploymentService/" in request.url else None)
         log_queries = []
 
@@ -290,24 +282,19 @@ with session(out) as browser:
             owner_name.fill("shared-edited")
             expect(page.get_by_role("button", name="Save", exact=True)).to_be_visible()
             page.get_by_role("button", name="Discard", exact=True).click()
-            member_context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-            authenticate(member_context, state['users']['member']['token'], theme)
+            member_context, member_page, member_errors = open_page(browser, "member", state=state)
             member_context.tracing.start(screenshots=False, snapshots=False)
-            member_page = member_context.new_page()
             active_page, active_context = member_page, member_context
             stage, user = "reader-settings", "member"
-            member_page.on("pageerror", lambda error: errors.append(str(error)))
             member_page.goto(state["ui_url"] + base + "/settings?scope=workspace")
             expect(member_page.get_by_placeholder("storefront", exact=True)).to_be_disabled()
             expect(member_page.get_by_role("button", name="Save", exact=True)).to_have_count(0)
             member_context.tracing.stop()
             member_context.close()
-            reader_context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-            authenticate(reader_context, state['users']['resource_reader']['token'], theme)
-            reader_page = reader_context.new_page()
+            errors.extend(member_errors)
+            reader_context, reader_page, reader_errors = open_page(browser, "resource_reader", state=state)
             active_page, active_context = reader_page, reader_context
             stage, user = "resource-reader", "resource_reader"
-            reader_page.on("pageerror", lambda error: errors.append(str(error)))
             denied = []
             reader_page.on("response", lambda response: denied.append(response.url) if response.status == 403 else None)
             reader_page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
@@ -324,12 +311,10 @@ with session(out) as browser:
             expect(reader_page.get_by_role("region", name="Variables")).to_be_visible()
             assert not denied, denied
             reader_context.close()
-            writer_context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-            authenticate(writer_context, state['users']['writer']['token'], theme)
-            writer_page = writer_context.new_page()
+            errors.extend(reader_errors)
+            writer_context, writer_page, writer_errors = open_page(browser, "writer", state=state)
             active_page, active_context = writer_page, writer_context
             stage, user = "writer-delete", "writer"
-            writer_page.on("pageerror", lambda error: errors.append(str(error)))
             needs_admin = "Needs admin access to this resource"
             writer_page.goto(state["ui_url"] + base + "/resources?env=production")
             writer_page.get_by_role("button", name="Actions for history-pilot", exact=True).click()
@@ -346,15 +331,16 @@ with session(out) as browser:
             settings_delete = writer_page.get_by_role("button", name="Delete resource", exact=True)
             expect(settings_delete).to_be_disabled()
             writer_context.close()
+            errors.extend(writer_errors)
             active_page, active_context = page, context
             assert not errors, errors
-            results.append({"theme": theme, "narrow": narrow, "errors": errors, "requests": requests, "injectedFailures": len(failed)})
+            results.append({"errors": errors, "requests": requests, "injectedFailures": len(failed)})
         except BaseException as error:
             with contextlib.suppress(Exception):
-                active_page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
-            (out / "failure.json").write_text(json.dumps({"case": case, "stage": stage, "user": user, "error": repr(error), "requests": requests, "errors": errors, "completed": results}, indent=2))
+                active_page.screenshot(path=out / "failure.png", animations="disabled")
+            (out / "failure.json").write_text(json.dumps({"stage": stage, "user": user, "error": repr(error), "requests": requests, "errors": errors, "completed": results}, indent=2))
             with contextlib.suppress(Exception):
-                active_context.tracing.stop(path=out / f"failure-{case}.zip")
+                active_context.tracing.stop(path=out / "failure.zip")
             raise
         context.tracing.stop()
         context.close()
