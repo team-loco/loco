@@ -408,25 +408,21 @@ func (s *WorkspaceServer) CreateMember(
 	if err != nil {
 		return nil, err
 	}
-	if err = check(ctx, s.authz, p, actions.New(actions.AddWorkspaceMember, wsID)); err != nil {
-		return nil, err
-	}
-
 	validScopes := []genDb.Scope{genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin}
 	var addScopes []genDb.EntityScope
 	for _, sc := range req.GetScopes() {
 		if !slices.Contains(validScopes, sc) {
 			return nil, connect.Errorf(connect.CodeInvalidArgument, "invalid scope: %s", sc)
 		}
-		requested := genDb.EntityScope{
+		addScopes = append(addScopes, genDb.EntityScope{
 			EntityType: genDb.EntityTypeWorkspace,
 			EntityID:   wsID,
 			Scope:      sc,
-		}
-		if err = check(ctx, s.authz, p, requested); err != nil {
-			return nil, err
-		}
-		addScopes = append(addScopes, requested)
+		})
+	}
+	required := append([]genDb.EntityScope{actions.New(actions.AddWorkspaceMember, wsID)}, addScopes...)
+	if err = check(ctx, s.authz, p, required...); err != nil {
+		return nil, err
 	}
 
 	userID, err := uuid.Parse(req.GetUserId())

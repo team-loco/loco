@@ -306,8 +306,8 @@ type CreateTokenRequest struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                                              // Human-readable token name
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"` // Entity type the token is for
 	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`                                      // Entity ID the token is for
-	Scopes        []*EntityScope         `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`                                                          // Scopes to grant to the token
-	ExpiresInSec  int64                  `protobuf:"varint,5,opt,name=expires_in_sec,json=expiresInSec,proto3" json:"expires_in_sec,omitempty"`                       // Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
+	Scopes        []*EntityScope         `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	ExpiresInSec  int64                  `protobuf:"varint,5,opt,name=expires_in_sec,json=expiresInSec,proto3" json:"expires_in_sec,omitempty"` // Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -962,14 +962,15 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"lastUsedAt\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\b \x01(\tR\tcreatedByB\x0f\n" +
-	"\r_last_used_at\"\x8f\x02\n" +
+	"\r_last_used_at\"\xab\x03\n" +
 	"\x12CreateTokenRequest\x12\x1d\n" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12F\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"entityType\x12%\n" +
-	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\x12<\n" +
-	"\x06scopes\x18\x04 \x03(\v2\x1a.loco.token.v1.EntityScopeB\b\xbaH\x05\x92\x01\x02\b\x01R\x06scopes\x12-\n" +
+	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\x12\xd7\x01\n" +
+	"\x06scopes\x18\x04 \x03(\v2\x1a.loco.token.v1.EntityScopeB\xa2\x01\xbaH\x9e\x01\xba\x01\x95\x01\n" +
+	"\x13token.scopes.unique\x12\x15scopes must be unique\x1agthis.map(scope, string(scope.entity_type) + ':' + scope.entity_id + ':' + string(scope.scope)).unique()\x92\x01\x02\b\x01R\x06scopes\x12-\n" +
 	"\x0eexpires_in_sec\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x01R\fexpiresInSec\"h\n" +
 	"\x13CreateTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12;\n" +

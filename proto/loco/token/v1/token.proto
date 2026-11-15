@@ -78,7 +78,14 @@ message CreateTokenRequest {
     not_in: [0]
   }]; // Entity type the token is for
   string entity_id = 3 [(buf.validate.field).string.uuid = true]; // Entity ID the token is for
-  repeated EntityScope scopes = 4 [(buf.validate.field).repeated.min_items = 1]; // Scopes to grant to the token
+  repeated EntityScope scopes = 4 [
+    (buf.validate.field).repeated.min_items = 1,
+    (buf.validate.field).cel = {
+      id: "token.scopes.unique"
+      message: "scopes must be unique"
+      expression: "this.map(scope, string(scope.entity_type) + ':' + scope.entity_id + ':' + string(scope.scope)).unique()"
+    }
+  ];
   int64 expires_in_sec = 5 [(buf.validate.field).int64.gte = 1]; // Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
 }
 

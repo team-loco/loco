@@ -150,6 +150,7 @@ message CreateMemberRequest {
   string user_id = 2 [(buf.validate.field).string.uuid = true];
   repeated string scopes = 3 [(buf.validate.field).repeated = {
     min_items: 1
+    unique: true
     items: {
       cel: [
         {

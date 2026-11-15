@@ -53,8 +53,8 @@ func principalFrom(ctx context.Context) (reqctx.Principal, error) {
 }
 
 // check is authorize for a handler that already holds the principal.
-func check(ctx context.Context, authorizer *authz.Authorizer, p reqctx.Principal, required genDb.EntityScope) error {
-	err := authorizer.Check(ctx, p.Scopes, required)
+func check(ctx context.Context, authorizer *authz.Authorizer, p reqctx.Principal, required ...genDb.EntityScope) error {
+	err := authorizer.Check(ctx, p.Scopes, required...)
 	if err == nil {
 		return nil
 	}

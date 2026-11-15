@@ -32,7 +32,22 @@ func New(pool *pgxpool.Pool, q queries.Querier) *Authorizer {
 // It returns [ErrEntityNotFound] when the entity does not exist,
 // [ErrInsufficientPermissions] when no granted scope covers it, and the wrapped database error
 // when the owner lookup fails.
-func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, required queries.EntityScope) error {
+func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, required ...queries.EntityScope) error {
+	parents := make(map[queries.Entity][]queries.EntityScope)
+	for _, scope := range required {
+		if err := a.check(ctx, granted, scope, parents); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *Authorizer) check(
+	ctx context.Context,
+	granted []queries.EntityScope,
+	required queries.EntityScope,
+	parents map[queries.Entity][]queries.EntityScope,
+) error {
 	for _, scope := range granted {
 		if !covers(scope.Scope, required.Scope) {
 			continue
@@ -45,42 +60,48 @@ func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, r
 		}
 	}
 
-	var implied []queries.EntityScope
-	switch required.EntityType {
-	case queries.EntityTypeOrganization:
-		return ErrInsufficientPermissions
-	case queries.EntityTypeUser:
-		return ErrInsufficientPermissions
-	case queries.EntityTypeWorkspace:
-		orgID, err := a.queries.GetOrganizationIDByWorkspaceID(ctx, required.EntityID)
-		if errors.Is(err, pgx.ErrNoRows) {
+	entity := queries.Entity{Type: required.EntityType, ID: required.EntityID}
+	implied, ok := parents[entity]
+	if !ok {
+		switch required.EntityType {
+		case queries.EntityTypeOrganization:
+			return ErrInsufficientPermissions
+		case queries.EntityTypeUser:
+			return ErrInsufficientPermissions
+		case queries.EntityTypeWorkspace:
+			orgID, err := a.queries.GetOrganizationIDByWorkspaceID(ctx, required.EntityID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrEntityNotFound
+			}
+			if err != nil {
+				return fmt.Errorf("look up workspace owner: %w", err)
+			}
+			implied = []queries.EntityScope{
+				{EntityType: queries.EntityTypeOrganization, EntityID: orgID},
+			}
+		case queries.EntityTypeResource:
+			ids, err := a.queries.GetWorkspaceOrganizationIDByResourceID(ctx, required.EntityID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrEntityNotFound
+			}
+			if err != nil {
+				return fmt.Errorf("look up resource owner: %w", err)
+			}
+			implied = []queries.EntityScope{
+				{EntityType: queries.EntityTypeOrganization, EntityID: ids.OrgID},
+				{EntityType: queries.EntityTypeWorkspace, EntityID: ids.WorkspaceID},
+			}
+		case queries.EntityTypeSystem:
+			return ErrInsufficientPermissions
+		default:
 			return ErrEntityNotFound
 		}
-		if err != nil {
-			return fmt.Errorf("look up workspace owner: %w", err)
-		}
-		implied = []queries.EntityScope{
-			{EntityType: queries.EntityTypeOrganization, EntityID: orgID, Scope: required.Scope},
-		}
-	case queries.EntityTypeResource:
-		ids, err := a.queries.GetWorkspaceOrganizationIDByResourceID(ctx, required.EntityID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrEntityNotFound
-		}
-		if err != nil {
-			return fmt.Errorf("look up resource owner: %w", err)
-		}
-		implied = []queries.EntityScope{
-			{EntityType: queries.EntityTypeOrganization, EntityID: ids.OrgID, Scope: required.Scope},
-			{EntityType: queries.EntityTypeWorkspace, EntityID: ids.WorkspaceID, Scope: required.Scope},
-		}
-	case queries.EntityTypeSystem:
-		return ErrInsufficientPermissions
-	default:
-		return ErrEntityNotFound
+
+		parents[entity] = implied
 	}
 
 	for _, scope := range implied {
+		scope.Scope = required.Scope
 		if slices.Contains(granted, scope) {
 			return nil
 		}

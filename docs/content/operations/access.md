@@ -31,6 +31,8 @@ The dashboard and CLI return a sign-in link for the inviter to copy and share. C
 
 A member sees the workspaces they hold `read` on, plus every workspace of an organization they hold `read` on. With a user session, `loco use`, `--org` with `--workspace`, and the dashboard's workspace switcher use that set.
 
+`WorkspaceService.CreateMember` accepts one or more unique scopes per request. Valid scopes are `read`, `write` and `admin`.
+
 ## Deploy from CI with an API token
 
 Use a scoped API token to run `loco infra plan`, `loco infra apply` and `loco deploy` from a clean CI runner. Create a token on the dashboard's Tokens page and select **Read** on the target workspace for planning or **Write** for applying and deploying. The dashboard's **Write** level grants both scopes. If you create the token with `loco token create` or the API, specify both `read` and `write` for deployments so the CLI can resolve the workspace and plan before it applies.
@@ -48,6 +50,8 @@ loco deploy --yes
 ```
 
 Use `--org` and `--workspace` to override the corresponding environment variables, and `--env` to choose an environment by name or ID. A `--host` flag must match `LOCO_HOST` so a token cannot follow a host override. A set `LOCO_TOKEN` takes precedence over saved credentials. An empty value fails. Unset the variable to use the local session. If the API rejects an expired or revoked token, replace the CI secret with a valid token and rerun the command.
+
+`TokenService.CreateToken` accepts one or more unique entity scopes per request. An entity scope combines the entity type, entity ID and permission.
 
 ## API token lifetime
 
