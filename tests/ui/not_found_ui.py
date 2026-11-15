@@ -215,6 +215,14 @@ with sync_playwright() as playwright:
             expect(prompt.get_by_role("link", name="Read the docs")).to_be_visible()
             page.get_by_role("button", name=re.compile(r"^Invitations")).click()
             expect(page.get_by_text("No invitations", exact=True)).to_be_visible()
+
+            page.goto(ui + "/organizations")
+            page.get_by_role("button", name="New organization", exact=True).click()
+            page.get_by_role("dialog", name="New organization").get_by_role("textbox", name="Name").fill(f"initech-{uuid.uuid4().hex[:6]}")
+            page.get_by_role("button", name="Create", exact=True).click()
+            expect(page).to_have_url(re.compile(r"/org/[0-9a-f-]+/team$"))
+            expect(page.get_by_role("region", name="It's just you so far")).to_be_visible()
+            expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
             # Hold the API until the loading overlay shows, so the code below is read while the
             # overlay fades out and must stay the only exposed status.
             held = []

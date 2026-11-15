@@ -1,4 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -41,6 +42,7 @@ export function Organizations() {
 	const [createOrgOpen, setCreateOrgOpen] = useState(false);
 	const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
 
+	const queryClient = useQueryClient();
 	const {
 		data: orgsRes,
 		isLoading,
@@ -62,7 +64,8 @@ export function Organizations() {
 	};
 
 	const handleCreateOrgSuccess = (orgId: string) => {
-		void refetchOrgs().then(() => {
+		// The caller's scopes gain the new organization, and the not-found check reads them.
+		void queryClient.invalidateQueries().then(() => {
 			setActiveOrg(orgId);
 		});
 	};
