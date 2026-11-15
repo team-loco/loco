@@ -269,17 +269,12 @@ with sync_playwright() as p:
     page.mouse.move(box['x'] + 2, box['y'] + 2)
     page.mouse.down()
     page.mouse.move(box['x'] + box['width'] - 2, box['y'] + box['height'] * 0.8, steps=5)
-    page.mouse.up()
+    with page.expect_request(lambda request: request.url.endswith('/ListTraces') and {'minDurationNanos', 'maxDurationNanos'} <= set(request.post_data_json)):
+        page.mouse.up()
     evidence.settle(page)
     zoomed = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)
     assert 'from' in zoomed and 'to' in zoomed, page.url
     assert '@duration:>=' in zoomed['q'][0] and '@duration:<=' in zoomed['q'][0], zoomed
-    # The zoom's request can land after the page settles, so wait for it.
-    for _ in range(50):
-        if 'minDurationNanos' in last_page_request() and 'maxDurationNanos' in last_page_request():
-            break
-        page.wait_for_timeout(100)
-    assert 'minDurationNanos' in last_page_request() and 'maxDurationNanos' in last_page_request()
     page.get_by_role('button', name='Reset zoom', exact=True).click()
     evidence.settle(page)
     assert '@duration' not in urllib.parse.unquote(page.url)
@@ -342,15 +337,17 @@ with sync_playwright() as p:
     context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
     page = context.new_page()
+    page.clock.install()
+    recent_save_ms = 1500
     search = page.get_by_role('combobox', name='Search and filter')
     suggestions = page.get_by_role('listbox', name='Suggestions')
     recent = suggestions.get_by_role('option').filter(has_text='checkout')
     page.goto(state['ui_url'] + base + '&q=checkout')
     evidence.settle(page)
-    page.wait_for_timeout(2500)
+    page.clock.run_for(recent_save_ms)
     page.goto(state['ui_url'] + base + '&q=quick')
     page.get_by_role('button', name='Clear', exact=True).click()
-    page.wait_for_timeout(2500)
+    page.clock.run_for(recent_save_ms)
     search.click()
     expect(recent).to_have_count(1)
     expect(suggestions.get_by_role('option').filter(has_text='quick')).to_have_count(0)
@@ -376,7 +373,7 @@ with sync_playwright() as p:
     expect(page.get_by_role('button', name='Pin search')).to_have_count(0)
     page.goto(state['ui_url'] + base + '&q=checkout')
     evidence.settle(page)
-    page.wait_for_timeout(2500)
+    page.clock.run_for(recent_save_ms)
     page.get_by_role('button', name='Pin search').click()
     expect(page.locator('[data-sonner-toast]').filter(has_text='Pinned')).to_be_visible()
     page.goto(state['ui_url'] + base)
