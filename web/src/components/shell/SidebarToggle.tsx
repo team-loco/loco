@@ -4,7 +4,11 @@ import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
 import { useSidebar } from "@/components/design/Sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { shortcutLabel } from "@/components/shell/CommandMenu";
 import { cn } from "@/lib/utils";
+
+// The vendored sidebar listens for Cmd/Ctrl + "b" (SIDEBAR_KEYBOARD_SHORTCUT in ui/sidebar.tsx).
+const SIDEBAR_SHORTCUT_LABEL = shortcutLabel("B");
 
 export function SidebarToggle({ hideWhenOpen, className }: { hideWhenOpen?: boolean; className?: string }) {
 	const { open, isMobile, openMobile, toggleSidebar } = useSidebar();
@@ -28,7 +32,7 @@ export function SidebarToggle({ hideWhenOpen, className }: { hideWhenOpen?: bool
 			</TooltipTrigger>
 			<TooltipContent className="flex items-center gap-2">
 				{label}
-				<Kbd>⌘B</Kbd>
+				<Kbd>{SIDEBAR_SHORTCUT_LABEL}</Kbd>
 			</TooltipContent>
 		</Tooltip>
 	);
