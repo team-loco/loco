@@ -14,12 +14,11 @@ import { Button } from "@/components/design/Button";
 
 import { Sheet, SheetBody, SheetContent } from "@/components/design/Sheet";
 
-import { FlameGraph } from "./trace-viewer/FlameGraph";
+import { TracePlot } from "./trace-viewer/TracePlot";
 import { TraceLogs } from "./trace-viewer/TraceLogs";
 import { SpanPanel } from "./trace-viewer/SpanPanel";
-import { TraceHeader } from "./trace-viewer/TraceHeader";
 import { TraceColors } from "./trace-viewer/TraceColors";
-import { Minimap } from "./trace-viewer/Minimap";
+import { TraceHeader } from "./trace-viewer/TraceHeader";
 
 import { useObs } from "./context";
 import { FULL_ZOOM, type Zoom } from "./flame";
@@ -109,14 +108,13 @@ export function TraceDrawer({
 						{trace !== undefined && selected !== undefined && (
 							<div className="grid min-w-0 gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
 								<div className="flex min-w-0 flex-col gap-4">
-									<Minimap trace={trace} zoom={zoom} onZoom={setZoom} highlight={highlight} />
-									<FlameGraph
+									<TracePlot
 										trace={trace}
 										selected={selected}
 										onSelect={select}
 										label={label}
 										zoom={zoom}
-										setZoom={setZoom}
+										onZoom={setZoom}
 										highlight={highlight}
 									/>
 									<TraceLogs trace={trace} />

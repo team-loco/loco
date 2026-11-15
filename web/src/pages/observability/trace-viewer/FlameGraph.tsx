@@ -1,20 +1,15 @@
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
-import { ZoomOutIcon } from "lucide-react";
-
-import { Button } from "@/components/design/Button";
 
 import { cn } from "@/lib/utils";
 
-import { flameLayout, FULL_ZOOM, lineage, selfTime, zoomTo, type Zoom } from "../flame";
+import { flameLayout, lineage, selfTime, zoomTo, type Zoom } from "../flame";
 
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
-import { axisLabel, durationLabel, spanError, type TraceSummary } from "../traces";
-
+import { offsetTicks } from "./plot";
+import { durationLabel, spanError, type TraceSummary } from "../traces";
 const ROW_PX = 24;
-const TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 const PERCENT = 100;
-const TICK_SCALE = 1_000_000;
 
 export function FlameGraph({
 	trace,
@@ -36,51 +31,31 @@ export function FlameGraph({
 	const { color: resourceColor } = useTraceResources();
 	const { blocks, depth } = flameLayout(trace, zoom);
 	const related = lineage(trace, selected.spanId);
-	const width = zoom.b - zoom.a;
-	const zoomed = width < 1;
+	const ticks = offsetTicks(trace.duration, zoom);
 	return (
 		<section aria-label="Flame graph" className="flex flex-col gap-1.5 rounded-card bg-panel px-3.5 pt-3 pb-3.5">
-			<div className="flex min-h-7 flex-wrap items-center gap-x-4 gap-y-1.5">
-				{zoomed && (
-					<>
-						<span className="font-mono text-[12px] text-fg3">{(1 / width).toFixed(1)}×</span>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								setZoom(FULL_ZOOM);
-							}}
-						>
-							<ZoomOutIcon />
-							Reset zoom
-						</Button>
-					</>
-				)}
-			</div>
 			<div className="relative h-3.5 font-mono text-[11px] text-fg3" aria-hidden="true">
-				{TICKS.map((f, i) => (
+				{ticks.map((t, i) => (
 					<span
-						key={f}
+						key={String(t.nanos)}
 						className={cn(
 							"absolute whitespace-nowrap",
-							i === 0 ? "" : i === TICKS.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
+							i > 0 && i < ticks.length - 1 && "hidden sm:inline",
+							i === 0 ? "" : i === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
 						)}
-						style={{ left: `${String(f * PERCENT)}%` }}
+						style={{ left: `${String(t.left * PERCENT)}%` }}
 					>
-						{axisLabel(
-							(trace.duration * BigInt(Math.round((zoom.a + f * width) * TICK_SCALE))) / BigInt(TICK_SCALE),
-							trace.duration,
-						)}
+						{durationLabel(t.nanos)}
 					</span>
 				))}
 			</div>
 			<div className="relative overflow-hidden" style={{ height: depth * ROW_PX }}>
-				{TICKS.map((f) => (
+				{ticks.map((t) => (
 					<span
-						key={f}
+						key={String(t.nanos)}
 						aria-hidden="true"
 						className="absolute inset-y-0 border-l border-dashed border-line2"
-						style={{ left: `${String(f * PERCENT)}%` }}
+						style={{ left: `${String(t.left * PERCENT)}%` }}
 					/>
 				))}
 				{blocks.map((b) => {
@@ -101,7 +76,7 @@ export function FlameGraph({
 								setZoom(zoomTo(trace, b.span));
 							}}
 							className={cn(
-								"@container absolute h-[22px] min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+								"@container absolute h-6 min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 								err && "text-bad-fg",
 								!related.has(b.span.spanId) && "opacity-45",
 								highlight !== null && traceResourceKey(b.span) !== highlight && "opacity-20",

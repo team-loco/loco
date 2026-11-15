@@ -1,0 +1,182 @@
+import { useRef, useState } from "react";
+import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
+import { ZoomOutIcon } from "lucide-react";
+import { Button } from "@/components/design/Button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { cn } from "@/lib/utils";
+import { FULL_ZOOM, type Zoom } from "../flame";
+import { durationLabel, type TraceSummary } from "../traces";
+import { Minimap } from "./Minimap";
+import { FlameGraph } from "./FlameGraph";
+import { Waterfall } from "./Waterfall";
+import { SpanList } from "./SpanList";
+import { boundedZoom, zoomAround } from "./plot";
+
+type View = "flame" | "waterfall" | "list";
+export function TracePlot({
+	trace,
+	selected,
+	onSelect,
+	label,
+	zoom,
+	onZoom,
+	highlight,
+}: {
+	trace: TraceSummary;
+	selected: TraceSpan;
+	onSelect: (span: TraceSpan) => void;
+	label: (span: TraceSpan) => string;
+	zoom: Zoom;
+	onZoom: (zoom: Zoom) => void;
+	highlight: string | null;
+}) {
+	const [view, setView] = useState<View>("flame");
+	const [cursor, setCursor] = useState<number | null>(null);
+	const dragRef = useRef<{ x: number; zoom: Zoom; moved: boolean } | null>(null);
+	const width = zoom.b - zoom.a;
+	const offset = (f: number) => durationLabel(BigInt(Math.round(Number(trace.duration) * f)));
+	return (
+		<div className="flex min-w-0 flex-col gap-2.5">
+			<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+				<ToggleGroup
+					variant="segmented"
+					aria-label="Trace view"
+					value={[view]}
+					onValueChange={(values) => {
+						const next = values[0];
+						if (next === "flame" || next === "waterfall" || next === "list") setView(next);
+					}}
+				>
+					<ToggleGroupItem value="flame">Flame graph</ToggleGroupItem>
+					<ToggleGroupItem value="waterfall">Waterfall</ToggleGroupItem>
+					<ToggleGroupItem value="list">Span list</ToggleGroupItem>
+				</ToggleGroup>
+				<span className="text-[12px] text-fg3">Double-click a span to zoom to it</span>
+				{width < 1 && (
+					<>
+						<span className="ml-auto font-mono text-[11px] text-fg3">
+							{offset(zoom.a)}–{offset(zoom.b)}
+						</span>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								onZoom(FULL_ZOOM);
+							}}
+						>
+							<ZoomOutIcon />
+							Reset zoom
+						</Button>
+					</>
+				)}
+			</div>
+			<Minimap trace={trace} zoom={zoom} onZoom={onZoom} highlight={highlight} />
+			{view === "list" ? (
+				<SpanList trace={trace} />
+			) : (
+				<div
+					className="relative min-w-0"
+					data-trace-plot={view}
+					ref={(element) => {
+						if (element === null) return;
+						const wheel = (e: WheelEvent) => {
+							if (
+								view === "waterfall" &&
+								!e.ctrlKey &&
+								!e.metaKey &&
+								!e.shiftKey &&
+								Math.abs(e.deltaX) < Math.abs(e.deltaY)
+							)
+								return;
+							e.preventDefault();
+							const rect = element.getBoundingClientRect();
+							if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))
+								onZoom(boundedZoom(zoom.a + ((e.deltaX || e.deltaY) / rect.width) * width, width));
+							else onZoom(zoomAround(zoom, (e.clientX - rect.left) / rect.width, e.deltaY));
+						};
+						element.addEventListener("wheel", wheel, { passive: false });
+						return () => {
+							element.removeEventListener("wheel", wheel);
+						};
+					}}
+					onPointerDown={(e) => {
+						if (width >= 1 || e.button !== 0) return;
+						dragRef.current = { x: e.clientX, zoom, moved: false };
+					}}
+					onPointerMove={(e) => {
+						const rect = e.currentTarget.getBoundingClientRect();
+						setCursor(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+						const drag = dragRef.current;
+						if (drag !== null) {
+							const delta = e.clientX - drag.x;
+							if (Math.abs(delta) > 3) {
+								drag.moved = true;
+								e.currentTarget.setPointerCapture(e.pointerId);
+								onZoom(
+									boundedZoom(
+										drag.zoom.a - (delta / rect.width) * (drag.zoom.b - drag.zoom.a),
+										drag.zoom.b - drag.zoom.a,
+									),
+								);
+							}
+						}
+					}}
+					onPointerUp={(e) => {
+						if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+					}}
+					onLostPointerCapture={() => {
+						if (dragRef.current !== null && !dragRef.current.moved) dragRef.current = null;
+					}}
+					onClickCapture={(e) => {
+						if (dragRef.current?.moved === true) {
+							e.preventDefault();
+							e.stopPropagation();
+						}
+						dragRef.current = null;
+					}}
+					onPointerLeave={() => {
+						setCursor(null);
+					}}
+				>
+					{view === "flame" ? (
+						<FlameGraph
+							trace={trace}
+							selected={selected}
+							onSelect={onSelect}
+							label={label}
+							zoom={zoom}
+							setZoom={onZoom}
+							highlight={highlight}
+						/>
+					) : (
+						<Waterfall
+							trace={trace}
+							selected={selected}
+							onSelect={onSelect}
+							label={label}
+							zoom={zoom}
+							onZoom={onZoom}
+							highlight={highlight}
+						/>
+					)}
+					{cursor !== null && (
+						<div
+							aria-hidden
+							className="pointer-events-none absolute inset-y-0 z-10 border-l border-fg3"
+							style={{ left: `${String(cursor * 100)}%` }}
+						>
+							<span
+								className={cn(
+									"absolute top-0 rounded-sm border border-line bg-background px-1 py-0.5 font-mono text-[10px]",
+									cursor > 0.8 ? "right-1" : "left-1",
+								)}
+							>
+								{offset(zoom.a + cursor * width)}
+							</span>
+						</div>
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
