@@ -15,7 +15,7 @@ import (
 var errTLS12Accepted = errors.New("gateway accepted a TLS 1.2 handshake")
 
 // Upgrade after recovery so the HTTP recovery fixture can finish before its API URL changes.
-func verifyTLSMinimum(ctx context.Context) error {
+func verifyTLSMinimum(ctx context.Context) (result error) {
 	roots, err := fixtureRoots(ctx)
 	if err != nil {
 		return err
@@ -28,11 +28,19 @@ func verifyTLSMinimum(ctx context.Context) error {
 	for _, host := range []string{fixtureAPIHost, fixtureWebHost, fixtureIngestHost} {
 		source = strings.ReplaceAll(source, "http://"+host, "https://"+host)
 	}
-	// #nosec G703 -- clientFile is the fixed fixture path, not operator input.
-	if err := os.WriteFile(clientFile, []byte(source), 0600); err != nil {
+	// The original installation file is mounted from a read-only ConfigMap.
+	file, err := os.CreateTemp("", "installation-tls-*.yaml")
+	if err != nil {
 		return err
 	}
-	if _, err := locoadm(ctx, "apply", "--file", clientFile); err != nil {
+	defer func() { result = errors.Join(result, os.Remove(file.Name())) }()
+	if _, err := file.WriteString(source); err != nil {
+		return errors.Join(err, file.Close())
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if _, err := locoadm(ctx, "apply", "--file", file.Name()); err != nil {
 		return err
 	}
 	if err := configureGatewayDNS(ctx, controlNamespace, false); err != nil {
