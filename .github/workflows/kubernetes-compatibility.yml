@@ -10,13 +10,14 @@ permissions:
 
 jobs:
   compatibility:
-    name: Kubernetes (${{ matrix.endpoint }})
+    name: Kubernetes (${{ matrix.endpoint }}, ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         endpoint: [oldest, newest]
+        shard: [builds, telemetry]
     env:
       E2E_RUN_ID: compatibility
       E2E_KUBERNETES_VERSION: ${{ matrix.endpoint }}
@@ -25,12 +26,14 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: e2e
-      - name: Install and test deployment, networking, secrets and deletion
-        run: ./tests/e2e/run.sh --registry-token 01_agent_lifecycle config_apply discovery registry_token
+      - name: Install and test deployment, networking, secrets, registry tokens and deletion
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: mise run e2e --keep "$SHARD"
       - name: Upload compatibility diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: kubernetes-${{ matrix.endpoint }}
-          path: tests/e2e/runs/compatibility/logs
+          name: kubernetes-${{ matrix.endpoint }}-${{ matrix.shard }}
+          path: tests/e2e/runs/compatibility-${{ matrix.shard }}/logs
           if-no-files-found: warn
