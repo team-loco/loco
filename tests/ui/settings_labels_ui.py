@@ -7,6 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -197,8 +198,11 @@ with sync_playwright() as playwright:
                         page.wait_for_url(f"{state['ui_url']}/organizations")
                         page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
                         expect(page.get_by_placeholder("Search workspaces", exact=True)).to_have_value("zzz")
-                        page.get_by_role("group", name="Settings for").get_by_role("button", name="Workspace", exact=True).click()
-                        page.wait_for_url(re.compile(r"[?&]scope=workspace"))
+                        workspace_scope = page.get_by_role("group", name="Settings for").get_by_role("button", name="Workspace", exact=True)
+                        workspace_scope.click()
+                        page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("scope", ["workspace"]) == ["workspace"])
+                        expect(workspace_scope).to_have_attribute("aria-pressed", "true")
+                        expect(page.get_by_placeholder("storefront", exact=True)).to_be_visible()
                         assert "q=" not in page.url, page.url
                     for tab in ("ws", "org"):
                         try:
