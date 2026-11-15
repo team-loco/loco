@@ -86,7 +86,7 @@ message CreateTokenRequest {
     (buf.validate.field).cel = {
       id: "token.scopes.unique"
       message: "scopes must be unique"
-      expression: "this.all(scope, this.filter(other, scope == other).size() == 1)"
+      expression: "this.map(scope, string(scope.entity_type) + ':' + scope.entity_id + ':' + string(scope.scope)).unique()"
     }
   ];
   int64 expires_in_sec = 5 [(buf.validate.field).int64.gte = 1]; // Expiration duration in seconds, bounded by GetConfig.api_token_max_lifetime_seconds
