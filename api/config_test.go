@@ -155,7 +155,6 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_TOKEN_CLEANUP_INTERVAL", "")
 	t.Setenv("LOCO_IMAGE_RESOLVE_TIMEOUT", "")
 	t.Setenv("LOCO_RPC_TIMEOUT", "")
-	t.Setenv("LOCO_DEPLOYMENT_MAX_WATCH_STREAMS", "")
 	t.Setenv("LOCO_SHUTDOWN_DRAIN_TIMEOUT", "")
 	t.Setenv("LOCO_PLACEMENT_POLL_INTERVAL", "")
 	t.Setenv(webhookTimeoutEnv, "")
@@ -1274,29 +1273,4 @@ func TestNewAPIConfigTokenMaximum(t *testing.T) {
 		}
 	}()
 	newAPIConfig()
-}
-
-func TestMaxDeploymentWatches(t *testing.T) {
-	for _, value := range []string{"", "3", "0", "-1", "not-an-integer"} {
-		t.Run(value, func(t *testing.T) {
-			clearAPIConfigEnv(t)
-			t.Setenv("LOCO_DEPLOYMENT_MAX_WATCH_STREAMS", value)
-			if value == "0" || value == "-1" || value == "not-an-integer" {
-				defer func() {
-					if recover() == nil {
-						t.Fatal("expected invalid stream limit to panic")
-					}
-				}()
-				newAPIConfig()
-				return
-			}
-			want := int32(3)
-			if value == "" {
-				want = defaultDeploymentWatchLimit
-			}
-			if got := newAPIConfig().MaxDeploymentWatches; got != want {
-				t.Fatalf("stream limit = %d, want %d", got, want)
-			}
-		})
-	}
 }

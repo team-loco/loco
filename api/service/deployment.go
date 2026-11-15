@@ -29,6 +29,10 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
+// MaxDeploymentWatchStreams caps the WatchDeployment streams one principal holds open on an API replica;
+// each stream polls the database every 2 s.
+const MaxDeploymentWatchStreams = 25
+
 var (
 	errDeploymentWatchLimit = rpcerr.NewCoded(connect.CodeResourceExhausted, "deployment watch stream limit reached")
 	ErrDeploymentNotFound   = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")

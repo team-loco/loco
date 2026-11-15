@@ -434,7 +434,7 @@ func newDeps(
 			clusterSilentAfter,
 			ac.SecretLimits.MaxPlacementBytes,
 			ac.CountLimits,
-			ac.MaxDeploymentWatches,
+			service.MaxDeploymentWatchStreams,
 		),
 		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
 			ClusterSilentAfter: clusterSilentAfter,
