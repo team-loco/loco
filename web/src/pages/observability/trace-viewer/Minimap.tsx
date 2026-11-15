@@ -1,6 +1,7 @@
 import type { KeyboardEvent, PointerEvent } from "react";
 import { flameLayout, type Zoom } from "../flame";
-import { traceServiceColor } from "../trace-service";
+import { traceResourceKey } from "../trace-service";
+import { useTraceResources } from "./TraceColors";
 import type { TraceSummary } from "../traces";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export function Minimap({
 	onZoom: (zoom: Zoom) => void;
 	highlight: string | null;
 }) {
+	const { color: resourceColor } = useTraceResources();
 	const { blocks, depth } = flameLayout(trace, { a: 0, b: 1 });
 	const move = (e: PointerEvent<HTMLDivElement>) => {
 		const rect = e.currentTarget.getBoundingClientRect();
@@ -58,14 +60,14 @@ export function Minimap({
 					key={b.span.spanId}
 					className={cn(
 						"pointer-events-none absolute rounded-[1px]",
-						highlight !== null && b.span.serviceName !== highlight ? "opacity-15" : "opacity-80",
+						highlight !== null && traceResourceKey(b.span) !== highlight ? "opacity-15" : "opacity-80",
 					)}
 					style={{
 						left: `${String(b.left * 100)}%`,
 						width: `${String(b.width * 100)}%`,
 						top: `${String((b.depth / depth) * 100)}%`,
 						height: `${String(100 / depth)}%`,
-						background: traceServiceColor(b.span.serviceName),
+						background: resourceColor(b.span),
 					}}
 				/>
 			))}

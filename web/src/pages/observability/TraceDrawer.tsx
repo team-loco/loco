@@ -18,6 +18,7 @@ import { FlameGraph } from "./trace-viewer/FlameGraph";
 import { TraceLogs } from "./trace-viewer/TraceLogs";
 import { SpanPanel } from "./trace-viewer/SpanPanel";
 import { TraceHeader } from "./trace-viewer/TraceHeader";
+import { TraceColors } from "./trace-viewer/TraceColors";
 import { Minimap } from "./trace-viewer/Minimap";
 
 import { useObs } from "./context";
@@ -58,63 +59,74 @@ export function TraceDrawer({
 		void setSpanId(span.spanId);
 	};
 	return (
-		<Sheet
-			open={open}
-			onOpenChange={(next) => {
-				if (!next) onClose();
-			}}
-		>
-			<SheetContent size="full" className="data-[side=right]:w-[min(1480px,calc(100vw-16px))]" showCloseButton={false}>
-				<TraceHeader
-					trace={trace}
-					traceId={traceId}
-					onClose={onClose}
-					highlight={highlight}
-					pinned={pinned}
-					onHover={setHovered}
-					onPin={setPinned}
-				/>
-				<SheetBody className="gap-4">
-					{loading && (
-						<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
-							<Spinner className="size-4" />
-							Loading spans…
-						</div>
-					)}
-					{!loading && error !== null && (
-						<ErrorState error={error} what="this trace" rpc={ObservabilityService.method.getTrace} onRetry={onRetry} />
-					)}
-					{!loading && error === null && trace === undefined && (
-						<EmptyHero
-							art={<ScrollTextIcon className="size-8 text-fg3" />}
-							title="This trace is no longer available"
-							subtitle={`${limits === undefined ? "" : `Traces are kept for ${String(limits.traceRetentionDays)} days. `}It may also have been dropped before it was stored.`}
-						>
-							<Button variant="outline" onClick={onClose}>
-								Back to traces
-							</Button>
-						</EmptyHero>
-					)}
-					{trace !== undefined && selected !== undefined && (
-						<div className="grid min-w-0 gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
-							<div className="flex min-w-0 flex-col gap-4">
-								<Minimap trace={trace} zoom={zoom} onZoom={setZoom} highlight={highlight} />
-								<FlameGraph
-									trace={trace}
-									selected={selected}
-									onSelect={select}
-									label={label}
-									zoom={zoom}
-									setZoom={setZoom}
-									highlight={highlight}
-								/>
-								<TraceLogs trace={trace} />
+		<TraceColors trace={trace}>
+			<Sheet
+				open={open}
+				onOpenChange={(next) => {
+					if (!next) onClose();
+				}}
+			>
+				<SheetContent
+					size="full"
+					className="data-[side=right]:w-[min(1480px,calc(100vw-16px))]"
+					showCloseButton={false}
+				>
+					<TraceHeader
+						trace={trace}
+						traceId={traceId}
+						onClose={onClose}
+						highlight={highlight}
+						pinned={pinned}
+						onHover={setHovered}
+						onPin={setPinned}
+					/>
+					<SheetBody className="gap-4">
+						{loading && (
+							<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
+								<Spinner className="size-4" />
+								Loading spans…
 							</div>
-							<SpanPanel trace={trace} selected={selected} missing={missing} select={select} label={label} />
-						</div>
-					)}
-				</SheetBody>
-			</SheetContent>
-		</Sheet>
+						)}
+						{!loading && error !== null && (
+							<ErrorState
+								error={error}
+								what="this trace"
+								rpc={ObservabilityService.method.getTrace}
+								onRetry={onRetry}
+							/>
+						)}
+						{!loading && error === null && trace === undefined && (
+							<EmptyHero
+								art={<ScrollTextIcon className="size-8 text-fg3" />}
+								title="This trace is no longer available"
+								subtitle={`${limits === undefined ? "" : `Traces are kept for ${String(limits.traceRetentionDays)} days. `}It may also have been dropped before it was stored.`}
+							>
+								<Button variant="outline" onClick={onClose}>
+									Back to traces
+								</Button>
+							</EmptyHero>
+						)}
+						{trace !== undefined && selected !== undefined && (
+							<div className="grid min-w-0 gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
+								<div className="flex min-w-0 flex-col gap-4">
+									<Minimap trace={trace} zoom={zoom} onZoom={setZoom} highlight={highlight} />
+									<FlameGraph
+										trace={trace}
+										selected={selected}
+										onSelect={select}
+										label={label}
+										zoom={zoom}
+										setZoom={setZoom}
+										highlight={highlight}
+									/>
+									<TraceLogs trace={trace} />
+								</div>
+								<SpanPanel trace={trace} selected={selected} missing={missing} select={select} label={label} />
+							</div>
+						)}
+					</SheetBody>
+				</SheetContent>
+			</Sheet>
+		</TraceColors>
 	);
 }

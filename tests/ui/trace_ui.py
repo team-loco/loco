@@ -148,6 +148,14 @@ with session(out) as browser:
         page.get_by_role('menuitem', name='Download JSON', exact=True).click()
     assert download_info.value.suggested_filename == f'trace-{trace}.json'
     ranking = drawer.get_by_role('group', name='Time by resource')
+    expect(ranking.get_by_role('button', name='+7 more', exact=True)).to_be_visible()
+    expect(ranking.locator('button i')).to_have_count(4)
+    ranking.get_by_role('button', name='+7 more', exact=True).click()
+    expect(ranking.locator('button i')).to_have_count(11)
+    colors = ranking.locator('button i').evaluate_all('(dots) => dots.map(dot => getComputedStyle(dot).backgroundColor)')
+    assert len(set(colors)) == 11, colors
+    ranking.get_by_role('button', name='Show fewer', exact=True).click()
+    expect(ranking.locator('button i')).to_have_count(4)
     payment = ranking.get_by_role('button').filter(has_text='payment')
     payment.click()
     expect(payment).to_have_attribute('aria-pressed', 'true')
@@ -219,9 +227,11 @@ with session(out) as browser:
         expect(drawer).to_have_count(0)
     mode[0] = 'drawer-error'
     page.goto(state['ui_url'] + base + '&trace=' + trace)
-    failed_drawer = page.get_by_role('dialog', name='Trace ' + trace[:8] + '…' + trace[-4:])
+    failed_drawer = page.get_by_role('dialog', name='Trace', exact=True)
     expect(failed_drawer.get_by_role('heading', name='Couldn’t load this trace')).to_be_visible()
     expect(failed_drawer.get_by_text('ObservabilityService/GetTrace', exact=True)).to_be_visible()
+    failed_drawer.get_by_role('button', name='Copy trace ID ' + trace, exact=True).click()
+    assert page.evaluate('navigator.clipboard.readText()') == trace
     mode[0] = 'normal'
     failed_drawer.get_by_role('button', name='Retry', exact=True).click()
     expect(drawer).to_be_visible()

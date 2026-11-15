@@ -1,5 +1,6 @@
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
+import { traceResourceKey } from "./trace-service";
 import { spanError, spanStart, spanTree, type TraceSummary } from "./traces";
 
 const FRACTION_SCALE = 1_000_000n;
@@ -79,18 +80,22 @@ export function selfTime(trace: TraceSummary, span: TraceSpan): bigint {
 }
 
 export interface ServiceShare {
+	key: string;
 	service: string;
 	nanos: bigint;
 	share: number;
 }
 
 export function serviceShares(trace: TraceSummary): ServiceShare[] {
-	const totals = new Map<string, bigint>();
+	const totals = new Map<string, { service: string; nanos: bigint }>();
 	for (const span of trace.spans) {
-		totals.set(span.serviceName, (totals.get(span.serviceName) ?? 0n) + selfTime(trace, span));
+		const key = traceResourceKey(span);
+		const group = totals.get(key) ?? { service: span.serviceName, nanos: 0n };
+		group.nanos += selfTime(trace, span);
+		totals.set(key, group);
 	}
-	const sum = [...totals.values()].reduce((a, b) => a + b, 0n);
-	return [...totals].map(([service, nanos]) => ({ service, nanos, share: fraction(nanos, sum) }));
+	const sum = [...totals.values()].reduce((a, b) => a + b.nanos, 0n);
+	return [...totals].map(([key, group]) => ({ key, ...group, share: fraction(group.nanos, sum) }));
 }
 
 export function failingSpan(trace: TraceSummary, selected: TraceSpan): TraceSpan | undefined {

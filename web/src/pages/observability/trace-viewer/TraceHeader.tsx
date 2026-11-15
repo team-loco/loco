@@ -27,11 +27,11 @@ import { aroundWindow } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
-import { serviceShares } from "../flame";
+import { useTraceResources } from "./TraceColors";
 import { fmtTs } from "../format";
 import { replicaOf } from "../rows";
 import { durationLabel, spanError, type TraceSummary } from "../traces";
-import { traceServiceColor, traceServiceLabel } from "../trace-service";
+import { traceResourceKey, traceServiceLabel } from "../trace-service";
 import { traceJson } from "./trace-json";
 
 export function TraceHeader({
@@ -55,10 +55,43 @@ export function TraceHeader({
 	const { orgId, workspaceId, resourceById, goTo } = useObs();
 	const [copied, copy] = useCopy();
 	const [now] = useState(Date.now);
-	const shares =
+	const [expanded, setExpanded] = useState(false);
+	const { shares, color } = useTraceResources();
+	const items =
 		trace === undefined
 			? []
-			: serviceShares(trace).toSorted((a, b) => (a.nanos === b.nanos ? 0 : a.nanos > b.nanos ? -1 : 1));
+			: shares.map((share) => {
+					const spans = trace.spans.filter((span) => traceResourceKey(span) === share.key);
+					const first = spans[0];
+					if (first === undefined) throw new Error("Trace resource has no spans");
+					return {
+						...share,
+						name: resourceById.get(first.resourceId)?.name ?? traceServiceLabel(first),
+						color: color(first),
+						errors: spans.filter(spanError).length,
+					};
+				});
+	const top = items.slice(0, 4);
+	const rest = items.slice(4);
+	const restShare = rest.reduce((sum, item) => sum + item.share, 0);
+	const percent = (share: number) => (share < 0.01 ? "<1%" : `${Math.round(share * 100).toString()}%`);
+	const interactions = (key: string) => ({
+		onMouseEnter: () => {
+			onHover(key);
+		},
+		onMouseLeave: () => {
+			onHover(null);
+		},
+		onFocus: () => {
+			onHover(key);
+		},
+		onBlur: () => {
+			onHover(null);
+		},
+		onClick: () => {
+			onPin(pinned === key ? null : key);
+		},
+	});
 	const root = trace?.root;
 	const statusCode =
 		root?.spanAttributes["http.response.status_code"] ?? root?.spanAttributes["http.status_code"] ?? "";
@@ -79,7 +112,7 @@ export function TraceHeader({
 	};
 	return (
 		<header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-7 gap-y-3 border-b border-line py-3.5 pr-4 pl-6 min-[1180px]:grid-cols-[minmax(0,1fr)_minmax(0,520px)_auto]">
-			<div className="flex min-w-0 flex-col gap-2">
+			<div className="tv-hl col-start-1 row-start-1 flex min-w-0 flex-col gap-2">
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					{trace !== undefined && (
 						<Badge tone={trace.errors > 0 ? "bad" : "ok"}>{trace.errors > 0 ? "Error" : "OK"}</Badge>
@@ -94,9 +127,7 @@ export function TraceHeader({
 						</Badge>
 					)}
 					<SheetTitle className="min-w-0 truncate font-mono">
-						{trace === undefined || trace.root.name === ""
-							? `Trace ${traceId.slice(0, 8)}…${traceId.slice(-4)}`
-							: trace.root.name}
+						{trace === undefined || trace.root.name === "" ? "Trace" : trace.root.name}
 					</SheetTitle>
 					{trace !== undefined && <span className="font-mono text-fg3">{durationLabel(trace.duration)}</span>}
 					<Button
@@ -104,6 +135,7 @@ export function TraceHeader({
 						size="sm"
 						className="h-6 px-1.5 font-mono text-fg3"
 						title="Copy trace ID"
+						aria-label={`Copy trace ID ${traceId}`}
 						onClick={() => {
 							copy("trace", traceId);
 						}}
@@ -112,9 +144,13 @@ export function TraceHeader({
 						{copied === "trace" ? <CheckIcon /> : <CopyIcon />}
 					</Button>
 				</div>
-				<SheetDescription className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+				<SheetDescription
+					className={
+						trace === undefined ? "sr-only" : "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"
+					}
+				>
 					{trace === undefined ? (
-						traceId
+						"Trace details"
 					) : (
 						<>
 							{shares.length === 1 &&
@@ -128,7 +164,7 @@ export function TraceHeader({
 										<i
 											className="size-2 rounded-full"
 											style={{
-												background: traceServiceColor(trace.root.serviceName),
+												background: color(trace.root),
 											}}
 										/>
 										{resource.name}
@@ -138,7 +174,9 @@ export function TraceHeader({
 							{rootRegion !== "" && <span>{rootRegion}</span>}
 							<span title={fmtTs(start, true, timePref)}>{fmtTs(start, true, timePref)}</span>
 							<span>{agoLabel(start, now)}</span>
-							<span>{trace.spans.length} spans</span>
+							<span>
+								{trace.spans.length} {trace.spans.length === 1 ? "span" : "spans"}
+							</span>
 						</>
 					)}
 					{pinned !== null && (
@@ -155,71 +193,86 @@ export function TraceHeader({
 					)}
 				</SheetDescription>
 			</div>
-			{trace !== undefined && shares.length > 1 && (
+			{items.length > 1 && (
 				<div
 					role="group"
 					aria-label="Time by resource"
-					className="col-span-2 row-start-2 flex min-w-0 flex-col gap-0.5 min-[1180px]:col-span-1 min-[1180px]:col-start-2 min-[1180px]:row-start-1"
+					className="tv-hr col-span-2 col-start-1 row-start-2 flex min-w-0 flex-col gap-2 pt-1 min-[1180px]:col-span-1 min-[1180px]:col-start-2 min-[1180px]:row-start-1"
 				>
-					{shares.map((s) => {
-						const spans = trace.spans.filter((span) => span.serviceName === s.service);
-						const first = spans[0];
-						const errors = spans.filter(spanError).length;
-						return (
+					<div className="flex items-baseline gap-1.5 text-[11.5px] text-fg3">
+						Time by resource <span className="font-mono">{items.length}</span>
+					</div>
+					<div className="tv-mix flex h-2.5 gap-0.5 overflow-hidden rounded-[3px]">
+						{top.map((item) => (
 							<button
 								type="button"
-								key={s.service}
-								aria-pressed={pinned === s.service}
-								onMouseEnter={() => {
-									onHover(s.service);
-								}}
-								onMouseLeave={() => {
-									onHover(null);
-								}}
-								onFocus={() => {
-									onHover(s.service);
-								}}
-								onBlur={() => {
-									onHover(null);
-								}}
-								onClick={() => {
-									onPin(pinned === s.service ? null : s.service);
-								}}
+								key={item.key}
+								{...interactions(item.key)}
+								aria-pressed={pinned === item.key}
+								aria-label={`${item.name} · ${durationLabel(item.nanos)} · ${percent(item.share)}`}
+								title={`${item.name} · ${durationLabel(item.nanos)} · ${percent(item.share)}`}
 								className={cn(
-									"grid min-w-0 grid-cols-[minmax(64px,1fr)_minmax(30px,1fr)_60px_34px] items-center gap-2 rounded-sm px-1.5 py-0.5 text-left text-[12px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:grid-cols-[84px_minmax(40px,1fr)_60px_34px_110px]",
-									pinned === s.service && "bg-panel2",
-									highlight !== null && highlight !== s.service && "opacity-40",
+									"tv-mseg min-w-1 border-0 p-0 transition-opacity focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none",
+									highlight !== null && highlight !== item.key && "opacity-25",
+								)}
+								style={{ flexGrow: Math.max(item.share, 0.012), background: item.color }}
+							/>
+						))}
+						{rest.length > 0 && (
+							<span
+								className={cn(
+									"tv-mseg min-w-1 bg-line2",
+									highlight !== null && !rest.some((item) => item.key === highlight) && "opacity-25",
+								)}
+								style={{ flexGrow: Math.max(restShare, 0.012) }}
+								title={`${rest.length.toString()} more · ${percent(restShare)}`}
+							/>
+						)}
+					</div>
+					<div className="flex flex-wrap gap-x-1 gap-y-0.5">
+						{(expanded ? items : top).map((item) => (
+							<button
+								type="button"
+								key={item.key}
+								{...interactions(item.key)}
+								title={durationLabel(item.nanos)}
+								aria-pressed={pinned === item.key}
+								className={cn(
+									"inline-flex h-[22px] min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-left text-[12.5px] transition-opacity hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+									pinned === item.key && "bg-panel2",
+									highlight !== null && highlight !== item.key && "opacity-40",
 								)}
 							>
-								<span className="flex min-w-0 items-center gap-1.5">
-									<i className="size-2 shrink-0 rounded-full" style={{ background: traceServiceColor(s.service) }} />
-									<span className="truncate">
-										{first === undefined
-											? s.service
-											: traceServiceLabel(first, resourceById.get(first.resourceId)?.name)}
-									</span>
-								</span>
-								<span className="h-1.5 overflow-hidden rounded-sm bg-panel2">
-									<i
-										className="block h-full rounded-sm"
-										style={{
-											width: `${String(s.share * 100)}%`,
-											background: traceServiceColor(s.service),
-										}}
+								<i className="size-2 shrink-0 rounded-[2px]" style={{ background: item.color }} />
+								<span className="truncate">{item.name}</span>
+								<span className="shrink-0 font-mono text-[11.5px] text-fg3">{percent(item.share)}</span>
+								{item.errors > 0 && (
+									<span
+										role="img"
+										aria-label="Has errors"
+										title="Has errors"
+										className="size-1.5 shrink-0 rounded-full bg-err"
 									/>
-								</span>
-								<span className="text-right font-mono">{durationLabel(s.nanos)}</span>
-								<span className="text-right font-mono text-fg3">{Math.round(s.share * 100)}%</span>
-								<span className="hidden text-fg3 sm:block">
-									{spans.length} spans
-									{errors > 0 && <span className="text-bad-fg"> · {errors} errors</span>}
-								</span>
+								)}
 							</button>
-						);
-					})}
+						))}
+						{rest.length > 0 && (
+							<Button
+								variant="ghost"
+								size="sm"
+								aria-expanded={expanded}
+								className="h-[22px] px-1.5 text-[12.5px] text-fg3"
+								onClick={() => {
+									setExpanded(!expanded);
+								}}
+							>
+								{expanded ? "Show fewer" : `+${rest.length.toString()} more`}
+							</Button>
+						)}
+					</div>
 				</div>
 			)}
-			<div className="col-start-2 row-start-1 flex min-[1180px]:col-start-3">
+			<div className="tv-hact col-start-2 row-start-1 flex min-[1180px]:col-start-3">
 				<DropdownMenu>
 					<DropdownMenuTrigger
 						render={<Button variant="ghost" size="icon-sm" aria-label="More for this trace" title="More" />}
@@ -243,7 +296,11 @@ export function TraceHeader({
 						>
 							<BracesIcon />
 							Copy as JSON
-							{trace !== undefined && <span className="text-fg3">{trace.spans.length} spans</span>}
+							{trace !== undefined && (
+								<span className="text-fg3">
+									{trace.spans.length} {trace.spans.length === 1 ? "span" : "spans"}
+								</span>
+							)}
 						</DropdownMenuItem>
 						<DropdownMenuItem disabled={trace === undefined} onClick={download}>
 							<DownloadIcon />

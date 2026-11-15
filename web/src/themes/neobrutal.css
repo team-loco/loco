@@ -160,3 +160,13 @@
 [data-theme="neobrutal"] [data-slot="table-head"] {
 	font-weight: 700;
 }
+
+[data-theme="neobrutal"] .tv-mix {
+	gap: 0;
+	border-radius: 0;
+	box-shadow: 0 0 0 2px var(--ink);
+}
+
+[data-theme="neobrutal"] .tv-mseg + .tv-mseg {
+	border-left: 2px solid var(--ink);
+}

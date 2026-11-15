@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 
 import { flameLayout, FULL_ZOOM, lineage, selfTime, zoomTo, type Zoom } from "../flame";
 
-import { traceServiceColor } from "../trace-service";
+import { traceResourceKey } from "../trace-service";
+import { useTraceResources } from "./TraceColors";
 import { axisLabel, durationLabel, spanError, type TraceSummary } from "../traces";
 
 const ROW_PX = 24;
@@ -32,6 +33,7 @@ export function FlameGraph({
 	setZoom: (zoom: Zoom) => void;
 	highlight: string | null;
 }) {
+	const { color: resourceColor } = useTraceResources();
 	const { blocks, depth } = flameLayout(trace, zoom);
 	const related = lineage(trace, selected.spanId);
 	const width = zoom.b - zoom.a;
@@ -84,7 +86,7 @@ export function FlameGraph({
 				{blocks.map((b) => {
 					const err = spanError(b.span);
 					const on = b.span.spanId === selected.spanId;
-					const color = err ? "var(--err)" : traceServiceColor(b.span.serviceName);
+					const color = err ? "var(--err)" : resourceColor(b.span);
 					return (
 						<button
 							key={b.span.spanId}
@@ -102,7 +104,7 @@ export function FlameGraph({
 								"@container absolute h-[22px] min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 								err && "text-bad-fg",
 								!related.has(b.span.spanId) && "opacity-45",
-								highlight !== null && b.span.serviceName !== highlight && "opacity-20",
+								highlight !== null && traceResourceKey(b.span) !== highlight && "opacity-20",
 								on && "shadow-[inset_0_0_0_1.5px_var(--fg)]",
 							)}
 							style={{
