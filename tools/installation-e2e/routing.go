@@ -15,6 +15,7 @@ var (
 	errDNSAnswer      = errors.New("fixture Gateway DNS does not resolve to its LoadBalancer address")
 	errDNSZone        = errors.New("incomplete fixture DNS zone")
 	errGatewayAddress = errors.New("fixture Gateway has no real LoadBalancer address")
+	errRegistryDNS    = errors.New("cluster DNS does not resolve the fixture registry host to its service address")
 )
 
 const (
@@ -168,10 +169,21 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 	); checkErr != nil {
 		return checkErr
 	}
+	if checkErr := restartClusterDNS(ctx); checkErr != nil {
+		return checkErr
+	}
+	// Deployment readiness does not prove the operator can resolve the new zone.
+	return waitGatewayDNS(ctx, names, address)
+}
+
+// restartClusterDNS makes CoreDNS serve the current Corefile. Running pods pick up
+// an edit only after the kubelet syncs the ConfigMap and the reload plugin polls it,
+// which takes over a minute.
+func restartClusterDNS(ctx context.Context) error {
 	if _, checkErr := kubectl(ctx, "-n", "kube-system", "rollout", "restart", "deployment/coredns"); checkErr != nil {
 		return checkErr
 	}
-	if _, checkErr := kubectl(
+	_, err := kubectl(
 		ctx,
 		"-n",
 		"kube-system",
@@ -179,11 +191,45 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 		"status",
 		"deployment/coredns",
 		"--timeout="+fixtureReadyTimeout,
-	); checkErr != nil {
-		return checkErr
+	)
+	return err
+}
+
+// waitRegistryDNS waits until pods resolve the fixture registry host to its service
+// address. Until CoreDNS serves the hosts entry, the .localhost name resolves to loopback.
+func waitRegistryDNS(ctx context.Context, address string) error {
+	host, _, err := net.SplitHostPort(registryHost)
+	if err != nil {
+		return err
 	}
-	// Deployment readiness does not prove the operator can resolve the new zone.
-	return waitGatewayDNS(ctx, names, address)
+	ctx, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
+	defer cancel()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		// The postgres fixture image ships nslookup and uses the cluster DNS.
+		output, lookupErr := kubectl(ctx, "-n", fixtureNamespace, "exec", "deploy/postgres", "--",
+			"nslookup", "-type=a", host)
+		if lookupErr == nil && resolvesTo(string(output), address) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(errRegistryDNS, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+// resolvesTo reports whether nslookup output answers with address. The server's own
+// Address line carries a port, so it never matches.
+func resolvesTo(output, address string) bool {
+	for line := range strings.SplitSeq(output, "\n") {
+		if fields := strings.Fields(line); len(fields) == 2 && fields[0] == "Address:" && fields[1] == address {
+			return true
+		}
+	}
+	return false
 }
 
 func waitGatewayDNS(ctx context.Context, names []string, address string) error {
