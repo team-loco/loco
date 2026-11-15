@@ -22,8 +22,9 @@ import {
 	type Table as TanStackTable,
 } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon, Columns3Icon } from "lucide-react";
-import { useRef, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 
+import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
 import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
@@ -59,10 +60,16 @@ export const dataTableFeatures = tableFeatures({
 	columnMeta: metaHelper<DataColumnMeta>(),
 });
 type Features = typeof dataTableFeatures;
-export type DataColumn<T extends RowData> = ColumnDef<Features, T> & { id: string };
+export type DataColumn<T extends RowData> = ColumnDef<Features, T> & {
+	id: string;
+};
 export type DataTableInstance<T extends RowData> = TanStackTable<Features, T>;
 
-export const sortOptions = { sortDescFirst: false, enableSortingRemoval: false, enableMultiSort: false } as const;
+export const sortOptions = {
+	sortDescFirst: false,
+	enableSortingRemoval: false,
+	enableMultiSort: false,
+} as const;
 
 export function columnLabel<T extends RowData>(column: Column<Features, T>): string {
 	const header = column.columnDef.header;
@@ -74,46 +81,19 @@ export function pageWithin(pagination: PaginationState, rowCount: number): Pagin
 	return { ...pagination, pageIndex: Math.min(pagination.pageIndex, last) };
 }
 
-const MIN_WIDTH = 72;
-const MAX_WIDTH = 520;
-const KEY_STEP = 16;
-
-function clampWidth(w: number): number {
-	return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(w)));
-}
-
 function ResizeHandle<T extends RowData>({ column, width }: { column: Column<Features, T>; width: number }) {
-	const dragRef = useRef<{ x: number; width: number } | null>(null);
-	const onWidth = (w: number) => {
-		column.table.setColumnSizing((prev) => ({ ...prev, [column.id]: clampWidth(w) }));
-	};
-	const onKeyDown = (e: KeyboardEvent) => {
-		if (e.key === "ArrowLeft") onWidth(width - KEY_STEP);
-		else if (e.key === "ArrowRight") onWidth(width + KEY_STEP);
-		else return;
-		e.preventDefault();
-	};
 	return (
-		<div
-			role="separator"
-			aria-orientation="vertical"
-			aria-label={`Resize ${columnLabel(column)}`}
-			aria-valuenow={width}
-			aria-valuemin={MIN_WIDTH}
-			aria-valuemax={MAX_WIDTH}
-			tabIndex={0}
-			onKeyDown={onKeyDown}
-			onPointerDown={(e: PointerEvent<HTMLDivElement>) => {
-				e.currentTarget.setPointerCapture(e.pointerId);
-				dragRef.current = { x: e.clientX, width };
+		<ColumnResizeHandle
+			label={columnLabel(column)}
+			width={width}
+			min={72}
+			max={520}
+			onWidth={(value) => {
+				column.table.setColumnSizing((prev) => ({
+					...prev,
+					[column.id]: value,
+				}));
 			}}
-			onPointerMove={(e) => {
-				if (dragRef.current !== null) onWidth(dragRef.current.width + e.clientX - dragRef.current.x);
-			}}
-			onPointerUp={() => {
-				dragRef.current = null;
-			}}
-			className="absolute top-2 right-0 bottom-2 w-2 cursor-col-resize touch-none rounded-sm outline-none after:absolute after:inset-y-0 after:right-[3px] after:w-px after:bg-line2 hover:after:bg-fg4 focus-visible:after:bg-foreground"
 		/>
 	);
 }

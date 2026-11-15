@@ -92,6 +92,20 @@ with session(out) as browser:
             expect(page.get_by_text(f"Restarting {name}", exact=True)).to_be_visible()
             assert evidence.psql(state["container"], f"SELECT deployment_id FROM placements WHERE resource_id='{resource}';") == deployment
             assert evidence.psql(state["container"], f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}' AND environment_id='{production}';") == str(len(results) + 1)
+            if not results:
+                receipt = "01a1e000-1234-7000-8000-000000000123"
+                failed_restart = "**/loco.resource.v1.ResourceService/RestartResource"
+                context.route(failed_restart, lambda route: route.fulfill(status=500, headers={"x-loco-request-id": receipt, "access-control-expose-headers": "x-loco-request-id"}, json={"code": "internal", "message": "internal error"}))
+                more.click()
+                page.get_by_role("menuitem", name="Restart all replicas", exact=True).click()
+                expect(page.get_by_text(f"Couldn’t restart {name}", exact=True)).to_be_visible()
+                copy_receipt = page.get_by_title("Copy request ID", exact=True)
+                expect(copy_receipt).to_contain_text(receipt)
+                copy_receipt.click()
+                assert page.evaluate("navigator.clipboard.readText()") == receipt
+                page.wait_for_timeout(8000)
+                expect(copy_receipt).to_be_visible()
+                context.unroute(failed_restart)
             evidence.psql(state["container"], f"UPDATE deployments SET status='running' WHERE id='{deployment}';")
             more.click()
             page.get_by_role("menuitem", name="View spec", exact=True).click()

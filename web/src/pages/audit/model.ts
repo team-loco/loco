@@ -1,4 +1,6 @@
-import type { Event } from "@gen/loco/event/v1/event_pb";
+import { getOption } from "@bufbuild/protobuf";
+import { field } from "@gen/buf/validate/validate_pb";
+import { ListEventsRequestSchema, type Event } from "@gen/loco/event/v1/event_pb";
 
 import { DAY_MS, formatIsoDate, formatWeekdayDate, previousDay, type TimePreferences, tsMs } from "@/lib/time";
 import {
@@ -10,6 +12,10 @@ import {
 	type AuditUser,
 	typesIn,
 } from "@/pages/settings/auditEvents";
+
+const typesRule = getOption(ListEventsRequestSchema.field.types, field).type;
+if (typesRule.case !== "repeated") throw new Error("ListEvents types must declare repeated validation");
+export const EVENT_TYPE_LIMIT = Number(typesRule.value.maxItems);
 
 export const RANGES = [
 	{ value: "24h", label: "Past 24 hours", ms: DAY_MS },
@@ -39,13 +45,13 @@ export function typesLabel(types: readonly string[]): string {
 }
 
 export function toggleType(types: readonly string[], type: string): string[] {
-	return types.includes(type) ? types.filter((t) => t !== type) : [...types, type];
+	return types.includes(type) ? types.filter((t) => t !== type) : [...types, type].slice(0, EVENT_TYPE_LIMIT);
 }
 
 /** Selects every type in the category, or clears them when all are already selected. */
 export function toggleCategory(types: readonly string[], category: readonly string[]): string[] {
 	const rest = types.filter((t) => !category.includes(t));
-	return category.every((t) => types.includes(t)) ? rest : [...rest, ...category];
+	return category.every((t) => types.includes(t)) ? rest : [...rest, ...category].slice(0, EVENT_TYPE_LIMIT);
 }
 
 export function dayLabel(ms: number, nowMs: number, pref: TimePreferences): string {

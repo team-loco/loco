@@ -9,29 +9,77 @@ interface AuditType {
 }
 
 const AUDIT_TYPES: Record<string, AuditType> = {
-	"org.created": { label: "Created the organization", category: "organization" },
-	"org.updated": { label: "Updated the organization", category: "organization" },
-	"org.deleted": { label: "Deleted the organization", category: "organization" },
-	"org.suspended": { label: "Suspended the organization", category: "organization" },
-	"org.resumed": { label: "Resumed the organization", category: "organization" },
-	"org.limits_changed": { label: "Changed the organization's limits", category: "organization" },
+	"invitation.created": { label: "Invited a member", category: "access" },
+	"invitation.resent": { label: "Resent an invitation", category: "access" },
+	"invitation.claimed": { label: "Accepted an invitation", category: "access" },
+	"invitation.revoked": { label: "Revoked an invitation", category: "access" },
+	"webhook.test": { label: "Tested a webhook", category: "workspaces" },
+	"secret_key.rewrapped": {
+		label: "Rewrapped a secret key",
+		category: "deploys",
+	},
+	"org.created": {
+		label: "Created the organization",
+		category: "organization",
+	},
+	"org.updated": {
+		label: "Updated the organization",
+		category: "organization",
+	},
+	"org.deleted": {
+		label: "Deleted the organization",
+		category: "organization",
+	},
+	"org.suspended": {
+		label: "Suspended the organization",
+		category: "organization",
+	},
+	"org.resumed": {
+		label: "Resumed the organization",
+		category: "organization",
+	},
+	"org.limits_changed": {
+		label: "Changed the organization's limits",
+		category: "organization",
+	},
 	"member.added": { label: "Added a member", category: "access" },
 	"member.removed": { label: "Removed a member", category: "access" },
-	"org_member.added": { label: "Added an organization member", category: "access" },
-	"org_member.role_changed": { label: "Changed an organization member’s role", category: "access" },
-	"org_member.removed": { label: "Removed an organization member", category: "access" },
+	"org_member.added": {
+		label: "Added an organization member",
+		category: "access",
+	},
+	"org_member.role_changed": {
+		label: "Changed an organization member’s role",
+		category: "access",
+	},
+	"org_member.removed": {
+		label: "Removed an organization member",
+		category: "access",
+	},
 	"workspace.created": { label: "Created a workspace", category: "workspaces" },
 	"workspace.updated": { label: "Updated a workspace", category: "workspaces" },
 	"workspace.deleted": { label: "Deleted a workspace", category: "workspaces" },
-	"environment.created": { label: "Created an environment", category: "workspaces" },
-	"environment.updated": { label: "Updated an environment", category: "workspaces" },
-	"environment.deleted": { label: "Deleted an environment", category: "workspaces" },
+	"environment.created": {
+		label: "Created an environment",
+		category: "workspaces",
+	},
+	"environment.updated": {
+		label: "Updated an environment",
+		category: "workspaces",
+	},
+	"environment.deleted": {
+		label: "Deleted an environment",
+		category: "workspaces",
+	},
 	"resource.created": { label: "Created a resource", category: "deploys" },
 	"resource.updated": { label: "Updated a resource", category: "deploys" },
 	"resource.deleted": { label: "Deleted a resource", category: "deploys" },
 	"resource.scaled": { label: "Scaled a resource", category: "deploys" },
 	"resource.restarted": { label: "Restarted a resource", category: "deploys" },
-	"resource.partial_transferred": { label: "Moved a resource to another partial", category: "deploys" },
+	"resource.partial_transferred": {
+		label: "Moved a resource to another partial",
+		category: "deploys",
+	},
 	"resource.degraded": { label: "Resource degraded", category: "deploys" },
 	"resource.recovered": { label: "Resource recovered", category: "deploys" },
 	"secret.set": { label: "Set secrets", category: "deploys" },
@@ -50,13 +98,19 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"token.revoked": { label: "Revoked an API token", category: "tokens" },
 	"webhook.created": { label: "Added a webhook", category: "workspaces" },
 	"webhook.updated": { label: "Updated a webhook", category: "workspaces" },
-	"webhook.secret_rotated": { label: "Rotated a webhook secret", category: "workspaces" },
+	"webhook.secret_rotated": {
+		label: "Rotated a webhook secret",
+		category: "workspaces",
+	},
 	"webhook.deleted": { label: "Removed a webhook", category: "workspaces" },
 };
 
 export const AUDIT_EVENT_TYPES: readonly string[] = Object.keys(AUDIT_TYPES);
 
-export const AUDIT_CATEGORIES: { value: AuditCategory | "all"; label: string }[] = [
+export const AUDIT_CATEGORIES: {
+	value: AuditCategory | "all";
+	label: string;
+}[] = [
 	{ value: "all", label: "All" },
 	{ value: "access", label: "Access" },
 	{ value: "organization", label: "Organization" },

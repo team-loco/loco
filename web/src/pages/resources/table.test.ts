@@ -182,14 +182,16 @@ describe("buildRows", () => {
 		expect(inStaging === undefined ? null : replicasLabel(inStaging)).toBe("1–3");
 	});
 
-	test("an environment with no reported regions has no cell", () => {
+	test("an environment with no reported regions says no region", () => {
 		const [row] = buildRows(
 			[resource("api", [{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [] }])],
 			[[]],
 			envs,
 			undefined,
 		);
-		expect(row?.cells.size).toBe(0);
+		const cell = row?.cells.get("e-prod");
+		if (cell === undefined) throw new Error("no production cell");
+		expect(cellSummary(cell)).toBe("no region");
 	});
 });
 

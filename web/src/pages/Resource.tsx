@@ -184,7 +184,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const obsLink = (obsView: "logs" | "metrics" | "events"): string | undefined =>
-		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, obsView, { ...envParam, r: [resource.name] }) : undefined;
+		hasWs
+			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
+					...envParam,
+					r: [resource.name],
+				})
+			: undefined;
 	const switcher = hasWs
 		? (resourcesQuery.data?.resources ?? []).map((r) => ({
 				id: r.id,
@@ -235,7 +240,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			toast.success(`Restarting ${resource.name}`);
 			void refresh();
 		} catch (err) {
-			toastConnectError(err, "Failed to restart replicas");
+			toastConnectError(err, `Couldn’t restart ${resource.name}`, {
+				duration: Infinity,
+			});
 		}
 	};
 
@@ -245,7 +252,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setRedeploying(false);
 		setModal(null);
 		if (failures.length > 0) {
-			setNotice({ tone: "bad", title: `Redeploying ${resource.name} failed`, message: failures.join(" · ") });
+			setNotice({
+				tone: "bad",
+				title: `Redeploying ${resource.name} failed`,
+				message: failures.join(" · "),
+			});
 			return;
 		}
 		const tags = [...new Set(currents.map((d) => depTag(d)))].join(", ");
@@ -260,7 +271,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		const failures = await redeployFrom([target]);
 		setModal(null);
 		if (failures.length > 0) {
-			setNotice({ tone: "bad", title: `Rolling back ${resource.name} failed`, message: failures.join(" · ") });
+			setNotice({
+				tone: "bad",
+				title: `Rolling back ${resource.name} failed`,
+				message: failures.join(" · "),
+			});
 			return;
 		}
 		setNotice({
@@ -423,6 +438,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						orgId={orgId}
 						workspaceId={resource.workspaceId}
 						resourceId={resource.id}
+						environmentId={environmentId}
 						names={new Map(environments.map((e) => [e.id, e.name]))}
 						nowMs={nowMs}
 					/>
