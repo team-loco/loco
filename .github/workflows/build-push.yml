@@ -1,5 +1,6 @@
-# builds and pushes a Docker Image to GHCR
-name: Create and publish a Docker image
+# Publishes the image CI built and tested for this commit, tagged ci-<commit>,
+# as sha-<commit>, then verifies and attests each platform and the index.
+name: Publish a Docker image
 
 on:
   workflow_call:
@@ -7,50 +8,28 @@ on:
       image_name:
         required: true
         type: string
-      context:
-        required: true
-        type: string
-      dockerfile:
-        required: true
-        type: string
-      cache_scope:
-        required: true
-        type: string
       tag_suffix:
-        required: false
-        type: string
-        default: ""
-      build_args:
-        description: "Newline-separated KEY=VALUE pairs passed to docker build as --build-arg, after VERSION, which is always the image tag."
         required: false
         type: string
         default: ""
     outputs:
       image:
         description: "Full image tag"
-        value: ${{ jobs.build-and-push-image.outputs.image }}
+        value: ${{ jobs.publish.outputs.image }}
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-and-push-image:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      id-token: write
-      attestations: write
     outputs:
-      image: ${{ steps.meta.outputs.tags }}
-      digest: ${{ steps.retry-push.outputs.digest || steps.push.outputs.digest }}
+      image: ${{ steps.push.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
       - name: Log in to the Container registry
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -58,44 +37,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ inputs.image_name }}
-          tags: |
-            type=sha,format=long${{ inputs.tag_suffix }}
-
-      - name: Build and push Docker image
+      # The tag moves to the tested index by digest, so the published image is
+      # byte for byte the one CI tested.
+      - name: Tag the tested image
         id: push
-        continue-on-error: true
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with: &image-build
-          context: ${{ inputs.context }}
-          file: ${{ inputs.dockerfile }}
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            ${{ inputs.build_args }}
-          platforms: linux/amd64,linux/arm64
-          provenance: mode=max
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ inputs.cache_scope }}
-          cache-to: type=gha,scope=${{ inputs.cache_scope }},mode=max
-
-      - name: Wait before retrying the image push
-        if: steps.push.outcome == 'failure'
-        run: sleep 10
-
-      - name: Retry build and push Docker image
-        if: steps.push.outcome == 'failure'
-        id: retry-push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with: *image-build
+        env:
+          REPOSITORY: ${{ env.REGISTRY }}/${{ inputs.image_name }}
+          SOURCE: ci-${{ github.sha }}${{ inputs.tag_suffix }}
+          TAG: sha-${{ github.sha }}${{ inputs.tag_suffix }}
+        run: |
+          set -euo pipefail
+          digest=$(docker buildx imagetools inspect "$REPOSITORY:$SOURCE" --format '{{json .Manifest}}' | jq -r .digest)
+          docker buildx imagetools create --tag "$REPOSITORY:$TAG" "$REPOSITORY@$digest"
+          published=$(docker buildx imagetools inspect "$REPOSITORY:$TAG" --format '{{json .Manifest}}' | jq -r .digest)
+          if [ "$published" != "$digest" ]; then
+            echo "::error::$REPOSITORY:$TAG is $published, not the tested $digest"
+            exit 1
+          fi
+          echo "image=$REPOSITORY:$TAG" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
   verify-platform:
-    needs: build-and-push-image
+    needs: publish
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -127,7 +90,7 @@ jobs:
       - name: Resolve and verify platform image
         id: platform
         env:
-          IMAGE: ${{ env.REGISTRY }}/${{ inputs.image_name }}@${{ needs.build-and-push-image.outputs.digest }}
+          IMAGE: ${{ env.REGISTRY }}/${{ inputs.image_name }}@${{ needs.publish.outputs.digest }}
           PLATFORM: ${{ matrix.platform }}
         run: |
           docker buildx imagetools inspect "$IMAGE" --raw > image-index.json
@@ -176,7 +139,7 @@ jobs:
           push-to-registry: true
 
   attest-index:
-    needs: [build-and-push-image, verify-platform]
+    needs: [publish, verify-platform]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -198,5 +161,5 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ inputs.image_name }}
-          subject-digest: ${{ needs.build-and-push-image.outputs.digest }}
+          subject-digest: ${{ needs.publish.outputs.digest }}
           push-to-registry: true

@@ -31,6 +31,7 @@ var (
 
 const (
 	fixtureVersion = "e2e"
+	operatorImage  = "installation-operator"
 	helmLayer      = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
 	bundleLayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
 )
@@ -40,48 +41,29 @@ var installationCRDs = []struct{ key, file string }{
 	{"loco-builds-crd", "controller/config/crd/bases/infra.loco.io_builds.yaml"},
 }
 
+var platformImages = []struct{ name, directory string }{
+	{"api", "api"},
+	{"ui", "web"},
+	{"obs-proxy", "observability-proxy"},
+	{"agent", "agent"},
+	{"controller", "controller"},
+	{fixtureBuilder, fixtureBuilder},
+}
+
 func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
+	// Pulls use the host's Docker credentials, which configureRegistryAuth swaps out.
+	if checkErr := f.pullPrebuilt(ctx); checkErr != nil {
+		return nil, "", checkErr
+	}
 	if checkErr := f.configureRegistryAuth(); checkErr != nil {
 		return nil, "", fmt.Errorf("configure fixture image authentication: %w", checkErr)
 	}
 	if _, checkErr := command(ctx, f.root, nil, "mise", "run", "helm:deps"); checkErr != nil {
 		return nil, "", checkErr
 	}
-	images := map[string]string{}
-	for _, component := range []struct{ name, directory string }{{"api", "api"},
-		{"ui", "web"},
-		{"obs-proxy", "observability-proxy"},
-		{"agent", "agent"},
-		{"controller", "controller"},
-		{fixtureBuilder, fixtureBuilder}} {
-		tag := strings.TrimPrefix(
-			f.registryURL,
-			"http://",
-		) + "/platform/images/" + component.name + ":" + fixtureVersion
-		if !f.skip {
-			if checkErr := dockerBuild(
-				ctx,
-				f.root,
-				"--platform", f.platform,
-				"--build-arg",
-				"VERSION="+fixtureVersion,
-				"-f",
-				component.directory+"/Dockerfile",
-				"-t",
-				tag,
-				".",
-			); checkErr != nil {
-				return nil, "", fmt.Errorf("build %s fixture: %w", component.name, checkErr)
-			}
-		}
-		if _, checkErr := command(ctx, f.root, nil, "docker", "push", tag); checkErr != nil {
-			return nil, "", fmt.Errorf("push %s fixture image: %w", component.name, checkErr)
-		}
-		digest, err := f.manifestDigest(ctx, "platform/images/"+component.name, fixtureVersion)
-		if err != nil {
-			return nil, "", err
-		}
-		images[component.name] = registryHost + "/platform/images/" + component.name + "@" + digest
+	images, imagesErr := f.publishImages(ctx)
+	if imagesErr != nil {
+		return nil, "", imagesErr
 	}
 	artifacts := map[string]string{}
 	for _, name := range []string{"loco-control-plane", "loco-worker"} {
@@ -204,6 +186,36 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 	return manifest, operatorImage, err
 }
 
+// publishImages pushes each platform image to the fixture registry and
+// returns its digest reference by component.
+func (f *fixture) publishImages(ctx context.Context) (map[string]string, error) {
+	images := map[string]string{}
+	for _, component := range platformImages {
+		tag := strings.TrimPrefix(
+			f.registryURL,
+			"http://",
+		) + "/platform/images/" + component.name + ":" + fixtureVersion
+		if checkErr := f.image(ctx, component.name, tag, func() error {
+			if checkErr := dockerBuild(ctx, f.root, "--platform", f.platform, "--build-arg", "VERSION="+fixtureVersion,
+				"-f", component.directory+"/Dockerfile", "-t", tag, "."); checkErr != nil {
+				return fmt.Errorf("build %s fixture: %w", component.name, checkErr)
+			}
+			return nil
+		}); checkErr != nil {
+			return nil, checkErr
+		}
+		if _, checkErr := command(ctx, f.root, nil, "docker", "push", tag); checkErr != nil {
+			return nil, fmt.Errorf("push %s fixture image: %w", component.name, checkErr)
+		}
+		digest, err := f.manifestDigest(ctx, "platform/images/"+component.name, fixtureVersion)
+		if err != nil {
+			return nil, err
+		}
+		images[component.name] = registryHost + "/platform/images/" + component.name + "@" + digest
+	}
+	return images, nil
+}
+
 func (f *fixture) configureRegistryAuth() error {
 	config := filepath.Join(f.dir, "docker")
 	if checkErr := os.MkdirAll(config, 0700); checkErr != nil {
@@ -298,93 +310,75 @@ func bundle(files map[string][]byte) ([]byte, error) {
 
 func (f *fixture) buildOperator(ctx context.Context) (string, error) {
 	tag := "loco-installation-operator:" + f.name
-	if !f.skip {
-		// Read the tracked Dockerfile pin rather than introducing another Go/base-image version.
-		source, err := os.ReadFile(filepath.Join(f.root, "api", "Dockerfile"))
-		if err != nil {
-			return "", err
-		}
-		fields := strings.Fields(strings.SplitN(string(source), "\n", 2)[0])
-		base := fields[2]
+	if checkErr := f.image(ctx, operatorImage, tag, func() error {
 		helm, err := f.pin(ctx, "mise.toml", ".tools.helm")
 		if err != nil {
-			return "", err
+			return err
 		}
 		kubectl, err := f.pin(ctx, "mise.toml", ".tools.kubectl")
 		if err != nil {
-			return "", err
+			return err
 		}
-		dockerfile := fmt.Sprintf(`FROM %s
-ARG TARGETARCH
-ARG VERSION
-WORKDIR /src
-COPY . .
-RUN cd cmd && CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" -o /usr/local/bin/locoadm ./locoadm \
- && CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" -o /usr/local/bin/loco ./loco
-RUN CGO_ENABLED=0 go build -o /usr/local/bin/installation-e2e ./tools/installation-e2e
-RUN wget -qO /tmp/helm.tgz https://get.helm.sh/helm-v%s-linux-${TARGETARCH}.tar.gz \
- && wget -qO /tmp/helm.sha https://get.helm.sh/helm-v%s-linux-${TARGETARCH}.tar.gz.sha256sum \
- && cd /tmp \
- && sed -i 's|helm-v[^ ]*|helm.tgz|' helm.sha \
- && sha256sum -c helm.sha \
- && tar -xzf helm.tgz \
- && mkdir -p /usr/local/libexec \
- && cp linux-${TARGETARCH}/helm /usr/local/libexec/helm \
- && ln -s /usr/local/bin/installation-e2e /usr/local/bin/helm
-RUN wget -qO /usr/local/libexec/kubectl https://dl.k8s.io/release/v%s/bin/linux/${TARGETARCH}/kubectl \
- && wget -qO /tmp/kubectl.sha https://dl.k8s.io/release/v%s/bin/linux/${TARGETARCH}/kubectl.sha256 \
- && echo "$(cat /tmp/kubectl.sha)  /usr/local/libexec/kubectl" | sha256sum -c - \
- && chmod +x /usr/local/libexec/kubectl \
- && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
-COPY tests/e2e/fixtures/build-app /fixture/build-app
-COPY tests/e2e/fixtures/installation/network-probe.yaml /fixture/network-probe.yaml
-COPY tests/e2e/fixtures/installation/recovery.yaml /fixture/recovery.yaml
-CMD ["sleep", "infinity"]
-`, base, helm, helm, kubectl, kubectl)
-		path := filepath.Join(f.dir, "operator.Dockerfile")
-		//nolint:gosec // The destination is this checkout's private, generated fixture directory.
-		if checkErr := os.WriteFile(path, []byte(dockerfile), 0600); checkErr != nil {
-			return "", checkErr
+		if checkErr := dockerBuild(ctx, f.root, "--platform", f.platform,
+			"--build-arg", "VERSION="+fixtureVersion,
+			"--build-arg", "HELM_VERSION="+helm,
+			"--build-arg", "KUBECTL_VERSION="+kubectl,
+			"-f", "tests/e2e/fixtures/installation/operator.Dockerfile", "-t", tag, "."); checkErr != nil {
+			return fmt.Errorf("build operator fixture: %w", checkErr)
 		}
-		contextRules, readErr := os.ReadFile(
-			filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "operator.Dockerfile.dockerignore"),
-		)
-		if readErr != nil {
-			return "", readErr
-		}
-		//nolint:gosec // Beside the generated Dockerfile in the same private fixture directory.
-		if writeErr := os.WriteFile(path+".dockerignore", contextRules, 0600); writeErr != nil {
-			return "", writeErr
-		}
-		if checkErr := dockerBuild(
-			ctx,
-			f.root,
-			"--platform", f.platform,
-			"--build-arg",
-			"VERSION="+fixtureVersion,
-			"-f",
-			path,
-			"-t",
-			tag,
-			".",
-		); checkErr != nil {
-			return "", fmt.Errorf("build operator fixture: %w", checkErr)
-		}
+		return nil
+	}); checkErr != nil {
+		return "", checkErr
 	}
 	if _, checkErr := command(
-		ctx,
-		f.root,
-		nil,
-		"kind",
-		"load",
-		"docker-image",
-		"--name",
-		f.name,
-		tag,
+		ctx, f.root, nil, "kind", "load", "docker-image", "--name", f.name, tag,
 	); checkErr != nil {
 		return "", checkErr
 	}
 	return tag, nil
+}
+
+func (f *fixture) prebuilt(name string) string {
+	return strings.ReplaceAll(f.images, "*", name)
+}
+
+func (f *fixture) pullPrebuilt(ctx context.Context) error {
+	if f.images == "" {
+		return nil
+	}
+	names := []string{operatorImage}
+	for _, component := range platformImages {
+		names = append(names, component.name)
+	}
+	for _, name := range names {
+		image := f.prebuilt(name)
+		if _, checkErr := command(
+			ctx,
+			f.root,
+			nil,
+			"docker",
+			"pull",
+			"--platform",
+			f.platform,
+			image,
+		); checkErr != nil {
+			return fmt.Errorf("pull %s: %w", image, checkErr)
+		}
+	}
+	return nil
+}
+
+// image makes tag a local image: the pulled prebuilt image when E2E_IMAGES
+// names them, the image already there with --skip-build, or the result of build.
+func (f *fixture) image(ctx context.Context, name, tag string, build func() error) error {
+	if f.images != "" {
+		_, checkErr := command(ctx, f.root, nil, "docker", "tag", f.prebuilt(name), tag)
+		return checkErr
+	}
+	if f.skip {
+		return nil
+	}
+	return build()
 }
 
 func dockerBuild(ctx context.Context, dir string, args ...string) error {

@@ -326,11 +326,11 @@ env = { _.source = "dev/stack.sh" }
 run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
-description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; --build-only builds the images and binaries the other flags need and stops; trailing filters pick the test files whose names contain any of them"
+description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run; E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; --build-only builds the images and binaries the other flags need and stops; trailing filters pick the test files whose names contain any of them"
 run = "./tests/e2e/run.sh"
 
 [tasks."e2e:control-plane"]
-description = "Install the control-plane Helm chart with Kubernetes Postgres and ClickHouse fixtures; takes --no-teardown and --skip-build"
+description = "Install the control-plane Helm chart with Kubernetes Postgres and ClickHouse fixtures; takes --no-teardown and --skip-build, and E2E_IMAGES and E2E_VERSION like e2e"
 depends = ["helm:deps"]
 run = "./tests/e2e/control-plane.sh"
 

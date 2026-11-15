@@ -46,6 +46,7 @@ jobs:
       e2e: ${{ steps.select.outputs.e2e }}
       e2e-installation: ${{ steps.select.outputs.e2e-installation }}
       govulncheck: ${{ steps.select.outputs.govulncheck }}
+      images: ${{ steps.select.outputs.images }}
       lint: ${{ steps.select.outputs.lint }}
       local-stack: ${{ steps.select.outputs.local-stack }}
       obs-chart: ${{ steps.select.outputs.obs-chart }}
@@ -114,11 +115,14 @@ jobs:
 
   charts:
     name: Charts
-    needs: [changes]
+    needs: [changes, images]
     if: needs.changes.outputs.charts == 'true'
     permissions:
       contents: read
+      packages: read
     uses: ./.github/workflows/charts.yml
+    with:
+      images: ${{ needs.images.outputs.images }}
 
   controller-helm-chart:
     name: Controller Helm Chart Tests
@@ -130,12 +134,15 @@ jobs:
 
   docker:
     name: Docker
-    needs: [changes]
+    needs: [changes, images]
     if: needs.changes.outputs.docker == 'true'
     permissions:
       contents: read
+      packages: read
       security-events: write
     uses: ./.github/workflows/docker.yml
+    with:
+      images: ${{ needs.images.outputs.images }}
 
   docs-drift:
     name: Docs Drift
@@ -157,19 +164,25 @@ jobs:
 
   e2e:
     name: E2E
-    needs: [changes]
+    needs: [changes, images]
     if: needs.changes.outputs.e2e == 'true'
     permissions:
       contents: read
+      packages: read
     uses: ./.github/workflows/e2e.yml
+    with:
+      images: ${{ needs.images.outputs.images }}
 
   e2e-installation:
     name: Installation E2E
-    needs: [changes]
+    needs: [changes, images]
     if: needs.changes.outputs.e2e-installation == 'true'
     permissions:
       contents: read
+      packages: read
     uses: ./.github/workflows/e2e-installation.yml
+    with:
+      images: ${{ needs.images.outputs.images }}
 
   govulncheck:
     name: Go Vulnerabilities
@@ -178,6 +191,15 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/govulncheck.yml
+
+  images:
+    name: Images
+    needs: [changes]
+    if: needs.changes.outputs.images == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/images.yml
 
   lint:
     name: Lint
@@ -205,13 +227,16 @@ jobs:
 
   osv:
     name: OSV
-    needs: [changes]
+    needs: [changes, images]
     if: needs.changes.outputs.osv == 'true'
     permissions:
       actions: read
       contents: read
+      packages: read
       security-events: write
     uses: ./.github/workflows/osv.yml
+    with:
+      images: ${{ needs.images.outputs.images }}
 
   platform-release:
     name: Publish platform artifacts
@@ -268,6 +293,7 @@ jobs:
       - e2e
       - e2e-installation
       - govulncheck
+      - images
       - lint
       - local-stack
       - obs-chart

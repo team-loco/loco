@@ -2,6 +2,11 @@ name: E2E
 
 on:
   workflow_call:
+    inputs:
+      images:
+        description: Prebuilt images, with * standing for the image name; empty builds them here.
+        type: string
+        default: ""
   workflow_dispatch:
 
 permissions:
@@ -10,6 +15,8 @@ permissions:
 env:
   E2E_RUN_ID: ci
   E2E_ARTIFACT: e2e-build
+  E2E_IMAGES: ${{ inputs.images }}
+  E2E_VERSION: ${{ inputs.images != '' && format('sha-{0}', github.sha) || 'e2e' }}
 
 jobs:
 
@@ -17,6 +24,9 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,10 +35,17 @@ jobs:
         with:
           go-cache: e2e
 
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: inputs.images != ''
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Test the e2e runner's test file selection
         run: mise run test:e2e-runner
 
-      - name: Build every image and binary the suites run
+      - name: Build every binary and build or pull every image the suites run
         run: ./tests/e2e/run.sh --build-only --observability
 
       - name: Pack the images and binaries

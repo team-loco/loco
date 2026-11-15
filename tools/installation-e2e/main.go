@@ -68,7 +68,7 @@ func run() error {
 	if _, checkErr := os.Stat(filepath.Join(root, "mise.toml")); checkErr != nil {
 		return errSuiteDirectory
 	}
-	fixture, err := newFixture(root, *skip)
+	fixture, err := newFixture(root, *skip, os.Getenv("E2E_IMAGES"))
 	if err != nil {
 		return err
 	}

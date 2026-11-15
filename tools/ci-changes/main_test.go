@@ -87,6 +87,38 @@ review:
 		selectWorkflows(filters, "pull_request", []string{}))
 }
 
+func TestWorkflowRunsWheneverAWorkflowItIsForRuns(t *testing.T) {
+	const images, e2e, charts, docs = "images", "e2e", "charts", "docs"
+	config := filepath.Join(t.TempDir(), "paths.yml")
+	require.NoError(t, os.WriteFile(config, []byte(`
+images:
+  for: [e2e, charts]
+  push: ["**"]
+e2e:
+  pull_request: [api/**]
+charts:
+  pull_request: [charts/**]
+docs:
+  pull_request: [docs/**]
+`), 0o600))
+	filters, err := loadFilters(config)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]bool{images: true, e2e: false, charts: true, docs: false},
+		selectWorkflows(filters, "pull_request", []string{"charts/a.yaml"}))
+	assert.Equal(t, map[string]bool{images: false, e2e: false, charts: false, docs: true},
+		selectWorkflows(filters, "pull_request", []string{"docs/a.md"}))
+	assert.Equal(t, map[string]bool{images: true, e2e: false, charts: false, docs: false},
+		selectWorkflows(filters, "push", []string{"docs/a.md"}), "its own push list still applies")
+}
+
+func TestLoadRejectsAnUnknownUser(t *testing.T) {
+	config := filepath.Join(t.TempDir(), "paths.yml")
+	require.NoError(t, os.WriteFile(config, []byte("images:\n  for: [e2e]\n"), 0o600))
+	_, err := loadFilters(config)
+	assert.ErrorContains(t, err, `for names "e2e"`)
+}
+
 func TestLoadRejectsUnknownEvents(t *testing.T) {
 	config := filepath.Join(t.TempDir(), "paths.yml")
 	require.NoError(t, os.WriteFile(config, []byte("docs:\n  pull-request: [docs/**]\n"), 0o600))
