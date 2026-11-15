@@ -36,7 +36,8 @@ with session(out) as browser:
             limits.screenshot(path=out / f"retention-after-{mode}{'-narrow' if narrow else ''}.png", animations="disabled")
             if narrow:
                 scroller = limits.locator('[data-slot="table-container"]')
-                scroller.evaluate("node => node.scrollLeft = node.scrollWidth")
+                events.get_by_role("cell").last.scroll_into_view_if_needed()
+                assert scroller.evaluate("node => node.scrollLeft > 0")
                 expect(events.get_by_role("cell").last).to_be_in_viewport()
             assert not errors, errors
             context.close()
