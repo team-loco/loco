@@ -11,7 +11,6 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/validate"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
@@ -24,6 +23,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/internal/bearer"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/logquery"
 )
 
 const (
@@ -173,12 +173,8 @@ func TestTraceSummaryValidation(t *testing.T) {
 		{"invalid sort", func(r *observabilityv1.ListTracesRequest) {
 			r.Sort = observabilityv1.TraceSummarySort(99)
 		}},
-		{"invalid status", func(r *observabilityv1.ListTracesRequest) {
-			r.Status = observabilityv1.TraceStatus(99)
-		}},
-		{"inverted duration", func(r *observabilityv1.ListTracesRequest) {
-			r.MinDurationNanos = proto.Uint64(2)
-			r.MaxDurationNanos = proto.Uint64(1)
+		{"long query", func(r *observabilityv1.ListTracesRequest) {
+			r.Query = strings.Repeat("a", logquery.MaxLength+1)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -129,7 +129,7 @@ func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []an
 const logSelect = "SELECT Timestamp, SeverityText, Body, " + resourceColumn + ", TraceId, SpanId, " +
 	"ResourceAttributes, LogAttributes, _block_number, _block_offset, _partition_id FROM otel_logs"
 
-type logBinder interface {
+type binder interface {
 	str(value string) string
 	num(value int64) string
 	float(value float64) string
@@ -190,7 +190,7 @@ func buildLogPageQuery(q LogQuery, queryTimeout time.Duration) (string, []any, e
 	return query, b.args, nil
 }
 
-func logFilters(q LogQuery, b logBinder) []string {
+func logFilters(q LogQuery, b binder) []string {
 	whereParts := []string{workspaceColumn + " = " + b.str(q.WorkspaceID)}
 
 	if q.EnvironmentID != "" {
@@ -210,7 +210,7 @@ func logFilters(q LogQuery, b logBinder) []string {
 	return whereParts
 }
 
-func logIn(column string, values []string, b logBinder) string {
+func logIn(column string, values []string, b binder) string {
 	placeholders := make([]string, len(values))
 	for i, value := range values {
 		placeholders[i] = b.str(value)

@@ -3403,7 +3403,7 @@
           "loco.observability.v1.ObservabilityService"
         ],
         "summary": "QueryTraceBuckets",
-        "description": "QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,\n per time bucket.",
+        "description": "QueryTraceBuckets counts the traces ListTraces would return for the same scope and query,\n per time bucket.",
         "operationId": "loco.observability.v1.ObservabilityService.QueryTraceBuckets",
         "parameters": [
           {
@@ -11262,16 +11262,10 @@
             "title": "end_time",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
-          "traceId": {
+          "query": {
             "type": "string",
-            "not": {
-              "type": "string",
-              "enum": [
-                "00000000000000000000000000000000"
-              ]
-            },
-            "title": "trace_id",
-            "pattern": "^[0-9a-f]{32}$"
+            "title": "query",
+            "description": "Trace query: free text matched in the root span name, @status, @duration, @trace, @resource\n and span or resource attributes, with AND, OR, - and parentheses.\n docs/content/reference/log-queries.md describes the syntax. Empty matches every trace.\nstring.max_bytes = 4096\n"
           },
           "limit": {
             "type": "integer",
@@ -11279,33 +11273,6 @@
             "maximum": 10000,
             "minimum": 0,
             "format": "int32"
-          },
-          "minDurationNanos": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "min_duration_nanos",
-            "format": "int64"
-          },
-          "maxDurationNanos": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "max_duration_nanos",
-            "format": "int64"
-          },
-          "status": {
-            "title": "status",
-            "$ref": "#/components/schemas/loco.observability.v1.TraceStatus"
-          },
-          "rootNameTerms": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "root_name_terms"
           },
           "sort": {
             "title": "sort",
@@ -11329,7 +11296,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "duration.min_lte_max // min_duration_nanos must be less than or equal to max_duration_nanos\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "time_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.ListTracesResponse": {
         "type": "object",
@@ -11674,43 +11641,10 @@
             "title": "end_time",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
-          "traceId": {
+          "query": {
             "type": "string",
-            "not": {
-              "type": "string",
-              "enum": [
-                "00000000000000000000000000000000"
-              ]
-            },
-            "title": "trace_id",
-            "pattern": "^[0-9a-f]{32}$"
-          },
-          "minDurationNanos": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "min_duration_nanos",
-            "format": "int64"
-          },
-          "maxDurationNanos": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "max_duration_nanos",
-            "format": "int64"
-          },
-          "status": {
-            "title": "status",
-            "$ref": "#/components/schemas/loco.observability.v1.TraceStatus"
-          },
-          "rootNameTerms": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "root_name_terms"
+            "title": "query",
+            "description": "Trace query, as in ListTracesRequest.\nstring.max_bytes = 4096\n"
           },
           "intervalSeconds": {
             "type": "integer",
@@ -11727,7 +11661,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "duration.min_lte_max // min_duration_nanos must be less than or equal to max_duration_nanos\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "time_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryTraceBucketsResponse": {
         "type": "object",

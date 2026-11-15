@@ -113,24 +113,6 @@ func TestValidateListTracesRequest(t *testing.T) {
 			valid:  true,
 			change: func(r *observabilityv1.ListTracesRequest) { r.StartTime = r.GetEndTime() },
 		},
-		{
-			name:   "known trace",
-			valid:  true,
-			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "0123456789abcdef0123456789abcdef" },
-		},
-		{name: "short trace", change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "abcd" }},
-		{
-			name:   "nonhex trace",
-			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" },
-		},
-		{
-			name:   "uppercase trace",
-			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "0123456789ABCDEF0123456789ABCDEF" },
-		},
-		{
-			name:   "zero trace",
-			change: func(r *observabilityv1.ListTracesRequest) { r.TraceId = "00000000000000000000000000000000" },
-		},
 		{name: "negative limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = -1 }},
 		{name: "excessive limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = testTraceLimit + 1 }},
 	}

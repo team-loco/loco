@@ -327,11 +327,10 @@ with session(out) as browser:
     mode[0] = 'normal'
     page.get_by_role('button', name='Retry', exact=True).click()
     open_trace.wait_for()
-    previous_count = len(recorded)
-    page.goto(state['ui_url'] + base + '&r=not-a-resource')
-    page.get_by_text("The filtered resources aren't in this workspace", exact=True).wait_for()
-    assert len(recorded) == previous_count
-    page.get_by_role('button', name='Clear filters', exact=True).click()
+    with page.expect_response("**/ListTraces"):
+        page.goto(state['ui_url'] + base + '&r=not-a-resource')
+    assert last_page_request()['query'] == '@resource:not-a-resource'
+    page.goto(state['ui_url'] + base)
     open_trace.wait_for()
     context.close()
     mode[0] = 'paged'
@@ -364,14 +363,11 @@ with session(out) as browser:
     assert last_page_request()['ascending'] is True
     with page.expect_response("**/ListTraces"):
         page.get_by_role('button', name=re.compile(r'^Errors')).click()
-    assert last_page_request()['status'] == 'TRACE_STATUS_ERROR'
-    with page.expect_response(lambda response: response.url.endswith("/ListTraces") and response.request.post_data_json.get("minDurationNanos") == "100000000" and response.request.post_data_json.get("limit") == 25):
+    assert last_page_request()['query'] == '@status:error'
+    with page.expect_response(lambda response: response.url.endswith("/ListTraces") and response.request.post_data_json.get("query") == "@duration:>100" and response.request.post_data_json.get("limit") == 25):
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:>100'))
-    assert last_page_request()['minDurationNanos'] == '100000000'
     token_remove = page.get_by_role('button', name='Remove duration >100', exact=True)
     expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
-    page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:100'))
-    expect(page.get_by_role('alert')).to_contain_text('A duration filter compares in milliseconds')
     page.goto(state['ui_url'] + base)
     chart = page.get_by_role('img', name=re.compile(r'^Traces per \d+-second bucket, 14 in range with 2 errors'))
     expect(chart).to_be_visible()
@@ -385,7 +381,7 @@ with session(out) as browser:
     page.mouse.move(box['x'] + box['width'] - 2, box['y'] + box['height'] * 0.8, steps=5)
     with page.expect_request(lambda request: request.url.endswith('/QueryTraceBuckets')) as zoom_request:
         page.mouse.up()
-    assert not {'minDurationNanos', 'maxDurationNanos'} & set(zoom_request.value.post_data_json), zoom_request.value.post_data_json
+    assert '@duration' not in zoom_request.value.post_data_json.get('query', ''), zoom_request.value.post_data_json
     expect(page).to_have_url(re.compile(r'[?&]from='))
     zoomed = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)
     assert 'from' in zoomed and 'to' in zoomed, page.url
@@ -397,7 +393,7 @@ with session(out) as browser:
     expect(page.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
     with page.expect_response("**/ListTraces"):
         page.goto(state['ui_url'] + base + '&q=products')
-    assert last_page_request()['rootNameTerms'] == ['products']
+    assert last_page_request()['query'] == 'products'
     expect(page.get_by_role('button', name='Open trace GET /api/products', exact=True)).to_be_visible()
     context.close()
     mode[0] = 'normal'

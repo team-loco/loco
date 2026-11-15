@@ -3,7 +3,6 @@ import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
 import {
 	ObservabilityService,
-	TraceStatus,
 	TraceSummarySort,
 	type ListTracesRequest,
 } from "@gen/loco/observability/v1/observability_pb";
@@ -13,13 +12,11 @@ const input = {
 	workspaceId: "workspace",
 	environmentId: "production",
 	resourceIds: ["cart"],
-	traceId: "",
+	query: "GET @status:error",
 	start: 1_800_000_000_123,
 	end: 1_800_003_600_456,
 	limit: 25,
 	offset: 25,
-	rootNameTerms: ["GET", "/cart"],
-	status: TraceStatus.ERROR,
 	sort: TraceSummarySort.DURATION,
 };
 
@@ -44,8 +41,7 @@ describe("trace summary queries", () => {
 		expect(received?.limit).toBe(25);
 		expect(received).toMatchObject({
 			offset: input.offset,
-			rootNameTerms: input.rootNameTerms,
-			status: input.status,
+			query: input.query,
 			sort: input.sort,
 		});
 		expect(received?.startTime?.nanos).toBe(123_000_000);
@@ -60,13 +56,11 @@ describe("trace summary queries", () => {
 			{ workspaceId: "other" },
 			{ environmentId: "staging" },
 			{ resourceIds: ["checkout"] },
-			{ traceId: "lookup" },
+			{ query: "@trace:lookup" },
 			{ start: input.start + 1 },
 			{ end: input.end + 1 },
 			{ limit: 50 },
 			{ offset: 50 },
-			{ status: TraceStatus.OK },
-			{ rootNameTerms: ["POST"] },
 			{ sort: TraceSummarySort.START_TIME },
 		]) {
 			expect(listTracesQueryOptions(transport, { ...input, ...change }).queryKey).not.toEqual(base);

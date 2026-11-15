@@ -80,7 +80,7 @@ func TestGetTraceReturnsAllScopedSpans(t *testing.T) {
 		})
 	}
 	list.Limit = 1
-	summaries, err := f.client.ListTraces(t.Context(), list, 1)
+	summaries, err := f.client.ListTraces(t.Context(), list, TraceFilter{}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -727,7 +727,7 @@ func (o *observed) traceSummary(t *testing.T) {
 			),
 			StartTime: timestamppb.New(trafficStarted.Add(-queryWindow)),
 			EndTime:   timestamppb.Now(),
-			TraceId:   traceID,
+			Query:     "@trace:" + traceID + " @http.request.method:GET",
 			Limit:     1,
 		})
 		if err != nil {
@@ -749,7 +749,7 @@ func (o *observed) traceBuckets(t *testing.T) {
 			Scope:           traceScope(w.ID),
 			StartTime:       timestamppb.New(trafficStarted.Add(-queryWindow)),
 			EndTime:         timestamppb.Now(),
-			TraceId:         traceID,
+			Query:           "@trace:" + traceID,
 			IntervalSeconds: 60,
 		})
 		if err != nil {

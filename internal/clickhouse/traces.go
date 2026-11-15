@@ -11,19 +11,15 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
-func traceScope(scope *observabilityv1.TraceScope) ([]string, []any) {
-	where := []string{workspaceColumn + " = ?"}
-	args := []any{scope.GetWorkspaceId()}
+func traceScope(scope *observabilityv1.TraceScope, b binder) []string {
+	where := []string{workspaceColumn + " = " + b.str(scope.GetWorkspaceId())}
 	if len(scope.GetResourceIds()) > 0 {
-		clause, values := inFilter(resourceColumn, scope.GetResourceIds())
-		where = append(where, clause)
-		args = append(args, values...)
+		where = append(where, logIn(resourceColumn, scope.GetResourceIds(), b))
 	}
 	if scope.GetEnvironmentId() != "" {
-		where = append(where, environmentColumn+" = ?")
-		args = append(args, scope.GetEnvironmentId())
+		where = append(where, environmentColumn+" = "+b.str(scope.GetEnvironmentId()))
 	}
-	return where, args
+	return where
 }
 
 func (c *Client) GetTrace(
@@ -94,9 +90,9 @@ func (c *Client) GetTrace(
 }
 
 func buildGetTraceQueries(req *observabilityv1.GetTraceRequest, timeout time.Duration) (string, string, []any) {
-	where, args := traceScope(req.GetScope())
-	where = append(where, "TraceId = ?")
-	args = append(args, req.GetTraceId())
+	b := &positionalBinder{}
+	where := append(traceScope(req.GetScope(), b), "TraceId = "+b.str(req.GetTraceId()))
+	args := b.args
 	predicates := strings.Join(where, " AND ")
 	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(timeout.Seconds()))
 	lookup := "SELECT count(), min(Start), max(End) FROM otel_traces_trace_id_ts WHERE " + predicates + settings

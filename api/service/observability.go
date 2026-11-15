@@ -149,10 +149,11 @@ func (s *ObservabilityServer) ListTraces(
 	if err := guardrails.ValidateListTracesRequest(req, s.cfg.Limits); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
-	if err := s.authorizeRead(ctx, req.GetScope().GetWorkspaceId(), req.GetScope().GetResourceIds()); err != nil {
+	filter, err := s.traceFilter(ctx, req)
+	if err != nil {
 		return nil, err
 	}
-	response, err := s.clickhouse.ListTraces(ctx, req, guardrails.ClampLimit(req.GetLimit(), s.cfg.Limits))
+	response, err := s.clickhouse.ListTraces(ctx, req, filter, guardrails.ClampLimit(req.GetLimit(), s.cfg.Limits))
 	if err != nil {
 		return nil, fmt.Errorf("list traces: %w", err)
 	}
@@ -166,14 +167,43 @@ func (s *ObservabilityServer) QueryTraceBuckets(
 	if err := guardrails.ValidateTraceBucketsRequest(req, s.cfg.Limits); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
-	if err := s.authorizeRead(ctx, req.GetScope().GetWorkspaceId(), req.GetScope().GetResourceIds()); err != nil {
+	filter, err := s.traceFilter(ctx, req)
+	if err != nil {
 		return nil, err
 	}
-	response, err := s.clickhouse.QueryTraceBuckets(ctx, req)
+	response, err := s.clickhouse.QueryTraceBuckets(ctx, req, filter)
 	if err != nil {
 		return nil, fmt.Errorf("query trace buckets: %w", err)
 	}
 	return response, nil
+}
+
+// traceFilterRequest holds the scope and query ListTracesRequest and QueryTraceBucketsRequest share.
+type traceFilterRequest interface {
+	GetScope() *observabilityv1.TraceScope
+	GetQuery() string
+}
+
+// traceFilter parses the request's query, authorizes the caller and returns the filter to apply.
+func (s *ObservabilityServer) traceFilter(ctx context.Context, req traceFilterRequest) (chClient.TraceFilter, error) {
+	query, err := logquery.Parse(req.GetQuery())
+	if err == nil {
+		err = chClient.ValidateTraceFilter(query)
+	}
+	if err != nil {
+		return chClient.TraceFilter{}, querySyntaxError(err)
+	}
+	scope := req.GetScope()
+	if err = s.authorizeRead(ctx, scope.GetWorkspaceId(), scope.GetResourceIds()); err != nil {
+		return chClient.TraceFilter{}, err
+	}
+	filter := chClient.TraceFilter{Query: query}
+	if logquery.Uses(query, chClient.ResourceField) {
+		if filter.Resources, err = s.resourceNames(ctx, scope.GetWorkspaceId()); err != nil {
+			return chClient.TraceFilter{}, err
+		}
+	}
+	return filter, nil
 }
 
 func (s *ObservabilityServer) GetTrace(

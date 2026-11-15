@@ -1033,21 +1033,20 @@ func (x *TraceScope) GetEnvironmentId() string {
 }
 
 type ListTracesRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Scope            *TraceScope            `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	StartTime        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	EndTime          *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	TraceId          string                 `protobuf:"bytes,4,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
-	Limit            int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
-	MinDurationNanos *uint64                `protobuf:"varint,6,opt,name=min_duration_nanos,json=minDurationNanos,proto3,oneof" json:"min_duration_nanos,omitempty"`
-	MaxDurationNanos *uint64                `protobuf:"varint,7,opt,name=max_duration_nanos,json=maxDurationNanos,proto3,oneof" json:"max_duration_nanos,omitempty"`
-	Status           TraceStatus            `protobuf:"varint,8,opt,name=status,proto3,enum=loco.observability.v1.TraceStatus" json:"status,omitempty"`
-	RootNameTerms    []string               `protobuf:"bytes,9,rep,name=root_name_terms,json=rootNameTerms,proto3" json:"root_name_terms,omitempty"`
-	Sort             TraceSummarySort       `protobuf:"varint,10,opt,name=sort,proto3,enum=loco.observability.v1.TraceSummarySort" json:"sort,omitempty"`
-	Ascending        bool                   `protobuf:"varint,11,opt,name=ascending,proto3" json:"ascending,omitempty"`
-	Offset           int32                  `protobuf:"varint,12,opt,name=offset,proto3" json:"offset,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Scope     *TraceScope            `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// Trace query: free text matched in the root span name, @status, @duration, @trace, @resource
+	// and span or resource attributes, with AND, OR, - and parentheses.
+	// docs/content/reference/log-queries.md describes the syntax. Empty matches every trace.
+	Query         string           `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
+	Limit         int32            `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	Sort          TraceSummarySort `protobuf:"varint,10,opt,name=sort,proto3,enum=loco.observability.v1.TraceSummarySort" json:"sort,omitempty"`
+	Ascending     bool             `protobuf:"varint,11,opt,name=ascending,proto3" json:"ascending,omitempty"`
+	Offset        int32            `protobuf:"varint,12,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListTracesRequest) Reset() {
@@ -1101,9 +1100,9 @@ func (x *ListTracesRequest) GetEndTime() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ListTracesRequest) GetTraceId() string {
+func (x *ListTracesRequest) GetQuery() string {
 	if x != nil {
-		return x.TraceId
+		return x.Query
 	}
 	return ""
 }
@@ -1113,34 +1112,6 @@ func (x *ListTracesRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
-}
-
-func (x *ListTracesRequest) GetMinDurationNanos() uint64 {
-	if x != nil && x.MinDurationNanos != nil {
-		return *x.MinDurationNanos
-	}
-	return 0
-}
-
-func (x *ListTracesRequest) GetMaxDurationNanos() uint64 {
-	if x != nil && x.MaxDurationNanos != nil {
-		return *x.MaxDurationNanos
-	}
-	return 0
-}
-
-func (x *ListTracesRequest) GetStatus() TraceStatus {
-	if x != nil {
-		return x.Status
-	}
-	return TraceStatus_TRACE_STATUS_UNSPECIFIED
-}
-
-func (x *ListTracesRequest) GetRootNameTerms() []string {
-	if x != nil {
-		return x.RootNameTerms
-	}
-	return nil
 }
 
 func (x *ListTracesRequest) GetSort() TraceSummarySort {
@@ -1217,15 +1188,12 @@ func (x *ListTracesResponse) GetTotalCount() uint64 {
 }
 
 type QueryTraceBucketsRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Scope            *TraceScope            `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	StartTime        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	EndTime          *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	TraceId          string                 `protobuf:"bytes,4,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
-	MinDurationNanos *uint64                `protobuf:"varint,5,opt,name=min_duration_nanos,json=minDurationNanos,proto3,oneof" json:"min_duration_nanos,omitempty"`
-	MaxDurationNanos *uint64                `protobuf:"varint,6,opt,name=max_duration_nanos,json=maxDurationNanos,proto3,oneof" json:"max_duration_nanos,omitempty"`
-	Status           TraceStatus            `protobuf:"varint,7,opt,name=status,proto3,enum=loco.observability.v1.TraceStatus" json:"status,omitempty"`
-	RootNameTerms    []string               `protobuf:"bytes,8,rep,name=root_name_terms,json=rootNameTerms,proto3" json:"root_name_terms,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Scope     *TraceScope            `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// Trace query, as in ListTracesRequest.
+	Query string `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
 	// Bucket width in seconds. Buckets start at multiples of it since the Unix epoch, and the
 	// range may span at most the API's bucket limit.
 	IntervalSeconds int32 `protobuf:"varint,9,opt,name=interval_seconds,json=intervalSeconds,proto3" json:"interval_seconds,omitempty"`
@@ -1284,39 +1252,11 @@ func (x *QueryTraceBucketsRequest) GetEndTime() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *QueryTraceBucketsRequest) GetTraceId() string {
+func (x *QueryTraceBucketsRequest) GetQuery() string {
 	if x != nil {
-		return x.TraceId
+		return x.Query
 	}
 	return ""
-}
-
-func (x *QueryTraceBucketsRequest) GetMinDurationNanos() uint64 {
-	if x != nil && x.MinDurationNanos != nil {
-		return *x.MinDurationNanos
-	}
-	return 0
-}
-
-func (x *QueryTraceBucketsRequest) GetMaxDurationNanos() uint64 {
-	if x != nil && x.MaxDurationNanos != nil {
-		return *x.MaxDurationNanos
-	}
-	return 0
-}
-
-func (x *QueryTraceBucketsRequest) GetStatus() TraceStatus {
-	if x != nil {
-		return x.Status
-	}
-	return TraceStatus_TRACE_STATUS_UNSPECIFIED
-}
-
-func (x *QueryTraceBucketsRequest) GetRootNameTerms() []string {
-	if x != nil {
-		return x.RootNameTerms
-	}
-	return nil
 }
 
 func (x *QueryTraceBucketsRequest) GetIntervalSeconds() int32 {
@@ -2060,46 +2000,32 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x122\n" +
-	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\xa0\b\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\x91\x04\n" +
 	"\x11ListTracesRequest\x12?\n" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12A\n" +
 	"\n" +
 	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
-	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12U\n" +
-	"\btrace_id\x18\x04 \x01(\tB:\xbaH7\xd8\x01\x01r22\x0e^[0-9a-f]{32}$Z 00000000000000000000000000000000R\atraceId\x12 \n" +
+	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\x1e\n" +
+	"\x05query\x18\x04 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12 \n" +
 	"\x05limit\x18\x05 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N(\x00R\x05limit\x121\n" +
-	"\x12min_duration_nanos\x18\x06 \x01(\x04H\x00R\x10minDurationNanos\x88\x01\x01\x121\n" +
-	"\x12max_duration_nanos\x18\a \x01(\x04H\x01R\x10maxDurationNanos\x88\x01\x01\x12D\n" +
-	"\x06status\x18\b \x01(\x0e2\".loco.observability.v1.TraceStatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06status\x12&\n" +
-	"\x0froot_name_terms\x18\t \x03(\tR\rrootNameTerms\x12E\n" +
+	"\xbaH\a\x1a\x05\x18\x90N(\x00R\x05limit\x12E\n" +
 	"\x04sort\x18\n" +
 	" \x01(\x0e2'.loco.observability.v1.TraceSummarySortB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04sort\x12\x1c\n" +
 	"\tascending\x18\v \x01(\bR\tascending\x12\x1f\n" +
-	"\x06offset\x18\f \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset:\xc6\x02\xbaH\xc2\x02\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\x1a\xd1\x01\n" +
-	"\x14duration.min_lte_max\x12Cmin_duration_nanos must be less than or equal to max_duration_nanos\x1at!has(this.min_duration_nanos) || !has(this.max_duration_nanos) || this.min_duration_nanos <= this.max_duration_nanosB\x15\n" +
-	"\x13_min_duration_nanosB\x15\n" +
-	"\x13_max_duration_nanos\"x\n" +
+	"\x06offset\x18\f \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset:q\xbaHn\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"x\n" +
 	"\x12ListTracesResponse\x12A\n" +
 	"\tsummaries\x18\x01 \x03(\v2#.loco.observability.v1.TraceSummaryR\tsummaries\x12\x1f\n" +
 	"\vtotal_count\x18\x02 \x01(\x04R\n" +
-	"totalCount\"\xb3\a\n" +
+	"totalCount\"\xa4\x03\n" +
 	"\x18QueryTraceBucketsRequest\x12?\n" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12A\n" +
 	"\n" +
 	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
-	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12U\n" +
-	"\btrace_id\x18\x04 \x01(\tB:\xbaH7\xd8\x01\x01r22\x0e^[0-9a-f]{32}$Z 00000000000000000000000000000000R\atraceId\x121\n" +
-	"\x12min_duration_nanos\x18\x05 \x01(\x04H\x00R\x10minDurationNanos\x88\x01\x01\x121\n" +
-	"\x12max_duration_nanos\x18\x06 \x01(\x04H\x01R\x10maxDurationNanos\x88\x01\x01\x12D\n" +
-	"\x06status\x18\a \x01(\x0e2\".loco.observability.v1.TraceStatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06status\x12&\n" +
-	"\x0froot_name_terms\x18\b \x03(\tR\rrootNameTerms\x122\n" +
-	"\x10interval_seconds\x18\t \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds:\xc6\x02\xbaH\xc2\x02\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\x1a\xd1\x01\n" +
-	"\x14duration.min_lte_max\x12Cmin_duration_nanos must be less than or equal to max_duration_nanos\x1at!has(this.min_duration_nanos) || !has(this.max_duration_nanos) || this.min_duration_nanos <= this.max_duration_nanosB\x15\n" +
-	"\x13_min_duration_nanosB\x15\n" +
-	"\x13_max_duration_nanos\"\x93\x01\n" +
+	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\x1e\n" +
+	"\x05query\x18\x04 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x122\n" +
+	"\x10interval_seconds\x18\t \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds:q\xbaHn\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"\x93\x01\n" +
 	"\x19QueryTraceBucketsResponse\x12<\n" +
 	"\abuckets\x18\x01 \x03(\v2\".loco.observability.v1.TraceBucketR\abuckets\x128\n" +
 	"\x05total\x18\x02 \x01(\v2\".loco.observability.v1.TraceBucketR\x05total\"\xe6\x01\n" +
@@ -2271,45 +2197,43 @@ var file_loco_observability_v1_observability_proto_depIdxs = []int32{
 	13, // 18: loco.observability.v1.ListTracesRequest.scope:type_name -> loco.observability.v1.TraceScope
 	33, // 19: loco.observability.v1.ListTracesRequest.start_time:type_name -> google.protobuf.Timestamp
 	33, // 20: loco.observability.v1.ListTracesRequest.end_time:type_name -> google.protobuf.Timestamp
-	2,  // 21: loco.observability.v1.ListTracesRequest.status:type_name -> loco.observability.v1.TraceStatus
-	1,  // 22: loco.observability.v1.ListTracesRequest.sort:type_name -> loco.observability.v1.TraceSummarySort
-	21, // 23: loco.observability.v1.ListTracesResponse.summaries:type_name -> loco.observability.v1.TraceSummary
-	13, // 24: loco.observability.v1.QueryTraceBucketsRequest.scope:type_name -> loco.observability.v1.TraceScope
-	33, // 25: loco.observability.v1.QueryTraceBucketsRequest.start_time:type_name -> google.protobuf.Timestamp
-	33, // 26: loco.observability.v1.QueryTraceBucketsRequest.end_time:type_name -> google.protobuf.Timestamp
-	2,  // 27: loco.observability.v1.QueryTraceBucketsRequest.status:type_name -> loco.observability.v1.TraceStatus
-	18, // 28: loco.observability.v1.QueryTraceBucketsResponse.buckets:type_name -> loco.observability.v1.TraceBucket
-	18, // 29: loco.observability.v1.QueryTraceBucketsResponse.total:type_name -> loco.observability.v1.TraceBucket
-	33, // 30: loco.observability.v1.TraceBucket.start_time:type_name -> google.protobuf.Timestamp
-	13, // 31: loco.observability.v1.GetTraceRequest.scope:type_name -> loco.observability.v1.TraceScope
-	22, // 32: loco.observability.v1.GetTraceResponse.spans:type_name -> loco.observability.v1.TraceSpan
-	33, // 33: loco.observability.v1.TraceSummary.start_time:type_name -> google.protobuf.Timestamp
-	2,  // 34: loco.observability.v1.TraceSummary.status:type_name -> loco.observability.v1.TraceStatus
-	33, // 35: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
-	29, // 36: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
-	30, // 37: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
-	23, // 38: loco.observability.v1.TraceSpan.events:type_name -> loco.observability.v1.TraceSpanEvent
-	24, // 39: loco.observability.v1.TraceSpan.links:type_name -> loco.observability.v1.TraceSpanLink
-	33, // 40: loco.observability.v1.TraceSpanEvent.timestamp:type_name -> google.protobuf.Timestamp
-	31, // 41: loco.observability.v1.TraceSpanEvent.attributes:type_name -> loco.observability.v1.TraceSpanEvent.AttributesEntry
-	32, // 42: loco.observability.v1.TraceSpanLink.attributes:type_name -> loco.observability.v1.TraceSpanLink.AttributesEntry
-	3,  // 43: loco.observability.v1.ObservabilityService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
-	6,  // 44: loco.observability.v1.ObservabilityService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
-	9,  // 45: loco.observability.v1.ObservabilityService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
-	14, // 46: loco.observability.v1.ObservabilityService.ListTraces:input_type -> loco.observability.v1.ListTracesRequest
-	16, // 47: loco.observability.v1.ObservabilityService.QueryTraceBuckets:input_type -> loco.observability.v1.QueryTraceBucketsRequest
-	19, // 48: loco.observability.v1.ObservabilityService.GetTrace:input_type -> loco.observability.v1.GetTraceRequest
-	4,  // 49: loco.observability.v1.ObservabilityService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
-	7,  // 50: loco.observability.v1.ObservabilityService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
-	10, // 51: loco.observability.v1.ObservabilityService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
-	15, // 52: loco.observability.v1.ObservabilityService.ListTraces:output_type -> loco.observability.v1.ListTracesResponse
-	17, // 53: loco.observability.v1.ObservabilityService.QueryTraceBuckets:output_type -> loco.observability.v1.QueryTraceBucketsResponse
-	20, // 54: loco.observability.v1.ObservabilityService.GetTrace:output_type -> loco.observability.v1.GetTraceResponse
-	49, // [49:55] is the sub-list for method output_type
-	43, // [43:49] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	1,  // 21: loco.observability.v1.ListTracesRequest.sort:type_name -> loco.observability.v1.TraceSummarySort
+	21, // 22: loco.observability.v1.ListTracesResponse.summaries:type_name -> loco.observability.v1.TraceSummary
+	13, // 23: loco.observability.v1.QueryTraceBucketsRequest.scope:type_name -> loco.observability.v1.TraceScope
+	33, // 24: loco.observability.v1.QueryTraceBucketsRequest.start_time:type_name -> google.protobuf.Timestamp
+	33, // 25: loco.observability.v1.QueryTraceBucketsRequest.end_time:type_name -> google.protobuf.Timestamp
+	18, // 26: loco.observability.v1.QueryTraceBucketsResponse.buckets:type_name -> loco.observability.v1.TraceBucket
+	18, // 27: loco.observability.v1.QueryTraceBucketsResponse.total:type_name -> loco.observability.v1.TraceBucket
+	33, // 28: loco.observability.v1.TraceBucket.start_time:type_name -> google.protobuf.Timestamp
+	13, // 29: loco.observability.v1.GetTraceRequest.scope:type_name -> loco.observability.v1.TraceScope
+	22, // 30: loco.observability.v1.GetTraceResponse.spans:type_name -> loco.observability.v1.TraceSpan
+	33, // 31: loco.observability.v1.TraceSummary.start_time:type_name -> google.protobuf.Timestamp
+	2,  // 32: loco.observability.v1.TraceSummary.status:type_name -> loco.observability.v1.TraceStatus
+	33, // 33: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
+	29, // 34: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
+	30, // 35: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
+	23, // 36: loco.observability.v1.TraceSpan.events:type_name -> loco.observability.v1.TraceSpanEvent
+	24, // 37: loco.observability.v1.TraceSpan.links:type_name -> loco.observability.v1.TraceSpanLink
+	33, // 38: loco.observability.v1.TraceSpanEvent.timestamp:type_name -> google.protobuf.Timestamp
+	31, // 39: loco.observability.v1.TraceSpanEvent.attributes:type_name -> loco.observability.v1.TraceSpanEvent.AttributesEntry
+	32, // 40: loco.observability.v1.TraceSpanLink.attributes:type_name -> loco.observability.v1.TraceSpanLink.AttributesEntry
+	3,  // 41: loco.observability.v1.ObservabilityService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
+	6,  // 42: loco.observability.v1.ObservabilityService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
+	9,  // 43: loco.observability.v1.ObservabilityService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
+	14, // 44: loco.observability.v1.ObservabilityService.ListTraces:input_type -> loco.observability.v1.ListTracesRequest
+	16, // 45: loco.observability.v1.ObservabilityService.QueryTraceBuckets:input_type -> loco.observability.v1.QueryTraceBucketsRequest
+	19, // 46: loco.observability.v1.ObservabilityService.GetTrace:input_type -> loco.observability.v1.GetTraceRequest
+	4,  // 47: loco.observability.v1.ObservabilityService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
+	7,  // 48: loco.observability.v1.ObservabilityService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
+	10, // 49: loco.observability.v1.ObservabilityService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
+	15, // 50: loco.observability.v1.ObservabilityService.ListTraces:output_type -> loco.observability.v1.ListTracesResponse
+	17, // 51: loco.observability.v1.ObservabilityService.QueryTraceBuckets:output_type -> loco.observability.v1.QueryTraceBucketsResponse
+	20, // 52: loco.observability.v1.ObservabilityService.GetTrace:output_type -> loco.observability.v1.GetTraceResponse
+	47, // [47:53] is the sub-list for method output_type
+	41, // [41:47] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_loco_observability_v1_observability_proto_init() }
@@ -2321,8 +2245,6 @@ func file_loco_observability_v1_observability_proto_init() {
 		(*TailLogsResponse_Entry)(nil),
 		(*TailLogsResponse_Heartbeat)(nil),
 	}
-	file_loco_observability_v1_observability_proto_msgTypes[11].OneofWrappers = []any{}
-	file_loco_observability_v1_observability_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

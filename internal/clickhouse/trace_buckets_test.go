@@ -32,7 +32,7 @@ func TestTraceBuckets(t *testing.T) {
 	empty := bucketCounts{}
 	cart := bucketCounts{1, 1, uint64(4 * time.Second), uint64(4 * time.Second)}
 	t.Run("total", func(t *testing.T) {
-		result, err := f.client.QueryTraceBuckets(t.Context(), base)
+		result, err := f.client.QueryTraceBuckets(t.Context(), base, TraceFilter{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func TestTraceBuckets(t *testing.T) {
 		}
 		req := proto.CloneOf(base)
 		req.Scope.WorkspaceId = testUnknownWorkspaceID
-		result, err = f.client.QueryTraceBuckets(t.Context(), req)
+		result, err = f.client.QueryTraceBuckets(t.Context(), req, TraceFilter{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,39 +52,40 @@ func TestTraceBuckets(t *testing.T) {
 	})
 	for _, tc := range []struct {
 		name   string
+		query  string
 		change func(*observabilityv1.QueryTraceBucketsRequest)
 		want   []bucketCounts
 	}{
-		{"one second", func(*observabilityv1.QueryTraceBucketsRequest) {}, []bucketCounts{
+		{"one second", "", func(*observabilityv1.QueryTraceBucketsRequest) {}, []bucketCounts{
 			cart, {2, 0, uint64(time.Second), uint64(time.Second)}, empty, empty, empty, empty,
 		}},
-		{"percentiles", func(r *observabilityv1.QueryTraceBucketsRequest) { r.IntervalSeconds = 5 }, []bucketCounts{
+		{"percentiles", "", func(r *observabilityv1.QueryTraceBucketsRequest) { r.IntervalSeconds = 5 }, []bucketCounts{
 			{3, 1, uint64(time.Second), uint64(3700 * time.Millisecond)}, empty,
 		}},
-		{"unaligned start", func(r *observabilityv1.QueryTraceBucketsRequest) {
+		{"unaligned start", "", func(r *observabilityv1.QueryTraceBucketsRequest) {
 			r.StartTime = timestamppb.New(r.GetStartTime().AsTime().Add(1500 * time.Millisecond))
 			r.EndTime = timestamppb.New(r.GetStartTime().AsTime().Add(time.Second))
 			r.IntervalSeconds = 2
 		}, []bucketCounts{empty, empty}},
-		{"status", func(r *observabilityv1.QueryTraceBucketsRequest) {
-			r.Status = observabilityv1.TraceStatus_TRACE_STATUS_OK
+		{"status", "@status:ok", func(r *observabilityv1.QueryTraceBucketsRequest) {
 			r.IntervalSeconds = 5
 		}, []bucketCounts{{2, 0, uint64(time.Second), uint64(time.Second)}, empty}},
-		{"root name terms", func(r *observabilityv1.QueryTraceBucketsRequest) {
-			r.RootNameTerms = []string{"cart"}
+		{"root name", "cart", func(r *observabilityv1.QueryTraceBucketsRequest) {
 			r.IntervalSeconds = 5
 		}, []bucketCounts{{2, 1, uint64(2500 * time.Millisecond), uint64(3850 * time.Millisecond)}, empty}},
-		{"minimum duration", func(r *observabilityv1.QueryTraceBucketsRequest) {
-			r.MinDurationNanos = proto.Uint64(uint64(2 * time.Second))
-		}, []bucketCounts{cart, empty, empty, empty, empty, empty}},
-		{"maximum duration", func(r *observabilityv1.QueryTraceBucketsRequest) {
-			r.MaxDurationNanos = proto.Uint64(uint64(2 * time.Second))
+		{"minimum duration", "@duration:>=2000", func(*observabilityv1.QueryTraceBucketsRequest) {}, []bucketCounts{
+			cart, empty, empty, empty, empty, empty,
+		}},
+		{"maximum duration", "@duration:<=2000", func(r *observabilityv1.QueryTraceBucketsRequest) {
 			r.IntervalSeconds = 5
 		}, []bucketCounts{{2, 0, uint64(time.Second), uint64(time.Second)}, empty}},
-		{"trace id", func(r *observabilityv1.QueryTraceBucketsRequest) {
-			r.TraceId = fmt.Sprintf("%032x", 1)
-		}, []bucketCounts{cart, empty, empty, empty, empty, empty}},
-		{"resource scope", func(r *observabilityv1.QueryTraceBucketsRequest) {
+		{"trace id", "@trace:" + fmt.Sprintf("%032x", 1), func(*observabilityv1.QueryTraceBucketsRequest) {}, []bucketCounts{
+			cart, empty, empty, empty, empty, empty,
+		}},
+		{"attribute on any span", "-@user.id:42", func(r *observabilityv1.QueryTraceBucketsRequest) {
+			r.IntervalSeconds = 5
+		}, []bucketCounts{{2, 0, uint64(time.Second), uint64(time.Second)}, empty}},
+		{"resource scope", "", func(r *observabilityv1.QueryTraceBucketsRequest) {
 			r.Scope = &observabilityv1.TraceScope{
 				WorkspaceId:   testWorkspaceID,
 				EnvironmentId: testEnvironmentID,
@@ -92,7 +93,7 @@ func TestTraceBuckets(t *testing.T) {
 			}
 			r.IntervalSeconds = 5
 		}, []bucketCounts{{1, 1, uint64(3 * time.Second), uint64(3 * time.Second)}, empty}},
-		{"workspace scope", func(r *observabilityv1.QueryTraceBucketsRequest) {
+		{"workspace scope", "", func(r *observabilityv1.QueryTraceBucketsRequest) {
 			r.Scope = &observabilityv1.TraceScope{WorkspaceId: testOtherWorkspaceID}
 			r.IntervalSeconds = 5
 		}, []bucketCounts{{1, 0, uint64(time.Hour), uint64(time.Hour)}, empty}},
@@ -100,7 +101,7 @@ func TestTraceBuckets(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := proto.CloneOf(base)
 			tc.change(req)
-			result, err := f.client.QueryTraceBuckets(t.Context(), req)
+			result, err := f.client.QueryTraceBuckets(t.Context(), req, traceFilter(t, tc.query))
 			if err != nil {
 				t.Fatal(err)
 			}

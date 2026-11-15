@@ -18,14 +18,16 @@ import (
 func (c *Client) QueryTraceBuckets(
 	ctx context.Context,
 	req *observabilityv1.QueryTraceBucketsRequest,
+	filter TraceFilter,
 ) (*observabilityv1.QueryTraceBucketsResponse, error) {
-	summaries, args := buildTraceSummaryQuery(req)
+	b := &positionalBinder{}
+	failedStatus := b.num(int64(observabilityv1.TraceStatus_TRACE_STATUS_ERROR))
+	summaries := buildTraceSummaryQuery(req, filter, b)
 	query := fmt.Sprintf("SELECT toStartOfInterval(start_time, INTERVAL %d SECOND) AS bucket, count(), "+
-		"countIf(status = ?), quantiles(0.5, 0.95)(duration_nanos) FROM (%s) GROUP BY bucket WITH TOTALS "+
+		"countIf(status = %s), quantiles(0.5, 0.95)(duration_nanos) FROM (%s) GROUP BY bucket WITH TOTALS "+
 		"SETTINGS max_execution_time = %d",
-		req.GetIntervalSeconds(), summaries, int(c.queryTimeout.Seconds()))
-	args = append([]any{int32(observabilityv1.TraceStatus_TRACE_STATUS_ERROR)}, args...)
-	rows, err := c.conn.Query(ctx, query, args...)
+		req.GetIntervalSeconds(), failedStatus, summaries, int(c.queryTimeout.Seconds()))
+	rows, err := c.conn.Query(ctx, query, b.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trace buckets: %w", err)
 	}
