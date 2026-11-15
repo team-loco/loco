@@ -5,7 +5,7 @@ import { createLoader } from "nuqs";
 import { QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 
 import { QUERY_MAX_MS, toWindow, WINDOW_PARSERS } from "./obs-time";
-import { buildLogsPath, draftSearch, inResourcesSection, newResourcePath } from "./routes";
+import { buildLogsPath, draftSearch, inResourcesSection, newResourcePath, resourcePath, withEnv } from "./routes";
 
 test("newResourcePath opens the new resource flow on the resources page and keeps other params", () => {
 	const url = new URL(newResourcePath("o1", "w1", { env: "staging", new: "service" }), "https://loco.test");
@@ -34,4 +34,15 @@ test("buildLogsPath opens a day of logs filtered to the build", () => {
 	expect(url.searchParams.get("view")).toBe("logs");
 	expect(toQuery(createLoader(QUERY_PARSERS)(url)).tokens).toEqual([{ neg: false, key: "build", value: "b-123" }]);
 	expect(toWindow(createLoader(WINDOW_PARSERS)(url), QUERY_MAX_MS)).toEqual({ kind: "relative", spanMs: QUERY_MAX_MS });
+});
+
+test("resourcePath and withEnv carry the environment and keep the path's other params", () => {
+	expect(resourcePath("o1", "w1", "r1")).toBe("/org/o1/wks/w1/resource/r1");
+	expect(resourcePath("o1", "w1", "r1", { tab: "settings", env: "staging" })).toBe(
+		"/org/o1/wks/w1/resource/r1?tab=settings&env=staging",
+	);
+	expect(withEnv("/org/o1/wks/w1/resources?view=map", "prod east")).toBe(
+		"/org/o1/wks/w1/resources?view=map&env=prod+east",
+	);
+	expect(withEnv("/org/o1/wks/w1?env=staging", null)).toBe("/org/o1/wks/w1");
 });

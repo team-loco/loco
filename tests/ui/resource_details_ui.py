@@ -161,7 +161,7 @@ with sync_playwright() as playwright:
                         delete.click()
                         dialog.get_by_role("textbox").fill(name)
                         dialog.get_by_role("button", name="Delete resource", exact=True).click()
-                        expect(page).to_have_url(state["ui_url"] + f"/org/{org}/wks/{workspace}")
+                        expect(page).to_have_url(state["ui_url"] + f"/org/{org}/wks/{workspace}?env=production")
                         remaining = evidence.psql(state["container"], f"SELECT COUNT(*) FROM resources WHERE id='{resource}';")
                         assert remaining == "0", remaining
                     assert not errors, errors

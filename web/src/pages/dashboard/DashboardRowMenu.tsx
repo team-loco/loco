@@ -42,8 +42,6 @@ export function DashboardRowMenu({
 	const canWrite = useMyScopes().resourceLevel(orgId, workspaceId, resource.id) >= scopeLevel(Scope.WRITE);
 	const focus = focusRegion(buildRegions(resource, item.envDeployments, item.environment));
 	const target = focus === undefined ? undefined : lastGoodDeployment(focus);
-	const base = resourcePath(orgId, workspaceId, resource.id);
-	const envQuery = `env=${encodeURIComponent(envName)}`;
 	const obs = (view: "logs" | "events") =>
 		observabilityPath(orgId, workspaceId, view, { env: envName, r: [resource.name] });
 
@@ -94,11 +92,19 @@ export function DashboardRowMenu({
 					<ActivityIcon className="text-fg3" />
 					View events
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>
+				<DropdownMenuItem
+					onClick={() =>
+						void navigate(resourcePath(orgId, workspaceId, resource.id, { tab: "settings", env: envName }))
+					}
+				>
 					<ChevronsUpDownIcon className="text-fg3" />
 					Scale
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>
+				<DropdownMenuItem
+					onClick={() =>
+						void navigate(resourcePath(orgId, workspaceId, resource.id, { tab: "settings", env: envName }))
+					}
+				>
 					<VariableIcon className="text-fg3" />
 					Environment variables
 				</DropdownMenuItem>

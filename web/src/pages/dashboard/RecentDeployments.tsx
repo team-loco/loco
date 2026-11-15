@@ -108,7 +108,7 @@ export function RecentDeployments({
 							</TableRow>
 						)}
 						{rows.map(({ deployment: d, resource }) => {
-							const href = resourcePath(orgId, workspaceId, resource.id);
+							const href = resourcePath(orgId, workspaceId, resource.id, { env: envName });
 							const createdMs = tsMs(d.createdAt);
 							return (
 								<TableRow key={d.id} className="cursor-pointer hover:bg-panel2" onClick={() => void navigate(href)}>

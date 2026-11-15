@@ -41,8 +41,19 @@ export function accountSettingsPath(orgId: string | null, workspaceId: string | 
 	return orgId !== null && workspaceId !== null ? settingsPath(orgId, workspaceId, "account") : PROFILE_PATH;
 }
 
-export function resourcePath(orgId: string, workspaceId: string, resourceId: string): string {
-	return workspacePath(orgId, workspaceId, `resource/${resourceId}`);
+const serializeResourceLink = createSerializer({ tab: parseAsString, env: parseAsString });
+
+export function resourcePath(
+	orgId: string,
+	workspaceId: string,
+	resourceId: string,
+	link: { tab?: string; env?: string | null } = {},
+): string {
+	return serializeResourceLink(workspacePath(orgId, workspaceId, `resource/${resourceId}`), link);
+}
+
+export function withEnv(path: string, env: string | null): string {
+	return serializeEnv(path, { env });
 }
 
 export function resourcesPath(orgId: string, workspaceId: string): string {

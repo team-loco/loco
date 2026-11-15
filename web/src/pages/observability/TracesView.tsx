@@ -2,8 +2,7 @@ import { listTraces } from "@gen/loco/observability/v1/observability-Observabili
 import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
 import { RefreshCwIcon, ZoomOutIcon } from "lucide-react";
-import { createSerializer, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { Navigate, useLocation } from "react-router";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
@@ -57,9 +56,7 @@ const TRACES_PARAMS = {
 	trace: parseAsString.withDefault(""),
 	span: parseAsString,
 	widths: widthsParser,
-	env: parseAsString,
 };
-const serializeEnv = createSerializer({ env: parseAsString });
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 // The chart plots the newest traces up to this many; the API caps a page at 10,000.
 const SCATTER_LIMIT = 2000;
@@ -119,7 +116,6 @@ function TraceSession({
 }) {
 	const { workspaceId, resources, resourcesLoading, scopedResourceIds, resourceById, range, tokens, text, setQuery } =
 		useObs();
-	const { search } = useLocation();
 	const [params, setParams] = useQueryStates(TRACES_PARAMS);
 	const setPaging = (next: Paging) => {
 		void setParams(next, { history: "replace" });
@@ -214,9 +210,8 @@ function TraceSession({
 	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
 	const query = queryStr(tokens, text);
-	// Set env in the same update: the redirect below reads the router search, which lags behind nuqs.
 	const open = (id: string) => {
-		void setParams({ trace: id, span: null, env: params.env ?? active?.name ?? null });
+		void setParams({ trace: id, span: null });
 	};
 	const close = () => {
 		void setParams({ trace: null, span: null });
@@ -268,10 +263,6 @@ function TraceSession({
 	};
 	const sortDir = (column: TraceSummarySort) => (sort !== column ? undefined : ascending ? "ascending" : "descending");
 	const { widths } = params;
-
-	if (openId !== "" && active !== undefined && params.env === null) {
-		return <Navigate to={{ search: serializeEnv(search, { env: active.name }) }} replace />;
-	}
 
 	const header = (
 		<ViewHeader

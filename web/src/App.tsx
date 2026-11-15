@@ -17,8 +17,9 @@ import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v8";
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useEnvironmentInUrl } from "@/hooks/useEnvironment";
 import { notFound } from "@/lib/not-found";
 import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
@@ -90,6 +91,11 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const ws = workspaces.find((w) => w.orgId === org)?.id;
 	if (ws === undefined) return <Navigate to="/organizations" replace />;
 	return <Navigate to={settingsPath(org, ws, "org")} replace />;
+}
+
+function WorkspaceRoutes() {
+	useEnvironmentInUrl();
+	return <Outlet />;
 }
 
 function NoRoute(): never {
@@ -187,7 +193,7 @@ function AppRoutes() {
 					/>
 					<Route path="/org/:orgId/settings" element={<OrgRedirect to="settings" />} />
 
-					<Route path="/org/:orgId/wks/:workspaceId">
+					<Route path="/org/:orgId/wks/:workspaceId" element={<WorkspaceRoutes />}>
 						<Route
 							path=""
 							element={

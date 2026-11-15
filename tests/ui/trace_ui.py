@@ -109,6 +109,7 @@ with sync_playwright() as p:
             open_trace = page.get_by_role('region', name='Trace list').get_by_role('button', name='Open trace ' + root_name, exact=True)
             open_trace.wait_for()
             expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
+            wait_for_query(page, lambda query: query.get('env') == ['production'] and query.get('view') == ['traces'])
             expect(page.get_by_role('button', name=re.compile(r'^All\s*7$'))).to_be_visible()
             suffix = f"{theme}{('-narrow' if narrow else '')}"
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
@@ -305,7 +306,7 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace)
     evidence.settle(page)
-    wait_for_query(page, lambda query: query.get('env') == ['staging'])
+    wait_for_query(page, lambda query: query.get('env') == ['staging'] and query.get('trace') == [trace])
     shared_url = page.url
     assert recorded[-1]['scope']['environmentId'] == staging
     context.close()
