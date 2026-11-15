@@ -24,6 +24,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/transit"
 	"github.com/team-loco/loco/api/pkg/transit/transittest"
+	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/webhooks"
 )
 
@@ -246,6 +247,56 @@ func (f *fixture) makeDue(t *testing.T) {
 		"UPDATE webhook_deliveries SET next_attempt_at = NOW() - INTERVAL '1 second' WHERE status = 'pending'",
 	); err != nil {
 		t.Fatalf("make due: %v", err)
+	}
+}
+
+func TestTokenRequestActorReachesAuditAndWebhook(t *testing.T) {
+	t.Parallel()
+	for _, scope := range []genDb.EntityType{
+		genDb.EntityTypeOrganization, genDb.EntityTypeWorkspace, genDb.EntityTypeResource,
+	} {
+		t.Run(string(scope), func(t *testing.T) {
+			t.Parallel()
+			f := newFixture(t)
+			hook, secret := f.webhook(t, f.workspaceID)
+			receiver := newReceiver(t, secret)
+			f.setURL(t, hook.ID, receiver.srv.URL)
+			tokenID := uuid.New()
+			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
+				Entity:    genDb.Entity{Type: scope, ID: uuid.New()},
+				ActorType: genDb.DeploymentActorTypeApiToken,
+				ActorID:   tokenID,
+				UserID:    uuid.New(),
+			})
+			if err := events.Record(ctx, f.queries, events.Event{
+				Type: events.ResourceUpdated, WorkspaceID: &f.workspaceID,
+			}); err != nil {
+				t.Fatalf("record: %v", err)
+			}
+			rows, err := f.queries.ListOrgAuditEvents(t.Context(), genDb.ListOrgAuditEventsParams{
+				OrgID: &f.orgID, Types: []string{}, ActorIds: []uuid.UUID{tokenID}, MaxRows: 10,
+			})
+			if err != nil || len(rows) != 1 {
+				t.Fatalf("token audit events = %d (%v), want one", len(rows), err)
+			}
+			event := rows[0].Event
+			if event.ActorType != string(genDb.DeploymentActorTypeApiToken) ||
+				event.ActorID == nil || *event.ActorID != tokenID {
+				t.Fatalf("audit actor = %s/%v, want api_token/%s", event.ActorType, event.ActorID, tokenID)
+			}
+			if sent, err := f.dispatcher(true).DispatchDue(t.Context()); err != nil || sent != 1 {
+				t.Fatalf("dispatch = %d (%v), want one", sent, err)
+			}
+			receiver.mu.Lock()
+			defer receiver.mu.Unlock()
+			if len(receiver.payloads) != 1 {
+				t.Fatalf("payloads = %d, want one", len(receiver.payloads))
+			}
+			actor := receiver.payloads[0].Actor
+			if actor.Type != event.ActorType || actor.ID == nil || *actor.ID != tokenID {
+				t.Fatalf("webhook actor = %+v, want api_token/%s", actor, tokenID)
+			}
+		})
 	}
 }
 
