@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { bodyParts, flattenJson, fmtTs, levelStyle } from "./format";
-import { filterableLabel, REQUEST_FILTER_ATTRIBUTES, sameToken, type FieldKey, type Token } from "./query";
+import { reservedLabelReason, REQUEST_FILTER_ATTRIBUTES, sameToken, type FieldKey, type Token } from "./query";
 import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
 
@@ -71,9 +71,7 @@ function attributes(row: LogRow): Attribute[] {
 	const extra = new Map<string, Attribute>();
 	for (const [key, value] of Object.entries(e.resourceAttributes)) {
 		if (key === "k8s.pod.name" || key === "loco.region") continue;
-		const filter = filterableLabel(key)
-			? { key: "label" as const, value: `${key}=${value}` }
-			: `Loco sets ${key}; filter with @resource or @region`;
+		const filter = reservedLabelReason(key) ?? { key: "label" as const, value: `${key}=${value}` };
 		extra.set(key, { key, value, filter, column: key });
 	}
 	for (const [key, value] of Object.entries(e.logAttributes)) {

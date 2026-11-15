@@ -94,9 +94,11 @@ export function attributePair(value: string): AttributePair | null {
 	return at > 0 ? { key: value.slice(0, at), value: value.slice(at + 1) } : null;
 }
 
-/** Whether a log query can filter on the resource attribute; Loco sets the loco. keys besides loco.io/ labels. */
-export function filterableLabel(key: string): boolean {
-	return !key.startsWith(RESERVED_LABEL_PREFIX) || key.startsWith(OPEN_LABEL_PREFIX);
+/** Why a log query can't filter on the resource attribute, or null when it can; Loco sets the loco. keys besides loco.io/ labels. */
+export function reservedLabelReason(key: string): string | null {
+	return key.startsWith(RESERVED_LABEL_PREFIX) && !key.startsWith(OPEN_LABEL_PREFIX)
+		? `Loco sets ${key}; filter with @resource or @region`
+		: null;
 }
 
 const KEY_ALIASES: Record<string, FieldKey> = { pod: "replica", trace_id: "trace" };
@@ -210,9 +212,8 @@ export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSup
 		if (t.neg && !def.negate.includes(view)) return { ok: false, reason: `Excluding @${t.key} isn't supported yet` };
 		const pair = PAIR_FIELDS.has(t.key) ? attributePair(t.value) : null;
 		if (PAIR_FIELDS.has(t.key) && pair === null) return { ok: false, reason: `Write @${t.key}:key=value` };
-		if (t.key === "label" && pair !== null && !filterableLabel(pair.key)) {
-			return { ok: false, reason: `Loco sets ${pair.key}; filter with @resource or @region` };
-		}
+		const blocked = t.key === "label" && pair !== null ? reservedLabelReason(pair.key) : null;
+		if (blocked !== null) return { ok: false, reason: blocked };
 		const slot = pair === null ? t.key : `${t.key}:${pair.key}`;
 		const name = pair === null ? `@${t.key}` : `@${t.key} ${pair.key}`;
 		if (def.single && seen.has(slot)) return { ok: false, reason: `Only the first ${name} filter applies` };
@@ -285,15 +286,13 @@ export function buildBackendQuery(
 	const byKey = (k: FieldKey, neg: boolean) => liveTokens("logs", tokens, k).filter((t) => t.neg === neg);
 	const values = (k: FieldKey, neg: boolean) => byKey(k, neg).map((t) => t.value);
 
-	const included = byKey("level", false);
-	const levelSet = narrow(LEVELS, included);
+	const levelSet = narrow(LEVELS, byKey("level", false));
 	const levelVariants = (set: Level[]) => set.flatMap((l) => LEVEL_VARIANTS[l]);
 	const excludedLevelSet = LEVELS.filter((l) => byKey("level", true).some((t) => matches(l, t.value)));
 
-	const resourceTokens = byKey("resource", false);
 	const resNames = narrow(
 		resources.map((r) => r.name),
-		resourceTokens,
+		byKey("resource", false),
 	);
 	const resSet = resNames === null ? null : new Set(resNames);
 	const resourceIds =
