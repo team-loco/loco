@@ -37,10 +37,8 @@ func (tvm *VendingMachine) Issue(
 		return "", queries.CreateAPITokenRow{}, fmt.Errorf("load scopes of the issuing user: %w", err)
 	}
 
-	for _, es := range entityScopes {
-		if err = tvm.authz.Check(ctx, userScopes, es); err != nil {
-			return "", queries.CreateAPITokenRow{}, err
-		}
+	if err = tvm.authz.Check(ctx, userScopes, entityScopes...); err != nil {
+		return "", queries.CreateAPITokenRow{}, err
 	}
 
 	token, hash := generateToken(prefixAPIKey)

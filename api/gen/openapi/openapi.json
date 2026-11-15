@@ -14064,8 +14064,9 @@
               "$ref": "#/components/schemas/loco.token.v1.EntityScope"
             },
             "title": "scopes",
+            "maxItems": 64,
             "minItems": 1,
-            "description": "Scopes to grant to the token"
+            "description": "token.scopes.unique // scopes must be unique\n"
           },
           "expiresInSec": {
             "type": "string",
@@ -15013,7 +15014,9 @@
               "type": "string"
             },
             "title": "scopes",
-            "minItems": 1
+            "maxItems": 64,
+            "minItems": 1,
+            "uniqueItems": true
           }
         },
         "title": "CreateMemberRequest",

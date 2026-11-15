@@ -1301,11 +1301,11 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x16DeleteWorkspaceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12.\n" +
 	"\x13confirm_delete_apps\x18\x02 \x01(\bR\x11confirmDeleteApps\"\x19\n" +
-	"\x17DeleteWorkspaceResponse\"\xf4\x01\n" +
+	"\x17DeleteWorkspaceResponse\"\xf8\x01\n" +
 	"\x13CreateMemberRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
-	"\auser_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12\x8c\x01\n" +
-	"\x06scopes\x18\x03 \x03(\tBt\xbaHq\x92\x01n\b\x01\"j\xba\x01g\n" +
+	"\auser_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12\x90\x01\n" +
+	"\x06scopes\x18\x03 \x03(\tBx\xbaHu\x92\x01r\b\x01\x10@\x18\x01\"j\xba\x01g\n" +
 	"\x12scope.valid_values\x12-each scope must be one of: read, write, admin\x1a\"this in ['read', 'write', 'admin']R\x06scopes\"R\n" +
 	"\x14CreateMemberResponse\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
