@@ -55,27 +55,27 @@ export interface FieldDef {
 	label: string;
 	views: ObservabilityView[];
 	negate: ObservabilityView[];
-	single: boolean;
+	single: ObservabilityView[];
 }
 
 const ALL_VIEWS: ObservabilityView[] = ["logs", "metrics", "traces", "events"];
 
 // @attr, @label and @json values are key=value pairs.
 export const FIELDS: FieldDef[] = [
-	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: false },
-	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "region", label: "Region", views: ["logs", "metrics"], negate: ["logs", "metrics"], single: false },
-	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: false },
-	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: false },
-	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"], single: true },
-	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: false },
-	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "path", label: "Request path", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "attr", label: "Log attribute", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "label", label: "Resource attribute", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "json", label: "JSON message field", views: ["logs"], negate: ["logs"], single: false },
+	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: [] },
+	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: [] },
+	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"], single: [] },
+	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"], single: [] },
+	{ key: "region", label: "Region", views: ["logs", "metrics"], negate: ["logs", "metrics"], single: [] },
+	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: [] },
+	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: [] },
+	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"], single: ["traces"] },
+	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: [] },
+	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"], single: [] },
+	{ key: "path", label: "Request path", views: ["logs"], negate: ["logs"], single: [] },
+	{ key: "attr", label: "Log attribute", views: ["logs"], negate: ["logs"], single: [] },
+	{ key: "label", label: "Resource attribute", views: ["logs"], negate: ["logs"], single: [] },
+	{ key: "json", label: "JSON message field", views: ["logs"], negate: ["logs"], single: [] },
 ];
 
 // The gateway's access logs carry these keys, so @method and @path match every routed request.
@@ -216,7 +216,8 @@ export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSup
 		if (PAIR_FIELDS.has(t.key) && pair === null) return { ok: false, reason: `Write @${t.key}:key=value` };
 		const blocked = t.key === "label" && pair !== null ? reservedLabelReason(pair.key) : null;
 		if (blocked !== null) return { ok: false, reason: blocked };
-		if (def.single && seen.has(t.key)) return { ok: false, reason: `Only the first @${t.key} filter applies` };
+		if (def.single.includes(view) && seen.has(t.key))
+			return { ok: false, reason: `Only the first @${t.key} filter applies` };
 		seen.add(t.key);
 		return SUPPORTED;
 	});

@@ -100,15 +100,24 @@ describe("log severity filters", () => {
 describe("omnibar tokens per view", () => {
 	test("marks keys a view can't filter on and keeps the ones it can", () => {
 		const { tokens } = parseQuery("@resource:web @level:error -@replica:web-1 @trace:abc -@trace:def");
-		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, true, true, true, false]);
+		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, true, true, true, true]);
 		expect(tokenSupport("metrics", tokens).map((s) => s.ok)).toEqual([true, false, false, false, false]);
 		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([true, false, false, true, false]);
 		expect(tokenSupport("traces", tokens)[4]?.reason).toBe("Excluding @trace isn't supported yet");
 	});
 
-	test("applies only the first filter of a single-value key", () => {
-		const { tokens } = parseQuery("@trace:0123456789abcdef0123456789abcdef @trace:fedcba9876543210fedcba9876543210");
-		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([true, false]);
+	test("applies one trace ID to traces and several, included or excluded, to logs", () => {
+		const a = "0123456789abcdef0123456789abcdef";
+		const b = "fedcba9876543210fedcba9876543210";
+		expect(tokenSupport("traces", parseQuery(`@trace:${a} @trace:${b}`).tokens).map((s) => s.ok)).toEqual([
+			true,
+			false,
+		]);
+		const { tokens } = parseQuery(`@trace:${a} @trace:${b} -@trace:${a} -@trace:${b}`);
+		expect(tokenSupport("logs", tokens).every((s) => s.ok)).toBe(true);
+		const { parsed } = buildBackendQuery(tokens, "", [], null);
+		expect(parsed.traceIds).toEqual([a, b]);
+		expect(parsed.excludedTraceIds).toEqual([a, b]);
 	});
 
 	test("reads resource links and replica shortcuts from the URL", () => {
