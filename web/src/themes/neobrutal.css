@@ -72,6 +72,7 @@
 	--warn: #facc00;
 	--err: #ff6164;
 	--tint: #4a3440;
+	--sh-sign: var(--fg3);
 	--sh-property: #93b4ff;
 	--sh-string: #ffb38a;
 	--sh-keyword: #ed707b;

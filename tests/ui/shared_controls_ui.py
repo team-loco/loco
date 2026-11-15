@@ -231,6 +231,7 @@ def volume(page):
     area = page.get_by_role("region", name="Log volume").locator('[data-slot="slider"]').locator("..")
     bars = area.locator("> div").first.locator("> div")
     count = bars.count()
+    assert bars.first.locator("span").nth(1).evaluate("node => getComputedStyle(node).boxShadow") != "none"
     box = area.bounding_box()
     target = count - 5
     point = {"x": box["width"] * (target + 0.1) / count, "y": box["height"] / 2}
@@ -285,6 +286,9 @@ def dashboard(page):
         expect(strip.locator("[data-rest]")).to_have_count(1)
         bars = allocated.locator('[data-slot="allocation-bar"] > span')
         expect(bars).to_have_count(5)
+        if color == "neobrutal":
+            expect(strip).to_have_css("border-top-width", "2px")
+            expect(allocated.locator('[data-slot="allocation-bar"]').first).to_have_css("border-top-width", "2px")
         colors = strip.locator(":scope > span:not([data-rest])").evaluate_all("nodes => nodes.map(n => getComputedStyle(n).backgroundColor)")
         assert len(set(colors)) == 5, colors
         assert bars.evaluate_all("nodes => nodes.map(n => getComputedStyle(n).backgroundColor)") == colors

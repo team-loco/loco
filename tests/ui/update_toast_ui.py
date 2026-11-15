@@ -34,7 +34,7 @@ def check(page):
 
 with session(out) as browser:
     try:
-        context, page, errors = open_page(browser, "owner")
+        context, page, errors = open_page(browser, "owner", storage={"loco:color:v1": "neobrutal"})
         try:
             page.goto(ui + "/dashboard")
             expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
@@ -48,6 +48,8 @@ with session(out) as browser:
             expect(toast).to_be_visible()
             reload = toast.get_by_role("button", name="Reload")
             expect(reload).to_be_visible()
+            expect(reload).to_have_css("border-top-width", "2px")
+            assert reload.evaluate("node => getComputedStyle(node).boxShadow") != "none"
             check(page)
             expect(toast).to_have_count(1)
             # Dismissed, it stays away until a different build is served.
