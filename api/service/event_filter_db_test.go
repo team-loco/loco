@@ -4,7 +4,6 @@ import (
 	"slices"
 	"testing"
 
-	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
@@ -52,23 +51,23 @@ func TestListEventsRequestIDAndActors(t *testing.T) {
 			}
 		}
 	}
+	person := "@actor:" + principal.Entity.ID.String()
 	for _, tc := range []struct {
-		name      string
-		ids       []string
-		types     []string
-		requestID string
-		want      []int64
+		name  string
+		query string
+		want  []int64
 	}{
-		{name: "person", ids: []string{principal.Entity.ID.String()}, want: []int64{primary[4], primary[0]}},
-		{name: "token", ids: []string{tokenID.String()}, want: []int64{primary[1]}},
-		{name: "Loco", types: []string{events.ActorSystem}, want: []int64{primary[2]}},
-		{name: "cluster agent", types: []string{"agent"}, want: []int64{primary[3]}},
-		{name: "person and Loco", ids: []string{principal.Entity.ID.String()},
-			types: []string{events.ActorSystem}, want: []int64{primary[4], primary[2], primary[0]}},
-		{name: "request ID", requestID: requestIDs[1], want: []int64{primary[1]}},
-		{name: "combined", ids: []string{tokenID.String()}, requestID: requestIDs[1], want: []int64{primary[1]}},
-		{name: "different request", requestID: uuid.NewString()},
-		{name: "different actor", ids: []string{uuid.NewString()}},
+		{name: "person", query: person, want: []int64{primary[4], primary[0]}},
+		{name: "token", query: "@actor:" + tokenID.String(), want: []int64{primary[1]}},
+		{name: "Loco", query: "@actor_type:" + events.ActorSystem, want: []int64{primary[2]}},
+		{name: "cluster agent", query: "@actor_type:agent", want: []int64{primary[3]}},
+		{name: "person and Loco", query: "(" + person + " OR @actor_type:system)",
+			want: []int64{primary[4], primary[2], primary[0]}},
+		{name: "request ID", query: "@request:" + requestIDs[1], want: []int64{primary[1]}},
+		{name: "request ID as text", query: requestIDs[1], want: []int64{primary[1]}},
+		{name: "combined", query: "@actor:" + tokenID.String() + " @request:" + requestIDs[1], want: []int64{primary[1]}},
+		{name: "different request", query: "@request:" + uuid.NewString()},
+		{name: "different actor", query: "@actor:" + uuid.NewString()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, resource := range []string{"", f.resourceID.String()} {
@@ -76,10 +75,7 @@ func TestListEventsRequestIDAndActors(t *testing.T) {
 					OrgId:       f.orgID,
 					WorkspaceId: f.workspaceID.String(),
 					ResourceId:  resource,
-					Types:       []string{events.TokenCreated},
-					ActorIds:    tc.ids,
-					ActorTypes:  tc.types,
-					RequestId:   tc.requestID,
+					Query:       "@type:" + events.TokenCreated + " " + tc.query,
 					PageSize:    1,
 				}
 				var got []int64
@@ -103,10 +99,8 @@ func TestListEventsRequestIDAndActors(t *testing.T) {
 		})
 	}
 	req := &eventv1.ListEventsRequest{
-		OrgId:     f.orgID,
-		Types:     []string{events.TokenCreated},
-		RequestId: requestIDs[0],
-		ActorIds:  []string{principal.Entity.ID.String()},
+		OrgId: f.orgID,
+		Query: "@type:" + events.TokenCreated + " @request:" + requestIDs[0] + " " + person,
 	}
 	orgResult, err := f.events.ListEvents(f.owner, req)
 	if err != nil || len(orgResult.GetEvents()) != 2 {
@@ -126,27 +120,6 @@ func TestListEventsRequestIDAndActors(t *testing.T) {
 	}
 }
 
-func TestAuditFiltersValidation(t *testing.T) {
-	t.Parallel()
-	for _, id := range []string{"", uuid.NewString()} {
-		req := &eventv1.ListEventsRequest{OrgId: uuid.NewString(), RequestId: id}
-		if err := protovalidate.Validate(req); err != nil {
-			t.Fatalf("rejected request ID %q: %v", id, err)
-		}
-	}
-	for _, req := range []*eventv1.ListEventsRequest{
-		{OrgId: uuid.NewString(), ActorIds: []string{"not-a-uuid"}},
-		{OrgId: uuid.NewString(), ActorTypes: []string{"robot"}},
-		{OrgId: uuid.NewString(), RequestId: "actor name"},
-		{OrgId: uuid.NewString(), RequestId: uuid.NewString()[:12]},
-		{OrgId: uuid.NewString(), RequestId: "%"},
-	} {
-		if err := protovalidate.Validate(req); err == nil {
-			t.Fatalf("accepted %v", req)
-		}
-	}
-}
-
 func TestAuditRequestIDTimeBoundsAtEveryScope(t *testing.T) {
 	t.Parallel()
 	f := newScopedAuditFixture(t)
@@ -163,8 +136,8 @@ func TestAuditRequestIDTimeBoundsAtEveryScope(t *testing.T) {
 		genDb.EntityTypeOrganization, genDb.EntityTypeWorkspace, genDb.EntityTypeResource,
 	}
 	for _, scope := range scopes {
-		req := &eventv1.ListEventsRequest{OrgId: orgID.String(), RequestId: requestID,
-			ActorIds: []string{principal.Entity.ID.String()}, Types: []string{events.TokenCreated}}
+		req := &eventv1.ListEventsRequest{OrgId: orgID.String(), Query: "@request:" + requestID +
+			" @actor:" + principal.Entity.ID.String() + " @type:" + events.TokenCreated}
 		if scope != genDb.EntityTypeOrganization {
 			req.WorkspaceId = f.workspaceID.String()
 		}

@@ -1,4 +1,4 @@
-package db
+package events
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/db/dbtest"
+	"github.com/team-loco/loco/internal/logquery"
 )
 
 func TestAuditFilterScanBounds(t *testing.T) {
@@ -26,38 +27,41 @@ FROM generate_series(1, 50000) g`, org, workspace, resource, environment)
 	}
 	at := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	for _, scope := range []struct {
-		name  string
-		query string
-		ids   []any
+		name                    string
+		workspaceID, resourceID *uuid.UUID
 	}{
-		{"organization", listOrgAuditEvents, []any{org}},
-		{"workspace", listWorkspaceAuditEvents, []any{org, workspace}},
-		{"resource", listResourceAuditEvents, []any{org, workspace, resource}},
+		{"organization", nil, nil},
+		{"workspace", &workspace, nil},
+		{"resource", &workspace, &resource},
 	} {
 		for _, filter := range []struct {
 			name        string
-			environment any
-			start, end  any
-			types       []string
+			environment *uuid.UUID
+			start, end  *time.Time
+			query       string
 			want        int
 		}{
-			{name: "rare type", types: []string{"rare"}, want: 1},
-			{name: "multiple types", types: []string{"rare", "absent"}, want: 1},
-			{name: "absent type", types: []string{"absent"}},
-			{name: "environment", environment: environment, types: []string{}, want: 1},
-			{name: "time window", start: at.Add(25000 * time.Second),
-				end: at.Add(25100 * time.Second), types: []string{}, want: 100},
-			{name: "start", start: at.Add(49901 * time.Second), types: []string{}, want: 100},
-			{name: "end", end: at.Add(101 * time.Second), types: []string{}, want: 100},
+			{name: "rare type", query: "@type:rare", want: 1},
+			{name: "multiple types", query: "@type:rare OR @type:absent", want: 1},
+			{name: "absent type", query: "@type:absent"},
+			{name: "environment", environment: &environment, want: 1},
+			{name: "time window", start: new(at.Add(25000 * time.Second)),
+				end: new(at.Add(25100 * time.Second)), want: 100},
+			{name: "start", start: new(at.Add(49901 * time.Second)), want: 100},
+			{name: "end", end: new(at.Add(101 * time.Second)), want: 100},
 		} {
 			t.Run(scope.name+"/"+filter.name, func(t *testing.T) {
-				args := append([]any{}, scope.ids...)
-				args = append(args, filter.environment, filter.start, filter.end, nil, filter.types, nil, nil, "", 101)
-				var raw []byte
-				err := pool.QueryRow(
-					t.Context(), "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+scope.query, args...,
-				).Scan(&raw)
+				expr, err := logquery.Parse(filter.query)
 				if err != nil {
+					t.Fatal(err)
+				}
+				sql, args := auditSQL(AuditQuery{
+					OrgID: org, WorkspaceID: scope.workspaceID, ResourceID: scope.resourceID,
+					EnvironmentID: filter.environment, Start: filter.start, End: filter.end, Filter: expr, Limit: 101,
+				})
+				var raw []byte
+				if err := pool.QueryRow(t.Context(), "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+sql, args...).
+					Scan(&raw); err != nil {
 					t.Fatal(err)
 				}
 				var plans []struct {

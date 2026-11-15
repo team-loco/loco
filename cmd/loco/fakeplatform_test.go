@@ -748,12 +748,16 @@ func (s *fakeEventService) ListEvents(
 		size = min(size, int(req.GetPageSize()))
 	}
 	var events []*eventv1.Event
-	for seq := before - 1; seq > 0 && len(events) < size; seq-- {
-		events = append(events, &eventv1.Event{Seq: seq, Type: fmt.Sprintf("event-%d", seq)})
+	seq := before - 1
+	for ; seq > 0 && len(events) < size; seq-- {
+		event := &eventv1.Event{Seq: seq, Type: fmt.Sprintf("event-%d", seq)}
+		if req.GetQuery() == "" || req.GetQuery() == "@type:"+event.GetType() {
+			events = append(events, event)
+		}
 	}
 	next := int64(0)
-	if last := events[len(events)-1].GetSeq(); last > 1 {
-		next = last
+	if seq > 0 {
+		next = seq + 1
 	}
 	return &eventv1.ListEventsResponse{Events: events, NextBeforeSeq: next}, nil
 }

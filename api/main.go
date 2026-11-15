@@ -412,7 +412,7 @@ func newDeps(
 		systemAdmin:  service.NewSystemAdminServer(pool, queries),
 		user:         service.NewUserServer(pool, queries, machine),
 		auth:         authServiceHandler,
-		event:        service.NewEventServer(queries),
+		event:        service.NewEventServer(pool, queries),
 		webhook: service.NewWebhookServer(
 			pool, queries, secretKeyProvider, ac.WebhooksAllowPrivate, ac.CountLimits,
 		),

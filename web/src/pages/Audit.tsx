@@ -51,6 +51,7 @@ import {
 	ACTOR_KINDS,
 	auditRow,
 	DEFAULT_RANGE,
+	filtersQuery,
 	matchesPageFilter,
 	requestIdFilter,
 	PAGE_SIZES,
@@ -95,8 +96,6 @@ export function Audit() {
 	const { types, q: search, actor, size, ws: wsParam } = params;
 	const range = RANGES.find((r) => r.value === params.range) ?? DEFAULT_RANGE;
 	const requestId = requestIdFilter(search);
-	const actorTypes = TYPE_ACTORS.includes(actor) ? [actor] : [];
-	const actorIds = actor !== "" && actorTypes.length === 0 ? [actor] : [];
 	const choices = access.org ? workspaces.filter((w) => w.orgId === orgId) : access.workspaces;
 	// ListEvents reads one workspace per call, so a workspace admin always reads exactly one.
 	const workspaceId = choices.some((w) => w.id === wsParam)
@@ -130,10 +129,7 @@ export function Audit() {
 			workspaceId,
 			resourceId,
 			environmentId,
-			types,
-			requestId,
-			actorIds,
-			actorTypes,
+			query: filtersQuery(types, actor, requestId),
 			pageSize: size,
 			beforeSeq: stack.at(-1) ?? 0n,
 			startTime: msToTimestamp(openedAt - range.ms),

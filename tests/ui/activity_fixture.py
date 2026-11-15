@@ -53,7 +53,7 @@ def verify_activity_access(evidence, state, activity):
         second = evidence.rpc(api, token, method, {**scope, 'pageSize': 50, 'beforeSeq': first['nextBeforeSeq']})
         assert second['events']
         assert not {event['id'] for event in first['events']} & {event['id'] for event in second['events']}
-        filtered = evidence.rpc(api, token, method, {**scope, 'types': ['resource.created']})
+        filtered = evidence.rpc(api, token, method, {**scope, 'query': '@type:resource.created'})
         assert len(filtered['events']) == 1 and filtered['events'][0]['type'] == 'resource.created'
         denied = [{'orgId': activity['orgId']}, {'orgId': activity['orgId'], 'workspaceId': activity['siblingId']}, {'orgId': activity['otherOrgId'], 'workspaceId': activity['otherWorkspaceId']}]
         if user == 'resource_reader':

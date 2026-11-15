@@ -17,9 +17,11 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
+	"github.com/team-loco/loco/internal/logquery"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -59,13 +61,14 @@ func decodeStreamCursor(cursor string) (streamPosition, error) {
 }
 
 type EventServer struct {
+	db      genDb.DBTX
 	queries genDb.Querier
 	authz   *authz.Authorizer
 	poll    time.Duration
 }
 
-func NewEventServer(queries genDb.Querier) *EventServer {
-	return &EventServer{queries: queries, poll: streamPollInterval, authz: authz.New(nil, queries)}
+func NewEventServer(db genDb.DBTX, queries genDb.Querier) *EventServer {
+	return &EventServer{db: db, queries: queries, poll: streamPollInterval, authz: authz.New(nil, queries)}
 }
 
 func uuidString(id *uuid.UUID) string {
@@ -108,6 +111,13 @@ func (s *EventServer) ListEvents(
 		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "start_time must be before end_time")
 	}
+	filter, err := logquery.Parse(req.GetQuery())
+	if err == nil {
+		err = events.ValidateQuery(filter)
+	}
+	if err != nil {
+		return nil, querySyntaxError(err)
+	}
 	scope, err := s.authorizeEventScope(ctx, req)
 	if err != nil {
 		return nil, err
@@ -116,7 +126,7 @@ func (s *EventServer) ListEvents(
 	if pageSize == 0 {
 		pageSize = defaultEventPage
 	}
-	rows, err := s.listAuditEvents(ctx, req, scope, pageSize+1)
+	rows, err := s.listAuditEvents(ctx, req, scope, filter, pageSize+1)
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
@@ -205,117 +215,49 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 	return eventScope{kind: eventScopeOrg, orgID: orgID}, nil
 }
 
-func auditEvent(row genDb.Event, email, name *string) *eventv1.Event {
-	event := eventToProto(row)
-	event.ActorEmail = derefString(email)
-	event.ActorName = derefString(name)
-	return event
-}
-
 func (s *EventServer) listAuditEvents(
 	ctx context.Context,
 	req *eventv1.ListEventsRequest,
 	scope eventScope,
+	filter logquery.Expr,
 	maxRows int32,
 ) ([]*eventv1.Event, error) {
-	orgID := scope.orgID
-	types := req.GetTypes()
-	if types == nil {
-		types = []string{}
+	query := events.AuditQuery{
+		OrgID:     scope.orgID,
+		BeforeSeq: req.GetBeforeSeq(),
+		Filter:    filter,
+		Limit:     maxRows,
 	}
-	var before *int64
-	if req.GetBeforeSeq() > 0 {
-		before = new(req.GetBeforeSeq())
+	if scope.kind != eventScopeOrg {
+		query.WorkspaceID = &scope.workspaceID
 	}
-	var environmentID *uuid.UUID
+	if scope.kind == eventScopeResource {
+		query.ResourceID = &scope.resourceID
+	}
 	if req.GetEnvironmentId() != "" {
 		id, err := parseID("environment_id", req.GetEnvironmentId())
 		if err != nil {
 			return nil, err
 		}
-		environmentID = &id
+		query.EnvironmentID = &id
 	}
-	var startTime, endTime *time.Time
 	if req.GetStartTime() != nil {
-		startTime = new(req.GetStartTime().AsTime())
+		query.Start = new(req.GetStartTime().AsTime())
 	}
 	if req.GetEndTime() != nil {
-		endTime = new(req.GetEndTime().AsTime())
+		query.End = new(req.GetEndTime().AsTime())
 	}
-	actorIDs := make([]uuid.UUID, 0, len(req.GetActorIds()))
-	for _, value := range req.GetActorIds() {
-		id, err := parseID("actor_ids", value)
-		if err != nil {
-			return nil, err
-		}
-		actorIDs = append(actorIDs, id)
+	rows, err := events.ListAudit(ctx, s.db, query)
+	if err != nil {
+		return nil, err
 	}
-	out := []*eventv1.Event{}
-	switch scope.kind {
-	case eventScopeResource:
-		rows, err := s.queries.ListResourceAuditEvents(ctx, genDb.ListResourceAuditEventsParams{
-			OrgID:         &orgID,
-			WorkspaceID:   &scope.workspaceID,
-			ResourceID:    &scope.resourceID,
-			Types:         types,
-			ActorIds:      actorIDs,
-			ActorTypes:    req.GetActorTypes(),
-			RequestID:     req.GetRequestId(),
-			BeforeSeq:     before,
-			MaxRows:       maxRows,
-			EnvironmentID: environmentID,
-			StartTime:     startTime,
-			EndTime:       endTime,
-		})
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
-		}
-		return out, nil
-	case eventScopeWorkspace:
-		rows, err := s.queries.ListWorkspaceAuditEvents(ctx, genDb.ListWorkspaceAuditEventsParams{
-			OrgID:         &orgID,
-			WorkspaceID:   &scope.workspaceID,
-			Types:         types,
-			ActorIds:      actorIDs,
-			ActorTypes:    req.GetActorTypes(),
-			RequestID:     req.GetRequestId(),
-			BeforeSeq:     before,
-			MaxRows:       maxRows,
-			EnvironmentID: environmentID,
-			StartTime:     startTime,
-			EndTime:       endTime,
-		})
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
-		}
-		return out, nil
-	default:
-		rows, err := s.queries.ListOrgAuditEvents(ctx, genDb.ListOrgAuditEventsParams{
-			OrgID:         &orgID,
-			Types:         types,
-			ActorIds:      actorIDs,
-			ActorTypes:    req.GetActorTypes(),
-			RequestID:     req.GetRequestId(),
-			BeforeSeq:     before,
-			MaxRows:       maxRows,
-			EnvironmentID: environmentID,
-			StartTime:     startTime,
-			EndTime:       endTime,
-		})
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
-		}
-		return out, nil
+	out := make([]*eventv1.Event, len(rows))
+	for i, row := range rows {
+		out[i] = eventToProto(row.Event)
+		out[i].ActorEmail = derefString(row.ActorEmail)
+		out[i].ActorName = derefString(row.ActorName)
 	}
+	return out, nil
 }
 
 func (s *EventServer) StreamEvents(

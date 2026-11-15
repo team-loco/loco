@@ -4,6 +4,7 @@
     "architecture",
     "cli-api",
     "log-queries",
+    "audit-queries",
     "installation",
     "ai"
   ],

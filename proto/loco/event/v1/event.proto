@@ -35,7 +35,6 @@ message Event {
 message ListEventsRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   int64 before_seq = 2 [(buf.validate.field).int64.gte = 0];
-  repeated string types = 3 [(buf.validate.field).repeated.max_items = 50];
   int32 page_size = 4 [(buf.validate.field).int32 = {
     gte: 0
     lte: 500
@@ -55,30 +54,10 @@ message ListEventsRequest {
   // Inclusive start and exclusive end of the event creation time range.
   google.protobuf.Timestamp start_time = 8;
   google.protobuf.Timestamp end_time = 9;
-  repeated string actor_ids = 10 [(buf.validate.field).repeated = {
-    max_items: 50
-    unique: true
-    items: {
-      string: {uuid: true}
-    }
-  }];
-  // IDs and types are alternatives so people and system actors can be selected together.
-  repeated string actor_types = 11 [(buf.validate.field).repeated = {
-    max_items: 2
-    unique: true
-    items: {
-      string: {
-        in: [
-          "system",
-          "agent"
-        ]
-      }
-    }
-  }];
-  string request_id = 12 [
-    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
-    (buf.validate.field).string.uuid = true
-  ];
+  // Audit query: free text matched against the actor, target, event type and request ID, the
+  // @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+  // docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
+  string query = 13 [(buf.validate.field).string.max_bytes = 4096];
 }
 
 message ListEventsResponse {
