@@ -126,6 +126,7 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 			DefaultLimit: defaultObservabilityLimit,
 			MaxLimit:     defaultObservabilityMaxLimit,
 			MaxTimeRange: defaultObservabilityMaxTimeRange,
+			MaxBuckets:   defaultObservabilityMaxBuckets,
 		},
 		MaxTailDuration: defaultObservabilityMaxTail,
 	}
@@ -142,6 +143,7 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 		maxLimitEnv:                            "20",
 		maxTimeRangeEnv:                        "48h",
 		"LOCO_OBSERVABILITY_MAX_TAIL_DURATION": "5m",
+		"LOCO_OBSERVABILITY_MAX_BUCKETS":       "30",
 	} {
 		t.Setenv(name, value)
 	}
@@ -153,7 +155,12 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 		t.Errorf("clickhouse = %+v, want %+v", ac.ClickHouse, wantClickHouse)
 	}
 	wantLimits = service.ObservabilityConfig{
-		Limits:          guardrails.Limits{DefaultLimit: 10, MaxLimit: 20, MaxTimeRange: 48 * time.Hour},
+		Limits: guardrails.Limits{
+			DefaultLimit: 10,
+			MaxLimit:     20,
+			MaxTimeRange: 48 * time.Hour,
+			MaxBuckets:   30,
+		},
 		MaxTailDuration: 5 * time.Minute,
 	}
 	if ac.Observability != wantLimits {

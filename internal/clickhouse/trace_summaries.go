@@ -8,10 +8,25 @@ import (
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func buildTraceSummaryQuery(req *observabilityv1.ListTracesRequest) (string, []any) {
+// traceFilters holds the fields ListTracesRequest and QueryTraceBucketsRequest share.
+type traceFilters interface {
+	proto.Message
+	GetScope() *observabilityv1.TraceScope
+	GetStartTime() *timestamppb.Timestamp
+	GetEndTime() *timestamppb.Timestamp
+	GetTraceId() string
+	GetMinDurationNanos() uint64
+	GetMaxDurationNanos() uint64
+	GetStatus() observabilityv1.TraceStatus
+	GetRootNameTerms() []string
+}
+
+func buildTraceSummaryQuery(req traceFilters) (string, []any) {
 	where, args := traceScope(req.GetScope())
 	where = append(where, "Timestamp >= fromUnixTimestamp64Nano(?)", "Timestamp <= fromUnixTimestamp64Nano(?)")
 	args = append(args, req.GetStartTime().AsTime().UnixNano(), req.GetEndTime().AsTime().UnixNano())
@@ -19,21 +34,20 @@ func buildTraceSummaryQuery(req *observabilityv1.ListTracesRequest) (string, []a
 		where = append(where, "TraceId = ?")
 		args = append(args, req.GetTraceId())
 	}
-	filters := req
 	having := []string{"1"}
-	if filters.MinDurationNanos != nil {
+	if hasField(req, "min_duration_nanos") {
 		having = append(having, "duration_nanos >= ?")
-		args = append(args, filters.GetMinDurationNanos())
+		args = append(args, req.GetMinDurationNanos())
 	}
-	if filters.MaxDurationNanos != nil {
+	if hasField(req, "max_duration_nanos") {
 		having = append(having, "duration_nanos <= ?")
-		args = append(args, filters.GetMaxDurationNanos())
+		args = append(args, req.GetMaxDurationNanos())
 	}
-	if filters.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_UNSPECIFIED {
+	if req.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_UNSPECIFIED {
 		having = append(having, "status = ?")
-		args = append(args, int32(filters.GetStatus()))
+		args = append(args, int32(req.GetStatus()))
 	}
-	for _, term := range filters.GetRootNameTerms() {
+	for _, term := range req.GetRootNameTerms() {
 		having = append(having, "positionCaseInsensitiveUTF8(root.1, ?) > 0")
 		args = append(args, term)
 	}
@@ -49,6 +63,11 @@ func buildTraceSummaryQuery(req *observabilityv1.ListTracesRequest) (string, []a
 		"if(countIf(StatusCode = ?) > 0, toInt32(?), toInt32(?)) AS status, " +
 		"uniqExact(SpanId) AS span_count FROM otel_traces WHERE " + strings.Join(where, " AND ") +
 		" GROUP BY TraceId HAVING " + strings.Join(having, " AND "), args
+}
+
+func hasField(message proto.Message, name protoreflect.Name) bool {
+	m := message.ProtoReflect()
+	return m.Has(m.Descriptor().Fields().ByName(name))
 }
 
 func (c *Client) ListTraces(

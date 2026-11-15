@@ -36,6 +36,9 @@ const (
 	// ObservabilityServiceListTracesProcedure is the procedure name of the ObservabilityService's
 	// ListTraces RPC.
 	ObservabilityServiceListTracesProcedure = "/loco.observability.v1.ObservabilityService/ListTraces"
+	// ObservabilityServiceQueryTraceBucketsProcedure is the procedure name of the
+	// ObservabilityService's QueryTraceBuckets RPC.
+	ObservabilityServiceQueryTraceBucketsProcedure = "/loco.observability.v1.ObservabilityService/QueryTraceBuckets"
 	// ObservabilityServiceGetTraceProcedure is the procedure name of the ObservabilityService's
 	// GetTrace RPC.
 	ObservabilityServiceGetTraceProcedure = "/loco.observability.v1.ObservabilityService/GetTrace"
@@ -70,6 +73,13 @@ var (
 			Procedure:  ObservabilityServiceListTracesProcedure,
 		}
 	})
+	observabilityServiceQueryTraceBucketsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("QueryTraceBuckets"),
+			Procedure:  ObservabilityServiceQueryTraceBucketsProcedure,
+		}
+	})
 	observabilityServiceGetTraceSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -89,6 +99,9 @@ type ObservabilityServiceClient interface {
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
+	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,
+	// per time bucket.
+	QueryTraceBuckets(context.Context, *v1.QueryTraceBucketsRequest) (*v1.QueryTraceBucketsResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
 }
 
@@ -130,6 +143,9 @@ type ObservabilityServiceHandler interface {
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
+	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,
+	// per time bucket.
+	QueryTraceBuckets(context.Context, *v1.QueryTraceBucketsRequest) (*v1.QueryTraceBucketsResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
 }
 
@@ -142,6 +158,7 @@ func RegisterObservabilityServiceHandler(server *connect.Server, svc Observabili
 		connect.Method{Spec: observabilityServiceTailLogsSpec(), Handler: adapter.tailLogs},
 		connect.Method{Spec: observabilityServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
 		connect.Method{Spec: observabilityServiceListTracesSpec(), Handler: adapter.listTraces},
+		connect.Method{Spec: observabilityServiceQueryTraceBucketsSpec(), Handler: adapter.queryTraceBuckets},
 		connect.Method{Spec: observabilityServiceGetTraceSpec(), Handler: adapter.getTrace},
 	)
 }
@@ -181,6 +198,10 @@ func (UnimplementedObservabilityServiceHandler) ListTraces(context.Context, *v1.
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.ListTraces is not implemented")
 }
 
+func (UnimplementedObservabilityServiceHandler) QueryTraceBuckets(context.Context, *v1.QueryTraceBucketsRequest) (*v1.QueryTraceBucketsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.QueryTraceBuckets is not implemented")
+}
+
 func (UnimplementedObservabilityServiceHandler) GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.GetTrace is not implemented")
 }
@@ -216,6 +237,14 @@ func (c *observabilityServiceClient) QueryMetrics(ctx context.Context, req *v1.Q
 func (c *observabilityServiceClient) ListTraces(ctx context.Context, req *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
 	var res v1.ListTracesResponse
 	if err := c.client.CallUnary(ctx, observabilityServiceListTracesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityServiceClient) QueryTraceBuckets(ctx context.Context, req *v1.QueryTraceBucketsRequest) (*v1.QueryTraceBucketsResponse, error) {
+	var res v1.QueryTraceBucketsResponse
+	if err := c.client.CallUnary(ctx, observabilityServiceQueryTraceBucketsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -269,6 +298,18 @@ func (h observabilityServiceHandler) listTraces(ctx context.Context, _ connect.S
 		return err
 	}
 	res, err := h.svc.ListTraces(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityServiceHandler) queryTraceBuckets(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryTraceBucketsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryTraceBuckets(ctx, &req)
 	if err != nil {
 		return err
 	}

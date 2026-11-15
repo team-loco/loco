@@ -101,6 +101,8 @@ func TestObservability(t *testing.T) {
 
 	t.Run("ListTraces summarizes the known trace", o.traceSummary)
 
+	t.Run("QueryTraceBuckets counts the known trace", o.traceBuckets)
+
 	t.Run("GetTrace returns the ingress trace", o.ingressTrace)
 
 	t.Run("application logs carry the tenancy", o.appLogs)
@@ -733,6 +735,33 @@ func (o *observed) traceSummary(t *testing.T) {
 			listed.GetTotalCount() != 1 ||
 			listed.GetSummaries()[0].GetTraceId() != traceID {
 			return fmt.Errorf("summaries %v, total %d", listed.GetSummaries(), listed.GetTotalCount())
+		}
+		return nil
+	})
+}
+
+func (o *observed) traceBuckets(t *testing.T) {
+	w, own, traceID, trafficStarted := o.w, o.own, o.traceID, o.trafficStarted
+	platform.Eventually(t, telemetryTimeout, "QueryTraceBuckets to count "+traceID, func(ctx context.Context) error {
+		response, err := own.Observability.QueryTraceBuckets(ctx, &observabilityv1.QueryTraceBucketsRequest{
+			Scope:           traceScope(w.ID),
+			StartTime:       timestamppb.New(trafficStarted.Add(-queryWindow)),
+			EndTime:         timestamppb.Now(),
+			TraceId:         traceID,
+			IntervalSeconds: 60,
+		})
+		if err != nil {
+			return err
+		}
+		var traces uint64
+		for _, bucket := range response.GetBuckets() {
+			traces += bucket.GetTraceCount()
+			if bucket.GetTraceCount() == 1 && bucket.GetP95DurationNanos() == 0 {
+				return fmt.Errorf("bucket %v has no duration", bucket)
+			}
+		}
+		if traces != 1 {
+			return fmt.Errorf("buckets %v count %d traces", response.GetBuckets(), traces)
 		}
 		return nil
 	})

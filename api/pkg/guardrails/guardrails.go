@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/clickhouse"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
 	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
 	errInvalidJSONPath     = errors.New("JSON field paths must be object keys joined by single dots")
+	errTooManyBuckets      = errors.New("time range holds too many buckets")
 )
 
 // Limits bounds what one query may ask for.
@@ -29,6 +31,7 @@ type Limits struct {
 	DefaultLimit int32
 	MaxLimit     int32
 	MaxTimeRange time.Duration
+	MaxBuckets   int32
 }
 
 const (
@@ -80,6 +83,21 @@ func ValidateListTracesRequest(req *observabilityv1.ListTracesRequest, limits Li
 		return err
 	}
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
+}
+
+// ValidateTraceBucketsRequest also bounds the number of buckets the range spans.
+func ValidateTraceBucketsRequest(req *observabilityv1.QueryTraceBucketsRequest, limits Limits) error {
+	if err := ValidateTraceScope(req.GetScope()); err != nil {
+		return err
+	}
+	if err := validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange); err != nil {
+		return err
+	}
+	buckets := clickhouse.BucketCount(req.GetStartTime().AsTime(), req.GetEndTime().AsTime(), req.GetIntervalSeconds())
+	if buckets > int64(limits.MaxBuckets) {
+		return fmt.Errorf("%w: %d, at most %d", errTooManyBuckets, buckets, limits.MaxBuckets)
+	}
+	return nil
 }
 
 // ClampLimit ensures the limit is within bounds.

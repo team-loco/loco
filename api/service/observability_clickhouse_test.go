@@ -308,6 +308,18 @@ func TestGetTraceReadsTheWholeTraceInTheWorkspace(t *testing.T) {
 		list.GetSummaries()[0].GetSpanCount() != wholeTraceSpans {
 		t.Fatalf("ListTraces: %v", list)
 	}
+	buckets, err := client.QueryTraceBuckets(ctx, &observabilityv1.QueryTraceBucketsRequest{
+		Scope:           scope,
+		StartTime:       timestamppb.New(now),
+		EndTime:         timestamppb.New(now),
+		IntervalSeconds: 60,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(buckets.GetBuckets()) != 1 || buckets.GetBuckets()[0].GetTraceCount() != 1 {
+		t.Fatalf("QueryTraceBuckets: %v", buckets)
+	}
 }
 
 // logFilters holds the filter fields of a log request, to set alike on QueryLogs and TailLogs.

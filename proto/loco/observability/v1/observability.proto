@@ -19,6 +19,9 @@ service ObservabilityService {
   rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
 
   rpc ListTraces(ListTracesRequest) returns (ListTracesResponse);
+  // QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,
+  // per time bucket.
+  rpc QueryTraceBuckets(QueryTraceBucketsRequest) returns (QueryTraceBucketsResponse);
   rpc GetTrace(GetTraceRequest) returns (GetTraceResponse);
 }
 
@@ -412,6 +415,53 @@ message ListTracesRequest {
 message ListTracesResponse {
   repeated TraceSummary summaries = 1;
   uint64 total_count = 2;
+}
+
+message QueryTraceBucketsRequest {
+  TraceScope scope = 1 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp start_time = 2 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp end_time = 3 [(buf.validate.field).required = true];
+  string trace_id = 4 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.pattern = "^[0-9a-f]{32}$",
+    (buf.validate.field).string.not_in = "00000000000000000000000000000000"
+  ];
+  optional uint64 min_duration_nanos = 5;
+  optional uint64 max_duration_nanos = 6;
+  TraceStatus status = 7 [(buf.validate.field).enum.defined_only = true];
+  repeated string root_name_terms = 8;
+  // Bucket width in seconds. Buckets start at multiples of it since the Unix epoch, and the
+  // range may span at most the API's bucket limit.
+  int32 interval_seconds = 9 [(buf.validate.field).int32.gte = 1];
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "this.start_time <= this.end_time"
+  };
+  option (buf.validate.message).cel = {
+    id: "duration.min_lte_max"
+    message: "min_duration_nanos must be less than or equal to max_duration_nanos"
+    expression: "!has(this.min_duration_nanos) || !has(this.max_duration_nanos) || this.min_duration_nanos <= this.max_duration_nanos"
+  };
+}
+
+// QueryTraceBucketsResponse holds every bucket from the one containing start_time to the one
+// containing end_time, in time order; a bucket without traces has zero counts and durations.
+message QueryTraceBucketsResponse {
+  repeated TraceBucket buckets = 1;
+  // Summarizes every trace in the range, without a start_time.
+  TraceBucket total = 2;
+}
+
+// TraceBucket summarizes the traces that start within one bucket. Durations are the
+// TraceSummary.duration_nanos of those traces.
+message TraceBucket {
+  google.protobuf.Timestamp start_time = 1;
+  uint64 trace_count = 2;
+  uint64 error_count = 3;
+  uint64 p50_duration_nanos = 4;
+  uint64 p95_duration_nanos = 5;
 }
 
 message GetTraceRequest {
