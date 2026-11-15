@@ -759,9 +759,7 @@ type SystemAdminClaim struct {
 }
 
 type SystemAdminGrant struct {
-	UserID    uuid.UUID  `json:"userId"`
-	GrantedBy *uuid.UUID `json:"grantedBy"`
-	GrantedAt time.Time  `json:"grantedAt"`
+	UserID uuid.UUID `json:"userId"`
 }
 
 type SystemBootstrap struct {

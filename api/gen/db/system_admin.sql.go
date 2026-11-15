@@ -23,17 +23,11 @@ func (q *Queries) AddSystemAdminEntries(ctx context.Context, emails []string) er
 }
 
 const addSystemAdminGrant = `-- name: AddSystemAdminGrant :execrows
-INSERT INTO system_admin_grants (user_id, granted_by) VALUES ($1, $2)
-ON CONFLICT DO NOTHING
+INSERT INTO system_admin_grants (user_id) VALUES ($1) ON CONFLICT DO NOTHING
 `
 
-type AddSystemAdminGrantParams struct {
-	UserID    uuid.UUID  `json:"userId"`
-	GrantedBy *uuid.UUID `json:"grantedBy"`
-}
-
-func (q *Queries) AddSystemAdminGrant(ctx context.Context, arg AddSystemAdminGrantParams) (int64, error) {
-	result, err := q.db.Exec(ctx, addSystemAdminGrant, arg.UserID, arg.GrantedBy)
+func (q *Queries) AddSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, addSystemAdminGrant, userID)
 	if err != nil {
 		return 0, err
 	}

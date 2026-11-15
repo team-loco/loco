@@ -46,9 +46,7 @@ CREATE TABLE system_admin_claims (
 
 -- One row per system:admin granted through SystemAdminService.GrantSystemAdmin.
 CREATE TABLE system_admin_grants (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    granted_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes

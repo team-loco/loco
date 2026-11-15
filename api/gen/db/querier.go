@@ -13,7 +13,7 @@ import (
 
 type Querier interface {
 	AddSystemAdminEntries(ctx context.Context, emails []string) error
-	AddSystemAdminGrant(ctx context.Context, arg AddSystemAdminGrantParams) (int64, error)
+	AddSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error)
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)

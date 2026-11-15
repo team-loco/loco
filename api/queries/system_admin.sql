@@ -48,8 +48,7 @@ WHERE scope = 'admin' AND entity_type = 'system' AND entity_id = '00000000-0000-
 FOR UPDATE;
 
 -- name: AddSystemAdminGrant :execrows
-INSERT INTO system_admin_grants (user_id, granted_by) VALUES (sqlc.arg('user_id'), sqlc.arg('granted_by'))
-ON CONFLICT DO NOTHING;
+INSERT INTO system_admin_grants (user_id) VALUES ($1) ON CONFLICT DO NOTHING;
 
 -- name: RemoveSystemAdminGrant :execrows
 DELETE FROM system_admin_grants WHERE user_id = $1;

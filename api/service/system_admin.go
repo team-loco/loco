@@ -81,12 +81,8 @@ func (s *SystemAdminServer) GrantSystemAdmin(
 	if err := authorizeSystem(ctx, s.authz, actions.ManageSystemAdmins); err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
-	if err != nil {
-		return nil, err
-	}
 	userID := uuid.MustParse(req.GetUserId())
-	err = withTx(ctx, s.pool, func(qtx *genDb.Queries) error {
+	err := withTx(ctx, s.pool, func(qtx *genDb.Queries) error {
 		user, lookupErr := qtx.GetUserByID(ctx, userID)
 		if errors.Is(lookupErr, pgx.ErrNoRows) {
 			return ErrUserNotFound
@@ -94,9 +90,7 @@ func (s *SystemAdminServer) GrantSystemAdmin(
 		if lookupErr != nil {
 			return fmt.Errorf("look up user: %w", lookupErr)
 		}
-		added, grantErr := qtx.AddSystemAdminGrant(ctx, genDb.AddSystemAdminGrantParams{
-			UserID: userID, GrantedBy: new(p.Entity.ID),
-		})
+		added, grantErr := qtx.AddSystemAdminGrant(ctx, userID)
 		if grantErr != nil {
 			return fmt.Errorf("record system admin grant: %w", grantErr)
 		}
