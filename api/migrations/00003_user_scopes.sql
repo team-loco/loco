@@ -103,6 +103,10 @@ CREATE TABLE invitations (
 CREATE UNIQUE INDEX invitations_open_idx ON invitations (org_id, lower(email)) WHERE claimed_at IS NULL AND revoked_at IS NULL;
 CREATE INDEX invitations_email_open_idx ON invitations (lower(email)) WHERE claimed_at IS NULL AND revoked_at IS NULL;
 
+CREATE INDEX invitations_org_idx ON invitations (org_id);
+CREATE INDEX invitations_invited_by_idx ON invitations (invited_by);
+CREATE INDEX invitations_claimed_by_idx ON invitations (claimed_by);
+
 -- +goose Down
 DROP TABLE IF EXISTS invitations;
 DROP TABLE IF EXISTS api_tokens;

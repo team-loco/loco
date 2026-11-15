@@ -314,6 +314,8 @@ WHERE
 
 CREATE INDEX idx_placement_windows_cluster_id ON placement_windows (cluster_id);
 
+CREATE INDEX idx_placement_windows_workspace_id ON placement_windows (workspace_id);
+
 CREATE TABLE
     builds (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
@@ -345,6 +347,8 @@ CREATE TABLE
     );
 
 CREATE INDEX idx_builds_resource_created_at ON builds (resource_id, created_at DESC);
+
+CREATE INDEX idx_builds_cluster_id ON builds (cluster_id);
 
 CREATE INDEX idx_builds_cluster_active ON builds (cluster_id)
 WHERE
@@ -392,6 +396,8 @@ CREATE INDEX idx_registry_credentials_expires_at ON registry_credentials (expire
 CREATE INDEX idx_registry_credentials_cluster_id ON registry_credentials (cluster_id);
 
 CREATE INDEX idx_registry_credentials_build_id ON registry_credentials (build_id);
+
+CREATE INDEX idx_registry_credentials_workspace_id ON registry_credentials (workspace_id);
 
 -- +goose Down
 DROP TABLE IF EXISTS registry_credentials;
