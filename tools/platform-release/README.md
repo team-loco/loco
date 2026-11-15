@@ -62,6 +62,34 @@ The cluster configuration supplies `platform-reconciler` in `flux-system`, the `
 
 Each source has a `values.yaml` key. ConfigMaps and Secrets remain owned by the cluster configuration. The release creates the `loco-obs`, `loco-obs-node` and `loco-builds` namespaces itself. For a cluster's first agent start, the values set `agent.joinToken.existingSecret` to a Secret holding the join token `locoadm cluster create` printed. They must also set `global.region` to the region the cluster is registered under in the API and `global.exporter.endpoint` to the OTLP/HTTP endpoint the collectors export to; the chart fails to render without either. Bundle values override image references. No chart installs CRDs: the `crds` layer applies them. CRD Kustomizations disable pruning; each CRD also carries a prune protection annotation.
 
+## Releases from source
+
+`locoadm` installs from a local `release.json` when the installation file sets `release.manifest`. Two tasks print one for an unreleased commit.
+
+`release:main` resolves a commit on `main` from what CI already published: the chart and CRD bundle versions its source pins and its `sha-<commit>` images. Without `--commit` it takes the newest of the last 50 first-parent commits of `origin/main` whose six images are all published. It verifies each image's attestation like the bundle publisher, needs `gh` signed in, and publishes nothing.
+
+```sh
+git fetch origin main
+mise run release:main -- --repository team-loco/loco > release.json
+```
+
+`release:local` builds the checkout, including uncommitted changes, into a registry you run. It packages the charts and CRD bundles, builds the six images for the Docker daemon's platform and pushes everything as version `0.0.0-local.g<commit>`, replacing an earlier push of that version. `--push` is the registry address on this machine, served over plain HTTP when it starts with `localhost:`. `--address` is the name the `release.json` gives the same registry, which both `locoadm` and the cluster's nodes must reach. The registry must allow anonymous pulls of the pushed repositories.
+
+```sh
+mise run release:local -- --repository team-loco/loco \
+  --push localhost:15000 --address registry.example.localhost:15000 \
+  --username push --password "$REGISTRY_PASSWORD" > release.json
+```
+
+Build `loco` and `locoadm` from the same commit, with the version the `release.json` names:
+
+```sh
+version=$(jq -r .version release.json)
+for binary in loco locoadm; do
+  go -C cmd build -ldflags "-X main.version=v$version" -o "../bin/$binary" "./$binary"
+done
+```
+
 Validate packaging and failure paths without registry writes:
 
 ```sh

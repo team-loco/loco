@@ -365,6 +365,14 @@ run = "python tools/platform-release/release.py artifacts"
 description = "Publish the platform bundle pinning the published chart and CRD bundle versions and the image digests"
 run = "python tools/platform-release/release.py bundle"
 
+[tasks."release:main"]
+description = "Print the release.json of the newest main commit, or --commit, from the images, charts and CRD bundles CI published for it; publishes nothing"
+run = "python tools/platform-release/release.py main"
+
+[tasks."release:local"]
+description = "Build the checkout's images, charts and CRD bundles into a registry with --push, --address, --username and --password, and print the release.json naming them"
+run = "python tools/platform-release/release.py local"
+
 [tasks."test:platform-render"]
 description = "Render and package the real platform charts, CRDs and Flux layers"
 depends = ["helm:deps"]
