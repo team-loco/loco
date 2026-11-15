@@ -321,7 +321,8 @@ jobs:
   publish:
     name: Publish ${{ matrix.name }} Image
     needs: [images, gate]
-    if: github.event_name == 'push' && needs.gate.result == 'success'
+    # A skipped check upstream of the gate would skip this job without !cancelled().
+    if: ${{ !cancelled() && github.event_name == 'push' && needs.gate.result == 'success' && needs.images.result == 'success' }}
     permissions:
       contents: read
       packages: write
@@ -354,7 +355,7 @@ jobs:
   notify-deploy:
     name: Notify the Deployment Repository
     needs: [gate, publish]
-    if: vars.DEPLOY_DISPATCH_REPOSITORY != ''
+    if: ${{ !cancelled() && vars.DEPLOY_DISPATCH_REPOSITORY != '' && needs.publish.result == 'success' }}
     runs-on: ubuntu-latest
     permissions: {}
     steps:
