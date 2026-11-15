@@ -72,6 +72,8 @@ Setting `injectOtel` to `false` removes the injected set on rollout and preserve
 
 For data sent to Loco, the collector attaches workspace, environment and resource IDs from pod labels and drops application-supplied values for those IDs.
 
+The collector preserves application-provided service identity. By default it does not infer `service.name`, `service.namespace`, `service.version` or `service.instance.id` from Kubernetes labels, workload names, namespaces or container images. Kubernetes identity remains available under the `k8s.*` attributes.
+
 Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. In `CreateDeployment`, a nonempty environment map replaces the plain values. Omit `secret_bindings` to keep the current secret names. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings. To remove plain values, edit `loco.yaml` and apply it.
 
 ### Trace sampling
