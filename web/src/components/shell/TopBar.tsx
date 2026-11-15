@@ -1,9 +1,12 @@
+import { useSidebar } from "@/components/design/Sidebar";
 import { AlertsDrawer } from "./AlertsDrawer";
 import { CommandMenu } from "./CommandMenu";
 import { ShellBreadcrumb } from "./ShellBreadcrumb";
 import { SidebarToggle } from "./SidebarToggle";
 
 export function TopBar() {
+	const { open, isMobile, openMobile } = useSidebar();
+	const sidebarOpen = isMobile ? openMobile : open;
 	return (
 		<header
 			data-slot="top-bar"
@@ -12,7 +15,7 @@ export function TopBar() {
 			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
 			<AlertsDrawer />
-			<CommandMenu />
+			{!sidebarOpen && <CommandMenu />}
 		</header>
 	);
 }

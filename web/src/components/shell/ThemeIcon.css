@@ -82,3 +82,52 @@
 .theme-icon[data-mode="monitor"]::after {
 	transform: scale(0);
 }
+
+.theme-icon-motion[data-motion="sun"] {
+	animation: mode-sun 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.theme-icon-motion[data-motion="moon"] {
+	animation: mode-moon 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.theme-icon-motion[data-motion="monitor"] {
+	animation: mode-monitor 0.42s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+@keyframes mode-sun {
+	from {
+		transform: rotate(-90deg) scale(0.5);
+	}
+	to {
+		transform: rotate(0) scale(1);
+	}
+}
+@keyframes mode-moon {
+	0% {
+		transform: rotate(50deg) scale(0.6);
+	}
+	60% {
+		transform: rotate(-12deg) scale(1.05);
+	}
+	100% {
+		transform: rotate(0);
+	}
+}
+@keyframes mode-monitor {
+	from {
+		transform: translateY(3px) scale(0.7);
+		opacity: 0.3;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.theme-icon-motion {
+		animation: none !important;
+	}
+	.theme-icon,
+	.theme-icon::before,
+	.theme-icon::after {
+		transition: none;
+	}
+}

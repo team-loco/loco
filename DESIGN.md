@@ -147,3 +147,5 @@ The Audit log page shows the whole organization to organization admins and the w
 Shared control behavior comes from the Base UI shadcn registry through the design wrappers: ToggleChip/ToggleGroup for pressed state, DropdownMenu for chart actions, Collapsible for optional panels and history rows, RadioGroup for theme cards, Field for labels/messages, Progress for replica readiness and Spinner for pending actions. Field delegates control association to Base UI; Input registers directly and Textarea uses Field.Control.
 
 The observability custom range uses the shared DateTimePicker: shadcn's Calendar in a Popover and a native time input, in the browser's locale and the user's local timezone. It preserves minute precision and the existing range validation.
+
+The sidebar search opens the shared command palette. Header search appears while the sidebar is collapsed. The user menu keeps System, Light, and Dark in one segmented Mode control with a sliding selection and reduced-motion support.

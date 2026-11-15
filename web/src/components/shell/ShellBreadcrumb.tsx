@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 
 const TRIGGER =
-	"flex h-8 min-w-0 items-center gap-2 rounded-md px-2 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
+	"flex h-[26px] min-w-0 items-center gap-[5px] rounded-[5px] px-1.5 -mx-0.5 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
 
 function Slash() {
 	return <BreadcrumbSeparator className="px-0.5 text-fg4">/</BreadcrumbSeparator>;
@@ -56,7 +56,7 @@ function EnvSwitcher({ children, label }: { children: ReactNode; label: string }
 					<span className="truncate">{label}</span>
 					<ChevronDownIcon className="size-3.5 shrink-0 text-fg3" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent className="w-[240px]" align="start">
+				<DropdownMenuContent className="w-[240px]" align="start" sideOffset={6} alignOffset={-4}>
 					<DropdownMenuGroup>
 						<DropdownMenuLabel>Environments</DropdownMenuLabel>
 						{children}
@@ -109,7 +109,7 @@ function ScopeSwitcher({
 					)}
 					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent className="w-[248px]" align="start">
+				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
 					{orgs.map((o, i) => {
 						const orgWorkspaces = results[i]?.data?.workspaces ?? [];
 						const first = orgWorkspaces[0];

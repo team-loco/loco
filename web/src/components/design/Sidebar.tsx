@@ -130,8 +130,15 @@ function SidebarResizer() {
 }
 
 function Sidebar({ className, children, ...props }: React.ComponentProps<typeof SidebarBase>) {
+	const { open, isMobile } = useSidebar();
 	return (
-		<SidebarBase variant="inset" collapsible="offcanvas" className={cn(motion, "z-30 p-0", className)} {...props}>
+		<SidebarBase
+			inert={!isMobile && !open}
+			variant="inset"
+			collapsible="offcanvas"
+			className={cn(motion, "z-30 p-0", className)}
+			{...props}
+		>
 			{children}
 			<SidebarResizer />
 		</SidebarBase>

@@ -93,7 +93,7 @@ export function NotFound({
 	return (
 		<main className="flex min-h-dvh flex-col bg-background text-foreground">
 			<PageTitle title="Page not found" />
-			<header className="px-[clamp(16px,3vw,28px)] pt-5">
+			<header className="flex justify-center px-[clamp(16px,3vw,28px)] pt-5">
 				<DashboardLink
 					unknownWorkspace={unknownWorkspace}
 					staticPage={isStatic}
