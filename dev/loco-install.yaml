@@ -3,7 +3,7 @@ name: local
 release:
   manifest: {{ .State }}/release.json
 controlPlane:
-  kubernetes: &cluster
+  kubernetes:
     context: kind-{{ .Cluster }}
     clusterUID: {{ .ClusterUID }}
     namespace: loco-control-plane
@@ -36,7 +36,8 @@ controlPlane:
 workers:
   - name: local
     kubernetes:
-      <<: *cluster
+      context: kind-{{ .Cluster }}
+      clusterUID: {{ .ClusterUID }}
       namespace: loco-system
     region: local
     tier: staging

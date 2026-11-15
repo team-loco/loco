@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	strictyaml "go.yaml.in/yaml/v2"
 	"sigs.k8s.io/yaml"
 )
 
@@ -43,6 +44,10 @@ func TestInstallationTemplateMatchesSchema(t *testing.T) {
 	data, err := os.ReadFile(cfg.file())
 	if err != nil {
 		t.Fatal(err)
+	}
+	var strict any
+	if err = strictyaml.UnmarshalStrict(data, &strict); err != nil {
+		t.Fatalf("installer YAML decoding: %v", err)
 	}
 	jsonData, err := yaml.YAMLToJSON(data)
 	if err != nil {
