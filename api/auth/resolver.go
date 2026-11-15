@@ -69,10 +69,10 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, []Clai
 	}
 	id.EmailVerified = verified
 	user, claimed, err = r.provision(ctx, id)
-	if !isUniqueViolation(err) {
+	if !isUniqueViolation(err) && !errors.Is(err, ErrEmailTaken) {
 		return user, claimed, err
 	}
-	// A concurrent sign-in created the account first: this identity's, or another one with the same email.
+	// A concurrent sign-in of this identity may have created the account since the lookup above.
 	user, claimed, err = r.existing(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return genDb.User{}, nil, ErrEmailTaken
