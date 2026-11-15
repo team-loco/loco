@@ -488,7 +488,7 @@ func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
 					violation = fields[0].GetDescription()
 				}
 			case *errdetails.ErrorInfo:
-				if value.GetReason() == logQueryReason {
+				if value.GetReason() == querySyntaxReason {
 					position = value.GetMetadata()["position"]
 				}
 			}

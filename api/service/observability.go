@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
@@ -92,7 +90,7 @@ func (s *ObservabilityServer) logQuery(ctx context.Context, req logFilterRequest
 		err = chClient.ValidateLogFilter(filter)
 	}
 	if err != nil {
-		return chClient.LogQuery{}, logQueryError(err)
+		return chClient.LogQuery{}, querySyntaxError(err)
 	}
 	if err = s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
 		return chClient.LogQuery{}, err
@@ -109,26 +107,6 @@ func (s *ObservabilityServer) logQuery(ctx context.Context, req logFilterRequest
 		}
 	}
 	return query, nil
-}
-
-// logQueryReason marks a rejected log query; its ErrorInfo carries the 1-based character position.
-const logQueryReason = "LOG_QUERY_SYNTAX"
-
-// logQueryError rejects a query the parser or the log rules refuse, with a BadRequest violation on
-// query and the position as ErrorInfo metadata, so clients can point at the problem.
-func logQueryError(err error) error {
-	var syntax *logquery.SyntaxError
-	if !errors.As(err, &syntax) {
-		return rpcerr.New(connect.CodeInvalidArgument, err)
-	}
-	public := withDetail(connect.NewError(connect.CodeInvalidArgument, syntax.Error()), &errdetails.BadRequest{
-		FieldViolations: []*errdetails.BadRequest_FieldViolation{{Field: "query", Description: syntax.Message}},
-	})
-	return withDetail(public, &errdetails.ErrorInfo{
-		Reason:   logQueryReason,
-		Domain:   buildErrorDomain,
-		Metadata: map[string]string{"position": strconv.Itoa(syntax.Position)},
-	})
 }
 
 func (s *ObservabilityServer) resourceNames(ctx context.Context, workspaceID string) ([]chClient.ResourceName, error) {

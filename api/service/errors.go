@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"log/slog"
+	"strconv"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectproto"
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/team-loco/loco/internal/logquery"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -51,6 +53,26 @@ const (
 	imageReferenceInvalidReason    = "IMAGE_REFERENCE_INVALID"
 	imagePlatformUnsupportedReason = "IMAGE_PLATFORM_UNSUPPORTED"
 )
+
+// querySyntaxReason marks a rejected query; its ErrorInfo carries the 1-based character position.
+const querySyntaxReason = "QUERY_SYNTAX"
+
+// querySyntaxError rejects a query with a BadRequest violation on query and the position as
+// ErrorInfo metadata, so clients can point at the problem. err must hold a *logquery.SyntaxError.
+func querySyntaxError(err error) error {
+	var syntax *logquery.SyntaxError
+	if !errors.As(err, &syntax) {
+		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+	}
+	public := withDetail(connect.NewError(connect.CodeInvalidArgument, syntax.Error()), &errdetails.BadRequest{
+		FieldViolations: []*errdetails.BadRequest_FieldViolation{{Field: "query", Description: syntax.Message}},
+	})
+	return withDetail(public, &errdetails.ErrorInfo{
+		Reason:   querySyntaxReason,
+		Domain:   buildErrorDomain,
+		Metadata: map[string]string{"position": strconv.Itoa(syntax.Position)},
+	})
+}
 
 func fieldError(code connect.Code, field, message, reason string) *connect.Error {
 	err := withDetail(connect.NewError(code, message), &errdetails.BadRequest{

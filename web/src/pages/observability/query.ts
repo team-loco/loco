@@ -263,7 +263,7 @@ export function queryError(error: Error, query: string): QueryError | null {
 		.findDetails(BadRequestSchema)
 		.flatMap((d) => d.fieldViolations)
 		.find((v) => v.field === "query");
-	const info = error.findDetails(ErrorInfoSchema).find((d) => d.reason === "LOG_QUERY_SYNTAX");
+	const info = error.findDetails(ErrorInfoSchema).find((d) => d.reason === "QUERY_SYNTAX");
 	const position = Number(info?.metadata["position"]);
 	if (violation === undefined || !Number.isInteger(position)) return null;
 	return { query, message: violation.description, position };
