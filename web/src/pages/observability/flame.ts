@@ -139,8 +139,7 @@ export function failingSpan(trace: TraceSummary, selected: TraceSpan): TraceSpan
 	return failing.toSorted((a, b) => (spanStart(a) < spanStart(b) ? -1 : 1))[0];
 }
 
-export function descendantIds(trace: TraceSummary, spanId: string): Set<string> {
-	const children = childrenOf(trace);
+export function descendantIds(trace: TraceSummary, spanId: string, children = childrenOf(trace)): Set<string> {
 	const out = new Set<string>();
 	const stack = [spanId];
 	while (stack.length > 0) {

@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useTraceResources } from "./TraceColors";
+import { useMemo, useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { descendantIds, type Zoom } from "../flame";
 import type { LogRow } from "../rows";
@@ -28,6 +29,7 @@ export function TraceLogs({
 	highlight: string | null;
 }) {
 	const logs = useTraceLogs(trace);
+	const { children } = useTraceResources();
 	const [hoverSpan, setHoverSpan] = useState<string | null>(null);
 	const [hoverLog, setHoverLog] = useState<LogRow | null>(null);
 	const [nearLog, setNearLog] = useState<string | null>(null);
@@ -35,22 +37,37 @@ export function TraceLogs({
 	const [tab, setTab] = useState("logs");
 	const [collapsed, setCollapsed] = useState(false);
 	const rootRef = useRef<HTMLDivElement>(null);
-	const ids = hoverSpan === null ? new Set<string>() : descendantIds(trace, hoverSpan);
-	const highlighted = new Set(
-		logs.rows.filter((r) => ids.has(r.entry.spanId) || r.key === hoverLog?.key || r.key === nearLog).map((r) => r.key),
+	const ids = useMemo(
+		() => (hoverSpan === null ? new Set<string>() : descendantIds(trace, hoverSpan, children)),
+		[trace, hoverSpan, children],
+	);
+
+	const highlighted = useMemo(
+		() =>
+			new Set(
+				logs.rows
+					.filter((row) => ids.has(row.entry.spanId) || row.key === hoverLog?.key || row.key === nearLog)
+					.map((row) => row.key),
+			),
+		[logs.rows, ids, hoverLog, nearLog],
 	);
 	const scroll = (key: string | undefined) => {
-		if (key !== undefined)
-			rootRef.current
-				?.querySelector<HTMLElement>(`[data-log-key="${CSS.escape(key)}"]`)
-				?.scrollIntoView({ block: "nearest" });
+		if (key === undefined) return;
+		const row = rootRef.current?.querySelector<HTMLElement>(`[data-log-key="${CSS.escape(key)}"]`);
+		const list = row?.closest<HTMLElement>("[data-trace-log-scroll]");
+		if (row === undefined || row === null || list === undefined || list === null) return;
+		const rect = row.getBoundingClientRect(),
+			bounds = list.getBoundingClientRect();
+		if (rect.top < bounds.top) list.scrollTop += rect.top - bounds.top;
+		else if (rect.bottom > bounds.bottom) list.scrollTop += rect.bottom - bounds.bottom;
 	};
+
 	const hover = (id: string | null) => {
 		if (id === hoverSpan && nearLog === null) return;
 		setHoverSpan(id);
 		setNearLog(null);
 		if (id !== null) {
-			const descendants = descendantIds(trace, id);
+			const descendants = descendantIds(trace, id, children);
 			scroll(logs.rows.find((r) => descendants.has(r.entry.spanId))?.key);
 		}
 	};
@@ -66,7 +83,7 @@ export function TraceLogs({
 			undefined,
 		);
 		setNearLog(nearest?.key ?? null);
-		scroll(nearest?.key);
+		if (nearest?.key !== nearLog) scroll(nearest?.key);
 	};
 	const open = (row: LogRow | null) => {
 		setOpened(row);

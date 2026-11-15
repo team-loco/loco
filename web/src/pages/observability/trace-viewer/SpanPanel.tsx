@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronRightIcon, CircleAlertIcon, PlusIcon, MinusIcon } from "lucide-react";
 import { Badge } from "@/components/design/Badge";
@@ -8,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/design/Ta
 import { cn } from "@/lib/utils";
 import { SpanEvents } from "../SpanEvents";
 import { SpanLinks } from "../SpanLinks";
-import { failingSpan, selfTime } from "../flame";
+import { failingSpan } from "../flame";
 import { durationLabel, spanError, spanStart, type TraceSummary } from "../traces";
 import { useTraceResources } from "./TraceColors";
 import { spanAttributes, ATTRIBUTE_TABS } from "./attributes";
@@ -26,12 +27,12 @@ export function SpanPanel({
 	select: (span: TraceSpan) => void;
 	label: (span: TraceSpan) => string;
 }) {
-	const { color } = useTraceResources();
-	const cause = failingSpan(trace, selected);
+	const { color, selfTime } = useTraceResources();
+	const cause = useMemo(() => failingSpan(trace, selected), [trace, selected]);
 	const tabs = spanAttributes(selected);
 	const facts: [string, string][] = [
 		["duration", durationLabel(selected.durationNanos)],
-		["self time", durationLabel(selfTime(trace, selected))],
+		["self time", durationLabel(selfTime(selected))],
 		["start offset", durationLabel(spanStart(selected) - trace.start)],
 		["kind", selected.kind],
 		["status", selected.statusCode],
