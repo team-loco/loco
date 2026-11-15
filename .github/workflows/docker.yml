@@ -13,51 +13,9 @@ permissions:
 
 jobs:
 
-  changes:
-    name: Detect Changed Images
-    runs-on: ubuntu-latest
-    outputs:
-      images: ${{ steps.filter.outputs.images }}
-      targets: ${{ steps.filter.outputs.targets }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Filter
-        id: filter
-        env:
-          EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          targets='{"runner":"ubuntu-latest","platform":"linux/amd64"}'
-          if [ "$EVENT" = pull_request ]; then
-            FILES=$(git diff --name-only "$BASE...$HEAD")
-          else
-            FILES=$(git ls-files)
-            targets+=',{"runner":"ubuntu-24.04-arm","platform":"linux/arm64"}'
-          fi
-          sel=()
-          add() {
-            grep -qE "^($3/|\.github/workflows/docker\.yml$|tools/platform-images/$4)" <<<"$FILES" || return 0
-            sel+=("{\"name\":\"$1\",\"cache_scope\":\"$2\",\"dockerfile\":\"./$3/Dockerfile\"}")
-          }
-          add Controller controller controller '|k8sapi/'
-          add API api api '|k8sapi/|gen/go/|internal/|go\.(mod|sum)$'
-          add UI ui web '|gen/ts/|docs/(pyproject\.toml|uv\.lock|zensical\.toml|scripts/|content/|overrides/)|schemas/loco\.v1\.json$|package\.json$|bun\.lock$'
-          add Agent agent agent '|k8sapi/|gen/go/|internal/|go\.(mod|sum)$'
-          add "Observability Proxy" obs-proxy observability-proxy '|gen/go/|internal/|go\.(mod|sum)$'
-          add Builder builder builder ''
-          echo "images=[$(IFS=,; echo "${sel[*]-}")]" >> "$GITHUB_OUTPUT"
-          echo "targets=[$targets]" >> "$GITHUB_OUTPUT"
-
   buildkit-check:
-    name: Images ${{ matrix.target.platform }}
-    needs: changes
-    if: needs.changes.outputs.images != '[]'
-    runs-on: ${{ matrix.target.runner }}
+    name: Images ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     permissions:
       contents: read
       packages: read
@@ -65,7 +23,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJSON(needs.changes.outputs.targets) }}
+        # Images builds arm64 only for a push to main.
+        platform: ${{ fromJSON(github.event_name == 'push' && '["linux/amd64","linux/arm64"]' || '["linux/amd64"]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,14 +40,13 @@ jobs:
 
       # docker-bake.hcl builds each image with the context CopyIgnoredFile
       # and friends must be checked against.
-      - name: Check, then pull or build, and verify each changed image
+      - name: Check, then pull or build, and verify each image
         env:
           IMAGES: ${{ inputs.images }}
-          CHANGED: ${{ needs.changes.outputs.images }}
-          PLATFORM: ${{ matrix.target.platform }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          mapfile -t targets < <(jq -r '.[].cache_scope' <<<"$CHANGED")
+          targets=(controller api agent builder obs-proxy ui)
           docker buildx bake --call check \
             --set '*.args.BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all' "${targets[@]}"
           pull=true

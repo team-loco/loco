@@ -83,10 +83,10 @@ jobs:
 
           # an image is rescanned when its own tree, its Dockerfile, or a module
           # graph it compiles against moves
-          add '"controller"' '^(controller/|k8sapi/)'
+          add '"controller"' '^(controller/|internal/buildinfo/|go\.mod$|go\.sum$|k8sapi/)'
           add '"api"' '^(api/|gen/go/|internal/buildinfo/|go\.mod$|go\.sum$|k8sapi/)'
           add '"agent"' '^(agent/|gen/go/|internal/buildinfo/|go\.mod$|go\.sum$|k8sapi/)'
-          add '"builder"' '^builder/'
+          add '"builder"' '^(builder/|internal/buildinfo/|go\.mod$|go\.sum$)'
           add '"observability-proxy"' '^(observability-proxy/|gen/go/|internal/buildinfo/|go\.mod$|go\.sum$)'
           add '"ui"' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
 

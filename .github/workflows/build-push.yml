@@ -37,8 +37,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The tag moves to the tested index by digest, so the published image is
-      # byte for byte the one CI tested.
+      # The tag moves by digest to the index CI built. A push runs Docker, Charts
+      # and OSV on it when its files select them; e2e tests a pull request's amd64 build.
       - name: Tag the tested image
         id: push
         env:
