@@ -386,3 +386,14 @@ run = "./mise-tasks/obs/serve"
 [tasks."e2e:installation"]
 description = "Install through locoadm with real OIDC, a configured admin's sign-in under closed signup and an in-cluster staging worker, then build source and verify HTTPS; accepts --no-teardown and --skip-build"
 run = "go run ./tools/installation-e2e"
+
+[tasks."stack:install"]
+description = "Install this checkout's control plane and local worker through locoadm"
+env = { _.source = "dev/stack.sh" }
+run = "go run ./tools/localstack install"
+
+[tasks."stack:ca"]
+description = "Export the local apps CA as PEM"
+quiet = true
+env = { _.source = "dev/stack.sh" }
+run = "go run ./tools/localstack ca"

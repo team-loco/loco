@@ -18,19 +18,54 @@
     },
     "accessControl": {
       "repositories": {
+        "team-loco/**": {
+          "anonymousPolicy": [
+            "read"
+          ],
+          "policies": [
+            {
+              "users": [
+                "builder"
+              ],
+              "actions": [
+                "read",
+                "create",
+                "update"
+              ]
+            }
+          ],
+          "defaultPolicy": [
+            "read"
+          ]
+        },
         "**": {
           "policies": [
             {
-              "users": ["builder"],
-              "actions": ["read", "create", "update"]
+              "users": [
+                "builder"
+              ],
+              "actions": [
+                "read",
+                "create",
+                "update"
+              ]
             },
             {
-              "users": ["nodes"],
-              "actions": ["read"]
+              "users": [
+                "nodes"
+              ],
+              "actions": [
+                "read"
+              ]
             },
             {
-              "users": ["api"],
-              "actions": ["read", "delete"]
+              "users": [
+                "api"
+              ],
+              "actions": [
+                "read",
+                "delete"
+              ]
             }
           ],
           "defaultPolicy": []

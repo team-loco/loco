@@ -1,0 +1,38 @@
+name: loco-dev
+services:
+  postgres:
+    extends: {file: compose.yaml, service: postgres}
+    networks:
+      default: {}
+      kind: {aliases: ["postgres.${STACK_DOMAIN}"]}
+  registry:
+    extends: {file: compose.yaml, service: registry}
+    ports: !override ["127.0.0.1:${REGISTRY_PORT}:${REGISTRY_PORT}"]
+    volumes: !override
+      - ${STACK_STATE}/registry.json:/etc/zot/config.json:ro
+      - ./registry/htpasswd:/etc/zot/htpasswd:ro
+      - registry-data:/var/lib/registry
+    networks:
+      default: {}
+      kind: {aliases: ["registry.${STACK_DOMAIN}"]}
+  s3:
+    extends: {file: compose.yaml, service: s3}
+    networks:
+      default: {}
+      kind: {aliases: ["s3.${STACK_DOMAIN}"]}
+  dex:
+    extends: {file: compose.yaml, service: dex}
+    ports: !override ["127.0.0.1:${DEX_PORT}:${DEX_PORT}"]
+    environment:
+      STACK_DOMAIN: ${STACK_DOMAIN}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${DEX_PORT}/dex/healthz"]
+    networks:
+      default: {}
+      kind: {aliases: ["dex.${STACK_DOMAIN}"]}
+networks:
+  kind: {external: true, name: kind}
+volumes:
+  postgres-data:
+  registry-data:
+  s3-data:

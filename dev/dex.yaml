@@ -1,11 +1,20 @@
+{{- if getenv "STACK_DOMAIN" }}
+issuer: http://dex.{{ .Env.STACK_DOMAIN }}:{{ .Env.DEX_PORT }}/dex
+{{- else }}
 issuer: http://localhost:{{ .Env.DEX_PORT }}/dex
+{{- end }}
 storage:
   type: memory
 web:
+{{- if getenv "STACK_DOMAIN" }}
+  http: 0.0.0.0:{{ .Env.DEX_PORT }}
+{{- else }}
   http: 0.0.0.0:5556
+{{- end }}
   allowedOrigins:
     - {{ .Env.WEB_URL }}
 oauth2:
+  passwordConnector: local
   skipApprovalScreen: true
 enablePasswordDB: true
 staticPasswords:
@@ -27,5 +36,9 @@ connectors:
     config:
       clientID: {{ .Env.GH_OAUTH_CLIENT_ID }}
       clientSecret: {{ .Env.GH_OAUTH_CLIENT_SECRET }}
+{{- if getenv "STACK_DOMAIN" }}
+      redirectURI: http://dex.{{ .Env.STACK_DOMAIN }}:{{ .Env.DEX_PORT }}/dex/callback
+{{- else }}
       redirectURI: http://localhost:{{ .Env.DEX_PORT }}/dex/callback
+{{- end }}
 {{- end }}
