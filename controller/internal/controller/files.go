@@ -51,7 +51,7 @@ func (r *ApplicationReconciler) ensureFilesConfigMap(ctx context.Context, app *l
 	return nil
 }
 
-// mountFiles uses subPath so each file sits beside what the image keeps in its directory.
+// mountFiles mounts each file at its own path with subPath.
 func mountFiles(
 	app *locov1alpha1.Application,
 	container *corev1ac.ContainerApplyConfiguration,
@@ -72,7 +72,7 @@ func mountFiles(
 	return []*corev1ac.VolumeApplyConfiguration{corev1ac.Volume().WithName(filesVolume).WithConfigMap(source)}
 }
 
-// fileKey derives the key from the path alone, since ConfigMap keys cannot hold slashes.
+// fileKey returns the ConfigMap key for a path.
 func fileKey(path string) string {
 	sum := sha256.Sum256([]byte(path))
 	return hex.EncodeToString(sum[:8])

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// The total keeps the Application and the files ConfigMap well under the 1 MiB object size limit.
+// MaxFiles and MaxFilesBytes bound the count and total content size of a service's files.
 const (
 	MaxFiles      = 20
 	MaxFilesBytes = 256 * 1024

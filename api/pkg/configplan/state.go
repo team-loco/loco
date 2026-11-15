@@ -274,7 +274,7 @@ func diff(before, after *State) []Change {
 	return changes
 }
 
-// fileSummary keeps whole files out of the plan output.
+// fileSummary returns a file's size and SHA-256 prefix for the plan.
 func fileSummary(content string) string {
 	sum := sha256.Sum256([]byte(content))
 	return fmt.Sprintf("%d bytes, sha256 %s", len(content), hex.EncodeToString(sum[:6]))
