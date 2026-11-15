@@ -66,7 +66,7 @@ function Pager({
 	return (
 		<div
 			className={cn(
-				"flex flex-wrap items-center gap-2 border-t border-line2 px-5 pt-3 pb-3.5 text-[12.5px] text-fg2",
+				"flex flex-wrap items-center gap-2 border-t border-line2 px-5 py-2.5 text-[12.5px] text-fg2",
 				className,
 			)}
 		>

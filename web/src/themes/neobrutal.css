@@ -26,6 +26,8 @@
 	--warn: #a87900;
 	--err: #e5383b;
 	--ink: #000000;
+	--nb-hover: rgba(0, 0, 0, 0.05);
+	--row-hover: var(--nb-hover);
 	--tint: #fde4e6;
 	--pop-shadow: 4px 4px 0 0 var(--ink);
 	--overlay-shadow: 4px 4px 0 0 var(--ink);
@@ -42,6 +44,8 @@
 }
 
 .dark[data-theme="neobrutal"] {
+	--nb-hover: rgba(255, 255, 255, 0.06);
+	--row-hover: var(--nb-hover);
 	--shell: #262835;
 	--shell-hover: #30333f;
 	--bg: #2e3040;
@@ -147,4 +151,12 @@
 			color: #000000;
 		}
 	}
+}
+
+[data-theme="neobrutal"] [data-slot="table-header"] {
+	border-bottom: 2px solid var(--ink);
+	font-weight: 700;
+}
+[data-theme="neobrutal"] [data-slot="table-head"] {
+	font-weight: 700;
 }

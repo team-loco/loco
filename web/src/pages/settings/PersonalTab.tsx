@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { createQueryOptions, useMutation, useTransport } from "@connectrpc/connect-query";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { deleteUser, updateUser } from "@gen/loco/user/v1/user-UserService_connectquery";
@@ -25,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { accountBlockers } from "./account";
+import { DateTimeSection } from "./DateTimeSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
@@ -39,6 +41,7 @@ export function PersonalTab({
 	draft: string | null;
 	onDraft: (name: string | null) => void;
 }) {
+	const timePref = useTimePreferences();
 	const { logout } = useAuth();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -120,13 +123,15 @@ export function PersonalTab({
 									<span className="truncate">{user.id}</span>
 								</CopyId>,
 							],
-							["Joined", formatDay(user.createdAt)],
+							["Joined", formatDay(user.createdAt, timePref)],
 						]}
 					/>
 				</SettingsCard>
 			</SettingsSection>
 
 			<AppearanceSection />
+
+			<DateTimeSection />
 
 			<SettingsSection title="Access">
 				<SettingsCard>

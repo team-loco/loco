@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { BoxIcon, ChartLineIcon, ScrollTextIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -26,6 +27,7 @@ export function EventDetail({
 	onNext: (() => void) | null;
 	onClose: () => void;
 }) {
+	const timePref = useTimePreferences();
 	const { orgId, workspaceId, resourceByName, goTo } = useObs();
 	const navigate = useNavigate();
 	const [copied, copy] = useCopy();
@@ -48,8 +50,8 @@ export function EventDetail({
 		{ k: "Deployment", v: "", soon: true },
 		{ k: "Reason", v: item.reason === "" ? item.type : item.reason },
 		{ k: "Regions", v: res === undefined || res.regions.length === 0 ? "—" : res.regions.join(", ") },
-		{ k: "Last seen", v: fmtTs(last, true) },
-		{ k: "First seen", v: fmtTs(first, true) },
+		{ k: "Last seen", v: fmtTs(last, true, timePref) },
+		{ k: "First seen", v: fmtTs(first, true, timePref) },
 	];
 
 	return (
@@ -94,7 +96,7 @@ export function EventDetail({
 					<JumpButton
 						icon={<ScrollTextIcon />}
 						label={`Logs from ${item.resourceName}`}
-						hint={`around ${formatHourMinute(item.ts)}`}
+						hint={`around ${formatHourMinute(item.ts, timePref)}`}
 						onClick={() => {
 							goTo("logs", {
 								range: around(),
@@ -105,7 +107,7 @@ export function EventDetail({
 					/>
 					<JumpButton
 						icon={<ChartLineIcon />}
-						label={`Metrics at ${formatClock(item.ts)}`}
+						label={`Metrics at ${formatClock(item.ts, false, timePref)}`}
 						hint={item.resourceName}
 						onClick={() => {
 							goTo("metrics", {
@@ -132,15 +134,15 @@ export function EventDetail({
 							{ob.map((n, i) => (
 								<div
 									key={String(i)}
-									title={`${String(n)} at ${fmtTs(first + (i * span) / OCC_BUCKETS)}`}
+									title={`${String(n)} at ${fmtTs(first + (i * span) / OCC_BUCKETS, false, timePref)}`}
 									className={cn("min-h-px flex-1 rounded-[1px]", n > 0 ? st.dot : "bg-panel2")}
 									style={{ height: `${String((n / obmax) * 100)}%` }}
 								/>
 							))}
 						</div>
 						<div className="flex justify-between text-xs text-fg4">
-							<span>{fmtTs(first)}</span>
-							<span>{fmtTs(last)}</span>
+							<span>{fmtTs(first, false, timePref)}</span>
+							<span>{fmtTs(last, false, timePref)}</span>
 						</div>
 					</div>
 				)}

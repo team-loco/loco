@@ -10,12 +10,8 @@ import { cn } from "@/lib/utils";
 
 const FLUSH = "[&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5";
 
-function Table({ className, flush = false, ...props }: React.ComponentProps<typeof TableBase> & { flush?: boolean }) {
-	return (
-		<div className={cn(!flush && "px-5 pb-1.5")}>
-			<TableBase className={cn("text-[13px]", flush && FLUSH, className)} {...props} />
-		</div>
-	);
+function Table({ className, ...props }: React.ComponentProps<typeof TableBase>) {
+	return <TableBase className={cn("text-[13px]", FLUSH, className)} {...props} />;
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<typeof TableHeaderBase>) {
@@ -27,10 +23,20 @@ function TableBody({ className, ...props }: React.ComponentProps<typeof TableBod
 	return <TableBodyBase className={cn("not-last:[&_tr:last-child]:border-b", className)} {...props} />;
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<typeof TableRowBase>) {
+function TableRow({
+	className,
+	interactive = false,
+	...props
+}: React.ComponentProps<typeof TableRowBase> & { interactive?: boolean }) {
+	const clickable = interactive || props.onClick !== undefined;
 	return (
 		<TableRowBase
-			className={cn("border-line2 hover:bg-transparent data-[state=selected]:bg-panel2", className)}
+			data-interactive={clickable || undefined}
+			className={cn(
+				"border-line2 hover:bg-transparent data-[state=selected]:bg-panel2 [&:has(+_[data-subheader])]:border-b-0",
+				clickable && "hover:bg-(--row-hover)",
+				className,
+			)}
 			{...props}
 		/>
 	);
@@ -39,14 +45,14 @@ function TableRow({ className, ...props }: React.ComponentProps<typeof TableRowB
 function TableHead({ className, ...props }: React.ComponentProps<typeof TableHeadBase>) {
 	return (
 		<TableHeadBase
-			className={cn("h-[38px] px-2.5 text-[12.5px] font-normal text-fg3 first:pl-0 last:pr-0", className)}
+			className={cn("h-10 px-2.5 text-[12.5px] font-normal text-fg3 first:pl-0 last:pr-0", className)}
 			{...props}
 		/>
 	);
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<typeof TableCellBase>) {
-	return <TableCellBase className={cn("h-[62px] px-2.5 py-3 first:pl-0 last:pr-0", className)} {...props} />;
+	return <TableCellBase className={cn("h-[52px] px-2.5 py-2.5 first:pl-0 last:pr-0", className)} {...props} />;
 }
 
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow };

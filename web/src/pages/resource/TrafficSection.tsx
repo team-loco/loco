@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
@@ -5,7 +6,7 @@ import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useTraffic } from "@/hooks/useTraffic";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatHourMinute } from "@/lib/time";
+import { formatAxisTime, formatFullTime, timeAxis } from "@/lib/time";
 import { errorShare, latestTraffic, trafficValue } from "@/lib/traffic";
 import { RANGE_MS, type MetricRange } from "./metric";
 
@@ -29,6 +30,7 @@ export function TrafficSection({
 	region: string;
 	range: MetricRange;
 }) {
+	const timePref = useTimePreferences();
 	const traffic = useTraffic({
 		workspaceId,
 		environmentId,
@@ -37,6 +39,8 @@ export function TrafficSection({
 		spanMs: RANGE_MS[range],
 	});
 	const points = traffic.points.map((point) => ({ ...point, share: errorShare(point) }));
+	const from = points[0]?.time ?? 0;
+	const to = points.at(-1)?.time ?? from;
 	const latest = latestTraffic(traffic.points, resourceId);
 	return (
 		<Section title="Traffic">
@@ -66,7 +70,11 @@ export function TrafficSection({
 										<CartesianGrid vertical={false} stroke="var(--line)" />
 										<XAxis
 											dataKey="time"
-											tickFormatter={(time: number) => formatHourMinute(time)}
+											type="number"
+											domain={[from, to]}
+											ticks={timeAxis(from, to, timePref)}
+											interval="preserveStartEnd"
+											tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
 											tickLine={false}
 											axisLine={false}
 										/>
@@ -81,7 +89,7 @@ export function TrafficSection({
 												<ChartTooltipContent
 													labelFormatter={(_label, payload) => {
 														const point = payload[0]?.payload as { time?: number } | undefined;
-														return point?.time === undefined ? "" : new Date(point.time).toLocaleString();
+														return point?.time === undefined ? "" : formatFullTime(point.time, false, timePref);
 													}}
 												/>
 											}

@@ -121,6 +121,7 @@
 		--line: #ebebe9;
 		--line2: #d8d8d5;
 		--fg: #18181b;
+		--row-hover: color-mix(in oklab, var(--fg) 4%, transparent);
 		--fg2: #45454a;
 		--fg3: #66666c;
 		--fg4: #a1a1a6;
@@ -278,7 +279,8 @@
 	[role="switch"],
 	[role="checkbox"],
 	[role="radio"],
-	[role="combobox"] {
+	[role="combobox"],
+	[data-slot="table-row"][data-interactive] {
 		cursor: pointer;
 	}
 	:where(

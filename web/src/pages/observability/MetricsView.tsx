@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
@@ -193,6 +194,7 @@ function Meter({ value }: { value: number | undefined }) {
 }
 
 export function MetricsView() {
+	const timePref = useTimePreferences();
 	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, maxMs, goTo, setQuery, text } = useObs();
 	const navigate = useNavigate();
 	const [sort, setSort] = useQueryState("sort", metricSortParser);
@@ -210,7 +212,14 @@ export function MetricsView() {
 	const markers: ChartMarker[] = [
 		...deployMarkers,
 		...(focusTs !== null && focusTs >= from && focusTs <= to
-			? [{ t: focusTs, label: `focus ${formatHourMinute(focusTs)}`, title: "Selected time", color: "var(--fg)" }]
+			? [
+					{
+						t: focusTs,
+						label: `focus ${formatHourMinute(focusTs, timePref)}`,
+						title: "Selected time",
+						color: "var(--fg)",
+					},
+				]
 			: []),
 	];
 	const actions = (t: number): PinAction[] => {
@@ -221,7 +230,7 @@ export function MetricsView() {
 				key: `deploy-${m.resourceId}-${String(m.t)}`,
 				icon: <RocketIcon />,
 				label: `Deploy ${m.tag}`,
-				sub: `${m.resourceName} · ${m.region} · ${formatHourMinute(m.t)}`,
+				sub: `${m.resourceName} · ${m.region} · ${formatHourMinute(m.t, timePref)}`,
 				run: () => {
 					void navigate(resourcePath(orgId, workspaceId, m.resourceId));
 				},
@@ -229,7 +238,7 @@ export function MetricsView() {
 			{
 				key: "logs",
 				icon: <ScrollTextIcon />,
-				label: `Logs around ${formatHourMinute(t)}`,
+				label: `Logs around ${formatHourMinute(t, timePref)}`,
 				sub: "±5 minutes, same filters",
 				run: () => {
 					goTo("logs", { range: around, focusTs: t });
@@ -238,7 +247,7 @@ export function MetricsView() {
 			{
 				key: "traces",
 				icon: <WaypointsIcon />,
-				label: `Traces around ${formatHourMinute(t)}`,
+				label: `Traces around ${formatHourMinute(t, timePref)}`,
 				sub: "±5 minutes, same filters",
 				run: () => {
 					goTo("traces", { range: around });
@@ -247,7 +256,7 @@ export function MetricsView() {
 			{
 				key: "events",
 				icon: <BellIcon />,
-				label: `Events around ${formatHourMinute(t)}`,
+				label: `Events around ${formatHourMinute(t, timePref)}`,
 				sub: "deploys, restarts, health checks",
 				run: () => {
 					goTo("events", { range: around });

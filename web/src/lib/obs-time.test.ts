@@ -4,6 +4,8 @@ import { createLoader, createSerializer } from "nuqs";
 import { DAY_MS } from "./time";
 
 import {
+	toLocalInput,
+	fromLocalInput,
 	checkCustomRange,
 	formatSpan,
 	HOUR_MS,
@@ -19,6 +21,7 @@ import {
 	toWindow,
 	WINDOW_PARSERS,
 	windowValues,
+	windowLabel,
 } from "./obs-time";
 
 const loadWindow = createLoader(WINDOW_PARSERS);
@@ -119,4 +122,32 @@ describe("moving the time range", () => {
 		expect(joinLocalInput("", "12:00")).toBe("");
 		expect(joinLocalInput("2026-11-08", "12:00")).toBe("2026-11-08T12:00");
 	});
+});
+
+test("absolute UTC inputs round-trip the selected instant", () => {
+	const pref = { zone: "utc", clock: "12" } as const;
+	const instant = Date.UTC(2026, 10, 12, 13, 4);
+	expect(toLocalInput(instant, pref)).toBe("2026-11-12T13:04");
+	expect(fromLocalInput(toLocalInput(instant, pref), pref)).toBe(instant);
+});
+
+test("custom inputs reject dates and times the calendar would normalize", () => {
+	const pref = { zone: "utc", clock: "24" } as const;
+	for (const value of ["2026-02-30T12:00", "2026-11-12T24:00", "2026-11-12T12:"]) {
+		expect(fromLocalInput(value, pref)).toBeNaN();
+	}
+});
+
+test("a nonexistent local clock time is rejected rather than shifted", () => {
+	const value = "2026-03-08T02:30";
+	const pref = { zone: "local", clock: "24" } as const;
+	const instant = new Date(value).getTime();
+	if (toLocalInput(instant, pref) !== value) expect(fromLocalInput(value, pref)).toBeNaN();
+	else expect(fromLocalInput(value, pref)).toBe(instant);
+});
+
+test("absolute range labels use the explicit clock and zone preference", () => {
+	const range = { kind: "absolute", from: Date.UTC(2026, 10, 12, 23, 50), to: Date.UTC(2026, 10, 13, 0, 10) } as const;
+	expect(windowLabel(range, { zone: "utc", clock: "12" })).toBe("Nov 12 11:50 PM – Nov 13 12:10 AM");
+	expect(windowLabel(range, { zone: "utc", clock: "24" })).toBe("Nov 12 23:50 – Nov 13 00:10");
 });

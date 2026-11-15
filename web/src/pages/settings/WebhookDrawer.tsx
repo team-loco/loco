@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { createConnectQueryKey, useInfiniteQuery, useMutation } from "@connectrpc/connect-query";
 import type { Webhook, WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
 import { useQueryClient } from "@tanstack/react-query";
@@ -86,6 +87,7 @@ function WebhookDetail({
 	workspaceName: string;
 	webhook: Webhook;
 }) {
+	const timePref = useTimePreferences();
 	const [filter, setFilter] = useState<Filter>(ALL);
 	const [paging, setPaging] = useState(FIRST_PAGE);
 	const queryClient = useQueryClient();
@@ -134,7 +136,7 @@ function WebhookDetail({
 						{webhook.url}
 					</SheetTitle>
 					<SheetDescription className="text-[12px]">
-						{eventsSummary(webhook.eventTypes)} · created {formatDay(webhook.createdAt)}
+						{eventsSummary(webhook.eventTypes)} · created {formatDay(webhook.createdAt, timePref)}
 					</SheetDescription>
 				</div>
 			</SheetHeader>
@@ -231,6 +233,7 @@ function DeliveryList({
 	onRedeliver: (id: string) => void;
 	redelivering: boolean;
 }) {
+	const timePref = useTimePreferences();
 	const nowMs = useNow().getTime();
 	if (isLoading) {
 		return (
@@ -261,7 +264,7 @@ function DeliveryList({
 						<span className="truncate font-mono text-[12px]">{d.eventType}</span>
 						<span
 							className="text-right font-mono text-[11.5px] whitespace-nowrap text-fg3"
-							title={`${formatDay(d.createdAt)} · ${formatClock(tsMs(d.createdAt))}`}
+							title={`${formatDay(d.createdAt, timePref)} · ${formatClock(tsMs(d.createdAt), false, timePref)}`}
 						>
 							{deliveryWhen(d, nowMs)}
 						</span>

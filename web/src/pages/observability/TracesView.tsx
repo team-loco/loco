@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { listTraces } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
@@ -18,7 +19,7 @@ import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
 import { pageRangeLabel, pagingParsers, type Paging } from "@/lib/paging";
-import { formatClock } from "@/lib/time";
+import { formatClock, formatIsoDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { widthsParser, type ColumnKey, type ColumnWidths } from "./columns";
@@ -124,6 +125,7 @@ function TraceSession({
 	zoomPrev: ZoomState | null;
 	setZoomPrev: (zoom: ZoomState | null) => void;
 }) {
+	const timePref = useTimePreferences();
 	const { workspaceId, resources, resourcesLoading, scopedResourceIds, resourceById, range, tokens, text, setQuery } =
 		useObs();
 	const [params, setParams] = useQueryStates(TRACES_PARAMS);
@@ -226,7 +228,7 @@ function TraceSession({
 	const close = () => {
 		void setParams({ trace: null, span: null });
 	};
-	const crossesDay = new Date(bounds.from).toDateString() !== new Date(bounds.to).toDateString();
+	const crossesDay = formatIsoDate(bounds.from, timePref) !== formatIsoDate(bounds.to, timePref);
 	const valueCounts = (key: FieldKey): [string, number][] => {
 		if (key === "resource") return resources.map((r) => [r.name, 0]);
 		if (key === "status")
@@ -452,6 +454,7 @@ function TraceList({
 	sortDir: (column: TraceSummarySort) => "ascending" | "descending" | undefined;
 	onSort: (column: TraceSummarySort) => void;
 }) {
+	const timePref = useTimePreferences();
 	const { live, handle } = useResizableColumns(widths, onWidths, traceColumnWidth);
 	const grid = [...TRACE_COLUMNS.map((c) => `${String(traceColumnWidth(c.key, live))}px`), "minmax(0,1fr)"].join(" ");
 	return (
@@ -512,7 +515,7 @@ function TraceList({
 								style={{ gridTemplateColumns: grid }}
 							>
 								<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
-									{crossesDay ? fmtTs(startMs) : formatClock(startMs)}
+									{crossesDay ? fmtTs(startMs, false, timePref) : formatClock(startMs, false, timePref)}
 								</span>
 								<span className="truncate px-3 text-[12.5px]">{resourceName(t)}</span>
 								<span className="truncate px-3 font-mono text-foreground">{name}</span>

@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { PlusIcon, XIcon } from "lucide-react";
 
 import {
@@ -17,8 +18,8 @@ import { bodyParts, fmtTs, jsonPreview, levelStyle } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import type { LogRow } from "./rows";
 
-const TIME_WIDTH = 176;
-const COMPACT_TIME_WIDTH = 124;
+const TIME_WIDTH = 204;
+const COMPACT_TIME_WIDTH = 152;
 const MESSAGE_MIN = "minmax(260px,1fr)";
 const ADD_WIDTH = 36;
 
@@ -45,6 +46,7 @@ export function LogTable({
 	onSelect: (key: string) => void;
 	onColumns: (next: ColumnKey[]) => void;
 }) {
+	const timePref = useTimePreferences();
 	const { live, handle } = useResizableColumns(widths, onWidths, columnWidth);
 	const grid = [
 		`${String(compact ? COMPACT_TIME_WIDTH : TIME_WIDTH)}px`,
@@ -124,7 +126,7 @@ export function LogTable({
 							style={{ gridTemplateColumns: grid }}
 						>
 							<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
-								{compact ? formatClock(l.ts, true) : fmtTs(l.ts, true)}
+								{compact ? formatClock(l.ts, true, timePref) : fmtTs(l.ts, true, timePref)}
 							</span>
 							{columns.map((c) => (
 								<span key={c} className="min-w-0 truncate px-3">

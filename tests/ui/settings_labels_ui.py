@@ -28,6 +28,39 @@ def descriptions(field):
     return field.evaluate("(node) => (node.getAttribute('aria-describedby') || '').split(/\\s+/).filter(Boolean).map(id => { const hint = document.getElementById(id); if (!hint) throw new Error('Missing describedby target'); return hint.textContent; })")
 
 
+def check_table_geometry(page):
+    for table in page.get_by_role("table").all():
+        if not table.is_visible():
+            continue
+        head = table.get_by_role("columnheader").first
+        assert abs(head.bounding_box()["height"] - 40) <= 1
+        assert head.evaluate("node => parseFloat(getComputedStyle(node).paddingLeft)") == 20
+        geometry = table.evaluate("node => { const table = node.getBoundingClientRect(); const card = node.closest('.rounded-card').getBoundingClientRect(); return {left: table.left - card.left, right: card.right - table.right}; }")
+        assert geometry["left"] <= 2 and geometry["right"] <= 2, geometry
+        rows = table.locator("tbody tr")
+        for row in rows.all():
+            if row.inner_text().strip() == "History kept":
+                assert abs(row.bounding_box()["height"] - 40) <= 1
+            else:
+                assert row.bounding_box()["height"] >= 51
+
+
+def check_time_preferences(page):
+    section = page.get_by_role("region", name="Date and time", exact=True)
+    zone = section.get_by_role("group", name="Time zone", exact=True)
+    zone.get_by_role("button", name="UTC", exact=True).click()
+    clock = section.get_by_role("group", name="Clock", exact=True)
+    clock.get_by_role("button", name="12-hour", exact=True).click()
+    expect(section.locator("time")).to_have_text(re.compile(r".*\d+:\d{2}:\d{2}\.\d{3} (AM|PM) UTC"))
+    assert page.evaluate("localStorage.getItem('loco-tz')") == "utc"
+    assert page.evaluate("localStorage.getItem('loco-clock')") == "12"
+    page.reload()
+    expect(section.get_by_role("button", name="UTC", exact=True)).to_have_attribute("aria-pressed", "true")
+    expect(section.get_by_role("button", name="12-hour", exact=True)).to_have_attribute("aria-pressed", "true")
+    clock.get_by_role("button", name="24-hour", exact=True).click()
+    expect(section.locator("time")).to_have_text(re.compile(r".*\d{2}:\d{2}:\d{2}\.\d{3} UTC"))
+
+
 def check_webhooks(page):
     new_webhook = page.get_by_role("button", name="New webhook", exact=True)
     new_webhook.click()
@@ -211,12 +244,19 @@ with session(out) as browser:
                     if tab == "org":
                         workspaces = page.get_by_role("region", name="Workspaces", exact=True)
                         expect(workspaces.get_by_role("link", name="shared", exact=True)).to_be_visible()
+                        row = workspaces.get_by_role("link", name="shared", exact=True).locator("xpath=ancestor::tr")
+                        assert row.evaluate("node => getComputedStyle(node).cursor") == "pointer"
+                        background = row.evaluate("node => getComputedStyle(node).backgroundColor")
+                        row.hover()
+                        expect(row).not_to_have_css("background-color", background)
+                        page.mouse.move(0, 0)
                         # The list fits the smallest page size, so it has no pager.
                         expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
                     if tab == "ws" and user == "owner":
                         check_webhooks(page)
                         check_environments(page)
                         check_create_dialogs(page)
+                    check_table_geometry(page)
                     assert not errors, errors
                     results.append({"user": user, "tab": tab, "errors": list(errors)})
                 except BaseException as error:
@@ -224,6 +264,15 @@ with session(out) as browser:
                         page.screenshot(path=out / f"failure-{user}-{tab}.png", animations="disabled")
                     (out / "failure.json").write_text(json.dumps({"user": user, "tab": tab, "error": repr(error), "errors": errors, "completed": results}, indent=2))
                     raise
+            if user == "owner":
+                for theme in ("neobrutal", "catppuccin"):
+                    for mode in ("light", "dark"):
+                        page.evaluate("values => { localStorage.setItem('loco:color:v1', values[0]); localStorage.setItem('loco:mode:v1', values[1]); }", [theme, mode])
+                        page.goto(state["ui_url"] + base + "?scope=workspace")
+                        page.get_by_role("columnheader", name="Name", exact=True).wait_for()
+                        check_table_geometry(page)
+            page.goto(state["ui_url"] + base + "?scope=account")
+            check_time_preferences(page)
             context.close()
     finally:
         browser.close()

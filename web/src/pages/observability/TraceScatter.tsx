@@ -1,6 +1,6 @@
 import { useState, type PointerEvent } from "react";
 
-import { formatMetricTime, timeAxis } from "@/lib/compute-chart";
+import { TimeAxis } from "@/components/design/TimeAxis";
 import { cn } from "@/lib/utils";
 
 import { durationScale, type DurationScale } from "./traces";
@@ -61,7 +61,6 @@ export function TraceScatter({
 	const [brush, setBrush] = useState<Brush | null>(null);
 	const scale = durationScale(points.map((p) => Number(p.nanos) / NANOS_PER_MS));
 	const span = Math.max(1, to - from);
-	const xTicks = timeAxis(from, to);
 
 	return (
 		<div className="grid grid-cols-[52px_minmax(0,1fr)] grid-rows-[180px_auto] gap-x-2 gap-y-1.5">
@@ -134,11 +133,7 @@ export function TraceScatter({
 				)}
 			</div>
 			<span />
-			<div aria-hidden className="flex justify-between font-mono text-[11px] text-fg3">
-				{xTicks.map((t) => (
-					<span key={t}>{formatMetricTime(t, from, to)}</span>
-				))}
-			</div>
+			<TimeAxis from={from} to={to} />
 		</div>
 	);
 }

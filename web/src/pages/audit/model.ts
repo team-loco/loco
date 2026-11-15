@@ -1,6 +1,6 @@
 import type { Event } from "@gen/loco/event/v1/event_pb";
 
-import { DAY_MS, tsMs } from "@/lib/time";
+import { DAY_MS, formatIsoDate, formatWeekdayDate, previousDay, timePreferences, tsMs } from "@/lib/time";
 import {
 	AUDIT_CATEGORIES,
 	auditActor,
@@ -48,11 +48,11 @@ export function toggleCategory(types: readonly string[], category: readonly stri
 	return category.every((t) => types.includes(t)) ? rest : [...rest, ...category];
 }
 
-export function dayLabel(ms: number, nowMs: number): string {
-	const day = new Date(ms).toDateString();
-	if (day === new Date(nowMs).toDateString()) return "Today";
-	if (day === new Date(nowMs - DAY_MS).toDateString()) return "Yesterday";
-	return new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+export function dayLabel(ms: number, nowMs: number, pref = timePreferences()): string {
+	const day = formatIsoDate(ms, pref);
+	if (day === formatIsoDate(nowMs, pref)) return "Today";
+	if (day === formatIsoDate(previousDay(nowMs, pref), pref)) return "Yesterday";
+	return formatWeekdayDate(ms, pref);
 }
 
 export const ACTOR_KINDS: Record<string, string> = {

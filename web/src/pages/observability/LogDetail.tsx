@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState } from "react";
 import { Link } from "react-router";
 import {
@@ -103,6 +104,7 @@ export function LogDetail({
 	onNext: (() => void) | null;
 	onClose: () => void;
 }) {
+	const timePref = useTimePreferences();
 	const { tokens, text, setQuery, goTo, orgId, workspaceId, resourceById } = useObs();
 	const [attrQ, setAttrQ] = useState("");
 	const [copied, copy] = useCopy();
@@ -150,7 +152,7 @@ export function LogDetail({
 							</span>
 						</span>
 						<span className="truncate font-mono text-[11.5px] text-fg3">
-							{fmtTs(row.ts, true)}
+							{fmtTs(row.ts, true, timePref)}
 							{row.replica !== "" && ` · ${row.replica}`}
 							{row.region !== "" && ` · ${row.region}`}
 						</span>

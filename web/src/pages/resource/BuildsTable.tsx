@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
 import { ChevronRightIcon, RocketIcon, ScrollTextIcon, XIcon } from "lucide-react";
 import { Fragment, useState } from "react";
@@ -199,6 +200,7 @@ export function BuildsTable({
 	logsHref: (buildId: string) => string | undefined;
 	onCanceled: () => void;
 }) {
+	const timePref = useTimePreferences();
 	const [confirming, setConfirming] = useState<Build | null>(null);
 	const cancel = useMutation(cancelBuild);
 
@@ -263,7 +265,7 @@ export function BuildsTable({
 							}}
 							render={<TableBody />}
 						>
-							<TableRow className={cn("cursor-pointer hover:bg-panel2", expanded && "border-b-0")} onClick={toggle}>
+							<TableRow className={expanded ? "border-b-0" : undefined} onClick={toggle}>
 								<TableCell>
 									<CollapsibleTrigger
 										render={<Button variant="ghost" size="icon-xs" />}
@@ -301,7 +303,7 @@ export function BuildsTable({
 								</TableCell>
 								<TableCell
 									className="text-right font-mono text-[12px] text-fg2"
-									title={created === undefined ? undefined : formatFullTime(created)}
+									title={created === undefined ? undefined : formatFullTime(created, false, timePref)}
 								>
 									{created === undefined ? "—" : agoLabel(created, nowMs)}
 								</TableCell>

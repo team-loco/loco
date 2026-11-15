@@ -1,3 +1,5 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
+import { formatFullTime } from "@/lib/time";
 import { toJsonString } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
@@ -38,6 +40,7 @@ export function AuditDrawer({
 	onActor: () => void;
 	onClose: () => void;
 }) {
+	const timePref = useTimePreferences();
 	return (
 		<Sheet
 			open={open}
@@ -77,7 +80,7 @@ export function AuditDrawer({
 						<SheetBody>
 							<dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-4 gap-y-3 text-[13px]">
 								<Item term="When">
-									<span>{new Date(row.ms).toLocaleString([], { dateStyle: "medium", timeStyle: "medium" })}</span>
+									<span>{formatFullTime(row.ms, false, timePref)}</span>
 									<span className="text-[11.5px] text-fg3">{agoLabel(row.ms, nowMs)}</span>
 								</Item>
 								<Item term="Actor">

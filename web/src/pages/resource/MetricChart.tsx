@@ -1,3 +1,5 @@
+import type { TimePreferences } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { TriangleAlertIcon } from "lucide-react";
 import { Area, ComposedChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 
@@ -23,9 +25,9 @@ const CHART_CONFIG = {
 	band: { label: "Min – max", color: "var(--series-0)" },
 };
 
-const tooltipTime = (_label: unknown, payload: readonly { payload?: { time?: number } }[]) => {
+const tooltipTime = (_label: unknown, payload: readonly { payload?: { time?: number } }[], pref: TimePreferences) => {
 	const time = payload[0]?.payload?.time;
-	return time === undefined ? "" : formatFullTime(time);
+	return time === undefined ? "" : formatFullTime(time, false, pref);
 };
 
 function Stat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
@@ -63,6 +65,7 @@ export function MetricChart({
 	format: (value: number) => string;
 	replicas: number;
 }) {
+	const timePref = useTimePreferences();
 	// Without a known limit the chart falls back to percent of request.
 	const absolute = limit !== undefined && limit > 0;
 	const data = absolute ? scaleBand(points, limit) : points;
@@ -110,8 +113,9 @@ export function MetricChart({
 							type="number"
 							scale="time"
 							domain={[from, to]}
-							ticks={timeAxis(from, to)}
-							tickFormatter={(time: number) => formatMetricTime(time, from, to)}
+							ticks={timeAxis(from, to, timePref)}
+							tickFormatter={(time: number) => formatMetricTime(time, from, to, timePref)}
+							interval="preserveStartEnd"
 							tickLine={false}
 							axisLine={false}
 							minTickGap={24}
@@ -140,7 +144,14 @@ export function MetricChart({
 						{shown.map((m) => (
 							<ReferenceLine key={m} x={m} stroke="var(--fg3)" strokeDasharray="2 3" />
 						))}
-						<ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTime} formatter={tooltipValue} />} />
+						<ChartTooltip
+							content={
+								<ChartTooltipContent
+									labelFormatter={(label, payload) => tooltipTime(label, payload, timePref)}
+									formatter={tooltipValue}
+								/>
+							}
+						/>
 						<Area
 							dataKey="band"
 							type="linear"

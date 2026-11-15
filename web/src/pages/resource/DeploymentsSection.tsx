@@ -1,3 +1,5 @@
+import { timePreferences } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
@@ -49,8 +51,8 @@ interface Row {
 	isCurrent: boolean;
 }
 
-function timeFact(ms: number | undefined): string {
-	return ms === undefined ? "—" : formatFullTime(ms);
+function timeFact(ms: number | undefined, pref = timePreferences()): string {
+	return ms === undefined ? "—" : formatFullTime(ms, false, pref);
 }
 
 function HistoryKept({ count, tip }: { count: number; tip: string }) {
@@ -80,6 +82,7 @@ function Detail({
 	onViewSpec: (dep: Deployment) => void;
 	onOpenBuild: (buildId: string) => void;
 }) {
+	const timePref = useTimePreferences();
 	const { dep, region, prev } = row;
 	const buildId = deploymentBuildId(dep);
 	const took = tookMs(dep);
@@ -90,11 +93,11 @@ function Detail({
 				<dt className="text-fg3">Image</dt>
 				<dd className="m-0 break-all font-mono">{deploymentImage(dep)}</dd>
 				<dt className="text-fg3">Created</dt>
-				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt))}</dd>
+				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt), timePref)}</dd>
 				<dt className="text-fg3">Started</dt>
-				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.startedAt))}</dd>
+				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.startedAt), timePref)}</dd>
 				<dt className="text-fg3">Completed</dt>
-				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt))}</dd>
+				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt), timePref)}</dd>
 				<dt className="text-fg3">Took</dt>
 				<dd className="m-0 font-mono">{took === undefined ? "—" : formatDuration(took)}</dd>
 			</dl>
@@ -195,6 +198,7 @@ export function DeploymentsSection({
 	onViewSpec: (dep: Deployment) => void;
 	nowMs: number;
 }) {
+	const timePref = useTimePreferences();
 	const transport = useTransport();
 	const [pagination, setPagination] = useState<Paging>({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [open, setOpen] = useState<string | null>(null);
@@ -311,10 +315,7 @@ export function DeploymentsSection({
 										}}
 										render={<TableBody />}
 									>
-										<TableRow
-											className={cn("cursor-pointer hover:bg-panel2", expanded && "border-b-0")}
-											onClick={toggle}
-										>
+										<TableRow className={expanded ? "border-b-0" : undefined} onClick={toggle}>
 											<TableCell>
 												<CollapsibleTrigger
 													render={<Button variant="ghost" size="icon-xs" />}
@@ -349,7 +350,7 @@ export function DeploymentsSection({
 											</TableCell>
 											<TableCell
 												className="text-right font-mono text-[12px] text-fg2"
-												title={created === undefined ? undefined : formatFullTime(created)}
+												title={created === undefined ? undefined : formatFullTime(created, false, timePref)}
 											>
 												{created === undefined ? "—" : agoLabel(created, nowMs)}
 											</TableCell>

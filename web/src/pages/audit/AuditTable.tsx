@@ -1,8 +1,9 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
 import { Fragment } from "react";
 
 import { Skeleton } from "@/components/design/Skeleton";
-import { agoLabel } from "@/lib/time";
+import { agoLabel, formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
@@ -45,10 +46,11 @@ export function AuditTable({
 	nowMs: number;
 	onSelect: (id: string) => void;
 }) {
+	const timePref = useTimePreferences();
 	return (
-		<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
-			<div className="min-w-[890px]">
-				<div className={cn(GRID, "h-[38px] border-b border-line2 text-[12.5px] text-fg3")}>
+		<div className="overflow-x-auto [scrollbar-width:thin]">
+			<div className="min-w-[930px]">
+				<div data-slot="table-header" className={cn(GRID, "h-10 border-b border-line2 px-5 text-[12.5px] text-fg3")}>
 					<span>Time</span>
 					<span>Actor</span>
 					<span>Action</span>
@@ -63,12 +65,12 @@ export function AuditTable({
 				{!loading && (
 					<ul aria-label="Audit events" className="m-0 list-none p-0">
 						{rows.map((row, i) => {
-							const day = dayLabel(row.ms, nowMs);
+							const day = dayLabel(row.ms, nowMs, timePref);
 							const selected = row.event.id === selectedId;
 							return (
 								<Fragment key={row.event.id}>
-									{(i === 0 || dayLabel(rows[i - 1]?.ms ?? 0, nowMs) !== day) && (
-										<li className="sticky left-0 pt-4 pb-1.5 text-[12px] text-fg3">{day}</li>
+									{(i === 0 || dayLabel(rows[i - 1]?.ms ?? 0, nowMs, timePref) !== day) && (
+										<li className="sticky left-0 px-5 pt-4 pb-1.5 text-[12px] text-fg3">{day}</li>
 									)}
 									<li>
 										<button
@@ -79,16 +81,14 @@ export function AuditTable({
 											}}
 											className={cn(
 												GRID,
-												"min-h-12 w-full border-b border-line2 py-1.5 text-left text-[13px] hover:bg-[color-mix(in_oklch,var(--panel2)_60%,transparent)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-												selected && "rounded-[6px] bg-background shadow-[inset_0_0_0_1px_var(--line2)]",
+												"min-h-[52px] w-full border-b border-line2 px-5 py-2.5 text-left text-[13px] hover:bg-(--row-hover) focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+												(i === rows.length - 1 || dayLabel(rows[i + 1]?.ms ?? 0, nowMs, timePref) !== day) &&
+													"border-b-0",
+												selected && "bg-background shadow-[inset_0_0_0_1px_var(--line2)]",
 											)}
 										>
 											<span className="font-mono text-[12px] text-fg2" title={agoLabel(row.ms, nowMs)}>
-												{new Date(row.ms).toLocaleTimeString([], {
-													hour: "numeric",
-													minute: "2-digit",
-													second: "2-digit",
-												})}
+												{formatClock(row.ms, false, timePref)}
 											</span>
 											<span className="flex min-w-0 items-center gap-[9px]">
 												<ActorBadge row={row} />

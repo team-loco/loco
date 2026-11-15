@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState, type ReactNode } from "react";
 import { ListIcon } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
@@ -56,6 +57,7 @@ function MetricEvents({
 	markers: ChartMarker[];
 	actions: (t: number) => PinAction[];
 }) {
+	const timePref = useTimePreferences();
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
@@ -84,7 +86,7 @@ function MetricEvents({
 								<span className="flex min-w-0 flex-col gap-0.5">
 									<span className="break-words whitespace-normal">{marker.title}</span>
 									<time dateTime={new Date(marker.t).toISOString()} className="text-sm text-fg3 tabular-nums">
-										{fmtTs(marker.t)}
+										{fmtTs(marker.t, false, timePref)}
 									</time>
 								</span>
 							</DropdownMenuItem>
@@ -108,6 +110,7 @@ function MetricTooltip({
 	series: ChartSeries[];
 	fmt: (v: number) => string;
 }) {
+	const timePref = useTimePreferences();
 	const t = Number(label);
 	const row = byT.get(t);
 	if (active !== true || row === undefined) return null;
@@ -117,7 +120,7 @@ function MetricTooltip({
 		.toSorted((a, b) => b.v - a.v);
 	return (
 		<div className="min-w-[160px] rounded-lg border border-line bg-background px-2.5 py-2 text-[12px] shadow-popover">
-			<div className="mb-1.5 font-mono text-[11px] text-fg3">{fmtTs(t)}</div>
+			<div className="mb-1.5 font-mono text-[11px] text-fg3">{fmtTs(t, false, timePref)}</div>
 			{items.map(({ s, v }) => (
 				<div key={s.key} className="flex h-5 items-center gap-2">
 					<span className="size-2 rounded-[2px]" style={{ background: s.color }} />
@@ -131,16 +134,17 @@ function MetricTooltip({
 }
 
 function PinMenu({ t, x, actions, onClose }: { t: number; x: number; actions: PinAction[]; onClose: () => void }) {
+	const timePref = useTimePreferences();
 	return (
 		<DropdownMenuContent
 			align="start"
 			alignOffset={({ anchor }) => x * anchor.width + 8}
 			sideOffset={({ anchor }) => 8 - anchor.height}
 			className="w-[250px]"
-			aria-label={`Around ${fmtTs(t)}`}
+			aria-label={`Around ${fmtTs(t, false, timePref)}`}
 		>
 			<DropdownMenuGroup>
-				<DropdownMenuLabel>{fmtTs(t)}</DropdownMenuLabel>
+				<DropdownMenuLabel>{fmtTs(t, false, timePref)}</DropdownMenuLabel>
 				{actions.map((a) => (
 					<DropdownMenuItem
 						key={a.key}
@@ -185,6 +189,7 @@ export function MetricChart({
 	height: number;
 	actions: (t: number) => PinAction[];
 }) {
+	const timePref = useTimePreferences();
 	const [pin, setPin] = useState<{ t: number; x: number } | null>(null);
 	const byT = new Map<number, Datum>();
 	for (const s of series) {
@@ -196,8 +201,8 @@ export function MetricChart({
 	}
 	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
 	const config: ChartConfig = Object.fromEntries(series.map((s) => [s.key, { label: s.name, color: s.color }]));
-	const ticks = timeAxis(from, to);
-	const tickLabel = (value: number) => formatMetricTime(value, from, to);
+	const ticks = timeAxis(from, to, timePref);
+	const tickLabel = (value: number) => formatMetricTime(value, from, to, timePref);
 	const yTicks = Array.from({ length: Y_TICKS + 1 }, (_, i) => (max * i) / Y_TICKS);
 
 	return (
@@ -230,6 +235,7 @@ export function MetricChart({
 								domain={[from, to]}
 								ticks={ticks}
 								tickFormatter={tickLabel}
+								interval="preserveStartEnd"
 								tickLine={false}
 								axisLine={{ stroke: "var(--line)" }}
 								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}

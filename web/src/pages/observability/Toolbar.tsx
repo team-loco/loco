@@ -1,3 +1,6 @@
+import { TimeZoneControl } from "@/components/design/TimeZoneControl";
+import { timeZoneLabel } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState } from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, PauseIcon, PlayIcon } from "lucide-react";
 
@@ -27,18 +30,20 @@ import { useObs } from "./context";
 
 export function TimePicker() {
 	const { range, setRange, maxMs } = useObs();
+	const pref = useTimePreferences();
+	const [openedAt] = useState(Date.now);
 	const [open, setOpen] = useState(false);
 	const [text, setText] = useState("");
-	const [from, setFrom] = useState("");
-	const [to, setTo] = useState("");
+	const [from, setFrom] = useState({ text: "", ms: Number.NaN });
+	const [to, setTo] = useState({ text: "", ms: Number.NaN });
 	const [error, setError] = useState<string | null>(null);
 	const limit = formatSpan(maxMs);
 
 	const onOpenChange = (next: boolean) => {
 		if (next) {
 			const bounds = resolveWindow(range, Date.now());
-			setFrom(toLocalInput(bounds.from));
-			setTo(toLocalInput(bounds.to));
+			setFrom({ text: toLocalInput(bounds.from, pref), ms: bounds.from });
+			setTo({ text: toLocalInput(bounds.to, pref), ms: bounds.to });
 			setText("");
 			setError(null);
 		}
@@ -61,8 +66,8 @@ export function TimePicker() {
 		pick(span);
 	};
 	const applyCustom = () => {
-		const start = fromLocalInput(from);
-		const end = fromLocalInput(to);
+		const start = from.ms;
+		const end = to.ms;
 		const now = Date.now();
 		const problem = checkCustomRange(start, end, now, maxMs);
 		if (problem !== null) {
@@ -89,7 +94,10 @@ export function TimePicker() {
 			<Popover open={open} onOpenChange={onOpenChange}>
 				<PopoverTrigger className="flex items-center gap-[7px] border-x border-line2 px-2.5 text-[13px] whitespace-nowrap hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset aria-expanded:bg-panel">
 					<ClockIcon className="size-3.5 text-fg3" />
-					{windowLabel(range)}
+					{windowLabel(range, pref)}
+					<span className="font-mono text-[11px] text-fg3">
+						{timeZoneLabel(resolveWindow(range, openedAt).to, pref)}
+					</span>
 					<ChevronDownIcon className="size-3.5 text-fg3" />
 				</PopoverTrigger>
 				<PopoverContent align="end" aria-label="Time range" className="w-[340px] gap-2.5 p-3">
@@ -138,9 +146,9 @@ export function TimePicker() {
 						<span>From</span>
 						<DateTimePicker
 							label="From"
-							value={from}
+							value={from.text}
 							onChange={(value) => {
-								setFrom(value);
+								setFrom({ text: value, ms: fromLocalInput(value, pref) });
 								setError(null);
 							}}
 						/>
@@ -149,9 +157,9 @@ export function TimePicker() {
 						<span>To</span>
 						<DateTimePicker
 							label="To"
-							value={to}
+							value={to.text}
 							onChange={(value) => {
-								setTo(value);
+								setTo({ text: value, ms: fromLocalInput(value, pref) });
 								setError(null);
 							}}
 						/>
@@ -166,6 +174,16 @@ export function TimePicker() {
 						<Button size="sm" onClick={applyCustom}>
 							Apply
 						</Button>
+					</div>
+					<div className="flex flex-col gap-2 border-t border-line pt-2.5">
+						<span className="text-[12px] text-fg3">Time zone</span>
+						<TimeZoneControl
+							onChange={(zone) => {
+								const next = { ...pref, zone };
+								if (Number.isFinite(from.ms)) setFrom({ ...from, text: toLocalInput(from.ms, next) });
+								if (Number.isFinite(to.ms)) setTo({ ...to, text: toLocalInput(to.ms, next) });
+							}}
+						/>
 					</div>
 				</PopoverContent>
 			</Popover>

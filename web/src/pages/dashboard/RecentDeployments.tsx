@@ -1,3 +1,4 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ArrowRightIcon, RocketIcon } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { Link, useNavigate } from "react-router";
@@ -43,6 +44,7 @@ export function RecentDeployments({
 	envName: string;
 	nowMs: number;
 }) {
+	const timePref = useTimePreferences();
 	const navigate = useNavigate();
 	const [filter, setFilter] = useQueryState("deploys", deploysParser);
 	const recent = withinWindow(deployments, nowMs);
@@ -111,7 +113,7 @@ export function RecentDeployments({
 							const href = resourcePath(orgId, workspaceId, resource.id, { env: envName });
 							const createdMs = tsMs(d.createdAt);
 							return (
-								<TableRow key={d.id} className="cursor-pointer hover:bg-panel2" onClick={() => void navigate(href)}>
+								<TableRow key={d.id} onClick={() => void navigate(href)}>
 									<TableCell>
 										<DeploymentPhaseBadge phase={d.status} superseded={deploymentState(d) === "superseded"} />
 									</TableCell>
@@ -138,7 +140,7 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell
 										className="text-right font-mono text-[12px] whitespace-nowrap text-fg3"
-										title={startedLabel(createdMs)}
+										title={startedLabel(createdMs, timePref)}
 									>
 										{agoLabel(createdMs, nowMs)}
 									</TableCell>

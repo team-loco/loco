@@ -1,3 +1,5 @@
+import { useTimePreferences } from "@/lib/use-time-preferences";
+import { TimeAxis } from "@/components/design/TimeAxis";
 import { createParser, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
@@ -19,7 +21,7 @@ import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { pagingParsers } from "@/lib/paging";
 import { createLogHistory, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
-import { formatHourMinute, msToTimestamp } from "@/lib/time";
+import { msToTimestamp } from "@/lib/time";
 import { msParser, windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +91,7 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 }
 
 export function LogsView() {
+	const timePref = useTimePreferences();
 	const { workspaceId, resources, scopedResourceIds, resourceById, maxMs, range, setRange, tokens, text, setQuery } =
 		useObs();
 	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
@@ -239,7 +242,7 @@ export function LogsView() {
 	const buckets: VolumeBucket[] = counts.map((b, i) => {
 		const total = [...b.values()].reduce((a, n) => a + n, 0);
 		return {
-			label: `${fmtTs(from + i * bw)}, ${formatCount(total)} loaded ${total === 1 ? "line" : "lines"}`,
+			label: `${fmtTs(from + i * bw, false, timePref)}, ${formatCount(total)} loaded ${total === 1 ? "line" : "lines"}`,
 			segments: LEVELS.map((l) => ({ value: b.get(l) ?? 0, color: LEVEL_SERIES[l].color })),
 		};
 	});
@@ -387,7 +390,7 @@ export function LogsView() {
 							? "No logs around this time"
 							: coversWholeRange(range, maxMs)
 								? "No logs collected"
-								: `No logs in the ${windowLabel(range).toLowerCase()}`
+								: `No logs in the ${windowLabel(range, timePref).toLowerCase()}`
 					}
 					body="Anything your resources write to stdout or stderr lands here."
 					action={
@@ -436,11 +439,7 @@ export function LogsView() {
 								setRange({ kind: "absolute", from: from + i * bw, to: from + (i + 1) * bw });
 							}}
 						/>
-						<div className="flex justify-between font-mono text-[10.5px] text-fg4">
-							<span>{formatHourMinute(from)}</span>
-							<span>{formatHourMinute(from + (to - from) / 2)}</span>
-							<span>{tail || !away ? "now" : formatHourMinute(to)}</span>
-						</div>
+						<TimeAxis from={from} to={to} />
 						<span className="flex items-center gap-1.5 text-[12px] text-fg3">
 							Bars count the {formatCount(rows.length)} loaded lines. Volume over the whole range
 							<SoonTag />

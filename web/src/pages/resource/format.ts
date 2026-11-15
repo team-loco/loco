@@ -1,24 +1,15 @@
-import { formatClock, formatIsoDate } from "@/lib/time";
+import { formatFullTime as fullTime, formatHourMinute, formatMonthDay, timePreferences } from "@/lib/time";
 
 export function shortId(id: string): string {
 	return id.slice(0, 8);
 }
 
-const startedFormat = new Intl.DateTimeFormat("en-US", {
-	month: "short",
-	day: "numeric",
-	hour: "2-digit",
-	minute: "2-digit",
-	hourCycle: "h23",
-});
-
-export function formatStarted(ms: number | undefined): string {
-	if (ms === undefined) return "—";
-	return startedFormat.format(ms);
+export function formatStarted(ms: number | undefined, pref = timePreferences()): string {
+	return ms === undefined ? "—" : `${formatMonthDay(ms, pref)}, ${formatHourMinute(ms, pref)}`;
 }
 
-export function formatFullTime(ms: number): string {
-	return `${formatIsoDate(ms)} ${formatClock(ms)}`;
+export function formatFullTime(ms: number, withMs = false, pref = timePreferences()): string {
+	return fullTime(ms, withMs, pref);
 }
 
 export function formatDuration(ms: number): string {
