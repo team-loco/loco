@@ -22,8 +22,9 @@ mise exec -- uv run --script "$E" <command>
    workspaces and members, and workspace grants. Start from `scenario.example.json`.
 2. Write a shot spec JSON. Each shot names a user, a path, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`), a crop (`"viewport"`, `"full"`,
-   `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`) and `"narrow": true`
-   for an extra 390-pixel-wide capture. Start from `shots.example.json`. Use a `clip` crop when
+   `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`), an optional `"color"`
+   colour theme id (as in `web/src/lib/theme.ts`) and `"narrow": true` for an extra 390-pixel-wide
+   capture. Start from `shots.example.json`. Use a `clip` crop when
    before and after must line up: a selector crop follows the element's size.
    For pages with an open stream, set `ready_selector` to a Playwright selector that becomes
    visible when the shot is ready. The shot skips network-idle waits and waits for the selector

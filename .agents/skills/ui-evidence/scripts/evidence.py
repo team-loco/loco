@@ -31,6 +31,7 @@ DB_PASSWORD = "evidence"
 DB_NAME = "evidence"
 SESSION_PREFIX = "loco_s_"
 MODE_KEY = "loco:mode:v1"
+COLOR_KEY = "loco:color:v1"
 AUTH_KEY = "loco:auth:oidc:v1"
 THEMES = ("light", "dark")
 DESKTOP = {"width": 1280, "height": 800}
@@ -223,6 +224,8 @@ def validate_spec(spec):
             selector = shot["ready_selector"]
             if not isinstance(selector, str) or not selector.strip():
                 raise EvidenceError(f"shot {name}: ready_selector must be a non-empty selector")
+        if "color" in shot and not isinstance(shot["color"], str):
+            raise EvidenceError(f"shot {name}: color must be a colour theme id")
         crop = shot.get("crop", "viewport")
         valid_crop = crop in ("viewport", "full") or (
             isinstance(crop, dict) and (("selector" in crop) != ("clip" in crop))
@@ -576,10 +579,13 @@ def capture(browser, state, shot, theme, narrow, target):
     viewport = NARROW if narrow else DESKTOP
     context = browser.new_context(viewport=viewport, device_scale_factor=SCALE, color_scheme=theme)
     stored = json.dumps({"idToken": user["token"], "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS})
-    context.add_init_script(
+    script = (
         f"localStorage.setItem({json.dumps(AUTH_KEY)}, {json.dumps(stored)});"
         f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
     )
+    if "color" in shot:
+        script += f"localStorage.setItem({json.dumps(COLOR_KEY)}, {json.dumps(shot['color'])});"
+    context.add_init_script(script)
     problems = []
     page = context.new_page()
     page.on("console", lambda m: problems.append(f"console {m.type}: {m.text}") if m.type == "error" else None)
