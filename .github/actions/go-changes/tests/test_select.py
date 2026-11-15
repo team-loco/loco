@@ -37,7 +37,7 @@ def test_api_changes_do_not_start_other_modules(module_dependencies):
 
 
 def test_root_libraries_select_consumers(module_dependencies, subtests):
-    expected = {".", "cmd", "api", "agent", "builder", "controller", "observability-proxy"}
+    expected = {".", "cmd", "api", "agent", "builder", "controller", "observability-proxy", "tests/e2e"}
     for path in (
         "internal/buildinfo/version.go",
         "gen/go/loco/token/v1/token.pb.go",
@@ -64,6 +64,7 @@ def test_kubernetes_types_select_every_importing_module(module_dependencies):
         "api",
         "agent",
         "controller",
+        "tests/e2e",
     }
     assert _selected(module_dependencies, "k8sapi/v1/application_test.go") == {"k8sapi"}
 

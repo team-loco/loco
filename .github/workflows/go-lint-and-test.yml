@@ -41,6 +41,8 @@ jobs:
               test-task: test:k8sapi
             - working-directory: observability-proxy
               test-task: test:counter-metrics
+            # The E2E workflow runs the end-to-end packages against their platforms.
+            - working-directory: tests/e2e
 
       # Every selected module is linted and tested even after one fails.
       - name: Lint and test each module the changes affect

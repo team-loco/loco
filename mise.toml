@@ -160,10 +160,6 @@ description = "Check formatting, then run oxlint, eslint and the typecheck on th
 dir = "web"
 run = ["bun fmt --check", "bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
-[tasks."test:e2e-runner"]
-description = "Check that the CI e2e matrix runs every suite"
-run = "uv run --locked --project tests pytest tests/e2e/test_run.py"
-
 [tasks."test:ci"]
 description = "Test CI workflow and Go component selection"
 run = ["uv run --locked --project tests pytest .github/actions/go-changes/tests", "go test ./tools/ci-changes"]
@@ -313,8 +309,14 @@ env = { _.source = "dev/stack.sh" }
 run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
-description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run; E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; --build-only builds the images and binaries the other flags need and stops; trailing filters pick the test files whose names contain any of them"
-run = "./tests/e2e/run.sh"
+description = "Run an end-to-end shard of tests/e2e (builds, apps or telemetry) in this worktree's own kind cluster and compose project, or only its tests matching [test], a go test -run pattern. --keep leaves the platform running, and a later run reuses its cluster and resets its state; --skip-build reuses its images and binaries. E2E_RUN_ID overrides the run, E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report"
+usage = '''
+arg "<shard>" help="the test package: builds, apps or telemetry"
+arg "[test]" help="a go test -run pattern"
+flag "--keep" help="leave the platform running for another run"
+flag "--skip-build" help="reuse the images and binaries of the last run"
+'''
+run = 'E2E_KEEP=${usage_keep:-false} E2E_SKIP_BUILD=${usage_skip_build:-false} go -C tests/e2e test -v -count=1 -timeout 60m "./${usage_shard}" -run "${usage_test:-.}"'
 
 [tasks."e2e:control-plane"]
 description = "Install the control-plane Helm chart with Kubernetes Postgres and ClickHouse fixtures; takes --no-teardown and --skip-build, and E2E_IMAGES and E2E_VERSION like e2e"
@@ -326,45 +328,10 @@ description = "Issue local Gateway certificates through cert-manager using the c
 depends = ["helm:deps"]
 run = "./tests/e2e/certificates.sh"
 
-[tasks."e2e:attachment"]
-description = "Test cluster enrollment with a join token, agent key reuse and rotation, heartbeats and application deployment from an empty cluster registry"
-run = "./tests/e2e/run.sh --builds-disabled cluster_attachment"
-
-[tasks."e2e:builds"]
-description = "Run only the image build end-to-end tests, controller-only and through the API and agent; takes the e2e flags"
-run = "./tests/e2e/run.sh build"
-
-[tasks."e2e:builds-disabled"]
-description = "Run the end-to-end tests for an apps-only install (cluster.role=apps): no build objects, public images deploy, source deploys are refused; takes the e2e flags"
-run = "./tests/e2e/run.sh --builds-disabled builds_disabled"
-
-[tasks."e2e:ingress"]
-description = "Run the end-to-end tests for apps with and without a domain: routes, gateway ingress and the CLI's URL output; takes the e2e flags"
-run = "./tests/e2e/run.sh --builds-disabled ingress"
-
-[tasks."e2e:discovery"]
-description = "Run private service discovery end-to-end tests: logical DNS names, HTTP and TCP ports, resource rename and deletion; takes the e2e flags"
-run = "./tests/e2e/run.sh discovery"
-
-[tasks."e2e:status"]
-description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent, stopped while its organization is suspended; takes the e2e flags"
-run = "./tests/e2e/run.sh --builds-disabled resource_status"
-
-[tasks."e2e:config"]
-description = "Run the end-to-end tests for loco.yaml: validate, plan, apply, deploy, updates, deletes and disabled environments; takes the e2e flags"
-run = "./tests/e2e/run.sh config_apply"
-
-[tasks."e2e:observability"]
-description = "Run the end-to-end tests for telemetry from the loco-worker collectors in kind over OTLP to the observability proxy ingest role, ClickHouse and the API, with the loco-worker chart installed; writes tests/e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
-run = "./tests/e2e/run.sh --observability observability"
-
-[tasks."e2e:registry-token"]
-description = "Run the end-to-end tests for registry token mode: the API as the registry's token endpoint, per-workspace pull credentials and per-build credentials written by the agent, their scopes, renewal and revocation, and the image sweeper on its own tokens; takes the e2e flags"
-run = "./tests/e2e/run.sh --registry-token registry_token"
-
 [tasks."e2e:teardown"]
-description = "Remove this worktree's end-to-end run (or E2E_RUN_ID's): its kind cluster, compose project and state"
-run = "./tests/e2e/run.sh --teardown-only"
+description = "Remove this worktree's run of an end-to-end shard (or E2E_RUN_ID's): its kind cluster, containers, compose project and state"
+usage = 'arg "<shard>" help="the test package: builds, apps or telemetry"'
+run = 'E2E_TEARDOWN_ONLY=true go -C tests/e2e test -count=1 -run "^$" "./${usage_shard}"'
 
 [tasks."docs:build"]
 description = "Build production documentation with strict validation"

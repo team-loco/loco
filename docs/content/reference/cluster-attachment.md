@@ -65,7 +65,7 @@ The account needs the `system:admin` grant; organization and workspace admins do
 
 ## Verification
 
-`mise run e2e:attachment` builds an isolated kind environment, creates the cluster with `locoadm`, enrolls the agent and deploys an application. `--no-teardown` keeps the environment; `--skip-build` reuses its binaries and images on another run.
+`mise run e2e builds TestClusterAttachment` builds an isolated kind environment, creates the cluster with `locoadm`, enrolls the agent and deploys an application, then checks reconnects, re-enrollment, pause, removal and restore. `--keep` keeps the environment; `--skip-build` reuses its binaries and images on another run.
 
 ## Cluster roles
 
