@@ -35,8 +35,6 @@ const (
 	testRetryDelay    = 10 * time.Millisecond
 	testShortLifetime = 200 * time.Millisecond
 	testLongLifetime  = time.Hour
-	testWait          = 5 * time.Second
-	testPoll          = 5 * time.Millisecond
 	testOutage        = "control plane unavailable"
 	testRejected      = "cluster credential rejected"
 )
@@ -135,10 +133,11 @@ func runUntilStopped(t *testing.T, renewer *Renewer) error {
 	go func() {
 		done <- renewer.Run(t.Context())
 	}()
+	synctest.Wait()
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(testWait):
+	default:
 		t.Fatal("renewer kept retrying an error a retry cannot fix")
 		return nil
 	}
@@ -172,29 +171,22 @@ func existingSecrets() []runtime.Object {
 	return objects
 }
 
-func waitForIssuances(t *testing.T, issuer *scriptedIssuer, count int) []issuance {
+// issuances waits for the renewer to block and returns the tokens issued so far.
+func issuances(t *testing.T, issuer *scriptedIssuer, count int) []issuance {
 	t.Helper()
-	deadline := time.Now().Add(testWait)
-	for time.Now().Before(deadline) {
-		if issued := issuer.snapshot(); len(issued) >= count {
-			return issued
-		}
-		time.Sleep(testPoll)
+	synctest.Wait()
+	issued := issuer.snapshot()
+	if len(issued) != count {
+		t.Fatalf("%d issued tokens, want %d", len(issued), count)
 	}
-	t.Fatalf("timed out waiting for %d issued tokens, got %d", count, len(issuer.snapshot()))
-	return nil
+	return issued
 }
 
-func waitForStoredToken(t *testing.T, kube *fake.Clientset, token string) {
+func assertStoredToken(t *testing.T, kube *fake.Clientset, token string) {
 	t.Helper()
-	deadline := time.Now().Add(testWait)
-	for time.Now().Before(deadline) {
-		if storedToken(t, kube) == token {
-			return
-		}
-		time.Sleep(testPoll)
+	if stored := storedToken(t, kube); stored != token {
+		t.Fatalf("Secret holds %q, want %q", stored, token)
 	}
-	t.Fatalf("Secret holds %q, want %q", storedToken(t, kube), token)
 }
 
 func TestRenewalDelayIsHalfTheRemainingLifetime(t *testing.T) {
@@ -210,14 +202,15 @@ func TestRenewerWritesEachTokenBeforeThePreviousExpires(t *testing.T) {
 		kube := fake.NewClientset(existingSecrets()...)
 		startRenewer(t, issuer, kube)
 
-		issued := waitForIssuances(t, issuer, 3)
+		time.Sleep(testShortLifetime)
+		issued := issuances(t, issuer, 3)
 		for i := 1; i < len(issued); i++ {
 			if !issued[i].at.Before(issued[i-1].expiresAt) {
 				t.Fatalf("token %d issued at %s, after token %d expired at %s",
 					i, issued[i].at, i-1, issued[i-1].expiresAt)
 			}
 		}
-		waitForStoredToken(t, kube, issued[2].token)
+		assertStoredToken(t, kube, issued[2].token)
 	})
 }
 
@@ -227,8 +220,9 @@ func TestRenewerRetriesAFailedRenewal(t *testing.T) {
 		kube := fake.NewClientset(existingSecrets()...)
 		startRenewer(t, issuer, kube)
 
-		issued := waitForIssuances(t, issuer, 1)
-		waitForStoredToken(t, kube, issued[0].token)
+		time.Sleep(time.Duration(len(issuer.script)) * testRetryDelay)
+		issued := issuances(t, issuer, 1)
+		assertStoredToken(t, kube, issued[0].token)
 	})
 }
 
@@ -243,11 +237,12 @@ func TestRenewerRecoversAfterTheTokenExpired(t *testing.T) {
 		kube := fake.NewClientset(existingSecrets()...)
 		startRenewer(t, issuer, kube)
 
-		issued := waitForIssuances(t, issuer, 2)
+		time.Sleep(testShortLifetime/2 + time.Duration(len(outage)-1)*testRetryDelay)
+		issued := issuances(t, issuer, 2)
 		if !issued[1].at.After(issued[0].expiresAt) {
 			t.Fatalf("recovery token issued at %s, before the first expired at %s", issued[1].at, issued[0].expiresAt)
 		}
-		waitForStoredToken(t, kube, issued[1].token)
+		assertStoredToken(t, kube, issued[1].token)
 	})
 }
 
@@ -257,71 +252,68 @@ func TestRenewerCreatesMissingSecrets(t *testing.T) {
 		kube := fake.NewClientset(existingSecret(testNamespace))
 		startRenewer(t, issuer, kube)
 
-		issued := waitForIssuances(t, issuer, 1)
-		deadline := time.Now().Add(testWait)
-		for time.Now().Before(deadline) {
-			created, err := kube.CoreV1().Secrets(testNodeNamespace).Get(
-				t.Context(), testSecretName, metav1.GetOptions{},
-			)
-			if err == nil && string(created.Data[testSecretKey]) == issued[0].token {
-				kept, keptErr := kube.CoreV1().Secrets(testNamespace).Get(
-					t.Context(), testSecretName, metav1.GetOptions{},
-				)
-				if keptErr != nil || string(kept.Data[testSecretKey]) != issued[0].token ||
-					string(kept.Data[testOtherKey]) != testOtherValue {
-					t.Fatalf("existing Secret = %v, %v", kept, keptErr)
-				}
-				return
-			}
-			time.Sleep(testPoll)
+		issued := issuances(t, issuer, 1)
+		created, err := kube.CoreV1().Secrets(testNodeNamespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
+		if err != nil || string(created.Data[testSecretKey]) != issued[0].token {
+			t.Fatalf("missing Secret = %v, %v, want one holding %q", created, err, issued[0].token)
 		}
-		t.Fatal("renewer did not create the missing Secret")
+		kept, err := kube.CoreV1().Secrets(testNamespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
+		if err != nil || string(kept.Data[testSecretKey]) != issued[0].token ||
+			string(kept.Data[testOtherKey]) != testOtherValue {
+			t.Fatalf("existing Secret = %v, %v", kept, err)
+		}
 	})
 }
 
 func TestRenewerStopsWhenTheControlPlaneRejectsTheCredential(t *testing.T) {
-	issuer := &scriptedIssuer{script: []step{{rejected: true}}}
-	kube := fake.NewClientset(existingSecrets()...)
+	synctest.Test(t, func(t *testing.T) {
+		issuer := &scriptedIssuer{script: []step{{rejected: true}}}
+		kube := fake.NewClientset(existingSecrets()...)
 
-	err := runUntilStopped(t, newRenewer(issuer, kube))
-	if connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("Run = %v, want an Unauthenticated error", err)
-	}
-	if issuer.calls != 1 {
-		t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
-	}
+		err := runUntilStopped(t, newRenewer(issuer, kube))
+		if connect.CodeOf(err) != connect.CodeUnauthenticated {
+			t.Fatalf("Run = %v, want an Unauthenticated error", err)
+		}
+		if issuer.calls != 1 {
+			t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
+		}
+	})
 }
 
 func TestRenewerStopsWhenTheSecretWriteIsForbidden(t *testing.T) {
-	issuer := &scriptedIssuer{}
-	kube := fake.NewClientset(existingSecrets()...)
-	forbidden := apierrors.NewForbidden(schema.GroupResource{Resource: "secrets"}, testSecretName, nil)
-	kube.PrependReactor("update", "secrets", func(k8stesting.Action) (bool, runtime.Object, error) {
-		return true, nil, forbidden
-	})
+	synctest.Test(t, func(t *testing.T) {
+		issuer := &scriptedIssuer{}
+		kube := fake.NewClientset(existingSecrets()...)
+		forbidden := apierrors.NewForbidden(schema.GroupResource{Resource: "secrets"}, testSecretName, nil)
+		kube.PrependReactor("update", "secrets", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, forbidden
+		})
 
-	err := runUntilStopped(t, newRenewer(issuer, kube))
-	if !apierrors.IsForbidden(err) {
-		t.Fatalf("Run = %v, want a Forbidden error", err)
-	}
-	if issuer.calls != 1 {
-		t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
-	}
+		err := runUntilStopped(t, newRenewer(issuer, kube))
+		if !apierrors.IsForbidden(err) {
+			t.Fatalf("Run = %v, want a Forbidden error", err)
+		}
+		if issuer.calls != 1 {
+			t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
+		}
+	})
 }
 
 func TestRenewerStopsWhenTheSecretNamespaceIsGone(t *testing.T) {
-	issuer := &scriptedIssuer{}
-	kube := fake.NewClientset(existingSecret(testNamespace))
-	missing := apierrors.NewNotFound(schema.GroupResource{Resource: "namespaces"}, testNodeNamespace)
-	kube.PrependReactor("create", "secrets", func(k8stesting.Action) (bool, runtime.Object, error) {
-		return true, nil, missing
-	})
+	synctest.Test(t, func(t *testing.T) {
+		issuer := &scriptedIssuer{}
+		kube := fake.NewClientset(existingSecret(testNamespace))
+		missing := apierrors.NewNotFound(schema.GroupResource{Resource: "namespaces"}, testNodeNamespace)
+		kube.PrependReactor("create", "secrets", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, missing
+		})
 
-	err := runUntilStopped(t, newRenewer(issuer, kube))
-	if !apierrors.IsNotFound(err) {
-		t.Fatalf("Run = %v, want a NotFound error", err)
-	}
-	if issuer.calls != 1 {
-		t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
-	}
+		err := runUntilStopped(t, newRenewer(issuer, kube))
+		if !apierrors.IsNotFound(err) {
+			t.Fatalf("Run = %v, want a NotFound error", err)
+		}
+		if issuer.calls != 1 {
+			t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
+		}
+	})
 }
