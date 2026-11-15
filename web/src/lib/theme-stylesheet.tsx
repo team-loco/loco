@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-
 import dmSansLatinExt from "@fontsource-variable/dm-sans/files/dm-sans-latin-ext-wght-normal.woff2" with { type: "file" };
 import dmSansLatin from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2" with { type: "file" };
 
@@ -25,12 +23,8 @@ const latin =
 const latinExt =
 	"U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF";
 
-let dmSansAdded = false;
-
-// The browser downloads a registered face only when text set in it renders.
-function addDmSans() {
-	if (dmSansAdded) return;
-	dmSansAdded = true;
+// Registering a face downloads nothing; the browser fetches it only when text set in it renders.
+export function addThemeFonts() {
 	for (const [src, unicodeRange] of [
 		[dmSansLatin, latin],
 		[dmSansLatinExt, latinExt],
@@ -47,9 +41,6 @@ function addDmSans() {
 
 /** Loads a colour theme's stylesheet; React adds each one once and holds the render until it has loaded. */
 export function ThemeStylesheet({ color }: { color: ColorTheme }) {
-	useEffect(() => {
-		if (color === "neobrutal") addDmSans();
-	}, [color]);
 	if (color === defaultColorTheme) return null;
 	return <link rel="stylesheet" href={stylesheets[color]} precedence="theme" />;
 }
