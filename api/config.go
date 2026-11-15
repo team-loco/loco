@@ -51,6 +51,7 @@ var (
 	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 	errInvalidSystemAdmins    = errors.New(systemAdminsEnv + " is invalid")
+	errShortBootstrapToken    = errors.New(bootstrapEnv + " is too short")
 	errInvalidIngestKey       = errors.New("LOCO_INGEST_TRANSIT_KEY is invalid")
 	errInvalidRegistryAuth    = errors.New("LOCO_REGISTRY_AUTH must be static or token")
 	errInvalidRegistryKey     = errors.New("LOCO_REGISTRY_TRANSIT_KEY is invalid")
@@ -148,6 +149,8 @@ const (
 	defaultInvitationTTL             = 168 * time.Hour
 
 	systemAdminsEnv            = "LOCO_SYSTEM_ADMINS"
+	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
+	minBootstrapTokenLength    = 32
 	defaultIngestTokenLifetime = time.Hour
 
 	defaultRegistryAccessTokenLifetime    = 5 * time.Minute
@@ -238,6 +241,7 @@ type APIConfig struct {
 	CountLimits           *configv1.CountLimits
 	HeartbeatInterval     time.Duration
 	SystemAdmins          auth.SystemAdmins
+	BootstrapTokenHash    []byte
 	TracingEnabled        bool
 }
 
@@ -273,6 +277,7 @@ func newAPIConfig() *APIConfig {
 	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
 	heartbeatInterval := envconfig.PositiveDuration("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	systemAdmins := newSystemAdmins()
+	bootstrapTokenHash := newBootstrapTokenHash()
 	tracingEnabled := newTracingEnabled()
 	webURL := envconfig.String("WEB_URL", "")
 	invitations := newInvitationConfig(webURL)
@@ -329,6 +334,7 @@ func newAPIConfig() *APIConfig {
 		CountLimits:           newCountLimits(),
 		HeartbeatInterval:     heartbeatInterval,
 		SystemAdmins:          systemAdmins,
+		BootstrapTokenHash:    bootstrapTokenHash,
 		TracingEnabled:        tracingEnabled,
 	}
 }
@@ -428,6 +434,17 @@ func newInvitationConfig(webURL string) service.InvitationConfig {
 		TTL:    envconfig.PositiveDuration("INVITATION_TTL", defaultInvitationTTL),
 		WebURL: webURL,
 	}
+}
+
+func newBootstrapTokenHash() []byte {
+	token := envconfig.String(bootstrapEnv, "")
+	if token == "" {
+		return nil
+	}
+	if len(token) < minBootstrapTokenLength {
+		panic(fmt.Errorf("%w: use at least %d characters", errShortBootstrapToken, minBootstrapTokenLength))
+	}
+	return service.HashBootstrapToken(token)
 }
 
 func newSystemAdmins() auth.SystemAdmins {

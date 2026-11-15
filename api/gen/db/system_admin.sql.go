@@ -24,7 +24,7 @@ func (q *Queries) AddSystemAdminEntries(ctx context.Context, emails []string) er
 
 const claimSystemAdmin = `-- name: ClaimSystemAdmin :execrows
 UPDATE system_admin_claims s
-SET user_id = $1::uuid, claimed_at = NOW()
+SET user_id = $1::uuid
 WHERE s.email = $2
     AND s.user_id IS NULL
     AND NOT EXISTS (SELECT 1 FROM system_admin_claims c WHERE c.user_id = $1)

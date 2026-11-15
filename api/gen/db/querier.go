@@ -33,6 +33,7 @@ type Querier interface {
 	ClaimSystemAdmin(ctx context.Context, arg ClaimSystemAdminParams) (int64, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
 	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
+	CloseSystemBootstrap(ctx context.Context, bootstrappedBy *uuid.UUID) (int64, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	CountEntityAPITokens(ctx context.Context, arg CountEntityAPITokensParams) (int64, error)
 	CountOpenOrgInvitations(ctx context.Context, orgID uuid.UUID) (int64, error)
@@ -289,9 +290,11 @@ type Querier interface {
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
+	SetSystemBootstrapOwner(ctx context.Context, bootstrappedBy *uuid.UUID) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
+	SystemAdminExists(ctx context.Context) (bool, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error

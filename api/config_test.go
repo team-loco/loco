@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/envconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -197,6 +198,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
 	t.Setenv(systemAdminsEnv, "")
+	t.Setenv(bootstrapEnv, "")
 	t.Setenv("INVITATION_TTL", "")
 	t.Setenv(otlpEndpointEnv, "")
 	t.Setenv(otlpTracesEndpointEnv, "")
@@ -260,6 +262,19 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 	}
 	if ac.Observability != wantLimits {
 		t.Errorf("observability = %+v, want %+v", ac.Observability, wantLimits)
+	}
+}
+
+func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if ac := newAPIConfig(); ac.BootstrapTokenHash != nil {
+		t.Fatalf("bootstrap token hash = %x without a token", ac.BootstrapTokenHash)
+	}
+	token := bearer.New("")
+	t.Setenv(bootstrapEnv, token)
+	ac := newAPIConfig()
+	if !slices.Equal(ac.BootstrapTokenHash, service.HashBootstrapToken(token)) {
+		t.Fatalf("bootstrap token hash = %x", ac.BootstrapTokenHash)
 	}
 }
 
@@ -768,6 +783,11 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"org link with an unknown placeholder",
 			map[string]string{orgLinksEnv: `[{"label":"Support","url":"https://support.loco.test/{userId}"}]`},
 			errInvalidOrgLinks,
+		},
+		{
+			"short bootstrap token",
+			map[string]string{bootstrapEnv: bearer.New("")[:minBootstrapTokenLength-1]},
+			errShortBootstrapToken,
 		},
 		{"system admin that is not an email", map[string]string{systemAdminsEnv: "admin"}, errInvalidSystemAdmins},
 		{
