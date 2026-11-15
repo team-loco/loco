@@ -84,7 +84,7 @@ CREATE TABLE
 
 CREATE INDEX IF NOT EXISTS idx_workspaces_created_by ON workspaces (created_by);
 
-CREATE INDEX IF NOT EXISTS idx_workspaces_org_id_created_at ON workspaces (org_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_workspaces_org_id_created_at ON workspaces (org_id, created_at DESC, id DESC);
 
 CREATE INDEX IF NOT EXISTS idx_workspaces_created_at_id_desc ON workspaces (created_at DESC, id DESC);
 
