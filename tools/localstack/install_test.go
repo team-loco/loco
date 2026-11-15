@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -209,11 +210,27 @@ func TestGatewayDNSPreservesFixturesAndIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`^(api|ingest)\.loco-dev-2\.localhost$`, `^.+\.apps\.loco-dev-2\.localhost$`,
+		`^(api|ingest)\.loco-dev-2\.localhost\.$`, `^.+\.apps\.loco-dev-2\.localhost\.$`,
 		"    kubernetes cluster.local", "    forward . /etc/resolv.conf",
 	} {
 		if !strings.Contains(corefile, want) {
 			t.Errorf("missing %q in %s", want, corefile)
+		}
+	}
+	for line := range strings.SplitSeq(corefile, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 4 && fields[0] == "rewrite" {
+			pattern, compileErr := regexp.Compile(fields[4])
+			if compileErr != nil {
+				t.Fatal(compileErr)
+			}
+			question := "api.loco-dev-2.localhost."
+			if strings.Contains(fields[4], "apps") {
+				question = "service.apps.loco-dev-2.localhost."
+			}
+			if !pattern.MatchString(question) || pattern.MatchString(question+"other.") {
+				t.Errorf("pattern %s does not isolate DNS question %s", fields[4], question)
+			}
 		}
 	}
 	repeat, err := gatewayCorefile(corefile, "loco-dev-2.localhost")

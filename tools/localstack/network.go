@@ -100,11 +100,10 @@ func gatewayCorefile(corefile, domain string) (string, error) {
 	}
 	escaped := strings.ReplaceAll(domain, ".", `\.`)
 	rules := fmt.Sprintf(
-		`    rewrite stop name regex ^(api|ingest)\.%s$ control-plane-gateway.loco-control-plane.svc.cluster.local answer auto
-    rewrite stop name regex ^.+\.apps\.%s$ apps-gateway.loco-system.svc.cluster.local answer auto
-`,
-		escaped,
-		escaped,
+		`    rewrite stop name regex ^(api|ingest)\.%s\.$ `+
+			"control-plane-gateway.loco-control-plane.svc.cluster.local answer auto\n"+
+			`    rewrite stop name regex ^.+\.apps\.%s\.$ `+
+			"apps-gateway.loco-system.svc.cluster.local answer auto\n", escaped, escaped,
 	)
 	if strings.Contains(corefile, rules) {
 		return corefile, nil
