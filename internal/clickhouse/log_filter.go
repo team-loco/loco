@@ -126,12 +126,17 @@ func fieldSQL(field logquery.Field, resources []ResourceName, b logBinder) strin
 	case BuildField:
 		return stringMatch("ResourceAttributes["+b.str(buildAttribute)+"]", field, b)
 	}
+	switch field.Match {
+	case logquery.Equal:
+		return attributeEquals(field, b)
+	case logquery.Prefix:
+		return "(startsWith(LogAttributes[" + b.str(field.Key) + "], " + b.str(field.Value) + ") OR (NOT mapContains(" +
+			"LogAttributes, " + b.str(field.Key) + ") AND startsWith(ResourceAttributes[" + b.str(field.Key) + "], " +
+			b.str(field.Value) + ")))"
+	}
 	attribute := "if(mapContains(LogAttributes, " + b.str(field.Key) + "), LogAttributes[" + b.str(field.Key) +
 		"], ResourceAttributes[" + b.str(field.Key) + "])"
-	switch field.Match {
-	case logquery.Equal, logquery.Prefix:
-		return stringMatch(attribute, field, b)
-	case logquery.Between:
+	if field.Match == logquery.Between {
 		return "ifNull(toFloat64OrNull(" + attribute + ") BETWEEN " + b.float(field.Low) + " AND " +
 			b.float(field.High) + ", 0)"
 	}
@@ -139,6 +144,17 @@ func fieldSQL(field logquery.Field, resources []ResourceName, b logBinder) strin
 		logquery.Greater: ">", logquery.GreaterOrEqual: ">=", logquery.Less: "<", logquery.LessOrEqual: "<=",
 	}[field.Match]
 	return "ifNull(toFloat64OrNull(" + attribute + ") " + operator + " " + b.float(field.Low) + ", 0)"
+}
+
+// attributeEquals matches the log attribute, or the resource attribute when the log has no such key.
+// The has() checks on the key=value item arrays let the text indexes skip granules; the map
+// comparisons keep the match exact when a key or value contains =.
+func attributeEquals(field logquery.Field, b logBinder) string {
+	item := field.Key + "=" + field.Value
+	return "((has(LogAttributeItems, " + b.str(item) + ") AND LogAttributes[" + b.str(field.Key) + "] = " +
+		b.str(field.Value) + ") OR (NOT mapContains(LogAttributes, " + b.str(field.Key) + ") AND has(" +
+		"ResourceAttributeItems, " + b.str(item) + ") AND ResourceAttributes[" + b.str(field.Key) + "] = " +
+		b.str(field.Value) + "))"
 }
 
 func stringMatch(column string, field logquery.Field, b logBinder) string {
