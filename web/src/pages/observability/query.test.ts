@@ -35,9 +35,16 @@ describe("regional telemetry filters", () => {
 			parsed: {
 				search: "timeout",
 				levels: [],
-				labels: [],
+				excludedLevels: [],
+				labels: {},
+				excludedLabels: {},
+				logAttributes: {},
+				excludedLogAttributes: {},
+				traceIds: [],
+				excludedTraceIds: [],
 				regions: ["US-*", "eu-west-1"],
 				excludedRegions: ["us-west-*"],
+				excludedResourceIds: [],
 			},
 			resourceIds: [],
 			allEnvironments: false,
@@ -90,11 +97,11 @@ describe("log severity filters", () => {
 
 describe("omnibar tokens per view", () => {
 	test("marks keys a view can't filter on and keeps the ones it can", () => {
-		const { tokens } = parseQuery("@resource:web @level:error -@replica:web-1 @trace:abc");
-		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, true, false, false]);
-		expect(tokenSupport("metrics", tokens).map((s) => s.ok)).toEqual([true, false, false, false]);
-		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([true, false, false, true]);
-		expect(tokenSupport("logs", tokens)[3]?.reason).toContain("isn't supported yet");
+		const { tokens } = parseQuery("@resource:web @level:error -@replica:web-1 @trace:abc -@trace:def");
+		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, true, true, true, false]);
+		expect(tokenSupport("metrics", tokens).map((s) => s.ok)).toEqual([true, false, false, false, false]);
+		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([true, false, false, true, false]);
+		expect(tokenSupport("traces", tokens)[4]?.reason).toBe("Excluding @trace isn't supported yet");
 	});
 
 	test("applies only the first filter of a single-value key", () => {
@@ -132,7 +139,7 @@ describe("build log filters", () => {
 		const { tokens, text } = parseQuery("@resource:api @build:b-123");
 		const raw = create(ResourceSchema, { id: "r1", name: "api" });
 		const query = buildBackendQuery(tokens, text, [{ id: "r1", name: "api", color: "", regions: [], raw }], null);
-		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["b-123"] }]);
+		expect(query.parsed.labels).toEqual({ [BUILD_ID_LABEL]: "b-123" });
 		expect(query.resourceIds).toEqual(["r1"]);
 		expect(query.allEnvironments).toBe(true);
 	});
@@ -141,7 +148,7 @@ describe("build log filters", () => {
 		const { tokens } = parseQuery("@build:a @build:b -@build:c");
 		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, false]);
 		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([false, false, false]);
-		expect(buildBackendQuery(tokens, "", [], null).parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["a"] }]);
+		expect(buildBackendQuery(tokens, "", [], null).parsed.labels).toEqual({ [BUILD_ID_LABEL]: "a" });
 	});
 });
 
@@ -236,5 +243,55 @@ describe("trace duration filters", () => {
 	});
 	test("applies only to traces", () => {
 		expect(tokenSupport("logs", parseQuery("@duration:>500").tokens)[0]?.ok).toBe(false);
+	});
+});
+
+describe("log attribute, trace and exclusion filters", () => {
+	const raw = create(ResourceSchema, { id: "r1", name: "api" });
+	const api = { id: "r1", name: "api", color: "", regions: [], raw };
+
+	test("excludes levels, resources, replicas and builds without narrowing the rest", () => {
+		const { tokens } = parseQuery("-@level:debug -@resource:api -@replica:web-1 -@build:b-1");
+		const query = buildBackendQuery(tokens, "", [api], null);
+		expect(query.parsed.levels).toEqual([]);
+		expect(query.parsed.excludedLevels).toContain("DEBUG");
+		expect(query.parsed.excludedResourceIds).toEqual(["r1"]);
+		expect(query.resourceIds).toEqual([]);
+		expect(query.parsed.excludedLabels).toEqual({ "k8s.pod.name": "web-1", [BUILD_ID_LABEL]: "b-1" });
+		expect(query.allEnvironments).toBe(false);
+		expect(query.impossible).toBe(false);
+	});
+
+	test("filters one trace and skips a malformed trace ID", () => {
+		const id = "0123456789ABCDEF0123456789ABCDEF";
+		expect(buildBackendQuery(parseQuery(`@trace:${id}`).tokens, "", [], null).parsed.traceIds).toEqual([
+			id.toLowerCase(),
+		]);
+		expect(buildBackendQuery(parseQuery("@trace:abc").tokens, "", [], null).impossible).toBe(true);
+		const excluded = buildBackendQuery(parseQuery("-@trace:abc").tokens, "", [], null);
+		expect(excluded.parsed.excludedTraceIds).toEqual([]);
+		expect(excluded.impossible).toBe(false);
+	});
+
+	test("reads @method, @path and @attr as log attributes and @label as resource attributes", () => {
+		const { tokens } = parseQuery(
+			"@method:GET -@path:/healthz @attr:http.response.status_code=500 -@attr:user=bot @label:team=a",
+		);
+		const query = buildBackendQuery(tokens, "", [], null);
+		expect(query.parsed.logAttributes).toEqual({ method: "GET", "http.response.status_code": "500" });
+		expect(query.parsed.excludedLogAttributes).toEqual({ path: "/healthz", user: "bot" });
+		expect(query.parsed.labels).toEqual({ team: "a" });
+	});
+
+	test("applies the first filter of each attribute key and rejects malformed or reserved ones", () => {
+		const { tokens } = parseQuery("@attr:a=1 @attr:a=2 -@attr:b=3 @attr:novalue @label:loco.workspace.id=w");
+		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, true, false, false]);
+	});
+
+	test("quotes values with spaces or quotes in the URL", () => {
+		const token: Token = { neg: true, key: "attr", value: 'user_agent=curl 8 "x"' };
+		const written = createSerializer(QUERY_PARSERS)("", queryValues([token], "slow"));
+		expect(readQuery(written).tokens).toEqual([token]);
+		expect(readQuery(written).text).toBe("slow");
 	});
 });

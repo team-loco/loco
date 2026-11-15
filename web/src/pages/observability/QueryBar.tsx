@@ -15,7 +15,6 @@ import {
 } from "@/components/design/Combobox";
 import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
-import { SoonTag } from "@/components/design/SoonTag";
 import { formatCount } from "@/lib/format";
 import { useStoredJSON } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -25,6 +24,7 @@ import { levelStyle } from "./format";
 import {
 	addRecent,
 	agoShort,
+	COMPLETED_TOKEN_RE,
 	fieldDef,
 	isFieldKey,
 	levelOf,
@@ -39,6 +39,7 @@ import {
 	searchesText,
 	shownRecent,
 	tokenSupport,
+	tokenValue,
 	viewFields,
 	type FieldDef,
 	type FieldKey,
@@ -51,7 +52,6 @@ interface Suggestion {
 	icon: ReactNode;
 	main: string;
 	hint: string;
-	disabled?: boolean;
 	apply: () => void;
 	remove?: { label: string; run: () => void };
 }
@@ -64,7 +64,6 @@ interface Group {
 
 const VALUE_WORD_RE = /^(-?)@(\w+):(.*)$/;
 const KEY_WORD_RE = /^(-?)@(\w*)$/;
-const COMPLETED_TOKEN_RE = /(^|\s)(-?)@(\w+):(\S+)\s$/;
 const MAX_VALUES = 10;
 const MAX_TEXT_VALUES = 3;
 const TEXT_VALUE_KEYS = new Set<FieldKey>(["resource", "level", "region"]);
@@ -166,7 +165,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		icon: <TagIcon className="size-3.5" />,
 		main: `${neg ? "-" : ""}@${def.key}`,
 		hint: def.label,
-		disabled: !def.views.includes(view),
 		apply: () => {
 			const w = text.split(" ");
 			w.pop();
@@ -304,7 +302,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		const m = COMPLETED_TOKEN_RE.exec(v);
 		const key = m?.[3] ?? "";
 		if (m && isFieldKey(key)) {
-			const t: Token = { neg: m[2] === "-", key, value: m[4] ?? "" };
+			const t: Token = { neg: m[2] === "-", key, value: tokenValue(m[4] ?? "") };
 			setTokens([...tokens, t], v.slice(0, v.length - m[0].length + (m[1] ?? "").length));
 			setOpen(true);
 			return;
@@ -457,11 +455,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 										)}
 									</div>
 									{g.items.map((s) => (
-										<ComboboxItem key={s.key} value={s} disabled={s.disabled}>
+										<ComboboxItem key={s.key} value={s}>
 											<span className="flex text-fg3">{s.icon}</span>
 											<span className="min-w-0 flex-1 truncate font-mono">{s.main}</span>
 											<span className="text-[12px] whitespace-nowrap text-fg3">{s.hint}</span>
-											{s.disabled === true && <SoonTag />}
 											{s.remove !== undefined && (
 												<Button
 													variant="ghost"

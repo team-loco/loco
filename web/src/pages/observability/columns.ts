@@ -95,7 +95,7 @@ export const widthsParser = createParser<ColumnWidths>({
 	eq: (a, b) => serializeWidths(a) === serializeWidths(b),
 }).withDefault({});
 
-export function rowAttributes(row: LogRow): Record<string, string> {
+function rowAttributes(row: LogRow): Record<string, string> {
 	return {
 		...row.entry.resourceAttributes,
 		...row.entry.logAttributes,

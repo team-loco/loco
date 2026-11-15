@@ -5,6 +5,7 @@ import type { ParsedQuery } from "@/lib/obs-query-parser";
 import type { ObservabilityView } from "@/lib/routes";
 
 import type { ObsResource } from "./context";
+import { TRACE_ID_PATTERN } from "./traces";
 
 export type Level = "error" | "warn" | "info" | "debug";
 
@@ -34,7 +35,19 @@ export function levelOf(severity: string): Level {
 }
 
 export type FieldKey =
-	"resource" | "level" | "replica" | "build" | "region" | "type" | "status" | "trace" | "duration" | "method" | "path";
+	| "resource"
+	| "level"
+	| "replica"
+	| "build"
+	| "region"
+	| "type"
+	| "status"
+	| "trace"
+	| "duration"
+	| "method"
+	| "path"
+	| "attr"
+	| "label";
 
 export interface FieldDef {
 	key: FieldKey;
@@ -42,31 +55,49 @@ export interface FieldDef {
 	views: ObservabilityView[];
 	negate: ObservabilityView[];
 	single: boolean;
-	planned: ObservabilityView[];
 }
 
 const ALL_VIEWS: ObservabilityView[] = ["logs", "metrics", "traces", "events"];
 
+// @attr and @label values are key=value pairs; each attribute key takes one filter, like a single field.
 export const FIELDS: FieldDef[] = [
-	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: false, planned: [] },
-	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: false, planned: [] },
-	{ key: "replica", label: "Replica", views: ["logs"], negate: [], single: true, planned: [] },
-	{ key: "build", label: "Build ID", views: ["logs"], negate: [], single: true, planned: [] },
-	{
-		key: "region",
-		label: "Region",
-		views: ["logs", "metrics"],
-		negate: ["logs", "metrics"],
-		single: false,
-		planned: [],
-	},
-	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: false, planned: [] },
-	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: false, planned: ["logs"] },
-	{ key: "trace", label: "Trace ID", views: ["traces"], negate: [], single: true, planned: ["logs"] },
-	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: false, planned: [] },
-	{ key: "method", label: "HTTP method", views: [], negate: [], single: false, planned: ["logs"] },
-	{ key: "path", label: "Request path", views: [], negate: [], single: false, planned: ["logs"] },
+	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: false },
+	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: false },
+	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"], single: true },
+	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"], single: true },
+	{ key: "region", label: "Region", views: ["logs", "metrics"], negate: ["logs", "metrics"], single: false },
+	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: false },
+	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: false },
+	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"], single: true },
+	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: false },
+	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"], single: true },
+	{ key: "path", label: "Request path", views: ["logs"], negate: ["logs"], single: true },
+	{ key: "attr", label: "Log attribute", views: ["logs"], negate: ["logs"], single: true },
+	{ key: "label", label: "Resource attribute", views: ["logs"], negate: ["logs"], single: true },
 ];
+
+// The gateway's access logs carry these keys, so @method and @path match every routed request.
+export const REQUEST_FILTER_ATTRIBUTES: Partial<Record<FieldKey, string>> = { method: "method", path: "path" };
+
+const PAIR_FIELDS = new Set<FieldKey>(["attr", "label"]);
+const RESERVED_LABEL_PREFIX = "loco.";
+const OPEN_LABEL_PREFIX = "loco.io/";
+
+export interface AttributePair {
+	key: string;
+	value: string;
+}
+
+/** Reads an @attr or @label value, written key=value. */
+export function attributePair(value: string): AttributePair | null {
+	const at = value.indexOf("=");
+	return at > 0 ? { key: value.slice(0, at), value: value.slice(at + 1) } : null;
+}
+
+/** Whether a log query can filter on the resource attribute; Loco sets the loco. keys besides loco.io/ labels. */
+export function filterableLabel(key: string): boolean {
+	return !key.startsWith(RESERVED_LABEL_PREFIX) || key.startsWith(OPEN_LABEL_PREFIX);
+}
 
 const KEY_ALIASES: Record<string, FieldKey> = { pod: "replica", trace_id: "trace" };
 
@@ -85,7 +116,7 @@ export function fieldDef(key: FieldKey): FieldDef {
 }
 
 export function viewFields(view: ObservabilityView): FieldDef[] {
-	return FIELDS.filter((f) => f.views.includes(view) || f.planned.includes(view));
+	return FIELDS.filter((f) => f.views.includes(view));
 }
 
 export function searchesText(view: ObservabilityView): boolean {
@@ -98,13 +129,22 @@ export interface Token {
 	value: string;
 }
 
-const TOKEN_RE = /(-?)@(\w+):(\S+)/g;
+const TOKEN_VALUE = String.raw`("(?:[^"\\]|\\.)*"|\S+)`;
+const TOKEN_RE = new RegExp(String.raw`(-?)@(\w+):` + TOKEN_VALUE, "g");
+export const COMPLETED_TOKEN_RE = new RegExp(String.raw`(^|\s)(-?)@(\w+):` + TOKEN_VALUE + String.raw`\s$`);
+const QUOTED_RE = /^"(?:[^"\\]|\\.)*"$/;
+const NEEDS_QUOTES_RE = /[\s"]/;
 const BARE_TOKEN_RE = /^(pod|replica|build):(\S+)$/;
 
 export const BUILD_ID_LABEL = "loco.io/build-id";
 
+/** Reads a token value as written, unquoting one that holds spaces or quotes. */
+export function tokenValue(raw: string): string {
+	return QUOTED_RE.test(raw) ? (JSON.parse(raw) as string) : raw;
+}
+
 function tokStr(t: Token): string {
-	return `${t.neg ? "-" : ""}@${t.key}:${t.value}`;
+	return `${t.neg ? "-" : ""}@${t.key}:${NEEDS_QUOTES_RE.test(t.value) ? JSON.stringify(t.value) : t.value}`;
 }
 
 export function queryStr(tokens: Token[], text: string): string {
@@ -118,7 +158,7 @@ export function parseQuery(q: string): { tokens: Token[]; text: string } {
 	const tokens: Token[] = [];
 	for (const m of q.matchAll(TOKEN_RE)) {
 		const key = fieldKey(m[2] ?? "");
-		if (key !== undefined) tokens.push({ neg: m[1] === "-", key, value: m[3] ?? "" });
+		if (key !== undefined) tokens.push({ neg: m[1] === "-", key, value: tokenValue(m[3] ?? "") });
 	}
 	const text = q
 		.replace(TOKEN_RE, (all: string, _neg: string, key: string) => (fieldKey(key) !== undefined ? "" : all))
@@ -163,20 +203,20 @@ export interface TokenSupport {
 const SUPPORTED: TokenSupport = { ok: true, reason: "" };
 
 export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSupport[] {
-	const seen = new Set<FieldKey>();
+	const seen = new Set<string>();
 	return tokens.map((t) => {
 		const def = fieldDef(t.key);
-		if (!def.views.includes(view)) {
-			return {
-				ok: false,
-				reason: def.planned.includes(view)
-					? `Filtering ${view} by @${t.key} isn't supported yet`
-					: `@${t.key} doesn't apply to ${view}`,
-			};
-		}
+		if (!def.views.includes(view)) return { ok: false, reason: `@${t.key} doesn't apply to ${view}` };
 		if (t.neg && !def.negate.includes(view)) return { ok: false, reason: `Excluding @${t.key} isn't supported yet` };
-		if (def.single && seen.has(t.key)) return { ok: false, reason: `Only the first @${t.key} filter applies` };
-		seen.add(t.key);
+		const pair = PAIR_FIELDS.has(t.key) ? attributePair(t.value) : null;
+		if (PAIR_FIELDS.has(t.key) && pair === null) return { ok: false, reason: `Write @${t.key}:key=value` };
+		if (t.key === "label" && pair !== null && !filterableLabel(pair.key)) {
+			return { ok: false, reason: `Loco sets ${pair.key}; filter with @resource or @region` };
+		}
+		const slot = pair === null ? t.key : `${t.key}:${pair.key}`;
+		const name = pair === null ? `@${t.key}` : `@${t.key} ${pair.key}`;
+		if (def.single && seen.has(slot)) return { ok: false, reason: `Only the first ${name} filter applies` };
+		seen.add(slot);
 		return SUPPORTED;
 	});
 }
@@ -242,40 +282,69 @@ export function buildBackendQuery(
 	resources: ObsResource[],
 	scopedResourceIds: string[] | null,
 ): BackendQuery {
-	const byKey = (k: FieldKey) => liveTokens("logs", tokens, k);
+	const byKey = (k: FieldKey, neg: boolean) => liveTokens("logs", tokens, k).filter((t) => t.neg === neg);
+	const values = (k: FieldKey, neg: boolean) => byKey(k, neg).map((t) => t.value);
 
-	const levelSet = narrow(LEVELS, byKey("level"));
-	const levels = levelSet === null ? [] : levelSet.flatMap((l) => LEVEL_VARIANTS[l]);
+	const included = byKey("level", false);
+	const levelSet = narrow(LEVELS, included);
+	const levelVariants = (set: Level[]) => set.flatMap((l) => LEVEL_VARIANTS[l]);
+	const excludedLevelSet = LEVELS.filter((l) => byKey("level", true).some((t) => matches(l, t.value)));
 
-	const resourceNames = resources.map((r) => r.name);
-	const resNames = narrow(resourceNames, byKey("resource"));
+	const resourceTokens = byKey("resource", false);
+	const resNames = narrow(
+		resources.map((r) => r.name),
+		resourceTokens,
+	);
 	const resSet = resNames === null ? null : new Set(resNames);
 	const resourceIds =
 		resSet === null ? (scopedResourceIds ?? []) : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
+	const excludedNames = byKey("resource", true);
+	const excludedResourceIds = resources
+		.filter((r) => excludedNames.some((t) => matches(r.name, t.value)))
+		.map((r) => r.id);
 
-	const labels: ParsedQuery["labels"] = [];
-	const replica = byKey("replica")[0];
-	if (replica !== undefined) labels.push({ key: "k8s.pod.name", values: [replica.value] });
-	const build = byKey("build")[0];
-	if (build !== undefined) labels.push({ key: BUILD_ID_LABEL, values: [build.value] });
+	const pairs = (neg: boolean, fixed: Partial<Record<FieldKey, string>>, pairKey: FieldKey) => {
+		const out: Record<string, string> = {};
+		for (const [field, attribute] of Object.entries(fixed) as [FieldKey, string][]) {
+			const token = byKey(field, neg)[0];
+			if (token !== undefined) out[attribute] = token.value;
+		}
+		for (const t of byKey(pairKey, neg)) {
+			const pair = attributePair(t.value);
+			if (pair !== null) out[pair.key] = pair.value;
+		}
+		return out;
+	};
+	const labelFields: Partial<Record<FieldKey, string>> = { replica: "k8s.pod.name", build: BUILD_ID_LABEL };
+
+	const traceIds = values("trace", false).map((v) => v.toLowerCase());
+	const excludedTraceIds = values("trace", true)
+		.map((v) => v.toLowerCase())
+		.filter((v) => TRACE_ID_PATTERN.test(v));
 
 	const impossible =
-		levelSet?.length === 0 || resNames?.length === 0 || (scopedResourceIds !== null && resourceIds.length === 0);
+		levelSet?.length === 0 ||
+		resNames?.length === 0 ||
+		(scopedResourceIds !== null && resourceIds.length === 0) ||
+		traceIds.some((v) => !TRACE_ID_PATTERN.test(v));
 
 	return {
 		parsed: {
 			search: text.trim(),
-			levels,
-			labels,
-			regions: byKey("region")
-				.filter((t) => !t.neg)
-				.map((t) => t.value),
-			excludedRegions: byKey("region")
-				.filter((t) => t.neg)
-				.map((t) => t.value),
+			levels: levelSet === null ? [] : levelVariants(levelSet),
+			excludedLevels: levelVariants(excludedLevelSet),
+			labels: pairs(false, labelFields, "label"),
+			excludedLabels: pairs(true, labelFields, "label"),
+			logAttributes: pairs(false, REQUEST_FILTER_ATTRIBUTES, "attr"),
+			excludedLogAttributes: pairs(true, REQUEST_FILTER_ATTRIBUTES, "attr"),
+			traceIds,
+			excludedTraceIds,
+			regions: values("region", false),
+			excludedRegions: values("region", true),
+			excludedResourceIds,
 		},
 		resourceIds,
-		allEnvironments: build !== undefined,
+		allEnvironments: byKey("build", false).length > 0,
 		impossible,
 	};
 }
