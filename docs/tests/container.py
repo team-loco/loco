@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import pytest
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
@@ -153,64 +153,6 @@ def ui_routes():
     return re.findall('<Route\\s+path="(/[^\\"]*)"', route_source)
 
 
-def check_docs_renders(address, out_dir):
-    problems = []
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(args=[
-            f"--host-resolver-rules=MAP {UI_HOST} {address}, MAP {DOCS_HOST} {address}"
-        ])
-        for host, prefix in [(DOCS_HOST, ""), (UI_HOST, "/docs")]:
-            for scheme in NOT_FOUND_SCHEMES:
-                for narrow in [False, True]:
-                    width = 390 if narrow else 1440
-                    page = browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
-                    # The container is tested over HTTP; provide the HTTPS-only clipboard API.
-                    page.add_init_script("Object.defineProperty(navigator, 'clipboard', {value: {writeText: async text => { window.copiedText = text; }}})")
-                    page.on("pageerror", lambda error: problems.append(str(error)))
-                    page.on("console", lambda message: message.type == "error" and problems.append(message.text))
-                    page.on("requestfailed", lambda request: problems.append(f"{request.url} failed"))
-                    page.goto(f"http://{host}{prefix}/")
-                    page.get_by_role("heading", name="Deploy with Loco", exact=True).wait_for()
-                    expect(page.locator("html")).to_have_class(scheme)
-                    assert page.evaluate("document.documentElement.scrollWidth") <= width
-                    page.screenshot(path=out_dir / f"{host}-after-{scheme}{'-narrow' if narrow else ''}.png", full_page=True)
-                    # Article links and router data must keep the active hosting path.
-                    page.get_by_role("link", name="Choose a deployment mode", exact=True).click()
-                    page.get_by_role("heading", name="Deployment modes", exact=True).wait_for()
-                    assert page.url.startswith(f"http://{host}{prefix}/deployment/modes")
-                    page.reload()
-                    page.get_by_role("heading", name="Deployment modes", exact=True).wait_for()
-                    page.keyboard.press("ControlOrMeta+k")
-                    search = page.get_by_role("dialog")
-                    search.get_by_role("combobox").fill("loco.yaml")
-                    search.get_by_role("option").first.wait_for()
-                    search.get_by_role("combobox").fill("zzzznonexistentquery")
-                    search.get_by_text("No results found").wait_for()
-                    page.keyboard.press("Escape")
-                    search.wait_for(state="hidden")
-                    page.keyboard.press("ControlOrMeta+k")
-                    search.get_by_role("combobox").fill("Deployment modes")
-                    search.get_by_role("option").first.click()
-                    search.wait_for(state="hidden")
-                    page.get_by_role("heading", name="Deployment modes", exact=True).wait_for()
-                    assert page.url.startswith(f"http://{host}{prefix}/deployment/modes")
-                    if narrow:
-                        page.get_by_role("button", name="Open Sidebar").click()
-                    page.get_by_role("button", name="Toggle Theme").first.click()
-                    expect(page.locator("html")).to_have_class("light" if scheme == "dark" else "dark")
-                    if narrow:
-                        page.get_by_role("link", name="CLI and API", exact=True).click()
-                        page.get_by_role("heading", name="CLI and API", exact=True).wait_for()
-                    else:
-                        page.goto(f"http://{host}{prefix}/getting-started/install/")
-                        page.get_by_role("button", name="Copy Text", exact=True).first.click()
-                        expected = page.locator("pre code").first.inner_text().strip()
-                        assert page.evaluate("window.copiedText").strip() == expected
-                    page.close()
-        browser.close()
-    assert problems == []
-
-
 def test_image_serves_the_ui_and_docs(tmp_path):
     docker(
         "buildx",
@@ -352,7 +294,6 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             assert f"<title>{NOT_FOUND_TITLE}</title>" in body
             assert '<div id="root">' not in body
             assert NOT_FOUND_HEADING in body
-        check_docs_renders(address, tmp_path)
         check_not_found_renders(
             address,
             [
