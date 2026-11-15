@@ -49,6 +49,7 @@ export function VolumeBars({
 	};
 	return (
 		<div
+			data-slot="volume-bars"
 			title={current === null ? undefined : buckets[current]?.label}
 			className="relative h-[72px] cursor-pointer rounded-sm"
 		>
@@ -64,7 +65,7 @@ export function VolumeBars({
 						{b.segments.map((s, j) => (
 							<span
 								key={String(j)}
-								className="block w-full shrink-0"
+								className="block w-full shrink-0 not-first:shadow-[inset_0_-1px_0_var(--panel)]"
 								style={{ height: `${String((s.value / max) * 100)}%`, background: s.color }}
 							/>
 						))}

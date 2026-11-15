@@ -29,7 +29,7 @@ export function FilterPopover({
 	const set = value !== "";
 	const clearable = set && onClear !== undefined;
 	return (
-		<span className="flex shrink-0 items-center">
+		<span data-slot="filter-control" data-active={set || undefined} className="flex shrink-0 items-center">
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger
 					render={

@@ -149,3 +149,5 @@ Shared control behavior comes from the Base UI shadcn registry through the desig
 The observability custom range uses the shared DateTimePicker: shadcn's Calendar in a Popover and a native time input, in the browser's locale and the user's local timezone. It preserves minute precision and the existing range validation.
 
 The sidebar search opens the shared command palette. Header search appears while the sidebar is collapsed. The user menu keeps System, Light, and Dark in one segmented Mode control with a sliding selection and reduced-motion support.
+
+Dashboard allocation uses one series token per displayed resource and one neutral segment for the remainder. Summary cards align within each grid row, and their supporting text truncates with a full-text title. Log and trace series share level tokens; stacked histogram segments retain a panel-colored separator. Neobrutal controls, badges, charts, and query tokens use the theme's ink borders and hard shadows.

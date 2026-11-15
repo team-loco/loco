@@ -156,7 +156,7 @@ export function TraceOverview({
 				}
 				legend={
 					<>
-						<Swatch className="h-2 w-2 rounded-[2px] bg-info/45">OK</Swatch>
+						<Swatch className="h-2 w-2 rounded-[2px] bg-lv-info">OK</Swatch>
 						<Swatch className="h-2 w-2 rounded-[2px] bg-err">Error</Swatch>
 					</>
 				}
@@ -181,7 +181,7 @@ export function TraceOverview({
 							style={{ height: pct(b.errors / countMax) }}
 						/>
 						<i
-							className="block rounded-[1px] bg-info/45 transition-[height] duration-300 motion-reduce:transition-none"
+							className="block rounded-[1px] bg-lv-info transition-[height] duration-300 motion-reduce:transition-none"
 							style={{ height: pct((b.traces - b.errors) / countMax) }}
 						/>
 					</span>

@@ -33,6 +33,7 @@ function ToggleGroup({
 			<MotionConfig reducedMotion="user">
 				<LayoutGroup id={id}>
 					<ToggleGroupBase
+						data-segmented={segmented || undefined}
 						variant={segmented ? "default" : variant}
 						spacing={segmented ? 0.5 : spacing}
 						className={cn(segmented && "rounded-control bg-panel2 p-0.5", className)}

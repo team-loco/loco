@@ -526,6 +526,7 @@ function TokenChip({
 	const label = `${neg ? "Excluding" : "Only"} ${token.key} ${token.value}`;
 	return (
 		<span
+			data-slot="query-token"
 			className={cn(
 				"inline-flex h-[26px] items-center overflow-hidden rounded-sm border border-line2 bg-panel",
 				reason !== null && "opacity-55",

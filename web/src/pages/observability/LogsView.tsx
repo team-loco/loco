@@ -73,8 +73,8 @@ const FRESH_MS = 1800;
 
 const LEVEL_SERIES: Record<Level, { label: string; color: string }> = {
 	error: { label: "Error", color: "var(--err)" },
-	warn: { label: "Warning", color: "var(--warn)" },
-	info: { label: "Info", color: "color-mix(in oklab, var(--fg) 28%, var(--panel))" },
+	warn: { label: "Warning", color: "var(--lv-warn)" },
+	info: { label: "Info", color: "var(--lv-info)" },
 	debug: { label: "Debug", color: "var(--line2)" },
 };
 
@@ -416,6 +416,7 @@ export function LogsView() {
 						<ToggleGroup
 							multiple
 							aria-label="Log levels"
+							data-log-levels
 							className="flex flex-wrap gap-1"
 							value={pressedLevels}
 							onValueChange={(values) => {
