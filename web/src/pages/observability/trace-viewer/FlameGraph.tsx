@@ -12,9 +12,6 @@ import { axisLabel, durationLabel, spanError, type TraceSummary } from "../trace
 
 const ROW_PX = 24;
 const TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
-const LABEL_MIN = 0.05;
-const DURATION_MIN = 0.13;
-const MIN_BLOCK = 0.0025;
 const PERCENT = 100;
 const TICK_SCALE = 1_000_000;
 
@@ -102,7 +99,7 @@ export function FlameGraph({
 								setZoom(zoomTo(trace, b.span));
 							}}
 							className={cn(
-								"absolute flex h-[22px] items-center gap-2 overflow-hidden rounded-[3px] px-1.5 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+								"@container absolute h-[22px] min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 								err && "text-bad-fg",
 								!related.has(b.span.spanId) && "opacity-45",
 								highlight !== null && b.span.serviceName !== highlight && "opacity-20",
@@ -110,17 +107,17 @@ export function FlameGraph({
 							)}
 							style={{
 								left: `${String(b.left * PERCENT)}%`,
-								width: `${String(Math.max(MIN_BLOCK, b.width) * PERCENT)}%`,
+								width: `${String(b.width * PERCENT)}%`,
 								top: b.depth * ROW_PX,
 								background: `color-mix(in oklab, ${color} ${err ? "26%" : "34%"}, var(--bg))`,
 							}}
 						>
-							{b.width > LABEL_MIN && <span className="min-w-0 truncate font-mono text-[11.5px]">{b.span.name}</span>}
-							{b.width > DURATION_MIN && (
-								<span className="ml-auto font-mono text-[11px] whitespace-nowrap opacity-70">
+							<span className="flex h-full w-full min-w-0 items-center gap-2 overflow-hidden px-1.5">
+								<span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{b.span.name}</span>
+								<span className="hidden shrink-0 font-mono text-[11px] whitespace-nowrap opacity-70 @[160px]:block">
 									{durationLabel(b.span.durationNanos)}
 								</span>
-							)}
+							</span>
 						</button>
 					);
 				})}

@@ -3,7 +3,7 @@ import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
 
 import { failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo } from "./flame";
-import { summarizeTraces } from "./traces";
+import { spanStart, summarizeTraces } from "./traces";
 
 const span = (id: string, parent: string, startNanos: number, duration: bigint, extra = {}) =>
 	create(TraceSpanSchema, {
@@ -28,7 +28,7 @@ function trace() {
 }
 
 describe("flame graph layout", () => {
-	test("places each span by start offset and duration on the row of its depth", () => {
+	test("places each span by start offset and duration on the first available row beneath its parent", () => {
 		const { blocks, depth } = flameLayout(trace(), FULL_ZOOM);
 		expect(depth).toBe(3);
 		const dbBlock = blocks.find((b) => b.span.spanId === "db");
@@ -77,4 +77,87 @@ describe("flame graph details", () => {
 	test("lineage covers ancestors and descendants, not siblings", () => {
 		expect([...lineage(trace(), "api")].toSorted()).toEqual(["api", "db", "root"]);
 	});
+});
+
+function summaryOf(spans: ReturnType<typeof span>[]) {
+	const summary = summarizeTraces(spans)[0];
+	if (summary === undefined) throw new Error("Missing trace");
+	return summary;
+}
+
+test("concurrent siblings occupy separate rows beneath their parent", () => {
+	const summary = summaryOf([root, span("a", "root", 100, 400n), span("b", "root", 200, 400n)]);
+	const { blocks, depth } = flameLayout(summary, FULL_ZOOM);
+	expect(blocks.map((b) => [b.span.spanId, b.depth])).toEqual([
+		["root", 0],
+		["a", 1],
+		["b", 2],
+	]);
+	expect(depth).toBe(3);
+});
+
+test("a child outliving its parent cannot collide with the next sibling's child", () => {
+	const summary = summaryOf([
+		root,
+		span("a", "root", 100, 200n),
+		span("long", "a", 200, 500n),
+		span("b", "root", 400, 300n),
+		span("nested", "b", 450, 100n),
+	]);
+	const { blocks } = flameLayout(summary, FULL_ZOOM);
+	expect(blocks.map((b) => [b.span.spanId, b.depth])).toEqual([
+		["root", 0],
+		["a", 1],
+		["long", 2],
+		["b", 1],
+		["nested", 3],
+	]);
+	const zoomed = flameLayout(summary, { a: 0.4, b: 0.6 });
+	for (const block of zoomed.blocks) {
+		const original = blocks.find((b) => b.span.spanId === block.span.spanId);
+		if (original === undefined) throw new Error("Missing unzoomed block");
+		expect(block.depth).toBe(original.depth);
+	}
+});
+
+test("random trace rows contain no overlapping intervals and follow their parents", () => {
+	let seed = 9127;
+	const random = (max: number) => {
+		seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+		return seed % max;
+	};
+	for (let run = 0; run < 100; run++) {
+		const spans = [root];
+		for (let index = 1; index < 80; index++)
+			spans.push(
+				span(String(index), spans[random(spans.length)]?.spanId ?? "root", random(1000), BigInt(random(500) + 1)),
+			);
+		const { blocks, depth } = flameLayout(summaryOf(spans), FULL_ZOOM);
+		const byId = new Map(blocks.map((b) => [b.span.spanId, b]));
+		expect(blocks).toHaveLength(spans.length);
+		expect(depth).toBe(Math.max(...blocks.map((b) => b.depth)) + 1);
+		for (const block of blocks) {
+			const parent = byId.get(block.span.parentSpanId);
+			if (parent !== undefined) expect(block.depth).toBeGreaterThan(parent.depth);
+			const start = spanStart(block.span);
+			const end = start + block.span.durationNanos;
+			for (const other of blocks)
+				if (other !== block && other.depth === block.depth) {
+					const otherStart = spanStart(other.span);
+					expect(start >= otherStart + other.span.durationNanos || end <= otherStart).toBe(true);
+				}
+		}
+	}
+});
+
+test("self time subtracts the union of children clipped to the parent", () => {
+	const parent = span("parent", "", 100, 1000n);
+	const summary = summaryOf([
+		parent,
+		span("a", "parent", 50, 350n),
+		span("b", "parent", 300, 300n),
+		span("c", "parent", 900, 400n),
+		span("outside", "parent", 1400, 100n),
+	]);
+	expect(selfTime(summary, parent)).toBe(300n);
 });

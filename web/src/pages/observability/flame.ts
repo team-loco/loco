@@ -28,17 +28,23 @@ function fraction(part: bigint, total: bigint): number {
 export function flameLayout(trace: TraceSummary, zoom: Zoom): { blocks: FlameBlock[]; depth: number } {
 	const width = zoom.b - zoom.a;
 	const blocks: FlameBlock[] = [];
-	let depth = 0;
-	for (const row of spanTree(trace.spans)) {
-		depth = Math.max(depth, row.depth);
-		const start = fraction(spanStart(row.span) - trace.start, trace.duration);
-		const end = start + fraction(row.span.durationNanos, trace.duration);
-		if (end < zoom.a || start > zoom.b) continue;
-		const left = Math.max(0, (start - zoom.a) / width);
-		const right = Math.min(1, (end - zoom.a) / width);
-		blocks.push({ span: row.span, depth: row.depth, left, width: Math.max(0, right - left) });
+	const rows: { start: bigint; end: bigint }[][] = [];
+	const placed = new Map<string, number>();
+	for (const { span } of spanTree(trace.spans)) {
+		const start = spanStart(span);
+		const end = start + span.durationNanos;
+		let row = (placed.get(span.parentSpanId) ?? -1) + 1;
+		while (rows[row]?.some((other) => start < other.end && other.start < end)) row++;
+		(rows[row] ??= []).push({ start, end });
+		placed.set(span.spanId, row);
+		const from = fraction(start - trace.start, trace.duration);
+		const to = fraction(end - trace.start, trace.duration);
+		if (to < zoom.a || from > zoom.b) continue;
+		const left = Math.max(0, (from - zoom.a) / width);
+		const right = Math.min(1, (to - zoom.a) / width);
+		blocks.push({ span, depth: row, left, width: Math.max(0, right - left) });
 	}
-	return { blocks, depth: depth + 1 };
+	return { blocks, depth: rows.length };
 }
 
 function childrenOf(trace: TraceSummary): Map<string, TraceSpan[]> {
@@ -53,8 +59,23 @@ function childrenOf(trace: TraceSummary): Map<string, TraceSpan[]> {
 }
 
 export function selfTime(trace: TraceSummary, span: TraceSpan): bigint {
-	const covered = (childrenOf(trace).get(span.spanId) ?? []).reduce((sum, child) => sum + child.durationNanos, 0n);
-	return covered >= span.durationNanos ? 0n : span.durationNanos - covered;
+	const start = spanStart(span);
+	const end = start + span.durationNanos;
+	const intervals = (childrenOf(trace).get(span.spanId) ?? [])
+		.map((child) => ({
+			start: spanStart(child) < start ? start : spanStart(child),
+			end: spanStart(child) + child.durationNanos > end ? end : spanStart(child) + child.durationNanos,
+		}))
+		.filter((interval) => interval.end > interval.start)
+		.toSorted((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+	let covered = 0n;
+	let until = start;
+	for (const interval of intervals) {
+		const from = interval.start > until ? interval.start : until;
+		if (interval.end > from) covered += interval.end - from;
+		if (interval.end > until) until = interval.end;
+	}
+	return span.durationNanos - covered;
 }
 
 export interface ServiceShare {

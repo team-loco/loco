@@ -62,7 +62,7 @@ export function Minimap({
 					)}
 					style={{
 						left: `${String(b.left * 100)}%`,
-						width: `${String(Math.max(b.width * 100, 0.1))}%`,
+						width: `${String(b.width * 100)}%`,
 						top: `${String((b.depth / depth) * 100)}%`,
 						height: `${String(100 / depth)}%`,
 						background: traceServiceColor(b.span.serviceName),
