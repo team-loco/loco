@@ -192,7 +192,7 @@ func TestOptionalProfileNameAndAvatarPreserveOmittedValues(t *testing.T) {
 	principal, _ := reqctx.PrincipalFrom(ctx)
 	principal.Entity = genDb.Entity{ID: user.ID}
 	ctx = reqctx.WithPrincipal(ctx, principal)
-	server := NewUserServer(f.pool, f.queries, nil, nil)
+	server := NewUserServer(f.pool, f.queries, nil)
 	for _, tc := range []struct {
 		request      *userv1.UpdateUserRequest
 		name, avatar string

@@ -17,7 +17,7 @@ func TestWhoAmIDeniesCallerWithoutUserRead(t *testing.T) {
 		Entity: genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: uuid.New()},
 	}
 	ctx := reqctx.WithPrincipal(t.Context(), workspaceToken)
-	_, err := NewUserServer(nil, nil, nil, nil).WhoAmI(ctx, &userv1.WhoAmIRequest{})
+	_, err := NewUserServer(nil, nil, nil).WhoAmI(ctx, &userv1.WhoAmIRequest{})
 	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
 		t.Fatalf("code = %v (%v), want %v", code, err, connect.CodePermissionDenied)
 	}

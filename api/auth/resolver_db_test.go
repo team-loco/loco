@@ -402,118 +402,6 @@ func TestResolveVerifiedEmailChangeKeepsAnAddressAnotherUserHas(t *testing.T) {
 	}
 }
 
-type fakeEmailVerifier struct {
-	mu       sync.Mutex
-	verified map[string]bool
-	calls    int
-}
-
-func (f *fakeEmailVerifier) EmailVerified(_ context.Context, subject, _ string) (bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.calls++
-	return f.verified[subject], nil
-}
-
-func (f *fakeEmailVerifier) callCount() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.calls
-}
-
-func TestResolveAsksTheProviderOnlyWhenItNeedsTheVerifiedState(t *testing.T) {
-	t.Parallel()
-	pool := dbtest.NewPool(t)
-	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
-	r := NewResolver(
-		pool,
-		open(t),
-		limits.Defaults(),
-		time.Hour,
-		WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}),
-	)
-	q := genDb.New(pool)
-
-	_, _, err := r.Resolve(t.Context(), identity("self-asserted", "squat@example.test", true))
-	if !errors.Is(err, ErrEmailUnverified) {
-		t.Fatalf("unconfirmed signup err = %v, want %v", err, ErrEmailUnverified)
-	}
-	if lookup.callCount() != 1 {
-		t.Fatalf("provider lookups = %d, want 1", lookup.callCount())
-	}
-
-	user, _, err := r.Resolve(t.Context(), identity(subjectConfirmed, "returning@example.test", false))
-	if err != nil {
-		t.Fatalf("confirmed signup: %v", err)
-	}
-	stored, err := q.GetIdentity(t.Context(), genDb.GetIdentityParams{Issuer: testIssuerURL, Subject: subjectConfirmed})
-	if err != nil || !stored.EmailVerified || stored.UserID != user.ID {
-		t.Fatalf("stored identity = %+v %v", stored, err)
-	}
-	if lookup.callCount() != 2 {
-		t.Fatalf("provider lookups = %d, want 2", lookup.callCount())
-	}
-
-	returning := identity(subjectConfirmed, "returning@example.test", false)
-	if _, _, returnErr := r.Resolve(t.Context(), returning); returnErr != nil {
-		t.Fatalf("returning sign-in: %v", returnErr)
-	}
-	if lookup.callCount() != 2 {
-		t.Fatalf("returning sign-in with a verified identity asked the provider: %d lookups", lookup.callCount())
-	}
-	stored, err = q.GetIdentity(t.Context(), genDb.GetIdentityParams{Issuer: testIssuerURL, Subject: subjectConfirmed})
-	if err != nil || !stored.EmailVerified {
-		t.Fatalf("returning sign-in lost the verified state: %+v %v", stored, err)
-	}
-
-	lookup.verified[subjectConfirmed] = false
-	changed := identity(subjectConfirmed, "changed@example.test", false)
-	if _, _, changeErr := r.Resolve(t.Context(), changed); changeErr != nil {
-		t.Fatalf("sign-in with a changed email: %v", changeErr)
-	}
-	if lookup.callCount() != 3 {
-		t.Fatalf("changed email did not ask the provider: %d lookups", lookup.callCount())
-	}
-	stored, err = q.GetIdentity(t.Context(), genDb.GetIdentityParams{Issuer: testIssuerURL, Subject: subjectConfirmed})
-	if err != nil || stored.EmailVerified {
-		t.Fatalf("unconfirmed new email stored as verified: %+v %v", stored, err)
-	}
-}
-
-func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
-	t.Parallel()
-	pool := dbtest.NewPool(t)
-	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
-	r := NewResolver(
-		pool,
-		open(t),
-		limits.Defaults(),
-		time.Hour,
-		WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}),
-	)
-
-	user, _, err := r.Resolve(t.Context(), identity(subjectConfirmed, oldAccountEmail, false))
-	if err != nil {
-		t.Fatalf("signup: %v", err)
-	}
-	lookup.verified[subjectConfirmed] = false
-	pending, _, err := r.Resolve(t.Context(), identity(subjectConfirmed, newAccountEmail, false))
-	if err != nil {
-		t.Fatalf("sign-in with an unconfirmed email: %v", err)
-	}
-	if pending.Email != oldAccountEmail {
-		t.Fatalf("unconfirmed email moved the account email to %q", pending.Email)
-	}
-	lookup.verified[subjectConfirmed] = true
-	confirmed, _, err := r.Resolve(t.Context(), identity(subjectConfirmed, newAccountEmail, false))
-	if err != nil {
-		t.Fatalf("sign-in once the provider confirms the email: %v", err)
-	}
-	if confirmed.ID != user.ID || confirmed.Email != newAccountEmail {
-		t.Fatalf("resolved user = %s %s, want %s %s", confirmed.ID, confirmed.Email, user.ID, newAccountEmail)
-	}
-}
-
 func TestResolveRecordsTheAccountEmailMove(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
@@ -541,6 +429,7 @@ const (
 	invitationTTL  = time.Hour
 	inviteeEmail   = "bob@x.test"
 	inviteeSubject = "bob"
+	expiredOrg     = "expired"
 )
 
 type invitationFixture struct {
@@ -780,7 +669,7 @@ func TestResolveClaimsAnInvitationOnTheNextRequest(t *testing.T) {
 func TestResolveClaimsOnlyOpenMatchingInvitations(t *testing.T) {
 	t.Parallel()
 	f := newInvitationFixture(t)
-	expired := f.org(t, "expired")
+	expired := f.org(t, expiredOrg)
 	revoked := f.org(t, "revoked")
 	taken := f.org(t, "taken")
 	other := f.org(t, "other")
@@ -803,7 +692,7 @@ func TestResolveClaimsOnlyOpenMatchingInvitations(t *testing.T) {
 		t.Fatalf("resolve: %v", err)
 	}
 	for name, orgID := range map[string]uuid.UUID{
-		"expired": expired, "revoked": revoked, "taken": taken, "other": other,
+		expiredOrg: expired, "revoked": revoked, "taken": taken, "other": other,
 	} {
 		if f.isMember(t, user.ID, orgID) {
 			t.Errorf("%s invitation was claimed", name)

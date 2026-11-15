@@ -40,7 +40,9 @@ services:
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_MAILER_AUTOCONFIRM: "true"
-      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "true"
+      GOTRUE_OAUTH_SERVER_ENABLED: "true"
+      GOTRUE_OAUTH_SERVER_AUTHORIZATION_PATH: /authorize
+      GOTRUE_URI_ALLOW_LIST: http://localhost:5173/**
       GOTRUE_RATE_LIMIT_EMAIL_SENT: "1000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9999/health"]

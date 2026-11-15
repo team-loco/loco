@@ -128,9 +128,6 @@ func identityFromClaims(ic IssuerConfig, claims map[string]any) (Identity, error
 }
 
 func emailVerifiedFromClaims(ic IssuerConfig, claims map[string]any) bool {
-	if ic.EmailVerification == EmailVerificationAdmin {
-		return false
-	}
 	return ic.EmailAuthoritative || claimBool(claims, ic.Claims.EmailVerified)
 }
 

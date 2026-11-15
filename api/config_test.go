@@ -53,8 +53,6 @@ const (
 	webhookPollEnv      = "WEBHOOK_POLL_INTERVAL"
 	orgLinksEnv         = "ORG_LINKS"
 	authIssuersEnv      = "AUTH_ISSUERS"
-	testAdminEnv        = "LOCO_TEST_ADMIN_TOKEN"
-	testAdminToken      = "service-key"
 	testIssuer          = "https://issuer.loco.test"
 	testHookURL         = "https://hooks.loco.test/events"
 	testHTTPHookURL     = "http://hooks.loco.test/events"
@@ -94,9 +92,6 @@ const (
 	testTransitJWT      = "/var/run/secrets/openbao/token"
 )
 
-var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
-	`"admin":{"type":"supabase","tokenEnv":"` + testAdminEnv + `"}}]`
-
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
 	for _, entry := range os.Environ() {
@@ -112,7 +107,6 @@ func clearAPIConfigEnv(t *testing.T) {
 		}
 	}
 	t.Setenv("DATABASE_URL", testDatabaseURL)
-	t.Setenv(testAdminEnv, "")
 	t.Setenv(transitAddrEnv, testTransitAddr)
 	t.Setenv(transitKeyEnv, testTransitKey)
 	t.Setenv(transitMethodEnv, transit.AuthToken)
@@ -299,19 +293,10 @@ func TestNewAPIConfigReadsOrgLinks(t *testing.T) {
 	}
 }
 
-func TestNewAPIConfigResolvesAdminTokens(t *testing.T) {
+func TestNewAPIConfigReadsClosedSignup(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(authIssuersEnv, adminIssuers)
-	t.Setenv(testAdminEnv, testAdminToken)
 	t.Setenv("AUTH_SIGNUP_MODE", "closed")
-	t.Setenv("MIN_CLI_VERSION", "v0.0.61")
 	ac := newAPIConfig()
-	if len(ac.AuthIssuers) != 1 || ac.AuthIssuers[0].Admin == nil {
-		t.Fatalf("issuers = %+v, want one with an admin", ac.AuthIssuers)
-	}
-	if got := ac.AuthIssuers[0].Admin.Token; got != testAdminToken {
-		t.Errorf("admin token = %q, want %q", got, testAdminToken)
-	}
 	if !ac.SignupPolicy.Closed {
 		t.Errorf("signup policy = %+v", ac.SignupPolicy)
 	}
@@ -606,7 +591,6 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		},
 		{"empty system admin entry", map[string]string{systemAdminsEnv: "ada@example.test,"}, errInvalidSystemAdmins},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
-		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
 		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},
 		{
 			"registry username without password",

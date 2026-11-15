@@ -38,7 +38,6 @@ type UserServer struct {
 	queries genDb.Querier
 	authz   *authz.Authorizer
 	tvm     *tvm.VendingMachine
-	admins  auth.Admins
 }
 
 // NewUserServer creates a new UserServer instance
@@ -46,9 +45,8 @@ func NewUserServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	vendingMachine *tvm.VendingMachine,
-	admins auth.Admins,
 ) *UserServer {
-	return &UserServer{db: db, queries: queries, tvm: vendingMachine, admins: admins, authz: authz.New(db, queries)}
+	return &UserServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(db, queries)}
 }
 
 // GetUser retrieves a user by ID or email
@@ -218,7 +216,6 @@ func (s *UserServer) DeleteUser(
 		return nil, err
 	}
 
-	var identities []genDb.Identity
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		_, lockErr := qtx.LockUserForMembership(ctx, userID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
@@ -241,8 +238,7 @@ func (s *UserServer) DeleteUser(
 		if hasOrganizations {
 			return ErrUserHasOrganizations
 		}
-		var listErr error
-		identities, listErr = qtx.ListIdentitiesForUser(ctx, userID)
+		identities, listErr := qtx.ListIdentitiesForUser(ctx, userID)
 		if listErr != nil {
 			return fmt.Errorf("list user identities: %w", listErr)
 		}
@@ -266,18 +262,6 @@ func (s *UserServer) DeleteUser(
 	if err != nil {
 		return nil, err
 	}
-
-	for _, identity := range identities {
-		admin, ok := s.admins.For(identity.Issuer)
-		if !ok {
-			continue
-		}
-		if deleteErr := admin.Delete(ctx, identity.Subject); deleteErr != nil {
-			slog.ErrorContext(ctx, "failed to delete identity at its provider",
-				"userId", userID, "issuer", identity.Issuer, "error", deleteErr)
-		}
-	}
-
 	return &userv1.DeleteUserResponse{}, nil
 }
 

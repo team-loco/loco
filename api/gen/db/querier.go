@@ -91,7 +91,6 @@ type Querier interface {
 	DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error)
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
-	DeleteSessionTokensForIdentity(ctx context.Context, identityID *uuid.UUID) error
 	DeleteStoppedBuildRegistryCredentials(ctx context.Context) (int64, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
@@ -139,7 +138,6 @@ type Querier interface {
 	GetResourceNameBySlug(ctx context.Context, arg GetResourceNameBySlugParams) (string, error)
 	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error)
-	GetSessionIdentityByRefreshHash(ctx context.Context, refreshTokenHash string) (GetSessionIdentityByRefreshHashRow, error)
 	GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)

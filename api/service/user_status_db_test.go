@@ -127,7 +127,7 @@ func TestWhoAmIReturnsClaimedOrgs(t *testing.T) {
 		t.Fatalf("scopes: %v", err)
 	}
 	orgID := uuid.MustParse(o.orgID)
-	server := NewUserServer(o.api.pool, o.api.queries, o.api.machine, auth.Admins{})
+	server := NewUserServer(o.api.pool, o.api.queries, o.api.machine)
 	call := func(claimed []auth.ClaimedOrg) *userv1.WhoAmIResponse {
 		entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: member.id}
 		ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})

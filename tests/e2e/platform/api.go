@@ -64,7 +64,7 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		bind = "0.0.0.0"
 	}
 	env := []string{
-		`AUTH_ISSUERS=[{"issuer":"` + p.authIssuer() + `","audience":"loco-e2e","emailVerification":"claim"}]`,
+		`AUTH_ISSUERS=[{"issuer":"` + p.authIssuer() + `","audience":"loco-e2e"}]`,
 		"AUTH_SIGNUP_MODE=open",
 		"LOCO_SYSTEM_ADMINS=" + SystemAdmin,
 		"DATABASE_URL=" + p.databaseURL,

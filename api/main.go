@@ -28,7 +28,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/supabase"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/db"
 	"github.com/team-loco/loco/api/events"
@@ -296,32 +295,23 @@ func newDeps(
 	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
 
 	authClient := newOutboundHTTPClient()
-	adminFactories := auth.AdminFactories{supabase.AdminType: supabase.NewAdmin}
-	admins, err := auth.NewAdmins(authClient, ac.AuthIssuers, adminFactories)
-	if err != nil {
-		return nil, fmt.Errorf("AUTH_ISSUERS admin: %w", err)
-	}
-	emailVerifiers, err := auth.NewEmailVerifiers(ac.AuthIssuers, admins)
-	if err != nil {
-		return nil, fmt.Errorf("AUTH_ISSUERS email verification: %w", err)
-	}
 	verifier := auth.NewVerifier(authClient, ac.AuthIssuers)
 	resolver := auth.NewResolver(
 		pool, ac.SignupPolicy, ac.CountLimits, ac.Tokens.LastUsedUpdateInterval,
-		auth.WithEmailVerifiers(emailVerifiers), auth.WithSystemAdmins(ac.SystemAdmins),
+		auth.WithSystemAdmins(ac.SystemAdmins),
 	)
-	if err = auth.SyncSystemAdmins(ctx, pool, ac.SystemAdmins); err != nil {
+	if err := auth.SyncSystemAdmins(ctx, pool, ac.SystemAdmins); err != nil {
 		return nil, fmt.Errorf("LOCO_SYSTEM_ADMINS: %w", err)
 	}
 
 	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
-	if err = placementNotifier.Connect(ctx); err != nil {
+	if err := placementNotifier.Connect(ctx); err != nil {
 		return nil, fmt.Errorf("start placement listener: %w", err)
 	}
 
 	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
 	installWebhookClient := webhooks.NewClient(ac.Webhooks, true)
-	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
+	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, ac.WebURL)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
 
 	sourceBucket, err := newSourceBucket(ac.SourceBucket)
@@ -414,7 +404,7 @@ func newDeps(
 		),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
 		systemAdmin:  service.NewSystemAdminServer(pool, queries),
-		user:         service.NewUserServer(pool, queries, machine, admins),
+		user:         service.NewUserServer(pool, queries, machine),
 		auth:         authServiceHandler,
 		event:        service.NewEventServer(queries),
 		webhook: service.NewWebhookServer(

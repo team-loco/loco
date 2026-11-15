@@ -166,9 +166,9 @@ func (z *zitadelClient) signIn(clientID, username string) tokenFunc {
 		challenge := sha256.Sum256([]byte(verifier))
 		query := url.Values{
 			fieldClientID:           {clientID},
-			"redirect_uri":          {zitadelRedirect},
-			"response_type":         {"code"},
-			"scope":                 {"openid email profile"},
+			paramRedirectURI:        {zitadelRedirect},
+			"response_type":         {paramCode},
+			paramScope:              {oidcScopes},
 			"code_challenge":        {base64.RawURLEncoding.EncodeToString(challenge[:])},
 			"code_challenge_method": {"S256"},
 			"state":                 {"conformance"},
@@ -198,16 +198,16 @@ func (z *zitadelClient) signIn(clientID, username string) tokenFunc {
 				"sessionId": session.SessionID, "sessionToken": session.SessionToken,
 			}}, &finalized)
 		callback, err := url.Parse(finalized.CallbackURL)
-		if err != nil || callback.Query().Get("code") == "" {
+		if err != nil || callback.Query().Get(paramCode) == "" {
 			t.Fatalf("callback %q: %v", finalized.CallbackURL, err)
 		}
 
 		form := url.Values{
-			"grant_type":    {"authorization_code"},
-			"code":          {callback.Query().Get("code")},
-			"redirect_uri":  {zitadelRedirect},
-			fieldClientID:   {clientID},
-			"code_verifier": {verifier},
+			paramGrantType:   {grantAuthorizationCode},
+			paramCode:        {callback.Query().Get(paramCode)},
+			paramRedirectURI: {zitadelRedirect},
+			fieldClientID:    {clientID},
+			"code_verifier":  {verifier},
 		}
 		status, raw := post(t, zitadelURL+"/oauth/v2/token", "application/x-www-form-urlencoded", form.Encode())
 		return decodeToken(t, status, raw, "id_token")

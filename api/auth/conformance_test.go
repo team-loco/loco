@@ -3,32 +3,33 @@
 package auth_test
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/auth/supabase"
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/limits"
 )
 
 const (
-	fieldPassword       = "password"
-	fieldEmail          = "email"
-	fieldClientID       = "client_id"
-	conformanceClientID = "loco"
-	accountVerified     = "verified"
-	accountUnverified   = "unverified"
+	fieldPassword          = "password"
+	fieldEmail             = "email"
+	fieldClientID          = "client_id"
+	conformanceClientID    = "loco"
+	accountVerified        = "verified"
+	accountUnverified      = "unverified"
+	paramRedirectURI       = "redirect_uri"
+	paramCode              = "code"
+	paramGrantType         = "grant_type"
+	grantAuthorizationCode = "authorization_code"
+	paramScope             = "scope"
+	oidcScopes             = "openid email profile"
 )
 
 type tokenFunc func(t *testing.T) string
@@ -72,16 +73,6 @@ func postForm(t *testing.T, endpoint string, form url.Values, field string) stri
 	return decodeToken(t, status, raw, field)
 }
 
-func postJSON(t *testing.T, endpoint string, body any, field string) string {
-	t.Helper()
-	raw, err := json.Marshal(body)
-	if err != nil {
-		t.Fatalf("encode: %v", err)
-	}
-	status, response := post(t, endpoint, "application/json", string(raw))
-	return decodeToken(t, status, response, field)
-}
-
 func decodeToken(t *testing.T, status int, body []byte, field string) string {
 	t.Helper()
 	if status != http.StatusOK {
@@ -102,11 +93,11 @@ func passwordGrant(endpoint, clientSecret, username, password string) tokenFunc 
 	return func(t *testing.T) string {
 		t.Helper()
 		form := url.Values{
-			"grant_type":  {fieldPassword},
-			fieldClientID: {conformanceClientID},
-			"username":    {username},
-			fieldPassword: {password},
-			"scope":       {"openid email profile"},
+			paramGrantType: {fieldPassword},
+			fieldClientID:  {conformanceClientID},
+			"username":     {username},
+			fieldPassword:  {password},
+			paramScope:     {oidcScopes},
 		}
 		if clientSecret != "" {
 			form.Set("client_secret", clientSecret)
@@ -115,132 +106,9 @@ func passwordGrant(endpoint, clientSecret, username, password string) tokenFunc 
 	}
 }
 
-const (
-	supabaseURL        = "http://localhost:25999"
-	supabaseServiceEnv = "AUTH_SUPABASE_SERVICE_KEY"
-	supabasePassword   = "conformance-password"
-)
-
-func supabaseCall(t *testing.T, method, endpoint, bearer string, body any) map[string]any {
-	t.Helper()
-	raw, err := json.Marshal(body)
-	if err != nil {
-		t.Fatalf("encode: %v", err)
-	}
-	req, err := http.NewRequestWithContext(t.Context(), method, endpoint, bytes.NewReader(raw))
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if bearer != "" {
-		req.Header.Set("Authorization", "Bearer "+bearer)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("%s %s: %v", method, endpoint, err)
-	}
-	defer res.Body.Close()
-	response, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("read %s: %v", endpoint, err)
-	}
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("%s %s: status %d: %s", method, endpoint, res.StatusCode, response)
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal(response, &decoded); err != nil {
-		t.Fatalf("decode %s: %v", endpoint, err)
-	}
-	return decoded
-}
-
-func tokenField(t *testing.T, tokens map[string]any, field string) string {
-	t.Helper()
-	value, ok := tokens[field].(string)
-	if !ok || value == "" {
-		t.Fatalf("response has no %s: %v", field, tokens)
-	}
-	return value
-}
-
-func supabaseSignup(base, email string) tokenFunc {
-	return func(t *testing.T) string {
-		t.Helper()
-		return postJSON(t, base+"/signup", map[string]any{
-			fieldEmail:    email,
-			fieldPassword: supabasePassword,
-			"data":        map[string]any{"full_name": "Dana Supabase"},
-		}, "access_token")
-	}
-}
-
-func supabaseSelfAssertedVerification(base, email string) tokenFunc {
-	return func(t *testing.T) string {
-		t.Helper()
-		serviceKey := os.Getenv(supabaseServiceEnv)
-		if serviceKey == "" {
-			t.Fatalf("%s is not set; run through mise run test:auth-conformance", supabaseServiceEnv)
-		}
-		session := supabaseCall(t, http.MethodPost, base+"/signup", "", map[string]any{})
-		access := tokenField(t, session, "access_token")
-		user := supabaseCall(t, http.MethodGet, base+"/user", access, nil)
-		userID := tokenField(t, user, "id")
-		supabaseCall(t, http.MethodPut, base+"/admin/users/"+userID, serviceKey, map[string]any{
-			fieldEmail:      email,
-			"email_confirm": false,
-		})
-		supabaseCall(t, http.MethodPut, base+"/user", access, map[string]any{
-			"data": map[string]any{"email_verified": true},
-		})
-		refreshToken := tokenField(t, session, "refresh_token")
-		refreshed := supabaseCall(t, http.MethodPost, base+"/token?grant_type=refresh_token", "", map[string]any{
-			"refresh_token": refreshToken,
-		})
-		token := tokenField(t, refreshed, "access_token")
-		if !selfAssertedVerified(t, token) {
-			t.Fatal("the refreshed token does not carry user_metadata.email_verified=true")
-		}
-		return token
-	}
-}
-
-func selfAssertedVerified(t *testing.T, token string) bool {
-	t.Helper()
-	parts := strings.Split(token, ".")
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		t.Fatalf("decode token payload: %v", err)
-	}
-	var claims struct {
-		UserMetadata struct {
-			EmailVerified bool `json:"email_verified"`
-		} `json:"user_metadata"`
-	}
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		t.Fatalf("decode token claims: %v", err)
-	}
-	return claims.UserMetadata.EmailVerified
-}
-
 func providers() []conformanceProvider {
-	supabaseEmail := fmt.Sprintf("dana-%d@supabase.test", time.Now().UnixNano())
-	selfAssertedEmail := fmt.Sprintf("erin-%d@supabase.test", time.Now().UnixNano())
 	return []conformanceProvider{
-		{
-			name: "supabase",
-			issuers: `[{
-				"issuer": "http://localhost:25999",
-				"audience": "authenticated",
-				"emailVerification": "admin",
-				"claims": {"name": "user_metadata.full_name", "avatarUrl": "user_metadata.avatar_url"},
-				"admin": {"type": "supabase", "tokenEnv": "AUTH_SUPABASE_SERVICE_KEY"}
-			}]`,
-			accounts: []account{
-				{"confirmed", supabaseEmail, true, supabaseSignup(supabaseURL, supabaseEmail)},
-				{"self-asserted email_verified", selfAssertedEmail, false,
-					supabaseSelfAssertedVerification(supabaseURL, selfAssertedEmail)},
-			},
-		},
+		{name: "supabase", setup: supabaseProvider},
 		{
 			name:    "keycloak",
 			issuers: `[{"issuer":"http://localhost:25080/realms/loco","audience":"loco"}]`,
@@ -289,31 +157,12 @@ func TestProviderConformance(t *testing.T) {
 			if err != nil {
 				t.Fatalf("AUTH_ISSUERS: %v", err)
 			}
-			for _, ic := range issuers {
-				if ic.Admin != nil {
-					ic.Admin.Token = os.Getenv(ic.Admin.TokenEnv)
-				}
-			}
-			adminFactories := auth.AdminFactories{supabase.AdminType: supabase.NewAdmin}
-			admins, err := auth.NewAdmins(http.DefaultClient, issuers, adminFactories)
-			if err != nil {
-				t.Fatalf("admins: %v", err)
-			}
-			emailVerifiers, err := auth.NewEmailVerifiers(issuers, admins)
-			if err != nil {
-				t.Fatalf("email verifiers: %v", err)
-			}
 			verifier := auth.NewVerifier(http.DefaultClient, issuers)
 			policy, err := auth.ParseSignupPolicy("open")
 			if err != nil {
 				t.Fatalf("policy: %v", err)
 			}
-			resolver := auth.NewResolver(
-				dbtest.NewPool(t),
-				policy,
-				limits.Defaults(), time.Hour,
-				auth.WithEmailVerifiers(emailVerifiers),
-			)
+			resolver := auth.NewResolver(dbtest.NewPool(t), policy, limits.Defaults(), time.Hour)
 
 			for _, a := range p.accounts {
 				t.Run(a.name, func(t *testing.T) {
@@ -328,8 +177,7 @@ func TestProviderConformance(t *testing.T) {
 					if !strings.EqualFold(id.Email, a.email) {
 						t.Fatalf("email = %q, want %q", id.Email, a.email)
 					}
-					claimVerified := issuers[0].EmailVerification == auth.EmailVerificationClaim
-					if claimVerified && id.EmailVerified != a.emailVerified {
+					if id.EmailVerified != a.emailVerified {
 						t.Fatalf("email verified = %v, want %v", id.EmailVerified, a.emailVerified)
 					}
 

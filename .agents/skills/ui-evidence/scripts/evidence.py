@@ -183,7 +183,6 @@ def api_env(dev_env, db_port, api_port, ui_port):
                     {
                         "issuer": issuer,
                         "audience": "loco",
-                        "emailVerification": "claim",
                         "web": {"clientId": "loco", "scopes": "openid email profile"},
                     }
                 ]
