@@ -1,4 +1,6 @@
-# Cluster attachment
+---
+title: "Cluster attachment"
+---
 
 Each cluster's agent holds its own Ed25519 key and authenticates to the control plane with it. An operator creates the cluster record first and gives the agent a one-time join token; the agent's first start binds its public key to that record.
 

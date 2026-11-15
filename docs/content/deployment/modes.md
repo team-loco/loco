@@ -1,4 +1,6 @@
-# Deployment modes
+---
+title: "Deployment modes"
+---
 
 A deployment mode determines who operates Loco and whether the platform serves one customer or multiple customers. Application environments such as staging and production exist within that platform.
 

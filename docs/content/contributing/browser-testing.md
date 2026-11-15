@@ -1,4 +1,6 @@
-# Dashboard browser tests
+---
+title: "Dashboard browser tests"
+---
 
 The dashboard uses Python Playwright with headless Chromium to check interactions that cross React state, navigation, permissions and API requests. Bun tests cover pure models and helpers; API database tests cover authorization and persistence. Browser tests run the production bundle against an isolated fixture.
 

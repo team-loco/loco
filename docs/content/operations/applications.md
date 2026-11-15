@@ -1,4 +1,6 @@
-# Application operations
+---
+title: "Application operations"
+---
 
 The CLI reads application status and manages application resources through the selected Loco API. Check command help for the arguments supported by your release:
 

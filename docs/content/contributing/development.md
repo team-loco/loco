@@ -1,4 +1,6 @@
-# Local development
+---
+title: "Local development"
+---
 
 The local environment runs Loco's control plane and cluster components for development. Install mise and Docker or OrbStack, then use the pinned repository tools:
 

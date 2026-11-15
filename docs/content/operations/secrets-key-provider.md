@@ -1,4 +1,6 @@
-# Secrets key provider
+---
+title: "Secrets key provider"
+---
 
 The API wraps the data key that encrypts each environment's secrets, and the data key that encrypts each webhook's signing secrets, with a key in the Transit secrets engine of OpenBao or Vault. It stores secret values, webhook signing secrets and wrapped data keys in PostgreSQL, so a copy of the database reveals nothing without the Transit key.
 

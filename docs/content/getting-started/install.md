@@ -1,4 +1,6 @@
-# Install the CLI
+---
+title: "Install the CLI"
+---
 
 The Loco CLI deploys and manages applications from your terminal. Install the released binary for Linux or macOS on amd64 or arm64:
 

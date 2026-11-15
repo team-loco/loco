@@ -1,4 +1,6 @@
-# CLI and API
+---
+title: "CLI and API"
+---
 
 Loco's command help and protobuf definitions are the reference for the installed release's interface. Use the CLI's own help to see current arguments and defaults:
 

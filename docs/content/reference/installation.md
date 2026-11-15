@@ -1,9 +1,12 @@
-# Installation file
+---
+title: "Installation file"
+---
 
 `loco-install.yaml` describes a Loco installation on existing Kubernetes infrastructure. It keeps operator intent separate from application `loco.yaml` files.
 
-!!! warning "Unreleased"
-    The development CLI provides validation, a read-only plan, control-plane apply, operator sign-in, worker attachment and status. These commands target existing Kubernetes clusters. A running installation still requires a source deployment and HTTPS check before serving users.
+> **Unreleased**
+>
+> The development CLI provides validation, a read-only plan, control-plane apply, operator sign-in, worker attachment and status. These commands target existing Kubernetes clusters. A running installation still requires a source deployment and HTTPS check before serving users.
 
 ```sh
 locoadm validate
