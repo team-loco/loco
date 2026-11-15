@@ -160,10 +160,6 @@ description = "Check formatting, then run oxlint, eslint and the typecheck on th
 dir = "web"
 run = ["bun fmt --check", "bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
-[tasks."test:e2e-diagnostics"]
-description = "Test the e2e drivers without a cluster: discovery failure diagnostics and the API failover driver's route lookup"
-run = "uv run --locked --project tests pytest tests/e2e/test_discovery_diagnostics.py tests/e2e/test_api_failover.py"
-
 [tasks."test:e2e-runner"]
 description = "Check that the CI e2e matrix runs every suite"
 run = "uv run --locked --project tests pytest tests/e2e/test_run.py"
