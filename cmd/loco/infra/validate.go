@@ -21,8 +21,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const schemaURL = "https://loco.build/schemas/loco.v1.json"
-
 func buildValidateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate [path]",
@@ -79,11 +77,16 @@ func validateAgainstSchema(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("decode embedded schema: %w", err)
 	}
+	root, isObject := document.(map[string]any)
+	id, hasID := root["$id"].(string)
+	if !isObject || !hasID {
+		return errors.New("embedded schema has no $id")
+	}
 	compiler := jsonschema.NewCompiler()
-	if err = compiler.AddResource(schemaURL, document); err != nil {
+	if err = compiler.AddResource(id, document); err != nil {
 		return fmt.Errorf("load embedded schema: %w", err)
 	}
-	schema, err := compiler.Compile(schemaURL)
+	schema, err := compiler.Compile(id)
 	if err != nil {
 		return fmt.Errorf("compile embedded schema: %w", err)
 	}
