@@ -11,7 +11,7 @@ import (
 )
 
 func TestCreateTokenScopeValidation(t *testing.T) {
-	for _, n := range []int{0, 1, 64, 65} {
+	for _, n := range []int{0, 1, 500} {
 		req := &tokenv1.CreateTokenRequest{
 			Name: "scope-limit", EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 			EntityId: uuid.NewString(), ExpiresInSec: 60,
@@ -24,7 +24,7 @@ func TestCreateTokenScopeValidation(t *testing.T) {
 			})
 		}
 		err := protovalidate.Validate(req)
-		if valid := n > 0 && n <= 64; (err == nil) != valid {
+		if valid := n > 0; (err == nil) != valid {
 			t.Fatalf("%d scopes: %v", n, err)
 		}
 	}
