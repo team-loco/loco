@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createLoader, createSerializer } from "nuqs";
 import { create } from "@bufbuild/protobuf";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 import { ResourceSchema } from "@gen/loco/resource/v1/resource_pb";
@@ -11,16 +12,20 @@ import {
 	durationBounds,
 	parseQuery,
 	pinnedKey,
-	readQuery,
+	QUERY_PARSERS,
+	queryValues,
 	recentKey,
 	recentQuery,
 	shownRecent,
 	tokenSupport,
-	writeQuery,
+	toQuery,
 	type RecentQuery,
 	type Token,
 } from "./query";
 import { toRows } from "./rows";
+
+const loadQuery = createLoader(QUERY_PARSERS);
+const readQuery = (search: string) => toQuery(loadQuery(search));
 
 describe("regional telemetry filters", () => {
 	test("filters recorded regions without requiring current resources or backend discovery", () => {
@@ -98,18 +103,18 @@ describe("omnibar tokens per view", () => {
 	});
 
 	test("reads resource links and replica shortcuts from the URL", () => {
-		expect(readQuery(new URLSearchParams("r=web,api&q=timeout")).tokens.map((t) => t.value)).toEqual(["web", "api"]);
-		expect(readQuery(new URLSearchParams("q=pod:web-7c41e9-x2kd9")).tokens).toEqual([
+		expect(readQuery("?r=web,api&q=timeout").tokens.map((t) => t.value)).toEqual(["web", "api"]);
+		expect(readQuery("?q=pod:web-7c41e9-x2kd9").tokens).toEqual([
 			{ neg: false, key: "replica", value: "web-7c41e9-x2kd9" },
 		]);
 	});
 
 	test("writes the query into q and drops the resource link", () => {
-		const params = writeQuery(
-			new URLSearchParams("r=web&view=logs"),
-			[{ neg: true, key: "level", value: "debug" }],
-			"slow",
+		const written = createSerializer(QUERY_PARSERS)(
+			"?r=web&view=logs",
+			queryValues([{ neg: true, key: "level", value: "debug" }], "slow"),
 		);
+		const params = new URLSearchParams(written);
 		expect(params.get("r")).toBeNull();
 		expect(params.get("q")).toBe("-@level:debug slow");
 		expect(params.get("view")).toBe("logs");
@@ -119,7 +124,7 @@ describe("omnibar tokens per view", () => {
 describe("build log filters", () => {
 	test("reads the build deep link and the @build token", () => {
 		const token: Token = { neg: false, key: "build", value: "b-123" };
-		expect(readQuery(new URLSearchParams("q=build:b-123")).tokens).toEqual([token]);
+		expect(readQuery("?q=build:b-123").tokens).toEqual([token]);
 		expect(parseQuery("@build:b-123 failed")).toEqual({ tokens: [token], text: "failed" });
 	});
 

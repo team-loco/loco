@@ -4,6 +4,7 @@ import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentSe
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useState } from "react";
+import { useQueryState } from "nuqs";
 import { Link, useNavigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
@@ -18,8 +19,7 @@ import { formatPercent, percentAxis } from "@/lib/compute-chart";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { isUnimplemented } from "@/lib/error-handler";
 import { imageVersion } from "@/lib/image";
-import { aroundWindow, resolveWindow, windowSpan } from "@/lib/obs-time";
-import { logAnchor } from "@/lib/log-history";
+import { aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { formatHourMinute, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -191,8 +191,7 @@ function Meter({ value }: { value: number | undefined }) {
 }
 
 export function MetricsView() {
-	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, maxMs, params, goTo, setQuery, text } =
-		useObs();
+	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, maxMs, goTo, setQuery, text } = useObs();
 	const navigate = useNavigate();
 	const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "cpu", desc: true });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
@@ -205,7 +204,7 @@ export function MetricsView() {
 	const cpu = useComputeSeries(CPU, rows, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, spanMs, endMs);
 	const deployMarkers = useDeployMarkers(visible, environment?.id ?? "", from, to);
-	const focusTs = logAnchor(params.get("at"));
+	const [focusTs] = useQueryState("at", msParser);
 	const markers: ChartMarker[] = [
 		...deployMarkers,
 		...(focusTs !== null && focusTs >= from && focusTs <= to

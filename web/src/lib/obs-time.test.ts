@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createLoader, createSerializer } from "nuqs";
 
 import { DAY_MS } from "./time";
 
@@ -8,15 +9,21 @@ import {
 	HOUR_MS,
 	joinLocalInput,
 	MINUTE_MS,
+	msParser,
 	parseSpan,
 	presetsWithin,
 	QUERY_MAX_MS,
-	readWindow,
 	shiftWindow,
 	spanLabel,
 	stepSeconds,
-	writeWindow,
+	toWindow,
+	WINDOW_PARSERS,
+	windowValues,
 } from "./obs-time";
+
+const loadWindow = createLoader(WINDOW_PARSERS);
+const serializeWindow = createSerializer(WINDOW_PARSERS);
+const readWindow = (search: string) => toWindow(loadWindow(search), QUERY_MAX_MS);
 
 const NOW = Date.UTC(2026, 10, 8, 12, 0);
 
@@ -54,20 +61,27 @@ describe("time range limits", () => {
 	});
 
 	test("clamps a linked range to the limit", () => {
-		expect(readWindow(new URLSearchParams("range=7d"), QUERY_MAX_MS)).toEqual({
+		expect(readWindow("?range=7d")).toEqual({
 			kind: "relative",
 			spanMs: QUERY_MAX_MS,
 		});
 		const from = NOW - 3 * DAY_MS;
-		expect(readWindow(new URLSearchParams(`from=${String(from)}&to=${String(NOW)}`), QUERY_MAX_MS)).toEqual({
+		expect(readWindow(`?from=${String(from)}&to=${String(NOW)}`)).toEqual({
 			kind: "absolute",
 			from: NOW - QUERY_MAX_MS,
 			to: NOW,
 		});
 	});
 
+	test("reads a timestamp only as a positive safe integer", () => {
+		expect(msParser.parse("1792130909123")).toBe(1792130909123);
+		for (const value of ["", "NaN", "Infinity", "-1", "0", "1.5", "9007199254740992"]) {
+			expect(msParser.parse(value)).toBeNull();
+		}
+	});
+
 	test("falls back to the default for unreadable bounds", () => {
-		expect(readWindow(new URLSearchParams("from=abc&to=1"), QUERY_MAX_MS)).toEqual({
+		expect(readWindow("?from=abc&to=1")).toEqual({
 			kind: "relative",
 			spanMs: HOUR_MS,
 		});
@@ -91,9 +105,9 @@ describe("moving the time range", () => {
 
 	test("round-trips through the URL", () => {
 		const absolute = { kind: "absolute" as const, from: NOW - HOUR_MS, to: NOW };
-		expect(readWindow(writeWindow(new URLSearchParams("range=1h"), absolute), QUERY_MAX_MS)).toEqual(absolute);
+		expect(readWindow(serializeWindow("?range=1h", windowValues(absolute)))).toEqual(absolute);
 		const relative = { kind: "relative" as const, spanMs: 4 * HOUR_MS };
-		expect(readWindow(writeWindow(new URLSearchParams("from=1&to=2"), relative), QUERY_MAX_MS)).toEqual(relative);
+		expect(readWindow(serializeWindow("?from=1&to=2", windowValues(relative)))).toEqual(relative);
 	});
 
 	test("metric steps keep about sixty points and never go below a minute", () => {

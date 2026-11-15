@@ -1,3 +1,5 @@
+import { createParser } from "nuqs";
+
 import { flattenJson } from "./format";
 import type { LogRow } from "./rows";
 
@@ -52,15 +54,11 @@ export const MIN_COLUMN_WIDTH = 56;
 const MAX_COLUMN_WIDTH = 640;
 const TRACE_PREFIX = 12;
 
-export function readColumns(value: string | null): ColumnKey[] {
-	if (value === null) return DEFAULT_COLUMNS;
-	return [...new Set(value.split(",").filter(Boolean))];
-}
-
-export function writeColumns(columns: ColumnKey[]): string | null {
-	const same = columns.length === DEFAULT_COLUMNS.length && columns.every((c, i) => c === DEFAULT_COLUMNS[i]);
-	return same ? null : columns.join(",");
-}
+export const columnsParser = createParser<ColumnKey[]>({
+	parse: (raw) => [...new Set(raw.split(",").filter(Boolean))],
+	serialize: (columns) => columns.join(","),
+	eq: (a, b) => a.join(",") === b.join(","),
+}).withDefault(DEFAULT_COLUMNS);
 
 export function columnLabel(key: ColumnKey): string {
 	return LABELS[key] ?? key;
@@ -76,21 +74,26 @@ export function clampWidth(width: number): number {
 	return Math.round(Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, width)));
 }
 
-/** Reads widths written as key:px pairs, like "resource:200,path:320". */
-export function readWidths(value: string | null): ColumnWidths {
-	const widths: ColumnWidths = {};
-	for (const pair of (value ?? "").split(",")) {
-		const at = pair.lastIndexOf(":");
-		const width = Number(pair.slice(at + 1));
-		if (at > 0 && Number.isFinite(width)) widths[pair.slice(0, at)] = clampWidth(width);
-	}
-	return widths;
+function serializeWidths(widths: ColumnWidths): string {
+	return Object.entries(widths)
+		.map(([key, width]) => `${key}:${String(width)}`)
+		.join(",");
 }
 
-export function writeWidths(widths: ColumnWidths): string | null {
-	const pairs = Object.entries(widths).map(([key, width]) => `${key}:${String(width)}`);
-	return pairs.length === 0 ? null : pairs.join(",");
-}
+/** Widths written as key:px pairs, like "resource:200,path:320". */
+export const widthsParser = createParser<ColumnWidths>({
+	parse: (raw) => {
+		const widths: ColumnWidths = {};
+		for (const pair of raw.split(",")) {
+			const at = pair.lastIndexOf(":");
+			const width = Number(pair.slice(at + 1));
+			if (at > 0 && Number.isFinite(width)) widths[pair.slice(0, at)] = clampWidth(width);
+		}
+		return widths;
+	},
+	serialize: serializeWidths,
+	eq: (a, b) => serializeWidths(a) === serializeWidths(b),
+}).withDefault({});
 
 export function rowAttributes(row: LogRow): Record<string, string> {
 	return {

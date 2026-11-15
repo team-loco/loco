@@ -182,7 +182,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const obsLink = (obsView: "logs" | "metrics" | "events"): string | undefined =>
-		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, obsView, { ...envParam, r: resource.name }) : undefined;
+		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, obsView, { ...envParam, r: [resource.name] }) : undefined;
 	const switcher = hasWs
 		? (resourcesQuery.data?.resources ?? []).map((r) => ({
 				id: r.id,

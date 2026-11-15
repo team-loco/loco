@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 
-import { createLogHistory, logAnchor, moveLogHistory, oldestLogHistory } from "./log-history";
+import { createLogHistory, moveLogHistory, oldestLogHistory } from "./log-history";
 
 test("walks older and newer batches without losing the centered batch", () => {
 	const centered = createLogHistory();
@@ -29,12 +29,5 @@ test("pages newer from the oldest batch and has nothing older", () => {
 test("does not navigate beyond an exhausted result", () => {
 	for (const direction of ["older", "newer"] as const) {
 		expect(() => moveLogHistory(createLogHistory(), direction, "")).toThrow("No log batch");
-	}
-});
-
-test("restores a shared focus timestamp without accepting invalid bounds", () => {
-	expect(logAnchor("1792130909123")).toBe(1792130909123);
-	for (const value of [null, "", "NaN", "Infinity", "-1", "0", "1.5", "9007199254740992"]) {
-		expect(logAnchor(value)).toBeNull();
 	}
 });

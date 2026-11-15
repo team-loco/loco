@@ -133,7 +133,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 			{row.cells.size > 0 && (
 				<DropdownMenuItem
 					onClick={() =>
-						void navigate(observabilityPath(orgId, workspaceId, "logs", { ...envParams, r: resource.name }))
+						void navigate(observabilityPath(orgId, workspaceId, "logs", { ...envParams, r: [resource.name] }))
 					}
 				>
 					<ScrollTextIcon className="text-fg3" />

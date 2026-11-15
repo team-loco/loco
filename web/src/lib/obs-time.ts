@@ -1,3 +1,5 @@
+import { createParser, type inferParserType } from "nuqs";
+
 import { DAY_MS, formatHourMinute, formatMonthDay } from "./time";
 
 export const MINUTE_MS = 60_000;
@@ -69,31 +71,32 @@ export function spanLabel(ms: number): string {
 	return count === 1 ? `Past ${name}` : `Past ${String(count)} ${name}s`;
 }
 
-function readMs(params: URLSearchParams, key: string): number | null {
-	const value = Number(params.get(key) ?? "");
-	return params.has(key) && Number.isSafeInteger(value) && value > 0 ? value : null;
-}
+// Epoch milliseconds; anything else reads as absent.
+export const msParser = createParser<number>({
+	parse: (raw) => {
+		const value = Number(raw);
+		return Number.isSafeInteger(value) && value > 0 ? value : null;
+	},
+	serialize: (ms) => String(Math.round(ms)),
+});
 
-export function readWindow(params: URLSearchParams, maxMs: number): TimeWindow {
-	const from = readMs(params, "from");
-	const to = readMs(params, "to");
+export const WINDOW_PARSERS = {
+	range: createParser<number>({ parse: parseSpan, serialize: formatSpan }),
+	from: msParser,
+	to: msParser,
+};
+
+type WindowParams = inferParserType<typeof WINDOW_PARSERS>;
+
+export function toWindow({ range, from, to }: WindowParams, maxMs: number): TimeWindow {
 	if (from !== null && to !== null && to > from) return { kind: "absolute", from: Math.max(from, to - maxMs), to };
-	const span = parseSpan(params.get("range") ?? "") ?? DEFAULT_SPAN_MS;
-	return { kind: "relative", spanMs: Math.min(span, maxMs) };
+	return { kind: "relative", spanMs: Math.min(range ?? DEFAULT_SPAN_MS, maxMs) };
 }
 
-export function writeWindow(params: URLSearchParams, window: TimeWindow): URLSearchParams {
-	const next = new URLSearchParams(params);
-	if (window.kind === "relative") {
-		next.set("range", formatSpan(window.spanMs));
-		next.delete("from");
-		next.delete("to");
-	} else {
-		next.delete("range");
-		next.set("from", String(Math.round(window.from)));
-		next.set("to", String(Math.round(window.to)));
-	}
-	return next;
+export function windowValues(window: TimeWindow): WindowParams {
+	return window.kind === "relative"
+		? { range: window.spanMs, from: null, to: null }
+		: { range: null, from: window.from, to: window.to };
 }
 
 export function resolveWindow(window: TimeWindow, now: number): Bounds {

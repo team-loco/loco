@@ -2,7 +2,8 @@ import { listTraces } from "@gen/loco/observability/v1/observability-Observabili
 import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
 import { useState } from "react";
 import { RefreshCwIcon, ZoomOutIcon } from "lucide-react";
-import { Navigate } from "react-router";
+import { createSerializer, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { Navigate, useLocation } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
@@ -16,12 +17,12 @@ import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useListTraces } from "@/hooks/useListTraces";
 import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
-import { resolveWindow, writeWindow, type TimeWindow } from "@/lib/obs-time";
-import { pageRangeLabel } from "@/lib/paging";
+import { resolveWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
+import { pageRangeLabel, pagingParsers, type Paging } from "@/lib/paging";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { readWidths, writeWidths, type ColumnKey, type ColumnWidths } from "./columns";
+import { widthsParser, type ColumnKey, type ColumnWidths } from "./columns";
 import { filteredResources, useObs } from "./context";
 import { fmtTs } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
@@ -30,14 +31,15 @@ import {
 	durationBounds,
 	liveTokens,
 	passes,
+	QUERY_PARSERS,
 	queryStr,
+	queryValues,
 	sameToken,
-	writeQuery,
 	type FieldKey,
 	type Token,
 } from "./query";
 import { QueryBar } from "./QueryBar";
-import { PAGE_SIZES, readPaging } from "./shared";
+import { PAGE_SIZES } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
 import { TraceScatter, type ScatterZoom } from "./TraceScatter";
 import { TraceSetup } from "./TraceSetup";
@@ -46,6 +48,18 @@ import { ViewHeader } from "./ViewHeader";
 import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, timestampMs, uniqueSpans } from "./traces";
 
 const DEFAULT_PAGE_SIZE = 25;
+const TRACES_PARAMS = {
+	...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE),
+	...WINDOW_PARSERS,
+	...QUERY_PARSERS,
+	sort: parseAsStringLiteral(["duration"]),
+	dir: parseAsStringLiteral(["asc"]),
+	trace: parseAsString.withDefault(""),
+	span: parseAsString,
+	widths: widthsParser,
+	env: parseAsString,
+};
+const serializeEnv = createSerializer({ env: parseAsString });
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 // The chart plots the newest traces up to this many; the API caps a page at 10,000.
 const SCATTER_LIMIT = 2000;
@@ -103,21 +117,13 @@ function TraceSession({
 	zoomPrev: ZoomState | null;
 	setZoomPrev: (zoom: ZoomState | null) => void;
 }) {
-	const {
-		workspaceId,
-		resources,
-		resourcesLoading,
-		scopedResourceIds,
-		resourceById,
-		range,
-		tokens,
-		text,
-		setQuery,
-		params,
-		setParam,
-		setParams,
-		setPaging,
-	} = useObs();
+	const { workspaceId, resources, resourcesLoading, scopedResourceIds, resourceById, range, tokens, text, setQuery } =
+		useObs();
+	const { search } = useLocation();
+	const [params, setParams] = useQueryStates(TRACES_PARAMS);
+	const setPaging = (next: Paging) => {
+		void setParams(next, { history: "replace" });
+	};
 	const { active, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = active?.id ?? "";
 	const [frozenEnd, setFrozenEnd] = useState(Date.now);
@@ -129,13 +135,13 @@ function TraceSession({
 	const visible = filteredResources("traces", resources, tokens);
 	const filterReady = !resourceFilter || (!resourcesLoading && visible.length > 0);
 	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
-	const paging = readPaging(params, DEFAULT_PAGE_SIZE);
+	const paging = { page: params.page, size: params.size };
 	const statusTokens = liveTokens("traces", tokens, "status");
 	const statuses = ["error", "ok"].filter((status) => passes([status], statusTokens));
 	const statusReady = statuses.length > 0;
 	const duration = durationBounds(tokens);
-	const sort = params.get("sort") === "duration" ? TraceSummarySort.DURATION : TraceSummarySort.START_TIME;
-	const ascending = params.get("dir") === "asc";
+	const sort = params.sort === "duration" ? TraceSummarySort.DURATION : TraceSummarySort.START_TIME;
+	const ascending = params.dir === "asc";
 	const ready = filterReady && scopeReady && validLookup && duration !== null;
 	const filters = {
 		workspaceId,
@@ -177,7 +183,7 @@ function TraceSession({
 	});
 	const allCount = useListTraces(countOf(TraceStatus.UNSPECIFIED));
 	const errorCount = useListTraces(countOf(TraceStatus.ERROR));
-	const openId = params.get("trace") ?? "";
+	const openId = params.trace;
 	const shownId = useHeldWhileClosed(openId, openId !== "");
 	const detail = useGetTrace({
 		workspaceId,
@@ -201,24 +207,19 @@ function TraceSession({
 	};
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
 	const go = (page: number) => () => {
-		setPaging({ page, size: paging.size }, DEFAULT_PAGE_SIZE);
+		setPaging({ page, size: paging.size });
 	};
 	const pages = Math.max(1, Math.ceil(total / paging.size));
 	const loading = environmentLoading || browse.isLoading || ((resourceFilter || !scopeReady) && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
 	const query = queryStr(tokens, text);
+	// Set env in the same update: the redirect below reads the router search, which lags behind nuqs.
 	const open = (id: string) => {
-		const next = new URLSearchParams(params);
-		next.set("trace", id);
-		next.delete("span");
-		setParams(next);
+		void setParams({ trace: id, span: null, env: params.env ?? active?.name ?? null });
 	};
 	const close = () => {
-		const next = new URLSearchParams(params);
-		next.delete("trace");
-		next.delete("span");
-		setParams(next);
+		void setParams({ trace: null, span: null });
 	};
 	const crossesDay = new Date(bounds.from).toDateString() !== new Date(bounds.to).toDateString();
 	const valueCounts = (key: FieldKey): [string, number][] => {
@@ -241,39 +242,35 @@ function TraceSession({
 	const zoom = (z: ScatterZoom) => {
 		setZoomPrev(zoomPrev ?? { range, durations: tokens.filter((t) => t.key === "duration") });
 		const rest = tokens.filter((t) => t.key !== "duration");
-		const next = writeQuery(
-			writeWindow(params, { kind: "absolute", from: z.from, to: z.to }),
-			[...rest, durationToken(">=", z.minMs), durationToken("<=", z.maxMs)],
-			text,
-		);
-		next.delete("page");
-		setParams(next);
+		void setParams({
+			...windowValues({ kind: "absolute", from: z.from, to: z.to }),
+			...queryValues([...rest, durationToken(">=", z.minMs), durationToken("<=", z.maxMs)], text),
+			page: null,
+		});
 	};
 	const resetZoom = () => {
 		if (zoomPrev === null) return;
 		const rest = tokens.filter((t) => t.key !== "duration");
-		const next = writeQuery(writeWindow(params, zoomPrev.range), [...rest, ...zoomPrev.durations], text);
-		next.delete("page");
 		setZoomPrev(null);
-		setParams(next);
+		void setParams({
+			...windowValues(zoomPrev.range),
+			...queryValues([...rest, ...zoomPrev.durations], text),
+			page: null,
+		});
 	};
 	const sortBy = (column: TraceSummarySort) => {
-		const next = new URLSearchParams(params);
 		const flip = column === sort && !ascending;
-		if (column === TraceSummarySort.DURATION) next.set("sort", "duration");
-		else next.delete("sort");
-		if (flip) next.set("dir", "asc");
-		else next.delete("dir");
-		next.delete("page");
-		setParams(next);
+		void setParams({
+			sort: column === TraceSummarySort.DURATION ? "duration" : null,
+			dir: flip ? "asc" : null,
+			page: null,
+		});
 	};
 	const sortDir = (column: TraceSummarySort) => (sort !== column ? undefined : ascending ? "ascending" : "descending");
-	const widths = readWidths(params.get("widths"));
+	const { widths } = params;
 
-	if (openId !== "" && active !== undefined && params.get("env") === null) {
-		const pinned = new URLSearchParams(params);
-		pinned.set("env", active.name);
-		return <Navigate to={{ search: `?${pinned.toString()}` }} replace />;
+	if (openId !== "" && active !== undefined && params.env === null) {
+		return <Navigate to={{ search: serializeEnv(search, { env: active.name }) }} replace />;
 	}
 
 	const header = (
@@ -287,7 +284,7 @@ function TraceSession({
 					disabled={browse.isFetching}
 					onClick={() => {
 						setFrozenEnd(Date.now());
-						setParam("page", null, true);
+						void setParams({ page: null }, { history: "replace" });
 						if (detail.isEnabled) void detail.refetch();
 					}}
 				>
@@ -393,7 +390,7 @@ function TraceSession({
 						onOpen={open}
 						widths={widths}
 						onWidths={(next) => {
-							setParam("widths", writeWidths(next), true);
+							void setParams({ widths: next }, { history: "replace" });
 						}}
 						sortDir={sortDir}
 						onSort={sortBy}
@@ -408,7 +405,7 @@ function TraceSession({
 					pageSizes={PAGE_SIZES}
 					pageSize={paging.size}
 					onPageSize={(size) => {
-						setPaging({ page: 0, size }, DEFAULT_PAGE_SIZE);
+						setPaging({ page: 0, size });
 					}}
 					onFirst={!loading && paging.page > 0 ? go(0) : null}
 					onPrev={!loading && paging.page > 0 ? go(paging.page - 1) : null}

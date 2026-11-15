@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test";
 
-import { readQuery } from "@/pages/observability/query";
+import { createLoader } from "nuqs";
 
-import { QUERY_MAX_MS, readWindow } from "./obs-time";
+import { QUERY_PARSERS, toQuery } from "@/pages/observability/query";
+
+import { QUERY_MAX_MS, toWindow, WINDOW_PARSERS } from "./obs-time";
 import { buildLogsPath, draftSearch, inResourcesSection, newResourcePath } from "./routes";
 
 test("newResourcePath opens the new resource flow on the resources page and keeps other params", () => {
@@ -30,6 +32,6 @@ test("buildLogsPath opens a day of logs filtered to the build", () => {
 	const url = new URL(buildLogsPath("o1", "w1", "b-123"), "https://loco.test");
 	expect(url.pathname).toBe("/org/o1/wks/w1/observability");
 	expect(url.searchParams.get("view")).toBe("logs");
-	expect(readQuery(url.searchParams).tokens).toEqual([{ neg: false, key: "build", value: "b-123" }]);
-	expect(readWindow(url.searchParams, QUERY_MAX_MS)).toEqual({ kind: "relative", spanMs: QUERY_MAX_MS });
+	expect(toQuery(createLoader(QUERY_PARSERS)(url)).tokens).toEqual([{ neg: false, key: "build", value: "b-123" }]);
+	expect(toWindow(createLoader(WINDOW_PARSERS)(url), QUERY_MAX_MS)).toEqual({ kind: "relative", spanMs: QUERY_MAX_MS });
 });

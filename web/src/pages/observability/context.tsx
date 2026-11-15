@@ -1,20 +1,32 @@
 import { createContext, use, type ReactNode } from "react";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { parseAsString, useQueryStates } from "nuqs";
+import { useNavigate } from "react-router";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import type { Paging } from "@/lib/paging";
-import type { ObservabilityView } from "@/lib/routes";
+import { observabilityPath, type ObservabilityView } from "@/lib/routes";
 import { configuredRegions } from "@/lib/resource-regions";
 
-import { liveTokens, narrow, readQuery, writeQuery, type Token } from "./query";
-import { EVENTS_MAX_MS, QUERY_MAX_MS, readWindow, writeWindow, type TimeWindow } from "@/lib/obs-time";
+import { liveTokens, narrow, QUERY_PARSERS, queryStr, queryValues, toQuery, type Token } from "./query";
+import { EVENTS_MAX_MS, QUERY_MAX_MS, toWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
 
 const SERIES_COLORS = 8;
-const VIEW_STATE_KEYS = ["page", "at", "trace", "span", "log"];
+
+// The views read page, at, trace, span and log with their own parsers; the provider only clears them.
+const OBS_PARAMS = {
+	...WINDOW_PARSERS,
+	...QUERY_PARSERS,
+	env: parseAsString,
+	page: parseAsString,
+	at: parseAsString,
+	trace: parseAsString,
+	span: parseAsString,
+	log: parseAsString,
+};
+const CLEARED_VIEW_STATE = { page: null, at: null, trace: null, span: null, log: null };
 
 export function seriesColor(index: number): string {
 	return `var(--series-${String(index % SERIES_COLORS)})`;
@@ -40,7 +52,6 @@ interface ObsContextValue {
 	orgId: string;
 	workspaceId: string;
 	view: ObservabilityView;
-	params: URLSearchParams;
 	resources: ObsResource[];
 	resourcesLoading: boolean;
 	/** IDs every query must name because the user reads only these resources, or null when it may query the whole workspace. */
@@ -53,9 +64,6 @@ interface ObsContextValue {
 	tokens: Token[];
 	text: string;
 	setQuery: (tokens: Token[], text: string) => void;
-	setParam: (key: string, value: string | null, replace?: boolean) => void;
-	setParams: (next: URLSearchParams, replace?: boolean) => void;
-	setPaging: (paging: Paging, defaultSize: number) => void;
 	goTo: (view: ObservabilityView, opts?: GoToOptions) => void;
 }
 
@@ -77,15 +85,16 @@ export function ObsProvider({
 	children: ReactNode;
 }) {
 	const transport = useTransport();
-	const [params, setParams] = useSearchParams();
+	const navigate = useNavigate();
+	const [params, setParams] = useQueryStates(OBS_PARAMS);
 	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
 		workspaceResourcesOptions(transport, workspaceId, grants),
 	);
 
 	const maxMs = maxSpanFor(view);
-	const range = readWindow(params, maxMs);
-	const { tokens, text } = readQuery(params);
+	const range = toWindow(params, maxMs);
+	const { tokens, text } = toQuery(params);
 
 	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
 	const resources: ObsResource[] = sorted.map((r, i) => ({
@@ -99,54 +108,30 @@ export function ObsProvider({
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
 	const scopedResourceIds = grants === "workspace" ? null : resources.map((r) => r.id);
 
-	const commit = (next: URLSearchParams, replace = false) => {
-		setParams(next, { replace });
-	};
-	const resetViewState = (next: URLSearchParams) => {
-		for (const key of VIEW_STATE_KEYS) next.delete(key);
-		return next;
-	};
-
 	const setRange = (w: TimeWindow) => {
-		commit(resetViewState(writeWindow(params, w)));
+		void setParams({ ...windowValues(w), ...CLEARED_VIEW_STATE });
 	};
 	const setQuery = (nextTokens: Token[], nextText: string) => {
-		const next = writeQuery(params, nextTokens, nextText);
-		next.delete("page");
-		next.delete("log");
-		commit(next);
-	};
-	const setParam = (key: string, value: string | null, replace = false) => {
-		const next = new URLSearchParams(params);
-		if (value === null) next.delete(key);
-		else next.set(key, value);
-		commit(next, replace);
-	};
-	const setPaging = ({ page, size }: Paging, defaultSize: number) => {
-		const next = new URLSearchParams(params);
-		if (page === 0) next.delete("page");
-		else next.set("page", String(page + 1));
-		if (size === defaultSize) next.delete("size");
-		else next.set("size", String(size));
-		commit(next, true);
+		void setParams({ ...queryValues(nextTokens, nextText), page: null, log: null });
 	};
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
-		const search = new URLSearchParams({ view: next });
-		const env = params.get("env");
-		if (env !== null) search.set("env", env);
-		const target = writeQuery(writeWindow(search, opts.range ?? range), opts.tokens ?? tokens, opts.tokens ? "" : text);
-		if (opts.focusTs !== undefined) target.set("at", String(opts.focusTs));
-		if (opts.trace !== undefined) target.set("trace", opts.trace);
-		if (opts.span !== undefined) target.set("span", opts.span);
-		commit(target);
+		void navigate(
+			observabilityPath(orgId, workspaceId, next, {
+				env: params.env,
+				...windowValues(opts.range ?? range),
+				q: queryStr(opts.tokens ?? tokens, opts.tokens ? "" : text) || null,
+				at: opts.focusTs ?? null,
+				trace: opts.trace ?? null,
+				span: opts.span ?? null,
+			}),
+		);
 	};
 
 	const value: ObsContextValue = {
 		orgId,
 		workspaceId,
 		view,
-		params,
 		resources,
 		resourcesLoading,
 		scopedResourceIds,
@@ -158,9 +143,6 @@ export function ObsProvider({
 		tokens,
 		text,
 		setQuery,
-		setParam,
-		setParams: commit,
-		setPaging,
 		goTo,
 	};
 

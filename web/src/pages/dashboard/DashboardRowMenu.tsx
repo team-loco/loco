@@ -45,7 +45,7 @@ export function DashboardRowMenu({
 	const base = resourcePath(orgId, workspaceId, resource.id);
 	const envQuery = `env=${encodeURIComponent(envName)}`;
 	const obs = (view: "logs" | "events") =>
-		observabilityPath(orgId, workspaceId, view, { env: envName, r: resource.name });
+		observabilityPath(orgId, workspaceId, view, { env: envName, r: [resource.name] });
 
 	const refresh = async () => {
 		await Promise.all([
