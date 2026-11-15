@@ -52,7 +52,7 @@ KUBE_CONTEXT="kind-${KIND_CLUSTER_NAME}"
 PG_USER="loco_e2e"
 PG_PASS="loco_e2e_pass"
 PG_DB="loco_e2e"
-E2E_VERSION="e2e"
+E2E_VERSION="${E2E_VERSION:-e2e}"
 CONTROLLER_REPOSITORY="loco-controller"
 BUILDER_REPOSITORY="loco-builder"
 CONTROL_PLANE_VALUES="$ROOT_DIR/charts/loco-control-plane/values.yaml"
@@ -685,6 +685,12 @@ start_token_registry() {
 
 build_image() {
     local repository=$1 dockerfile=$2 binary=$3 context="$RUN_DIR/images/$1" target
+    # E2E_IMAGES names prebuilt images, with * standing for the image name.
+    if [ -n "${E2E_IMAGES:-}" ]; then
+        docker pull -q "${E2E_IMAGES//\*/${repository#loco-}}"
+        docker tag "${E2E_IMAGES//\*/${repository#loco-}}" "${repository}:e2e-${RUN_ID}"
+        return
+    fi
     target=$(awk '$1 == "COPY" && $2 == "--from=builder" { print $3 }' "$ROOT_DIR/$dockerfile")
     rm -rf "$context"
     mkdir -p "$context$(dirname "$target")"

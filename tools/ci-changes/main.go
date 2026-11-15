@@ -61,8 +61,18 @@ type pattern struct {
 	re      *regexp.Regexp
 }
 
-// filters maps a workflow to its filter per event.
-type filters map[string]map[string]filter
+// filters maps each workflow to its paths.
+type filters map[string]workflowFilter
+
+type workflowFilter struct {
+	// events holds the filter for each event the workflow runs on.
+	events map[string]filter
+	// usedBy lists the workflows that need this one's output, such as the
+	// images it builds; it runs whenever any of them does.
+	usedBy []string
+}
+
+const usedByKey = "for"
 
 func loadFilters(path string) (filters, error) {
 	data, err := os.ReadFile(path)
@@ -75,8 +85,12 @@ func loadFilters(path string) (filters, error) {
 	}
 	result := filters{}
 	for workflow, events := range raw {
-		result[workflow] = map[string]filter{}
+		w := workflowFilter{events: map[string]filter{}}
 		for event, patterns := range events {
+			if event == usedByKey {
+				w.usedBy = patterns
+				continue
+			}
 			if event != "pull_request" && event != "push" {
 				return nil, fmt.Errorf("%s: %s: unknown event %q", path, workflow, event)
 			}
@@ -84,7 +98,16 @@ func loadFilters(path string) (filters, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s: %s: %s: %w", path, workflow, event, err)
 			}
-			result[workflow][event] = f
+			w.events[event] = f
+		}
+		result[workflow] = w
+	}
+	for workflow, w := range result {
+		for _, user := range w.usedBy {
+			if u, ok := result[user]; !ok || len(u.usedBy) > 0 {
+				return nil, fmt.Errorf("%s: %s: %s names %q, which is not a workflow with only its own paths",
+					path, workflow, usedByKey, user)
+			}
 		}
 	}
 	return result, nil
@@ -131,13 +154,18 @@ func git(ctx context.Context, dir string, args ...string) ([]byte, error) {
 }
 
 // selectWorkflows reports, for every workflow, whether a changed file matches
-// its filter for the event. Nil files select every workflow with a filter for
-// the event.
+// its filter for the event or a workflow that uses it runs. Nil files select
+// every workflow with a filter for the event.
 func selectWorkflows(all filters, event string, files []string) map[string]bool {
 	selected := map[string]bool{}
-	for workflow, events := range all {
-		f, ok := events[event]
+	for workflow, w := range all {
+		f, ok := w.events[event]
 		selected[workflow] = ok && (files == nil || slices.ContainsFunc(files, f.matches))
+	}
+	for workflow, w := range all {
+		selected[workflow] = selected[workflow] || slices.ContainsFunc(w.usedBy, func(user string) bool {
+			return selected[user]
+		})
 	}
 	return selected
 }

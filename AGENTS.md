@@ -101,8 +101,8 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   images, and that docs/pyproject.toml requires the Python minor version mise.toml pins.
 - **A build reports the version it was tagged as.** Every Go binary reads it from
   `-ldflags "-X main.version=..."`, which each Dockerfile fills from the `VERSION` build arg.
-  `build-push.yml` passes the image tag (`sha-<commit>`), the CLI release its git tag
-  (`vX.Y.Z`), and e2e `e2e`, the tag of its images. Without one, a binary reports its Go
+  `images.yml` passes the tag `build.yml` publishes (`sha-<commit>`), the CLI release its git
+  tag (`vX.Y.Z`), and e2e `e2e` for the images it builds itself. Without one, a binary reports its Go
   module version, `(devel)` inside Docker. The UI build reads the same `VERSION` build arg and
   serves it as `/version.json` and a `loco-version` meta tag, `(devel)` without one. The charts
   have no default tag for Loco images.

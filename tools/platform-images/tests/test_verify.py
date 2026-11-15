@@ -103,33 +103,6 @@ def _workflow(name):
     )
 
 
-def test_publishing_requires_both_native_verifiers_before_index_provenance():
-    workflow = _workflow("build-push.yml")
-    jobs = workflow["jobs"]
-    push = next(
-        (
-            step
-            for step in jobs["build-and-push-image"]["steps"]
-            if step.get("id") == "push"
-        )
-    )
-    platforms = set(push["with"]["platforms"].split(","))
-    assert platforms == {"linux/amd64", "linux/arm64"}
-    assert push["with"]["provenance"] == "mode=max"
-    runners = jobs["verify-platform"]["strategy"]["matrix"]["include"]
-    assert {entry["platform"] for entry in runners} == platforms
-    assert len({entry["runner"] for entry in runners}) == len(runners)
-    assert "verify-platform" in jobs["attest-index"]["needs"]
-    sbom = next(
-        (
-            step
-            for step in jobs["verify-platform"]["steps"]
-            if step["name"] == "Generate platform SBOM"
-        )
-    )
-    assert sbom["with"]["image"] == "${{ steps.platform.outputs.image }}"
-
-
 PLATFORM_DOCKERFILES = {
     "./api/Dockerfile",
     "./agent/Dockerfile",

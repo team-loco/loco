@@ -2,6 +2,11 @@ name: Installation E2E
 
 on:
   workflow_call:
+    inputs:
+      images:
+        description: Prebuilt images, with * standing for the image name; empty builds them here.
+        type: string
+        default: ""
   workflow_dispatch:
 
 permissions:
@@ -13,12 +18,23 @@ jobs:
     name: Installation E2E
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: e2e
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: inputs.images != ''
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Test installation runner failure and cleanup behavior
         run: mise run test:e2e-installation-runner
       - name: Install, bootstrap, enroll and deploy through the public commands
+        env:
+          E2E_IMAGES: ${{ inputs.images }}
         run: mise run e2e:installation

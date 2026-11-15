@@ -2,6 +2,11 @@ name: Docker
 
 on:
   workflow_call:
+    inputs:
+      images:
+        description: Prebuilt images, with * standing for the image name; empty builds them here.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -49,50 +54,56 @@ jobs:
           echo "targets=[$targets]" >> "$GITHUB_OUTPUT"
 
   buildkit-check:
-    name: ${{ matrix.image.name }} ${{ matrix.target.platform }}
+    name: Images ${{ matrix.target.platform }}
     needs: changes
     if: needs.changes.outputs.images != '[]'
     runs-on: ${{ matrix.target.runner }}
+    permissions:
+      contents: read
+      packages: read
 
     strategy:
       fail-fast: false
       matrix:
         target: ${{ fromJSON(needs.changes.outputs.targets) }}
-        image: ${{ fromJSON(needs.changes.outputs.images) }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # contexts must match build.yml -- CopyIgnoredFile
-      # and friends are only correct against the context the image really builds
-      # with.
-      - name: Build check
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: inputs.images != ''
         with:
-          context: .
-          file: ${{ matrix.image.dockerfile }}
-          platforms: ${{ matrix.target.platform }}
-          call: check
-          build-args: |
-            BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build native platform image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: ${{ matrix.image.dockerfile }}
-          platforms: ${{ matrix.target.platform }}
-          load: true
-          tags: loco-platform:check
-          build-args: VERSION=architecture-check
-          cache-from: type=gha,scope=${{ matrix.image.cache_scope }}
-
-      - name: Verify image platform and executable
+      # docker-bake.hcl builds each image with the context CopyIgnoredFile
+      # and friends must be checked against.
+      - name: Check, then pull or build, and verify each changed image
         env:
+          IMAGES: ${{ inputs.images }}
+          CHANGED: ${{ needs.changes.outputs.images }}
           PLATFORM: ${{ matrix.target.platform }}
-        run: python3 tools/platform-images/verify.py image loco-platform:check "$PLATFORM"
+        run: |
+          set -euo pipefail
+          mapfile -t targets < <(jq -r '.[].cache_scope' <<<"$CHANGED")
+          docker buildx bake --call check \
+            --set '*.args.BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all' "${targets[@]}"
+          pull=true
+          if [ -z "$IMAGES" ]; then
+            pull=false
+            IMAGES='ghcr.io/team-loco/loco-*:check'
+            TAG=check VERSION=architecture-check PLATFORMS="$PLATFORM" docker buildx bake --load "${targets[@]}"
+          fi
+          for target in "${targets[@]}"; do
+            image=${IMAGES//\*/$target}
+            if [ "$pull" = true ]; then
+              docker pull -q --platform "$PLATFORM" "$image"
+            fi
+            python3 tools/platform-images/verify.py image "$image" "$PLATFORM"
+          done
 
   base-image-versions:
     name: Image Pins
