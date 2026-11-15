@@ -165,6 +165,9 @@ func (s *SecretServer) SetSecrets(
 		return nil, err
 	}
 	values := req.GetValues()
+	if limitErr := s.checkRequestSize(ctx, target, len(values)); limitErr != nil {
+		return nil, limitErr
+	}
 	names := slices.Sorted(maps.Keys(values))
 	for _, name := range names {
 		if int64(len(values[name])) > int64(s.config.MaxValueBytes) {
@@ -184,6 +187,12 @@ func (s *SecretServer) SetSecrets(
 		return response, nil
 	}
 	return nil, rpcerr.New(connect.CodeAborted, ErrSecretKeyChanging)
+}
+
+// checkRequestSize refuses a request naming more secrets than a service can hold, so an
+// oversized batch fails before any database work on its names.
+func (s *SecretServer) checkRequestSize(ctx context.Context, target secretTarget, entries int) error {
+	return checkResourceLimit(ctx, s.queries, s.counts, limits.SecretsPerResource, target.resourceID, 0, int64(entries))
 }
 
 func (s *SecretServer) setSecretsOnce(
@@ -420,6 +429,9 @@ func (s *SecretServer) DeleteSecrets(
 	target, err := s.authorizeTarget(ctx, req.GetResourceId(), req.GetEnvironmentId(), actions.DeleteSecrets)
 	if err != nil {
 		return nil, err
+	}
+	if limitErr := s.checkRequestSize(ctx, target, len(req.GetNames())); limitErr != nil {
+		return nil, limitErr
 	}
 	names := slices.Sorted(slices.Values(req.GetNames()))
 	var revision int64

@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -31,6 +32,13 @@ func (q environmentLookupQuerier) GetWorkspaceOrganizationIDByResourceID(
 	_ uuid.UUID,
 ) (genDb.GetWorkspaceOrganizationIDByResourceIDRow, error) {
 	return genDb.GetWorkspaceOrganizationIDByResourceIDRow{WorkspaceID: q.resource.WorkspaceID, OrgID: q.orgID}, nil
+}
+
+func (environmentLookupQuerier) GetOrgLimitOverrides(
+	context.Context,
+	uuid.UUID,
+) (genDb.OrgLimitOverride, error) {
+	return genDb.OrgLimitOverride{}, pgx.ErrNoRows
 }
 
 func secretAuthzContext(t *testing.T, scopes ...genDb.EntityScope) context.Context {
