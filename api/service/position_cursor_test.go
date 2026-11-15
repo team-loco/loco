@@ -9,6 +9,7 @@ import (
 )
 
 func TestPositionCursorRetainsTheExactSortPosition(t *testing.T) {
+	t.Parallel()
 	id := uuid.New()
 	at := time.Date(2026, 10, 16, 8, 20, 30, 123456000, time.FixedZone("offset", 3600))
 	cursor, err := decodePositionCursor(encodePositionCursor(id, at))
@@ -25,6 +26,7 @@ func TestPositionCursorRetainsTheExactSortPosition(t *testing.T) {
 }
 
 func TestPositionCursorRejectsMalformedPositions(t *testing.T) {
+	t.Parallel()
 	id := uuid.NewString()
 	payloads := []string{
 		"v2|2026-10-16T08:20:30Z|" + id,

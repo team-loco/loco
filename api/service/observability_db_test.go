@@ -131,6 +131,7 @@ func readCalls() map[string]readCall {
 }
 
 func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testing.T) {
+	t.Parallel()
 	f := newObservabilityFixture(t)
 	workspace, otherWorkspace := f.workspace.String(), f.otherWorkspace.String()
 	resource, otherResource := f.resource.String(), f.otherResource.String()

@@ -101,6 +101,7 @@ func (f *deployFixture) workerDeployments(t *testing.T) []genDb.Deployment {
 }
 
 func TestApplyUpdateRollsADeploymentForRuntimeChanges(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	first := applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
@@ -135,6 +136,7 @@ func TestApplyUpdateRollsADeploymentForRuntimeChanges(t *testing.T) {
 }
 
 func TestApplyUpdateReplacesDomainsAndReroutes(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
@@ -172,6 +174,7 @@ func TestApplyUpdateReplacesDomainsAndReroutes(t *testing.T) {
 }
 
 func TestApplyUpdateAddsAndRemovesRegions(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	var otherCluster uuid.UUID
@@ -227,6 +230,7 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
 }
 
 func TestApplyStopsAndRestartsADisabledService(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	first := applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
@@ -277,6 +281,7 @@ func TestApplyStopsAndRestartsADisabledService(t *testing.T) {
 }
 
 func TestApplyImportAppliesChanges(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.setRoutedSpec(t)
@@ -299,6 +304,7 @@ func TestApplyImportAppliesChanges(t *testing.T) {
 }
 
 func TestApplyUpdateThatNeedsADeployWritesConfigOnly(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileSource, applyOptions{})

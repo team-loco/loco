@@ -298,6 +298,7 @@ func pullAccess(name string) []registrytoken.Access {
 }
 
 func TestIssuePullCredentialRequiresAnOpenPlacementWindow(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	workspace := f.workspaceID.String()
 
@@ -361,6 +362,7 @@ func TestIssuePullCredentialRequiresAnOpenPlacementWindow(t *testing.T) {
 }
 
 func TestIssuePullCredentialFailsInStaticMode(t *testing.T) {
+	t.Parallel()
 	config := testRegistryConfig()
 	config.TokenMode = false
 	f := newRegistryFixture(t, config)
@@ -370,6 +372,7 @@ func TestIssuePullCredentialFailsInStaticMode(t *testing.T) {
 }
 
 func TestRegistryRealmGrantsPullOnTheWorkspaceRepositoriesOnly(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	f.openWindow(t, f.clusterID)
 	password := f.pullCredential(t)
@@ -426,6 +429,7 @@ func TestRegistryRealmGrantsPullOnTheWorkspaceRepositoriesOnly(t *testing.T) {
 }
 
 func TestRegistryAPITokenCarriesOnlyTheRequestedAccess(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	catalog := pullAccess(registrytoken.CatalogRepository)
 	token, err := f.server.SignAPIToken(t.Context(), catalog)
@@ -474,6 +478,7 @@ func wantResponseFields(t *testing.T, method string, body map[string]json.RawMes
 }
 
 func TestRegistryRealmRefusesInvalidCredentials(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	f.openWindow(t, f.clusterID)
 	password := f.pullCredential(t)
@@ -509,6 +514,7 @@ func TestRegistryRealmRefusesInvalidCredentials(t *testing.T) {
 }
 
 func TestRegistryRealmRejectsMalformedRequests(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	f.openWindow(t, f.clusterID)
 	password := f.pullCredential(t)
@@ -542,6 +548,7 @@ func TestRegistryRealmRejectsMalformedRequests(t *testing.T) {
 }
 
 func TestRegistryPullCredentialStopsWhenThePlacementEnds(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	f.openWindow(t, f.clusterID)
 	first := f.pullCredential(t)
@@ -604,6 +611,7 @@ VALUES ('build', $1, $2, $3, $4)`,
 }
 
 func TestRegistryBuildCredentialGrantsItsBuildRepositoryWhileTheBuildRuns(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	buildID, repository := f.insertBuild(t, genDb.BuildStatusQueued)
 	password := f.insertBuildCredential(t, buildID)
@@ -687,6 +695,7 @@ func (f *registryFixture) wantCredentialSet(t *testing.T, set registryCredential
 }
 
 func TestRegistryCredentialsEndWhenTheClusterReenrolls(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	set := f.issueCredentialSet(t)
 	admin := NewClusterAdminServer(f.pool, f.queries, testAgentConfig().JoinTokenTTL)
@@ -714,6 +723,7 @@ func TestRegistryCredentialsEndWhenTheClusterReenrolls(t *testing.T) {
 }
 
 func TestRegistryCredentialsStayRevokedWhenARemovedClusterIsRestored(t *testing.T) {
+	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	set := f.issueCredentialSet(t)
 	for _, operation := range []clusterOperation{clusterPause, clusterRemove, clusterRestore} {

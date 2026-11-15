@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -13,6 +14,7 @@ import (
 )
 
 func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	initial := imageService()
 	initial.Env = map[string]string{"KEY": "old"}
@@ -62,10 +64,10 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 		)
 		created <- createResult{response: response, err: err}
 	}()
-	f.waitForLockWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	scaled := make(chan error, 1)
 	go func() { scaled <- scaleResource(t, f, 2) }()
-	f.waitForLockWaiters(t, 2)
+	dbtest.WaitForLockWaiters(t, f.pool, 2)
 	release()
 	replacement := <-created
 	if replacement.err != nil {

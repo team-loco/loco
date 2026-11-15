@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -69,6 +69,7 @@ func scopeCount(t *testing.T, f *deployFixture, scope genDb.AddUserScopeParams) 
 }
 
 func TestEntityDeletionCascadesHierarchyScopes(t *testing.T) {
+	t.Parallel()
 	for index, kind := range []genDb.EntityType{
 		genDb.EntityTypeOrganization,
 		genDb.EntityTypeWorkspace,
@@ -111,6 +112,7 @@ func TestEntityDeletionCascadesHierarchyScopes(t *testing.T) {
 }
 
 func TestHierarchyScopeRequiresExistingEntity(t *testing.T) {
+	t.Parallel()
 	for index, kind := range []genDb.EntityType{
 		genDb.EntityTypeOrganization,
 		genDb.EntityTypeWorkspace,
@@ -129,32 +131,8 @@ func TestHierarchyScopeRequiresExistingEntity(t *testing.T) {
 	}
 }
 
-func waitForScopeReferenceLock(t *testing.T, f *deployFixture, done <-chan error) {
-	t.Helper()
-	deadline := time.Now().Add(lockTimeout)
-	for time.Now().Before(deadline) {
-		select {
-		case err := <-done:
-			t.Fatalf("operation completed before the other transaction committed: %v", err)
-		default:
-		}
-		var blocked bool
-		err := f.pool.QueryRow(
-			t.Context(),
-			"SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock')",
-		).Scan(&blocked)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if blocked {
-			return
-		}
-		time.Sleep(lockPollInterval)
-	}
-	t.Fatal("operation never waited on the entity reference")
-}
-
 func TestHierarchyScopeGrantAndDeleteSerialize(t *testing.T) {
+	t.Parallel()
 	for index, kind := range []genDb.EntityType{
 		genDb.EntityTypeOrganization,
 		genDb.EntityTypeWorkspace,
@@ -182,7 +160,7 @@ func TestHierarchyScopeGrantAndDeleteSerialize(t *testing.T) {
 					}
 					go func() { done <- f.queries.AddUserScope(t.Context(), scope) }()
 				}
-				waitForScopeReferenceLock(t, f, done)
+				dbtest.WaitForLockWaiters(t, f.pool, 1)
 				if commitErr := tx.Commit(t.Context()); commitErr != nil {
 					t.Fatal(commitErr)
 				}
@@ -204,6 +182,7 @@ func TestHierarchyScopeGrantAndDeleteSerialize(t *testing.T) {
 }
 
 func TestWorkspaceMembershipRejectsDeletedWorkspace(t *testing.T) {
+	t.Parallel()
 	f := newEventFixture(t)
 	org, err := f.queries.GetOrgByID(t.Context(), uuid.MustParse(f.orgID))
 	if err != nil {

@@ -193,6 +193,7 @@ SELECT count(*) FROM events WHERE subject_id = $1 AND type = $2 AND data->>$3 = 
 }
 
 func TestSweepExpiresAbandonedUploads(t *testing.T) {
+	t.Parallel()
 	f := newSweepFixture(t)
 
 	queuedID := f.queued(t)
@@ -246,6 +247,7 @@ func TestSweepExpiresAbandonedUploads(t *testing.T) {
 }
 
 func TestSweepRetriesFailedSourceDeletes(t *testing.T) {
+	t.Parallel()
 	f := newSweepFixture(t)
 
 	id := f.canceledWithFailingDeletes(t, testDeleteFailures)
@@ -278,6 +280,7 @@ func TestSweepRetriesFailedSourceDeletes(t *testing.T) {
 }
 
 func TestSweepDeletesOrphanedSources(t *testing.T) {
+	t.Parallel()
 	f := newSweepFixture(t)
 	now := time.Now()
 	old := now.Add(-testOrphanAge)
@@ -327,6 +330,7 @@ func TestSweepDeletesOrphanedSources(t *testing.T) {
 }
 
 func TestConcurrentSweepsRunOnce(t *testing.T) {
+	t.Parallel()
 	f := newSweepFixture(t)
 	id := f.canceledWithFailingDeletes(t, 0)
 	key := buildsource.Key(id)

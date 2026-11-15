@@ -17,6 +17,7 @@ import (
 )
 
 func TestOptionalUpdateJSONPresenceAndValidation(t *testing.T) {
+	t.Parallel()
 	const id = "11111111-1111-4111-8111-111111111111"
 	for _, tc := range []struct {
 		name, body     string

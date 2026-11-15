@@ -21,6 +21,7 @@ func scaledSpec(minReplicas, maxReplicas int32) *deploymentv1.ServiceDeploymentS
 }
 
 func TestApplyScaleSetsTheReplicasTheControllerReads(t *testing.T) {
+	t.Parallel()
 	replicas := int32(3)
 	spec := scaledSpec(1, 2)
 	got := applyScale(&resourcev1.ScaleResourceRequest{Replicas: &replicas}, spec, 1)
@@ -40,6 +41,7 @@ func TestApplyScaleSetsTheReplicasTheControllerReads(t *testing.T) {
 }
 
 func TestApplyScaleKeepsUnrequestedValues(t *testing.T) {
+	t.Parallel()
 	cpu := "500m"
 	spec := scaledSpec(2, 2)
 	got := applyScale(&resourcev1.ScaleResourceRequest{Cpu: &cpu}, spec, 2)
@@ -52,6 +54,7 @@ func TestApplyScaleKeepsUnrequestedValues(t *testing.T) {
 }
 
 func TestScaleResourceRequestNeedsAnEnvironment(t *testing.T) {
+	t.Parallel()
 	replicas := int32(2)
 	cases := map[string]string{
 		"missing":    "",
@@ -81,6 +84,7 @@ func TestScaleResourceRequestNeedsAnEnvironment(t *testing.T) {
 }
 
 func TestManualScaleDisablesAutoscaling(t *testing.T) {
+	t.Parallel()
 	spec := scaledSpec(1, 5)
 	spec.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
 	cpu := "500m"

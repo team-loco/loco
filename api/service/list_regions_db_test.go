@@ -54,6 +54,7 @@ func listRegions(
 }
 
 func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	f.markClusterUnhealthy(t, f.clusterID)
@@ -89,6 +90,7 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 }
 
 func TestListRegionsReportsDegradedRegions(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())

@@ -31,6 +31,7 @@ func restartResource(t *testing.T, f *deployFixture, environmentID uuid.UUID, re
 }
 
 func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *testing.T) {
+	t.Parallel()
 	for _, region := range []string{"", testRegion} {
 		t.Run("region="+region, func(t *testing.T) {
 			f := newDeployFixture(t)
@@ -118,6 +119,7 @@ func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *te
 }
 
 func TestRestartResourceRejectsInvalidTargetsAndReadScope(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.addStagingEnvironment(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {

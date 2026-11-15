@@ -126,6 +126,7 @@ func (f *deployFixture) serveDomains(t *testing.T, domains ...string) {
 }
 
 func TestCreateDeploymentRoutesThePrimaryDomain(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.addDomain(t, "alt.example.com", false)
 	f.addDomain(t, testPrimaryDomain, true)
@@ -146,6 +147,7 @@ func TestCreateDeploymentRoutesThePrimaryDomain(t *testing.T) {
 }
 
 func TestCreateDeploymentWithoutADomainHasNoRoute(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -164,6 +166,7 @@ func TestCreateDeploymentWithoutADomainHasNoRoute(t *testing.T) {
 }
 
 func TestCreateDeploymentRejectsARegionTheResourceDoesNotRunIn(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	_, err := createDeployment(t, f, otherRegionSpec)
 	wantCode(t, err, connect.CodeInvalidArgument)
@@ -173,6 +176,7 @@ func TestCreateDeploymentRejectsARegionTheResourceDoesNotRunIn(t *testing.T) {
 }
 
 func TestCreateDeploymentRefusesAClusterThatStoppedHeartbeating(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	seedDeployment(t, f, sameRegionSpec)
 	silent := time.Now().Add(-2 * testClusterSilentAfter)
@@ -191,6 +195,7 @@ func TestCreateDeploymentRefusesAClusterThatStoppedHeartbeating(t *testing.T) {
 }
 
 func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	created, err := createDeployment(t, f, sameRegionSpec)
 	if err != nil {
@@ -232,6 +237,7 @@ func (f *deployFixture) organizationID(t *testing.T) string {
 }
 
 func TestCreateDeploymentCarriesTheWorkspaceOrganization(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -244,6 +250,7 @@ func TestCreateDeploymentCarriesTheWorkspaceOrganization(t *testing.T) {
 }
 
 func TestCreateDeploymentRaisesAnUnsetMaximumToTheMinimum(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	service := imageService()
 	minReplicas := int32(5)
@@ -260,6 +267,7 @@ func TestCreateDeploymentRaisesAnUnsetMaximumToTheMinimum(t *testing.T) {
 }
 
 func TestCreateDeploymentRejectsSpecsTheControllerRejects(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(*deploymentv1.ServiceDeploymentSpec){
 		"explicit max below min": func(s *deploymentv1.ServiceDeploymentSpec) {
 			minReplicas := int32(3)
@@ -291,6 +299,7 @@ func TestCreateDeploymentRejectsSpecsTheControllerRejects(t *testing.T) {
 }
 
 func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	service := imageService()
 	minReplicas := int32(1)
@@ -348,6 +357,7 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 }
 
 func TestCreateDeploymentAcceptsEnabledAutoscaling(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	service := imageService()
 	service.MinReplicas = new(int32(1))
@@ -368,6 +378,7 @@ const workerRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"cpu":"100m",`
 	`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 
 func TestCreateDeploymentWithoutAPortRunsAWorker(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}
 	worker := &deploymentv1.ServiceDeploymentSpec{Build: build}

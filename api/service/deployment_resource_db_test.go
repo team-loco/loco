@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -16,6 +17,7 @@ import (
 )
 
 func TestDeploymentPreservesTheRenameThatCommitsWhileItWaits(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
 		t.Fatal(err)
@@ -37,10 +39,10 @@ func TestDeploymentPreservesTheRenameThatCommitsWhileItWaits(t *testing.T) {
 		)
 		updated <- err
 	}()
-	f.waitForLockWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	created := make(chan error, 1)
 	go func() { _, err := deployService(t, f, imageService()); created <- err }()
-	f.waitForLockWaiters(t, 2)
+	dbtest.WaitForLockWaiters(t, f.pool, 2)
 	release()
 	if err := <-updated; err != nil {
 		t.Fatal(err)
@@ -59,6 +61,7 @@ func TestDeploymentPreservesTheRenameThatCommitsWhileItWaits(t *testing.T) {
 }
 
 func TestDeploymentMergesTheResourceSpecThatCommitsWhileItWaits(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
 		t.Fatal(err)
@@ -94,7 +97,7 @@ func TestDeploymentMergesTheResourceSpecThatCommitsWhileItWaits(t *testing.T) {
 	}
 	created := make(chan error, 1)
 	go func() { _, err := deployService(t, f, imageService()); created <- err }()
-	f.waitForLockWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	if err := tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}

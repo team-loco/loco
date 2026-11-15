@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"slices"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -68,6 +70,7 @@ func wantCleanPlanIn(t *testing.T, f *deployFixture, environmentID uuid.UUID, fi
 }
 
 func TestApplyKeepsTheValuesOfEachEnvironment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	stagingID := f.prepareStaging(t)
@@ -104,6 +107,7 @@ func TestApplyKeepsTheValuesOfEachEnvironment(t *testing.T) {
 }
 
 func TestDisablingAServiceInOneEnvironmentKeepsTheOther(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	stagingID := f.prepareStaging(t)
@@ -123,6 +127,7 @@ func TestDisablingAServiceInOneEnvironmentKeepsTheOther(t *testing.T) {
 }
 
 func TestApplyConvergesWhenOnlySecondaryDomainsMove(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorkerSecondaries, applyOptions{})
@@ -130,49 +135,50 @@ func TestApplyConvergesWhenOnlySecondaryDomainsMove(t *testing.T) {
 }
 
 func TestApplyInTwoEnvironmentsDoNotDeadlock(t *testing.T) {
-	for range interleavingRuns {
-		f := newDeployFixture(t)
-		f.prepareApply(t)
-		stagingID := f.prepareStaging(t)
-		applyOK(t, f, planFileHeader+applyFileWorkerOverride, applyOptions{})
-		applyOK(t, f, planFileHeader+applyFileWorkerOverride, applyOptions{environmentID: stagingID})
-		worker, _ := f.resourceByName(t, applyWorker)
-		f.resourceID = worker.ID
-		f.useLockTimeout(t)
-		release := f.holdResourceLock(t)
+	for _, productionFirst := range []bool{true, false} {
+		t.Run("production first "+strconv.FormatBool(productionFirst), func(t *testing.T) {
+			f := newDeployFixture(t)
+			f.prepareApply(t)
+			stagingID := f.prepareStaging(t)
+			applyOK(t, f, planFileHeader+applyFileWorkerOverride, applyOptions{})
+			applyOK(t, f, planFileHeader+applyFileWorkerOverride, applyOptions{environmentID: stagingID})
+			worker, _ := f.resourceByName(t, applyWorker)
+			f.resourceID = worker.ID
+			f.useLockTimeout(t)
+			release := f.holdResourceLock(t)
 
-		file := planFileHeader + applyFileWorkerMoreReplicas
-		var wg sync.WaitGroup
-		errs := make([]error, 0, writersPerInterleaving)
-		var mu sync.Mutex
-		for _, environmentID := range []uuid.UUID{f.envID, stagingID} {
-			opts := applyOptions{revision: f.revision(t, environmentID), environmentID: environmentID}
-			wg.Go(func() {
-				_, err := applyFile(t, f, file, opts, f.adminScopes(t))
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
-			})
-		}
-		f.waitForLockWaiters(t, writersPerInterleaving)
-		release()
-		wg.Wait()
-
-		for _, err := range errs {
-			if err != nil && wireCode(err) != connect.CodeFailedPrecondition {
-				t.Fatalf("Apply = %v, want success or a stale-revision refusal", err)
+			order := []uuid.UUID{f.envID, stagingID}
+			if !productionFirst {
+				slices.Reverse(order)
 			}
-		}
-		active, err := f.queries.ListActiveDeploymentsForResource(context.Background(), worker.ID)
-		if err != nil {
-			t.Fatalf("list deployments: %v", err)
-		}
-		environments := map[uuid.UUID]bool{}
-		for _, deployment := range active {
-			environments[deployment.EnvironmentID] = true
-		}
-		if !environments[f.envID] || !environments[stagingID] {
-			t.Fatalf("active deployments = %+v, want both environments running", active)
-		}
+			file := planFileHeader + applyFileWorkerMoreReplicas
+			errs := make([]error, len(order))
+			writers := make([]func(), len(order))
+			for i, environmentID := range order {
+				opts := applyOptions{revision: f.revision(t, environmentID), environmentID: environmentID}
+				writers[i] = func() { _, errs[i] = applyFile(t, f, file, opts, f.adminScopes(t)) }
+			}
+			var wg sync.WaitGroup
+			f.queueBehindGate(t, &wg, writers...)
+			release()
+			wg.Wait()
+
+			for _, err := range errs {
+				if err != nil && wireCode(err) != connect.CodeFailedPrecondition {
+					t.Fatalf("Apply = %v, want success or a stale-revision refusal", err)
+				}
+			}
+			active, err := f.queries.ListActiveDeploymentsForResource(context.Background(), worker.ID)
+			if err != nil {
+				t.Fatalf("list deployments: %v", err)
+			}
+			environments := map[uuid.UUID]bool{}
+			for _, deployment := range active {
+				environments[deployment.EnvironmentID] = true
+			}
+			if !environments[f.envID] || !environments[stagingID] {
+				t.Fatalf("active deployments = %+v, want both environments running", active)
+			}
+		})
 	}
 }

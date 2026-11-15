@@ -28,6 +28,7 @@ func (tracer *pendingSpecTracer) TraceQueryStart(
 func (*pendingSpecTracer) TraceQueryEnd(_ context.Context, _ *pgx.Conn, _ pgx.TraceQueryEndData) {}
 
 func TestPendingPollLoadsOnlyUnsentSpecifications(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
@@ -66,6 +67,7 @@ func TestPendingPollLoadsOnlyUnsentSpecifications(t *testing.T) {
 }
 
 func TestSyncSessionEndsWhenAReadFails(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	ctx := context.Background()
 	closed, err := pgxpool.NewWithConfig(ctx, f.pool.Config())

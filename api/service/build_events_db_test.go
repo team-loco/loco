@@ -80,6 +80,7 @@ func (f *buildFixture) wantBuildOutcome(t *testing.T, id, kind, key, value strin
 }
 
 func TestBuildMutationsRecordEvents(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
 	if err != nil {
@@ -118,6 +119,7 @@ func TestBuildMutationsRecordEvents(t *testing.T) {
 }
 
 func TestBuildMutationsFailWithoutTheirEvents(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	created := f.create(t, 100)
 	buildID := created.GetBuildId()

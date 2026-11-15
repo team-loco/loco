@@ -13,6 +13,7 @@ import (
 )
 
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
+	t.Parallel()
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
 	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour, limits.Defaults())
@@ -62,6 +63,7 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 }
 
 func TestGetConfigReturnsOrgLinks(t *testing.T) {
+	t.Parallel()
 	links := []OrgLink{
 		{Label: "Support", URL: "https://support.example.com/orgs/{orgId}"},
 		{Label: "Status", URL: "https://status.example.com"},
@@ -82,6 +84,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 }
 
 func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
+	t.Parallel()
 	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, limits.Defaults())
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
@@ -122,6 +125,7 @@ func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 }
 
 func TestGetConfigReportsTheInstallCountLimits(t *testing.T) {
+	t.Parallel()
 	counts := limits.Defaults()
 	limits.ResourcesPerWorkspace.Set(counts, 7)
 	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, counts)

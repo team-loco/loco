@@ -45,6 +45,7 @@ func regionRow(status genDb.DeploymentStatus, ready int32) genDb.ListRegionStatu
 }
 
 func TestRegionStatus(t *testing.T) {
+	t.Parallel()
 	staleHeartbeat := testStatusNow.Add(-testStaleHeartbeat)
 	edgeHeartbeat := testStatusNow.Add(-testClusterSilentAfter)
 	unhealthy := clusterHealthUnhealthy
@@ -206,6 +207,7 @@ func TestRegionStatus(t *testing.T) {
 }
 
 func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		row  genDb.ListRegionStatusesForResourcesRow
@@ -256,6 +258,7 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 }
 
 func TestRegionStatusNeverOverstatesHealth(t *testing.T) {
+	t.Parallel()
 	deploymentStatuses := []genDb.DeploymentStatus{
 		genDb.DeploymentStatusPending,
 		genDb.DeploymentStatusDeploying,
@@ -320,6 +323,7 @@ func assertStatusMatchesInputs(
 }
 
 func TestSummarizeRegions(t *testing.T) {
+	t.Parallel()
 	healthy := resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
 	deploying := resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING
 	degraded := resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
@@ -362,6 +366,7 @@ func TestSummarizeRegions(t *testing.T) {
 }
 
 func TestSummarizeRegionsRejectsEmptyAndUnset(t *testing.T) {
+	t.Parallel()
 	if _, err := summarizeRegions(nil); !errors.Is(err, errNoRegions) {
 		t.Errorf("no regions: err = %v, want %v", err, errNoRegions)
 	}

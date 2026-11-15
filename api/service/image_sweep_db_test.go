@@ -155,6 +155,7 @@ func dockerfileService(buildID string) *deploymentv1.ServiceDeploymentSpec {
 }
 
 func TestDeployingABuildWithADeletedImageFails(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t)
 	registry := newBlockingRegistry()
 	close(registry.release)
@@ -172,6 +173,7 @@ func TestDeployingABuildWithADeletedImageFails(t *testing.T) {
 }
 
 func TestDeployWaitsForAnImageDeleteInFlight(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t)
 	registry := newBlockingRegistry()
 	f.sweepWith(registry, 1)
@@ -291,6 +293,7 @@ func (f *imageSweepFixture) deletedResourceRepository(t *testing.T) string {
 }
 
 func TestImageSweepRunsOnRegistryAccessTokens(t *testing.T) {
+	t.Parallel()
 	f := newImageSweepFixture(t)
 	reg := newTokenSweepRegistry(t, f)
 	f.sweepWith(reg.client, testTokenSweepRepositories)

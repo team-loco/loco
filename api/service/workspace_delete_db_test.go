@@ -32,6 +32,7 @@ func deleteFixtureWorkspace(t *testing.T, f *deployFixture, confirm bool) error 
 }
 
 func TestDeleteWorkspaceRequiresConfirmationForResources(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatalf("deploy: %v", err)
@@ -49,6 +50,7 @@ func TestDeleteWorkspaceRequiresConfirmationForResources(t *testing.T) {
 }
 
 func TestDeleteWorkspaceConfirmationDeletesAllResourcePlacements(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
@@ -131,6 +133,7 @@ AND (NOT desired_deleted OR desired_spec IS NOT NULL OR desired_revision != 2)`,
 }
 
 func TestDeleteWorkspaceRollsBackPlacementDeletion(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatalf("deploy: %v", err)

@@ -4,10 +4,10 @@ import (
 	"slices"
 	"sync"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -15,6 +15,7 @@ import (
 )
 
 func TestSetOrgMemberRole(t *testing.T) {
+	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	outsider := o.api.signUp(t, "outsider")
@@ -151,6 +152,7 @@ AND subject_id=$2 AND actor_id=$2 AND data->'scopes'='["member"]'::jsonb`, o.org
 }
 
 func TestSetOrgMemberRoleSerializesAdminChanges(t *testing.T) {
+	t.Parallel()
 	for _, remove := range []bool{false, true} {
 		name := "demote"
 		if remove {
@@ -205,23 +207,7 @@ func TestSetOrgMemberRoleSerializesAdminChanges(t *testing.T) {
 					}
 				})
 			}
-			deadline := time.Now().Add(lockTimeout)
-			var waiting int
-			for waiting < len(results) && time.Now().Before(deadline) {
-				err = o.api.pool.QueryRow(ctx,
-					`SELECT count(*) FROM pg_stat_activity
-WHERE datname=current_database() AND wait_event_type='Lock'`,
-				).Scan(&waiting)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if waiting < len(results) {
-					time.Sleep(lockPollInterval)
-				}
-			}
-			if waiting != len(results) {
-				t.Fatalf("%d requests waited on the organization lock, want %d", waiting, len(results))
-			}
+			dbtest.WaitForLockWaiters(t, o.api.pool, len(results))
 			if err = tx.Commit(ctx); err != nil {
 				t.Fatal(err)
 			}

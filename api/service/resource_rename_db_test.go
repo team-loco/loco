@@ -29,6 +29,7 @@ func renameResource(t *testing.T, f *deployFixture, name string) error {
 }
 
 func TestRenameResourceUpdatesAllLivePlacementsWithoutDeploying(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.deployToProductionAndStaging(t)
 	before := []genDb.Placement{f.placement(t, f.clusterID), f.placement(t, f.otherCluster)}
@@ -80,6 +81,7 @@ func TestRenameResourceUpdatesAllLivePlacementsWithoutDeploying(t *testing.T) {
 }
 
 func TestRenameResourceDoesNotReviveDeletedPlacements(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -102,6 +104,7 @@ func TestRenameResourceDoesNotReviveDeletedPlacements(t *testing.T) {
 }
 
 func TestRenameResourceRollsBackIfAPlacementCannotBeDecoded(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -126,6 +129,7 @@ func TestRenameResourceRollsBackIfAPlacementCannotBeDecoded(t *testing.T) {
 }
 
 func TestRenameResourceToItsCurrentNameKeepsPlacementRevision(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -141,6 +145,7 @@ func TestRenameResourceToItsCurrentNameKeepsPlacementRevision(t *testing.T) {
 }
 
 func TestRenameResourceCannotTakeAnotherResourcesName(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.addResource(t, testRenamedResource, planPartial)
 	err := renameResource(t, f, testRenamedResource)

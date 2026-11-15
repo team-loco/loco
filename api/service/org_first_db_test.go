@@ -11,6 +11,7 @@ import (
 )
 
 func TestListUserOrgsCreatesTheFirstOrgOnRequest(t *testing.T) {
+	t.Parallel()
 	api := newMembershipAPI(t)
 	user := api.signUp(t, "first.user+cli")
 	ctx := t.Context()
@@ -44,6 +45,7 @@ func TestListUserOrgsCreatesTheFirstOrgOnRequest(t *testing.T) {
 }
 
 func TestListUserOrgsNamesTheFirstOrgAfterTheUsersName(t *testing.T) {
+	t.Parallel()
 	api := newMembershipAPI(t)
 	user := api.signUp(t, "named")
 	if _, err := api.pool.Exec(t.Context(), "UPDATE users SET name = 'Ada' WHERE id = $1", user.id); err != nil {

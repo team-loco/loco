@@ -10,6 +10,7 @@ import (
 )
 
 func TestDeadlineInterceptorUnaryTimeout(t *testing.T) {
+	t.Parallel()
 	ic := NewDeadlineInterceptor(t.Context(), 10*time.Millisecond)
 	next := func(ctx context.Context, _ connect.Spec, _ connect.ServerStream) error {
 		<-ctx.Done()
@@ -23,6 +24,7 @@ func TestDeadlineInterceptorUnaryTimeout(t *testing.T) {
 }
 
 func TestDeadlineInterceptorCancelsStreamsOnShutdown(t *testing.T) {
+	t.Parallel()
 	for _, streamType := range []connect.StreamType{
 		connect.StreamTypeClient, connect.StreamTypeServer, connect.StreamTypeBidi,
 	} {

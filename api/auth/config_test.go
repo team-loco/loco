@@ -8,6 +8,7 @@ import (
 const testIssuerURL = "https://auth.example.test"
 
 func TestParseIssuersAppliesDefaults(t *testing.T) {
+	t.Parallel()
 	issuers, err := ParseIssuers(
 		`[{"issuer":"` + testIssuerURL + `","audience":"loco","web":{"clientId":"loco"}}]`,
 	)
@@ -31,6 +32,7 @@ func TestParseIssuersAppliesDefaults(t *testing.T) {
 }
 
 func TestParseIssuersEmpty(t *testing.T) {
+	t.Parallel()
 	issuers, err := ParseIssuers("  ")
 	if err != nil || issuers != nil {
 		t.Fatalf("parse empty = %v %v", issuers, err)
@@ -41,6 +43,7 @@ func TestParseIssuersEmpty(t *testing.T) {
 }
 
 func TestParseIssuersRejectsBadConfig(t *testing.T) {
+	t.Parallel()
 	for name, raw := range map[string]string{
 		"not json":         `{`,
 		"missing issuer":   `[{"audience":"loco"}]`,
@@ -62,6 +65,7 @@ func TestParseIssuersRejectsBadConfig(t *testing.T) {
 }
 
 func TestParseIssuersRequiresAudience(t *testing.T) {
+	t.Parallel()
 	_, err := ParseIssuers(`[{"issuer":"` + testIssuerURL + `"}]`)
 	if !errors.Is(err, ErrAudienceRequired) {
 		t.Fatalf("err = %v, want %v", err, ErrAudienceRequired)
@@ -69,6 +73,7 @@ func TestParseIssuersRequiresAudience(t *testing.T) {
 }
 
 func TestSignupPolicy(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		mode   string
 		closed bool
@@ -106,6 +111,7 @@ func TestSignupPolicy(t *testing.T) {
 }
 
 func TestParseIssuersRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
 	_, err := ParseIssuers(`[{"issuer":"http://localhost:9999","audience":"loco","preset":"supabase"}]`)
 	if err == nil {
 		t.Fatal("unknown field accepted")
@@ -113,6 +119,7 @@ func TestParseIssuersRejectsUnknownFields(t *testing.T) {
 }
 
 func TestParseIssuersEmailVerification(t *testing.T) {
+	t.Parallel()
 	issuers, err := ParseIssuers(`[{"issuer":"https://a.test","audience":"loco"}]`)
 	if err != nil {
 		t.Fatalf("parse: %v", err)

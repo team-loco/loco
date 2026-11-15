@@ -113,6 +113,7 @@ func TestSignupAndOrgCreationAreRecorded(t *testing.T) {
 }
 
 func TestAuthorizeEventScopeForAnOrganization(t *testing.T) {
+	t.Parallel()
 	f := newEventFixture(t)
 	scope, err := f.events.authorizeEventScope(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID})
 	if err != nil {
@@ -125,6 +126,7 @@ func TestAuthorizeEventScopeForAnOrganization(t *testing.T) {
 }
 
 func TestListOrganizationEventsAuthorizationPagingAndFilter(t *testing.T) {
+	t.Parallel()
 	f := newEventFixture(t)
 	orgID := uuid.MustParse(f.orgID)
 	for range 5 {
@@ -400,6 +402,7 @@ CREATE TRIGGER fail_event_insert BEFORE INSERT ON events FOR EACH ROW EXECUTE FU
 `
 
 func TestMutationFailsWithoutItsEvent(t *testing.T) {
+	t.Parallel()
 	f := newEventFixture(t)
 	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	orgID := uuid.MustParse(f.orgID)

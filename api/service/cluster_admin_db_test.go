@@ -49,6 +49,7 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 }
 
 func TestClusterAdminHTTPRequiresSystemAdminForEveryMethod(t *testing.T) {
+	t.Parallel()
 	f := newMembershipOrg(t)
 	a, ctx := f.api, t.Context()
 	a.machine.Cfg.MaxAPITokenDuration = time.Hour
@@ -202,6 +203,7 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 }
 
 func TestClusterAdminHTTPRemovalReportsWorkloadsAndRestoresIdentity(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	ctx := t.Context()
 	if _, err := f.deploy(ctx, staticSpec); err != nil {

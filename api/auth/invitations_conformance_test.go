@@ -176,6 +176,7 @@ type sentInvitations struct {
 }
 
 func TestInvitationsJourney(t *testing.T) {
+	t.Parallel()
 	api := newJourneyAPI(t, signupModeClosed)
 	api.existingAccount(t, carolEmail, carolPass)
 	api.existingAccount(t, daveEmail, davePass)
@@ -218,6 +219,7 @@ func TestInvitationsJourney(t *testing.T) {
 }
 
 func TestInvitationsOpenSignup(t *testing.T) {
+	t.Parallel()
 	api := newJourneyAPI(t, signupModeOpen)
 	erin := api.dexClients(t, erinEmail, erinPass)
 	whoami, err := erin.User.WhoAmI(t.Context(), &userv1.WhoAmIRequest{})

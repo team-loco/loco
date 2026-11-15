@@ -106,6 +106,7 @@ func (f *deployFixture) sendPending(t *testing.T, server *AgentServer) []*agentv
 }
 
 func TestSyncSendsDecryptedSecretsBesideTheApplication(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
@@ -141,6 +142,7 @@ func TestSyncSendsDecryptedSecretsBesideTheApplication(t *testing.T) {
 }
 
 func TestSyncReportsAMissingSecretOnThePlacementAndResendsOnceItIsSet(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setApplyRetryPolicy(t, 1, nil)
 	ctx := context.Background()
@@ -185,6 +187,7 @@ func TestSyncReportsAMissingSecretOnThePlacementAndResendsOnceItIsSet(t *testing
 }
 
 func TestSyncKeepsAPlacementPendingWhileTheKeyProviderCannotUnwrap(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.storeSecret(t, newTestKeyProvider(t, "k1"), databaseURL, stripeValue)
 	f.deployWithSecrets(t, []string{databaseURL})
@@ -226,6 +229,7 @@ RETURNING id`, f.envID).Scan(&resourceID)
 }
 
 func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, databaseURL, stripeValue)
@@ -261,6 +265,7 @@ func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
 }
 
 func TestSyncSendsEachPlacementOnlyItsOwnServicesValue(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
@@ -287,6 +292,7 @@ func TestSyncSendsEachPlacementOnlyItsOwnServicesValue(t *testing.T) {
 }
 
 func TestSyncReportsANameOnlyAnotherServiceHoldsAsMissing(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()

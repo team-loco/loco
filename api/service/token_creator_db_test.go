@@ -12,6 +12,7 @@ import (
 )
 
 func TestTokenMetadataIncludesCreator(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	server := NewTokenServer(f.pool, f.queries, f.machine, limits.Defaults())
 	for _, tc := range []struct {
@@ -61,6 +62,7 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 }
 
 func TestCreateTokenRespectsConfiguredMaximum(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	machine := tvm.NewVendingMachine(
 		f.pool,
@@ -95,6 +97,7 @@ func TestCreateTokenRespectsConfiguredMaximum(t *testing.T) {
 }
 
 func TestCreateTokenStopsAtTheOwnersLimit(t *testing.T) {
+	t.Parallel()
 	f := newSecretFixture(t)
 	counts := limits.Defaults()
 	limits.TokensPerEntity.Set(counts, 1)

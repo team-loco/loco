@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
@@ -79,6 +80,7 @@ func (f *deployFixture) setWorkerSecrets(
 }
 
 func TestPlanChecksEachServiceAgainstItsOwnSecrets(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
@@ -136,6 +138,7 @@ func TestPlanChecksEachServiceAgainstItsOwnSecrets(t *testing.T) {
 }
 
 func TestProvisionStillRefusesAnExistingServicesMissingSecrets(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := planFileHeader + applyFileDeclared
@@ -149,6 +152,7 @@ func TestProvisionStillRefusesAnExistingServicesMissingSecrets(t *testing.T) {
 }
 
 func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
@@ -178,6 +182,7 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 }
 
 func TestApplyWritesDeclaredSecretsAndDeleteSecretsKeepsThem(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
@@ -346,9 +351,9 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 					first, second = runWriter, runApply
 				}
 				first()
-				f.waitForLockWaiters(t, 1)
+				dbtest.WaitForLockWaiters(t, f.pool, 1)
 				second()
-				f.waitForLockWaiters(t, 2)
+				dbtest.WaitForLockWaiters(t, f.pool, 2)
 				if rollbackErr := gate.Rollback(ctx); rollbackErr != nil {
 					t.Fatalf("release gate: %v", rollbackErr)
 				}

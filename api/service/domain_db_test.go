@@ -72,6 +72,7 @@ func removeDomain(t *testing.T, f *deployFixture, domain string) error {
 }
 
 func TestDomainNeedsAPort(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	if _, err := f.pool.Exec(
@@ -88,6 +89,7 @@ func TestDomainNeedsAPort(t *testing.T) {
 }
 
 func TestConcurrentDomainAddAndRemoveKeepOnePrimary(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	for round := range domainRaceRounds {
@@ -121,6 +123,7 @@ func TestConcurrentDomainAddAndRemoveKeepOnePrimary(t *testing.T) {
 }
 
 func TestAddingADomainToAResourceWithoutAPrimaryMakesItPrimary(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.addDomain(t, testSecondDomain, false)
 	client := newDomainClient(t, f)
@@ -143,6 +146,7 @@ func TestAddingADomainToAResourceWithoutAPrimaryMakesItPrimary(t *testing.T) {
 }
 
 func TestRemovingTheOnlyDomainMakesTheRunningDeploymentPrivate(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.addDomain(t, testPrimaryDomain, true)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
@@ -165,6 +169,7 @@ func TestRemovingTheOnlyDomainMakesTheRunningDeploymentPrivate(t *testing.T) {
 }
 
 func TestRemovingThePrimaryDomainRequiresAnotherPrimaryFirst(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.addDomain(t, testPrimaryDomain, true)
 	f.addDomain(t, testSecondDomain, false)
@@ -213,6 +218,7 @@ func domainEvents(t *testing.T, f *deployFixture, domain string) []domainEventRo
 }
 
 func TestAddingAndRemovingTheLastDomainRecordEvents(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 
@@ -235,6 +241,7 @@ func TestAddingAndRemovingTheLastDomainRecordEvents(t *testing.T) {
 }
 
 func TestRejectedPrimaryDomainRemovalRecordsNoEvent(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.addDomain(t, testPrimaryDomain, true)
 	f.addDomain(t, testSecondDomain, false)
@@ -247,6 +254,7 @@ func TestRejectedPrimaryDomainRemovalRecordsNoEvent(t *testing.T) {
 }
 
 func TestPrimaryDomainChangesUpdateRunningPlacement(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.addDomain(t, testPrimaryDomain, true)
 	f.addDomain(t, testSecondDomain, false)
@@ -275,6 +283,7 @@ func TestPrimaryDomainChangesUpdateRunningPlacement(t *testing.T) {
 }
 
 func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	if err := client.add(testPrimaryDomain); err != nil {
@@ -324,6 +333,7 @@ func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T)
 }
 
 func TestAddingTheFirstDomainUpdatesAPrivatePlacement(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -347,6 +357,7 @@ func TestAddingTheFirstDomainUpdatesAPrivatePlacement(t *testing.T) {
 }
 
 func TestUpdateResourceDomainRejectsATakenDomain(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	for _, domain := range []string{testPrimaryDomain, testSecondDomain} {
@@ -364,6 +375,7 @@ func TestUpdateResourceDomainRejectsATakenDomain(t *testing.T) {
 }
 
 func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
 	if err := client.add(testPrimaryDomain); err != nil {

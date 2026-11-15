@@ -8,6 +8,7 @@ import (
 )
 
 func TestOrgsAndWorkspacesCanShareNames(t *testing.T) {
+	t.Parallel()
 	api := newMembershipAPI(t)
 	ctx := t.Context()
 	for _, subject := range []string{"alice", "bob"} {

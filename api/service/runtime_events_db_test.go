@@ -15,6 +15,7 @@ import (
 )
 
 func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatal(err)
@@ -132,6 +133,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 }
 
 func TestListRuntimeEventTimeBoundariesAtEveryScope(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatal(err)
@@ -179,6 +181,7 @@ func TestListRuntimeEventTimeBoundariesAtEveryScope(t *testing.T) {
 }
 
 func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatal(err)

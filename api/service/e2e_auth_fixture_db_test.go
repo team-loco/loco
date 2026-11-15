@@ -25,6 +25,7 @@ import (
 )
 
 func TestE2EAuthFixtureUsesRealProviderAndPublicAPIs(t *testing.T) {
+	t.Parallel()
 	issuer := os.Getenv("E2E_AUTH_ISSUER")
 	if issuer == "" {
 		t.Skip("E2E_AUTH_ISSUER requires the component fixture Dex")

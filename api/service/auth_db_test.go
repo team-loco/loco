@@ -129,6 +129,7 @@ func (f *authFixture) assertWorks(t *testing.T, tokens *authv1.CLITokens) {
 }
 
 func TestCLILoopbackLogin(t *testing.T) {
+	t.Parallel()
 	f := newAuthFixture(t)
 	verifier := "a-verifier-that-is-long-enough-to-satisfy-rfc-7636-limits"
 
@@ -173,6 +174,7 @@ func TestCLILoopbackLogin(t *testing.T) {
 }
 
 func TestCLIApprovalNeedsWebSession(t *testing.T) {
+	t.Parallel()
 	f := newAuthFixture(t)
 	principal, ok := reqctx.PrincipalFrom(f.webCtx)
 	if !ok {
@@ -200,6 +202,7 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 }
 
 func TestCLIDeviceLogin(t *testing.T) {
+	t.Parallel()
 	f := newAuthFixture(t)
 	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
@@ -266,6 +269,7 @@ func (c *racingCache) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
+	t.Parallel()
 	f := newAuthFixture(t)
 	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
@@ -299,6 +303,7 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 }
 
 func TestCLIDeviceApprovalKeepsExpiry(t *testing.T) {
+	t.Parallel()
 	f := newAuthFixture(t)
 	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
@@ -342,6 +347,7 @@ func (f *authFixture) login(t *testing.T) *authv1.CLITokens {
 }
 
 func TestCLIRefreshChecksIdentity(t *testing.T) {
+	t.Parallel()
 	f := newAuthFixture(t)
 
 	tokens := f.login(t)
@@ -404,6 +410,7 @@ func (c *commitCheckingCache) Set(ctx context.Context, key string, value []byte,
 }
 
 func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
+	t.Parallel()
 	f := newAuthFixture(t)
 	loopback := &commitCheckingCache{Cache: f.server.cache, t: t, pool: f.server.db, key: "cli:code:"}
 	f.server.cache = loopback

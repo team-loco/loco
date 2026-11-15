@@ -143,6 +143,7 @@ func seedPlanWorkspace(t *testing.T, f *deployFixture) {
 }
 
 func TestPlanReportsCreateUpdateImportAndDelete(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	seedPlanWorkspace(t, f)
 	file := planFileHeader + planFileNew + planFileSvc + planFileOwned
@@ -242,6 +243,7 @@ func (f *deployFixture) addRunningOwned(t *testing.T) {
 }
 
 func TestPlanReportsChangedBuildInputs(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	f.setRoutedSpec(t)
@@ -270,6 +272,7 @@ func TestPlanReportsChangedBuildInputs(t *testing.T) {
 }
 
 func TestPlanListsNothingForAFileThatMatches(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	f.setRoutedSpec(t)
@@ -287,6 +290,7 @@ func TestPlanListsNothingForAFileThatMatches(t *testing.T) {
 }
 
 func TestPlanRefusesAnotherPartialsService(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	seedPlanWorkspace(t, f)
 	file := planFileHeader + planFileSvc + planFileOwned + planFileTheirs
@@ -306,6 +310,7 @@ func TestPlanRefusesAnotherPartialsService(t *testing.T) {
 }
 
 func TestPlanRefusesACustomDomain(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	file := planFileHeader + strings.Replace(planFileNew, "routing: {}", "domains: [new.acme.dev]", 1)
@@ -324,6 +329,7 @@ func TestPlanRefusesACustomDomain(t *testing.T) {
 }
 
 func TestPlanNeedsWorkspaceRead(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	file := planFileHeader + planFileSvc
 	scopes := []genDb.EntityScope{
@@ -334,6 +340,7 @@ func TestPlanNeedsWorkspaceRead(t *testing.T) {
 }
 
 func TestPlanRejectsAnInvalidFile(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	_, err := plan(t, f, "version: 2\n", f.workspaceReadScopes(t))
 	wantCode(t, err, connect.CodeInvalidArgument)

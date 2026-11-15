@@ -279,6 +279,7 @@ func tamper(token string) string {
 }
 
 func TestProviderConformance(t *testing.T) {
+	t.Parallel()
 	for _, p := range providers() {
 		t.Run(p.name, func(t *testing.T) {
 			if p.setup != nil {

@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseOrgLinksAcceptsValidLinks(t *testing.T) {
+	t.Parallel()
 	raw := `[{"label":"Support","url":"https://support.example.com/orgs/{orgId}/tickets?org={orgId}"},` +
 		`{"label":"Status","url":"http://status.example.com"}]`
 	links, err := ParseOrgLinks(raw)
@@ -24,6 +25,7 @@ func TestParseOrgLinksAcceptsValidLinks(t *testing.T) {
 }
 
 func TestParseOrgLinksEmpty(t *testing.T) {
+	t.Parallel()
 	for _, raw := range []string{"", "  ", "[]"} {
 		links, err := ParseOrgLinks(raw)
 		if err != nil || len(links) != 0 {
@@ -33,6 +35,7 @@ func TestParseOrgLinksEmpty(t *testing.T) {
 }
 
 func TestParseOrgLinksRejectsInvalidLinks(t *testing.T) {
+	t.Parallel()
 	tooMany := make([]string, maxOrgLinks+1)
 	for i := range tooMany {
 		label := "L" + strings.Repeat("x", i)
@@ -71,6 +74,7 @@ func TestParseOrgLinksRejectsInvalidLinks(t *testing.T) {
 }
 
 func TestParseOrgLinksRejectsMalformedJSON(t *testing.T) {
+	t.Parallel()
 	for _, raw := range []string{"{", `[{"label":"A","url":"https://example.com","icon":"x"}]`} {
 		if _, err := ParseOrgLinks(raw); err == nil {
 			t.Errorf("ParseOrgLinks(%q) succeeded", raw)

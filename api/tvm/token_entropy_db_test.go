@@ -40,6 +40,7 @@ func digestOf(token string) string {
 }
 
 func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.NewPool(t)
 	q := queries.New(pool)
 	machine := tvm.NewVendingMachine(pool, q, tvm.Config{
@@ -124,6 +125,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 }
 
 func TestIssueRejectsADuplicateTokenName(t *testing.T) {
+	t.Parallel()
 	pool := dbtest.NewPool(t)
 	q := queries.New(pool)
 	machine := tvm.NewVendingMachine(pool, q, tvm.Config{MaxAPITokenDuration: time.Hour})

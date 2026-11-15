@@ -38,6 +38,7 @@ func createNamedResource(t *testing.T, f *deployFixture, name string) (*resource
 }
 
 func TestCreateResourceRequiresAHostnameSlug(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	for _, name := range []string{"", "!!!", "localhost", "Localhost!", testReservedServiceName} {
 		_, err := createNamedResource(t, f, name)
@@ -49,6 +50,7 @@ func TestCreateResourceRequiresAHostnameSlug(t *testing.T) {
 }
 
 func TestCreateResourceStoresTheNameSlug(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	created, err := createNamedResource(t, f, testDisplayName)
 	if err != nil {
@@ -64,6 +66,7 @@ func TestCreateResourceStoresTheNameSlug(t *testing.T) {
 }
 
 func TestCreateResourceRejectsATakenSlug(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createNamedResource(t, f, testDisplayName); err != nil {
 		t.Fatal(err)
@@ -76,6 +79,7 @@ func TestCreateResourceRejectsATakenSlug(t *testing.T) {
 }
 
 func TestRenameResourceRejectsUnsafeNames(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	for _, name := range []string{"!!!", "localhost", testReservedServiceName} {
 		err := renameResource(t, f, name)
@@ -91,6 +95,7 @@ func TestRenameResourceRejectsUnsafeNames(t *testing.T) {
 }
 
 func TestRenameResourceMovesTheSlug(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -118,6 +123,7 @@ func TestRenameResourceMovesTheSlug(t *testing.T) {
 }
 
 func TestRenameResourceRejectsATakenSlug(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := createNamedResource(t, f, testDisplayName); err != nil {
 		t.Fatal(err)
@@ -130,6 +136,7 @@ func TestRenameResourceRejectsATakenSlug(t *testing.T) {
 }
 
 func TestPlanRejectsNewReservedServiceNames(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	file := planFileHeader + strings.Replace(planFileNew, "  new:", "  "+testReservedServiceName+":", 1)
@@ -146,6 +153,7 @@ func TestPlanRejectsNewReservedServiceNames(t *testing.T) {
 }
 
 func TestPlanRejectsCreatesWithATakenSlug(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	file := planFileHeader + strings.Replace(planFileNew, "  new:", "  SVC:", 1) +

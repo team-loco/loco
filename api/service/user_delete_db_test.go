@@ -9,12 +9,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
 func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	var userID uuid.UUID
@@ -46,7 +48,7 @@ func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 		_, deleteErr := server.DeleteUser(deleteCtx, &userv1.DeleteUserRequest{UserId: userID.String()})
 		deleted <- deleteErr
 	}()
-	f.waitForLockWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	err = qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
 		UserID:     userID,
 		Scope:      genDb.ScopeRead,
@@ -63,6 +65,7 @@ func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 }
 
 func TestDeleteUserReportsBlockingReferences(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
 	server := NewUserServer(f.pool, f.queries, nil, nil)
@@ -126,6 +129,7 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
 }
 
 func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	var userID uuid.UUID

@@ -16,6 +16,7 @@ func workerHealthCheck() *deploymentv1.HealthCheckConfig {
 }
 
 func TestWireRejectsTrafficSettingsWithoutAPort(t *testing.T) {
+	t.Parallel()
 	health := workerHealthCheck()
 	regions := map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}}
 	create := func(service *resourcev1.ServiceSpec) *resourcev1.CreateResourceRequest {

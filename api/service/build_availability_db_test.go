@@ -54,6 +54,7 @@ func wantBuildsUnavailable(t *testing.T, err error, wantMessage string) {
 }
 
 func TestStartBuildSkipsClustersWithoutBuilds(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	if _, err := f.pool.Exec(
 		f.ctx,
@@ -83,6 +84,7 @@ func TestStartBuildSkipsClustersWithoutBuilds(t *testing.T) {
 }
 
 func TestCreateBuildFailsBeforeUploadWhenNoClusterAcceptsBuilds(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	f.disableBuilds(t, f.clusterID)
 	f.disableBuilds(t, f.otherCluster)
@@ -100,6 +102,7 @@ func TestCreateBuildFailsBeforeUploadWhenNoClusterAcceptsBuilds(t *testing.T) {
 }
 
 func TestBuildServiceWithoutABucketIsUnavailable(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	server := NewBuildServer(f.pool, f.queries, nil, f.server.config, limits.Defaults())
 	req := &buildv1.CreateBuildRequest{
@@ -112,6 +115,7 @@ func TestBuildServiceWithoutABucketIsUnavailable(t *testing.T) {
 }
 
 func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
@@ -138,6 +142,7 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 }
 
 func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval, testAgentConfig())
 	rpcServer := connect.NewServer()
@@ -203,6 +208,7 @@ func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 }
 
 func TestBuildSelectionRequiresHealthyRecentHeartbeats(t *testing.T) {
+	t.Parallel()
 	for _, invalid := range []string{
 		"last_heartbeat = $2", "last_heartbeat = NULL", "health_status = 'unhealthy'", "health_status = 'degraded'",
 	} {

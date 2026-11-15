@@ -11,6 +11,7 @@ import (
 )
 
 func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -48,6 +49,7 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 }
 
 func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
+	t.Parallel()
 	const message = "The image runs as root. " +
 		"Loco runs containers as a non-root user; use an image that sets a non-root USER."
 	f := newDeployFixture(t)
@@ -93,6 +95,7 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 }
 
 func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setApplyRetryPolicy(t, 1, nil)
 	ctx := context.Background()
@@ -122,6 +125,7 @@ func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 }
 
 func TestInventoryAheadOfTheDatabaseAdvancesThePlacement(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -191,6 +195,7 @@ func TestInventoryAheadOfTheDatabaseAdvancesThePlacement(t *testing.T) {
 }
 
 func TestAPendingInventoryAheadOfARestoredDatabaseAdvancesWithoutMarkingApplied(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()

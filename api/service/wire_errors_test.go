@@ -60,6 +60,7 @@ func (*wireOwnership) GetWorkspaceOrganizationIDByResourceID(
 	return genDb.GetWorkspaceOrganizationIDByResourceIDRow{WorkspaceID: id, OrgID: id}, nil
 }
 func TestServicesExposePublicWireErrors(t *testing.T) {
+	t.Parallel()
 	authorizer := authz.New(nil, &wireOwnership{})
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
 		Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: uuid.MustParse(wireEntityID)},

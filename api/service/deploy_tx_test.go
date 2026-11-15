@@ -187,6 +187,7 @@ func (f *deployFixture) deploymentStatus(t *testing.T, id uuid.UUID) genDb.Deplo
 }
 
 func TestConcurrentDeploysLeaveOneActiveDeploymentAndPlacement(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 
@@ -231,6 +232,7 @@ func TestConcurrentDeploysLeaveOneActiveDeploymentAndPlacement(t *testing.T) {
 }
 
 func TestDeployRollsBackWhenSpecFails(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 
@@ -260,6 +262,7 @@ func TestDeployRollsBackWhenSpecFails(t *testing.T) {
 }
 
 func TestDeployToAnotherClusterMarksOldPlacementDeleted(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 

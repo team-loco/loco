@@ -54,6 +54,7 @@ func (f *deployFixture) activeDeployments(t *testing.T, environmentID uuid.UUID)
 }
 
 func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.addStagingEnvironment(t)
 	f.setStagingTier(t, f.otherCluster)
@@ -84,6 +85,7 @@ func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
 }
 
 func TestDeployingAnotherEnvironmentToTheSameClusterIsRefused(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	qaID := f.addTypedEnvironment(t, "qa", "production")
 	ctx := context.Background()
@@ -108,6 +110,7 @@ func TestDeployingAnotherEnvironmentToTheSameClusterIsRefused(t *testing.T) {
 }
 
 func TestPlanSeesOnlyTheDomainsOfItsEnvironment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	f.setRoutedSpec(t)
@@ -131,6 +134,7 @@ SELECT id, $2, $3, 'user_provided', true FROM resources WHERE name = $1`
 }
 
 func TestPlanAcceptsOnlyRegionsWithAHealthyClusterOfTheEnvironmentType(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"only another tier":    `UPDATE clusters SET tier = 'staging', health_status = 'healthy', last_heartbeat = NOW()`,
 		"no healthy cluster":   `UPDATE clusters SET health_status = 'unhealthy', last_heartbeat = NOW()`,

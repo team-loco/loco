@@ -39,6 +39,7 @@ func (f *deployFixture) deploymentExists(t *testing.T, id uuid.UUID) bool {
 }
 
 func TestDeploymentHistoryKeepsActiveUnfinishedAndPlacedDeployments(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.DeploymentHistory, 2)
 	finished := f.seedDeployment(t, f.clusterID, testRegion, "succeeded", false, "5 days")
@@ -68,6 +69,7 @@ VALUES ($1, $2, $3, $4, $5, '{}')`, f.resourceID, f.otherCluster, testRegion, pl
 }
 
 func TestDeployWithoutLoadedLimitsDeletesNoHistory(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	finished := f.seedDeployment(t, f.clusterID, testRegion, "succeeded", false, "5 days")
 
@@ -91,6 +93,7 @@ func TestDeployWithoutLoadedLimitsDeletesNoHistory(t *testing.T) {
 }
 
 func TestRegionUpdateKeepsThePreviousDeployment(t *testing.T) {
+	t.Parallel()
 	f := prepareRegionUpdate(t)
 	previous := f.activeDeployments(t, f.envID)[0].ID
 	targets, revision := regionTargets(t, f)
@@ -133,6 +136,7 @@ func (f *buildFixture) buildExists(t *testing.T, id uuid.UUID) bool {
 }
 
 func TestBuildHistoryKeepsBuildsTheSweepersStillNeed(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	f.setLimit(t, limits.BuildHistory, 1)
 	swept := f.seedBuild(t, "succeeded", true, true, "6 days")

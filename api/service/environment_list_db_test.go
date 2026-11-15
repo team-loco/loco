@@ -13,6 +13,7 @@ import (
 )
 
 func TestResourceReaderListsTheEnvironmentsOfTheirResourcesWorkspace(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
 	var otherResource uuid.UUID

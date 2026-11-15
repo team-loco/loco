@@ -12,6 +12,7 @@ import (
 )
 
 func TestClusterRegistrationResumesWithoutReplacingEnrolledIdentity(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	ctx := systemAdminContext(t)
 	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion,
@@ -49,6 +50,7 @@ func TestClusterRegistrationResumesWithoutReplacingEnrolledIdentity(t *testing.T
 }
 
 func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
+	t.Parallel()
 	e := newEnrollmentFixture(t)
 	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion,
 		Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING}

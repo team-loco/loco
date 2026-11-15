@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -34,6 +35,7 @@ func (f *deployFixture) deploymentWriter(t *testing.T) (*DeploymentServer, conte
 }
 
 func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	created, err := createDeployment(t, f, sameRegionSpec)
 	if err != nil {
@@ -55,6 +57,7 @@ func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
 }
 
 func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	original, err := createDeployment(t, f, sameRegionSpec)
 	if err != nil {
@@ -84,7 +87,7 @@ func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T
 		)
 		created <- createResult{response: response, err: createErr}
 	}()
-	f.waitForLockWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	deleted := make(chan error, 1)
 	go func() {
 		_, deleteErr := server.DeleteDeployment(
@@ -93,7 +96,7 @@ func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T
 		)
 		deleted <- deleteErr
 	}()
-	f.waitForLockWaiters(t, 2)
+	dbtest.WaitForLockWaiters(t, f.pool, 2)
 	release()
 	replacement := <-created
 	if replacement.err != nil {

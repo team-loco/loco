@@ -31,6 +31,7 @@ import (
 )
 
 func TestDeploymentAttributionFromCredentials(t *testing.T) {
+	t.Parallel()
 	for _, method := range []genDb.DeploymentMethod{
 		genDb.DeploymentMethodCli, genDb.DeploymentMethodWeb, genDb.DeploymentMethodApiToken,
 	} {

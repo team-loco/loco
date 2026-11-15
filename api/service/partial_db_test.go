@@ -52,6 +52,7 @@ func (f *deployFixture) revision(t *testing.T, environmentID uuid.UUID) int64 {
 }
 
 func TestTransferPartialSetsThePartialAndBumpsEveryEnvironment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	devID := f.addEnvironment(t, "dev")
 	workspaceID := f.workspaceID(t)
@@ -87,6 +88,7 @@ func TestTransferPartialSetsThePartialAndBumpsEveryEnvironment(t *testing.T) {
 }
 
 func TestTransferPartialRejectsTheCurrentPartial(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	if err := transferPartial(t, f, testPartial); err != nil {
 		t.Fatalf("transfer: %v", err)

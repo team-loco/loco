@@ -7,6 +7,7 @@ import (
 )
 
 func TestHealthStatusFromProtoOnlyProducesAllowedValues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		health *agentv1.AgentHealth

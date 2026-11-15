@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -55,25 +55,6 @@ func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 	}
 }
 
-func (f *orgDeleteFixture) waitForWaiters(t *testing.T, want int) {
-	t.Helper()
-	deadline := time.Now().Add(lockTimeout)
-	for time.Now().Before(deadline) {
-		var waiting int
-		err := f.pool.QueryRow(t.Context(),
-			"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock'",
-		).Scan(&waiting)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if waiting >= want {
-			return
-		}
-		time.Sleep(lockPollInterval)
-	}
-	t.Fatalf("fewer than %d operations waited on a lock", want)
-}
-
 func (f *orgDeleteFixture) createResource(t *testing.T) (string, error) {
 	t.Helper()
 	created, err := f.resources.CreateResource(f.owner, &resourcev1.CreateResourceRequest{
@@ -84,6 +65,7 @@ func (f *orgDeleteFixture) createResource(t *testing.T) (string, error) {
 }
 
 func TestOrgDeleteRetainsAResourceCreatedDuringDeletion(t *testing.T) {
+	t.Parallel()
 	for _, environments := range []bool{true, false} {
 		name := "with environments"
 		if !environments {
@@ -117,7 +99,7 @@ func TestOrgDeleteRetainsAResourceCreatedDuringDeletion(t *testing.T) {
 				_, deleteErr := f.orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID})
 				done <- deleteErr
 			}()
-			f.waitForWaiters(t, 1)
+			dbtest.WaitForLockWaiters(t, f.pool, 1)
 			id, createErr := f.createResource(t)
 			if createErr != nil {
 				t.Fatal(createErr)
@@ -134,6 +116,7 @@ func TestOrgDeleteRetainsAResourceCreatedDuringDeletion(t *testing.T) {
 }
 
 func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
+	t.Parallel()
 	f := newOrgDeleteFixture(t)
 	writer, err := f.pool.Begin(t.Context())
 	if err != nil {
@@ -149,7 +132,7 @@ func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
 		_, deleteErr := f.orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID})
 		done <- deleteErr
 	}()
-	f.waitForWaiters(t, 1)
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	_, createErr := qtx.CreateResource(t.Context(), genDb.CreateResourceParams{
 		WorkspaceID: uuid.MustParse(f.workspaceID), Name: testNewResource, Slug: testNewResource,
 		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
@@ -164,6 +147,7 @@ func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
 }
 
 func TestCreationReportsMissingParentWhenOrgDeletionWins(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []genDb.EntityType{genDb.EntityTypeResource, genDb.EntityTypeWorkspace} {
 		t.Run(string(kind), func(t *testing.T) {
 			f := newOrgDeleteFixture(t)
@@ -180,7 +164,7 @@ func TestCreationReportsMissingParentWhenOrgDeletionWins(t *testing.T) {
 				_, deleteErr := f.orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID})
 				deleted <- deleteErr
 			}()
-			f.waitForWaiters(t, 1)
+			dbtest.WaitForLockWaiters(t, f.pool, 1)
 			created := make(chan error, 1)
 			go func() {
 				if kind == genDb.EntityTypeResource {
@@ -195,7 +179,7 @@ func TestCreationReportsMissingParentWhenOrgDeletionWins(t *testing.T) {
 				)
 				created <- createErr
 			}()
-			f.waitForWaiters(t, 2)
+			dbtest.WaitForLockWaiters(t, f.pool, 2)
 			if err := gate.Rollback(t.Context()); err != nil {
 				t.Fatal(err)
 			}

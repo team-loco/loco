@@ -8,6 +8,7 @@ import (
 )
 
 func TestCreateBuildPaths(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name       string
 		dockerfile string
@@ -50,6 +51,7 @@ func TestCreateBuildPaths(t *testing.T) {
 }
 
 func TestCreateBuildGitCommit(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		commit string
 		valid  bool

@@ -18,6 +18,7 @@ import (
 var testSecretNames = []string{"DATABASE_URL", "SESSION_KEY"}
 
 func TestCreateDeploymentBindsSelectedSecrets(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	seedDeployment(t, f, domainsTwoRegionSpec)
 	if _, err := f.pool.Exec(
@@ -72,6 +73,7 @@ func TestCreateDeploymentBindsSelectedSecrets(t *testing.T) {
 }
 
 func TestCreateDeploymentRejectsUnavailableOrOversizedSecrets(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, databaseURLName, stripeValue)
@@ -101,6 +103,7 @@ func TestCreateDeploymentRejectsUnavailableOrOversizedSecrets(t *testing.T) {
 }
 
 func TestDeploymentRecordsSecretNamesAndEnvironmentOnThePlacement(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	params := f.paramsFor(f.clusterID)
@@ -133,6 +136,7 @@ func TestDeploymentRecordsSecretNamesAndEnvironmentOnThePlacement(t *testing.T) 
 }
 
 func TestScaleKeepsTheSecretNamesOfTheDeployment(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
@@ -160,6 +164,7 @@ WHERE resource_id = $1 AND secret_names = '{"DATABASE_URL","SESSION_KEY"}'`
 }
 
 func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
@@ -220,6 +225,7 @@ func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
 }
 
 func TestRedeployReadsEnvironmentFromThePreviousCluster(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	original := imageService()
 	original.Env = map[string]string{"MOVED_CLUSTER_ENV": "keep-across-cluster-move"}
@@ -248,6 +254,7 @@ func TestRedeployReadsEnvironmentFromThePreviousCluster(t *testing.T) {
 }
 
 func TestFirstDeploymentDoesNotInheritAnotherEnvironmentsValues(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	original := imageService()
 	original.Env = map[string]string{"ONLY_IN_PRODUCTION": "production-only-value"}

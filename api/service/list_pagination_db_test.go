@@ -43,6 +43,7 @@ func (f *deployFixture) deleteByID(table string) func(t *testing.T, id string) {
 }
 
 func TestDeploymentPagingSurvivesDeletingTheCursorRow(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	var newestFirst []string
@@ -68,6 +69,7 @@ func TestDeploymentPagingSurvivesDeletingTheCursorRow(t *testing.T) {
 }
 
 func TestBuildPagingSurvivesDeletingTheCursorRow(t *testing.T) {
+	t.Parallel()
 	f := newBuildFixture(t)
 	var newestFirst []string
 	for range 3 {
@@ -94,6 +96,7 @@ func TestBuildPagingSurvivesDeletingTheCursorRow(t *testing.T) {
 }
 
 func TestUserPagingSurvivesDeletingTheCursorRow(t *testing.T) {
+	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	future := time.Now().Add(time.Hour)

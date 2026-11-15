@@ -50,6 +50,7 @@ func connectCode(t *testing.T, err error) connect.Code {
 }
 
 func TestPinPublicImage(t *testing.T) {
+	t.Parallel()
 	resourceID := uuid.New()
 	buildID := uuid.NewString()
 
@@ -157,6 +158,7 @@ func TestPinPublicImage(t *testing.T) {
 }
 
 func TestPinBuildSourceRequiresSource(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	resolver := &fakeResolver{digest: testDigest}
 	resourceID := uuid.New()
@@ -167,6 +169,7 @@ func TestPinBuildSourceRequiresSource(t *testing.T) {
 }
 
 func TestImageErrorsOnWire(t *testing.T) {
+	t.Parallel()
 	const deniedMessage = `Access to image "nginx:1.27" was denied. ` +
 		`It may require registry credentials; only public images are supported.`
 	tests := []struct {
@@ -317,6 +320,7 @@ func TestImageErrorsOnWire(t *testing.T) {
 }
 
 func TestResolveImage(t *testing.T) {
+	t.Parallel()
 	workspaceID := uuid.New()
 	resolver := &fakeResolver{digest: testDigest}
 	server := &DeploymentServer{resolver: resolver, authz: authz.New(nil, nil)}

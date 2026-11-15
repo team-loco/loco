@@ -73,6 +73,7 @@ func withBearer(token string) http.Header {
 }
 
 func TestAuthenticateProviderTokenProvisionsUser(t *testing.T) {
+	t.Parallel()
 	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
@@ -109,6 +110,7 @@ func TestAuthenticateProviderTokenProvisionsUser(t *testing.T) {
 }
 
 func TestAuthenticateProviderTokenErrors(t *testing.T) {
+	t.Parallel()
 	policy, err := auth.ParseSignupPolicy("closed")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
@@ -144,6 +146,7 @@ func TestAuthenticateProviderTokenErrors(t *testing.T) {
 }
 
 func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
+	t.Parallel()
 	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
@@ -215,6 +218,7 @@ func claimedOrgs(ctx context.Context) []auth.ClaimedOrg {
 }
 
 func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
+	t.Parallel()
 	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatalf("policy: %v", err)

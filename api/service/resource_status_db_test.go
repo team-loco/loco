@@ -259,6 +259,7 @@ func (f *resourceStatusFixture) assertEnvironment(
 }
 
 func TestResourceStatusIsEmptyBeforeAnyDeployment(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	if statuses := f.statuses(t); len(statuses) != 0 {
 		t.Fatalf("statuses = %v, want none", statuses)
@@ -266,6 +267,7 @@ func TestResourceStatusIsEmptyBeforeAnyDeployment(t *testing.T) {
 }
 
 func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployProduction(t, statusTwoReplicas)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING, wantRegion{
@@ -308,6 +310,7 @@ func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
 }
 
 func TestResourceStatusIsUnknownWhileTheClusterIsSilent(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
@@ -336,6 +339,7 @@ func TestResourceStatusIsUnknownWhileTheClusterIsSilent(t *testing.T) {
 }
 
 func TestResourceStatusIsPerEnvironment(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
@@ -362,6 +366,7 @@ func TestResourceStatusIsPerEnvironment(t *testing.T) {
 }
 
 func TestResourceStatusSummarizesItsRegions(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployTo(t, f.regionCluster, f.envID, statusSecondRegion, 1)
 	f.deployProduction(t, 1)
@@ -406,6 +411,7 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 }
 
 func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
@@ -432,6 +438,7 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 }
 
 func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
+	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployTo(t, f.regionCluster, f.envID, statusSecondRegion, 1)
 	f.failed(t, f.regionCluster, 0)

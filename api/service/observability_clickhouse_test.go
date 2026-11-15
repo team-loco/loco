@@ -88,6 +88,7 @@ func insertLogs(
 }
 
 func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
+	t.Parallel()
 	server := NewObservabilityServer(newTestClickHouse(t), nil, ObservabilityConfig{})
 	ctx, cancel := context.WithCancel(t.Context())
 	time.AfterFunc(tailLoopCancelDelay, cancel)
@@ -107,6 +108,7 @@ func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
 }
 
 func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
+	t.Parallel()
 	client := newTestClickHouse(t)
 	server := NewObservabilityServer(client, nil, ObservabilityConfig{})
 	timestamp := time.Now().UTC().Add(-time.Minute)
@@ -168,6 +170,7 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 }
 
 func TestTailPollDeliversLateRecordsAcrossPartitionsAndMerges(t *testing.T) {
+	t.Parallel()
 	client := newTestClickHouse(t)
 	server := NewObservabilityServer(client, nil, ObservabilityConfig{})
 	midnight := time.Now().UTC().Truncate(24 * time.Hour)
@@ -212,6 +215,7 @@ func TestTailPollDeliversLateRecordsAcrossPartitionsAndMerges(t *testing.T) {
 }
 
 func TestResourceReadersSeeOnlyTheirResourceInTheNamedWorkspace(t *testing.T) {
+	t.Parallel()
 	ch := newTestClickHouse(t)
 	f := newObservabilityFixture(t)
 	timestamp := time.Now().UTC().Add(-time.Minute)
@@ -254,6 +258,7 @@ func TestResourceReadersSeeOnlyTheirResourceInTheNamedWorkspace(t *testing.T) {
 }
 
 func TestGetTraceReadsTheWholeTraceInTheWorkspace(t *testing.T) {
+	t.Parallel()
 	ch := newTestClickHouse(t)
 	f := newObservabilityFixture(t)
 	now := time.Now().Add(-time.Minute)
