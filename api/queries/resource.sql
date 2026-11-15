@@ -152,3 +152,8 @@ UPDATE resources SET revision = revision + 1 WHERE id = $1;
 SELECT DISTINCT ON (environment_id, region) * FROM deployments
 WHERE resource_id = $1
 ORDER BY environment_id, region, created_at DESC, id DESC;
+
+-- name: ListWorkspaceResourceNames :many
+SELECT r.id, r.name
+FROM resources r
+WHERE r.workspace_id = $1;

@@ -46,7 +46,7 @@ function RegionLogs({
 		environmentId,
 		resourceIds: [resourceId],
 		spanMs: HOUR_MS,
-		parsedQuery: { regions: [region] },
+		query: `@region:${region}`,
 		limit: LOG_LINES,
 	});
 	const lines = logs.entries.toReversed();

@@ -218,6 +218,7 @@ type Querier interface {
 	ListWorkspaceAuditEvents(ctx context.Context, arg ListWorkspaceAuditEventsParams) ([]ListWorkspaceAuditEventsRow, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
+	ListWorkspaceResourceNames(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourceNamesRow, error)
 	ListWorkspaceResourcesForDeletion(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourcesForDeletionRow, error)
 	ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error)
 	ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) ([]Webhook, error)

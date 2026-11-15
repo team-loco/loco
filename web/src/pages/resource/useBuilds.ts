@@ -5,7 +5,6 @@ import { LogOrder, type LogEntry } from "@gen/loco/observability/v1/observabilit
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { msToTimestamp } from "@/lib/time";
-import { BUILD_ID_LABEL } from "@/pages/observability/query";
 
 import type { BuildLogSource } from "./builds";
 
@@ -26,7 +25,7 @@ export function useBuildLog(workspaceId: string, buildId: string, source: BuildL
 		environmentId: "",
 		allEnvironments: true,
 		resourceIds: [],
-		parsedQuery: { labels: [{ key: BUILD_ID_LABEL, values: [buildId] }] },
+		query: `@build:${buildId}`,
 	};
 	const range = source.kind === "query" ? source : { startMs: 0, endMs: 0 };
 	const query = useQueryLogs({

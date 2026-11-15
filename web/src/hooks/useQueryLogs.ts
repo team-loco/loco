@@ -3,7 +3,6 @@ import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { ObservabilityService, LogOrder } from "@gen/loco/observability/v1/observability_pb";
-import type { ParsedQuery } from "@/lib/obs-query-parser";
 import { msToTimestamp } from "@/lib/time";
 
 const NANOS_PER_SECOND = 1_000_000_000;
@@ -14,7 +13,8 @@ interface UseQueryLogsOptions {
 	allEnvironments?: boolean;
 	resourceIds: string[];
 	spanMs: number;
-	parsedQuery: ParsedQuery;
+	/** A log query; the API parses it. */
+	query: string;
 	cursor?: string;
 	limit?: number;
 	order?: LogOrder;
@@ -32,7 +32,7 @@ export function logsQueryOptions(
 		allEnvironments = false,
 		resourceIds,
 		spanMs,
-		parsedQuery,
+		query,
 		cursor = "",
 		limit = 100,
 		order = LogOrder.NEWEST_FIRST,
@@ -46,7 +46,7 @@ export function logsQueryOptions(
 		workspaceId,
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
-		...parsedQuery,
+		query,
 		limit,
 		cursor,
 		order,

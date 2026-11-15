@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/logquery"
+
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,21 +22,19 @@ const (
 	pageSize      = 1000
 	overlapWindow = 5 * time.Second
 	retryBackoff  = 2 * time.Second
-	// keep in sync with LabelBuildID in k8sapi/labels/labels.go
-	labelBuildID = "loco.io/build-id"
 
 	entryKeyFields = 4
 )
 
+// Filter selects the logs of a workspace or of some of its resources that match Query.
 type Filter struct {
 	WorkspaceID string
 	ResourceIDs []string
-	Labels      []*observabilityv1.LogFieldFilter
+	Query       string
 }
 
 func BuildFilter(workspaceID, buildID string) Filter {
-	labels := []*observabilityv1.LogFieldFilter{{Key: labelBuildID, Values: []string{buildID}}}
-	return Filter{WorkspaceID: workspaceID, Labels: labels}
+	return Filter{WorkspaceID: workspaceID, Query: "@build:" + logquery.Quote(buildID)}
 }
 
 type Emit func(entry *observabilityv1.LogEntry) error
@@ -115,7 +115,7 @@ func (c *Client) query(
 		req := &observabilityv1.QueryLogsRequest{
 			WorkspaceId: filter.WorkspaceID,
 			ResourceIds: filter.ResourceIDs,
-			Labels:      filter.Labels,
+			Query:       filter.Query,
 			StartTime:   startTime,
 			EndTime:     endTime,
 			Limit:       size,
@@ -143,7 +143,7 @@ func (c *Client) Tail(ctx context.Context, filter Filter, since time.Time, emit 
 		req := &observabilityv1.TailLogsRequest{
 			WorkspaceId: filter.WorkspaceID,
 			ResourceIds: filter.ResourceIDs,
-			Labels:      filter.Labels,
+			Query:       filter.Query,
 			Since:       start,
 		}
 

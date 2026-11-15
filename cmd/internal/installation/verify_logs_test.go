@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/internal/logquery"
+
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -61,7 +63,7 @@ func TestVerificationLogsUseValidAdvancingTimeBounds(t *testing.T) {
 	clients := rpc.ForHost(endpoint.URL, "fixture-token")
 	request := &observabilityv1.QueryLogsRequest{
 		WorkspaceId: uuid.NewString(), EnvironmentId: uuid.NewString(), ResourceIds: []string{uuid.NewString()},
-		StartTime: timestamppb.New(started), Search: verificationLogsTestMarker,
+		StartTime: timestamppb.New(started), Query: logquery.Quote(verificationLogsTestMarker),
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), verificationLogsTestTimeout)
 	defer cancel()

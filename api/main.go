@@ -471,7 +471,7 @@ func newDeps(
 		secret: service.NewSecretServer(
 			pool, queries, secretKeyProvider, ac.SecretLimits, ac.CountLimits,
 		),
-		observability: service.NewObservabilityServer(clickhouse, authorizer, ac.Observability),
+		observability: service.NewObservabilityServer(clickhouse, authorizer, queries, ac.Observability),
 		registryKey:   registryKeyHandler,
 	}, nil
 }

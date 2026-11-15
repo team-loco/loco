@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/logquery"
+
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/connect/v2/connectproto"
@@ -635,16 +637,42 @@ type fakeProxyService struct {
 	api *fakeAPI
 }
 
-func fakeLogLines(labels []*observabilityv1.LogFieldFilter, resourceIDs []string) []string {
-	for _, label := range labels {
-		if label.GetKey() == "loco.io/build-id" && len(label.GetValues()) > 0 {
-			return []string{"#1 [internal] load build definition from Dockerfile", "#5 DONE " + label.GetValues()[0]}
+// fakeLogLines answers a build's @build query with build output and a resource's query with the
+// service lines containing every free-text term of the query.
+func fakeLogLines(query string, resourceIDs []string) ([]string, error) {
+	expr, err := logquery.Parse(query)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error())
+	}
+	var terms []logquery.Expr
+	switch expr := expr.(type) {
+	case logquery.And:
+		terms = expr.Terms
+	case nil:
+	default:
+		terms = []logquery.Expr{expr}
+	}
+	var texts []string
+	for _, term := range terms {
+		switch term := term.(type) {
+		case logquery.Field:
+			if term.Key == "build" {
+				return []string{"#1 [internal] load build definition from Dockerfile", "#5 DONE " + term.Value}, nil
+			}
+		case logquery.Text:
+			texts = append(texts, term.Value)
 		}
 	}
-	if len(resourceIDs) > 0 {
-		return []string{"listening on :8080", "GET /healthz 200"}
+	if len(resourceIDs) == 0 {
+		return nil, nil
 	}
-	return nil
+	var lines []string
+	for _, line := range []string{"listening on :8080", "GET /healthz 200"} {
+		if !slices.ContainsFunc(texts, func(text string) bool { return !strings.Contains(line, text) }) {
+			lines = append(lines, line)
+		}
+	}
+	return lines, nil
 }
 
 func (s *fakeProxyService) QueryLogs(
@@ -663,7 +691,10 @@ func (s *fakeProxyService) QueryLogs(
 	f.platform.logQueries = append(f.platform.logQueries, req)
 	f.mu.Unlock()
 	base := time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
-	lines := fakeLogLines(req.GetLabels(), req.GetResourceIds())
+	lines, err := fakeLogLines(req.GetQuery(), req.GetResourceIds())
+	if err != nil {
+		return nil, err
+	}
 	entries := make([]*observabilityv1.LogEntry, 0, len(lines))
 	for i, line := range lines {
 		ts := base.Add(time.Duration(i) * time.Second)

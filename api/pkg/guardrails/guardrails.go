@@ -5,7 +5,6 @@ package guardrails
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -16,14 +15,11 @@ import (
 )
 
 var (
-	errNonCanonicalID      = errors.New("IDs must be lowercase UUIDs")
-	errInvalidRegionFilter = errors.New("region filters must not be blank and may only end with a wildcard")
-	errSinceTooOld         = errors.New("since is older than the maximum time range")
-	errSinceInFuture       = errors.New("since is in the future")
-	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
-	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
-	errInvalidJSONPath     = errors.New("JSON field paths must be object keys joined by single dots")
-	errTooManyBuckets      = errors.New("time range holds too many buckets")
+	errNonCanonicalID = errors.New("IDs must be lowercase UUIDs")
+	errSinceTooOld    = errors.New("since is older than the maximum time range")
+	errSinceInFuture  = errors.New("since is in the future")
+	errTimestampRange = errors.New("timestamp is outside nanosecond precision range")
+	errTooManyBuckets = errors.New("time range holds too many buckets")
 )
 
 // Limits bounds what one query may ask for.
@@ -34,15 +30,9 @@ type Limits struct {
 	MaxBuckets   int32
 }
 
-const (
-	reservedAttributePrefix = "loco."
-	// keep in sync with the loco.io/ keys in k8sapi/labels and k8sapi/v1alpha1
-	kubernetesLabelPrefix = "loco.io/"
-)
-
 // ValidateLogsRequest validates the query parameters for a logs request.
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, limits Limits) error {
-	if err := validateLogFilters(req); err != nil {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
@@ -58,7 +48,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, limits Lim
 
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, limits Limits, now time.Time) error {
-	if err := validateLogFilters(req); err != nil {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
 	if req.GetSince() == nil {
@@ -122,53 +112,6 @@ func validateCanonicalIDs(workspaceID, environmentID string, resourceIDs []strin
 	return nil
 }
 
-// logFilters holds the filters QueryLogsRequest and TailLogsRequest share.
-type logFilters interface {
-	GetWorkspaceId() string
-	GetEnvironmentId() string
-	GetResourceIds() []string
-	GetExcludedResourceIds() []string
-	GetLabels() []*observabilityv1.LogFieldFilter
-	GetExcludedLabels() []*observabilityv1.LogFieldFilter
-	GetJsonFields() []*observabilityv1.LogFieldFilter
-	GetExcludedJsonFields() []*observabilityv1.LogFieldFilter
-	GetRegions() []string
-	GetExcludedRegions() []string
-}
-
-func validateLogFilters(req logFilters) error {
-	resourceIDs := slices.Concat(req.GetResourceIds(), req.GetExcludedResourceIds())
-	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), resourceIDs); err != nil {
-		return err
-	}
-	if err := validateLabels(slices.Concat(req.GetLabels(), req.GetExcludedLabels())); err != nil {
-		return err
-	}
-	if err := validateJSONPaths(slices.Concat(req.GetJsonFields(), req.GetExcludedJsonFields())); err != nil {
-		return err
-	}
-	return validateRegions(req.GetRegions(), req.GetExcludedRegions())
-}
-
-func validateLabels(labels []*observabilityv1.LogFieldFilter) error {
-	for _, label := range labels {
-		key := label.GetKey()
-		if strings.HasPrefix(key, reservedAttributePrefix) && !strings.HasPrefix(key, kubernetesLabelPrefix) {
-			return fmt.Errorf("%w: %q", errReservedLabelKey, key)
-		}
-	}
-	return nil
-}
-
-func validateJSONPaths(fields []*observabilityv1.LogFieldFilter) error {
-	for _, field := range fields {
-		if slices.Contains(strings.Split(field.GetKey(), "."), "") {
-			return fmt.Errorf("%w: %q", errInvalidJSONPath, field.GetKey())
-		}
-	}
-	return nil
-}
-
 func validateQueryTimeRange(startTimestamp, endTimestamp *timestamppb.Timestamp, maxRange time.Duration) error {
 	if err := startTimestamp.CheckValid(); err != nil {
 		return err
@@ -183,17 +126,6 @@ func validateQueryTimeRange(startTimestamp, endTimestamp *timestamppb.Timestamp,
 	}
 	if end.Sub(start) > maxRange {
 		return fmt.Errorf("time range exceeds maximum of %v", maxRange)
-	}
-	return nil
-}
-
-func validateRegions(groups ...[]string) error {
-	for _, group := range groups {
-		for _, value := range group {
-			if strings.TrimSpace(value) == "" || strings.Contains(strings.TrimSuffix(value, "*"), "*") {
-				return errInvalidRegionFilter
-			}
-		}
 	}
 	return nil
 }

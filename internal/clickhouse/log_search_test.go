@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/internal/logquery"
+
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
@@ -68,10 +70,14 @@ func TestQueryLogsSearchMatchesLiteralText(t *testing.T) {
 					if order == observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST {
 						slices.Reverse(want)
 					}
-					got := f.allPages(t, LogQuery{
-						Search: tc.search, WorkspaceID: testWorkspaceID, ResourceIDs: []string{testResourceID},
+					query := LogQuery{
+						WorkspaceID: testWorkspaceID, ResourceIDs: []string{testResourceID},
 						Limit: testPageSize, Order: order,
-					})
+					}
+					if tc.search != "" {
+						query.Filter = logquery.Text{Value: tc.search}
+					}
+					got := f.allPages(t, query)
 					if !slices.Equal(got, want) {
 						t.Fatalf("search=%q returned %q, want %q", tc.search, got, want)
 					}

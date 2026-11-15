@@ -13,6 +13,8 @@ loco resource events --help
 
 `loco resource` also includes `env`, `scale`, `restart`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
 
+`loco resource logs --query` prints only the lines that match a [log query](../reference/log-queries.md), such as `loco resource logs api --query '@level:error -@path:/healthz'`.
+
 ## Scale
 
 `loco resource scale` changes a service's replicas, CPU or memory in one environment and rolls out a new deployment in each region the service runs in there. `--env` or `LOCO_ENV` selects the environment; a workspace with a single environment uses it, and a workspace with several fails without one. Other environments keep their deployments. `--replicas` sets a fixed replica count and disables autoscaling; changing only CPU or memory preserves autoscaling. Configure autoscaling per region in [loco.yaml](../deployment/loco-yaml.md). The dashboard's Settings tab scales the environment selected in the breadcrumb.

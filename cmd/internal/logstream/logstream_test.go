@@ -154,10 +154,8 @@ func TestBackfillFollowsCursorsAndClampsTheRange(t *testing.T) {
 	if span := first.GetEndTime().AsTime().Sub(first.GetStartTime().AsTime()); span != MaxRange {
 		t.Fatalf("queried %s, want the range clamped to %s", span, MaxRange)
 	}
-	labels := first.GetLabels()
-	if len(labels) != 1 || labels[0].GetKey() != "loco.io/build-id" ||
-		!slices.Equal(labels[0].GetValues(), []string{"build-1"}) || first.GetWorkspaceId() != "ws" {
-		t.Fatalf("query = %v, want the build's labels and workspace", first)
+	if first.GetQuery() != `@build:"build-1"` || first.GetWorkspaceId() != "ws" {
+		t.Fatalf("query = %v, want the build's query and workspace", first)
 	}
 	if proxy.auth[0] != "Bearer token" {
 		t.Fatalf("authorization = %q", proxy.auth[0])

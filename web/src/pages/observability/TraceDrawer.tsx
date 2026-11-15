@@ -266,7 +266,7 @@ function TraceLogs({ trace }: { trace: TraceSummary }) {
 		environmentId: active?.id ?? "",
 		resourceIds: scopedResourceIds ?? [],
 		spanMs: to - from,
-		parsedQuery: { traceIds: [trace.id] },
+		query: `@trace:${trace.id}`,
 		order: LogOrder.OLDEST_FIRST,
 		startTime: msToTimestamp(from),
 		endTime: msToTimestamp(to),

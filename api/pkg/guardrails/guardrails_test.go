@@ -18,8 +18,6 @@ const (
 	testEnvironmentID        = "66666666-7777-8888-9999-000000000000"
 	testMaxRange             = 24 * time.Hour
 	testWorkspaceAggregation = "max"
-	testRegionPatternRunes   = 128
-	testRegionPatterns       = 100
 	testTraceLimit           = 10000
 	malformedID              = "invalid"
 )
@@ -33,17 +31,6 @@ func validated(req proto.Message, guardrail func() error) error {
 		return errors.Join(errProtoRule, err)
 	}
 	return guardrail()
-}
-
-func logsRequest(change func(*observabilityv1.QueryLogsRequest)) error {
-	now := time.Now()
-	req := &observabilityv1.QueryLogsRequest{
-		WorkspaceId: testWorkspaceID,
-		StartTime:   timestamppb.New(now.Add(-time.Minute)),
-		EndTime:     timestamppb.New(now),
-	}
-	change(req)
-	return validated(req, func() error { return ValidateLogsRequest(req, Limits{MaxTimeRange: testMaxRange}) })
 }
 
 func tailRequest(now time.Time, change func(*observabilityv1.TailLogsRequest)) error {
@@ -74,33 +61,6 @@ func TestValidateTailRequestChecksSince(t *testing.T) {
 	future := timestamppb.New(now.Add(time.Minute))
 	if err := tailRequest(now, since(future)); !errors.Is(err, errSinceInFuture) {
 		t.Errorf("since in the future = %v, want errSinceInFuture", err)
-	}
-}
-
-func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
-	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
-	reserved := []string{"loco.workspace.id", "loco.environment.id", "loco.resource.id", "loco.anything"}
-	allowed := []string{"loco.io/build-id", "app.loco.io/component", "service.name"}
-
-	for _, key := range reserved {
-		labels := []*observabilityv1.LogFieldFilter{{Key: key, Values: []string{testWorkspaceID}}}
-		logs := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Labels = labels })
-		if !errors.Is(logs, errReservedLabelKey) {
-			t.Errorf("logs label %q = %v, want errReservedLabelKey", key, logs)
-		}
-		tail := tailRequest(now, func(r *observabilityv1.TailLogsRequest) { r.Labels = labels })
-		if !errors.Is(tail, errReservedLabelKey) {
-			t.Errorf("tail label %q = %v, want errReservedLabelKey", key, tail)
-		}
-	}
-	for _, key := range allowed {
-		labels := []*observabilityv1.LogFieldFilter{{Key: key, Values: []string{"value"}}}
-		if err := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Labels = labels }); err != nil {
-			t.Errorf("logs label %q rejected: %v", key, err)
-		}
-		if err := tailRequest(now, func(r *observabilityv1.TailLogsRequest) { r.Labels = labels }); err != nil {
-			t.Errorf("tail label %q rejected: %v", key, err)
-		}
 	}
 }
 
@@ -192,31 +152,6 @@ func TestValidateListTracesRequest(t *testing.T) {
 	}
 }
 
-func TestRegionFilters(t *testing.T) {
-	now := time.Now()
-	cases := []struct {
-		patterns []string
-		want     error
-	}{
-		{patterns: []string{"us-*"}},
-		{patterns: []string{" "}, want: errInvalidRegionFilter},
-		{patterns: []string{"us**"}, want: errInvalidRegionFilter},
-		{patterns: []string{"us*east"}, want: errInvalidRegionFilter},
-		{patterns: []string{""}, want: errProtoRule},
-		{patterns: []string{strings.Repeat("x", testRegionPatternRunes+1)}, want: errProtoRule},
-		{patterns: make([]string, testRegionPatterns+1), want: errProtoRule},
-	}
-	for _, tc := range cases {
-		logs := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Regions = tc.patterns })
-		tail := tailRequest(now, func(r *observabilityv1.TailLogsRequest) { r.ExcludedRegions = tc.patterns })
-		for _, err := range []error{logs, tail} {
-			if tc.want == nil && err != nil || tc.want != nil && !errors.Is(err, tc.want) {
-				t.Errorf("regions %q = %v, want %v", tc.patterns, err, tc.want)
-			}
-		}
-	}
-}
-
 func validateEveryQuery(workspace, environment string, resources []string) map[string]error {
 	cfg := Limits{MaxTimeRange: time.Hour}
 	now := time.Now()
@@ -274,85 +209,6 @@ func TestEveryTenantQueryRequiresCanonicalUUIDScope(t *testing.T) {
 		for request, err := range validateEveryQuery(scope.workspace, scope.environment, scope.resources) {
 			if scope.want == nil && err != nil || scope.want != nil && !errors.Is(err, scope.want) {
 				t.Errorf("%s with %s = %v, want %v", request, name, err, scope.want)
-			}
-		}
-	}
-}
-
-func TestExcludedLogFiltersFollowTheirIncludeRules(t *testing.T) {
-	now := time.Now()
-	const trace = "0123456789abcdef0123456789abcdef"
-	field := func(key string, values ...string) []*observabilityv1.LogFieldFilter {
-		return []*observabilityv1.LogFieldFilter{{Key: key, Values: values}}
-	}
-	type filters struct {
-		excludedResources, excludedLevels, traces, excludedTraces []string
-		excludedLabels, attributes, excludedAttributes            []*observabilityv1.LogFieldFilter
-		jsonFields, excludedJSONFields                            []*observabilityv1.LogFieldFilter
-	}
-	cases := map[string]struct {
-		filters filters
-		want    error
-	}{
-		"every filter": {filters: filters{
-			excludedResources:  []string{testEnvironmentID},
-			excludedLevels:     []string{"DEBUG", ""},
-			excludedLabels:     field("k8s.pod.name", "web-1", "web-2"),
-			attributes:         field("http.request.method", "GET", "POST"),
-			excludedAttributes: field("url.path", "/healthz"),
-			jsonFields:         field("user.id", "42"),
-			excludedJSONFields: field("level", "debug", "trace"),
-			traces:             []string{trace},
-			excludedTraces:     []string{trace},
-		}},
-		"reserved excluded label": {
-			filters: filters{excludedLabels: field("loco.workspace.id", "x")},
-			want:    errReservedLabelKey,
-		},
-		"uppercase excluded resource": {
-			filters: filters{excludedResources: []string{strings.ToUpper(testWorkspaceID)}},
-			want:    errNonCanonicalID,
-		},
-		"non-UUID excluded resource": {filters: filters{excludedResources: []string{malformedID}}, want: errProtoRule},
-		"uppercase trace":            {filters: filters{traces: []string{strings.ToUpper(trace)}}, want: errProtoRule},
-		"zero excluded trace": {
-			filters: filters{excludedTraces: []string{strings.Repeat("0", len(trace))}},
-			want:    errProtoRule,
-		},
-		"empty log attribute key": {filters: filters{excludedAttributes: field("", "x")}, want: errProtoRule},
-		"filter without values":   {filters: filters{attributes: field("method")}, want: errProtoRule},
-		"empty prefix": {
-			filters: filters{attributes: []*observabilityv1.LogFieldFilter{{Key: "path", Prefixes: []string{""}}}},
-			want:    errProtoRule,
-		},
-		"prefix only": {
-			filters: filters{
-				excludedAttributes: []*observabilityv1.LogFieldFilter{{Key: "path", Prefixes: []string{"/api/"}}},
-			},
-		},
-		"empty JSON path segment": {filters: filters{jsonFields: field("user..id", "42")}, want: errInvalidJSONPath},
-		"trailing JSON path dot": {
-			filters: filters{excludedJSONFields: field("user.", "42")},
-			want:    errInvalidJSONPath,
-		},
-	}
-	for name, tc := range cases {
-		f := tc.filters
-		queried := logsRequest(func(r *observabilityv1.QueryLogsRequest) {
-			r.ExcludedResourceIds, r.ExcludedLevels, r.ExcludedLabels = f.excludedResources, f.excludedLevels, f.excludedLabels
-			r.LogAttributes, r.ExcludedLogAttributes = f.attributes, f.excludedAttributes
-			r.JsonFields, r.ExcludedJsonFields = f.jsonFields, f.excludedJSONFields
-			r.TraceIds, r.ExcludedTraceIds = f.traces, f.excludedTraces
-		})
-		tailed := tailRequest(now, func(r *observabilityv1.TailLogsRequest) {
-			r.ExcludedResourceIds, r.ExcludedLevels, r.ExcludedLabels = f.excludedResources, f.excludedLevels, f.excludedLabels
-			r.LogAttributes, r.ExcludedLogAttributes = f.attributes, f.excludedAttributes
-			r.JsonFields, r.ExcludedJsonFields = f.jsonFields, f.excludedJSONFields
-			r.TraceIds, r.ExcludedTraceIds = f.traces, f.excludedTraces
-		})
-		for request, err := range map[string]error{"QueryLogs": queried, "TailLogs": tailed} {
-			if tc.want == nil && err != nil || tc.want != nil && !errors.Is(err, tc.want) {
-				t.Errorf("%s with %s = %v, want %v", request, name, err, tc.want)
 			}
 		}
 	}

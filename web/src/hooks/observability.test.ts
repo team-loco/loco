@@ -21,7 +21,7 @@ const logOptions = {
 	environmentId: workspaceId,
 	resourceIds: [],
 	spanMs: HOUR_MS,
-	parsedQuery: { regions: ["us-*"], excludedRegions: ["us-west-*"] },
+	query: "@region:us-* -@region:us-west-*",
 };
 
 describe("regional control-plane queries", () => {
@@ -213,8 +213,7 @@ describe("regional control-plane queries", () => {
 			expect(request?.workspaceId).toBe(workspaceId);
 			expect(request?.environmentId).toBe(logOptions.environmentId);
 			expect(request?.resourceIds).toEqual(["recommendation"]);
-			expect(request?.regions).toEqual(["us-*"]);
-			expect(request?.excludedRegions).toEqual(["us-west-*"]);
+			expect(request?.query).toBe(logOptions.query);
 			expect(response.entries.map((entry) => entry.body)).toEqual(["arrived while paused"]);
 			expect(response.olderCursor).toBe("latest-older");
 			expect(response.newerCursor).toBe("");
@@ -303,8 +302,7 @@ describe("regional control-plane queries", () => {
 		await client.query(options);
 		expect(received).toHaveLength(1);
 		expect(received[0]?.resourceIds).toEqual([]);
-		expect(received[0]?.regions).toEqual(["us-*"]);
-		expect(received[0]?.excludedRegions).toEqual(["us-west-*"]);
+		expect(received[0]?.query).toBe(logOptions.query);
 		expect(response.nextCursor).toBe("opaque/not-a-date");
 		await client.query(logsQueryOptions(transport, { ...logOptions, cursor: response.nextCursor }));
 		expect(received[1]?.cursor).toBe("opaque/not-a-date");
