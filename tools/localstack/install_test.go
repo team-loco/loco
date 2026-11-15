@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -248,5 +253,33 @@ func TestRetentionRequiresMatchingClusterAndInputs(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestAPIHealthWaitsForGatewayAndHonorsCancellation(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			t.Errorf("health path = %s", r.URL.Path)
+		}
+		if requests.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 3*readinessPoll)
+	defer cancel()
+	if err := waitAPI(ctx, server.URL+"/health"); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != 2 {
+		t.Fatalf("health requests = %d", requests.Load())
+	}
+	ctx, cancel = context.WithCancel(t.Context())
+	cancel()
+	if err := waitAPI(ctx, server.URL+"/health"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled health = %v", err)
 	}
 }

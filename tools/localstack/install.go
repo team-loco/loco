@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -363,8 +364,14 @@ func (cfg config) resetDatabase(ctx context.Context) error {
 	return err
 }
 
+const readinessPoll = 2 * time.Second
+
 func (cfg config) waitRunning(ctx context.Context) error {
-	ticker := time.NewTicker(2 * time.Second)
+	// Session refresh in locoadm status needs the API and its gateway route.
+	if err := waitAPI(ctx, cfg.apiURL()+"/health"); err != nil {
+		return err
+	}
+	ticker := time.NewTicker(readinessPoll)
 	defer ticker.Stop()
 	for {
 		data, err := cfg.locoadm(ctx, "status")
@@ -381,6 +388,31 @@ func (cfg config) waitRunning(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitAPI(ctx context.Context, endpoint string) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	ticker := time.NewTicker(readinessPoll)
+	defer ticker.Stop()
+	for {
+		response, requestErr := http.DefaultClient.Do(request)
+		if requestErr == nil {
+			if closeErr := response.Body.Close(); closeErr != nil {
+				return closeErr
+			}
+			if response.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait for API health: %w", ctx.Err())
 		case <-ticker.C:
 		}
 	}
