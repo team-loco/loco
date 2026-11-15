@@ -54,7 +54,7 @@ The agent keeps its key in the `loco-worker-agent-key` Secret, so the token is n
 
 `mise run stack:install` installs a control plane and one enrolled staging worker on a single kind node. It uses `dev/loco-install.yaml` with Postgres, Dex, the registry and the source bucket from `dev/compose.local.yaml`. The configured admin is `dev@loco.test`, with password `loco-dev`; signup is open.
 
-The installation and CLI credentials live under the shared git directory's `loco-stacks/state/<slot>/`, outside the worktree. A completed installation persists across runs. Delete the stack with `mise run down` before changing chart or installation inputs.
+The installation and CLI credentials live under the shared git directory's `loco-stacks/state/<slot>/`, outside the worktree. A completed installation persists across runs; an interrupted installation resumes against its retained database. Delete the stack with `mise run down` before changing chart or installation inputs.
 
 The API uses `http://api.loco-dev.localhost:8000`, Dex uses `http://dex.loco-dev.localhost:5556/dex`, and apps use `https://<name>.apps.loco-dev.localhost:8443`. Worktree slot N adds `-N` to `loco-dev` and 100×N to these ports. Accept the browser warning for self-signed app certificates. Export the apps CA with:
 

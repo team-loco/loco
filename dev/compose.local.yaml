@@ -17,9 +17,11 @@ services:
       kind: {aliases: ["registry.${STACK_DOMAIN}"]}
   s3:
     extends: {file: compose.yaml, service: s3}
+    environment:
+      VGW_VIRTUAL_DOMAIN: s3.${STACK_DOMAIN}
     networks:
       default: {}
-      kind: {aliases: ["s3.${STACK_DOMAIN}"]}
+      kind: {aliases: ["s3.${STACK_DOMAIN}", "loco-sources.s3.${STACK_DOMAIN}"]}
   dex:
     extends: {file: compose.yaml, service: dex}
     ports: !override ["127.0.0.1:${DEX_PORT}:${DEX_PORT}"]

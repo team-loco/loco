@@ -232,27 +232,33 @@ func TestCLIEnvironmentUsesStackState(t *testing.T) {
 	}
 }
 
-func TestRetentionRequiresMatchingClusterAndInputs(t *testing.T) {
-	expected := stamp{ClusterUID: "new-cluster", Inputs: "current-inputs"}
+func TestInstallationDecisionResetsResumesOrSkips(t *testing.T) {
+	expected := stamp{ClusterUID: "new-cluster", Inputs: "current-inputs", Complete: true}
 	for _, tc := range []struct {
-		name          string
-		saved         stamp
-		retain, reset bool
+		name  string
+		saved stamp
+		want  string
 	}{
-		{"unfinished", stamp{}, false, false},
-		{"recreated cluster", stamp{ClusterUID: "old-cluster", Inputs: "old-inputs"}, false, false},
-		{"completed", expected, true, false},
-		{"changed install", stamp{ClusterUID: expected.ClusterUID, Inputs: "old-inputs"}, false, true},
+		{"fresh cluster", stamp{}, "reset"},
+		{"recreated cluster", stamp{ClusterUID: "old-cluster", Inputs: "old-inputs", Complete: true}, "reset"},
+		{"same cluster without completion stamp", stamp{ClusterUID: expected.ClusterUID, Inputs: expected.Inputs}, "resume"},
+		{"completion stamp", expected, "skip"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			retain, err := retainInstallation(tc.saved, expected)
-			if retain != tc.retain || (err != nil) != tc.reset {
-				t.Fatalf("retain = %v, %v", retain, err)
-			}
-			if err != nil && !strings.Contains(err.Error(), "run mise run tilt:reset") {
-				t.Fatal(err)
+			got, err := installationAction(tc.saved, expected)
+			if err != nil || got != tc.want {
+				t.Fatalf("action = %s, %v; want %s", got, err, tc.want)
 			}
 		})
+	}
+	for _, complete := range []bool{false, true} {
+		_, err := installationAction(
+			stamp{ClusterUID: expected.ClusterUID, Inputs: "changed", Complete: complete},
+			expected,
+		)
+		if err == nil || !strings.Contains(err.Error(), "run mise run tilt:reset") {
+			t.Fatalf("changed inputs: %v", err)
+		}
 	}
 }
 
@@ -281,5 +287,62 @@ func TestAPIHealthWaitsForGatewayAndHonorsCancellation(t *testing.T) {
 	cancel()
 	if err := waitAPI(ctx, server.URL+"/health"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled health = %v", err)
+	}
+}
+
+func TestNewClusterIntentRemovesPreviousReleaseBeforeRecordingCluster(t *testing.T) {
+	cfg := testConfig(t)
+	old := stamp{ClusterUID: "previous-cluster", Inputs: "previous-inputs", Complete: true}
+	expected := stamp{ClusterUID: "current-cluster", Inputs: "current-inputs", Complete: true}
+	if err := cfg.saveStamp(old); err != nil {
+		t.Fatal(err)
+	}
+	releasePath := filepath.Join(cfg.State, "release.json")
+	if err := os.Mkdir(releasePath, 0700); err != nil {
+		t.Fatal(err)
+	}
+	blocker := filepath.Join(releasePath, "blocker")
+	if err := os.WriteFile(blocker, []byte("occupied"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.beginInstallation(expected); err == nil {
+		t.Fatal("expected release removal to fail")
+	}
+	data, err := os.ReadFile(filepath.Join(cfg.State, "install.stamp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got stamp
+	if err = json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got != old {
+		t.Fatalf("failed preparation changed stamp to %+v", got)
+	}
+	if err = os.Remove(blocker); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Remove(releasePath); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(releasePath, []byte(`{"version":"previous-release"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = cfg.beginInstallation(expected); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(releasePath); !os.IsNotExist(err) {
+		t.Fatalf("release remains after new cluster intent: %v", err)
+	}
+	data, err = os.ReadFile(filepath.Join(cfg.State, "install.stamp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	expected.Complete = false
+	if got != expected {
+		t.Fatalf("pending stamp = %+v, want %+v", got, expected)
 	}
 }

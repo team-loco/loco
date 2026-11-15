@@ -24,6 +24,7 @@ import (
 type stamp struct {
 	ClusterUID string `json:"clusterUID"`
 	Inputs     string `json:"inputs"`
+	Complete   bool   `json:"complete"`
 }
 
 func (cfg config) install(ctx context.Context) error {
@@ -42,7 +43,7 @@ func (cfg config) install(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	expected := stamp{ClusterUID: cfg.ClusterUID, Inputs: inputs}
+	expected := stamp{ClusterUID: cfg.ClusterUID, Inputs: inputs, Complete: true}
 	saved, err := os.ReadFile(filepath.Join(cfg.State, "install.stamp"))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
@@ -53,43 +54,72 @@ func (cfg config) install(ctx context.Context) error {
 			return fmt.Errorf("read install stamp: %w", err)
 		}
 	}
-	retained, err := retainInstallation(installed, expected)
+	action, err := installationAction(installed, expected)
 	if err != nil {
 		return err
 	}
 	if err = cfg.registryConfig(); err != nil {
 		return err
 	}
-	if retained {
+	if action == "skip" {
 		if err = cfg.compose(ctx, "up", "--detach", "--wait"); err != nil {
 			return err
 		}
 		return cfg.waitRunning(ctx)
 	}
-	if err = cfg.installFresh(ctx); err != nil {
-		return err
+	if action == "reset" {
+		if err = cfg.resetDatabase(ctx); err != nil {
+			return err
+		}
+		if err = cfg.beginInstallation(expected); err != nil {
+			return err
+		}
 	}
-	data, err := json.Marshal(expected)
+	if err = cfg.installPending(ctx); err != nil {
+		return fmt.Errorf("install %s: %w; run mise run tilt:reset", action, err)
+	}
+	return cfg.saveStamp(expected)
+}
+
+func (cfg config) saveStamp(value stamp) error {
+	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(cfg.State, "install.stamp"), data, 0600)
+	return cfg.writeState("install.stamp", data)
 }
 
-func retainInstallation(installed, expected stamp) (bool, error) {
-	if installed.ClusterUID != expected.ClusterUID {
-		return false, nil
-	}
-	if installed.Inputs != expected.Inputs {
-		return false, errors.New("installation inputs changed; run mise run tilt:reset")
-	}
-	return true, nil
-}
-
-func (cfg config) installFresh(ctx context.Context) error {
-	if err := cfg.resetDatabase(ctx); err != nil {
+func (cfg config) beginInstallation(expected stamp) error {
+	if err := os.Remove(filepath.Join(cfg.State, "release.json")); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
+	expected.Complete = false
+	return cfg.saveStamp(expected)
+}
+
+//nolint:gosec // Filenames are internal constants beneath the stack-owned state directory.
+func (cfg config) writeState(name string, data []byte) error {
+	path := filepath.Join(cfg.State, name)
+	if err := os.WriteFile(path+".tmp", data, 0600); err != nil {
+		return err
+	}
+	return os.Rename(path+".tmp", path)
+}
+
+func installationAction(installed, expected stamp) (string, error) {
+	if installed.ClusterUID != expected.ClusterUID {
+		return "reset", nil
+	}
+	if installed.Inputs != expected.Inputs {
+		return "", errors.New("installation inputs changed; run mise run tilt:reset")
+	}
+	if installed.Complete {
+		return "skip", nil
+	}
+	return "resume", nil
+}
+
+func (cfg config) installPending(ctx context.Context) error {
 	if err := cfg.compose(ctx, "up", "--detach", "--wait"); err != nil {
 		return err
 	}
@@ -116,10 +146,15 @@ func (cfg config) installFresh(ctx context.Context) error {
 	if err = cfg.render("dev/loco-install.yaml", cfg.file()); err != nil {
 		return err
 	}
-	release, err := command(ctx, nil, nil, "mise", "run", "release:local", "--", "--repository", "team-loco/loco",
-		"--push", "localhost:"+cfg.RegistryPort, "--address", "registry."+cfg.Domain+":"+cfg.RegistryPort,
-		"--username", "builder", "--password", "loco-dev-builder")
-	if err != nil {
+	release, err := os.ReadFile(filepath.Join(cfg.State, "release.json"))
+	if errors.Is(err, fs.ErrNotExist) {
+		release, err = command(ctx, nil, nil, "mise", "run", "release:local", "--", "--repository", "team-loco/loco",
+			"--push", "localhost:"+cfg.RegistryPort, "--address", "registry."+cfg.Domain+":"+cfg.RegistryPort,
+			"--username", "builder", "--password", "loco-dev-builder")
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
 		return err
 	}
 	var manifest struct {
@@ -131,7 +166,7 @@ func (cfg config) installFresh(ctx context.Context) error {
 	if manifest.Version == "" {
 		return errors.New("local release has no version")
 	}
-	if err = os.WriteFile(filepath.Join(cfg.State, "release.json"), release, 0600); err != nil {
+	if err = cfg.writeState("release.json", release); err != nil {
 		return err
 	}
 	if _, err = command(
