@@ -85,7 +85,7 @@ export function ResourcesMap({
 								nativeButton={false}
 								render={
 									<Link
-										to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: selected.resource.name })}
+										to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: [selected.resource.name] })}
 									/>
 								}
 							>
@@ -97,7 +97,7 @@ export function ResourcesMap({
 								nativeButton={false}
 								render={
 									<Link
-										to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: selected.resource.name })}
+										to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: [selected.resource.name] })}
 									/>
 								}
 							>

@@ -1,23 +1,20 @@
 import { expect, test } from "bun:test";
+import { createLoader, createSerializer } from "nuqs";
 import { create } from "@bufbuild/protobuf";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
-import {
-	columnValue,
-	DEFAULT_COLUMNS,
-	MIN_COLUMN_WIDTH,
-	readColumns,
-	readWidths,
-	writeColumns,
-	writeWidths,
-} from "./columns";
+import { columnValue, DEFAULT_COLUMNS, columnsParser, MIN_COLUMN_WIDTH, widthsParser } from "./columns";
 import { toRows } from "./rows";
 
+const PARSERS = { cols: columnsParser, widths: widthsParser };
+const load = createLoader(PARSERS);
+const serialize = createSerializer(PARSERS);
+
 test("default columns stay out of the URL and custom ones round-trip", () => {
-	expect(writeColumns(DEFAULT_COLUMNS)).toBeNull();
-	expect(readColumns(null)).toEqual(DEFAULT_COLUMNS);
+	expect(serialize({ cols: DEFAULT_COLUMNS })).toBe("");
+	expect(load("").cols).toEqual(DEFAULT_COLUMNS);
 	const custom = ["level", "replica", "http.method"];
-	expect(readColumns(writeColumns(custom))).toEqual(custom);
+	expect(load(serialize({ cols: custom })).cols).toEqual(custom);
 });
 
 test("attribute columns read log, resource and JSON body attributes", () => {
@@ -51,7 +48,7 @@ test("request columns read the common attribute names", () => {
 
 test("column widths round-trip and stay within bounds", () => {
 	const widths = { resource: 200, "http.route": 320 };
-	expect(readWidths(writeWidths(widths))).toEqual(widths);
-	expect(readWidths("level:1,bad,path:x")).toEqual({ level: MIN_COLUMN_WIDTH });
-	expect(writeWidths({})).toBeNull();
+	expect(load(serialize({ widths })).widths).toEqual(widths);
+	expect(load("?widths=level:1,bad,path:x").widths).toEqual({ level: MIN_COLUMN_WIDTH });
+	expect(serialize({ widths: {} })).toBe("");
 });

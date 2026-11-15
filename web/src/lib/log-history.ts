@@ -32,8 +32,3 @@ export function moveLogHistory(history: LogHistory, direction: "older" | "newer"
 		[opposite]: [...history[opposite], history.current],
 	};
 }
-
-export function logAnchor(value: string | null): number | null {
-	const timestamp = Number(value);
-	return Number.isSafeInteger(timestamp) && timestamp > 0 ? timestamp : null;
-}

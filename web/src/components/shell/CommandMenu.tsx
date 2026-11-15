@@ -129,7 +129,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 					label: `${v.label} for ${r.name}`,
 					keywords: `${v.view} ${r.slug}`,
 					icon: v.icon,
-					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: r.name })),
+					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: [r.name] })),
 					searchOnly: true,
 				});
 			}

@@ -77,8 +77,7 @@ const NUQS_DEFAULTS = { shallow: false, history: "push" } as const;
 
 function NewResourceRedirect() {
 	const { orgId = "", workspaceId = "" } = useParams();
-	const params = Object.fromEntries(new URLSearchParams(useLocation().search));
-	return <Navigate to={newResourcePath(orgId, workspaceId, params)} replace />;
+	return <Navigate to={newResourcePath(orgId, workspaceId, useLocation().search)} replace />;
 }
 
 function OrgRedirect({ to }: { to: "team" | "settings" }) {

@@ -1,3 +1,4 @@
+import { createParser, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
@@ -16,12 +17,12 @@ import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
-import { createLogHistory, logAnchor, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
+import { createLogHistory, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
 import { formatHourMinute, msToTimestamp } from "@/lib/time";
-import { windowLabel, windowSpan } from "@/lib/obs-time";
+import { msParser, windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
-import { readColumns, readWidths, writeColumns, writeWidths, type ColumnKey } from "./columns";
+import { columnsParser, widthsParser, type ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { fmtTs } from "./format";
 import { LogDetail } from "./LogDetail";
@@ -31,7 +32,7 @@ import { coversWholeRange, CopyCommand, NoMatches, ObsHero, WidenRangeButton } f
 import { buildBackendQuery, LEVELS, queryStr, sameToken, type FieldKey, type Level, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
-import { PAGE_SIZES, readPaging, VolumeBars, type VolumeBucket } from "./shared";
+import { PAGE_SIZES, pagingParsers, VolumeBars, type VolumeBucket } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
@@ -41,6 +42,18 @@ const BUCKETS = 60;
 const DEFAULT_PAGE_SIZE = 50;
 const LOG_PAGE_SIZES = [...PAGE_SIZES, 250];
 const LAST_PAGE = "last";
+const { page: pageParser, size: sizeParser } = pagingParsers(DEFAULT_PAGE_SIZE, LOG_PAGE_SIZES);
+const LOGS_PARAMS = {
+	page: createParser<number | typeof LAST_PAGE>({
+		parse: (raw) => (raw === LAST_PAGE ? LAST_PAGE : pageParser.parse(raw)),
+		serialize: (page) => (page === LAST_PAGE ? LAST_PAGE : pageParser.serialize(page)),
+	}).withDefault(0),
+	size: sizeParser,
+	log: parseAsString,
+	cols: columnsParser,
+	widths: widthsParser,
+	at: msParser,
+};
 const TAIL_TICK_MS = 1000;
 const IDLE_TICK_MS = 15_000;
 const RATE_WINDOW_MS = 10_000;
@@ -66,31 +79,14 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 }
 
 export function LogsView() {
-	const {
-		workspaceId,
-		resources,
-		scopedResourceIds,
-		resourceById,
-		maxMs,
-		range,
-		setRange,
-		tokens,
-		text,
-		setQuery,
-		params,
-		setParam,
-		setParams,
-	} = useObs();
+	const { workspaceId, resources, scopedResourceIds, resourceById, maxMs, range, setRange, tokens, text, setQuery } =
+		useObs();
+	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = environment?.id ?? "";
 	const mobile = useIsMobile();
-	const { size, page: urlPage } = readPaging(params, DEFAULT_PAGE_SIZE, LOG_PAGE_SIZES);
-	const page: number | "last" = params.get("page") === LAST_PAGE ? "last" : urlPage;
-	const selectedKey = params.get("log");
-	const columns = readColumns(params.get("cols"));
-	const widths = readWidths(params.get("widths"));
+	const { size, page, log: selectedKey, cols: columns, widths, at: anchor } = params;
 	const [history, setHistory] = useState(createLogHistory);
-	const anchor = logAnchor(params.get("at"));
 	const [focusActive, setFocusActive] = useState(anchor !== null);
 	const [windowEnd, setWindowEnd] = useState(Date.now);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
@@ -172,12 +168,7 @@ export function LogsView() {
 	const rate = allTail.filter((r) => r.ts > nowMs - RATE_WINDOW_MS).length / (RATE_WINDOW_MS / 1000);
 	// The page and selected line live in the URL so a reload or shared link reopens them.
 	const setView = (nextPage: number | "last", key: string | null) => {
-		const next = new URLSearchParams(params);
-		if (nextPage === 0) next.delete("page");
-		else next.set("page", nextPage === "last" ? LAST_PAGE : String(nextPage + 1));
-		if (key === null) next.delete("log");
-		else next.set("log", key);
-		setParams(next, true);
+		void setParams({ page: nextPage, log: key });
 	};
 	const handleToggleTail = () => {
 		setFreezeTs(null);
@@ -310,7 +301,7 @@ export function LogsView() {
 	const error = logs.error ?? (tail ? tailState.error : null);
 	const query = queryStr(tokens, text);
 	const setColumns = (next: ColumnKey[]) => {
-		setParam("cols", writeColumns(next), true);
+		void setParams({ cols: next });
 	};
 	const toggleLevel = (level: Level) => {
 		const tok = levelToken(level);
@@ -479,7 +470,7 @@ export function LogsView() {
 									onColumns={setColumns}
 									widths={widths}
 									onWidths={(next) => {
-										setParam("widths", writeWidths(next), true);
+										void setParams({ widths: next });
 									}}
 								/>
 								{isLoading && <LoadingRows />}
@@ -505,11 +496,7 @@ export function LogsView() {
 								pageSizes={LOG_PAGE_SIZES}
 								pageSize={size}
 								onPageSize={(n) => {
-									const next = new URLSearchParams(params);
-									if (n === DEFAULT_PAGE_SIZE) next.delete("size");
-									else next.set("size", String(n));
-									next.delete("page");
-									setParams(next, true);
+									void setParams({ size: n, page: null });
 								}}
 								prevLabel="Newer"
 								nextLabel="Older"

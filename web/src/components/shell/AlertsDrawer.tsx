@@ -112,7 +112,7 @@ export function AlertsDrawer() {
 										key={a.key}
 										alert={a}
 										resourceHref={resourcePath(activeOrgId, activeWorkspaceId, a.resourceId)}
-										logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: a.name })}
+										logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [a.name] })}
 										nowMs={nowMs}
 										onNavigate={close}
 									/>
