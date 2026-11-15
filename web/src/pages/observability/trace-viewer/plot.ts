@@ -1,14 +1,14 @@
-import type { Zoom } from "../flame";
+import { MIN_ZOOM_WIDTH, type Zoom } from "../flame";
 
 export function boundedZoom(a: number, width: number): Zoom {
-	const w = Math.max(0.002, Math.min(1, width));
+	const w = Math.max(MIN_ZOOM_WIDTH, Math.min(1, width));
 	const left = Math.max(0, Math.min(1 - w, a));
 	return { a: left, b: left + w };
 }
 
 export function zoomAround(zoom: Zoom, anchor: number, delta: number): Zoom {
 	const width = zoom.b - zoom.a;
-	const next = Math.min(1, Math.max(0.002, width * Math.exp(delta * 0.002)));
+	const next = Math.min(1, Math.max(MIN_ZOOM_WIDTH, width * Math.exp(delta * 0.002)));
 	return boundedZoom(zoom.a + anchor * (width - next), next);
 }
 

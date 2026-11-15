@@ -99,7 +99,6 @@ export function FlameGraph({
 					);
 				})}
 			</div>
-			<span className="text-[11.5px] text-fg3">Select a span for details. Double-click a span to zoom into it.</span>
 		</section>
 	);
 }

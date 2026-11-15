@@ -5,7 +5,7 @@ import { spanError, spanStart, spanTree, type TraceSummary } from "./traces";
 
 const FRACTION_SCALE = 1_000_000n;
 const ZOOM_PADDING = 0.04;
-const MIN_ZOOM_WIDTH = 0.002;
+export const MIN_ZOOM_WIDTH = 0.002;
 
 export interface Zoom {
 	a: number;

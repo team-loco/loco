@@ -4,11 +4,11 @@ import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
 import type { TraceSummary } from "../traces";
 import { cn } from "@/lib/utils";
+import { boundedZoom } from "./plot";
 
-export function moveWindow(zoom: Zoom, center: number): Zoom {
+function moveWindow(zoom: Zoom, center: number): Zoom {
 	const width = zoom.b - zoom.a;
-	const a = Math.max(0, Math.min(1 - width, center - width / 2));
-	return { a, b: a + width };
+	return boundedZoom(center - width / 2, width);
 }
 
 export function Minimap({

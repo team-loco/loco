@@ -26,7 +26,7 @@ interface Operation {
 	execution: number;
 	share: number;
 }
-export function operations(
+function operations(
 	trace: TraceSummary,
 	label: (span: TraceSummary["root"]) => string,
 	color: (span: TraceSummary["root"]) => string,
