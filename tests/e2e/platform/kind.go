@@ -14,64 +14,64 @@ import (
 
 // setupKind reuses the run's kind cluster when it is reachable and runs the same node image, and
 // creates it otherwise.
-func (p *Platform) setupKind(ctx context.Context) error {
-	node := kindNodeImage(p.root)
-	clusters, err := p.Command(ctx, "kind", "get", "clusters")
+func (c *Cluster) setupKind(ctx context.Context) error {
+	node := kindNodeImage(c.root)
+	clusters, err := c.Command(ctx, "kind", "get", "clusters")
 	if err != nil {
 		return err
 	}
-	if slices.Contains(strings.Fields(clusters), p.cluster) {
-		retained, err := p.Command(ctx, "docker", "inspect", "--format", "{{.Config.Image}}", p.Node())
+	if slices.Contains(strings.Fields(clusters), c.cluster) {
+		retained, err := c.Command(ctx, "docker", "inspect", "--format", "{{.Config.Image}}", c.Node())
 		if err != nil {
 			return err
 		}
 		if strings.TrimSpace(retained) != node {
 			return fmt.Errorf(
 				"retained cluster %s runs %s, not %s; run mise run e2e:teardown %s before changing Kubernetes versions",
-				p.cluster,
+				c.cluster,
 				strings.TrimSpace(retained),
 				node,
-				p.Name,
+				c.shard,
 			)
 		}
-		if err := p.writeKubeconfig(ctx); err != nil {
+		if err := c.writeKubeconfig(ctx); err != nil {
 			return err
 		}
-		if _, err := p.Kubectl(ctx, "cluster-info"); err == nil {
-			p.clusterReused = true
-			logf("Reusing kind cluster %s", p.cluster)
+		if _, err := c.Kubectl(ctx, "cluster-info"); err == nil {
+			c.clusterReused = true
+			logf("Reusing kind cluster %s", c.cluster)
 			return nil
 		}
-		logf("Kind cluster %s is unreachable, recreating it", p.cluster)
-		if _, err := p.Command(
+		logf("Kind cluster %s is unreachable, recreating it", c.cluster)
+		if _, err := c.Command(
 			ctx,
 			"kind",
 			"delete",
 			"cluster",
 			"--name",
-			p.cluster,
+			c.cluster,
 			"--kubeconfig",
-			p.kubeconfig,
+			c.kubeconfig,
 		); err != nil {
 			return err
 		}
 	}
 	create := func() error {
-		_, err := p.Command(ctx, "kind", "create", "cluster", "--image", node, "--config",
-			filepath.Join(p.root, "tests", "e2e", "kind-e2e.yml"), "--name", p.cluster, "--kubeconfig", p.kubeconfig)
+		_, err := c.Command(ctx, "kind", "create", "cluster", "--image", node, "--config",
+			filepath.Join(c.root, "tests", "e2e", "kind-e2e.yml"), "--name", c.cluster, "--kubeconfig", c.kubeconfig)
 		return err
 	}
 	if err := create(); err != nil {
-		logf("Creating kind cluster %s failed, deleting it and retrying once: %v", p.cluster, err)
-		if _, err := p.Command(
+		logf("Creating kind cluster %s failed, deleting it and retrying once: %v", c.cluster, err)
+		if _, err := c.Command(
 			ctx,
 			"kind",
 			"delete",
 			"cluster",
 			"--name",
-			p.cluster,
+			c.cluster,
 			"--kubeconfig",
-			p.kubeconfig,
+			c.kubeconfig,
 		); err != nil {
 			return err
 		}
@@ -79,15 +79,15 @@ func (p *Platform) setupKind(ctx context.Context) error {
 			return err
 		}
 	}
-	return p.writeKubeconfig(ctx)
+	return c.writeKubeconfig(ctx)
 }
 
-func (p *Platform) writeKubeconfig(ctx context.Context) error {
-	config, err := p.Command(ctx, "kind", "get", "kubeconfig", "--name", p.cluster)
+func (c *Cluster) writeKubeconfig(ctx context.Context) error {
+	config, err := c.Command(ctx, "kind", "get", "kubeconfig", "--name", c.cluster)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p.kubeconfig, []byte(config), 0o600)
+	return os.WriteFile(c.kubeconfig, []byte(config), 0o600)
 }
 
 // installWorker installs the loco-worker chart; with collectors it adds the OpenTelemetry

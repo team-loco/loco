@@ -49,18 +49,18 @@ func (p *Platform) commandEnv() []string {
 
 // Command runs a program with the run's environment and returns its standard output. Its error
 // carries the standard error.
-func (p *Platform) Command(ctx context.Context, name string, args ...string) (string, error) {
-	return p.commandStdin(ctx, nil, name, args...)
+func (c *Cluster) Command(ctx context.Context, name string, args ...string) (string, error) {
+	return c.commandStdin(ctx, nil, name, args...)
 }
 
-func (p *Platform) commandStdin(
+func (c *Cluster) commandStdin(
 	ctx context.Context,
 	stdin []byte,
 	name string,
 	args ...string,
 ) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec,nolintlint // the run's own tools
-	cmd.Env = p.env
+	cmd.Env = c.env
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
@@ -96,10 +96,10 @@ func (p *Platform) composePort(ctx context.Context, service string, port int) (i
 }
 
 // mise runs a mise task of the repository.
-func (p *Platform) mise(ctx context.Context, env []string, args ...string) (string, error) {
+func (c *Cluster) mise(ctx context.Context, env []string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "mise", append([]string{"run", "--quiet"}, args...)...)
-	cmd.Dir = p.root
-	cmd.Env = append(append([]string{}, p.env...), env...)
+	cmd.Dir = c.root
+	cmd.Env = append(append([]string{}, c.env...), env...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

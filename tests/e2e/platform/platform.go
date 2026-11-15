@@ -13,7 +13,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"syscall"
 	"testing"
@@ -47,9 +46,8 @@ var runIDPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,14}[a-z0-9])?$`)
 // Platform is one running install and the clients its tests use.
 type Platform struct {
 	Features
+	*Cluster
 
-	// Version is the version every binary and image of the run reports.
-	Version string
 	// Namespace is the namespace the worker chart, controller and agent use.
 	Namespace string
 	// BuildNamespace is the namespace build Jobs run in.
@@ -90,26 +88,16 @@ type Platform struct {
 
 	DB *pgxpool.Pool
 
-	root           string
-	run            string
-	dir            string
 	binDir         string
 	logDir         string
-	kubeconfig     string
-	kubeContext    string
-	cluster        string
 	composeProject string
-	keep           bool
-	skipBuild      bool
 	ports          ports
 	values         values
-	env            []string
 	adminHome      string
 	userSession    session
 	adminSession   session
 	processes      processes
 	agentLog       *agentLog
-	clusterReused  bool
 	runCtx         context.Context
 	databaseURL    string
 	transitAddr    string
@@ -123,39 +111,21 @@ type ports struct {
 
 // New reads the run's configuration for a shard. It starts nothing.
 func New(features Features) *Platform {
-	_, file, _, _ := runtime.Caller(0)
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
-	runID := os.Getenv("E2E_RUN_ID")
-	if runID == "" {
-		runID = fmt.Sprintf("%08x", hash(root))
-	}
-	if !runIDPattern.MatchString(runID) {
-		panic(fmt.Sprintf("E2E_RUN_ID must be 1-16 lowercase letters, digits or inner hyphens, got %q", runID))
-	}
-	run := runID + "-" + features.Name
-	base := portRangeStart + int(hash(run)%portBlocks)*portBlockSize
-	dir := filepath.Join(root, "tests", "e2e", "runs", run)
+	c := NewCluster(features.Name)
+	base := portRangeStart + int(hash(c.run)%portBlocks)*portBlockSize
 	p := &Platform{
 		Features:       features,
-		Version:        envOr("E2E_VERSION", defaultVersion),
-		root:           root,
-		run:            run,
-		dir:            dir,
-		binDir:         filepath.Join(dir, "bin"),
-		logDir:         filepath.Join(dir, "logs"),
-		kubeconfig:     filepath.Join(dir, "kubeconfig"),
-		cluster:        "loco-e2e-" + run,
-		composeProject: "loco-e2e-" + run,
-		keep:           envBool("E2E_KEEP"),
-		skipBuild:      envBool("E2E_SKIP_BUILD"),
-		adminHome:      filepath.Join(dir, "admin-home"),
+		Cluster:        c,
+		binDir:         filepath.Join(c.dir, "bin"),
+		logDir:         filepath.Join(c.dir, "logs"),
+		composeProject: "loco-e2e-" + c.run,
+		adminHome:      filepath.Join(c.dir, "admin-home"),
 		ports: ports{
 			api: base, obsProxy: base + 1, s3: base + 2, clickhouse: base + 3, gateway: base + 4,
 			apiReplica: base + 5, otlpGRPC: base + 6, otlpHTTP: base + 7, registry: base + 8, auth: base + 9,
 		},
 	}
-	p.kubeContext = "kind-" + p.cluster
-	p.values = readValues(root)
+	p.values = readValues(c.root)
 	p.Namespace = locoNamespace
 	p.BuildNamespace = p.values.buildNamespace
 	p.Domain = platformDomain
