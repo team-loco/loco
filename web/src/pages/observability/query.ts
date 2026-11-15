@@ -1,4 +1,6 @@
+import { Code, ConnectError } from "@connectrpc/connect";
 import { createParser, parseAsArrayOf, parseAsString } from "nuqs";
+import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
 
 import type { ObservabilityView } from "@/lib/routes";
 
@@ -22,33 +24,19 @@ export function levelOf(severity: string): Level {
 	return "info";
 }
 
-export type FieldKey =
-	| "resource"
-	| "level"
-	| "replica"
-	| "build"
-	| "region"
-	| "type"
-	| "status"
-	| "trace"
-	| "duration"
-	| "method"
-	| "path"
-	| "attr"
-	| "label"
-	| "json";
+export type FieldKey = "resource" | "level" | "replica" | "build" | "region" | "type" | "status" | "trace" | "duration";
 
 export interface FieldDef {
 	key: FieldKey;
 	label: string;
 	views: ObservabilityView[];
 	negate: ObservabilityView[];
+	/** Views that apply only the first filter on this field. */
 	single: ObservabilityView[];
 }
 
 const ALL_VIEWS: ObservabilityView[] = ["logs", "metrics", "traces", "events"];
 
-// @attr, @label and @json values are key=value pairs.
 export const FIELDS: FieldDef[] = [
 	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: [] },
 	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: [] },
@@ -59,52 +47,12 @@ export const FIELDS: FieldDef[] = [
 	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: [] },
 	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"], single: ["traces"] },
 	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: [] },
-	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"], single: [] },
-	{ key: "path", label: "Request path", views: ["logs"], negate: ["logs"], single: [] },
-	{ key: "attr", label: "Log attribute", views: ["logs"], negate: ["logs"], single: [] },
-	{ key: "label", label: "Resource attribute", views: ["logs"], negate: ["logs"], single: [] },
-	{ key: "json", label: "JSON message field", views: ["logs"], negate: ["logs"], single: [] },
 ];
 
-// The gateway's access logs carry these keys, so @method and @path match every routed request.
-export const REQUEST_FILTER_ATTRIBUTES: Partial<Record<FieldKey, string>> = { method: "method", path: "path" };
+const KEY_ALIASES: Record<string, string> = { pod: "replica", trace_id: "trace" };
 
-const PAIR_FIELDS = new Set<FieldKey>(["attr", "label", "json"]);
-const RESERVED_LABEL_PREFIX = "loco.";
-const OPEN_LABEL_PREFIX = "loco.io/";
-
-export interface AttributePair {
-	key: string;
-	value: string;
-}
-
-/** Reads an @attr, @label or @json value, written key=value. */
-export function attributePair(value: string): AttributePair | null {
-	const at = value.indexOf("=");
-	return at > 0 ? { key: value.slice(0, at), value: value.slice(at + 1) } : null;
-}
-
-/** Why a log query can't filter on the resource attribute, or null when it can; Loco sets the loco. keys besides loco.io/ labels. */
-export function reservedLabelReason(key: string): string | null {
-	return key.startsWith(RESERVED_LABEL_PREFIX) && !key.startsWith(OPEN_LABEL_PREFIX)
-		? `Loco sets ${key}; filter with @resource or @region`
-		: null;
-}
-
-const KEY_ALIASES: Record<string, FieldKey> = { pod: "replica", trace_id: "trace" };
-
-function fieldKey(key: string): FieldKey | undefined {
-	return FIELDS.find((f) => f.key === key)?.key ?? KEY_ALIASES[key];
-}
-
-export function isFieldKey(key: string): key is FieldKey {
-	return FIELDS.some((f) => f.key === key);
-}
-
-export function fieldDef(key: FieldKey): FieldDef {
-	const def = FIELDS.find((f) => f.key === key);
-	if (def === undefined) throw new Error(`unknown field ${key}`);
-	return def;
+export function fieldDef(key: string): FieldDef | undefined {
+	return FIELDS.find((f) => f.key === key);
 }
 
 export function viewFields(view: ObservabilityView): FieldDef[] {
@@ -115,48 +63,90 @@ export function searchesText(view: ObservabilityView): boolean {
 	return view !== "metrics";
 }
 
+/** A @key:value term; value is written as in the query, quotes included. */
 export interface Token {
 	neg: boolean;
-	key: FieldKey;
+	key: string;
 	value: string;
 }
 
-const TOKEN_VALUE = String.raw`("(?:[^"\\]|\\.)*"|\S+)`;
-const TOKEN_RE = new RegExp(String.raw`(-?)@(\w+):` + TOKEN_VALUE, "g");
-export const COMPLETED_TOKEN_RE = new RegExp(String.raw`(^|\s)(-?)@(\w+):` + TOKEN_VALUE + String.raw`\s$`);
-const QUOTED_RE = /^"(?:[^"\\]|\\.)*"$/;
-const NEEDS_QUOTES_RE = /[\s"]/;
+const KEY = String.raw`[\w.\-/]+(?:\[\d+\])*`;
+const VALUE = String.raw`(?:"(?:[^"\\]|\\.)*"|[^\s"()]+)`;
+const TOKEN_RE = new RegExp(String.raw`(?<=^|\s)(-?)@(${KEY}):(${VALUE})(?=\s|$)`, "g");
+export const COMPLETED_TOKEN_RE = new RegExp(String.raw`(^|\s)(-?)@(${KEY}):(${VALUE})\s$`);
+const QUERY_KEY_RE = new RegExp(String.raw`^${KEY}$`);
 const BARE_TOKEN_RE = /^(pod|replica|build):(\S+)$/;
+const QUOTED_RE = /"(?:[^"\\]|\\.)*"/g;
+const BOOLEAN_RE = /(^|\s)(AND|OR)(?=\s|$)|[()]/;
+const BARE_VALUE_RE = /^[^\s"():*<>]+$/;
+const FIELD_RE = new RegExp(String.raw`-?@${KEY}:${VALUE}`, "g");
+const WORD_RE = /(-?)("(?:[^"\\]|\\.)*"|[^\s"()]+)/g;
 
 export const BUILD_ID_LABEL = "loco.io/build-id";
 
-/** Reads a token value as written, unquoting one that holds spaces or quotes. */
-export function tokenValue(raw: string): string {
-	return QUOTED_RE.test(raw) ? (JSON.parse(raw) as string) : raw;
+/** Whether text combines terms with AND, OR or parentheses, outside quoted phrases. */
+export function hasBoolean(text: string): boolean {
+	return BOOLEAN_RE.test(text.replace(QUOTED_RE, '""'));
+}
+
+// keep in sync with the built-in fields and reserved keys in internal/clickhouse/log_filter.go
+const BUILTIN_KEYS = new Set(["level", "trace", "resource", "replica", "build", "region"]);
+
+/** Why an attribute key can't be filtered with @key:value, or null when it can. */
+export function queryKeyReason(key: string): string | null {
+	if (BUILTIN_KEYS.has(key)) return `@${key} is a built-in field, not this attribute`;
+	if (key.startsWith("loco.") && !key.startsWith("loco.io/"))
+		return `Loco sets ${key}; filter with @resource or @region`;
+	if (!QUERY_KEY_RE.test(key)) return `${key} can't be written as a query key`;
+	return null;
+}
+
+/** Writes value as a query value that matches it exactly. */
+export function quoteValue(value: string): string {
+	return BARE_VALUE_RE.test(value) && !value.includes("..")
+		? value
+		: `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+/** Reads a query value as the text it matches, without quotes. */
+export function unquoteValue(value: string): string {
+	return value.startsWith('"') ? value.slice(1, -1).replace(/\\(["\\])/g, "$1") : value;
+}
+
+/** The free-text terms of text that matching log bodies contain, for highlighting. */
+export function searchWords(text: string): string[] {
+	return [...text.replace(FIELD_RE, " ").matchAll(WORD_RE)].flatMap(([, neg, word = ""]) =>
+		neg !== "" || word === "AND" || word === "OR" ? [] : [unquoteValue(word)],
+	);
 }
 
 function tokStr(t: Token): string {
-	return `${t.neg ? "-" : ""}@${t.key}:${NEEDS_QUOTES_RE.test(t.value) ? JSON.stringify(t.value) : t.value}`;
+	return `${t.neg ? "-" : ""}@${t.key}:${t.value}`;
 }
 
+/** Joins tokens and text into one query; text that uses AND, OR or parentheses is grouped. */
 export function queryStr(tokens: Token[], text: string): string {
-	return [...tokens.map(tokStr), text.trim()].filter(Boolean).join(" ");
+	const rest = text.trim();
+	const grouped = tokens.length > 0 && hasBoolean(rest) ? `(${rest})` : rest;
+	return [...tokens.map(tokStr), grouped].filter(Boolean).join(" ");
 }
 
+/** Splits a query into chips and text. A query with AND, OR or parentheses stays whole text, so its order holds. */
 export function parseQuery(q: string): { tokens: Token[]; text: string } {
 	const bare = BARE_TOKEN_RE.exec(q.trim());
-	const bareKey = fieldKey(bare?.[1] ?? "");
-	if (bareKey !== undefined) return { tokens: [{ neg: false, key: bareKey, value: bare?.[2] ?? "" }], text: "" };
+	if (bare !== null) {
+		return {
+			tokens: [{ neg: false, key: KEY_ALIASES[bare[1] ?? ""] ?? bare[1] ?? "", value: bare[2] ?? "" }],
+			text: "",
+		};
+	}
+	if (hasBoolean(q)) return { tokens: [], text: q.replace(/\s+/g, " ").trim() };
 	const tokens: Token[] = [];
 	for (const m of q.matchAll(TOKEN_RE)) {
-		const key = fieldKey(m[2] ?? "");
-		if (key !== undefined) tokens.push({ neg: m[1] === "-", key, value: tokenValue(m[3] ?? "") });
+		const key = m[2] ?? "";
+		tokens.push({ neg: m[1] === "-", key: KEY_ALIASES[key] ?? key, value: m[3] ?? "" });
 	}
-	const text = q
-		.replace(TOKEN_RE, (all: string, _neg: string, key: string) => (fieldKey(key) !== undefined ? "" : all))
-		.replace(/\s+/g, " ")
-		.trim();
-	return { tokens, text };
+	return { tokens, text: q.replace(TOKEN_RE, "").replace(/\s+/g, " ").trim() };
 }
 
 export interface Query {
@@ -195,17 +185,17 @@ export interface TokenSupport {
 const SUPPORTED: TokenSupport = { ok: true, reason: "" };
 
 export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSupport[] {
-	const seen = new Set<FieldKey>();
+	const seen = new Set<string>();
 	return tokens.map((t) => {
+		if (view === "logs") return SUPPORTED;
 		const def = fieldDef(t.key);
-		if (!def.views.includes(view)) return { ok: false, reason: `@${t.key} doesn't apply to ${view}` };
+		if (!def?.views.includes(view)) {
+			return { ok: false, reason: `@${t.key} doesn't apply to ${view}` };
+		}
 		if (t.neg && !def.negate.includes(view)) return { ok: false, reason: `Excluding @${t.key} isn't supported yet` };
-		const pair = PAIR_FIELDS.has(t.key) ? attributePair(t.value) : null;
-		if (PAIR_FIELDS.has(t.key) && pair === null) return { ok: false, reason: `Write @${t.key}:key=value` };
-		const blocked = t.key === "label" && pair !== null ? reservedLabelReason(pair.key) : null;
-		if (blocked !== null) return { ok: false, reason: blocked };
-		if (def.single.includes(view) && seen.has(t.key))
+		if (def.single.includes(view) && seen.has(t.key)) {
 			return { ok: false, reason: `Only the first @${t.key} filter applies` };
+		}
 		seen.add(t.key);
 		return SUPPORTED;
 	});
@@ -259,6 +249,26 @@ export function durationBounds(tokens: Token[]): DurationBounds | null {
 	return bounds;
 }
 
+/** A query the API rejected; position counts characters of query from 1. */
+export interface QueryError {
+	query: string;
+	message: string;
+	position: number;
+}
+
+/** Reads the API's rejection of query, or null when error is not one. */
+export function queryError(error: Error, query: string): QueryError | null {
+	if (!(error instanceof ConnectError) || error.code !== Code.InvalidArgument) return null;
+	const violation = error
+		.findDetails(BadRequestSchema)
+		.flatMap((d) => d.fieldViolations)
+		.find((v) => v.field === "query");
+	const info = error.findDetails(ErrorInfoSchema).find((d) => d.reason === "LOG_QUERY_SYNTAX");
+	const position = Number(info?.metadata["position"]);
+	if (violation === undefined || !Number.isInteger(position)) return null;
+	return { query, message: violation.description, position };
+}
+
 export interface BackendQuery {
 	query: string;
 	resourceIds: string[];
@@ -266,17 +276,11 @@ export interface BackendQuery {
 	impossible: boolean;
 }
 
-/** The logs request for a query: the API parses its text; the scope comes from the caller's grants. */
+/** The logs request for a query: the API parses the text; the scope comes from the caller's grants. */
 export function buildBackendQuery(tokens: Token[], text: string, scopedResourceIds: string[] | null): BackendQuery {
-	const terms = tokens.map((t) => {
-		const pair = PAIR_FIELDS.has(t.key) ? attributePair(t.value) : null;
-		if (pair === null) return t;
-		const value = /^[^\s"():]+$/.test(pair.value) ? pair.value : JSON.stringify(pair.value);
-		return { ...t, key: pair.key as FieldKey, value };
-	});
 	const resourceIds = scopedResourceIds ?? [];
 	return {
-		query: queryStr(terms, text),
+		query: queryStr(tokens, text),
 		resourceIds,
 		allEnvironments: tokens.some((t) => t.key === "build" && !t.neg),
 		impossible: scopedResourceIds !== null && resourceIds.length === 0,

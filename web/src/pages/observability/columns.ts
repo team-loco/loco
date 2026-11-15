@@ -1,6 +1,5 @@
 import { createParser } from "nuqs";
 
-import { flattenJson } from "./format";
 import type { LogRow } from "./rows";
 
 export type ColumnKey = string;
@@ -99,7 +98,6 @@ function rowAttributes(row: LogRow): Record<string, string> {
 	return {
 		...row.entry.resourceAttributes,
 		...row.entry.logAttributes,
-		...(row.json !== null ? flattenJson(row.json) : {}),
 	};
 }
 

@@ -26,10 +26,11 @@ import {
 	agoShort,
 	COMPLETED_TOKEN_RE,
 	fieldDef,
-	isFieldKey,
+	hasBoolean,
 	levelOf,
 	parseQuery,
 	pinnedKey,
+	quoteValue,
 	pinnedQueries,
 	queryStr,
 	recentKey,
@@ -39,10 +40,10 @@ import {
 	searchesText,
 	shownRecent,
 	tokenSupport,
-	tokenValue,
 	viewFields,
 	type FieldDef,
 	type FieldKey,
+	type QueryError,
 	type Token,
 } from "./query";
 import { Dot } from "./shared";
@@ -75,7 +76,7 @@ export type ValueCounts = (key: FieldKey) => [string, number][];
 function placeholder(view: string): string {
 	switch (view) {
 		case "logs":
-			return "Search messages, or type @ to filter by resource, level, region…";
+			return "Search messages, or filter with @key:value, OR, - and ( )…";
 		case "metrics":
 			return "Type @resource to filter";
 		default:
@@ -174,7 +175,8 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		},
 	});
 
-	const valueItem = (key: FieldKey, v: string, c: number, neg: boolean): Suggestion => {
+	// value is the token as written; v is the value it matches, which the list shows.
+	const valueItem = (key: FieldKey, v: string, c: number, neg: boolean, value = quoteValue(v)): Suggestion => {
 		const res = resourceByName.get(v);
 		const icon =
 			key === "level" ? (
@@ -187,10 +189,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		return {
 			key: `v:${key}:${v}`,
 			icon,
-			main: `${neg ? "-" : ""}@${key}:${v}`,
+			main: `${neg ? "-" : ""}@${key}:${value}`,
 			hint: c > 0 ? formatCount(c) : "",
 			apply: () => {
-				addToken({ neg, key, value: v });
+				addToken({ neg, key, value });
 			},
 		};
 	};
@@ -200,20 +202,21 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const groups: Group[] = [];
 	const vm = VALUE_WORD_RE.exec(cur);
 	const km = KEY_WORD_RE.exec(cur);
-	const vmKey = vm?.[2] ?? "";
-	if (vm && isFieldKey(vmKey)) {
+	const vmDef = fieldDef(vm?.[2] ?? "");
+	if (vm && vmDef !== undefined) {
 		const neg = vm[1] === "-";
 		const part = vm[3] ?? "";
 		const pref = part.toLowerCase();
-		const def = fieldDef(vmKey);
-		const vals = def.views.includes(view)
-			? valueCounts(vmKey)
+		const vals = vmDef.views.includes(view)
+			? valueCounts(vmDef.key)
 					.filter(([v]) => v.toLowerCase().includes(pref))
 					.slice(0, MAX_VALUES)
 			: [];
-		const typed: [string, number][] = part !== "" && !vals.some(([v]) => v.toLowerCase() === pref) ? [[part, 0]] : [];
-		const items = [...typed, ...vals].map(([v, c]) => valueItem(vmKey, v, c, neg));
-		groups.push({ title: `@${vmKey} values`, items });
+		const typed: [string, number, string][] =
+			part !== "" && !vals.some(([v]) => v.toLowerCase() === pref) ? [[part, 0, part]] : [];
+		const entries = [...typed, ...vals.map(([v, c]): [string, number, string] => [v, c, quoteValue(v)])];
+		const items = entries.map(([v, c, written]) => valueItem(vmDef.key, v, c, neg, written));
+		groups.push({ title: `@${vmDef.key} values`, items });
 	} else if (km) {
 		const neg = km[1] === "-";
 		const ks = fields.filter((f) => f.key.startsWith((km[2] ?? "").toLowerCase()));
@@ -299,10 +302,9 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
 
 	const onChange = (v: string) => {
-		const m = COMPLETED_TOKEN_RE.exec(v);
-		const key = m?.[3] ?? "";
-		if (m && isFieldKey(key)) {
-			const t: Token = { neg: m[2] === "-", key, value: tokenValue(m[4] ?? "") };
+		const m = hasBoolean(v) ? null : COMPLETED_TOKEN_RE.exec(v);
+		if (m) {
+			const t: Token = { neg: m[2] === "-", key: m[3] ?? "", value: m[4] ?? "" };
 			setTokens([...tokens, t], v.slice(0, v.length - m[0].length + (m[1] ?? "").length));
 			setOpen(true);
 			return;
@@ -481,11 +483,28 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 						<ComboboxEmpty className="p-2.5 text-fg3">No matches</ComboboxEmpty>
 					</ComboboxList>
 					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
-						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>*</Kbd> prefix
+						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-</Kbd> exclude <Kbd>OR</Kbd> either <Kbd>( )</Kbd> group{" "}
+						<Kbd>*</Kbd> prefix <Kbd>&gt;5</Kbd> <Kbd>1..9</Kbd> numbers
 					</div>
 				</ComboboxContent>
 			</div>
 		</Combobox>
+	);
+}
+
+/** Shows where the API stopped reading the query, under the bar. */
+export function QueryErrorLine({ error }: { error: QueryError }) {
+	const chars = Array.from(error.query);
+	const at = Math.min(error.position - 1, chars.length);
+	return (
+		<div role="alert" className="flex min-w-0 flex-col gap-1 px-1 text-[12.5px]">
+			<span className="text-bad-fg">{error.message}</span>
+			<code className="font-mono text-[12px] break-all whitespace-pre-wrap text-fg2">
+				{chars.slice(0, at).join("")}
+				<mark className="rounded-[2px] bg-bad-bg px-px text-bad-fg">{chars[at] ?? " "}</mark>
+				{chars.slice(at + 1).join("")}
+			</code>
+		</div>
 	);
 }
 
