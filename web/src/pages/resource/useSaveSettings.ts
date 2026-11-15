@@ -21,7 +21,15 @@ import {
 	type SettingsDraft,
 } from "./settings-draft";
 
-const SPEC_KEYS = ["image", "port", "healthPath", "healthInterval", "healthTimeout", "healthFailures"] as const;
+const SPEC_KEYS = [
+	"image",
+	"port",
+	"healthPath",
+	"healthInterval",
+	"healthTimeout",
+	"healthFailures",
+	"observability",
+] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
 
@@ -161,7 +169,13 @@ export function useSaveSettings({
 				d.region,
 				[],
 				async () =>
-					await deploy.mutateAsync({ resourceId, region: d.region, spec: d.spec, environmentId, commit: d.commit }),
+					await deploy.mutateAsync({
+						resourceId,
+						region: d.region,
+						spec: d.spec,
+						environmentId,
+						commit: d.commit,
+					}),
 			);
 			if (ok) savedRegions.push(d.region);
 		}

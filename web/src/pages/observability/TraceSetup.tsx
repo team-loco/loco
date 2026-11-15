@@ -1,5 +1,3 @@
-import { CheckIcon } from "lucide-react";
-
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/design/Tabs";
 
@@ -58,9 +56,9 @@ export function TraceSetup() {
 					<CodeBlock className="rounded-none border-0">{s.code}</CodeBlock>
 				</TabsContent>
 			))}
-			<p className="m-0 flex items-center gap-2 border-t border-line px-3.5 py-2 font-mono text-[11.5px] text-fg2">
-				<CheckIcon aria-hidden className="size-3.5 shrink-0 text-ok-fg" />
-				OTEL_EXPORTER_OTLP_ENDPOINT is already set on every replica
+			<p className="m-0 border-t border-line px-3.5 py-2 text-[12px] text-fg2">
+				Keep trace collection enabled in resource settings. Configure your SDK endpoint, or enable SDK environment
+				configuration there.
 			</p>
 		</Tabs>
 	);

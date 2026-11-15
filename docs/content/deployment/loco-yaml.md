@@ -177,16 +177,39 @@ loco deploy web --image ghcr.io/acme/web:release --env production --yes
 
 This command skips all source builds and uploads, including builds for other services. It still plans and applies the whole file with the normal import and destructive-operation confirmations. Other services can change, and new source services may still require their initial build. An unknown service, a service disabled in the selected environment, multiple service names or an empty image reference is an error. Image resolution errors stop the deploy before apply.
 
+## Observability
+
+Each resource controls collection by signal, separately from application SDK configuration:
+
+```yaml
+services:
+  checkout:
+    observability:
+      logs: true
+      metrics: true
+      traces: true
+      autoinjectOtelEnvVars: false
+    environments:
+      staging:
+        observability:
+          traces: false
+```
+
+`logs`, `metrics` and `traces` default to `true`. Logs include application stdout and SDK logs; metrics include application, resource and gateway metrics; traces include application and ingress spans. Setting a signal to `false` stops new records for that resource at Loco's ingest boundary after its configured policy cache refreshes. Previously stored data remains queryable. Build diagnostics, deployment status and control-plane events are independent of these switches.
+
+`autoinjectOtelEnvVars` defaults to `false`. When `true`, Loco supplies collector connection and identity defaults to an instrumented application's OpenTelemetry SDK. Application code must already include the SDK and instrumentation. User-supplied environment variables and secrets take precedence; see [Runtime environment](../operations/applications.md#runtime-environment) for the exact variables and override rules.
+
+The settings are independent: a manually configured SDK can send data to Loco with environment injection off, and disabling collection never rewrites the SDK's configuration or its exports to another backend. Signal switches also do not change the environment injection preference. Environment overrides merge individual fields. Saving observability settings creates a deployment snapshot and rolls out the resource.
+
 ## Variables and secrets
 
 `env` holds plain values, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.
 
-A plain value can reference a variable Loco sets, listed in [Runtime environment](../operations/applications.md#runtime-environment), as `$(NAME)`; Kubernetes expands it when the container starts. Use it for software that takes the collector address in its own variables:
+A plain value can reference a variable Loco sets, listed in [Runtime environment](../operations/applications.md#runtime-environment), as `$(NAME)`; Kubernetes expands it when the container starts:
 
 ```yaml
 env:
-  OTEL_COLLECTOR_HOST: $(LOCO_OTEL_HOST)
-  OTEL_COLLECTOR_PORT_GRPC: $(LOCO_OTEL_GRPC_PORT)
+  DEPLOYMENT_REVISION: $(LOCO_DEPLOYMENT_ID)
 ```
 
 `$$(NAME)` produces a literal `$(NAME)`.

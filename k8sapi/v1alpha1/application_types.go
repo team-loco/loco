@@ -129,6 +129,10 @@ type ServiceSpec struct {
 
 // ServiceDeploymentSpec contains service deployment-specific configuration
 type ServiceDeploymentSpec struct {
+	// AutoinjectOtelEnvVars supplies OpenTelemetry SDK environment defaults.
+	// +optional
+	AutoinjectOtelEnvVars bool `json:"autoinjectOtelEnvVars,omitempty"`
+
 	// +required
 	// +kubebuilder:validation:MinLength=1
 	Image string `json:"image"`

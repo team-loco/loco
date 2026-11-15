@@ -278,7 +278,8 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 }
 
 const listClusterPlacementWindows = `-- name: ListClusterPlacementWindows :many
-SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at
+SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at, pw.resource_id, pw.environment_id,
+    pw.collect_logs, pw.collect_metrics, pw.collect_traces
 FROM placement_windows pw
 JOIN workspaces w ON w.id = pw.workspace_id
 WHERE pw.cluster_id = $1
@@ -286,10 +287,15 @@ ORDER BY pw.placed_at, pw.id
 `
 
 type ListClusterPlacementWindowsRow struct {
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	OrgID       uuid.UUID  `json:"orgId"`
-	PlacedAt    time.Time  `json:"placedAt"`
-	RemovedAt   *time.Time `json:"removedAt"`
+	WorkspaceID    uuid.UUID  `json:"workspaceId"`
+	OrgID          uuid.UUID  `json:"orgId"`
+	PlacedAt       time.Time  `json:"placedAt"`
+	RemovedAt      *time.Time `json:"removedAt"`
+	ResourceID     uuid.UUID  `json:"resourceId"`
+	EnvironmentID  uuid.UUID  `json:"environmentId"`
+	CollectLogs    bool       `json:"collectLogs"`
+	CollectMetrics bool       `json:"collectMetrics"`
+	CollectTraces  bool       `json:"collectTraces"`
 }
 
 func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementWindowsRow, error) {
@@ -306,6 +312,11 @@ func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uui
 			&i.OrgID,
 			&i.PlacedAt,
 			&i.RemovedAt,
+			&i.ResourceID,
+			&i.EnvironmentID,
+			&i.CollectLogs,
+			&i.CollectMetrics,
+			&i.CollectTraces,
 		); err != nil {
 			return nil, err
 		}
@@ -633,18 +644,32 @@ func (q *Queries) NotifyClusterPlacements(ctx context.Context, clusterID string)
 }
 
 const openPlacementWindow = `-- name: OpenPlacementWindow :exec
-INSERT INTO placement_windows (resource_id, cluster_id, workspace_id)
-SELECT r.id, $1, r.workspace_id FROM resources r WHERE r.id = $2
-ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO NOTHING
+INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, environment_id, collect_logs, collect_metrics, collect_traces)
+SELECT r.id, $1, r.workspace_id, $2,
+    $3, $4, $5
+FROM resources r WHERE r.id = $6
+ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO UPDATE
+SET collect_logs = EXCLUDED.collect_logs, collect_metrics = EXCLUDED.collect_metrics, collect_traces = EXCLUDED.collect_traces
 `
 
 type OpenPlacementWindowParams struct {
-	ClusterID  uuid.UUID `json:"clusterId"`
-	ResourceID uuid.UUID `json:"resourceId"`
+	ClusterID      uuid.UUID `json:"clusterId"`
+	EnvironmentID  uuid.UUID `json:"environmentId"`
+	CollectLogs    bool      `json:"collectLogs"`
+	CollectMetrics bool      `json:"collectMetrics"`
+	CollectTraces  bool      `json:"collectTraces"`
+	ResourceID     uuid.UUID `json:"resourceId"`
 }
 
 func (q *Queries) OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error {
-	_, err := q.db.Exec(ctx, openPlacementWindow, arg.ClusterID, arg.ResourceID)
+	_, err := q.db.Exec(ctx, openPlacementWindow,
+		arg.ClusterID,
+		arg.EnvironmentID,
+		arg.CollectLogs,
+		arg.CollectMetrics,
+		arg.CollectTraces,
+		arg.ResourceID,
+	)
 	return err
 }
 

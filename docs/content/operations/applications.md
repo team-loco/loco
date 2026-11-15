@@ -55,14 +55,24 @@ By default, the controller sets these variables in every application container:
 | `LOCO_APP_NAME`, `LOCO_RESOURCE_ID`, `LOCO_WORKSPACE_ID`, `LOCO_DEPLOYMENT_ID` | the application's identifiers |
 | `LOCO_REGION`, `LOCO_ENVIRONMENT` | the region and environment the deployment targets |
 | `LOCO_INTERNAL_DOMAIN`, `LOCO_PUBLIC_DOMAIN` | the in-cluster hostname, and the public hostname or an empty string |
-| `LOCO_OTEL_HOST`, `LOCO_OTEL_GRPC_PORT`, `LOCO_OTEL_HTTP_PORT` | the region's OpenTelemetry collector hostname and its OTLP/gRPC and OTLP/HTTP ports |
+
+The `LOCO_*` variables cannot be overridden. Application SDK environment configuration is opt-in: set `observability.autoinjectOtelEnvVars: true` in `loco.yaml`, or enable automatic environment configuration in the resource's Observability settings. The default is `false`. Signal collection has separate `observability.logs`, `metrics` and `traces` switches, each defaulting to `true`.
+
+When automatic environment configuration is enabled, Loco supplies these defaults to instrumented applications whose SDK supports environment configuration:
+
+| Variable | Value |
+|---|---|
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` | the region's OpenTelemetry collector over OTLP/HTTP (`http/protobuf`) |
-| `OTEL_SERVICE_NAME` | the application's workload name, `resource-<resource id>` |
+| `OTEL_SERVICE_NAME` | the resource's logical name (its slug), such as `checkout` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
 
-An instrumented application whose OpenTelemetry SDK supports environment configuration uses these variables to export to Loco. The collector attaches the workspace, environment and resource IDs from the pod's labels and drops any values the application sends for them.
+An `OTEL_*` variable under `env`, or named in `secrets` and set with `loco env`, replaces the matching default. Plain values take precedence when the same name also appears in `secrets`. Endpoint and protocol form a pair: setting either suppresses both defaults, so supply both when changing the connection. Signal-specific endpoint and protocol variables retain the SDK's standard precedence. Loco also leaves the service-name default unset when plain resource attributes define `service.name`, or when resource attributes come from a secret; the [OpenTelemetry specification](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) gives `OTEL_SERVICE_NAME` precedence over that attribute.
 
-An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set with `loco env`, replaces Loco's connection or identity default when the name matches. Sampler variables pass directly to the SDK. Plain values take precedence when the same name also appears in `secrets`. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden. A plain value can reference them as `$(LOCO_OTEL_HOST)`; see [Variables and secrets](../deployment/loco-yaml.md#variables-and-secrets).
+Setting `autoinjectOtelEnvVars` to `false` removes injected defaults on rollout and preserves user-supplied variables and secrets. It does not disable an SDK configured by the application or its image. Collection switches filter new resource records at authenticated ingest, regardless of whether they originate from stdout, an SDK, resource metrics or the gateway. They never change the application's SDK configuration. Stored data, build diagnostics, deployment status and control-plane events remain available.
+
+Collection policy travels with the control plane's authenticated placement windows and takes effect after the ingest proxy's `INGEST_PLACEMENT_CACHE_TTL`. A closed placement retains its last policy for queued records in that placement interval. Unmanaged dependencies that have no Loco resource ID continue to be associated with their workspace and collected.
+
+For data sent to Loco, the collector attaches workspace, environment and resource IDs from pod labels and drops application-supplied values for those IDs. It preserves application-provided service identity. By default it does not infer `service.name`, `service.namespace`, `service.version` or `service.instance.id` from Kubernetes labels, workload names, namespaces or container images. Kubernetes identity remains available under the `k8s.*` attributes.
 
 Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. In `CreateDeployment`, a nonempty environment map replaces the plain values. Omit `secret_bindings` to keep the current secret names. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings. To remove plain values, edit `loco.yaml` and apply it.
 

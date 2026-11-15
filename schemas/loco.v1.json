@@ -192,6 +192,17 @@
           "minimum": 1,
           "description": "Positive numeric primary GID for the application process. Omitted uses the image group.",
           "maximum": 2147483647
+        },
+        "observability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverrideObservability"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Collection switches default on; SDK environment injection defaults off."
         }
       },
       "additionalProperties": false,
@@ -492,15 +503,81 @@
         "deploy": {
           "$ref": "#/$defs/Deploy",
           "description": "How often the API sends a deployment a cluster fails to apply before marking it failed. The API fills omitted fields. Applies to every environment."
+        },
+        "observability": {
+          "$ref": "#/$defs/Observability",
+          "description": "Collection switches default on; SDK environment injection defaults off."
         }
       },
       "dependentRequired": {
-        "domains": ["port"],
-        "health": ["port"],
-        "routing": ["port"]
+        "domains": [
+          "port"
+        ],
+        "health": [
+          "port"
+        ],
+        "routing": [
+          "port"
+        ]
       },
       "additionalProperties": false,
       "type": "object"
+    },
+    "Observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logs": {
+          "type": "boolean",
+          "description": "Collect resource logs, including stdout and SDK logs. Defaults to true."
+        },
+        "metrics": {
+          "type": "boolean",
+          "description": "Collect resource metrics. Defaults to true."
+        },
+        "traces": {
+          "type": "boolean",
+          "description": "Collect resource traces, including ingress spans. Defaults to true."
+        },
+        "autoinjectOtelEnvVars": {
+          "type": "boolean",
+          "description": "Supply SDK environment defaults. Defaults to false."
+        }
+      }
+    },
+    "OverrideObservability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logs": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Collect resource logs, including stdout and SDK logs. Defaults to true."
+        },
+        "metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Collect resource metrics. Defaults to true."
+        },
+        "traces": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Collect resource traces, including ingress spans. Defaults to true."
+        },
+        "autoinjectOtelEnvVars": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Supply SDK environment defaults. Defaults to false."
+        }
+      }
     }
   },
   "properties": {

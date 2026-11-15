@@ -87,6 +87,9 @@ func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
 			r, _, _ := telemetrySecretFixture(t, app, name)
 			dep := mountTelemetryDeployment(t, r, app)
 			requireNoEnv(t, dep, name)
+			if name == envOTelResourceAttributes {
+				requireNoEnv(t, dep, envOTelServiceName)
+			}
 			if name == envOTLPEndpoint || name == envOTLPProtocol {
 				requireNoEnv(t, dep, envOTLPEndpoint)
 				requireNoEnv(t, dep, envOTLPProtocol)

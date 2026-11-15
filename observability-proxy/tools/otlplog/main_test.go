@@ -16,7 +16,7 @@ const (
 func TestExportRequestCarriesTheWorkspaceBodyAndSecond(t *testing.T) {
 	second := time.Unix(1_700_000_000, 0).UTC()
 	now := second.Add(700 * time.Millisecond)
-	payload, err := exportRequest(testWorkspaceID, testBody, now)
+	payload, err := exportRequest(testWorkspaceID, "resource-1", testBody, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,6 +29,10 @@ func TestExportRequestCarriesTheWorkspaceBodyAndSecond(t *testing.T) {
 	if !ok || workspace.Str() != testWorkspaceID {
 		t.Fatalf("workspace attribute = %v, want %q", workspace.AsRaw(), testWorkspaceID)
 	}
+	resource, _ := resourceLogs.Resource().Attributes().Get("loco.resource.id")
+	if resource.Str() != "resource-1" {
+		t.Fatalf("resource attribute=%v", resource.AsRaw())
+	}
 	record := resourceLogs.ScopeLogs().At(0).LogRecords().At(0)
 	if got := record.Body().Str(); got != testBody {
 		t.Fatalf("body = %q, want %q", got, testBody)
@@ -39,7 +43,7 @@ func TestExportRequestCarriesTheWorkspaceBodyAndSecond(t *testing.T) {
 }
 
 func TestExportRequestRequiresWorkspaceAndBody(t *testing.T) {
-	if _, err := exportRequest("", testBody, time.Now()); !errors.Is(err, errMissingFlags) {
+	if _, err := exportRequest("", "", testBody, time.Now()); !errors.Is(err, errMissingFlags) {
 		t.Fatalf("error = %v, want %v", err, errMissingFlags)
 	}
 }

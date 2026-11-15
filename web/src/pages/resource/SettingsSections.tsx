@@ -298,6 +298,61 @@ function regionNote(info: RegionInfo | undefined, deployed: boolean): ReactNode 
 	);
 }
 
+const OBSERVABILITY_CONTROLS = [
+	{ key: "logs", label: "Collect logs", hint: "Container stdout and application logs." },
+	{
+		key: "metrics",
+		label: "Collect metrics",
+		hint: "Application, resource usage and ingress metrics.",
+	},
+	{ key: "traces", label: "Collect traces", hint: "Application and ingress traces." },
+	{
+		key: "autoinjectOtelEnvVars",
+		label: "Configure SDK environment",
+		hint: "Set OpenTelemetry endpoint, protocol, service name and deployment attributes. Your environment values take precedence.",
+	},
+] as const;
+
+export function ObservabilitySection({ draft, base, locked, describedBy, onChange }: SectionProps) {
+	const next = draft.observability ?? base.observability;
+	return (
+		<SettingsBlock
+			id="set-observability"
+			title="Observability"
+			hint="Collection changes apply to new data. Existing data stays available."
+		>
+			{OBSERVABILITY_CONTROLS.map(({ key, label, hint }) => (
+				<div
+					key={key}
+					className={
+						key === "autoinjectOtelEnvVars"
+							? "flex items-start justify-between gap-4 border-t border-line pt-4"
+							: "flex items-start justify-between gap-4"
+					}
+				>
+					<div className="flex min-w-0 flex-col gap-1">
+						<label htmlFor={`observability-${key}`} className="text-[13.5px] font-medium">
+							{label}
+						</label>
+						<p id={`observability-${key}-hint`} className="m-0 text-[13px] text-fg3">
+							{hint}
+						</p>
+					</div>
+					<Switch
+						id={`observability-${key}`}
+						checked={next[key]}
+						disabled={locked}
+						aria-describedby={[`observability-${key}-hint`, describedBy].filter(Boolean).join(" ")}
+						onCheckedChange={(checked: boolean) => {
+							onChange({ observability: { ...next, [key]: checked } });
+						}}
+					/>
+				</div>
+			))}
+		</SettingsBlock>
+	);
+}
+
 export function RegionsSection({
 	draft,
 	base,

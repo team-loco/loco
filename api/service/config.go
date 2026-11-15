@@ -8,6 +8,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	"github.com/team-loco/loco/internal/observabilityconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -66,6 +67,7 @@ func (s *ConfigServer) GetConfig(
 			MaxReplicas:    locoControllerV1.MaxReplicas,
 		},
 		ServiceDefaults: &configv1.DefaultServiceConfig{
+			Observability:           observabilityconfig.Defaults().Proto(),
 			HealthCheck:             healthCheckFor(&health),
 			Cpu:                     s.defaults.CPU,
 			Memory:                  s.defaults.Memory,

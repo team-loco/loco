@@ -25,7 +25,7 @@ const (
 
 var errMissingFlags = errors.New("-workspace and -body are required")
 
-func exportRequest(workspace, body string, now time.Time) ([]byte, error) {
+func exportRequest(workspace, resource, body string, now time.Time) ([]byte, error) {
 	if workspace == "" || body == "" {
 		return nil, errMissingFlags
 	}
@@ -33,6 +33,9 @@ func exportRequest(workspace, body string, now time.Time) ([]byte, error) {
 	resourceLogs := logs.ResourceLogs().AppendEmpty()
 	resourceLogs.Resource().Attributes().PutStr("service.name", serviceName)
 	resourceLogs.Resource().Attributes().PutStr(workspaceAttribute, workspace)
+	if resource != "" {
+		resourceLogs.Resource().Attributes().PutStr("loco.resource.id", resource)
+	}
 	record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
 	// Whole seconds keep the record inside a query window that ends at the current second.
 	record.SetTimestamp(pcommon.NewTimestampFromTime(now.Truncate(time.Second)))
@@ -51,6 +54,7 @@ func rejectedRecords(response []byte) (int64, error) {
 
 func main() {
 	workspace := flag.String("workspace", "", "loco.workspace.id resource attribute of the log record")
+	resource := flag.String("resource", "", "loco.resource.id resource attribute of the log record")
 	body := flag.String("body", "", "body of the log record")
 	rejected := flag.Bool("rejected", false, "read an export response on stdin and print its rejected log record count")
 	flag.Parse()
@@ -66,7 +70,7 @@ func main() {
 		fmt.Println(count)
 		return
 	}
-	request, err := exportRequest(*workspace, *body, time.Now())
+	request, err := exportRequest(*workspace, *resource, *body, time.Now())
 	if err != nil {
 		log.Fatal(err)
 	}

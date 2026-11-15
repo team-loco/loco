@@ -8,6 +8,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/observabilityconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -96,18 +97,23 @@ func MergeDeploymentSpec(
 	if healthCheck == nil {
 		healthCheck = resourceServiceSpec.GetHealthCheck()
 	}
+	observability := observabilityconfig.Resolve(
+		resourceServiceSpec.GetObservability(),
+		requestServiceSpec.GetObservability(),
+	)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		RunAsUser:   requestServiceSpec.RunAsUser,
-		RunAsGroup:  requestServiceSpec.RunAsGroup,
-		Build:       requestServiceSpec.GetBuild(),
-		Port:        requestServiceSpec.Port,
-		Env:         requestServiceSpec.GetEnv(),
-		Cpu:         &resources.CPU,
-		Memory:      &resources.Memory,
-		MinReplicas: &resources.MinReplicas,
-		MaxReplicas: &resources.MaxReplicas,
-		Scalers:     resources.Scalers,
-		HealthCheck: healthCheck,
+		Observability: observability.Proto(),
+		RunAsUser:     requestServiceSpec.RunAsUser,
+		RunAsGroup:    requestServiceSpec.RunAsGroup,
+		Build:         requestServiceSpec.GetBuild(),
+		Port:          requestServiceSpec.Port,
+		Env:           requestServiceSpec.GetEnv(),
+		Cpu:           &resources.CPU,
+		Memory:        &resources.Memory,
+		MinReplicas:   &resources.MinReplicas,
+		MaxReplicas:   &resources.MaxReplicas,
+		Scalers:       resources.Scalers,
+		HealthCheck:   healthCheck,
 	}
 
 	return &deploymentv1.DeploymentSpec{
@@ -140,12 +146,13 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 	}
 
 	return &locoControllerV1.ServiceDeploymentSpec{
-		RunAsUser:   serviceSpec.RunAsUser,
-		RunAsGroup:  serviceSpec.RunAsGroup,
-		Image:       serviceSpec.GetBuild().GetImage(),
-		Port:        serviceSpec.Port,
-		HealthCheck: healthCheck,
-		Env:         serviceSpec.GetEnv(),
+		AutoinjectOtelEnvVars: serviceSpec.GetObservability().GetAutoinjectOtelEnvVars(),
+		RunAsUser:             serviceSpec.RunAsUser,
+		RunAsGroup:            serviceSpec.RunAsGroup,
+		Image:                 serviceSpec.GetBuild().GetImage(),
+		Port:                  serviceSpec.Port,
+		HealthCheck:           healthCheck,
+		Env:                   serviceSpec.GetEnv(),
 	}
 }
 

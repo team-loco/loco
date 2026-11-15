@@ -598,9 +598,8 @@ func systemEnvVars(
 		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},
 		{Name: "LOCO_PUBLIC_DOMAIN", Value: publicDomain},
 	}
-	collectorVars := collectorEnvVars(telemetry)
 	otelVars := openTelemetryEnvVars(app, telemetry, secretNames)
-	vars := slices.Concat(locoVars, collectorVars, otelVars)
+	vars := slices.Concat(locoVars, otelVars)
 
 	envVars := make([]*corev1ac.EnvVarApplyConfiguration, 0, len(vars))
 	for _, v := range vars {

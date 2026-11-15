@@ -90,6 +90,15 @@ message BuildSource {
   optional string build_id = 3 [(buf.validate.field).string.uuid = true];
 }
 
+// ObservabilityConfig controls collection by Loco separately from application SDK configuration.
+// Omitted signal switches default to true; omitted autoinject_otel_env_vars defaults to false.
+message ObservabilityConfig {
+  optional bool logs = 1;
+  optional bool metrics = 2;
+  optional bool traces = 3;
+  optional bool autoinject_otel_env_vars = 4;
+}
+
 // ServiceDeploymentSpec is the deployment specification for SERVICE type resources.
 message ServiceDeploymentSpec {
   BuildSource build = 1 [(buf.validate.field).required = true];
@@ -117,6 +126,9 @@ message ServiceDeploymentSpec {
     gt: 0
     lte: 2147483647
   }];
+
+  // Defaults to the resource settings when omitted; stored in the deployment snapshot.
+  ObservabilityConfig observability = 13;
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"

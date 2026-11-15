@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
+	"github.com/team-loco/loco/internal/observabilityconfig"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -54,10 +55,13 @@ type Gate struct {
 }
 
 type window struct {
-	workspaceID string
-	placedAt    time.Time
-	removedAt   time.Time
-	retention   *ingestv1.Retention
+	workspaceID   string
+	placedAt      time.Time
+	removedAt     time.Time
+	retention     *ingestv1.Retention
+	resourceID    string
+	environmentID string
+	collection    observabilityconfig.Config
 }
 
 // snapshot is one ListPlacementWindows response; retention applies to records that name no workspace.
@@ -209,9 +213,12 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 			return err
 		}
 		entry := window{
-			workspaceID: w.GetWorkspaceId(),
-			placedAt:    w.GetPlacedAt().AsTime(),
-			retention:   w.GetRetention(),
+			workspaceID:   w.GetWorkspaceId(),
+			placedAt:      w.GetPlacedAt().AsTime(),
+			retention:     w.GetRetention(),
+			resourceID:    w.GetResourceId(),
+			environmentID: w.GetEnvironmentId(),
+			collection:    observabilityconfig.Resolve(nil, w.GetObservability()),
 		}
 		if w.GetRemovedAt() != nil {
 			entry.removedAt = w.GetRemovedAt().AsTime()
@@ -237,9 +244,10 @@ type Admission struct {
 type verdict string
 
 const (
-	accepted              verdict = ""
-	rejectNotPlaced       verdict = "workspace_not_placed"
-	rejectOutsideOfWindow verdict = "outside_placement_window"
+	accepted                 verdict = ""
+	rejectCollectionDisabled verdict = "collection_disabled"
+	rejectNotPlaced          verdict = "workspace_not_placed"
+	rejectOutsideOfWindow    verdict = "outside_placement_window"
 )
 
 func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time) (verdict, error) {

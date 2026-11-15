@@ -150,7 +150,7 @@ with session(out) as browser:
         mode[0] = 'empty'
         page.get_by_role('button', name='Refresh', exact=True).click()
         page.get_by_text('Send your first trace', exact=True).wait_for()
-        expect(page.get_by_text('OTEL_EXPORTER_OTLP_ENDPOINT is already set on every replica', exact=True)).to_be_visible()
+        expect(page.get_by_text('Loco configures the collector connection by default. Add instrumentation to your app, or configure its SDK endpoint yourself.', exact=True)).to_be_visible()
         page.get_by_role('tab', name='Python', exact=True).click()
         expect(page.get_by_text('opentelemetry-instrument python app.py', exact=False)).to_be_visible()
         mode[0] = 'error'

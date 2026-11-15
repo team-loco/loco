@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.ingest.v1;
 
 import "google/protobuf/timestamp.proto";
+import "loco/deployment/v1/deployment.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/ingest/v1;ingestv1";
 
@@ -38,6 +39,10 @@ message PlacementWindow {
   google.protobuf.Timestamp removed_at = 3;
   // retention applies to the workspace's records: its organization's retention limits.
   Retention retention = 4;
+  string resource_id = 5;
+  string environment_id = 6;
+  // The latest effective collection policy for this resource placement interval.
+  deployment.v1.ObservabilityConfig observability = 7;
 }
 
 // Retention is how many days ClickHouse keeps each signal's rows.

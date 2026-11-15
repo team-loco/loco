@@ -19,6 +19,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
@@ -128,9 +129,16 @@ func (s *IngestServer) ListPlacementWindows(
 			}
 		}
 		window := &ingestv1.PlacementWindow{
-			WorkspaceId: row.WorkspaceID.String(),
-			PlacedAt:    timestamppb.New(row.PlacedAt),
-			Retention:   orgs[row.OrgID],
+			WorkspaceId:   row.WorkspaceID.String(),
+			PlacedAt:      timestamppb.New(row.PlacedAt),
+			Retention:     orgs[row.OrgID],
+			ResourceId:    row.ResourceID.String(),
+			EnvironmentId: row.EnvironmentID.String(),
+			Observability: &deploymentv1.ObservabilityConfig{
+				Logs:    new(row.CollectLogs),
+				Metrics: new(row.CollectMetrics),
+				Traces:  new(row.CollectTraces),
+			},
 		}
 		if row.RemovedAt != nil {
 			window.RemovedAt = timestamppb.New(*row.RemovedAt)

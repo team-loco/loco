@@ -9370,6 +9370,10 @@
             "type": "integer",
             "title": "cpu_target",
             "format": "int32"
+          },
+          "observability": {
+            "title": "observability",
+            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "DefaultServiceConfig",
@@ -9944,6 +9948,42 @@
         "additionalProperties": false,
         "description": "ListDeploymentsResponse is the response containing deployment list."
       },
+      "loco.deployment.v1.ObservabilityConfig": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "logs"
+          },
+          "metrics": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "metrics"
+          },
+          "traces": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "traces"
+          },
+          "autoinjectOtelEnvVars": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "autoinject_otel_env_vars"
+          }
+        },
+        "title": "ObservabilityConfig",
+        "additionalProperties": false,
+        "description": "ObservabilityConfig controls collection by Loco separately from application SDK configuration.\n Omitted signal switches default to true; omitted autoinject_otel_env_vars defaults to false."
+      },
       "loco.deployment.v1.Port": {
         "type": "object",
         "properties": {
@@ -10168,6 +10208,11 @@
             "title": "run_as_group",
             "format": "int64",
             "description": "int64.lte = 2147483647\nint64.gt = 0\n"
+          },
+          "observability": {
+            "title": "observability",
+            "description": "Defaults to the resource settings when omitted; stored in the deployment snapshot.",
+            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "ServiceDeploymentSpec",
@@ -11089,6 +11134,19 @@
             "title": "retention",
             "description": "retention applies to the workspace's records: its organization's retention limits.",
             "$ref": "#/components/schemas/loco.ingest.v1.Retention"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "observability": {
+            "title": "observability",
+            "description": "The latest effective collection policy for this resource placement interval.",
+            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "PlacementWindow",
@@ -13692,6 +13750,11 @@
             ],
             "title": "health_check",
             "description": "health check defaults"
+          },
+          "observability": {
+            "title": "observability",
+            "description": "Collection defaults on; application SDK environment injection defaults off.",
+            "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           }
         },
         "title": "ServiceSpec",

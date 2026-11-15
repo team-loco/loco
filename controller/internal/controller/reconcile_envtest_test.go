@@ -44,10 +44,11 @@ var _ = Describe("Application reconcile", func() {
 				WorkspaceID: "ws",
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
-						Image:        "registry.example.com/app:v1",
-						Port:         new(int32(8080)),
-						Env:          map[string]string{"B": "2", "A": "1", "C": "3"},
-						EnvSecretRef: &locov1alpha1.EnvSecretRef{Name: "env-converge", Revision: 2},
+						Image:                 "registry.example.com/app:v1",
+						AutoinjectOtelEnvVars: true,
+						Port:                  new(int32(8080)),
+						Env:                   map[string]string{"B": "2", "A": "1", "C": "3"},
+						EnvSecretRef:          &locov1alpha1.EnvSecretRef{Name: "env-converge", Revision: 2},
 					},
 					Resources: testResources(),
 				},
@@ -120,8 +121,8 @@ var _ = Describe("Application reconcile", func() {
 			Value: testCollectorEndpoint,
 		}))
 		Expect(container.Env).To(ContainElement(corev1.EnvVar{
-			Name:  envOTelHost,
-			Value: testCollectorHost,
+			Name:  envOTelServiceName,
+			Value: convergeName,
 		}))
 		plainStart := len(container.Env) - len(app.Spec.ServiceSpec.Deployment.Env)
 		Expect(container.Env[plainStart:]).To(Equal([]corev1.EnvVar{

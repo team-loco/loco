@@ -6,13 +6,15 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ObservabilityConfig, ObservabilityConfigJson } from "../../deployment/v1/deployment_pb";
+import { file_loco_deployment_v1_deployment } from "../../deployment/v1/deployment_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/ingest/v1/ingest.proto.
  */
 export const file_loco_ingest_v1_ingest: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QifgocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93EiwKCXJldGVudGlvbhgCIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbiK0AQoPUGxhY2VtZW50V2luZG93EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRItCglwbGFjZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJlbW92ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCXJldGVudGlvbhgEIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbiJGCglSZXRlbnRpb24SEAoIbG9nX2RheXMYASABKAUSEgoKdHJhY2VfZGF5cxgCIAEoBRITCgttZXRyaWNfZGF5cxgDIAEoBTLXAQoNSW5nZXN0U2VydmljZRJTCgpJc3N1ZVRva2VuEiEubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlcXVlc3QaIi5sb2NvLmluZ2VzdC52MS5Jc3N1ZVRva2VuUmVzcG9uc2UScQoUTGlzdFBsYWNlbWVudFdpbmRvd3MSKy5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QaLC5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vaW5nZXN0L3YxO2luZ2VzdHYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QifgocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93EiwKCXJldGVudGlvbhgCIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbiKhAgoPUGxhY2VtZW50V2luZG93EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRItCglwbGFjZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJlbW92ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCXJldGVudGlvbhgEIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbhITCgtyZXNvdXJjZV9pZBgFIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgGIAEoCRI+Cg1vYnNlcnZhYmlsaXR5GAcgASgLMicubG9jby5kZXBsb3ltZW50LnYxLk9ic2VydmFiaWxpdHlDb25maWciRgoJUmV0ZW50aW9uEhAKCGxvZ19kYXlzGAEgASgFEhIKCnRyYWNlX2RheXMYAiABKAUSEwoLbWV0cmljX2RheXMYAyABKAUy1wEKDUluZ2VzdFNlcnZpY2USUwoKSXNzdWVUb2tlbhIhLmxvY28uaW5nZXN0LnYxLklzc3VlVG9rZW5SZXF1ZXN0GiIubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlc3BvbnNlEnEKFExpc3RQbGFjZW1lbnRXaW5kb3dzEisubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXF1ZXN0GiwubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2luZ2VzdC92MTtpbmdlc3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_loco_deployment_v1_deployment]);
 
 /**
  * @generated from message loco.ingest.v1.IssueTokenRequest
@@ -158,6 +160,23 @@ export type PlacementWindow = Message<"loco.ingest.v1.PlacementWindow"> & {
    * @generated from field: loco.ingest.v1.Retention retention = 4;
    */
   retention?: Retention | undefined;
+
+  /**
+   * @generated from field: string resource_id = 5;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: string environment_id = 6;
+   */
+  environmentId: string;
+
+  /**
+   * The latest effective collection policy for this resource placement interval.
+   *
+   * @generated from field: loco.deployment.v1.ObservabilityConfig observability = 7;
+   */
+  observability?: ObservabilityConfig | undefined;
 };
 
 /**
@@ -188,6 +207,23 @@ export type PlacementWindowJson = {
    * @generated from field: loco.ingest.v1.Retention retention = 4;
    */
   retention?: RetentionJson;
+
+  /**
+   * @generated from field: string resource_id = 5;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: string environment_id = 6;
+   */
+  environmentId?: string;
+
+  /**
+   * The latest effective collection policy for this resource placement interval.
+   *
+   * @generated from field: loco.deployment.v1.ObservabilityConfig observability = 7;
+   */
+  observability?: ObservabilityConfigJson;
 };
 
 /**

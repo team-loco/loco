@@ -20,9 +20,6 @@ const (
 	envOTelServiceName        = "OTEL_SERVICE_NAME"
 	envOTelResourceAttributes = "OTEL_RESOURCE_ATTRIBUTES"
 	otlpProtocolHTTP          = "http/protobuf"
-	envOTelHost               = "LOCO_OTEL_HOST"
-	envOTelGRPCPort           = "LOCO_OTEL_GRPC_PORT"
-	envOTelHTTPPort           = "LOCO_OTEL_HTTP_PORT"
 	collectorHostFormat       = "%s.%s.svc.cluster.local"
 	otlpHTTPScheme            = "http"
 	attributeEnvironmentName  = "deployment.environment.name"
@@ -67,22 +64,14 @@ func formatPort(port int32) string {
 	return strconv.Itoa(int(port))
 }
 
-func collectorEnvVars(telemetry TelemetryConfig) []corev1.EnvVar {
-	host := telemetry.collectorHost()
-	grpcPort := formatPort(telemetry.GRPCPort)
-	httpPort := formatPort(telemetry.HTTPPort)
-	return []corev1.EnvVar{
-		{Name: envOTelHost, Value: host},
-		{Name: envOTelGRPCPort, Value: grpcPort},
-		{Name: envOTelHTTPPort, Value: httpPort},
-	}
-}
-
 func openTelemetryEnvVars(
 	app *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
 ) []corev1.EnvVar {
+	if !app.Spec.ServiceSpec.Deployment.AutoinjectOtelEnvVars {
+		return nil
+	}
 	endpoint := telemetry.otlpHTTPEndpoint()
-	serviceName := locov1alpha1.ApplicationName(app.Spec.ResourceID)
+	serviceName := app.Spec.Slug
 	settings := [][]corev1.EnvVar{
 		{
 			{Name: envOTLPEndpoint, Value: endpoint},
@@ -97,6 +86,11 @@ func openTelemetryEnvVars(
 		if userSetsAny(userEnv, secretNames, setting) {
 			continue
 		}
+		// OTEL_SERVICE_NAME takes precedence over service.name in OTEL_RESOURCE_ATTRIBUTES.
+		// A secret's attributes cannot be inspected without copying its value into the pod spec.
+		if len(setting) > 0 && setting[0].Name == envOTelServiceName && userResourceServiceName(userEnv, secretNames) {
+			continue
+		}
 		vars = append(vars, setting...)
 	}
 	return vars
@@ -106,6 +100,19 @@ func userSetsAny(userEnv map[string]string, secretNames []string, setting []core
 	for _, envVar := range setting {
 		_, plain := userEnv[envVar.Name]
 		if plain || slices.Contains(secretNames, envVar.Name) {
+			return true
+		}
+	}
+	return false
+}
+
+func userResourceServiceName(userEnv map[string]string, secretNames []string) bool {
+	if slices.Contains(secretNames, envOTelResourceAttributes) {
+		return true
+	}
+	for attribute := range strings.SplitSeq(userEnv[envOTelResourceAttributes], attributeSeparator) {
+		key, _, _ := strings.Cut(attribute, attributeAssignment)
+		if strings.TrimSpace(key) == "service.name" {
 			return true
 		}
 	}

@@ -14,18 +14,22 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
+	"github.com/team-loco/loco/internal/observabilityconfig"
 )
 
 const (
+	resourceAttribute      = "loco.resource.id"
+	environmentAttribute   = "loco.environment.id"
+	buildAttribute         = "loco.io/build-id"
 	workspaceAttribute     = "loco.workspace.id"
 	clusterAttribute       = "loco.cluster.id"
 	retentionAttribute     = "loco.retention.days"
-	rejectionMessagePrefix = "rejected records outside a placement on this cluster: "
+	rejectionMessagePrefix = "rejected telemetry records: "
 	rejectionSeparator     = ", "
 	rejectionCountSep      = "="
 
 	rejectedRecordsMetric = "loco_ingest_rejected_records_total"
-	rejectedRecordsHelp   = "Telemetry records dropped because their workspace had no placement on the sending cluster."
+	rejectedRecordsHelp   = "Telemetry records dropped by placement authorization or resource collection settings."
 	clusterLabel          = "cluster"
 	reasonLabel           = "reason"
 )
@@ -50,7 +54,11 @@ func newTenancyFilter(ctx context.Context, admission *Admission) *tenancyFilter 
 	return &tenancyFilter{ctx: ctx, admission: admission, counts: map[verdict]int64{}}
 }
 
-func (f *tenancyFilter) reject(resource pcommon.Resource, timestamp pcommon.Timestamp) bool {
+func (f *tenancyFilter) reject(
+	resource pcommon.Resource,
+	timestamp pcommon.Timestamp,
+	enabled func(observabilityconfig.Config) bool,
+) bool {
 	if f.err != nil {
 		return false
 	}
@@ -64,7 +72,38 @@ func (f *tenancyFilter) reject(resource pcommon.Resource, timestamp pcommon.Time
 		return false
 	}
 	if result == accepted {
-		return false
+		attrs := resource.Attributes()
+		resourceID, _ := attrs.Get(resourceAttribute)
+		buildID, _ := attrs.Get(buildAttribute)
+		if buildID.Str() != "" {
+			return false
+		}
+		environmentID, _ := attrs.Get(environmentAttribute)
+		if resourceID.Str() == "" {
+			return false
+		}
+		for _, policy := range slices.Backward(f.admission.placements.windows) {
+			if policy.resourceID != resourceID.Str() || policy.workspaceID != workspaceID {
+				continue
+			}
+			if environmentID.Str() != "" && environmentID.Str() != policy.environmentID {
+				continue
+			}
+			at := timestamp.AsTime()
+			skew := f.admission.gate.cfg.ClockSkew
+			if at.Before(policy.placedAt.Add(-skew)) ||
+				(!policy.removedAt.IsZero() && !at.Before(policy.removedAt.Add(skew))) {
+				continue
+			}
+			if enabled(policy.collection) {
+				return false
+			}
+			result = rejectCollectionDisabled
+			break
+		}
+		if result == accepted {
+			return false
+		}
 	}
 	f.counts[result]++
 	return true
@@ -117,7 +156,7 @@ func (f *tenancyFilter) logs(logs plog.Logs) {
 				if timestamp == 0 {
 					timestamp = record.ObservedTimestamp()
 				}
-				return f.reject(resource, timestamp)
+				return f.reject(resource, timestamp, logsEnabled)
 			})
 			return scopeLogs.LogRecords().Len() == 0
 		})
@@ -131,7 +170,7 @@ func (f *tenancyFilter) traces(traces ptrace.Traces) {
 		resource := resourceSpans.Resource()
 		resourceSpans.ScopeSpans().RemoveIf(func(scopeSpans ptrace.ScopeSpans) bool {
 			scopeSpans.Spans().RemoveIf(func(span ptrace.Span) bool {
-				return f.reject(resource, span.StartTimestamp())
+				return f.reject(resource, span.StartTimestamp(), tracesEnabled)
 			})
 			return scopeSpans.Spans().Len() == 0
 		})
@@ -158,25 +197,33 @@ func (f *tenancyFilter) metricEmptied(resource pcommon.Resource, metric pmetric.
 	switch metric.Type() {
 	case pmetric.MetricTypeGauge:
 		points := metric.Gauge().DataPoints()
-		points.RemoveIf(func(point pmetric.NumberDataPoint) bool { return f.reject(resource, point.Timestamp()) })
+		points.RemoveIf(
+			func(point pmetric.NumberDataPoint) bool { return f.reject(resource, point.Timestamp(), metricsEnabled) },
+		)
 		return points.Len() == 0
 	case pmetric.MetricTypeSum:
 		points := metric.Sum().DataPoints()
-		points.RemoveIf(func(point pmetric.NumberDataPoint) bool { return f.reject(resource, point.Timestamp()) })
+		points.RemoveIf(
+			func(point pmetric.NumberDataPoint) bool { return f.reject(resource, point.Timestamp(), metricsEnabled) },
+		)
 		return points.Len() == 0
 	case pmetric.MetricTypeHistogram:
 		points := metric.Histogram().DataPoints()
-		points.RemoveIf(func(point pmetric.HistogramDataPoint) bool { return f.reject(resource, point.Timestamp()) })
+		points.RemoveIf(func(point pmetric.HistogramDataPoint) bool {
+			return f.reject(resource, point.Timestamp(), metricsEnabled)
+		})
 		return points.Len() == 0
 	case pmetric.MetricTypeExponentialHistogram:
 		points := metric.ExponentialHistogram().DataPoints()
 		points.RemoveIf(func(point pmetric.ExponentialHistogramDataPoint) bool {
-			return f.reject(resource, point.Timestamp())
+			return f.reject(resource, point.Timestamp(), metricsEnabled)
 		})
 		return points.Len() == 0
 	case pmetric.MetricTypeSummary:
 		points := metric.Summary().DataPoints()
-		points.RemoveIf(func(point pmetric.SummaryDataPoint) bool { return f.reject(resource, point.Timestamp()) })
+		points.RemoveIf(func(point pmetric.SummaryDataPoint) bool {
+			return f.reject(resource, point.Timestamp(), metricsEnabled)
+		})
 		return points.Len() == 0
 	case pmetric.MetricTypeEmpty:
 		return false
@@ -184,3 +231,7 @@ func (f *tenancyFilter) metricEmptied(resource pcommon.Resource, metric pmetric.
 		return false
 	}
 }
+
+func logsEnabled(cfg observabilityconfig.Config) bool    { return cfg.Logs }
+func tracesEnabled(cfg observabilityconfig.Config) bool  { return cfg.Traces }
+func metricsEnabled(cfg observabilityconfig.Config) bool { return cfg.Metrics }

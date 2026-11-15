@@ -70,6 +70,10 @@ spec:
                   deployment:
                     description: Deployment info (current or requested)
                     properties:
+                      autoinjectOtelEnvVars:
+                        description: AutoinjectOtelEnvVars supplies OpenTelemetry
+                          SDK environment defaults.
+                        type: boolean
                       env:
                         additionalProperties:
                           type: string

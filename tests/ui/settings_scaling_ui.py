@@ -6,7 +6,7 @@ from pathlib import Path
 from playwright.sync_api import expect
 from harness import authenticate, evidence, load_state, repo, session
 
-parser = argparse.ArgumentParser(description="Exercise resource autoscaling and failed-save recovery")
+parser = argparse.ArgumentParser(description="Exercise resource autoscaling, observability settings and failed-save recovery")
 parser.add_argument("--state")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/settings-scaling"))
 args = parser.parse_args()
@@ -31,7 +31,7 @@ def resource_fixture():
         "workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE",
         "spec": {"service": {"routing": {"port": 8080}, "regions": {region: {"enabled": True, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1} for region in regions}}},
     })["resourceId"]
-    runtime = json.dumps({"build": {"type": "image", "image": "registry.example.com/app:1"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080})
+    runtime = json.dumps({"build": {"type": "image", "image": "registry.example.com/app:1"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080, "observability": defaults["observability"]})
     for region in regions:
         deployment = str(uuid.uuid4())
         cluster = clusters[region]
@@ -63,7 +63,24 @@ with session(out) as browser:
             route.continue_()
 
         context.route("**/loco.resource.v1.ResourceService/UpdateResource", update)
-        context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", lambda route: route.abort())
+        deploy_mode = ["unexpected"]
+        deployments = []
+
+        def create_deployment(route):
+            deployments.append(route.request.post_data_json)
+            if deploy_mode[0] == "unexpected":
+                route.abort()
+            elif deploy_mode[0] == "fail":
+                route.fulfill(status=503, json={"code": "unavailable", "message": "fixture rejected observability"})
+            else:
+                body = route.request.post_data_json
+                # The fixture image has no registry. Store the requested snapshot so the
+                # normal read path exercises the saved state without resolving that image.
+                runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
+                deployment = evidence.psql(state["container"], f"UPDATE deployments SET spec={runtime} WHERE resource_id='{resource}' AND region='{body['region']}' AND is_active RETURNING id;")
+                route.fulfill(json={"deploymentId": deployment})
+
+        context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment)
         case = f"{theme}{'-narrow' if narrow else ''}"
         try:
             page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}?env=production&tab=settings")
@@ -128,6 +145,30 @@ with session(out) as browser:
             section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
             section.get_by_role("button", name=f"Decrease maximum replicas in {regions[0]}", exact=True).click()
             expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+            sdk = page.get_by_role("switch", name="Configure SDK environment", exact=True)
+            expect(sdk).to_be_checked()
+            sdk.focus()
+            page.keyboard.press("Space")
+            expect(sdk).not_to_be_checked()
+            expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
+            deploy_mode[0] = "fail"
+            save.click()
+            expect(page.get_by_text("fixture rejected observability", exact=False)).to_be_visible()
+            expect(sdk).not_to_be_checked()
+            expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
+            assert len(deployments) == len(regions), deployments
+            expected = {"injectOtel": False}
+            assert all(call["spec"]["service"]["observability"] == expected for call in deployments), deployments
+            deployments.clear()
+            deploy_mode[0] = "pass"
+            save_and_settle()
+            assert len(deployments) == len(regions), deployments
+            expect(sdk).not_to_be_checked()
+            sdk.click()
+            save_and_settle()
+            expect(sdk).to_be_checked()
+            runtime = json.loads(evidence.psql(state["container"], f"SELECT json_agg(spec) FROM deployments WHERE resource_id='{resource}' AND is_active;"))
+            assert all(spec["observability"] == {"injectOtel": True} for spec in runtime), runtime
             assert not errors, errors
         except BaseException:
             page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
@@ -136,4 +177,4 @@ with session(out) as browser:
             context.close()
     finally:
         browser.close()
-print("PASS: Settings scaling through region map saves, with failed-save recovery")
+print("PASS: Settings scaling and observability settings saves, with failed-save recovery")
