@@ -15,6 +15,7 @@ loco config --help
 | `locoadm validate --file loco-install.yaml` | Validate the unreleased [installation file](installation.md) contract |
 | `locoadm plan`, `locoadm apply`, `locoadm status` | Plan, install and inspect the installation selected by `--file` |
 | `locoadm bootstrap --file loco-install.yaml --email admin@example.com` | Create the first administrator through the installation's identity provider and save its CLI session |
+| `locoadm admin list`, `grant <user-id>`, `revoke <user-id>` | List, grant and revoke [system admins](../operations/self-hosting.md#first-system-admin) |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
 | `locoadm recovery export` | Encrypt seal material and individual recovery shares for separate custodians |
 | `locoadm org limits get`, `set`, `unset` | Show or override an organization's [count limits](../operations/access.md#count-limits) |

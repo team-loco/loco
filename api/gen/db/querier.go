@@ -13,6 +13,7 @@ import (
 
 type Querier interface {
 	AddSystemAdminEntries(ctx context.Context, emails []string) error
+	AddSystemAdminGrant(ctx context.Context, arg AddSystemAdminGrantParams) (int64, error)
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
@@ -208,6 +209,8 @@ type Querier interface {
 	ListSecretSizes(ctx context.Context, arg ListSecretSizesParams) ([]ListSecretSizesRow, error)
 	ListSecrets(ctx context.Context, arg ListSecretsParams) ([]ListSecretsRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
+	ListSystemAdmins(ctx context.Context) ([]ListSystemAdminsRow, error)
+	ListUnclaimedSystemAdminEmails(ctx context.Context) ([]string, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
@@ -235,6 +238,8 @@ type Querier interface {
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
+	// Locks every system:admin row so concurrent revocations cannot remove the last admin.
+	LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error)
 	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error)
@@ -271,6 +276,8 @@ type Querier interface {
 	RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams) error
 	RemoveResourceScopesForUserInWorkspace(ctx context.Context, arg RemoveResourceScopesForUserInWorkspaceParams) error
 	RemoveSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]RemoveSystemAdminEntriesExceptRow, error)
+	RemoveSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error)
+	RemoveSystemAdminScopeUnlessGranted(ctx context.Context, userID uuid.UUID) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error
@@ -294,6 +301,7 @@ type Querier interface {
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
+	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)
 	SystemAdminExists(ctx context.Context) (bool, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error

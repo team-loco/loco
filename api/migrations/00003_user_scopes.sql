@@ -44,6 +44,13 @@ CREATE TABLE system_admin_claims (
     claimed_at TIMESTAMPTZ
 );
 
+-- One row per system:admin granted through SystemAdminService.GrantSystemAdmin.
+CREATE TABLE system_admin_grants (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    granted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
 -- token format: loco_s_<base64url(32 random bytes)>  access token
 --               loco_r_<base64url(32 random bytes)>  refresh token
@@ -108,6 +115,7 @@ CREATE INDEX invitations_email_open_idx ON invitations (lower(email)) WHERE clai
 DROP TABLE IF EXISTS invitations;
 DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS session_tokens;
+DROP TABLE IF EXISTS system_admin_grants;
 DROP TABLE IF EXISTS system_admin_claims;
 DROP TABLE IF EXISTS system_bootstrap;
 DROP TABLE IF EXISTS user_scopes;

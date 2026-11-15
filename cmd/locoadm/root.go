@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/team-loco/loco/cmd/locoadm/admin"
 	"github.com/team-loco/loco/cmd/locoadm/bootstrap"
 	"github.com/team-loco/loco/cmd/locoadm/cluster"
 	"github.com/team-loco/loco/cmd/locoadm/install"
@@ -18,6 +19,7 @@ func NewRootCmd() *cobra.Command {
 		Use:   "locoadm",
 		Short: "The CLI for operating a Loco installation",
 	}
+	root.AddCommand(admin.BuildAdminCmd())
 	root.AddCommand(cluster.BuildClusterCmd())
 	root.AddCommand(bootstrap.BuildBootstrapCmd())
 	root.AddCommand(user.BuildUserCmd())

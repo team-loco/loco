@@ -23,6 +23,7 @@ const (
 	IdentityRevoked      = "identity.revoked"
 	SystemAdminClaimed   = "system_admin.claimed"
 	SystemAdminRevoked   = "system_admin.revoked"
+	SystemAdminGranted   = "system_admin.granted"
 	CLILoginApproved     = "cli_login.approved"
 	CLILoginCompleted    = "cli_login.completed"
 	OrgCreated           = "org.created"
@@ -86,6 +87,12 @@ const (
 	deletedAttribute = "loco.events.deleted"
 )
 
+// Sources of a system:admin grant, recorded as FieldSource.
+const (
+	SourceConfig = "config"
+	SourceGrant  = "grant"
+)
+
 const ActorSystem = "system"
 
 const (
@@ -139,6 +146,7 @@ const (
 	FieldIssuer        = "issuer"
 	FieldSubject       = "subject"
 	FieldIdentities    = "identities"
+	FieldSource        = "source"
 	FieldEntityType    = "entityType"
 	FieldEntityID      = "entityId"
 	FieldReplicas      = "replicas"

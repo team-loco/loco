@@ -758,6 +758,12 @@ type SystemAdminClaim struct {
 	ClaimedAt *time.Time `json:"claimedAt"`
 }
 
+type SystemAdminGrant struct {
+	UserID    uuid.UUID  `json:"userId"`
+	GrantedBy *uuid.UUID `json:"grantedBy"`
+	GrantedAt time.Time  `json:"grantedAt"`
+}
+
 type SystemBootstrap struct {
 	Singleton      bool       `json:"singleton"`
 	BootstrappedBy *uuid.UUID `json:"bootstrappedBy"`

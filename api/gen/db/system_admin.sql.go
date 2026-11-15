@@ -22,6 +22,24 @@ func (q *Queries) AddSystemAdminEntries(ctx context.Context, emails []string) er
 	return err
 }
 
+const addSystemAdminGrant = `-- name: AddSystemAdminGrant :execrows
+INSERT INTO system_admin_grants (user_id, granted_by) VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AddSystemAdminGrantParams struct {
+	UserID    uuid.UUID  `json:"userId"`
+	GrantedBy *uuid.UUID `json:"grantedBy"`
+}
+
+func (q *Queries) AddSystemAdminGrant(ctx context.Context, arg AddSystemAdminGrantParams) (int64, error) {
+	result, err := q.db.Exec(ctx, addSystemAdminGrant, arg.UserID, arg.GrantedBy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const claimSystemAdmin = `-- name: ClaimSystemAdmin :execrows
 UPDATE system_admin_claims s
 SET user_id = $1::uuid, claimed_at = NOW()
@@ -41,6 +59,106 @@ func (q *Queries) ClaimSystemAdmin(ctx context.Context, arg ClaimSystemAdminPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const listSystemAdmins = `-- name: ListSystemAdmins :many
+SELECT u.id, u.email, i.issuer, i.subject,
+    (c.user_id IS NOT NULL)::boolean AS configured,
+    (g.user_id IS NOT NULL)::boolean AS granted
+FROM user_scopes s
+JOIN users u ON u.id = s.user_id
+LEFT JOIN identities i ON i.user_id = u.id
+LEFT JOIN system_admin_claims c ON c.user_id = u.id
+LEFT JOIN system_admin_grants g ON g.user_id = u.id
+WHERE s.scope = 'admin' AND s.entity_type = 'system' AND s.entity_id = '00000000-0000-0000-0000-000000000000'
+ORDER BY u.email
+`
+
+type ListSystemAdminsRow struct {
+	ID         uuid.UUID `json:"id"`
+	Email      string    `json:"email"`
+	Issuer     *string   `json:"issuer"`
+	Subject    *string   `json:"subject"`
+	Configured bool      `json:"configured"`
+	Granted    bool      `json:"granted"`
+}
+
+func (q *Queries) ListSystemAdmins(ctx context.Context) ([]ListSystemAdminsRow, error) {
+	rows, err := q.db.Query(ctx, listSystemAdmins)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSystemAdminsRow
+	for rows.Next() {
+		var i ListSystemAdminsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Issuer,
+			&i.Subject,
+			&i.Configured,
+			&i.Granted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnclaimedSystemAdminEmails = `-- name: ListUnclaimedSystemAdminEmails :many
+SELECT email FROM system_admin_claims WHERE user_id IS NULL ORDER BY email
+`
+
+func (q *Queries) ListUnclaimedSystemAdminEmails(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listUnclaimedSystemAdminEmails)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			return nil, err
+		}
+		items = append(items, email)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockSystemAdmins = `-- name: LockSystemAdmins :many
+SELECT user_id FROM user_scopes
+WHERE scope = 'admin' AND entity_type = 'system' AND entity_id = '00000000-0000-0000-0000-000000000000'
+FOR UPDATE
+`
+
+// Locks every system:admin row so concurrent revocations cannot remove the last admin.
+func (q *Queries) LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockSystemAdmins)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var user_id uuid.UUID
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const removeSystemAdminEntriesExcept = `-- name: RemoveSystemAdminEntriesExcept :many
@@ -84,4 +202,39 @@ func (q *Queries) RemoveSystemAdminEntriesExcept(ctx context.Context, emails []s
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeSystemAdminGrant = `-- name: RemoveSystemAdminGrant :execrows
+DELETE FROM system_admin_grants WHERE user_id = $1
+`
+
+func (q *Queries) RemoveSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, removeSystemAdminGrant, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const removeSystemAdminScopeUnlessGranted = `-- name: RemoveSystemAdminScopeUnlessGranted :exec
+DELETE FROM user_scopes s
+WHERE s.user_id = $1
+    AND s.scope = 'admin' AND s.entity_type = 'system' AND s.entity_id = '00000000-0000-0000-0000-000000000000'
+    AND NOT EXISTS (SELECT 1 FROM system_admin_grants g WHERE g.user_id = $1)
+`
+
+func (q *Queries) RemoveSystemAdminScopeUnlessGranted(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, removeSystemAdminScopeUnlessGranted, userID)
+	return err
+}
+
+const systemAdminClaimed = `-- name: SystemAdminClaimed :one
+SELECT EXISTS (SELECT 1 FROM system_admin_claims WHERE user_id = $1)
+`
+
+func (q *Queries) SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, systemAdminClaimed, userID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }

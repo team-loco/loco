@@ -90,6 +90,7 @@ func TestResolveGrantsSystemAdminToAListedVerifiedEmail(t *testing.T) {
 	claimed := adminEvents(t, pool, events.SystemAdminClaimed)
 	want := map[string]string{
 		events.FieldEmail: adminEmail, events.FieldIssuer: testIssuerURL, events.FieldSubject: "admin",
+		events.FieldSource: events.SourceConfig,
 	}
 	if len(claimed) != 1 || claimed[0].Subject != user.ID || !maps.Equal(claimed[0].Data, want) {
 		t.Fatalf("claimed events = %+v, want one for %s with %v", claimed, user.ID, want)
@@ -211,6 +212,7 @@ func TestSyncSystemAdminsRevokesARemovedEmailAndReopensItWhenReadded(t *testing.
 	revoked := adminEvents(t, pool, events.SystemAdminRevoked)
 	want := map[string]string{
 		events.FieldEmail: adminEmail, events.FieldIssuer: testIssuerURL, events.FieldSubject: "admin",
+		events.FieldSource: events.SourceConfig,
 	}
 	if len(revoked) != 1 || revoked[0].Subject != user.ID || !maps.Equal(revoked[0].Data, want) {
 		t.Fatalf("revoked events = %+v, want one for %s with %v", revoked, user.ID, want)

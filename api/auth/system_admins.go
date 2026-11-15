@@ -42,7 +42,8 @@ func (a SystemAdmins) lists(email string) bool {
 }
 
 // SyncSystemAdmins makes the claim table match admins: it opens a claim for each new email and
-// deletes the claims of removed emails, revoking system:admin from the users who claimed them.
+// deletes the claims of removed emails, revoking system:admin from the users who claimed them
+// unless GrantSystemAdmin also granted it.
 func SyncSystemAdmins(ctx context.Context, pool *pgxpool.Pool, admins SystemAdmins) error {
 	emails := []string(admins)
 	if emails == nil {
@@ -70,10 +71,10 @@ func SyncSystemAdmins(ctx context.Context, pool *pgxpool.Pool, admins SystemAdmi
 }
 
 func revokeSystemAdmin(ctx context.Context, q *genDb.Queries, entry genDb.RemoveSystemAdminEntriesExceptRow) error {
-	if err := q.RemoveUserScope(ctx, genDb.RemoveUserScopeParams(systemAdminScope(*entry.UserID))); err != nil {
+	if err := q.RemoveSystemAdminScopeUnlessGranted(ctx, *entry.UserID); err != nil {
 		return fmt.Errorf("revoke system admin from user %s: %w", *entry.UserID, err)
 	}
-	data := map[string]any{events.FieldEmail: entry.Email}
+	data := map[string]any{events.FieldEmail: entry.Email, events.FieldSource: events.SourceConfig}
 	if entry.Issuer != nil && entry.Subject != nil {
 		data[events.FieldIssuer] = *entry.Issuer
 		data[events.FieldSubject] = *entry.Subject
@@ -109,7 +110,7 @@ func (r *Resolver) claimSystemAdmin(
 	if claimed == 0 {
 		return false, nil
 	}
-	if err := qtx.AddUserScope(ctx, systemAdminScope(user.ID)); err != nil {
+	if err := qtx.AddUserScope(ctx, SystemAdminScope(user.ID)); err != nil {
 		return false, fmt.Errorf("%w: grant system admin to user %s: %w", ErrResolve, user.ID, err)
 	}
 	if err := events.Record(ctx, qtx, events.Event{
@@ -122,6 +123,7 @@ func (r *Resolver) claimSystemAdmin(
 			events.FieldEmail:   email,
 			events.FieldIssuer:  id.Issuer,
 			events.FieldSubject: id.Subject,
+			events.FieldSource:  events.SourceConfig,
 		},
 	}); err != nil {
 		return false, fmt.Errorf("%w: record system admin claimed for user %s: %w", ErrResolve, user.ID, err)
@@ -140,7 +142,8 @@ func (r *Resolver) claimSystemAdminOnSignIn(ctx context.Context, user genDb.User
 	})
 }
 
-func systemAdminScope(userID uuid.UUID) genDb.AddUserScopeParams {
+// SystemAdminScope is the user_scopes row that makes userID a system admin.
+func SystemAdminScope(userID uuid.UUID) genDb.AddUserScopeParams {
 	return genDb.AddUserScopeParams{
 		UserID:     userID,
 		Scope:      genDb.ScopeAdmin,

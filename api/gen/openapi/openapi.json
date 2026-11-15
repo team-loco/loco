@@ -6,6 +6,192 @@
     "description": "Deploy applications and manage workspaces, environments, and resources through Loco's Connect RPC API."
   },
   "paths": {
+    "/loco.admin.v1.SystemAdminService/GrantSystemAdmin": {
+      "post": {
+        "tags": [
+          "loco.admin.v1.SystemAdminService"
+        ],
+        "summary": "GrantSystemAdmin",
+        "description": "GrantSystemAdmin makes an existing user a system admin.",
+        "operationId": "loco.admin.v1.SystemAdminService.GrantSystemAdmin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.admin.v1.GrantSystemAdminRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.admin.v1.GrantSystemAdminResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.admin.v1.SystemAdminService/ListSystemAdmins": {
+      "post": {
+        "tags": [
+          "loco.admin.v1.SystemAdminService"
+        ],
+        "summary": "ListSystemAdmins",
+        "description": "ListSystemAdmins lists the system admins and the configured emails nobody has claimed.",
+        "operationId": "loco.admin.v1.SystemAdminService.ListSystemAdmins",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.admin.v1.ListSystemAdminsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.admin.v1.ListSystemAdminsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.admin.v1.SystemAdminService/RevokeSystemAdmin": {
+      "post": {
+        "tags": [
+          "loco.admin.v1.SystemAdminService"
+        ],
+        "summary": "RevokeSystemAdmin",
+        "description": "RevokeSystemAdmin removes a grant made with GrantSystemAdmin. It refuses to remove the\n last system admin and an admin that holds the role only through configuration.",
+        "operationId": "loco.admin.v1.SystemAdminService.RevokeSystemAdmin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.admin.v1.RevokeSystemAdminRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.admin.v1.RevokeSystemAdminResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.agent.v1.AgentService/Register": {
       "post": {
         "tags": [
@@ -7480,6 +7666,108 @@
           }
         ],
         "description": "Any JSON value: `null`, number, string, boolean, array, or object."
+      },
+      "loco.admin.v1.GrantSystemAdminRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid"
+          }
+        },
+        "title": "GrantSystemAdminRequest",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.GrantSystemAdminResponse": {
+        "type": "object",
+        "title": "GrantSystemAdminResponse",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.ListSystemAdminsRequest": {
+        "type": "object",
+        "title": "ListSystemAdminsRequest",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.ListSystemAdminsResponse": {
+        "type": "object",
+        "properties": {
+          "admins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.admin.v1.SystemAdmin"
+            },
+            "title": "admins"
+          },
+          "unclaimedEmails": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "unclaimed_emails",
+            "description": "unclaimed_emails are configured emails no user has claimed yet."
+          }
+        },
+        "title": "ListSystemAdminsResponse",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.RevokeSystemAdminRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid"
+          }
+        },
+        "title": "RevokeSystemAdminRequest",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.RevokeSystemAdminResponse": {
+        "type": "object",
+        "title": "RevokeSystemAdminResponse",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.SystemAdmin": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "user_id"
+          },
+          "email": {
+            "type": "string",
+            "title": "email"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "issuer",
+            "description": "issuer and subject identify the identity the user signs in through."
+          },
+          "subject": {
+            "type": "string",
+            "title": "subject"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.admin.v1.SystemAdminSource"
+            },
+            "title": "sources"
+          }
+        },
+        "title": "SystemAdmin",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.SystemAdminSource": {
+        "type": "string",
+        "title": "SystemAdminSource",
+        "enum": [
+          "SYSTEM_ADMIN_SOURCE_UNSPECIFIED",
+          "SYSTEM_ADMIN_SOURCE_CONFIG",
+          "SYSTEM_ADMIN_SOURCE_GRANT"
+        ],
+        "description": "SystemAdminSource says why a user holds system:admin."
       },
       "loco.agent.v1.AgentCapacity": {
         "type": "object",
@@ -15236,6 +15524,10 @@
   },
   "security": [],
   "tags": [
+    {
+      "name": "loco.admin.v1.SystemAdminService",
+      "description": "SystemAdminService lists, grants and revokes system:admin. Every RPC requires system admin."
+    },
     {
       "name": "loco.environment.v1.EnvironmentService",
       "description": "EnvironmentService manages environments within a workspace."

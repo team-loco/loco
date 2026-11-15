@@ -311,6 +311,9 @@ var (
 
 	ManageClusters = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
 
+	// ManageSystemAdmins requires system:admin.
+	ManageSystemAdmins = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
+
 	// domains
 
 	ListPlatformDomains = Action{
