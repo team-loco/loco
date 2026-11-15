@@ -37,10 +37,11 @@ def test_api_changes_do_not_start_other_modules(module_dependencies):
 
 
 def test_root_libraries_select_consumers(module_dependencies, subtests):
-    expected = {".", "cmd", "api", "agent", "observability-proxy"}
+    expected = {".", "cmd", "api", "agent", "builder", "controller", "observability-proxy"}
     for path in (
         "internal/buildinfo/version.go",
         "gen/go/loco/token/v1/token.pb.go",
+        "schemas/loco.v1.json",
         "go.mod",
     ):
         with subtests.test(path=path):

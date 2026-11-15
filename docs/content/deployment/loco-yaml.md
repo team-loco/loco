@@ -91,7 +91,7 @@ Set `health: {}` to enable HTTP liveness and readiness checks with the API defau
 
 A rollout starts new replicas next to the old ones, up to a quarter more than the desired count, and stops an old replica only after a new one has stayed ready for the worker cluster's `controller.minReadySeconds` (10 seconds by default). A new version that crashes, never accepts connections or fails its health check therefore receives no traffic and replaces no old replica: the deployment fails and the previous version keeps serving with all its replicas. A worker's new replica replaces an old one once it has run that long without exiting.
 
-Check the structure without calling the API:
+Check the file without calling the API. `validate` parses the file and checks it against the JSON Schema built into the CLI, including the CPU, memory and replica limits, and prints each error with its field path. The plan checks what needs the API, such as regions and domains:
 
 ```sh
 loco infra validate
