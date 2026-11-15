@@ -4,7 +4,7 @@ import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
-import { useState, type MouseEvent } from "react";
+import { startTransition, useState, type MouseEvent } from "react";
 import { useQueryStates } from "nuqs";
 import { useNavigate, useParams } from "react-router";
 
@@ -91,8 +91,11 @@ export function Settings() {
 	const accountDirty = drafts.account !== null && user !== null && drafts.account !== user.name;
 	const anyDirty = wsDirty || orgDirty || accountDirty;
 
+	// A transition keeps the current scope on screen while the Personal scope's theme stylesheets load.
 	const selectScope = (next: SettingsScope) => {
-		void setParams({ scope: next, tab: null });
+		startTransition(() => {
+			void setParams({ scope: next, tab: null });
+		});
 	};
 
 	const openWorkspace = (event: MouseEvent, w: Workspace) => {
