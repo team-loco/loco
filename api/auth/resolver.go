@@ -29,6 +29,7 @@ type Resolver struct {
 	queries        *genDb.Queries
 	policy         SignupPolicy
 	emailVerifiers EmailVerifiers
+	systemAdmins   SystemAdmins
 	counts         *configv1.CountLimits
 }
 
@@ -37,6 +38,13 @@ type ResolverOption func(*Resolver)
 func WithEmailVerifiers(verifiers EmailVerifiers) ResolverOption {
 	return func(r *Resolver) {
 		r.emailVerifiers = verifiers
+	}
+}
+
+// WithSystemAdmins grants system:admin to the first verified sign-in with each listed email.
+func WithSystemAdmins(admins SystemAdmins) ResolverOption {
+	return func(r *Resolver) {
+		r.systemAdmins = admins
 	}
 }
 
@@ -113,6 +121,10 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []Cla
 	}
 	if !verified || email == nil {
 		return user, nil, nil
+	}
+	id.EmailVerified = true
+	if claimErr := r.claimSystemAdminOnSignIn(ctx, user, id); claimErr != nil {
+		return genDb.User{}, nil, claimErr
 	}
 	claimed, err := r.claimOpenInvitations(ctx, user, id.Email)
 	if err != nil {
@@ -361,14 +373,15 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return genDb.User{}, nil, fmt.Errorf("%w: look up user by email: %w", ErrResolve, err)
 	}
-	if policyErr := r.policy.Check(); policyErr != nil {
+	policyErr := r.policy.Check()
+	if policyErr != nil && !r.systemAdmins.lists(id.Email) {
 		return genDb.User{}, nil, policyErr
 	}
 	user, err := createUser(ctx, qtx, id)
 	if err != nil {
 		return genDb.User{}, nil, err
 	}
-	if err := events.Record(ctx, qtx, events.Event{
+	if err = events.Record(ctx, qtx, events.Event{
 		Type:        events.UserCreated,
 		ActorType:   string(genDb.EntityTypeUser),
 		ActorID:     new(user.ID),
@@ -377,6 +390,14 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		Data:        map[string]any{events.FieldIssuer: id.Issuer, events.FieldEmail: id.Email},
 	}); err != nil {
 		return genDb.User{}, nil, fmt.Errorf("%w: record identity event: %w", ErrResolve, err)
+	}
+	admin, err := r.claimSystemAdmin(ctx, qtx, user, id)
+	if err != nil {
+		return genDb.User{}, nil, err
+	}
+	// Closed signup still lets a listed email create its account to claim the entry.
+	if policyErr != nil && !admin {
+		return genDb.User{}, nil, policyErr
 	}
 
 	if _, err := qtx.CreateIdentity(ctx, genDb.CreateIdentityParams{

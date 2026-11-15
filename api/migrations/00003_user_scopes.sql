@@ -28,10 +28,12 @@ CREATE INDEX user_scopes_organization_idx ON user_scopes (organization_ref) WHER
 CREATE INDEX user_scopes_workspace_idx ON user_scopes (workspace_ref) WHERE workspace_ref IS NOT NULL;
 CREATE INDEX user_scopes_resource_idx ON user_scopes (resource_ref) WHERE resource_ref IS NOT NULL;
 
-CREATE TABLE system_bootstrap (
-    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
-    bootstrapped_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    bootstrapped_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- One row per email in LOCO_SYSTEM_ADMINS. The first verified sign-in with the email claims
+-- the row and system:admin; after that the grant belongs to user_id, not to the email.
+CREATE TABLE system_admin_claims (
+    email TEXT PRIMARY KEY,
+    user_id UUID UNIQUE REFERENCES users(id) ON DELETE SET NULL,
+    claimed_at TIMESTAMPTZ
 );
 
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
@@ -98,6 +100,6 @@ CREATE INDEX invitations_email_open_idx ON invitations (lower(email)) WHERE clai
 DROP TABLE IF EXISTS invitations;
 DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS session_tokens;
-DROP TABLE IF EXISTS system_bootstrap;
+DROP TABLE IF EXISTS system_admin_claims;
 DROP TABLE IF EXISTS user_scopes;
 DROP TYPE IF EXISTS entity_type;

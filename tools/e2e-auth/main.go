@@ -14,7 +14,6 @@ import (
 	"time"
 
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
-	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -25,19 +24,16 @@ import (
 
 const (
 	fixtureClient   = "loco-e2e"
-	setupMode       = "setup"
 	fixturePassword = "carolpw"
 	fixtureTimeout  = time.Minute
 )
 
 var (
-	errProvider            = errors.New("fixture identity provider sign-in failed")
-	errMode                = errors.New("unknown authentication fixture mode")
-	errUnexpectedBootstrap = errors.New("bootstrap unexpectedly succeeded")
-	errEnvironmentMissing  = errors.New("new workspace has no production environment")
+	errProvider           = errors.New("fixture identity provider sign-in failed")
+	errEnvironmentMissing = errors.New("new workspace has no production environment")
 )
 
-type config struct{ api, issuer, bootstrapToken, state string }
+type config struct{ api, issuer, state string }
 
 // Credential JSON follows cmd/internal/keychain.UserToken; these values are issued
 // by the API, rather than invented sessions inserted into the fixture database.
@@ -58,44 +54,27 @@ type state struct {
 
 func main() {
 	cfg := config{
-		api:            os.Getenv("E2E_API_URL"),
-		issuer:         os.Getenv("E2E_AUTH_ISSUER"),
-		bootstrapToken: os.Getenv("E2E_BOOTSTRAP_TOKEN"),
-		state:          os.Getenv("E2E_AUTH_STATE"),
+		api:    os.Getenv("E2E_API_URL"),
+		issuer: os.Getenv("E2E_AUTH_ISSUER"),
+		state:  os.Getenv("E2E_AUTH_STATE"),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), fixtureTimeout)
 	defer cancel()
-	mode := setupMode
-	if len(os.Args) == 2 {
-		mode = os.Args[1]
-	}
-	if err := run(ctx, cfg, mode); err != nil {
+	if err := run(ctx, cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, cfg config, mode string) error {
+// run signs in the admin the API lists in LOCO_SYSTEM_ADMINS and an ordinary user.
+func run(ctx context.Context, cfg config) error {
 	proof, err := providerLogin(ctx, cfg.issuer, "loco-admin@test.local")
 	if err != nil {
 		return err
 	}
-	admin := rpc.ForHost(cfg.api, proof)
-	token := cfg.bootstrapToken
-	switch mode {
-	case "wrong-token":
-		token = "invalid-" + token
-	case "closed":
-	case setupMode:
-	default:
-		return errMode
-	}
-	response, err := admin.Bootstrap.Bootstrap(ctx, &bootstrapv1.BootstrapRequest{Token: token})
+	adminTokens, err := session(ctx, rpc.ForHost(cfg.api, proof))
 	if err != nil {
 		return err
-	}
-	if mode != setupMode {
-		return errUnexpectedBootstrap
 	}
 	userProof, err := providerLogin(ctx, cfg.issuer, "e2e@test.local")
 	if err != nil {
@@ -142,7 +121,7 @@ func run(ctx context.Context, cfg config, mode string) error {
 		OrgID:            org.GetOrgId(),
 		WorkspaceID:      workspace.GetWorkspaceId(),
 		EnvironmentID:    production,
-		AdminCredentials: credential(cfg.api, response.GetTokens()),
+		AdminCredentials: credential(cfg.api, adminTokens),
 		UserCredentials:  credential(cfg.api, userTokens),
 	}
 	data, err := json.Marshal(result)

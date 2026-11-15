@@ -21,6 +21,8 @@ const (
 	UserUpdated          = "user.updated"
 	UserDeleted          = "user.deleted"
 	IdentityRevoked      = "identity.revoked"
+	SystemAdminClaimed   = "system_admin.claimed"
+	SystemAdminRevoked   = "system_admin.revoked"
 	CLILoginApproved     = "cli_login.approved"
 	CLILoginCompleted    = "cli_login.completed"
 	OrgCreated           = "org.created"
