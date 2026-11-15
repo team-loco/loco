@@ -98,6 +98,7 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
           MARKER_REFS: ${{ github.ref }}${{ github.base_ref && format(',refs/heads/{0}', github.base_ref) || '' }},refs/heads/${{ github.event.repository.default_branch }}
         run: go run ./tools/ci-changes -event "$GITHUB_EVENT_NAME" -base "$BASE" -head "$HEAD" -marker-refs "$MARKER_REFS"

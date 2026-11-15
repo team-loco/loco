@@ -37,8 +37,7 @@ func main() {
 	flag.Parse()
 	var lookup markerLookup
 	if *markerRefs != "" {
-		lookup = cacheLookup(os.Getenv("GITHUB_API_URL"), os.Getenv("GITHUB_REPOSITORY"), os.Getenv("GH_TOKEN"),
-			strings.Split(*markerRefs, ","))
+		lookup = cacheLookup(strings.Split(*markerRefs, ","))
 	}
 	if err := run(context.Background(), *config, *event, *base, *head, os.Getenv("GITHUB_OUTPUT"), lookup); err != nil {
 		slog.Error("select workflows", "error", err)
@@ -111,16 +110,14 @@ func loadFilters(path string) (filters, error) {
 	if err != nil {
 		return nil, err
 	}
-	var raw map[string]yaml.Node
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	var raw map[string]rawWorkflow
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	result := filters{}
-	for workflow, node := range raw {
-		var entry rawWorkflow
-		if err := decodeStrict(&node, &entry); err != nil {
-			return nil, fmt.Errorf("%s: %s: %w", path, workflow, err)
-		}
+	for workflow, entry := range raw {
 		w := workflowFilter{events: map[string]filter{}, usedBy: entry.For, reuse: len(entry.For) == 0}
 		if entry.Reuse != nil {
 			w.reuse = *entry.Reuse && w.reuse
@@ -188,26 +185,9 @@ func git(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
-// decodeStrict decodes node into out and rejects keys out has no field for.
-func decodeStrict(node *yaml.Node, out any) error {
-	data, err := yaml.Marshal(node)
-	if err != nil {
-		return err
-	}
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
-	decoder.KnownFields(true)
-	return decoder.Decode(out)
-}
-
-// selectWorkflows reports, for every workflow, whether a changed file matches
-// its filter for the event or a workflow that uses it runs. Nil files select
-// every workflow with a filter for the event.
-func selectWorkflows(all filters, event string, files []string) map[string]bool {
-	return withUsers(all, selectOwn(all, event, files))
-}
-
 // selectOwn reports, for every workflow, whether a changed file matches its
-// filter for the event.
+// filter for the event. Nil files select every workflow with a filter for the
+// event.
 func selectOwn(all filters, event string, files []string) map[string]bool {
 	selected := map[string]bool{}
 	for workflow, w := range all {
