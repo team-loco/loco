@@ -23,7 +23,7 @@ import { SETTINGS_SCOPES, settingsPath, type SettingsScope } from "@/lib/routes"
 
 import { OrgTab } from "./settings/OrgTab";
 import { PersonalTab } from "./settings/PersonalTab";
-import { requestedScope, SETTINGS_PARAMS } from "./settings/scope";
+import { SETTINGS_PARAMS } from "./settings/scope";
 import { useResourceCounts } from "./settings/useResourceCounts";
 import { SettingsSkeleton, type WorkspaceDraft, WorkspaceTab } from "./settings/WorkspaceTab";
 
@@ -46,10 +46,9 @@ function DirtyDot() {
 
 export function Settings() {
 	const { orgId = "", workspaceId = "" } = useParams<{ orgId: string; workspaceId: string }>();
-	const [params, setParams] = useQueryStates(SETTINGS_PARAMS, { history: "replace" });
+	const [{ scope: requested }, setParams] = useQueryStates(SETTINGS_PARAMS, { history: "replace" });
 	const navigate = useNavigate();
 	const { user } = useAuth();
-	const requested = requestedScope(params);
 	const [drafts, setDrafts] = useState<Drafts>(NO_DRAFTS);
 	const [leaveTo, setLeaveTo] = useState<string | null>(null);
 
@@ -94,7 +93,7 @@ export function Settings() {
 	// A transition keeps the current scope on screen while the Personal scope's theme stylesheets load.
 	const selectScope = (next: SettingsScope) => {
 		startTransition(() => {
-			void setParams({ scope: next, tab: null });
+			void setParams({ scope: next });
 		});
 	};
 

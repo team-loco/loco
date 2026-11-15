@@ -41,7 +41,8 @@ import {
 import { useSaveSettings } from "./useSaveSettings";
 import { VariablesSection } from "./VariablesSection";
 
-export type SettingsFocus = "settings" | "scaling";
+export const SETTINGS_FOCUSES = ["settings", "scaling"] as const;
+export type SettingsFocus = (typeof SETTINGS_FOCUSES)[number];
 
 const READ_ONLY_ID = "settings-read-only";
 

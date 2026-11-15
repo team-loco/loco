@@ -181,8 +181,8 @@ with sync_playwright() as playwright:
             suffix = theme + ('-narrow' if narrow else '')
             for user, scene, path, title in [
                 ('owner', 'resource-owner', base + '/resource/' + activity['resourceId'], 'Activity'),
-                ('member', 'org-member', base + '/settings?tab=org', ''),
-                ('workspace_admin', 'workspace', base + '/settings?tab=ws', 'Activity'),
+                ('member', 'org-member', base + '/settings?scope=org', ''),
+                ('workspace_admin', 'workspace', base + '/settings?scope=workspace', 'Activity'),
                 ('resource_reader', 'resource', base + '/resource/' + activity['resourceId'], 'Activity'),
             ]:
                 context = browser.new_context(viewport={'width': 390, 'height': 844} if narrow else {'width': 1440, 'height': 1000}, color_scheme=theme)

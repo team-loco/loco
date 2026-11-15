@@ -98,7 +98,7 @@ export function DashboardRowMenu({
 					<ChevronsUpDownIcon className="text-fg3" />
 					Scale
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => void navigate(`${base}?tab=variables&${envQuery}`)}>
+				<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>
 					<VariableIcon className="text-fg3" />
 					Environment variables
 				</DropdownMenuItem>

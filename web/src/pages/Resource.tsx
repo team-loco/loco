@@ -2,7 +2,7 @@ import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { createParser, parseAsString, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
@@ -60,20 +60,17 @@ import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { RolloutProgress } from "@/pages/resource/RolloutProgress";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
-import { SettingsView, type SettingsFocus } from "@/pages/resource/SettingsView";
+import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 
 const EVENTS_REFRESH_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 
-type View = "overview" | SettingsFocus;
+const VIEWS = ["overview", ...SETTINGS_FOCUSES] as const;
+type View = (typeof VIEWS)[number];
 
 const RESOURCE_PARAMS = {
-	tab: createParser<View>({
-		parse: (value) =>
-			value === "settings" || value === "variables" ? "settings" : value === "scaling" ? "scaling" : null,
-		serialize: (view) => view,
-	}).withDefault("overview"),
+	tab: parseAsStringLiteral(VIEWS).withDefault("overview"),
 	env: parseAsString,
 };
 
