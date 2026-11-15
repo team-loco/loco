@@ -44,6 +44,7 @@ func TestPortRollout(t *testing.T) {
 		fmt.Sprintf("http://%s.%s.svc.cluster.local/", gateway, p.Namespace), host)
 	private := startPortPoller(t, w.Namespace, "port-rollout-private", "http://"+app+"/", "")
 	before := []int{public("ok"), private("ok")}
+	failuresBefore := []int{public("fail"), private("fail")}
 
 	service.Image = p.AlternatePortImage
 	service.Port = new(int32(9090))
@@ -85,7 +86,7 @@ func TestPortRollout(t *testing.T) {
 		if served := poller("ok"); served <= before[i] {
 			t.Errorf("request stream %d stopped serving (%d before, %d after)", i, before[i], served)
 		}
-		if failed := poller("fail"); failed != 0 {
+		if failed := poller("fail") - failuresBefore[i]; failed != 0 {
 			t.Errorf("request stream %d failed %d requests across port changes", i, failed)
 		}
 	}
