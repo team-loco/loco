@@ -141,7 +141,7 @@ describe("build log filters", () => {
 		const { tokens, text } = parseQuery("@resource:api @build:b-123");
 		const raw = create(ResourceSchema, { id: "r1", name: "api" });
 		const query = buildBackendQuery(tokens, text, [{ id: "r1", name: "api", color: "", regions: [], raw }], null);
-		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["b-123"] }]);
+		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["b-123"], prefixes: [] }]);
 		expect(query.resourceIds).toEqual(["r1"]);
 		expect(query.allEnvironments).toBe(true);
 	});
@@ -151,8 +151,8 @@ describe("build log filters", () => {
 		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, true, true]);
 		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([false, false, false]);
 		const query = buildBackendQuery(tokens, "", [], null);
-		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["a", "b"] }]);
-		expect(query.parsed.excludedLabels).toEqual([{ key: BUILD_ID_LABEL, values: ["c"] }]);
+		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["a", "b"], prefixes: [] }]);
+		expect(query.parsed.excludedLabels).toEqual([{ key: BUILD_ID_LABEL, values: ["c"], prefixes: [] }]);
 	});
 });
 
@@ -262,8 +262,8 @@ describe("log attribute, trace and exclusion filters", () => {
 		expect(query.parsed.excludedResourceIds).toEqual(["r1"]);
 		expect(query.resourceIds).toEqual([]);
 		expect(query.parsed.excludedLabels).toEqual([
-			{ key: "k8s.pod.name", values: ["web-1"] },
-			{ key: BUILD_ID_LABEL, values: ["b-1"] },
+			{ key: "k8s.pod.name", values: ["web-1"], prefixes: [] },
+			{ key: BUILD_ID_LABEL, values: ["b-1"], prefixes: [] },
 		]);
 		expect(query.allEnvironments).toBe(false);
 		expect(query.impossible).toBe(false);
@@ -286,14 +286,14 @@ describe("log attribute, trace and exclusion filters", () => {
 		);
 		const query = buildBackendQuery(tokens, "", [], null);
 		expect(query.parsed.logAttributes).toEqual([
-			{ key: "method", values: ["GET"] },
-			{ key: "http.response.status_code", values: ["500"] },
+			{ key: "method", values: ["GET"], prefixes: [] },
+			{ key: "http.response.status_code", values: ["500"], prefixes: [] },
 		]);
 		expect(query.parsed.excludedLogAttributes).toEqual([
-			{ key: "path", values: ["/healthz"] },
-			{ key: "user", values: ["bot"] },
+			{ key: "path", values: ["/healthz"], prefixes: [] },
+			{ key: "user", values: ["bot"], prefixes: [] },
 		]);
-		expect(query.parsed.labels).toEqual([{ key: "team", values: ["a"] }]);
+		expect(query.parsed.labels).toEqual([{ key: "team", values: ["a"], prefixes: [] }]);
 	});
 
 	test("matches any of the values given for one key and none of the excluded ones", () => {
@@ -302,11 +302,19 @@ describe("log attribute, trace and exclusion filters", () => {
 		);
 		expect(tokenSupport("logs", tokens).every((s) => s.ok)).toBe(true);
 		const { parsed } = buildBackendQuery(tokens, "", [], null);
-		expect(parsed.logAttributes).toEqual([{ key: "method", values: ["GET", "POST"] }]);
-		expect(parsed.excludedLabels).toEqual([{ key: "k8s.pod.name", values: ["a", "b"] }]);
-		expect(parsed.excludedLogAttributes).toEqual([{ key: "path", values: ["/a", "/b"] }]);
-		expect(parsed.jsonFields).toEqual([{ key: "user.id", values: ["42"] }]);
-		expect(parsed.excludedJsonFields).toEqual([{ key: "level", values: ["debug", "trace"] }]);
+		expect(parsed.logAttributes).toEqual([{ key: "method", values: ["GET", "POST"], prefixes: [] }]);
+		expect(parsed.excludedLabels).toEqual([{ key: "k8s.pod.name", values: ["a", "b"], prefixes: [] }]);
+		expect(parsed.excludedLogAttributes).toEqual([{ key: "path", values: ["/a", "/b"], prefixes: [] }]);
+		expect(parsed.jsonFields).toEqual([{ key: "user.id", values: ["42"], prefixes: [] }]);
+		expect(parsed.excludedJsonFields).toEqual([{ key: "level", values: ["debug", "trace"], prefixes: [] }]);
+	});
+
+	test("sends a value ending in * as a prefix, included or excluded", () => {
+		const { tokens } = parseQuery("-@path:/api/* -@path:/healthz @replica:web-* @json:user.id=4* -@attr:ua=*");
+		const { parsed } = buildBackendQuery(tokens, "", [], null);
+		expect(parsed.excludedLogAttributes).toEqual([{ key: "path", values: ["/healthz"], prefixes: ["/api/"] }]);
+		expect(parsed.labels).toEqual([{ key: "k8s.pod.name", values: [], prefixes: ["web-"] }]);
+		expect(parsed.jsonFields).toEqual([{ key: "user.id", values: [], prefixes: ["4"] }]);
 	});
 
 	test("rejects malformed pairs and reserved labels", () => {

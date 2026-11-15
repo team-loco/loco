@@ -302,11 +302,17 @@ export function buildBackendQuery(
 		.filter((r) => excludedNames.some((t) => matches(r.name, t.value)))
 		.map((r) => r.id);
 
-	// Tokens on one key become one filter that matches any of their values.
+	// Tokens on one key become one filter that matches any of their values; a trailing * makes a prefix.
 	const fieldFilters = (neg: boolean, fixed: Partial<Record<FieldKey, string>>, pairKey: FieldKey) => {
-		const byField = new Map<string, string[]>();
+		const byField = new Map<string, { key: string; values: string[]; prefixes: string[] }>();
 		const add = (key: string, value: string) => {
-			byField.set(key, [...(byField.get(key) ?? []), value]);
+			const filter = byField.get(key) ?? { key, values: [], prefixes: [] };
+			if (value.endsWith("*")) {
+				if (value.length > 1) filter.prefixes.push(value.slice(0, -1));
+			} else {
+				filter.values.push(value);
+			}
+			if (filter.values.length + filter.prefixes.length > 0) byField.set(key, filter);
 		};
 		for (const [field, attribute] of Object.entries(fixed) as [FieldKey, string][]) {
 			for (const t of byKey(field, neg)) add(attribute, t.value);
@@ -315,7 +321,7 @@ export function buildBackendQuery(
 			const pair = attributePair(t.value);
 			if (pair !== null) add(pair.key, pair.value);
 		}
-		return [...byField].map(([key, fieldValues]) => ({ key, values: fieldValues }));
+		return [...byField.values()];
 	};
 	const labelFields: Partial<Record<FieldKey, string>> = { replica: "k8s.pod.name", build: BUILD_ID_LABEL };
 
