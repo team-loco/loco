@@ -12,7 +12,8 @@ def blocking(commits, jobs):
     """Returns (sha, reason) for each commit whose `ci.yml` push run blocks releasing the last commit.
 
     commits lists (sha, run) oldest first; run is None when the commit has no run, else a dict with
-    `databaseId` and `conclusion`. jobs(run id) returns {job name: conclusion}.
+    `databaseId` and `conclusion`. jobs(run id) returns {job name: conclusion}. A failed `Changes`
+    job is cleared only by its own run succeeding.
     """
     blocked = []
     for index, (sha, ci) in enumerate(commits):
@@ -29,7 +30,7 @@ def blocking(commits, jobs):
             continue
         failed = {name for name, result in jobs(ci['databaseId']).items() if result not in ('success', 'skipped')}
         for _, later in commits[index + 1:]:
-            if not failed:
+            if not failed or 'Changes' in failed:
                 break
             if later is not None:
                 failed -= {name for name, result in jobs(later['databaseId']).items() if result == 'success'}

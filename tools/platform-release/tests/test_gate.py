@@ -14,6 +14,8 @@ JOBS = {
     2: {"OSV": "skipped", "Tests / unit": "success", "CI Gate": "success"},
     3: {OSV: "success", "CI Gate": "success"},
     4: {OSV: "failure", "Tests / unit": "failure", "CI Gate": "failure"},
+    5: {"Changes": "failure", OSV: "skipped", "CI Gate": "failure"},
+    6: {"Changes": "success", OSV: "success", "CI Gate": "success"},
 }
 
 
@@ -44,6 +46,12 @@ def test_a_later_run_clears_only_the_jobs_it_passed():
     assert blocking(
         ("a", ci(4, "failure")), ("b", ci(3, "success"))
     ) == [("a", "failure (Tests / unit)")]
+
+
+def test_a_failed_changes_job_is_not_cleared_by_later_runs():
+    assert blocking(("a", ci(5, "failure")), ("b", ci(6, "success"))) == [
+        ("a", "failure (CI Gate, Changes)")
+    ]
 
 
 def test_the_released_commit_needs_its_own_successful_run():
