@@ -238,7 +238,11 @@ export function Team() {
 						</p>
 						<span className="mt-1 flex flex-wrap justify-center gap-2">
 							{inviteButton}
-							<Button variant="outline" render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}>
+							<Button
+								variant="outline"
+								nativeButton={false}
+								render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}
+							>
 								Read the docs
 								<ExternalLinkIcon className="text-fg3" />
 							</Button>

@@ -168,6 +168,7 @@ export function EventsView() {
 					action={
 						<>
 							<Button
+								nativeButton={false}
 								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.name } : {})} />}
 							>
 								<PlusIcon />
