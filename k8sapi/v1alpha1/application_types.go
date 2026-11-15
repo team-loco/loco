@@ -129,7 +129,7 @@ type ServiceSpec struct {
 
 // ObservabilityConfig controls automatic application SDK environment configuration.
 type ObservabilityConfig struct {
-	// InjectOtel supplies SDK environment defaults unless the application configures its own exporter or resource.
+	// InjectOtel supplies SDK environment defaults for each variable the application does not set itself.
 	// +optional
 	// +kubebuilder:default=true
 	InjectOtel bool `json:"injectOtel"`

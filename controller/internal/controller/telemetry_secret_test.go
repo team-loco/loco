@@ -78,23 +78,24 @@ func mountTelemetryDeployment(
 	return dep
 }
 
-func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
-	for _, name := range []string{
-		envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes,
-		"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_METRICS_HEADERS", "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL",
-	} {
+func TestMountedSecretReplacesOnlyItsOpenTelemetryDefault(t *testing.T) {
+	for _, name := range injectedOpenTelemetryVars {
 		t.Run(name, func(t *testing.T) {
 			app := telemetryTestApplication()
 			r, _, _ := telemetrySecretFixture(t, app, name)
 			dep := mountTelemetryDeployment(t, r, app)
-			for _, injected := range []string{envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes} {
-				requireNoEnv(t, dep, injected)
+			for _, injected := range injectedOpenTelemetryVars {
+				if injected == name {
+					requireNoEnv(t, dep, injected)
+				} else {
+					requireSingleEnv(t, dep, injected, injectedValue(app, injected))
+				}
 			}
 		})
 	}
 }
 
-func TestUnrelatedTelemetrySecretDoesNotSuppressInjection(t *testing.T) {
+func TestUnrelatedTelemetrySecretKeepsEveryDefault(t *testing.T) {
 	app := telemetryTestApplication()
 	r, _, _ := telemetrySecretFixture(t, app, "OTEL_LOG_LEVEL")
 	dep := mountTelemetryDeployment(t, r, app)

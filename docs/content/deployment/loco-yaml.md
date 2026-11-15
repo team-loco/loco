@@ -198,7 +198,7 @@ services:
           injectOtel: false
 ```
 
-`injectOtel` defaults to `true`. Loco supplies the collector endpoint, protocol, service name and resource attributes as one set. If a plain environment variable or declared secret name matches `OTEL_EXPORTER_OTLP_*`, `OTEL_SERVICE_NAME` or `OTEL_RESOURCE_ATTRIBUTES`, Loco injects none of that set. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL` or sampler settings, do not suppress injection. See [Runtime environment](../operations/applications.md#runtime-environment) for the supplied values.
+`injectOtel` defaults to `true`. Loco supplies `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`. A plain environment variable or declared secret with one of those names replaces that default, and Loco injects the rest. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL`, sampler settings or signal-specific exporter settings, leave the defaults in place. See [Runtime environment](../operations/applications.md#runtime-environment) for the supplied values.
 
 Application code must already include the SDK and instrumentation. Setting `injectOtel` to `false` leaves SDK configuration to the application; it does not disable telemetry collection. Environment overrides replace the resource's injection preference. Saving the setting creates a deployment snapshot and rolls out the resource.
 
