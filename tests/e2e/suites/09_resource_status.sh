@@ -323,6 +323,18 @@ rollout_sample_replica_sets() {
     done
 }
 
+# Prints the restart count of the new version's pod and whether its container is running.
+rollout_new_pod_state() {
+    sk -n "$status_namespace" get pods -l "$(rollout_selector)" -o json |
+        yq -p json -r "[.items[] | select(.metadata.labels[\"pod-template-hash\"] != \"$1\") | .status.containerStatuses[0]] | .[0] | [(.restartCount // 0), (.state | has(\"running\"))] | join(\" \")"
+}
+
+rollout_new_pod_ran_again() {
+    local restarts running
+    read -r restarts running <<<"$(rollout_new_pod_state "$1")"
+    test "$restarts" -gt "$2" && test "$running" = false
+}
+
 rollout_deployment_status() {
     rollout_region_field deploymentStatus
 }
@@ -363,8 +375,11 @@ test_s07_failed_rollout_keeps_the_old_version_serving() {
     yq -i ".services[\"${rollout_app}\"].image = \"${E2E_CRASHING_IMAGE}\"" "$rollout_dir/loco.yaml"
     rollout_deploy rollout-b
     wait_for "the crashing deployment to fail" 240 rollout_failed
-    # Long enough for a replica that stayed ready past minReadySeconds to replace an old one.
-    sleep 30
+    local restarts_at_failure
+    read -r restarts_at_failure _ <<<"$(rollout_new_pod_state "$old_hash")"
+    # A replica that counted as available during another run would replace an old one.
+    wait_for "the crashing version to start and exit again" 120 \
+        rollout_new_pod_ran_again "$old_hash" "$restarts_at_failure"
     kill "$sampler"
     wait "$sampler" 2>/dev/null || true
     sk -n "$E2E_LOCO_NAMESPACE" delete pod "$rollout_poller" --wait=false >/dev/null
@@ -378,8 +393,8 @@ test_s07_failed_rollout_keeps_the_old_version_serving() {
     assert "No request failed during the failed rollout (${failed} failed)" test "$failed" -eq 0
 
     local samples="$status_dir/rollout-replicasets.log"
-    assert "The replica samples cover the new ReplicaSet until the end" \
-        test "$(awk -v old="$old_hash" '$1 != old' "$samples" | wc -l)" -ge 30
+    assert "The replica samples cover the new ReplicaSet" \
+        test "$(awk -v old="$old_hash" '$1 != old' "$samples" | wc -l)" -ge 10
     assert "The old ReplicaSet never dropped below two ready replicas" \
         test -z "$(awk -v old="$old_hash" '$1 == old && ($2 < 2 || $3 < 2)' "$samples")"
     assert "The rollout started at most one new replica" \

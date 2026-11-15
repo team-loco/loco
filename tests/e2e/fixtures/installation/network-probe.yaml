@@ -3,6 +3,7 @@ kind: Pod
 metadata: {name: installation-network-probe, namespace: {{ .Namespace }}}
 spec:
   restartPolicy: Never
+  terminationGracePeriodSeconds: 0
   automountServiceAccountToken: false
   securityContext:
     runAsNonRoot: true
