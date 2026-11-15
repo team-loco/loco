@@ -36,10 +36,12 @@ describe("regional telemetry filters", () => {
 				search: "timeout",
 				levels: [],
 				excludedLevels: [],
-				labels: {},
-				excludedLabels: {},
-				logAttributes: {},
-				excludedLogAttributes: {},
+				labels: [],
+				excludedLabels: [],
+				logAttributes: [],
+				excludedLogAttributes: [],
+				jsonFields: [],
+				excludedJsonFields: [],
 				traceIds: [],
 				excludedTraceIds: [],
 				regions: ["US-*", "eu-west-1"],
@@ -105,8 +107,8 @@ describe("omnibar tokens per view", () => {
 	});
 
 	test("applies only the first filter of a single-value key", () => {
-		const { tokens } = parseQuery("@replica:web-1 @replica:web-2");
-		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false]);
+		const { tokens } = parseQuery("@trace:0123456789abcdef0123456789abcdef @trace:fedcba9876543210fedcba9876543210");
+		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([true, false]);
 	});
 
 	test("reads resource links and replica shortcuts from the URL", () => {
@@ -139,16 +141,18 @@ describe("build log filters", () => {
 		const { tokens, text } = parseQuery("@resource:api @build:b-123");
 		const raw = create(ResourceSchema, { id: "r1", name: "api" });
 		const query = buildBackendQuery(tokens, text, [{ id: "r1", name: "api", color: "", regions: [], raw }], null);
-		expect(query.parsed.labels).toEqual({ [BUILD_ID_LABEL]: "b-123" });
+		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["b-123"] }]);
 		expect(query.resourceIds).toEqual(["r1"]);
 		expect(query.allEnvironments).toBe(true);
 	});
 
-	test("applies one positive build filter to logs only", () => {
+	test("applies build filters to logs only, any of the included ones and none of the excluded", () => {
 		const { tokens } = parseQuery("@build:a @build:b -@build:c");
-		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, false]);
+		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, true, true]);
 		expect(tokenSupport("traces", tokens).map((s) => s.ok)).toEqual([false, false, false]);
-		expect(buildBackendQuery(tokens, "", [], null).parsed.labels).toEqual({ [BUILD_ID_LABEL]: "a" });
+		const query = buildBackendQuery(tokens, "", [], null);
+		expect(query.parsed.labels).toEqual([{ key: BUILD_ID_LABEL, values: ["a", "b"] }]);
+		expect(query.parsed.excludedLabels).toEqual([{ key: BUILD_ID_LABEL, values: ["c"] }]);
 	});
 });
 
@@ -257,7 +261,10 @@ describe("log attribute, trace and exclusion filters", () => {
 		expect(query.parsed.excludedLevels).toContain("DEBUG");
 		expect(query.parsed.excludedResourceIds).toEqual(["r1"]);
 		expect(query.resourceIds).toEqual([]);
-		expect(query.parsed.excludedLabels).toEqual({ "k8s.pod.name": "web-1", [BUILD_ID_LABEL]: "b-1" });
+		expect(query.parsed.excludedLabels).toEqual([
+			{ key: "k8s.pod.name", values: ["web-1"] },
+			{ key: BUILD_ID_LABEL, values: ["b-1"] },
+		]);
 		expect(query.allEnvironments).toBe(false);
 		expect(query.impossible).toBe(false);
 	});
@@ -278,14 +285,33 @@ describe("log attribute, trace and exclusion filters", () => {
 			"@method:GET -@path:/healthz @attr:http.response.status_code=500 -@attr:user=bot @label:team=a",
 		);
 		const query = buildBackendQuery(tokens, "", [], null);
-		expect(query.parsed.logAttributes).toEqual({ method: "GET", "http.response.status_code": "500" });
-		expect(query.parsed.excludedLogAttributes).toEqual({ path: "/healthz", user: "bot" });
-		expect(query.parsed.labels).toEqual({ team: "a" });
+		expect(query.parsed.logAttributes).toEqual([
+			{ key: "method", values: ["GET"] },
+			{ key: "http.response.status_code", values: ["500"] },
+		]);
+		expect(query.parsed.excludedLogAttributes).toEqual([
+			{ key: "path", values: ["/healthz"] },
+			{ key: "user", values: ["bot"] },
+		]);
+		expect(query.parsed.labels).toEqual([{ key: "team", values: ["a"] }]);
 	});
 
-	test("applies the first filter of each attribute key and rejects malformed or reserved ones", () => {
-		const { tokens } = parseQuery("@attr:a=1 @attr:a=2 -@attr:b=3 @attr:novalue @label:loco.workspace.id=w");
-		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([true, false, true, false, false]);
+	test("matches any of the values given for one key and none of the excluded ones", () => {
+		const { tokens } = parseQuery(
+			"@method:GET @method:POST -@replica:a -@replica:b -@path:/a -@path:/b @json:user.id=42 -@json:level=debug -@json:level=trace",
+		);
+		expect(tokenSupport("logs", tokens).every((s) => s.ok)).toBe(true);
+		const { parsed } = buildBackendQuery(tokens, "", [], null);
+		expect(parsed.logAttributes).toEqual([{ key: "method", values: ["GET", "POST"] }]);
+		expect(parsed.excludedLabels).toEqual([{ key: "k8s.pod.name", values: ["a", "b"] }]);
+		expect(parsed.excludedLogAttributes).toEqual([{ key: "path", values: ["/a", "/b"] }]);
+		expect(parsed.jsonFields).toEqual([{ key: "user.id", values: ["42"] }]);
+		expect(parsed.excludedJsonFields).toEqual([{ key: "level", values: ["debug", "trace"] }]);
+	});
+
+	test("rejects malformed pairs and reserved labels", () => {
+		const { tokens } = parseQuery("@attr:novalue @json:=1 @label:loco.workspace.id=w @label:loco.io/build-id=b");
+		expect(tokenSupport("logs", tokens).map((s) => s.ok)).toEqual([false, false, false, true]);
 	});
 
 	test("quotes values with spaces or quotes in the URL", () => {

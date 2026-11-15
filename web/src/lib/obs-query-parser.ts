@@ -11,6 +11,8 @@ export type ParsedQuery = Pick<
 	| "excludedLabels"
 	| "logAttributes"
 	| "excludedLogAttributes"
+	| "jsonFields"
+	| "excludedJsonFields"
 	| "traceIds"
 	| "excludedTraceIds"
 	| "regions"

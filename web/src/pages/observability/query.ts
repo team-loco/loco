@@ -47,7 +47,8 @@ export type FieldKey =
 	| "method"
 	| "path"
 	| "attr"
-	| "label";
+	| "label"
+	| "json";
 
 export interface FieldDef {
 	key: FieldKey;
@@ -59,27 +60,28 @@ export interface FieldDef {
 
 const ALL_VIEWS: ObservabilityView[] = ["logs", "metrics", "traces", "events"];
 
-// @attr and @label values are key=value pairs; each attribute key takes one filter, like a single field.
+// @attr, @label and @json values are key=value pairs.
 export const FIELDS: FieldDef[] = [
 	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: false },
 	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: false },
-	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"], single: true },
-	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"], single: true },
+	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"], single: false },
+	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"], single: false },
 	{ key: "region", label: "Region", views: ["logs", "metrics"], negate: ["logs", "metrics"], single: false },
 	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: false },
 	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: false },
 	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"], single: true },
 	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: false },
-	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"], single: true },
-	{ key: "path", label: "Request path", views: ["logs"], negate: ["logs"], single: true },
-	{ key: "attr", label: "Log attribute", views: ["logs"], negate: ["logs"], single: true },
-	{ key: "label", label: "Resource attribute", views: ["logs"], negate: ["logs"], single: true },
+	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"], single: false },
+	{ key: "path", label: "Request path", views: ["logs"], negate: ["logs"], single: false },
+	{ key: "attr", label: "Log attribute", views: ["logs"], negate: ["logs"], single: false },
+	{ key: "label", label: "Resource attribute", views: ["logs"], negate: ["logs"], single: false },
+	{ key: "json", label: "JSON message field", views: ["logs"], negate: ["logs"], single: false },
 ];
 
 // The gateway's access logs carry these keys, so @method and @path match every routed request.
 export const REQUEST_FILTER_ATTRIBUTES: Partial<Record<FieldKey, string>> = { method: "method", path: "path" };
 
-const PAIR_FIELDS = new Set<FieldKey>(["attr", "label"]);
+const PAIR_FIELDS = new Set<FieldKey>(["attr", "label", "json"]);
 const RESERVED_LABEL_PREFIX = "loco.";
 const OPEN_LABEL_PREFIX = "loco.io/";
 
@@ -88,7 +90,7 @@ export interface AttributePair {
 	value: string;
 }
 
-/** Reads an @attr or @label value, written key=value. */
+/** Reads an @attr, @label or @json value, written key=value. */
 export function attributePair(value: string): AttributePair | null {
 	const at = value.indexOf("=");
 	return at > 0 ? { key: value.slice(0, at), value: value.slice(at + 1) } : null;
@@ -205,7 +207,7 @@ export interface TokenSupport {
 const SUPPORTED: TokenSupport = { ok: true, reason: "" };
 
 export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSupport[] {
-	const seen = new Set<string>();
+	const seen = new Set<FieldKey>();
 	return tokens.map((t) => {
 		const def = fieldDef(t.key);
 		if (!def.views.includes(view)) return { ok: false, reason: `@${t.key} doesn't apply to ${view}` };
@@ -214,10 +216,8 @@ export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSup
 		if (PAIR_FIELDS.has(t.key) && pair === null) return { ok: false, reason: `Write @${t.key}:key=value` };
 		const blocked = t.key === "label" && pair !== null ? reservedLabelReason(pair.key) : null;
 		if (blocked !== null) return { ok: false, reason: blocked };
-		const slot = pair === null ? t.key : `${t.key}:${pair.key}`;
-		const name = pair === null ? `@${t.key}` : `@${t.key} ${pair.key}`;
-		if (def.single && seen.has(slot)) return { ok: false, reason: `Only the first ${name} filter applies` };
-		seen.add(slot);
+		if (def.single && seen.has(t.key)) return { ok: false, reason: `Only the first @${t.key} filter applies` };
+		seen.add(t.key);
 		return SUPPORTED;
 	});
 }
@@ -302,17 +302,20 @@ export function buildBackendQuery(
 		.filter((r) => excludedNames.some((t) => matches(r.name, t.value)))
 		.map((r) => r.id);
 
-	const pairs = (neg: boolean, fixed: Partial<Record<FieldKey, string>>, pairKey: FieldKey) => {
-		const out: Record<string, string> = {};
+	// Tokens on one key become one filter that matches any of their values.
+	const fieldFilters = (neg: boolean, fixed: Partial<Record<FieldKey, string>>, pairKey: FieldKey) => {
+		const byField = new Map<string, string[]>();
+		const add = (key: string, value: string) => {
+			byField.set(key, [...(byField.get(key) ?? []), value]);
+		};
 		for (const [field, attribute] of Object.entries(fixed) as [FieldKey, string][]) {
-			const token = byKey(field, neg)[0];
-			if (token !== undefined) out[attribute] = token.value;
+			for (const t of byKey(field, neg)) add(attribute, t.value);
 		}
 		for (const t of byKey(pairKey, neg)) {
 			const pair = attributePair(t.value);
-			if (pair !== null) out[pair.key] = pair.value;
+			if (pair !== null) add(pair.key, pair.value);
 		}
-		return out;
+		return [...byField].map(([key, fieldValues]) => ({ key, values: fieldValues }));
 	};
 	const labelFields: Partial<Record<FieldKey, string>> = { replica: "k8s.pod.name", build: BUILD_ID_LABEL };
 
@@ -332,10 +335,12 @@ export function buildBackendQuery(
 			search: text.trim(),
 			levels: levelSet === null ? [] : levelVariants(levelSet),
 			excludedLevels: levelVariants(excludedLevelSet),
-			labels: pairs(false, labelFields, "label"),
-			excludedLabels: pairs(true, labelFields, "label"),
-			logAttributes: pairs(false, REQUEST_FILTER_ATTRIBUTES, "attr"),
-			excludedLogAttributes: pairs(true, REQUEST_FILTER_ATTRIBUTES, "attr"),
+			labels: fieldFilters(false, labelFields, "label"),
+			excludedLabels: fieldFilters(true, labelFields, "label"),
+			logAttributes: fieldFilters(false, REQUEST_FILTER_ATTRIBUTES, "attr"),
+			excludedLogAttributes: fieldFilters(true, REQUEST_FILTER_ATTRIBUTES, "attr"),
+			jsonFields: fieldFilters(false, {}, "json"),
+			excludedJsonFields: fieldFilters(true, {}, "json"),
 			traceIds,
 			excludedTraceIds,
 			regions: values("region", false),

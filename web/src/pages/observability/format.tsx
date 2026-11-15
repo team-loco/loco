@@ -188,6 +188,8 @@ export function jsonPreview(obj: JsonObject, words: string[]): ReactNode[] {
 	return out;
 }
 
+export const JSON_FIELD_PREFIX = "body.";
+
 export function flattenJson(obj: JsonObject, prefix = ""): Record<string, string> {
 	const out: Record<string, string> = {};
 	for (const [k, v] of Object.entries(obj)) {
@@ -195,7 +197,7 @@ export function flattenJson(obj: JsonObject, prefix = ""): Record<string, string
 		if (isJsonObject(v)) {
 			Object.assign(out, flattenJson(v, key));
 		} else {
-			out[`body.${key}`] = Array.isArray(v) ? JSON.stringify(v) : scalarString(v);
+			out[`${JSON_FIELD_PREFIX}${key}`] = Array.isArray(v) ? JSON.stringify(v) : scalarString(v);
 		}
 	}
 	return out;

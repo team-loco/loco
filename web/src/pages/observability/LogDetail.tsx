@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 
 import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
-import { bodyParts, flattenJson, fmtTs, levelStyle } from "./format";
+import { bodyParts, flattenJson, fmtTs, JSON_FIELD_PREFIX, levelStyle } from "./format";
 import { reservedLabelReason, REQUEST_FILTER_ATTRIBUTES, sameToken, type FieldKey, type Token } from "./query";
 import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
@@ -80,7 +80,8 @@ function attributes(row: LogRow): Attribute[] {
 		extra.set(key, { key, value, filter, column: key });
 	}
 	for (const [key, value] of Object.entries(row.json !== null ? flattenJson(row.json) : {})) {
-		extra.set(key, { key, value, filter: "Fields of a JSON message can't be filtered; search its text", column: key });
+		const filter = { key: "json" as const, value: `${key.slice(JSON_FIELD_PREFIX.length)}=${value}` };
+		extra.set(key, { key, value, filter, column: key });
 	}
 	return [...list, ...extra.values()].filter((a) => a.value !== "");
 }
