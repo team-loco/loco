@@ -1,0 +1,68 @@
+"""Fails unless the push runs of `ci.yml` and `build.yml` allow a main commit to be released.
+
+Usage: gate.py LATEST_TAG COMMIT, with an empty LATEST_TAG when no release exists.
+"""
+import json
+import sys
+
+from release import run
+
+
+def blocking(commits, jobs):
+    """Returns (sha, reason) for each commit whose `ci.yml` push run blocks releasing the last commit.
+
+    commits lists (sha, run) oldest first; run is None when the commit has no run, else a dict with
+    `databaseId` and `conclusion`. jobs(run id) returns {job name: conclusion}.
+    """
+    blocked = []
+    for index, (sha, ci) in enumerate(commits):
+        released = index == len(commits) - 1
+        if ci is None:
+            if released:
+                blocked.append((sha, 'no run'))
+            continue
+        conclusion = ci['conclusion'] or 'in progress'
+        if conclusion == 'success':
+            continue
+        if released or conclusion != 'failure':
+            blocked.append((sha, conclusion))
+            continue
+        failed = {name for name, result in jobs(ci['databaseId']).items() if result not in ('success', 'skipped')}
+        for _, later in commits[index + 1:]:
+            if not failed:
+                break
+            if later is not None:
+                failed -= {name for name, result in jobs(later['databaseId']).items() if result == 'success'}
+        if failed:
+            blocked.append((sha, 'failure (' + ', '.join(sorted(failed)) + ')'))
+    return blocked
+
+
+def push_run(workflow, sha):
+    runs = json.loads(run('gh', 'run', 'list', '--workflow', workflow, '--commit', sha, '--event', 'push', '--limit', '1', '--json', 'databaseId,conclusion'))
+    return runs[0] if runs else None
+
+
+def main(latest, commit):
+    shas = run('git', 'rev-list', '--first-parent', '--reverse', latest + '..' + commit).split() if latest else [commit]
+    cache = {}
+
+    def jobs(run_id):
+        if run_id not in cache:
+            data = json.loads(run('gh', 'run', 'view', str(run_id), '--json', 'jobs'))
+            cache[run_id] = {job['name']: job['conclusion'] for job in data['jobs']}
+        return cache[run_id]
+
+    failed = ['ci.yml on ' + sha + ': ' + reason for sha, reason in blocking([(sha, push_run('ci.yml', sha)) for sha in shas], jobs)]
+    build = push_run('build.yml', commit)
+    if build is None or build['conclusion'] != 'success':
+        failed.append('build.yml on ' + commit + ': ' + ('no run' if build is None else build['conclusion'] or 'in progress'))
+    for line in failed:
+        print('::error::' + line)
+    if failed:
+        print('::error::the push runs above have not succeeded; re-running a failed run clears it')
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main(*sys.argv[1:])
