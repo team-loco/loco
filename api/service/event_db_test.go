@@ -45,7 +45,7 @@ func scoped(t *testing.T, q genDb.Querier, userID uuid.UUID) context.Context {
 		t.Fatalf("scopes: %v", err)
 	}
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
-	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes, UserID: userID})
 }
 
 func newEventFixture(t *testing.T) *eventFixture {
