@@ -92,9 +92,8 @@ with session(out) as browser:
 
         repository = f"shop-{suffix}"
         image = f"registry.example.com/acme/{repository}:1.4.2"
-        theme, narrow, name = "light", False, repository
-        case = f"{theme}{'-narrow' if narrow else ''}"
-        context, page, errors = open_page(browser, "owner", theme, narrow)
+        name = repository
+        context, page, errors = open_page(browser, "owner")
         deployments = []
         rejected = []
         resolutions = []
@@ -102,7 +101,7 @@ with session(out) as browser:
 
         def resolve_image(route):
             resolutions.append(route.request.post_data_json)
-            if theme == "light" and len(resolutions) == 2:
+            if len(resolutions) == 2:
                 rejected.append(route.request.post_data_json)
                 route.continue_(post_data=json.dumps({**route.request.post_data_json, "image": "UPPER/Case::bad"}))
                 return
@@ -132,30 +131,8 @@ with session(out) as browser:
             route.fulfill(json={"deploymentId": str(uuid.uuid4())})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment)
-        if theme == "dark":
-            event = json.dumps({"status": "DEPLOYMENT_PHASE_FAILED", "message": "ImagePullBackOff: manifest unknown"}).encode()
-            stream = b"\x00" + len(event).to_bytes(4, "big") + event + b"\x02" + (2).to_bytes(4, "big") + b"{}"
-            context.route("**/loco.deployment.v1.DeploymentService/WatchDeployment", lambda route: route.fulfill(content_type="application/connect+json", body=stream))
         try:
             page.goto(base + "/resources?env=production")
-            if theme == "dark":
-                stale = seeded_draft(repository, f"registry.example.com/acme/{repository}:0.9")
-                page.evaluate(f"localStorage.setItem({json.dumps(drafts_key)},{json.dumps(json.dumps([stale]))})")
-                page.reload()
-                row = draft_row(page, repository)
-                expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
-                row.get_by_role("link", name=repository, exact=True).click()
-                stale_drawer = page.get_by_role("dialog", name=repository, exact=True)
-                expect(stale_drawer.get_by_role("note")).to_have_text(
-                    f"{repository} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name."
-                )
-                stale_drawer.get_by_role("button", name="Discard draft", exact=True).click()
-                confirm = page.get_by_role("alertdialog", name=f"Discard {repository}?")
-                confirm.get_by_role("button", name="Discard draft", exact=True).click()
-                expect(page.get_by_text(f"Discarded {repository}", exact=True)).to_be_visible()
-                expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
-                expect(draft_row(page, repository)).to_have_count(0)
-                assert stored_drafts(page) == [], stored_drafts(page)
             page.get_by_role("button", name="New resource", exact=True).click()
             page.get_by_role("menuitem", name="Service", exact=True).click()
             expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
@@ -168,10 +145,6 @@ with session(out) as browser:
             image_input.fill(image)
             name_input = ask.get_by_role("textbox", name="Name")
             expect(name_input).to_have_value(name)
-            if theme == "dark":
-                name_input.fill(repository)
-                expect(ask.get_by_text(f"{repository} already exists in this workspace", exact=True)).to_be_visible()
-                name_input.fill(name)
             ask.get_by_role("button", name="Continue", exact=True).click()
 
             expect(page).to_have_url(DRAFT_URL)
@@ -200,17 +173,7 @@ with session(out) as browser:
             port.fill("8080")
             expect(drawer.get_by_role("button", name="Decrease minimum replicas", exact=True)).to_be_disabled()
             drawer.get_by_role("button", name="Increase minimum replicas", exact=True).click()
-            if theme == "dark":
-                drawer.get_by_role("button", name="Increase maximum replicas", exact=True).click()
-                expect(drawer.get_by_text("Scales per region based on CPU utilization.", exact=True)).to_be_visible()
-                expect(drawer.get_by_role("group", name="CPU target (%)", exact=True)).to_contain_text("70")
-                for _ in range(replica_limit - 3):
-                    drawer.get_by_role("button", name="Increase maximum replicas", exact=True).click()
-                expect(drawer.get_by_role("button", name="Increase maximum replicas", exact=True)).to_be_disabled()
-                for _ in range(replica_limit - 3):
-                    drawer.get_by_role("button", name="Decrease maximum replicas", exact=True).click()
-            else:
-                expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+            expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
             cpu = drawer.get_by_role("slider", name="CPU", exact=True)
             memory = drawer.get_by_role("slider", name="Memory", exact=True)
             expect(cpu).to_have_attribute("max", "4")
@@ -318,7 +281,7 @@ with session(out) as browser:
             expect(page).to_have_url(DRAFT_URL)
             expect(secret_switch).to_be_checked()
             expect(secret_value).to_have_value("")
-            expect(drawer.get_by_text("Scales per region based on CPU utilization." if theme == "dark" else "Runs exactly 2 per region.", exact=True)).to_be_visible()
+            expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
             expect(memory).to_have_attribute("aria-valuetext", "1 GiB")
             expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
             expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value("info")
@@ -330,81 +293,74 @@ with session(out) as browser:
             expect(row.get_by_text("Draft", exact=True)).to_be_visible()
             expect(row.get_by_role("checkbox")).to_have_count(0)
             expect(row.get_by_role("button")).to_have_count(0)
-            if theme == "light":
-                page.goto(base + "?env=production")
-                dashboard_row = draft_row(page, name)
-                expect(dashboard_row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
-                expect(dashboard_row.get_by_text("Draft", exact=True)).to_be_visible()
-                expect(dashboard_row.get_by_role("button")).to_have_count(0)
-                page.goto(base + "?env=production&view=map")
-                node = page.get_by_role("link", name=re.compile(rf"^{re.escape(name)}\s*draft"))
-                expect(node).to_be_visible()
-                node.click()
-                expect(page).to_have_url(re.compile(r"\?env=production&view=map&draft=[0-9a-f-]+$"))
-                health.click()
-                drawer.get_by_role("textbox", name="Timeout, sec").fill("5")
-                page.keyboard.press("Escape")
-                page.goto(base + "/resources?env=production")
+            page.goto(base + "?env=production")
+            dashboard_row = draft_row(page, name)
+            expect(dashboard_row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
+            expect(dashboard_row.get_by_text("Draft", exact=True)).to_be_visible()
+            expect(dashboard_row.get_by_role("button")).to_have_count(0)
+            page.goto(base + "?env=production&view=map")
+            node = page.get_by_role("link", name=re.compile(rf"^{re.escape(name)}\s*draft"))
+            expect(node).to_be_visible()
+            node.click()
+            expect(page).to_have_url(re.compile(r"\?env=production&view=map&draft=[0-9a-f-]+$"))
+            health.click()
+            drawer.get_by_role("textbox", name="Timeout, sec").fill("5")
+            page.keyboard.press("Escape")
+            page.goto(base + "/resources?env=production")
             row.get_by_role("link", name=name, exact=True).focus()
             page.keyboard.press("Enter")
             expect(page).to_have_url(DRAFT_URL)
             health.click()
             expect(secret_value).to_have_value("")
             secret_value.fill("sk_test")
-            timeout = "5" if theme == "light" else "4"
-            expect(drawer.get_by_role("textbox", name="Timeout, sec")).to_have_value(timeout)
+            expect(drawer.get_by_role("textbox", name="Timeout, sec")).to_have_value("5")
             drawer.get_by_role("textbox", name="Timeout, sec").fill("4")
-            if theme == "light":
-                interval.fill("0")
+            interval.fill("0")
+            drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+            expect(drawer.get_by_text("Must be greater than or equal to 1", exact=True)).to_be_visible()
+            expect(drawer.get_by_role("alert")).to_have_text("Health check interval: Must be greater than or equal to 1")
+            assert not rejected, rejected
+            assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
+            interval.fill("15")
+            expect(drawer.get_by_role("alert")).to_have_count(0)
+            creations_before = len(creations)
+            with page.expect_response(lambda response: response.url.endswith("/loco.deployment.v1.DeploymentService/ResolveImage")) as resolution:
                 drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-                expect(drawer.get_by_text("Must be greater than or equal to 1", exact=True)).to_be_visible()
-                expect(drawer.get_by_role("alert")).to_have_text("Health check interval: Must be greater than or equal to 1")
-                assert not rejected, rejected
-                assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
-                interval.fill("15")
-                expect(drawer.get_by_role("alert")).to_have_count(0)
-                creations_before = len(creations)
-                with page.expect_response(lambda response: response.url.endswith("/loco.deployment.v1.DeploymentService/ResolveImage")) as resolution:
-                    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-                details = resolution.value.json()["details"]
-                assert [detail["type"] for detail in details] == ["google.rpc.BadRequest", "google.rpc.ErrorInfo"], details
-                expect(drawer.get_by_role("alert")).to_have_text("Container image: Invalid image reference. Use a repository with a tag or digest.")
-                assert len(creations) == creations_before, creations
-                assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
-                assert stored_drafts(page) == [name], stored_drafts(page)
-                assert not order, order
-                # When SetSecrets fails and the cleanup delete fails too, nothing deployed and the draft stays.
-                unavailable = lambda route: route.fulfill(status=503, json={"code": "unavailable"})
-                page.route("**/loco.secret.v1.SecretService/SetSecrets", unavailable)
-                page.route("**/loco.resource.v1.ResourceService/DeleteResource", unavailable)
-                drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-                expect(drawer.get_by_text("Couldn't store the secrets.", exact=True)).to_be_visible()
-                assert not deployments, deployments
-                assert stored_drafts(page) == [name], stored_drafts(page)
-                page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
-                page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
-                orphan = evidence.psql(state["container"], f"SELECT id FROM resources WHERE name='{name}';")
-                evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan})
-                drawer.get_by_role("button", name="Done", exact=True).click()
-                expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
-                draft_row(page, name).get_by_role("link", name=name, exact=True).click()
-                expect(page).to_have_url(DRAFT_URL)
-                secret_value.fill("sk_test")
+            details = resolution.value.json()["details"]
+            assert [detail["type"] for detail in details] == ["google.rpc.BadRequest", "google.rpc.ErrorInfo"], details
+            expect(drawer.get_by_role("alert")).to_have_text("Container image: Invalid image reference. Use a repository with a tag or digest.")
+            assert len(creations) == creations_before, creations
+            assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
+            assert stored_drafts(page) == [name], stored_drafts(page)
+            assert not order, order
+            # When SetSecrets fails and the cleanup delete fails too, nothing deployed and the draft stays.
+            unavailable = lambda route: route.fulfill(status=503, json={"code": "unavailable"})
+            page.route("**/loco.secret.v1.SecretService/SetSecrets", unavailable)
+            page.route("**/loco.resource.v1.ResourceService/DeleteResource", unavailable)
+            drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+            expect(drawer.get_by_text("Couldn't store the secrets.", exact=True)).to_be_visible()
+            assert not deployments, deployments
+            assert stored_drafts(page) == [name], stored_drafts(page)
+            page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
+            page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
+            orphan = evidence.psql(state["container"], f"SELECT id FROM resources WHERE name='{name}';")
+            evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan})
+            drawer.get_by_role("button", name="Done", exact=True).click()
+            expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+            draft_row(page, name).get_by_role("link", name=name, exact=True).click()
+            expect(page).to_have_url(DRAFT_URL)
+            secret_value.fill("sk_test")
             drawer.get_by_role("textbox", name="Description").fill("Takes checkout payments")
             drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
             open_button = drawer.get_by_role("link", name=f"Open {name}", exact=True)
             expect(open_button).to_be_visible()
-            if theme == "dark":
-                expect(drawer.get_by_text(f"Couldn't deploy {name}", exact=True)).to_be_visible()
-                expect(drawer.get_by_text("ImagePullBackOff: manifest unknown", exact=True)).to_be_visible()
-            else:
-                expect(drawer.get_by_text(f"Deploying {name}", exact=True)).to_be_visible()
+            expect(drawer.get_by_text(f"Deploying {name}", exact=True)).to_be_visible()
             expect(drawer.get_by_text("Pull image", exact=True)).to_be_visible()
             expect(drawer.get_by_text("Route traffic", exact=True)).to_be_visible()
             expect(drawer.get_by_role("button", name="Done", exact=True)).to_be_visible()
             header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
-            expect(header.get_by_text("Failed" if theme == "dark" else "Deploying", exact=True)).to_be_visible()
+            expect(header.get_by_text("Deploying", exact=True)).to_be_visible()
             page.wait_for_function(f"localStorage.getItem({json.dumps(drafts_key)}) === null")
             open_button.click()
             expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+$"))
@@ -415,8 +371,8 @@ with session(out) as browser:
             spec = deployments[0]["spec"]["service"]
             assert spec["build"]["image"] == pinned_image, spec
             assert spec["port"] == 8080, spec
-            assert spec["minReplicas"] == 2 and spec["maxReplicas"] == (3 if theme == "dark" else 2), spec
-            assert spec["scalers"] == ({"enabled": True, "cpuTarget": 70} if theme == "dark" else {}), spec
+            assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
+            assert spec["scalers"] == {}, spec
             assert spec["cpu"] == "500m" and spec["memory"] == "1Gi", spec
             assert spec["env"] == {"LOG_LEVEL": "info"}, spec
             assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
@@ -430,7 +386,82 @@ with session(out) as browser:
             assert domain == f"{name}.{platform_domain}", domain
             assert not errors, errors
         except BaseException:
-            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            page.screenshot(path=out / "failure-owner.png", animations="disabled")
+            raise
+        finally:
+            context.close()
+
+        # A second service at narrow width: a draft whose name is taken, autoscaling, and a failed rollout.
+        name = f"{repository}-2"
+        context, page, errors = open_page(browser, "owner", narrow=True)
+        deployments = []
+        context.route("**/loco.deployment.v1.DeploymentService/ResolveImage", lambda route: route.fulfill(json={"image": pinned_image}))
+
+        def create_failing_deployment(route):
+            deployments.append(route.request.post_data_json)
+            route.fulfill(json={"deploymentId": str(uuid.uuid4())})
+
+        context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_failing_deployment)
+        event = json.dumps({"status": "DEPLOYMENT_PHASE_FAILED", "message": "ImagePullBackOff: manifest unknown"}).encode()
+        stream = b"\x00" + len(event).to_bytes(4, "big") + event + b"\x02" + (2).to_bytes(4, "big") + b"{}"
+        context.route("**/loco.deployment.v1.DeploymentService/WatchDeployment", lambda route: route.fulfill(content_type="application/connect+json", body=stream))
+        try:
+            page.goto(base + "/resources?env=production")
+            stale = seeded_draft(repository, f"registry.example.com/acme/{repository}:0.9")
+            page.evaluate(f"localStorage.setItem({json.dumps(drafts_key)},{json.dumps(json.dumps([stale]))})")
+            page.reload()
+            row = draft_row(page, repository)
+            expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
+            row.get_by_role("link", name=repository, exact=True).click()
+            stale_drawer = page.get_by_role("dialog", name=repository, exact=True)
+            expect(stale_drawer.get_by_role("note")).to_have_text(
+                f"{repository} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name."
+            )
+            stale_drawer.get_by_role("button", name="Discard draft", exact=True).click()
+            confirm = page.get_by_role("alertdialog", name=f"Discard {repository}?")
+            confirm.get_by_role("button", name="Discard draft", exact=True).click()
+            expect(page.get_by_text(f"Discarded {repository}", exact=True)).to_be_visible()
+            expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+            expect(draft_row(page, repository)).to_have_count(0)
+            assert stored_drafts(page) == [], stored_drafts(page)
+
+            page.get_by_role("button", name="New resource", exact=True).click()
+            page.get_by_role("menuitem", name="Service", exact=True).click()
+            ask = page.get_by_role("dialog", name="New resource")
+            ask.get_by_role("textbox", name="Container image").fill(image)
+            name_input = ask.get_by_role("textbox", name="Name")
+            expect(name_input).to_have_value(name)
+            name_input.fill(repository)
+            expect(ask.get_by_text(f"{repository} already exists in this workspace", exact=True)).to_be_visible()
+            name_input.fill(name)
+            ask.get_by_role("button", name="Continue", exact=True).click()
+
+            expect(page).to_have_url(DRAFT_URL)
+            drawer = page.get_by_role("dialog", name=name, exact=True)
+            assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
+            drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
+            drawer.get_by_role("button", name="Increase minimum replicas", exact=True).click()
+            increase_max = drawer.get_by_role("button", name="Increase maximum replicas", exact=True)
+            increase_max.click()
+            expect(drawer.get_by_text("Scales per region based on CPU utilization.", exact=True)).to_be_visible()
+            expect(drawer.get_by_role("group", name="CPU target (%)", exact=True)).to_contain_text("70")
+            for _ in range(replica_limit - 3):
+                increase_max.click()
+            expect(increase_max).to_be_disabled()
+            for _ in range(replica_limit - 3):
+                drawer.get_by_role("button", name="Decrease maximum replicas", exact=True).click()
+            drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+
+            expect(drawer.get_by_text(f"Couldn't deploy {name}", exact=True)).to_be_visible()
+            expect(drawer.get_by_text("ImagePullBackOff: manifest unknown", exact=True)).to_be_visible()
+            header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
+            expect(header.get_by_text("Failed", exact=True)).to_be_visible()
+            spec = deployments[0]["spec"]["service"]
+            assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 3, spec
+            assert spec["scalers"] == {"enabled": True, "cpuTarget": 70}, spec
+            assert not errors, errors
+        except BaseException:
+            page.screenshot(path=out / "failure-owner-narrow.png", animations="disabled")
             raise
         finally:
             context.close()

@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
+from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Check resource details against an isolated production dashboard")
 parser.add_argument("--state")
@@ -54,15 +54,8 @@ def metrics(route):
 results = []
 with session(out) as browser:
     try:
-        theme = "light"
-        narrow = False
-        case = f"{theme}{'-narrow' if narrow else ''}"
-        context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme, permissions=["clipboard-read", "clipboard-write"])
-        authenticate(context, owner['token'], theme)
+        context, page, errors = open_page(browser, state=state, permissions=["clipboard-read", "clipboard-write"])
         context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
-        page = context.new_page()
-        errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
         try:
             page.goto(base)
             expect(page.get_by_text("Last warning", exact=True)).to_be_visible()
@@ -109,8 +102,7 @@ with session(out) as browser:
             assert geometry["height"] > 0
             # Long image references scroll within the spec body.
             assert geometry["width"] <= dialog.bounding_box()["width"], geometry
-            if not narrow:
-                assert geometry["content"] <= geometry["height"] + 1, geometry
+            assert geometry["content"] <= geometry["height"] + 1, geometry
             assert dialog.bounding_box()["width"] <= page.viewport_size["width"]
             page.set_viewport_size(evidence.NARROW)
             expect(dialog).to_be_visible()
@@ -140,9 +132,9 @@ with session(out) as browser:
             remaining = evidence.psql(state["container"], f"SELECT COUNT(*) FROM resources WHERE id='{resource}';")
             assert remaining == "0", remaining
             assert not errors, errors
-            results.append({"theme": theme, "narrow": narrow, "spec": geometry})
+            results.append({"spec": geometry})
         except BaseException:
-            page.screenshot(path=out / f"failure-{case}.png", animations="disabled")
+            page.screenshot(path=out / "failure.png", animations="disabled")
             raise
         finally:
             context.close()

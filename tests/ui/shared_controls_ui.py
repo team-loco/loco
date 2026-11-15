@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import wait_for_query, authenticate, evidence, load_state, repo, session
+from harness import wait_for_query, evidence, load_state, open_page, repo, session
 
 parser = argparse.ArgumentParser(description="Check compact controls, segmented motion and settings navigation")
 parser.add_argument("--state")
@@ -50,7 +50,7 @@ def mock_telemetry(context):
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
 
-def log_levels(page, suffix):
+def log_levels(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
     levels = page.get_by_role("group", name="Log levels")
     warn = levels.get_by_role("button", name=re.compile(r"^Warn"))
@@ -65,7 +65,7 @@ def log_levels(page, suffix):
     wait_for_query(page, lambda query: query.get("q") == ["@level:error"])
 
 
-def live_focus(page, suffix):
+def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     live = page.get_by_role("button", name=re.compile(r"^(Live|Starting…)"))
     expect(live).to_have_attribute("aria-pressed", "false")
@@ -90,7 +90,7 @@ def live_focus(page, suffix):
     expect(live).to_have_attribute("aria-pressed", "false")
 
 
-def log_paging(page, suffix):
+def log_paging(page):
     many = [{"timestamp": stamp(timedelta(seconds=i * 7 + 1)), "severity": "INFO", "body": f"Paged line {i + 1}", "resourceId": resource, "resourceAttributes": {"cloud.region": "us-east-1"}, "logAttributes": {"http.request.method": "GET"}} for i in range(120)]
     page.route("**/loco.observability.v1.ObservabilityService/QueryLogs", lambda route: route.fulfill(json={"entries": many, "totalMatched": "0"}))
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&size=25")
@@ -130,7 +130,7 @@ def log_paging(page, suffix):
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
-def time_presets(page, suffix):
+def time_presets(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
     time_range = page.get_by_role("dialog", name="Time range")
@@ -140,7 +140,7 @@ def time_presets(page, suffix):
     expect(time_range).not_to_be_visible()
 
 
-def calendar(page, suffix):
+def calendar(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
     time_range = page.get_by_role("dialog", name="Time range")
@@ -162,7 +162,7 @@ def calendar(page, suffix):
     expect(date_trigger).not_to_have_text(before)
 
 
-def query_enter(page, suffix):
+def query_enter(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
     search = page.locator('input[aria-label="Search and filter"]')
     search.click()
@@ -180,12 +180,11 @@ def query_enter(page, suffix):
     wait_for_query(page, lambda query: query.get("q") == ["@level:warn checkout"])
 
 
-def query_suggestions(page, suffix):
+def query_suggestions(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     search = page.locator('input[aria-label="Search and filter"]')
     search.fill("@lev")
     expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
-    suggestions = page.get_by_role("listbox", name="Suggestions")
     expect(search).to_have_attribute("aria-expanded", "true")
     search.press("Enter")
     expect(search).to_have_value("@level:")
@@ -198,7 +197,7 @@ def query_suggestions(page, suffix):
     expect(search).to_have_attribute("aria-expanded", "false")
 
 
-def volume(page, suffix):
+def volume(page):
     end = int(datetime.now(UTC).timestamp() * 1000)
     page.goto(state["ui_url"] + base + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}")
     slider = page.get_by_role("slider", name=re.compile(r"^Log volume"))
@@ -231,7 +230,7 @@ def volume(page, suffix):
     assert urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0] == clicked
 
 
-def access_picker(page, suffix):
+def access_picker(page):
     page.goto(state["ui_url"] + "/tokens")
     page.get_by_role("button", name="New token", exact=True).first.click()
     dialog = page.get_by_role("dialog")
@@ -263,7 +262,7 @@ def first_click_sorts_descending(table, label, first):
     expect(table.get_by_role("row").nth(1)).to_contain_text(first)
 
 
-def dropdown_cursors(page, suffix):
+def dropdown_cursors(page):
     page.goto(state["ui_url"] + base + "/resources?env=production")
     trigger = page.get_by_role("button", name="New resource", exact=True)
     trigger.hover()
@@ -280,7 +279,7 @@ def dropdown_cursors(page, suffix):
     page.keyboard.press("Escape")
 
 
-def resources(page, suffix):
+def resources(page):
     for route in ("/resources", ""):
         page.goto(state["ui_url"] + base + route + "?env=production")
         table = page.get_by_role("table").filter(has=page.get_by_role("columnheader", name="Resource", exact=True)).first
@@ -303,7 +302,7 @@ def resources(page, suffix):
             first_click_sorts_descending(table, "Created", "controls-zeta")
 
 
-def metrics(page, suffix):
+def metrics(page):
     environments = evidence.rpc(state["api_url"], owner["token"], "loco.environment.v1.EnvironmentService/ListEnvironments", {"workspaceId": workspace})["environments"]
     production = next(e["id"] for e in environments if e["name"] == "production")
     # One deploy at each metric point, so a click on any point offers one.
@@ -347,18 +346,11 @@ out.mkdir(parents=True, exist_ok=True)
 results = []
 with session(out) as browser:
     try:
-        theme = "light"
-        narrow = False
-        context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme, timezone_id="UTC")
+        context, page, errors = open_page(browser, state=state, timezone_id="UTC")
         mock_telemetry(context)
-        authenticate(context, owner['token'], theme)
-        page = context.new_page()
-        errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
         try:
             page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
-            suffix = f"{theme}{'-narrow' if narrow else ''}"
-            dropdown_cursors(page, suffix)
+            dropdown_cursors(page)
             page.goto(state["ui_url"] + base + "/settings?scope=workspace")
             group = page.get_by_role("group", name="Settings for", exact=True)
             workspace_button = group.get_by_role("button", name="Workspace", exact=True)
@@ -400,10 +392,10 @@ with session(out) as browser:
             modes = page.get_by_role("radiogroup", name="Mode")
             html = page.locator("html")
             dark_class = re.compile(r"\bdark\b")
-            modes.get_by_role("radio", name="Light" if theme == "dark" else "Dark", exact=True).click()
-            (expect(html).not_to_have_class if theme == "dark" else expect(html).to_have_class)(dark_class)
+            modes.get_by_role("radio", name="Dark", exact=True).click()
+            expect(html).to_have_class(dark_class)
             modes.get_by_role("radio", name="System", exact=True).click()
-            (expect(html).to_have_class if theme == "dark" else expect(html).not_to_have_class)(dark_class)
+            expect(html).not_to_have_class(dark_class)
             colours = page.get_by_role("radiogroup", name="Color theme")
             loco = colours.get_by_role("radio", name="Loco", exact=True)
             loco.focus()
@@ -425,11 +417,11 @@ with session(out) as browser:
             box = name.bounding_box()
             assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
             for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
-                check(page, suffix)
+                check(page)
             assert not errors, errors
-            results.append({"theme": theme, "narrow": narrow, "passed": True})
+            results.append({"passed": True})
         except BaseException:
-            page.screenshot(path=str(out / f"failure-{theme}-{narrow}.png"), full_page=True)
+            page.screenshot(path=str(out / "failure.png"), full_page=True)
             raise
         finally:
             context.close()

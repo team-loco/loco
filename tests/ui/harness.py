@@ -5,7 +5,6 @@ import importlib.util
 import io
 import json
 import os
-import sys
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -30,8 +29,8 @@ def load_state(args, name, scenario):
     return evidence.load_state(args.state)
 
 
-def authenticate(context, token, theme="light", storage=None):
-    values = {evidence.MODE_KEY: theme, **(storage or {})}
+def authenticate(context, token, storage=None):
+    values = {evidence.MODE_KEY: "light", **(storage or {})}
     if token is not None:
         values[evidence.AUTH_KEY] = json.dumps({
             "idToken": token, "refreshToken": None, "expiresAt": evidence.SESSION_EXPIRY_MS,
@@ -56,9 +55,10 @@ def session(out):
             raise
 
 
-def open_page(browser, user="owner", theme="light", narrow=False, *, state, storage=None):
-    context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-    authenticate(context, None if user is None else state["users"][user]["token"], theme, storage)
+def open_page(browser, user="owner", narrow=False, *, state, storage=None, **context_options):
+    options = {"viewport": evidence.NARROW if narrow else evidence.DESKTOP, "color_scheme": "light", **context_options}
+    context = browser.new_context(**options)
+    authenticate(context, None if user is None else state["users"][user]["token"], storage)
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))

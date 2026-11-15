@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, session
+from harness import evidence, load_state, open_page, repo, session
 
 parser = argparse.ArgumentParser(description="Check settings field names, focus and descriptions in the production UI")
 parser.add_argument("--state")
@@ -149,14 +149,8 @@ def check_create_dialogs(page):
 with session(out) as browser:
     try:
         for user in ("owner", "member"):
-            theme = "light"
-            narrow = False
-            context = browser.new_context(viewport=evidence.NARROW if narrow else evidence.DESKTOP, color_scheme=theme)
-            authenticate(context, state['users'][user]['token'], theme)
-            page = context.new_page()
-            errors = []
-            page.on("pageerror", lambda error: errors.append(str(error)))
-            if user == "owner" and theme == "light" and not narrow:
+            context, page, errors = open_page(browser, user, state=state)
+            if user == "owner":
                 context.add_init_script(
                     f"localStorage.setItem('loco:active-org:v1', {json.dumps(org_id)});"
                     f"localStorage.setItem('loco:active-workspace:v1', {json.dumps(workspace_id)});"
@@ -219,17 +213,16 @@ with session(out) as browser:
                         expect(workspaces.get_by_role("link", name="shared", exact=True)).to_be_visible()
                         # The list fits the smallest page size, so it has no pager.
                         expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
-                    if tab == "ws" and user == "owner" and theme == "light" and not narrow:
+                    if tab == "ws" and user == "owner":
                         check_webhooks(page)
                         check_environments(page)
                         check_create_dialogs(page)
                     assert not errors, errors
-                    results.append({"user": user, "tab": tab, "theme": theme, "narrow": narrow, "errors": list(errors)})
+                    results.append({"user": user, "tab": tab, "errors": list(errors)})
                 except BaseException as error:
-                    suffix = f"{user}-{tab}-{theme}{'-narrow' if narrow else ''}"
                     with contextlib.suppress(Exception):
-                        page.screenshot(path=out / f"failure-{suffix}.png", animations="disabled")
-                    (out / "failure.json").write_text(json.dumps({"user": user, "tab": tab, "theme": theme, "narrow": narrow, "error": repr(error), "errors": errors, "completed": results}, indent=2))
+                        page.screenshot(path=out / f"failure-{user}-{tab}.png", animations="disabled")
+                    (out / "failure.json").write_text(json.dumps({"user": user, "tab": tab, "error": repr(error), "errors": errors, "completed": results}, indent=2))
                     raise
             context.close()
     finally:

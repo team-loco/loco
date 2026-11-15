@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 from playwright.sync_api import expect
-from harness import authenticate, evidence, load_state, repo, rpc as api_rpc, session
+from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
 
 parser = argparse.ArgumentParser(description="Check editing regions in resource settings")
 parser.add_argument("--state")
@@ -26,7 +26,6 @@ production = next(env["id"] for env in rpc("environment", "ListEnvironments", {"
 runtime = json.dumps({"observability": {"injectOtel": True}, "build": {"type": "image", "image": "registry.example.com/shop:latest"}, "cpu": "500m", "memory": "512Mi", "minReplicas": 2, "maxReplicas": 2, "port": 8080})
 with session(out) as browser:
     try:
-        theme = "light"
         resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": "regions-" + uuid.uuid4().hex[:8], "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 2, "maxReplicas": 2}}}}})["resourceId"]
         cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
         evidence.psql(state["container"], f"""
@@ -38,9 +37,7 @@ VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
 VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"app_spec":{{}}}}',true,2,'Ready',NOW());
 """)
-        context = browser.new_context(viewport=evidence.DESKTOP, color_scheme=theme)
-        authenticate(context, owner['token'], theme)
-        page = context.new_page()
+        context, page, errors = open_page(browser, state=state)
         calls = []
 
         def record(route):
@@ -65,8 +62,7 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
             west = page.get_by_role("switch", name="Run in eu-west-1", exact=True)
             expect(west).to_be_visible()
             expect(west).to_be_enabled()
-            if theme == "dark":
-                page.set_viewport_size(evidence.NARROW)
+            page.set_viewport_size(evidence.NARROW)
             west.focus()
             page.keyboard.press("Space")
             expect(west).to_be_checked()
@@ -114,6 +110,7 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
             page.reload()
             expect(page.get_by_text("Deploy this resource before adding regions", exact=False).first).to_be_visible()
             expect(west).to_be_disabled()
+            assert not errors, errors
         finally:
             context.close()
     finally:
