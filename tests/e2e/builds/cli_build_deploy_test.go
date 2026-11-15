@@ -56,7 +56,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 
 	t.Run("deploys from source", func(t *testing.T) {
 		started := time.Now()
-		deployed := w.MustLoco(t, dir, "deploy", "--yes")
+		deployed := w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 		t.Logf("loco deploy took %s", time.Since(started))
 		url := app + ": https://" + platform.Host(app)
 		for _, want := range []string{"Packed", "succeeded in", "Started deployment", url} {
@@ -65,7 +65,6 @@ func TestCLIBuildDeploy(t *testing.T) {
 			}
 		}
 		w.MustLoco(t, dir, "builds", "logs", listBuilds(t, w, dir, app)[0].ID)
-		w.WaitReady(t, app)
 	})
 
 	t.Run("lists the build with its commit", func(t *testing.T) {
@@ -111,7 +110,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		minimalDir := t.TempDir()
 		p.CopyFixture(t, "build-app", minimalDir)
 		out := w.MustLoco(t, minimalDir, "deploy", "--name", minimal, "--port", "8080", "--region", p.Region,
-			"--dockerfile", "deploy/Dockerfile", "--yes").Stdout
+			"--dockerfile", "deploy/Dockerfile", "--yes", "--wait").Stdout
 		if _, err := os.Stat(filepath.Join(minimalDir, locofile.FileName)); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("a deploy without loco.yaml wrote one (%v)", err)
 		}
@@ -121,7 +120,6 @@ func TestCLIBuildDeploy(t *testing.T) {
 		if !url.MatchString(out) {
 			t.Errorf("loco deploy reports no suffixed public URL:\n%s", out)
 		}
-		w.WaitReady(t, minimal)
 	})
 
 	const secretApp = "e2e-cli-secret" //nolint:gosec // an app name

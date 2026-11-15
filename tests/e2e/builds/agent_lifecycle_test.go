@@ -88,7 +88,7 @@ func TestAgentLifecycle(t *testing.T) {
 		dir,
 		locofile.File{Partial: app, Services: map[string]locofile.Service{app: platform.ImageService(p.PublicImage)}},
 	)
-	w.MustLoco(t, dir, "deploy", "--yes")
+	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 	resourceID := w.ResourceID(t, app)
 
 	t.Run("the agent applies the placement", func(t *testing.T) {
@@ -126,7 +126,6 @@ func TestAgentLifecycle(t *testing.T) {
 	})
 
 	t.Run("the app becomes ready", func(t *testing.T) {
-		w.WaitReady(t, app)
 		platform.Eventually(
 			t,
 			30*time.Second,

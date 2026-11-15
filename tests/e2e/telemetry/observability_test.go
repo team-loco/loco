@@ -72,7 +72,7 @@ func TestObservability(t *testing.T) {
 		Services: map[string]locofile.Service{otelApp: platform.SourceService(host)},
 	}
 	platform.WriteLocoFile(t, dir, file)
-	w.MustLoco(t, dir, "deploy", "--yes")
+	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 	resourceID := w.ResourceID(t, otelApp)
 	application, err := p.Application(t.Context(), resourceID)
 	if err != nil {
@@ -602,10 +602,9 @@ func (o *observed) metricsRequest(metric string) *observabilityv1.QueryMetricsRe
 
 func (o *observed) defaultTelemetry(t *testing.T) {
 	w, resourceID := o.w, o.resourceID
-	w.WaitReady(t, otelApp)
-	platform.Eventually(t, routeTimeout, "the default SDK configuration", func(ctx context.Context) error {
-		return telemetryEnvMatches(ctx, w, resourceID, otelApp)
-	})
+	if err := telemetryEnvMatches(t.Context(), w, resourceID, otelApp); err != nil {
+		t.Error(err)
+	}
 	platform.Eventually(
 		t,
 		routeTimeout,
@@ -998,20 +997,10 @@ func (o *observed) userSDKConfiguration(t *testing.T) {
 	}
 	file.Services[otelApp] = service
 	platform.WriteLocoFile(t, dir, file)
-	w.MustLoco(t, dir, "infra", "apply", "--yes")
-	platform.Eventually(t, routeTimeout, "the user-owned SDK configuration", func(ctx context.Context) error {
-		return telemetryEnvMatches(ctx, w, resourceID, custom)
-	})
-	p.MustKubectl(
-		t,
-		"-n",
-		w.Namespace,
-		"rollout",
-		"status",
-		"deployment/resource-"+resourceID,
-		"--timeout",
-		routeTimeout.String(),
-	)
+	w.MustLoco(t, dir, "infra", "apply", "--yes", "--wait")
+	if err := telemetryEnvMatches(t.Context(), w, resourceID, custom); err != nil {
+		t.Error(err)
+	}
 	if _, ok := containerEnv(t, w, resourceID)["OTEL_RESOURCE_ATTRIBUTES"]; ok {
 		t.Error("a user endpoint keeps the injected resource attributes")
 	}
@@ -1039,17 +1028,7 @@ func (o *observed) injectionDisabled(t *testing.T) {
 	service.Env = nil
 	file.Services[otelApp] = service
 	platform.WriteLocoFile(t, dir, file)
-	w.MustLoco(t, dir, "infra", "apply", "--yes")
-	p.MustKubectl(
-		t,
-		"-n",
-		w.Namespace,
-		"rollout",
-		"status",
-		"deployment/resource-"+resourceID,
-		"--timeout",
-		routeTimeout.String(),
-	)
+	w.MustLoco(t, dir, "infra", "apply", "--yes", "--wait")
 	for name := range containerEnv(t, w, resourceID) {
 		if strings.HasPrefix(name, "OTEL_") {
 			t.Errorf("injectOtel false injects %s", name)

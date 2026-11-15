@@ -27,8 +27,7 @@ func TestClusterAttachment(t *testing.T) {
 	platform.WriteLocoFile(t, dir, locofile.File{Partial: "attached", Services: map[string]locofile.Service{
 		"attached": platform.ImageService(p.PublicImage),
 	}})
-	w.MustLoco(t, dir, "deploy", "--yes")
-	w.WaitReady(t, "attached")
+	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 
 	t.Run("agent restart without the join token keeps the cluster", func(t *testing.T) {
 		if err := p.RestartAgent(t.Context()); err != nil {

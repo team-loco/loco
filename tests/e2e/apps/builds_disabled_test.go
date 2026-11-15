@@ -63,10 +63,9 @@ func TestBuildsDisabled(t *testing.T) {
 		platform.WriteLocoFile(t, dir, locofile.File{Partial: imageApp, Services: map[string]locofile.Service{
 			imageApp: platform.ImageService(p.PublicImage, platform.Host(imageApp)),
 		}})
-		if out := w.MustLoco(t, dir, "deploy", "--yes").Stdout; !strings.Contains(out, "Started deployment") {
+		if out := w.MustLoco(t, dir, "deploy", "--yes", "--wait").Stdout; !strings.Contains(out, "Started deployment") {
 			t.Errorf("the CLI did not apply the file without a build:\n%s", out)
 		}
-		w.WaitReady(t, imageApp)
 		var deployment appsv1.Deployment
 		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, imageApp))
 		repository := p.PublicImage[:strings.LastIndex(p.PublicImage, ":")]
@@ -111,8 +110,7 @@ func TestBuildsDisabled(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		w.MustLoco(t, source, "deploy", sourceApp, "--image", p.PublicImage, "--yes")
-		w.WaitReady(t, sourceApp)
+		w.MustLoco(t, source, "deploy", sourceApp, "--image", p.PublicImage, "--yes", "--wait")
 		after, err := os.ReadFile(filepath.Join(source, locofile.FileName))
 		if err != nil {
 			t.Fatal(err)
@@ -164,7 +162,7 @@ func TestBuildsDisabled(t *testing.T) {
 		clean := &platform.Workspace{}
 		*clean = *w
 		clean.Home = t.TempDir()
-		result := clean.Loco(t.Context(), dir, []string{"LOCO_TOKEN=" + token}, "deploy", "--yes",
+		result := clean.Loco(t.Context(), dir, []string{"LOCO_TOKEN=" + token}, "deploy", "--yes", "--wait",
 			"--org", w.OrgID, "--workspace", w.ID, "--env", w.EnvironmentID)
 		if result.Err != nil {
 			t.Fatalf("a clean CLI deploy with a workspace write token: %v\n%s", result.Err, result.Output())
@@ -175,7 +173,6 @@ func TestBuildsDisabled(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(clean.Home, ".loco", "credentials.json")); err == nil {
 			t.Error("the CLI wrote a session")
 		}
-		w.WaitReady(t, app)
 	})
 }
 
