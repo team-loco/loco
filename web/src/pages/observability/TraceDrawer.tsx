@@ -1,345 +1,30 @@
-import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { ErrorState } from "@/components/design/ErrorState";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { Spinner } from "@/components/design/Spinner";
 import { useState } from "react";
-import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
+
 import { useQueryState } from "nuqs";
-import { Link } from "react-router";
+
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
-import {
-	BoxIcon,
-	ChevronRightIcon,
-	CircleAlertIcon,
-	CopyIcon,
-	EllipsisIcon,
-	ScrollTextIcon,
-	XIcon,
-	ZoomOutIcon,
-} from "lucide-react";
+import { ScrollTextIcon } from "lucide-react";
 
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
-import { Sheet, SheetBody, SheetContent, SheetDescription, SheetTitle } from "@/components/design/Sheet";
-import { useCopy } from "@/hooks/useCopy";
-import { useEnvironments } from "@/hooks/useEnvironment";
-import { useQueryLogs } from "@/hooks/useQueryLogs";
-import { getErrorMessage } from "@/lib/error-handler";
-import { AROUND_MS, aroundWindow } from "@/lib/obs-time";
-import { resourcePath } from "@/lib/routes";
-import { formatClock, msToTimestamp } from "@/lib/time";
-import { cn } from "@/lib/utils";
 
-import { SpanEvents } from "./SpanEvents";
-import { SpanLinks } from "./SpanLinks";
+import { Sheet, SheetBody, SheetContent } from "@/components/design/Sheet";
+
+import { FlameGraph } from "./trace-viewer/FlameGraph";
+import { TraceLogs } from "./trace-viewer/TraceLogs";
+import { SpanPanel } from "./trace-viewer/SpanPanel";
+import { TraceHeader } from "./trace-viewer/TraceHeader";
+import { Minimap } from "./trace-viewer/Minimap";
+
 import { useObs } from "./context";
-import { failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo, type Zoom } from "./flame";
-import { fmtTs, levelStyle } from "./format";
-import type { Token } from "./query";
-import { replicaOf, toRows } from "./rows";
-import { traceServiceColor, traceServiceLabel } from "./trace-service";
-import { axisLabel, durationLabel, spanError, spanStart, type TraceSummary } from "./traces";
+import { FULL_ZOOM, type Zoom } from "./flame";
 
-const ROW_PX = 24;
-const TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
-const LABEL_MIN = 0.05;
-const DURATION_MIN = 0.13;
-const MIN_BLOCK = 0.0025;
-const PERCENT = 100;
-const NANOS_PER_MS = 1_000_000n;
-const TICK_SCALE = 1_000_000;
-const SERVER_ERROR = 500;
-const TRACE_LOG_LIMIT = 50;
-
-function rootStatusCode(span: TraceSpan): string {
-	return span.spanAttributes["http.response.status_code"] ?? span.spanAttributes["http.status_code"] ?? "";
-}
-
-const NAMESPACE_TITLES: Record<string, string> = {
-	http: "HTTP",
-	url: "HTTP",
-	db: "Database",
-	rpc: "RPC",
-	messaging: "Messaging",
-	net: "Network",
-	network: "Network",
-	server: "Network",
-	client: "Network",
-	peer: "Network",
-	exception: "Exception",
-	code: "Code",
-};
-
-interface AttributeGroup {
-	title: string;
-	rows: [string, string][];
-}
-
-function groupAttributes(span: TraceSpan, trace: TraceSummary, resourceName: string | undefined): AttributeGroup[] {
-	const r = span.resourceAttributes;
-	const groups: AttributeGroup[] = [
-		{
-			title: "Loco",
-			rows: [
-				["resource", resourceName ?? r["service.name"] ?? span.serviceName],
-				["replica", r["k8s.pod.name"] ?? ""],
-				["region", r["loco.region"] ?? ""],
-				["environment", r["deployment.environment.name"] ?? ""],
-			],
-		},
-		{
-			title: "Span",
-			rows: [
-				["duration", durationLabel(span.durationNanos)],
-				["self time", durationLabel(selfTime(trace, span))],
-				["offset", durationLabel(spanStart(span) - trace.start)],
-				["kind", span.kind],
-				["status", span.statusCode],
-				["span id", span.spanId],
-				["parent", span.parentSpanId === "" ? "root span" : span.parentSpanId],
-			],
-		},
-	];
-	const byTitle = new Map<string, [string, string][]>();
-	for (const [k, v] of Object.entries(span.spanAttributes)) {
-		const ns = k.split(".")[0] ?? "";
-		const title = k.includes(".") ? (NAMESPACE_TITLES[ns] ?? "Other") : "Other";
-		byTitle.set(title, [...(byTitle.get(title) ?? []), [k, v]]);
-	}
-	for (const [title, rows] of byTitle) groups.push({ title, rows });
-	groups.push({
-		title: "Resource",
-		rows: Object.entries(r).filter(([k]) => k !== "k8s.pod.name" && k !== "loco.region"),
-	});
-	groups.push({
-		title: "Instrumentation",
-		rows: [
-			["scope", span.scopeName],
-			["version", span.scopeVersion],
-		],
-	});
-	return groups.map((g) => ({ ...g, rows: g.rows.filter(([, v]) => v !== "") })).filter((g) => g.rows.length > 0);
-}
-
-function FlameGraph({
-	trace,
-	selected,
-	onSelect,
-	label,
-}: {
-	trace: TraceSummary;
-	selected: TraceSpan;
-	onSelect: (span: TraceSpan) => void;
-	label: (span: TraceSpan) => string;
-}) {
-	const [zoom, setZoom] = useState<Zoom>(FULL_ZOOM);
-	const { blocks, depth } = flameLayout(trace, zoom);
-	const related = lineage(trace, selected.spanId);
-	const width = zoom.b - zoom.a;
-	const zoomed = width < 1;
-	const shares = serviceShares(trace);
-	return (
-		<section aria-label="Flame graph" className="flex flex-col gap-1.5 rounded-card bg-panel px-3.5 pt-3 pb-3.5">
-			<div className="flex min-h-7 flex-wrap items-center gap-x-4 gap-y-1.5">
-				<div className="mr-auto flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-fg2">
-					{shares.map((s) => (
-						<span key={s.service} className="flex items-center gap-1.5" title="Share of self time">
-							{s.service || "Unknown service"}
-							<span className="font-mono text-[11.5px] text-fg3">{Math.round(s.share * PERCENT)}%</span>
-						</span>
-					))}
-				</div>
-				{zoomed && (
-					<>
-						<span className="font-mono text-[12px] text-fg3">{(1 / width).toFixed(1)}×</span>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								setZoom(FULL_ZOOM);
-							}}
-						>
-							<ZoomOutIcon />
-							Reset zoom
-						</Button>
-					</>
-				)}
-			</div>
-			{zoomed && (
-				<div className="relative h-1 rounded-[2px] bg-line" aria-hidden="true">
-					<span
-						className="absolute inset-y-0 rounded-[2px] bg-fg3"
-						style={{ left: `${String(zoom.a * PERCENT)}%`, width: `${String(width * PERCENT)}%` }}
-					/>
-				</div>
-			)}
-			<div className="relative h-3.5 font-mono text-[11px] text-fg3" aria-hidden="true">
-				{TICKS.map((f, i) => (
-					<span
-						key={f}
-						className={cn(
-							"absolute whitespace-nowrap",
-							i === 0 ? "" : i === TICKS.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
-						)}
-						style={{ left: `${String(f * PERCENT)}%` }}
-					>
-						{axisLabel(
-							(trace.duration * BigInt(Math.round((zoom.a + f * width) * TICK_SCALE))) / BigInt(TICK_SCALE),
-							trace.duration,
-						)}
-					</span>
-				))}
-			</div>
-			<div className="relative overflow-hidden" style={{ height: depth * ROW_PX }}>
-				{TICKS.map((f) => (
-					<span
-						key={f}
-						aria-hidden="true"
-						className="absolute inset-y-0 border-l border-dashed border-line2"
-						style={{ left: `${String(f * PERCENT)}%` }}
-					/>
-				))}
-				{blocks.map((b) => {
-					const err = spanError(b.span);
-					const on = b.span.spanId === selected.spanId;
-					const color = err ? "var(--err)" : traceServiceColor(b.span.serviceName);
-					return (
-						<button
-							key={b.span.spanId}
-							type="button"
-							aria-pressed={on}
-							aria-label={`${label(b.span)} ${b.span.name}, ${durationLabel(b.span.durationNanos)}${err ? ", error" : ""}`}
-							title={`${b.span.name}\n${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(trace, b.span))}\nDouble-click to zoom`}
-							onClick={() => {
-								onSelect(b.span);
-							}}
-							onDoubleClick={() => {
-								setZoom(zoomTo(trace, b.span));
-							}}
-							className={cn(
-								"absolute flex h-[22px] items-center gap-2 overflow-hidden rounded-[3px] px-1.5 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-								err && "text-bad-fg",
-								!related.has(b.span.spanId) && "opacity-45",
-								on && "shadow-[inset_0_0_0_1.5px_var(--fg)]",
-							)}
-							style={{
-								left: `${String(b.left * PERCENT)}%`,
-								width: `${String(Math.max(MIN_BLOCK, b.width) * PERCENT)}%`,
-								top: b.depth * ROW_PX,
-								background: `color-mix(in oklab, ${color} ${err ? "26%" : "34%"}, var(--bg))`,
-							}}
-						>
-							{b.width > LABEL_MIN && <span className="min-w-0 truncate font-mono text-[11.5px]">{b.span.name}</span>}
-							{b.width > DURATION_MIN && (
-								<span className="ml-auto font-mono text-[11px] whitespace-nowrap opacity-70">
-									{durationLabel(b.span.durationNanos)}
-								</span>
-							)}
-						</button>
-					);
-				})}
-			</div>
-			<span className="text-[11.5px] text-fg3">Select a span for details. Double-click a span to zoom into it.</span>
-		</section>
-	);
-}
-
-function traceToken(traceId: string): Token {
-	return { neg: false, key: "trace", value: traceId };
-}
-
-function TraceLogs({ trace }: { trace: TraceSummary }) {
-	const timePref = useTimePreferences();
-	const { workspaceId, scopedResourceIds, resourceById, goTo } = useObs();
-	const { active } = useEnvironments();
-	const [now] = useState(Date.now);
-	const startMs = Number(trace.start / NANOS_PER_MS);
-	const endMs = startMs + Number(trace.duration / NANOS_PER_MS);
-	const from = startMs - AROUND_MS;
-	const to = Math.min(now, endMs + AROUND_MS);
-	const logs = useQueryLogs({
-		workspaceId,
-		environmentId: active?.id ?? "",
-		resourceIds: scopedResourceIds ?? [],
-		spanMs: to - from,
-		query: `@trace:${trace.id}`,
-		order: LogOrder.OLDEST_FIRST,
-		startTime: msToTimestamp(from),
-		endTime: msToTimestamp(to),
-		limit: TRACE_LOG_LIMIT,
-	});
-	const rows = toRows(logs.entries, resourceById);
-	const more = logs.newerCursor !== "";
-	return (
-		<section aria-label="Logs in this trace" className="flex min-w-0 flex-col gap-1.5">
-			<span className="text-[12.5px] text-fg3">
-				Logs in this trace
-				{rows.length > 0 && (
-					<span className="ml-1.5 font-mono text-[11.5px]">{`${String(rows.length)}${more ? "+" : ""}`}</span>
-				)}
-			</span>
-			{logs.isLoading && (
-				<p role="status" className="m-0 flex items-center gap-2 text-[12px] text-fg3">
-					<Spinner className="size-3.5" />
-					Loading logs…
-				</p>
-			)}
-			{!logs.isLoading && logs.error !== null && (
-				<p role="alert" className="m-0 text-[12px] text-bad-fg">
-					{getErrorMessage(logs.error, "Failed to load the trace's logs")}
-				</p>
-			)}
-			{!logs.isLoading && logs.error === null && rows.length === 0 && (
-				<p className="m-0 text-[12px] text-fg3">No log lines carry this trace ID.</p>
-			)}
-			{rows.length > 0 && (
-				<ol className="m-0 flex list-none flex-col p-0">
-					{rows.map((row) => (
-						<li key={row.key}>
-							<button
-								type="button"
-								onClick={() => {
-									goTo("logs", {
-										range: aroundWindow(row.ts, Date.now()),
-										tokens: [traceToken(trace.id)],
-										focusTs: row.ts,
-									});
-								}}
-								className="grid w-full grid-cols-[88px_52px_minmax(0,1fr)] items-baseline gap-2.5 rounded-sm border-b border-line px-1.5 py-1.5 text-left font-mono text-[12px] last:border-b-0 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-							>
-								<span className="text-fg3">{formatClock(row.ts, false, timePref)}</span>
-								<span className={cn("truncate", levelStyle(row.level).body)}>{row.label}</span>
-								<span className="min-w-0">
-									<span className="text-fg3">{row.resourceName} </span>
-									<span className="[overflow-wrap:anywhere]">{row.entry.body}</span>
-								</span>
-							</button>
-						</li>
-					))}
-				</ol>
-			)}
-			{more && (
-				<Button
-					variant="link"
-					className="h-auto self-start p-0 text-[12px]"
-					onClick={() => {
-						goTo("logs", { range: { kind: "absolute", from, to }, tokens: [traceToken(trace.id)] });
-					}}
-				>
-					All lines in Logs
-				</Button>
-			)}
-		</section>
-	);
-}
+import { traceServiceLabel } from "./trace-service";
+import { type TraceSummary } from "./traces";
 
 export function TraceDrawer({
 	open,
@@ -358,20 +43,17 @@ export function TraceDrawer({
 	onRetry: () => Promise<unknown>;
 	onClose: () => void;
 }) {
-	const timePref = useTimePreferences();
-	const { orgId, workspaceId, resourceById, goTo } = useObs();
+	const { orgId, resourceById } = useObs();
 	const limits = useOrgLimits(orgId);
+	const [zoom, setZoom] = useState<Zoom>(FULL_ZOOM);
+	const [pinned, setPinned] = useState<string | null>(null);
+	const [hovered, setHovered] = useState<string | null>(null);
+	const highlight = hovered ?? pinned;
 	const [spanId, setSpanId] = useQueryState("span", { history: "replace" });
-	const [copied, copy] = useCopy();
 	const linked = trace?.spans.find((s) => s.spanId === spanId);
 	const selected = linked ?? trace?.root;
 	const missing = spanId !== null && trace !== undefined && linked === undefined;
 	const label = (span: TraceSpan) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name);
-	const resource = trace === undefined ? undefined : resourceById.get(trace.root.resourceId);
-	const cause = trace !== undefined && selected !== undefined ? failingSpan(trace, selected) : undefined;
-	const failed = trace !== undefined && trace.errors > 0;
-	const code = trace === undefined ? "" : rootStatusCode(trace.root);
-	const rootPod = trace?.root.resourceAttributes["k8s.pod.name"] ?? "";
 	const select = (span: TraceSpan) => {
 		void setSpanId(span.spanId);
 	};
@@ -382,82 +64,16 @@ export function TraceDrawer({
 				if (!next) onClose();
 			}}
 		>
-			<SheetContent size="full" showCloseButton={false}>
-				<div className="flex shrink-0 items-start justify-between gap-3 border-b border-line py-4 pr-4 pl-6">
-					<div className="flex min-w-0 flex-col gap-1">
-						<div className="flex min-w-0 items-center gap-2.5">
-							<SheetTitle className="truncate font-mono">
-								{trace === undefined || trace.root.name === ""
-									? `Trace ${traceId.slice(0, 8)}…${traceId.slice(-4)}`
-									: trace.root.name}
-							</SheetTitle>
-							{trace !== undefined && (
-								<Badge
-									tone={failed || Number(code) >= SERVER_ERROR ? "bad" : "muted"}
-									className="font-mono"
-									title={code === "" ? undefined : "HTTP status of the root span"}
-								>
-									{code !== "" ? code : failed ? "Error" : "OK"}
-								</Badge>
-							)}
-							{trace !== undefined && (
-								<span className="font-mono text-[12.5px] text-fg2" title="Observed from the loaded spans">
-									{durationLabel(trace.duration)}
-								</span>
-							)}
-						</div>
-						<SheetDescription className="truncate font-mono text-[12px]">
-							{trace === undefined
-								? traceId
-								: [
-										label(trace.root),
-										rootPod === "" ? "" : replicaOf(rootPod),
-										trace.root.resourceAttributes["loco.region"] ?? "",
-										fmtTs(Number(trace.start / NANOS_PER_MS), true, timePref),
-										`${String(trace.spans.length)} ${trace.spans.length === 1 ? "span" : "spans"}`,
-									]
-										.filter((part) => part !== "")
-										.join(" · ")}
-						</SheetDescription>
-					</div>
-					<div className="flex shrink-0 items-center gap-1">
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={<Button variant="ghost" size="icon-sm" aria-label="More for this trace" title="More" />}
-							>
-								<EllipsisIcon className="size-4" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-[250px]">
-								<DropdownMenuItem
-									onClick={() => {
-										copy("trace", traceId, "Copied trace ID");
-									}}
-								>
-									<CopyIcon />
-									{copied === "trace" ? "Copied" : "Copy trace ID"}
-								</DropdownMenuItem>
-								{resource !== undefined && (
-									<DropdownMenuItem render={<Link to={resourcePath(orgId, workspaceId, resource.id)} />}>
-										<BoxIcon />
-										Open {resource.name}
-									</DropdownMenuItem>
-								)}
-								<DropdownMenuItem
-									onClick={() => {
-										const startMs = trace === undefined ? Date.now() : Number(trace.start / NANOS_PER_MS);
-										goTo("logs", { range: aroundWindow(startMs, Date.now()), tokens: [traceToken(traceId)] });
-									}}
-								>
-									<ScrollTextIcon />
-									Logs for this trace
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-						<Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
-							<XIcon className="size-4" />
-						</Button>
-					</div>
-				</div>
+			<SheetContent size="full" className="data-[side=right]:w-[min(1480px,calc(100vw-16px))]" showCloseButton={false}>
+				<TraceHeader
+					trace={trace}
+					traceId={traceId}
+					onClose={onClose}
+					highlight={highlight}
+					pinned={pinned}
+					onHover={setHovered}
+					onPin={setPinned}
+				/>
 				<SheetBody className="gap-4">
 					{loading && (
 						<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
@@ -480,77 +96,22 @@ export function TraceDrawer({
 						</EmptyHero>
 					)}
 					{trace !== undefined && selected !== undefined && (
-						<>
-							<FlameGraph trace={trace} selected={selected} onSelect={select} label={label} />
-							{missing && (
-								<p role="status" className="m-0 text-[12.5px] text-fg2">
-									The selected span is unavailable.
-								</p>
-							)}
-							<section className="flex min-w-0 items-center gap-2.5" aria-label="Selected span">
-								<h3 className="m-0 min-w-0 truncate font-mono text-[14px] font-medium">
-									{selected.name || "Unnamed span"}
-								</h3>
-								<span className="text-[12.5px] text-fg3">{label(selected)}</span>
-								<span className="flex-1" />
-								<span className="font-mono text-[12.5px]">{durationLabel(selected.durationNanos)}</span>
-								<span className="font-mono text-[12px] text-fg3">
-									{trace.duration > 0n
-										? `${String(Number((selected.durationNanos * BigInt(PERCENT)) / trace.duration))}% of trace`
-										: ""}
-								</span>
-							</section>
-							{cause !== undefined && (
-								<button
-									type="button"
-									onClick={() => {
-										select(cause);
-									}}
-									className="flex items-center gap-2 rounded-lg bg-bad-bg px-3 py-2.5 text-left text-[13px] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--err)_25%,transparent)] hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-								>
-									<CircleAlertIcon className="size-4 text-bad-fg" />
-									Failed in
-									<span className="font-mono">{cause.name || "Unnamed span"}</span>
-									<span className="text-fg3">{label(cause)}</span>
-									<ChevronRightIcon className="ml-auto size-4 text-fg3" />
-								</button>
-							)}
-							{selected.statusMessage !== "" && (
-								<pre
-									className={cn(
-										"m-0 rounded-lg px-3.5 py-3 font-mono text-[12px] leading-[1.55] break-words whitespace-pre-wrap",
-										spanError(selected)
-											? "bg-bad-bg text-bad-fg shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--err)_25%,transparent)]"
-											: "bg-panel text-foreground",
-									)}
-								>
-									{selected.statusMessage}
-								</pre>
-							)}
-							<SpanEvents span={selected} />
-							<SpanLinks span={selected} />
-							<div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-								<section aria-label="Span attributes" className="flex min-w-0 flex-col gap-3.5">
-									{groupAttributes(selected, trace, resourceById.get(selected.resourceId)?.name).map((g) => (
-										<div key={g.title} className="flex flex-col">
-											<span className="pb-1 text-[12.5px] text-fg3">{g.title}</span>
-											<dl className="m-0">
-												{g.rows.map(([k, v]) => (
-													<div
-														key={k}
-														className="grid grid-cols-[minmax(0,35%)_minmax(0,1fr)] gap-2.5 border-b border-line py-1.5 text-[12px] last:border-b-0"
-													>
-														<dt className="font-mono break-words text-fg3 [overflow-wrap:anywhere]">{k}</dt>
-														<dd className="m-0 min-w-0 font-mono text-foreground [overflow-wrap:anywhere]">{v}</dd>
-													</div>
-												))}
-											</dl>
-										</div>
-									))}
-								</section>
+						<div className="grid min-w-0 gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
+							<div className="flex min-w-0 flex-col gap-4">
+								<Minimap trace={trace} zoom={zoom} onZoom={setZoom} highlight={highlight} />
+								<FlameGraph
+									trace={trace}
+									selected={selected}
+									onSelect={select}
+									label={label}
+									zoom={zoom}
+									setZoom={setZoom}
+									highlight={highlight}
+								/>
 								<TraceLogs trace={trace} />
 							</div>
-						</>
+							<SpanPanel trace={trace} selected={selected} missing={missing} select={select} label={label} />
+						</div>
 					)}
 				</SheetBody>
 			</SheetContent>

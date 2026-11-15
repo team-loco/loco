@@ -383,6 +383,7 @@ function TraceSession({
 				/>
 			</section>
 			<TraceDrawer
+				key={shownId}
 				open={openId !== ""}
 				traceId={shownId}
 				trace={openTrace}

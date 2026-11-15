@@ -134,6 +134,31 @@ with session(out) as browser:
     drawer.get_by_role('button', name='More for this trace', exact=True).click()
     page.get_by_role('menuitem', name='Copy trace ID', exact=True).click()
     assert page.evaluate('navigator.clipboard.readText()') == trace
+    drawer.get_by_role('button', name='More for this trace', exact=True).click()
+    page.get_by_role('menuitem', name='Copy as JSON', exact=False).click()
+    exported = json.loads(page.evaluate('navigator.clipboard.readText()'))
+    exported_spans = [span for resource in exported['resourceSpans'] for scope in resource['scopeSpans'] for span in scope['spans']]
+    assert len(exported_spans) == len(spans)
+    assert next(span for span in exported_spans if span['spanId'] == spans[10]['spanId'])['events'][1]['attributes']
+    drawer.get_by_role('button', name='More for this trace', exact=True).click()
+    page.get_by_role('menuitem', name='Copy link', exact=True).click()
+    assert page.evaluate('navigator.clipboard.readText()') == page.url
+    drawer.get_by_role('button', name='More for this trace', exact=True).click()
+    with page.expect_download() as download_info:
+        page.get_by_role('menuitem', name='Download JSON', exact=True).click()
+    assert download_info.value.suggested_filename == f'trace-{trace}.json'
+    ranking = drawer.get_by_role('group', name='Time by resource')
+    payment = ranking.get_by_role('button').filter(has_text='payment')
+    payment.click()
+    expect(payment).to_have_attribute('aria-pressed', 'true')
+    drawer.get_by_role('button', name='Show all resources', exact=True).click()
+    expect(payment).to_have_attribute('aria-pressed', 'false')
+    flame.get_by_role('button', name=failing).dblclick()
+    overview = drawer.get_by_role('slider', name='Trace overview')
+    before_window = overview.get_attribute('aria-valuetext')
+    overview.press('ArrowLeft')
+    assert overview.get_attribute('aria-valuetext') != before_window
+    drawer.get_by_role('button', name='Reset zoom', exact=True).click()
     page.get_by_text('Copied trace ID', exact=True).wait_for(state='hidden')
     linking_span = flame.get_by_role('button', name=re.compile(r'^payment Charge · attempt 2,'))
     linking_span.click()
@@ -145,9 +170,13 @@ with session(out) as browser:
     expect(page).to_have_url(re.compile('span=' + spans[5]['spanId']))
     expect(drawer.get_by_role('region', name='Selected span')).to_contain_text('GetProduct · OLJCESPC7Z')
     linking_span.click()
+    flame.get_by_role('button', name=re.compile(r'^payment Charge · attempt 2,')).dblclick()
+    expect(drawer.get_by_role('button', name='Reset zoom', exact=True)).to_be_visible()
     links.get_by_role('link', name='Open linked span', exact=True).nth(1).click()
     wait_for_query(page, lambda query: query.get('trace') == [linked_trace] and query.get('span') == [linked_span])
-    page.get_by_role('dialog', name='Linked product lookup', exact=True).wait_for()
+    linked_drawer = page.get_by_role('dialog', name='Linked product lookup', exact=True)
+    linked_drawer.wait_for()
+    expect(linked_drawer.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
     page.go_back()
     drawer.wait_for()
     flame.get_by_role('button', name=failing).click()
