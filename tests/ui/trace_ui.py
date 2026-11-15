@@ -450,6 +450,7 @@ with session(out) as browser:
     expect(log_rows.get_by_role('button', name='Open log: Payment request failed')).to_be_visible()
     failing_button = drawer.get_by_role('region', name='Flame graph').get_by_role('button', name=failing)
     assert len(log_requests) == 1, log_requests
+    assert log_requests[0]['query'] == '@trace:' + trace, log_requests
     before_shadow = failing_button.evaluate('(el) => getComputedStyle(el).boxShadow')
     log_rows.get_by_role('button', name='Open log: Payment request failed').hover()
     assert failing_button.evaluate('(el) => getComputedStyle(el).boxShadow') != before_shadow
