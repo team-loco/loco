@@ -22,6 +22,10 @@ CREATE INDEX events_org_actor_seq_idx ON events (org_id, actor_id, seq DESC);
 CREATE INDEX events_org_actor_type_seq_idx ON events (org_id, actor_type, seq DESC);
 CREATE INDEX events_org_request_idx ON events (org_id, request_id);
 
+CREATE INDEX events_org_type_seq_idx ON events (org_id, type, seq DESC);
+CREATE INDEX events_workspace_type_seq_idx ON events (workspace_id, type, seq DESC);
+CREATE INDEX events_org_environment_seq_idx ON events (org_id, environment_id, seq DESC);
+
 CREATE INDEX events_workspace_seq_idx ON events (workspace_id, seq DESC);
 CREATE INDEX events_resource_seq_idx ON events (resource_id, seq DESC);
 CREATE INDEX events_org_seq_idx ON events (org_id, seq DESC);
