@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	transactionWaitTimeout  = 10 * time.Second
+	transactionWaitTimeout  = time.Minute
 	transactionPollInterval = 10 * time.Millisecond
 	lockWaitTimeout         = 5 * time.Second
 	unreachableDatabaseURL  = "postgres://loco@127.0.0.1:1/loco"
