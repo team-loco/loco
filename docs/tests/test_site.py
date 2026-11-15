@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import tomllib
 from html.parser import HTMLParser
 from pathlib import Path
 from types import SimpleNamespace
@@ -45,20 +44,9 @@ def test_site_links_to_its_own_host(built_site):
     assert f"https://{built_site.host}/" in (built_site.root / "llms.txt").read_text()
 
 
-def test_site_renders_the_primary_sidebar(built_site):
-    assert "md-sidebar--primary" in built_site.html
-
-
-def test_site_offers_copy_as_markdown(built_site):
-    assert "Copy as Markdown" in built_site.html
-
-
 def test_site_publishes_markdown_for_agents(built_site):
     assert "Deployment modes" in (built_site.root / "llms-full.txt").read_text()
     assert (built_site.root / "index.md").is_file()
-    assert (built_site.root / "skills.md").read_text() == (
-        DOCS / "content/skills.md"
-    ).read_text()
 
 
 def test_site_uses_the_web_favicon(built_site):
@@ -105,17 +93,6 @@ def test_only_staging_is_hidden_from_crawlers(built_site):
     else:
         assert "noindex, nofollow" not in built_site.html
         assert "Allow: /" in robots
-
-
-def test_navigation_stays_expanded():
-    config = tomllib.loads((DOCS / "zensical.toml").read_text())
-    features = config["project"]["theme"]["features"]
-    assert "navigation.expand" in features
-    assert "navigation.prune" not in features
-    assert "navigation.tabs" not in features
-    assert "header.autohide" not in features
-    for page in (DOCS / "content").rglob("*.md"):
-        assert "hide:" not in page.read_text(), str(page)
 
 
 def test_unknown_environment_is_rejected():

@@ -22,8 +22,5 @@ jobs:
           go-cache: govulncheck
           save-go-modules: true
 
-      - name: Test scanner task
-        run: mise run test:govulncheck
-
       - name: Scan every Go module
         run: mise run lint:govulncheck

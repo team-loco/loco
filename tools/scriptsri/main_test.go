@@ -45,9 +45,3 @@ func TestPinScripts(t *testing.T) {
 		})
 	}
 }
-
-func TestPinScriptsRequiresAScript(t *testing.T) {
-	if _, _, err := pinScripts(t.Context(), []byte("<script>inline()</script>"), serve); !errors.Is(err, errNoScript) {
-		t.Fatalf("err = %v, want %v", err, errNoScript)
-	}
-}

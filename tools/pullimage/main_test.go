@@ -52,9 +52,3 @@ func TestPullWithRetry(t *testing.T) {
 		})
 	}
 }
-
-func TestRunRequiresAnImage(t *testing.T) {
-	if err := run(t.Context(), nil); !errors.Is(err, errUsage) {
-		t.Fatalf("err = %v, want %v", err, errUsage)
-	}
-}

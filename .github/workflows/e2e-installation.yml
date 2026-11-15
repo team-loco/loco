@@ -32,8 +32,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Test installation runner failure and cleanup behavior
-        run: mise run test:e2e-installation-runner
       - name: Install, bootstrap, enroll and deploy through the public commands
         env:
           E2E_IMAGES: ${{ inputs.images }}

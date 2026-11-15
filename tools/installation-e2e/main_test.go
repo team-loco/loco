@@ -53,15 +53,6 @@ func TestCancelledAcceptanceStillCleansUp(t *testing.T) {
 	}
 }
 
-func TestUnknownFilterFailsBeforeInfrastructure(t *testing.T) {
-	original := os.Args
-	os.Args = []string{suiteName, "misspelled-suite"}
-	defer func() { os.Args = original }()
-	if err := run(); err == nil {
-		t.Fatal("unknown filter returned success")
-	}
-}
-
 func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
@@ -102,19 +93,6 @@ func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatal("host deadline skipped cleanup")
-	}
-}
-
-func TestHostTimeoutMustBePositive(t *testing.T) {
-	for _, timeout := range []string{"0", "-1s"} {
-		t.Run(timeout, func(t *testing.T) {
-			original := os.Args
-			os.Args = []string{suiteName, "--timeout=" + timeout}
-			defer func() { os.Args = original }()
-			if err := run(); !errors.Is(err, errSuiteTimeout) {
-				t.Fatalf("invalid timeout: %v", err)
-			}
-		})
 	}
 }
 

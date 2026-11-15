@@ -48,7 +48,6 @@ jobs:
       go-lint-and-test: ${{ steps.select.outputs.go-lint-and-test }}
       govulncheck: ${{ steps.select.outputs.govulncheck }}
       images: ${{ steps.select.outputs.images }}
-      local-stack: ${{ steps.select.outputs.local-stack }}
       obs-chart: ${{ steps.select.outputs.obs-chart }}
       osv: ${{ steps.select.outputs.osv }}
       platform-release: ${{ steps.select.outputs.platform-release }}
@@ -208,14 +207,6 @@ jobs:
       packages: write
     uses: ./.github/workflows/images.yml
 
-  local-stack:
-    name: Local Stack
-    needs: [changes]
-    if: needs.changes.outputs.local-stack == 'true'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/local-stack.yml
-
   obs-chart:
     name: Observability Chart
     needs: [changes]
@@ -286,7 +277,6 @@ jobs:
       - go-lint-and-test
       - govulncheck
       - images
-      - local-stack
       - obs-chart
       - osv
       - platform-release

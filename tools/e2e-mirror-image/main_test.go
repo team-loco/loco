@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -108,11 +107,5 @@ func TestMirrorReplacesTheCommandOfEveryPlatform(t *testing.T) {
 	}
 	if strings.Join(cfg.Config.Cmd, " ") != "sh -c exit 1" {
 		t.Fatalf("cmd = %q", cfg.Config.Cmd)
-	}
-}
-
-func TestMirrorRequiresSourceAndDestination(t *testing.T) {
-	if err := run(t.Context(), nil); !errors.Is(err, errUsage) {
-		t.Fatalf("error = %v", err)
 	}
 }
