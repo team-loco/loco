@@ -85,10 +85,7 @@ const (
 	deletedAttribute = "loco.events.deleted"
 )
 
-const (
-	ActorSystem    = "system"
-	ActorAnonymous = "anonymous"
-)
+const ActorSystem = "system"
 
 const (
 	SubjectUser        = "user"
@@ -163,7 +160,13 @@ type Event struct {
 	Data          map[string]any
 }
 
+var errActorRequired = errors.New("event actor or principal is required")
+
 func Record(ctx context.Context, q genDb.Querier, ev Event) error {
+	actorType, actorID, actorErr := actor(ctx, ev)
+	if actorErr != nil {
+		return actorErr
+	}
 	if ev.ResourceID == nil && ev.SubjectType == SubjectResource {
 		ev.ResourceID = ev.SubjectID
 	}
@@ -185,7 +188,6 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 			ev.OrgID = &orgID
 		}
 	}
-	actorType, actorID := actor(ctx, ev)
 	data := ev.Data
 	if data == nil {
 		data = map[string]any{}
@@ -221,15 +223,15 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 	return nil
 }
 
-func actor(ctx context.Context, ev Event) (string, *uuid.UUID) {
+func actor(ctx context.Context, ev Event) (string, *uuid.UUID, error) {
 	if ev.ActorType != "" {
-		return ev.ActorType, ev.ActorID
+		return ev.ActorType, ev.ActorID, nil
 	}
 	principal, ok := reqctx.PrincipalFrom(ctx)
 	if !ok {
-		return ActorAnonymous, nil
+		return "", nil, errActorRequired
 	}
-	return string(principal.Entity.Type), &principal.Entity.ID
+	return string(principal.Entity.Type), &principal.Entity.ID, nil
 }
 
 func RunRetention(ctx context.Context, q genDb.Querier, keep time.Duration, every time.Duration) {

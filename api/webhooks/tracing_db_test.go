@@ -60,7 +60,7 @@ func TestDeliveriesLinkTheEventAndPropagateOnlyToInstallWebhooks(t *testing.T) {
 	request := tracingtest.StartParent(t)
 	workspaceID := f.workspaceID
 	if err := events.Record(request, f.queries, events.Event{
-		Type: events.ResourceUpdated, WorkspaceID: &workspaceID,
+		ActorType: events.ActorSystem, Type: events.ResourceUpdated, WorkspaceID: &workspaceID,
 	}); err != nil {
 		t.Fatalf("record: %v", err)
 	}

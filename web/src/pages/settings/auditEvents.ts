@@ -125,9 +125,6 @@ export function auditActor(event: ActorFields, names: ReadonlyMap<string, string
 		case "agent": {
 			return { name: "Cluster agent", detail: "" };
 		}
-		case "anonymous": {
-			return { name: "Anonymous", detail: "" };
-		}
 		default: {
 			return { name: event.actorType, detail: event.actorId };
 		}

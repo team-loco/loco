@@ -114,11 +114,15 @@ func TestInstallWebhooksReceiveEveryEvent(t *testing.T) {
 	if err := events.Record(
 		t.Context(),
 		f.queries,
-		events.Event{Type: events.OrgUpdated, OrgID: &f.orgID},
+		events.Event{ActorType: events.ActorSystem, Type: events.OrgUpdated, OrgID: &f.orgID},
 	); err != nil {
 		t.Fatalf("org event: %v", err)
 	}
-	if err := events.Record(t.Context(), f.queries, events.Event{Type: events.ClusterRegistered}); err != nil {
+	if err := events.Record(
+		t.Context(),
+		f.queries,
+		events.Event{Type: events.ClusterRegistered, ActorType: events.ActorSystem},
+	); err != nil {
 		t.Fatalf("org-less event: %v", err)
 	}
 

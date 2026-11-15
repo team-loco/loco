@@ -13,6 +13,10 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND (sqlc.narg('end_time')::timestamptz IS NULL OR e.created_at < sqlc.narg('end_time'))
   AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
   AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
+  AND ((coalesce(cardinality(sqlc.arg('actor_ids')::uuid[]), 0) = 0 AND coalesce(cardinality(sqlc.arg('actor_types')::text[]), 0) = 0)
+    OR e.actor_id = ANY(sqlc.arg('actor_ids')::uuid[])
+    OR e.actor_type = ANY(sqlc.arg('actor_types')::text[]))
+  AND (sqlc.arg('request_id')::text = '' OR e.request_id = sqlc.arg('request_id'))
 ORDER BY e.seq DESC
 LIMIT sqlc.arg('max_rows');
 
@@ -27,6 +31,10 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND (sqlc.narg('end_time')::timestamptz IS NULL OR e.created_at < sqlc.narg('end_time'))
   AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
   AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
+  AND ((coalesce(cardinality(sqlc.arg('actor_ids')::uuid[]), 0) = 0 AND coalesce(cardinality(sqlc.arg('actor_types')::text[]), 0) = 0)
+    OR e.actor_id = ANY(sqlc.arg('actor_ids')::uuid[])
+    OR e.actor_type = ANY(sqlc.arg('actor_types')::text[]))
+  AND (sqlc.arg('request_id')::text = '' OR e.request_id = sqlc.arg('request_id'))
 ORDER BY e.seq DESC
 LIMIT sqlc.arg('max_rows');
 
@@ -42,6 +50,10 @@ WHERE e.org_id = sqlc.arg('org_id')
   AND (sqlc.narg('end_time')::timestamptz IS NULL OR e.created_at < sqlc.narg('end_time'))
   AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
   AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
+  AND ((coalesce(cardinality(sqlc.arg('actor_ids')::uuid[]), 0) = 0 AND coalesce(cardinality(sqlc.arg('actor_types')::text[]), 0) = 0)
+    OR e.actor_id = ANY(sqlc.arg('actor_ids')::uuid[])
+    OR e.actor_type = ANY(sqlc.arg('actor_types')::text[]))
+  AND (sqlc.arg('request_id')::text = '' OR e.request_id = sqlc.arg('request_id'))
 ORDER BY e.seq DESC
 LIMIT sqlc.arg('max_rows');
 

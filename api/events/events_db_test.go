@@ -92,28 +92,23 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 	}
 }
 
-func TestRecordWithoutCallerIsAnonymous(t *testing.T) {
-	pool := dbtest.NewPool(t)
-	q := genDb.New(pool)
-	if err := events.Record(t.Context(), q, events.Event{Type: events.UserCreated}); err != nil {
-		t.Fatalf("record: %v", err)
-	}
-	dbtest.WaitForEarlierTransactions(t, pool)
-	rows, err := q.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 1})
-	if err != nil || len(rows) != 1 || rows[0].ActorType != events.ActorAnonymous || rows[0].ActorID != nil {
-		t.Fatalf("rows = %+v (%v)", rows, err)
-	}
-}
-
 func TestRecordStoresTheCallersTraceparent(t *testing.T) {
 	tracingtest.Record(t)
 	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	traced := tracingtest.StartParent(t)
-	if err := events.Record(traced, q, events.Event{Type: events.ClusterRegistered}); err != nil {
+	if err := events.Record(
+		traced,
+		q,
+		events.Event{Type: events.ClusterRegistered, ActorType: events.ActorSystem},
+	); err != nil {
 		t.Fatalf("record traced event: %v", err)
 	}
-	if err := events.Record(t.Context(), q, events.Event{Type: events.OrgUpdated}); err != nil {
+	if err := events.Record(
+		t.Context(),
+		q,
+		events.Event{Type: events.OrgUpdated, ActorType: events.ActorSystem},
+	); err != nil {
 		t.Fatalf("record untraced event: %v", err)
 	}
 	stored := map[string]*string{}

@@ -242,6 +242,14 @@ func (s *EventServer) listAuditEvents(
 	if req.GetEndTime() != nil {
 		endTime = new(req.GetEndTime().AsTime())
 	}
+	actorIDs := make([]uuid.UUID, 0, len(req.GetActorIds()))
+	for _, value := range req.GetActorIds() {
+		id, err := parseID("actor_ids", value)
+		if err != nil {
+			return nil, err
+		}
+		actorIDs = append(actorIDs, id)
+	}
 	out := []*eventv1.Event{}
 	switch scope.kind {
 	case eventScopeResource:
@@ -250,6 +258,9 @@ func (s *EventServer) listAuditEvents(
 			WorkspaceID:   &scope.workspaceID,
 			ResourceID:    &scope.resourceID,
 			Types:         types,
+			ActorIds:      actorIDs,
+			ActorTypes:    req.GetActorTypes(),
+			RequestID:     req.GetRequestId(),
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
 			EnvironmentID: environmentID,
@@ -268,6 +279,9 @@ func (s *EventServer) listAuditEvents(
 			OrgID:         &orgID,
 			WorkspaceID:   &scope.workspaceID,
 			Types:         types,
+			ActorIds:      actorIDs,
+			ActorTypes:    req.GetActorTypes(),
+			RequestID:     req.GetRequestId(),
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
 			EnvironmentID: environmentID,
@@ -285,6 +299,9 @@ func (s *EventServer) listAuditEvents(
 		rows, err := s.queries.ListOrgAuditEvents(ctx, genDb.ListOrgAuditEventsParams{
 			OrgID:         &orgID,
 			Types:         types,
+			ActorIds:      actorIDs,
+			ActorTypes:    req.GetActorTypes(),
+			RequestID:     req.GetRequestId(),
 			BeforeSeq:     before,
 			MaxRows:       maxRows,
 			EnvironmentID: environmentID,

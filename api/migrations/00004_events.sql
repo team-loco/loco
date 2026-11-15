@@ -18,6 +18,10 @@ CREATE TABLE events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX events_org_actor_seq_idx ON events (org_id, actor_id, seq DESC);
+CREATE INDEX events_org_actor_type_seq_idx ON events (org_id, actor_type, seq DESC);
+CREATE INDEX events_org_request_idx ON events (org_id, request_id);
+
 CREATE INDEX events_workspace_seq_idx ON events (workspace_id, seq DESC);
 CREATE INDEX events_resource_seq_idx ON events (resource_id, seq DESC);
 CREATE INDEX events_org_seq_idx ON events (org_id, seq DESC);

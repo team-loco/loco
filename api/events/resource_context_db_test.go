@@ -46,6 +46,7 @@ func TestRecordPersistsResourceIdentityWithoutCurrentChildren(t *testing.T) {
 	}
 	for _, event := range cases {
 		t.Run(event.Type, func(t *testing.T) {
+			event.ActorType = events.ActorSystem
 			event.WorkspaceID = &workspaceID
 			event.OrgID = &orgID
 			if err := events.Record(t.Context(), q, event); err != nil {
