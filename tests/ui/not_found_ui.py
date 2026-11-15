@@ -39,6 +39,7 @@ shared = state["workspaces"]["acme/shared"]
 sibling = state["workspaces"]["acme/sibling"]
 org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{shared}';")
 base = f"{ui}/org/{org}/wks/{shared}"
+WORKSPACE_URL = re.compile(re.escape(base) + r"(\?env=[\w-]+)?$")
 issuer = f"{ui}/dex"
 TITLE = "Nothing lives at this address"
 
@@ -58,7 +59,8 @@ def open_page(browser, user, theme="light", narrow=False):
 
 def expect_not_found(page, path):
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-    expect(page.get_by_text(path, exact=True)).to_be_visible()
+    # Workspace pages add env to the URL once environments load, which can land before the not-found page.
+    expect(page.get_by_text(re.compile("^" + re.escape(path) + r"(\?env=[\w-]+)?$"))).to_be_visible()
     for name in ("Resources", "Logs", "Settings"):
         expect(page.get_by_role("link", name=name, exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Search and run commands")).to_have_count(0)
@@ -108,13 +110,13 @@ with sync_playwright() as playwright:
                 expect_not_found(page, "/no/such/page?x=1")
                 page.screenshot(path=out / f"{case}.png", animations="disabled")
                 page.get_by_role("link", name="Go to dashboard", exact=True).click()
-                expect(page).to_have_url(re.compile(rf"/org/{org}/wks/[0-9a-f-]+$"))
+                expect(page).to_have_url(re.compile(rf"/org/{org}/wks/[0-9a-f-]+(\?env=[\w-]+)?$"))
                 expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
 
                 page.goto(base + "/no-such-tab")
                 expect_not_found(page, f"/org/{org}/wks/{shared}/no-such-tab")
                 page.get_by_role("link", name="Go to dashboard", exact=True).click()
-                expect(page).to_have_url(base)
+                expect(page).to_have_url(WORKSPACE_URL)
                 if not narrow:
                     expect(page.get_by_role("link", name="Resources", exact=True)).to_be_visible()
 
@@ -241,12 +243,12 @@ with sync_playwright() as playwright:
             page.goto(ui + foreign)
             expect_not_found(page, foreign)
             page.get_by_role("link", name="Go to dashboard", exact=True).click()
-            expect(page).to_have_url(base)
+            expect(page).to_have_url(WORKSPACE_URL)
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
             page.goto(base + f"/resource/{uuid.uuid4()}")
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
             page.goto(base)
-            expect(page).to_have_url(base)
+            expect(page).to_have_url(WORKSPACE_URL)
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
             page.get_by_role("button", name=re.compile(re.escape(state["users"]["member"]["email"]))).click()
             page.get_by_role("menuitem", name="Sign out", exact=True).click()
