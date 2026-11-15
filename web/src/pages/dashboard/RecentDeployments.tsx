@@ -113,7 +113,7 @@ export function RecentDeployments({
 							const href = resourcePath(orgId, workspaceId, resource.id, { env: envName });
 							const createdMs = tsMs(d.createdAt);
 							return (
-								<TableRow key={d.id} className="cursor-pointer hover:bg-panel2" onClick={() => void navigate(href)}>
+								<TableRow key={d.id} onClick={() => void navigate(href)}>
 									<TableCell>
 										<DeploymentPhaseBadge phase={d.status} superseded={deploymentState(d) === "superseded"} />
 									</TableCell>

@@ -263,7 +263,7 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 			<span
 				role="img"
 				aria-label={`${ticks.length.toString()} recent deliveries, ${label}`}
-				className="flex min-w-0 flex-[0_1_118px] items-center gap-0.5 overflow-hidden"
+				className="flex min-w-0 items-center gap-0.5 overflow-hidden"
 			>
 				{ticks.map((t) => (
 					<i

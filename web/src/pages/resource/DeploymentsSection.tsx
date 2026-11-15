@@ -315,10 +315,7 @@ export function DeploymentsSection({
 										}}
 										render={<TableBody />}
 									>
-										<TableRow
-											className={cn("cursor-pointer hover:bg-panel2", expanded && "border-b-0")}
-											onClick={toggle}
-										>
+										<TableRow className={expanded ? "border-b-0" : undefined} onClick={toggle}>
 											<TableCell>
 												<CollapsibleTrigger
 													render={<Button variant="ghost" size="icon-xs" />}

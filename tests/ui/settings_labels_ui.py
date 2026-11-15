@@ -35,7 +35,7 @@ def check_table_geometry(page):
         head = table.get_by_role("columnheader").first
         assert abs(head.bounding_box()["height"] - 40) <= 1
         assert head.evaluate("node => parseFloat(getComputedStyle(node).paddingLeft)") == 20
-        geometry = table.evaluate("node => { const table = node.getBoundingClientRect(); const card = node.closest('section.rounded-card').getBoundingClientRect(); return {left: table.left - card.left, right: card.right - table.right}; }")
+        geometry = table.evaluate("node => { const table = node.getBoundingClientRect(); const card = node.closest('.rounded-card').getBoundingClientRect(); return {left: table.left - card.left, right: card.right - table.right}; }")
         assert geometry["left"] <= 2 and geometry["right"] <= 2, geometry
         rows = table.locator("tbody tr")
         for row in rows.all():
@@ -244,6 +244,12 @@ with session(out) as browser:
                     if tab == "org":
                         workspaces = page.get_by_role("region", name="Workspaces", exact=True)
                         expect(workspaces.get_by_role("link", name="shared", exact=True)).to_be_visible()
+                        row = workspaces.get_by_role("link", name="shared", exact=True).locator("xpath=ancestor::tr")
+                        assert row.evaluate("node => getComputedStyle(node).cursor") == "pointer"
+                        background = row.evaluate("node => getComputedStyle(node).backgroundColor")
+                        row.hover()
+                        expect(row).not_to_have_css("background-color", background)
+                        page.mouse.move(0, 0)
                         # The list fits the smallest page size, so it has no pager.
                         expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
                     if tab == "ws" and user == "owner":

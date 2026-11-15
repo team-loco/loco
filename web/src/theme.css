@@ -279,7 +279,8 @@
 	[role="switch"],
 	[role="checkbox"],
 	[role="radio"],
-	[role="combobox"] {
+	[role="combobox"],
+	[data-slot="table-row"][data-interactive] {
 		cursor: pointer;
 	}
 	:where(
