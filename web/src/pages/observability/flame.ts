@@ -1,10 +1,11 @@
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
+import { traceResourceKey } from "./trace-service";
 import { spanError, spanStart, spanTree, type TraceSummary } from "./traces";
 
 const FRACTION_SCALE = 1_000_000n;
 const ZOOM_PADDING = 0.04;
-const MIN_ZOOM_WIDTH = 0.002;
+export const MIN_ZOOM_WIDTH = 0.002;
 
 export interface Zoom {
 	a: number;
@@ -28,17 +29,23 @@ function fraction(part: bigint, total: bigint): number {
 export function flameLayout(trace: TraceSummary, zoom: Zoom): { blocks: FlameBlock[]; depth: number } {
 	const width = zoom.b - zoom.a;
 	const blocks: FlameBlock[] = [];
-	let depth = 0;
-	for (const row of spanTree(trace.spans)) {
-		depth = Math.max(depth, row.depth);
-		const start = fraction(spanStart(row.span) - trace.start, trace.duration);
-		const end = start + fraction(row.span.durationNanos, trace.duration);
-		if (end < zoom.a || start > zoom.b) continue;
-		const left = Math.max(0, (start - zoom.a) / width);
-		const right = Math.min(1, (end - zoom.a) / width);
-		blocks.push({ span: row.span, depth: row.depth, left, width: Math.max(0, right - left) });
+	const rows: { start: bigint; end: bigint }[][] = [];
+	const placed = new Map<string, number>();
+	for (const { span } of spanTree(trace.spans)) {
+		const start = spanStart(span);
+		const end = start + span.durationNanos;
+		let row = (placed.get(span.parentSpanId) ?? -1) + 1;
+		while (rows[row]?.some((other) => start < other.end && other.start < end)) row++;
+		(rows[row] ??= []).push({ start, end });
+		placed.set(span.spanId, row);
+		const from = fraction(start - trace.start, trace.duration);
+		const to = fraction(end - trace.start, trace.duration);
+		if (to < zoom.a || from > zoom.b) continue;
+		const left = Math.max(0, (from - zoom.a) / width);
+		const right = Math.min(1, (to - zoom.a) / width);
+		blocks.push({ span, depth: row, left, width: Math.max(0, right - left) });
 	}
-	return { blocks, depth: depth + 1 };
+	return { blocks, depth: rows.length };
 }
 
 function childrenOf(trace: TraceSummary): Map<string, TraceSpan[]> {
@@ -53,12 +60,27 @@ function childrenOf(trace: TraceSummary): Map<string, TraceSpan[]> {
 }
 
 export function selfTime(trace: TraceSummary, span: TraceSpan): bigint {
-	const covered = (childrenOf(trace).get(span.spanId) ?? []).reduce((sum, child) => sum + child.durationNanos, 0n);
-	return covered >= span.durationNanos ? 0n : span.durationNanos - covered;
+	const start = spanStart(span);
+	const end = start + span.durationNanos;
+	const intervals = (childrenOf(trace).get(span.spanId) ?? [])
+		.map((child) => ({
+			start: spanStart(child) < start ? start : spanStart(child),
+			end: spanStart(child) + child.durationNanos > end ? end : spanStart(child) + child.durationNanos,
+		}))
+		.filter((interval) => interval.end > interval.start)
+		.toSorted((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+	let covered = 0n;
+	let until = start;
+	for (const interval of intervals) {
+		const from = interval.start > until ? interval.start : until;
+		if (interval.end > from) covered += interval.end - from;
+		if (interval.end > until) until = interval.end;
+	}
+	return span.durationNanos - covered;
 }
 
 export interface ServiceShare {
-	service: string;
+	key: string;
 	nanos: bigint;
 	share: number;
 }
@@ -66,10 +88,11 @@ export interface ServiceShare {
 export function serviceShares(trace: TraceSummary): ServiceShare[] {
 	const totals = new Map<string, bigint>();
 	for (const span of trace.spans) {
-		totals.set(span.serviceName, (totals.get(span.serviceName) ?? 0n) + selfTime(trace, span));
+		const key = traceResourceKey(span);
+		totals.set(key, (totals.get(key) ?? 0n) + selfTime(trace, span));
 	}
 	const sum = [...totals.values()].reduce((a, b) => a + b, 0n);
-	return [...totals].map(([service, nanos]) => ({ service, nanos, share: fraction(nanos, sum) }));
+	return [...totals].map(([key, nanos]) => ({ key, nanos, share: fraction(nanos, sum) }));
 }
 
 export function failingSpan(trace: TraceSummary, selected: TraceSpan): TraceSpan | undefined {
@@ -88,20 +111,26 @@ export function failingSpan(trace: TraceSummary, selected: TraceSpan): TraceSpan
 	return failing.toSorted((a, b) => (spanStart(a) < spanStart(b) ? -1 : 1))[0];
 }
 
-export function lineage(trace: TraceSummary, spanId: string): Set<string> {
-	const byId = new Map(trace.spans.map((span) => [span.spanId, span]));
+export function descendantIds(trace: TraceSummary, spanId: string): Set<string> {
 	const children = childrenOf(trace);
 	const out = new Set<string>();
-	for (let id: string | undefined = spanId; id !== undefined && !out.has(id); id = byId.get(id)?.parentSpanId) {
-		if (!byId.has(id)) break;
-		out.add(id);
-	}
-	const stack = [...(children.get(spanId) ?? [])];
+	const stack = [spanId];
 	while (stack.length > 0) {
-		const span = stack.pop();
-		if (span === undefined || out.has(span.spanId)) continue;
-		out.add(span.spanId);
-		stack.push(...(children.get(span.spanId) ?? []));
+		const id = stack.pop();
+		if (id === undefined || out.has(id)) continue;
+		out.add(id);
+		stack.push(...(children.get(id) ?? []).map((span) => span.spanId));
+	}
+	return out;
+}
+
+export function lineage(trace: TraceSummary, spanId: string): Set<string> {
+	const byId = new Map(trace.spans.map((span) => [span.spanId, span]));
+	const out = descendantIds(trace, spanId);
+	let id = byId.get(spanId)?.parentSpanId;
+	while (id !== undefined && byId.has(id) && !out.has(id)) {
+		out.add(id);
+		id = byId.get(id)?.parentSpanId;
 	}
 	return out;
 }

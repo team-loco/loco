@@ -383,14 +383,13 @@ function TraceSession({
 				/>
 			</section>
 			<TraceDrawer
+				key={shownId}
 				open={openId !== ""}
 				traceId={shownId}
 				trace={openTrace}
 				loading={detail.isLoading}
 				error={detail.error}
-				onRetry={() => {
-					void detail.refetch();
-				}}
+				onRetry={async () => await detail.refetch()}
 				onClose={close}
 			/>
 		</>

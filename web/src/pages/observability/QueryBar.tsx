@@ -527,7 +527,7 @@ function TokenChip({
 	return (
 		<span
 			className={cn(
-				"inline-flex h-[26px] items-center rounded-sm bg-panel shadow-[inset_0_0_0_1px_var(--line2)]",
+				"inline-flex h-[26px] items-center overflow-hidden rounded-sm border border-line2 bg-panel",
 				reason !== null && "opacity-55",
 			)}
 		>
@@ -559,7 +559,7 @@ function TokenChip({
 					e.stopPropagation();
 					onRemove();
 				}}
-				className="flex h-full w-5 items-center justify-center rounded-r-sm text-fg3 hover:bg-panel2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+				className="flex h-full w-5 items-center justify-center rounded-none text-fg3 hover:bg-panel2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 			>
 				<XIcon className="size-3" />
 			</button>
