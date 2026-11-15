@@ -281,7 +281,7 @@ def limit_display(page):
             if limit == 9:
                 expect(create).to_be_disabled()
                 create.hover(force=True)
-                expect(page.get_by_role("tooltip")).to_contain_text("9 personal tokens.")
+                expect(page.get_by_text("You've reached the limit of 9 personal tokens. Delete one, or ask a Loco admin to raise it.", exact=True)).to_be_visible()
             else:
                 expect(create).to_be_enabled()
     finally:
