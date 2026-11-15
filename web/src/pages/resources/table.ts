@@ -11,6 +11,7 @@ import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus, primaryDomain, statusRank } from "@/lib/resource-status";
 import { pageParser } from "@/lib/paging";
+import { sortParser } from "@/lib/sort-parser";
 import { tsMs } from "@/lib/time";
 
 export const ALL = "all";
@@ -231,7 +232,6 @@ export interface TableColumn {
 	meta?: { defaultHidden?: boolean };
 }
 
-const SORT_SEPARATOR = ".";
 const COLS_SEPARATOR = ",";
 
 export const FILTER_URL_KEYS = { query: "q" };
@@ -261,20 +261,14 @@ function defaultVisibility(columns: readonly TableColumn[]): ColumnVisibilitySta
 	return Object.fromEntries(hideable(columns).map((c) => [c.id, c.meta?.defaultHidden !== true]));
 }
 
+export function sortableIds(columns: readonly TableColumn[]): string[] {
+	return columns.filter((c) => c.enableSorting !== false).map((c) => c.id);
+}
+
 export function tableParsers(columns: readonly TableColumn[]) {
-	const sortable = new Set(columns.filter((c) => c.enableSorting !== false).map((c) => c.id));
 	return {
 		...FILTER_PARSERS,
-		sort: createParser<ColumnSort>({
-			parse: (raw) => {
-				const at = raw.lastIndexOf(SORT_SEPARATOR);
-				const id = raw.slice(0, at);
-				const dir = raw.slice(at + 1);
-				return at !== -1 && sortable.has(id) && (dir === "asc" || dir === "desc") ? { id, desc: dir === "desc" } : null;
-			},
-			serialize: (sort) => `${sort.id}${SORT_SEPARATOR}${sort.desc ? "desc" : "asc"}`,
-			eq: (a, b) => a.id === b.id && a.desc === b.desc,
-		}).withDefault(defaultSort(columns)),
+		sort: sortParser(sortableIds(columns), defaultSort(columns)),
 		page: pageParser.withDefault(0),
 		size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
 		cols: createParser<ColumnVisibilityState>({

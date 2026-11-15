@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { parseAsStringLiteral, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 import { HammerIcon, PlusIcon, RocketIcon, RotateCwIcon, ScalingIcon } from "lucide-react";
 
@@ -31,7 +31,11 @@ import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
 const DEFAULT_PAGE_SIZE = 25;
-const EVENTS_PARAMS = { ...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE), live: parseAsStringLiteral(["0"]) };
+const EVENTS_PARAMS = {
+	...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE),
+	live: parseAsStringLiteral(["0"]),
+	event: parseAsString,
+};
 const POLL_MS = 10_000;
 const NOW_TICK_MS = 30_000;
 
@@ -73,7 +77,6 @@ export function EventsView() {
 	const [params, setParams] = useQueryStates(EVENTS_PARAMS, { history: "replace" });
 	// Events poll by default; ?live=0 stops it.
 	const live = params.live === null;
-	const [selKey, setSelKey] = useState<string | null>(null);
 	const [openedAt] = useState(Date.now);
 	const { active: environment } = useEnvironments();
 	const now = useNow(live ? POLL_MS : NOW_TICK_MS);
@@ -109,13 +112,12 @@ export function EventsView() {
 		void setParams(next);
 	};
 	const paged = pagedRows(items, paging, setPaging, PAGE_SIZES, "0");
+	const selKey = params.event;
 	const selIdx = selKey !== null ? items.findIndex((x) => x.key === selKey) : -1;
 	const selItem = selIdx >= 0 ? items[selIdx] : undefined;
 	const select = (key: string | null) => {
-		setSelKey(key);
-		if (key === null) return;
-		const idx = items.findIndex((x) => x.key === key);
-		if (idx >= 0) setPaging({ page: Math.floor(idx / paging.size), size: paging.size });
+		const idx = key === null ? -1 : items.findIndex((x) => x.key === key);
+		void setParams(idx >= 0 ? { event: key, page: Math.floor(idx / paging.size) } : { event: key });
 	};
 	const loading = isLoading || resourcesLoading;
 	const query = queryStr(tokens, text);

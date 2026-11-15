@@ -20,7 +20,7 @@ import { maybeTsMs, tsMs } from "@/lib/time";
 import { shortId } from "./format";
 import { configuredRegions } from "@/lib/resource-regions";
 
-export const PAGE_SIZES = [10, 25, 50, 100];
+export const PAGE_SIZES = [10, 25, 50, 100] as const;
 
 const DEPLOYMENT_HISTORY_SIZE = 200;
 const REFRESH_MS = 15_000;

@@ -1,5 +1,5 @@
-import { createParser, parseAsNumberLiteral } from "nuqs";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { createParser, parseAsNumberLiteral, useQueryStates } from "nuqs";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 
 // A zero-based page index, written to the URL counting from one.
 export const pageParser = createParser<number>({
@@ -91,16 +91,34 @@ export function pagedRows<T>(
 	};
 }
 
+const DEFAULT_URL_KEYS = {};
+
+/** Keeps a page and size in the URL, under page and size unless urlKeys renames them. */
+export function useUrlPaging(
+	sizes: readonly [number, ...number[]],
+	urlKeys: { page?: string; size?: string } = DEFAULT_URL_KEYS,
+): [Paging, Dispatch<SetStateAction<Paging>>] {
+	const parsers = useMemo(
+		() => ({ page: pageParser.withDefault(0), size: parseAsNumberLiteral(sizes).withDefault(sizes[0]) }),
+		[sizes],
+	);
+	const [paging, setParams] = useQueryStates(parsers, { history: "replace", urlKeys });
+	const setPaging: Dispatch<SetStateAction<Paging>> = (update) => {
+		void setParams((current) => (typeof update === "function" ? update(current) : update));
+	};
+	return [paging, setPaging];
+}
+
 export function usePagedRows<T>(
 	all: T[],
 	sizes: readonly [number, ...number[]],
 	empty?: string,
 ): PagedRows<T> & { reset: () => void } {
-	const [paging, setPaging] = useState<Paging>({ page: 0, size: sizes[0] });
+	const [paging, setPaging] = useUrlPaging(sizes);
 	return {
 		...pagedRows(all, paging, setPaging, sizes, empty),
 		reset: () => {
-			setPaging((prev) => ({ ...prev, page: 0 }));
+			setPaging((current) => ({ ...current, page: 0 }));
 		},
 	};
 }

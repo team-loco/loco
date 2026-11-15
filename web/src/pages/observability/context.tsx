@@ -15,7 +15,7 @@ import { EVENTS_MAX_MS, QUERY_MAX_MS, toWindow, WINDOW_PARSERS, windowValues, ty
 
 const SERIES_COLORS = 8;
 
-// The views read page, at, trace, span and log with their own parsers; the provider only clears them.
+// The views read page, at, trace, span, log and event with their own parsers; the provider only clears them.
 const OBS_PARAMS = {
 	...WINDOW_PARSERS,
 	...QUERY_PARSERS,
@@ -25,8 +25,9 @@ const OBS_PARAMS = {
 	trace: parseAsString,
 	span: parseAsString,
 	log: parseAsString,
+	event: parseAsString,
 };
-const CLEARED_VIEW_STATE = { page: null, at: null, trace: null, span: null, log: null };
+const CLEARED_VIEW_STATE = { page: null, at: null, trace: null, span: null, log: null, event: null };
 
 export function seriesColor(index: number): string {
 	return `var(--series-${String(index % SERIES_COLORS)})`;
@@ -112,7 +113,7 @@ export function ObsProvider({
 		void setParams({ ...windowValues(w), ...CLEARED_VIEW_STATE });
 	};
 	const setQuery = (nextTokens: Token[], nextText: string) => {
-		void setParams({ ...queryValues(nextTokens, nextText), page: null, log: null });
+		void setParams({ ...queryValues(nextTokens, nextText), page: null, log: null, event: null });
 	};
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {

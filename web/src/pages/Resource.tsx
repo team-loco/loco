@@ -40,7 +40,7 @@ import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { shortId } from "@/pages/resource/format";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
-import type { MetricRange } from "@/pages/resource/metric";
+import { METRIC_RANGES } from "@/pages/resource/metric";
 import {
 	activeDeploymentPlaces,
 	buildRegions,
@@ -72,6 +72,8 @@ type View = (typeof VIEWS)[number];
 const RESOURCE_PARAMS = {
 	tab: parseAsStringLiteral(VIEWS).withDefault("overview"),
 	env: parseAsString,
+	range: parseAsStringLiteral(METRIC_RANGES).withDefault("1h"),
+	region: parseAsString,
 };
 
 export function Resource() {
@@ -85,7 +87,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const transport = useTransport();
-	const [{ tab: view, env }, setParams] = useQueryStates(RESOURCE_PARAMS);
+	const [{ tab: view, env, range, region: selectedRegion }, setParams] = useQueryStates(RESOURCE_PARAMS, {
+		history: "replace",
+	});
 	const {
 		resource,
 		environmentId,
@@ -122,8 +126,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		enabled: canListResources,
 	});
 
-	const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-	const [range, setRange] = useState<MetricRange>("1h");
 	const [modal, setModal] = useState<ModalState | null>(null);
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
@@ -135,7 +137,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const restart = useMutation(restartResource);
 
 	const setView = (next: View) => {
-		void setParams({ tab: next }, { history: "replace" });
+		void setParams({ tab: next });
 	};
 
 	if (isLoading || configQuery.isPending) return <ResourceSkeleton />;
@@ -374,9 +376,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							environment={environment}
 							regions={regions}
 							selected={selectedRegion}
-							onSelect={setSelectedRegion}
+							onSelect={(region) => {
+								void setParams({ region });
+							}}
 							range={range}
-							onRange={setRange}
+							onRange={(next) => {
+								void setParams({ range: next });
+							}}
 							markers={markers}
 							metricsHref={obsLink("metrics")}
 						/>

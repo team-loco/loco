@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { HOUR_MS } from "@/lib/obs-time";
 import { TRAFFIC_METRICS, latestTraffic, trafficPoints, trafficValue, type TrafficPoint } from "@/lib/traffic";
-import { useTable, type PaginationState, type SortingState } from "@tanstack/react-table";
+import { functionalUpdate, useTable } from "@tanstack/react-table";
 import { ArrowRightIcon, SearchXIcon, XIcon } from "lucide-react";
-import { createContext, use, useState } from "react";
-import { useQueryState } from "nuqs";
+import { createContext, use } from "react";
+import { parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { Link, useLocation } from "react-router";
 import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
@@ -31,7 +31,10 @@ import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
+import { pageParser } from "@/lib/paging";
+import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
+import { sortableIds } from "@/pages/resources/table";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { DashboardRowMenu } from "./DashboardRowMenu";
@@ -294,6 +297,16 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 	},
 ];
 
+const TABLE_PARAMS = {
+	status: parseAsString.withDefault(ALL),
+	type: parseAsString.withDefault(ALL),
+	region: parseAsString.withDefault(ALL),
+	query: parseAsString.withDefault(""),
+	sort: sortParser(sortableIds(COLUMNS), { id: "status", desc: false }),
+	page: pageParser.withDefault(0),
+};
+const TABLE_URL_KEYS = { query: "q" };
+
 export function ResourcesTable({
 	items,
 	regions,
@@ -327,11 +340,11 @@ export function ResourcesTable({
 	const { search: locationSearch } = useLocation();
 	const [view, setView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
 	const isMap = view === "map";
-	const [filter, setFilter] = useState<RowFilter>({ status: ALL, type: ALL, region: ALL, query: "" });
-	const [sorting, setSorting] = useState<SortingState>([{ id: "status", desc: false }]);
-	const [paging, setPaging] = useState<PaginationState>({ pageIndex: 0, pageSize: PAGE_SIZE });
+	const [state, setState] = useQueryStates(TABLE_PARAMS, { history: "replace", urlKeys: TABLE_URL_KEYS });
+	const filter: RowFilter = { status: state.status, type: state.type, region: state.region, query: state.query };
+	const sorting = [state.sort];
 	const data = filterRows(items, filter);
-	const pagination = pageWithin(paging, data.length);
+	const pagination = pageWithin({ pageIndex: state.page, pageSize: PAGE_SIZE }, data.length);
 	const table = useTable({
 		...sortOptions,
 		features: dataTableFeatures,
@@ -339,8 +352,13 @@ export function ResourcesTable({
 		columns: COLUMNS,
 		getRowId: itemKey,
 		state: { sorting, pagination },
-		onSortingChange: setSorting,
-		onPaginationChange: setPaging,
+		onSortingChange: (updater) => {
+			const next = functionalUpdate(updater, sorting)[0];
+			if (next !== undefined) void setState({ sort: next, page: null });
+		},
+		onPaginationChange: (updater) => {
+			void setState({ page: functionalUpdate(updater, pagination).pageIndex });
+		},
 		enableColumnResizing: false,
 		autoResetPageIndex: false,
 	});
@@ -368,8 +386,7 @@ export function ResourcesTable({
 	];
 
 	const update = (patch: Partial<RowFilter>) => {
-		setFilter({ ...filter, ...patch });
-		setPaging({ ...pagination, pageIndex: 0 });
+		void setState({ ...patch, page: null });
 	};
 	const hasFilters =
 		filter.status !== ALL || filter.type !== ALL || filter.region !== ALL || filter.query.trim() !== "";
