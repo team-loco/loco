@@ -1,7 +1,7 @@
 import { Spinner } from "@/components/design/Spinner";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
-import { useSearchParams } from "react-router";
+import { parseAsString, useQueryStates } from "nuqs";
 
 import { approveCLILogin } from "@gen/loco/auth/v1/auth-AuthService_connectquery";
 
@@ -27,11 +27,10 @@ function validRequest(port: string | null, state: string | null, challenge: stri
 	);
 }
 
+const LOGIN_PARAMS = { port: parseAsString, state: parseAsString, challenge: parseAsString };
+
 export function CliLogin() {
-	const [params] = useSearchParams();
-	const port = params.get("port");
-	const state = params.get("state");
-	const challenge = params.get("challenge");
+	const [{ port, state, challenge }] = useQueryStates(LOGIN_PARAMS);
 	const [done, setDone] = useState<"approved" | "canceled" | null>(null);
 	const approve = useMutation(approveCLILogin);
 

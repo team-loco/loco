@@ -70,7 +70,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on("request", lambda req: requests.append((req.url.rsplit("/", 1)[-1], req.post_data_json)) if service in req.url else None)
             try:
-                page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/settings?tab=ws")
+                page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/settings?scope=workspace")
                 page.get_by_role("button", name="Deliveries for https://hooks.invalid/loco", exact=True).click()
                 drawer = page.get_by_role("dialog", name="https://hooks.invalid/loco", exact=True)
                 deliveries = drawer.get_by_role("list", name="Deliveries", exact=True)

@@ -307,7 +307,7 @@ with sync_playwright() as playwright:
                     expect(networking.get_by_role("button", name="Add", exact=True)).to_be_disabled()
                     page.screenshot(path=out / f"domains-{case}.png", animations="disabled")
                     stage = "owner-settings"
-                    page.goto(state["ui_url"] + base + "/settings?tab=ws")
+                    page.goto(state["ui_url"] + base + "/settings?scope=workspace")
                     owner_name = page.get_by_placeholder("storefront", exact=True)
                     expect(owner_name).to_be_enabled()
                     owner_name.fill("shared-edited")
@@ -322,7 +322,7 @@ with sync_playwright() as playwright:
                     active_page, active_context = member_page, member_context
                     stage, user = "reader-settings", "member"
                     member_page.on("pageerror", lambda error: errors.append(str(error)))
-                    member_page.goto(state["ui_url"] + base + "/settings?tab=ws")
+                    member_page.goto(state["ui_url"] + base + "/settings?scope=workspace")
                     expect(member_page.get_by_placeholder("storefront", exact=True)).to_be_disabled()
                     expect(member_page.get_by_role("button", name="Save", exact=True)).to_have_count(0)
                     member_page.screenshot(path=out / f"reader-settings-{case}.png", animations="disabled")

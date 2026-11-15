@@ -3,7 +3,8 @@ import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BoxIcon, ChevronDownIcon, ClockIcon, GitBranchIcon, HistoryIcon, LayersIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
-import { useParams, useSearchParams } from "react-router";
+import { parseAsArrayOf, parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useParams } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -44,47 +45,41 @@ import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
 const NOW_TICK_MS = 60_000;
 
+const AUDIT_PARAMS = {
+	range: parseAsStringLiteral(RANGES.map((r) => r.value)).withDefault(DEFAULT_RANGE.value),
+	types: parseAsArrayOf(parseAsStringLiteral(AUDIT_EVENT_TYPES)).withDefault([]),
+	q: parseAsString.withDefault(""),
+	actor: parseAsString.withDefault(""),
+	size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
+	ws: parseAsString.withDefault(""),
+	res: parseAsString.withDefault(""),
+	env: parseAsString.withDefault(""),
+	event: parseAsString,
+};
+
 export function Audit() {
 	const { orgId = "" } = useParams<{ orgId: string }>();
-	const [params, setParams] = useSearchParams();
+	const [params, setParams] = useQueryStates(AUDIT_PARAMS, { history: "replace" });
 	const transport = useTransport();
 	const access = useAuditAccess(orgId);
 	const { orgs, workspaces, activeWorkspaceId } = useOrgWorkspace();
 	const [openedAt] = useState(Date.now);
 	const now = useNow(NOW_TICK_MS).getTime();
 
-	const update = (patch: Record<string, string | null>) => {
-		setParams(
-			(prev) => {
-				const next = new URLSearchParams(prev);
-				for (const [k, v] of Object.entries(patch)) {
-					if (v === null || v === "") next.delete(k);
-					else next.set(k, v);
-				}
-				return next;
-			},
-			{ replace: true },
-		);
-	};
-
-	const range = RANGES.find((r) => r.value === params.get("range")) ?? DEFAULT_RANGE;
-	const types = (params.get("types") ?? "").split(",").filter((t) => AUDIT_EVENT_TYPES.includes(t));
-	const search = params.get("q") ?? "";
+	const { types, q: search, actor, size, ws: wsParam } = params;
+	const range = RANGES.find((r) => r.value === params.range) ?? DEFAULT_RANGE;
 	const requestId = requestIdFilter(search);
-	const actor = params.get("actor") ?? "";
 	const actorTypes = TYPE_ACTORS.includes(actor) ? [actor] : [];
 	const actorIds = actor !== "" && actorTypes.length === 0 ? [actor] : [];
-	const size = PAGE_SIZES.find((n) => n.toString() === params.get("size")) ?? PAGE_SIZES[0];
 	const choices = access.org ? workspaces.filter((w) => w.orgId === orgId) : access.workspaces;
-	const wsParam = params.get("ws") ?? "";
 	// ListEvents reads one workspace per call, so a workspace admin always reads exactly one.
 	const workspaceId = choices.some((w) => w.id === wsParam)
 		? wsParam
 		: access.org
 			? ""
 			: ((choices.find((w) => w.id === activeWorkspaceId) ?? choices[0])?.id ?? "");
-	const resourceId = workspaceId === "" ? "" : (params.get("res") ?? "");
-	const environmentId = workspaceId === "" ? "" : (params.get("env") ?? "");
+	const resourceId = workspaceId === "" ? "" : params.res;
+	const environmentId = workspaceId === "" ? "" : params.env;
 
 	// The cursor stack belongs to one set of filters; changing any of them starts from the newest page.
 	const filterKey = JSON.stringify([
@@ -141,11 +136,11 @@ export function Audit() {
 		...TYPE_ACTORS.map((t): [string, string] => [t, ACTOR_KINDS[t] ?? t]),
 	]);
 	if (actor !== "" && !actors.has(actor)) actors.set(actor, actor);
-	const selIdx = rows.findIndex((r) => r.event.id === params.get("event"));
+	const selIdx = rows.findIndex((r) => r.event.id === params.event);
 	const selected = rows[selIdx];
 	const heldEventId = useHeldWhileClosed(selected?.event.id, selected !== undefined);
 	const select = (index: number) => () => {
-		update({ event: rows[index]?.event.id ?? null });
+		void setParams({ event: rows[index]?.event.id ?? null });
 	};
 
 	const anyFilter =
@@ -175,7 +170,7 @@ export function Audit() {
 							<DropdownMenuRadioGroup
 								value={range.value}
 								onValueChange={(v: string) => {
-									update({ range: v === DEFAULT_RANGE.value ? null : v });
+									void setParams({ range: RANGES.find((r) => r.value === v)?.value ?? null });
 								}}
 							>
 								{RANGES.map((r) => (
@@ -197,11 +192,11 @@ export function Audit() {
 							aria-label="Filter this page"
 							placeholder="Filter this page"
 							onClear={() => {
-								update({ q: null, event: null });
+								void setParams({ q: null, event: null });
 							}}
 							value={search}
 							onChange={(event) => {
-								update({ q: event.target.value, event: null });
+								void setParams({ q: event.target.value, event: null });
 							}}
 						/>
 					}
@@ -214,13 +209,13 @@ export function Audit() {
 								items={[...actors].map(([id, name]) => ({ id, name }))}
 								value={actor}
 								onChange={(id) => {
-									update({ actor: id, event: null });
+									void setParams({ actor: id, event: null });
 								}}
 							/>
 							<EventFilter
 								types={types}
 								onChange={(next) => {
-									update({ types: next.join(","), event: null });
+									void setParams({ types: next, event: null });
 								}}
 							/>
 							{(access.org || choices.length > 1) && (
@@ -232,7 +227,7 @@ export function Audit() {
 									value={workspaceId}
 									clearable={access.org}
 									onChange={(id) => {
-										update({ ws: id, res: null, env: null, event: null });
+										void setParams({ ws: id, res: null, env: null, event: null });
 									}}
 								/>
 							)}
@@ -245,7 +240,7 @@ export function Audit() {
 										value={resourceId}
 										placeholder="Find a resource"
 										onChange={(id) => {
-											update({ res: id, event: null });
+											void setParams({ res: id, event: null });
 										}}
 									/>
 									<PickFilter
@@ -254,7 +249,7 @@ export function Audit() {
 										items={details.environmentsOf.get(workspaceId) ?? []}
 										value={environmentId}
 										onChange={(id) => {
-											update({ env: id, event: null });
+											void setParams({ env: id, event: null });
 										}}
 									/>
 								</>
@@ -268,7 +263,7 @@ export function Audit() {
 						selectedId={selected?.event.id ?? null}
 						nowMs={now}
 						onSelect={(id) => {
-							update({ event: id });
+							void setParams({ event: id });
 						}}
 					/>
 					{!loading && rows.length === 0 && (
@@ -282,7 +277,7 @@ export function Audit() {
 									<Button
 										variant="outline"
 										onClick={() => {
-											update({ types: null, ws: access.org ? null : wsParam, res: null, env: null });
+											void setParams({ types: null, ws: access.org ? null : wsParam, res: null, env: null });
 										}}
 									>
 										Clear filters
@@ -301,7 +296,7 @@ export function Audit() {
 						pageSizes={PAGE_SIZES}
 						pageSize={size}
 						onPageSize={(n) => {
-							update({ size: n === PAGE_SIZES[0] ? null : n.toString(), event: null });
+							void setParams({ size: PAGE_SIZES.find((s) => s === n) ?? null, event: null });
 						}}
 						firstLabel="Newest events"
 						prevLabel="Newer events"
@@ -339,7 +334,7 @@ export function Audit() {
 				onActor={() => {
 					if (selected !== undefined) {
 						const e = selected.event;
-						update({
+						void setParams({
 							actor: TYPE_ACTORS.includes(e.actorType) ? e.actorType : e.actorId,
 							event: null,
 						});
@@ -349,11 +344,16 @@ export function Audit() {
 					selected === undefined || selected.event.resourceId === "" || !known.has(selected.event.workspaceId)
 						? null
 						: () => {
-								update({ ws: selected.event.workspaceId, res: selected.event.resourceId, env: null, event: null });
+								void setParams({
+									ws: selected.event.workspaceId,
+									res: selected.event.resourceId,
+									env: null,
+									event: null,
+								});
 							}
 				}
 				onClose={() => {
-					update({ event: null });
+					void setParams({ event: null });
 				}}
 			/>
 		</Page>

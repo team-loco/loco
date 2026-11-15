@@ -2,7 +2,8 @@ import { useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Badge } from "@/components/design/Badge";
@@ -38,13 +39,8 @@ const BASE_COLUMNS = 7;
 const DEFAULT_PAGE_SIZE = 10;
 const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
-const HIST_PARAM = "hist";
-
-type Hist = "deploys" | "builds";
-
-function parseHist(value: string | null): Hist {
-	return value === "builds" ? "builds" : "deploys";
-}
+const HISTS = ["deploys", "builds"] as const;
+const histParser = parseAsStringLiteral(HISTS).withDefault("deploys").withOptions({ history: "replace" });
 
 interface Row {
 	dep: Deployment;
@@ -200,7 +196,6 @@ export function DeploymentsSection({
 	nowMs: number;
 }) {
 	const transport = useTransport();
-	const [params, setParams] = useSearchParams();
 	const [pagination, setPagination] = useState<Paging>({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [open, setOpen] = useState<string | null>(null);
 	const [buildPaging, setBuildPaging] = useState<Paging>({ page: 0, size: BUILD_PAGE_SIZE });
@@ -212,14 +207,7 @@ export function DeploymentsSection({
 		...workspaceMembersOptions(transport, workspaceId),
 		enabled: canReadWorkspace,
 	});
-	const hist = parseHist(params.get(HIST_PARAM));
-
-	const setHist = (next: Hist) => {
-		const p = new URLSearchParams(params);
-		if (next === "builds") p.set(HIST_PARAM, next);
-		else p.delete(HIST_PARAM);
-		setParams(p, { replace: true });
-	};
+	const [hist, setHist] = useQueryState("hist", histParser);
 
 	const all: Row[] = regions
 		.flatMap((region) =>
@@ -246,12 +234,12 @@ export function DeploymentsSection({
 
 	const goBuild = (buildId: string) => {
 		const index = builds.builds.findIndex((b) => b.id === buildId);
-		setHist("builds");
+		void setHist("builds");
 		setOpenBuild(buildId);
 		if (index !== -1) setBuildPaging({ page: pageOf(index, BUILD_PAGE_SIZE), size: BUILD_PAGE_SIZE });
 	};
 	const goDeployment = (row: Row) => {
-		setHist("deploys");
+		void setHist("deploys");
 		setOpen(row.dep.id);
 		setPagination({ page: pageOf(all.indexOf(row), pagination.size), size: pagination.size });
 	};
@@ -261,7 +249,7 @@ export function DeploymentsSection({
 			<Tabs
 				value={hist}
 				onValueChange={(next: string) => {
-					setHist(parseHist(next));
+					void setHist(HISTS.find((h) => h === next) ?? "deploys");
 				}}
 			>
 				<div className="px-5 pt-3">

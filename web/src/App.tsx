@@ -16,6 +16,7 @@ import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-q
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
+import { NuqsAdapter } from "nuqs/adapters/react-router/v8";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { notFound } from "@/lib/not-found";
@@ -70,6 +71,9 @@ const persister = createAsyncStoragePersister({
 });
 
 const transport = createTransport();
+
+// Non-shallow updates keep React Router's location in step, and push matches its setSearchParams default.
+const NUQS_DEFAULTS = { shallow: false, history: "push" } as const;
 
 function NewResourceRedirect() {
 	const { orgId = "", workspaceId = "" } = useParams();
@@ -237,20 +241,22 @@ function AppRoutes() {
 export default function App() {
 	return (
 		<BrowserRouter>
-			<TransportProvider transport={transport}>
-				<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
-					<AppLoaderProvider>
-						<AuthProvider>
-							<ThemeProvider>
-								<Toaster />
-								<ErrorBoundary>
-									<AppRoutes />
-								</ErrorBoundary>
-							</ThemeProvider>
-						</AuthProvider>
-					</AppLoaderProvider>
-				</PersistQueryClientProvider>
-			</TransportProvider>
+			<NuqsAdapter defaultOptions={NUQS_DEFAULTS}>
+				<TransportProvider transport={transport}>
+					<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+						<AppLoaderProvider>
+							<AuthProvider>
+								<ThemeProvider>
+									<Toaster />
+									<ErrorBoundary>
+										<AppRoutes />
+									</ErrorBoundary>
+								</ThemeProvider>
+							</AuthProvider>
+						</AppLoaderProvider>
+					</PersistQueryClientProvider>
+				</TransportProvider>
+			</NuqsAdapter>
 		</BrowserRouter>
 	);
 }

@@ -140,7 +140,7 @@ def check_environments(page):
 
 
 def check_create_dialogs(page):
-    for path, button, field in (("/organizations", "New organization", "Name"), (base + "?tab=org", "New workspace", "Name"), ("/tokens", "New token", "Name")):
+    for path, button, field in (("/organizations", "New organization", "Name"), (base + "?scope=org", "New workspace", "Name"), ("/tokens", "New token", "Name")):
         page.goto(state["ui_url"] + path)
         opener = page.get_by_role("button", name=button, exact=True).first
         opener.click()
@@ -197,7 +197,7 @@ with sync_playwright() as playwright:
                         page.wait_for_url(f"{state['ui_url']}/organizations")
                     for tab in ("ws", "org"):
                         try:
-                            page.goto(state["ui_url"] + base + "?tab=" + tab)
+                            page.goto(state["ui_url"] + base + "?scope=" + ("workspace" if tab == "ws" else "org"))
                             page.get_by_placeholder("storefront" if tab == "ws" else "team-loco").wait_for()
                             name = page.get_by_role("textbox", name="Name", exact=True)
                             assert name.count() == 1

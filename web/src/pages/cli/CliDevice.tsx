@@ -1,7 +1,7 @@
 import { Spinner } from "@/components/design/Spinner";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState, type SubmitEvent } from "react";
-import { useSearchParams } from "react-router";
+import { useQueryState } from "nuqs";
 import { SquareTerminalIcon } from "lucide-react";
 
 import { approveDeviceLogin } from "@gen/loco/auth/v1/auth-AuthService_connectquery";
@@ -15,8 +15,7 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { CliCard } from "./CliCard";
 
 export function CliDevice() {
-	const [params] = useSearchParams();
-	const linkedCode = params.get("code");
+	const [linkedCode] = useQueryState("code");
 	const [userCode, setUserCode] = useState(linkedCode ?? "");
 	const approve = useMutation(approveDeviceLogin);
 
