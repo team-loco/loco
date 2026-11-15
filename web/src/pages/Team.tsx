@@ -154,7 +154,7 @@ export function Team() {
 		? (limitReason(memberUsage) ?? limitReason(invitationUsage))
 		: "Only organization admins can invite members";
 	const inviteButton = (
-		<LimitedAction usage={memberUsage} reason={inviteBlocked}>
+		<LimitedAction reason={inviteBlocked}>
 			<Button
 				disabled={inviteBlocked !== null}
 				onClick={() => {
@@ -261,7 +261,7 @@ export function Team() {
 				title={
 					<>
 						Team
-						{!data.isLoading && data.error === null && <LimitCount count={data.members.length} usage={memberUsage} />}
+						{!data.isLoading && data.error === null && <LimitCount usage={memberUsage} />}
 					</>
 				}
 				actions={inviteButton}

@@ -26,3 +26,12 @@ test("blocks a create only at or past the limit", () => {
 	);
 	expect(limitReason(null)).toBeNull();
 });
+
+test("personal and creator limits omit a containing scope", () => {
+	expect(limitReason(limitUsage(5, 5, "personal tokens", ""))).toBe(
+		"You've reached the limit of 5 personal tokens. Delete one, or ask a Loco admin to raise it.",
+	);
+	expect(limitReason(limitUsage(3, 3, "organizations you created", ""))).toBe(
+		"You've reached the limit of 3 organizations you created. Delete one, or ask a Loco admin to raise it.",
+	);
+});

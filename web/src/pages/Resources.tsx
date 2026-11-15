@@ -132,13 +132,13 @@ export function Resources() {
 				title={
 					<>
 						Resources
-						{!loading && data.error === null && <LimitCount count={total} usage={usage} />}
+						{!loading && data.error === null && <LimitCount usage={usage} />}
 					</>
 				}
 				actions={
 					<div className="flex items-center gap-2.5">
 						{!loading && total > 0 && <ViewToggle view={view} onView={setView} />}
-						<LimitedAction usage={usage} reason={createBlocked}>
+						<LimitedAction reason={createBlocked}>
 							<NewResourceMenu serviceHref={serviceHref} disabled={createBlocked !== null} />
 						</LimitedAction>
 					</div>

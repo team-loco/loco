@@ -275,7 +275,7 @@ function AddDomainForm({
 				onSubdomainChange={setSubdomain}
 				onPlatformDomainChange={setPicked}
 			/>
-			<LimitedAction usage={usage} reason={blocked}>
+			<LimitedAction reason={blocked}>
 				<Button
 					type="submit"
 					variant="outline"

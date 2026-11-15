@@ -19,10 +19,10 @@ export function LimitUsageText({ usage, className }: { usage: LimitUsage | null;
 	);
 }
 
-/** A title count pill: the plain count below 90% of the limit, "used / max" in amber or red from there. */
-export function LimitCount({ count, usage }: { count: number; usage: LimitUsage | null }) {
+/** Title usage appears from 90% of the limit. */
+export function LimitCount({ usage }: { usage: LimitUsage | null }) {
 	const tone = limitTone(usage);
-	if (usage === null || tone === null) return <Badge tone="count">{count}</Badge>;
+	if (usage === null || tone === null) return null;
 	return (
 		<Badge tone="count" className={TONE_PILL[tone]}>
 			{usageLabel(usage)}
@@ -30,30 +30,13 @@ export function LimitCount({ count, usage }: { count: number; usage: LimitUsage 
 	);
 }
 
-/**
- * A create action with its limit usage beside it once that nears the limit. With a reason, the
- * action renders as given (the caller disables it) and the reason shows as its tooltip.
- */
-export function LimitedAction({
-	usage,
-	reason,
-	children,
-}: {
-	usage: LimitUsage | null;
-	reason: string | null;
-	children: ReactElement;
-}) {
+/** A disabled create action explains its limit in a tooltip. */
+export function LimitedAction({ reason, children }: { reason: string | null; children: ReactElement }) {
+	if (reason === null) return children;
 	return (
-		<span className="inline-flex items-center gap-2.5">
-			<LimitUsageText usage={usage} />
-			{reason === null ? (
-				children
-			) : (
-				<Tooltip>
-					<TooltipTrigger render={<span className="inline-flex" />}>{children}</TooltipTrigger>
-					<TooltipContent className="max-w-[280px]">{reason}</TooltipContent>
-				</Tooltip>
-			)}
-		</span>
+		<Tooltip>
+			<TooltipTrigger render={<span className="inline-flex" />}>{children}</TooltipTrigger>
+			<TooltipContent className="max-w-[280px]">{reason}</TooltipContent>
+		</Tooltip>
 	);
 }

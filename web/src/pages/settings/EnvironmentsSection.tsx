@@ -100,7 +100,7 @@ export function EnvironmentsSection({
 		<SettingsSection
 			title="Environments"
 			actions={
-				<LimitedAction usage={usage} reason={createBlocked}>
+				<LimitedAction reason={createBlocked}>
 					<Button
 						variant="outline"
 						size="sm"

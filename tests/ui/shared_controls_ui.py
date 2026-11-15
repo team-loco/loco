@@ -253,6 +253,42 @@ def volume(page):
     assert urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0] == clicked
 
 
+def limit_display(page):
+    user_id = owner["id"]
+    evidence.psql(state["container"], f"INSERT INTO api_tokens (token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;")
+    limit = 11
+    config_url = "**/loco.config.v1.ConfigService/GetConfig"
+
+    def config(route):
+        response = route.fetch()
+        data = response.json()
+        data["countLimits"]["tokensPerEntity"] = limit
+        route.fulfill(response=response, json=data)
+
+    page.route(config_url, config)
+    try:
+        for limit, label in ((11, None), (10, "9 / 10"), (9, "9 / 9")):
+            page.goto(state["ui_url"] + "/tokens?owner=personal")
+            heading = page.get_by_role("heading", name=re.compile("^Tokens"))
+            expect(page.get_by_role("cell", name="limit-display-1", exact=True)).to_be_visible()
+            badge = heading.locator('[data-slot="badge"]')
+            if label is None:
+                expect(badge).to_have_count(0)
+            else:
+                expect(badge).to_have_text(label)
+                expect(page.get_by_text(label, exact=True)).to_have_count(1)
+            create = page.get_by_role("button", name="New token", exact=True).first
+            if limit == 9:
+                expect(create).to_be_disabled()
+                create.hover(force=True)
+                expect(page.get_by_text("You've reached the limit of 9 personal tokens. Delete one, or ask a Loco admin to raise it.", exact=True)).to_be_visible()
+            else:
+                expect(create).to_be_enabled()
+    finally:
+        page.unroute(config_url, config)
+        evidence.psql(state["container"], f"DELETE FROM api_tokens WHERE entity_id='{user_id}' AND name LIKE 'limit-display-%';")
+
+
 def access_picker(page):
     page.goto(state["ui_url"] + "/tokens")
     page.get_by_role("button", name="New token", exact=True).first.click()
@@ -440,7 +476,7 @@ with session(out) as browser:
             name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
             box = name.bounding_box()
             assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
-            for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources):
+            for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources, limit_display):
                 check(page)
             assert not errors, errors
             results.append({"passed": True})

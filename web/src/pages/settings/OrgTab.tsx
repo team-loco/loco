@@ -222,11 +222,7 @@ export function OrgTab({
 				title="Workspaces"
 				count={workspaces.length}
 				className="max-w-[960px]"
-				actions={
-					<LimitedAction usage={workspaceUsage} reason={newBlocked}>
-						{newButton}
-					</LimitedAction>
-				}
+				actions={<LimitedAction reason={newBlocked}>{newButton}</LimitedAction>}
 				search={
 					<SearchInput
 						aria-label="Search workspaces"
