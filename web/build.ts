@@ -34,10 +34,11 @@ async function staticNotFound(): Promise<string> {
 	const built = await Bun.build({ entrypoints: ["./src/not-found-static.css"], plugins, minify: true, throw: true });
 	const [output] = built.outputs;
 	if (output === undefined) throw new Error("the static 404 stylesheet has no output");
-	// There is no script to set the .dark class, so dark tokens follow the browser. Unused themes are dropped.
-	const lightAndDark = (await output.text())
-		.replace(/(?:\.dark)?\[data-theme=(?!loco\])[^\]]+\]\{[^{}]*\}/g, "")
-		.replace(/\.dark\{([^{}]*)\}/, "@media (prefers-color-scheme:dark){:root{$1}}");
+	// There is no script to set the .dark class, so dark tokens follow the browser.
+	const lightAndDark = (await output.text()).replace(
+		/\.dark\{([^{}]*)\}/,
+		"@media (prefers-color-scheme:dark){:root{$1}}",
+	);
 	if (!lightAndDark.includes("@media (prefers-color-scheme:dark){:root{"))
 		throw new Error("no dark theme in the static 404 stylesheet");
 	const logo = Buffer.from(await Bun.file("public/logo.svg").arrayBuffer()).toString("base64");

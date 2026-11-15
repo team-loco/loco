@@ -12,7 +12,13 @@ const pairs = [
 	["--brand", "--panel"] as const,
 ];
 
-const css = await Bun.file(new URL("../theme.css", import.meta.url)).text();
+const sheets = [
+	"../theme.css",
+	...colorThemes.filter(({ id }) => id !== defaultColorTheme).map(({ id }) => `../themes/${id}.css`),
+];
+const css = (
+	await Promise.all(sheets.map(async (sheet) => await Bun.file(new URL(sheet, import.meta.url)).text()))
+).join("\n");
 const blocks = new Map<string, Map<string, string>>();
 for (const [, selector = "", body = ""] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
 	const declarations = new Map<string, string>();

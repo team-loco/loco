@@ -1,0 +1,150 @@
+[data-theme="neobrutal"] {
+	--font-sans:
+		"DM Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	--radius-control: 5px;
+	--radius-card: 5px;
+	--radius-overlay: 5px;
+	--shell: #cfe0fd;
+	--shell-hover: #bcd3fc;
+	--shell-active: #ed707b;
+	--bg: #e3edfe;
+	--panel: #ffffff;
+	--panel2: #eef4ff;
+	--raise: #ffffff;
+	--line: rgba(0, 0, 0, 0.16);
+	--line2: #000000;
+	--fg: #000000;
+	--fg2: #1f1f1f;
+	--fg3: #4a4a4a;
+	--fg4: #767676;
+	--btn: #ed707b;
+	--btn-fg: #000000;
+	--brand: #2058c8;
+	--ok: #008a4b;
+	--ok-glyph: #05c46b;
+	--info: #2058c8;
+	--warn: #a87900;
+	--err: #e5383b;
+	--ink: #000000;
+	--tint: #fde4e6;
+	--pop-shadow: 4px 4px 0 0 var(--ink);
+	--overlay-shadow: 4px 4px 0 0 var(--ink);
+	--scrim: rgba(0, 0, 0, 0.55);
+	--series-0: #5294ff;
+	--series-1: #7a83ff;
+	--series-2: #05c46b;
+	--series-3: #ff7a05;
+	--series-4: #ed707b;
+	--series-5: #facc00;
+	--series-6: #00c2c7;
+	--series-7: #444444;
+	--logo: var(--fg);
+}
+
+.dark[data-theme="neobrutal"] {
+	--shell: #262835;
+	--shell-hover: #30333f;
+	--bg: #2e3040;
+	--panel: #3a3d50;
+	--panel2: #45495e;
+	--raise: #3a3d50;
+	--line: rgba(255, 255, 255, 0.12);
+	--fg: #f4f4f5;
+	--fg2: #d2d3d8;
+	--fg3: #bfc1ca;
+	--fg4: #767883;
+	--brand: #7aaeff;
+	--ok: #2ee88e;
+	--ok-glyph: #05e17a;
+	--info: #7aaeff;
+	--warn: #facc00;
+	--err: #ff6164;
+	--tint: #4a3440;
+	--logo: var(--btn);
+}
+
+[data-theme="neobrutal"] {
+	& body {
+		font-weight: 500;
+	}
+	& :is(h1, h2, h3) {
+		font-weight: 700;
+		letter-spacing: -0.025em;
+	}
+	& :is(.rounded-card, .rounded-overlay, [data-slot="sidebar-inset"]) {
+		border: 2px solid var(--ink);
+	}
+	& :is(.rounded-card:not([role="menu"], [role="listbox"], [role="radio"]), [data-slot="sidebar-inset"]) {
+		box-shadow: 4px 4px 0 0 var(--ink);
+	}
+	& [data-slot="top-bar"] {
+		border-bottom: 2px solid var(--ink);
+	}
+	& [data-slot="button"]:is([data-variant="default"], [data-variant="destructive"]) {
+		font-weight: 700;
+		color: #000000;
+		--press: 4px;
+	}
+	&
+		[data-slot="button"]:is(
+			[data-variant="default"],
+			[data-variant="outline"],
+			[data-variant="destructive"],
+			[data-variant="destructive-outline"]
+		) {
+		border: 2px solid var(--ink);
+		box-shadow: var(--press, 3px) var(--press, 3px) 0 0 var(--ink);
+		&:hover:not(:disabled, [aria-disabled="true"]) {
+			opacity: 1;
+			filter: none;
+			transform: translate(var(--press, 3px), var(--press, 3px));
+			box-shadow: none;
+		}
+		&:is(:disabled, [aria-disabled="true"]) {
+			box-shadow: none;
+		}
+	}
+	& [data-slot="button"][data-variant="destructive-outline"] {
+		border-color: var(--err);
+		box-shadow: 3px 3px 0 0 var(--err);
+	}
+	& :is([data-slot="input"], [data-slot="textarea"], [data-slot="input-group"]) {
+		border: 2px solid var(--ink);
+		background-color: var(--raise);
+	}
+	& :is([data-slot="input"], [data-slot="textarea"], [data-slot="input-group"]):focus-within {
+		box-shadow: 4px 4px 0 0 var(--ink);
+	}
+	& :is([data-slot="checkbox"], [data-slot="switch"], [data-slot="kbd"]) {
+		border: 2px solid var(--ink);
+	}
+	& [data-slot="kbd"] {
+		background-color: var(--tint);
+		color: var(--fg);
+	}
+	& [data-slot="toggle-group-item"]:has(> [data-slot="segmented-indicator"]) {
+		color: #000000;
+	}
+	& [data-slot="segmented-indicator"] {
+		background-color: var(--btn);
+		box-shadow: inset 0 0 0 2px var(--ink);
+	}
+	& [data-slot="avatar"] {
+		border: 2px solid var(--ink);
+	}
+	& [data-slot="avatar-fallback"] {
+		background-color: #facc00;
+		color: #000000;
+		font-weight: 700;
+	}
+	& [data-slot="sidebar-menu-button"][data-active] {
+		background-color: var(--shell-active);
+		color: #000000;
+		box-shadow:
+			inset 0 0 0 2px var(--ink),
+			3px 3px 0 0 var(--ink);
+		& svg {
+			color: #000000;
+		}
+	}
+}

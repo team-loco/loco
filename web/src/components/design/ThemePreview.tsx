@@ -1,6 +1,7 @@
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 
 import type { ColorTheme, Mode } from "@/lib/theme";
+import { ThemeStylesheet } from "@/lib/theme-stylesheet";
 import { cn } from "@/lib/utils";
 
 function ThemeSwatch({ color, dark, className }: { color: ColorTheme; dark: boolean; className?: string }) {
@@ -13,7 +14,9 @@ function ThemeSwatch({ color, dark, className }: { color: ColorTheme; dark: bool
 				dark && "dark",
 				className,
 			)}
-		/>
+		>
+			<ThemeStylesheet color={color} />
+		</span>
 	);
 }
 
@@ -38,6 +41,7 @@ function ThemePreview({ color, mode = "system", className }: { color: ColorTheme
 	const split = mode === "system";
 	return (
 		<span aria-hidden className={cn("flex h-[76px] overflow-hidden rounded-md border border-line", className)}>
+			<ThemeStylesheet color={color} />
 			{mode !== "dark" && <ThemeHalf color={color} dark={false} split={split} />}
 			{mode !== "light" && <ThemeHalf color={color} dark split={split} />}
 		</span>

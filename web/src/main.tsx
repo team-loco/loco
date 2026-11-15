@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { logCaughtError } from "@/lib/not-found";
+import { addThemeFonts } from "@/lib/theme-stylesheet";
 import { watchForUpdates } from "@/lib/update-check";
 import App from "./App.tsx";
 import "./index.css";
@@ -10,4 +11,5 @@ if (rootElement) {
 		onCaughtError: logCaughtError,
 	}).render(<App />);
 }
+addThemeFonts();
 watchForUpdates();
