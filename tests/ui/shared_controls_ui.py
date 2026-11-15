@@ -293,6 +293,15 @@ def dashboard(page):
         assert len(set(colors)) == 5, colors
         assert bars.evaluate_all("nodes => nodes.map(n => getComputedStyle(n).backgroundColor)") == colors
         expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
+        page.get_by_role("button").filter(has_text="Olivia Owner").click()
+        selected = page.get_by_role("group", name="Mode", exact=True).get_by_role("button", name=mode.title(), exact=True)
+        ink = selected.evaluate("node => getComputedStyle(node).color")
+        icon = selected.locator(".theme-icon")
+        if mode == "dark":
+            assert ink in icon.evaluate("node => getComputedStyle(node).boxShadow")
+        else:
+            expect(icon).to_have_css("background-color", ink)
+        page.keyboard.press("Escape")
     page.evaluate("localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')")
 
 
