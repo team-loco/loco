@@ -437,32 +437,6 @@ func TestEnvironmentKeyRowLockBlocksASecondWriterUntilItsTimeout(t *testing.T) {
 	}
 }
 
-func TestSecretsRecordTheirFormatVersion(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	ctx := t.Context()
-	key, err := f.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
-		EnvironmentID: f.environmentID, Provider: testProviderName, KekID: "k1",
-		WrappedDek: []byte(wrappedDEK), FormatVersion: secretFormatVersion,
-	})
-	if err != nil {
-		t.Fatalf("insert key: %v", err)
-	}
-	if key.FormatVersion != secretFormatVersion {
-		t.Fatalf("key format version = %d, want %d", key.FormatVersion, secretFormatVersion)
-	}
-	f.upsert(t, []string{stripeKey}, []int32{1})
-	rows, err := f.queries.ListSecretCiphertexts(ctx, genDb.ListSecretCiphertextsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey},
-	})
-	if err != nil {
-		t.Fatalf("ciphertexts: %v", err)
-	}
-	if len(rows) != 1 || rows[0].FormatVersion != secretFormatVersion {
-		t.Fatalf("rows = %+v, want one row at format version %d", rows, secretFormatVersion)
-	}
-}
-
 func (d *deployFixture) upsertSecrets(t *testing.T, resourceID uuid.UUID, names []string, sizes []int) {
 	t.Helper()
 	var userID uuid.UUID

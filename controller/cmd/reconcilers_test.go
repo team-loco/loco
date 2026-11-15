@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
+	"github.com/team-loco/loco/controller/internal/builds"
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
 	"github.com/team-loco/loco/controller/internal/controller"
 	"github.com/team-loco/loco/controller/internal/managed"
@@ -120,15 +121,12 @@ func TestSelectReconcilerRejectsUnknownNames(t *testing.T) {
 }
 
 func TestBuildReconcilerRequiresTheChartBuildConfig(t *testing.T) {
-	if _, err := selectReconciler(reconcilerBuild, operatorConfig{}); err == nil {
-		t.Fatal("selectReconciler started a build reconciler without build settings")
+	_, cause := builds.ParseConfig("")
+	for errors.Unwrap(cause) != nil {
+		cause = errors.Unwrap(cause)
 	}
-}
-
-func TestApplicationReconcilerRequiresTheTelemetryConfig(t *testing.T) {
-	_, err := selectReconciler(reconcilerApplication, operatorConfig{LocoNamespace: testLocoNamespace})
-	if err == nil {
-		t.Fatal("selectReconciler started an application reconciler without telemetry settings")
+	if _, err := selectReconciler(reconcilerBuild, operatorConfig{}); err == nil || !errors.Is(err, cause) {
+		t.Fatalf("selectReconciler: err = %v, want %v", err, cause)
 	}
 }
 

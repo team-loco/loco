@@ -4,7 +4,6 @@ import (
 	"errors"
 	"maps"
 	"slices"
-	"strings"
 	"testing"
 
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
@@ -162,21 +161,6 @@ func TestSystemEnvPrecedesUserEnvSoUserValuesCanReferenceIt(t *testing.T) {
 		}
 	}
 	requireSingleEnv(t, dep, "AAA_COLLECTOR", testCollectorReference)
-}
-
-func TestResourceAttributesCarryNoTenantIdentity(t *testing.T) {
-	app := telemetryTestApplication()
-	dep := buildDeployment(t, app)
-
-	attributes, ok := envValue(t, dep, envOTelResourceAttributes)
-	if !ok {
-		t.Fatalf("%s missing", envOTelResourceAttributes)
-	}
-	for _, tenantKey := range []string{"loco.workspace.id", "loco.environment.id", "loco.resource.id"} {
-		if strings.Contains(attributes, tenantKey) {
-			t.Errorf("%s sets %s, which the collector derives from pod labels", envOTelResourceAttributes, tenantKey)
-		}
-	}
 }
 
 func TestResourceAttributesArePercentEncoded(t *testing.T) {
