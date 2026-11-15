@@ -98,10 +98,7 @@ export function useUrlPaging(
 	sizes: readonly [number, ...number[]],
 	urlKeys: { page?: string; size?: string } = DEFAULT_URL_KEYS,
 ): [Paging, Dispatch<SetStateAction<Paging>>] {
-	const parsers = useMemo(
-		() => ({ page: pageParser.withDefault(0), size: parseAsNumberLiteral(sizes).withDefault(sizes[0]) }),
-		[sizes],
-	);
+	const parsers = useMemo(() => pagingParsers(sizes, sizes[0]), [sizes]);
 	const [paging, setParams] = useQueryStates(parsers, { history: "replace", urlKeys });
 	const setPaging: Dispatch<SetStateAction<Paging>> = (update) => {
 		void setParams((current) => (typeof update === "function" ? update(current) : update));
