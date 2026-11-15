@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
@@ -13,31 +12,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
-	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
+	"github.com/team-loco/loco/tools/internal/devicelogin"
 )
 
 var (
-	errLogin            = errors.New("locoadm login failed")
-	errLoginCodeMissing = errors.New("locoadm login printed no device code")
-	errLoginDrain       = errors.New("drain locoadm login output failed")
-	errLoginOutputLimit = errors.New("locoadm login output exceeded scanner limit")
-	errLoginStop        = errors.New("stop locoadm login failed")
-	errProviderToken    = errors.New("fixture IdP did not issue an ID token")
-	errDeviceApproval   = errors.New("approve the device code with the fixture IdP token failed")
-	errAdminsUnclaimed  = errors.New("status reports configured admins nobody claimed after sign-in")
-)
-
-var (
+	errAdminsUnclaimed              = errors.New("status reports configured admins nobody claimed after sign-in")
 	errFixtureCAInvalid             = errors.New("invalid fixture CA certificate")
 	errFixtureCAPEM                 = errors.New("fixture CA certificate is not PEM")
 	errFreshOperatorIdentityChanged = errors.New(
@@ -64,11 +51,9 @@ const (
 	fixtureEmail    = "dev@loco.test"
 	fixturePassword = "loco-dev"
 	// fixtureIssuer and fixtureAPIURL match tests/e2e/fixtures/installation/loco-install.yaml.
-	fixtureIssuer = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
-	fixtureAPIURL = "http://api.installation.test"
-	fixtureClient = "loco"
-	// formPassword names both the OAuth password grant and its password field.
-	formPassword           = "password"
+	fixtureIssuer          = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
+	fixtureAPIURL          = "http://api.installation.test"
+	fixtureClient          = "loco"
 	clientFile             = "/installation/loco-install.yaml"
 	clientTimeout          = 45 * time.Minute
 	fixtureWorkloadTimeout = 5 * time.Minute
@@ -253,10 +238,7 @@ func requireAdminsClaimed(ctx context.Context) error {
 	return nil
 }
 
-var deviceCodeLine = regexp.MustCompile(`^Open \S+ and enter the code (\S+)$`)
-
-// signIn runs locoadm login --device and approves its code with approve, as a person would
-// approve it in the dashboard.
+// signIn keeps installation diagnostics and credential auditing at the CLI boundary.
 func signIn(ctx context.Context, approve func(context.Context, string) error) (result error) {
 	var stderr boundedOutput
 	defer func() {
@@ -265,110 +247,42 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 		}
 	}()
 	cmd := exec.CommandContext(ctx, "locoadm", "login", "--file", clientFile, "--device")
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	// Provider/CLI errors can carry credential material. Only allowlisted failure metadata reaches the host.
-	audit, auditing := ctx.Value(auditKey{}).(*leakAudit)
 	cmd.Stderr = &stderr
-	if auditing {
+	transcript := io.Discard
+	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
 		cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
+		transcript = auditWriter{audit, "CLI output (stdout)"}
 	}
-	if checkErr := cmd.Start(); checkErr != nil {
-		return fmt.Errorf("start locoadm login: %w", checkErr)
-	}
-	var output io.Reader = stdout
-	if auditing {
-		output = io.TeeReader(stdout, auditWriter{audit, "CLI output (stdout)"})
-	}
-	scanner := bufio.NewScanner(output)
-	code := ""
-	for code == "" && scanner.Scan() {
-		if match := deviceCodeLine.FindStringSubmatch(scanner.Text()); match != nil {
-			code = match[1]
+	return devicelogin.Run(ctx, cmd, transcript, func(ctx context.Context, code string) error {
+		operatorPhase(phaseLoginApprove)
+		if err := approve(ctx, code); err != nil {
+			return err
 		}
-	}
-	if scanner.Err() != nil {
-		return errors.Join(errLoginOutputLimit, stopLogin(cmd, output))
-	}
-	if code == "" {
-		return errors.Join(errLoginCodeMissing, cmd.Wait())
-	}
-	operatorPhase(phaseLoginApprove)
-	if checkErr := approve(ctx, code); checkErr != nil {
-		return errors.Join(checkErr, stopLogin(cmd, output))
-	}
-	operatorPhase(phaseLoginApproved)
-	_, copyErr := io.Copy(io.Discard, output)
-	if waitErr := cmd.Wait(); copyErr != nil || waitErr != nil {
-		return errLogin
-	}
-	return nil
+		operatorPhase(phaseLoginApproved)
+		return nil
+	})
 }
 
-func stopLogin(cmd *exec.Cmd, output io.Reader) error {
-	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return errLoginStop
-	}
-	// Capture queued stdout before Wait closes the pipe.
-	_, drainErr := io.Copy(io.Discard, output)
-	stopErr := stopProcess(cmd)
-	if drainErr != nil {
-		return errors.Join(errLoginDrain, stopErr)
-	}
-	return stopErr
-}
-
-// approveDeviceCode signs in to the fixture IdP and approves the code through the API's
-// ApproveDeviceLogin, the call the dashboard makes when a person approves a sign-in.
 func approveDeviceCode(ctx context.Context, code string) error {
-	idToken, err := fixtureIDToken(ctx, fixtureIssuer)
+	token, err := fixtureIDToken(ctx, fixtureIssuer)
 	if err != nil {
 		return err
 	}
-	_, err = rpc.ForHost(fixtureAPIURL, idToken).Auth.ApproveDeviceLogin(
-		ctx, &authv1.ApproveDeviceLoginRequest{UserCode: code},
-	)
-	if err != nil {
-		return errDeviceApproval
-	}
-	return nil
+	return devicelogin.Approve(ctx, fixtureAPIURL, token, code)
 }
 
-// fixtureIDToken signs in through the fixture IdP's password grant.
 func fixtureIDToken(ctx context.Context, issuer string) (string, error) {
-	form := url.Values{
-		"grant_type": {formPassword},
-		"client_id":  {fixtureClient},
-		"username":   {fixtureEmail},
-		formPassword: {fixturePassword},
-		"scope":      {"openid email profile"},
+	identity := devicelogin.Identity{
+		Issuer: issuer, ClientID: fixtureClient, Email: fixtureEmail, Password: fixturePassword,
 	}
-	request, err := http.NewRequestWithContext(
-		ctx, http.MethodPost, issuer+"/token", strings.NewReader(form.Encode()),
-	)
+	token, err := identity.Token(ctx)
 	if err != nil {
-		return "", errProviderToken
-	}
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	response, err := (&http.Client{Timeout: time.Minute}).Do(request)
-	if err != nil {
-		return "", errProviderToken
-	}
-	defer response.Body.Close()
-	var tokens struct {
-		IDToken string `json:"id_token"`
-	}
-	if response.StatusCode != http.StatusOK ||
-		json.NewDecoder(io.LimitReader(response.Body, fixtureResponseLimit)).Decode(&tokens) != nil ||
-		tokens.IDToken == "" {
-		return "", errProviderToken
+		return "", err
 	}
 	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
-		audit.add([]byte(tokens.IDToken))
+		audit.add([]byte(token))
 	}
-	return tokens.IDToken, nil
+	return token, nil
 }
 
 func identitySnapshot(ctx context.Context) (string, error) {

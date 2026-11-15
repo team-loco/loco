@@ -114,13 +114,14 @@ func TestSignInApprovesThePrintedCode(t *testing.T) {
 }
 
 func TestSignInStopsLoginWhenApprovalFails(t *testing.T) {
-	fakeLocoadm(t, deviceCodeOutput, "", "sleep 30")
+	errApproval := errors.New("approval failed")
+	fakeLocoadm(t, deviceCodeOutput, "", "exec sleep 30")
 	started := time.Now()
 	var err error
 	captureStderr(t, func() {
-		err = signIn(t.Context(), func(context.Context, string) error { return errDeviceApproval })
+		err = signIn(t.Context(), func(context.Context, string) error { return errApproval })
 	})
-	if !errors.Is(err, errDeviceApproval) || time.Since(started) > 20*time.Second {
+	if !errors.Is(err, errApproval) || time.Since(started) > 20*time.Second {
 		t.Fatalf("signIn = %v after %s, want the approval error without waiting for login", err, time.Since(started))
 	}
 }
