@@ -218,9 +218,6 @@ class Container:
         for line in self.memory.stdout:
             self.peak = max(self.peak, int(line))
 
-    def reset_peak(self):
-        self.peak = 0
-
     def anon_mb(self):
         """The most anonymous memory, the processes' own and not page cache or shared buffers,
         sampled every 100 ms since the last reset."""
@@ -306,7 +303,8 @@ class Scenario:
     sizes: tuple = SIZES
     # Writes are measured inside a transaction that rolls back, so every run sees the seeded rows.
     commit: bool = False
-    concurrency: object = None
+    # The sizes are concurrent clients, each making one request per run.
+    concurrent: bool = False
     # Repeat each statement until it affects no rows, as a batched delete loop does.
     until_empty: bool = False
     derive: object = None
@@ -558,7 +556,7 @@ SCENARIOS = {
         Scenario(
             "resolve-identity", 1825, "concurrent requests from one user, each committing",
             seed_resolve_identity, cases_resolve_identity, lambda n: 5 * RESOLVE_NOISE,
-            sizes=(1, 4, 16, 64), commit=True, concurrency=lambda n: n,
+            sizes=(1, 4, 16, 64), commit=True, concurrent=True,
             note="A rate problem, not a size problem: the sizes are concurrent requests, and WAL records show the write each request makes.",
         ),
         Scenario(
@@ -681,21 +679,14 @@ def percentile(values, q):
     return ordered[max(0, math.ceil(q * len(ordered)) - 1)]
 
 
-def measure_case(container, src, scenario, statements, prepared_sql, timeout_s, n):
-    clients = scenario.concurrency(n) if scenario.concurrency else 1
+def measure_case(container, src, scenario, statements, prepared, timeout_s, n):
+    clients = n if scenario.concurrent else 1
     conns = [connect(container.dsn, "bench") for _ in range(clients)]
     try:
-        prepared = {}
-        for i, query in enumerate(dict.fromkeys(q for q, _ in statements)):
-            sql, keys = prepared_sql[query]
-            prepared[query] = Prepared(f"q{i}", sql, keys)
         for conn in conns:
             conn.execute(f"SET statement_timeout = '{int(timeout_s * 1000)}ms'")
             for p in prepared.values():
                 exec_checked(conn.pgconn, conn.pgconn.prepare(p.name.encode(), p.sql.encode()))
-        missing = {k for q, params in statements for k in prepared[q].keys if k not in params}
-        if missing:
-            raise BenchError(f"{scenario.name}: no value for parameters {sorted(map(str, missing))}")
 
         def burst():
             latencies = [0.0] * clients
@@ -722,7 +713,7 @@ def measure_case(container, src, scenario, statements, prepared_sql, timeout_s, 
             for _ in range(WARMUPS):
                 burst()
             conns[0].execute("SELECT pg_stat_statements_reset()")
-            container.reset_peak()
+            container.peak = 0
             cpu0 = container.cpu_usec()
             latencies = []
             for _ in range(RUNS):
@@ -783,11 +774,15 @@ def run_size(container, src, scenario, n, admin):
     timeout_s = src.go_const("api/config.go", "defaultDatabaseStatementTimeout")
     results = []
     for case, statements in cases.items():
-        prepared_sql = {q: bind(queries[q]) for q, _ in statements if q in queries}
-        unknown = {q for q, _ in statements} - prepared_sql.keys()
-        if unknown:
-            raise BenchError(f"{scenario.name}: {src.label} has no query {sorted(unknown)}")
-        result = measure_case(container, src, scenario, statements, prepared_sql, timeout_s, n)
+        names = dict.fromkeys(q for q, _ in statements)
+        if unknown := [q for q in names if q not in queries]:
+            raise BenchError(f"{scenario.name}: {src.label} has no query {unknown}")
+        prepared = {q: Prepared(f"q{i}", *bind(queries[q])) for i, q in enumerate(names)}
+        # Checked here because a KeyError inside a client thread would only print, not stop the run.
+        missing = {k for q, params in statements for k in prepared[q].keys if k not in params}
+        if missing:
+            raise BenchError(f"{scenario.name}: no value for parameters {sorted(map(str, missing))}")
+        result = measure_case(container, src, scenario, statements, prepared, timeout_s, n)
         results.append({"ref": src.label, "commit": src.commit, "size": n, "case": case, "seed_s": round(seed_s, 1)} | result)
         summary = f"{result['p50_ms']} ms p50, {result['plan']}" if result["status"] == "ok" else result["status"]
         log(f"  {src.label} {scenario.name} n={n} {case}: {summary} (seeded in {seed_s:.0f} s)")
@@ -861,14 +856,8 @@ def machine_markdown(m):
 # --- CLI ------------------------------------------------------------------------------------------
 
 
-def parse_sizes(text):
-    try:
-        sizes = tuple(int(s.replace("_", "")) for s in text.split(","))
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"not a comma-separated list of integers: {text}")
-    if any(s < 1 for s in sizes):
-        raise argparse.ArgumentTypeError("sizes must be positive")
-    return sizes
+def size_list(text):
+    return tuple(int(s) for s in text.split(","))
 
 
 def estimate_s(scenarios, sizes, refs):
@@ -885,7 +874,7 @@ def main(argv=None):
     refs = parser.add_mutually_exclusive_group()
     refs.add_argument("--ref", help="read migrations and queries at this git ref (default: the working tree)")
     refs.add_argument("--compare", nargs=2, metavar=("BEFORE", "AFTER"), help="run both refs and show them side by side")
-    parser.add_argument("--sizes", type=parse_sizes, help="comma-separated row counts (default: per scenario)")
+    parser.add_argument("--sizes", type=size_list, help="comma-separated row counts (default: per scenario)")
     args = parser.parse_args(argv)
 
     if args.scenario == "list":

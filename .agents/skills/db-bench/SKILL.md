@@ -62,8 +62,8 @@ Add a `Scenario` to `SCENARIOS` in `scripts/bench.py`:
   from Go with `src.go_const` instead of copying them.
 - `rows(n)` estimates the seeded rows, for the runtime estimate.
 - Set `commit=True` for writes that must commit, `until_empty=True` for a delete the API
-  repeats until it affects no rows, `concurrency` for parallel clients, and `derive` for
-  computed columns.
+  repeats until it affects no rows, `concurrent=True` when the sizes are parallel clients,
+  and `derive` for computed columns.
 
 A fix that renames a query or its parameters updates the scenario in the same PR. Run
 `mise run test:db-bench`; it checks that every scenario names an existing query and fills

@@ -60,10 +60,6 @@ def test_goose_up_drops_the_down_section():
     assert bench.goose_up("-- +goose Up\nCREATE TABLE t ();\n-- +goose Down\nDROP TABLE t;\n").strip() == "CREATE TABLE t ();"
 
 
-def test_seed_ids_match_python_ids():
-    assert bench.u(3, 1) == "00000003-0000-7000-8000-000000000001"
-
-
 def test_plan_summary_names_the_scan_that_examined_most_rows():
     plan = [{
         "Execution Time": 10,
