@@ -47,8 +47,8 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: type=sha,format=long
 
-      # A push to main builds every platform and the staging UI for build.yml
-      # to publish, and writes the build cache pull requests read.
+      # A push to main builds every platform and the staging UI for ci.yml to
+      # publish, and writes the build cache pull requests read.
       - name: Build and push every image for this commit
         id: push
         if: env.PUSH == 'true'

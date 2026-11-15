@@ -313,7 +313,7 @@ govulncheck:
 
 images:
   for: [charts, docker, e2e, e2e-installation, osv]
-  # build.yml publishes the images of every push to main.
+  # ci.yml publishes the images of every push to main.
   push:
     - "**"
 

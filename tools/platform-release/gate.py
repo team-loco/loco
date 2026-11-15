@@ -1,4 +1,4 @@
-"""Fails unless the push runs of `ci.yml` and `build.yml` allow a main commit to be released.
+"""Fails unless the push runs of `ci.yml`, which also publish the images, allow a main commit to be released.
 
 Usage: gate.py LATEST_TAG COMMIT, with an empty LATEST_TAG when no release exists.
 """
@@ -55,9 +55,6 @@ def main(latest, commit):
         return cache[run_id]
 
     failed = ['ci.yml on ' + sha + ': ' + reason for sha, reason in blocking([(sha, push_run('ci.yml', sha)) for sha in shas], jobs)]
-    build = push_run('build.yml', commit)
-    if build is None or build['conclusion'] != 'success':
-        failed.append('build.yml on ' + commit + ': ' + ('no run' if build is None else build['conclusion'] or 'in progress'))
     for line in failed:
         print('::error::' + line)
     if failed:
