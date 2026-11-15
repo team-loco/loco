@@ -347,3 +347,33 @@ func TestNewClusterIntentRemovesPreviousReleaseBeforeRecordingCluster(t *testing
 		t.Fatalf("pending stamp = %+v, want %+v", got, expected)
 	}
 }
+
+func TestRegistryConfigPreservesImageCompatibilityAndAnonymousArtifacts(t *testing.T) {
+	cfg := testConfig(t)
+	if err := cfg.registryConfig(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(cfg.State, "registry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var registry struct {
+		HTTP struct {
+			Port          string   `json:"port"`
+			Compat        []string `json:"compat"`
+			AccessControl struct {
+				Repositories map[string]struct {
+					AnonymousPolicy []string `json:"anonymousPolicy"`
+				} `json:"repositories"`
+			} `json:"accessControl"`
+		} `json:"http"`
+	}
+	if err = json.Unmarshal(data, &registry); err != nil {
+		t.Fatal(err)
+	}
+	if registry.HTTP.Port != cfg.RegistryPort || len(registry.HTTP.Compat) != 1 ||
+		registry.HTTP.Compat[0] != "docker2s2" ||
+		strings.Join(registry.HTTP.AccessControl.Repositories["team-loco/**"].AnonymousPolicy, ",") != "read" {
+		t.Fatalf("registry: %+v", registry)
+	}
+}

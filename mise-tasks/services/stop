@@ -9,7 +9,11 @@ if pgrep -f "$tilt_pattern" >/dev/null; then
 	exit 0
 fi
 
-ports=("${APP_PORT##*:}" "$OBS_PROXY_PORT" "$OBS_OTLP_GRPC_PORT" "$OBS_OTLP_HTTP_PORT" "$WEB_PORT")
+ports=("$WEB_PORT")
+# Installed API and telemetry ports belong to the container engine's forwarder.
+if [ ! -f "$STACK_STATE/kind.yaml" ]; then
+ ports+=("${APP_PORT##*:}" "$OBS_PROXY_PORT" "$OBS_OTLP_GRPC_PORT" "$OBS_OTLP_HTTP_PORT")
+fi
 listeners() {
 	lsof -t -sTCP:LISTEN "${ports[@]/#/-iTCP:}" || true
 }

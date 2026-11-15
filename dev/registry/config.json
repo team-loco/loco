@@ -75,7 +75,10 @@
         "users": [],
         "actions": []
       }
-    }
+    },
+    "compat": [
+      "docker2s2"
+    ]
   },
   "log": {
     "level": "info"
