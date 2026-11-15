@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.14,<3.15"
+# requires-python = ">=3.15,<3.16"
 # dependencies = ["playwright==1.65.0"]
 # ///
 import argparse

@@ -8,6 +8,9 @@
   rebaseWhen: "conflicted",
   platformCommit: "enabled",
   ignorePaths: ["examples/**", "**/node_modules/**", "gen/ts/node_modules/**"],
+  dockerfile: {
+    ignorePaths: ["**/node_modules/**", "gen/ts/node_modules/**"],
+  },
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   constraints: {
     mise: "2026.11.5",
@@ -184,14 +187,14 @@
       matchDepNames: ["uv", "ghcr.io/astral-sh/uv"],
     },
     {
-      description: "One PR moves mise.toml, mise.lock, the shared tests requires-python with uv.lock together",
+      description: "Keep the mise Python pin, project and script constraints, image pins and lockfiles together",
       groupName: "python",
-      matchManagers: ["mise", "dockerfile", "pep621"],
+      matchManagers: ["mise", "dockerfile", "pep621", "pep723"],
       matchDepNames: ["python"],
     },
     {
       description: "mise.lock needs a python-build-standalone build, which appears days after the CPython tag that mise reads",
-      matchManagers: ["mise", "pep621"],
+      matchManagers: ["mise", "pep621", "pep723"],
       matchDepNames: ["python"],
       minimumReleaseAge: "7 days",
     },
