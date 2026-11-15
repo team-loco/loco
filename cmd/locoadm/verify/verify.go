@@ -55,7 +55,7 @@ func Command() *cobra.Command {
 			return json.MarshalWrite(cmd.OutOrStdout(), status)
 		},
 	}
-	command.Flags().StringVar(&file, "file", "loco-install.yaml", "Installation configuration file")
+	command.Flags().StringVar(&file, "file", installation.DefaultFile, installation.FileFlagUsage)
 	command.Flags().StringVar(&target.Worker, "worker", "", "Build-enabled worker to verify")
 	command.Flags().
 		StringVar(&target.EnvironmentID, "environment", "", "Authorized environment for the disposable probe")

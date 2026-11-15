@@ -104,7 +104,7 @@ List admins only on an identity provider that verifies email addresses: whoever 
 
 `BootstrapService.Bootstrap` requires both the installation's bootstrap token and an identity-provider JWT in the Authorization header. The API verifies the issuer, signature, audience, expiry and verified email before resolving or creating the first administrator, including when ordinary signup is closed. It returns a normal CLI session.
 
-Bootstrap creates the user, grants system administration and closes bootstrap in one transaction. Concurrent attempts produce one administrator. A restart, a lost response or removal of an administrator never reopens bootstrap. The unreleased [installation workflow](../reference/installation.md#apply-and-resume) uses `locoadm bootstrap --file installation.yaml --email admin@example.com` to sign in, save a CLI session, remove the temporary bootstrap reference from every API replica, and delete its Secret. Repeat the command as an existing system administrator to resume interrupted cleanup.
+Bootstrap creates the user, grants system administration and closes bootstrap in one transaction. Concurrent attempts produce one administrator. A restart, a lost response or removal of an administrator never reopens bootstrap. The unreleased [installation workflow](../reference/installation.md#apply-and-resume) uses `locoadm bootstrap --file loco-install.yaml --email admin@example.com` to sign in, save a CLI session, remove the temporary bootstrap reference from every API replica, and delete its Secret. Repeat the command as an existing system administrator to resume interrupted cleanup.
 
 ## Upgrades
 

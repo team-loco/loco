@@ -35,7 +35,7 @@ func Command() *cobra.Command {
 			)
 			return err
 		}}
-	export.Flags().StringVar(&file, "file", "loco-install.yaml", "Installation configuration file")
+	export.Flags().StringVar(&file, "file", installation.DefaultFile, installation.FileFlagUsage)
 	export.Flags().StringVar(&options.Output, "output", "", "New directory for encrypted recovery files")
 	export.Flags().
 		StringVar(&options.Recipient, "recipient", "", "Age X25519 recipient for seal material and the generate-root token")

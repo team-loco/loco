@@ -2,6 +2,12 @@ package installation
 
 const ConfigVersion = 1
 
+// DefaultFile is the installation file locoadm commands read when --file is omitted.
+const DefaultFile = "loco-install.yaml"
+
+// FileFlagUsage is the help text of the --file flag on every locoadm command that reads DefaultFile.
+const FileFlagUsage = "Installation configuration file"
+
 type Config struct {
 	Version      int          `json:"version"           yaml:"version"`
 	Name         string       `json:"name"              yaml:"name"`
