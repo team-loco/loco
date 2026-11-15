@@ -40,13 +40,8 @@ RUN find web/dist -type f -size +1k \( \
 
 FROM --platform=$BUILDPLATFORM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS docs-bun
 
-FROM --platform=$BUILDPLATFORM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS docs-uv
-
 FROM --platform=$BUILDPLATFORM python:3.14.8-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS docs-builder
-COPY --from=docs-uv /uv /usr/local/bin/uv
 WORKDIR /app/docs
-COPY docs/pyproject.toml docs/uv.lock ./
-RUN uv sync --frozen --no-dev
 COPY --from=docs-bun /usr/local/bin/bun /usr/local/bin/bun
 COPY package.json bun.lock /app/
 COPY web/package.json /app/web/
@@ -58,8 +53,8 @@ COPY web/public/favicon.svg /app/web/public/favicon.svg
 COPY web/public/logo.svg /app/web/public/logo.svg
 COPY web/sws.toml /app/web/sws.toml
 ARG DOCS_ENVIRONMENT=production
-RUN uv run --frozen --no-dev python scripts/build.py build "$DOCS_ENVIRONMENT" \
-    && uv run --frozen --no-dev python scripts/package.py "$DOCS_ENVIRONMENT"
+RUN python scripts/build.py build "$DOCS_ENVIRONMENT" \
+    && python scripts/package.py "$DOCS_ENVIRONMENT"
 
 FROM ghcr.io/static-web-server/static-web-server:2.44.1@sha256:94618e3d17802265a21926217e6f9e7832b311b6fbf5933684001739fafed06a
 
