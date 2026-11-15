@@ -5,6 +5,14 @@ release:
 values:
   - ../ci/default-values.yaml
 tests:
+  - it: enriches dependency telemetry with the namespace workspace
+    template: templates/collectors/collector-configs.yaml
+    documentSelector: {path: metadata.name, value: otel-col-deploy}
+    asserts:
+      - matchRegex:
+          path: data.relay
+          pattern: 'from: namespace\n\s+key: loco.io/workspace-id\n\s+tag_name: loco.workspace.id'
+
   - it: runs only the node collector as a DaemonSet
     asserts:
       - isKind:

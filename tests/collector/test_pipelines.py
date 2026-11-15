@@ -28,7 +28,7 @@ GATEWAY_LABELS = {
     "gateway.envoyproxy.io/owning-gateway-name": "gateway.envoyproxy.io/owning-gateway-name",
     "gateway.envoyproxy.io/owning-gateway-namespace": "gateway.envoyproxy.io/owning-gateway-namespace",
 }
-CLIENT_POD_IDENTITY = ("k8s.pod.ip", "k8s.pod.uid")
+CLIENT_POD_IDENTITY = ("k8s.pod.ip", "k8s.pod.uid", "k8s.pod.name", "k8s.namespace.name")
 ENVOY_CLUSTER_ATTRIBUTES = {
     "trace_statements": "upstream_cluster",
     "log_statements": "upstream_cluster",
@@ -245,7 +245,7 @@ def test_build_logs_keep_their_build_id(worker_relays):
     } in extract["labels"]
 
 
-def test_tenancy_comes_from_explicit_pod_labels(worker_relays):
+def test_tenancy_comes_from_namespace_ownership_and_pod_resource_labels(worker_relays):
     for collector, config, name, pipeline in _pipelines(worker_relays):
         for enricher in _k8s_attributes(pipeline):
             if enricher == "k8s_attributes/route_namespace":
@@ -259,6 +259,8 @@ def test_tenancy_comes_from_explicit_pod_labels(worker_relays):
             assert labels == TENANT_LABELS | BUILD_LABELS | GATEWAY_LABELS, (
                 f"{collector} {enricher}"
             )
+            namespace_labels = {rule["key"]: rule["tag_name"] for rule in extract["labels"] if rule["from"] == "namespace"}
+            assert namespace_labels == {key: value for key, value in TENANT_LABELS.items() if key != "loco.io/resource-id"}
             assert all(("key_regex" not in rule for rule in extract["labels"])), (
                 f"{collector} {enricher}"
             )
@@ -450,10 +452,10 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
         assert result.returncode == 0, f"{collector}: {result.stdout}\n{result.stderr}"
 
 
-def test_gateway_environment_comes_from_the_route_namespace(worker_relays):
+def test_gateway_tenancy_comes_from_the_route_namespace(worker_relays):
     config = worker_relays["otel-col-deploy"]
     processor = config["processors"]["k8s_attributes/route_namespace"]
-    assert processor["extract"]["labels"] == [{"from": "namespace", "key": "loco.io/environment-id", "tag_name": "loco.environment.id"}]
+    assert {rule["key"]: rule["tag_name"] for rule in processor["extract"]["labels"] if rule["from"] == "namespace"} == {key: value for key, value in TENANT_LABELS.items() if key != "loco.io/resource-id"}
     for pipeline in config["service"]["pipelines"].values():
         order = pipeline["processors"]
         assert order.index("groupbyattrs/tenancy") < order.index("k8s_attributes/route_namespace") < order.index("resource/region")
