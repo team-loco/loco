@@ -56,7 +56,3 @@
 	--series-2: #94e2d5;
 	--series-3: #fab387;
 }
-
-[data-theme="catppuccin"] [data-mode-control] [data-slot="segmented-indicator"] {
-	border-radius: 999px;
-}
