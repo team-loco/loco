@@ -39,8 +39,11 @@ const (
 	metricInterval   = 60
 	crashRecords     = 50
 	crashFlush       = 30 * time.Second
-	// The otel-app fixture's tracerName and forged attributes, in tests/e2e/fixtures/otel-app/main.go.
+	// The otel-app fixture's tracerName, span link and forged attributes, in tests/e2e/fixtures/otel-app/main.go.
 	fixtureScope         = "github.com/team-loco/loco/tests/e2e/fixtures/otel-app"
+	fixtureLinkTrace     = "0102030405060708090a0b0c0d0e0f10"
+	fixtureLinkSpan      = "0102030405060708"
+	fixtureLinkAttribute = "retry"
 	forgedSpan           = "forged-workspace-span"
 	forgedWorkspace      = "forged-workspace"
 	forgedOrganization   = "forged-organization"
@@ -279,6 +282,22 @@ func ingressTraceLinked(spans []*observabilityv1.TraceSpan, workspaceID, resourc
 		}
 	}
 	return fmt.Errorf("%d spans, no application span under a gateway span", len(spans))
+}
+
+// fixtureLinkReturned checks a span of the fixture carries the span link the fixture adds.
+func fixtureLinkReturned(spans []*observabilityv1.TraceSpan) error {
+	for _, span := range spans {
+		if span.GetScopeName() != fixtureScope {
+			continue
+		}
+		for _, link := range span.GetLinks() {
+			if link.GetTraceId() == fixtureLinkTrace && link.GetSpanId() == fixtureLinkSpan &&
+				link.GetAttributes()["test.link"] == fixtureLinkAttribute {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("no span of %s carries the fixture's link", fixtureScope)
 }
 
 // dependencySpans runs the fixture's image as a pod without resource labels and with forged
@@ -722,7 +741,7 @@ func (o *observed) ingressTrace(t *testing.T) {
 	platform.Eventually(
 		t,
 		telemetryTimeout,
-		"an application span whose parent is the gateway's",
+		"an application span whose parent is the gateway's, with the fixture's span link",
 		func(ctx context.Context) error {
 			trace, err := own.Observability.GetTrace(
 				ctx,
@@ -731,7 +750,10 @@ func (o *observed) ingressTrace(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			return ingressTraceLinked(trace.GetSpans(), w.ID, resourceID, w.OrgID, traceID)
+			if err := ingressTraceLinked(trace.GetSpans(), w.ID, resourceID, w.OrgID, traceID); err != nil {
+				return err
+			}
+			return fixtureLinkReturned(trace.GetSpans())
 		},
 	)
 }

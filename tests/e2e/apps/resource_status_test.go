@@ -274,6 +274,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	).GetStatus(); status != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED {
 		t.Errorf("the API reports the new deployment %v, want failed", status)
 	}
+	checkDeploymentFailedEvent(t, w, id, newDeployment, app)
 	if err := twoReady(t.Context()); err != nil {
 		t.Errorf("the API does not report the app healthy while the old replicas serve: %v", err)
 	}
@@ -284,6 +285,32 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	}
 	if getDeployment(t, oldDeployment).GetIsActive() {
 		t.Error("the serving deployment is reported active")
+	}
+}
+
+// checkDeploymentFailedEvent checks one deployment.failed event names the deployment, its region,
+// its resource and creator, and the user who deployed it.
+func checkDeploymentFailedEvent(t *testing.T, w *platform.Workspace, resourceID, deploymentID, app string) {
+	t.Helper()
+	failedEvents := slices.DeleteFunc(
+		resourceEvents(t.Context(), t, w, resourceID, "deployment.failed"),
+		func(event *eventv1.Event) bool { return event.GetSubjectId() != deploymentID },
+	)
+	if len(failedEvents) != 1 {
+		t.Fatalf("%d deployment.failed events name deployment %s, want one", len(failedEvents), deploymentID)
+	}
+	data := failedEvents[0].GetData().GetFields()
+	if region := data["region"].GetStringValue(); region != p.Region {
+		t.Errorf("the deployment.failed event names region %q, want %q", region, p.Region)
+	}
+	if name := data["resource_name"].GetStringValue(); name != app {
+		t.Errorf("the deployment.failed event names resource %q, want %q", name, app)
+	}
+	if data["creator_email"].GetStringValue() == "" {
+		t.Error("the deployment.failed event names no creator")
+	}
+	if actor := failedEvents[0].GetActorType(); actor != "user" {
+		t.Errorf("the deployment.failed event's actor is %q, want user", actor)
 	}
 }
 
@@ -485,7 +512,7 @@ func withoutScope(t *testing.T, w *platform.Workspace, check func()) {
 func crashEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resourceID string) []*eventv1.Event {
 	t.Helper()
 	var crashes []*eventv1.Event
-	for _, event := range degradationEvents(ctx, t, w, resourceID) {
+	for _, event := range resourceEvents(ctx, t, w, resourceID, "resource.degraded") {
 		if event.GetData().GetFields()["reason"].GetStringValue() == "crash_looping" {
 			crashes = append(crashes, event)
 		}
@@ -495,7 +522,7 @@ func crashEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resou
 
 func eventIDs(t *testing.T, w *platform.Workspace, resourceID string) []string {
 	t.Helper()
-	events := degradationEvents(t.Context(), t, w, resourceID)
+	events := resourceEvents(t.Context(), t, w, resourceID, "resource.degraded")
 	ids := make([]string, 0, len(events))
 	for _, event := range events {
 		ids = append(ids, event.GetId())
@@ -504,14 +531,19 @@ func eventIDs(t *testing.T, w *platform.Workspace, resourceID string) []string {
 	return ids
 }
 
-func degradationEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resourceID string) []*eventv1.Event {
+func resourceEvents(
+	ctx context.Context,
+	t *testing.T,
+	w *platform.Workspace,
+	resourceID, eventType string,
+) []*eventv1.Event {
 	t.Helper()
 	listed, err := p.User.Event.ListEvents(ctx, &eventv1.ListEventsRequest{
 		OrgId:         w.OrgID,
 		WorkspaceId:   w.ID,
 		ResourceId:    resourceID,
 		EnvironmentId: w.EnvironmentID,
-		Types:         []string{"resource.degraded"},
+		Types:         []string{eventType},
 	})
 	if err != nil {
 		t.Fatal(err)
