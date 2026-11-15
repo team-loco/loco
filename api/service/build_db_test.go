@@ -180,9 +180,13 @@ func newBuildFixture(t *testing.T) *buildFixture {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
 	}
-	entityID := uuid.New()
-	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: entityID}
-	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Entity: entity, Scopes: scopes})
+	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{
+		Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: f.userID},
+		Scopes:    scopes,
+		ActorType: genDb.DeploymentActorTypeUser,
+		ActorID:   f.userID,
+		UserID:    f.userID,
+	})
 
 	return &buildFixture{deployFixture: f, server: server, bucket: bucket, ctx: ctx}
 }

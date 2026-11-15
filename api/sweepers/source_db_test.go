@@ -182,13 +182,16 @@ func (f *sweepFixture) wantFailureEvent(t *testing.T, id uuid.UUID, message stri
 	t.Helper()
 	var count int
 	err := f.pool.QueryRow(f.ctx, `
-SELECT count(*) FROM events WHERE subject_id = $1 AND type = $2 AND data->>$3 = $4`,
-		id, events.BuildFailed, events.FieldMessage, message).Scan(&count)
+SELECT count(*) FROM events
+WHERE subject_id = $1 AND type = $2 AND data->>$3 = $4 AND data->>$5 = $6`,
+		id, events.BuildFailed, events.FieldMessage, message,
+		events.FieldReason, events.BuildFailureUploadExpired).Scan(&count)
 	if err != nil {
 		t.Fatalf("count build events: %v", err)
 	}
 	if count != 1 {
-		t.Fatalf("build %s has %d %s events with message %q, want 1", id, count, events.BuildFailed, message)
+		t.Fatalf("build %s has %d %s events with message %q and reason %s, want 1",
+			id, count, events.BuildFailed, message, events.BuildFailureUploadExpired)
 	}
 }
 

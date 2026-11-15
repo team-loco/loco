@@ -1,8 +1,8 @@
 -- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
-                    git_commit, git_branch, git_commit_message)
+                    api_token_id, git_commit, git_branch, git_commit_message)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
-        sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message))
+        sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message))
 RETURNING *;
 
 -- name: GetBuildByID :one
@@ -57,6 +57,15 @@ SET status = 'canceled',
 WHERE id = sqlc.arg(id)
   AND status IN ('awaiting_upload', 'queued', 'running')
 RETURNING id, cluster_id, source_key;
+
+-- name: GetBuildCreator :one
+-- creator_* is NULL when the creating user no longer exists.
+SELECT b.created_by, b.api_token_id, r.name AS resource_name,
+       u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
+FROM builds b
+JOIN resources r ON r.id = b.resource_id
+LEFT JOIN users u ON u.id = b.created_by
+WHERE b.id = $1;
 
 -- name: GetBuildCluster :one
 SELECT id FROM clusters

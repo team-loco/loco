@@ -165,6 +165,10 @@ func (s *BuildServer) CreateBuild(
 	if buildContext == "" {
 		buildContext = defaultBuildContext
 	}
+	var apiTokenID *uuid.UUID
+	if p.ActorType == genDb.DeploymentActorTypeApiToken {
+		apiTokenID = &p.ActorID
+	}
 	createErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, err := qtx.CreateBuild(ctx, genDb.CreateBuildParams{
 			ID:               buildID,
@@ -175,7 +179,8 @@ func (s *BuildServer) CreateBuild(
 			DockerfilePath:   dockerfilePath,
 			Context:          buildContext,
 			ImageRepository:  repository,
-			CreatedBy:        p.Entity.ID,
+			CreatedBy:        p.UserID,
+			ApiTokenID:       apiTokenID,
 			GitCommit:        req.GitCommit,
 			GitBranch:        req.GitBranch,
 			GitCommitMessage: gitCommitMessage,

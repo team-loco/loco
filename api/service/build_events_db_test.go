@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
 
@@ -15,6 +17,8 @@ const maxBuildsListed = 10
 
 type buildEventRow struct {
 	eventType   string
+	actorType   string
+	actorID     *uuid.UUID
 	subjectID   uuid.UUID
 	workspaceID *uuid.UUID
 	orgID       *uuid.UUID
@@ -26,7 +30,8 @@ func (f *buildFixture) buildEvents(t *testing.T) []buildEventRow {
 	t.Helper()
 	rows, err := f.pool.Query(
 		t.Context(),
-		`SELECT type, subject_id, workspace_id, org_id, resource_id, data FROM events WHERE subject_type = $1 ORDER BY seq`,
+		`SELECT type, actor_type, actor_id, subject_id, workspace_id, org_id, resource_id, data
+		 FROM events WHERE subject_type = $1 ORDER BY seq`,
 		events.SubjectBuild,
 	)
 	if err != nil {
@@ -38,6 +43,8 @@ func (f *buildFixture) buildEvents(t *testing.T) []buildEventRow {
 		var row buildEventRow
 		if scanErr := rows.Scan(
 			&row.eventType,
+			&row.actorType,
+			&row.actorID,
 			&row.subjectID,
 			&row.workspaceID,
 			&row.orgID,
@@ -73,7 +80,21 @@ func (f *buildFixture) wantBuildOutcome(t *testing.T, id, kind, key, value strin
 		row.orgID == nil || row.orgID.String() != f.organizationID(t) {
 		t.Fatalf("build %s outcome scope = %+v", id, row)
 	}
+	if row.actorType != string(genDb.DeploymentActorTypeUser) || row.actorID == nil || *row.actorID != f.userID {
+		t.Fatalf("build %s outcome actor = %s/%v, want user %s", id, row.actorType, row.actorID, f.userID)
+	}
+	resource, err := f.queries.GetResourceByID(t.Context(), resourceID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := map[string]any{events.FieldBuildID: id, events.FieldResourceID: resourceID.String(), key: value}
+	if kind == events.BuildFailed {
+		want[events.FieldReason] = events.BuildFailureBuild
+		want[events.FieldResourceName] = resource.Name
+		want[events.FieldCreatorID] = f.userID.String()
+		want[events.FieldCreatorEmail] = deployFixtureEmail
+		want[events.FieldCreatorName] = ""
+	}
 	if !maps.Equal(row.data, want) {
 		t.Fatalf("build %s outcome data = %v, want %v", id, row.data, want)
 	}
@@ -154,4 +175,46 @@ func TestBuildMutationsFailWithoutTheirEvents(t *testing.T) {
 		t.Fatal("cancel succeeded without its event")
 	}
 	wantStatus(t, f.get(t, buildID), buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD)
+}
+
+func TestTokenBuildFailureNamesTheTokenAndItsCreator(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	tokenID := f.apiToken(t)
+	p, ok := reqctx.PrincipalFrom(f.ctx)
+	if !ok {
+		t.Fatal("fixture has no principal")
+	}
+	p.Entity = genDb.Entity{Type: genDb.EntityTypeResource, ID: f.resourceID}
+	p.ActorType = genDb.DeploymentActorTypeApiToken
+	p.ActorID = tokenID
+	f.ctx = reqctx.WithPrincipal(f.ctx, p)
+
+	id := f.queued(t)
+	if row := f.row(t, id); row.CreatedBy != f.userID || row.ApiTokenID == nil || *row.ApiTokenID != tokenID {
+		t.Fatalf("build created by %s with token %v, want %s with token %s",
+			row.CreatedBy, row.ApiTokenID, f.userID, tokenID)
+	}
+	session, _ := f.dispatchSession()
+	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_FAILED)); err != nil {
+		t.Fatalf("failed: %v", err)
+	}
+	var failed []buildEventRow
+	for _, row := range f.buildEvents(t) {
+		if row.subjectID.String() == id && row.eventType == events.BuildFailed {
+			failed = append(failed, row)
+		}
+	}
+	if len(failed) != 1 {
+		t.Fatalf("build.failed events = %v, want one", failed)
+	}
+	ev := failed[0]
+	if ev.actorType != string(genDb.DeploymentActorTypeApiToken) || ev.actorID == nil || *ev.actorID != tokenID {
+		t.Fatalf("build.failed actor = %s/%v, want api_token/%s", ev.actorType, ev.actorID, tokenID)
+	}
+	if ev.data[events.FieldCreatorID] != f.userID.String() ||
+		ev.data[events.FieldCreatorEmail] != deployFixtureEmail ||
+		ev.data[events.FieldReason] != events.BuildFailureBuild {
+		t.Fatalf("build.failed data = %v", ev.data)
+	}
 }

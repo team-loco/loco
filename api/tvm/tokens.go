@@ -55,6 +55,7 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.P
 			Token:     token,
 			ActorType: queries.DeploymentActorTypeUser,
 			ActorID:   session.UserID,
+			UserID:    session.UserID,
 			Method:    queries.DeploymentMethodCli,
 		}, nil
 
@@ -80,6 +81,7 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.P
 			Token:     token,
 			ActorType: queries.DeploymentActorTypeApiToken,
 			ActorID:   tok.ID,
+			UserID:    tok.CreatedBy,
 			Method:    queries.DeploymentMethodApiToken,
 		}, nil
 

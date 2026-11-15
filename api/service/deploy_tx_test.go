@@ -25,7 +25,11 @@ type deployFixture struct {
 	otherCluster uuid.UUID
 	resourceID   uuid.UUID
 	envID        uuid.UUID
+	userID       uuid.UUID
 }
+
+// deployFixtureEmail is the email of the user newDeployFixture creates.
+const deployFixtureEmail = "test@example.com"
 
 const testAssertionLifetime = time.Minute
 
@@ -79,7 +83,7 @@ func newDeployFixture(t *testing.T) *deployFixture {
 	f := &deployFixture{pool: pool, queries: genDb.New(pool)}
 	row := pool.QueryRow(ctx, `
 WITH u AS (
-    INSERT INTO users (email) VALUES ('test@example.com') RETURNING id
+    INSERT INTO users (email) VALUES ($1) RETURNING id
 ), o AS (
     INSERT INTO organizations (name, created_by) SELECT 'org', id FROM u RETURNING id
 ), w AS (
@@ -96,8 +100,8 @@ WITH u AS (
     INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
     SELECT w.id, 'svc', 'svc', 'service', '', '{"routing":{"port":8080}}', 1 FROM w RETURNING id
 )
-SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e`)
-	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {
+SELECT c.id, c2.id, r.id, e.id, u.id FROM c, c2, r, e, u`, deployFixtureEmail)
+	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID, &f.userID); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	enrollTestCluster(t, pool, f.clusterID)

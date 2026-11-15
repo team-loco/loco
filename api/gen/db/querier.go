@@ -15,7 +15,7 @@ type Querier interface {
 	AddSystemAdminEntries(ctx context.Context, emails []string) error
 	AddSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error)
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
-	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
+	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) (int64, error)
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
@@ -107,12 +107,16 @@ type Querier interface {
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context, heardSince time.Time) (uuid.UUID, error)
+	// creator_* is NULL when the creating user no longer exists.
+	GetBuildCreator(ctx context.Context, id uuid.UUID) (GetBuildCreatorRow, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClusterRole(ctx context.Context, id uuid.UUID) (ClusterRole, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	GetDeploymentActor(ctx context.Context, id uuid.UUID) (GetDeploymentActorRow, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
+	// creator_* is NULL when the creating user, or the API token that names it, no longer exists.
+	GetDeploymentFailure(ctx context.Context, id uuid.UUID) (GetDeploymentFailureRow, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
 	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)

@@ -349,6 +349,15 @@ rollout_deployment() {
         -d "{\"deploymentId\":\"$1\"}" | yq -p json -r "$2"
 }
 
+rollout_failed_events() {
+    local resource_id
+    resource_id=$(e2e_psql "SELECT id FROM resources WHERE name = '${rollout_app}'")
+    curl -sS --fail-with-body "${E2E_API_URL}/loco.event.v1.EventService/ListEvents" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" -H 'Content-Type: application/json' \
+        -d "{\"orgId\":\"$(status_org_id)\",\"workspaceId\":\"${cli_workspace_id}\",\"resourceId\":\"${resource_id}\",\"types\":[\"deployment.failed\"]}" |
+        yq -p json -o json "[.events[] | select(.subjectId == \"$1\")]"
+}
+
 test_s07_failed_rollout_keeps_the_old_version_serving() {
     mkdir -p "$rollout_dir"
     cli_write_image_config "$rollout_dir" "$rollout_app" "$E2E_PUBLIC_IMAGE" 8080 "[${rollout_host}]"
@@ -407,6 +416,15 @@ test_s07_failed_rollout_keeps_the_old_version_serving() {
     new_deployment=$(rollout_region_field deploymentId)
     assert "The API reports the new deployment failed" \
         test "$(rollout_deployment "$new_deployment" '.deployment.status')" = DEPLOYMENT_PHASE_FAILED
+    local failed_events
+    failed_events=$(rollout_failed_events "$new_deployment")
+    assert "One deployment.failed event names the failed deployment" \
+        test "$(yq -p json -r 'length' <<<"$failed_events")" = 1
+    assert "The event names the region, the resource and its creator" \
+        test "$(yq -p json -r '.[0].data | [.region, .resource_name, (.creator_email != "")] | join(" ")' <<<"$failed_events")" = \
+        "us-east-1 ${rollout_app} true"
+    assert "The event's actor is the user who deployed" \
+        test "$(yq -p json -r '.[0].actorType' <<<"$failed_events")" = user
     assert "The API reports the app healthy while the old replicas serve" rollout_is_healthy_with_two_replicas
     # The API still treats the failed deployment as active and the serving one as replaced;
     # https://github.com/team-loco/loco/issues/1774 tracks reporting the serving deployment.
