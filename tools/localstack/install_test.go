@@ -122,6 +122,7 @@ func TestInstallInputsTrackChartsAndConfiguration(t *testing.T) {
 	for _, name := range []string{
 		"dev/loco-install.yaml", "dev/kind-local.yaml", "dev/compose.local.yaml",
 		"dev/dex.yaml", "dev/registry/config.json", "charts/worker/values.yaml",
+		"manifests/namespaces/loco-system.yaml",
 	} {
 		data := []byte("values: {}\n")
 		if !strings.HasPrefix(name, "charts/") {

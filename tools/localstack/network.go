@@ -113,17 +113,17 @@ func gatewayCorefile(corefile, domain string) (string, error) {
 }
 
 func (cfg config) gatewayServices(ctx context.Context) error {
+	namespace, err := os.ReadFile("manifests/namespaces/loco-system.yaml")
+	if err != nil {
+		return err
+	}
+	if err = cfg.apply(ctx, namespace); err != nil {
+		return err
+	}
 	return cfg.apply(ctx, []byte(fmt.Sprintf(`apiVersion: v1
 kind: Namespace
 metadata:
   name: loco-control-plane
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: loco-system
-  labels:
-    pod-security.kubernetes.io/enforce: privileged
 ---
 apiVersion: v1
 kind: Service

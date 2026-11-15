@@ -344,7 +344,7 @@ func (cfg config) inputsHash() (string, error) {
 		"dev/kind-local.yaml",
 		"dev/compose.local.yaml",
 		"dev/dex.yaml",
-		"dev/registry/config.json",
+		"dev/registry/config.json", "manifests/namespaces/loco-system.yaml",
 	}
 	err := filepath.WalkDir("charts", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
