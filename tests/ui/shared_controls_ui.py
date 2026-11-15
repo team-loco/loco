@@ -326,6 +326,7 @@ def resources(page, suffix):
         expect(header).to_have_attribute("aria-sort", "descending")
         expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
         if route:
+            expect(page).to_have_url(re.compile(r"[?&]sort=name\.desc"))
             page.reload()
             expect(table.get_by_role("row").nth(1)).to_contain_text("controls-zeta")
             table.locator("..").screenshot(path=str(out / f"resource-sorting-{suffix}.png"), animations="disabled")
