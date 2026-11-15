@@ -109,9 +109,7 @@ func validateAgainstSchema(data []byte) error {
 	return errors.New(strings.Join(lines, "\n"))
 }
 
-// schemaLeaves returns the innermost errors. For anyOf, only the branch that reached
-// deepest into the file counts, so a nullable override reports its field errors rather
-// than "want null".
+// schemaLeaves returns the innermost errors, taking only the deepest branch of an anyOf.
 func schemaLeaves(err *jsonschema.ValidationError) []*jsonschema.ValidationError {
 	if len(err.Causes) == 0 {
 		return []*jsonschema.ValidationError{err}
@@ -137,8 +135,7 @@ func schemaDepth(err *jsonschema.ValidationError) int {
 	return depth
 }
 
-// describeSchemaError replaces a pattern mismatch with the field's description, which
-// names the accepted values.
+// describeSchemaError reports a pattern mismatch with the field's description.
 func describeSchemaError(
 	compiler *jsonschema.Compiler,
 	printer *message.Printer,
