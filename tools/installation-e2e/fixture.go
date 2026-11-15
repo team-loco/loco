@@ -507,6 +507,12 @@ func (f *fixture) registryRouting(ctx context.Context) error {
 	); checkErr != nil {
 		return checkErr
 	}
+	if checkErr := restartClusterDNS(ctx); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := waitRegistryDNS(ctx, address); checkErr != nil {
+		return checkErr
+	}
 	nodes, err := command(ctx, f.root, nil, "kind", "get", "nodes", "--name", f.name)
 	if err != nil {
 		return err
