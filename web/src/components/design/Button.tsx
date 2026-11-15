@@ -100,12 +100,13 @@ function Button({ className, variant = "default", size = "default", ...props }: 
 			buttonVariants({ variant, size }),
 			className,
 		);
-		return <ButtonLink {...props} className={classes} />;
+		return <ButtonLink data-variant={variant} {...props} className={classes} />;
 	}
 	return (
 		<ButtonBase
 			variant={baseVariant(variant)}
 			size={baseSize(size)}
+			data-variant={variant}
 			className={cn(buttonVariants({ variant, size }), className)}
 			{...props}
 		/>

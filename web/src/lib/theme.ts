@@ -15,6 +15,7 @@ export const colorThemes = [
 	{ id: "gruvbox", name: "Gruvbox" },
 	{ id: "tokyo-night", name: "Tokyo Night" },
 	{ id: "paper", name: "Paper" },
+	{ id: "neobrutal", name: "Neobrutal" },
 ] as const;
 export type ColorTheme = (typeof colorThemes)[number]["id"];
 export const defaultColorTheme: ColorTheme = "loco";
