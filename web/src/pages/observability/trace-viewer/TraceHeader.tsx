@@ -112,7 +112,7 @@ export function TraceHeader({
 	};
 	return (
 		<header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-7 gap-y-3 border-b border-line py-3.5 pr-4 pl-6 min-[1180px]:grid-cols-[minmax(0,1fr)_minmax(0,520px)_auto]">
-			<div className="tv-hl col-start-1 row-start-1 flex min-w-0 flex-col gap-2">
+			<div className="col-start-1 row-start-1 flex min-w-0 flex-col gap-2">
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					{trace !== undefined && (
 						<Badge tone={trace.errors > 0 ? "bad" : "ok"}>{trace.errors > 0 ? "Error" : "OK"}</Badge>
@@ -197,7 +197,7 @@ export function TraceHeader({
 				<div
 					role="group"
 					aria-label="Time by resource"
-					className="tv-hr col-span-2 col-start-1 row-start-2 flex min-w-0 flex-col gap-2 pt-1 min-[1180px]:col-span-1 min-[1180px]:col-start-2 min-[1180px]:row-start-1"
+					className="col-span-2 col-start-1 row-start-2 flex min-w-0 flex-col gap-2 pt-1 min-[1180px]:col-span-1 min-[1180px]:col-start-2 min-[1180px]:row-start-1"
 				>
 					<div className="flex items-baseline gap-1.5 text-[11.5px] text-fg3">
 						Time by resource <span className="font-mono">{items.length}</span>
@@ -272,7 +272,7 @@ export function TraceHeader({
 					</div>
 				</div>
 			)}
-			<div className="tv-hact col-start-2 row-start-1 flex min-[1180px]:col-start-3">
+			<div className="col-start-2 row-start-1 flex min-[1180px]:col-start-3">
 				<DropdownMenu>
 					<DropdownMenuTrigger
 						render={<Button variant="ghost" size="icon-sm" aria-label="More for this trace" title="More" />}

@@ -1,5 +1,5 @@
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
-import { spanStart } from "../traces";
+import { spanStart, timestampNanos } from "../traces";
 
 const attributes = (values: Record<string, string>) =>
 	Object.entries(values).map(([key, value]) => ({
@@ -34,11 +34,7 @@ export function traceJson(spans: TraceSpan[]): string {
 								},
 								events: span.events.map((event) => ({
 									name: event.name,
-									timeUnixNano: String(
-										event.timestamp === undefined
-											? 0n
-											: event.timestamp.seconds * 1_000_000_000n + BigInt(event.timestamp.nanos),
-									),
+									timeUnixNano: String(timestampNanos(event.timestamp)),
 									attributes: attributes(event.attributes),
 								})),
 								links: span.links.map((link) => ({

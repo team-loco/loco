@@ -81,21 +81,18 @@ export function selfTime(trace: TraceSummary, span: TraceSpan): bigint {
 
 export interface ServiceShare {
 	key: string;
-	service: string;
 	nanos: bigint;
 	share: number;
 }
 
 export function serviceShares(trace: TraceSummary): ServiceShare[] {
-	const totals = new Map<string, { service: string; nanos: bigint }>();
+	const totals = new Map<string, bigint>();
 	for (const span of trace.spans) {
 		const key = traceResourceKey(span);
-		const group = totals.get(key) ?? { service: span.serviceName, nanos: 0n };
-		group.nanos += selfTime(trace, span);
-		totals.set(key, group);
+		totals.set(key, (totals.get(key) ?? 0n) + selfTime(trace, span));
 	}
-	const sum = [...totals.values()].reduce((a, b) => a + b.nanos, 0n);
-	return [...totals].map(([key, group]) => ({ key, ...group, share: fraction(group.nanos, sum) }));
+	const sum = [...totals.values()].reduce((a, b) => a + b, 0n);
+	return [...totals].map(([key, nanos]) => ({ key, nanos, share: fraction(nanos, sum) }));
 }
 
 export function failingSpan(trace: TraceSummary, selected: TraceSpan): TraceSpan | undefined {

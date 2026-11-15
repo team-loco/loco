@@ -8,7 +8,7 @@ const NANOS_PER_MICROSECOND = 1_000n;
 export const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/;
 const SPAN_ID_PATTERN = /^[0-9a-f]{16}$/;
 
-function timestampNanos(ts: Timestamp | undefined): bigint {
+export function timestampNanos(ts: Timestamp | undefined): bigint {
 	return (ts?.seconds ?? 0n) * NANOS_PER_SECOND + BigInt(ts?.nanos ?? 0);
 }
 

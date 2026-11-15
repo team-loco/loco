@@ -58,7 +58,7 @@ describe("flame graph details", () => {
 		expect(selfTime(trace(), root)).toBe(300n);
 		expect(selfTime(trace(), api)).toBe(300n);
 		const shares = serviceShares(trace());
-		expect(shares.find((s) => s.service === "api")?.nanos).toBe(600n);
+		expect(shares.find((s) => s.key === "api")?.nanos).toBe(600n);
 		expect(shares.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1);
 	});
 
