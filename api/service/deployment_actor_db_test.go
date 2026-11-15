@@ -183,7 +183,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolver := auth.NewResolver(f.pool, policy, limits.Defaults())
+	resolver := auth.NewResolver(f.pool, policy, limits.Defaults(), time.Hour)
 	user, _, err := resolver.Resolve(t.Context(), auth.Identity{
 		Issuer: issuer.URL(), Subject: "deployer", Email: "deployer@example.test", EmailVerified: true,
 	})

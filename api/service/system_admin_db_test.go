@@ -3,6 +3,7 @@ package service
 import (
 	"slices"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -30,7 +31,13 @@ func newSystemAdminAPI(t *testing.T) (*membershipAPI, membershipUser) {
 	if err = auth.SyncSystemAdmins(t.Context(), a.pool, admins); err != nil {
 		t.Fatal(err)
 	}
-	a.resolver = auth.NewResolver(a.pool, auth.SignupPolicy{}, limits.Defaults(), auth.WithSystemAdmins(admins))
+	a.resolver = auth.NewResolver(
+		a.pool,
+		auth.SignupPolicy{},
+		limits.Defaults(),
+		time.Hour,
+		auth.WithSystemAdmins(admins),
+	)
 	admin := a.signUp(t, configAdminSubject)
 	return a, admin
 }

@@ -311,7 +311,7 @@ func TestProviderConformance(t *testing.T) {
 			resolver := auth.NewResolver(
 				dbtest.NewPool(t),
 				policy,
-				limits.Defaults(),
+				limits.Defaults(), time.Hour,
 				auth.WithEmailVerifiers(emailVerifiers),
 			)
 

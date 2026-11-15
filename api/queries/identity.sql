@@ -1,5 +1,5 @@
 -- name: GetUserByIdentity :one
-SELECT sqlc.embed(u), i.email AS identity_email, i.email_verified AS identity_email_verified
+SELECT sqlc.embed(u), sqlc.embed(i)
 FROM identities i
 JOIN users u ON u.id = i.user_id
 WHERE i.issuer = $1 AND i.subject = $2;

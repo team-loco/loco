@@ -57,7 +57,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 		interceptor: NewAuthInterceptor(
 			machine,
 			verifier,
-			auth.NewResolver(pool, policy, limits.Defaults()),
+			auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
 			authz.New(pool, queries),
 		),
 		machine: machine,

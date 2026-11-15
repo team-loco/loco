@@ -38,10 +38,67 @@ func identity(sub, email string, verified bool) Identity {
 	}
 }
 
+func TestResolveThrottlesIdentityLogin(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	q := genDb.New(pool)
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
+	for _, tt := range []struct {
+		name      string
+		age       time.Duration
+		email     string
+		verified  bool
+		wantTouch bool
+	}{
+		{"recent", time.Minute, "", true, false},
+		{"expired", 2 * time.Hour, "", true, true},
+		{"email", time.Minute, "changed@example.test", false, true},
+		{"verification", time.Minute, "", false, true},
+		{"missing email", time.Minute, "-", false, true},
+		{"verified email", time.Minute, "verified@example.test", true, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			id := identity(tt.name, tt.name+"@example.test", true)
+			user, _, err := r.Resolve(t.Context(), id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := time.Now().Add(-tt.age).UTC().Truncate(time.Microsecond)
+			if _, err = pool.Exec(
+				t.Context(),
+				`UPDATE identities SET last_login_at = $1 WHERE user_id = $2`,
+				before,
+				user.ID,
+			); err != nil {
+				t.Fatal(err)
+			}
+			if tt.email == "-" {
+				id.Email = ""
+			} else if tt.email != "" {
+				id.Email = tt.email
+			}
+			id.EmailVerified = tt.verified
+			if _, _, err = r.Resolve(t.Context(), id); err != nil {
+				t.Fatal(err)
+			}
+			stored, err := q.GetIdentity(t.Context(), genDb.GetIdentityParams{Issuer: id.Issuer, Subject: id.Subject})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if touched := stored.LastLoginAt.After(before); touched != tt.wantTouch {
+				t.Fatalf("last login = %s, before = %s, want touch %t", stored.LastLoginAt, before, tt.wantTouch)
+			}
+			if stored.EmailVerified != id.EmailVerified || (stored.Email == nil) != (id.Email == "") ||
+				(stored.Email != nil && *stored.Email != id.Email) {
+				t.Fatalf("stored identity = %+v, want email %q verified %t", stored, id.Email, id.EmailVerified)
+			}
+		})
+	}
+}
+
 func TestResolveProvisionsOnceAndGrantsSelfScopes(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	first, _, err := r.Resolve(t.Context(), identity("s1", "dev@example.test", true))
@@ -71,7 +128,7 @@ func TestResolveProvisionsOnceAndGrantsSelfScopes(t *testing.T) {
 func TestResolveRefusesASecondIdentityWithTheSameEmail(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	original := Identity{Issuer: otherIssuerURL, Subject: "42", Email: "one@example.test", EmailVerified: true}
@@ -103,7 +160,7 @@ func TestResolveRefusesASecondIdentityWithTheSameEmail(t *testing.T) {
 func TestResolveConcurrentIdentitiesWithOneEmailCreateOneUser(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 
 	const n = 8
 	errs := make([]error, n)
@@ -131,7 +188,7 @@ func TestResolveConcurrentIdentitiesWithOneEmailCreateOneUser(t *testing.T) {
 func TestResolveRejectsUnverifiedEmailCollision(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	if _, _, err := r.Resolve(t.Context(), identity("owner", "dev@example.test", true)); err != nil {
@@ -152,7 +209,7 @@ func TestResolveRejectsUnverifiedEmailCollision(t *testing.T) {
 func TestResolveUnverifiedIdentityNeverCreatesAnAccount(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	_, _, err := r.Resolve(t.Context(), identity("squatter", "dev@example.test", false))
@@ -185,7 +242,7 @@ func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	r := NewResolver(pool, policy, limits.Defaults())
+	r := NewResolver(pool, policy, limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	_, _, err = r.Resolve(t.Context(), identity("s1", "dev@evil.test", true))
@@ -202,7 +259,7 @@ func TestResolvePolicyRejectionCreatesNothing(t *testing.T) {
 func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	openResolver := NewResolver(pool, open(t), limits.Defaults())
+	openResolver := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	if _, _, err := openResolver.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -210,7 +267,7 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	r := NewResolver(pool, closed, limits.Defaults())
+	r := NewResolver(pool, closed, limits.Defaults(), time.Hour)
 	if _, _, err := r.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("existing identity blocked: %v", err)
 	}
@@ -219,7 +276,7 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 func TestResolveRequiresEmail(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	_, _, err := r.Resolve(t.Context(), identity("s1", "", false))
 	if rejected, ok := errors.AsType[*SignupRejectedError](err); !ok {
 		t.Fatalf("err = %v, want rejection", err)
@@ -231,7 +288,7 @@ func TestResolveRequiresEmail(t *testing.T) {
 func TestResolveConcurrentFirstLoginsCreateOneUser(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 
 	const n = 8
 	ids := make([]uuid.UUID, n)
@@ -263,7 +320,7 @@ const (
 func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	user, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
@@ -286,7 +343,7 @@ func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
 func TestResolveUnverifiedEmailChangeKeepsTheAccountEmail(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	user, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
@@ -317,7 +374,7 @@ func TestResolveUnverifiedEmailChangeKeepsTheAccountEmail(t *testing.T) {
 func TestResolveVerifiedEmailChangeKeepsAnAddressAnotherUserHas(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 	q := genDb.New(pool)
 
 	mover, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
@@ -368,7 +425,13 @@ func TestResolveAsksTheProviderOnlyWhenItNeedsTheVerifiedState(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
 	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
-	r := NewResolver(pool, open(t), limits.Defaults(), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
+	r := NewResolver(
+		pool,
+		open(t),
+		limits.Defaults(),
+		time.Hour,
+		WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}),
+	)
 	q := genDb.New(pool)
 
 	_, _, err := r.Resolve(t.Context(), identity("self-asserted", "squat@example.test", true))
@@ -421,7 +484,13 @@ func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
 	lookup := &fakeEmailVerifier{verified: map[string]bool{subjectConfirmed: true}}
-	r := NewResolver(pool, open(t), limits.Defaults(), WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}))
+	r := NewResolver(
+		pool,
+		open(t),
+		limits.Defaults(),
+		time.Hour,
+		WithEmailVerifiers(EmailVerifiers{testIssuerURL: lookup}),
+	)
 
 	user, _, err := r.Resolve(t.Context(), identity(subjectConfirmed, oldAccountEmail, false))
 	if err != nil {
@@ -448,7 +517,7 @@ func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
 func TestResolveRecordsTheAccountEmailMove(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
-	r := NewResolver(pool, open(t), limits.Defaults())
+	r := NewResolver(pool, open(t), limits.Defaults(), time.Hour)
 
 	user, _, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
 	if err != nil {
@@ -497,7 +566,7 @@ func (f *invitationFixture) resolver(t *testing.T, mode string) *Resolver {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	return NewResolver(f.pool, policy, limits.Defaults())
+	return NewResolver(f.pool, policy, limits.Defaults(), time.Hour)
 }
 
 func (f *invitationFixture) org(t *testing.T, name string) uuid.UUID {

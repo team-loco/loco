@@ -87,7 +87,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 		t.Fatalf("policy: %v", err)
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
-	resolver := auth.NewResolver(pool, policy, limits.Defaults())
+	resolver := auth.NewResolver(pool, policy, limits.Defaults(), time.Hour)
 	authorizer := authz.New(pool, queries)
 
 	server := connect.NewServer(
@@ -112,7 +112,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	if err = auth.SyncSystemAdmins(t.Context(), pool, admins); err != nil {
 		t.Fatalf("configure the system admin: %v", err)
 	}
-	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults(), auth.WithSystemAdmins(admins)).
+	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults(), time.Hour, auth.WithSystemAdmins(admins)).
 		Resolve(t.Context(), auth.Identity{
 			Issuer: adminIssuer, Subject: adminSubject, Email: adminEmail, EmailVerified: true,
 		})
@@ -144,7 +144,8 @@ func (a *journeyAPI) existingAccount(t *testing.T, email, password string) {
 	if err != nil {
 		t.Fatalf("verify the Dex token for %s: %v", email, err)
 	}
-	if _, _, err = auth.NewResolver(a.pool, openPolicy, limits.Defaults()).Resolve(t.Context(), id); err != nil {
+	if _, _, err = auth.NewResolver(a.pool, openPolicy, limits.Defaults(), time.Hour).
+		Resolve(t.Context(), id); err != nil {
 		t.Fatalf("existing account for %s: %v", email, err)
 	}
 }

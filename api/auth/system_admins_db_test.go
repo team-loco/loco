@@ -7,6 +7,7 @@ import (
 	"maps"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -31,7 +32,7 @@ func adminResolver(t *testing.T, pool *pgxpool.Pool, mode string, admins ...stri
 	if err := SyncSystemAdmins(t.Context(), pool, parsed); err != nil {
 		t.Fatalf("sync admins: %v", err)
 	}
-	return NewResolver(pool, policy, limits.Defaults(), WithSystemAdmins(parsed))
+	return NewResolver(pool, policy, limits.Defaults(), time.Hour, WithSystemAdmins(parsed))
 }
 
 func isSystemAdmin(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) bool {

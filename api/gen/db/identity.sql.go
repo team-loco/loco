@@ -75,7 +75,7 @@ func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (Ident
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at, i.email AS identity_email, i.email_verified AS identity_email_verified
+SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at, i.id, i.user_id, i.issuer, i.subject, i.email, i.email_verified, i.created_at, i.last_login_at
 FROM identities i
 JOIN users u ON u.id = i.user_id
 WHERE i.issuer = $1 AND i.subject = $2
@@ -87,9 +87,8 @@ type GetUserByIdentityParams struct {
 }
 
 type GetUserByIdentityRow struct {
-	User                  User    `json:"user"`
-	IdentityEmail         *string `json:"identityEmail"`
-	IdentityEmailVerified bool    `json:"identityEmailVerified"`
+	User     User     `json:"user"`
+	Identity Identity `json:"identity"`
 }
 
 func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (GetUserByIdentityRow, error) {
@@ -103,8 +102,14 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.User.Status,
 		&i.User.CreatedAt,
 		&i.User.UpdatedAt,
-		&i.IdentityEmail,
-		&i.IdentityEmailVerified,
+		&i.Identity.ID,
+		&i.Identity.UserID,
+		&i.Identity.Issuer,
+		&i.Identity.Subject,
+		&i.Identity.Email,
+		&i.Identity.EmailVerified,
+		&i.Identity.CreatedAt,
+		&i.Identity.LastLoginAt,
 	)
 	return i, err
 }
