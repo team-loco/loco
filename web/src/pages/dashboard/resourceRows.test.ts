@@ -116,7 +116,7 @@ describe("viewAllSearch", () => {
 	});
 
 	test("drops a status the Resources page has no filter for", () => {
-		expect(viewAllSearch("production", { ...everything, status: "healthy" })).toBe("env=production");
+		expect(viewAllSearch("production", { ...everything, status: "healthy" })).toBe("?env=production");
 	});
 });
 

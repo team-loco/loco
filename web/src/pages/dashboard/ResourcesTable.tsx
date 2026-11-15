@@ -395,7 +395,7 @@ export function ResourcesTable({
 				variant="outline"
 				size="sm"
 				nativeButton={false}
-				render={<Link to={`${resourcesPath(orgId, workspaceId)}?${viewAllSearch(envName, filter)}`} />}
+				render={<Link to={`${resourcesPath(orgId, workspaceId)}${viewAllSearch(envName, filter)}`} />}
 			>
 				View all
 				<ArrowRightIcon />

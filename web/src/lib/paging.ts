@@ -1,4 +1,14 @@
+import { createParser } from "nuqs";
 import { useState, type Dispatch, type SetStateAction } from "react";
+
+// A zero-based page index, written to the URL counting from one.
+export const pageParser = createParser<number>({
+	parse: (raw) => {
+		const n = Number(raw);
+		return Number.isSafeInteger(n) && n > 0 ? n - 1 : null;
+	},
+	serialize: (page) => String(page + 1),
+});
 
 export function pageSlice<T>(rows: T[], page: number, size: number): { rows: T[]; page: number; pages: number } {
 	const pages = Math.max(1, Math.ceil(rows.length / size));
