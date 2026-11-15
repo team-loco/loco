@@ -40,6 +40,7 @@ def check_scoped_user(browser):
         'QueryLogs': {'entries': [{'timestamp': stamp, 'severity': 'INFO', 'body': 'checkout order placed', 'resourceId': rid, 'resourceAttributes': {'loco.region': 'us-east-1', 'k8s.pod.name': 'checkout-7d9f-x2k4p'}}]},
         'ListTraces': {'totalCount': '1', 'summaries': [{'traceId': '0af7651916cd43dd8448eb211c80319c', 'rootSpanName': 'POST /api/checkout', 'serviceName': 'checkout', 'startTime': stamp, 'durationNanos': '12000000', 'status': 'TRACE_STATUS_OK', 'spanCount': '1', 'resourceId': rid}]},
         'QueryMetrics': {'series': [{'resourceId': rid, 'points': [{'timestamp': stamp, 'value': 0.25}]}]},
+        'QueryTraceBuckets': {'buckets': [], 'total': {'traceCount': '1', 'p50DurationNanos': '12000000', 'p95DurationNanos': '12000000'}},
     }
     back_off = {'seq': '1', 'id': '01a1c8b3-0000-7000-8000-00000000b0ff', 'type': 'resource.degraded', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'environmentId': production, 'createdAt': stamp, 'data': {'reason': 'crash_looping', 'message': 'Back-off restarting failed container', 'placementId': 'checkout-us-east-1', 'region': 'us-east-1'}}
     rollout = {'seq': '2', 'id': '01a1c8b3-0000-7000-8000-00000000d001', 'type': 'deployment.created', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'createdAt': stamp, 'data': {'resourceId': rid, 'environmentId': production}}

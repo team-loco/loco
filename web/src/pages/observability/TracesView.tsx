@@ -15,6 +15,7 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useGetTrace } from "@/hooks/useGetTrace";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useListTraces } from "@/hooks/useListTraces";
+import { useTraceBuckets } from "@/hooks/useTraceBuckets";
 import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
@@ -27,21 +28,12 @@ import { filteredResources, useObs } from "./context";
 import { fmtTs } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
-import {
-	durationBounds,
-	liveTokens,
-	passes,
-	QUERY_PARSERS,
-	queryStr,
-	queryValues,
-	sameToken,
-	type FieldKey,
-	type Token,
-} from "./query";
+import { durationBounds, liveTokens, passes, QUERY_PARSERS, queryStr, sameToken, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
-import { TraceScatter, type ScatterZoom } from "./TraceScatter";
+import { bucketSeconds } from "./trace-overview";
+import { TraceOverview } from "./TraceOverview";
 import { TraceSetup } from "./TraceSetup";
 import { traceServiceLabel } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
@@ -59,10 +51,7 @@ const TRACES_PARAMS = {
 	widths: widthsParser,
 };
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
-// The chart plots the newest traces up to this many; the API caps a page at 10,000.
-const SCATTER_LIMIT = 2000;
 const COUNT_LIMIT = 1;
-const DURATION_DIGITS = 3;
 
 const TRACE_COLUMNS: {
 	key: ColumnKey;
@@ -98,32 +87,19 @@ function traceColumnWidth(key: ColumnKey, widths: ColumnWidths): number {
 	return widths[key] ?? TRACE_WIDTHS[key] ?? 0;
 }
 
-interface ZoomState {
-	range: TimeWindow;
-	durations: Token[];
-}
-
 export function TracesView() {
 	const { range } = useObs();
 	// Lives above the session, which remounts when a zoom changes the range.
-	const [zoomPrev, setZoomPrev] = useState<ZoomState | null>(null);
+	const [zoomPrev, setZoomPrev] = useState<TimeWindow | null>(null);
 	return <TraceSession key={JSON.stringify(range)} zoomPrev={zoomPrev} setZoomPrev={setZoomPrev} />;
-}
-
-function durationToken(op: ">=" | "<=", ms: number): Token {
-	return {
-		neg: false,
-		key: "duration",
-		value: `${op}${String(Number(ms.toPrecision(DURATION_DIGITS)))}`,
-	};
 }
 
 function TraceSession({
 	zoomPrev,
 	setZoomPrev,
 }: {
-	zoomPrev: ZoomState | null;
-	setZoomPrev: (zoom: ZoomState | null) => void;
+	zoomPrev: TimeWindow | null;
+	setZoomPrev: (zoom: TimeWindow | null) => void;
 }) {
 	const timePref = useTimePreferences();
 	const { workspaceId, resources, resourcesLoading, scopedResourceIds, resourceById, range, tokens, text, setQuery } =
@@ -173,12 +149,11 @@ function TraceSession({
 		ascending,
 		enabled: ready && statusReady,
 	});
-	const scatter = useListTraces({
+	const widthSeconds = bucketSeconds(bounds.to - bounds.from);
+	const overview = useTraceBuckets({
 		...filters,
-		limit: SCATTER_LIMIT,
-		offset: 0,
 		status,
-		sort: TraceSummarySort.START_TIME,
+		intervalSeconds: widthSeconds,
 		enabled: ready && statusReady,
 	});
 	const countOf = (countStatus: TraceStatus) => ({
@@ -203,12 +178,6 @@ function TraceSession({
 
 	const traces = ready && statusReady ? (browse.data?.summaries ?? []) : [];
 	const total = ready && statusReady ? Number(browse.data?.totalCount ?? 0n) : 0;
-	const points = (ready && statusReady ? (scatter.data?.summaries ?? []) : []).map((t) => ({
-		id: t.traceId,
-		t: timestampMs(t.startTime),
-		nanos: t.durationNanos,
-		error: t.status === TraceStatus.ERROR,
-	}));
 	const countLabel = (countStatus: TraceStatus, data: { totalCount: bigint } | undefined) => {
 		const counted = statusReady && status === countStatus ? browse.data : data;
 		return ready && counted !== undefined ? formatCount(Number(counted.totalCount)) : undefined;
@@ -246,24 +215,14 @@ function TraceSession({
 		return [];
 	};
 
-	const zoom = (z: ScatterZoom) => {
-		setZoomPrev(zoomPrev ?? { range, durations: tokens.filter((t) => t.key === "duration") });
-		const rest = tokens.filter((t) => t.key !== "duration");
-		void setParams({
-			...windowValues({ kind: "absolute", from: z.from, to: z.to }),
-			...queryValues([...rest, durationToken(">=", z.minMs), durationToken("<=", z.maxMs)], text),
-			page: null,
-		});
+	const zoom = (from: number, to: number) => {
+		setZoomPrev(zoomPrev ?? range);
+		void setParams({ ...windowValues({ kind: "absolute", from, to }), page: null });
 	};
 	const resetZoom = () => {
 		if (zoomPrev === null) return;
-		const rest = tokens.filter((t) => t.key !== "duration");
 		setZoomPrev(null);
-		void setParams({
-			...windowValues(zoomPrev.range),
-			...queryValues([...rest, ...zoomPrev.durations], text),
-			page: null,
-		});
+		void setParams({ ...windowValues(zoomPrev), page: null });
 	};
 	const sortBy = (column: TraceSummarySort) => {
 		const flip = column === sort && !ascending;
@@ -350,7 +309,8 @@ function TraceSession({
 				</p>
 			)}
 			<Section
-				title="Duration"
+				title="Overview"
+				card={false}
 				actions={
 					zoomPrev !== null && (
 						<Button variant="ghost" size="sm" onClick={resetZoom}>
@@ -360,9 +320,15 @@ function TraceSession({
 					)
 				}
 			>
-				<div className="px-5 pt-3.5 pb-2.5">
-					<TraceScatter points={points} from={bounds.from} to={bounds.to} selectedId={openId} onZoom={zoom} />
-				</div>
+				<TraceOverview
+					data={ready && statusReady ? overview.data : undefined}
+					loading={ready && statusReady && overview.isLoading}
+					error={overview.error}
+					widthSeconds={widthSeconds}
+					from={bounds.from}
+					to={bounds.to}
+					onZoom={zoom}
+				/>
 			</Section>
 			<section aria-label="Trace list" className="flex min-w-0 flex-col rounded-card bg-panel">
 				<div className="flex flex-wrap items-center gap-2 px-5 pt-3 pb-1.5">

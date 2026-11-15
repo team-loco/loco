@@ -1,4 +1,5 @@
 import argparse
+import calendar
 import sys
 import json
 import time
@@ -42,6 +43,18 @@ spans[11]['links'] = [
 recorded = []
 mode = ['normal']
 
+def iso_seconds(value):
+    return calendar.timegm(time.strptime(value[:19], '%Y-%m-%dT%H:%M:%S'))
+
+def trace_buckets(body):
+    width = body['intervalSeconds']
+    first = int(iso_seconds(body['startTime'])) // width * width
+    last = int(iso_seconds(body['endTime'])) // width * width
+    buckets = [{'startTime': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(at))} for at in range(first, last + 1, width)]
+    for index, bucket in enumerate(buckets[-4:]):
+        bucket.update(traceCount=str(index + 2), errorCount=str(index % 2), p50DurationNanos=str((index + 1) * 20000000), p95DurationNanos=str((index + 1) * 90000000))
+    return {'buckets': buckets, 'total': {'traceCount': '14', 'errorCount': '2', 'p50DurationNanos': '42000000', 'p95DurationNanos': '360000000'}}
+
 def last_page_request():
     return next(row for row in reversed(recorded) if 'startTime' in row and row.get('limit') in (25, 50, 100))
 
@@ -53,6 +66,9 @@ def handle(route):
         return
     if mode[0] == 'empty':
         route.fulfill(json={'spans': []})
+        return
+    if route.request.url.endswith('/QueryTraceBuckets'):
+        route.fulfill(json=trace_buckets(body))
         return
     if mode[0] == 'many' and not route.request.url.endswith('/ListTraces'):
         route.fulfill(json={'spans': spans + [dict(spans[5],spanId=f'{index + 256:016x}') for index in range(100)]})
@@ -225,18 +241,23 @@ with session(out) as browser:
     page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:100'))
     expect(page.get_by_role('alert')).to_contain_text('A duration filter compares in milliseconds')
     page.goto(state['ui_url'] + base)
-    chart = page.get_by_role('img', name=re.compile(r'^Duration of \d+ traces'))
-    expect(chart).to_have_attribute('aria-label', re.compile(r'^Duration of [1-9]\d* traces'))
-    chart.hover(position={'x': 2, 'y': 2})
+    chart = page.get_by_role('img', name=re.compile(r'^Traces per \d+-second bucket, 14 in range with 2 errors'))
+    expect(chart).to_be_visible()
+    expect(page.get_by_text('14% errors', exact=True)).to_be_visible()
+    expect(page.get_by_text('360.00 ms', exact=True)).to_be_visible()
     box = chart.bounding_box()
+    chart.hover(position={'x': box['width'] - 2, 'y': box['height'] / 2})
+    expect(page.get_by_text(re.compile(r'^\d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)? · 5 traces · 1 error · p50 80\.00 ms · p95 360\.00 ms$'))).to_be_visible()
+    chart.hover(position={'x': 2, 'y': 2})
     page.mouse.down()
     page.mouse.move(box['x'] + box['width'] - 2, box['y'] + box['height'] * 0.8, steps=5)
-    with page.expect_request(lambda request: request.url.endswith('/ListTraces') and {'minDurationNanos', 'maxDurationNanos'} <= set(request.post_data_json)):
+    with page.expect_request(lambda request: request.url.endswith('/QueryTraceBuckets')) as zoom_request:
         page.mouse.up()
+    assert not {'minDurationNanos', 'maxDurationNanos'} & set(zoom_request.value.post_data_json), zoom_request.value.post_data_json
     expect(page).to_have_url(re.compile(r'[?&]from='))
     zoomed = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)
     assert 'from' in zoomed and 'to' in zoomed, page.url
-    assert '@duration:>=' in zoomed['q'][0] and '@duration:<=' in zoomed['q'][0], zoomed
+    assert '@duration' not in zoomed.get('q', [''])[0], zoomed
     page.get_by_role('button', name='Reset zoom', exact=True).click()
     expect(page).not_to_have_url(re.compile(r'(?:%40|@)duration|[?&]from='))
     assert '@duration' not in urllib.parse.unquote(page.url)
