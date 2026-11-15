@@ -38,7 +38,7 @@ export function SpanPanel({
 		["parent", selected.parentSpanId || "root span"],
 	];
 	return (
-		<aside className="tv-span flex min-w-0 flex-col gap-4 border-line min-[1100px]:border-l min-[1100px]:pl-5">
+		<aside className="flex min-w-0 flex-col gap-4 border-line min-[1100px]:border-l min-[1100px]:pl-5">
 			{missing && (
 				<p role="status" className="m-0 text-[12px] text-fg3">
 					The selected span is unavailable.

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
 
-import { failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo } from "./flame";
+import { descendantIds, failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo } from "./flame";
 import { spanStart, summarizeTraces } from "./traces";
 
 const span = (id: string, parent: string, startNanos: number, duration: bigint, extra = {}) =>
@@ -76,6 +76,10 @@ describe("flame graph details", () => {
 
 	test("lineage covers ancestors and descendants, not siblings", () => {
 		expect([...lineage(trace(), "api")].toSorted()).toEqual(["api", "db", "root"]);
+	});
+
+	test("descendants include the span and its children, not ancestors or siblings", () => {
+		expect([...descendantIds(trace(), "api")]).toEqual(["api", "db"]);
 	});
 });
 

@@ -111,20 +111,26 @@ export function failingSpan(trace: TraceSummary, selected: TraceSpan): TraceSpan
 	return failing.toSorted((a, b) => (spanStart(a) < spanStart(b) ? -1 : 1))[0];
 }
 
-export function lineage(trace: TraceSummary, spanId: string): Set<string> {
-	const byId = new Map(trace.spans.map((span) => [span.spanId, span]));
+export function descendantIds(trace: TraceSummary, spanId: string): Set<string> {
 	const children = childrenOf(trace);
 	const out = new Set<string>();
-	for (let id: string | undefined = spanId; id !== undefined && !out.has(id); id = byId.get(id)?.parentSpanId) {
-		if (!byId.has(id)) break;
-		out.add(id);
-	}
-	const stack = [...(children.get(spanId) ?? [])];
+	const stack = [spanId];
 	while (stack.length > 0) {
-		const span = stack.pop();
-		if (span === undefined || out.has(span.spanId)) continue;
-		out.add(span.spanId);
-		stack.push(...(children.get(span.spanId) ?? []));
+		const id = stack.pop();
+		if (id === undefined || out.has(id)) continue;
+		out.add(id);
+		stack.push(...(children.get(id) ?? []).map((span) => span.spanId));
+	}
+	return out;
+}
+
+export function lineage(trace: TraceSummary, spanId: string): Set<string> {
+	const byId = new Map(trace.spans.map((span) => [span.spanId, span]));
+	const out = descendantIds(trace, spanId);
+	let id = byId.get(spanId)?.parentSpanId;
+	while (id !== undefined && byId.has(id) && !out.has(id)) {
+		out.add(id);
+		id = byId.get(id)?.parentSpanId;
 	}
 	return out;
 }

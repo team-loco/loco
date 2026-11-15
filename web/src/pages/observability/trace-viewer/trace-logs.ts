@@ -38,20 +38,3 @@ export function useTraceLogs(trace: TraceSummary) {
 	});
 	return { ...query, rows, from, to };
 }
-export function descendantIds(trace: TraceSummary, id: string): Set<string> {
-	const children = new Map<string, string[]>();
-	for (const s of trace.spans) {
-		const group = children.get(s.parentSpanId) ?? [];
-		group.push(s.spanId);
-		children.set(s.parentSpanId, group);
-	}
-	const ids = new Set<string>();
-	const todo = [id];
-	while (todo.length > 0) {
-		const next = todo.pop();
-		if (next === undefined || ids.has(next)) continue;
-		ids.add(next);
-		todo.push(...(children.get(next) ?? []));
-	}
-	return ids;
-}

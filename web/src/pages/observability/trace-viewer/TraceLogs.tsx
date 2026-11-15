@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
-import type { Zoom } from "../flame";
+import { descendantIds, type Zoom } from "../flame";
 import type { LogRow } from "../rows";
 import type { TraceSummary } from "../traces";
 import { TracePlot } from "./TracePlot";
 import { TraceLogPanel } from "./TraceLogPanel";
 import { SpanPanel } from "./SpanPanel";
-import { descendantIds, useTraceLogs } from "./trace-logs";
+import { useTraceLogs } from "./trace-logs";
 
 export function TraceLogs({
 	trace,

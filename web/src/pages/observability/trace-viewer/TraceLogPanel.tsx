@@ -16,7 +16,8 @@ import { DEFAULT_COLUMNS } from "../columns";
 import type { LogRow } from "../rows";
 import { durationLabel, type TraceSummary } from "../traces";
 import { Infrastructure } from "./Infrastructure";
-import { descendantIds, type useTraceLogs } from "./trace-logs";
+import type { useTraceLogs } from "./trace-logs";
+import { descendantIds } from "../flame";
 
 export function TraceLogPanel({
 	trace,
@@ -223,7 +224,7 @@ export function TraceLogPanel({
 														onOpen(row);
 													}}
 													className={cn(
-														"tv-log-row grid w-full grid-cols-[minmax(0,1fr)_80px_44px] sm:grid-cols-[minmax(90px,128px)_66px_44px_minmax(0,1fr)] items-baseline gap-2 border-b border-line px-3 py-1.5 text-left font-mono text-[11px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+														"grid w-full grid-cols-[minmax(0,1fr)_80px_44px] sm:grid-cols-[minmax(90px,128px)_66px_44px_minmax(0,1fr)] items-baseline gap-2 border-b border-line px-3 py-1.5 text-left font-mono text-[11px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 														highlighted.has(row.key) && "bg-info/10 shadow-[inset_3px_0_0_var(--info)]",
 													)}
 												>
