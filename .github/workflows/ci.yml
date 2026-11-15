@@ -2,8 +2,8 @@
 # result, the CI Gate job, which branch protection requires. Each check is a
 # reusable workflow called only when the changes job finds a file matching its
 # list in .github/ci-paths.yml; a skipped call passes the gate. A check whose
-# pass marker for the same inputs is in a cache this run can read is skipped
-# too; the pass-markers job saves one for each check that ran and passed. Path
+# pass marker for the same inputs a push to main saved is skipped too; on a
+# push to main, the pass-markers job saves one for each check that passed. Path
 # filters on the called workflows' own triggers would leave a required check
 # without a result whenever they skipped it. After a push to main passes the
 # gate, the publish jobs tag the images Images built and notify the
@@ -100,7 +100,7 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
-          MARKER_REFS: ${{ github.ref }}${{ github.base_ref && format(',refs/heads/{0}', github.base_ref) || '' }},refs/heads/${{ github.event.repository.default_branch }}
+          MARKER_REFS: refs/heads/${{ github.event.repository.default_branch }}
         run: go run ./tools/ci-changes -event "$GITHUB_EVENT_NAME" -base "$BASE" -head "$HEAD" -marker-refs "$MARKER_REFS"
 
   auth-conformance:
@@ -368,7 +368,7 @@ jobs:
   pass-markers:
     name: Pass Marker ${{ matrix.check }}
     needs: [gate]
-    if: always() && needs.gate.outputs.passed != '' && needs.gate.outputs.passed != '[]'
+    if: always() && github.event_name == 'push' && needs.gate.outputs.passed != '' && needs.gate.outputs.passed != '[]'
     runs-on: ubuntu-latest
     permissions: {}
     strategy:
