@@ -324,7 +324,7 @@ export function VariablesSection({
 									setNewValue(e.target.value);
 								}}
 							/>
-							<LimitedAction usage={secretUsage} reason={addBlocked}>
+							<LimitedAction reason={addBlocked}>
 								<Button
 									type="submit"
 									variant="outline"

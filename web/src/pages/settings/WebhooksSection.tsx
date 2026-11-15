@@ -84,7 +84,7 @@ export function WebhooksSection({
 			title="Webhooks"
 			count={query.data === undefined ? undefined : webhooks.length}
 			actions={
-				<LimitedAction usage={usage} reason={createBlocked}>
+				<LimitedAction reason={createBlocked}>
 					<Button
 						variant="outline"
 						size="sm"

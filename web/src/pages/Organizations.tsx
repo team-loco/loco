@@ -9,7 +9,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -54,7 +54,9 @@ export function Organizations() {
 	const config = useQuery(getConfig, {});
 	const created = orgs.filter((org) => org.createdBy === user?.id).length;
 	const usage =
-		isLoading || error ? null : limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations", "account");
+		isLoading || error
+			? null
+			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations you created", "");
 	const blocked = limitReason(usage);
 
 	const openCreate = () => {
@@ -140,9 +142,14 @@ export function Organizations() {
 	return (
 		<Page className="max-w-[1080px]">
 			<PageHeader
-				title="Organizations"
+				title={
+					<>
+						Organizations
+						<LimitCount usage={usage} />
+					</>
+				}
 				actions={
-					<LimitedAction usage={usage} reason={blocked}>
+					<LimitedAction reason={blocked}>
 						<Button disabled={blocked !== null} onClick={openCreate}>
 							<Plus />
 							New organization

@@ -147,8 +147,8 @@ export function Tokens() {
 	};
 	const tokenLimit =
 		owner.entityType === EntityType.USER ? config.data?.countLimits?.tokensPerEntity : limits?.tokensPerEntity;
-	const scope = ownerKey === "personal" ? "account" : OWNER_TITLE[ownerKey].toLowerCase();
-	const usage = current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, "tokens", scope);
+	const noun = ownerKey === "personal" ? "personal tokens" : `tokens for this ${OWNER_TITLE[ownerKey].toLowerCase()}`;
+	const usage = current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, noun, "");
 	const createBlocked = owner.canCreate
 		? limitReason(usage)
 		: `You need write access to ${owner.label} to create tokens`;
@@ -196,14 +196,10 @@ export function Tokens() {
 				title={
 					<>
 						Tokens
-						{!anyLoading && <LimitCount count={tokens.length} usage={usage} />}
+						{!anyLoading && <LimitCount usage={usage} />}
 					</>
 				}
-				actions={
-					<LimitedAction usage={usage} reason={createBlocked}>
-						{newTokenButton}
-					</LimitedAction>
-				}
+				actions={<LimitedAction reason={createBlocked}>{newTokenButton}</LimitedAction>}
 			/>
 			<Section
 				filters={
@@ -272,9 +268,7 @@ export function Tokens() {
 						className="rounded-none border-t border-line2"
 					>
 						<span className="flex flex-wrap justify-center gap-2">
-							<LimitedAction usage={null} reason={createBlocked}>
-								{newTokenButton}
-							</LimitedAction>
+							<LimitedAction reason={createBlocked}>{newTokenButton}</LimitedAction>
 							<Button
 								variant="outline"
 								nativeButton={false}

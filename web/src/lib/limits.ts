@@ -32,5 +32,5 @@ export function limitTone(usage: LimitUsage | null): LimitTone | null {
 /** Why a create is blocked at the limit, or null below it. */
 export function limitReason(usage: LimitUsage | null): string | null {
 	if (usage === null || usage.count < usage.limit) return null;
-	return `You've reached the limit of ${formatCount(usage.limit)} ${usage.noun} in this ${usage.scope}. Delete one, or ask a Loco admin to raise it.`;
+	return `You've reached the limit of ${formatCount(usage.limit)} ${usage.noun}${usage.scope === "" ? "" : ` in this ${usage.scope}`}. Delete one, or ask a Loco admin to raise it.`;
 }
