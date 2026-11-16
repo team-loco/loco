@@ -1,3 +1,5 @@
+import { TimeAxis } from "./TimeAxis";
+import type { SetTraceZoom } from "./useTraceZoom";
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -30,7 +32,7 @@ export function FlameGraph({
 	onSelect: (span: TraceSpan) => void;
 	label: (span: TraceSpan) => string;
 	zoom: Zoom;
-	setZoom: (zoom: Zoom) => void;
+	setZoom: SetTraceZoom;
 	highlight: string | null;
 	markers: ReactNode;
 	linkedSpan: string | null;
@@ -42,21 +44,7 @@ export function FlameGraph({
 	const ticks = offsetTicks(trace.duration, zoom);
 	return (
 		<section aria-label="Flame graph" className="flex flex-col gap-1.5 rounded-card bg-panel px-3.5 pt-3 pb-3.5">
-			<div className="relative h-3.5 font-mono text-[11px] text-fg3" aria-hidden="true">
-				{ticks.map((t, i) => (
-					<span
-						key={String(t.nanos)}
-						className={cn(
-							"absolute whitespace-nowrap",
-							i > 0 && i < ticks.length - 1 && "hidden sm:inline",
-							i === 0 ? "" : i === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
-						)}
-						style={{ left: `${String(t.left * PERCENT)}%` }}
-					>
-						{durationLabel(t.nanos)}
-					</span>
-				))}
-			</div>
+			<TimeAxis duration={trace.duration} zoom={zoom} onZoom={setZoom} highlight={highlight} />
 			{markers}
 			<div className="relative overflow-hidden" style={{ height: depth * ROW_PX }}>
 				{ticks.map((t) => (

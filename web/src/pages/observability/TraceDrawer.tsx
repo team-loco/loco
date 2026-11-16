@@ -19,7 +19,7 @@ import { TraceColors } from "./trace-viewer/TraceColors";
 import { TraceHeader } from "./trace-viewer/TraceHeader";
 
 import { useObs } from "./context";
-import { FULL_ZOOM, type Zoom } from "./flame";
+import { useTraceZoom } from "./trace-viewer/useTraceZoom";
 
 import { traceServiceLabel } from "./trace-service";
 import { type TraceSummary } from "./traces";
@@ -43,7 +43,7 @@ export function TraceDrawer({
 }) {
 	const { orgId, resourceById } = useObs();
 	const limits = useOrgLimits(orgId);
-	const [zoom, setZoom] = useState<Zoom>(FULL_ZOOM);
+	const { zoom, change: setZoom } = useTraceZoom();
 	const [pinned, setPinned] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
 	const highlight = hovered ?? pinned;
