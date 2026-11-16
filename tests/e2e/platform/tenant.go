@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -148,9 +149,25 @@ func (w *Workspace) MustLoco(tb testing.TB, dir string, args ...string) CLIResul
 	result := w.Loco(tb.Context(), dir, nil, args...)
 	if result.Err != nil {
 		w.p.LogWorkspaceRuntime(tb, w.Namespace)
-		tb.Fatalf("loco %s: %v\n%s", strings.Join(args, " "), result.Err, result.Output())
+		tb.Fatal(result.failure(args))
 	}
 	return result
+}
+
+func (r CLIResult) failure(args []string) string {
+	message := fmt.Sprintf("loco %s: %v\n%s", strings.Join(args, " "), r.Err, r.Output())
+	var values []string
+	for _, arg := range args {
+		if _, value, ok := strings.Cut(arg, "="); ok && value != "" {
+			values = append(values, value)
+		}
+	}
+	slices.SortFunc(values, func(a, b string) int { return len(b) - len(a) })
+	replacements := make([]string, 0, 2*len(values))
+	for _, value := range values {
+		replacements = append(replacements, value, "[redacted]")
+	}
+	return strings.NewReplacer(replacements...).Replace(message)
 }
 
 // Resource looks a resource of the workspace up by name.
