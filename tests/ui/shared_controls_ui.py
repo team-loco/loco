@@ -289,7 +289,7 @@ def dashboard(page):
         full_row = page.get_by_role("region", name="Resources", exact=True).get_by_role("row").filter(has=page.get_by_role("link", name="dashboard-1", exact=True))
         expect(full_row).to_contain_text("12/12")
         bounds = full_row.evaluate("""row => {
-            const count = [...row.querySelectorAll('span')].find(n => n.textContent === '12/12');
+            const count = [...row.querySelectorAll('span')].find(n => n.children.length === 0 && n.textContent === '12/12');
             const cell = count.closest('td');
             return {countRight: count.getBoundingClientRect().right, cellRight: cell.getBoundingClientRect().right,
                 trafficLeft: cell.nextElementSibling.getBoundingClientRect().left};
