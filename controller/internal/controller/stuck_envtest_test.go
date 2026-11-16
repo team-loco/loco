@@ -118,7 +118,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
 	})
 
-	It("fails an image that cannot be pulled and ignores replicas of an older image", func() {
+	It("retries image pulls until the rollout deadline and ignores replicas of an older image", func() {
 		app := isolationTestApplication(stuckWorkspace, "pull")
 		app.Spec.ServiceSpec.Routing = nil
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -130,7 +130,29 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 
 		current := createReplica(app, "pull-current", testImage)
+		for _, reason := range []string{reasonErrImagePull, reasonImagePullBackOff} {
+			setWaiting(current, reason, kubeletPullMessage)
+			reconcileStuckApp(r, app)
+			Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
+			Expect(app.Status.RuntimeReason).To(Equal(locov1alpha1.RuntimeImagePullFailed))
+		}
+		setContainerState(current, corev1.PodRunning, corev1.ContainerState{
+			Running: &corev1.ContainerStateRunning{StartedAt: metav1.Now()},
+		})
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
+		Expect(app.Status.RuntimeReason).To(BeEmpty())
+
 		setWaiting(current, reasonImagePullBackOff, kubeletPullMessage)
+		dep := &appsv1.Deployment{}
+		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testAppName(app)}
+		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
+		dep.Status.ObservedGeneration = dep.Generation
+		dep.Status.Conditions = []appsv1.DeploymentCondition{{
+			Type: appsv1.DeploymentProgressing, Status: corev1.ConditionFalse,
+			Reason: reasonProgressDeadlineExceeded,
+		}}
+		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
 		reconcileStuckApp(r, app)
 
 		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
