@@ -158,6 +158,8 @@ func (s *TokenServer) CreateToken(
 			tokenData.CreatedAt,
 			tokenData.ExpiresAt,
 			tokenData.LastUsedAt,
+			tokenData.DisplayPrefix,
+			tokenData.DisplaySuffix,
 		),
 	}, nil
 }
@@ -241,6 +243,8 @@ func (s *TokenServer) ListTokens(
 			t.CreatedAt,
 			t.ExpiresAt,
 			t.LastUsedAt,
+			t.DisplayPrefix,
+			t.DisplaySuffix,
 		)
 	}
 
@@ -304,6 +308,8 @@ func (s *TokenServer) GetToken(
 			token.CreatedAt,
 			token.ExpiresAt,
 			token.LastUsedAt,
+			token.DisplayPrefix,
+			token.DisplaySuffix,
 		),
 	}, nil
 }
@@ -436,6 +442,8 @@ func apiTokenRowToProto(
 	createdAt time.Time,
 	expiresAt time.Time,
 	lastUsedAt *time.Time,
+	displayPrefix string,
+	displaySuffix string,
 ) *tokenv1.Token {
 	scopes := make([]*tokenv1.EntityScope, len(dbScopes))
 	for i, scope := range dbScopes {
@@ -452,14 +460,16 @@ func apiTokenRowToProto(
 	}
 
 	return &tokenv1.Token{
-		Name:       name,
-		EntityType: dbEntityTypeToProto(entityType),
-		EntityId:   entityID.String(),
-		Scopes:     scopes,
-		CreatedBy:  createdBy.String(),
-		CreatedAt:  timestamppb.New(createdAt),
-		ExpiresAt:  timestamppb.New(expiresAt),
-		LastUsedAt: lastUsedProto,
+		Name:          name,
+		EntityType:    dbEntityTypeToProto(entityType),
+		EntityId:      entityID.String(),
+		Scopes:        scopes,
+		CreatedBy:     createdBy.String(),
+		CreatedAt:     timestamppb.New(createdAt),
+		ExpiresAt:     timestamppb.New(expiresAt),
+		LastUsedAt:    lastUsedProto,
+		DisplayPrefix: displayPrefix,
+		DisplaySuffix: displaySuffix,
 	}
 }
 

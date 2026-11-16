@@ -1,8 +1,11 @@
 package service
 
 import (
+	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/api/limits"
@@ -56,6 +59,19 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 			}
 			if tokens := listed.GetTokens(); len(tokens) != 1 || tokens[0].GetCreatedBy() != creator {
 				t.Fatalf("list tokens = %v, want one token created by %q", tokens, creator)
+			}
+			for _, metadata := range append(listed.GetTokens(), created.GetTokenMetadata(), token.GetToken()) {
+				secret := created.GetToken()
+				if metadata.GetDisplayPrefix() != secret[:11] || metadata.GetDisplaySuffix() != secret[len(secret)-4:] {
+					t.Fatalf("display fragments = %v", metadata)
+				}
+				encoded, marshalErr := protojson.Marshal(metadata)
+				if marshalErr != nil {
+					t.Fatal(marshalErr)
+				}
+				if strings.Contains(string(encoded), secret) {
+					t.Fatal("metadata contains the secret")
+				}
 			}
 		})
 	}
