@@ -22,8 +22,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
-      - name: Lint the charts changed since main with ct
-        run: mise run lint:charts
+      - name: Lint the charts against the event base with ct
+        env:
+          CHARTS_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git update-ref refs/remotes/origin/main "$CHARTS_BASE_SHA"
+          mise run lint:charts
 
       - name: Run each chart's helm-unittest suites
         if: ${{ !cancelled() }}
