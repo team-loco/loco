@@ -118,3 +118,22 @@ test("puts runtime alerts in their own group", () => {
 		{ label: "Resources", types: ["resource.created"] },
 	]);
 });
+
+test("offers workspace secret key events without targeted test or organization events", () => {
+	const groups = webhookEventGroups([
+		"secret.updated",
+		"secret_key.rewrapped",
+		"webhook.test",
+		"webhook.created",
+		"invitation.created",
+		"invitation.resent",
+		"invitation.claimed",
+		"invitation.revoked",
+	]);
+	expect(groups).toEqual([
+		{ label: "Secrets", types: ["secret.updated", "secret_key.rewrapped"] },
+		{ label: "Workspace", types: ["webhook.created"] },
+	]);
+	expect(webhookEventGroups().find((g) => g.label === "Secrets")?.types).toContain("secret_key.rewrapped");
+	expect(webhookEventGroups().flatMap((g) => g.types)).not.toContain("webhook.test");
+});
