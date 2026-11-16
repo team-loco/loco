@@ -179,10 +179,12 @@ func (p *Platform) setupClusterSide(ctx context.Context) error {
 
 func (p *Platform) reserveComposeNetwork(ctx context.Context) error {
 	name := p.composeProject + "_default"
-	if _, err := p.Command(ctx, "docker", "network", "inspect", name); err == nil {
-		return nil
-	} else if !strings.Contains(err.Error(), "No such network") {
+	existing, err := p.Command(ctx, "docker", "network", "ls", "--filter", "name=^"+name+"$", "--format", "{{.Name}}")
+	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(existing) == name {
+		return nil
 	}
 	args := []string{"network", "create",
 		"--label", "com.docker.compose.project=" + p.composeProject,
