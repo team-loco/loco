@@ -119,9 +119,10 @@ WITH member_scopes AS (
   WHERE us.entity_type = 'organization' AND us.entity_id = $1
   GROUP BY us.user_id
 )
-SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at
+SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at, i.last_login_at
 FROM member_scopes ms
 JOIN users u ON u.id = ms.user_id
+LEFT JOIN identities i ON i.user_id = u.id
 WHERE ($3::text IS NULL
        OR (ms.joined_at, ms.user_id) < (
          $4::timestamptz,
@@ -139,12 +140,13 @@ type ListOrgMembersWithDetailsParams struct {
 }
 
 type ListOrgMembersWithDetailsRow struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	Name      *string   `json:"name"`
-	AvatarUrl *string   `json:"avatarUrl"`
-	Scopes    []string  `json:"scopes"`
-	JoinedAt  time.Time `json:"joinedAt"`
+	ID          uuid.UUID  `json:"id"`
+	Email       string     `json:"email"`
+	Name        *string    `json:"name"`
+	AvatarUrl   *string    `json:"avatarUrl"`
+	Scopes      []string   `json:"scopes"`
+	JoinedAt    time.Time  `json:"joinedAt"`
+	LastLoginAt *time.Time `json:"lastLoginAt"`
 }
 
 func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error) {
@@ -168,6 +170,7 @@ func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMemb
 			&i.AvatarUrl,
 			&i.Scopes,
 			&i.JoinedAt,
+			&i.LastLoginAt,
 		); err != nil {
 			return nil, err
 		}

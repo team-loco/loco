@@ -435,7 +435,11 @@ func (s *OrgServer) ListOrgMembers(
 			Name:      derefString(row.Name),
 			AvatarUrl: derefString(row.AvatarUrl),
 		}
-		members[i] = &orgv1.OrgMember{User: user, Scopes: row.Scopes}
+		members[i] = &orgv1.OrgMember{
+			User: user, Scopes: row.Scopes,
+			JoinedAt:    timestamppb.New(row.JoinedAt),
+			LastLoginAt: optionalTimestamp(row.LastLoginAt),
+		}
 	}
 
 	token := nextPageToken(rows, pageSize, func(m genDb.ListOrgMembersWithDetailsRow) (uuid.UUID, time.Time) {

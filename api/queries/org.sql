@@ -60,9 +60,10 @@ WITH member_scopes AS (
   WHERE us.entity_type = 'organization' AND us.entity_id = $1
   GROUP BY us.user_id
 )
-SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at
+SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at, i.last_login_at
 FROM member_scopes ms
 JOIN users u ON u.id = ms.user_id
+LEFT JOIN identities i ON i.user_id = u.id
 WHERE (sqlc.narg('page_token')::text IS NULL
        OR (ms.joined_at, ms.user_id) < (
          sqlc.narg('page_created_at')::timestamptz,

@@ -129,6 +129,9 @@ message ListOrgMembersResponse {
 message OrgMember {
   User user = 1;
   repeated string scopes = 2;
+  google.protobuf.Timestamp joined_at = 3;
+  // Last recorded identity sign-in, throttled by LOCO_TOKEN_LAST_USED_INTERVAL.
+  google.protobuf.Timestamp last_login_at = 4;
 }
 
 // RemoveOrgMemberRequest identifies another user to remove from the organization.
