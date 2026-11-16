@@ -21,11 +21,13 @@ mise exec -- uv run --script "$E" <command>
 1. Write a scenario JSON: the users, the organizations each owner creates with their
    workspaces and members, and workspace grants. Start from `scenario.example.json`.
 2. Write a shot spec JSON. Each shot names a user, a path, optional steps
-   (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`), a crop (`"viewport"`, `"full"`,
+   (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
+   `{"type": {"selector": selector, "text": "value"}}`), a crop (`"viewport"`, `"full"`,
    `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`), an optional `"color"`
    colour theme id (as in `web/src/lib/theme.ts`) and `"narrow": true` for an extra 390-pixel-wide
    capture. Start from `shots.example.json`. Use a `clip` crop when
    before and after must line up: a selector crop follows the element's size.
+   A `type` step fills the field, replacing its contents; empty text clears it.
    For pages with an open stream, set `ready_selector` to a Playwright selector that becomes
    visible when the shot is ready. The shot skips network-idle waits and waits for the selector
    after its steps. Shots without `ready_selector` wait for network idle.

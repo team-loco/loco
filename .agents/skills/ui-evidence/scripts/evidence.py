@@ -250,10 +250,16 @@ def validate_spec(spec):
         if not valid_crop:
             raise EvidenceError(f"shot {name}: crop is viewport, full, {{selector, padding}} or {{clip}}")
         for step in shot.get("steps", []):
-            if len(step) != 1 or next(iter(step)) not in ("click", "hover", "wait"):
+            if len(step) != 1 or next(iter(step)) not in ("click", "hover", "wait", "type"):
                 raise EvidenceError(
-                    f"shot {name}: each step is {{click: selector}}, {{hover: selector}} or {{wait: selector}}"
+                    f"shot {name}: each step is {{click: selector}}, {{hover: selector}}, {{wait: selector}} or {{type: {{selector, text}}}}"
                 )
+            if "type" in step:
+                value = step["type"]
+                if (not isinstance(value, dict) or set(value) != {"selector", "text"}
+                        or not isinstance(value["selector"], str) or not value["selector"].strip()
+                        or not isinstance(value["text"], str)):
+                    raise EvidenceError(f"shot {name}: type needs a non-empty selector and string text")
     return shots
 
 
@@ -616,7 +622,8 @@ def capture(browser, state, shot, theme, narrow, target):
         page.goto(state["ui_url"] + shot["path"], wait_until="load" if wait_for_network else "domcontentloaded")
         settle(page, wait_for_network=wait_for_network)
         for step in steps:
-            action, selector = next(iter(step.items()))
+            action, value = next(iter(step.items()))
+            selector = value["selector"] if action == "type" else value
             locator = page.locator(selector)
             try:
                 locator.first.wait_for(state="visible", timeout=STEP_TIMEOUT_MS)
@@ -624,6 +631,8 @@ def capture(browser, state, shot, theme, narrow, target):
                 raise EvidenceError(f"{shot['name']}: selector {selector!r} never became visible") from None
             if action == "click":
                 locator.first.click()
+            elif action == "type":
+                locator.first.fill(value["text"])
             elif action == "hover":
                 locator.first.hover()
             settle(page, wait_for_network=wait_for_network)
