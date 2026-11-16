@@ -85,28 +85,49 @@ type logFilterRequest interface {
 
 // logQuery parses the request's query, authorizes the caller and returns the scope and filter to read.
 func (s *ObservabilityServer) logQuery(ctx context.Context, req logFilterRequest) (chClient.LogQuery, error) {
-	filter, err := logquery.Parse(req.GetQuery())
-	if err == nil {
-		err = chClient.ValidateLogFilter(filter)
-	}
+	filter, resources, err := s.parseQuery(
+		ctx, req.GetQuery(), chClient.ValidateLogFilter, req.GetWorkspaceId(), req.GetResourceIds(),
+	)
 	if err != nil {
-		return chClient.LogQuery{}, querySyntaxError(err)
-	}
-	if err = s.authorizeRead(ctx, req.GetWorkspaceId(), req.GetResourceIds()); err != nil {
 		return chClient.LogQuery{}, err
 	}
-	query := chClient.LogQuery{
+	return chClient.LogQuery{
 		WorkspaceID:   req.GetWorkspaceId(),
 		EnvironmentID: req.GetEnvironmentId(),
 		ResourceIDs:   req.GetResourceIds(),
 		Filter:        filter,
+		Resources:     resources,
+	}, nil
+}
+
+// parseQuery parses text and checks it with validate, authorizes the caller to read the workspace
+// or resources and returns the query with the workspace's resource names when it has a @resource
+// field.
+func (s *ObservabilityServer) parseQuery(
+	ctx context.Context,
+	text string,
+	validate func(logquery.Expr) error,
+	workspaceID string,
+	resourceIDs []string,
+) (logquery.Expr, []chClient.ResourceName, error) {
+	query, err := logquery.Parse(text)
+	if err == nil {
+		err = validate(query)
 	}
-	if logquery.Uses(filter, chClient.ResourceField) {
-		if query.Resources, err = s.resourceNames(ctx, req.GetWorkspaceId()); err != nil {
-			return chClient.LogQuery{}, err
-		}
+	if err != nil {
+		return nil, nil, querySyntaxError(err)
 	}
-	return query, nil
+	if err = s.authorizeRead(ctx, workspaceID, resourceIDs); err != nil {
+		return nil, nil, err
+	}
+	if !logquery.Uses(query, chClient.ResourceField) {
+		return query, nil, nil
+	}
+	resources, err := s.resourceNames(ctx, workspaceID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return query, resources, nil
 }
 
 func (s *ObservabilityServer) resourceNames(ctx context.Context, workspaceID string) ([]chClient.ResourceName, error) {
@@ -186,24 +207,14 @@ type traceFilterRequest interface {
 
 // traceFilter parses the request's query, authorizes the caller and returns the filter to apply.
 func (s *ObservabilityServer) traceFilter(ctx context.Context, req traceFilterRequest) (chClient.TraceFilter, error) {
-	query, err := logquery.Parse(req.GetQuery())
-	if err == nil {
-		err = chClient.ValidateTraceFilter(query)
-	}
-	if err != nil {
-		return chClient.TraceFilter{}, querySyntaxError(err)
-	}
 	scope := req.GetScope()
-	if err = s.authorizeRead(ctx, scope.GetWorkspaceId(), scope.GetResourceIds()); err != nil {
+	query, resources, err := s.parseQuery(
+		ctx, req.GetQuery(), chClient.ValidateTraceFilter, scope.GetWorkspaceId(), scope.GetResourceIds(),
+	)
+	if err != nil {
 		return chClient.TraceFilter{}, err
 	}
-	filter := chClient.TraceFilter{Query: query}
-	if logquery.Uses(query, chClient.ResourceField) {
-		if filter.Resources, err = s.resourceNames(ctx, scope.GetWorkspaceId()); err != nil {
-			return chClient.TraceFilter{}, err
-		}
-	}
-	return filter, nil
+	return chClient.TraceFilter{Query: query, Resources: resources}, nil
 }
 
 func (s *ObservabilityServer) GetTrace(

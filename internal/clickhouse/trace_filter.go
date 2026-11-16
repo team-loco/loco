@@ -63,33 +63,11 @@ func ValidateTraceFilter(expr logquery.Expr) error {
 // matches a trace when any of its spans that spans selects matches it, through a subquery the
 // table's indexes can skip granules for.
 func traceFilterSQL(expr logquery.Expr, resources []ResourceName, spans func() string, b binder) string {
-	switch expr := expr.(type) {
-	case logquery.And:
-		return joinTraceFilters(expr.Terms, " AND ", resources, spans, b)
-	case logquery.Or:
-		return joinTraceFilters(expr.Terms, " OR ", resources, spans, b)
-	case logquery.Not:
-		return "NOT " + traceFilterSQL(expr.Term, resources, spans, b)
-	case logquery.Text:
-		return "positionCaseInsensitiveUTF8(root.1, " + b.str(expr.Value) + ") > 0"
-	case logquery.Field:
-		return traceFieldSQL(expr, resources, spans, b)
-	}
-	panic("unknown trace query expression")
-}
-
-func joinTraceFilters(
-	terms []logquery.Expr,
-	operator string,
-	resources []ResourceName,
-	spans func() string,
-	b binder,
-) string {
-	parts := make([]string, len(terms))
-	for i, term := range terms {
-		parts[i] = traceFilterSQL(term, resources, spans, b)
-	}
-	return "(" + strings.Join(parts, operator) + ")"
+	return filterSQL(expr, func(text logquery.Text) string {
+		return "positionCaseInsensitiveUTF8(root.1, " + b.str(text.Value) + ") > 0"
+	}, func(field logquery.Field) string {
+		return traceFieldSQL(field, resources, spans, b)
+	})
 }
 
 func traceFieldSQL(field logquery.Field, resources []ResourceName, spans func() string, b binder) string {

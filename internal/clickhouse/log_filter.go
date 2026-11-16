@@ -103,25 +103,40 @@ func fieldError(field logquery.Field, format string, args ...any) error {
 // logFilterSQL compiles a parsed log query into a WHERE condition, binding every value through b.
 // A field a log lacks reads as an empty string or as no number, so a negated field keeps that log.
 func logFilterSQL(expr logquery.Expr, resources []ResourceName, b binder) string {
-	switch expr := expr.(type) {
-	case logquery.And:
-		return joinFilters(expr.Terms, " AND ", resources, b)
-	case logquery.Or:
-		return joinFilters(expr.Terms, " OR ", resources, b)
-	case logquery.Not:
-		return "NOT " + logFilterSQL(expr.Term, resources, b)
-	case logquery.Text:
-		return "position(Body, " + b.str(expr.Value) + ") > 0"
-	case logquery.Field:
-		return fieldSQL(expr, resources, b)
-	}
-	panic("unknown log query expression")
+	return filterSQL(expr, func(text logquery.Text) string {
+		return "position(Body, " + b.str(text.Value) + ") > 0"
+	}, func(field logquery.Field) string {
+		return fieldSQL(field, resources, b)
+	})
 }
 
-func joinFilters(terms []logquery.Expr, operator string, resources []ResourceName, b binder) string {
+// filterSQL compiles the AND, OR and negation of a parsed query, with text and field compiling its
+// terms in query order.
+func filterSQL(expr logquery.Expr, text func(logquery.Text) string, field func(logquery.Field) string) string {
+	switch expr := expr.(type) {
+	case logquery.And:
+		return joinFilters(expr.Terms, " AND ", text, field)
+	case logquery.Or:
+		return joinFilters(expr.Terms, " OR ", text, field)
+	case logquery.Not:
+		return "NOT " + filterSQL(expr.Term, text, field)
+	case logquery.Text:
+		return text(expr)
+	case logquery.Field:
+		return field(expr)
+	}
+	panic("unknown query expression")
+}
+
+func joinFilters(
+	terms []logquery.Expr,
+	operator string,
+	text func(logquery.Text) string,
+	field func(logquery.Field) string,
+) string {
 	parts := make([]string, len(terms))
 	for i, term := range terms {
-		parts[i] = logFilterSQL(term, resources, b)
+		parts[i] = filterSQL(term, text, field)
 	}
 	return "(" + strings.Join(parts, operator) + ")"
 }

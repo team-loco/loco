@@ -44,6 +44,13 @@ func TestTraceSummaries(t *testing.T) {
 		{name: "trace id", query: "@trace:" + strings.ToUpper(fmt.Sprintf("%032x", 1)), want: []int{1}},
 		{name: "attribute on a child span", query: "@user.id:42", want: []int{1}},
 		{name: "attribute absent from every span", query: "-@user.id:42", want: []int{2, 3}},
+		{
+			name:  "attribute outside the resource scope",
+			query: "@user.id:42",
+			change: func(r *observabilityv1.ListTracesRequest) {
+				r.Scope.ResourceIds = []string{testResourceID}
+			},
+		},
 		{name: "attribute or", query: "@user.id:42 OR @user.id:7", want: []int{2, 1}},
 		{name: "attribute prefix", query: "@http.route:/ca*", want: []int{1}},
 		{name: "attribute range", query: "@http.response.status_code:500..599", want: []int{1}},
@@ -72,20 +79,18 @@ func TestTraceSummaries(t *testing.T) {
 				tc.change(req)
 			}
 			got := queryTraceSummaries(t, f, req, traceFilter(t, tc.query), testFullPage)
-			if ids := traceNumbers(t, got); !slices.Equal(ids, tc.want) || got.GetTotalCount() != uint64(len(tc.want)) {
+			ids := make([]int, 0, len(got.GetSummaries()))
+			for _, summary := range got.GetSummaries() {
+				var id int
+				if _, err := fmt.Sscanf(summary.GetTraceId(), "%x", &id); err != nil {
+					t.Fatal(err)
+				}
+				ids = append(ids, id)
+			}
+			if !slices.Equal(ids, tc.want) || got.GetTotalCount() != uint64(len(tc.want)) {
 				t.Fatalf("got %v count %d, want %v", ids, got.GetTotalCount(), tc.want)
 			}
 		})
-	}
-}
-
-func TestTraceSummaryAttributeFilterKeepsResourceScope(t *testing.T) {
-	f, base := newTraceSummaryFixture(t)
-	req := proto.CloneOf(base)
-	req.Scope.ResourceIds = []string{testResourceID}
-	got := queryTraceSummaries(t, f, req, traceFilter(t, "@user.id:42"), testFullPage)
-	if ids := traceNumbers(t, got); len(ids) != 0 {
-		t.Fatalf("a span outside the resource scope matched: %v", ids)
 	}
 }
 
@@ -97,19 +102,6 @@ func traceFilter(t *testing.T, query string) TraceFilter {
 		t.Fatal(err)
 	}
 	return TraceFilter{Query: expr, Resources: []ResourceName{{ID: testWorkerResourceID, Name: "worker"}}}
-}
-
-func traceNumbers(t *testing.T, response *observabilityv1.ListTracesResponse) []int {
-	t.Helper()
-	ids := make([]int, 0, len(response.GetSummaries()))
-	for _, summary := range response.GetSummaries() {
-		var id int
-		if _, err := fmt.Sscanf(summary.GetTraceId(), "%x", &id); err != nil {
-			t.Fatal(err)
-		}
-		ids = append(ids, id)
-	}
-	return ids
 }
 
 func TestTraceSummaryPages(t *testing.T) {
