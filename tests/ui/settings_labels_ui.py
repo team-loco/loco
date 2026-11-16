@@ -267,9 +267,16 @@ with session(out) as browser:
             if user == "owner":
                 for theme in ("neobrutal", "catppuccin"):
                     for mode in ("light", "dark"):
-                        page.evaluate("values => { localStorage.setItem('loco:color:v1', values[0]); localStorage.setItem('loco:mode:v1', values[1]); }", [theme, mode])
+                        page.evaluate("theme => localStorage.setItem('loco:color:v1', theme)", theme)
                         page.goto(state["ui_url"] + base + "?scope=workspace")
                         page.get_by_role("columnheader", name="Name", exact=True).wait_for()
+                        if mode == "dark":
+                            page.get_by_role("button").filter(has_text="Olivia Owner").click()
+                            page.get_by_role("menuitem", name="Dark mode", exact=True).click()
+                            page.keyboard.press("Escape")
+                            expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
+                        else:
+                            expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
                         check_table_geometry(page)
             page.goto(state["ui_url"] + base + "?scope=account")
             check_time_preferences(page)
