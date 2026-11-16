@@ -133,10 +133,28 @@ def start_openbao(worktree, project, env):
     values = worktree / "charts" / "loco-control-plane" / "values.yaml"
     image = run(["mise", "exec", "--", "yq", ".openbao.image", str(values)], capture=True).strip()
     compose_env = dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
-    compose(worktree, project, compose_env, "up", "-d", "--wait", OPENBAO_SERVICE)
-    compose(worktree, project, compose_env, "run", "--rm", OPENBAO_SEED_SERVICE)
-    published = compose(worktree, project, compose_env, "port", OPENBAO_SERVICE, OPENBAO_CONTAINER_PORT, capture=True)
-    return f"http://{HOST}:{published.strip().rsplit(':', 1)[1]}"
+    run(["mise", "exec", "--", "go", "run", "./tools/pullimage", image], cwd=worktree, env=env)
+    try:
+        compose(worktree, project, compose_env, "up", "-d", "--wait", "--pull", "never", OPENBAO_SERVICE)
+        compose(worktree, project, compose_env, "run", "--rm", "--pull", "never", OPENBAO_SEED_SERVICE)
+        published = compose(worktree, project, compose_env, "port", OPENBAO_SERVICE, OPENBAO_CONTAINER_PORT, capture=True)
+        return f"http://{HOST}:{published.strip().rsplit(':', 1)[1]}"
+    except EvidenceError:
+        try:
+            for arguments in (("logs", "--no-color", OPENBAO_SERVICE), ("ps", "-a", "--format", "json")):
+                try:
+                    log(compose(worktree, project, compose_env, *arguments, capture=True))
+                except EvidenceError as error:
+                    log(str(error))
+            try:
+                containers = compose(worktree, project, compose_env, "ps", "-a", "-q", OPENBAO_SERVICE, capture=True).split()
+                if containers:
+                    log(run(["docker", "inspect", "--format", "{{json .State}} restart_count={{.RestartCount}}", *containers], capture=True))
+            except EvidenceError as error:
+                log(str(error))
+        finally:
+            stop_compose(project)
+        raise
 
 
 def stop_compose(project):

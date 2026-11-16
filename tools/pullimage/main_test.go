@@ -34,6 +34,7 @@ func TestPullWithRetry(t *testing.T) {
 		wantErr   bool
 	}{
 		{"succeeds first time", []string{""}, 1, false},
+		{"retries a dropped request", []string{"failed to do request: Get https://registry.test/blob: EOF\n", ""}, 2, false},
 		{"retries a token endpoint 522", []string{tokenStatus + "522", ""}, 2, false},
 		{"does not retry a token endpoint 401", []string{tokenStatus + "401", ""}, 1, true},
 		{"retries a registry 502", []string{registryBadGateway, registryBadGateway, ""}, 3, false},
@@ -48,6 +49,26 @@ func TestPullWithRetry(t *testing.T) {
 			}
 			if *calls != tc.wantCalls {
 				t.Fatalf("pulled %d times, want %d", *calls, tc.wantCalls)
+			}
+		})
+	}
+}
+
+func TestTransient(t *testing.T) {
+	for _, tc := range []struct {
+		output string
+		want   bool
+	}{
+		{"failed to do request: Get https://registry.test/blob: EOF\n", true},
+		{"unexpected EOF", true},
+		{"manifest unknown", false},
+		{"EOF", false},
+		{"failed request: EOF while reading config", false},
+		{"failed request: EOF permission denied", false},
+	} {
+		t.Run(tc.output, func(t *testing.T) {
+			if got := transient([]byte(tc.output)); got != tc.want {
+				t.Fatalf("transient(%q) = %v, want %v", tc.output, got, tc.want)
 			}
 		})
 	}
