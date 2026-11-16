@@ -27,6 +27,8 @@ mise exec -- uv run --script "$E" <command>
    colour theme id (as in `web/src/lib/theme.ts`) and `"narrow": true` for an extra 390-pixel-wide
    capture. Start from `shots.example.json`. Use a `clip` crop when
    before and after must line up: a selector crop follows the element's size.
+   Full and selector crops expand the viewport to the document height before capture.
+   Viewport and explicit clip crops keep the requested desktop or narrow viewport.
    A `type` step fills the field, replacing its contents; empty text clears it.
    For pages with an open stream, set `ready_selector` to a Playwright selector that becomes
    visible when the shot is ready. The shot skips network-idle waits and waits for the selector
