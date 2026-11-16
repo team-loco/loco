@@ -12,8 +12,7 @@ const (
 	certificateTemplate   = "templates/cm-cert.yaml"
 )
 
-// TestCertificates issues the loco-worker chart's Gateway certificate through cert-manager, from
-// the issuer the chart creates and from an existing one.
+// TestCertificates issues worker certificates from chart-owned and referenced issuers.
 func TestCertificates(t *testing.T) {
 	t.Parallel()
 	c.MustApply(t, "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: "+certificatesNamespace+"\n")
@@ -42,6 +41,21 @@ func TestCertificates(t *testing.T) {
 		c.MustApply(t, render("local", "templates/cm-issuer.yaml", issuer))
 		c.MustApply(t, render("local", certificateTemplate, issuer))
 		checkCertificate(t, "local", "probe.apps.example.test")
+	})
+
+	t.Run("an HTTP control plane's issuer", func(t *testing.T) {
+		const issuer = "loco-certificates-http"
+		manifest := helm(t, "template", "http-control-plane", c.Path("charts", "loco-control-plane"),
+			"-f", c.Path("charts", "loco-control-plane", "ci", "default-values.yaml"),
+			"-f", c.Path("charts", "loco-control-plane", "tests", "values", "hosts.yaml"),
+			"--set=certManager.enabled=false", "--set=certManager.issuer.type=selfSigned",
+			"--set=certManager.issuer.name="+issuer, "--show-only", "templates/cm-issuer.yaml")
+		c.MustApply(t, manifest)
+		c.MustKubectl(t, "wait", "clusterissuer/"+issuer, "--for=condition=Ready",
+			"--timeout="+installTimeout.String())
+		c.MustApply(t, render("http-worker", certificateTemplate, "certManager.issuer.create=false",
+			"certManager.issuer.name="+issuer, "certManager.issuer.kind=ClusterIssuer"))
+		checkCertificate(t, "http-worker", "probe.apps.example.test")
 	})
 
 	t.Run("an existing issuer", func(t *testing.T) {
