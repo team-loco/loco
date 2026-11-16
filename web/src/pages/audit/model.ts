@@ -1,6 +1,7 @@
 import type { Event } from "@gen/loco/event/v1/event_pb";
 
 import { eventTypesQuery } from "@/lib/audit-query";
+import { hasBoolean } from "@/pages/observability/query";
 import { DAY_MS, formatIsoDate, formatWeekdayDate, previousDay, type TimePreferences, tsMs } from "@/lib/time";
 import {
 	AUDIT_CATEGORIES,
@@ -68,35 +69,15 @@ export const ACTOR_KINDS: Record<string, string> = {
 /** The Actor filter selects these by type: Loco has no actor ID, and cluster agents are one choice. */
 export const TYPE_ACTORS = ["system", "agent"];
 
-/** The audit query for the toolbar filters; the actor is an actor ID or one of TYPE_ACTORS. */
-export function filtersQuery(types: readonly string[], actor: string, requestId: string): string {
+/**
+ * The audit query for the toolbar filters and the search text; the actor is an actor ID or one of
+ * TYPE_ACTORS. Search text that uses AND, OR or parentheses is grouped, so the filters apply to all of it.
+ */
+export function auditQuery(types: readonly string[], actor: string, search: string): string {
 	const actorField = TYPE_ACTORS.includes(actor) ? "actor_type" : "actor";
-	return [
-		eventTypesQuery(types),
-		actor === "" ? "" : `@${actorField}:${actor}`,
-		requestId === "" ? "" : `@request:${requestId}`,
-	]
-		.filter((part) => part !== "")
-		.join(" ");
-}
-
-// Error receipts copy complete UUIDs minted in internal/rpc/requestid.go.
-export function requestIdFilter(text: string): string {
-	const value = text.trim();
-	return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : "";
-}
-
-export function matchesPageFilter(row: AuditRow, text: string): boolean {
-	const query = text.trim().toLowerCase();
-	return [
-		row.actor.name,
-		row.actor.detail,
-		row.label,
-		row.detail,
-		row.where,
-		row.environment,
-		row.event.requestId,
-	].some((value) => value.toLowerCase().includes(query));
+	const filters = [eventTypesQuery(types), actor === "" ? "" : `@${actorField}:${actor}`].filter((p) => p !== "");
+	const text = search.trim();
+	return [...filters, filters.length > 0 && hasBoolean(text) ? `(${text})` : text].filter((p) => p !== "").join(" ");
 }
 
 export interface AuditRow {

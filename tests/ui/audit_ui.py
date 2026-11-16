@@ -111,22 +111,35 @@ with session(out) as browser:
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]event="))
 
-    search = page.get_by_role("textbox", name="Filter this page", exact=True)
-    before_filter = len(list_events(calls))
-    search.fill("l")
-    expect(rows).to_have_count(3)
-    search.fill("ledger")
+    search = page.get_by_role("textbox", name="Search request ID, actor or target", exact=True)
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "(@type:resource.created) ledger"):
+        search.fill("ledger")
     expect(rows).to_have_count(1)
-    assert len(list_events(calls)) == before_filter, list_events(calls)
     page.get_by_role("button", name="Clear search", exact=True).click()
     expect(rows).to_have_count(3)
     page.get_by_role("button", name="Clear event filter", exact=True).click()
     expect(rows).to_have_count(50)
+    # The search reads the whole log: inventory's events are older than the loaded page.
     expect(page.get_by_role("list", name="Audit events")).not_to_contain_text("inventory")
-    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@request:" + request_id) as searched:
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "INVENTORY"):
+        search.fill("INVENTORY")
+    expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
+    # Typing sends only the query the typing pauses on, so a half-typed field neither reads nor fails.
+    typed_from = len(list_events(calls))
+    search.press("ControlOrMeta+a")
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@type:secret.set"):
+        search.press_sequentially("@type:secret.set", delay=20)
+    typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
+    assert typed == ["@type:secret.set"], typed
+    expect(page.get_by_role("alert")).to_have_count(0)
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@type:>1") as rejected:
+        search.fill("@type:>1")
+    assert rejected.value.status == 400, rejected.value.status
+    expect(page.get_by_role("alert")).to_contain_text("@type does not compare numbers")
+    expect(rows).to_have_count(0)
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == request_id) as searched:
         search.fill(request_id)
     assert not searched.value.request.post_data_json.get("beforeSeq")
-    assert searched.value.request.post_data_json["query"] == "@request:" + request_id
     expect(rows).to_have_count(1)
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
     expect(page).to_have_url(re.compile(r"[?&]q=" + request_id))
