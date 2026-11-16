@@ -40,6 +40,7 @@ SCALE = 2
 SESSION_TTL = "1 day"
 SESSION_EXPIRY_MS = 4102444800000
 READY_TIMEOUT_S = 120
+POSTGRES_READY_TIMEOUT_S = 300
 STEP_TIMEOUT_MS = 15000
 SETTLE_TIMEOUT_MS = 10000
 LOG_TAIL_LINES = 40
@@ -324,6 +325,19 @@ def wait_http(url, log_path):
     raise EvidenceError(f"{url} did not answer within {READY_TIMEOUT_S}s; log tail:\n{log_tail(log_path)}")
 
 
+def wait_postgres(container):
+    deadline = time.monotonic() + POSTGRES_READY_TIMEOUT_S
+    while subprocess.run(
+        ["docker", "exec", container, "pg_isready", "-h", HOST, "-U", DB_USER], capture_output=True
+    ).returncode != 0:
+        if time.monotonic() > deadline:
+            logs = subprocess.run(
+                ["docker", "logs", "--tail", str(LOG_TAIL_LINES), container], capture_output=True, text=True
+            )
+            raise EvidenceError(f"postgres did not become ready within {POSTGRES_READY_TIMEOUT_S}s; {logs.stdout}{logs.stderr}")
+        time.sleep(0.5)
+
+
 def psql(container, sql):
     cmd = ["docker", "exec", "-i", container, "psql", "-q", "-v", "ON_ERROR_STOP=1", "-U", DB_USER, "-d", DB_NAME, "-tA"]
     log(f"$ {' '.join(cmd)} <<SQL")
@@ -473,13 +487,7 @@ def cmd_up(args):
         )
         state["container"] = container
         write_json(state_path, state)
-        deadline = time.monotonic() + READY_TIMEOUT_S
-        while subprocess.run(
-            ["docker", "exec", container, "pg_isready", "-h", HOST, "-U", DB_USER], capture_output=True
-        ).returncode != 0:
-            if time.monotonic() > deadline:
-                raise EvidenceError("postgres did not become ready")
-            time.sleep(0.5)
+        wait_postgres(container)
 
         dev_env = read_api_env((worktree / "dev" / "api.env").read_text())
         if not openbao:
