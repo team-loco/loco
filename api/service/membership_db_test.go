@@ -71,7 +71,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+	machine := tvm.NewVendingMachine(queries, tvm.Config{
 		SessionAccessTokenDuration:  membershipSessionDuration,
 		SessionRefreshTokenDuration: membershipSessionDuration,
 		LastUsedUpdateInterval:      membershipSessionDuration,
@@ -80,7 +80,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	authorizer := authz.New(pool, queries)
+	authorizer := authz.New(queries)
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),

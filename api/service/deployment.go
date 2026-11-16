@@ -129,7 +129,7 @@ func NewDeploymentServer(
 		resolver:       resolver,
 		registryHost:   registryHost,
 		defaults:       defaults,
-		authz:          authz.New(db, queries),
+		authz:          authz.New(queries),
 		silentAfter:    clusterSilentAfter,
 		maxSecretBytes: maxSecretBytes,
 		counts:         counts,

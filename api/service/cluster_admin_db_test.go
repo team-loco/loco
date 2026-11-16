@@ -33,7 +33,7 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(machine, auth.NewVerifier(http.DefaultClient, nil), nil, authz.New(pool, queries)).
+		interceptor.NewAuthInterceptor(machine, auth.NewVerifier(http.DefaultClient, nil), nil, authz.New(queries)).
 			Interceptor(),
 		validate.NewServerInterceptor(),
 	)
@@ -224,9 +224,7 @@ func TestClusterAdminHTTPRemovalReportsWorkloadsAndRestoresIdentity(t *testing.T
 	); err != nil {
 		t.Fatal(err)
 	}
-	machine := tvm.NewVendingMachine(
-		f.pool,
-		f.queries,
+	machine := tvm.NewVendingMachine(f.queries,
 		tvm.Config{
 			SessionAccessTokenDuration:  time.Hour,
 			SessionRefreshTokenDuration: time.Hour,

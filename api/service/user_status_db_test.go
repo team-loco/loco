@@ -122,7 +122,7 @@ func TestWhoAmIReturnsClaimedOrgs(t *testing.T) {
 	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
-	scopes, err := authz.New(o.api.pool, o.api.queries).UserScopes(t.Context(), member.id)
+	scopes, err := authz.New(o.api.queries).UserScopes(t.Context(), member.id)
 	if err != nil {
 		t.Fatalf("scopes: %v", err)
 	}

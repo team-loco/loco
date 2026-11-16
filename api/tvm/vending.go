@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/authz"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
@@ -28,11 +27,11 @@ type Config struct {
 	LastUsedUpdateInterval time.Duration
 }
 
-// NewVendingMachine creates a new VendingMachine with the given database pool, queries, and configuration.
-func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *VendingMachine {
+// NewVendingMachine creates a new VendingMachine with the given queries and configuration.
+func NewVendingMachine(q queries.Querier, cfg Config) *VendingMachine {
 	return &VendingMachine{
 		queries: q,
-		authz:   authz.New(pool, q),
+		authz:   authz.New(q),
 		Cfg:     cfg,
 	}
 }

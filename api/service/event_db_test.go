@@ -40,7 +40,7 @@ type eventFixture struct {
 
 func scoped(t *testing.T, q genDb.Querier, userID uuid.UUID) context.Context {
 	t.Helper()
-	scopes, err := authz.New(nil, q).UserScopes(t.Context(), userID)
+	scopes, err := authz.New(q).UserScopes(t.Context(), userID)
 	if err != nil {
 		t.Fatalf("scopes: %v", err)
 	}
@@ -55,7 +55,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+	machine := tvm.NewVendingMachine(queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Minute,

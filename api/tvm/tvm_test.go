@@ -279,7 +279,7 @@ func testConfig() tvm.Config {
 
 func TestSessionCarriesLiveUserScopes(t *testing.T) {
 	t.Parallel()
-	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	machine := tvm.NewVendingMachine(newTestingQueries(), testConfig())
 	access, _ := session(t, machine, user3UUID)
 	principal, err := machine.GetToken(t.Context(), access)
 	if err != nil {
@@ -323,7 +323,7 @@ func (rq racingRefreshQueries) RotateSessionToken(
 
 func TestRefreshRotatesTokens(t *testing.T) {
 	t.Parallel()
-	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	machine := tvm.NewVendingMachine(newTestingQueries(), testConfig())
 	_, refreshToken := session(t, machine, user1UUID)
 
 	access, newRefresh, err := machine.Refresh(t.Context(), refreshToken)
@@ -342,7 +342,7 @@ func TestRefreshRotatesTokens(t *testing.T) {
 func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 	t.Parallel()
 	tq := newTestingQueries()
-	machine := tvm.NewVendingMachine(nil, racingRefreshQueries{tq}, testConfig())
+	machine := tvm.NewVendingMachine(racingRefreshQueries{tq}, testConfig())
 	_, refreshToken := session(t, machine, user1UUID)
 
 	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
@@ -356,7 +356,7 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.ClosedPool(t)
-	machine := tvm.NewVendingMachine(pool, queries.New(pool), tvm.Config{})
+	machine := tvm.NewVendingMachine(queries.New(pool), tvm.Config{})
 	for _, token := range []string{"loco_s_unknown", "loco_k_unknown"} {
 		if _, err := machine.GetToken(t.Context(), token); err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
 			t.Errorf("GetToken(%s) on a closed pool: got %v, want the database error", token, err)
@@ -384,7 +384,7 @@ func (c cleanupQueries) DeleteExpiredSessionTokens(context.Context) error {
 func TestRunCleanupSweepsUntilContextIsCanceled(t *testing.T) {
 	t.Parallel()
 	q := cleanupQueries{newTestingQueries(), make(chan struct{}, 1)}
-	machine := tvm.NewVendingMachine(nil, q, testConfig())
+	machine := tvm.NewVendingMachine(q, testConfig())
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 	go func() {

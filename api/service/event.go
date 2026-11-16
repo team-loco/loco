@@ -68,7 +68,7 @@ type EventServer struct {
 }
 
 func NewEventServer(db genDb.DBTX, queries genDb.Querier) *EventServer {
-	return &EventServer{db: db, queries: queries, poll: streamPollInterval, authz: authz.New(nil, queries)}
+	return &EventServer{db: db, queries: queries, poll: streamPollInterval, authz: authz.New(queries)}
 }
 
 func uuidString(id *uuid.UUID) string {

@@ -102,7 +102,7 @@ func unreachableClickHouse(t *testing.T) *chClient.Client {
 func unreachableAuthorizer(t *testing.T) *authz.Authorizer {
 	t.Helper()
 	pool := dbtest.ClosedPool(t)
-	return authz.New(pool, genDb.New(pool))
+	return authz.New(genDb.New(pool))
 }
 
 func TestObservabilityIsUnavailableWithoutClickHouse(t *testing.T) {

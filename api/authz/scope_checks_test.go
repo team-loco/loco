@@ -35,7 +35,7 @@ func TestScopeChecksShareOwners(t *testing.T) {
 	} {
 		t.Run(string(entity.Type), func(t *testing.T) {
 			q := &countedOwners{}
-			a := authz.New(nil, q)
+			a := authz.New(q)
 			granted := grantedScopes(t, a, user2UUID)
 			required := []queries.EntityScope{
 				{EntityType: entity.Type, EntityID: entity.ID, Scope: queries.ScopeRead},
@@ -70,7 +70,7 @@ func TestScopeCheckDecisions(t *testing.T) {
 		{Type: queries.EntityTypeSystem},
 	}
 	for _, user := range []uuid.UUID{user1UUID, user2UUID, user3UUID, user4UUID, user5UUID} {
-		a := authz.New(nil, &fakeQueries{})
+		a := authz.New(&fakeQueries{})
 		granted := grantedScopes(t, a, user)
 		for _, entity := range entities {
 			scopes := []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin, queries.ScopeMember}
@@ -113,7 +113,7 @@ func TestScopeChecksDirectGrantsSkipOwners(t *testing.T) {
 		{EntityType: queries.EntityTypeSystem, Scope: queries.ScopeWrite},
 	}} {
 		q := &countedOwners{}
-		if err := authz.New(nil, q).Check(t.Context(), granted, required...); err != nil {
+		if err := authz.New(q).Check(t.Context(), granted, required...); err != nil {
 			t.Fatal(err)
 		}
 		if q.calls != 0 {

@@ -46,7 +46,7 @@ func TestCreateWorkspaceRecordsTheCredentialUser(t *testing.T) {
 			).Scan(&environmentCreator); scanErr != nil || environmentCreator != f.ownerID {
 				t.Fatalf("default environment creator = %s (%v), want %s", environmentCreator, scanErr, f.ownerID)
 			}
-			scopes, err := authz.New(f.pool, f.queries).UserScopes(ctx, f.ownerID)
+			scopes, err := authz.New(f.queries).UserScopes(ctx, f.ownerID)
 			if err != nil {
 				t.Fatal(err)
 			}

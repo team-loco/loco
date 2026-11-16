@@ -43,7 +43,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
 	q := queries.New(pool)
-	machine := tvm.NewVendingMachine(pool, q, tvm.Config{
+	machine := tvm.NewVendingMachine(q, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: time.Hour,
 		MaxAPITokenDuration:         time.Hour,
@@ -128,7 +128,7 @@ func TestIssueRejectsADuplicateTokenName(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
 	q := queries.New(pool)
-	machine := tvm.NewVendingMachine(pool, q, tvm.Config{MaxAPITokenDuration: time.Hour})
+	machine := tvm.NewVendingMachine(q, tvm.Config{MaxAPITokenDuration: time.Hour})
 	ctx := t.Context()
 
 	resolver := auth.NewResolver(pool, auth.SignupPolicy{}, limits.Defaults(), time.Hour)

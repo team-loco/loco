@@ -96,7 +96,7 @@ func NewSecretServer(
 	return &SecretServer{
 		db:       db,
 		queries:  queries,
-		authz:    authz.New(db, queries),
+		authz:    authz.New(queries),
 		provider: provider,
 		config:   config,
 		counts:   counts,

@@ -101,7 +101,7 @@ func NewResourceServer(
 	return &ResourceServer{
 		db:                 db,
 		queries:            queries,
-		authz:              authz.New(db, queries),
+		authz:              authz.New(queries),
 		defaults:           defaults,
 		clusterSilentAfter: clusterSilentAfter,
 		counts:             counts,

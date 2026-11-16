@@ -128,7 +128,7 @@ func grantedScopes(t *testing.T, a *authz.Authorizer, userID uuid.UUID) []querie
 
 // user 1 has only self read/write/admin
 func TestUser1Permissions(t *testing.T) {
-	a := authz.New(nil, &fakeQueries{})
+	a := authz.New(&fakeQueries{})
 	granted := grantedScopes(t, a, user1UUID)
 
 	t.Run("denied org 1 read", func(t *testing.T) {
@@ -178,7 +178,7 @@ func TestUser1Permissions(t *testing.T) {
 
 // user 2 has org 1 r, w, a
 func TestUser2Permissions(t *testing.T) {
-	a := authz.New(nil, &fakeQueries{})
+	a := authz.New(&fakeQueries{})
 	granted := grantedScopes(t, a, user2UUID)
 
 	t.Run("granted org 1 admin", func(t *testing.T) {
@@ -261,7 +261,7 @@ func TestUser2Permissions(t *testing.T) {
 
 // user 3 has org 1 r, w
 func TestUser3Permissions(t *testing.T) {
-	a := authz.New(nil, &fakeQueries{})
+	a := authz.New(&fakeQueries{})
 	granted := grantedScopes(t, a, user3UUID)
 
 	t.Run("granted org 1 read", func(t *testing.T) {
@@ -366,7 +366,7 @@ func TestUser3Permissions(t *testing.T) {
 
 // user 4 has r of ws 1
 func TestUser4Permissions(t *testing.T) {
-	a := authz.New(nil, &fakeQueries{})
+	a := authz.New(&fakeQueries{})
 	granted := grantedScopes(t, a, user4UUID)
 
 	t.Run("granted workspace 1 read", func(t *testing.T) {
@@ -460,7 +460,7 @@ func TestUser4Permissions(t *testing.T) {
 
 // user 5 has r, w, a of wks 3
 func TestUser5Permissions(t *testing.T) {
-	a := authz.New(nil, &fakeQueries{})
+	a := authz.New(&fakeQueries{})
 	granted := grantedScopes(t, a, user5UUID)
 
 	t.Run("granted workspace 3 read", func(t *testing.T) {
@@ -597,7 +597,7 @@ func TestUser5Permissions(t *testing.T) {
 }
 
 func TestOrgMemberScopeDoesNotCascade(t *testing.T) {
-	a := authz.New(nil, &fakeQueries{})
+	a := authz.New(&fakeQueries{})
 	granted := []queries.EntityScope{
 		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeMember},
 	}
@@ -623,7 +623,7 @@ func TestOrgMemberScopeDoesNotCascade(t *testing.T) {
 }
 
 func TestEveryOrgScopeImpliesMembership(t *testing.T) {
-	a := authz.New(nil, &fakeQueries{})
+	a := authz.New(&fakeQueries{})
 	member := queries.EntityScope{
 		EntityType: queries.EntityTypeOrganization,
 		EntityID:   org1UUID,
@@ -645,7 +645,7 @@ func TestEveryOrgScopeImpliesMembership(t *testing.T) {
 
 func TestCheckReportsDatabaseFailure(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
-	a := authz.New(pool, queries.New(pool))
+	a := authz.New(queries.New(pool))
 	for _, entityType := range []queries.EntityType{queries.EntityTypeWorkspace, queries.EntityTypeResource} {
 		required := queries.EntityScope{EntityType: entityType, EntityID: uuid.New(), Scope: queries.ScopeRead}
 		err := a.Check(t.Context(), nil, required)
@@ -656,7 +656,7 @@ func TestCheckReportsDatabaseFailure(t *testing.T) {
 }
 
 func TestReadableEntities(t *testing.T) {
-	a := authz.New(nil, nil)
+	a := authz.New(nil)
 	granted := []queries.EntityScope{
 		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeRead},
 		{EntityType: queries.EntityTypeOrganization, EntityID: org2UUID, Scope: queries.ScopeAdmin},

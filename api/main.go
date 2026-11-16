@@ -293,8 +293,8 @@ func newDeps(
 	clickhouse *chClient.Client,
 ) (*deps, error) {
 	queries := genDb.New(pool)
-	authorizer := authz.New(pool, queries)
-	machine := tvm.NewVendingMachine(pool, queries, ac.Tokens)
+	authorizer := authz.New(queries)
+	machine := tvm.NewVendingMachine(queries, ac.Tokens)
 
 	authClient := newOutboundHTTPClient()
 	verifier := auth.NewVerifier(authClient, ac.AuthIssuers)

@@ -42,7 +42,7 @@ type WorkspaceServer struct {
 
 // NewWorkspaceServer creates a new WorkspaceServer instance
 func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier, counts *configv1.CountLimits) *WorkspaceServer {
-	return &WorkspaceServer{db: db, queries: queries, authz: authz.New(db, queries), counts: counts}
+	return &WorkspaceServer{db: db, queries: queries, authz: authz.New(queries), counts: counts}
 }
 
 // CreateWorkspace creates a new workspace

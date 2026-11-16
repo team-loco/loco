@@ -61,7 +61,7 @@ func NewWebhookServer(
 	return &WebhookServer{
 		db:           db,
 		queries:      queries,
-		authz:        authz.New(db, queries),
+		authz:        authz.New(queries),
 		provider:     provider,
 		allowPrivate: allowPrivate,
 		counts:       counts,

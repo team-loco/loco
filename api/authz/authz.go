@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -19,12 +17,11 @@ var (
 )
 
 type Authorizer struct {
-	pool    *pgxpool.Pool
 	queries queries.Querier
 }
 
-func New(pool *pgxpool.Pool, q queries.Querier) *Authorizer {
-	return &Authorizer{pool: pool, queries: q}
+func New(q queries.Querier) *Authorizer {
+	return &Authorizer{queries: q}
 }
 
 // Check reports whether granted covers required, either directly, through a system scope of the
@@ -167,31 +164,6 @@ func (a *Authorizer) UserScopes(ctx context.Context, userID uuid.UUID) ([]querie
 		scopes[i] = queries.EntityScope(row)
 	}
 	return scopes, nil
-}
-
-// UpdateRoles adds and removes scopes for a user in one transaction.
-func (a *Authorizer) UpdateRoles(
-	ctx context.Context,
-	userID uuid.UUID,
-	addScopes []queries.EntityScope,
-	removeScopes []queries.EntityScope,
-) error {
-	tx, err := a.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer func() {
-		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
-			slog.WarnContext(ctx, "failed to roll back role update", "error", rbErr)
-		}
-	}()
-	if err := ApplyRoles(ctx, queries.New(tx), userID, addScopes, removeScopes); err != nil {
-		return err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit tx: %w", err)
-	}
-	return nil
 }
 
 func ApplyRoles(
