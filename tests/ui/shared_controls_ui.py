@@ -297,7 +297,15 @@ def dashboard(page):
         replicas = page.get_by_label("47 of 48 ready · 1 starting\nus-east-1: 47/48", exact=True)
         expect(replicas).to_be_visible()
         expect(replicas).to_contain_text("47/48")
-        expect(page.get_by_role("region", name="Resources", exact=True).get_by_role("row").filter(has=page.get_by_role("link", name="dashboard-1", exact=True))).to_contain_text("12/12")
+        full_row = page.get_by_role("region", name="Resources", exact=True).get_by_role("row").filter(has=page.get_by_role("link", name="dashboard-1", exact=True))
+        expect(full_row).to_contain_text("12/12")
+        bounds = full_row.evaluate("""row => {
+            const count = [...row.querySelectorAll('span')].find(n => n.children.length === 0 && n.textContent === '12/12');
+            const cell = count.closest('td');
+            return {countRight: count.getBoundingClientRect().right, cellRight: cell.getBoundingClientRect().right,
+                trafficLeft: cell.nextElementSibling.getBoundingClientRect().left};
+        }""")
+        assert bounds["countRight"] + 10 <= bounds["cellRight"] <= bounds["trafficLeft"], bounds
         replicas.focus()
         expect(page.locator('[data-slot="tooltip-content"]')).to_contain_text("us-east-1: 47/48")
         page.keyboard.press("Escape")

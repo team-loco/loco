@@ -90,12 +90,12 @@ function statusNote(item: EnvResource): string {
 
 function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: number; degraded: boolean }) {
 	return (
-		<span className="flex gap-[3px]" aria-hidden="true">
+		<span className="flex shrink-0 gap-0.5" aria-hidden="true">
 			{Array.from({ length: desired }, (_, i) => (
 				<span
 					key={i}
 					className={cn(
-						"h-3.5 w-1.5 rounded-[1.5px]",
+						"h-3.5 w-1 shrink-0 rounded-[1.5px]",
 						i >= ready ? "ring-1 ring-line2 ring-inset" : degraded ? "bg-warn" : "bg-foreground",
 					)}
 				/>
