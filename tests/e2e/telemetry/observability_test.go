@@ -729,12 +729,14 @@ func (o *observed) traceSummary(t *testing.T) {
 			EndTime:   timestamppb.Now(),
 			Query:     "@trace:" + traceID + " @http.request.method:GET",
 			Limit:     1,
+			Sort:      observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_STATUS,
+			Ascending: true,
 		})
 		if err != nil {
 			return err
 		}
 		if len(listed.GetSummaries()) != 1 || listed.GetSummaries()[0].GetSpanCount() <= 1 ||
-			listed.GetTotalCount() != 1 ||
+			listed.GetTotalCount() != 1 || listed.GetSummaries()[0].GetHttpStatusCode() != http.StatusOK ||
 			listed.GetSummaries()[0].GetTraceId() != traceID {
 			return fmt.Errorf("summaries %v, total %d", listed.GetSummaries(), listed.GetTotalCount())
 		}

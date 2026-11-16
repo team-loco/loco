@@ -44,7 +44,7 @@ const TRACES_PARAMS = {
 	...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE),
 	...WINDOW_PARSERS,
 	...QUERY_PARSERS,
-	sort: parseAsStringLiteral(["duration"]),
+	sort: parseAsStringLiteral(["duration", "operation", "resource", "status", "spans"]),
 	dir: parseAsStringLiteral(["asc"]),
 	trace: parseAsString.withDefault(""),
 	span: parseAsString,
@@ -61,9 +61,9 @@ const TRACE_COLUMNS: {
 	title?: string;
 }[] = [
 	{ key: "when", label: "When", sort: TraceSummarySort.START_TIME },
-	{ key: "resource", label: "Resource" },
-	{ key: "span", label: "Root span" },
-	{ key: "status", label: "Status" },
+	{ key: "resource", label: "Resource", sort: TraceSummarySort.RESOURCE },
+	{ key: "span", label: "Root span", sort: TraceSummarySort.OPERATION },
+	{ key: "status", label: "Status", sort: TraceSummarySort.STATUS },
 	{
 		key: "duration",
 		label: "Duration",
@@ -71,7 +71,12 @@ const TRACE_COLUMNS: {
 		right: true,
 		title: "From the first span's start to the last span's end",
 	},
-	{ key: "spans", label: "Spans", right: true },
+	{
+		key: "spans",
+		label: "Spans",
+		sort: TraceSummarySort.SPAN_COUNT,
+		right: true,
+	},
 ];
 const TRACE_WIDTHS: Record<ColumnKey, number> = {
 	when: 150,
@@ -82,6 +87,13 @@ const TRACE_WIDTHS: Record<ColumnKey, number> = {
 	spans: 70,
 };
 const SKELETON_ROWS = 8;
+const TRACE_SORTS = {
+	duration: TraceSummarySort.DURATION,
+	operation: TraceSummarySort.OPERATION,
+	resource: TraceSummarySort.RESOURCE,
+	status: TraceSummarySort.STATUS,
+	spans: TraceSummarySort.SPAN_COUNT,
+};
 
 function traceColumnWidth(key: ColumnKey, widths: ColumnWidths): number {
 	return widths[key] ?? TRACE_WIDTHS[key] ?? 0;
@@ -114,7 +126,7 @@ function TraceSession({
 	const bounds = resolveWindow(range, frozenEnd);
 	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
 	const paging = { page: params.page, size: params.size };
-	const sort = params.sort === "duration" ? TraceSummarySort.DURATION : TraceSummarySort.START_TIME;
+	const sort = params.sort === null ? TraceSummarySort.START_TIME : TRACE_SORTS[params.sort];
 	const ascending = params.dir === "asc";
 	const query = queryStr(tokens, text);
 	const filters = {
@@ -134,7 +146,12 @@ function TraceSession({
 		enabled: scopeReady,
 	});
 	const widthSeconds = bucketSeconds(bounds.to - bounds.from);
-	const overview = useTraceBuckets({ ...filters, query, intervalSeconds: widthSeconds, enabled: scopeReady });
+	const overview = useTraceBuckets({
+		...filters,
+		query,
+		intervalSeconds: widthSeconds,
+		enabled: scopeReady,
+	});
 	const unfiltered = tokens.filter((t) => t.key !== "status");
 	const allQuery = queryStr(unfiltered, text);
 	const errorQuery = queryStr([...unfiltered, ERROR_TOKEN], text);
@@ -198,7 +215,10 @@ function TraceSession({
 
 	const zoom = (from: number, to: number) => {
 		setZoomPrev(zoomPrev ?? range);
-		void setParams({ ...windowValues({ kind: "absolute", from, to }), page: null });
+		void setParams({
+			...windowValues({ kind: "absolute", from, to }),
+			page: null,
+		});
 	};
 	const resetZoom = () => {
 		if (zoomPrev === null) return;
@@ -208,7 +228,8 @@ function TraceSession({
 	const sortBy = (column: TraceSummarySort) => {
 		const flip = column === sort && !ascending;
 		void setParams({
-			sort: column === TraceSummarySort.DURATION ? "duration" : null,
+			sort:
+				(Object.keys(TRACE_SORTS) as (keyof typeof TRACE_SORTS)[]).find((key) => TRACE_SORTS[key] === column) ?? null,
 			dir: flip ? "asc" : null,
 			page: null,
 		});
@@ -463,7 +484,7 @@ function TraceList({
 								<span className="truncate px-3 text-[12.5px]">{resourceName(t)}</span>
 								<span className="truncate px-3 font-mono text-foreground">{name}</span>
 								<span className={cn("truncate px-3 font-mono", failed ? "text-bad-fg" : "text-fg3")}>
-									{failed ? "error" : "ok"}
+									{t.httpStatusCode || (failed ? "error" : "ok")}
 								</span>
 								<span className={cn("truncate px-3 text-right font-mono", failed ? "text-bad-fg" : "text-foreground")}>
 									{durationLabel(t.durationNanos)}

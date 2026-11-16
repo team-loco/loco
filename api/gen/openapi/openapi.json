@@ -12037,6 +12037,10 @@
             "type": "string",
             "title": "span_count",
             "format": "int64"
+          },
+          "httpStatusCode": {
+            "type": "integer",
+            "title": "http_status_code"
           }
         },
         "title": "TraceSummary",
@@ -12048,7 +12052,11 @@
         "enum": [
           "TRACE_SUMMARY_SORT_UNSPECIFIED",
           "TRACE_SUMMARY_SORT_START_TIME",
-          "TRACE_SUMMARY_SORT_DURATION"
+          "TRACE_SUMMARY_SORT_DURATION",
+          "TRACE_SUMMARY_SORT_OPERATION",
+          "TRACE_SUMMARY_SORT_RESOURCE",
+          "TRACE_SUMMARY_SORT_STATUS",
+          "TRACE_SUMMARY_SORT_SPAN_COUNT"
         ]
       },
       "loco.org.v1.CreateOrgRequest": {
