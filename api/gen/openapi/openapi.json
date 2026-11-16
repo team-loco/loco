@@ -12411,6 +12411,23 @@
           "suspensionReason": {
             "type": "string",
             "title": "suspension_reason"
+          },
+          "workspaceCount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "workspace_count",
+            "format": "int64",
+            "description": "Counts are populated by ListUserOrgs."
+          },
+          "memberCount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "member_count",
+            "format": "int64"
           }
         },
         "title": "Organization",

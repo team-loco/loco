@@ -85,8 +85,11 @@ type Organization struct {
 	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	SuspendedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=suspended_at,json=suspendedAt,proto3" json:"suspended_at,omitempty"`
 	SuspensionReason string                 `protobuf:"bytes,7,opt,name=suspension_reason,json=suspensionReason,proto3" json:"suspension_reason,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Counts are populated by ListUserOrgs.
+	WorkspaceCount *int64 `protobuf:"varint,8,opt,name=workspace_count,json=workspaceCount,proto3,oneof" json:"workspace_count,omitempty"`
+	MemberCount    *int64 `protobuf:"varint,9,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Organization) Reset() {
@@ -166,6 +169,20 @@ func (x *Organization) GetSuspensionReason() string {
 		return x.SuspensionReason
 	}
 	return ""
+}
+
+func (x *Organization) GetWorkspaceCount() int64 {
+	if x != nil && x.WorkspaceCount != nil {
+		return *x.WorkspaceCount
+	}
+	return 0
+}
+
+func (x *Organization) GetMemberCount() int64 {
+	if x != nil && x.MemberCount != nil {
+		return *x.MemberCount
+	}
+	return 0
 }
 
 // CreateOrgRequest is the request to create a new organization.
@@ -2028,7 +2045,7 @@ var File_loco_org_v1_org_proto protoreflect.FileDescriptor
 
 const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\n" +
-	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bloco/config/v1/config.proto\"\xb3\x02\n" +
+	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bloco/config/v1/config.proto\"\xae\x03\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -2039,7 +2056,11 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12=\n" +
 	"\fsuspended_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vsuspendedAt\x12+\n" +
-	"\x11suspension_reason\x18\a \x01(\tR\x10suspensionReason\"?\n" +
+	"\x11suspension_reason\x18\a \x01(\tR\x10suspensionReason\x12,\n" +
+	"\x0fworkspace_count\x18\b \x01(\x03H\x00R\x0eworkspaceCount\x88\x01\x01\x12&\n" +
+	"\fmember_count\x18\t \x01(\x03H\x01R\vmemberCount\x88\x01\x01B\x12\n" +
+	"\x10_workspace_countB\x0f\n" +
+	"\r_member_count\"?\n" +
 	"\x10CreateOrgRequest\x12\"\n" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dH\x00R\x04name\x88\x01\x01B\a\n" +
 	"\x05_name\"*\n" +
@@ -2315,6 +2336,7 @@ func file_loco_org_v1_org_proto_init() {
 	if File_loco_org_v1_org_proto != nil {
 		return
 	}
+	file_loco_org_v1_org_proto_msgTypes[0].OneofWrappers = []any{}
 	file_loco_org_v1_org_proto_msgTypes[1].OneofWrappers = []any{}
 	file_loco_org_v1_org_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}

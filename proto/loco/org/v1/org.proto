@@ -62,6 +62,9 @@ message Organization {
   google.protobuf.Timestamp updated_at = 5;
   google.protobuf.Timestamp suspended_at = 6;
   string suspension_reason = 7;
+  // Counts are populated by ListUserOrgs.
+  optional int64 workspace_count = 8;
+  optional int64 member_count = 9;
 }
 
 // CreateOrgRequest is the request to create a new organization.
