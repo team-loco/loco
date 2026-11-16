@@ -49,8 +49,11 @@ def session(out):
         except BaseException:
             out.mkdir(parents=True, exist_ok=True)
             for index, context in enumerate(browser.contexts):
+                with contextlib.suppress(Exception):
+                    context.tracing.stop(path=out / f"failure-{index}.zip")
                 for number, page in enumerate(context.pages):
                     with contextlib.suppress(Exception):
+                        evidence.write_json(out / f"failure-{index}-{number}.json", {"url": page.url})
                         page.screenshot(path=out / f"failure-{index}-{number}.png", animations="disabled")
             raise
 
@@ -58,6 +61,7 @@ def session(out):
 def open_page(browser, user="owner", narrow=False, *, state, storage=None, **context_options):
     options = {"viewport": evidence.NARROW if narrow else evidence.DESKTOP, "color_scheme": "light", **context_options}
     context = browser.new_context(**options)
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
     authenticate(context, None if user is None else state["users"][user]["token"], storage)
     page = context.new_page()
     errors = []
