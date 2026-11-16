@@ -103,11 +103,7 @@ func eventTypes(list []*eventv1.Event) []string {
 
 func TestSignupAndOrgCreationAreRecorded(t *testing.T) {
 	f := newEventFixture(t)
-	dbtest.WaitForEarlierTransactions(t, f.pool)
-	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 10})
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
+	all := dbtest.Events(t, f.pool)
 	if len(all) != 2 || all[0].Type != events.UserCreated || all[1].Type != events.OrgCreated {
 		t.Fatalf("events = %+v", all)
 	}
@@ -209,7 +205,6 @@ func (f *eventFixture) streamClient(t *testing.T, asSystem *atomic.Bool) eventv1
 
 func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 	f := newEventFixture(t)
-	dbtest.WaitForEarlierTransactions(t, f.pool)
 	f.events.poll = 10 * time.Millisecond
 	var asSystem atomic.Bool
 	asSystem.Store(true)
@@ -294,7 +289,6 @@ func receiveBatches(stream eventv1connect.EventServiceStreamEventsClientStream) 
 
 func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	f := newEventFixture(t)
-	dbtest.WaitForEarlierTransactions(t, f.pool)
 	f.events.poll = 10 * time.Millisecond
 	var asSystem atomic.Bool
 	asSystem.Store(true)

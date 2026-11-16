@@ -77,10 +77,9 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 		t.Fatalf("data = %s (%v)", ev.Data, jsonErr)
 	}
 
-	dbtest.WaitForEarlierTransactions(t, pool)
-	all, err := q.ListEventsAfter(ctx, genDb.ListEventsAfterParams{MaxRows: 10})
-	if err != nil || len(all) != 2 || all[1].ActorType != "agent" || all[0].Seq >= all[1].Seq {
-		t.Fatalf("stream order = %+v (%v)", all, err)
+	all := dbtest.Events(t, pool)
+	if len(all) != 2 || all[1].ActorType != "agent" || all[0].Seq >= all[1].Seq {
+		t.Fatalf("recorded events = %+v", all)
 	}
 
 	if _, updateErr := pool.Exec(ctx, "UPDATE events SET type = 'tampered'"); updateErr == nil {

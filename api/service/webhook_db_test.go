@@ -162,11 +162,7 @@ func TestWebhookLifecycle(t *testing.T) {
 		t.Fatalf("second delete: %v", deleteErr)
 	}
 
-	dbtest.WaitForEarlierTransactions(t, f.pool)
-	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 100})
-	if err != nil {
-		t.Fatalf("events: %v", err)
-	}
+	all := dbtest.Events(t, f.pool)
 	var recorded []genDb.Event
 	for _, e := range all {
 		if strings.HasPrefix(e.Type, "webhook.") {
@@ -411,11 +407,7 @@ func TestUpdateWebhookReroutesPendingDeliveriesAndFiltersNewEvents(t *testing.T)
 		t.Fatalf("pending delivery sends to %q (%v), want %q", payload.Url, err, movedURL)
 	}
 
-	dbtest.WaitForEarlierTransactions(t, f.pool)
-	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 100})
-	if err != nil {
-		t.Fatalf("events: %v", err)
-	}
+	all := dbtest.Events(t, f.pool)
 	var changes int
 	for _, e := range all {
 		if e.Type == events.WebhookUpdated && e.SubjectID != nil && e.SubjectID.String() == hookID {
@@ -705,14 +697,10 @@ func TestRotateWebhookSecretKeepsThePreviousSecretForTheGracePeriod(t *testing.T
 		t.Fatalf("after rotating without a grace period = %+v", row)
 	}
 
-	dbtest.WaitForEarlierTransactions(t, f.pool)
-	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 100})
-	if err != nil {
-		t.Fatalf("events: %v", err)
-	}
+	all := dbtest.Events(t, f.pool)
 	var rotations int
 	for _, e := range all {
-		if e.Type == events.WebhookSecretRotated {
+		if e.Type == events.WebhookSecretRotated && e.SubjectID != nil && e.SubjectID.String() == hookID {
 			rotations++
 		}
 	}
