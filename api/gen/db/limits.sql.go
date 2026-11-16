@@ -12,7 +12,7 @@ import (
 )
 
 const countEntityAPITokens = `-- name: CountEntityAPITokens :one
-SELECT COUNT(*) FROM api_tokens WHERE entity_type = $1 AND entity_id = $2
+SELECT COUNT(*) FROM api_tokens WHERE entity_type = $1 AND entity_id = $2 AND expires_at > NOW()
 `
 
 type CountEntityAPITokensParams struct {

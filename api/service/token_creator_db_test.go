@@ -117,6 +117,15 @@ func TestCreateTokenStopsAtTheOwnersLimit(t *testing.T) {
 		t.Fatalf("first token: %v", err)
 	}
 	wantCode(t, create(workspace, f.workspaceID.String(), "second"), connect.CodeResourceExhausted)
+	if _, err := f.pool.Exec(t.Context(),
+		"UPDATE api_tokens SET expires_at = NOW() - INTERVAL '1 second' WHERE entity_id = $1", f.workspaceID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := create(workspace, f.workspaceID.String(), "replacement"); err != nil {
+		t.Fatalf("expired token occupied the owner's limit: %v", err)
+	}
+	wantCode(t, create(workspace, f.workspaceID.String(), "third"), connect.CodeResourceExhausted)
 	if err := create(tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, f.orgID.String(), "first"); err != nil {
 		t.Fatalf("another owner hit the workspace's limit: %v", err)
 	}
