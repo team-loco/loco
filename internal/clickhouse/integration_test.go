@@ -657,3 +657,50 @@ func TestQueryLogsEnvironmentScopeAcrossPages(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryLogsCountsMatchesAcrossPages(t *testing.T) {
+	f := newQueryFixture(t)
+	for _, tc := range []struct {
+		name  string
+		query LogQuery
+		want  int64
+	}{
+		{name: "workspace", query: LogQuery{WorkspaceID: testWorkspaceID}, want: 5},
+		{name: "by resource", query: LogQuery{WorkspaceID: testWorkspaceID, ResourceIDs: []string{testResourceID}}, want: 3},
+		{name: "environment", query: LogQuery{WorkspaceID: testWorkspaceID, EnvironmentID: testEnvironmentID}, want: 5},
+		{name: "unmatched environment", query: LogQuery{WorkspaceID: testWorkspaceID, EnvironmentID: testOtherEnvironmentID}},
+		{name: "filter", query: LogQuery{WorkspaceID: testWorkspaceID, Filter: logquery.Text{Value: "web "}}, want: 3},
+		{name: "time range", query: LogQuery{WorkspaceID: testWorkspaceID, End: f.logTime(2)}, want: 2},
+		{name: "empty", query: LogQuery{WorkspaceID: testUnknownWorkspaceID}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, order := range []observabilityv1.LogOrder{
+				observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+			} {
+				q := tc.query
+				q.Start, q.Limit, q.Order = f.start, testPageSize, order
+				if q.End.IsZero() {
+					q.End = f.end
+				}
+				var entries int64
+				for {
+					response, err := f.client.QueryLogs(t.Context(), q)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if got := response.GetTotalMatched(); got != tc.want {
+						t.Fatalf("total_matched = %d, want %d", got, tc.want)
+					}
+					entries += int64(len(response.GetEntries()))
+					q.Cursor = response.GetNextCursor()
+					if q.Cursor == "" {
+						break
+					}
+				}
+				if entries != tc.want {
+					t.Errorf("entries = %d, want %d", entries, tc.want)
+				}
+			}
+		})
+	}
+}
