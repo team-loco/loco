@@ -78,6 +78,7 @@ func preflightTargets(ctx context.Context, config Config, release releaseArtifac
 			kube,
 			release,
 			false,
+			config.ControlPlane.Kubernetes,
 		); err != nil && !errors.Is(err, errPrerequisiteRequired) &&
 			!errors.Is(err, errPrerequisiteNotReady) {
 			return err

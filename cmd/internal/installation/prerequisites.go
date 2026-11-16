@@ -30,7 +30,15 @@ var errGatewayConfiguration = fmt.Errorf(
 	errPrerequisiteConflict,
 )
 
-func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifacts, install bool) error {
+func prerequisites(
+	ctx context.Context, kube *Kubernetes, release releaseArtifacts, install bool, controlPlane KubernetesTarget,
+) error {
+	gatewayNamespace := kube.Target.Namespace
+	if controlPlane.ClusterUID != "" && kube.Target.ClusterUID == controlPlane.ClusterUID &&
+		gatewayNamespace != controlPlane.Namespace {
+		gatewayNamespace = controlPlane.Namespace
+		install = false
+	}
 	gateway, err := gatewayChart(release.worker)
 	if err != nil {
 		return err
@@ -53,7 +61,7 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 			release.certManager, []byte("crds:\n  enabled: true\n"),
 		},
 		{
-			envoyGatewayName, kube.Target.Namespace,
+			envoyGatewayName, gatewayNamespace,
 			gateway, gatewayValues,
 		},
 	} {
@@ -81,31 +89,26 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 			return safeKubernetesError("inspect prerequisite controller", err)
 		}
 		if len(existing.Items) > 0 {
-			owned := true
-			for _, deployment := range existing.Items {
-				if deployment.Annotations["meta.helm.sh/release-name"] != prerequisite.name ||
-					deployment.Annotations["meta.helm.sh/release-namespace"] != prerequisite.namespace {
-					owned = false
-				}
-			}
-			if owned {
-				if install {
-					target := kube.Target
-					target.Namespace = prerequisite.namespace
-					if err := installChart(
-						ctx,
-						target,
-						prerequisite.name,
-						prerequisite.chart,
-						prerequisite.values,
-					); err != nil {
-						return err
-					}
+			owned := ownsPrerequisite(existing.Items, prerequisite.name, prerequisite.namespace)
+			if owned && install {
+				target := kube.Target
+				target.Namespace = prerequisite.namespace
+				if err := installChart(
+					ctx,
+					target,
+					prerequisite.name,
+					prerequisite.chart,
+					prerequisite.values,
+				); err != nil {
+					return err
 				}
 				continue
 			}
 			for _, deployment := range existing.Items {
 				if deployment.Labels["app.kubernetes.io/version"] != metadata.AppVersion {
+					if owned {
+						return fmt.Errorf("%s: %w", prerequisite.name, errPrerequisiteRequired)
+					}
 					return fmt.Errorf("%s: %w", prerequisite.name, errPrerequisiteConflict)
 				}
 				if prerequisite.name == envoyGatewayName {
@@ -160,6 +163,16 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 		}
 	}
 	return nil
+}
+
+func ownsPrerequisite(deployments []appsv1.Deployment, name, namespace string) bool {
+	for _, deployment := range deployments {
+		if deployment.Annotations["meta.helm.sh/release-name"] != name ||
+			deployment.Annotations["meta.helm.sh/release-namespace"] != namespace {
+			return false
+		}
+	}
+	return true
 }
 
 func gatewayControllerName(chart []byte) (string, error) {

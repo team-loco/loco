@@ -180,6 +180,7 @@ func TestWorkerReusesPinnedControllers(t *testing.T) {
 				&kube,
 				releaseArtifacts{certManager: certManager, worker: worker},
 				test.install,
+				KubernetesTarget{},
 			)
 			if !errors.Is(err, test.want) {
 				t.Fatalf("got %v, want %v", err, test.want)
@@ -207,7 +208,13 @@ func TestPrerequisiteRejectsInvalidChartNameBeforeClusterAccess(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = prerequisites(t.Context(), &Kubernetes{}, releaseArtifacts{certManager: chart, worker: worker}, true)
+		err = prerequisites(
+			t.Context(),
+			&Kubernetes{},
+			releaseArtifacts{certManager: chart, worker: worker},
+			true,
+			KubernetesTarget{},
+		)
 		if !errors.Is(err, errInvalidRelease) {
 			t.Fatalf("invalid chart name returned %v", err)
 		}
@@ -271,24 +278,50 @@ func TestPrerequisiteReleaseUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, test := range []struct {
-		name           string
-		owned, install bool
-		want           error
+		name                            string
+		owned, install, shared, current bool
+		want                            error
 	}{
-		{"apply owned", true, true, nil},
-		{"plan owned", true, false, nil},
-		{"foreign version", false, true, errPrerequisiteConflict},
+		{"apply owned", true, true, false, false, nil},
+		{"plan owned", true, false, false, false, errPrerequisiteRequired},
+		{"foreign version", false, true, false, false, errPrerequisiteConflict},
+		{"shared preflight", true, false, true, false, errPrerequisiteRequired},
+		{"shared attached", true, true, true, true, nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", testJSON)
-				name, namespace := certManagerName, certManagerName
+				name, namespace, version := certManagerName, certManagerName, "older"
+				if test.shared {
+					version = "target"
+				}
 				if strings.Contains(r.URL.Query().Get("labelSelector"), "gateway-helm") {
 					name, namespace = envoyGatewayName, testNamespace
+					if test.shared {
+						namespace = "shared-control-plane"
+						if !test.current {
+							version = "older"
+						}
+					}
 				}
 				deployment := appsv1.Deployment{
-					Name: name, Namespace: namespace,
-					Labels: map[string]string{prerequisiteVersionLabel: "older"},
+					Name:      name,
+					Namespace: namespace,
+					Labels:    map[string]string{prerequisiteVersionLabel: version},
+					Spec: appsv1.DeploymentSpec{
+						Replicas: new(int32(1)),
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Volumes: []corev1.Volume{
+									{
+										Name:      "envoy-gateway-config",
+										ConfigMap: &corev1.ConfigMapVolumeSource{Name: "mounted-gateway-config"},
+									},
+								},
+							},
+						},
+					},
+					Status: appsv1.DeploymentStatus{ReadyReplicas: 1, AvailableReplicas: 1, UpdatedReplicas: 1},
 				}
 				if test.owned {
 					deployment.Annotations = map[string]string{
@@ -296,8 +329,17 @@ func TestPrerequisiteReleaseUpgrade(t *testing.T) {
 						"meta.helm.sh/release-namespace": namespace,
 					}
 				}
-				if err := json.NewEncoder(w).
-					Encode(&appsv1.DeploymentList{Items: []appsv1.Deployment{deployment}}); err != nil {
+				var output any = &appsv1.DeploymentList{Items: []appsv1.Deployment{deployment}}
+				if !strings.HasSuffix(r.URL.Path, "/deployments") {
+					deployment.Labels[prerequisiteVersionLabel] = "target"
+					output = &deployment
+				}
+				if strings.Contains(r.URL.Path, "/configmaps/") {
+					output = &corev1.ConfigMap{
+						Data: map[string]string{"envoy-gateway.yaml": fixtureGatewayConfiguration},
+					}
+				}
+				if err := json.NewEncoder(w).Encode(output); err != nil {
 					t.Error(err)
 				}
 			}))
@@ -313,13 +355,31 @@ func TestPrerequisiteReleaseUpgrade(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", bin)
-			kube := Kubernetes{Apps: apps, Target: KubernetesTarget{Namespace: testNamespace}}
-			err = prerequisites(t.Context(), &kube, releaseArtifacts{certManager: chart, worker: worker}, test.install)
+			core, err := coreclient.NewForConfig(&rest.Config{Host: server.URL, ContentType: testJSON})
+			if err != nil {
+				t.Fatal(err)
+			}
+			kube := Kubernetes{
+				Apps:   apps,
+				Core:   core,
+				Target: KubernetesTarget{Namespace: testNamespace, ClusterUID: testClusterUID},
+			}
+			cp := KubernetesTarget{}
+			if test.shared {
+				cp = KubernetesTarget{Namespace: "shared-control-plane", ClusterUID: testClusterUID}
+			}
+			err = prerequisites(
+				t.Context(),
+				&kube,
+				releaseArtifacts{certManager: chart, worker: worker},
+				test.install,
+				cp,
+			)
 			if !errors.Is(err, test.want) {
 				t.Fatalf("got %v, want %v", err, test.want)
 			}
 			data, err := os.ReadFile(marker)
-			if test.owned && test.install {
+			if test.owned && test.install && !test.shared {
 				if err != nil || !strings.Contains(string(data), "upgrade --install cert-manager") ||
 					!strings.Contains(string(data), "upgrade --install loco-envoy-gateway") {
 					t.Fatalf("prerequisites not upgraded: %s, %v", data, err)

@@ -143,7 +143,7 @@ func PlanInstallation(ctx context.Context, config Config, resolved ResolvedRelea
 	if _, err := kube.inputs(ctx, config); err != nil {
 		plan.Blocked = append(plan.Blocked, err.Error())
 	}
-	if err := prerequisites(ctx, kube, release, false); err != nil {
+	if err := prerequisites(ctx, kube, release, false, config.ControlPlane.Kubernetes); err != nil {
 		plan.Blocked = append(plan.Blocked, err.Error())
 	}
 	if err := checkIssuer(ctx, kube, config.ControlPlane.Certificates, controlPlaneRelease); err != nil {
@@ -154,7 +154,13 @@ func PlanInstallation(ctx context.Context, config Config, resolved ResolvedRelea
 		if targetErr != nil {
 			return Plan{}, targetErr
 		}
-		if prerequisiteErr := prerequisites(ctx, target, release, false); prerequisiteErr != nil {
+		if prerequisiteErr := prerequisites(
+			ctx,
+			target,
+			release,
+			false,
+			config.ControlPlane.Kubernetes,
+		); prerequisiteErr != nil {
 			plan.Blocked = append(plan.Blocked, fmt.Sprintf("worker %s: %v", worker.Name, prerequisiteErr))
 		}
 		if issuerErr := checkIssuer(ctx, target, worker.Certificates, workerRelease); issuerErr != nil {
@@ -203,7 +209,7 @@ func ApplyControlPlane(ctx context.Context, config Config, resolved ResolvedRele
 		if err := kube.applyCRDs(ctx, release.crds); err != nil {
 			return err
 		}
-		if err := prerequisites(ctx, kube, release, true); err != nil {
+		if err := prerequisites(ctx, kube, release, true, config.ControlPlane.Kubernetes); err != nil {
 			return err
 		}
 		if err := checkIssuer(ctx, kube, config.ControlPlane.Certificates, controlPlaneRelease); err != nil {

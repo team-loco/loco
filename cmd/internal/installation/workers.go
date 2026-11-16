@@ -177,7 +177,7 @@ func (k *Kubernetes) applyWorker(
 	if err := k.applyCRDs(ctx, release.crds); err != nil {
 		return err
 	}
-	if err := prerequisites(ctx, k, release, true); err != nil {
+	if err := prerequisites(ctx, k, release, true, config.ControlPlane.Kubernetes); err != nil {
 		return err
 	}
 	if err := checkIssuer(ctx, k, worker.Certificates, workerRelease); err != nil {
