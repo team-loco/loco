@@ -16,17 +16,17 @@ func TestWorkspaceEventStream(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
 	request := &eventv1.StreamEventsRequest{OrgId: w.OrgID, WorkspaceId: w.ID, Query: "@type:workspace.updated"}
-	stream, err := p.User.Event.StreamEvents(ctx, request)
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, workspace := range []string{sibling.ID, w.ID} {
-		if _, err = p.User.Workspace.UpdateWorkspace(
+		if _, err := p.User.Workspace.UpdateWorkspace(
 			ctx,
 			&workspacev1.UpdateWorkspaceRequest{WorkspaceId: workspace, Name: new("stream-updated")},
 		); err != nil {
 			t.Fatal(err)
 		}
+	}
+	stream, err := p.User.Event.StreamEvents(ctx, request)
+	if err != nil {
+		t.Fatal(err)
 	}
 	first, err := stream.Receive()
 	if err != nil {
