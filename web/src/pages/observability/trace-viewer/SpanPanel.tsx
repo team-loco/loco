@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronRightIcon, CircleAlertIcon, PlusIcon, MinusIcon } from "lucide-react";
+import { parseAsString, useQueryStates } from "nuqs";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/design/Tabs";
 import { cn } from "@/lib/utils";
+import { useObs } from "../context";
+import { queryKeyReason, quoteValue, withToken } from "../query";
 import { SpanEvents } from "../SpanEvents";
 import { SpanLinks } from "../SpanLinks";
 import { failingSpan } from "../flame";
@@ -28,6 +30,17 @@ export function SpanPanel({
 	label: (span: TraceSpan) => string;
 }) {
 	const { color, selfTime } = useTraceResources();
+	const { tokens, text, setQuery } = useObs();
+	const [, setOpen] = useQueryStates({ trace: parseAsString, span: parseAsString });
+	// Filtering closes the drawer so the trace list shows the result.
+	const filter = (neg: boolean, key: string, value: string) => {
+		setQuery(withToken(tokens, { neg, key, value: quoteValue(value) }), text);
+		void setOpen({ trace: null, span: null });
+	};
+	const reason = (key: string) =>
+		key in selected.spanAttributes || key in selected.resourceAttributes
+			? queryKeyReason(key, "traces")
+			: `${key} isn't an attribute`;
 	const cause = useMemo(() => failingSpan(trace, selected), [trace, selected]);
 	const tabs = spanAttributes(selected);
 	const facts: [string, string][] = [
@@ -115,40 +128,48 @@ export function SpanPanel({
 								<p className="py-3 text-[12px] text-fg3">No {tab.toLowerCase()} attributes recorded.</p>
 							) : (
 								<dl className="m-0">
-									{tabs[tab].map(([key, value]) => (
-										<div
-											key={key}
-											className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2 border-b border-line py-2 text-[11.5px] last:border-0"
-										>
-											<dt className="min-w-0 truncate font-mono text-fg3" title={key}>
-												{key}
-											</dt>
-											<dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere]">{value}</dd>
-											<dd className="m-0 flex items-center gap-0.5">
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													disabled
-													title="Only traces with this value"
-													aria-label={`Only traces with this value: ${key}`}
-													className="size-5"
-												>
-													<PlusIcon className="size-3" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													disabled
-													title="Hide traces with this value"
-													aria-label={`Hide traces with this value: ${key}`}
-													className="size-5"
-												>
-													<MinusIcon className="size-3" />
-												</Button>
-												<SoonTag />
-											</dd>
-										</div>
-									))}
+									{tabs[tab].map(([key, value]) => {
+										const why = reason(key);
+										return (
+											<div
+												key={key}
+												className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2 border-b border-line py-2 text-[11.5px] last:border-0"
+											>
+												<dt className="min-w-0 truncate font-mono text-fg3" title={key}>
+													{key}
+												</dt>
+												<dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere]">{value}</dd>
+												<dd className="m-0 flex items-center gap-0.5">
+													<Button
+														variant="ghost"
+														size="icon-sm"
+														disabled={why !== null}
+														title={why ?? "Only traces with this value"}
+														aria-label={`Only traces with this value: ${key}`}
+														className="size-5"
+														onClick={() => {
+															filter(false, key, value);
+														}}
+													>
+														<PlusIcon className="size-3" />
+													</Button>
+													<Button
+														variant="ghost"
+														size="icon-sm"
+														disabled={why !== null}
+														title={why ?? "Hide traces with this value"}
+														aria-label={`Hide traces with this value: ${key}`}
+														className="size-5"
+														onClick={() => {
+															filter(true, key, value);
+														}}
+													>
+														<MinusIcon className="size-3" />
+													</Button>
+												</dd>
+											</div>
+										);
+									})}
 								</dl>
 							)}
 						</TabsContent>

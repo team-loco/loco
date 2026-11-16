@@ -31,22 +31,20 @@ export interface FieldDef {
 	label: string;
 	views: ObservabilityView[];
 	negate: ObservabilityView[];
-	/** Views that apply only the first filter on this field. */
-	single: ObservabilityView[];
 }
 
 const ALL_VIEWS: ObservabilityView[] = ["logs", "metrics", "traces", "events"];
 
 export const FIELDS: FieldDef[] = [
-	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, single: [] },
-	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"], single: [] },
-	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"], single: [] },
-	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"], single: [] },
-	{ key: "region", label: "Region", views: ["logs", "metrics"], negate: ["logs", "metrics"], single: [] },
-	{ key: "type", label: "Event type", views: ["events"], negate: ["events"], single: [] },
-	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"], single: [] },
-	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"], single: ["traces"] },
-	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [], single: [] },
+	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS },
+	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"] },
+	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"] },
+	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"] },
+	{ key: "region", label: "Region", views: ["logs", "metrics"], negate: ["logs", "metrics"] },
+	{ key: "type", label: "Event type", views: ["events"], negate: ["events"] },
+	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"] },
+	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"] },
+	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [] },
 ];
 
 const KEY_ALIASES: Record<string, string> = { pod: "replica", trace_id: "trace" };
@@ -89,14 +87,18 @@ export function hasBoolean(text: string): boolean {
 	return BOOLEAN_RE.test(text.replace(QUOTED_RE, '""'));
 }
 
-// keep in sync with the built-in fields and reserved keys in internal/clickhouse/log_filter.go
-const BUILTIN_KEYS = new Set(["level", "trace", "resource", "replica", "build", "region"]);
+// keep in sync with the built-in fields and reserved keys in internal/clickhouse/log_filter.go and trace_filter.go
+const BUILTIN_KEYS = {
+	logs: new Set(["level", "trace", "resource", "replica", "build", "region"]),
+	traces: new Set(["status", "duration", "trace", "resource"]),
+};
+const RESERVED_HINT = { logs: "@resource or @region", traces: "@resource" };
 
-/** Why an attribute key can't be filtered with @key:value, or null when it can. */
-export function queryKeyReason(key: string): string | null {
-	if (BUILTIN_KEYS.has(key)) return `@${key} is a built-in field, not this attribute`;
+/** Why an attribute key can't be filtered with @key:value in view, or null when it can. */
+export function queryKeyReason(key: string, view: "logs" | "traces"): string | null {
+	if (BUILTIN_KEYS[view].has(key)) return `@${key} is a built-in field, not this attribute`;
 	if (key.startsWith("loco.") && !key.startsWith("loco.io/"))
-		return `Loco sets ${key}; filter with @resource or @region`;
+		return `Loco sets ${key}; filter with ${RESERVED_HINT[view]}`;
 	if (!QUERY_KEY_RE.test(key)) return `${key} can't be written as a query key`;
 	return null;
 }
@@ -177,6 +179,12 @@ export function sameToken(a: Token, b: Token): boolean {
 	return a.key === b.key && a.neg === b.neg && a.value.toLowerCase() === b.value.toLowerCase();
 }
 
+/** Adds t to tokens, replacing its opposite; tokens already holding t stay as they are. */
+export function withToken(tokens: Token[], t: Token): Token[] {
+	if (tokens.some((x) => sameToken(x, t))) return tokens;
+	return [...tokens.filter((x) => !(x.key === t.key && x.value === t.value)), t];
+}
+
 export interface TokenSupport {
 	ok: boolean;
 	reason: string;
@@ -184,19 +192,17 @@ export interface TokenSupport {
 
 const SUPPORTED: TokenSupport = { ok: true, reason: "" };
 
+// The API parses the query for these views, so any field applies.
+const QUERY_VIEWS = new Set<ObservabilityView>(["logs", "traces"]);
+
 export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSupport[] {
-	const seen = new Set<string>();
 	return tokens.map((t) => {
-		if (view === "logs") return SUPPORTED;
+		if (QUERY_VIEWS.has(view)) return SUPPORTED;
 		const def = fieldDef(t.key);
 		if (!def?.views.includes(view)) {
 			return { ok: false, reason: `@${t.key} doesn't apply to ${view}` };
 		}
 		if (t.neg && !def.negate.includes(view)) return { ok: false, reason: `Excluding @${t.key} isn't supported yet` };
-		if (def.single.includes(view) && seen.has(t.key)) {
-			return { ok: false, reason: `Only the first @${t.key} filter applies` };
-		}
-		seen.add(t.key);
 		return SUPPORTED;
 	});
 }

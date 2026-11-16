@@ -28,8 +28,8 @@ import { useObs } from "./context";
 import { fmtTs } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
-import { QUERY_PARSERS, queryStr, sameToken, type FieldKey } from "./query";
-import { QueryBar } from "./QueryBar";
+import { QUERY_PARSERS, queryError, queryStr, sameToken, type FieldKey } from "./query";
+import { QueryBar, QueryErrorLine } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
 import { bucketSeconds } from "./trace-overview";
@@ -246,6 +246,16 @@ function TraceSession({
 					title="Traces aren't available here yet"
 					body="This installation has no trace store connected. Traces your services send over OTLP show up here once it does."
 				/>
+			</>
+		);
+	}
+	const rejected = browse.error === null ? null : queryError(browse.error, query);
+	if (rejected !== null) {
+		return (
+			<>
+				{header}
+				<QueryBar valueCounts={valueCounts} />
+				<QueryErrorLine error={rejected} />
 			</>
 		);
 	}
