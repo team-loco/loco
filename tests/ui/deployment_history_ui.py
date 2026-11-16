@@ -139,7 +139,6 @@ with session(out) as browser:
                 route.continue_()
 
         context.route("**/loco.deployment.v1.DeploymentService/ListDeployments", history)
-        context.tracing.start(screenshots=False, snapshots=False)
         active_page, active_context = page, context
         stage, user = "history", "owner"
         try:
@@ -285,7 +284,6 @@ with session(out) as browser:
             expect(page.get_by_role("button", name="Save", exact=True)).to_be_visible()
             page.get_by_role("button", name="Discard", exact=True).click()
             member_context, member_page, member_errors = open_page(browser, "member", state=state)
-            member_context.tracing.start(screenshots=False, snapshots=False)
             active_page, active_context = member_page, member_context
             stage, user = "reader-settings", "member"
             member_page.goto(state["ui_url"] + base + "/settings?scope=workspace")
