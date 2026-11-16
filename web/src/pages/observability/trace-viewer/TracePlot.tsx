@@ -52,14 +52,7 @@ export function TracePlot({
 	const cursorRef = useRef<HTMLDivElement>(null);
 	const dragRef = useRef<{ x: number; zoom: Zoom } | null>(null);
 	const suppressClickRefRef = useRef(false);
-	const markers = {
-		trace,
-		zoom,
-		logs,
-		highlighted: highlightedLogs,
-		onHover: onHoverLog,
-		onOpen: onOpenLog,
-	};
+	const markers = { trace, zoom, logs, highlighted: highlightedLogs, onHover: onHoverLog, onOpen: onOpenLog };
 	const width = zoom.b - zoom.a;
 	const offset = (f: number) => durationLabel(BigInt(Math.round(Number(trace.duration) * f)));
 	return (
@@ -120,11 +113,7 @@ export function TracePlot({
 						};
 					}}
 					onPointerDown={(e) => {
-						if (
-							width >= 1 ||
-							e.button !== 0 ||
-							(e.target as HTMLElement).closest('[role="separator"], [data-trace-axis], [role="slider"]') !== null
-						)
+						if (width >= 1 || e.button !== 0 || (e.target as HTMLElement).closest('[role="separator"], [data-trace-axis], [role="slider"]') !== null)
 							return;
 						suppressClickRefRef.current = false;
 						dragRef.current = { x: e.clientX, zoom };

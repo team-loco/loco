@@ -25,7 +25,6 @@ export function TimeAxis({
 			<Minimap zoom={zoom} onZoom={onZoom} highlight={highlight} />
 			<div
 				data-trace-axis
-				aria-label="Trace time axis"
 				title="Drag across the time axis to zoom"
 				className="relative h-5 touch-none cursor-col-resize select-none font-mono text-[11px] text-fg3 hover:bg-panel2"
 				onPointerDown={(e) => {
@@ -66,7 +65,7 @@ export function TimeAxis({
 					<span
 						key={String(t.nanos)}
 						className={cn(
-							"pointer-events-none absolute whitespace-nowrap",
+							"tv-zoom-position pointer-events-none absolute whitespace-nowrap",
 							index > 0 && index < ticks.length - 1 && "hidden sm:inline",
 							index === 0 ? "" : index === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
 						)}

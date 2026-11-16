@@ -197,7 +197,7 @@ export function Waterfall({
 							{ticks.map((t) => (
 								<i
 									key={String(t.nanos)}
-									className="absolute inset-y-0 border-l border-dashed border-line2"
+									className="tv-zoom-position absolute inset-y-0 border-l border-dashed border-line2"
 									style={{ left: `${String(t.left * 100)}%` }}
 								/>
 							))}

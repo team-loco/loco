@@ -1,4 +1,3 @@
-import type { SetTraceZoom } from "./useTraceZoom";
 import { useMemo } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronRightIcon, CircleAlertIcon, PlusIcon, MinusIcon } from "lucide-react";
@@ -12,7 +11,7 @@ import { useObs } from "../context";
 import { queryKeyReason, quoteValue, withToken } from "../query";
 import { SpanEvents } from "../SpanEvents";
 import { SpanLinks } from "../SpanLinks";
-import { zoomTo, failingSpan } from "../flame";
+import { failingSpan } from "../flame";
 import { durationLabel, spanError, spanStart, type TraceSummary } from "../traces";
 import { useTraceResources } from "./TraceColors";
 import { spanAttributes, ATTRIBUTE_TABS } from "./attributes";
@@ -23,21 +22,16 @@ export function SpanPanel({
 	missing,
 	select,
 	label,
-	onZoom,
 }: {
 	trace: TraceSummary;
 	selected: TraceSpan;
 	missing: boolean;
 	select: (span: TraceSpan) => void;
 	label: (span: TraceSpan) => string;
-	onZoom: SetTraceZoom;
 }) {
 	const { color, selfTime } = useTraceResources();
 	const { tokens, text, setQuery } = useObs();
-	const [, setOpen] = useQueryStates({
-		trace: parseAsString,
-		span: parseAsString,
-	});
+	const [, setOpen] = useQueryStates({ trace: parseAsString, span: parseAsString });
 	// Filtering closes the drawer so the trace list shows the result.
 	const filter = (neg: boolean, key: string, value: string) => {
 		setQuery(withToken(tokens, { neg, key, value: quoteValue(value) }), text);
@@ -73,15 +67,6 @@ export function SpanPanel({
 					<Badge tone={spanError(selected) ? "bad" : "muted"}>{spanError(selected) ? "Error" : "OK"}</Badge>
 				</div>
 				<span className="text-[12px] text-fg3">{label(selected)}</span>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => {
-						onZoom(zoomTo(trace, selected));
-					}}
-				>
-					Zoom to span
-				</Button>
 			</section>
 			<section aria-label="Span details" className="rounded-lg border border-line bg-background p-3.5">
 				<h4 className="m-0 mb-2 text-[12px] font-medium text-fg2">Details</h4>

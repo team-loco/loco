@@ -51,7 +51,7 @@ export function FlameGraph({
 					<span
 						key={String(t.nanos)}
 						aria-hidden="true"
-						className="absolute inset-y-0 border-l border-dashed border-line2"
+						className="tv-zoom-position absolute inset-y-0 border-l border-dashed border-line2"
 						style={{ left: `${String(t.left * PERCENT)}%` }}
 					/>
 				))}

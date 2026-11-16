@@ -43,7 +43,7 @@ export function TraceDrawer({
 }) {
 	const { orgId, resourceById } = useObs();
 	const limits = useOrgLimits(orgId);
-	const { zoom, change: setZoom } = useTraceZoom();
+	const { zoom, change: setZoom, drawerRef } = useTraceZoom();
 	const [pinned, setPinned] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
 	const highlight = hovered ?? pinned;
@@ -64,6 +64,7 @@ export function TraceDrawer({
 				}}
 			>
 				<SheetContent
+					ref={drawerRef}
 					size="full"
 					className="data-[side=right]:w-[min(1480px,calc(100vw-16px))]"
 					showCloseButton={false}
