@@ -19,6 +19,14 @@ func TestRead(t *testing.T) {
 		}
 	})
 
+	t.Run("directory with a HEAD file outside a repository", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, ".git", "HEAD"), "ref: refs/heads/main\n")
+		if got := read(t, dir); got != (Commit{}) {
+			t.Fatalf("Read = %+v, want no commit", got)
+		}
+	})
+
 	t.Run("repository without commits", func(t *testing.T) {
 		dir := t.TempDir()
 		runGit(t, dir, "init", "-q", "-b", "main")
@@ -26,6 +34,28 @@ func TestRead(t *testing.T) {
 			t.Fatalf("Read = %+v, want no commit", got)
 		}
 	})
+
+	for _, corruption := range []string{"commit object", "HEAD", "config"} {
+		t.Run("corrupt "+corruption, func(t *testing.T) {
+			dir := t.TempDir()
+			runGit(t, dir, "init", "-q", "-b", "main")
+			runGit(t, dir, "commit", "--allow-empty", "-q", "-m", "fixture")
+			sha := runGit(t, dir, "rev-parse", "HEAD")
+			switch corruption {
+			case "commit object":
+				if err := os.Remove(filepath.Join(dir, ".git", "objects", sha[:2], sha[2:])); err != nil {
+					t.Fatal(err)
+				}
+			case "HEAD":
+				writeFile(t, filepath.Join(dir, ".git", "HEAD"), "invalid HEAD\n")
+			case "config":
+				writeFile(t, filepath.Join(dir, ".git", "config"), "[invalid\n")
+			}
+			if _, err := Read(t.Context(), dir); err == nil || !strings.Contains(err.Error(), "git") {
+				t.Fatalf("Read = %v, want a contextual repository read error", err)
+			}
+		})
+	}
 
 	dir := t.TempDir()
 	runGit(t, dir, "init", "-q", "-b", "main")
