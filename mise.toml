@@ -1,6 +1,7 @@
 min_version = "2026.10.19"
 
 [tools]
+flux2 = "2.10.0"
 go = "1.27.4"
 bun = "1.4.4"
 uv = "0.13.7"
@@ -366,7 +367,7 @@ description = "Print the release.json of the newest main commit, or --commit, fr
 run = "python tools/platform-release/release.py main"
 
 [tasks."release:local"]
-description = "Build the checkout's images, charts and CRD bundles into a registry with --push, --address, --username and --password, and print the release.json naming them"
+description = "Build and push the checkout's images, charts, CRDs and Flux bundle with --push, --address, --username and --password; print its release.json"
 run = "python tools/platform-release/release.py local"
 
 [tasks."test:platform-render"]

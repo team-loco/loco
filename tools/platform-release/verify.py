@@ -5,7 +5,7 @@ import tempfile
 
 import release
 
-FIXTURE_VERSION = '0.0.0-rc.0'
+FIXTURE_VERSION = '0.0.0'
 FIXTURE_COMMIT = 'a' * 40
 FIXTURE_DIGEST = 'sha256:' + 'b' * 64
 
@@ -16,7 +16,7 @@ def documents(data):
 
 
 def main():
-    names = (*release.CHARTS, 'loco-applications-crd', 'loco-builds-crd', 'loco-gateway-crd', 'cert-manager-chart')
+    names = (*release.CHARTS, 'loco-applications-crd', 'loco-builds-crd', 'loco-gateway-crd', 'cert-manager-chart', 'gateway-chart')
     refs = {name: 'ghcr.io/example/platform/' + name + '@' + FIXTURE_DIGEST for name in names}
     images = {name: 'ghcr.io/example/platform-' + name + '@' + FIXTURE_DIGEST for name in release.IMAGES}
     files = release.bundle(FIXTURE_VERSION, FIXTURE_COMMIT, refs, images)
@@ -26,12 +26,16 @@ def main():
             path = temp / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-        for layer in ('', 'crds', 'releases'):
-            rendered = release.run('kustomize', 'build', str(temp / layer))
+        for layer in ('control-plane', 'worker', 'all', 'layers/namespaces', 'layers/crds', 'layers/infra', 'layers/control-plane', 'layers/worker'):
+            if layer.startswith('layers/'):
+                name = layer.split('/')[1]
+                rendered = release.run('flux', 'build', 'kustomization', 'loco-' + name, '--dry-run', '--path', str(temp / layer), '--kustomization-file', str(temp / 'all' / (name + '.yaml')))
+            else:
+                rendered = release.run('kustomize', 'build', str(temp / layer))
             if not documents(rendered):
                 raise RuntimeError('bundle layer rendered no resources')
         name = 'loco-worker'
-        hr = json.loads(files['releases/' + name + '-helmrelease.yaml'])
+        hr = json.loads(files['layers/worker/' + name + '-helmrelease.yaml'])
         values = hr['spec']['values']
         values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
         values['global'] = {'region': 'release-test-region', 'exporter': {'endpoint': 'https://ingest.release-test.example.invalid'}}
@@ -62,6 +66,9 @@ def main():
             'obsProxy': {'image': {'repository': images['obs-proxy'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'},
                          'ingest': {'clickhouse': {'existingSecret': {'name': 'ingest'}, 'migratorExistingSecret': {'name': 'migrator'}}}},
         }
+        cp_pinned = json.loads(files['layers/control-plane/loco-control-plane-helmrelease.yaml'])['spec']['values']
+        for component in ('api', 'ui', 'obsProxy'):
+            cp_values[component]['image'] = cp_pinned[component]['image']
         cp_path = temp / 'control-plane-values.json'
         cp_path.write_text(json.dumps(cp_values))
         cp_resources = documents(release.run('helm', 'template', 'regional', str(release.ROOT / 'charts/loco-control-plane'), '--namespace', 'loco-system', '--values', str(cp_path)))

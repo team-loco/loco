@@ -169,7 +169,8 @@ func parseManifest(reader io.Reader) (Manifest, error) {
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return Manifest{}, errInvalidRelease
 	}
-	if manifest.ConfigVersion != ConfigVersion || !semver.IsValid("v"+manifest.Version) ||
+	if (manifest.ConfigVersion != 0 && manifest.ConfigVersion != ConfigVersion) ||
+		!semver.IsValid("v"+manifest.Version) ||
 		!commitReference.MatchString(manifest.CoreCommit) {
 		return Manifest{}, errInvalidRelease
 	}
