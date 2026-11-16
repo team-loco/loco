@@ -115,7 +115,13 @@ func TestCICallsEveryReusableWorkflow(t *testing.T) {
 }
 
 func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
-	const targetArch = "amd64"
+	const (
+		targetOS          = "linux"
+		targetArch        = "amd64"
+		operatorTools     = "operator-tools"
+		nativeRunnerError = "native Linux runner"
+	)
+	toolNames := []string{"helm", "kubectl"}
 	var workflow struct {
 		Jobs map[string]struct {
 			Steps []struct {
@@ -127,7 +133,7 @@ func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
 	readYAML(t, filepath.Join(workflowsDir, "images.yml"), &workflow)
 	var script string
 	for _, step := range workflow.Jobs["go"].Steps {
-		if step.ID == "operator-tools" {
+		if step.ID == operatorTools {
 			script = step.Run
 		}
 	}
@@ -142,11 +148,11 @@ func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
 		interpreter bool
 		wantError   string
 	}{
-		{"native Linux", "linux", targetArch, 62, false, ""},
-		{"Darwin host", "darwin", targetArch, 62, false, "native Linux runner"},
-		{"cross compilation", "linux", "arm64", 62, false, "native Linux runner"},
-		{"wrong binary architecture", "linux", targetArch, 183, false, "does not match amd64"},
-		{"dynamic binary", "linux", targetArch, 62, true, "statically linked"},
+		{"native Linux", targetOS, targetArch, 62, false, ""},
+		{"Darwin host", "darwin", targetArch, 62, false, nativeRunnerError},
+		{"cross compilation", targetOS, "arm64", 62, false, nativeRunnerError},
+		{"wrong binary architecture", targetOS, targetArch, 183, false, "does not match amd64"},
+		{"dynamic binary", targetOS, targetArch, 62, true, "statically linked"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -177,7 +183,7 @@ printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 			if tc.interpreter {
 				binary.LittleEndian.PutUint32(elf[64:], 3)
 			}
-			for _, tool := range []string{"helm", "kubectl"} {
+			for _, tool := range toolNames {
 				require.NoError(t, os.WriteFile(filepath.Join(pinned, tool), elf, 0o700))
 				require.NoError(t, os.WriteFile(filepath.Join(bin, tool), []byte("unverified PATH tool"), 0o700))
 			}
@@ -194,12 +200,12 @@ printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 				return
 			}
 			require.NoError(t, err, string(output))
-			staged, err := os.ReadDir(filepath.Join(bin, "operator-tools"))
+			staged, err := os.ReadDir(filepath.Join(bin, operatorTools))
 			require.NoError(t, err)
 			require.Len(t, staged, 2)
-			assert.Equal(t, []string{"helm", "kubectl"}, []string{staged[0].Name(), staged[1].Name()})
+			assert.Equal(t, toolNames, []string{staged[0].Name(), staged[1].Name()})
 			for _, file := range staged {
-				data, readErr := os.ReadFile(filepath.Join(bin, "operator-tools", file.Name()))
+				data, readErr := os.ReadFile(filepath.Join(bin, operatorTools, file.Name()))
 				require.NoError(t, readErr)
 				assert.Equal(t, elf, data, file.Name())
 			}
