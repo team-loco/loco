@@ -88,7 +88,6 @@ jobs:
           token: ${{ secrets.BUF_TOKEN }}
           lint: true
           breaking: ${{ steps.labels.outputs.breaking == 'true' }}
-          breaking_against_registry: true
 
       # The installed CLI can lag main by many commits; compare with the newest release too.
       # Main can hold unreleased break-buf changes, so only breaks this pull request adds fail.
