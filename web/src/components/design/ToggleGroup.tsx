@@ -1,5 +1,5 @@
-import { LayoutGroup, MotionConfig, motion } from "motion/react";
-import { createContext, use, useId, useState, type ReactNode } from "react";
+import { SegmentedScope, SegmentedThumb, segmentedGroupClass, segmentedItemClass } from "./Segmented";
+import { createContext, use, useState, type ReactNode } from "react";
 
 import { ToggleGroup as ToggleGroupBase, ToggleGroupItem as ToggleGroupItemBase } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
@@ -23,29 +23,26 @@ function ToggleGroup({
 	variant?: ToggleGroupVariant | undefined;
 }) {
 	const segmented = variant === "segmented";
-	const id = useId();
 	const [localValue, setLocalValue] = useState(defaultValue);
 	const values = value ?? localValue;
 	return (
 		<SegmentedContext value={{ segmented, values, multiple: props.multiple ?? false }}>
-			<MotionConfig reducedMotion="user">
-				<LayoutGroup id={id}>
-					<ToggleGroupBase
-						data-segmented={segmented || undefined}
-						variant={segmented ? "default" : variant}
-						spacing={segmented ? 0.5 : spacing}
-						className={cn(segmented && "rounded-control bg-panel2 p-0.5", className)}
-						value={values}
-						onValueChange={(next, details) => {
-							if (value === undefined) setLocalValue(next);
-							onValueChange?.(next, details);
-						}}
-						{...props}
-					>
-						{children}
-					</ToggleGroupBase>
-				</LayoutGroup>
-			</MotionConfig>
+			<SegmentedScope>
+				<ToggleGroupBase
+					data-segmented={segmented || undefined}
+					variant={segmented ? "default" : variant}
+					spacing={segmented ? 0.5 : spacing}
+					className={cn(segmented && segmentedGroupClass, className)}
+					value={values}
+					onValueChange={(next, details) => {
+						if (value === undefined) setLocalValue(next);
+						onValueChange?.(next, details);
+					}}
+					{...props}
+				>
+					{children}
+				</ToggleGroupBase>
+			</SegmentedScope>
 		</SegmentedContext>
 	);
 }
@@ -62,21 +59,13 @@ function ToggleGroupItem({
 		<ToggleGroupItemBase
 			className={cn(
 				"cursor-pointer disabled:pointer-events-auto disabled:cursor-not-allowed data-disabled:pointer-events-auto data-disabled:cursor-not-allowed",
-				segmented &&
-					"relative isolate h-[26px] gap-[7px] rounded-control-inner! border border-transparent px-2.5 text-[12.5px] font-normal text-fg2 hover:bg-transparent hover:text-foreground aria-pressed:bg-transparent aria-pressed:text-foreground data-pressed:bg-transparent data-pressed:text-foreground",
+				segmented && segmentedItemClass,
 				className,
 			)}
 			{...props}
 		>
 			{segmented && selected && props.value !== undefined && (
-				<motion.span
-					aria-hidden
-					data-slot="segmented-indicator"
-					layoutId={multiple ? props.value : "selection"}
-					initial={false}
-					transition={{ type: "tween", duration: 0.18, ease: "easeOut" }}
-					className="pointer-events-none absolute -inset-px -z-10 rounded-control-inner bg-raise shadow-xs ring-1 ring-line dark:shadow-none dark:ring-line2"
-				/>
+				<SegmentedThumb value={multiple ? props.value : "selection"} />
 			)}
 			{children}
 			{count !== undefined && <span className="text-[11px] text-fg3">{count}</span>}

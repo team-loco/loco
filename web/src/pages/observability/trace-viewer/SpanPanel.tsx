@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronRightIcon, CircleAlertIcon, PlusIcon, MinusIcon } from "lucide-react";
 import { parseAsString, useQueryStates } from "nuqs";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/design/Tabs";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
 import { queryKeyReason, quoteValue, withToken } from "../query";
@@ -43,7 +43,6 @@ export function SpanPanel({
 			: `${key} isn't an attribute`;
 	const cause = useMemo(() => failingSpan(trace, selected), [trace, selected]);
 	const tabs = spanAttributes(selected);
-	const [attributeTab, setAttributeTab] = useState<(typeof ATTRIBUTE_TABS)[number]>("Attributes");
 	const facts: [string, string][] = [
 		["duration", durationLabel(selected.durationNanos)],
 		["self time", durationLabel(selfTime(selected))],
@@ -115,25 +114,16 @@ export function SpanPanel({
 			<SpanEvents span={selected} />
 			<SpanLinks span={selected} />
 			<section aria-label="Span attributes" className="min-w-0">
-				<div>
-					<ToggleGroup
-						variant="segmented"
-						aria-label="Span detail tabs"
-						className="max-w-full overflow-x-auto"
-						value={[attributeTab]}
-						onValueChange={(v) => {
-							const next = ATTRIBUTE_TABS.find((t) => t === v[0]);
-							if (next !== undefined) setAttributeTab(next);
-						}}
-					>
+				<Tabs defaultValue="Attributes" key={selected.spanId}>
+					<TabsList aria-label="Span detail tabs" variant="segmented" className="max-w-full overflow-x-auto">
 						{ATTRIBUTE_TABS.map((tab) => (
-							<ToggleGroupItem key={tab} value={tab} className="px-2 text-[12px]">
+							<TabsTrigger key={tab} value={tab} className="tv-stab px-2 text-[12px]">
 								{tab}
-							</ToggleGroupItem>
+							</TabsTrigger>
 						))}
-					</ToggleGroup>
+					</TabsList>
 					{ATTRIBUTE_TABS.map((tab) => (
-						<div key={tab} hidden={tab !== attributeTab} className="pt-2">
+						<TabsContent key={tab} value={tab} className="pt-2">
 							{tabs[tab].length === 0 ? (
 								<p className="py-3 text-[12px] text-fg3">No {tab.toLowerCase()} attributes recorded.</p>
 							) : (
@@ -182,9 +172,9 @@ export function SpanPanel({
 									})}
 								</dl>
 							)}
-						</div>
+						</TabsContent>
 					))}
-				</div>
+				</Tabs>
 			</section>
 		</aside>
 	);

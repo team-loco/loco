@@ -133,14 +133,7 @@ export function TraceLogs({
 				/>
 			</div>
 			<div className="min-[1100px]:min-h-0 min-[1100px]:overflow-auto">
-				<SpanPanel
-					key={selected.spanId}
-					trace={trace}
-					selected={selected}
-					missing={missing}
-					select={select}
-					label={label}
-				/>
+				<SpanPanel trace={trace} selected={selected} missing={missing} select={select} label={label} />
 			</div>
 		</div>
 	);

@@ -7,6 +7,7 @@ import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@/components/design/Button";
 import { Spinner } from "@/components/design/Spinner";
+import { Tabs, TabsList, TabsTrigger, TabsContent, TabsCount } from "@/components/design/Tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatClock } from "@/lib/time";
@@ -99,37 +100,36 @@ export function TraceLogPanel({
 					}}
 				/>
 			)}
-			<div className="flex min-h-0 flex-1 flex-col">
+			<Tabs
+				value={tab}
+				onValueChange={(value) => {
+					onTab(String(value));
+				}}
+				className="flex min-h-0 flex-1 flex-col"
+			>
 				<div className="flex flex-wrap items-center min-h-11 gap-2 border-b border-line px-2">
-					<ToggleGroup
-						variant="segmented"
-						aria-label="Trace bottom panel"
-						value={[tab]}
-						onValueChange={(v) => {
-							if (v[0]) {
-								onTab(v[0]);
-								onCollapsed(false);
-							}
-						}}
-					>
-						<ToggleGroupItem
+					<TabsList aria-label="Trace bottom panel" variant="segmented" className="w-auto">
+						<TabsTrigger
 							value="logs"
-							count={`${String(logs.rows.length)}${more ? "+" : ""}`}
 							onClick={() => {
 								onCollapsed(false);
 							}}
 						>
-							Logs
-						</ToggleGroupItem>
-						<ToggleGroupItem
+							Logs{" "}
+							<TabsCount>
+								{logs.rows.length}
+								{more ? "+" : ""}
+							</TabsCount>
+						</TabsTrigger>
+						<TabsTrigger
 							value="infra"
 							onClick={() => {
 								onCollapsed(false);
 							}}
 						>
 							Infrastructure
-						</ToggleGroupItem>
-					</ToggleGroup>
+						</TabsTrigger>
+					</TabsList>
 					{tab === "logs" && !collapsed && (
 						<>
 							<ToggleGroup
@@ -167,117 +167,112 @@ export function TraceLogPanel({
 				</div>
 				{!collapsed && (
 					<>
-						{tab === "logs" && (
-							<div data-trace-log-scroll className="min-h-0 flex-1 overflow-auto">
-								{opened !== null ? (
-									<LogDetail
-										row={opened}
-										onFilterToken={(token) => {
-											goTo("logs", {
-												range: { kind: "absolute", from: logs.from, to: logs.to },
-												tokens:
-													token.key === "trace" ? [token] : [{ key: "trace", value: trace.id, neg: false }, token],
-												focusTs: opened.ts,
-											});
-										}}
-										words={[]}
-										columns={[]}
-										onAround={() => {
-											goTo("logs", {
-												range: aroundWindow(opened.ts, Date.now()),
-												tokens: [{ key: "trace", value: trace.id, neg: false }],
-												focusTs: opened.ts,
-											});
-										}}
-										onPrev={null}
-										onNext={null}
-										onClose={() => {
-											onOpen(null);
-										}}
-									/>
-								) : (
-									<section aria-label="Logs in this trace" className="min-w-0">
-										{logs.isLoading && (
-											<p role="status" className="flex items-center gap-2 px-3 text-fg3">
-												<Spinner />
-												Loading logs…
-											</p>
-										)}
-										{logs.error !== null && (
-											<p role="alert" className="px-3 text-bad-fg">
-												{getErrorMessage(logs.error, "Couldn’t load trace logs")}
-											</p>
-										)}
-										{!logs.isLoading && logs.error === null && rows.length === 0 && (
-											<p className="px-3 py-4 text-[12px] text-fg3">
-												{more
-													? "No matching lines among the loaded logs. Open in Logs to search the full trace."
-													: scope === "span"
-														? "No logs from this span or its children."
-														: "No log lines carry this trace ID."}
-											</p>
-										)}
-										<ol className="m-0 list-none p-0">
-											{rows.map((row) => (
-												<li key={row.key}>
-													<button
-														type="button"
-														aria-label={`Open log: ${row.entry.body}`}
-														data-log-key={row.key}
-														onMouseEnter={() => {
-															onHover(row);
-														}}
-														onMouseMove={() => {
-															onHover(row);
-														}}
-														onMouseLeave={() => {
-															onHover(null);
-														}}
-														onFocus={() => {
-															onHover(row);
-														}}
-														onBlur={() => {
-															onHover(null);
-														}}
-														onClick={() => {
-															onOpen(row);
-														}}
-														className={cn(
-															"grid w-full grid-cols-[minmax(0,1fr)_80px_44px] sm:grid-cols-[minmax(90px,128px)_66px_44px_minmax(0,1fr)] items-baseline gap-2 border-b border-line px-3 py-1.5 text-left font-mono text-[11px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-															highlighted.has(row.key) && "bg-info/10 shadow-[inset_3px_0_0_var(--info)]",
-														)}
-													>
-														<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
-														<span className="text-fg3">+{durationLabel(logOffset(trace, row.entry.timestamp))}</span>
-														<span className={levelStyle(row.level).body}>{row.label}</span>
-														<span className="col-span-3 min-w-0 sm:col-span-1 [overflow-wrap:anywhere]">
-															<span className="mr-2 inline-flex items-center gap-1 text-fg3">
-																<i className="size-1.5 rounded-full" style={{ background: row.color }} />
-																{row.resourceName}
-															</span>
-															{row.entry.body}
+						<TabsContent data-trace-log-scroll value="logs" className="min-h-0 flex-1 overflow-auto">
+							{opened !== null ? (
+								<LogDetail
+									row={opened}
+									onFilterToken={(token) => {
+										goTo("logs", {
+											range: { kind: "absolute", from: logs.from, to: logs.to },
+											tokens: token.key === "trace" ? [token] : [{ key: "trace", value: trace.id, neg: false }, token],
+											focusTs: opened.ts,
+										});
+									}}
+									words={[]}
+									columns={[]}
+									onAround={() => {
+										goTo("logs", {
+											range: aroundWindow(opened.ts, Date.now()),
+											tokens: [{ key: "trace", value: trace.id, neg: false }],
+											focusTs: opened.ts,
+										});
+									}}
+									onPrev={null}
+									onNext={null}
+									onClose={() => {
+										onOpen(null);
+									}}
+								/>
+							) : (
+								<section aria-label="Logs in this trace" className="min-w-0">
+									{logs.isLoading && (
+										<p role="status" className="flex items-center gap-2 px-3 text-fg3">
+											<Spinner />
+											Loading logs…
+										</p>
+									)}
+									{logs.error !== null && (
+										<p role="alert" className="px-3 text-bad-fg">
+											{getErrorMessage(logs.error, "Couldn’t load trace logs")}
+										</p>
+									)}
+									{!logs.isLoading && logs.error === null && rows.length === 0 && (
+										<p className="px-3 py-4 text-[12px] text-fg3">
+											{more
+												? "No matching lines among the loaded logs. Open in Logs to search the full trace."
+												: scope === "span"
+													? "No logs from this span or its children."
+													: "No log lines carry this trace ID."}
+										</p>
+									)}
+									<ol className="m-0 list-none p-0">
+										{rows.map((row) => (
+											<li key={row.key}>
+												<button
+													type="button"
+													aria-label={`Open log: ${row.entry.body}`}
+													data-log-key={row.key}
+													onMouseEnter={() => {
+														onHover(row);
+													}}
+													onMouseMove={() => {
+														onHover(row);
+													}}
+													onMouseLeave={() => {
+														onHover(null);
+													}}
+													onFocus={() => {
+														onHover(row);
+													}}
+													onBlur={() => {
+														onHover(null);
+													}}
+													onClick={() => {
+														onOpen(row);
+													}}
+													className={cn(
+														"grid w-full grid-cols-[minmax(0,1fr)_80px_44px] sm:grid-cols-[minmax(90px,128px)_66px_44px_minmax(0,1fr)] items-baseline gap-2 border-b border-line px-3 py-1.5 text-left font-mono text-[11px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+														highlighted.has(row.key) && "bg-info/10 shadow-[inset_3px_0_0_var(--info)]",
+													)}
+												>
+													<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
+													<span className="text-fg3">+{durationLabel(logOffset(trace, row.entry.timestamp))}</span>
+													<span className={levelStyle(row.level).body}>{row.label}</span>
+													<span className="col-span-3 min-w-0 sm:col-span-1 [overflow-wrap:anywhere]">
+														<span className="mr-2 inline-flex items-center gap-1 text-fg3">
+															<i className="size-1.5 rounded-full" style={{ background: row.color }} />
+															{row.resourceName}
 														</span>
-													</button>
-												</li>
-											))}
-										</ol>
-										{more && (
-											<Button variant="link" size="sm" onClick={openLogs}>
-												All lines in Logs
-											</Button>
-										)}
-									</section>
-								)}
-							</div>
-						)}
-						{tab === "infra" && (
-							<div className="min-h-0 flex-1 overflow-auto">
-								<Infrastructure key={selected.spanId} trace={trace} selected={selected} />
-							</div>
-						)}
+														{row.entry.body}
+													</span>
+												</button>
+											</li>
+										))}
+									</ol>
+									{more && (
+										<Button variant="link" size="sm" onClick={openLogs}>
+											All lines in Logs
+										</Button>
+									)}
+								</section>
+							)}
+						</TabsContent>
+						<TabsContent value="infra" className="min-h-0 flex-1 overflow-auto">
+							<Infrastructure key={selected.spanId} trace={trace} selected={selected} />
+						</TabsContent>
 					</>
 				)}
-			</div>
+			</Tabs>
 		</section>
 	);
 }

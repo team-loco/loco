@@ -139,8 +139,8 @@
 		background-color: var(--tint);
 		color: var(--fg);
 	}
-	& [data-slot="toggle-group-item"]:has(> [data-slot="segmented-indicator"]) {
-		color: #000000;
+	& :is([data-slot="toggle-group-item"], [data-slot="tabs-trigger"]):has(> [data-slot="segmented-indicator"]) {
+		color: var(--btn-fg);
 	}
 	& [data-slot="segmented-indicator"] {
 		background-color: var(--btn);
@@ -235,7 +235,7 @@
 		border-radius: 5px;
 		background: var(--raise);
 	}
-	& [data-slot="toggle-group"][data-segmented] {
+	& :is([data-slot="toggle-group"], [data-slot="tabs-list"])[data-segmented] {
 		border: 2px solid var(--ink);
 		background: var(--raise);
 		padding: 2px;
@@ -350,7 +350,7 @@
 	box-shadow: inset 0 0 0 1.5px var(--ink);
 	background: var(--bg);
 }
-[data-theme="neobrutal"] .tv-table td i {
+[data-theme="neobrutal"] .tv-table :is(.tv-share-bar > i, .tv-resource-dot) {
 	border-radius: 1px;
 	box-shadow: 0 0 0 1.5px var(--ink);
 }

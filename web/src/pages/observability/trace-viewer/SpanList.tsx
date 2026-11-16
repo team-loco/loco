@@ -72,7 +72,7 @@ const COLUMNS: DataColumn<Operation>[] = [
 		size: 140,
 		cell: ({ row }) => (
 			<span className="flex items-center gap-1.5">
-				<i className="size-2 shrink-0 rounded-full" style={{ background: row.original.color }} />
+				<i className="tv-resource-dot size-2 shrink-0 rounded-full" style={{ background: row.original.color }} />
 				{row.original.resource}
 			</span>
 		),
