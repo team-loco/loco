@@ -97,10 +97,16 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 	}
 
 	reader := ""
+	readerPassword := ""
 	for _, user := range cp.values.ClickHouse.ClickHouse.Users {
 		for _, grant := range user.Grants {
 			if selectGrant.MatchString(grant) {
 				reader = user.Name
+				var secret struct {
+					Data map[string][]byte `json:"data"`
+				}
+				c.MustGet(t, &secret, "-n", cp.namespace, "secret", user.PasswordSecretName)
+				readerPassword = string(secret.Data[passwordKey])
 			}
 		}
 	}
@@ -108,7 +114,7 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 		"-o", "jsonpath={.items[0].metadata.name}")
 	platform.Eventually(t, ingestTimeout, "the log row in ClickHouse", func(ctx context.Context) error {
 		count, err := c.Kubectl(ctx, "-n", cp.namespace, "exec", pod, "-c", "clickhouse", "--", "clickhouse-client",
-			"--user", reader, "--password", cp.password,
+			"--user", reader, "--password", readerPassword,
 			"-q", "SELECT count() FROM loco_obs.otel_logs WHERE Body = '"+marker+"'")
 		if err == nil && strings.TrimSpace(count) != "1" {
 			return fmt.Errorf("%s rows, want 1", strings.TrimSpace(count))

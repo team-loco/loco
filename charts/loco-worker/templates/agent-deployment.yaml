@@ -51,12 +51,8 @@ spec:
             {{- end }}
             {{- end }}
             {{- with include "loco-worker.joinTokenSecret" . }}
-            - name: LOCO_JOIN_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . | quote }}
-                  key: {{ $.Values.agent.joinToken.secretKey | quote }}
-                  optional: true
+            - name: LOCO_JOIN_TOKEN_FILE
+              value: /var/run/loco-join-token/token
             {{- end }}
             - name: LOCO_NAMESPACE
               valueFrom:
@@ -111,6 +107,22 @@ spec:
                 name: {{ .Release.Name }}-env
           ports:
             - containerPort: {{ .Values.global.ports.agent }}
+          {{- with include "loco-worker.joinTokenSecret" . }}
+          volumeMounts:
+            - name: join-token
+              mountPath: /var/run/loco-join-token
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.global.resources.agent | nindent 12 }}
+      {{- with include "loco-worker.joinTokenSecret" . }}
+      volumes:
+        - name: join-token
+          secret:
+            secretName: {{ . | quote }}
+            optional: true
+            items:
+              - key: {{ $.Values.agent.joinToken.secretKey | quote }}
+                path: token
+      {{- end }}
       restartPolicy: Always

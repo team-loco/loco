@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -59,7 +60,32 @@ func (cp *controlPlane) checkUpgrade(t *testing.T) {
 		t.Fatalf("the init Secret holds %v, want only the recovery keys and the generate-root token", keys)
 	}
 	cp.recoveryKeys = before[recoveryKeys]
+	credentials := map[string]map[string][]byte{}
+	names := make([]string, 1, 1+len(cp.values.ClickHouse.ClickHouse.Users))
+	names[0] = cp.values.ClickHouse.Operator.FullnameOverride
+	for _, user := range cp.values.ClickHouse.ClickHouse.Users {
+		names = append(names, user.PasswordSecretName)
+	}
+	for _, name := range names {
+		var secret struct {
+			Data map[string][]byte `json:"data"`
+		}
+		c.MustGet(t, &secret, "-n", cp.namespace, "secret", name)
+		if len(secret.Data[passwordKey]) < 32 {
+			t.Fatalf("credential %s has no generated password", name)
+		}
+		credentials[name] = secret.Data
+	}
 	cp.upgrade(t)
+	for _, name := range names {
+		var secret struct {
+			Data map[string][]byte `json:"data"`
+		}
+		c.MustGet(t, &secret, "-n", cp.namespace, "secret", name)
+		if !reflect.DeepEqual(credentials[name], secret.Data) {
+			t.Fatalf("credential %s changed on upgrade", name)
+		}
+	}
 	if cp.initSecret(t)[recoveryKeys] != cp.recoveryKeys {
 		t.Fatal("the OpenBao setup Job replaced the init Secret on upgrade")
 	}

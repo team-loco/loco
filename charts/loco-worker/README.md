@@ -2,6 +2,8 @@
 
 `loco-worker` installs everything Loco runs on a worker cluster: the agent, the Application and build controllers, Envoy Gateway with the application Gateway, and the OpenTelemetry collectors. Install it into `loco-system` after cert-manager and `mise run crds:apply`. Create `loco-system` first with the Pod Security labels in `manifests/namespaces/loco-system.yaml`; the chart creates `loco-obs`, `loco-obs-node` and, when `cluster.role` is `builds` or `all`, `loco-builds`. Provide the agent, controller and builder image tags, the control plane URL, `global.region`, `global.exporter.endpoint` and, for the first start, a join token from `locoadm cluster create`.
 
+The agent reads `agent.joinToken.existingSecret` (key `agent.joinToken.secretKey`) through an optional volume at `LOCO_JOIN_TOKEN_FILE`. It waits with backoff for the file and rereads it until enrollment succeeds, so creating or renewing the Secret requires no restart. Keep credentials in standalone Secrets. After enrollment the agent uses its persisted identity even if the token Secret is removed.
+
 ## Application rollouts
 
 `controller.minReadySeconds` requires a new replica to stay ready before it replaces an old one. `controller.drainSeconds` is the positive whole-second delay before Kubernetes signals a retiring service container to stop, defaulting to 5. The chart supplies it as `LOCO_DRAIN_SECONDS`; an Application controller run outside the chart must set that variable too. Kubernetes runs the delay as a native preStop sleep, so application images need no shell or sleep command.

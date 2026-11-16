@@ -26,6 +26,106 @@
           },
           "additionalProperties": false
         },
+        "defaults": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "cpuTarget": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 100,
+              "minimum": 1
+            },
+            "deployAttempts": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 10,
+              "minimum": 1
+            },
+            "deployRetryDelay": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 60
+            },
+            "healthFailThreshold": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 10,
+              "minimum": 1
+            },
+            "healthInterval": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 5
+            },
+            "healthPath": {
+              "type": "string",
+              "pattern": "^$|^/"
+            },
+            "healthStartupGracePeriod": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 180,
+              "minimum": 0
+            },
+            "healthTimeout": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 60,
+              "minimum": 1
+            },
+            "idleTimeout": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "maxReplicas": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 10,
+              "minimum": 1
+            },
+            "memory": {
+              "type": "string"
+            },
+            "minReplicas": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 10,
+              "minimum": 1
+            },
+            "pathPrefix": {
+              "type": "string",
+              "pattern": "^$|^/"
+            }
+          },
+          "additionalProperties": false
+        },
         "env": {
           "type": "object"
         },
@@ -55,6 +155,146 @@
         "invitationTtl": {
           "type": "string"
         },
+        "joinToken": {
+          "type": "object",
+          "properties": {
+            "maxTtl": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+([.][0-9]+)?(h|m|s|ms|us|ns))+$"
+            },
+            "ttl": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+([.][0-9]+)?(h|m|s|ms|us|ns))+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "buildHistory": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "deploymentHistory": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "domainsPerResource": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "environmentsPerWorkspace": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "invitationsPerOrg": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "logRetentionDays": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "membersPerOrg": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "metricRetentionDays": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "orgsPerUser": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "resourcesPerWorkspace": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "secretsPerResource": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "tokensPerEntity": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "traceRetentionDays": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "webhooksPerWorkspace": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "workspacesPerOrg": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
         "port": {
           "type": "integer"
         },
@@ -83,6 +323,24 @@
         },
         "resources": {
           "type": "object"
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "events": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+([.][0-9]+)?(h|m|s|ms|us|ns))+$"
+            },
+            "images": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
         },
         "startupProbe": {
           "type": "object"
@@ -596,6 +854,24 @@
       "properties": {
         "cloudflareToken": {
           "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "setup": {
+      "type": "object",
+      "properties": {
+        "requestTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ttlSecondsAfterFinished": {
+          "type": "integer",
+          "minimum": 1
         }
       },
       "additionalProperties": false

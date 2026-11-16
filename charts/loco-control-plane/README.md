@@ -1,6 +1,6 @@
 # loco-control-plane
 
-`loco-control-plane` installs one region's dashboard, API, observability proxy, Gateway, OpenBao and, optionally, ClickHouse. The API serves ordinary RPCs and the observability RPCs at the same public API address, reading ClickHouse directly with a read-only user; the observability proxy only ingests OTLP. Agents connect to this API with the shared connection secret; user authentication uses the configured identity provider.
+`loco-control-plane` installs one region's dashboard, API, observability proxy, Gateway, OpenBao and, optionally, ClickHouse. The API serves ordinary RPCs and the observability RPCs at the same public API address, reading ClickHouse directly with a read-only user; the observability proxy only ingests OTLP. Agents enroll with a single-use join token and connect with their persisted identity; user authentication uses the configured identity provider.
 
 Provide these dependencies before installing the chart:
 
@@ -25,7 +25,24 @@ kubectl -n loco-system create secret generic regional-api-env \
 
 `api.invitationTtl` sets `INVITATION_TTL`. Core sends no email; the inviter copies and shares the invitation link. Installations that want email consume `invitation.created` and `invitation.resent` through [`INSTALL_WEBHOOKS`](../../docs/content/operations/webhooks.md).
 
-Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and, while `obsProxy.enabled` is true, `CLICKHOUSE_URL` and `CLICKHOUSE_DB`; `api.env` cannot override them.
+Typed settings under `api.limits` expose every install count limit, including resource and membership caps, history counts and telemetry retention days. `api.defaults` exposes service CPU, memory, replicas, autoscaling, health and deployment defaults. `api.retention.events` sets `EVENTS_RETENTION`; `api.retention.images` sets `LOCO_IMAGE_RETENTION`. `api.joinToken.ttl` and `api.joinToken.maxTtl` set the default and maximum join-token lifetimes. Null numeric settings and empty strings preserve the API's defaults. Both chart schemas validate value types and bounds. A typed setting and its corresponding `api.env` entry cannot both be supplied.
+
+```yaml
+api:
+  limits:
+    resourcesPerWorkspace: 200
+    logRetentionDays: 30
+  defaults:
+    cpu: 200m
+    minReplicas: 2
+    maxReplicas: 4
+  retention:
+    events: 2160h
+  joinToken:
+    maxTtl: 168h
+```
+
+Set other nonsecret API options through `api.env`. The chart supplies `APP_PORT` and, while `obsProxy.enabled` is true, `CLICKHOUSE_URL` and `CLICKHOUSE_DB`; `api.env` cannot override them.
 
 `LOCO_PUBLIC_IMAGE_MAX_BYTES` sets the API's prebuilt public-image budget in bytes, defaulting to `1073741824` (1 GiB). Set it through `api.env` or the API environment Secret; it must be a positive integer. The API sums manifest-declared sizes of unique compressed layer blobs and the image config for each eligible `linux/amd64` variant, counting a repeated digest once within each variant. Each variant must fit independently because workers choose the variant from the pinned index, including CPU-specific variants, entries with an omitted platform and nested indexes. Other platforms and manifest JSON are excluded. Invalid or conflicting blob sizes are rejected. An over-budget image fails during resolution, before deployment or placement writes, with the measured size and limit in bytes. Images remain pinned to the immutable digest of the original image or index, and the selected variant must support `linux/amd64`.
 
@@ -78,9 +95,9 @@ openssl rand -base64 32 | tr -d '\n' |
 
 The chart also uploads hourly raft snapshots to the region's object storage; set `openbao.snapshots.s3.endpoint`, `openbao.snapshots.s3.bucket` and the Secret `openbao.snapshots.s3.existingSecret` with the `access-key-id` and `secret-access-key` keys, or `openbao.snapshots.enabled: false`.
 
-For in-cluster ClickHouse, create the Secrets named by `clickhouse.clickhouse.users[].password_secret_name` before installing. Each needs `password` and `url` keys; the URL is `clickhouse://USER:PASSWORD@clickhouse-CHI_NAME.NAMESPACE.svc.cluster.local:9000`. `CHI_NAME` is `clickhouse.fullnameOverride`, which defaults to `loco-clickhouse`; the short name leaves room for the operator's generated volume suffixes. URL-encode the password in the URL. The chart references these Secrets for the ClickHouse users, the API and the observability proxy. Passwords never belong in Helm values.
+For in-cluster ClickHouse, a credentials Job creates missing Secrets named by `clickhouse.clickhouse.users[].password_secret_name`. Each holds `password` and `url` keys; the URL is `clickhouse://USER:PASSWORD@clickhouse-CHI_NAME.NAMESPACE.svc.cluster.local:9000`, where `CHI_NAME` is `clickhouse.fullnameOverride`. The Job also creates the operator Secret named by `clickhouse.operator.fullnameOverride`, with `username` and `password` keys. Existing Secrets are preserved across retries and upgrades. Passwords stay outside Helm values and release history.
 
-The ClickHouse operator reads an existing Secret named by `clickhouse.operator.fullnameOverride`, with `username` and `password` keys. Set its username to `clickhouse.operator.secret.username` and generate its password outside Helm. `clickhouse.operator.secret.create` stays `false`; `locoadm apply` creates and preserves this credential directly in Kubernetes.
+`setup.ttlSecondsAfterFinished` cleans completed setup Jobs after 3600 seconds by default. `setup.timeoutSeconds` and `setup.requestTimeoutSeconds` bound the credentials Job and its API requests. The credentials Job uses `openbao.curlImage`; it runs independently of OpenBao. `openbao.setup.timeoutSeconds` bounds OpenBao setup. Flux drift detection ignores these Jobs so TTL cleanup does not cause another run.
 
 With an external ClickHouse, leave `clickhouse.enabled: false` and name Secrets holding each user's URL in `api.clickhouse.existingSecret` (read-only), `obsProxy.ingest.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`.
 

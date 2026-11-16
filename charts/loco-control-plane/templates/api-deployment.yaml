@@ -35,6 +35,14 @@ spec:
             - secretRef:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
+            {{- $typed := include "loco-control-plane.apiSettings" . | fromYaml }}
+            {{- range $name, $value := $typed }}
+            {{- if hasKey $.Values.api.env $name }}
+            {{- fail (printf "%s is set in both api.env and a typed API setting" $name) }}
+            {{- end }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
             {{- range $name, $value := omit .Values.api.env "APP_PORT" "CLICKHOUSE_URL" "CLICKHOUSE_DB" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" "LOCO_INGEST_TRANSIT_KEY" "LOCO_REGISTRY_AUTH" "LOCO_REGISTRY_TRANSIT_KEY" "LOCO_REGISTRY_TRANSIT_KEY_VERSION" "LOCO_REGISTRY_TOKEN_SERVICE" }}
             - name: {{ $name }}
               value: {{ $value | quote }}

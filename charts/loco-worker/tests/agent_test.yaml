@@ -98,9 +98,8 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LOCO_JOIN_TOKEN
-            valueFrom:
-              secretKeyRef: {name: loco-worker-agent-join-token, key: join-token, optional: true}
+            name: LOCO_JOIN_TOKEN_FILE
+            value: /var/run/loco-join-token/token
         template: templates/agent-deployment.yaml
       - equal:
           path: metadata.name
@@ -119,19 +118,36 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LOCO_JOIN_TOKEN
-            valueFrom:
-              secretKeyRef: {name: enrollment, key: token, optional: true}
+            name: LOCO_JOIN_TOKEN_FILE
+            value: /var/run/loco-join-token/token
         template: templates/agent-deployment.yaml
       - hasDocuments:
           count: 0
         template: templates/agent-join-token-secret.yaml
 
+  - it: mounts the join token so Secret updates reach the running agent
+    set:
+      agent.joinToken.existingSecret: enrollment
+      agent.joinToken.secretKey: token
+    template: templates/agent-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: join-token
+            secret:
+              secretName: enrollment
+              optional: true
+              items: [{key: token, path: token}]
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: join-token, mountPath: /var/run/loco-join-token, readOnly: true}
+
   - it: needs no join token once enrolled
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_JOIN_TOKEN}
+          content: {name: LOCO_JOIN_TOKEN_FILE}
           any: true
         template: templates/agent-deployment.yaml
       - contains:
