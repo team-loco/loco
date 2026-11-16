@@ -716,8 +716,7 @@ func (s *AgentServer) recordStatus(
 	}
 }
 
-// advanceDeploymentStatus records deployment.failed when the update moves the deployment into
-// failed; a repeated report finds it already failed and changes no row.
+// advanceDeploymentStatus records rollout events with their status transition.
 func advanceDeploymentStatus(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -727,12 +726,13 @@ func advanceDeploymentStatus(
 	if err != nil {
 		return fmt.Errorf("advance deployment status: %w", err)
 	}
-	if changed == 0 || params.Status != genDb.DeploymentStatusFailed {
+	if changed == 0 ||
+		(params.Status != genDb.DeploymentStatusFailed && params.Status != genDb.DeploymentStatusRunning) {
 		return nil
 	}
-	d, err := qtx.GetDeploymentFailure(ctx, params.ID)
+	d, err := qtx.GetDeploymentEvent(ctx, params.ID)
 	if err != nil {
-		return fmt.Errorf("get failed deployment: %w", err)
+		return fmt.Errorf("get deployment event context: %w", err)
 	}
 	spec, err := converter.DeserializeDeploymentSpec(d.Spec, d.ResourceType)
 	if err != nil {
@@ -750,8 +750,12 @@ func advanceDeploymentStatus(
 		data[events.FieldBuildID] = buildID
 	}
 	events.AddCreator(data, d.CreatorID, d.CreatorEmail, d.CreatorName)
+	kind := events.DeploymentFailed
+	if params.Status == genDb.DeploymentStatusRunning {
+		kind = events.DeploymentReady
+	}
 	return events.Record(ctx, qtx, events.Event{
-		Type:          events.DeploymentFailed,
+		Type:          kind,
 		ActorType:     string(d.ActorType),
 		ActorID:       &d.ActorID,
 		ResourceID:    &d.ResourceID,

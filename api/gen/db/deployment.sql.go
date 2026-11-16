@@ -193,7 +193,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 	return i, err
 }
 
-const getDeploymentFailure = `-- name: GetDeploymentFailure :one
+const getDeploymentEvent = `-- name: GetDeploymentEvent :one
 SELECT d.resource_id, d.environment_id, d.region, d.spec, d.message, d.actor_type, d.actor_id,
        r.name AS resource_name, r.type AS resource_type,
        u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
@@ -204,7 +204,7 @@ LEFT JOIN users u ON u.id = CASE WHEN d.actor_type = 'user' THEN d.actor_id ELSE
 WHERE d.id = $1
 `
 
-type GetDeploymentFailureRow struct {
+type GetDeploymentEventRow struct {
 	ResourceID    uuid.UUID           `json:"resourceId"`
 	EnvironmentID uuid.UUID           `json:"environmentId"`
 	Region        string              `json:"region"`
@@ -220,9 +220,9 @@ type GetDeploymentFailureRow struct {
 }
 
 // creator_* is NULL when the creating user, or the API token that names it, no longer exists.
-func (q *Queries) GetDeploymentFailure(ctx context.Context, id uuid.UUID) (GetDeploymentFailureRow, error) {
-	row := q.db.QueryRow(ctx, getDeploymentFailure, id)
-	var i GetDeploymentFailureRow
+func (q *Queries) GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDeploymentEventRow, error) {
+	row := q.db.QueryRow(ctx, getDeploymentEvent, id)
+	var i GetDeploymentEventRow
 	err := row.Scan(
 		&i.ResourceID,
 		&i.EnvironmentID,

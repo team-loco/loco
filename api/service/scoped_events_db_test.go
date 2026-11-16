@@ -392,7 +392,12 @@ func TestApplyDeploymentEventsStayInTheirEnvironment(t *testing.T) {
 	}
 }
 
-func wantEnvironmentEvent(t *testing.T, f *deployFixture, resourceID, environmentID uuid.UUID, kind string) {
+func wantEnvironmentEvent(
+	t *testing.T,
+	f *deployFixture,
+	resourceID, environmentID uuid.UUID,
+	kind string,
+) *eventv1.Event {
 	t.Helper()
 	server := NewEventServer(f.pool, f.queries)
 	owner, err := f.queries.GetWorkspaceOrganizationIDByResourceID(t.Context(), resourceID)
@@ -413,4 +418,5 @@ func wantEnvironmentEvent(t *testing.T, f *deployFixture, resourceID, environmen
 	if event := response.GetEvents()[0]; event.GetEnvironmentId() != environmentID.String() {
 		t.Fatalf("event environment = %s, want %s", event.GetEnvironmentId(), environmentID)
 	}
+	return response.GetEvents()[0]
 }
