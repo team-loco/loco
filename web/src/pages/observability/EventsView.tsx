@@ -14,7 +14,6 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { formatCount } from "@/lib/format";
-import { resolveWindow } from "@/lib/obs-time";
 import { pagedRows, pagingParsers, type Paging } from "@/lib/paging";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
@@ -22,7 +21,15 @@ import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
-import { eventSummary, eventTitle, groupEvents, severityStyle, type EventGroup, type Severity } from "./events";
+import {
+	eventSummary,
+	eventTitle,
+	eventWindow,
+	groupEvents,
+	severityStyle,
+	type EventGroup,
+	type Severity,
+} from "./events";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
@@ -79,13 +86,13 @@ export function EventsView() {
 	const { active: environment } = useEnvironments();
 	const now = useNow(NOW_TICK_MS);
 	const nowMs = now.getTime();
-	const { from, to } = resolveWindow(range, nowMs);
 
 	const { events, isLoading, error, refetch } = useWorkspaceEvents(
 		workspaceId,
 		resources.map((r) => r.raw),
 		live,
 	);
+	const { from, to } = eventWindow(range, nowMs, tsMs(events[0]?.timestamp), live);
 	const visible = new Set(filteredResources("events", resources, tokens).map((r) => r.id));
 	const words = text.toLowerCase().split(" ").filter(Boolean);
 	const inRange = events.filter((e) => {

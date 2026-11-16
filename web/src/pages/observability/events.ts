@@ -1,3 +1,4 @@
+import { resolveWindow, type TimeWindow } from "@/lib/obs-time";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { WorkspaceEventWithResource } from "@/hooks/useWorkspaceEvents";
 import { tsMs } from "@/lib/time";
@@ -129,4 +130,8 @@ export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] 
 		}
 	}
 	return [...m.values()].toSorted((a, b) => b.ts - a.ts);
+}
+
+export function eventWindow(range: TimeWindow, now: number, latest: number, live: boolean) {
+	return resolveWindow(range, live ? Math.max(now, latest) : now);
 }
