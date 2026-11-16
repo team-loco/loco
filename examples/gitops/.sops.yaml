@@ -1,0 +1,7 @@
+creation_rules:
+  - path_regex: clusters/control-plane/config/.*[.]sops[.]yaml$
+    encrypted_regex: ^(data|stringData)$
+    age: age1jjwjs3l5r34nvgxhvrjqqrqzhq9ehe4c7fd0wmfda8pcegwhm3nqg0wgmm,age1hxuq8l7eqce0ewtr539pa6g0krpnzk98s2wlv2pqwpwthm889v4sg74f32
+  - path_regex: clusters/worker-staging/config/.*[.]sops[.]yaml$
+    encrypted_regex: ^(data|stringData)$
+    age: age1n7v9g3nufc2wn6c2nhs24fenj3sw92ecwtvc6pwyv9h7x6rnxs9qwmrxml,age1hxuq8l7eqce0ewtr539pa6g0krpnzk98s2wlv2pqwpwthm889v4sg74f32
