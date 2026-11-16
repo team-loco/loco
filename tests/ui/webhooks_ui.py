@@ -54,8 +54,20 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         drawer = page.get_by_role("dialog", name="https://hooks.invalid/loco", exact=True)
         deliveries = drawer.get_by_role("list", name="Deliveries", exact=True)
         expect(deliveries.locator("li")).to_have_count(25)
-        all_filter = drawer.get_by_role("button", name="All", exact=True)
+        all_filter = drawer.get_by_role("button", name=re.compile(r"^All\b"))
         expect(all_filter).to_have_attribute("aria-pressed", "true")
+        total_count = int(evidence.psql(state["container"], f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}';"))
+        failing_count = int(evidence.psql(state["container"], f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}' AND (status='failed' OR (status='pending' AND COALESCE(last_error,'')<>''));"))
+        expect(all_filter).to_have_text(f"All{total_count}")
+        failing_filter = drawer.get_by_role("button", name=re.compile(r"^Failing\b"))
+        expect(failing_filter).to_have_text(f"Failing{failing_count}")
+        failing_filter.click()
+        expect(deliveries.locator("li")).to_have_count(failing_count)
+        assert all("Failed" in text or "Retrying" in text for text in deliveries.locator("li").all_text_contents())
+        assert any(method == "ListWebhookDeliveries" and body.get("failing") for method, body in requests)
+        all_filter.click()
+        expect(deliveries.locator("li")).to_have_count(25)
+
         # Hold requests while checking keyboard focus during loading.
         page.route("**/" + service + "ListWebhookDeliveries", slow)
         next_page = drawer.get_by_role("button", name="Next page", exact=True)
@@ -163,6 +175,13 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         secret_dialog.get_by_role("button", name="Done", exact=True).click()
         assert any(method == "RotateWebhookSecret" and body["gracePeriodSeconds"] == 3600 for method, body in requests)
         expect(drawer.get_by_text("Previous secret expires", exact=False)).to_be_visible()
+        page.set_viewport_size({"width": 390, "height": 844})
+        group = drawer.get_by_role("group", name="Show deliveries", exact=True)
+        bounds = drawer.bounding_box()
+        for button in group.get_by_role("button").all():
+            box = button.bounding_box()
+            assert bounds["x"] <= box["x"] and box["x"] + box["width"] <= bounds["x"] + bounds["width"], box
+
         assert not errors, errors
     except BaseException:
         page.screenshot(path=out / "failure.png", animations="disabled")

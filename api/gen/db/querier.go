@@ -41,6 +41,7 @@ type Querier interface {
 	CountOrgWorkspaces(ctx context.Context, orgID uuid.UUID) (int64, error)
 	CountOrgsCreatedBy(ctx context.Context, createdBy uuid.UUID) (int64, error)
 	CountSecrets(ctx context.Context, arg CountSecretsParams) (int64, error)
+	CountWebhookDeliveries(ctx context.Context, arg CountWebhookDeliveriesParams) (CountWebhookDeliveriesRow, error)
 	CountWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceResources(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) (int64, error)

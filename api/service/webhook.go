@@ -369,6 +369,7 @@ func (s *WebhookServer) ListWebhookDeliveries(
 	rows, err := s.queries.ListWebhookDeliveries(ctx, genDb.ListWebhookDeliveriesParams{
 		WebhookID:     row.ID,
 		Status:        req.GetStatus(),
+		Failing:       req.GetFailing(),
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 		MaxRows:       pageSize,
@@ -393,7 +394,16 @@ func (s *WebhookServer) ListWebhookDeliveries(
 	token := nextPageToken(rows, pageSize, func(d genDb.ListWebhookDeliveriesRow) (uuid.UUID, time.Time) {
 		return d.ID, d.CreatedAt
 	})
-	return &webhookv1.ListWebhookDeliveriesResponse{Deliveries: out, NextPageToken: token}, nil
+	counts, err := s.queries.CountWebhookDeliveries(ctx, genDb.CountWebhookDeliveriesParams{
+		WebhookID: row.ID, Status: req.GetStatus(), Failing: req.GetFailing(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count webhook deliveries: %w", err)
+	}
+	return &webhookv1.ListWebhookDeliveriesResponse{
+		Deliveries: out, NextPageToken: token, MatchingCount: counts.MatchingCount,
+		TotalCount: counts.TotalCount, FailingCount: counts.FailingCount,
+	}, nil
 }
 
 func (s *WebhookServer) RedeliverWebhookDelivery(

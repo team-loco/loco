@@ -814,6 +814,19 @@ type WebhookDelivery struct {
 	DeliveredAt   *time.Time `json:"deliveredAt"`
 }
 
+type WebhookDeliveryResult struct {
+	ID            uuid.UUID  `json:"id"`
+	WebhookID     uuid.UUID  `json:"webhookId"`
+	EventSeq      int64      `json:"eventSeq"`
+	Status        string     `json:"status"`
+	Attempts      int32      `json:"attempts"`
+	NextAttemptAt time.Time  `json:"nextAttemptAt"`
+	LastError     *string    `json:"lastError"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	DeliveredAt   *time.Time `json:"deliveredAt"`
+	Failing       *bool      `json:"failing"`
+}
+
 type Workspace struct {
 	ID          uuid.UUID `json:"id"`
 	OrgID       uuid.UUID `json:"orgId"`

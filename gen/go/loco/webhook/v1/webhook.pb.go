@@ -730,7 +730,9 @@ type ListWebhookDeliveriesRequest struct {
 	PageSize    int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	PageToken   string                 `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Only deliveries with this status; empty lists every status.
-	Status        string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Status string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	// Failed deliveries and pending retries with a recorded error; combines with status.
+	Failing       bool `protobuf:"varint,6,opt,name=failing,proto3" json:"failing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -800,10 +802,23 @@ func (x *ListWebhookDeliveriesRequest) GetStatus() string {
 	return ""
 }
 
+func (x *ListWebhookDeliveriesRequest) GetFailing() bool {
+	if x != nil {
+		return x.Failing
+	}
+	return false
+}
+
 type ListWebhookDeliveriesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deliveries    []*WebhookDelivery     `protobuf:"bytes,1,rep,name=deliveries,proto3" json:"deliveries,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
+	// Matches status and failing filters; excludes the page cursor.
+	MatchingCount int64 `protobuf:"varint,3,opt,name=matching_count,json=matchingCount,proto3" json:"matching_count,omitempty"`
+	// All deliveries for the webhook, ignoring filters and the page cursor.
+	TotalCount int64 `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// Failed deliveries and pending retries, ignoring filters and the page cursor.
+	FailingCount  int64 `protobuf:"varint,5,opt,name=failing_count,json=failingCount,proto3" json:"failing_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -850,6 +865,27 @@ func (x *ListWebhookDeliveriesResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListWebhookDeliveriesResponse) GetMatchingCount() int64 {
+	if x != nil {
+		return x.MatchingCount
+	}
+	return 0
+}
+
+func (x *ListWebhookDeliveriesResponse) GetTotalCount() int64 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListWebhookDeliveriesResponse) GetFailingCount() int64 {
+	if x != nil {
+		return x.FailingCount
+	}
+	return 0
 }
 
 type RedeliverWebhookDeliveryRequest struct {
@@ -1097,7 +1133,7 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\n" +
 	"webhook_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\twebhookId\"\x17\n" +
-	"\x15DeleteWebhookResponse\"\xfa\x01\n" +
+	"\x15DeleteWebhookResponse\"\x94\x02\n" +
 	"\x1cListWebhookDeliveriesRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\n" +
@@ -1106,12 +1142,17 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x04 \x01(\tR\tpageToken\x12<\n" +
-	"\x06status\x18\x05 \x01(\tB$\xbaH!\xd8\x01\x01r\x1cR\apendingR\tsucceededR\x06failedR\x06status\"\x89\x01\n" +
+	"\x06status\x18\x05 \x01(\tB$\xbaH!\xd8\x01\x01r\x1cR\apendingR\tsucceededR\x06failedR\x06status\x12\x18\n" +
+	"\afailing\x18\x06 \x01(\bR\afailing\"\xf6\x01\n" +
 	"\x1dListWebhookDeliveriesResponse\x12@\n" +
 	"\n" +
 	"deliveries\x18\x01 \x03(\v2 .loco.webhook.v1.WebhookDeliveryR\n" +
 	"deliveries\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa2\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12%\n" +
+	"\x0ematching_count\x18\x03 \x01(\x03R\rmatchingCount\x12\x1f\n" +
+	"\vtotal_count\x18\x04 \x01(\x03R\n" +
+	"totalCount\x12#\n" +
+	"\rfailing_count\x18\x05 \x01(\x03R\ffailingCount\"\xa2\x01\n" +
 	"\x1fRedeliverWebhookDeliveryRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\n" +

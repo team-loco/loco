@@ -42,8 +42,10 @@ const SKELETON_ROWS = [0, 1, 2];
 
 // Base UI's Toggle swaps an empty value for a generated id, so All needs a real one.
 const ALL = "all";
+const FAILING = "failing";
 const FILTERS = [
 	{ value: ALL, label: "All" },
+	{ value: FAILING, label: "Failing" },
 	{ value: STATUS_PENDING, label: "Pending" },
 	{ value: STATUS_SUCCEEDED, label: "Delivered" },
 	{ value: STATUS_FAILED, label: "Failed" },
@@ -93,7 +95,14 @@ function WebhookDetail({
 	const queryClient = useQueryClient();
 	const query = useInfiniteQuery(
 		listWebhookDeliveries,
-		{ workspaceId, webhookId: webhook.id, status: filter === ALL ? "" : filter, pageSize: paging.size, pageToken: "" },
+		{
+			workspaceId,
+			webhookId: webhook.id,
+			status: filter === ALL || filter === FAILING ? "" : filter,
+			failing: filter === FAILING,
+			pageSize: paging.size,
+			pageToken: "",
+		},
 		{
 			pageParamKey: "pageToken",
 			getNextPageParam: (last) => last.nextPageToken || undefined,
@@ -156,6 +165,7 @@ function WebhookDetail({
 					<ToggleGroup
 						variant="segmented"
 						aria-label="Show deliveries"
+						className="max-w-full flex-wrap"
 						value={[filter]}
 						onValueChange={(v: string[]) => {
 							const selected = FILTERS.find((option) => option.value === v[0]);
@@ -167,6 +177,14 @@ function WebhookDetail({
 						{FILTERS.map((f) => (
 							<ToggleGroupItem key={f.value} value={f.value}>
 								{f.label}
+								{query.data !== undefined && (f.value === ALL || f.value === FAILING) && (
+									<span className="text-fg3">
+										{(f.value === ALL
+											? query.data.pages[0]?.totalCount
+											: query.data.pages[0]?.failingCount
+										)?.toString()}
+									</span>
+								)}
 							</ToggleGroupItem>
 						))}
 					</ToggleGroup>

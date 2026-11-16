@@ -42,10 +42,11 @@ WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('wo
 -- name: ListWebhookDeliveries :many
 SELECT d.id, d.status, d.attempts, d.next_attempt_at, d.last_error, d.created_at, d.delivered_at,
        e.type AS event_type, e.id AS event_id
-FROM webhook_deliveries d
+FROM webhook_delivery_results d
 JOIN events e ON e.seq = d.event_seq
 WHERE d.webhook_id = sqlc.arg('webhook_id')
   AND (sqlc.arg('status')::text = '' OR d.status = sqlc.arg('status'))
+  AND (NOT sqlc.arg('failing')::boolean OR d.failing)
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -53,6 +54,14 @@ WHERE d.webhook_id = sqlc.arg('webhook_id')
        ))
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('max_rows');
+
+-- name: CountWebhookDeliveries :one
+SELECT COUNT(*) AS total_count,
+       COUNT(*) FILTER (WHERE failing) AS failing_count,
+       COUNT(*) FILTER (WHERE (sqlc.arg('status')::text = '' OR status = sqlc.arg('status'))
+                        AND (NOT sqlc.arg('failing')::boolean OR failing)) AS matching_count
+FROM webhook_delivery_results
+WHERE webhook_id = sqlc.arg('webhook_id');
 
 -- name: LockWebhookDeliveryStatus :one
 SELECT status FROM webhook_deliveries

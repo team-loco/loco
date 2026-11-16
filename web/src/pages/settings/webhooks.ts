@@ -23,12 +23,6 @@ export function deliveryTick(d: WebhookDelivery): Tick {
 	return "warn";
 }
 
-// A pending delivery counts once an attempt has failed; a fresh one has not been tried yet.
-export function errorCount(deliveries: readonly WebhookDelivery[]): number {
-	return deliveries.filter((d) => d.status === STATUS_FAILED || (d.status === STATUS_PENDING && d.lastError !== ""))
-		.length;
-}
-
 export function deliveryLabel(d: WebhookDelivery): string {
 	if (d.status === STATUS_SUCCEEDED) return "Delivered";
 	if (d.status === STATUS_FAILED) return "Failed";

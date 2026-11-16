@@ -27,7 +27,7 @@ import { limitReason, limitUsage } from "@/lib/limits";
 import { NewWebhookDialog } from "./NewWebhookDialog";
 import { WebhookDrawer } from "./WebhookDrawer";
 import { formatDay, SettingsCard, SettingsSection } from "./parts";
-import { DELIVERY_TICKS, errorCount, eventsSummary, tickStrip, type Tick } from "./webhooks";
+import { DELIVERY_TICKS, eventsSummary, tickStrip, type Tick } from "./webhooks";
 
 const TICK_CLASS: Record<Tick, string> = {
 	ok: "bg-ok-glyph opacity-75",
@@ -256,13 +256,13 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 	}
 	const ticks = tickStrip(query.data.deliveries);
 	if (ticks.length === 0) return <span className="text-[12px] text-fg3">No deliveries yet</span>;
-	const errors = errorCount(query.data.deliveries.slice(0, DELIVERY_TICKS));
+	const errors = Number(query.data.failingCount);
 	const label = pluralize(errors, "error");
 	return (
 		<span className="flex min-w-0 items-center gap-2.5">
 			<span
 				role="img"
-				aria-label={`${ticks.length.toString()} recent deliveries, ${label}`}
+				aria-label={`${ticks.length.toString()} recent deliveries, ${label} in total`}
 				className="flex min-w-0 items-center gap-0.5 overflow-hidden"
 			>
 				{ticks.map((t) => (
