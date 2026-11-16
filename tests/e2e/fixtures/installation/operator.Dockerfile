@@ -15,7 +15,7 @@ RUN go -C cmd build -ldflags "-X main.version=${VERSION}" -o /locoadm ./locoadm 
  && go -C cmd build -ldflags "-X main.version=${VERSION}" -o /loco ./loco \
  && go build -o /installation-e2e ./tools/installation-e2e
 
-FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82
+FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82 AS operator-tools
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 ARG HELM_VERSION
@@ -26,13 +26,16 @@ RUN wget -qO /tmp/helm.tgz "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TA
  && sed -i 's|helm-v[^ ]*|helm.tgz|' helm.sha \
  && sha256sum -c helm.sha \
  && tar -xzf helm.tgz \
- && mkdir -p /usr/local/libexec \
- && cp "linux-${TARGETARCH}/helm" /usr/local/libexec/helm \
- && ln -s /usr/local/bin/installation-e2e /usr/local/bin/helm
-RUN wget -qO /usr/local/libexec/kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" \
+ && cp "linux-${TARGETARCH}/helm" /helm
+RUN wget -qO /kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" \
  && wget -qO /tmp/kubectl.sha "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256" \
- && echo "$(cat /tmp/kubectl.sha)  /usr/local/libexec/kubectl" | sha256sum -c - \
- && chmod +x /usr/local/libexec/kubectl \
+ && echo "$(cat /tmp/kubectl.sha)  /kubectl" | sha256sum -c - \
+ && chmod +x /kubectl
+
+FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82
+WORKDIR /tmp
+COPY --from=operator-tools /helm /kubectl /usr/local/libexec/
+RUN ln -s /usr/local/bin/installation-e2e /usr/local/bin/helm \
  && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
 COPY --from=builder /locoadm /loco /installation-e2e /usr/local/bin/
 COPY tests/e2e/fixtures/build-app /fixture/build-app

@@ -254,7 +254,7 @@ func actor(ctx context.Context, ev Event) (string, *uuid.UUID, error) {
 	if !ok {
 		return "", nil, errActorRequired
 	}
-	return string(principal.Entity.Type), &principal.Entity.ID, nil
+	return string(principal.ActorType), &principal.ActorID, nil
 }
 
 func RunRetention(ctx context.Context, q genDb.Querier, keep time.Duration, every time.Duration) {

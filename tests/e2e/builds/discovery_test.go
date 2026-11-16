@@ -183,16 +183,12 @@ func workspaceBuilds(t *testing.T, w *platform.Workspace) int {
 	return count
 }
 
-// dumpDiscovery logs what decides private service discovery in a namespace: its Services,
-// EndpointSlices, network policies and pods, and CoreDNS.
+// dumpDiscovery preserves routing and workload diagnostics before failure cleanup removes them.
 func dumpDiscovery(t *testing.T, namespace string) {
 	t.Helper()
+	p.LogWorkspaceRuntime(t, namespace)
 	p.LogKubectl(t,
-		"-n "+namespace+" get services,endpointslices,networkpolicies,pods -o wide",
-		"-n "+namespace+" get pods -o=custom-columns=NAME:.metadata.name,PHASE:.status.phase,"+
-			"REASON:.status.containerStatuses[*].state.waiting.reason,"+
-			"MESSAGE:.status.containerStatuses[*].state.waiting.message",
-		"-n "+namespace+" get events --sort-by=.metadata.creationTimestamp",
+		"-n "+namespace+" get services,endpointslices,networkpolicies -o wide",
 		"-n "+namespace+" get networkpolicies -o yaml",
 		"-n kube-system get pods -l k8s-app=kube-dns -o wide",
 		"-n kube-system logs -l k8s-app=kube-dns --all-containers --prefix --tail=100",

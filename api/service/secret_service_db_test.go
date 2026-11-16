@@ -919,8 +919,12 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 	if scanErr := f.pool.QueryRow(t.Context(), latestSet, "secret.set").Scan(&actorType, &actorID); scanErr != nil {
 		t.Fatalf("secret.set event: %v", scanErr)
 	}
-	if actorType != workspaceType || actorID != f.workspaceID {
-		t.Fatalf("secret.set actor = %s %s, want the workspace", actorType, actorID)
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	if !ok {
+		t.Fatal("token context has no principal")
+	}
+	if actorType != string(genDb.DeploymentActorTypeApiToken) || actorID != principal.ActorID {
+		t.Fatalf("secret.set actor = %s %s, want api_token %s", actorType, actorID, principal.ActorID)
 	}
 
 	f.set(t, server, map[string]string{stripeKey: "owner-rotation"})

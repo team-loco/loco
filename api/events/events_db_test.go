@@ -35,7 +35,11 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 	}
 
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: owner.ID}
-	reqCtx := reqctx.WithPrincipal(ctx, reqctx.Principal{Entity: entity})
+	reqCtx := reqctx.WithPrincipal(ctx, reqctx.Principal{
+		Entity:    entity,
+		ActorType: genDb.DeploymentActorTypeUser,
+		ActorID:   owner.ID,
+	})
 	reqCtx = reqctx.WithRequest(reqCtx, reqctx.Request{ID: "req-1"})
 	if recordErr := events.Record(reqCtx, q, events.Event{
 		Type:        events.EnvironmentCreated,
@@ -47,7 +51,7 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 		t.Fatalf("record: %v", recordErr)
 	}
 	if recordErr := events.Record(
-		ctx,
+		reqCtx,
 		q,
 		events.Event{Type: events.ClusterRegistered, ActorType: "agent"},
 	); recordErr != nil {

@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
+
+const workspaceRuntimeLogTimeout = time.Minute
 
 // Kubectl runs kubectl against the run's cluster and returns its standard output.
 func (c *Cluster) Kubectl(ctx context.Context, args ...string) (string, error) {
@@ -105,4 +108,28 @@ func (c *Cluster) LogKubectl(tb testing.TB, commands ...string) {
 		out, err := c.Kubectl(context.WithoutCancel(tb.Context()), strings.Fields(command)...)
 		tb.Logf("kubectl %s:\n%s%v", command, out, err)
 	}
+}
+
+// LogWorkspaceRuntime captures workload failures before cleanup removes the resources.
+func (p *Platform) LogWorkspaceRuntime(tb testing.TB, namespace string) {
+	tb.Helper()
+	const get = "get"
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(tb.Context()), workspaceRuntimeLogTimeout)
+	defer cancel()
+	for _, args := range [][]string{
+		{"-n", namespace, get, "pods",
+			"-o=custom-columns=NAME:.metadata.name,IP:.status.podIP,NODE:.spec.nodeName,PHASE:.status.phase," +
+				"REASON:.status.containerStatuses[*].state.waiting.reason," +
+				"MESSAGE:.status.containerStatuses[*].state.waiting.message"},
+		{"-n", namespace, get, "events", "--sort-by=.metadata.creationTimestamp"},
+		{"-n", namespace, get, "secret", "loco-registry-pull",
+			"-o=custom-columns=NAME:.metadata.name,UID:.metadata.uid,CREATED:.metadata.creationTimestamp," +
+				"DELETING:.metadata.deletionTimestamp,TYPE:.type,RESOURCEVERSION:.metadata.resourceVersion"},
+	} {
+		out, err := p.Kubectl(ctx, args...)
+		tb.Logf("kubectl %s:\n%s%v", strings.Join(args, " "), out, err)
+	}
+	out, err := p.Command(ctx, "docker", "exec", p.Node(), "journalctl", "-u", "kubelet",
+		"--since=-5min", "--no-pager", "--output=short-iso-precise", "--lines=200", "--grep="+namespace)
+	tb.Logf("workspace kubelet messages:\n%s%v", out, err)
 }
