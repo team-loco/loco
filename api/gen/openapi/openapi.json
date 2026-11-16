@@ -12365,6 +12365,15 @@
               "type": "string"
             },
             "title": "scopes"
+          },
+          "joinedAt": {
+            "title": "joined_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "lastLoginAt": {
+            "title": "last_login_at",
+            "description": "Last recorded identity sign-in, throttled by LOCO_TOKEN_LAST_USED_INTERVAL.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "OrgMember",

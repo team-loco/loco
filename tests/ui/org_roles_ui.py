@@ -1,6 +1,7 @@
 import argparse
 import re
 import uuid
+from datetime import datetime
 
 from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, session, repo
@@ -88,6 +89,13 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": sidebar_org})
     page.goto(path)
     page.wait_for_load_state("networkidle")
+    members = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/ListOrgMembers", {"orgId": org["id"]})["members"]
+    expect(page.get_by_role("columnheader", name="Joined", exact=True)).to_be_visible()
+    expect(page.get_by_role("columnheader", name="Last active", exact=True)).to_be_visible()
+    for member in members:
+        joined = datetime.fromisoformat(member["joinedAt"].replace("Z", "+00:00")).astimezone().strftime("%b %-d, %Y")
+        row = page.get_by_role("row").filter(has_text=member["user"]["name"])
+        expect(row.get_by_role("cell").nth(5)).to_have_text(joined)
     invitations_before = sum(url.endswith("/ListInvitations") for url in requests)
     scopes_before = sum(url.endswith("/GetScopes") for url in requests)
     member_role = page.get_by_role("button", name="Change role for Max Member", exact=True)
