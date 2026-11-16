@@ -1,3 +1,5 @@
+import { TimeAxis } from "./TimeAxis";
+import type { SetTraceZoom } from "./useTraceZoom";
 import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -24,7 +26,7 @@ export function Waterfall({
 	trace: TraceSummary;
 	selected: TraceSpan;
 	zoom: Zoom;
-	onZoom: (zoom: Zoom) => void;
+	onZoom: SetTraceZoom;
 	onSelect: (span: TraceSpan) => void;
 	highlight: string | null;
 	markers: ReactNode;
@@ -93,22 +95,7 @@ export function Waterfall({
 					}}
 				/>
 				<div data-trace-lane className="relative min-w-[100px] flex-1">
-					<div className="relative h-4">
-						{" "}
-						{ticks.map((t, index) => (
-							<span
-								key={String(t.nanos)}
-								className={cn(
-									"absolute whitespace-nowrap",
-									index > 0 && index < ticks.length - 1 && "hidden sm:block",
-									index === 0 ? "" : index === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
-								)}
-								style={{ left: `${String(t.left * 100)}%` }}
-							>
-								{durationLabel(t.nanos)}
-							</span>
-						))}
-					</div>
+					<TimeAxis duration={trace.duration} zoom={zoom} onZoom={onZoom} highlight={highlight} />
 					{markers}
 				</div>
 			</div>
@@ -210,7 +197,7 @@ export function Waterfall({
 							{ticks.map((t) => (
 								<i
 									key={String(t.nanos)}
-									className="absolute inset-y-0 border-l border-dashed border-line2"
+									className="tv-zoom-position absolute inset-y-0 border-l border-dashed border-line2"
 									style={{ left: `${String(t.left * 100)}%` }}
 								/>
 							))}

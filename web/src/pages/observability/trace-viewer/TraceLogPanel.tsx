@@ -222,6 +222,9 @@ export function TraceLogPanel({
 													onMouseEnter={() => {
 														onHover(row);
 													}}
+													onMouseMove={() => {
+														onHover(row);
+													}}
 													onMouseLeave={() => {
 														onHover(null);
 													}}

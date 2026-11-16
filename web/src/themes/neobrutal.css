@@ -318,3 +318,9 @@
 		background: var(--tint);
 	}
 }
+
+[data-theme="neobrutal"] .tv-range-window {
+	border: 2px solid var(--ink);
+	border-radius: 0;
+	box-shadow: 0 0 0 999px color-mix(in oklab, var(--bg) 60%, transparent);
+}

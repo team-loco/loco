@@ -1,3 +1,4 @@
+import type { SetTraceZoom } from "./useTraceZoom";
 import { useTraceResources } from "./TraceColors";
 import { useMemo, useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -25,7 +26,7 @@ export function TraceLogs({
 	select: (span: TraceSpan) => void;
 	label: (span: TraceSpan) => string;
 	zoom: Zoom;
-	onZoom: (zoom: Zoom) => void;
+	onZoom: SetTraceZoom;
 	highlight: string | null;
 }) {
 	const logs = useTraceLogs(trace);

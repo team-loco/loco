@@ -1,3 +1,4 @@
+import type { SetTraceZoom } from "./useTraceZoom";
 import { useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ZoomOutIcon } from "lucide-react";
@@ -5,7 +6,6 @@ import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { FULL_ZOOM, type Zoom } from "../flame";
 import { durationLabel, type TraceSummary } from "../traces";
-import { Minimap } from "./Minimap";
 import { FlameGraph } from "./FlameGraph";
 import { Waterfall } from "./Waterfall";
 import { SpanList } from "./SpanList";
@@ -38,7 +38,7 @@ export function TracePlot({
 	onSelect: (span: TraceSpan) => void;
 	label: (span: TraceSpan) => string;
 	zoom: Zoom;
-	onZoom: (zoom: Zoom) => void;
+	onZoom: SetTraceZoom;
 	highlight: string | null;
 	logs: LogRow[];
 	highlightedLogs: Set<string>;
@@ -72,7 +72,7 @@ export function TracePlot({
 					<ToggleGroupItem value="waterfall">Waterfall</ToggleGroupItem>
 					<ToggleGroupItem value="list">Span list</ToggleGroupItem>
 				</ToggleGroup>
-				<span className="text-[12px] text-fg3">Double-click a span to zoom to it</span>
+				<span className="text-[12px] text-fg3">Drag the time axis or double-click a span to zoom</span>
 				{width < 1 && (
 					<>
 						<span className="ml-auto font-mono text-[11px] text-fg3">
@@ -91,7 +91,6 @@ export function TracePlot({
 					</>
 				)}
 			</div>
-			<Minimap zoom={zoom} onZoom={onZoom} highlight={highlight} />
 			{view === "list" ? (
 				<SpanList trace={trace} />
 			) : (
@@ -105,8 +104,8 @@ export function TracePlot({
 							e.preventDefault();
 							const rect = laneBounds(element);
 							if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))
-								onZoom(boundedZoom(zoom.a + ((e.deltaX || e.deltaY) / rect.width) * width, width));
-							else onZoom(zoomAround(zoom, (e.clientX - rect.left) / rect.width, e.deltaY));
+								onZoom((z) => boundedZoom(z.a + ((e.deltaX || e.deltaY) / rect.width) * (z.b - z.a), z.b - z.a), true);
+							else onZoom((z) => zoomAround(z, (e.clientX - rect.left) / rect.width, e.deltaY), true);
 						};
 						element.addEventListener("wheel", wheel, { passive: false });
 						return () => {
@@ -114,7 +113,11 @@ export function TracePlot({
 						};
 					}}
 					onPointerDown={(e) => {
-						if (width >= 1 || e.button !== 0 || (e.target as HTMLElement).closest('[role="separator"]') !== null)
+						if (
+							width >= 1 ||
+							e.button !== 0 ||
+							(e.target as HTMLElement).closest('[role="separator"], [data-trace-axis], [role="slider"]') !== null
+						)
 							return;
 						suppressClickRefRef.current = false;
 						dragRef.current = { x: e.clientX, zoom };
@@ -147,6 +150,7 @@ export function TracePlot({
 										drag.zoom.a - (delta / rect.width) * (drag.zoom.b - drag.zoom.a),
 										drag.zoom.b - drag.zoom.a,
 									),
+									true,
 								);
 							}
 						}

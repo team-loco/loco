@@ -211,3 +211,17 @@
 		background-color: var(--info-bg);
 	}
 }
+
+@media (prefers-reduced-motion: no-preference) {
+	.tv-anim :is(.tv-span-bar, .tv-zoom-position, .tv-range-window) {
+		transition:
+			left 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+			width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+			right 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	.tv-anim .tv-log-marker {
+		transition:
+			left 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+			transform 0.15s ease;
+	}
+}
