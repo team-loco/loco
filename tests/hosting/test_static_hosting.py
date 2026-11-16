@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import Error, expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
@@ -15,6 +15,7 @@ RUNTIME_USER = "65532:65532"
 STARTUP_TIMEOUT = 30
 POLL_INTERVAL = 0.1
 REQUEST_TIMEOUT = 5
+NAVIGATION_ATTEMPTS = 3
 NOT_FOUND_TITLE = "Page not found | Loco"
 NOT_FOUND_HEADING = "Nothing lives at this address"
 NOT_FOUND_VIEWPORTS = {"desktop": (1440, 900), "mobile": (390, 844)}
@@ -50,6 +51,16 @@ def response(url, host=None):
             return (error.code, error.read().decode(), error.headers)
 
 
+def navigate(page, url):
+    for attempt in range(NAVIGATION_ATTEMPTS):
+        try:
+            return page.goto(url)
+        except Error as error:
+            if "net::ERR_NETWORK_CHANGED" not in str(error) or attempt == NAVIGATION_ATTEMPTS - 1:
+                raise
+            time.sleep(POLL_INTERVAL)
+
+
 def check_not_found_renders(address, pages, out_dir):
     # The 404 file is served for every host, so it must load no subresource (the
     # docs host has no /assets) and break no CSP rule.
@@ -79,8 +90,9 @@ def check_not_found_renders(address, pages, out_dir):
                     )
                     page.on(
                         "requestfailed",
-                        lambda request, label=label: problems.append(
-                            f"{label}: {request.url} failed"
+                        lambda request, label=label: (
+                            not (request.is_navigation_request() and request.failure == "net::ERR_NETWORK_CHANGED")
+                            and problems.append(f"{label}: {request.url} failed")
                         ),
                     )
                     page.on(
@@ -91,7 +103,7 @@ def check_not_found_renders(address, pages, out_dir):
                             and problems.append(f"{label}: {reply.url} {reply.status}")
                         ),
                     )
-                    page.goto(f"http://{host}{path}")
+                    navigate(page, f"http://{host}{path}")
                     assert page.title() == NOT_FOUND_TITLE, label
                     assert page.get_by_text(NOT_FOUND_HEADING).is_visible(), label
                     assert page.get_by_role("link", name="Go to dashboard").is_visible()
@@ -116,7 +128,7 @@ def check_unknown_path_opens_ui(address, paths):
         )
         for path in paths:
             page = browser.new_page()
-            page.goto(f"http://{UI_HOST}{path}")
+            navigate(page, f"http://{UI_HOST}{path}")
             page.wait_for_url(f"http://{UI_HOST}/login")
             expect(page, path).to_have_title("Sign in | Loco")
             page.close()
@@ -139,7 +151,7 @@ def check_dashboard_reaches_http_issuer(address):
                 headers={"Access-Control-Allow-Origin": f"http://{UI_HOST}"},
             ),
         )
-        page.goto(f"http://{UI_HOST}/login")
+        navigate(page, f"http://{UI_HOST}/login")
         issuer = page.evaluate(
             "url => fetch(url).then(reply => reply.json()).then(body => body.issuer)",
             discovery,
@@ -307,3 +319,32 @@ def test_image_serves_the_ui_and_docs(tmp_path):
         check_dashboard_reaches_http_issuer(address)
     finally:
         docker("stop", container)
+
+
+@pytest.mark.parametrize("failures", [1, NAVIGATION_ATTEMPTS])
+def test_navigation_retries_network_changes(failures, monkeypatch):
+    from unittest.mock import Mock
+
+    failure = Error("Page.goto: net::ERR_NETWORK_CHANGED")
+    page = Mock()
+    page.goto.side_effect = [failure] * failures + ["response"]
+    monkeypatch.setattr(time, "sleep", lambda _: None)
+    if failures == NAVIGATION_ATTEMPTS:
+        with pytest.raises(Error) as caught:
+            navigate(page, "http://docs.test/foo")
+        assert caught.value is failure
+    else:
+        assert navigate(page, "http://docs.test/foo") == "response"
+    assert page.goto.call_count == min(failures + 1, NAVIGATION_ATTEMPTS)
+
+
+def test_navigation_preserves_other_errors():
+    from unittest.mock import Mock
+
+    failure = Error("Page.goto: net::ERR_CONNECTION_REFUSED")
+    page = Mock()
+    page.goto.side_effect = failure
+    with pytest.raises(Error) as caught:
+        navigate(page, "http://docs.test/foo")
+    assert caught.value is failure
+    page.goto.assert_called_once_with("http://docs.test/foo")
