@@ -62,14 +62,16 @@ const COLUMNS: DataColumn<Operation>[] = [
 		id: "name",
 		header: "Operation",
 		accessorKey: "name",
-		size: 260,
+		size: 200,
+		meta: { headClassName: "@max-[740px]:w-[45%]!", cellClassName: "truncate" },
 		cell: ({ row }) => <span className="font-mono">{row.original.name}</span>,
 	},
 	{
 		id: "resource",
 		header: "Resource",
 		accessorKey: "resource",
-		size: 140,
+		size: 100,
+		meta: { headClassName: "hidden @min-[740px]:table-cell", cellClassName: "hidden truncate @min-[740px]:table-cell" },
 		cell: ({ row }) => (
 			<span className="flex items-center gap-1.5">
 				<i className="tv-resource-dot size-2 shrink-0 rounded-full" style={{ background: row.original.color }} />
@@ -81,7 +83,8 @@ const COLUMNS: DataColumn<Operation>[] = [
 		id: "count",
 		header: "Spans",
 		accessorKey: "count",
-		size: 80,
+		size: 60,
+		meta: { headClassName: "hidden @min-[740px]:table-cell", cellClassName: "hidden @min-[740px]:table-cell" },
 		cell: ({ row }) => (
 			<span className={cn("font-mono", row.original.count > 5 && "rounded-sm bg-warn-bg px-1 text-warn-fg")}>
 				{row.original.count}
@@ -92,14 +95,16 @@ const COLUMNS: DataColumn<Operation>[] = [
 		id: "average",
 		header: "Avg duration",
 		accessorKey: "average",
-		size: 120,
+		size: 110,
+		meta: { headClassName: "hidden @min-[740px]:table-cell", cellClassName: "hidden @min-[740px]:table-cell" },
 		cell: ({ row }) => <span className="font-mono">{nanos(row.original.average)}</span>,
 	},
 	{
 		id: "execution",
 		header: "Exec time",
 		accessorKey: "execution",
-		size: 120,
+		size: 100,
+		meta: { headClassName: "hidden @min-[740px]:table-cell", cellClassName: "hidden @min-[740px]:table-cell" },
 		cell: ({ row }) => <span className="font-mono">{nanos(row.original.execution)}</span>,
 	},
 	{
@@ -107,7 +112,7 @@ const COLUMNS: DataColumn<Operation>[] = [
 		meta: { cellClassName: "overflow-hidden" },
 		header: "% of exec time",
 		accessorKey: "share",
-		size: 160,
+		enableResizing: false,
 		cell: ({ row }) => (
 			<span className="flex min-w-0 items-center gap-2 overflow-hidden">
 				<span className="tv-share-bar h-1.5 min-w-0 max-w-[110px] flex-1 overflow-hidden rounded-sm bg-panel2">
@@ -146,7 +151,10 @@ export function SpanList({ trace }: { trace: TraceSummary }) {
 		initialState: { sorting: [{ id: "execution", desc: true }], pagination: { pageIndex: 0, pageSize: 25 } },
 	});
 	return (
-		<section aria-label="Span list" className="tv-table min-w-0 overflow-hidden rounded-md border border-line">
+		<section
+			aria-label="Span list"
+			className="tv-table @container min-w-0 overflow-hidden rounded-md border border-line"
+		>
 			<div className="border-b border-line p-2">
 				<SearchInput
 					value={search}
@@ -162,7 +170,11 @@ export function SpanList({ trace }: { trace: TraceSummary }) {
 					}}
 				/>
 			</div>
-			<DataTable table={table} empty={<p className="p-5 text-fg3">No operations match this filter.</p>} />
+			<DataTable
+				className="table-fixed"
+				table={table}
+				empty={<p className="p-5 text-fg3">No operations match this filter.</p>}
+			/>
 			<DataTablePager table={table} pageSizes={PAGE_SIZES} />
 		</section>
 	);

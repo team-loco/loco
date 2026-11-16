@@ -123,8 +123,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 							const network = panel.title === "Network";
 							const fmt = (value: number | undefined) =>
 								network ? trafficValue(value, "B/s") : value === undefined ? "—" : formatPercent(value);
-							const current = sampleAt(data, start);
-							const hovered = hoverTime === null ? undefined : sampleAt(data, hoverTime);
+							const sample = sampleAt(data, hoverTime ?? start);
 							const peak = data.reduce<number | undefined>(
 								(max, point) =>
 									point.value === undefined ? max : max === undefined ? point.value : Math.max(max, point.value),
@@ -139,10 +138,11 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 										<h4 className="m-0 text-[12px] font-medium text-fg2">{panel.title}</h4>
 										<output
 											aria-live="off"
-											aria-label={`${panel.title} at trace start`}
+											aria-label={`${panel.title} at ${hoverTime === null ? "trace start" : "cursor"}`}
 											className="min-w-0 truncate font-mono text-[12px]"
 										>
-											{network ? networkLabel(current) : fmt(current?.value)}
+											{network ? networkLabel(sample) : fmt(sample?.value)}
+											{hoverTime !== null && ` at ${formatHourMinute(hoverTime, timePref)}`}
 										</output>
 									</div>
 									<div className={cn("h-4 text-[11px] text-fg3", hot && "text-bad-fg")}>
@@ -161,15 +161,6 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 											`Peak ${fmt(peak)}${hot ? " · High" : ""}`
 										)}
 									</div>
-									<output
-										aria-live="off"
-										aria-label={`${panel.title} at cursor`}
-										className="block h-4 truncate font-mono text-[10px] text-fg2"
-									>
-										{hoverTime === null
-											? ""
-											: `${network ? networkLabel(hovered) : fmt(hovered?.value)} at ${formatHourMinute(hoverTime, timePref)}`}
-									</output>
 									{loading ? (
 										<div role="status" className="flex h-36 items-center justify-center gap-2 text-fg3">
 											<Spinner />
@@ -214,10 +205,10 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 												/>
 												<YAxis
 													domain={network ? [0, "auto"] : [0, percentAxis(peak ?? 0).maximum]}
-													tickFormatter={(value: number) => (network ? trafficValue(value, "") : fmt(value))}
+													tickFormatter={fmt}
 													tickLine={false}
 													axisLine={false}
-													width={40}
+													width={network ? 64 : 40}
 												/>
 												<ReferenceArea x1={start} x2={end} fill="var(--fg3)" fillOpacity={0.18} />
 												{!network && (

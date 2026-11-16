@@ -100,7 +100,7 @@ export function TraceLogs({
 			className="flex min-w-0 flex-col gap-5 min-[1100px]:grid min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]"
 		>
 			<div className="flex min-h-0 min-w-0 flex-col gap-3">
-				<div className="min-w-0 shrink-0 pb-1 min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:shrink min-[1100px]:overflow-auto">
+				<div className="min-w-0 shrink-0 pb-1 min-[1100px]:min-h-0 min-[1100px]:shrink min-[1100px]:overflow-auto">
 					<TracePlot
 						trace={trace}
 						selected={selected}
