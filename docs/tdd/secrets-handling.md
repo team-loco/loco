@@ -38,7 +38,7 @@ So plaintext env exists in Postgres, in the `Application` object in the worker's
 | Agent key | Agent | `<release>-agent-key` Secret in the agent namespace; the API stores only the public key |
 | User session and API tokens | API | Only SHA-256 hashes in Postgres (`access_token_hash`, `refresh_token_hash`, `token_hash`) |
 | OAuth state markers | API | Valkey, 10-minute TTL |
-| ClickHouse credentials | obs-proxy, collectors | One Secret per ClickHouse user (`loco_migrator`, `loco_ingest`, `loco_reader`), rendered by the `loco-obs` chart from values; the proxy expands them into `CLICKHOUSE_MIGRATOR_URL`, `CLICKHOUSE_URL` and, for ingest, `CLICKHOUSE_INGEST_URL` |
+| ClickHouse credentials | API, ingest proxy | Standalone Secrets for the migrator, ingest and reader users; the control-plane chart credentials Job creates missing credentials and preserves existing ones |
 | Cloudflare API token | cert-manager (DNS-01) | Chart value rendered into a Secret |
 | SOPS age keys | Flux on each cluster (planned) | In-cluster Secret plus an offline admin key, per the Flux TDD |
 | CI tokens (Buf, Railway, Renovate, Terraform, DigitalOcean, Cloudflare) | GitHub Actions | Repository secrets |
@@ -253,7 +253,7 @@ The database has no users, so each step can change the schema in place.
 ## Alternatives considered
 
 - **pgcrypto in Postgres.** The key has to reach the database session, so a database compromise with the key in a parameter or log reveals everything. It also keeps encryption out of the application, where AAD binding lives.
-- **A cloud KMS directly.** Simpler to run, but it ties secrets to one provider, and the current infrastructure providers do not offer one. A KMS remains the preferred way to auto-unseal OpenBao.
+- **A cloud KMS directly.** Simpler to run, but it ties secrets to one provider, and the current infrastructure providers do not offer one. Static-key auto-unseal is the default; KMS and transit are optional.
 - **SOPS for everything.** SOPS suits secrets that live in Git and change by pull request, which is why the Flux TDD uses it for cluster configuration. User secrets change through the API at runtime and cannot go through Git.
 - **HashiCorp Vault.** Same API and design. OpenBao is the MPL-licensed fork maintained under the Linux Foundation; Vault's BSL licence is a concern for a platform that may be self-hosted by others.
 - **External Secrets Operator.** It syncs secrets from a store into a cluster, which requires each worker to hold store credentials. That contradicts the goal that workers hold no OpenBao access. It remains an option for platform secrets on the control-plane cluster.
