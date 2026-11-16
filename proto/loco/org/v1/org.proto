@@ -22,8 +22,11 @@ service OrgService {
 
   // ListUserOrgs lists organizations for a user.
   rpc ListUserOrgs(ListUserOrgsRequest) returns (ListUserOrgsResponse);
+  // ListOrgMembers lists organization members; organization membership is required.
   rpc ListOrgMembers(ListOrgMembersRequest) returns (ListOrgMembersResponse);
+  // SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
   rpc SetOrgMemberRole(SetOrgMemberRoleRequest) returns (SetOrgMemberRoleResponse);
+  // RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
   rpc RemoveOrgMember(RemoveOrgMemberRequest) returns (RemoveOrgMemberResponse);
 
   // SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
@@ -40,9 +43,13 @@ service OrgService {
   // belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
   // system:admin.
   rpc SetOrgLimits(SetOrgLimitsRequest) returns (SetOrgLimitsResponse);
+  // InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.
   rpc InviteOrgMember(InviteOrgMemberRequest) returns (InviteOrgMemberResponse);
+  // ListInvitations lists open invitations; organization membership is required.
   rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse);
+  // RevokeInvitation revokes an open invitation; requires organization admin.
   rpc RevokeInvitation(RevokeInvitationRequest) returns (RevokeInvitationResponse);
+  // ResendInvitation extends an open invitation and records a resend; requires organization admin.
   rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse);
 }
 
@@ -99,6 +106,7 @@ message ListUserOrgsResponse {
   string next_page_token = 2; // empty if no more pages
 }
 
+// ListOrgMembersRequest selects a page of organization members.
 message ListOrgMembersRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   int32 page_size = 2 [(buf.validate.field).int32 = {
@@ -108,29 +116,35 @@ message ListOrgMembersRequest {
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
+// ListOrgMembersResponse contains a page of members and a continuation token.
 message ListOrgMembersResponse {
   repeated OrgMember members = 1;
   string next_page_token = 2; // empty if no more pages
 }
 
+// OrgMember pairs a user with their organization scopes.
 message OrgMember {
   User user = 1;
   repeated string scopes = 2;
 }
 
+// RemoveOrgMemberRequest identifies another user to remove from the organization.
 message RemoveOrgMemberRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   string user_id = 2 [(buf.validate.field).string.uuid = true];
 }
 
+// RemoveOrgMemberResponse acknowledges member removal.
 message RemoveOrgMemberResponse {}
 
+// OrgRole selects organization administrator or member access.
 enum OrgRole {
   ORG_ROLE_UNSPECIFIED = 0;
   ORG_ROLE_ADMIN = 1;
   ORG_ROLE_MEMBER = 2;
 }
 
+// SetOrgMemberRoleRequest identifies the organization member and their desired role.
 message SetOrgMemberRoleRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   string user_id = 2 [(buf.validate.field).string.uuid = true];
@@ -140,8 +154,10 @@ message SetOrgMemberRoleRequest {
   }];
 }
 
+// SetOrgMemberRoleResponse acknowledges the member role assignment.
 message SetOrgMemberRoleResponse {}
 
+// Invitation describes an open invitation and its sign-in link.
 message Invitation {
   string id = 1;
   string org_id = 2;
@@ -152,15 +168,18 @@ message Invitation {
   string link = 7;
 }
 
+// InviteOrgMemberRequest identifies the organization and email address to invite.
 message InviteOrgMemberRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   string email = 2 [(buf.validate.field).string.min_len = 1];
 }
 
+// InviteOrgMemberResponse contains the created invitation.
 message InviteOrgMemberResponse {
   Invitation invitation = 1;
 }
 
+// ListInvitationsRequest selects a page of open organization invitations.
 message ListInvitationsRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   int32 page_size = 2 [(buf.validate.field).int32 = {
@@ -170,21 +189,26 @@ message ListInvitationsRequest {
   string page_token = 3;
 }
 
+// ListInvitationsResponse contains a page of invitations and a continuation token.
 message ListInvitationsResponse {
   repeated Invitation invitations = 1;
   string next_page_token = 2; // empty if no more pages
 }
 
+// RevokeInvitationRequest identifies the open invitation to revoke.
 message RevokeInvitationRequest {
   string id = 1 [(buf.validate.field).string.uuid = true];
 }
 
+// RevokeInvitationResponse acknowledges invitation revocation.
 message RevokeInvitationResponse {}
 
+// ResendInvitationRequest identifies the open invitation to extend and resend.
 message ResendInvitationRequest {
   string id = 1 [(buf.validate.field).string.uuid = true];
 }
 
+// ResendInvitationResponse contains the invitation with its extended expiry.
 message ResendInvitationResponse {
   Invitation invitation = 1;
 }

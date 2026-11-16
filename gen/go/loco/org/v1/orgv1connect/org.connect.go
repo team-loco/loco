@@ -188,8 +188,11 @@ type OrgServiceClient interface {
 	DeleteOrg(context.Context, *v1.DeleteOrgRequest) (*v1.DeleteOrgResponse, error)
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
+	// ListOrgMembers lists organization members; organization membership is required.
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
+	// SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
 	SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error)
+	// RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
 	// SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
 	// It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
@@ -205,9 +208,13 @@ type OrgServiceClient interface {
 	// belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
 	// system:admin.
 	SetOrgLimits(context.Context, *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error)
+	// InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.
 	InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error)
+	// ListInvitations lists open invitations; organization membership is required.
 	ListInvitations(context.Context, *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error)
+	// RevokeInvitation revokes an open invitation; requires organization admin.
 	RevokeInvitation(context.Context, *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error)
+	// ResendInvitation extends an open invitation and records a resend; requires organization admin.
 	ResendInvitation(context.Context, *v1.ResendInvitationRequest) (*v1.ResendInvitationResponse, error)
 }
 
@@ -229,8 +236,11 @@ type OrgServiceHandler interface {
 	DeleteOrg(context.Context, *v1.DeleteOrgRequest) (*v1.DeleteOrgResponse, error)
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
+	// ListOrgMembers lists organization members; organization membership is required.
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
+	// SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
 	SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error)
+	// RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
 	// SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
 	// It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
@@ -246,9 +256,13 @@ type OrgServiceHandler interface {
 	// belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
 	// system:admin.
 	SetOrgLimits(context.Context, *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error)
+	// InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.
 	InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error)
+	// ListInvitations lists open invitations; organization membership is required.
 	ListInvitations(context.Context, *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error)
+	// RevokeInvitation revokes an open invitation; requires organization admin.
 	RevokeInvitation(context.Context, *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error)
+	// ResendInvitation extends an open invitation and records a resend; requires organization admin.
 	ResendInvitation(context.Context, *v1.ResendInvitationRequest) (*v1.ResendInvitationResponse, error)
 }
 

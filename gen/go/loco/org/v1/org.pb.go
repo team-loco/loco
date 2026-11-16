@@ -25,6 +25,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// OrgRole selects organization administrator or member access.
 type OrgRole int32
 
 const (
@@ -471,6 +472,7 @@ func (x *ListUserOrgsResponse) GetNextPageToken() string {
 	return ""
 }
 
+// ListOrgMembersRequest selects a page of organization members.
 type ListOrgMembersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -531,6 +533,7 @@ func (x *ListOrgMembersRequest) GetPageToken() string {
 	return ""
 }
 
+// ListOrgMembersResponse contains a page of members and a continuation token.
 type ListOrgMembersResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Members       []*OrgMember           `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
@@ -583,6 +586,7 @@ func (x *ListOrgMembersResponse) GetNextPageToken() string {
 	return ""
 }
 
+// OrgMember pairs a user with their organization scopes.
 type OrgMember struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
@@ -635,6 +639,7 @@ func (x *OrgMember) GetScopes() []string {
 	return nil
 }
 
+// RemoveOrgMemberRequest identifies another user to remove from the organization.
 type RemoveOrgMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -687,6 +692,7 @@ func (x *RemoveOrgMemberRequest) GetUserId() string {
 	return ""
 }
 
+// RemoveOrgMemberResponse acknowledges member removal.
 type RemoveOrgMemberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -723,6 +729,7 @@ func (*RemoveOrgMemberResponse) Descriptor() ([]byte, []int) {
 	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{11}
 }
 
+// SetOrgMemberRoleRequest identifies the organization member and their desired role.
 type SetOrgMemberRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -783,6 +790,7 @@ func (x *SetOrgMemberRoleRequest) GetRole() OrgRole {
 	return OrgRole_ORG_ROLE_UNSPECIFIED
 }
 
+// SetOrgMemberRoleResponse acknowledges the member role assignment.
 type SetOrgMemberRoleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -819,6 +827,7 @@ func (*SetOrgMemberRoleResponse) Descriptor() ([]byte, []int) {
 	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{13}
 }
 
+// Invitation describes an open invitation and its sign-in link.
 type Invitation struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -911,6 +920,7 @@ func (x *Invitation) GetLink() string {
 	return ""
 }
 
+// InviteOrgMemberRequest identifies the organization and email address to invite.
 type InviteOrgMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -963,6 +973,7 @@ func (x *InviteOrgMemberRequest) GetEmail() string {
 	return ""
 }
 
+// InviteOrgMemberResponse contains the created invitation.
 type InviteOrgMemberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Invitation    *Invitation            `protobuf:"bytes,1,opt,name=invitation,proto3" json:"invitation,omitempty"`
@@ -1007,6 +1018,7 @@ func (x *InviteOrgMemberResponse) GetInvitation() *Invitation {
 	return nil
 }
 
+// ListInvitationsRequest selects a page of open organization invitations.
 type ListInvitationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -1067,6 +1079,7 @@ func (x *ListInvitationsRequest) GetPageToken() string {
 	return ""
 }
 
+// ListInvitationsResponse contains a page of invitations and a continuation token.
 type ListInvitationsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Invitations   []*Invitation          `protobuf:"bytes,1,rep,name=invitations,proto3" json:"invitations,omitempty"`
@@ -1119,6 +1132,7 @@ func (x *ListInvitationsResponse) GetNextPageToken() string {
 	return ""
 }
 
+// RevokeInvitationRequest identifies the open invitation to revoke.
 type RevokeInvitationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1163,6 +1177,7 @@ func (x *RevokeInvitationRequest) GetId() string {
 	return ""
 }
 
+// RevokeInvitationResponse acknowledges invitation revocation.
 type RevokeInvitationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1199,6 +1214,7 @@ func (*RevokeInvitationResponse) Descriptor() ([]byte, []int) {
 	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{20}
 }
 
+// ResendInvitationRequest identifies the open invitation to extend and resend.
 type ResendInvitationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1243,6 +1259,7 @@ func (x *ResendInvitationRequest) GetId() string {
 	return ""
 }
 
+// ResendInvitationResponse contains the invitation with its extended expiry.
 type ResendInvitationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Invitation    *Invitation            `protobuf:"bytes,1,opt,name=invitation,proto3" json:"invitation,omitempty"`
