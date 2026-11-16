@@ -71,6 +71,7 @@ func TestSetupFailureDiagnostics(t *testing.T) {
 			commands := string(data)
 			for _, want := range []string{
 				"--retain", "journalctl", "--name etcd", "--name kube-apiserver", "crictl logs", "get events",
+				"--name kube-scheduler", "--name kube-controller-manager", "get --raw=/readyz?verbose", "get leases", "docker stats",
 			} {
 				if !strings.Contains(commands, want) {
 					t.Errorf("commands lack %q:\n%s", want, commands)
