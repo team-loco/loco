@@ -392,6 +392,11 @@
             "type": "string"
           }
         },
+        "drainSeconds": {
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 1
+        },
         "env": {
           "type": "array"
         },

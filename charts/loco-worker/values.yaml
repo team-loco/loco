@@ -231,6 +231,10 @@ controller:
   # @schema type: integer; minimum: 0
   minReadySeconds: 10
 
+  # Seconds a terminating application keeps listening while routing removes its endpoint.
+  # @schema type: integer; minimum: 1; maximum: 2147483647
+  drainSeconds: 5
+
   env: []
 
   # @schema skipProperties

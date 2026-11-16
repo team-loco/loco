@@ -23,6 +23,7 @@ var _ = Describe("Rollout", func() {
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Telemetry:                testTelemetry(),
 			MinReadySeconds:          testMinReadySeconds,
+			DrainSeconds:             testDrainSeconds,
 		}
 		_, err := r.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
@@ -31,6 +32,14 @@ var _ = Describe("Rollout", func() {
 		key := client.ObjectKey{Namespace: namespace.Name, Name: testAppName(app)}
 		Expect(k8sClient.Get(ctx, key, applied)).To(Succeed())
 		Expect(applied.Spec.MinReadySeconds).To(Equal(testMinReadySeconds))
+		Expect(*applied.Spec.Template.Spec.TerminationGracePeriodSeconds).To(
+			Equal(int64(corev1.DefaultTerminationGracePeriodSeconds) + int64(testDrainSeconds)),
+		)
+		lifecycle := applied.Spec.Template.Spec.Containers[0].Lifecycle
+		Expect(lifecycle).NotTo(BeNil())
+		Expect(lifecycle.PreStop).NotTo(BeNil())
+		Expect(lifecycle.PreStop.Sleep).NotTo(BeNil())
+		Expect(lifecycle.PreStop.Sleep.Seconds).To(Equal(int64(testDrainSeconds)))
 		rolling := applied.Spec.Strategy.RollingUpdate
 		Expect(*rolling.MaxUnavailable).To(Equal(intstr.FromInt32(0)))
 		Expect(*rolling.MaxSurge).To(Equal(intstr.FromString("25%")))
@@ -52,6 +61,7 @@ var _ = Describe("Rollout", func() {
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Telemetry:                testTelemetry(),
 			MinReadySeconds:          testMinReadySeconds,
+			DrainSeconds:             testDrainSeconds,
 		}
 		_, err := r.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
@@ -63,6 +73,10 @@ var _ = Describe("Rollout", func() {
 		Expect(*applied.Spec.Strategy.RollingUpdate.MaxUnavailable).To(Equal(intstr.FromInt32(0)))
 		container := applied.Spec.Template.Spec.Containers[0]
 		Expect(container.Ports).To(BeEmpty())
+		Expect(container.Lifecycle).To(BeNil())
+		Expect(
+			*applied.Spec.Template.Spec.TerminationGracePeriodSeconds,
+		).To(Equal(int64(corev1.DefaultTerminationGracePeriodSeconds)))
 		Expect(container.ReadinessProbe).To(BeNil())
 		Expect(container.LivenessProbe).To(BeNil())
 	})

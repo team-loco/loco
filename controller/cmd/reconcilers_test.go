@@ -34,6 +34,7 @@ func testApplicationConfig() operatorConfig {
 		WorkspaceNamespacePrefix: testWorkspacePrefix,
 		Telemetry:                testTelemetry(),
 		MinReadySeconds:          new(int32(10)),
+		DrainSeconds:             new(int32(7)),
 	}
 }
 
@@ -140,6 +141,11 @@ func TestApplicationReconcilerRequiresItsSettings(t *testing.T) {
 	withoutPrefix.WorkspaceNamespacePrefix = ""
 	if _, err := selectReconciler(reconcilerApplication, withoutPrefix); !errors.Is(err, errWorkspacePrefixMissing) {
 		t.Errorf("without a workspace prefix: err = %v, want %v", err, errWorkspacePrefixMissing)
+	}
+	withoutDrain := testApplicationConfig()
+	withoutDrain.DrainSeconds = nil
+	if _, err := selectReconciler(reconcilerApplication, withoutDrain); !errors.Is(err, errDrainSecondsMissing) {
+		t.Errorf("without drain seconds: err = %v, want %v", err, errDrainSecondsMissing)
 	}
 	withoutMinReady := testApplicationConfig()
 	withoutMinReady.MinReadySeconds = nil

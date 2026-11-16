@@ -61,7 +61,10 @@ func TestPortRollout(t *testing.T) {
 			t.Logf("%s %s stream=%d success=%d failures=%d", time.Now().UTC().Format(time.RFC3339Nano),
 				phase, i, got.success, got.failures)
 			if progress && got.success <= previous[i].success {
-				t.Errorf("%s stream %d stopped serving (%d before, %d after)", phase, i, previous[i].success, got.success)
+				t.Errorf(
+					"%s stream %d stopped serving (%d before, %d after)",
+					phase, i, previous[i].success, got.success,
+				)
 			}
 			if failed := got.failures - baseline[i].failures; failed != 0 {
 				t.Errorf("%s stream %d failed %d requests", phase, i, failed)

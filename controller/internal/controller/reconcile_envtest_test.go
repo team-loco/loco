@@ -447,6 +447,7 @@ var _ = Describe("Application reconcile", func() {
 			envSecretMount{},
 			testTelemetry(),
 			testMinReadySeconds,
+			testDrainSeconds,
 		)
 		Expect(err).NotTo(HaveOccurred())
 		delete(previous.Spec.Template.Labels, labelAppKubernetesName)

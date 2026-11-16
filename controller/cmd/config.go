@@ -23,6 +23,7 @@ const (
 	envGateway                = "LOCO_GATEWAY"
 	envWorkspacePrefix        = "LOCO_WORKSPACE_NAMESPACE_PREFIX"
 	envMinReadySeconds        = "LOCO_MIN_READY_SECONDS"
+	envDrainSeconds           = "LOCO_DRAIN_SECONDS"
 	decimalBase               = 10
 	portBits                  = 16
 	int31Bits                 = 31
@@ -41,11 +42,16 @@ type operatorConfig struct {
 	WorkspaceNamespacePrefix string
 	RawBuildConfig           string
 	Telemetry                controller.TelemetryConfig
-	// MinReadySeconds is nil when unset; only the application reconciler requires it.
+	// Rollout timings are nil when unset; only the application reconciler requires them.
 	MinReadySeconds *int32
+	DrainSeconds    *int32
 }
 
 func newOperatorConfig() operatorConfig {
+	drainSeconds := secondsEnv(envDrainSeconds)
+	if drainSeconds != nil && *drainSeconds == 0 {
+		panic(fmt.Errorf("%s must be positive", envDrainSeconds))
+	}
 	telemetry := controller.TelemetryConfig{
 		Namespace:        os.Getenv(envObservabilityNamespace),
 		CollectorService: os.Getenv(envOTelCollectorService),
@@ -62,6 +68,7 @@ func newOperatorConfig() operatorConfig {
 		RawBuildConfig:           os.Getenv(builds.EnvConfig),
 		Telemetry:                telemetry,
 		MinReadySeconds:          secondsEnv(envMinReadySeconds),
+		DrainSeconds:             drainSeconds,
 	}
 }
 

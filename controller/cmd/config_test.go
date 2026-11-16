@@ -61,6 +61,33 @@ func TestOperatorConfigPanicsOnInvalidMinReadySeconds(t *testing.T) {
 	}
 }
 
+func TestOperatorConfigReadsDrainSeconds(t *testing.T) {
+	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
+	t.Setenv(envDrainSeconds, "7")
+	if got := newOperatorConfig().DrainSeconds; got == nil || *got != 7 {
+		t.Errorf("DrainSeconds = %v, want 7", got)
+	}
+	t.Setenv(envDrainSeconds, "")
+	if got := newOperatorConfig().DrainSeconds; got != nil {
+		t.Errorf("unset DrainSeconds = %d, want nil", *got)
+	}
+}
+
+func TestOperatorConfigPanicsOnInvalidDrainSeconds(t *testing.T) {
+	for _, value := range []string{"0", "-1", "7s", "2147483648"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
+			t.Setenv(envDrainSeconds, value)
+			defer func() {
+				if recover() == nil {
+					t.Errorf("newOperatorConfig accepted drain seconds %q", value)
+				}
+			}()
+			newOperatorConfig()
+		})
+	}
+}
+
 func TestOperatorConfigLeavesUnsetPortsZero(t *testing.T) {
 	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 	t.Setenv(envOTelCollectorGRPCPort, "")

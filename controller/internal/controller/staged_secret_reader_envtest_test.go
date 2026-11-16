@@ -68,6 +68,7 @@ var _ = Describe("Staged environment secret reads", func() {
 			mount,
 			testTelemetry(),
 			testMinReadySeconds,
+			testDrainSeconds,
 		)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
@@ -93,6 +94,7 @@ var _ = Describe("Staged environment secret reads", func() {
 			mount,
 			testTelemetry(),
 			testMinReadySeconds,
+			testDrainSeconds,
 		)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
@@ -111,6 +113,7 @@ var _ = Describe("Staged environment secret reads", func() {
 			mount,
 			testTelemetry(),
 			testMinReadySeconds,
+			testDrainSeconds,
 		)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(

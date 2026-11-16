@@ -13,6 +13,7 @@ func TestGatewayIngressFollowsEachPodPort(t *testing.T) {
 		app.Spec.ServiceSpec.Deployment.Port = new(port)
 		deployment, err := desiredDeployment(
 			app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds,
+			testDrainSeconds,
 		)
 		if err != nil {
 			t.Fatal(err)
