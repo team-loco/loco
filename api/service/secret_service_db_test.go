@@ -21,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/reqctx"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -1014,5 +1015,45 @@ func TestASecretChangeRollsOnlyTheServiceThatHoldsIt(t *testing.T) {
 	}
 	if revision, appliedError := f.placementRevision(t, workers); revision != 1 || appliedError == nil {
 		t.Fatalf("worker's placement = revision %d error %v, want it untouched", revision, appliedError)
+	}
+}
+
+func TestSecretEventsStayInTheirEnvironment(t *testing.T) {
+	t.Parallel()
+	f := newSecretFixture(t)
+	server := f.server(t, newTestKeyProvider(t, "k1"))
+	stagingID := f.environment(t, f.workspaceID, stagingName)
+	for _, environmentID := range []uuid.UUID{f.environmentID, stagingID} {
+		request := &secretv1.SetSecretsRequest{
+			ResourceId: f.resourceID.String(), EnvironmentId: environmentID.String(),
+			Values: map[string]string{stripeKey: "value"},
+		}
+		if _, err := server.SetSecrets(f.owner, request); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
+			ResourceId: f.resourceID.String(), EnvironmentId: environmentID.String(), Names: []string{stripeKey},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	eventServer := NewEventServer(f.pool, f.queries)
+	for _, environmentID := range []uuid.UUID{f.environmentID, stagingID} {
+		response, err := eventServer.ListEvents(f.owner, &eventv1.ListEventsRequest{
+			OrgId: f.orgID.String(), ResourceId: f.resourceID.String(), EnvironmentId: environmentID.String(),
+			Query: "@type:secret.*",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(response.GetEvents()) != 2 {
+			t.Fatalf("secret events in %s = %v, want set and delete", environmentID, response.GetEvents())
+		}
+		for i, kind := range []string{events.SecretDeleted, events.SecretSet} {
+			event := response.GetEvents()[i]
+			if event.GetType() != kind || event.GetEnvironmentId() != environmentID.String() {
+				t.Fatalf("event = %v, want %s in %s", event, kind, environmentID)
+			}
+		}
 	}
 }
