@@ -90,8 +90,8 @@ Start Tilt again; `db-migrate` recreates the schema.
   host in its config for every stack, so log in again after switching stacks.
 - Never start an ad-hoc local server (for example `python3 -m http.server`) to preview
   files. Auto mode then blocks the Chrome tools for the session.
-- The theme lives in `localStorage` key `loco:theme:v1` (`light` or `dark`). Set it, then
-  navigate to reload.
+- Light or dark mode lives in `localStorage` key `loco:mode:v1` (`light` or `dark`; unset
+  follows the system). Set it, then navigate to reload.
 - After `navigate`, the first click only focuses the tab. Click once more to open a menu or
   dropdown, and take a throwaway screenshot before the saved one so fade-in animations
   finish.
