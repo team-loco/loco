@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { bodyParts, fmtTs, levelStyle } from "./format";
-import { queryKeyReason, quoteValue, sameToken, type Token } from "./query";
+import { queryKeyReason, quoteValue, withToken, type Token } from "./query";
 import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
 
@@ -64,7 +64,7 @@ function attributes(row: LogRow): Attribute[] {
 	const extra = new Map<string, Attribute>();
 	for (const [key, value] of Object.entries({ ...e.resourceAttributes, ...e.logAttributes })) {
 		if (key === "k8s.pod.name" || key === "loco.region") continue;
-		extra.set(key, { key, value, filter: queryKeyReason(key) ?? field(key, value), column: key });
+		extra.set(key, { key, value, filter: queryKeyReason(key, "logs") ?? field(key, value), column: key });
 	}
 	return [...list, ...extra.values()].filter((a) => a.value !== "");
 }
@@ -107,8 +107,7 @@ export function LogDetail({
 			onFilterToken(t);
 			return;
 		}
-		if (tokens.some((x) => sameToken(x, t))) return;
-		setQuery([...tokens.filter((x) => !(x.key === t.key && x.value === t.value)), t], text);
+		setQuery(withToken(tokens, t), text);
 	};
 	const json = JSON.stringify(
 		{

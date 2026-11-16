@@ -13,6 +13,7 @@ import {
 	pinnedKey,
 	queryError,
 	queryKeyReason,
+	withToken,
 	queryStr,
 	searchWords,
 	quoteValue,
@@ -199,12 +200,24 @@ describe("log queries", () => {
 		expect(readQuery(written)).toEqual({ tokens: [token], text: "slow" });
 	});
 
+	test("adds a filter once and replaces its opposite", () => {
+		const only: Token = { neg: false, key: "user.id", value: "42" };
+		const hide: Token = { neg: true, key: "user.id", value: "42" };
+		const other: Token = { neg: false, key: "status", value: "error" };
+		expect(withToken([other], only)).toEqual([other, only]);
+		expect(withToken([other, only], { ...only })).toEqual([other, only]);
+		expect(withToken([only, other], hide)).toEqual([other, hide]);
+	});
+
 	test("says why an attribute key can't be filtered", () => {
-		expect(queryKeyReason("http.status_code")).toBeNull();
-		expect(queryKeyReason("loco.io/build-id")).toBeNull();
-		expect(queryKeyReason("loco.workspace.id")).toContain("Loco sets");
-		expect(queryKeyReason("level")).toContain("built-in");
-		expect(queryKeyReason("has space")).toContain("can't be written");
+		expect(queryKeyReason("http.status_code", "logs")).toBeNull();
+		expect(queryKeyReason("loco.io/build-id", "logs")).toBeNull();
+		expect(queryKeyReason("loco.workspace.id", "logs")).toContain("Loco sets");
+		expect(queryKeyReason("level", "logs")).toContain("built-in");
+		expect(queryKeyReason("has space", "logs")).toContain("can't be written");
+		expect(queryKeyReason("level", "traces")).toBeNull();
+		expect(queryKeyReason("duration", "traces")).toContain("built-in");
+		expect(queryKeyReason("loco.workspace.id", "traces")).toBe("Loco sets loco.workspace.id; filter with @resource");
 	});
 
 	test("highlights the free text a query searches for", () => {

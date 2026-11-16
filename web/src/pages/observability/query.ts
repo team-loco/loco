@@ -87,14 +87,18 @@ export function hasBoolean(text: string): boolean {
 	return BOOLEAN_RE.test(text.replace(QUOTED_RE, '""'));
 }
 
-// keep in sync with the built-in fields and reserved keys in internal/clickhouse/log_filter.go
-const BUILTIN_KEYS = new Set(["level", "trace", "resource", "replica", "build", "region"]);
+// keep in sync with the built-in fields and reserved keys in internal/clickhouse/log_filter.go and trace_filter.go
+const BUILTIN_KEYS = {
+	logs: new Set(["level", "trace", "resource", "replica", "build", "region"]),
+	traces: new Set(["status", "duration", "trace", "resource"]),
+};
+const RESERVED_HINT = { logs: "@resource or @region", traces: "@resource" };
 
-/** Why an attribute key can't be filtered with @key:value, or null when it can. */
-export function queryKeyReason(key: string): string | null {
-	if (BUILTIN_KEYS.has(key)) return `@${key} is a built-in field, not this attribute`;
+/** Why an attribute key can't be filtered with @key:value in view, or null when it can. */
+export function queryKeyReason(key: string, view: "logs" | "traces"): string | null {
+	if (BUILTIN_KEYS[view].has(key)) return `@${key} is a built-in field, not this attribute`;
 	if (key.startsWith("loco.") && !key.startsWith("loco.io/"))
-		return `Loco sets ${key}; filter with @resource or @region`;
+		return `Loco sets ${key}; filter with ${RESERVED_HINT[view]}`;
 	if (!QUERY_KEY_RE.test(key)) return `${key} can't be written as a query key`;
 	return null;
 }
@@ -173,6 +177,12 @@ export function toQuery({ q, r }: { q: Query; r: string[] }): Query {
 
 export function sameToken(a: Token, b: Token): boolean {
 	return a.key === b.key && a.neg === b.neg && a.value.toLowerCase() === b.value.toLowerCase();
+}
+
+/** Adds t to tokens, replacing its opposite; tokens already holding t stay as they are. */
+export function withToken(tokens: Token[], t: Token): Token[] {
+	if (tokens.some((x) => sameToken(x, t))) return tokens;
+	return [...tokens.filter((x) => !(x.key === t.key && x.value === t.value)), t];
 }
 
 export interface TokenSupport {
