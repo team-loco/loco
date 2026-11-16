@@ -11087,6 +11087,40 @@
             "type": "string",
             "title": "cursor",
             "maxLength": 64
+          },
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "startTime": {
+            "title": "start_time",
+            "description": "Inclusive start and exclusive end of the event creation time range.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endTime": {
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "description": "Audit query: free text matched against the actor, target, event type and request ID, the\n @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
           }
         },
         "title": "StreamEventsRequest",

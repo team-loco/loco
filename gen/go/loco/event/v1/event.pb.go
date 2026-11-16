@@ -355,6 +355,17 @@ func (x *ListEventsResponse) GetNextBeforeSeq() int64 {
 type StreamEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	OrgId         string                 `protobuf:"bytes,2,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// Inclusive start and exclusive end of the event creation time range.
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// Audit query: free text matched against the actor, target, event type and request ID, the
+	// @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+	// docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
+	Query         string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -392,6 +403,55 @@ func (*StreamEventsRequest) Descriptor() ([]byte, []int) {
 func (x *StreamEventsRequest) GetCursor() string {
 	if x != nil {
 		return x.Cursor
+	}
+	return ""
+}
+
+func (x *StreamEventsRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *StreamEventsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *StreamEventsRequest) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *StreamEventsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *StreamEventsRequest) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *StreamEventsRequest) GetEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndTime
+	}
+	return nil
+}
+
+func (x *StreamEventsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
 	}
 	return ""
 }
@@ -494,9 +554,18 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\"j\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
-	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"6\n" +
+	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"\xfe\x02\n" +
 	"\x13StreamEventsRequest\x12\x1f\n" +
-	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\"\\\n" +
+	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\x12\"\n" +
+	"\x06org_id\x18\x02 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12.\n" +
+	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12,\n" +
+	"\vresource_id\x18\x06 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\n" +
+	"resourceId\x122\n" +
+	"\x0eenvironment_id\x18\a \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x129\n" +
+	"\n" +
+	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
+	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1e\n" +
+	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\"\\\n" +
 	"\x14StreamEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12\x16\n" +
 	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\xbc\x01\n" +
@@ -528,21 +597,23 @@ var file_loco_event_v1_event_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_loco_event_v1_event_proto_depIdxs = []int32{
-	5, // 0: loco.event.v1.Event.data:type_name -> google.protobuf.Struct
-	6, // 1: loco.event.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	6, // 2: loco.event.v1.ListEventsRequest.start_time:type_name -> google.protobuf.Timestamp
-	6, // 3: loco.event.v1.ListEventsRequest.end_time:type_name -> google.protobuf.Timestamp
-	0, // 4: loco.event.v1.ListEventsResponse.events:type_name -> loco.event.v1.Event
-	0, // 5: loco.event.v1.StreamEventsResponse.events:type_name -> loco.event.v1.Event
-	1, // 6: loco.event.v1.EventService.ListEvents:input_type -> loco.event.v1.ListEventsRequest
-	3, // 7: loco.event.v1.EventService.StreamEvents:input_type -> loco.event.v1.StreamEventsRequest
-	2, // 8: loco.event.v1.EventService.ListEvents:output_type -> loco.event.v1.ListEventsResponse
-	4, // 9: loco.event.v1.EventService.StreamEvents:output_type -> loco.event.v1.StreamEventsResponse
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	5,  // 0: loco.event.v1.Event.data:type_name -> google.protobuf.Struct
+	6,  // 1: loco.event.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	6,  // 2: loco.event.v1.ListEventsRequest.start_time:type_name -> google.protobuf.Timestamp
+	6,  // 3: loco.event.v1.ListEventsRequest.end_time:type_name -> google.protobuf.Timestamp
+	0,  // 4: loco.event.v1.ListEventsResponse.events:type_name -> loco.event.v1.Event
+	6,  // 5: loco.event.v1.StreamEventsRequest.start_time:type_name -> google.protobuf.Timestamp
+	6,  // 6: loco.event.v1.StreamEventsRequest.end_time:type_name -> google.protobuf.Timestamp
+	0,  // 7: loco.event.v1.StreamEventsResponse.events:type_name -> loco.event.v1.Event
+	1,  // 8: loco.event.v1.EventService.ListEvents:input_type -> loco.event.v1.ListEventsRequest
+	3,  // 9: loco.event.v1.EventService.StreamEvents:input_type -> loco.event.v1.StreamEventsRequest
+	2,  // 10: loco.event.v1.EventService.ListEvents:output_type -> loco.event.v1.ListEventsResponse
+	4,  // 11: loco.event.v1.EventService.StreamEvents:output_type -> loco.event.v1.StreamEventsResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_loco_event_v1_event_proto_init() }

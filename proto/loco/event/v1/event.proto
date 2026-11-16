@@ -67,6 +67,29 @@ message ListEventsResponse {
 
 message StreamEventsRequest {
   string cursor = 1 [(buf.validate.field).string.max_len = 64];
+  string org_id = 2 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  string workspace_id = 5 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  string resource_id = 6 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  string environment_id = 7 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Inclusive start and exclusive end of the event creation time range.
+  google.protobuf.Timestamp start_time = 8;
+  google.protobuf.Timestamp end_time = 9;
+  // Audit query: free text matched against the actor, target, event type and request ID, the
+  // @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+  // docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
+  string query = 13 [(buf.validate.field).string.max_bytes = 4096];
 }
 
 message StreamEventsResponse {

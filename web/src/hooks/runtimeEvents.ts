@@ -3,7 +3,12 @@ import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 import { queryOptions } from "@tanstack/react-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { EventService, ListEventsResponseSchema, type ListEventsRequest } from "@gen/loco/event/v1/event_pb";
+import {
+	EventService,
+	ListEventsResponseSchema,
+	type ListEventsRequest,
+	type Event,
+} from "@gen/loco/event/v1/event_pb";
 import { eventTypesQuery } from "@/lib/audit-query";
 import { collectPages } from "@/lib/collectPages";
 import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
@@ -34,4 +39,8 @@ export function runtimeEventsOptions(
 		},
 		enabled: scope.orgId !== "" && scope.workspaceId !== "" && scope.environmentId !== "",
 	});
+}
+
+export function mergeEvents(history: Event[], incoming: Event[]): Event[] {
+	return [...new Map([...history, ...incoming].map((event) => [event.id, event])).values()];
 }

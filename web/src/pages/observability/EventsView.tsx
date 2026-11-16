@@ -36,7 +36,6 @@ const EVENTS_PARAMS = {
 	live: parseAsStringLiteral(["0"]),
 	event: parseAsString,
 };
-const POLL_MS = 10_000;
 const NOW_TICK_MS = 30_000;
 
 type Show = "all" | "warning" | "error";
@@ -75,18 +74,17 @@ function typeValues(severity: Severity): string[] {
 export function EventsView() {
 	const { orgId, workspaceId, resources, resourcesLoading, range, tokens, text, setQuery } = useObs();
 	const [params, setParams] = useQueryStates(EVENTS_PARAMS, { history: "replace" });
-	// Events poll by default; ?live=0 stops it.
 	const live = params.live === null;
 	const [openedAt] = useState(Date.now);
 	const { active: environment } = useEnvironments();
-	const now = useNow(live ? POLL_MS : NOW_TICK_MS);
+	const now = useNow(NOW_TICK_MS);
 	const nowMs = now.getTime();
 	const { from, to } = resolveWindow(range, nowMs);
 
 	const { events, isLoading, error, refetch } = useWorkspaceEvents(
 		workspaceId,
 		resources.map((r) => r.raw),
-		live ? POLL_MS : undefined,
+		live,
 	);
 	const visible = new Set(filteredResources("events", resources, tokens).map((r) => r.id));
 	const words = text.toLowerCase().split(" ").filter(Boolean);
@@ -137,8 +135,8 @@ export function EventsView() {
 			actions={
 				<LiveButton
 					on={live}
-					detail="every 10s"
-					title={live ? "Stop checking for new events" : "Check for new events every 10 seconds"}
+					detail="streaming"
+					title={live ? "Pause event stream" : "Stream new events"}
 					onToggle={() => {
 						void setParams({ live: live ? "0" : null });
 					}}

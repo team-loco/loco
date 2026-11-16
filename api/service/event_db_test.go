@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -118,7 +119,11 @@ func TestSignupAndOrgCreationAreRecorded(t *testing.T) {
 func TestAuthorizeEventScopeForAnOrganization(t *testing.T) {
 	t.Parallel()
 	f := newEventFixture(t)
-	scope, err := f.events.authorizeEventScope(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID})
+	scope, err := f.events.authorizeEventScope(
+		f.owner,
+		&eventv1.ListEventsRequest{OrgId: f.orgID},
+		actions.ListWorkspaceAuditEvents,
+	)
 	if err != nil {
 		t.Fatalf("authorize: %v", err)
 	}

@@ -20,6 +20,9 @@ type AuditQuery struct {
 	EnvironmentID *uuid.UUID
 	Start, End    *time.Time
 	BeforeSeq     int64
+	AfterTxid     uint64
+	AfterSeq      int64
+	Stream        bool
 	Filter        logquery.Expr
 	Limit         int32
 }
@@ -81,6 +84,12 @@ func auditSQL(q AuditQuery) (string, []any) {
 	if q.Filter != nil {
 		sql += " AND " + querySQL(q.Filter, b)
 	}
-	sql += " ORDER BY e.seq DESC LIMIT " + b.bind(q.Limit)
+	if q.Stream {
+		sql += " AND (e.txid, e.seq) > (" + b.bind(q.AfterTxid) + "::xid8, " + b.bind(q.AfterSeq) + "::bigint)"
+		sql += " AND e.txid < pg_snapshot_xmin(pg_current_snapshot()) ORDER BY e.txid, e.seq"
+	} else {
+		sql += " ORDER BY e.seq DESC"
+	}
+	sql += " LIMIT " + b.bind(q.Limit)
 	return sql, b.args
 }
