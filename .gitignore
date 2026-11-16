@@ -82,7 +82,7 @@ tests/ui/out/
 # temp ignores
 .sops.yaml
 v1-report.html
-clusters/
+/clusters/
 
 __pycache__/
 .pytest_cache/

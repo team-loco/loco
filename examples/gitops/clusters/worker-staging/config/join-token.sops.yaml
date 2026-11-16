@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: loco-agent-join-token
+    namespace: loco-system
+type: Opaque
+stringData:
+    join-token: ENC[AES256_GCM,data:MuQeU7h+jqnxmd0miK9wGjzNsA8uAiH7vQ==,iv:YHJw5tfUeaHw8Kxdn0OzLxlRqrsn2BLSGV/trD4AZyw=,tag:0HG6f/k7BAEzO2iCk+qGvQ==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBDMUlkTWtxd3FnR1BFbTMv
+            ekxJZjg5UityQkw3RkhXN1hWeGl5ZlRrbVFBCnlSeWxiSldmNWkxQ05RVlgrbm9w
+            ZlB3L21CZzBxajV1WUJOU3VlS3ZVR1EKLS0tIEEraFZMMXk4WEpYVVFhUUZhd0Nq
+            NTV0ZEpOcE03U0RVcVFZNnFSQzFVZUEKBus1sQV4VISBe0Mz9cDncT4t3+737AOc
+            OFCsY6Z+WTPW4wwiUu05+d2p9hm/6nXg1q36BhvCb3FhtXZjekjM7g==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1n7v9g3nufc2wn6c2nhs24fenj3sw92ecwtvc6pwyv9h7x6rnxs9qwmrxml
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBua3M0a2JXQmcwNFQxcnlG
+            T3NtTEQ4VjI5NjNBUlRRS0FYclh2VEZnOG00CkF0b3hDdjQwQlN3SERWWFhHMUNi
+            Z1RtUWxHQUU3MHcvQmo0aXhlcUpTNTAKLS0tIDZXazBHVEU3eVJxNmdXTVByTXlT
+            azErb0NYYnJRSlQrdzlSSmFtRXh6OGsKvaJLEmdtm+psZYrq/EjRZ7O3qcHmus+A
+            bztbhPjs+C32WmDavMXPBUGtqvVa03QUetdY4K15dPTHf7EKaEjd7w==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1hxuq8l7eqce0ewtr539pa6g0krpnzk98s2wlv2pqwpwthm889v4sg74f32
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-11-16T22:33:28Z"
+    mac: ENC[AES256_GCM,data:znnyaj//yTyCFBSPsDKMtjFW0KdlxDzus3Pf673/+ed4midozE7Kq0Yac3J23R1k+Nz6iXb5WS38LypClsgF0/ZX1w4GhBoldbiZSG4JrRIzYP9O+cb65OCEpSgYy1dU4EhGJEhd/tWlTbhgYSUleTZXKLZLQvc3ueQktPjLymw=,iv:GVH59L8xykBxlbJVCUgAIyULwi/AL+dOkK11sTz8Qb0=,tag:Z3sAAhV0cpj/lMKqWM0CIw==,type:str]
+    version: 3.13.3

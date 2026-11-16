@@ -1,0 +1,28 @@
+controlPlaneHostname: api.example.com
+ui:
+  hostname: app.example.com
+api:
+  existingSecret: loco-api-env
+  systemAdmins: [admin@example.com]
+  registry:
+    auth: token
+    service: registry.example.com
+  env:
+    WEB_URL: https://app.example.com
+    CORS_ALLOWED_ORIGINS: https://app.example.com
+certManager:
+  issuer:
+    email: admin@example.com
+
+obsProxy:
+  ingest:
+    hostname: ingest.example.com
+clickhouse:
+  enabled: true
+openbao:
+  seal:
+    static:
+      existingSecret:
+        name: openbao-seal
+  snapshots:
+    enabled: false

@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: openbao-seal
+    namespace: loco-system
+type: Opaque
+stringData:
+    key: ENC[AES256_GCM,data:ZVMOkeEDfHMmRm5POzVSOBIZoEKSXyfLFflyLq9M2Fy3KgT++D/3A9b3EpE=,iv:93CRJxkrM/7hS7dDd/3nMZUsGAzHNIBKtiM5tzxZ9xA=,tag:fXePS4nREttxQvJuGFVBZA==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB5ZEJBMkExM2grcmZqSXVl
+            Z3ZBWXU3MUQvOEZXZTNkNXBxdEozdkRuems0Ck00M0xHOEw2RXlXNWdzNk0wWjVs
+            ZWhjNURFVWIzbFN5MlNRMkdsdkM0ekEKLS0tIG1zVjk2aHNmK2hLVjIzSjlpWHZr
+            ZWFmS0pzb2tDRlA0eW9FNG53dTJ4MGcKkYqVcAcBvi05eskB5XJP6aSFGxj5lcQw
+            FEQf9/Ak/xa0g/0IQM827E0Wazl4Ktc3bZQyxXWTAg3t3eFiJpbM/A==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1jjwjs3l5r34nvgxhvrjqqrqzhq9ehe4c7fd0wmfda8pcegwhm3nqg0wgmm
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB5S3JLM3kxUldGdTE0bk5p
+            bDlzVUhPVWZJWTJ6NzFLNjluM2U2djBQakY4CnA1ZUdzUVFrOTVJeVBoVUp4cjlE
+            Z1RuQWxhMUdBS2hLTUlJWHdXK3JrTVEKLS0tIEpJektGY2U2VUZuam5sb0ZnZEVD
+            MEVoZmxnQWtCeGRobmZwWUVrSEovZk0K6+k2ie7aLmhEL/GQEet8/sHmpiWIF16m
+            vGQIWI+7PALYvK2Lx3Fx5CtV2NfBeNaFEXgiDPzyBRMNUP8ZY5pyrQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1hxuq8l7eqce0ewtr539pa6g0krpnzk98s2wlv2pqwpwthm889v4sg74f32
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-11-16T22:33:28Z"
+    mac: ENC[AES256_GCM,data:V3YBf0L3ZUBuggWoRM/ebiz+I16glDWT3hq5iY8xN78YFK+og07SykfHZVyeCZ4Swl0tKEBHbl1G84Pl0e448HQZiNl07YmBExQwwbOL+HpzmGdHd5KMkW9IGWUryaQl3YhZKsjVaGOcMvxqHR7lkorwv//2haz20tuOmsff0JI=,iv:d6NUonTJ+uS92UoUCERVIUpWHnkmFafsMWYETlOu1LE=,tag:EOVRkAZOu+4e1EXRk6Biqw==,type:str]
+    version: 3.13.3
