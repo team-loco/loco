@@ -40,6 +40,64 @@ INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_typ
 VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','crash_looping','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
 UPDATE placements SET ready=false,ready_replicas=0,status_phase='Failed',status_message='The pod restarted' WHERE resource_id='{resource}';
 COMMIT;""")
+graph_names = [name, "graph-api", "graph-worker"]
+for peer in graph_names[1:]:
+    peer_id = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": peer, "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
+    peer_deployment = str(uuid.uuid4())
+    evidence.psql(state["container"], f"""
+INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at)
+VALUES('user','{owner['id']}','web','{peer_deployment}','{peer_id}','{cluster}','us-east-1',1,'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());
+INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
+VALUES('{peer_id}','{cluster}','us-east-1','{peer_deployment}','{production}','{{"app_spec":{{}}}}',true,1,'Ready',NOW());
+""")
+
+
+def check_service_map(browser):
+    context, page, errors = open_page(browser, state=state)
+    requests, held = [], []
+    mode = ["loading"]
+    graph_rpc = "**/loco.observability.v1.ObservabilityService/QueryServiceGraph"
+    edges = [{"from": source, "to": target, "requests": "3600", "errors": "90", "p95Ms": 12.3} for source, target in [(name, "graph-api"), ("graph-api", "graph-worker"), ("graph-api", "postgresql")]]
+
+    def graph(route):
+        requests.append(route.request.post_data_json)
+        if mode[0] == "loading":
+            held.append(route)
+        elif mode[0] == "error":
+            route.fulfill(status=503, json={"code": "unavailable", "message": "Trace store unavailable"})
+        else:
+            route.fulfill(json={"edges": edges if mode[0] == "calls" else []})
+
+    context.route(graph_rpc, graph)
+    path = state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production&view=map"
+    page.goto(path)
+    expect(page.get_by_text("Loading service calls…", exact=True)).to_be_visible()
+    assert len(held) == 1
+    held.pop().fulfill(json={"edges": edges})
+    for edge in edges:
+        call = page.get_by_role("group", name=f"{edge['from']} → {edge['to']}", exact=True)
+        expect(call).to_contain_text("1 req/s · 2.5% errors · p95 12.3 ms")
+    expect(page.get_by_text("External peer", exact=True)).to_be_visible()
+    request = requests[0]
+    assert request["workspaceId"] == workspace and request["environmentId"] == production, request
+    start = datetime.datetime.fromisoformat(request["startTime"].replace("Z", "+00:00"))
+    end = datetime.datetime.fromisoformat(request["endTime"].replace("Z", "+00:00"))
+    assert (end - start).total_seconds() == 3600, request
+    page.get_by_role("button", name=re.compile(r"^graph-api internal")).click()
+    expect(page.get_by_role("dialog").get_by_role("heading", name="graph-api", exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
+    page.set_viewport_size(evidence.NARROW)
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    mode[0] = "empty"
+    page.goto(path + "&range=15m")
+    expect(page.get_by_text("No service calls in this range. Send traces to see connections.", exact=True)).to_be_visible()
+    mode[0] = "error"
+    page.goto(path + "&range=4h")
+    expect(page.get_by_text("Trace store unavailable.", exact=True)).to_be_visible(timeout=20000)
+    assert not errors, errors
+    context.close()
+
+
 assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": production}) == {}
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 USAGE = {"min": 0.5, "p50": 0.6, "max": 0.9}
@@ -54,6 +112,7 @@ def metrics(route):
 
 results = []
 with session(out) as browser:
+    check_service_map(browser)
     try:
         context, page, errors = open_page(browser, state=state, permissions=["clipboard-read", "clipboard-write"])
         context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)

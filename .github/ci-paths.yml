@@ -197,6 +197,9 @@ e2e:
     - "proto/**"
     # The suites build the binaries. The Tests workflow runs their Go tests.
     - "!**/*_test.go"
+    - "internal/clickhouse/service_graph*.go"
+    - "api/service/observability*.go"
+    - "proto/loco/observability/**"
     - "charts/loco-control-plane/**"
     - "charts/loco-worker/**"
     - "manifests/namespaces/**"

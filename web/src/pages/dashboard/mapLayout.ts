@@ -84,7 +84,10 @@ function placeColumn(c: Column, x: number, height: number): PlacedColumn {
 		label = { x, y };
 		y += MAP_LABEL_H + ROW_GAP;
 	}
-	const nodes = Array.from({ length: c.count }, (_, i) => ({ x, y: y + i * (MAP_NODE_H + ROW_GAP) }));
+	const nodes = Array.from({ length: c.count }, (_, i) => ({
+		x,
+		y: y + i * (MAP_NODE_H + ROW_GAP),
+	}));
 	const more = c.more ? { x, y: y + c.count * (MAP_NODE_H + ROW_GAP) } : null;
 	return { label, nodes, more };
 }
@@ -99,17 +102,25 @@ function middle(p: MapPoint): number {
 	return p.y + MAP_NODE_H / 2;
 }
 
-export function mapLayout(rows: DashboardItem[], regionOrder: string[], availableWidth: number): MapLayout {
+export function mapLayout(
+	rows: DashboardItem[],
+	regionOrder: string[],
+	availableWidth: number,
+	calls = false,
+): MapLayout {
 	const ranked = rows.toSorted((a, b) => itemRank(a) - itemRank(b) || itemName(a).localeCompare(itemName(b)));
 	const publicRows = ranked.filter(itemIsPublic);
 	const internalRows = ranked.filter((r) => !itemIsPublic(r));
-	const shownPublic = publicRows.slice(0, MAP_PUBLIC_LIMIT);
-	const shownInternal = internalRows.slice(0, MAP_INTERNAL_LIMIT);
+	const shownPublic = publicRows.slice(0, calls ? undefined : MAP_PUBLIC_LIMIT);
+	const shownInternal = internalRows.slice(0, calls ? undefined : MAP_INTERNAL_LIMIT);
 
 	const regionNames = new Set(regionOrder);
 	for (const row of shownPublic) for (const g of row.regions) regionNames.add(g.region);
 	const served = [...regionNames]
-		.map((region) => ({ region, rows: shownPublic.filter((r) => r.regions.some((g) => g.region === region)) }))
+		.map((region) => ({
+			region,
+			rows: shownPublic.filter((r) => r.regions.some((g) => g.region === region)),
+		}))
 		.filter((g) => g.rows.length > 0);
 
 	const columns: Column[] = [];
@@ -117,7 +128,12 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 		columns.push(
 			{ key: "internet", count: 1, label: false, more: false },
 			{ key: "gateways", count: served.length, label: false, more: false },
-			{ key: "public", count: shownPublic.length, label: false, more: publicRows.length > shownPublic.length },
+			{
+				key: "public",
+				count: shownPublic.length,
+				label: false,
+				more: publicRows.length > shownPublic.length,
+			},
 		);
 	}
 	if (shownInternal.length > 0) {
@@ -130,7 +146,7 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 	}
 
 	const n = columns.length;
-	const width = Math.max(availableWidth, n * MAP_NODE_W + Math.max(0, n - 1) * MAP_MIN_GAP);
+	const width = Math.max(availableWidth, n * MAP_NODE_W + Math.max(0, n - 1) * (calls ? 280 : MAP_MIN_GAP));
 	const gap = n > 1 ? (width - n * MAP_NODE_W) / (n - 1) : 0;
 	const height = Math.max(0, ...columns.map(columnHeight));
 	const xs = columns.map((_, i) => i * (MAP_NODE_W + gap));
@@ -155,7 +171,12 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 
 	const edgesInto = (key: string): MapEdge[] => {
 		if (key === "gateways" && internet !== null)
-			return gateways.map((g) => ({ key: `net/${g.region}`, y1: middle(internet), y2: middle(g), draft: false }));
+			return gateways.map((g) => ({
+				key: `net/${g.region}`,
+				y1: middle(internet),
+				y2: middle(g),
+				draft: false,
+			}));
 		if (key === "public")
 			return gateways.flatMap((g) =>
 				publicNodes
@@ -177,9 +198,26 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 		divider: c.key === "internal",
 	}));
 
+	const scale = calls ? 2.5 : 1;
+	for (const node of [
+		internet,
+		...gateways,
+		...publicNodes,
+		...internalNodes,
+		pub?.more,
+		internal?.label,
+		internal?.more,
+	]) {
+		if (node != null) node.y *= scale;
+	}
+	for (const segment of gaps)
+		for (const edge of segment.edges) {
+			edge.y1 = (edge.y1 - MAP_NODE_H / 2) * scale + MAP_NODE_H / 2;
+			edge.y2 = (edge.y2 - MAP_NODE_H / 2) * scale + MAP_NODE_H / 2;
+		}
 	return {
 		width,
-		height,
+		height: height * scale,
 		internet,
 		gateways,
 		publicNodes,

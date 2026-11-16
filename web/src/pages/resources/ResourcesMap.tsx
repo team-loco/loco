@@ -1,8 +1,17 @@
+import { useQuery } from "@connectrpc/connect-query";
+import { queryServiceGraph } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
+import { useQueryStates } from "nuqs";
 import { ArrowRightIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
+import { ErrorState } from "@/components/design/ErrorState";
+import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
+import { useNow } from "@/hooks/useNow";
+import { resolveWindow, toWindow, windowLabel, WINDOW_PARSERS } from "@/lib/obs-time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
+import { msToTimestamp } from "@/lib/time";
 import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
@@ -35,6 +44,22 @@ export function ResourcesMap({
 	env: Environment;
 	onShowTable: () => void;
 }) {
+	const maxMs = useObservabilityMaxRange();
+	const now = useNow(60_000).getTime();
+	const [params] = useQueryStates(WINDOW_PARSERS);
+	const range = toWindow(params, maxMs ?? 0);
+	const bounds = resolveWindow(range, now);
+	const pref = useTimePreferences();
+	const graph = useQuery(
+		queryServiceGraph,
+		{
+			workspaceId,
+			environmentId: env.id,
+			startTime: msToTimestamp(bounds.from),
+			endTime: msToTimestamp(bounds.to),
+		},
+		{ enabled: maxMs !== undefined, staleTime: Infinity },
+	);
 	const data = useDashboardData(orgId, workspaceId, env);
 	// Kept after close so the panel keeps its contents while it slides out.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -48,10 +73,23 @@ export function ResourcesMap({
 
 	return (
 		<Section>
+			{graph.error !== null ? (
+				<ErrorState error={graph.error} what="service calls" rpc={queryServiceGraph} onRetry={graph.refetch} />
+			) : (
+				<div role="status" className="px-5 py-3 text-[12px] text-fg3">
+					{graph.isPending
+						? "Loading service calls…"
+						: graph.data.edges.length === 0
+							? "No service calls in this range. Send traces to see connections."
+							: `Service calls · ${windowLabel(range, pref)}`}
+				</div>
+			)}
 			{deployed.length === 0 ? (
 				<div className="py-10 text-center text-fg3">Nothing is deployed to {env.name} yet.</div>
 			) : (
 				<ArchitectureDiagram
+					callEdges={graph.data?.edges ?? []}
+					rangeMs={bounds.to - bounds.from}
 					rows={deployed}
 					regionOrder={data.regions.map((r) => r.region)}
 					environmentId={env.id}
@@ -83,7 +121,10 @@ export function ResourcesMap({
 								nativeButton={false}
 								render={
 									<Link
-										to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: [selected.resource.name] })}
+										to={observabilityPath(orgId, workspaceId, "logs", {
+											...envParam,
+											r: [selected.resource.name],
+										})}
 									/>
 								}
 							>
@@ -95,7 +136,10 @@ export function ResourcesMap({
 								nativeButton={false}
 								render={
 									<Link
-										to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: [selected.resource.name] })}
+										to={observabilityPath(orgId, workspaceId, "traces", {
+											...envParam,
+											r: [selected.resource.name],
+										})}
 									/>
 								}
 							>

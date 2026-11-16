@@ -1,7 +1,8 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { GlobeIcon, ShieldCheckIcon } from "lucide-react";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useId, useState, type ReactNode } from "react";
 import { Link } from "react-router";
+import type { ServiceGraphEdge } from "@gen/loco/observability/v1/observability_pb";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
 import { Button } from "@/components/design/Button";
@@ -23,6 +24,7 @@ import {
 	type MapPoint,
 } from "./mapLayout";
 import { isDraftItem, itemKey, itemName, type DashboardItem } from "./resourceRows";
+import { serviceGraph } from "./serviceGraph";
 import type { EnvResource } from "./useDashboardData";
 
 const NODE =
@@ -149,7 +151,11 @@ export function ArchitectureDiagram({
 	hrefFor,
 	onShowTable,
 	onSelect,
+	callEdges,
+	rangeMs = 0,
 }: {
+	callEdges?: ServiceGraphEdge[];
+	rangeMs?: number;
 	rows: DashboardItem[];
 	regionOrder: string[];
 	environmentId: string;
@@ -160,7 +166,9 @@ export function ArchitectureDiagram({
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
 	const platformDomains = domainsRes?.platformDomains ?? [];
 	const [measure, available] = useWidth();
-	const layout = mapLayout(rows, regionOrder, available);
+	const layout = mapLayout(rows, regionOrder, available, (callEdges?.length ?? 0) > 0);
+	const graph = serviceGraph(layout, callEdges ?? [], rangeMs);
+	const arrowId = useId();
 	const more = (n: number, p: MapPoint) => (
 		<div
 			className="absolute flex items-center justify-center"
@@ -176,9 +184,54 @@ export function ArchitectureDiagram({
 		<div className="overflow-x-auto px-5 pt-3 pb-5">
 			<div ref={measure} className="min-w-0">
 				{available > 0 && (
-					<div className="relative" style={{ width: layout.width, height: layout.height }}>
+					<div className="relative" style={{ width: graph.width, height: graph.height }}>
 						{layout.gaps.map((gap) => (
 							<GapEdges key={gap.key} gap={gap} height={layout.height} />
+						))}
+						<svg
+							width={graph.width}
+							height={graph.height}
+							className="pointer-events-none absolute fill-none stroke-fg3 stroke-[1.5]"
+							aria-hidden="true"
+						>
+							<defs>
+								<marker
+									id={arrowId}
+									viewBox="0 0 10 10"
+									refX="9"
+									refY="5"
+									markerWidth="6"
+									markerHeight="6"
+									orient="auto-start-reverse"
+								>
+									<path d="M0 0 L10 5 L0 10" className="fill-fg3 stroke-none" />
+								</marker>
+							</defs>
+							{graph.calls.map((call) => (
+								<path key={call.key} d={call.path} markerEnd={`url(#${arrowId})`} />
+							))}
+						</svg>
+						{graph.calls.map((call) => (
+							<div
+								key={call.key}
+								role="group"
+								aria-label={call.name}
+								className="absolute w-[220px] rounded bg-panel px-2 py-1 font-mono text-[11px] text-fg3"
+								style={{ left: call.x, top: call.y }}
+							>
+								<div className="text-foreground">{call.name}</div>
+								{call.label}
+							</div>
+						))}
+						{graph.external.map((node) => (
+							<div key={node.name} className={EDGE_NODE} style={box(node)}>
+								<NodeText
+									icon={<GlobeIcon className="size-[15px] shrink-0 text-fg3" />}
+									title={node.name}
+									sub="External peer"
+									meta=""
+								/>
+							</div>
 						))}
 						{layout.internet !== null && (
 							<div className={EDGE_NODE} style={box(layout.internet)}>
