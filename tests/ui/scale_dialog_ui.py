@@ -26,14 +26,18 @@ org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id
 production = next(env["id"] for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})["environments"] if env["name"] == "production")
 cluster = str(uuid.uuid4())
 sql = [f"INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','scale-dialog','us-east-1','fixture',true,false,'healthy',NOW());"]
+resources = []
 for name, cpu, memory, replicas in (("scale-small", "500m", "512Mi", 1), ("scale-large", "250m", "2Gi", 3)):
     size = {"cpu": cpu, "memory": memory, "minReplicas": replicas, "maxReplicas": replicas}
     resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, **size}}}}})["resourceId"]
+    resources.append(resource)
     deployment = str(uuid.uuid4())
     runtime = json.dumps({"build": {"type": "image", "image": f"registry.example.com/{name}:1"}, "port": 8080, **size})
     sql.append(f"INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',{replicas},'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());")
-    sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{}}',true,{replicas},'Ready',NOW());")
+    sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{\"app_spec\":{{}}}}',true,{replicas},'Ready',NOW());")
 evidence.psql(state["container"], "BEGIN;\n" + "\n".join(sql) + "\nCOMMIT;")
+for resource in resources:
+    assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": production}) == {}
 limits = evidence.rpc(state["api_url"], owner["token"], "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]
 low, high = limits["minReplicas"], limits["maxReplicas"]
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production"
