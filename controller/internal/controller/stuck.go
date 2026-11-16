@@ -81,6 +81,7 @@ func (r *ApplicationReconciler) findStuckReplica(
 	ctx context.Context,
 	app *locov1alpha1.Application,
 	envSecretRevision string,
+	deadlineExpired bool,
 ) (stuckReplica, bool, error) {
 	namespace := r.workspaceNamespace(app)
 	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
@@ -96,6 +97,9 @@ func (r *ApplicationReconciler) findStuckReplica(
 			continue
 		}
 		if stuck, ok := stuckContainer(pod); ok {
+			if !deadlineExpired && (stuck.reason == reasonErrImagePull || stuck.reason == reasonImagePullBackOff) {
+				continue
+			}
 			return stuck, true, nil
 		}
 	}

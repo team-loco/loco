@@ -235,13 +235,10 @@ func (r *ApplicationReconciler) reconcileResources(
 	replicas := app.Status.DesiredReplicas
 	if !deploymentReady(dep, replicas) {
 		envSecretRevision := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]
-		stuck, found, err := r.findStuckReplica(ctx, app, envSecretRevision)
+		failure, expired := deploymentFailure(dep)
+		stuck, found, err := r.findStuckReplica(ctx, app, envSecretRevision, expired)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("find stuck replicas: %w", err)
-		}
-		failure, expired := deploymentFailure(dep)
-		if found && (stuck.reason == reasonErrImagePull || stuck.reason == reasonImagePullBackOff) && !expired {
-			found = false
 		}
 		if expired && !found {
 			stuck, found = failure, true

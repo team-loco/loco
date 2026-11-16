@@ -161,6 +161,25 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(degraded).NotTo(BeNil())
 		Expect(degraded.Reason).To(Equal(reasonImagePullBackOff))
 	})
+	It("reports another replica's startup failure while an image pull retries", func() {
+		app := isolationTestApplication(stuckWorkspace, "mixed-pull")
+		app.Spec.ServiceSpec.Routing = nil
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+
+		pulling := createReplica(app, "mixed-a-pulling", testImage)
+		setWaiting(pulling, reasonErrImagePull, kubeletPullMessage)
+		broken := createReplica(app, "mixed-z-broken", testImage)
+		setWaiting(broken, reasonCreateContainerConfigError, kubeletRootImageMessage)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
+		Expect(app.Status.Message).To(Equal(messageRootImage))
+
+		Expect(k8sClient.Delete(ctx, broken)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
+	})
+
 	It("fails an unschedulable replica and resumes when scheduling succeeds", func() {
 		app := isolationTestApplication(stuckWorkspace, "schedule")
 		app.Spec.ServiceSpec.Routing = nil
