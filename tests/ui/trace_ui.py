@@ -463,9 +463,9 @@ with session(out) as browser:
     failing_button = drawer.get_by_role('region', name='Flame graph').get_by_role('button', name=failing)
     assert len(log_requests) == 1, log_requests
     assert log_requests[0]['query'] == '@trace:' + trace, log_requests
-    before_shadow = failing_button.evaluate('(el) => getComputedStyle(el).boxShadow')
+    expect(failing_button).not_to_have_attribute('data-linked', 'true')
     log_rows.get_by_role('button', name='Open log: Payment request failed').hover()
-    expect(failing_button).not_to_have_css('box-shadow', before_shadow)
+    expect(failing_button).to_have_attribute('data-linked', 'true')
     marker = drawer.get_by_role('button', name=re.compile('^Log at .*Payment request failed$'))
     marker.click()
     expect(page).to_have_url(re.compile('span=' + spans[10]['spanId']))
