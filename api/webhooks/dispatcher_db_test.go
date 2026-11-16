@@ -26,6 +26,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/transit/transittest"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/webhooks"
+	"github.com/team-loco/loco/internal/logquery"
 )
 
 const (
@@ -273,8 +274,10 @@ func TestTokenRequestActorReachesAuditAndWebhook(t *testing.T) {
 			}); err != nil {
 				t.Fatalf("record: %v", err)
 			}
-			rows, err := f.queries.ListOrgAuditEvents(t.Context(), genDb.ListOrgAuditEventsParams{
-				OrgID: &f.orgID, Types: []string{}, ActorIds: []uuid.UUID{tokenID}, MaxRows: 10,
+			rows, err := events.ListAudit(t.Context(), f.pool, events.AuditQuery{
+				OrgID:  f.orgID,
+				Filter: logquery.Field{Key: "actor", Match: logquery.Equal, Value: tokenID.String()},
+				Limit:  10,
 			})
 			if err != nil || len(rows) != 1 {
 				t.Fatalf("token audit events = %d (%v), want one", len(rows), err)

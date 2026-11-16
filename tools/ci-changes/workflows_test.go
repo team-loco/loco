@@ -121,7 +121,7 @@ func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
 		operatorTools     = "operator-tools"
 		nativeRunnerError = "native Linux runner"
 	)
-	toolNames := []string{"helm", "kubectl"}
+	wantTools := []string{"helm", "kubectl"}
 	var workflow struct {
 		Jobs map[string]struct {
 			Steps []struct {
@@ -183,7 +183,7 @@ printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 			if tc.interpreter {
 				binary.LittleEndian.PutUint32(elf[64:], 3)
 			}
-			for _, tool := range toolNames {
+			for _, tool := range wantTools {
 				require.NoError(t, os.WriteFile(filepath.Join(pinned, tool), elf, 0o700))
 				require.NoError(t, os.WriteFile(filepath.Join(bin, tool), []byte("unverified PATH tool"), 0o700))
 			}
@@ -203,7 +203,7 @@ printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 			staged, err := os.ReadDir(filepath.Join(bin, operatorTools))
 			require.NoError(t, err)
 			require.Len(t, staged, 2)
-			assert.Equal(t, toolNames, []string{staged[0].Name(), staged[1].Name()})
+			assert.Equal(t, wantTools, []string{staged[0].Name(), staged[1].Name()})
 			for _, file := range staged {
 				data, readErr := os.ReadFile(filepath.Join(bin, operatorTools, file.Name()))
 				require.NoError(t, readErr)
