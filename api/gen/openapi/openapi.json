@@ -14487,10 +14487,6 @@
             "type": "string",
             "title": "created_by"
           },
-          "displayPrefix": {
-            "type": "string",
-            "title": "display_prefix"
-          },
           "displaySuffix": {
             "type": "string",
             "title": "display_suffix"

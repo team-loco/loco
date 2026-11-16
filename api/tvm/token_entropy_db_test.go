@@ -87,8 +87,8 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 		t.Fatalf("issued metadata = %+v", meta)
 	}
 	assertBearerFormat(t, apiToken, "loco_k_")
-	if meta.DisplayPrefix != apiToken[:11] || meta.DisplaySuffix != apiToken[len(apiToken)-4:] {
-		t.Fatalf("display fragments = %q / %q", meta.DisplayPrefix, meta.DisplaySuffix)
+	if meta.DisplaySuffix != apiToken[len(apiToken)-4:] {
+		t.Fatalf("display suffix = %q", meta.DisplaySuffix)
 	}
 	stored, err := q.GetAPITokenByNameAndEntity(ctx, queries.GetAPITokenByNameAndEntityParams{
 		Name: meta.Name, EntityType: entity.Type, EntityID: entity.ID,
@@ -96,8 +96,8 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.DisplayPrefix != meta.DisplayPrefix || stored.DisplaySuffix != meta.DisplaySuffix {
-		t.Fatalf("stored fragments = %q / %q", stored.DisplayPrefix, stored.DisplaySuffix)
+	if stored.DisplaySuffix != meta.DisplaySuffix {
+		t.Fatalf("stored suffix = %q", stored.DisplaySuffix)
 	}
 
 	var sessionRows int

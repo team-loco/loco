@@ -161,12 +161,12 @@ ORDER BY last_used_at DESC;
 -- -----------------------------------------------------------------------------
 
 -- name: CreateAPIToken :one
-INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at, display_prefix, display_suffix)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_prefix, display_suffix;
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at, display_suffix)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix;
 
 -- name: GetAPIToken :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_prefix, display_suffix
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 FROM api_tokens
 WHERE token_hash = $1 AND expires_at > NOW();
 
@@ -183,7 +183,7 @@ DELETE FROM api_tokens WHERE token_hash = $1;
 DELETE FROM api_tokens WHERE expires_at < NOW();
 
 -- name: ListAPITokensForEntity :many
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_prefix, display_suffix
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 FROM api_tokens
 WHERE entity_type = $1 AND entity_id = $2
 ORDER BY created_at DESC;
@@ -192,7 +192,7 @@ ORDER BY created_at DESC;
 DELETE FROM api_tokens WHERE entity_type = $1 AND entity_id = $2;
 
 -- name: GetAPITokenByNameAndEntity :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_prefix, display_suffix
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 FROM api_tokens
 WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 
