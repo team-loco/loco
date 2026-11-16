@@ -29,9 +29,7 @@ const (
 	gatewayTLSSecret = "e2e-gateway-tls" //nolint:gosec // a Secret name, not a credential
 )
 
-// up brings the platform up: images and binaries, the kind cluster and the compose services in
-// parallel, then the worker chart, the API, the enrolled cluster's agent and the observability
-// proxies.
+// up reserves the Compose network, then builds and starts the platform.
 func (p *Platform) up(ctx context.Context) error {
 	for _, dir := range []string{p.binDir, p.logDir, p.adminHome} {
 		if err := mkdirReadable(dir); err != nil {
@@ -42,6 +40,9 @@ func (p *Platform) up(ctx context.Context) error {
 		return err
 	}
 	if err := p.checkPorts(ctx); err != nil {
+		return err
+	}
+	if err := p.reserveComposeNetwork(ctx); err != nil {
 		return err
 	}
 	if _, err := p.Command(
@@ -174,6 +175,30 @@ func (p *Platform) setupClusterSide(ctx context.Context) error {
 		return err
 	}
 	return p.setupPublicImages(ctx)
+}
+
+func (p *Platform) reserveComposeNetwork(ctx context.Context) error {
+	name := p.composeProject + "_default"
+	if _, err := p.Command(ctx, "docker", "network", "inspect", name); err == nil {
+		return nil
+	} else if !strings.Contains(err.Error(), "No such network") {
+		return err
+	}
+	args := []string{"network", "create",
+		"--label", "com.docker.compose.project=" + p.composeProject,
+		"--label", "com.docker.compose.network=default"}
+	if p.subnet != "" {
+		args = append(args, "--subnet", p.subnet)
+	}
+	if _, err := p.Command(ctx, "docker", append(args, name)...); err != nil {
+		return fmt.Errorf(
+			"reserve network before building: %w; select an unused LOCO_TEST_SUBNET or inspect retained runs with "+
+				"docker network ls --filter label=com.docker.compose.project; "+
+				"remove this run with mise run e2e:teardown %s",
+			err, p.Name,
+		)
+	}
+	return nil
 }
 
 // setupDataServices starts Postgres with a fresh schema, the identity provider and OpenBao.

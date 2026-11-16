@@ -18,7 +18,16 @@ mise exec -- uv run --script "$E" <command>
 
 ## Capture
 
-1. Write a scenario JSON: the users, the organizations each owner creates with their
+1. Put inputs and screenshots outside the checkout. `up --ref HEAD` rejects untracked
+   files as well as tracked edits.
+
+   ```sh
+   capture=$(mktemp -d "${TMPDIR:-/tmp}/loco-capture.XXXXXX")
+   cp .agents/skills/ui-evidence/scenario.example.json "$capture/scenario.json"
+   cp .agents/skills/ui-evidence/shots.example.json "$capture/shots.json"
+   ```
+
+   Edit the scenario JSON: the users, the organizations each owner creates with their
    workspaces and members, and workspace grants. Start from `scenario.example.json`.
    An optional `resources` list seeds synthetic services. Each entry names a `workspace`
    (`org/workspace`), a `name` and a non-empty `deployments` list. Each deployment specifies
@@ -58,8 +67,8 @@ mise exec -- uv run --script "$E" <command>
    Bring up both refs. Each prints the path of its state file on stdout:
 
    ```sh
-   before=$(mise exec -- uv run --script "$E" up --ref origin/main --name before --scenario scenario.json)
-   after=$(mise exec -- uv run --script "$E" up --ref HEAD --name after --scenario scenario.json)
+   before=$(mise exec -- uv run --script "$E" up --ref origin/main --name before --scenario "$capture/scenario.json")
+   after=$(mise exec -- uv run --script "$E" up --ref HEAD --name after --scenario "$capture/scenario.json")
    ```
 
    Read the `scenario note:` lines on stderr. When the old ref needs a different scenario to show the same
@@ -68,8 +77,8 @@ mise exec -- uv run --script "$E" <command>
 4. Shoot both into one directory:
 
    ```sh
-   mise exec -- uv run --script "$E" shoot --state "$before" --spec shots.json --out evidence/
-   mise exec -- uv run --script "$E" shoot --state "$after" --spec shots.json --out evidence/
+   mise exec -- uv run --script "$E" shoot --state "$before" --spec "$capture/shots.json" --out "$capture/evidence"
+   mise exec -- uv run --script "$E" shoot --state "$after" --spec "$capture/shots.json" --out "$capture/evidence"
    ```
 
    Files are `<shot>-<before|after>-<light|dark>[-narrow].png`. `shoot` exits non-zero and
@@ -83,21 +92,64 @@ mise exec -- uv run --script "$E" <command>
 Return the PNG paths, one line per file saying what it shows, every `scenario note:` line and every
 failure.
 
+## Networks and shared OpenBao
+
+`LOCO_TEST_SUBNET` selects an unused subnet for a Compose project, for example
+`LOCO_TEST_SUBNET=10.243.17.0/24`. Omit it for Docker's automatic allocation. Use a different,
+non-overlapping subnet for each concurrent project. This applies to `up`, `openbao`,
+`mise run test:ui` and `mise run e2e`; keep the value when resuming a kept e2e run.
+E2e reserves the Compose network before builds. Its failure reports how to list project
+networks and tear down the current run. Remove only runs you own.
+
+Comparisons can share one seeded OpenBao. Each API keeps application data in its own
+database. Build each ref in a separate checkout and keep both checkouts until capture
+finishes: each UI serves its checkout's `web/dist`. From the checkout with this script:
+
+```sh
+E="$PWD/.agents/skills/ui-evidence/scripts/evidence.py"
+git worktree add --detach "$capture/before-src" origin/main
+git worktree add --detach "$capture/after-src" HEAD
+project=loco-ui-evidence-openbao-$$
+UI_EVIDENCE_OPENBAO=$(mise exec -- uv run --script "$E" openbao --project "$project")
+export UI_EVIDENCE_OPENBAO
+for side in before after; do
+  (
+    cd "$capture/$side-src"
+    mise exec -- uv run --script "$E" build
+    mise exec -- uv run --script "$E" up --ref HEAD --name "$side" --scenario "$capture/scenario.json"
+  ) > "$capture/$side.state-path"
+done
+before=$(cat "$capture/before.state-path")
+after=$(cat "$capture/after.state-path")
+```
+
+Shoot with those state paths and the spec above. `UI_EVIDENCE_OPENBAO` makes `up` use the
+current checkout's built API and UI; it does not build or check out `--ref`. The caller
+owns these checkouts and the shared OpenBao. After capture:
+
+```sh
+mise exec -- uv run --script "$E" down --all
+mise exec -- uv run --script "$E" stop-openbao --project "$project"
+unset UI_EVIDENCE_OPENBAO
+git worktree remove --force "$capture/before-src"
+git worktree remove --force "$capture/after-src"
+```
+
 ## Upload
 
 Upload with `gh --attach`, never through a browser. Print the tables, which reference the PNGs by
 their local paths:
 
 ```sh
-mise exec -- uv run --script "$E" table --out evidence > evidence.md
+mise exec -- uv run --script "$E" table --out "$capture/evidence" > "$capture/evidence.md"
 ```
 
-Put `evidence.md` under a `## Screenshots` heading in the PR body file, then attach every PNG the
+Put `$capture/evidence.md` under a `## Screenshots` heading in the PR body file, then attach every PNG the
 tables reference. `gh` uploads each file and rewrites its local path in the body to the uploaded
 asset:
 
 ```sh
-gh pr edit <pr> --body-file body.md --attach evidence/<file>.png --attach ...
+gh pr edit <pr> --body-file body.md --attach "$capture/evidence/<file>.png" --attach ...
 ```
 
 `gh pr create --body-file body.md --attach ...` does the same for a new PR. One command takes at
