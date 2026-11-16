@@ -192,7 +192,6 @@ run = "bun run dev"
 
 [tasks.tilt]
 description = "Start this checkout's local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped; mise run stack prints its URLs"
-alias = "start"
 env = { _.file = "dev/api.env", _.source = "dev/stack.sh" }
 run = """
 orbstack_sock="$HOME/.orbstack/run/docker.sock"
@@ -212,6 +211,42 @@ else
   tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
 fi
 """
+
+[tasks.dev]
+description = "Install this checkout's local stack and run the host dashboard"
+alias = "start"
+env = { _.source = "dev/stack.sh" }
+run = """
+orbstack_sock="$HOME/.orbstack/run/docker.sock"
+if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
+  export DOCKER_HOST="unix://$orbstack_sock"
+fi
+mise run doctor
+mise run services:stop
+infisical="--projectId 01f016e0-4b6e-49fd-bbc0-072b89cfc699 --env dev --silent --log-level warn"
+if infisical export $infisical >/dev/null 2>&1 </dev/null; then
+  infisical run $infisical -- mise run stack:install
+else
+  mise run stack:install
+fi
+exec mise run ui
+"""
+
+[tasks."dev:deploy"]
+description = "Publish the checkout and upgrade this stack through locoadm"
+env = { _.source = "dev/stack.sh" }
+run = "go run ./tools/localstack deploy"
+
+[tasks."dev:reset"]
+description = "Delete this stack's cluster, fixture volumes and installation state; keep its slot"
+env = { _.source = "dev/stack.sh" }
+run = "go run ./tools/localstack reset"
+
+[tasks.loco]
+env = { _.source = "dev/stack.sh" }
+
+[tasks.locoadm]
+env = { _.source = "dev/stack.sh" }
 
 [tasks."infra:up"]
 description = "Start Postgres, Valkey, OpenBao, the identity provider, the image registry and the source bucket from dev/compose.yaml, wait until they are up, and seed OpenBao"
@@ -265,14 +300,10 @@ env = { _.source = "dev/stack.sh" }
 env = { _.source = "dev/stack.sh" }
 
 [tasks.down]
-description = "Remove this checkout's local environment: stop it, delete its kind cluster, its compose containers and volumes, and free its stack slot"
+description = "Delete this checkout's local stack and release its slot"
 env = { _.source = "dev/stack.sh" }
 run = [
-  "mise run stop",
-  "mise run cluster:down",
-  "docker compose down --volumes",
-  'docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true',
-  'docker volume rm -f "$CLICKHOUSE_CONTAINER" >/dev/null',
+  "mise run dev:reset",
   'if [ -n "$LOCO_STACK_CLAIM" ]; then rm -f "$LOCO_STACK_CLAIM"; fi',
 ]
 
@@ -285,9 +316,11 @@ cat <<EOF
 slot             $LOCO_STACK_SLOT
 web UI           $WEB_URL
 API              $PUBLIC_API_URL
-Dex              http://localhost:$DEX_PORT/dex
-Tilt UI          http://localhost:$TILT_PORT
+Dex              http://dex.$STACK_DOMAIN:$DEX_PORT/dex
+apps             https://<name>.apps.$STACK_DOMAIN:$APPS_PORT
 kube context     kind-$KIND_CLUSTER
+kubeconfig       $STACK_STATE/home/.kube/config
+state            $STACK_STATE
 compose project  $COMPOSE_PROJECT_NAME
 EOF
 """

@@ -73,7 +73,7 @@ export STACK_STATE="$stack_claims/state/$LOCO_STACK_SLOT"
 export LOCO_STACK_CLAIM="$stack_claim"
 export KIND_CLUSTER="loco-cluster-local$stack_suffix"
 export COMPOSE_PROJECT_NAME="loco-dev$stack_suffix"
-export COMPOSE_FILE="$stack_root/dev/compose.yaml"
+export COMPOSE_FILE="$stack_root/dev/compose.local.yaml"
 export REGISTRY_ALIAS="loco-registry$stack_suffix"
 export S3_ALIAS="loco-s3$stack_suffix.localhost"
 
@@ -96,7 +96,7 @@ export CLICKHOUSE_DB
 
 app_port=$(env_value APP_PORT)
 export APP_PORT="${app_port%:*}:$((${app_port##*:} + port_offset))"
-export PUBLIC_API_URL="http://localhost:${APP_PORT##*:}"
+export PUBLIC_API_URL="http://api.$STACK_DOMAIN:${APP_PORT##*:}"
 WEB_URL=$(shift_ports "$(env_value WEB_URL)")
 export WEB_URL
 export WEB_PORT=${WEB_URL##*:}

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Run locoadm with this stack's installation file and isolated credentials"
+set -euo pipefail
+binary="$MISE_PROJECT_ROOT/bin/locoadm"
+export HOME="$STACK_STATE/home" LOCO_CREDENTIAL_STORE=file KUBECONFIG="$STACK_STATE/home/.kube/config"
+cd "$STACK_STATE"
+exec "$binary" "$@"

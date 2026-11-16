@@ -280,7 +280,7 @@ func TestInstallationDecisionResetsResumesOrSkips(t *testing.T) {
 			stamp{ClusterUID: expected.ClusterUID, Inputs: "changed", Complete: complete},
 			expected,
 		)
-		if err == nil || !strings.Contains(err.Error(), "run mise run tilt:reset") {
+		if err == nil || !strings.Contains(err.Error(), "run mise run dev:reset") {
 			t.Fatalf("changed inputs: %v", err)
 		}
 	}

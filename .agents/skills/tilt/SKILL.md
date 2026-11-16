@@ -1,97 +1,38 @@
 ---
 name: tilt
-description: Run the full local stack (kind cluster, compose services, API, web UI) with Tilt, from the main checkout or a git worktree, alongside other checkouts' stacks, and check a change in the browser. Load before running `mise run tilt` or looking at the local web UI. PR screenshots come from the ui-evidence skill, which needs no Tilt.
+description: Run the local installation with mise, deploy platform changes through locoadm, inspect workloads and check the host dashboard.
 ---
 
-# Running the local stack with Tilt
+# Local stack
 
-`mise run tilt` starts everything: the kind cluster, Postgres, Valkey, OpenBao, the registry and
-the source bucket from `dev/compose.yaml`, the helm releases, the API and the web UI.
+`mise run dev` installs the control plane and one production worker through `mise run stack:install`, then runs `mise run ui` on the host. `locoadm` owns installation and upgrades through Helm. Postgres, Dex, the registry and the source bucket use `dev/compose.local.yaml`; managed OpenBao, ClickHouse and gateways run in Kubernetes.
 
-`mise run stop` stops Tilt, the compose services and the kind nodes and keeps their state;
-`mise run start` (an alias of `mise run tilt`) starts the stopped nodes and brings the rest back.
-`mise run down` deletes the stack: its kind cluster, its compose containers and volumes.
+## Resources and ownership
 
-## One stack per checkout
+Run at most one of your own stacks. Leave other sessions' stacks, worktrees and the demo alone. Check `docker stats --no-stream` and `df -h ~` before builds. Start only with at least 5 GiB available in the container VM and 20 GB free disk; when memory is low, finish independent work and recheck every few minutes. Read `MemAvailable` from `/proc/meminfo` in a running container, including reclaimable cache.
 
-Each checkout runs its own stack, so several can run at once. `dev/stack.sh` gives
-the main checkout slot 0 and each worktree the first free slot from 1 to 9, recorded in
-`.git/loco-stacks/` of the main checkout. Slot N names the kind cluster
-`loco-cluster-local-N` and the compose project `loco-dev-N`, and adds 100×N to every
-local port: slot 2 serves the API on :8200, the web UI on :5373, Dex on :5756 and the
-Tilt UI on :10550. The main checkout keeps `loco-cluster-local`, `loco-dev` and the
-unshifted ports, such as the API on :8000 from `dev/api.env`. `mise run stack` prints the
-current checkout's URLs, kube context and compose project.
+One idle production-worker stack measured 2.765 GiB in Docker: 2.632 GiB for the kind node and 136.427 MiB for fixtures. Pod metrics totaled 2367 MiB. The VM capacity was 15.66 GiB. Host UI memory and build transients are excluded. Plan one stack on an 8 GB VM and require build headroom.
 
-The mise tasks pin the stack's kube context and compose project themselves. Commands you
-run by hand do not: pass `--context kind-loco-cluster-local-N` to kubectl, prefix
-`tilt get` and `tilt logs` with `TILT_PORT=<port>`, and use
-`docker compose -p loco-dev-N`. A worktree's `mise run tilt` leaves the current kubectl
-context alone.
+## Slots and retained state
 
-`mise run stop` and `mise run down` only touch the current checkout's stack. Stop a Tilt
-you started with `TaskStop` on its background task, and leave another session's stack
-running. Run `mise run down` before removing a worktree; a removed worktree's slot goes to
-the next worktree that asks, together with any cluster and volumes left behind.
+`dev/stack.sh` assigns slot 0 to the main checkout and slots 1 through 9 to worktrees. Slot N uses `loco-dev-N.localhost` with a 100×N port offset. `mise run stack` prints URLs, the private kubeconfig and state directory under the shared git directory's `loco-stacks/state/<slot>/`.
 
-A running stack takes 2 to 4 GB of Docker memory. An 8 GB Docker VM fits two; a third
-runs the VM out of memory and the kernel kills pods in every cluster, including stacks
-other sessions own. Check `docker stats --no-stream` before starting one next to others,
-and stop yours with `mise run stop` when you are done with it.
+Use `mise run loco` and `mise run locoadm`: both supply the stack's credential home, `LOCO_CREDENTIAL_STORE=file` and kubeconfig. The operator wrapper selects the rendered installation file. Keep the developer's ordinary session and kube context unchanged.
 
-## Worktree setup
+## Start, deploy, stop and reset
 
-A new worktree has no `node_modules`, and mise does not trust its config. Run `mise trust`,
-then `mise run setup` in the worktree root. The root `bun install` it runs covers `web/`,
-`gen/ts` and the buf plugins that `mise run gen` needs. The local API configuration is the
-committed `dev/api.env`; mise reads it once when Tilt starts, so an edit needs a restart.
+Copy `CLAUDE.local.md` into a new worktree, then run `mise trust` and `mise run setup`. Run `mise run dev` as a long-lived process. Installation approves device login for `dev@loco.test` and attaches the worker automatically. Check `mise run locoadm status` for running, worker ready and admins claimed before opening the dashboard.
 
-## Start and wait
+With the stack running, `mise run dev:deploy` builds a release from the checkout, applies it and upgrades the worker through the installer. It does not overwrite workload images outside Helm. It retains fixture processes and data. An interrupted deploy resumes through `mise run dev` with its published release; do not discard state automatically.
 
-Run `mise run tilt` with `run_in_background` and `timeout: 7200000`; it never exits, and
-the default background limit of 30 minutes stops it, and the stack with it, mid-task.
-Wait for the API in a second background command instead of polling in the foreground,
-with the Tilt UI port from `mise run stack`:
+`mise run stop` stops the host dashboard, fixtures and kind node, preserving installation state. `mise run start` resumes without another release or Helm install. Ordinary startup rejects changed installation inputs. `dev:deploy` explicitly applies installed-stack changes; fixture or topology changes require `mise run dev:reset` and then `mise run dev`. Reset deletes the owned cluster, volumes and credentials while keeping its slot; `mise run down` also releases the slot.
 
-```sh
-until s=$(TILT_PORT=<port> tilt get uiresource api -o jsonpath='{.status.runtimeStatus}' 2>/dev/null); [ "$s" = ok ] || [ "$s" = error ]; do sleep 3; done; echo "$s"
-```
+Inspect logs with the printed kubeconfig and `kubectl -n loco-control-plane logs deployment/loco-control-plane-api --follow` or `kubectl -n loco-system logs deployment/loco-worker-agent --follow`. Use an installed `k9s` for interactive inspection. Prefix pinned tools with `mise exec --` when outside mise tasks.
 
-`tilt logs <resource>` shows why a resource failed; `tilt trigger <resource>` reruns it.
+## Browser and certificates
 
-## Docker
+Sign in to the host dashboard as `dev@loco.test` with password `loco-dev`. The account claims system admin during installation; signup is open. The worker targets production and region `local`. Dex sessions are in memory; restarting Dex signs browsers out.
 
-The task points `DOCKER_HOST` at OrbStack when `~/.orbstack/run/docker.sock` exists, so
-the active `docker context` does not matter. Without OrbStack, start Docker Desktop.
+Apps use `https://<name>.apps.<stack-domain>:<APPS_PORT>` with self-signed certificates. Accept the browser warning. `mise run stack:ca` exports the apps CA. `locoadm verify` targets installs serving apps on port 443 and is not used against this stack.
 
-## Stale local database
-
-Migrations are edited in place, so goose treats an edited migration as applied and the
-local schema falls behind. The symptom is a Postgres error such as
-`relation "builds" does not exist` in `tilt logs api`. Resetting deletes all local data,
-so ask the user first, then stop Tilt and run, with the compose project from
-`mise run stack` in place of `loco-dev`:
-
-```sh
-docker compose -p loco-dev rm -sf postgres
-docker volume rm loco-dev_postgres-data
-```
-
-Start Tilt again; `db-migrate` recreates the schema.
-
-## Browser checks
-
-- Use Chrome on the web UI URL from `mise run stack`.
-- Sign in yourself; never ask the user to. Click Sign in on the landing page, then on the
-  Dex login page enter `dev@loco.test` and `loco-dev`, the static user in
-  `dev/dex.yaml`. Dex keeps its sessions in memory, so restarting Dex, the compose
-  services or OrbStack signs every browser out.
-- The CLI signs in through the same page: `loco login --host <API URL>`. The CLI keeps one
-  host in its config for every stack, so log in again after switching stacks.
-- Never start an ad-hoc local server (for example `python3 -m http.server`) to preview
-  files. Auto mode then blocks the Chrome tools for the session.
-- The theme lives in `localStorage` key `loco:theme:v1` (`light` or `dark`). Set it, then
-  navigate to reload.
-- After `navigate`, the first click only focuses the tab. Click once more to open a menu or
-  dropdown, and take a throwaway screenshot before the saved one so fade-in animations
-  finish.
+Use Chrome when available, or the repository's isolated Playwright tooling for a browser flow. Do not start an ad-hoc static server.

@@ -44,15 +44,9 @@ func (cfg config) install(ctx context.Context) error {
 		return err
 	}
 	expected := stamp{ClusterUID: cfg.ClusterUID, Inputs: inputs, Complete: true}
-	saved, err := os.ReadFile(filepath.Join(cfg.State, "install.stamp"))
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	installed, err := cfg.installStamp()
+	if err != nil {
 		return err
-	}
-	var installed stamp
-	if err == nil {
-		if err = json.Unmarshal(saved, &installed); err != nil {
-			return fmt.Errorf("read install stamp: %w", err)
-		}
 	}
 	action, err := installationAction(installed, expected)
 	if err != nil {
@@ -67,7 +61,7 @@ func (cfg config) install(ctx context.Context) error {
 		}
 		return cfg.waitRunning(ctx)
 	}
-	if action == "reset" {
+	if action == actionReset {
 		if err = cfg.resetDatabase(ctx); err != nil {
 			return err
 		}
@@ -75,8 +69,11 @@ func (cfg config) install(ctx context.Context) error {
 			return err
 		}
 	}
+	if err = cfg.compose(ctx, "up", "--detach", "--wait"); err != nil {
+		return err
+	}
 	if err = cfg.installPending(ctx); err != nil {
-		return fmt.Errorf("install %s: %w; run mise run tilt:reset", action, err)
+		return fmt.Errorf("install %s: %w; run mise run dev:reset", action, err)
 	}
 	return cfg.saveStamp(expected)
 }
@@ -108,10 +105,10 @@ func (cfg config) writeState(name string, data []byte) error {
 
 func installationAction(installed, expected stamp) (string, error) {
 	if installed.ClusterUID != expected.ClusterUID {
-		return "reset", nil
+		return actionReset, nil
 	}
 	if installed.Inputs != expected.Inputs {
-		return "", errors.New("installation inputs changed; run mise run tilt:reset")
+		return "", errors.New("installation inputs changed; run mise run dev:reset")
 	}
 	if installed.Complete {
 		return "skip", nil
@@ -120,9 +117,6 @@ func installationAction(installed, expected stamp) (string, error) {
 }
 
 func (cfg config) installPending(ctx context.Context) error {
-	if err := cfg.compose(ctx, "up", "--detach", "--wait"); err != nil {
-		return err
-	}
 	if err := cfg.registryHosts(ctx); err != nil {
 		return err
 	}
@@ -146,43 +140,10 @@ func (cfg config) installPending(ctx context.Context) error {
 	if err = cfg.render("dev/loco-install.yaml", cfg.file()); err != nil {
 		return err
 	}
-	release, err := os.ReadFile(filepath.Join(cfg.State, "release.json"))
-	if errors.Is(err, fs.ErrNotExist) {
-		release, err = command(ctx, nil, nil, "mise", "run", "release:local", "--", "--repository", "team-loco/loco",
-			"--push", "localhost:"+cfg.RegistryPort, "--address", "registry."+cfg.Domain+":"+cfg.RegistryPort,
-			"--username", "builder", "--password", "loco-dev-builder")
-		if err != nil {
-			return err
-		}
-	} else if err != nil {
+	if err = cfg.release(ctx, false); err != nil {
 		return err
 	}
-	var manifest struct {
-		Version string `json:"version"`
-	}
-	if err = json.Unmarshal(release, &manifest); err != nil {
-		return fmt.Errorf("read local release: %w", err)
-	}
-	if manifest.Version == "" {
-		return errors.New("local release has no version")
-	}
-	if err = cfg.writeState("release.json", release); err != nil {
-		return err
-	}
-	if _, err = command(
-		ctx,
-		nil,
-		nil,
-		"go",
-		"-C",
-		"cmd",
-		"build",
-		"-ldflags",
-		"-X main.version=v"+manifest.Version,
-		"-o",
-		"../bin/locoadm",
-		"./locoadm",
-	); err != nil {
+	if err = cfg.buildCLIs(ctx, "loco", "locoadm"); err != nil {
 		return err
 	}
 	for _, operation := range []string{"validate", "apply"} {
@@ -267,7 +228,7 @@ func (cfg config) cluster(ctx context.Context) error {
 	for containerPort, hostPort := range map[string]string{"30080/tcp": cfg.AppPort, "30443/tcp": cfg.AppsPort} {
 		port := bindings[containerPort]
 		if len(port) != 1 || port[0].HostIP != "127.0.0.1" || port[0].HostPort != hostPort {
-			return errors.New("kind port mappings differ from installation inputs; run mise run tilt:reset")
+			return errors.New("kind port mappings differ from installation inputs; run mise run dev:reset")
 		}
 	}
 	stopped, err := command(
@@ -304,8 +265,26 @@ func (cfg config) cluster(ctx context.Context) error {
 	); err != nil {
 		return err
 	}
-	_, err = cfg.kubectl(ctx, "wait", "--for=condition=Ready", "nodes", "--all", "--timeout=180s")
-	return err
+	return cfg.waitCluster(ctx)
+}
+
+func (cfg config) waitCluster(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(readinessPoll)
+	defer ticker.Stop()
+	// Readiness includes the RBAC bootstrap hook after a stopped node starts.
+	for {
+		if _, err := cfg.kubectl(ctx, "get", "--raw=/readyz"); err == nil {
+			_, err = cfg.kubectl(ctx, "wait", "--for=condition=Ready", "nodes", "--all", "--timeout=180s")
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait for cluster readiness: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 func (cfg config) render(source, destination string) error {

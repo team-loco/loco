@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -68,9 +67,6 @@ func TestInstalledStackCleanupPreservesMappedAPIListener(t *testing.T) {
 	address := scanner.Text()
 	_, port, err := net.SplitHostPort(address)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(filepath.Join(cfg.State, "kind.yaml"), []byte("kind: Cluster\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	cleanup := exec.CommandContext(t.Context(), "bash", "mise-tasks/services/stop")

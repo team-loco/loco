@@ -14,6 +14,8 @@ import (
 	"github.com/team-loco/loco/internal/envconfig"
 )
 
+const actionReset = "reset"
+
 type config struct {
 	Cluster, Domain, State, Project                           string
 	AppPort, AppsPort, WebPort, DexPort, RegistryPort, S3Port string
@@ -63,11 +65,20 @@ func newConfig() config {
 
 func run(ctx context.Context, cfg config, args []string) error {
 	if len(args) != 1 {
-		return errors.New("usage: localstack install|ca")
+		return errors.New("usage: localstack install|deploy|reset|cluster|ca")
 	}
 	switch args[0] {
 	case "install":
 		return cfg.install(ctx)
+	case "deploy":
+		return cfg.deploy(ctx)
+	case actionReset:
+		return cfg.reset(ctx)
+	case "cluster":
+		if err := os.MkdirAll(filepath.Dir(cfg.kubeconfig()), 0700); err != nil {
+			return err
+		}
+		return cfg.cluster(ctx)
 	case "ca":
 		data, err := cfg.kubectl(
 			ctx,

@@ -2,61 +2,57 @@
 title: "Local development"
 ---
 
-The local environment runs Loco's control plane and cluster components for development. Install mise and Docker or OrbStack, then use the pinned repository tools:
+`mise run dev` installs Loco through `locoadm` on one kind cluster and runs the dashboard on the host. The cluster contains the control plane and one enrolled production worker; Postgres, Dex, the registry and the source bucket run in Compose.
+
+Install mise and Docker, then use the pinned tools:
 
 ```sh
 mise run setup
+mise run dev
 ```
 
-Tool versions live in `mise.toml` and `mise.lock`. The local API reads its configuration from `dev/api.env`, which holds only dev values, so a fresh clone needs no `.env` file.
+The configured admin is `dev@loco.test`, with password `loco-dev`. Device approval and worker attachment finish automatically; signup is open. The dashboard listens at `http://localhost:5173`, and its API is `http://api.loco-dev.localhost:8000`. Dex uses `http://dex.loco-dev.localhost:5556/dex`.
+
+Dex offers GitHub login when `GH_OAUTH_CLIENT_ID` and `GH_OAUTH_CLIENT_SECRET` name an OAuth app with callback `http://dex.loco-dev.localhost:5556/dex/callback`. Team members can run `infisical login` once; `mise run dev` loads available project credentials for installation. Export the two variables for your own app when using another account. Password login works without them.
+
+Worktrees claim slots 1 through 9. Slot N uses `loco-dev-N.localhost` and adds 100×N to the ports; slot 1 serves the API at `http://api.loco-dev-1.localhost:8100` and dashboard at `http://localhost:5273`. Run `mise run stack` for this checkout's URLs, private kubeconfig and state directory.
+
+## Deploy platform changes
+
+With `mise run dev` running, publish code or chart edits through the installer:
 
 ```sh
-mise run tilt
+mise run dev:deploy
 ```
 
-Tilt starts the local cluster and services. The API listens at `http://localhost:8000`, and the dashboard at `http://localhost:5173`. The dashboard signs in through Dex at `http://localhost:5556/dex` as `dev@loco.test` with the password `loco-dev`. `dev/api.env` lists `dev@loco.test` in `LOCO_SYSTEM_ADMINS`, so its first sign-in makes it a system admin.
+The task runs `release:local`, builds matching CLIs, applies the control plane and attaches the worker at that release. Helm owns the workloads. The host dashboard reloads UI edits through Bun; the installed dashboard image updates with `dev:deploy`.
 
-Dex also offers GitHub login when `GH_OAUTH_CLIENT_ID` and `GH_OAUTH_CLIENT_SECRET` name a GitHub OAuth app whose callback URL is `http://localhost:5556/dex/callback`. Team members with access to the Loco Infisical project log in once, and `mise run tilt` then runs Tilt under `infisical run`, which supplies both:
+The installation, release manifest, kubeconfig and file credentials live under the shared git directory's `loco-stacks/state/<slot>/`, outside the worktree. `mise run stop` retains them and stops the host dashboard, fixtures and kind node; `mise run start` resumes without publishing or installing again. Interrupted installation or deployment resumes against its retained database with `mise run dev`. Changed inputs stop ordinary startup with the reset instruction; `dev:deploy` explicitly applies changes to an installed stack. Fixture or cluster topology changes need `mise run dev:reset`, followed by `mise run dev`. Reset deletes this stack's cluster, volumes and credentials while retaining its slot. `mise run down` also releases the slot; run it before deleting a worktree.
+
+`mise run stack:install` installs without starting the host dashboard. To inspect Kubernetes workloads, use the kubeconfig printed by `mise run stack`:
 
 ```sh
-infisical login
-mise run tilt
+export KUBECONFIG=/path/from/mise-run-stack
+kubectl -n loco-control-plane logs deployment/loco-control-plane-api --follow
+kubectl -n loco-system logs deployment/loco-worker-agent --follow
+k9s
 ```
 
-Anyone else can export the two variables for their own OAuth app before `mise run tilt`. Without either, the stack starts without the GitHub button and `mise run tilt` prints a line saying so.
-
-Each git worktree gets its own stack, so several can run at once. A worktree takes the first free slot N from 1 to 9, and its ports move up by 100×N: slot 1 serves the API at `http://localhost:8100` and the dashboard at `http://localhost:5273`. Run `mise run stack` for the current checkout's URLs, and `mise run down` to delete its stack before removing the worktree.
+Use an installed `k9s` for interactive inspection, or the pinned `kubectl` through `mise exec -- kubectl`.
 
 ## Connect the CLI
 
-```sh
-mise run build
-./bin/loco login --host http://localhost:8000
-./bin/loco config set webHost http://localhost:5173
-```
-
-Tilt starts development components and supports ordinary login. The complete first-admin path uses the [installation workflow](../operations/self-hosting.md#first-system-admin); it requires installer-managed destination state. The installation e2e suite below exercises that workflow from a fresh cluster.
-
-## Attach the local cluster
-
-The local agent enrolls with a join token. With an account that has `system:admin`, create the cluster, stop Tilt, and start it again with the printed token in `LOCO_JOIN_TOKEN` so it redeploys `loco-worker` with it:
+The wrappers use this stack's isolated credential home and file credential store:
 
 ```sh
-mise run build:locoadm
-./bin/locoadm cluster create --name loco-local --region us-east-1 --tier production
-mise run stop
-LOCO_JOIN_TOKEN=<printed token> mise run tilt
+mise run loco workspace list
+mise run locoadm status
+mise run locoadm cluster list
 ```
 
-The agent keeps its key in the `loco-worker-agent-key` Secret, so the token is needed again only after the kind cluster or that Secret is deleted.
+They preserve the developer's ordinary CLI login and kube context. The local worker targets production, matching dashboard and CLI defaults; use region `local` in application configuration.
 
-## Install through locoadm
-
-`mise run stack:install` installs a control plane and one enrolled production worker on a single kind node. It uses `dev/loco-install.yaml` with Postgres, Dex, the registry and the source bucket from `dev/compose.local.yaml`. The configured admin is `dev@loco.test`, with password `loco-dev`; signup is open.
-
-The installation and CLI credentials live under the shared git directory's `loco-stacks/state/<slot>/`, outside the worktree. A completed installation persists across runs; an interrupted installation resumes against its retained database. Delete the stack with `mise run down` before changing chart or installation inputs.
-
-The API uses `http://api.loco-dev.localhost:8000`, Dex uses `http://dex.loco-dev.localhost:5556/dex`, and apps use `https://<name>.apps.loco-dev.localhost:8443`. Worktree slot N adds `-N` to `loco-dev` and 100×N to these ports. Accept the browser warning for self-signed app certificates. Export the apps CA with:
+Apps use `https://<name>.apps.loco-dev.localhost:8443`, with the slot suffix and port offset in worktrees. Accept the browser warning for self-signed certificates. Export the apps CA with:
 
 ```sh
 mise run stack:ca > apps-ca.pem
