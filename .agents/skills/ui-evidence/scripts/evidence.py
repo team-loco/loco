@@ -242,6 +242,14 @@ def validate_spec(spec):
             selector = shot["ready_selector"]
             if not isinstance(selector, str) or not selector.strip():
                 raise EvidenceError(f"shot {name}: ready_selector must be a non-empty selector")
+        if "hold_requests" in shot:
+            patterns = shot["hold_requests"]
+            if not isinstance(patterns, list) or not patterns or any(
+                not isinstance(pattern, str) or not pattern.strip() for pattern in patterns
+            ):
+                raise EvidenceError(f"shot {name}: hold_requests must be a non-empty list of URL patterns")
+            if "ready_selector" not in shot:
+                raise EvidenceError(f"shot {name}: hold_requests needs ready_selector")
         if "color" in shot and not isinstance(shot["color"], str):
             raise EvidenceError(f"shot {name}: color must be a colour theme id")
         crop = shot.get("crop", "viewport")
@@ -628,6 +636,8 @@ def capture(browser, state, shot, theme, narrow, target):
     if "color" in shot:
         script += f"localStorage.setItem({json.dumps(COLOR_KEY)}, {json.dumps(shot['color'])});"
     context.add_init_script(script)
+    for pattern in shot.get("hold_requests", []):
+        context.route(pattern, lambda route: None)
     problems = []
     page = context.new_page()
     page.on("console", lambda m: problems.append(f"console {m.type}: {m.text}") if m.type == "error" else None)
