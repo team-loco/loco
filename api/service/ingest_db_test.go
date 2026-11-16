@@ -129,6 +129,7 @@ func TestIngestTokenExchange(t *testing.T) {
 	assertion := testAssertion(t, f.clusterID)
 	before := time.Now()
 	resp, err := issueIngestToken(t, client, assertion)
+	after := time.Now()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,9 +141,10 @@ func TestIngestTokenExchange(t *testing.T) {
 	if claims.ClusterID != f.clusterID.String() {
 		t.Fatalf("sub = %s, want %s", claims.ClusterID, f.clusterID)
 	}
-	lifetime := resp.GetExpiresAt().AsTime().Sub(before)
-	if lifetime < testIngestTokenLifetime-time.Second || lifetime > testIngestTokenLifetime+time.Second {
-		t.Fatalf("token lifetime = %s, want %s", lifetime, testIngestTokenLifetime)
+	expiry := resp.GetExpiresAt().AsTime()
+	if expiry.Before(before.Add(testIngestTokenLifetime)) || expiry.After(after.Add(testIngestTokenLifetime)) {
+		t.Fatalf("token expiry = %s, want between %s and %s", expiry,
+			before.Add(testIngestTokenLifetime), after.Add(testIngestTokenLifetime))
 	}
 
 	_, err = issueIngestToken(t, client, assertion)
