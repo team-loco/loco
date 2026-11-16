@@ -2,6 +2,7 @@ import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2, Plus } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
+import { useNavigate } from "react-router";
 
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
@@ -17,6 +18,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { userOrgsOptions } from "@/hooks/userOrgs";
 import { usePagedRows } from "@/lib/paging";
+import { workspacePath } from "@/lib/routes";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { limitReason, limitUsage } from "@/lib/limits";
@@ -42,6 +44,7 @@ function OrgListSkeleton() {
 }
 
 export function Organizations() {
+	const navigate = useNavigate();
 	const { user } = useAuth();
 	const { activeOrgId, setActiveOrg } = useOrgWorkspace();
 	const [createOrgOpen, setCreateOrgOpen] = useQueryState("new", parseAsInteger.withDefault(0));
@@ -62,8 +65,8 @@ export function Organizations() {
 		void setCreateOrgOpen(1);
 	};
 
-	const handleCreateOrgSuccess = (orgId: string) => {
-		setActiveOrg(orgId);
+	const handleCreateOrgSuccess = (orgId: string, workspaceId: string) => {
+		void navigate(workspacePath(orgId, workspaceId));
 	};
 
 	const renderBody = () => {

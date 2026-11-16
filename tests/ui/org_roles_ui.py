@@ -56,6 +56,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     created_org = creation.value.json()["orgId"]
     workspaces = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces", {"orgId": created_org}).get("workspaces", [])
     assert [workspace["name"] for workspace in workspaces] == ["default"], workspaces
+    expect(page).to_have_url(re.compile(rf"/org/{created_org}/wks/{workspaces[0]['id']}(\?env=[\w-]+)?$"))
     evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": created_org})
     shared = state["workspaces"]["acme/shared"]
     page.goto(state["ui_url"] + f"/org/{org['id']}/wks/{shared}/resources")
