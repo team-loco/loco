@@ -29,7 +29,7 @@ func TestGetResourceFailsOnCorruptSpec(t *testing.T) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 	}
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
-	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
+	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: f.userID, Scopes: scopes})
 	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: f.resourceID.String()},
 	}
@@ -51,7 +51,7 @@ func TestCreateResourceRejectsNonServiceType(t *testing.T) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 	}
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
-	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
+	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: f.userID, Scopes: scopes})
 	service := &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{}}
 	spec := &resourcev1.ResourceSpec{Spec: service}
 	req := &resourcev1.CreateResourceRequest{

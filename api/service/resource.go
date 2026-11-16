@@ -117,7 +117,11 @@ func (s *ResourceServer) CreateResource(
 	if err != nil {
 		return nil, err
 	}
-	if err = authorize(ctx, s.authz, actions.CreateResource, workspaceID); err != nil {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = check(ctx, s.authz, p, actions.New(actions.CreateResource, workspaceID)); err != nil {
 		return nil, err
 	}
 
@@ -126,7 +130,6 @@ func (s *ResourceServer) CreateResource(
 		return nil, errPrivateServiceName
 	}
 
-	// validate that spec contains a service spec (for now, only services are supported)
 	if req.GetSpec().GetService() == nil {
 		return nil, errOnlyServiceResources
 	}
@@ -143,6 +146,7 @@ func (s *ResourceServer) CreateResource(
 
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceID,
+		CreatedBy:   p.UserID,
 		Name:        req.GetName(),
 		Slug:        slug,
 		Type:        genDb.ResourceTypeService,
@@ -1036,6 +1040,7 @@ func dbResourceToProto(
 		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),
+		CreatedBy:           res.CreatedBy.String(),
 		CreatedAt:           timestamppb.New(res.CreatedAt),
 		UpdatedAt:           timestamppb.New(res.UpdatedAt),
 		Description:         &res.Description,

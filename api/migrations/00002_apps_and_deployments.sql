@@ -132,6 +132,7 @@ CREATE TABLE
         partial TEXT CHECK (partial ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
         max_apply_attempts INT CHECK (max_apply_attempts > 0),
         apply_retry_delay_seconds INT CHECK (apply_retry_delay_seconds > 0),
+        created_by UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name),

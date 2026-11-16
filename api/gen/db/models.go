@@ -705,6 +705,7 @@ type Resource struct {
 	Partial                *string      `json:"partial"`
 	MaxApplyAttempts       *int32       `json:"maxApplyAttempts"`
 	ApplyRetryDelaySeconds *int32       `json:"applyRetryDelaySeconds"`
+	CreatedBy              uuid.UUID    `json:"createdBy"`
 	CreatedAt              time.Time    `json:"createdAt"`
 	UpdatedAt              time.Time    `json:"updatedAt"`
 }

@@ -286,8 +286,9 @@ func TestRemoveOrgMemberRevokesTheirGrantsInTheOrg(t *testing.T) {
 	}
 	var resourceID uuid.UUID
 	err = o.api.pool.QueryRow(ctx, `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-VALUES ($1, 'svc', 'svc', 'service', '', '{}', 1) RETURNING id`, uuid.MustParse(o.shared)).Scan(&resourceID)
+INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
+VALUES ($1, 'svc', 'svc', 'service', '', '{}', 1, $2) RETURNING id`, uuid.MustParse(o.shared), o.owner.id).
+		Scan(&resourceID)
 	if err != nil {
 		t.Fatalf("seed resource: %v", err)
 	}
@@ -453,6 +454,7 @@ func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
 		t.Fatalf("describe workspace: %v", err)
 	}
 	resourceID, err := o.api.queries.CreateResource(ctx, genDb.CreateResourceParams{
+		CreatedBy:   o.owner.id,
 		WorkspaceID: uuid.MustParse(o.shared), Name: "api", Slug: "api",
 		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
 	})

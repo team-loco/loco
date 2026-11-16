@@ -119,6 +119,7 @@ func (f *secretFixture) environment(t *testing.T, workspaceID uuid.UUID, name st
 func (f *secretFixture) resource(t *testing.T, workspaceID uuid.UUID, name string) uuid.UUID {
 	t.Helper()
 	id, err := f.queries.CreateResource(t.Context(), genDb.CreateResourceParams{
+		CreatedBy:   f.ownerID,
 		WorkspaceID: workspaceID,
 		Name:        name,
 		Slug:        name,
@@ -360,8 +361,8 @@ func (d *deployFixture) otherResource(t *testing.T, name string) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
 	err := d.pool.QueryRow(t.Context(), `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-SELECT workspace_id, $2, $2, type, '', '{}', 1 FROM resources WHERE id = $1
+INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
+SELECT workspace_id, $2, $2, type, '', '{}', 1, created_by FROM resources WHERE id = $1
 RETURNING id`, d.resourceID, name).Scan(&id)
 	if err != nil {
 		t.Fatalf("resource %s: %v", name, err)

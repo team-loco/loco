@@ -61,8 +61,8 @@ func TestDeleteWorkspaceConfirmationDeletesAllResourcePlacements(t *testing.T) {
 	}
 	var sibling uuid.UUID
 	if err := f.pool.QueryRow(ctx, `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-SELECT workspace_id, 'sibling', 'sibling', 'service', '', '{}', 1 FROM resources WHERE id = $1
+INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
+SELECT workspace_id, 'sibling', 'sibling', 'service', '', '{}', 1, created_by FROM resources WHERE id = $1
 RETURNING id`, f.resourceID).Scan(&sibling); err != nil {
 		t.Fatalf("create sibling: %v", err)
 	}
@@ -82,8 +82,8 @@ WITH w AS (
     INSERT INTO environments (workspace_id, name, created_by)
     SELECT id, 'prod', created_by FROM w RETURNING id
 )
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-SELECT id, 'unrelated', 'unrelated', 'service', '', '{}', 1 FROM w
+INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
+SELECT id, 'unrelated', 'unrelated', 'service', '', '{}', 1, created_by FROM w
 RETURNING id, (SELECT id FROM e)`, f.resourceID).Scan(&unrelated, &unrelatedEnvironment); err != nil {
 		t.Fatalf("create unrelated resource: %v", err)
 	}
