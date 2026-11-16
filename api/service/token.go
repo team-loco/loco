@@ -51,7 +51,7 @@ func NewTokenServer(
 	vendingMachine *tvm.VendingMachine,
 	counts *configv1.CountLimits,
 ) *TokenServer {
-	return &TokenServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(db, queries), counts: counts}
+	return &TokenServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(queries), counts: counts}
 }
 
 // CreateToken issues a new API token for a specific entity with defined scopes

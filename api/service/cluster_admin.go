@@ -48,7 +48,7 @@ func NewClusterAdminServer(pool *pgxpool.Pool, queries genDb.Querier, joinTokenT
 	return &ClusterAdminServer{
 		pool:         pool,
 		queries:      queries,
-		authz:        authz.New(pool, queries),
+		authz:        authz.New(queries),
 		joinTokenTTL: joinTokenTTL,
 	}
 }

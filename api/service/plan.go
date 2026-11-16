@@ -57,7 +57,7 @@ func NewPlanServer(
 	return &PlanServer{
 		db:           db,
 		queries:      queries,
-		authz:        authz.New(db, queries),
+		authz:        authz.New(queries),
 		resolver:     resolver,
 		registryHost: registryHost,
 		defaults:     defaults,

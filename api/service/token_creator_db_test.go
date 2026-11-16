@@ -64,9 +64,7 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 func TestCreateTokenRespectsConfiguredMaximum(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
-	machine := tvm.NewVendingMachine(
-		f.pool,
-		f.queries,
+	machine := tvm.NewVendingMachine(f.queries,
 		tvm.Config{MaxAPITokenDuration: 90 * time.Second, LastUsedUpdateInterval: time.Minute},
 	)
 	server := NewTokenServer(f.pool, f.queries, machine, limits.Defaults())

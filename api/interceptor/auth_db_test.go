@@ -36,7 +36,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 	pool := dbtest.NewPool(t)
 	issuer := authtest.NewIssuer(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+	machine := tvm.NewVendingMachine(queries, tvm.Config{
 		MaxAPITokenDuration:         time.Hour,
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: time.Hour,
@@ -58,7 +58,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 			machine,
 			verifier,
 			auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
-			authz.New(pool, queries),
+			authz.New(queries),
 		),
 		machine: machine,
 		queries: queries,

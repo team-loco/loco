@@ -41,7 +41,7 @@ func newObservabilityFixture(t *testing.T) *observabilityFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	f := &observabilityFixture{authorizer: authz.New(pool, queries), queries: queries}
+	f := &observabilityFixture{authorizer: authz.New(queries), queries: queries}
 	row := pool.QueryRow(context.Background(), `
 WITH u AS (
     INSERT INTO users (email) VALUES ('observability@example.com') RETURNING id

@@ -43,7 +43,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+	machine := tvm.NewVendingMachine(queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: 24 * time.Hour,
 		LastUsedUpdateInterval:      time.Minute,

@@ -48,7 +48,7 @@ type EnvironmentServer struct {
 
 // NewEnvironmentServer creates a new EnvironmentServer instance.
 func NewEnvironmentServer(db *pgxpool.Pool, queries genDb.Querier, counts *configv1.CountLimits) *EnvironmentServer {
-	return &EnvironmentServer{db: db, queries: queries, authz: authz.New(db, queries), counts: counts}
+	return &EnvironmentServer{db: db, queries: queries, authz: authz.New(queries), counts: counts}
 }
 
 // CreateEnvironment creates a new environment in a workspace.

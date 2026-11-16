@@ -72,7 +72,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+	machine := tvm.NewVendingMachine(queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Hour,
@@ -88,7 +88,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	}
 	verifier := auth.NewVerifier(http.DefaultClient, issuers)
 	resolver := auth.NewResolver(pool, policy, limits.Defaults(), time.Hour)
-	authorizer := authz.New(pool, queries)
+	authorizer := authz.New(queries)
 
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),

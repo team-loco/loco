@@ -63,7 +63,7 @@ func NewDomainServer(
 	return &DomainServer{
 		db:          db,
 		queries:     queries,
-		authz:       authz.New(db, queries),
+		authz:       authz.New(queries),
 		defaults:    defaults,
 		silentAfter: clusterSilentAfter,
 		counts:      counts,

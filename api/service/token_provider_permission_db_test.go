@@ -49,12 +49,10 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 	if grantErr := f.queries.AddUserScope(t.Context(), grant); grantErr != nil {
 		t.Fatalf("grant read: %v", grantErr)
 	}
-	machine := tvm.NewVendingMachine(
-		f.pool,
-		f.queries,
+	machine := tvm.NewVendingMachine(f.queries,
 		tvm.Config{LastUsedUpdateInterval: time.Minute, MaxAPITokenDuration: time.Hour},
 	)
-	authorizer := authz.New(f.pool, f.queries)
+	authorizer := authz.New(f.queries)
 	authInterceptor := interceptor.NewAuthInterceptor(machine, verifier, resolver, authorizer)
 	service := NewTokenServer(f.pool, f.queries, machine, limits.Defaults())
 	serverInterceptor := authInterceptor.Interceptor()

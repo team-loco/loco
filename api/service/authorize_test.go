@@ -32,7 +32,7 @@ func TestAuthorize(t *testing.T) {
 			if !tc.noAuth {
 				ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: tc.scopes})
 			}
-			err := authorize(ctx, authz.New(nil, nil), actions.UpdateOrg, orgID)
+			err := authorize(ctx, authz.New(nil), actions.UpdateOrg, orgID)
 			if code := connect.CodeOf(err); code != tc.want {
 				t.Fatalf("code = %v (%v), want %v", code, err, tc.want)
 			}
@@ -45,7 +45,7 @@ func TestAuthorizeAllowsCoveredAction(t *testing.T) {
 	orgID := uuid.New()
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeRead}}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
-	if err := authorize(ctx, authz.New(nil, nil), actions.GetOrg, orgID); err != nil {
+	if err := authorize(ctx, authz.New(nil), actions.GetOrg, orgID); err != nil {
 		t.Fatalf("authorize: %v", err)
 	}
 }
@@ -54,7 +54,7 @@ func TestAuthorizeKeepsLookupFailuresOutOfPermissionDenied(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{})
-	err := authorize(ctx, authz.New(pool, genDb.New(pool)), actions.GetResource, uuid.New())
+	err := authorize(ctx, authz.New(genDb.New(pool)), actions.GetResource, uuid.New())
 	if err == nil || connect.CodeOf(err) == connect.CodePermissionDenied {
 		t.Fatalf("authorize on a closed pool: got %v, want the database error", err)
 	}
@@ -82,7 +82,7 @@ func TestAuthorizeSystem(t *testing.T) {
 			if !tc.noAuth {
 				ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: tc.scopes})
 			}
-			err := authorizeSystem(ctx, authz.New(nil, nil), actions.ManageClusters)
+			err := authorizeSystem(ctx, authz.New(nil), actions.ManageClusters)
 			if tc.want == 0 && err != nil {
 				t.Fatalf("authorizeSystem: %v", err)
 			}

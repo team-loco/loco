@@ -252,7 +252,7 @@ func TestImageErrorsOnWire(t *testing.T) {
 			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: []genDb.EntityScope{{
 				EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite,
 			}}})
-			server := &DeploymentServer{resolver: resolver, registryHost: testRegistryHost, authz: authz.New(nil, nil)}
+			server := &DeploymentServer{resolver: resolver, registryHost: testRegistryHost, authz: authz.New(nil)}
 			_, err := server.ResolveImage(
 				ctx,
 				&deploymentv1.ResolveImageRequest{WorkspaceId: workspaceID.String(), Image: image},
@@ -323,7 +323,7 @@ func TestResolveImage(t *testing.T) {
 	t.Parallel()
 	workspaceID := uuid.New()
 	resolver := &fakeResolver{digest: testDigest}
-	server := &DeploymentServer{resolver: resolver, authz: authz.New(nil, nil)}
+	server := &DeploymentServer{resolver: resolver, authz: authz.New(nil)}
 	req := &deploymentv1.ResolveImageRequest{WorkspaceId: workspaceID.String(), Image: testPublicImage}
 	if _, err := server.ResolveImage(t.Context(), req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated resolve: %v", err)

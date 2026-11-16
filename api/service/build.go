@@ -83,7 +83,7 @@ func NewBuildServer(
 	return &BuildServer{
 		db:      db,
 		queries: queries,
-		authz:   authz.New(db, queries),
+		authz:   authz.New(queries),
 		bucket:  bucket,
 		config:  config,
 		counts:  counts,

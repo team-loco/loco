@@ -37,7 +37,7 @@ type SystemAdminServer struct {
 }
 
 func NewSystemAdminServer(pool *pgxpool.Pool, queries *genDb.Queries) *SystemAdminServer {
-	return &SystemAdminServer{pool: pool, queries: queries, authz: authz.New(pool, queries)}
+	return &SystemAdminServer{pool: pool, queries: queries, authz: authz.New(queries)}
 }
 
 func (s *SystemAdminServer) ListSystemAdmins(

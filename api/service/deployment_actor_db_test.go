@@ -197,7 +197,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 			t.Fatal(scopeErr)
 		}
 	}
-	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{
+	machine := tvm.NewVendingMachine(f.queries, tvm.Config{
 		MaxAPITokenDuration: time.Hour, SessionAccessTokenDuration: time.Hour,
 		SessionRefreshTokenDuration: time.Hour, LastUsedUpdateInterval: time.Minute,
 	})
@@ -206,7 +206,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 		Claims: auth.ClaimPaths{Subject: "sub", Email: "email", EmailVerified: "email_verified"},
 	}})
 	server := connect.NewServer(interceptor.NewErrorInterceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(f.pool, f.queries)).Interceptor(),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(f.queries)).Interceptor(),
 		validate.NewServerInterceptor())
 	deploymentv1connect.RegisterDeploymentServiceHandler(server, NewDeploymentServer(
 		f.pool,

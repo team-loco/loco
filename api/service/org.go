@@ -72,7 +72,7 @@ func NewOrgServer(
 		db:          db,
 		queries:     queries,
 		invitations: invitations,
-		authz:       authz.New(db, queries),
+		authz:       authz.New(queries),
 		counts:      counts,
 	}
 }
@@ -534,7 +534,7 @@ func (s *OrgServer) lockOrgMembership(
 		return err
 	}
 	if p.Entity.Type == genDb.EntityTypeUser {
-		fresh, err := authz.New(s.db, qtx).UserScopes(ctx, p.Entity.ID)
+		fresh, err := authz.New(qtx).UserScopes(ctx, p.Entity.ID)
 		if err != nil {
 			return fmt.Errorf("reload caller scopes: %w", err)
 		}

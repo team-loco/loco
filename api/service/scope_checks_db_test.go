@@ -35,7 +35,7 @@ func (q *scopeOwnerQueries) GetWorkspaceOrganizationIDByResourceID(
 func TestIssueSharesScopeOwners(t *testing.T) {
 	f := newSecretFixture(t)
 	q := &scopeOwnerQueries{Querier: f.queries}
-	machine := tvm.NewVendingMachine(f.pool, q, tvm.Config{MaxAPITokenDuration: time.Hour})
+	machine := tvm.NewVendingMachine(q, tvm.Config{MaxAPITokenDuration: time.Hour})
 	scopes := make([]genDb.EntityScope, 0, 3)
 	for _, scope := range []genDb.Scope{genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
 		scopes = append(
@@ -70,7 +70,7 @@ func TestCreateMemberSharesScopeOwners(t *testing.T) {
 	if q.workspaceCalls != 1 {
 		t.Fatalf("authorization owner queries = %d, want 1", q.workspaceCalls)
 	}
-	scopes, err := authz.New(f.pool, f.queries).UserScopes(t.Context(), f.ownerID)
+	scopes, err := authz.New(f.queries).UserScopes(t.Context(), f.ownerID)
 	if err != nil {
 		t.Fatal(err)
 	}

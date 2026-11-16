@@ -61,7 +61,7 @@ func (*wireOwnership) GetWorkspaceOrganizationIDByResourceID(
 }
 func TestServicesExposePublicWireErrors(t *testing.T) {
 	t.Parallel()
-	authorizer := authz.New(nil, &wireOwnership{})
+	authorizer := authz.New(&wireOwnership{})
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
 		Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: uuid.MustParse(wireEntityID)},
 		Scopes: []genDb.EntityScope{},

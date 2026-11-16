@@ -46,7 +46,7 @@ func NewUserServer(
 	queries genDb.Querier,
 	vendingMachine *tvm.VendingMachine,
 ) *UserServer {
-	return &UserServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(db, queries)}
+	return &UserServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(queries)}
 }
 
 // GetUser retrieves a user by ID or email
