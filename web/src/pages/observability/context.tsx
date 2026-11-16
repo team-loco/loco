@@ -72,10 +72,6 @@ interface ObsContextValue {
 
 const ObsContext = createContext<ObsContextValue | null>(null);
 
-export function maxSpanFor(view: ObservabilityView, queryMaxMs: number): number {
-	return view === "events" ? EVENTS_MAX_MS : queryMaxMs;
-}
-
 export function ObsProvider({
 	orgId,
 	workspaceId,
@@ -96,7 +92,8 @@ export function ObsProvider({
 	);
 
 	const queryMaxMs = useObservabilityMaxRange();
-	const maxMs = maxSpanFor(view, queryMaxMs ?? 0);
+	if (queryMaxMs === undefined) return <Skeleton className="h-64 w-full" />;
+	const maxMs = view === "events" ? EVENTS_MAX_MS : queryMaxMs;
 	const range = toWindow(params, maxMs);
 	const { tokens, text } = toQuery(params);
 
@@ -150,7 +147,6 @@ export function ObsProvider({
 		goTo,
 	};
 
-	if (queryMaxMs === undefined) return <Skeleton className="h-64 w-full" />;
 	return <ObsContext value={value}>{children}</ObsContext>;
 }
 
