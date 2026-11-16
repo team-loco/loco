@@ -45,7 +45,7 @@ func check(ctx context.Context, root string) error {
 			GitVersion string `json:"gitVersion"`
 		} `json:"clientVersion"`
 	}
-	if err := json.Unmarshal(version, &client); err != nil {
+	if err = json.Unmarshal(version, &client); err != nil {
 		return err
 	}
 	example := filepath.Join(root, "examples", "gitops")
@@ -53,9 +53,7 @@ func check(ctx context.Context, root string) error {
 		{"control-plane", "loco-control-plane"},
 		{"worker-staging", "loco-worker"},
 	}
-	for _, cluster := range clusters {
-		dir := filepath.Join(example, "clusters", cluster.name)
-		synthetic := []byte(`apiVersion: kustomize.toolkit.fluxcd.io/v1
+	synthetic := []byte(`apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata: {name: example, namespace: flux-system}
 spec:
@@ -64,12 +62,16 @@ spec:
   path: ./
   prune: true
 `)
-		spec := filepath.Join(scratch, "root.yaml")
-		if err := os.WriteFile(spec, synthetic, 0600); err != nil {
-			return err
-		}
+	spec := filepath.Join(scratch, "root.yaml")
+	if err = os.WriteFile(spec, synthetic, 0600); err != nil {
+		return err
+	}
+	var resources bytes.Buffer
+	var chartCommands [][]string
+	for _, cluster := range clusters {
+		dir := filepath.Join(example, "clusters", cluster.name)
 		for _, path := range []string{dir, filepath.Join(dir, "config")} {
-			built, err := command(
+			built, buildErr := command(
 				ctx,
 				root,
 				nil,
@@ -83,29 +85,11 @@ spec:
 				"--kustomization-file",
 				spec,
 			)
-			if err != nil {
-				return err
+			if buildErr != nil {
+				return buildErr
 			}
-			resources, err := plainResources(built)
-			if err != nil {
-				return err
-			}
-			if _, err := command(
-				ctx,
-				root,
-				resources,
-				"kubeconform",
-				"-strict",
-				"-summary",
-				"-kubernetes-version",
-				strings.TrimPrefix(client.ClientVersion.GitVersion, "v"),
-				"-schema-location",
-				"default",
-				"-schema-location",
-				filepath.Join(scratch, "{{.Group}}", "{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"),
-			); err != nil {
-				return err
-			}
+			resources.Write(built)
+			resources.WriteString("\n---\n")
 		}
 		args := []string{
 			"template",
@@ -124,6 +108,32 @@ spec:
 		for _, component := range components {
 			args = append(args, "--set", component+"=validation@sha256:"+strings.Repeat("a", 64))
 		}
+		chartCommands = append(chartCommands, args)
+	}
+	cohorts, listErr := filepath.Glob(filepath.Join(example, "releases", "*.yaml"))
+	if listErr != nil {
+		return listErr
+	}
+	for _, path := range cohorts {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		resources.Write(data)
+		resources.WriteString("\n---\n")
+	}
+	plain, parseErr := plainResources(resources.Bytes())
+	if parseErr != nil {
+		return parseErr
+	}
+	_, validationErr := command(ctx, root, plain, "kubeconform", "-strict", "-summary",
+		"-kubernetes-version", strings.TrimPrefix(client.ClientVersion.GitVersion, "v"),
+		"-schema-location", "default", "-schema-location",
+		filepath.Join(scratch, "{{.Group}}", "{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"))
+	if validationErr != nil {
+		return validationErr
+	}
+	for _, args := range chartCommands {
 		if _, err := command(ctx, root, nil, "helm", args...); err != nil {
 			return err
 		}
@@ -142,50 +152,33 @@ func command(ctx context.Context, dir string, input []byte, name string, args ..
 	return result, nil
 }
 
-func documents(data []byte, visit func(map[string]any) error) error {
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
+func writeSchemas(dir string, manifest []byte) error {
+	decoder := yaml.NewDecoder(bytes.NewReader(manifest))
 	for {
-		var document map[string]any
-		err := decoder.Decode(&document)
+		var crd struct {
+			Kind string `yaml:"kind"`
+			Spec struct {
+				Group string `yaml:"group"`
+				Names struct {
+					Kind string `yaml:"kind"`
+				} `yaml:"names"`
+				Versions []struct {
+					Name   string `yaml:"name"`
+					Schema struct {
+						OpenAPIV3Schema map[string]any `yaml:"openAPIV3Schema"`
+					} `yaml:"schema"`
+				} `yaml:"versions"`
+			} `yaml:"spec"`
+		}
+		err := decoder.Decode(&crd)
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		if document != nil {
-			if err := visit(document); err != nil {
-				return err
-			}
-		}
-	}
-}
-
-func writeSchemas(dir string, manifest []byte) error {
-	return documents(manifest, func(document map[string]any) error {
-		if document["kind"] != "CustomResourceDefinition" {
-			return nil
-		}
-		encoded, err := json.Marshal(document)
-		if err != nil {
-			return err
-		}
-		var crd struct {
-			Spec struct {
-				Group string `json:"group"`
-				Names struct {
-					Kind string `json:"kind"`
-				} `json:"names"`
-				Versions []struct {
-					Name   string `json:"name"`
-					Schema struct {
-						OpenAPIV3Schema map[string]any `json:"openAPIV3Schema"`
-					} `json:"schema"`
-				} `json:"versions"`
-			} `json:"spec"`
-		}
-		if err := json.Unmarshal(encoded, &crd); err != nil {
-			return err
+		if crd.Kind != "CustomResourceDefinition" {
+			continue
 		}
 		path := filepath.Join(dir, crd.Spec.Group)
 		if err := os.MkdirAll(path, 0700); err != nil {
@@ -206,23 +199,32 @@ func writeSchemas(dir string, manifest []byte) error {
 				return err
 			}
 		}
-		return nil
-	})
+	}
 }
 
 func plainResources(data []byte) ([]byte, error) {
 	var result bytes.Buffer
-	err := documents(data, func(document map[string]any) error {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	for {
+		var document map[string]any
+		err := decoder.Decode(&document)
+		if errors.Is(err, io.EOF) {
+			return result.Bytes(), nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if document == nil {
+			continue
+		}
 		delete(document, "sops")
 		encoded, err := json.Marshal(document)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		result.Write(encoded)
 		result.WriteString("\n---\n")
-		return nil
-	})
-	return result.Bytes(), err
+	}
 }
 
 func strictSchema(value any) {

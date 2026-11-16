@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"go.yaml.in/yaml/v3"
 )
 
 func TestValidationKeepsSecretDataAndRemovesEncryptionMetadata(t *testing.T) {
@@ -15,16 +18,15 @@ func TestValidationKeepsSecretDataAndRemovesEncryptionMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := documents(output, func(resource map[string]any) error {
-		if _, exists := resource["sops"]; exists {
-			t.Fatal("encryption metadata sent to resource schema validation")
-		}
-		if object(t, resource["stringData"])["token"] != "ENC[ciphertext]" {
-			t.Fatal("validation changed secret data")
-		}
-		return nil
-	}); err != nil {
+	var resource map[string]any
+	if err := yaml.Unmarshal(output, &resource); err != nil {
 		t.Fatal(err)
+	}
+	if _, exists := resource["sops"]; exists {
+		t.Fatal("encryption metadata sent to resource schema validation")
+	}
+	if object(t, resource["stringData"])["token"] != "ENC[ciphertext]" {
+		t.Fatal("validation changed secret data")
 	}
 }
 
@@ -81,4 +83,42 @@ func object(t *testing.T, value any) map[string]any {
 		t.Fatalf("expected an object, got %T", value)
 	}
 	return object
+}
+
+func TestValidationRejectsAnInvalidProductionCohort(t *testing.T) {
+	root := t.TempDir()
+	example := filepath.Join(root, "examples", "gitops")
+	if err := os.MkdirAll(filepath.Dir(example), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.CopyFS(example, os.DirFS("../../examples/gitops")); err != nil {
+		t.Fatal(err)
+	}
+	charts, err := filepath.Abs("../../charts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(charts, filepath.Join(root, "charts")); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(example, "releases", "workers-production.yaml")
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var source map[string]any
+	if err = yaml.Unmarshal(data, &source); err != nil {
+		t.Fatal(err)
+	}
+	object(t, source["spec"])["interval"] = true
+	data, err = yaml.Marshal(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := check(t.Context(), root); err == nil || !strings.Contains(err.Error(), "kubeconform") {
+		t.Fatalf("invalid production cohort: %v, want schema rejection", err)
+	}
 }
