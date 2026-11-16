@@ -56,7 +56,7 @@ func transient(output []byte) bool {
 			return true
 		}
 	}
-	return false
+	return strings.HasSuffix(strings.TrimSpace(text), ": EOF")
 }
 
 func pullWithRetry(ctx context.Context, pull pullFunc, image string, attempts int, delay time.Duration) error {

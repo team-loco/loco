@@ -54,7 +54,12 @@ start=$SECONDS
 # The suites share one OpenBao. It holds only the seeded transit keys; each API
 # keeps what it encrypts or signs with them in its own database.
 openbao=loco-ui-evidence-openbao-$$
-trap 'docker compose -p "$openbao" down -v --remove-orphans >/dev/null 2>&1' EXIT
+cleanup() {
+    status=$?
+    docker compose -p "$openbao" down -v --remove-orphans >/dev/null 2>&1 || true
+    exit "$status"
+}
+trap cleanup EXIT
 UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao --project "$openbao" | tail -n 1)
 export UI_EVIDENCE_OPENBAO
 echo "Built the API and UI and started OpenBao in $((SECONDS - start))s"
