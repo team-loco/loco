@@ -31,7 +31,9 @@ mise exec -- uv run --script "$E" <command>
    For pages with an open stream, set `ready_selector` to a Playwright selector that becomes
    visible when the shot is ready. The shot skips network-idle waits and waits for the selector
    after its steps. Shots without `ready_selector` wait for network idle.
-3. Bring up both refs. Each prints the path of its state file on stdout:
+3. Commit source changes before capturing the current HEAD; `up` rejects uncommitted files
+   when its ref resolves to HEAD. Historical refs can be captured from a dirty checkout.
+   Bring up both refs. Each prints the path of its state file on stdout:
 
    ```sh
    before=$(mise exec -- uv run --script "$E" up --ref origin/main --name before --scenario scenario.json)
