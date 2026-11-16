@@ -272,8 +272,16 @@ def dashboard(page):
         state["dashboard_resources"] = True
         evidence.write_json(Path(args.state), state)
     for color, mode in ((color, mode) for color in ("loco", "catppuccin", "neobrutal") for mode in ("light", "dark")):
-        page.evaluate("([color, mode]) => { localStorage.setItem('loco:color:v1', color); localStorage.setItem('loco:mode:v1', mode); }", [color, mode])
+        page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
+        # The authentication init script starts every navigation in light mode.
+        if mode == "dark":
+            page.get_by_role("button").filter(has_text="Olivia Owner").click()
+            page.get_by_role("menuitem", name="Dark mode", exact=True).click()
+            page.keyboard.press("Escape")
+            expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
+        else:
+            expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
         totals = page.get_by_role("region", name="Totals", exact=True)
         allocated = page.get_by_role("group", name=re.compile("^Allocated:"))
         expect(allocated).to_be_visible()
@@ -294,16 +302,17 @@ def dashboard(page):
         assert bars.evaluate_all("nodes => nodes.map(n => getComputedStyle(n).backgroundColor)") == colors
         expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
         page.get_by_role("button").filter(has_text="Olivia Owner").click()
-        toggle = page.get_by_role("menuitem", name=re.compile(r" mode$"))
-        icon = toggle.locator(".theme-icon")
-        ink = icon.locator("..").evaluate("node => getComputedStyle(node).color")
-        shape = icon.get_attribute("data-mode")
-        if shape == "moon":
+        next_mode = "Dark" if mode == "light" else "System"
+        action = page.get_by_role("menuitem", name=next_mode + " mode", exact=True)
+        icon = action.locator(".theme-icon")
+        ink = icon.evaluate("node => getComputedStyle(node.parentElement).color")
+        expect(icon).to_have_css("color", ink)
+        if next_mode == "Dark":
             assert ink in icon.evaluate("node => getComputedStyle(node).boxShadow")
-        elif shape == "sun":
-            expect(icon).to_have_css("background-color", ink)
         else:
             expect(icon).to_have_css("border-top-color", ink)
+        action.click()
+        assert page.evaluate("localStorage.getItem('loco:mode:v1')") == ("dark" if next_mode == "Dark" else None)
         page.keyboard.press("Escape")
     page.evaluate("localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')")
 
