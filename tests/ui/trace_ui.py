@@ -628,8 +628,8 @@ with session(out) as browser:
     expect(cpu.locator('output')).to_have_count(1)
     expect(memory.locator('output')).to_have_count(1)
     expect(cpu.get_by_label('CPU at trace start')).to_have_count(0)
-    assert network.locator('.recharts-yAxis .recharts-cartesian-axis-tick-value').all_text_contents()
-    assert all(label.endswith('B/s') for label in network.locator('.recharts-yAxis .recharts-cartesian-axis-tick-value').all_text_contents())
+    assert network.locator('.recharts-yAxis-tick-labels text').all_text_contents()
+    assert all(label.endswith('B/s') for label in network.locator('.recharts-yAxis-tick-labels text').all_text_contents())
     expect(memory.get_by_label('Memory at cursor')).to_contain_text('60% at ')
     expect(network.get_by_label('Network at cursor')).to_contain_text(' B/s at ')
     cursor_times = [chart.get_by_label(title + ' at cursor').inner_text().split(' at ')[-1] for chart, title in ((cpu, 'CPU'), (memory, 'Memory'), (network, 'Network'))]

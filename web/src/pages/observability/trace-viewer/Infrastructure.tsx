@@ -136,14 +136,6 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 								<section key={panel.title} aria-label={`${panel.title} for ${pod}`} className="min-w-0">
 									<div className="flex min-h-5 items-baseline justify-between gap-2">
 										<h4 className="m-0 text-[12px] font-medium text-fg2">{panel.title}</h4>
-										<output
-											aria-live="off"
-											aria-label={`${panel.title} at ${hoverTime === null ? "trace start" : "cursor"}`}
-											className="min-w-0 truncate font-mono text-[12px]"
-										>
-											{network ? networkLabel(sample) : fmt(sample?.value)}
-											{hoverTime !== null && ` at ${formatHourMinute(hoverTime, timePref)}`}
-										</output>
 									</div>
 									<div className={cn("h-4 text-[11px] text-fg3", hot && "text-bad-fg")}>
 										{network ? (
@@ -161,6 +153,14 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 											`Peak ${fmt(peak)}${hot ? " · High" : ""}`
 										)}
 									</div>
+									<output
+										aria-live="off"
+										aria-label={`${panel.title} at ${hoverTime === null ? "trace start" : "cursor"}`}
+										className="block h-4 truncate font-mono text-[10px] text-fg2"
+									>
+										{network ? networkLabel(sample) : fmt(sample?.value)}
+										{hoverTime !== null && ` at ${formatHourMinute(hoverTime, timePref)}`}
+									</output>
 									{loading ? (
 										<div role="status" className="flex h-36 items-center justify-center gap-2 text-fg3">
 											<Spinner />
