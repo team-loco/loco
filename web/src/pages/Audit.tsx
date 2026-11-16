@@ -99,8 +99,19 @@ export function Audit() {
 			: ((choices.find((w) => w.id === activeWorkspaceId) ?? choices[0])?.id ?? "");
 	const resourceId = workspaceId === "" ? "" : params.res;
 	const environmentId = workspaceId === "" ? "" : params.env;
+	const environmentName = workspaceId === "" ? params.env : "";
 
-	const filterKey = JSON.stringify([orgId, range.value, types, workspaceId, resourceId, environmentId, size, sent]);
+	const filterKey = JSON.stringify([
+		orgId,
+		range.value,
+		types,
+		workspaceId,
+		resourceId,
+		environmentId,
+		environmentName,
+		size,
+		sent,
+	]);
 	const stack = params.before;
 	const live = params.live === 1 && stack.length === 0;
 	// The search box shows draft while a typed search waits to commit to the q parameter.
@@ -126,6 +137,7 @@ export function Audit() {
 			workspaceId,
 			resourceId,
 			environmentId,
+			environmentName,
 			query: sent,
 			pageSize: size,
 			beforeSeq: stack.at(-1) ?? 0n,
@@ -148,9 +160,10 @@ export function Audit() {
 	}
 	const events = query.data?.events ?? [];
 	const known = new Set(choices.map((w) => w.id));
-	const details = useWorkspaceDetails([
-		...new Set([workspaceId, ...events.map((e) => e.workspaceId)].filter((id) => known.has(id))),
-	]);
+	const details = useWorkspaceDetails(choices.map((w) => w.id));
+	const environmentNames = [...new Set([...details.environmentsOf.values()].flat().map((e) => e.name))]
+		.toSorted()
+		.map((name) => ({ id: name, name }));
 	const users = new Map<string, AuditUser>(
 		(members.data?.members ?? []).flatMap((m) => (m.user === undefined ? [] : [[m.user.id, m.user] as const])),
 	);
@@ -192,7 +205,8 @@ export function Audit() {
 		types.length > 0 ||
 		(access.org && workspaceId !== "") ||
 		resourceId !== "" ||
-		environmentId !== "";
+		environmentId !== "" ||
+		environmentName !== "";
 	const nextBeforeSeq = query.data?.nextBeforeSeq ?? 0n;
 	const first = rows[0];
 	const last = rows.at(-1);
@@ -285,28 +299,26 @@ export function Audit() {
 								/>
 							)}
 							{workspaceId !== "" && (
-								<>
-									<PickFilter
-										icon={<BoxIcon />}
-										label="Resource"
-										items={details.resourcesOf.get(workspaceId) ?? []}
-										value={resourceId}
-										placeholder="Find a resource"
-										onChange={(id) => {
-											setFilters({ res: id, event: null });
-										}}
-									/>
-									<PickFilter
-										icon={<GitBranchIcon />}
-										label="Environment"
-										items={details.environmentsOf.get(workspaceId) ?? []}
-										value={environmentId}
-										onChange={(id) => {
-											setFilters({ env: id, event: null });
-										}}
-									/>
-								</>
+								<PickFilter
+									icon={<BoxIcon />}
+									label="Resource"
+									items={details.resourcesOf.get(workspaceId) ?? []}
+									value={resourceId}
+									placeholder="Find a resource"
+									onChange={(id) => {
+										setFilters({ res: id, event: null });
+									}}
+								/>
 							)}
+							<PickFilter
+								icon={<GitBranchIcon />}
+								label="Environment"
+								items={workspaceId === "" ? environmentNames : (details.environmentsOf.get(workspaceId) ?? [])}
+								value={environmentId || environmentName}
+								onChange={(id) => {
+									setFilters({ env: id, event: null });
+								}}
+							/>
 							<ActorFilter
 								items={[...actors.values()]}
 								value={actor}

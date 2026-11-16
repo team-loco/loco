@@ -10,6 +10,8 @@ An audit query selects audit events by who acted, what they acted on, the event 
 
 This query matches membership events, apart from those Loco recorded itself, whose actor or target mentions `ada`.
 
+`environment_name` matches the current environment name exactly across the organization’s workspaces. It combines with `environment_id`, workspace, resource, query and time filters. The dashboard offers environment names before a workspace is selected.
+
 ## Text
 
 A word or a quoted phrase matches events where any of these contains it, ignoring case:

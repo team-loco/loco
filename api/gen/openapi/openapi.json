@@ -11056,6 +11056,12 @@
             "type": "string",
             "title": "query",
             "description": "Audit query: free text matched against the actor, target, event type and request ID, the\n @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
+          },
+          "environmentName": {
+            "type": "string",
+            "title": "environment_name",
+            "maxLength": 63,
+            "description": "Exact current environment name, combined with every other filter."
           }
         },
         "title": "ListEventsRequest",

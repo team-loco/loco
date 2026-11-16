@@ -64,6 +64,14 @@ with session(out) as browser:
     expect(rows).to_have_count(50)
     assert all(call["body"]["orgId"] == org and not call["body"].get("workspaceId") for call in list_events(calls)), list_events(calls)
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("ledger")
+    page.get_by_role("button", name="Environment", exact=True).click()
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("environmentName") == "production") as environment:
+        page.get_by_role("option", name="production", exact=True).click()
+    assert not environment.value.request.post_data_json.get("workspaceId")
+    assert not environment.value.request.post_data_json.get("environmentId")
+    page.get_by_role("button", name="Clear environment filter", exact=True).click()
+    expect(rows).to_have_count(50)
+
 
     with page.expect_response(lambda response: response.url.endswith("/ListEvents")) as older:
         page.get_by_role("button", name="Older events", exact=True).click()

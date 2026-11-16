@@ -202,9 +202,11 @@ type ListEventsRequest struct {
 	// Audit query: free text matched against the actor, target, event type and request ID, the
 	// @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
 	// docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
-	Query         string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Query string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
+	// Exact current environment name, combined with every other filter.
+	EnvironmentName string `protobuf:"bytes,14,opt,name=environment_name,json=environmentName,proto3" json:"environment_name,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListEventsRequest) Reset() {
@@ -296,6 +298,13 @@ func (x *ListEventsRequest) GetEndTime() *timestamppb.Timestamp {
 func (x *ListEventsRequest) GetQuery() string {
 	if x != nil {
 		return x.Query
+	}
+	return ""
+}
+
+func (x *ListEventsRequest) GetEnvironmentName() string {
+	if x != nil {
+		return x.EnvironmentName
 	}
 	return ""
 }
@@ -477,7 +486,7 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"actor_name\x18\x0e \x01(\tR\tactorName\x12\x1f\n" +
 	"\vresource_id\x18\x0f \x01(\tR\n" +
 	"resourceId\x12%\n" +
-	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xa9\x03\n" +
+	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xdd\x03\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
@@ -491,7 +500,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1e\n" +
-	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\"j\n" +
+	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x122\n" +
+	"\x10environment_name\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x18?R\x0fenvironmentName\"j\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"6\n" +

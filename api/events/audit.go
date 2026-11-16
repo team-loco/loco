@@ -14,14 +14,15 @@ import (
 // AuditQuery selects a page of an organization's events, newest first. Nil scope fields read
 // every workspace, resource or environment; Filter is a validated audit query or nil.
 type AuditQuery struct {
-	OrgID         uuid.UUID
-	WorkspaceID   *uuid.UUID
-	ResourceID    *uuid.UUID
-	EnvironmentID *uuid.UUID
-	Start, End    *time.Time
-	BeforeSeq     int64
-	Filter        logquery.Expr
-	Limit         int32
+	OrgID           uuid.UUID
+	WorkspaceID     *uuid.UUID
+	ResourceID      *uuid.UUID
+	EnvironmentID   *uuid.UUID
+	EnvironmentName string
+	Start, End      *time.Time
+	BeforeSeq       int64
+	Filter          logquery.Expr
+	Limit           int32
 }
 
 // AuditEvent is an event with the email and name of the user who acted, when one did.
@@ -68,6 +69,10 @@ func auditSQL(q AuditQuery) (string, []any) {
 	}
 	if q.EnvironmentID != nil {
 		sql += " AND e.environment_id = " + b.bind(*q.EnvironmentID)
+	}
+	if q.EnvironmentName != "" {
+		sql += " AND EXISTS (SELECT 1 FROM environments env JOIN workspaces w ON w.id = env.workspace_id" +
+			" WHERE env.id = e.environment_id AND w.org_id = e.org_id AND env.name = " + b.bind(q.EnvironmentName) + ")"
 	}
 	if q.Start != nil {
 		sql += " AND e.created_at >= " + b.bind(*q.Start)

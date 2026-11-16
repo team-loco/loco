@@ -223,10 +223,11 @@ func (s *EventServer) listAuditEvents(
 	maxRows int32,
 ) ([]*eventv1.Event, error) {
 	query := events.AuditQuery{
-		OrgID:     scope.orgID,
-		BeforeSeq: req.GetBeforeSeq(),
-		Filter:    filter,
-		Limit:     maxRows,
+		OrgID:           scope.orgID,
+		EnvironmentName: req.GetEnvironmentName(),
+		BeforeSeq:       req.GetBeforeSeq(),
+		Filter:          filter,
+		Limit:           maxRows,
 	}
 	if scope.kind != eventScopeOrg {
 		query.WorkspaceID = &scope.workspaceID
