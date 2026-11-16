@@ -268,7 +268,7 @@ export function TraceLogPanel({
 							)}
 						</TabsContent>
 						<TabsContent value="infra" className="min-h-0 flex-1 overflow-auto">
-							<Infrastructure key={selected.spanId} trace={trace} selected={selected} />
+							<Infrastructure trace={trace} selected={selected} />
 						</TabsContent>
 					</>
 				)}
