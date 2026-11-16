@@ -234,15 +234,14 @@ func (r *ApplicationReconciler) reconcileResources(
 
 	replicas := app.Status.DesiredReplicas
 	if !deploymentReady(dep, replicas) {
-		if failure, found := deploymentFailure(dep); found {
-			setDegraded(app, failure)
-			setPhase(app, locov1alpha1.ApplicationPhaseFailed, failure.message)
-			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
-		}
 		envSecretRevision := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]
-		stuck, found, err := r.findStuckReplica(ctx, app, envSecretRevision)
+		failure, expired := deploymentFailure(dep)
+		stuck, found, err := r.findStuckReplica(ctx, app, envSecretRevision, expired)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("find stuck replicas: %w", err)
+		}
+		if expired && !found {
+			stuck, found = failure, true
 		}
 		if found {
 			setDegraded(app, stuck)
