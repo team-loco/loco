@@ -54,11 +54,10 @@ type fixture struct {
 	root, dir, name, kubeconfig, registryURL string
 	skip                                     bool
 	// images names prebuilt images, with * standing for the image name.
-	images           string
-	forward          *exec.Cmd
-	cloudManaged     bool
-	platform         string
-	dockerPluginDirs []string
+	images       string
+	forward      *exec.Cmd
+	cloudManaged bool
+	platform     string
 }
 
 func newFixture(root string, skip bool, images string) (*fixture, error) {
@@ -106,14 +105,12 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	}
 	var plugins []struct {
 		Name string `json:"Name"`
-		Path string `json:"Path"`
 	}
 	if json.Unmarshal(metadata, &plugins) != nil {
 		return errDockerBuildx
 	}
 	var buildx bool
 	for _, plugin := range plugins {
-		f.dockerPluginDirs = append(f.dockerPluginDirs, filepath.Dir(plugin.Path))
 		buildx = buildx || plugin.Name == "buildx"
 	}
 	if !buildx {

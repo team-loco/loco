@@ -77,25 +77,26 @@ func (f *fixture) buildLocoadm(ctx context.Context, version string) error {
 
 func (f *fixture) buildOperator(ctx context.Context, version string) (string, error) {
 	tag := "loco-installation-operator:" + f.name
-	if checkErr := f.image(ctx, operatorImage, tag, func() error {
+	if f.images != "" {
+		if _, err := command(ctx, f.root, nil, "docker", "tag", f.prebuilt(operatorImage), tag); err != nil {
+			return "", err
+		}
+	} else if !f.skip {
 		helm, err := f.pin(ctx, "mise.toml", ".tools.helm")
 		if err != nil {
-			return err
+			return "", err
 		}
 		kubectl, err := f.pin(ctx, "mise.toml", ".tools.kubectl")
 		if err != nil {
-			return err
+			return "", err
 		}
 		if checkErr := dockerBuild(ctx, f.root, "--platform", f.platform,
 			"--build-arg", "VERSION="+version,
 			"--build-arg", "HELM_VERSION="+helm,
 			"--build-arg", "KUBECTL_VERSION="+kubectl,
 			"-f", "tests/e2e/fixtures/installation/operator.Dockerfile", "-t", tag, "."); checkErr != nil {
-			return fmt.Errorf("build operator fixture: %w", checkErr)
+			return "", fmt.Errorf("build operator fixture: %w", checkErr)
 		}
-		return nil
-	}); checkErr != nil {
-		return "", checkErr
 	}
 	if _, checkErr := command(
 		ctx, f.root, nil, "kind", "load", "docker-image", "--name", f.name, tag,
@@ -113,6 +114,7 @@ func (f *fixture) pullPrebuilt(ctx context.Context) error {
 	if f.images == "" {
 		return nil
 	}
+	// Platform names follow tools/platform-release/release.py's IMAGES.
 	names := []string{operatorImage, "api", "ui", "obs-proxy", "agent", "controller", fixtureBuilder}
 	for _, name := range names {
 		if checkErr := f.pullPlatformImage(ctx, f.prebuilt(name)); checkErr != nil {
@@ -155,19 +157,6 @@ func (f *fixture) pullPlatformImage(ctx context.Context, image string) error {
 		return fmt.Errorf("tag %s: %w", image, checkErr)
 	}
 	return nil
-}
-
-// image makes tag a local image: the pulled prebuilt image when E2E_IMAGES
-// names them, the image already there with --skip-build, or the result of build.
-func (f *fixture) image(ctx context.Context, name, tag string, build func() error) error {
-	if f.images != "" {
-		_, checkErr := command(ctx, f.root, nil, "docker", "tag", f.prebuilt(name), tag)
-		return checkErr
-	}
-	if f.skip {
-		return nil
-	}
-	return build()
 }
 
 func dockerBuild(ctx context.Context, dir string, args ...string) error {

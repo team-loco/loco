@@ -34,7 +34,7 @@ func TestFixtureReleaseUsesSharedManifestAndMatchingCLI(t *testing.T) {
 	script := `#!/bin/sh
 printf '%s %s GOOS=%s GOARCH=%s\n' "${0##*/}" "$*" "$GOOS" "$GOARCH" >> "$RELEASE_CALLS"
 case "${0##*/}" in
- mise) printf '%s' "$RELEASE_MANIFEST";;
+ mise) echo publication-progress >&2; printf '%s' "$RELEASE_MANIFEST";;
  docker) case "$*" in *imagetools*) echo '{}';; esac;;
  yq) echo test-pin;;
 esac
