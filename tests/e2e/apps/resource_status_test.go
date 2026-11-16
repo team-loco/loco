@@ -574,8 +574,12 @@ func (s *status) deployReportsHealthy(t *testing.T) {
 	const app = statusApp
 	w, dir := s.w, s.dir
 	w.MustLoco(t, dir, "deploy", "--yes")
-	waitStatus(t, w, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY)
+	waitRolloutFinished(t, w, app)
 	region := regionStatus(t, w, app)
+	ready := resourceEvents(t.Context(), t, w, w.ResourceID(t, app), "deployment.ready")
+	if len(ready) != 1 || ready[0].GetSubjectId() != region.GetDeploymentId() {
+		t.Fatalf("deployment.ready events = %v, want the running deployment", ready)
+	}
 	if region.GetReadyReplicas() != 1 || region.GetDesiredReplicas() != 1 {
 		t.Errorf(
 			"region reports %d of %d replicas ready, want 1 of 1",

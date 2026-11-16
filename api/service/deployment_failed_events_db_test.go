@@ -212,3 +212,49 @@ func TestDeploymentFailedNotRecordedForOtherOutcomes(t *testing.T) {
 		}
 	}
 }
+
+func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
+	t.Parallel()
+	for _, actor := range []genDb.DeploymentActorType{genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken} {
+		t.Run(string(actor), func(t *testing.T) {
+			f := newDeployFixture(t)
+			f.nameUser(t)
+			actorID := f.userID
+			if actor == genDb.DeploymentActorTypeApiToken {
+				actorID = f.apiToken(t)
+			}
+			id := f.deployAs(t, actor, actorID)
+			stagingID := f.prepareStaging(t)
+			f.deployStaging(t, stagingID)
+			for _, clusterID := range []uuid.UUID{f.clusterID, f.otherCluster} {
+				placement := f.placement(t, clusterID)
+				report := &agentv1.PlacementStatus{
+					PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision, Ready: true,
+				}
+				var wg sync.WaitGroup
+				for range 8 {
+					wg.Go(func() { f.agentServer().recordStatus(t.Context(), clusterID, 0, report) })
+				}
+				wg.Wait()
+				f.agentServer().recordStatus(t.Context(), clusterID, 0, report)
+			}
+			if status := f.deploymentStatus(t, id); status != genDb.DeploymentStatusRunning {
+				t.Fatalf("deployment status = %s, want running", status)
+			}
+			event := wantEnvironmentEvent(t, f, f.resourceID, f.envID, "deployment.ready")
+			wantEnvironmentEvent(t, f, f.resourceID, stagingID, "deployment.ready")
+			if event.GetSubjectId() != id.String() || event.GetActorType() != string(actor) ||
+				event.GetActorId() != actorID.String() {
+				t.Fatalf("deployment.ready attribution = %v", event)
+			}
+			for key, want := range map[string]string{
+				events.FieldCreatorID: f.userID.String(), events.FieldCreatorName: failedDeployUser,
+				events.FieldBuildID: failedDeployBuild, events.FieldResourceName: planSvc,
+			} {
+				if got := event.GetData().GetFields()[key].GetStringValue(); got != want {
+					t.Errorf("%s = %q, want %q", key, got, want)
+				}
+			}
+		})
+	}
+}

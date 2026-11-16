@@ -122,7 +122,7 @@ SELECT * FROM deployments
 WHERE environment_id = $1 AND is_active = true
 ORDER BY resource_id, created_at DESC;
 
--- name: GetDeploymentFailure :one
+-- name: GetDeploymentEvent :one
 -- creator_* is NULL when the creating user, or the API token that names it, no longer exists.
 SELECT d.resource_id, d.environment_id, d.region, d.spec, d.message, d.actor_type, d.actor_id,
        r.name AS resource_name, r.type AS resource_type,

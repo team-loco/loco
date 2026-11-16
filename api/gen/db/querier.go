@@ -115,7 +115,7 @@ type Querier interface {
 	GetDeploymentActor(ctx context.Context, id uuid.UUID) (GetDeploymentActorRow, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
 	// creator_* is NULL when the creating user, or the API token that names it, no longer exists.
-	GetDeploymentFailure(ctx context.Context, id uuid.UUID) (GetDeploymentFailureRow, error)
+	GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDeploymentEventRow, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
 	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)
