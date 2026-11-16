@@ -236,8 +236,10 @@ def validate_spec(spec):
         if name in names:
             raise EvidenceError(f"shot name {name!r} is used twice")
         names.add(name)
-        if not shot.get("user") or not shot.get("path", "").startswith("/"):
-            raise EvidenceError(f"shot {name} needs a user and a path starting with /")
+        if not shot.get("path", "").startswith("/"):
+            raise EvidenceError(f"shot {name} needs a path starting with /")
+        if "user" in shot and (not isinstance(shot["user"], str) or not shot["user"].strip()):
+            raise EvidenceError(f"shot {name}: user must name a scenario user")
         if "ready_selector" in shot:
             selector = shot["ready_selector"]
             if not isinstance(selector, str) or not selector.strip():
@@ -432,7 +434,59 @@ def seed(state, scenario):
             "scopes": grant["scopes"],
         }
         rpc(api_url, owners[org_name], RPC_CREATE_MEMBER, body)
-    return users, workspaces, notes
+    resources = seed_resources(state, scenario, users, workspaces)
+    if resources:
+        notes.append("synthetic clusters, deployments and placements are inserted with SQL; no worker runs these resources")
+    return users, workspaces, resources, notes
+
+
+def seed_resources(state, scenario, users, workspaces):
+    resources = {}
+    owners = {org["name"]: users[org["owner"]] for org in scenario.get("orgs", [])}
+    for resource in scenario.get("resources", []):
+        workspace = workspaces[resource["workspace"]]
+        owner = owners[resource["workspace"].split("/", 1)[0]]
+        regions = {
+            deployment["region"]: {"enabled": True, **{key: deployment["spec"][key]
+                for key in ("cpu", "memory", "minReplicas", "maxReplicas")}}
+            for deployment in resource["deployments"]
+        }
+        service = {"regions": regions}
+        port = resource["deployments"][0]["spec"].get("port")
+        if port is not None:
+            service["routing"] = {"port": port}
+        created = rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {
+            "workspaceId": workspace, "name": resource["name"], "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": service},
+        })
+        resource_id = created["resourceId"]
+        resources[f"{resource['workspace']}/{resource['name']}"] = resource_id
+        for deployment in resource["deployments"]:
+            env = json.loads(psql(state["container"],
+                "SELECT json_build_object('id', e.id, 'type', e.environment_type, 'org', w.org_id, 'slug', r.slug) "
+                "FROM environments e JOIN workspaces w ON w.id=e.workspace_id JOIN resources r ON r.workspace_id=w.id "
+                f"WHERE r.id={sql_literal(resource_id)} AND e.name={sql_literal(deployment['environment'])};"))
+            cluster_id, deployment_id = str(uuid.uuid4()), str(uuid.uuid4())
+            runtime = deployment["spec"]
+            app = {
+                "type": "SERVICE", "resourceId": resource_id, "slug": env["slug"], "workspaceId": workspace,
+                "organizationId": env["org"], "environmentId": env["id"], "environmentName": deployment["environment"],
+                "deploymentId": deployment_id, "region": deployment["region"],
+                "serviceSpec": {
+                    "deployment": {"image": runtime["build"]["image"], "observability": runtime["observability"], **({"port": runtime["port"]} if "port" in runtime else {})},
+                    "resources": {"cpu": runtime["cpu"], "memory": runtime["memory"],
+                        "replicas": {"min": runtime["minReplicas"], "max": runtime["maxReplicas"]}},
+                },
+            }
+            q = sql_literal
+            psql(state["container"], f"""BEGIN;
+INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier)
+VALUES({q(cluster_id)},{q('evidence-' + cluster_id)},{q(deployment['region'])},'fixture',true,false,'healthy',NOW(),{q(env['type'])});
+INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,actor_type,actor_id,method,started_at)
+VALUES({q(deployment_id)},{q(resource_id)},{q(cluster_id)},{q(deployment['region'])},{runtime['minReplicas']},{q(deployment['status'])},true,'',{q(env['id'])},{q(json.dumps(runtime))},1,'user',{q(owner['id'])},'web',NOW());
+INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,ready,ready_replicas,status_phase,status_updated_at)
+VALUES({q(resource_id)},{q(cluster_id)},{q(deployment['region'])},{q(deployment_id)},{q(env['id'])},{q(json.dumps({'app_spec': app}))},1,1,{str(deployment['phase'] == 'Ready').lower()},{deployment['ready_replicas']},{q(deployment['phase'])},NOW());
+COMMIT;""")
+    return resources
 
 
 def repo_root():
@@ -527,8 +581,8 @@ def cmd_up(args):
         wait_http(f"{state['api_url']}/health", api_log)
         wait_http(state["ui_url"] + "/", ui_log)
 
-        users, workspaces, notes = seed(state, scenario)
-        state.update({"users": users, "workspaces": workspaces, "notes": notes})
+        users, workspaces, resources, notes = seed(state, scenario)
+        state.update({"users": users, "workspaces": workspaces, "resources": resources, "notes": notes})
         write_json(state_path, state)
     except BaseException:
         log(f"up failed; state kept at {state_path} for `down`")
@@ -623,16 +677,15 @@ def settle(page, *, wait_for_network=True):
 def capture(browser, state, shot, theme, narrow, target):
     from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-    user = state["users"].get(shot["user"])
-    if user is None:
+    user = state["users"].get(shot["user"]) if "user" in shot else None
+    if "user" in shot and user is None:
         raise EvidenceError(f"state has no user {shot['user']!r}")
     viewport = dict(NARROW if narrow else DESKTOP)
     context = browser.new_context(viewport=viewport, device_scale_factor=SCALE, color_scheme=theme)
-    stored = json.dumps({"idToken": user["token"], "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS})
-    script = (
-        f"localStorage.setItem({json.dumps(AUTH_KEY)}, {json.dumps(stored)});"
-        f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
-    )
+    script = f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
+    if user is not None:
+        stored = json.dumps({"idToken": user["token"], "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS})
+        script += f"localStorage.setItem({json.dumps(AUTH_KEY)}, {json.dumps(stored)});"
     if "color" in shot:
         script += f"localStorage.setItem({json.dumps(COLOR_KEY)}, {json.dumps(shot['color'])});"
     context.add_init_script(script)
